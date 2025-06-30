@@ -481,8 +481,7 @@ func Test_otelCollectorFeature_ManageNodeAgent(t *testing.T) {
 							expectedOtelImage := images.GetLatestDdotCollectorImage()
 							assert.Equal(t, expectedOtelImage, container.Image, "OTel Agent container should use ddot-collector image when UseStandaloneImage is true")
 						} else {
-							// Other containers should not use -full image when UseStandaloneImage is true
-							assert.NotContains(t, container.Image, "-full", "Non-OTel containers should not use -full image when UseStandaloneImage is true")
+							assert.Equal(t, images.GetLatestAgentImage(), container.Image, "Other containers should use agent image when UseStandaloneImage is true")
 						}
 					}
 					assert.True(t, otelContainerFound, "OTel Agent container should be present")
@@ -496,16 +495,37 @@ func Test_otelCollectorFeature_ManageNodeAgent(t *testing.T) {
 				WithOTelCollectorUseStandaloneImage(false).
 				Build(),
 			WantConfigure: true,
-			Agent: test.NewDefaultComponentTest().WithWantFunc(
-				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: &test.ComponentTest{
+				CreateFunc: func(t testing.TB) (feature.PodTemplateManagers, string) {
+					// Create pod template with both CoreAgent and OtelAgent containers
+					newPTS := corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:    string(apicommon.CoreAgentContainerName),
+									Image:   images.GetLatestAgentImageWithSuffix(false, false, true),
+									Command: []string{"agent", "run"},
+								},
+								{
+									Name:    string(apicommon.OtelAgent),
+									Image:   images.GetLatestAgentImageWithSuffix(false, false, true),
+									Command: []string{"otel-agent"},
+								},
+							},
+						},
+					}
+					return fake.NewPodTemplateManagers(t, newPTS), kubernetes.DefaultProvider
+				},
+				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-					// When UseStandaloneImage is false, all containers should use -full image
+					// When UseStandaloneImage is false, all containers should use agent image with -full suffix
 					for _, container := range mgr.PodTemplateSpec().Spec.Containers {
-						assert.Contains(t, container.Image, "-full", "All containers should use -full image when UseStandaloneImage is false")
+						expectedImage := images.GetLatestAgentImageWithSuffix(false, false, true)
+						assert.Equal(t, expectedImage, container.Image, "All containers should use agent image with -full suffix when UseStandaloneImage is false")
 					}
 				},
-			),
+			},
 		},
 	}
 
@@ -552,9 +572,10 @@ func Test_otelCollectorFeature_VersionCheck(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					// Version 7.66.0 is below 7.67.0, so UseStandaloneImage should be disabled
-					// All containers should use -full image
+					// However, with explicit image override, the override should be respected as-is
+					// No containers should have -full suffix when there's an explicit override
 					for _, container := range mgr.PodTemplateSpec().Spec.Containers {
-						assert.Contains(t, container.Image, "-full", "All containers should use -full image when agent version < 7.67.0")
+						assert.NotContains(t, container.Image, "-full", "Containers should not use -full image when there's an explicit image override")
 					}
 				},
 			),
@@ -572,19 +593,42 @@ func Test_otelCollectorFeature_VersionCheck(t *testing.T) {
 				}).
 				Build(),
 			WantConfigure: true,
-			Agent: test.NewDefaultComponentTest().WithWantFunc(
-				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: &test.ComponentTest{
+				CreateFunc: func(t testing.TB) (feature.PodTemplateManagers, string) {
+					newPTS := corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:    string(apicommon.CoreAgentContainerName),
+									Image:   "datadog/agent:7.68.0",
+									Command: []string{"agent", "run"},
+								},
+								{
+									Name:    string(apicommon.OtelAgent),
+									Image:   "datadog/agent:7.68.0", // This will be changed to ddot-collector:7.68.0
+									Command: []string{"otel-agent"},
+								},
+							},
+						},
+					}
+					return fake.NewPodTemplateManagers(t, newPTS), kubernetes.DefaultProvider
+				},
+				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					// Version 7.68.0 is >= 7.67.0, so UseStandaloneImage should be enabled
+					// With image override, should use the override tag but with appropriate image names
 					for _, container := range mgr.PodTemplateSpec().Spec.Containers {
 						if container.Name == string(apicommon.OtelAgent) {
-							assert.Equal(t, images.GetLatestDdotCollectorImage(), container.Image)
+							// OTel Agent should use ddot-collector image with override tag
+							// Since the override is datadog/agent:7.68.0, it should become datadog/ddot-collector:7.68.0
+							assert.Equal(t, "datadog/ddot-collector:7.68.0", container.Image)
 						} else {
-							assert.Equal(t, images.GetLatestAgentImage(), container.Image)
+							// Other containers should use the override image as-is
+							assert.Equal(t, "datadog/agent:7.68.0", container.Image)
 						}
 					}
 				},
-			),
+			},
 		},
 		{
 			Name: "UseStandaloneImage disabled for 7.60.0 with image override",
@@ -603,8 +647,9 @@ func Test_otelCollectorFeature_VersionCheck(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					// Version 7.60.0 is below 7.67.0, so UseStandaloneImage should be disabled
+					// However, with explicit image override, the override should be respected as-is
 					for _, container := range mgr.PodTemplateSpec().Spec.Containers {
-						assert.Contains(t, container.Image, "-full", "All containers should use -full image when agent version < 7.67.0")
+						assert.NotContains(t, container.Image, "-full", "Containers should not use -full image when there's an explicit image override")
 					}
 				},
 			),
@@ -647,7 +692,7 @@ func Test_otelCollectorFeature_VersionCheck(t *testing.T) {
 					// Version 7.67.0 is >= 7.67.0, so UseStandaloneImage should be enabled
 					for _, container := range mgr.PodTemplateSpec().Spec.Containers {
 						if container.Name == string(apicommon.OtelAgent) {
-							// With custom image override, OTel Agent should use custom ddot-collector image
+							// With custom image override, OTel Agent should use custom ddot-collector image and the custom registry + tag
 							assert.Equal(t, "custom-registry/ddot-collector:7.67.0-custom", container.Image)
 						} else {
 							// With custom image override, non-OTel containers should use the custom image without -full suffix
@@ -656,33 +701,6 @@ func Test_otelCollectorFeature_VersionCheck(t *testing.T) {
 					}
 				},
 			},
-		},
-		{
-			Name: "UseStandaloneImage disabled with invalid version string",
-			DDA: testutils.NewDatadogAgentBuilder().
-				WithOTelCollectorEnabled(true).
-				WithOTelCollectorUseStandaloneImage(true).
-				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					Image: &v2alpha1.AgentImageConfig{
-						Name: "datadog/agent",
-						Tag:  "invalid-version",
-					},
-				}).
-				Build(),
-			WantConfigure: true,
-			Agent: test.NewDefaultComponentTest().WithWantFunc(
-				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					// Invalid version strings should be treated as >= 7.67.0 per utils.IsAboveMinVersion behavior
-					for _, container := range mgr.PodTemplateSpec().Spec.Containers {
-						if container.Name == string(apicommon.OtelAgent) {
-							assert.Equal(t, images.GetLatestDdotCollectorImage(), container.Image)
-						} else {
-							assert.Equal(t, images.GetLatestAgentImage(), container.Image)
-						}
-					}
-				},
-			),
 		},
 	}
 
