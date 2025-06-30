@@ -35,6 +35,7 @@ func (f *controlPlaneMonitoringFeature) buildControlPlaneMonitoringConfigMap(pro
   - kube_endpoints:
       name: "kubernetes"
       namespace: "default"
+      resolve: "ip"
 cluster_check: true
 init_config: {}
 instances:
@@ -45,6 +46,7 @@ instances:
   - kube_endpoints:
       name: "kube-controller-manager"
       namespace: "openshift-kube-controller-manager"
+      resolve: "ip"
 cluster_check: true
 init_config: {}
 instances:
@@ -56,6 +58,7 @@ instances:
   - kube_endpoints:
       name: "scheduler"
       namespace: "openshift-kube-scheduler"
+      resolve: "ip"
 cluster_check: true
 init_config: {}
 instances:
@@ -67,6 +70,7 @@ instances:
   - kube_endpoints:
       name: "etcd"
       namespace: "openshift-etcd"
+      resolve: "ip"
 cluster_check: true
 init_config: {}
 instances:
