@@ -1,6 +1,7 @@
 package otelcollector
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 func init() {
@@ -70,7 +72,24 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 		o.customConfig = ddaSpec.Features.OtelCollector.Conf
 	}
 	o.configMapName = constants.GetConfName(dda, o.customConfig, defaultOTelAgentConf)
-	o.useStandaloneImage = ddaSpec.Features.OtelCollector.UseStandaloneImage
+
+	// Check agent version for UseStandaloneImage feature support (7.67.0+)
+	agentVersion := images.AgentLatestVersion
+	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
+		if nodeAgent.Image != nil {
+			agentVersion = common.GetAgentVersionFromImage(*nodeAgent.Image)
+		}
+	}
+
+	if utils.IsAboveMinVersion(agentVersion, "7.67.0-0") {
+		o.useStandaloneImage = ddaSpec.Features.OtelCollector.UseStandaloneImage
+	} else {
+		if apiutils.BoolValue(ddaSpec.Features.OtelCollector.Enabled) {
+			err := errors.New("UseStandaloneImage feature is not supported for agent version " + agentVersion)
+			o.logger.Error(err, "Switching to `full` flavor of the datadog/agent image for the otel-agent container.")
+		}
+		o.useStandaloneImage = apiutils.NewBoolPointer(false)
+	}
 
 	if ddaSpec.Features.OtelCollector.CoreConfig != nil {
 		o.coreAgentConfig.enabled = ddaSpec.Features.OtelCollector.CoreConfig.Enabled
@@ -176,10 +195,16 @@ func (o *otelCollectorFeature) ManageClusterAgent(managers feature.PodTemplateMa
 func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	if apiutils.BoolValue(o.useStandaloneImage) {
 		// When UseStandaloneImage is true (default), use the ddot-collector image for the otel-agent container
+		// and ensure other containers don't use -full image
 		for i, container := range managers.PodTemplateSpec().Spec.Containers {
 			if container.Name == string(apicommon.OtelAgent) {
 				image := images.FromString(container.Image).
 					WithName(images.DefaultDdotCollectorImageName)
+				managers.PodTemplateSpec().Spec.Containers[i].Image = image.ToString()
+			} else {
+				// Ensure non-OTel containers don't use -full image when UseStandaloneImage is true
+				image := images.FromString(container.Image).
+					WithFull(false)
 				managers.PodTemplateSpec().Spec.Containers[i].Image = image.ToString()
 			}
 		}
