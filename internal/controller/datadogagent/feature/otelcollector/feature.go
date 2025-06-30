@@ -41,11 +41,12 @@ func buildOtelCollectorFeature(options *feature.Options) feature.Feature {
 }
 
 type otelCollectorFeature struct {
-	customConfig    *v2alpha1.CustomConfig
-	owner           metav1.Object
-	configMapName   string
-	ports           []*corev1.ContainerPort
-	coreAgentConfig coreAgentConfig
+	customConfig       *v2alpha1.CustomConfig
+	owner              metav1.Object
+	configMapName      string
+	ports              []*corev1.ContainerPort
+	coreAgentConfig    coreAgentConfig
+	useStandaloneImage *bool
 
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
@@ -69,6 +70,7 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 		o.customConfig = ddaSpec.Features.OtelCollector.Conf
 	}
 	o.configMapName = constants.GetConfName(dda, o.customConfig, defaultOTelAgentConf)
+	o.useStandaloneImage = ddaSpec.Features.OtelCollector.UseStandaloneImage
 
 	if ddaSpec.Features.OtelCollector.CoreConfig != nil {
 		o.coreAgentConfig.enabled = ddaSpec.Features.OtelCollector.CoreConfig.Enabled
@@ -172,20 +174,30 @@ func (o *otelCollectorFeature) ManageClusterAgent(managers feature.PodTemplateMa
 }
 
 func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	// // Use -full image for all containers
-	image := &images.Image{}
-	for i, container := range managers.PodTemplateSpec().Spec.Containers {
-		image = images.FromString(container.Image).
-			WithFull(true)
+	if apiutils.BoolValue(o.useStandaloneImage) {
+		// When UseStandaloneImage is true (default), use the ddot-collector image for the otel-agent container
+		for i, container := range managers.PodTemplateSpec().Spec.Containers {
+			if container.Name == string(apicommon.OtelAgent) {
+				image := images.FromString(container.Image).
+					WithName(images.DefaultDdotCollectorImageName)
+				managers.PodTemplateSpec().Spec.Containers[i].Image = image.ToString()
+			}
+		}
+	} else {
+		// Use -full image for all containers when UseStandaloneImage is false
 		// Note: if an image tag override is configured, this image tag will be overwritten
-		managers.PodTemplateSpec().Spec.Containers[i].Image = image.ToString()
-	}
+		image := &images.Image{}
+		for i, container := range managers.PodTemplateSpec().Spec.Containers {
+			image = images.FromString(container.Image).
+				WithFull(true)
+			managers.PodTemplateSpec().Spec.Containers[i].Image = image.ToString()
+		}
 
-	for i, container := range managers.PodTemplateSpec().Spec.InitContainers {
-		image = images.FromString(container.Image).
-			WithFull(true)
-		// Note: if an image tag override is configured, this image tag will be overwritten
-		managers.PodTemplateSpec().Spec.InitContainers[i].Image = image.ToString()
+		for i, container := range managers.PodTemplateSpec().Spec.InitContainers {
+			image = images.FromString(container.Image).
+				WithFull(true)
+			managers.PodTemplateSpec().Spec.InitContainers[i].Image = image.ToString()
+		}
 	}
 
 	var vol corev1.Volume

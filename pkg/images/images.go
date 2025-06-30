@@ -18,6 +18,8 @@ const (
 	AgentLatestVersion = "7.67.0"
 	// ClusterAgentLatestVersion corresponds to the latest stable cluster-agent release
 	ClusterAgentLatestVersion = "7.67.0"
+	// DdotCollectorLatestVersion corresponds to the latest stable ddot-collector release
+	DdotCollectorLatestVersion = "7.67.0"
 	// FIPSProxyLatestVersion corresponds to the latest stable fips-proxy release
 	FIPSProxyLatestVersion = "1.1.13"
 	// GCRContainerRegistry corresponds to the datadoghq GCR registry
@@ -40,8 +42,9 @@ const (
 	// FullTagSuffix tag suffix for full agent images
 	FullTagSuffix = "-full"
 	// Default Image names
-	DefaultAgentImageName        string = "agent"
-	DefaultClusterAgentImageName string = "cluster-agent"
+	DefaultAgentImageName         string = "agent"
+	DefaultClusterAgentImageName  string = "cluster-agent"
+	DefaultDdotCollectorImageName string = "ddot-collector"
 )
 
 // imageHasTag identifies whether an image string contains a tag suffix
@@ -131,6 +134,11 @@ func GetLatestAgentImageWithSuffix(withJMX, withFIPS, withFull bool) string {
 // GetLatestClusterAgentImage returns the latest stable agent release version
 func GetLatestClusterAgentImage() string {
 	image := newImage(DefaultImageRegistry, DefaultClusterAgentImageName, ClusterAgentLatestVersion, false, false, false)
+	return image.ToString()
+}
+
+func GetLatestDdotCollectorImage() string {
+	image := newImage(DefaultImageRegistry, DefaultDdotCollectorImageName, DdotCollectorLatestVersion, false, false, false)
 	return image.ToString()
 }
 

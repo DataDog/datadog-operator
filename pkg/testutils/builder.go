@@ -459,6 +459,12 @@ func (builder *DatadogAgentBuilder) WithOTelCollectorPorts(grpcPort int32, httpP
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithOTelCollectorUseStandaloneImage(useStandaloneImage bool) *DatadogAgentBuilder {
+	builder.initOtelCollector()
+	builder.datadogAgent.Spec.Features.OtelCollector.UseStandaloneImage = apiutils.NewBoolPointer(useStandaloneImage)
+	return builder
+}
+
 // Log Collection
 func (builder *DatadogAgentBuilder) initLogCollection() {
 	if builder.datadogAgent.Spec.Features.LogCollection == nil {

@@ -103,7 +103,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, defaultExpectedEnvVars, defaultAnnotations),
+			Agent:                testExpectedAgent(apicommon.OtelAgent, false, defaultExpectedPorts, defaultLocalObjectReferenceName, defaultExpectedEnvVars, defaultAnnotations),
 		},
 		{
 			Name: "otel agent enabled with configMap",
@@ -113,7 +113,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, "user-provided-config-map", defaultExpectedEnvVars, map[string]string{}),
+			Agent:                testExpectedAgent(apicommon.OtelAgent, false, defaultExpectedPorts, "user-provided-config-map", defaultExpectedEnvVars, map[string]string{}),
 		},
 		{
 			Name: "otel agent enabled without config",
@@ -122,7 +122,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, defaultExpectedEnvVars, defaultAnnotations),
+			Agent:                testExpectedAgent(apicommon.OtelAgent, false, defaultExpectedPorts, defaultLocalObjectReferenceName, defaultExpectedEnvVars, defaultAnnotations),
 		},
 		{
 			Name: "otel agent enabled without config non default ports",
@@ -132,7 +132,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent: testExpectedAgent(apicommon.OtelAgent, expectedPorts{
+			Agent: testExpectedAgent(apicommon.OtelAgent, false, expectedPorts{
 				grpcPort: 4444,
 				httpPort: 5555,
 			},
@@ -150,7 +150,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, defaultExpectedEnvVars, defaultAnnotations),
+			Agent:                testExpectedAgent(apicommon.OtelAgent, false, defaultExpectedPorts, defaultLocalObjectReferenceName, defaultExpectedEnvVars, defaultAnnotations),
 		},
 		{
 			Name: "otel agent coreconfig disabled",
@@ -160,7 +160,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, onlyIpcEnvVars, defaultAnnotations),
+			Agent:                testExpectedAgent(apicommon.OtelAgent, false, defaultExpectedPorts, defaultLocalObjectReferenceName, onlyIpcEnvVars, defaultAnnotations),
 		},
 		{
 			Name: "otel agent coreconfig extensionTimeout",
@@ -171,7 +171,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent: testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, expectedEnvVars{
+			Agent: testExpectedAgent(apicommon.OtelAgent, false, defaultExpectedPorts, defaultLocalObjectReferenceName, expectedEnvVars{
 				agent_ipc_port: expectedEnvVar{
 					present: true,
 					value:   "5009",
@@ -196,7 +196,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent: testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, expectedEnvVars{
+			Agent: testExpectedAgent(apicommon.OtelAgent, false, defaultExpectedPorts, defaultLocalObjectReferenceName, expectedEnvVars{
 				agent_ipc_port: expectedEnvVar{
 					present: true,
 					value:   "5009",
@@ -222,7 +222,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent: testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, expectedEnvVars{
+			Agent: testExpectedAgent(apicommon.OtelAgent, false, defaultExpectedPorts, defaultLocalObjectReferenceName, expectedEnvVars{
 				agent_ipc_port: expectedEnvVar{
 					present: true,
 					value:   "5009",
@@ -246,11 +246,31 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 			},
 				defaultAnnotations),
 		},
+		{
+			Name: "otel agent with UseStandaloneImage enabled (default)",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorUseStandaloneImage(true).
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: testExpectedDepsCreatedCM,
+			Agent:                testExpectedAgent(apicommon.OtelAgent, true, defaultExpectedPorts, defaultLocalObjectReferenceName, defaultExpectedEnvVars, defaultAnnotations),
+		},
+		test.FeatureTest{
+			Name: "otel agent with UseStandaloneImage disabled",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorUseStandaloneImage(false).
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: testExpectedDepsCreatedCM,
+			Agent:                testExpectedAgent(apicommon.OtelAgent, false, defaultExpectedPorts, defaultLocalObjectReferenceName, defaultExpectedEnvVars, defaultAnnotations),
+		},
 	}
 	tests.Run(t, buildOtelCollectorFeature)
 }
 
-func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expectedPorts expectedPorts, localObjectReferenceName string, expectedEnvVars expectedEnvVars, expectedAnnotations map[string]string) *test.ComponentTest {
+func testExpectedAgent(agentContainerName apicommon.AgentContainerName, useStandaloneImage bool, expectedPorts expectedPorts, localObjectReferenceName string, expectedEnvVars expectedEnvVars, expectedAnnotations map[string]string) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -360,10 +380,22 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 
 			agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 			otelAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.OtelAgent]
-			image := mgr.PodTemplateSpec().Spec.Containers[0].Image
 			assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
 			assert.True(t, apiutils.IsEqualStruct(otelAgentEnvVars, wantEnvVarsOTel), "OTel Agent envvars \ndiff = %s", cmp.Diff(otelAgentEnvVars, wantEnvVarsOTel))
-			assert.Equal(t, images.GetLatestAgentImageWithSuffix(false, false, true), image)
+
+			if useStandaloneImage {
+				for _, container := range mgr.PodTemplateSpec().Spec.Containers {
+					if container.Name == string(apicommon.OtelAgent) {
+						assert.Equal(t, images.GetLatestDdotCollectorImage(), container.Image)
+					} else {
+						assert.Equal(t, images.GetLatestAgentImage(), container.Image)
+					}
+				}
+			} else {
+				for _, container := range mgr.PodTemplateSpec().Spec.Containers {
+					assert.Equal(t, images.GetLatestAgentImageWithSuffix(false, false, true), container.Image)
+				}
+			}
 
 			// annotations
 			agentAnnotations := mgr.AnnotationMgr.Annotations
@@ -405,4 +437,76 @@ func testExpectedDepsCreatedCM(t testing.TB, store store.StoreClient) {
 		apiutils.IsEqualStruct(configMap.Data, expectedCM),
 		"ConfigMap \ndiff = %s", cmp.Diff(configMap.Data, expectedCM),
 	)
+}
+
+func Test_otelCollectorFeature_ManageNodeAgent(t *testing.T) {
+	tests := test.FeatureTestSuite{
+		test.FeatureTest{
+			Name: "otel agent with UseStandaloneImage enabled (default)",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorUseStandaloneImage(true).
+				Build(),
+			WantConfigure: true,
+			Agent: &test.ComponentTest{
+				CreateFunc: func(t testing.TB) (feature.PodTemplateManagers, string) {
+					// Create pod template with both CoreAgent and OtelAgent containers
+					newPTS := corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:    string(apicommon.CoreAgentContainerName),
+									Image:   images.GetLatestAgentImage(),
+									Command: []string{"agent", "run"},
+								},
+								{
+									Name:    string(apicommon.OtelAgent),
+									Image:   images.GetLatestDdotCollectorImage(),
+									Command: []string{"otel-agent"},
+								},
+							},
+						},
+					}
+					return fake.NewPodTemplateManagers(t, newPTS), kubernetes.DefaultProvider
+				},
+				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+					// When UseStandaloneImage is true, only otel-agent container should use ddot-collector image
+					otelContainerFound := false
+					for _, container := range mgr.PodTemplateSpec().Spec.Containers {
+						if container.Name == string(apicommon.OtelAgent) {
+							otelContainerFound = true
+							expectedOtelImage := images.GetLatestDdotCollectorImage()
+							assert.Equal(t, expectedOtelImage, container.Image, "OTel Agent container should use ddot-collector image when UseStandaloneImage is true")
+						} else {
+							// Other containers should not use -full image when UseStandaloneImage is true
+							assert.NotContains(t, container.Image, "-full", "Non-OTel containers should not use -full image when UseStandaloneImage is true")
+						}
+					}
+					assert.True(t, otelContainerFound, "OTel Agent container should be present")
+				},
+			},
+		},
+		{
+			Name: "otel agent with UseStandaloneImage disabled",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorUseStandaloneImage(false).
+				Build(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+					// When UseStandaloneImage is false, all containers should use -full image
+					for _, container := range mgr.PodTemplateSpec().Spec.Containers {
+						assert.Contains(t, container.Image, "-full", "All containers should use -full image when UseStandaloneImage is false")
+					}
+				},
+			),
+		},
+	}
+
+	tests.Run(t, buildOtelCollectorFeature)
 }
