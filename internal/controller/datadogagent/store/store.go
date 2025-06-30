@@ -225,7 +225,12 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 			}
 
 			if !equality.IsEqualObject(kind, objStore, objAPIServer) {
-				ds.logger.V(2).Info("store.store Add object to update", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
+				if kind == kubernetes.ClusterRolesKind {
+					ds.logger.Info("TIMOTHEE store.store objStore", "objStore", objStore)
+					ds.logger.Info("TIMOTHEE store.store objAPIServer", "objAPIServer", objAPIServer)
+					ds.logger.Info("TIMOTHEE store.store Add object to update", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
+				}
+
 				objsToUpdate = append(objsToUpdate, objStore)
 				continue
 			}
