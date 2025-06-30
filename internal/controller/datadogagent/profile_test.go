@@ -265,10 +265,10 @@ func Test_computeProfileMerge(t *testing.T) {
 							},
 							Name: apiutils.NewStringPointer("datadog-agent-with-profile-bar-foo-profile"),
 						},
-						v2alpha1.ClusterAgentComponentName: &v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.ClusterAgentComponentName: {
 							Disabled: apiutils.NewBoolPointer(true),
 						},
-						v2alpha1.ClusterChecksRunnerComponentName: &v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.ClusterChecksRunnerComponentName: {
 							Disabled: apiutils.NewBoolPointer(true),
 						},
 					},
@@ -496,10 +496,10 @@ func Test_setProfileSpec(t *testing.T) {
 							},
 							Name: apiutils.NewStringPointer("datadog-agent-with-profile-bar-foo-profile"),
 						},
-						v2alpha1.ClusterAgentComponentName: &v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.ClusterAgentComponentName: {
 							Disabled: apiutils.NewBoolPointer(true),
 						},
-						v2alpha1.ClusterChecksRunnerComponentName: &v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.ClusterChecksRunnerComponentName: {
 							Disabled: apiutils.NewBoolPointer(true),
 						},
 					},

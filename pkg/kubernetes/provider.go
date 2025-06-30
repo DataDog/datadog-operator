@@ -33,19 +33,19 @@ const (
 	GKEProviderLabel = "cloud.google.com/gke-os-distribution"
 
 	// AKSProviderLabel is the AKS node label used to determine the node's provider
-	AKSProviderLabel = "kubernetes.azure.com/managedby"
+	AKSProviderLabel = "kubernetes.azure.com/role"
 
 	// AKSCloudProvider AKS CloudProvider name
 	AKSCloudProvider = "aks"
 
-	// AKSManagedType is the AKS provider type
-	AKSManagedType = "aks"
+	// AKSRoleType is the AKS provider type
+	AKSRoleType = "agent"
 )
 
 // ProviderValue allowlist
 var providerValueAllowlist = map[string]struct{}{
-	GKECosType: {},
-	AKSManagedType: {},
+	GKECosType:  {},
+	AKSRoleType: {},
 }
 
 // determineProvider creates a Provider based on a map of labels

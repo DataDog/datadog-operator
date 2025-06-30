@@ -444,7 +444,7 @@ func TestAdmissionController_AddAKSSelectorsEnvVar(t *testing.T) {
 
 	ptm := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
 
-	aksProvider := kubernetes.AKSCloudProvider + "-" + kubernetes.AKSManagedType
+	aksProvider := kubernetes.AKSCloudProvider + "-" + kubernetes.AKSRoleType
 
 	err := feat.ManageClusterAgent(ptm, aksProvider)
 	assert.NoError(t, err)

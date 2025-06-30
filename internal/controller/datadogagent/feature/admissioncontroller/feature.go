@@ -407,9 +407,9 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 	})
 
 	_, providerLabel := kubernetes.GetProviderLabelKeyValue(provider)
-	if providerLabel == kubernetes.AKSManagedType {
+	if providerLabel == kubernetes.AKSRoleType {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name: DDAdmissionControllerAddAKSSelectors,
+			Name:  DDAdmissionControllerAddAKSSelectors,
 			Value: "true",
 		})
 	}

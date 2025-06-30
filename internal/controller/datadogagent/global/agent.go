@@ -25,7 +25,7 @@ func applyNodeAgentResources(manager feature.PodTemplateManagers, dda *v2alpha1.
 	// Kubelet injection for Instrospection for AKS
 	_, providerLabel := kubernetes.GetProviderLabelKeyValue(provider)
 
-	if providerLabel == kubernetes.AKSManagedType {
+	if providerLabel == kubernetes.AKSRoleType {
 
 		// Handle "tlsVerify: false"
 		if config.Kubelet != nil && config.Kubelet.TLSVerify != nil && !*config.Kubelet.TLSVerify {
@@ -89,7 +89,7 @@ func applyNodeAgentResources(manager feature.PodTemplateManagers, dda *v2alpha1.
 				ValueFrom: config.Kubelet.Host,
 			})
 		}
-		if config.Kubelet.TLSVerify != nil && !(providerLabel == kubernetes.AKSManagedType && !*config.Kubelet.TLSVerify) {
+		if config.Kubelet.TLSVerify != nil && !(providerLabel == kubernetes.AKSRoleType && !*config.Kubelet.TLSVerify) {
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 				Name:  DDKubeletTLSVerify,
 				Value: apiutils.BoolToString(config.Kubelet.TLSVerify),

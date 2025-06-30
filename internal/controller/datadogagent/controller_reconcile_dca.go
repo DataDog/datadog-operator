@@ -49,7 +49,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Lo
 		providerList = kubernetes.GetProviderListFromNodeList(nodeList, logger)
 		logger.Info("providerList for cluster agent", "providerList", providerList)
 	}
-	
+
 	// Reconcile cluster agent for each provider
 	var errs []error
 	for provider := range providerList {

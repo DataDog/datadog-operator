@@ -654,8 +654,8 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			want:                      assertAll,
 		},
 		{
-			provider: kubernetes.AKSCloudProvider + "-" + kubernetes.AKSManagedType,
-			name:                           "AKS provider baseline",
+			provider: kubernetes.AKSCloudProvider + "-" + kubernetes.AKSRoleType,
+			name:     "AKS provider baseline",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithCredentials("apiKey", "appKey").
 				BuildWithDefaults(),
@@ -712,8 +712,8 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			want: assertAll,
 		},
 		{
-			provider: kubernetes.AKSCloudProvider + "-" + kubernetes.AKSManagedType,
-			name:                           "AKS provider tlsVerify false",
+			provider: kubernetes.AKSCloudProvider + "-" + kubernetes.AKSRoleType,
+			name:     "AKS provider tlsVerify false",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithGlobalKubeletConfig("", "", false, "").
 				WithCredentials("apiKey", "appKey").
@@ -759,7 +759,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			want:                      assertAll,
 		},
 		{
-			provider: kubernetes.AKSCloudProvider + "-" + kubernetes.AKSManagedType,
+			provider:                       kubernetes.AKSCloudProvider + "-" + kubernetes.AKSRoleType,
 			name:                           "AKS provider user overrides CA path",
 			singleContainerStrategyEnabled: false,
 			dda: testutils.NewDatadogAgentBuilder().
