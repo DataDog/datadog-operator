@@ -41,7 +41,8 @@ func (r *Reconciler) manageDDADependenciesWithDDAI(ctx context.Context, logger l
 	}
 
 	// DCA service
-	if err := resourceManagers.Store().AddOrUpdate(kubernetes.ServicesKind, clusteragent.GetClusterAgentService(instance)); err != nil {
+	service := clusteragent.GetClusterAgentService(instance)
+	if err := resourceManagers.ServiceManager().AddService(service.Name, service.Namespace, service.Spec.Selector, service.Spec.Ports, service.Spec.InternalTrafficPolicy); err != nil {
 		return err
 	}
 
