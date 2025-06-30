@@ -12,8 +12,1724 @@ package v2alpha1
 
 import (
 	common "k8s.io/kube-openapi/pkg/common"
+	spec "k8s.io/kube-openapi/pkg/validation/spec"
 )
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
-	return map[string]common.OpenAPIDefinition{}
+	return map[string]common.OpenAPIDefinition{
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CSPMHostBenchmarksConfig":          schema_datadog_operator_api_datadoghq_v2alpha1_CSPMHostBenchmarksConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CoreConfig":                        schema_datadog_operator_api_datadoghq_v2alpha1_CoreConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig":                      schema_datadog_operator_api_datadoghq_v2alpha1_CustomConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DaemonSetStatus":                   schema_datadog_operator_api_datadoghq_v2alpha1_DaemonSetStatus(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogAgent":                      schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgent(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogAgentGenericContainer":      schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogAgentStatus":                schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgentStatus(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogCredentials":                schema_datadog_operator_api_datadoghq_v2alpha1_DatadogCredentials(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogFeatures":                   schema_datadog_operator_api_datadoghq_v2alpha1_DatadogFeatures(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DeploymentStatus":                  schema_datadog_operator_api_datadoghq_v2alpha1_DeploymentStatus(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DogstatsdFeatureConfig":            schema_datadog_operator_api_datadoghq_v2alpha1_DogstatsdFeatureConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ErrorTrackingStandalone":           schema_datadog_operator_api_datadoghq_v2alpha1_ErrorTrackingStandalone(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.EventCollectionFeatureConfig":      schema_datadog_operator_api_datadoghq_v2alpha1_EventCollectionFeatureConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.FIPSConfig":                        schema_datadog_operator_api_datadoghq_v2alpha1_FIPSConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.HelmCheckFeatureConfig":            schema_datadog_operator_api_datadoghq_v2alpha1_HelmCheckFeatureConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig": schema_datadog_operator_api_datadoghq_v2alpha1_KubeStateMetricsCoreFeatureConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.LocalService":                      schema_datadog_operator_api_datadoghq_v2alpha1_LocalService(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.MultiCustomConfig":                 schema_datadog_operator_api_datadoghq_v2alpha1_MultiCustomConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.NetworkPolicyConfig":               schema_datadog_operator_api_datadoghq_v2alpha1_NetworkPolicyConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPFeatureConfig":                 schema_datadog_operator_api_datadoghq_v2alpha1_OTLPFeatureConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPGRPCConfig":                    schema_datadog_operator_api_datadoghq_v2alpha1_OTLPGRPCConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPHTTPConfig":                    schema_datadog_operator_api_datadoghq_v2alpha1_OTLPHTTPConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPProtocolsConfig":               schema_datadog_operator_api_datadoghq_v2alpha1_OTLPProtocolsConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPReceiverConfig":                schema_datadog_operator_api_datadoghq_v2alpha1_OTLPReceiverConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig": schema_datadog_operator_api_datadoghq_v2alpha1_OrchestratorExplorerFeatureConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OtelCollectorFeatureConfig":        schema_datadog_operator_api_datadoghq_v2alpha1_OtelCollectorFeatureConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig":     schema_datadog_operator_api_datadoghq_v2alpha1_PrometheusScrapeFeatureConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.RemoteConfigConfiguration":         schema_datadog_operator_api_datadoghq_v2alpha1_RemoteConfigConfiguration(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SeccompConfig":                     schema_datadog_operator_api_datadoghq_v2alpha1_SeccompConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SecretBackendConfig":               schema_datadog_operator_api_datadoghq_v2alpha1_SecretBackendConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SecretBackendRolesConfig":          schema_datadog_operator_api_datadoghq_v2alpha1_SecretBackendRolesConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.UnixDomainSocketConfig":            schema_datadog_operator_api_datadoghq_v2alpha1_UnixDomainSocketConfig(ref),
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_CSPMHostBenchmarksConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CSPMHostBenchmarksConfig contains configuration for host benchmarks.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled enables host benchmarks. Default: true",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_CoreConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CoreConfig exposes the otel collector configs relevant to the core agent.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled marks otelcollector as enabled in core agent.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"extensionURL": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Extension URL provides the URL of the ddflareextension to the core agent.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"extensionTimeout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Extension URL provides the timout of the ddflareextension to the core agent.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_CustomConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to datadog.yaml, system-probe.yaml, security-agent.yaml or datadog-cluster.yaml. The configuration can be provided in the ConfigData field as raw data, or referenced in a ConfigMap. Note: `ConfigData` and `ConfigMap` cannot be set together.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"configData": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigData corresponds to the configuration file content.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"configMap": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigMap references an existing ConfigMap with the configuration file content.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ConfigMapConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ConfigMapConfig"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_DaemonSetStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DaemonSetStatus defines the observed state of Agent running as DaemonSet.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"desired": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Number of desired pods in the DaemonSet.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"current": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Number of current pods in the DaemonSet.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"ready": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Number of ready pods in the DaemonSet.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"available": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Number of available pods in the DaemonSet.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"upToDate": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Number of up to date pods in the DaemonSet.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"lastUpdate": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LastUpdate is the last time the status was updated.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"currentHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CurrentHash is the stored hash of the DaemonSet.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Status corresponds to the DaemonSet computed status.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"state": {
+						SchemaProps: spec.SchemaProps{
+							Description: "State corresponds to the DaemonSet state.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"daemonsetName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DaemonsetName corresponds to the name of the created DaemonSet.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"desired", "current", "ready", "available", "upToDate"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgent(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogAgent Deployment with the Datadog Operator.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogAgentSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogAgentStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogAgentSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogAgentStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogAgentGenericContainer is the generic structure describing any container's common configuration.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of the container that is overridden",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"logLevel": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LogLevel sets logging verbosity (overrides global setting). Valid log levels are: trace, debug, info, warn, error, critical, and off. Default: 'info'",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"ports": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Specify additional ports to be exposed by the container. Not specifying a port here DOES NOT prevent that port from being exposed. See https://pkg.go.dev/k8s.io/api/core/v1#Container documentation for more details.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.ContainerPort"),
+									},
+								},
+							},
+						},
+					},
+					"env": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Specify additional environment variables in the container. See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.EnvVar"),
+									},
+								},
+							},
+						},
+					},
+					"volumeMounts": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+									"mountPath",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Specify additional volume mounts in the container.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.VolumeMount"),
+									},
+								},
+							},
+						},
+					},
+					"resources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Specify the Request and Limits of the pods To get guaranteed QoS class, specify requests and limits equal. See also: http://kubernetes.io/docs/user-guide/compute-resources/",
+							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
+						},
+					},
+					"command": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Command allows the specification of a custom entrypoint for container",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"args": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Args allows the specification of extra args to the `Command` parameter",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"healthPort": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HealthPort of the container for the internal liveness probe. Must be the same as the Liveness/Readiness probes.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"readinessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Configure the Readiness Probe of the container",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+					"livenessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Configure the Liveness Probe of the container",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+					"startupProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Configure the Startup Probe of the container",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+					"securityContext": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Container-level SecurityContext.",
+							Ref:         ref("k8s.io/api/core/v1.SecurityContext"),
+						},
+					},
+					"seccompConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Seccomp configurations to override Operator actions. For all other Seccomp Profile manipulation, use SecurityContext.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SeccompConfig"),
+						},
+					},
+					"appArmorProfileName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AppArmorProfileName specifies an apparmor profile.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SeccompConfig", "k8s.io/api/core/v1.ContainerPort", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.VolumeMount"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgentStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogAgentStatus defines the observed state of DatadogAgent.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"conditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"type",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions Represents the latest available observations of a DatadogAgent's current state.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.Condition"),
+									},
+								},
+							},
+						},
+					},
+					"agentList": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "The actual state of the Agent as a daemonset or an extended daemonset.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DaemonSetStatus"),
+									},
+								},
+							},
+						},
+					},
+					"agent": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The combined actual state of all Agents as daemonsets or extended daemonsets.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DaemonSetStatus"),
+						},
+					},
+					"clusterAgent": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The actual state of the Cluster Agent as a deployment.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DeploymentStatus"),
+						},
+					},
+					"clusterChecksRunner": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The actual state of the Cluster Checks Runner as a deployment.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DeploymentStatus"),
+						},
+					},
+					"remoteConfigConfiguration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RemoteConfigConfiguration stores the configuration received from RemoteConfig.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.RemoteConfigConfiguration"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DaemonSetStatus", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DeploymentStatus", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.RemoteConfigConfiguration", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogCredentials(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogCredentials is a generic structure that holds credentials to access Datadog.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"apiKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiSecret": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APISecret references an existing Secret which stores the API key instead of creating a new one. If set, this parameter takes precedence over \"APIKey\".",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SecretConfig"),
+						},
+					},
+					"appKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AppKey configures your Datadog application key. If you are using features.externalMetricsServer.enabled = true, you must set a Datadog application key for read access to your metrics.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"appSecret": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AppSecret references an existing Secret which stores the application key instead of creating a new one. If set, this parameter takes precedence over \"AppKey\".",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SecretConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SecretConfig"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogFeatures(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogFeatures are features running on the Agent and Cluster Agent.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"otelCollector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "OtelCollector configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OtelCollectorFeatureConfig"),
+						},
+					},
+					"logCollection": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LogCollection configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.LogCollectionFeatureConfig"),
+						},
+					},
+					"liveProcessCollection": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LiveProcessCollection configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.LiveProcessCollectionFeatureConfig"),
+						},
+					},
+					"liveContainerCollection": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LiveContainerCollection configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.LiveContainerCollectionFeatureConfig"),
+						},
+					},
+					"processDiscovery": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ProcessDiscovery configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ProcessDiscoveryFeatureConfig"),
+						},
+					},
+					"oomKill": {
+						SchemaProps: spec.SchemaProps{
+							Description: "OOMKill configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OOMKillFeatureConfig"),
+						},
+					},
+					"tcpQueueLength": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TCPQueueLength configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.TCPQueueLengthFeatureConfig"),
+						},
+					},
+					"ebpfCheck": {
+						SchemaProps: spec.SchemaProps{
+							Description: "EBPFCheck configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.EBPFCheckFeatureConfig"),
+						},
+					},
+					"apm": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APM (Application Performance Monitoring) configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.APMFeatureConfig"),
+						},
+					},
+					"asm": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ASM (Application Security Management) configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ASMFeatureConfig"),
+						},
+					},
+					"cspm": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CSPM (Cloud Security Posture Management) configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CSPMFeatureConfig"),
+						},
+					},
+					"cws": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CWS (Cloud Workload Security) configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CWSFeatureConfig"),
+						},
+					},
+					"npm": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NPM (Network Performance Monitoring) configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.NPMFeatureConfig"),
+						},
+					},
+					"usm": {
+						SchemaProps: spec.SchemaProps{
+							Description: "USM (Universal Service Monitoring) configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.USMFeatureConfig"),
+						},
+					},
+					"dogstatsd": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Dogstatsd configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DogstatsdFeatureConfig"),
+						},
+					},
+					"otlp": {
+						SchemaProps: spec.SchemaProps{
+							Description: "OTLP ingest configuration",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPFeatureConfig"),
+						},
+					},
+					"remoteConfiguration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Remote Configuration configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.RemoteConfigurationFeatureConfig"),
+						},
+					},
+					"sbom": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SBOM collection configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SBOMFeatureConfig"),
+						},
+					},
+					"serviceDiscovery": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ServiceDiscovery",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ServiceDiscoveryFeatureConfig"),
+						},
+					},
+					"gpu": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GPU monitoring",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.GPUFeatureConfig"),
+						},
+					},
+					"eventCollection": {
+						SchemaProps: spec.SchemaProps{
+							Description: "EventCollection configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.EventCollectionFeatureConfig"),
+						},
+					},
+					"orchestratorExplorer": {
+						SchemaProps: spec.SchemaProps{
+							Description: "OrchestratorExplorer check configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig"),
+						},
+					},
+					"kubeStateMetricsCore": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KubeStateMetricsCore check configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig"),
+						},
+					},
+					"admissionController": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AdmissionController configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AdmissionControllerFeatureConfig"),
+						},
+					},
+					"externalMetricsServer": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ExternalMetricsServer configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig"),
+						},
+					},
+					"autoscaling": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Autoscaling configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AutoscalingFeatureConfig"),
+						},
+					},
+					"clusterChecks": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClusterChecks configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ClusterChecksFeatureConfig"),
+						},
+					},
+					"prometheusScrape": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PrometheusScrape configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig"),
+						},
+					},
+					"helmCheck": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HelmCheck configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.HelmCheckFeatureConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.APMFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ASMFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AdmissionControllerFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AutoscalingFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CSPMFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CWSFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ClusterChecksFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DogstatsdFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.EBPFCheckFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.EventCollectionFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.GPUFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.HelmCheckFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.LiveContainerCollectionFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.LiveProcessCollectionFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.LogCollectionFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.NPMFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OOMKillFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OtelCollectorFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ProcessDiscoveryFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.RemoteConfigurationFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SBOMFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ServiceDiscoveryFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.TCPQueueLengthFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.USMFeatureConfig"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_DeploymentStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DeploymentStatus type representing a Deployment status.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"replicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Total number of non-terminated pods targeted by this Deployment (their labels match the selector).",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"updatedReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Total number of non-terminated pods targeted by this Deployment that have the desired template spec.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"readyReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Total number of ready pods targeted by this Deployment.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"availableReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Total number of available pods (ready for at least minReadySeconds) targeted by this Deployment.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"unavailableReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Total number of unavailable pods targeted by this Deployment. This is the total number of pods that are still required for the Deployment to have 100% available capacity. They may either be pods that are running but not yet available or pods that still have not been created.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"lastUpdate": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LastUpdate is the last time the status was updated.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"currentHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CurrentHash is the stored hash of the Deployment.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"generatedToken": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GeneratedToken corresponds to the generated token if any token was provided in the Credential configuration when ClusterAgent is enabled.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Status corresponds to the Deployment computed status.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"state": {
+						SchemaProps: spec.SchemaProps{
+							Description: "State corresponds to the Deployment state.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"deploymentName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DeploymentName corresponds to the name of the Deployment.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_DogstatsdFeatureConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DogstatsdFeatureConfig contains the Dogstatsd configuration parameters.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"originDetectionEnabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "OriginDetectionEnabled enables origin detection for container tagging. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"tagCardinality": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`). See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables Cardinality default: low",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"hostPortConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HostPortConfig contains host port configuration. Enabled Default: false Port Default: 8125",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.HostPortConfig"),
+						},
+					},
+					"unixDomainSocketConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "UnixDomainSocketConfig contains socket configuration. See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables Enabled Default: true Path Default: `/var/run/datadog/dsd.socket`",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.UnixDomainSocketConfig"),
+						},
+					},
+					"mapperProfiles": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Configure the Dogstasd Mapper Profiles. Can be passed as raw data or via a json encoded string in a config map. See also: https://docs.datadoghq.com/developers/dogstatsd/dogstatsd_mapper/",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig"),
+						},
+					},
+					"nonLocalTraffic": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NonLocalTraffic enables non-local traffic for Dogstatsd. Default: true",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.HostPortConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.UnixDomainSocketConfig"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_ErrorTrackingStandalone(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enables Error Tracking for backend services. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_EventCollectionFeatureConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "EventCollectionFeatureConfig contains the Event Collection configuration.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"collectKubernetesEvents": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CollectKubernetesEvents enables Kubernetes event collection. Default: true",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"unbundleEvents": {
+						SchemaProps: spec.SchemaProps{
+							Description: "UnbundleEvents enables collection of Kubernetes events as individual events. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"collectedEventTypes": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "CollectedEventTypes defines the list of events to collect when UnbundleEvents is enabled. Default: [ {\"kind\":\"Pod\",\"reasons\":[\"Failed\",\"BackOff\",\"Unhealthy\",\"FailedScheduling\",\"FailedMount\",\"FailedAttachVolume\"]}, {\"kind\":\"Node\",\"reasons\":[\"TerminatingEvictedPod\",\"NodeNotReady\",\"Rebooted\",\"HostPortConflict\"]}, {\"kind\":\"CronJob\",\"reasons\":[\"SawCompletedJob\"]} ]",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.EventTypes"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.EventTypes"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_FIPSConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "FIPSConfig contains the FIPS configuration.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable FIPS sidecar.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"image": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The container image of the FIPS sidecar.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AgentImageConfig"),
+						},
+					},
+					"localAddress": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Set the local IP address. Default: `127.0.0.1`",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"port": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Port specifies which port is used by the containers to communicate to the FIPS sidecar. Default: 9803",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"portRange": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PortRange specifies the number of ports used. Default: 15",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"resources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Resources is the requests and limits for the FIPS sidecar container.",
+							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
+						},
+					},
+					"useHTTPS": {
+						SchemaProps: spec.SchemaProps{
+							Description: "UseHTTPS enables HTTPS. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"customFIPSConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CustomFIPSConfig configures a custom configMap to provide the FIPS configuration. Specify custom contents for the FIPS proxy sidecar container config (/etc/datadog-fips-proxy/datadog-fips-proxy.cfg). If empty, the default FIPS proxy sidecar container config is used.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AgentImageConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig", "k8s.io/api/core/v1.ResourceRequirements"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_HelmCheckFeatureConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "HelmCheckFeatureConfig allows configuration of the Helm check feature.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled enables the Helm check. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"collectEvents": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CollectEvents set to `true` enables event collection in the Helm check (Requires Agent 7.36.0+ and Cluster Agent 1.20.0+) Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"valuesAsTags": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ValuesAsTags collects Helm values from a release and uses them as tags (Requires Agent and Cluster Agent 7.40.0+). Default: {}",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_KubeStateMetricsCoreFeatureConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "KubeStateMetricsCoreFeatureConfig contains the Kube State Metrics Core check feature configuration. The Kube State Metrics Core check runs in the Cluster Agent (or Cluster Check Runners). See also: https://docs.datadoghq.com/integrations/kubernetes_state_core",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled enables Kube State Metrics Core. Default: true",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"conf": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Conf overrides the configuration for the default Kubernetes State Metrics Core check. This must point to a ConfigMap containing a valid cluster check configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_LocalService(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "LocalService provides the internal traffic policy service configuration.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"nameOverride": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NameOverride defines the name of the internal traffic service to target the agent running on the local node.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"forceEnableLocalService": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ForceEnableLocalService forces the creation of the internal traffic policy service to target the agent running on the local node. This parameter only applies to Kubernetes 1.21, where the feature is in alpha and is disabled by default. (On Kubernetes 1.22+, the feature entered beta and the internal traffic service is created by default, so this parameter is ignored.) Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_MultiCustomConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MultiCustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to /confd/*.yaml. The configuration can be provided in the ConfigDataMap field as raw data, or referenced in a single ConfigMap. Note: `ConfigDataMap` and `ConfigMap` cannot be set together.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"configDataMap": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigDataMap corresponds to the content of the configuration files. The key should be the filename the contents get mounted to; for instance check.py or check.yaml.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"configMap": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigMap references an existing ConfigMap with the content of the configuration files.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ConfigMapConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ConfigMapConfig"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_NetworkPolicyConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NetworkPolicyConfig provides Network Policy configuration for the agents.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"create": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Create defines whether to create a NetworkPolicy for the current deployment.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"flavor": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Flavor defines Which network policy to use.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"dnsSelectorEndpoints": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "DNSSelectorEndpoints defines the cilium selector of the DNS server entity.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_OTLPFeatureConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OTLPFeatureConfig contains configuration for OTLP ingest.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"receiver": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Receiver contains configuration for the OTLP ingest receiver.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPReceiverConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPReceiverConfig"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_OTLPGRPCConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OTLPGRPCConfig contains configuration for the OTLP ingest OTLP/gRPC receiver.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable the OTLP/gRPC endpoint. Host port is enabled by default and can be disabled.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"hostPortConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable hostPort for OTLP/gRPC Default: true",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.HostPortConfig"),
+						},
+					},
+					"endpoint": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Endpoint for OTLP/gRPC. gRPC supports several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md The Datadog Operator supports only 'host:port' (usually `0.0.0.0:port`). Default: `0.0.0.0:4317`.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.HostPortConfig"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_OTLPHTTPConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OTLPHTTPConfig contains configuration for the OTLP ingest OTLP/HTTP receiver.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable the OTLP/HTTP endpoint. Host port is enabled by default and can be disabled.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"hostPortConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable hostPorts for OTLP/HTTP Default: true",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.HostPortConfig"),
+						},
+					},
+					"endpoint": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Endpoint for OTLP/HTTP. Default: '0.0.0.0:4318'.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.HostPortConfig"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_OTLPProtocolsConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OTLPProtocolsConfig contains configuration for the OTLP ingest receiver protocols.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"grpc": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GRPC contains configuration for the OTLP ingest OTLP/gRPC receiver.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPGRPCConfig"),
+						},
+					},
+					"http": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HTTP contains configuration for the OTLP ingest OTLP/HTTP receiver.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPHTTPConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPGRPCConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPHTTPConfig"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_OTLPReceiverConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OTLPReceiverConfig contains configuration for the OTLP ingest receiver.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"protocols": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Protocols contains configuration for the OTLP ingest receiver protocols.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPProtocolsConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPProtocolsConfig"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_OrchestratorExplorerFeatureConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OrchestratorExplorerFeatureConfig contains the Orchestrator Explorer check feature configuration. The Orchestrator Explorer check runs in the Process and Cluster Agents (or Cluster Check Runners). See also: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled enables the Orchestrator Explorer. Default: true",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"conf": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Conf overrides the configuration for the default Orchestrator Explorer check. This must point to a ConfigMap containing a valid cluster check configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig"),
+						},
+					},
+					"scrubContainers": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ). Default: true",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"customResources": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "`CustomResources` defines custom resources for the orchestrator explorer to collect. Each item should follow the convention `group/version/kind`. For example, `datadoghq.com/v1alpha1/datadogmetrics`.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"extraTags": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Additional tags to associate with the collected data in the form of `a b c`. This is a Cluster Agent option distinct from DD_TAGS that is used in the Orchestrator Explorer.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"ddUrl": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Override the API endpoint for the Orchestrator Explorer. URL Default: \"https://orchestrator.datadoghq.com\".",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_OtelCollectorFeatureConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OtelCollectorFeatureConfig contains the configuration for the otel-agent.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled enables the OTel Agent. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"conf": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Conf overrides the configuration for the default Kubernetes State Metrics Core check. This must point to a ConfigMap containing a valid cluster check configuration. When passing a configmap, file name *must* be otel-config.yaml.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig"),
+						},
+					},
+					"ports": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Ports contains the ports for the otel-agent. Defaults: otel-grpc:4317 / otel-http:4318. Note: setting 4317 or 4318 manually is *only* supported if name match default names (otel-grpc, otel-http). If not, this will lead to a port conflict. This limitation will be lifted once annotations support is removed.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("k8s.io/api/core/v1.ContainerPort"),
+									},
+								},
+							},
+						},
+					},
+					"coreConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "OTelCollector Config Relevant to the Core agent",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CoreConfig"),
+						},
+					},
+					"useStandaloneImage": {
+						SchemaProps: spec.SchemaProps{
+							Description: "UseStandaloneImage configures the otel-agent container to use the standalone image. Please ensure you can pull the ddot-collector image (i.e. gcr.io/datadoghq/ddot-collector:7.67.0) if this is set to true. Requires agent version 7.67.0 or higher. If false, the otel-agent container will use the `full` flavor of the datadog/agent image. Default: true",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CoreConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig", "k8s.io/api/core/v1.ContainerPort"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_PrometheusScrapeFeatureConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PrometheusScrapeFeatureConfig allows configuration of the Prometheus Autodiscovery feature.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable autodiscovery of pods and services exposing Prometheus metrics. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"enableServiceEndpoints": {
+						SchemaProps: spec.SchemaProps{
+							Description: "EnableServiceEndpoints enables generating dedicated checks for service endpoints. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"additionalConfigs": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AdditionalConfigs allows adding advanced Prometheus check configurations with custom discovery rules.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"version": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Version specifies the version of the OpenMetrics check. Default: 2",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_RemoteConfigConfiguration(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RemoteConfigConfiguration stores the configuration received from RemoteConfig.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"features": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogFeatures"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogFeatures"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_SeccompConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SeccompConfig is used to override default values for Seccomp Profile configurations.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"customRootPath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CustomRootPath specifies a custom Seccomp Profile root location.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"customProfile": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CustomProfile specifies a ConfigMap containing a custom Seccomp Profile. ConfigMap data must either have the key `system-probe-seccomp.json` or CustomProfile.Items must include a corev1.KeytoPath that maps the key to the path `system-probe-seccomp.json`.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_SecretBackendConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SecretBackendConfig provides configuration for the secret backend.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"command": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The secret backend command to use. Datadog provides a pre-defined binary `/readsecret_multiple_providers.sh`. Read more about `/readsecret_multiple_providers.sh` at https://docs.datadoghq.com/agent/configuration/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"args": {
+						SchemaProps: spec.SchemaProps{
+							Description: "List of arguments to pass to the command (space-separated strings).",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"timeout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The command timeout in seconds. Default: `30`.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"refreshInterval": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The refresh interval for secrets (0 disables refreshing). Default: `0`.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"enableGlobalPermissions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Whether to create a global permission allowing Datadog agents to read all Kubernetes secrets. Default: `false`.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"roles": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Roles for Datadog to read the specified secrets, replacing `enableGlobalPermissions`. They are defined as a list of namespace/secrets. Each defined namespace needs to be present in the DatadogAgent controller using `WATCH_NAMESPACE` or `DD_AGENT_WATCH_NAMESPACE`. See also: https://github.com/DataDog/datadog-operator/blob/main/docs/secret_management.md#how-to-deploy-the-agent-components-using-the-secret-backend-feature-with-datadogagent.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SecretBackendRolesConfig"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SecretBackendRolesConfig"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_SecretBackendRolesConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SecretBackendRolesConfig provides configuration of the secrets Datadog agents can read for the SecretBackend feature",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Namespace defines the namespace in which the secrets reside.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"secrets": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Secrets defines the list of secrets for which a role should be created.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"namespace", "secrets"},
+			},
+		},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_UnixDomainSocketConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "UnixDomainSocketConfig contains the Unix Domain Socket configuration.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled enables Unix Domain Socket. Default: true",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"path": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Path defines the socket path used when enabled.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
 }
