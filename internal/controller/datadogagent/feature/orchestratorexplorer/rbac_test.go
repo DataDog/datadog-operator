@@ -13,35 +13,44 @@ import (
 )
 
 func TestMapAPIGroupsResources(t *testing.T) {
-
 	for _, tt := range []struct {
 		name            string
 		customResources []string
-		expected        map[string][]string
+		expected        []groupResources
 	}{
 		{
 			name:            "empty crs",
 			customResources: []string{},
-			expected:        map[string][]string{},
+			expected:        []groupResources{},
 		},
 		{
 			name:            "two crs, same group",
 			customResources: []string{"datadoghq.com/v1alpha1/datadogmetrics", "datadoghq.com/v1alpha1/watermarkpodautoscalers"},
-			expected: map[string][]string{
-				"datadoghq.com": {"datadogmetrics", "watermarkpodautoscalers"},
+			expected: []groupResources{
+				{
+					group:     "datadoghq.com",
+					resources: []string{"datadogmetrics", "watermarkpodautoscalers"},
+				},
 			},
 		},
 		{
 			name:            "three crs, different groups",
 			customResources: []string{"datadoghq.com/v1alpha1/datadogmetrics", "datadoghq.com/v1alpha1/watermarkpodautoscalers", "cilium.io/v1/ciliumendpoints"},
-			expected: map[string][]string{
-				"datadoghq.com": {"datadogmetrics", "watermarkpodautoscalers"},
-				"cilium.io":     {"ciliumendpoints"},
+			expected: []groupResources{
+				{
+					group:     "cilium.io",
+					resources: []string{"ciliumendpoints"},
+				},
+				{
+					group:     "datadoghq.com",
+					resources: []string{"datadogmetrics", "watermarkpodautoscalers"},
+				},
 			},
 		},
 	} {
-		actualGroupsResources := mapAPIGroupsResources(logr.Logger{}, tt.customResources)
-		assert.Equal(t, tt.expected, actualGroupsResources)
+		t.Run(tt.name, func(t *testing.T) {
+			actualGroupsResources := mapAPIGroupsResources(logr.Logger{}, tt.customResources)
+			assert.Equal(t, tt.expected, actualGroupsResources)
+		})
 	}
-
 }

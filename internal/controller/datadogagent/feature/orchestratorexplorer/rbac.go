@@ -7,6 +7,7 @@ package orchestratorexplorer
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -16,6 +17,11 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
+
+type groupResources struct {
+	group     string
+	resources []string
+}
 
 // getRBACRules generates the cluster role permissions required for the orchestrator explorer feature
 func getRBACPolicyRules(logger logr.Logger, crs []string) []rbacv1.PolicyRule {
@@ -105,11 +111,12 @@ func getRBACPolicyRules(logger logr.Logger, crs []string) []rbacv1.PolicyRule {
 		},
 	}
 
-	groupResources := mapAPIGroupsResources(logger, crs)
-	for group, resources := range groupResources {
+	// Sort the custom resources to have a stable order
+	// This is important to avoid unnecessary RBAC updates
+	for _, gr := range mapAPIGroupsResources(logger, crs) {
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
-			APIGroups: []string{group},
-			Resources: append([]string{}, resources...),
+			APIGroups: []string{gr.group},
+			Resources: gr.resources,
 		})
 	}
 
@@ -128,18 +135,28 @@ func getRBACPolicyRules(logger logr.Logger, crs []string) []rbacv1.PolicyRule {
 	return rbacRules
 }
 
-func mapAPIGroupsResources(logger logr.Logger, customResources []string) map[string][]string {
-	groupResources := make(map[string][]string, len(customResources))
+func mapAPIGroupsResources(logger logr.Logger, customResources []string) []groupResources {
+	groupToResources := make(map[string][]string, len(customResources))
 	for _, cr := range customResources {
 		crSplit := strings.Split(cr, "/")
 		if len(crSplit) == 3 {
-			if _, ok := groupResources[crSplit[0]]; !ok {
-				groupResources[crSplit[0]] = make([]string, 0, len(customResources))
-			}
-			groupResources[crSplit[0]] = append(groupResources[crSplit[0]], crSplit[2])
+			group, resource := crSplit[0], crSplit[2]
+			groupToResources[group] = append(groupToResources[group], resource)
 		} else {
 			logger.Error(fmt.Errorf("unable to create cluster role for %s, skipping", cr), "correct format should be group/version/kind")
 		}
 	}
-	return groupResources
+
+	// To keep the order of rbac rules stable, we should sort them
+	grs := make([]groupResources, 0, len(groupToResources))
+	for group, resources := range groupToResources {
+		// sort resources to have a stable order
+		sort.Strings(resources)
+		grs = append(grs, groupResources{group: group, resources: resources})
+	}
+	sort.Slice(grs, func(i, j int) bool {
+		return grs[i].group < grs[j].group
+	})
+
+	return grs
 }

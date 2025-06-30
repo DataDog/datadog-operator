@@ -6,6 +6,8 @@
 package clusteragent
 
 import (
+	"sort"
+
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -122,45 +124,49 @@ func GetDefaultClusterAgentClusterRolePolicyRules(dda metav1.Object) []rbacv1.Po
 }
 
 func GetKubernetesResourceMetadataAsTagsPolicyRules(resourcesLabelsAsTags, resourcesAnnotationsAsTags map[string]map[string]string) []rbacv1.PolicyRule {
-	// maps group to resource set
-	// using map to avoid duplicates
-	groupResourceAccumulator := map[string]map[string]struct{}{}
-
-	for groupResource := range resourcesLabelsAsTags {
-		gr := schema.ParseGroupResource(groupResource)
-		groupResourceAccumulator = appendGroupResource(groupResourceAccumulator, gr.Group, gr.Resource)
+	type groupResource struct {
+		group, resource string
 	}
 
-	for groupResource := range resourcesAnnotationsAsTags {
-		gr := schema.ParseGroupResource(groupResource)
-		groupResourceAccumulator = appendGroupResource(groupResourceAccumulator, gr.Group, gr.Resource)
+	// use a map to avoid duplicates
+	groupResourceSet := make(map[groupResource]struct{})
+
+	for grStr := range resourcesLabelsAsTags {
+		gr := schema.ParseGroupResource(grStr)
+		groupResourceSet[groupResource{group: gr.Group, resource: gr.Resource}] = struct{}{}
 	}
 
-	policyRules := make([]rbacv1.PolicyRule, 0)
+	for grStr := range resourcesAnnotationsAsTags {
+		gr := schema.ParseGroupResource(grStr)
+		groupResourceSet[groupResource{group: gr.Group, resource: gr.Resource}] = struct{}{}
+	}
 
-	for group, resources := range groupResourceAccumulator {
-		for resource := range resources {
-			policyRules = append(policyRules, rbacv1.PolicyRule{
-				APIGroups: []string{group},
-				Resources: []string{resource},
-				Verbs: []string{
-					rbac.ListVerb,
-					rbac.WatchVerb,
-				},
-			},
-			)
+	// convert map to slice to sort it
+	groupResources := make([]groupResource, 0, len(groupResourceSet))
+	for gr := range groupResourceSet {
+		groupResources = append(groupResources, gr)
+	}
+	// sort groupResources to have a stable order
+	// This is important to avoid unnecessary RBAC updates
+	sort.Slice(groupResources, func(i, j int) bool {
+		if groupResources[i].group != groupResources[j].group {
+			return groupResources[i].group < groupResources[j].group
 		}
+		return groupResources[i].resource < groupResources[j].resource
+	})
+
+	policyRules := make([]rbacv1.PolicyRule, 0, len(groupResources))
+
+	for _, gr := range groupResources {
+		policyRules = append(policyRules, rbacv1.PolicyRule{
+			APIGroups: []string{gr.group},
+			Resources: []string{gr.resource},
+			Verbs: []string{
+				rbac.ListVerb,
+				rbac.WatchVerb,
+			},
+		})
 	}
 
 	return policyRules
-}
-
-func appendGroupResource(groupResourceAccumulator map[string]map[string]struct{}, group string, resource string) map[string]map[string]struct{} {
-	if _, exists := groupResourceAccumulator[group]; !exists {
-		groupResourceAccumulator[group] = map[string]struct{}{resource: {}}
-	} else {
-		groupResourceAccumulator[group][resource] = struct{}{}
-	}
-
-	return groupResourceAccumulator
 }
