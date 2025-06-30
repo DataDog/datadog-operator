@@ -81,16 +81,6 @@ func (f *controlPlaneMonitoringFeature) ManageDependencies(managers feature.Reso
 	}
 
 	// Create configmaps for control plane monitoring
-	// default configmap
-	defaultConfigMap, err := f.buildControlPlaneMonitoringConfigMap(kubernetes.DefaultProvider, f.defaultConfigMapName)
-	if err != nil {
-		return fmt.Errorf("failed to build default configmap: %w", err)
-	}
-	defaultConfigMap.Name = f.defaultConfigMapName
-
-	if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, defaultConfigMap); err != nil {
-		return fmt.Errorf("failed to add default configmap to store: %w", err)
-	}
 
 	// openshift configmap
 	openshiftConfigMap, err2 := f.buildControlPlaneMonitoringConfigMap(kubernetes.OpenshiftRHCOSType, f.openshiftConfigMapName)
@@ -148,26 +138,27 @@ func (f *controlPlaneMonitoringFeature) ManageClusterAgent(managers feature.PodT
 		configMapName = f.defaultConfigMapName
 	}
 	// Add the controlplane configuration configmap volume
-	configMapVolume := &corev1.Volume{
-		Name: controlPlaneMonitoringVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			ConfigMap: &corev1.ConfigMapVolumeSource{
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: configMapName,
+	if configMapName != f.defaultConfigMapName {
+		configMapVolume := &corev1.Volume{
+			Name: controlPlaneMonitoringVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: configMapName,
+					},
 				},
 			},
-		},
-	}
-	managers.Volume().AddVolume(configMapVolume)
+		}
+		managers.Volume().AddVolume(configMapVolume)
 
-	// Add volume mount for the configmap
-	configMapVolumeMount := corev1.VolumeMount{
-		Name:      controlPlaneMonitoringVolumeName,
-		MountPath: controlPlaneMonitoringVolumeMountPath,
-		ReadOnly:  true,
+		// Add volume mount for the configmap
+		configMapVolumeMount := corev1.VolumeMount{
+			Name:      controlPlaneMonitoringVolumeName,
+			MountPath: controlPlaneMonitoringVolumeMountPath,
+			ReadOnly:  true,
+		}
+		managers.VolumeMount().AddVolumeMountToContainer(&configMapVolumeMount, apicommon.ClusterAgentContainerName)
 	}
-	managers.VolumeMount().AddVolumeMountToContainer(&configMapVolumeMount, apicommon.ClusterAgentContainerName)
-
 	return nil
 }
 

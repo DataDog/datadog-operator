@@ -15,15 +15,7 @@ import (
 func (f *controlPlaneMonitoringFeature) buildControlPlaneMonitoringConfigMap(provider string, configMapName string) (*corev1.ConfigMap, error) {
 	var configMap *corev1.ConfigMap
 	if provider == kubernetes.DefaultProvider {
-		configMap = &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      configMapName,
-				Namespace: f.owner.GetNamespace(),
-			},
-			Data: map[string]string{
-				"foo.yaml": "bar",
-			},
-		}
+		configMap = nil
 	} else if provider == kubernetes.OpenshiftRHCOSType {
 		configMap = &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
