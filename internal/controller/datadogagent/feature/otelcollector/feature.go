@@ -1,7 +1,6 @@
 package otelcollector
 
 import (
-	"errors"
 	"strconv"
 	"strings"
 
@@ -73,6 +72,14 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 	}
 	o.configMapName = constants.GetConfName(dda, o.customConfig, defaultOTelAgentConf)
 
+	// For supported versions, use the user's setting if explicitly set, otherwise default to true
+	if ddaSpec.Features.OtelCollector.UseStandaloneImage != nil {
+		o.useStandaloneImage = ddaSpec.Features.OtelCollector.UseStandaloneImage
+	} else {
+		// Default to true for supported versions when not explicitly set
+		o.useStandaloneImage = apiutils.NewBoolPointer(true)
+	}
+
 	// Check agent version for UseStandaloneImage feature support (7.67.0+)
 	agentVersion := images.AgentLatestVersion
 	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
@@ -81,14 +88,23 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 		}
 	}
 
-	if utils.IsAboveMinVersion(agentVersion, "7.67.0-0") {
-		o.useStandaloneImage = ddaSpec.Features.OtelCollector.UseStandaloneImage
-	} else {
+	// Default to UseStandaloneImage=true for 7.67.0+, but allow explicit override
+	supportedVersion := utils.IsAboveMinVersion(agentVersion, "7.67.0-0")
+	if !supportedVersion {
+		// For unsupported versions, force UseStandaloneImage=false and log warning
 		if apiutils.BoolValue(ddaSpec.Features.OtelCollector.Enabled) {
-			err := errors.New("UseStandaloneImage feature is not supported for agent version " + agentVersion)
-			o.logger.Error(err, "Switching to `full` flavor of the datadog/agent image for the otel-agent container.")
+			o.logger.Info("UseStandaloneImage feature requires agent version 7.67.0 or higher",
+				"current_version", agentVersion, "switching_to_full_image", true)
 		}
 		o.useStandaloneImage = apiutils.NewBoolPointer(false)
+	}
+
+	// Log the final decision for debugging
+	if apiutils.BoolValue(ddaSpec.Features.OtelCollector.Enabled) {
+		o.logger.Info("OTel Collector configuration",
+			"agent_version", agentVersion,
+			"version_supported", supportedVersion,
+			"use_standalone_image", apiutils.BoolValue(o.useStandaloneImage))
 	}
 
 	if ddaSpec.Features.OtelCollector.CoreConfig != nil {
