@@ -15,12 +15,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	pkgutils "github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -55,14 +53,9 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	newStatus := instance.Status.DeepCopy()
 	now := metav1.NewTime(time.Now())
 
-	// TODO: temporary fix for DDAI object name
-	// Use DDA name instead of DDAI name
-	instanceCopy := instance.DeepCopy()
-	instanceCopy.Name = instanceCopy.Labels[apicommon.DatadogAgentNameLabelKey]
-
-	configuredFeatures, enabledFeatures, requiredComponents := feature.BuildFeatures(instanceCopy, &instanceCopy.Spec, instanceCopy.Status.RemoteConfigConfiguration, reconcilerOptionsToFeatureOptions(&r.options, r.log))
+	configuredFeatures, enabledFeatures, requiredComponents := feature.BuildFeatures(instance, &instance.Spec, instance.Status.RemoteConfigConfiguration, reconcilerOptionsToFeatureOptions(&r.options, r.log))
 	// update list of enabled features for metrics forwarder
-	r.updateMetricsForwardersFeatures(instanceCopy, enabledFeatures)
+	r.updateMetricsForwardersFeatures(instance, enabledFeatures)
 
 	// 1. Manage dependencies.
 	// set the original DDAI as the owner of dependencies
@@ -70,14 +63,14 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 
 	var err error
 	// only manage dependencies for default DDAIs
-	if instance.Labels[agentprofile.ProfileLabelKey] == "" {
-		if err = r.manageGlobalDependencies(logger, instanceCopy, resourceManagers, requiredComponents); err != nil {
+	if !isDDAILabeledWithProfile(instance) {
+		if err = r.manageGlobalDependencies(logger, instance, resourceManagers, requiredComponents); err != nil {
 			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 		}
 		if err = r.manageFeatureDependencies(logger, enabledFeatures, resourceManagers); err != nil {
 			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 		}
-		if err = r.overrideDependencies(logger, resourceManagers, instanceCopy); err != nil {
+		if err = r.overrideDependencies(logger, resourceManagers, instance); err != nil {
 			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 		}
 	}
@@ -114,7 +107,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 
 	// 4. Apply and cleanup dependencies.
 	// only manage dependencies for default DDAIs
-	if instance.Labels[agentprofile.ProfileLabelKey] == "" {
+	if !isDDAILabeledWithProfile(instance) {
 		if err = r.applyAndCleanupDependencies(ctx, logger, depsStore); err != nil {
 			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 		}
