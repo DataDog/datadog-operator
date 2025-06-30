@@ -6,7 +6,8 @@
 package clusteragent
 
 import (
-	"sort"
+	"cmp"
+	"slices"
 
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -146,13 +147,11 @@ func GetKubernetesResourceMetadataAsTagsPolicyRules(resourcesLabelsAsTags, resou
 	for gr := range groupResourceSet {
 		groupResources = append(groupResources, gr)
 	}
-	// sort groupResources to have a stable order
-	// This is important to avoid unnecessary RBAC updates
-	sort.Slice(groupResources, func(i, j int) bool {
-		if groupResources[i].group != groupResources[j].group {
-			return groupResources[i].group < groupResources[j].group
+	slices.SortStableFunc(groupResources, func(a, b groupResource) int {
+		if n := cmp.Compare(a.group, b.group); n != 0 {
+			return n
 		}
-		return groupResources[i].resource < groupResources[j].resource
+		return cmp.Compare(a.resource, b.resource)
 	})
 
 	policyRules := make([]rbacv1.PolicyRule, 0, len(groupResources))

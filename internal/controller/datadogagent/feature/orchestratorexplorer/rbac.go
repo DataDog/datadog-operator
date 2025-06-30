@@ -6,8 +6,9 @@
 package orchestratorexplorer
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -151,11 +152,11 @@ func mapAPIGroupsResources(logger logr.Logger, customResources []string) []group
 	grs := make([]groupResources, 0, len(groupToResources))
 	for group, resources := range groupToResources {
 		// sort resources to have a stable order
-		sort.Strings(resources)
+		slices.Sort(resources)
 		grs = append(grs, groupResources{group: group, resources: resources})
 	}
-	sort.Slice(grs, func(i, j int) bool {
-		return grs[i].group < grs[j].group
+	slices.SortStableFunc(grs, func(a, b groupResources) int {
+		return cmp.Compare(a.group, b.group)
 	})
 
 	return grs
