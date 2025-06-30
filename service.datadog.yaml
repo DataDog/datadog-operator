@@ -6,7 +6,7 @@ contacts:
   - type: slack
     contact: https://dd.slack.com/archives/C037CDX0WJV
   - type: email
-    contact: team-agent-onboarding@datadoghq.com
+    contact: team-agentonboarding@datadoghq.com
 links:
   - name: Runbook
     type: runbook
