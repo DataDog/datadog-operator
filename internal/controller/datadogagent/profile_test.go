@@ -276,13 +276,16 @@ func Test_computeProfileMerge(t *testing.T) {
 		logger := logf.Log.WithName("Test_computeProfileMerge")
 		eventBroadcaster := record.NewBroadcaster()
 		recorder := eventBroadcaster.NewRecorder(sch, corev1.EventSource{Component: "Test_computeProfileMerge"})
+		fieldManager, err := newFieldManager(fakeClient, sch, v1alpha1.GroupVersion.WithKind("DatadogAgentInternal"))
+		assert.NoError(t, err)
 
 		t.Run(tt.name, func(t *testing.T) {
 			r := &Reconciler{
-				client:   fakeClient,
-				log:      logger,
-				scheme:   sch,
-				recorder: recorder,
+				client:       fakeClient,
+				log:          logger,
+				scheme:       sch,
+				recorder:     recorder,
+				fieldManager: fieldManager,
 			}
 
 			crd := &apiextensionsv1.CustomResourceDefinition{}
