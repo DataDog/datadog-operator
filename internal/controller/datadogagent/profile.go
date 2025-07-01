@@ -11,7 +11,6 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -26,7 +25,6 @@ import (
 )
 
 const (
-	ddaiCRDName             = "datadogagentinternals.datadoghq.com"
 	profileDDAINameTemplate = "%s-profile-%s"
 )
 
@@ -83,13 +81,8 @@ func (r *Reconciler) computeProfileMerge(ddai *v1alpha1.DatadogAgentInternal, pr
 		return nil, err
 	}
 
-	crd := &apiextensionsv1.CustomResourceDefinition{}
-	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: ddaiCRDName}, crd); err != nil {
-		return nil, fmt.Errorf("failed to get CRD %s: %w", ddaiCRDName, err)
-	}
-
 	// Server side apply to merge DDAIs
-	obj, err := ssaMergeCRD(baseDDAI, profileDDAI, crd, r.scheme)
+	obj, err := r.ssaMergeCRD(baseDDAI, profileDDAI)
 	if err != nil {
 		return nil, err
 	}
