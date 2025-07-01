@@ -7,8 +7,8 @@ package datadogagent
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -73,22 +73,18 @@ func getDDAILabels(dda metav1.Object) map[string]string {
 	return labels
 }
 
-func (r *Reconciler) cleanUpUnusedDDAIs(ctx context.Context, logger logr.Logger, validDDAIs []*v1alpha1.DatadogAgentInternal) error {
+func (r *Reconciler) cleanUpUnusedDDAIs(ctx context.Context, validDDAIs []*v1alpha1.DatadogAgentInternal) error {
+	validDDAIMap := make(map[string]struct{}, len(validDDAIs))
+	for _, ddai := range validDDAIs {
+		validDDAIMap[fmt.Sprintf("%s/%s", ddai.Namespace, ddai.Name)] = struct{}{}
+	}
 	ddaiList := &v1alpha1.DatadogAgentInternalList{}
 	if err := r.client.List(ctx, ddaiList); err != nil {
 		return err
 	}
-
 	for _, ddai := range ddaiList.Items {
-		valid := false
-		for _, validDDAI := range validDDAIs {
-			if ddai.Name == validDDAI.Name && ddai.Namespace == validDDAI.Namespace {
-				valid = true
-				break
-			}
-		}
-		if !valid {
-			logger.Info("Deleting unused DDAI", "namespace", ddai.Namespace, "name", ddai.Name)
+		if _, isValid := validDDAIMap[fmt.Sprintf("%s/%s", ddai.Namespace, ddai.Name)]; !isValid {
+			r.log.Info("Deleting unused DDAI", "namespace", ddai.Namespace, "name", ddai.Name)
 			if err := r.client.Delete(ctx, &ddai); err != nil {
 				return err
 			}

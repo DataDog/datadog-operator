@@ -384,7 +384,7 @@ func Test_cleanUpUnusedDDAIs(t *testing.T) {
 				log:    logger,
 			}
 
-			err := r.cleanUpUnusedDDAIs(ctx, logger, tt.validDDAIs)
+			err := r.cleanUpUnusedDDAIs(ctx, tt.validDDAIs)
 			assert.NoError(t, err)
 
 			ddaiList := &v1alpha1.DatadogAgentInternalList{}
