@@ -12,6 +12,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -415,6 +416,63 @@ func TestRBACManager_AddServiceAccountAnnotations(t *testing.T) {
 			if tt.validateFunc != nil {
 				tt.validateFunc(t, tt.store)
 			}
+		})
+	}
+}
+
+func Test_normalizePolicyRules(t *testing.T) {
+	rule1 := rbacv1.PolicyRule{APIGroups: []string{"apps"}, Resources: []string{"deployments"}, Verbs: []string{"get"}}
+	rule2Unsorted := rbacv1.PolicyRule{APIGroups: []string{"apps"}, Resources: []string{"deployments"}, Verbs: []string{"get", "create"}}
+	rule2Sorted := rbacv1.PolicyRule{APIGroups: []string{"apps"}, Resources: []string{"deployments"}, Verbs: []string{"create", "get"}}
+
+	rule3 := rbacv1.PolicyRule{APIGroups: []string{""}, Resources: []string{"pods"}, Verbs: []string{"list"}}
+	rule4 := rbacv1.PolicyRule{APIGroups: []string{"apps"}, Resources: []string{"statefulsets"}, Verbs: []string{"get"}}
+
+	tests := []struct {
+		name string
+		give []rbacv1.PolicyRule
+		want []rbacv1.PolicyRule
+	}{
+		{
+			name: "nil slice",
+			give: nil,
+			want: nil,
+		},
+		{
+			name: "empty slice",
+			give: []rbacv1.PolicyRule{},
+			want: nil,
+		},
+		{
+			name: "single rule, already sorted",
+			give: []rbacv1.PolicyRule{rule1},
+			want: []rbacv1.PolicyRule{rule1},
+		},
+		{
+			name: "single rule, needs inner sort",
+			give: []rbacv1.PolicyRule{rule2Unsorted},
+			want: []rbacv1.PolicyRule{rule2Sorted},
+		},
+		{
+			name: "multiple rules, need outer sort",
+			give: []rbacv1.PolicyRule{rule3, rule1},
+			want: []rbacv1.PolicyRule{rule1, rule3},
+		},
+		{
+			name: "multiple rules with duplicates",
+			give: []rbacv1.PolicyRule{rule1, rule3, rule1},
+			want: []rbacv1.PolicyRule{rule1, rule3},
+		},
+		{
+			name: "complex case with inner sorting, outer sorting, and duplicates",
+			give: []rbacv1.PolicyRule{rule2Unsorted, rule3, rule4, rule2Unsorted},
+			want: []rbacv1.PolicyRule{rule2Sorted, rule4, rule3},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := normalizePolicyRules(tt.give)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
