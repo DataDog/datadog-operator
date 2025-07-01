@@ -107,6 +107,11 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 		// TODO: copy remote config status from DDA to DDAI
 	}
 
+	// Clean up unused DDAI objects
+	if e := r.cleanUpUnusedDDAIs(ctx, ddais); e != nil {
+		return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
+	}
+
 	// Prevent the reconcile loop from stopping by requeueing the DDAI object after a period of time
 	result.RequeueAfter = defaultRequeuePeriod
 	return r.updateStatusIfNeededV2(logger, instance, newDDAStatus, result, err, now)
