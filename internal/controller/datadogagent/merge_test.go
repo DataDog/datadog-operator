@@ -41,6 +41,18 @@ func Test_ssaMergeCRD(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo",
 					Namespace: "bar",
+					ManagedFields: []metav1.ManagedFieldsEntry{
+						{
+							Manager:    "datadog-operator",
+							Operation:  metav1.ManagedFieldsOperationApply,
+							FieldsType: "FieldsV1",
+							APIVersion: "datadoghq.com/v1alpha1",
+						},
+					},
+				},
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "datadoghq.com/v1alpha1",
+					Kind:       "DatadogAgentInternal",
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
 					Features: &v2alpha1.DatadogFeatures{
@@ -64,6 +76,10 @@ func Test_ssaMergeCRD(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo",
 					Namespace: "bar",
+				},
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "datadoghq.com/v1alpha1",
+					Kind:       "DatadogAgentInternal",
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -113,6 +129,10 @@ func Test_ssaMergeCRD(t *testing.T) {
 					Name:      "foo",
 					Namespace: "bar",
 				},
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "datadoghq.com/v1alpha1",
+					Kind:       "DatadogAgentInternal",
+				},
 				Spec: v2alpha1.DatadogAgentSpec{
 					Features: &v2alpha1.DatadogFeatures{
 						APM: &v2alpha1.APMFeatureConfig{
@@ -135,6 +155,10 @@ func Test_ssaMergeCRD(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo",
 					Namespace: "bar",
+				},
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "datadoghq.com/v1alpha1",
+					Kind:       "DatadogAgentInternal",
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
