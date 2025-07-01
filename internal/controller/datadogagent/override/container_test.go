@@ -15,6 +15,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -78,11 +79,60 @@ func TestContainer(t *testing.T) {
 				envs := manager.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 				expectedEnvs := []*corev1.EnvVar{
 					{
-						Name:  DDLogLevel,
+						Name:  constants.DDLogLevel,
 						Value: "debug",
 					},
 				}
 				assert.Equal(t, expectedEnvs, envs)
+			},
+		},
+		{
+			name:          "add ports",
+			containerName: apicommon.CoreAgentContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{*agentContainer},
+					},
+				})
+				manager.Port().AddPortToContainer(
+					apicommon.CoreAgentContainerName,
+					&corev1.ContainerPort{
+						ContainerPort: 1234,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				)
+				return manager
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				Ports: []corev1.ContainerPort{
+					{
+						ContainerPort: 1234,
+						Protocol:      corev1.ProtocolUDP,
+					},
+					{
+						ContainerPort: 1235,
+						Protocol:      corev1.ProtocolUDP,
+					},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				ports := manager.PortMgr.PortsByC[apicommon.CoreAgentContainerName]
+				expectedPorts := []*corev1.ContainerPort{
+					{
+						ContainerPort: 1234,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						ContainerPort: 1234,
+						Protocol:      corev1.ProtocolUDP,
+					},
+					{
+						ContainerPort: 1235,
+						Protocol:      corev1.ProtocolUDP,
+					},
+				}
+				assert.Equal(t, expectedPorts, ports)
 			},
 		},
 		{

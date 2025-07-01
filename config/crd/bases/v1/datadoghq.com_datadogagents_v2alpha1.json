@@ -1314,6 +1314,10 @@
                   },
                   "type": "object"
                 },
+                "nonLocalTraffic": {
+                  "description": "NonLocalTraffic enables non-local traffic for Dogstatsd.\nDefault: true",
+                  "type": "boolean"
+                },
                 "originDetectionEnabled": {
                   "description": "OriginDetectionEnabled enables origin detection for container tagging.\nSee also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging",
                   "type": "boolean"
@@ -1853,7 +1857,7 @@
                   "type": "object"
                 },
                 "enabled": {
-                  "description": "Enabled enables the OTel Agent.\nDefault: true",
+                  "description": "Enabled enables the OTel Agent.\nDefault: false",
                   "type": "boolean"
                 },
                 "ports": {
@@ -2917,6 +2921,11 @@
                   "description": "Whether to create a global permission allowing Datadog agents to read all Kubernetes secrets.\nDefault: `false`.",
                   "type": "boolean"
                 },
+                "refreshInterval": {
+                  "description": "The refresh interval for secrets (0 disables refreshing).\nDefault: `0`.",
+                  "format": "int32",
+                  "type": "integer"
+                },
                 "roles": {
                   "description": "Roles for Datadog to read the specified secrets, replacing `enableGlobalPermissions`.\nThey are defined as a list of namespace/secrets.\nEach defined namespace needs to be present in the DatadogAgent controller using `WATCH_NAMESPACE` or `DD_AGENT_WATCH_NAMESPACE`.\nSee also: https://github.com/DataDog/datadog-operator/blob/main/docs/secret_management.md#how-to-deploy-the-agent-components-using-the-secret-backend-feature-with-datadogagent.",
                   "items": {
@@ -2964,6 +2973,10 @@
               },
               "type": "array",
               "x-kubernetes-list-type": "set"
+            },
+            "useFIPSAgent": {
+              "description": "UseFIPSAgent enables the FIPS flavor of the Agent. If 'true', the FIPS proxy will always be disabled.\nDefault: 'false'",
+              "type": "boolean"
             }
           },
           "type": "object"
@@ -3937,7 +3950,7 @@
                       "properties": {
                         "exec": {
                           "additionalProperties": false,
-                          "description": "Exec specifies the action to take.",
+                          "description": "Exec specifies a command to execute in the container.",
                           "properties": {
                             "command": {
                               "description": "Command is the command line to execute inside the container, the working directory for the\ncommand  is root ('/') in the container's filesystem. The command is simply exec'd, it is\nnot run inside a shell, so traditional shell instructions ('|', etc) won't work. To use\na shell, you need to explicitly call out to that shell.\nExit status of 0 is treated as live/healthy and non-zero is unhealthy.",
@@ -3957,7 +3970,7 @@
                         },
                         "grpc": {
                           "additionalProperties": false,
-                          "description": "GRPC specifies an action involving a GRPC port.",
+                          "description": "GRPC specifies a GRPC HealthCheckRequest.",
                           "properties": {
                             "port": {
                               "description": "Port number of the gRPC service. Number must be in the range 1 to 65535.",
@@ -3977,7 +3990,7 @@
                         },
                         "httpGet": {
                           "additionalProperties": false,
-                          "description": "HTTPGet specifies the http request to perform.",
+                          "description": "HTTPGet specifies an HTTP GET request to perform.",
                           "properties": {
                             "host": {
                               "description": "Host name to connect to, defaults to the pod IP. You probably want to set\n\"Host\" in httpHeaders instead.",
@@ -4050,7 +4063,7 @@
                         },
                         "tcpSocket": {
                           "additionalProperties": false,
-                          "description": "TCPSocket specifies an action involving a TCP port.",
+                          "description": "TCPSocket specifies a connection to a TCP port.",
                           "properties": {
                             "host": {
                               "description": "Optional: Host name to connect to, defaults to the pod IP.",
@@ -4095,13 +4108,51 @@
                       "description": "Name of the container that is overridden",
                       "type": "string"
                     },
+                    "ports": {
+                      "description": "Specify additional ports to be exposed by the container. Not specifying a port here\nDOES NOT prevent that port from being exposed.\nSee https://pkg.go.dev/k8s.io/api/core/v1#Container documentation for more details.",
+                      "items": {
+                        "additionalProperties": false,
+                        "description": "ContainerPort represents a network port in a single container.",
+                        "properties": {
+                          "containerPort": {
+                            "description": "Number of port to expose on the pod's IP address.\nThis must be a valid port number, 0 \u003c x \u003c 65536.",
+                            "format": "int32",
+                            "type": "integer"
+                          },
+                          "hostIP": {
+                            "description": "What host IP to bind the external port to.",
+                            "type": "string"
+                          },
+                          "hostPort": {
+                            "description": "Number of port to expose on the host.\nIf specified, this must be a valid port number, 0 \u003c x \u003c 65536.\nIf HostNetwork is specified, this must match ContainerPort.\nMost containers do not need this.",
+                            "format": "int32",
+                            "type": "integer"
+                          },
+                          "name": {
+                            "description": "If specified, this must be an IANA_SVC_NAME and unique within the pod. Each\nnamed port in a pod must have a unique name. Name for the port that can be\nreferred to by services.",
+                            "type": "string"
+                          },
+                          "protocol": {
+                            "default": "TCP",
+                            "description": "Protocol for port. Must be UDP, TCP, or SCTP.\nDefaults to \"TCP\".",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "containerPort"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array",
+                      "x-kubernetes-list-type": "atomic"
+                    },
                     "readinessProbe": {
                       "additionalProperties": false,
                       "description": "Configure the Readiness Probe of the container",
                       "properties": {
                         "exec": {
                           "additionalProperties": false,
-                          "description": "Exec specifies the action to take.",
+                          "description": "Exec specifies a command to execute in the container.",
                           "properties": {
                             "command": {
                               "description": "Command is the command line to execute inside the container, the working directory for the\ncommand  is root ('/') in the container's filesystem. The command is simply exec'd, it is\nnot run inside a shell, so traditional shell instructions ('|', etc) won't work. To use\na shell, you need to explicitly call out to that shell.\nExit status of 0 is treated as live/healthy and non-zero is unhealthy.",
@@ -4121,7 +4172,7 @@
                         },
                         "grpc": {
                           "additionalProperties": false,
-                          "description": "GRPC specifies an action involving a GRPC port.",
+                          "description": "GRPC specifies a GRPC HealthCheckRequest.",
                           "properties": {
                             "port": {
                               "description": "Port number of the gRPC service. Number must be in the range 1 to 65535.",
@@ -4141,7 +4192,7 @@
                         },
                         "httpGet": {
                           "additionalProperties": false,
-                          "description": "HTTPGet specifies the http request to perform.",
+                          "description": "HTTPGet specifies an HTTP GET request to perform.",
                           "properties": {
                             "host": {
                               "description": "Host name to connect to, defaults to the pod IP. You probably want to set\n\"Host\" in httpHeaders instead.",
@@ -4214,7 +4265,7 @@
                         },
                         "tcpSocket": {
                           "additionalProperties": false,
-                          "description": "TCPSocket specifies an action involving a TCP port.",
+                          "description": "TCPSocket specifies a connection to a TCP port.",
                           "properties": {
                             "host": {
                               "description": "Optional: Host name to connect to, defaults to the pod IP.",
@@ -4531,7 +4582,7 @@
                       "properties": {
                         "exec": {
                           "additionalProperties": false,
-                          "description": "Exec specifies the action to take.",
+                          "description": "Exec specifies a command to execute in the container.",
                           "properties": {
                             "command": {
                               "description": "Command is the command line to execute inside the container, the working directory for the\ncommand  is root ('/') in the container's filesystem. The command is simply exec'd, it is\nnot run inside a shell, so traditional shell instructions ('|', etc) won't work. To use\na shell, you need to explicitly call out to that shell.\nExit status of 0 is treated as live/healthy and non-zero is unhealthy.",
@@ -4551,7 +4602,7 @@
                         },
                         "grpc": {
                           "additionalProperties": false,
-                          "description": "GRPC specifies an action involving a GRPC port.",
+                          "description": "GRPC specifies a GRPC HealthCheckRequest.",
                           "properties": {
                             "port": {
                               "description": "Port number of the gRPC service. Number must be in the range 1 to 65535.",
@@ -4571,7 +4622,7 @@
                         },
                         "httpGet": {
                           "additionalProperties": false,
-                          "description": "HTTPGet specifies the http request to perform.",
+                          "description": "HTTPGet specifies an HTTP GET request to perform.",
                           "properties": {
                             "host": {
                               "description": "Host name to connect to, defaults to the pod IP. You probably want to set\n\"Host\" in httpHeaders instead.",
@@ -4644,7 +4695,7 @@
                         },
                         "tcpSocket": {
                           "additionalProperties": false,
-                          "description": "TCPSocket specifies an action involving a TCP port.",
+                          "description": "TCPSocket specifies a connection to a TCP port.",
                           "properties": {
                             "host": {
                               "description": "Optional: Host name to connect to, defaults to the pod IP.",
@@ -4824,10 +4875,11 @@
                       "description": "PodDNSConfigOption defines DNS resolver options of a pod.",
                       "properties": {
                         "name": {
-                          "description": "Required.",
+                          "description": "Name is this DNS resolver option's name.\nRequired.",
                           "type": "string"
                         },
                         "value": {
+                          "description": "Value is this DNS resolver option's value.",
                           "type": "string"
                         }
                       },
@@ -5199,7 +5251,8 @@
                   "type": "string"
                 },
                 "description": "AdditionalLabels provide labels that are added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods.",
-                "type": "object"
+                "type": "object",
+                "x-kubernetes-map-type": "granular"
               },
               "name": {
                 "description": "Name overrides the default name for the resource",
@@ -5269,6 +5322,10 @@
                     "description": "The UID to run the entrypoint of the container process.\nDefaults to user specified in image metadata if unspecified.\nMay also be set in SecurityContext.  If set in both SecurityContext and\nPodSecurityContext, the value specified in SecurityContext takes precedence\nfor that container.\nNote that this field cannot be set when spec.os.name is windows.",
                     "format": "int64",
                     "type": "integer"
+                  },
+                  "seLinuxChangePolicy": {
+                    "description": "seLinuxChangePolicy defines how the container's SELinux label is applied to all volumes used by the Pod.\nIt has no effect on nodes that do not support SELinux or to volumes does not support SELinux.\nValid values are \"MountOption\" and \"Recursive\".\n\n\"Recursive\" means relabeling of all files on all Pod volumes by the container runtime.\nThis may be slow for large volumes, but allows mixing privileged and unprivileged Pods sharing the same volume on the same node.\n\n\"MountOption\" mounts all eligible Pod volumes with `-o context` mount option.\nThis requires all Pods that share the same volume to use the same SELinux label.\nIt is not possible to share the same volume among privileged and unprivileged Pods.\nEligible volumes are in-tree FibreChannel and iSCSI volumes, and all CSI volumes\nwhose CSI driver announces SELinux support by setting spec.seLinuxMount: true in their\nCSIDriver instance. Other volumes are always re-labelled recursively.\n\"MountOption\" value is allowed only when SELinuxMount feature gate is enabled.\n\nIf not specified and SELinuxMount feature gate is enabled, \"MountOption\" is used.\nIf not specified and SELinuxMount feature gate is disabled, \"MountOption\" is used for ReadWriteOncePod volumes\nand \"Recursive\" for all other volumes.\n\nThis field affects only Pods that have SELinux label set, either in PodSecurityContext or in SecurityContext of all containers.\n\nAll Pods that use the same volume should use the same seLinuxChangePolicy, otherwise some pods can get stuck in ContainerCreating state.\nNote that this field cannot be set when spec.os.name is windows.",
+                    "type": "string"
                   },
                   "seLinuxOptions": {
                     "additionalProperties": false,
@@ -5418,6 +5475,108 @@
                 "type": "array",
                 "x-kubernetes-list-type": "atomic"
               },
+              "topologySpreadConstraints": {
+                "description": "TopologySpreadConstraints describes how a group of pods ought to spread across topology\ndomains. Scheduler will schedule pods in a way which abides by the constraints.\nAll topologySpreadConstraints are ANDed.",
+                "items": {
+                  "additionalProperties": false,
+                  "description": "TopologySpreadConstraint specifies how to spread matching pods among the given topology.",
+                  "properties": {
+                    "labelSelector": {
+                      "additionalProperties": false,
+                      "description": "LabelSelector is used to find matching pods.\nPods that match this label selector are counted to determine the number of pods\nin their corresponding topology domain.",
+                      "properties": {
+                        "matchExpressions": {
+                          "description": "matchExpressions is a list of label selector requirements. The requirements are ANDed.",
+                          "items": {
+                            "additionalProperties": false,
+                            "description": "A label selector requirement is a selector that contains values, a key, and an operator that\nrelates the key and values.",
+                            "properties": {
+                              "key": {
+                                "description": "key is the label key that the selector applies to.",
+                                "type": "string"
+                              },
+                              "operator": {
+                                "description": "operator represents a key's relationship to a set of values.\nValid operators are In, NotIn, Exists and DoesNotExist.",
+                                "type": "string"
+                              },
+                              "values": {
+                                "description": "values is an array of string values. If the operator is In or NotIn,\nthe values array must be non-empty. If the operator is Exists or DoesNotExist,\nthe values array must be empty. This array is replaced during a strategic\nmerge patch.",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "type": "array",
+                                "x-kubernetes-list-type": "atomic"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "operator"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array",
+                          "x-kubernetes-list-type": "atomic"
+                        },
+                        "matchLabels": {
+                          "additionalProperties": {
+                            "type": "string"
+                          },
+                          "description": "matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels\nmap is equivalent to an element of matchExpressions, whose key field is \"key\", the\noperator is \"In\", and the values array contains only \"value\". The requirements are ANDed.",
+                          "type": "object"
+                        }
+                      },
+                      "type": "object",
+                      "x-kubernetes-map-type": "atomic"
+                    },
+                    "matchLabelKeys": {
+                      "description": "MatchLabelKeys is a set of pod label keys to select the pods over which\nspreading will be calculated. The keys are used to lookup values from the\nincoming pod labels, those key-value labels are ANDed with labelSelector\nto select the group of existing pods over which spreading will be calculated\nfor the incoming pod. The same key is forbidden to exist in both MatchLabelKeys and LabelSelector.\nMatchLabelKeys cannot be set when LabelSelector isn't set.\nKeys that don't exist in the incoming pod labels will\nbe ignored. A null or empty list means only match against labelSelector.\n\nThis is a beta field and requires the MatchLabelKeysInPodTopologySpread feature gate to be enabled (enabled by default).",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array",
+                      "x-kubernetes-list-type": "atomic"
+                    },
+                    "maxSkew": {
+                      "description": "MaxSkew describes the degree to which pods may be unevenly distributed.\nWhen `whenUnsatisfiable=DoNotSchedule`, it is the maximum permitted difference\nbetween the number of matching pods in the target topology and the global minimum.\nThe global minimum is the minimum number of matching pods in an eligible domain\nor zero if the number of eligible domains is less than MinDomains.\nFor example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same\nlabelSelector spread as 2/2/1:\nIn this case, the global minimum is 1.\n| zone1 | zone2 | zone3 |\n|  P P  |  P P  |   P   |\n- if MaxSkew is 1, incoming pod can only be scheduled to zone3 to become 2/2/2;\nscheduling it onto zone1(zone2) would make the ActualSkew(3-1) on zone1(zone2)\nviolate MaxSkew(1).\n- if MaxSkew is 2, incoming pod can be scheduled onto any zone.\nWhen `whenUnsatisfiable=ScheduleAnyway`, it is used to give higher precedence\nto topologies that satisfy it.\nIt's a required field. Default value is 1 and 0 is not allowed.",
+                      "format": "int32",
+                      "type": "integer"
+                    },
+                    "minDomains": {
+                      "description": "MinDomains indicates a minimum number of eligible domains.\nWhen the number of eligible domains with matching topology keys is less than minDomains,\nPod Topology Spread treats \"global minimum\" as 0, and then the calculation of Skew is performed.\nAnd when the number of eligible domains with matching topology keys equals or greater than minDomains,\nthis value has no effect on scheduling.\nAs a result, when the number of eligible domains is less than minDomains,\nscheduler won't schedule more than maxSkew Pods to those domains.\nIf value is nil, the constraint behaves as if MinDomains is equal to 1.\nValid values are integers greater than 0.\nWhen value is not nil, WhenUnsatisfiable must be DoNotSchedule.\n\nFor example, in a 3-zone cluster, MaxSkew is set to 2, MinDomains is set to 5 and pods with the same\nlabelSelector spread as 2/2/2:\n| zone1 | zone2 | zone3 |\n|  P P  |  P P  |  P P  |\nThe number of domains is less than 5(MinDomains), so \"global minimum\" is treated as 0.\nIn this situation, new pod with the same labelSelector cannot be scheduled,\nbecause computed skew will be 3(3 - 0) if new Pod is scheduled to any of the three zones,\nit will violate MaxSkew.",
+                      "format": "int32",
+                      "type": "integer"
+                    },
+                    "nodeAffinityPolicy": {
+                      "description": "NodeAffinityPolicy indicates how we will treat Pod's nodeAffinity/nodeSelector\nwhen calculating pod topology spread skew. Options are:\n- Honor: only nodes matching nodeAffinity/nodeSelector are included in the calculations.\n- Ignore: nodeAffinity/nodeSelector are ignored. All nodes are included in the calculations.\n\nIf this value is nil, the behavior is equivalent to the Honor policy.\nThis is a beta-level feature default enabled by the NodeInclusionPolicyInPodTopologySpread feature flag.",
+                      "type": "string"
+                    },
+                    "nodeTaintsPolicy": {
+                      "description": "NodeTaintsPolicy indicates how we will treat node taints when calculating\npod topology spread skew. Options are:\n- Honor: nodes without taints, along with tainted nodes for which the incoming pod\nhas a toleration, are included.\n- Ignore: node taints are ignored. All nodes are included.\n\nIf this value is nil, the behavior is equivalent to the Ignore policy.\nThis is a beta-level feature default enabled by the NodeInclusionPolicyInPodTopologySpread feature flag.",
+                      "type": "string"
+                    },
+                    "topologyKey": {
+                      "description": "TopologyKey is the key of node labels. Nodes that have a label with this key\nand identical values are considered to be in the same topology.\nWe consider each \u003ckey, value\u003e as a \"bucket\", and try to put balanced number\nof pods into each bucket.\nWe define a domain as a particular instance of a topology.\nAlso, we define an eligible domain as a domain whose nodes meet the requirements of\nnodeAffinityPolicy and nodeTaintsPolicy.\ne.g. If TopologyKey is \"kubernetes.io/hostname\", each Node is a domain of that topology.\nAnd, if TopologyKey is \"topology.kubernetes.io/zone\", each zone is a domain of that topology.\nIt's a required field.",
+                      "type": "string"
+                    },
+                    "whenUnsatisfiable": {
+                      "description": "WhenUnsatisfiable indicates how to deal with a pod if it doesn't satisfy\nthe spread constraint.\n- DoNotSchedule (default) tells the scheduler not to schedule it.\n- ScheduleAnyway tells the scheduler to schedule the pod in any location,\n  but giving higher precedence to topologies that would help reduce the\n  skew.\nA constraint is considered \"Unsatisfiable\" for an incoming pod\nif and only if every possible node assignment for that pod would violate\n\"MaxSkew\" on some topology.\nFor example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same\nlabelSelector spread as 3/1/1:\n| zone1 | zone2 | zone3 |\n| P P P |   P   |   P   |\nIf WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled\nto zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies\nMaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler\nwon't make it *more* imbalanced.\nIt's a required field.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "maxSkew",
+                    "topologyKey",
+                    "whenUnsatisfiable"
+                  ],
+                  "type": "object"
+                },
+                "type": "array",
+                "x-kubernetes-list-map-keys": [
+                  "topologyKey",
+                  "whenUnsatisfiable"
+                ],
+                "x-kubernetes-list-type": "map"
+              },
               "updateStrategy": {
                 "additionalProperties": false,
                 "description": "The deployment strategy to use to replace existing pods with new ones.",
@@ -5468,7 +5627,7 @@
                   "properties": {
                     "awsElasticBlockStore": {
                       "additionalProperties": false,
-                      "description": "awsElasticBlockStore represents an AWS Disk resource that is attached to a\nkubelet's host machine and then exposed to the pod.\nMore info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore",
+                      "description": "awsElasticBlockStore represents an AWS Disk resource that is attached to a\nkubelet's host machine and then exposed to the pod.\nDeprecated: AWSElasticBlockStore is deprecated. All operations for the in-tree\nawsElasticBlockStore type are redirected to the ebs.csi.aws.com CSI driver.\nMore info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore",
                       "properties": {
                         "fsType": {
                           "description": "fsType is the filesystem type of the volume that you want to mount.\nTip: Ensure that the filesystem type is supported by the host operating system.\nExamples: \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.\nMore info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore",
@@ -5495,7 +5654,7 @@
                     },
                     "azureDisk": {
                       "additionalProperties": false,
-                      "description": "azureDisk represents an Azure Data Disk mount on the host and bind mount to the pod.",
+                      "description": "azureDisk represents an Azure Data Disk mount on the host and bind mount to the pod.\nDeprecated: AzureDisk is deprecated. All operations for the in-tree azureDisk type\nare redirected to the disk.csi.azure.com CSI driver.",
                       "properties": {
                         "cachingMode": {
                           "description": "cachingMode is the Host Caching mode: None, Read Only, Read Write.",
@@ -5532,7 +5691,7 @@
                     },
                     "azureFile": {
                       "additionalProperties": false,
-                      "description": "azureFile represents an Azure File Service mount on the host and bind mount to the pod.",
+                      "description": "azureFile represents an Azure File Service mount on the host and bind mount to the pod.\nDeprecated: AzureFile is deprecated. All operations for the in-tree azureFile type\nare redirected to the file.csi.azure.com CSI driver.",
                       "properties": {
                         "readOnly": {
                           "description": "readOnly defaults to false (read/write). ReadOnly here will force\nthe ReadOnly setting in VolumeMounts.",
@@ -5555,7 +5714,7 @@
                     },
                     "cephfs": {
                       "additionalProperties": false,
-                      "description": "cephFS represents a Ceph FS mount on the host that shares a pod's lifetime",
+                      "description": "cephFS represents a Ceph FS mount on the host that shares a pod's lifetime.\nDeprecated: CephFS is deprecated and the in-tree cephfs type is no longer supported.",
                       "properties": {
                         "monitors": {
                           "description": "monitors is Required: Monitors is a collection of Ceph monitors\nMore info: https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it",
@@ -5602,7 +5761,7 @@
                     },
                     "cinder": {
                       "additionalProperties": false,
-                      "description": "cinder represents a cinder volume attached and mounted on kubelets host machine.\nMore info: https://examples.k8s.io/mysql-cinder-pd/README.md",
+                      "description": "cinder represents a cinder volume attached and mounted on kubelets host machine.\nDeprecated: Cinder is deprecated. All operations for the in-tree cinder type\nare redirected to the cinder.csi.openstack.org CSI driver.\nMore info: https://examples.k8s.io/mysql-cinder-pd/README.md",
                       "properties": {
                         "fsType": {
                           "description": "fsType is the filesystem type to mount.\nMust be a filesystem type supported by the host operating system.\nExamples: \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.\nMore info: https://examples.k8s.io/mysql-cinder-pd/README.md",
@@ -5688,7 +5847,7 @@
                     },
                     "csi": {
                       "additionalProperties": false,
-                      "description": "csi (Container Storage Interface) represents ephemeral storage that is handled by certain external CSI drivers (Beta feature).",
+                      "description": "csi (Container Storage Interface) represents ephemeral storage that is handled by certain external CSI drivers.",
                       "properties": {
                         "driver": {
                           "description": "driver is the name of the CSI driver that handles this volume.\nConsult with your admin for the correct name as registered in the cluster.",
@@ -6066,7 +6225,7 @@
                     },
                     "flexVolume": {
                       "additionalProperties": false,
-                      "description": "flexVolume represents a generic volume resource that is\nprovisioned/attached using an exec based plugin.",
+                      "description": "flexVolume represents a generic volume resource that is\nprovisioned/attached using an exec based plugin.\nDeprecated: FlexVolume is deprecated. Consider using a CSIDriver instead.",
                       "properties": {
                         "driver": {
                           "description": "driver is the name of the driver to use for this volume.",
@@ -6108,7 +6267,7 @@
                     },
                     "flocker": {
                       "additionalProperties": false,
-                      "description": "flocker represents a Flocker volume attached to a kubelet's host machine. This depends on the Flocker control service being running",
+                      "description": "flocker represents a Flocker volume attached to a kubelet's host machine. This depends on the Flocker control service being running.\nDeprecated: Flocker is deprecated and the in-tree flocker type is no longer supported.",
                       "properties": {
                         "datasetName": {
                           "description": "datasetName is Name of the dataset stored as metadata -\u003e name on the dataset for Flocker\nshould be considered as deprecated",
@@ -6123,7 +6282,7 @@
                     },
                     "gcePersistentDisk": {
                       "additionalProperties": false,
-                      "description": "gcePersistentDisk represents a GCE Disk resource that is attached to a\nkubelet's host machine and then exposed to the pod.\nMore info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk",
+                      "description": "gcePersistentDisk represents a GCE Disk resource that is attached to a\nkubelet's host machine and then exposed to the pod.\nDeprecated: GCEPersistentDisk is deprecated. All operations for the in-tree\ngcePersistentDisk type are redirected to the pd.csi.storage.gke.io CSI driver.\nMore info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk",
                       "properties": {
                         "fsType": {
                           "description": "fsType is filesystem type of the volume that you want to mount.\nTip: Ensure that the filesystem type is supported by the host operating system.\nExamples: \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.\nMore info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk",
@@ -6150,7 +6309,7 @@
                     },
                     "gitRepo": {
                       "additionalProperties": false,
-                      "description": "gitRepo represents a git repository at a particular revision.\nDEPRECATED: GitRepo is deprecated. To provision a container with a git repo, mount an\nEmptyDir into an InitContainer that clones the repo using git, then mount the EmptyDir\ninto the Pod's container.",
+                      "description": "gitRepo represents a git repository at a particular revision.\nDeprecated: GitRepo is deprecated. To provision a container with a git repo, mount an\nEmptyDir into an InitContainer that clones the repo using git, then mount the EmptyDir\ninto the Pod's container.",
                       "properties": {
                         "directory": {
                           "description": "directory is the target directory name.\nMust not contain or start with '..'.  If '.' is supplied, the volume directory will be the\ngit repository.  Otherwise, if specified, the volume will contain the git repository in\nthe subdirectory with the given name.",
@@ -6172,7 +6331,7 @@
                     },
                     "glusterfs": {
                       "additionalProperties": false,
-                      "description": "glusterfs represents a Glusterfs mount on the host that shares a pod's lifetime.\nMore info: https://examples.k8s.io/volumes/glusterfs/README.md",
+                      "description": "glusterfs represents a Glusterfs mount on the host that shares a pod's lifetime.\nDeprecated: Glusterfs is deprecated and the in-tree glusterfs type is no longer supported.\nMore info: https://examples.k8s.io/volumes/glusterfs/README.md",
                       "properties": {
                         "endpoints": {
                           "description": "endpoints is the endpoint name that details Glusterfs topology.\nMore info: https://examples.k8s.io/volumes/glusterfs/README.md#create-a-pod",
@@ -6344,7 +6503,7 @@
                     },
                     "photonPersistentDisk": {
                       "additionalProperties": false,
-                      "description": "photonPersistentDisk represents a PhotonController persistent disk attached and mounted on kubelets host machine",
+                      "description": "photonPersistentDisk represents a PhotonController persistent disk attached and mounted on kubelets host machine.\nDeprecated: PhotonPersistentDisk is deprecated and the in-tree photonPersistentDisk type is no longer supported.",
                       "properties": {
                         "fsType": {
                           "description": "fsType is the filesystem type to mount.\nMust be a filesystem type supported by the host operating system.\nEx. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.",
@@ -6362,7 +6521,7 @@
                     },
                     "portworxVolume": {
                       "additionalProperties": false,
-                      "description": "portworxVolume represents a portworx volume attached and mounted on kubelets host machine",
+                      "description": "portworxVolume represents a portworx volume attached and mounted on kubelets host machine.\nDeprecated: PortworxVolume is deprecated. All operations for the in-tree portworxVolume type\nare redirected to the pxd.portworx.com CSI driver when the CSIMigrationPortworx feature-gate\nis on.",
                       "properties": {
                         "fsType": {
                           "description": "fSType represents the filesystem type to mount\nMust be a filesystem type supported by the host operating system.\nEx. \"ext4\", \"xfs\". Implicitly inferred to be \"ext4\" if unspecified.",
@@ -6678,7 +6837,7 @@
                     },
                     "quobyte": {
                       "additionalProperties": false,
-                      "description": "quobyte represents a Quobyte mount on the host that shares a pod's lifetime",
+                      "description": "quobyte represents a Quobyte mount on the host that shares a pod's lifetime.\nDeprecated: Quobyte is deprecated and the in-tree quobyte type is no longer supported.",
                       "properties": {
                         "group": {
                           "description": "group to map volume access to\nDefault is no group",
@@ -6713,7 +6872,7 @@
                     },
                     "rbd": {
                       "additionalProperties": false,
-                      "description": "rbd represents a Rados Block Device mount on the host that shares a pod's lifetime.\nMore info: https://examples.k8s.io/volumes/rbd/README.md",
+                      "description": "rbd represents a Rados Block Device mount on the host that shares a pod's lifetime.\nDeprecated: RBD is deprecated and the in-tree rbd type is no longer supported.\nMore info: https://examples.k8s.io/volumes/rbd/README.md",
                       "properties": {
                         "fsType": {
                           "description": "fsType is the filesystem type of the volume that you want to mount.\nTip: Ensure that the filesystem type is supported by the host operating system.\nExamples: \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.\nMore info: https://kubernetes.io/docs/concepts/storage/volumes#rbd",
@@ -6772,7 +6931,7 @@
                     },
                     "scaleIO": {
                       "additionalProperties": false,
-                      "description": "scaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes.",
+                      "description": "scaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes.\nDeprecated: ScaleIO is deprecated and the in-tree scaleIO type is no longer supported.",
                       "properties": {
                         "fsType": {
                           "default": "xfs",
@@ -6884,7 +7043,7 @@
                     },
                     "storageos": {
                       "additionalProperties": false,
-                      "description": "storageOS represents a StorageOS volume attached and mounted on Kubernetes nodes.",
+                      "description": "storageOS represents a StorageOS volume attached and mounted on Kubernetes nodes.\nDeprecated: StorageOS is deprecated and the in-tree storageos type is no longer supported.",
                       "properties": {
                         "fsType": {
                           "description": "fsType is the filesystem type to mount.\nMust be a filesystem type supported by the host operating system.\nEx. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.",
@@ -6920,7 +7079,7 @@
                     },
                     "vsphereVolume": {
                       "additionalProperties": false,
-                      "description": "vsphereVolume represents a vSphere volume attached and mounted on kubelets host machine",
+                      "description": "vsphereVolume represents a vSphere volume attached and mounted on kubelets host machine.\nDeprecated: VsphereVolume is deprecated. All operations for the in-tree vsphereVolume type\nare redirected to the csi.vsphere.vmware.com CSI driver.",
                       "properties": {
                         "fsType": {
                           "description": "fsType is filesystem type to mount.\nMust be a filesystem type supported by the host operating system.\nEx. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.",
@@ -8569,6 +8728,10 @@
                       },
                       "type": "object"
                     },
+                    "nonLocalTraffic": {
+                      "description": "NonLocalTraffic enables non-local traffic for Dogstatsd.\nDefault: true",
+                      "type": "boolean"
+                    },
                     "originDetectionEnabled": {
                       "description": "OriginDetectionEnabled enables origin detection for container tagging.\nSee also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging",
                       "type": "boolean"
@@ -9108,7 +9271,7 @@
                       "type": "object"
                     },
                     "enabled": {
-                      "description": "Enabled enables the OTel Agent.\nDefault: true",
+                      "description": "Enabled enables the OTel Agent.\nDefault: false",
                       "type": "boolean"
                     },
                     "ports": {

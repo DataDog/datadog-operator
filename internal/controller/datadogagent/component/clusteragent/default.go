@@ -15,11 +15,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/images"
 )
 
 // GetClusterAgentServiceName return the Cluster-Agent service name based on the DatadogAgent name
@@ -30,11 +32,6 @@ func GetClusterAgentServiceName(dda metav1.Object) string {
 // GetClusterAgentPodDisruptionBudgetName return the Cluster-Agent PodDisruptionBudget name based on the DatadogAgent name
 func GetClusterAgentPodDisruptionBudgetName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s-pdb", dda.GetName(), constants.DefaultClusterAgentResourceSuffix)
-}
-
-// GetClusterAgentName return the Cluster-Agent name based on the DatadogAgent name
-func GetClusterAgentName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultClusterAgentResourceSuffix)
 }
 
 // GetClusterAgentVersion return the Cluster-Agent version based on the DatadogAgent info
@@ -54,8 +51,8 @@ func getDefaultServiceAccountName(dda metav1.Object) string {
 }
 
 // NewDefaultClusterAgentDeployment return a new default cluster-agent deployment
-func NewDefaultClusterAgentDeployment(dda metav1.Object) *appsv1.Deployment {
-	deployment := common.NewDeployment(dda, constants.DefaultClusterAgentResourceSuffix, GetClusterAgentName(dda), GetClusterAgentVersion(dda), nil)
+func NewDefaultClusterAgentDeployment(dda *v2alpha1.DatadogAgent) *appsv1.Deployment {
+	deployment := common.NewDeployment(dda, constants.DefaultClusterAgentResourceSuffix, component.GetClusterAgentName(dda), GetClusterAgentVersion(dda), nil)
 	podTemplate := NewDefaultClusterAgentPodTemplateSpec(dda)
 	for key, val := range deployment.GetLabels() {
 		podTemplate.Labels[key] = val
@@ -71,7 +68,7 @@ func NewDefaultClusterAgentDeployment(dda metav1.Object) *appsv1.Deployment {
 }
 
 // NewDefaultClusterAgentPodTemplateSpec return a default PodTemplateSpec for the cluster-agent deployment
-func NewDefaultClusterAgentPodTemplateSpec(dda metav1.Object) *corev1.PodTemplateSpec {
+func NewDefaultClusterAgentPodTemplateSpec(dda *v2alpha1.DatadogAgent) *corev1.PodTemplateSpec {
 	volumes := []corev1.Volume{
 		common.GetVolumeInstallInfo(dda),
 		common.GetVolumeForConfd(),
@@ -109,13 +106,13 @@ func NewDefaultClusterAgentPodTemplateSpec(dda metav1.Object) *corev1.PodTemplat
 	return podTemplate
 }
 
-func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) corev1.PodSpec {
+func defaultPodSpec(dda *v2alpha1.DatadogAgent, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) corev1.PodSpec {
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: getDefaultServiceAccountName(dda),
 		Containers: []corev1.Container{
 			{
 				Name:  string(apicommon.ClusterAgentContainerName),
-				Image: defaulting.GetLatestClusterAgentImage(),
+				Image: images.GetLatestClusterAgentImage(),
 				Ports: []corev1.ContainerPort{
 					{
 						ContainerPort: 5005,
@@ -147,7 +144,7 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 	return podSpec
 }
 
-func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
+func defaultEnvVars(dda *v2alpha1.DatadogAgent) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{
 			Name: DDPodName,
@@ -174,20 +171,57 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 			Value: strconv.Itoa(int(constants.DefaultAgentHealthPort)),
 		},
 		{
-			Name:  common.DDAPMInstrumentationInstallId,
-			Value: utils.GetDatadogAgentResourceUID(dda),
+			Name: common.DDAPMInstrumentationInstallId,
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: common.APMTelemetryConfigMapName,
+					},
+					Key: common.APMTelemetryInstallIdKey,
+				},
+			},
 		},
 		{
-			Name:  common.DDAPMInstrumentationInstallTime,
-			Value: utils.GetDatadogAgentResourceCreationTime(dda),
+			Name: common.DDAPMInstrumentationInstallTime,
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: common.APMTelemetryConfigMapName,
+					},
+					Key: common.APMTelemetryInstallTimeKey,
+				},
+			},
 		},
 		{
-			Name:  common.DDAPMInstrumentationInstallType,
-			Value: common.DefaultAgentInstallType,
+			Name: common.DDAPMInstrumentationInstallType,
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: common.APMTelemetryConfigMapName,
+					},
+					Key: common.APMTelemetryInstallTypeKey,
+				},
+			},
 		},
 		{
 			Name:  DDAuthTokenFilePath,
 			Value: filepath.Join(common.AuthVolumePath, "token"),
+		},
+		{
+			Name:  DDClusterAgentServiceAccountName,
+			Value: constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec),
+		},
+		{
+			Name:  DDAgentDaemonSet,
+			Value: component.GetDaemonSetNameFromDatadogAgent(dda, &dda.Spec),
+		},
+		{
+			Name:  DDClusterAgentDeployment,
+			Value: component.GetDeploymentNameFromDatadogAgent(dda, &dda.Spec),
+		},
+		{
+			Name:  DDDatadogAgentCustomResource,
+			Value: dda.Name,
 		},
 	}
 

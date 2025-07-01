@@ -34,14 +34,6 @@ func getRBACPolicyRules(collectorOpts collectorOptions) []rbacv1.PolicyRule {
 			},
 		},
 		{
-			APIGroups: []string{rbac.ExtensionsAPIGroup},
-			Resources: []string{
-				rbac.DaemonsetsResource,
-				rbac.DeploymentsResource,
-				rbac.ReplicasetsResource,
-			},
-		},
-		{
 			APIGroups: []string{rbac.AppsAPIGroup},
 			Resources: []string{
 				rbac.DaemonsetsResource,
@@ -121,7 +113,7 @@ func getRBACPolicyRules(collectorOpts collectorOptions) []rbacv1.PolicyRule {
 
 	if collectorOpts.enableCRD {
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
-			APIGroups: []string{rbac.ExtensionsAPIGroup, rbac.APIExtensionsAPIGroup},
+			APIGroups: []string{rbac.APIExtensionsAPIGroup},
 			Resources: []string{
 				rbac.CustomResourceDefinitionsResource,
 			},

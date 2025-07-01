@@ -74,8 +74,8 @@ func (f *otlpFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	otlp := dda.Spec.Features.OTLP
+func (f *otlpFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+	otlp := ddaSpec.Features.OTLP
 	f.owner = dda
 	if apiutils.BoolValue(otlp.Receiver.Protocols.GRPC.Enabled) {
 		f.grpcEnabled = true
@@ -103,15 +103,15 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 		f.httpEndpoint = *otlp.Receiver.Protocols.HTTP.Endpoint
 	}
 
-	apm := dda.Spec.Features.APM
+	apm := ddaSpec.Features.APM
 	if apm != nil {
 		f.usingAPM = apiutils.BoolValue(apm.Enabled)
 	}
 
-	if dda.Spec.Global.LocalService != nil {
-		f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
+	if ddaSpec.Global.LocalService != nil {
+		f.forceEnableLocalService = apiutils.BoolValue(ddaSpec.Global.LocalService.ForceEnableLocalService)
 	}
-	f.localServiceName = constants.GetLocalAgentServiceName(dda)
+	f.localServiceName = constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec)
 
 	if f.grpcEnabled || f.httpEnabled {
 		reqComp = feature.RequiredComponents{
@@ -128,7 +128,7 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 		}
 	}
 	if f.grpcEnabled || f.httpEnabled {
-		if enabled, flavor := constants.IsNetworkPolicyEnabled(dda); enabled {
+		if enabled, flavor := constants.IsNetworkPolicyEnabled(ddaSpec); enabled {
 			if flavor == v2alpha1.NetworkPolicyFlavorCilium {
 				f.createCiliumNetworkPolicy = true
 			} else {
@@ -142,7 +142,7 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	platformInfo := managers.Store().GetPlatformInfo()
 	versionInfo := platformInfo.GetVersionInfo()
 

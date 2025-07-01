@@ -17,18 +17,18 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
 // NewDefaultAgentDaemonset return a new default agent DaemonSet
 func NewDefaultAgentDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent) *appsv1.DaemonSet {
-	daemonset := NewDaemonset(dda, edsOptions, constants.DefaultAgentResourceSuffix, GetAgentName(dda), common.GetAgentVersion(dda), nil)
+	daemonset := NewDaemonset(dda, edsOptions, constants.DefaultAgentResourceSuffix, component.GetAgentName(dda), common.GetAgentVersion(dda), nil)
 	podTemplate := NewDefaultAgentPodTemplateSpec(dda, agentComponent, daemonset.GetLabels())
 	daemonset.Spec.Template = *podTemplate
 	return daemonset
@@ -36,7 +36,7 @@ func NewDefaultAgentDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOp
 
 // NewDefaultAgentExtendedDaemonset return a new default agent DaemonSet
 func NewDefaultAgentExtendedDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent) *edsv1alpha1.ExtendedDaemonSet {
-	edsDaemonset := NewExtendedDaemonset(dda, edsOptions, constants.DefaultAgentResourceSuffix, GetAgentName(dda), common.GetAgentVersion(dda), nil)
+	edsDaemonset := NewExtendedDaemonset(dda, edsOptions, constants.DefaultAgentResourceSuffix, component.GetAgentName(dda), common.GetAgentVersion(dda), nil)
 	edsDaemonset.Spec.Template = *NewDefaultAgentPodTemplateSpec(dda, agentComponent, edsDaemonset.GetLabels())
 	return edsDaemonset
 }
@@ -86,9 +86,238 @@ func DefaultCapabilitiesForSystemProbe() []corev1.Capability {
 	}
 }
 
-// GetAgentName return the Agent name based on the DatadogAgent info
-func GetAgentName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultAgentResourceSuffix)
+// DefaultSeccompConfigDataForSystemProbe returns configmap data for the default seccomp profile
+func DefaultSeccompConfigDataForSystemProbe() map[string]string {
+	return map[string]string{
+		"system-probe-seccomp.json": `{
+			"defaultAction": "SCMP_ACT_ERRNO",
+			"syscalls": [
+				{
+				"names": [
+					"accept4",
+					"access",
+					"arch_prctl",
+					"bind",
+					"bpf",
+					"brk",
+					"capget",
+					"capset",
+					"chdir",
+					"chmod",
+					"clock_gettime",
+					"clone",
+					"clone3",
+					"close",
+					"close_range",
+					"connect",
+					"copy_file_range",
+					"creat",
+					"dup",
+					"dup2",
+					"dup3",
+					"epoll_create",
+					"epoll_create1",
+					"epoll_ctl",
+					"epoll_ctl_old",
+					"epoll_pwait",
+					"epoll_wait",
+					"epoll_wait_old",
+					"eventfd",
+					"eventfd2",
+					"execve",
+					"execveat",
+					"exit",
+					"exit_group",
+					"faccessat",
+					"faccessat2",
+					"fchmod",
+					"fchmodat",
+					"fchown",
+					"fchown32",
+					"fchownat",
+					"fcntl",
+					"fcntl64",
+					"fdatasync",
+					"flock",
+					"fstat",
+					"fstat64",
+					"fstatfs",
+					"fsync",
+					"ftruncate",
+					"futex",
+					"futimens",
+					"getcwd",
+					"getdents",
+					"getdents64",
+					"getegid",
+					"geteuid",
+					"getgid",
+					"getgroups",
+					"getpeername",
+					"getpgid",
+					"getpgrp",
+					"getpid",
+					"getppid",
+					"getpriority",
+					"getrandom",
+					"getresgid",
+					"getresgid32",
+					"getresuid",
+					"getresuid32",
+					"getrlimit",
+					"getrusage",
+					"getsid",
+					"getsockname",
+					"getsockopt",
+					"gettid",
+					"gettimeofday",
+					"getuid",
+					"getxattr",
+					"inotify_add_watch",
+					"inotify_init",
+					"inotify_init1",
+					"inotify_rm_watch",
+					"ioctl",
+					"ipc",
+					"listen",
+					"lseek",
+					"lstat",
+					"lstat64",
+					"madvise",
+					"memfd_create",
+					"mkdir",
+					"mkdirat",
+					"mmap",
+					"mmap2",
+					"mprotect",
+					"mremap",
+					"munmap",
+					"nanosleep",
+					"newfstatat",
+					"open",
+					"openat",
+					"openat2",
+					"pause",
+					"perf_event_open",
+					"pidfd_open",
+					"pidfd_send_signal",
+					"pipe",
+					"pipe2",
+					"poll",
+					"ppoll",
+					"prctl",
+					"pread64",
+					"prlimit64",
+					"pselect6",
+					"pwrite64",
+					"read",
+					"readlink",
+					"readlinkat",
+					"recvfrom",
+					"recvmmsg",
+					"recvmsg",
+					"rename",
+					"renameat",
+					"renameat2",
+					"restart_syscall",
+					"rmdir",
+					"rseq",
+					"rt_sigaction",
+					"rt_sigpending",
+					"rt_sigprocmask",
+					"rt_sigqueueinfo",
+					"rt_sigreturn",
+					"rt_sigsuspend",
+					"rt_sigtimedwait",
+					"rt_tgsigqueueinfo",
+					"sched_getaffinity",
+					"sched_yield",
+					"seccomp",
+					"select",
+					"semtimedop",
+					"send",
+					"sendmmsg",
+					"sendmsg",
+					"sendto",
+					"set_robust_list",
+					"set_tid_address",
+					"setgid",
+					"setgid32",
+					"setgroups",
+					"setgroups32",
+					"setitimer",
+					"setns",
+					"setpgid",
+					"setrlimit",
+					"setsid",
+					"setsidaccept4",
+					"setsockopt",
+					"setuid",
+					"setuid32",
+					"sigaltstack",
+					"socket",
+					"socketcall",
+					"socketpair",
+					"stat",
+					"stat64",
+					"statfs",
+					"statx",
+					"symlinkat",
+					"sysinfo",
+					"tgkill",
+					"tkill",
+					"umask",
+					"uname",
+					"unlink",
+					"unlinkat",
+					"utime",
+					"utimensat",
+					"utimes",
+					"wait4",
+					"waitid",
+					"waitpid",
+					"write"
+				],
+				"action": "SCMP_ACT_ALLOW",
+				"args": null
+				},
+				{
+				"names": [
+					"setns"
+				],
+				"action": "SCMP_ACT_ALLOW",
+				"args": [
+					{
+					"index": 1,
+					"value": 1073741824,
+					"valueTwo": 0,
+					"op": "SCMP_CMP_EQ"
+					}
+				],
+				"comment": "",
+				"includes": {},
+				"excludes": {}
+				},
+				{
+				"names": [
+					"kill"
+				],
+				"action": "SCMP_ACT_ALLOW",
+				"args": [
+					{
+					"index": 1,
+					"value": 0,
+					"op": "SCMP_CMP_EQ"
+					}
+				],
+				"comment": "allow process detection via kill",
+				"includes": {},
+				"excludes": {}
+				}
+			]
+		}
+		`,
+	}
 }
 
 // GetAgentRoleName returns the name of the role for the Agent
@@ -101,12 +330,11 @@ func getDefaultServiceAccountName(dda metav1.Object) string {
 }
 
 func agentImage() string {
-	return defaulting.GetLatestAgentImage()
+	return images.GetLatestAgentImage()
 }
 
-func otelAgentImage() string {
-	// todo(mackjmr): Update once OTel agent is GA (7.64.0), as the ot-beta tag will be discontinued.
-	return fmt.Sprintf("%s/%s:%s", defaulting.DefaultImageRegistry, defaulting.DefaultAgentImageName, defaulting.OTelAgentBetaTag)
+func fullAgentImage() string {
+	return images.GetLatestAgentImageWithSuffix(false, false, true)
 
 }
 
@@ -210,10 +438,9 @@ func processAgentContainer(dda metav1.Object) corev1.Container {
 func otelAgentContainer(_ metav1.Object) corev1.Container {
 	return corev1.Container{
 		Name:  string(apicommon.OtelAgent),
-		Image: otelAgentImage(),
+		Image: fullAgentImage(),
 		Command: []string{
 			"otel-agent",
-			"--config=" + otelCustomConfigVolumePath,
 			"--core-config=" + agentCustomConfigVolumePath,
 			"--sync-delay=30s",
 		},
@@ -377,16 +604,37 @@ func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
-			Name:  common.DDAPMInstrumentationInstallId,
-			Value: utils.GetDatadogAgentResourceUID(dda),
+			Name: common.DDAPMInstrumentationInstallId,
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: common.APMTelemetryConfigMapName,
+					},
+					Key: common.APMTelemetryInstallIdKey,
+				},
+			},
 		},
 		{
-			Name:  common.DDAPMInstrumentationInstallTime,
-			Value: utils.GetDatadogAgentResourceCreationTime(dda),
+			Name: common.DDAPMInstrumentationInstallTime,
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: common.APMTelemetryConfigMapName,
+					},
+					Key: common.APMTelemetryInstallTimeKey,
+				},
+			},
 		},
 		{
-			Name:  common.DDAPMInstrumentationInstallType,
-			Value: common.DefaultAgentInstallType,
+			Name: common.DDAPMInstrumentationInstallType,
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: common.APMTelemetryConfigMapName,
+					},
+					Key: common.APMTelemetryInstallTypeKey,
+				},
+			},
 		},
 	}
 

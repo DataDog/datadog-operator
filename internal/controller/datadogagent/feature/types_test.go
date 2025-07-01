@@ -206,18 +206,34 @@ func TestRequiredComponent_IsConfigured(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "IsConfigured == true, isRequired == true",
+			name: "IsConfigured == false, isRequired == true",
 			fields: fields{
 				IsRequired: &trueValue,
 				Containers: nil,
 			},
-			want: true,
+			want: false,
+		},
+		{
+			name: "IsConfigured == false, isRequired == false",
+			fields: fields{
+				IsRequired: &falseValue,
+				Containers: nil,
+			},
+			want: false,
 		},
 		{
 			name: "IsConfigured == true, isRequired == false",
 			fields: fields{
 				IsRequired: &falseValue,
-				Containers: nil,
+				Containers: []common.AgentContainerName{common.CoreAgentContainerName},
+			},
+			want: true,
+		},
+		{
+			name: "IsConfigured == true, isRequired == true",
+			fields: fields{
+				IsRequired: &trueValue,
+				Containers: []common.AgentContainerName{common.CoreAgentContainerName},
 			},
 			want: true,
 		},

@@ -20,6 +20,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -66,25 +67,30 @@ func (o *otelCollectorFeature) ID() feature.IDType {
 	return feature.OtelAgentIDType
 }
 
-func (o *otelCollectorFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
+func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	o.owner = dda
-	if dda.Spec.Features.OtelCollector.Conf != nil {
-		o.customConfig = dda.Spec.Features.OtelCollector.Conf
+	if ddaSpec.Features.OtelCollector.Conf != nil {
+		o.customConfig = ddaSpec.Features.OtelCollector.Conf
 	}
 	o.configMapName = constants.GetConfName(dda, o.customConfig, defaultOTelAgentConf)
 
-	if dda.Spec.Global.LocalService != nil {
-		o.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
+	if ddaSpec.Global.LocalService != nil {
+		o.forceEnableLocalService = apiutils.BoolValue(ddaSpec.Global.LocalService.ForceEnableLocalService)
 	}
-	o.localServiceName = constants.GetLocalAgentServiceName(dda)
+	o.localServiceName = constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec)
 
-	if dda.Spec.Features.OtelCollector.CoreConfig != nil {
-		o.coreAgentConfig.enabled = dda.Spec.Features.OtelCollector.CoreConfig.Enabled
-		o.coreAgentConfig.extension_timeout = dda.Spec.Features.OtelCollector.CoreConfig.ExtensionTimeout
-		o.coreAgentConfig.extension_url = dda.Spec.Features.OtelCollector.CoreConfig.ExtensionURL
+	if ddaSpec.Global.LocalService != nil {
+		o.forceEnableLocalService = apiutils.BoolValue(ddaSpec.Global.LocalService.ForceEnableLocalService)
+	}
+	o.localServiceName = constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec)
+
+	if ddaSpec.Features.OtelCollector.CoreConfig != nil {
+		o.coreAgentConfig.enabled = ddaSpec.Features.OtelCollector.CoreConfig.Enabled
+		o.coreAgentConfig.extension_timeout = ddaSpec.Features.OtelCollector.CoreConfig.ExtensionTimeout
+		o.coreAgentConfig.extension_url = ddaSpec.Features.OtelCollector.CoreConfig.ExtensionURL
 	}
 
-	if len(dda.Spec.Features.OtelCollector.Ports) == 0 {
+	if len(ddaSpec.Features.OtelCollector.Ports) == 0 {
 		o.ports = []*corev1.ContainerPort{
 			{
 				Name:          "otel-http",
@@ -100,11 +106,11 @@ func (o *otelCollectorFeature) Configure(dda *v2alpha1.DatadogAgent) feature.Req
 			},
 		}
 	} else {
-		o.ports = dda.Spec.Features.OtelCollector.Ports
+		o.ports = ddaSpec.Features.OtelCollector.Ports
 	}
 
 	var reqComp feature.RequiredComponents
-	if apiutils.BoolValue(dda.Spec.Features.OtelCollector.Enabled) {
+	if apiutils.BoolValue(ddaSpec.Features.OtelCollector.Enabled) {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
@@ -143,7 +149,7 @@ func (o *otelCollectorFeature) buildOTelAgentCoreConfigMap() (*corev1.ConfigMap,
 	return nil, nil
 }
 
-func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	// check if an otel collector config was provided. If not, use default.
 	if o.customConfig == nil {
 		o.customConfig = &v2alpha1.CustomConfig{}
@@ -207,6 +213,22 @@ func (o *otelCollectorFeature) ManageClusterAgent(managers feature.PodTemplateMa
 }
 
 func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	// // Use -full image for all containers
+	image := &images.Image{}
+	for i, container := range managers.PodTemplateSpec().Spec.Containers {
+		image = images.FromString(container.Image).
+			WithFull(true)
+		// Note: if an image tag override is configured, this image tag will be overwritten
+		managers.PodTemplateSpec().Spec.Containers[i].Image = image.ToString()
+	}
+
+	for i, container := range managers.PodTemplateSpec().Spec.InitContainers {
+		image = images.FromString(container.Image).
+			WithFull(true)
+		// Note: if an image tag override is configured, this image tag will be overwritten
+		managers.PodTemplateSpec().Spec.InitContainers[i].Image = image.ToString()
+	}
+
 	var vol corev1.Volume
 	if o.customConfig != nil && o.customConfig.ConfigMap != nil {
 		// Custom config is referenced via ConfigMap
@@ -222,12 +244,38 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 
 	// create volume
 	managers.Volume().AddVolume(&vol)
+	commands := []string{}
+	if o.customConfig != nil && o.customConfig.ConfigMap != nil && len(o.customConfig.ConfigMap.Items) > 0 {
+		for _, item := range o.customConfig.ConfigMap.Items {
+			commands = append(commands, common.ConfigVolumePath+"/otel/"+item.Path)
+		}
+		volMount := corev1.VolumeMount{
+			Name:      otelAgentVolumeName,
+			MountPath: common.ConfigVolumePath + "/otel/",
+		}
+		managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.OtelAgent)
 
-	// [investigation needed]: When the user provides a custom config map, the file name *must be* otel-config.yaml. If we choose to allow
-	// any file name, we would need to update both the volume mount here, as well as the otel-agent container command. I haven't seen this
-	// done for other containers, which is why I think it's acceptable to force users to use the `otel-config.yaml` name.
-	volMount := volume.GetVolumeMountWithSubPath(otelAgentVolumeName, common.ConfigVolumePath+"/"+otelConfigFileName, otelConfigFileName)
-	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.OtelAgent)
+	} else {
+		// This part in used in three paths:
+		// - no conf.ConfigMap.Items provided, but conf.ConfigMap.Name provided. We assume only one item/ name otel-config.yaml
+		// - when configData is used
+		// - when no config is passed (we use DefaultOtelCollectorConfig)
+		commands = append(commands, common.ConfigVolumePath+"/"+otelConfigFileName)
+		volMount := volume.GetVolumeMountWithSubPath(otelAgentVolumeName, common.ConfigVolumePath+"/"+otelConfigFileName, otelConfigFileName)
+		managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.OtelAgent)
+	}
+
+	// Add config to otel-agent container command
+	for id, container := range managers.PodTemplateSpec().Spec.Containers {
+		if container.Name == "otel-agent" {
+			for _, command := range commands {
+				managers.PodTemplateSpec().Spec.Containers[id].Command = append(managers.PodTemplateSpec().Spec.Containers[id].Command,
+					"--config="+command,
+				)
+			}
+
+		}
+	}
 
 	// Add md5 hash annotation for configMap
 	if o.customConfigAnnotationKey != "" && o.customConfigAnnotationValue != "" {
@@ -268,10 +316,10 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 				Name:  DDOtelCollectorCoreConfigEnabled,
 				Value: apiutils.BoolToString(o.coreAgentConfig.enabled),
 			}
-			managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, enableEnvVar)
+			managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.OtelAgent}, enableEnvVar)
 		}
 	} else {
-		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.OtelAgent}, &corev1.EnvVar{
 			Name:  DDOtelCollectorCoreConfigEnabled,
 			Value: "true",
 		})

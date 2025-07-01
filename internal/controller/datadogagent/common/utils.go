@@ -18,7 +18,6 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
@@ -133,25 +132,4 @@ func ShouldCreateAgentLocalService(versionInfo *version.Info, forceEnableLocalSe
 	}
 	// Service Internal Traffic Policy is enabled by default since 1.22
 	return utils.IsAboveMinVersion(versionInfo.GitVersion, localServiceDefaultMinimumVersion) || forceEnableLocalService
-}
-
-// OverrideAgentImage takes an existing image reference and potentially overrides portions of it based on the provided image configuration
-func OverrideAgentImage(currentImg string, overrideImg *v2alpha1.AgentImageConfig) string {
-	splitImg := strings.Split(currentImg, "/")
-	registry := strings.Join(splitImg[:len(splitImg)-1], "/")
-
-	splitName := strings.Split(splitImg[len(splitImg)-1], ":")
-
-	// This deep copies primitives of the struct, we don't care about other fields
-	overrideImgCopy := *overrideImg
-	if overrideImgCopy.Name == "" {
-		overrideImgCopy.Name = splitName[0]
-	}
-
-	if overrideImgCopy.Tag == "" {
-		// If present need to drop JMX tag suffix
-		overrideImgCopy.Tag = strings.TrimSuffix(splitName[1], defaulting.JMXTagSuffix)
-	}
-
-	return constants.GetImage(&overrideImgCopy, &registry)
 }

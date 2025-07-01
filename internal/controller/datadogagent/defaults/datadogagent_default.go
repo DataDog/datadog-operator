@@ -9,7 +9,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/images"
 )
 
 // Default configuration values. These are the recommended settings for monitoring with Datadog in Kubernetes.
@@ -68,6 +68,7 @@ const (
 	defaultDogstatsdHostPortEnabled        bool   = false
 	defaultDogstatsdSocketEnabled          bool   = true
 	defaultDogstatsdHostSocketPath         string = common.DogstatsdAPMSocketHostPath + "/" + common.DogstatsdSocketName
+	defaultDogstatsdNonLocalTraffic        bool   = true
 
 	defaultOTLPGRPCEnabled         bool   = false
 	defaultOTLPGRPCHostPortEnabled bool   = true
@@ -125,20 +126,21 @@ const (
 	defaultHelmCheckEnabled       bool = false
 	defaultHelmCheckCollectEvents bool = false
 
-	defaultFIPSEnabled      bool   = false
+	defaultUseFIPSAgent     bool   = false
+	defaultFIPSProxyEnabled bool   = false
 	defaultFIPSImageName    string = "fips-proxy"
-	defaultFIPSImageTag     string = defaulting.FIPSProxyLatestVersion
+	defaultFIPSImageTag     string = images.FIPSProxyLatestVersion
 	defaultFIPSLocalAddress string = "127.0.0.1"
 	defaultFIPSPort         int32  = 9803
 	defaultFIPSPortRange    int32  = 15
 	defaultFIPSUseHTTPS     bool   = false
 )
 
-// DefaultDatadogAgent defaults the DatadogAgentSpec GlobalConfig and Features.
-func DefaultDatadogAgent(dda *v2alpha1.DatadogAgent) {
-	defaultGlobalConfig(&dda.Spec)
+// DefaultDatadogAgentSpec defaults the DatadogAgentSpec GlobalConfig and Features.
+func DefaultDatadogAgentSpec(ddaSpec *v2alpha1.DatadogAgentSpec) {
+	defaultGlobalConfig(ddaSpec)
 
-	defaultFeaturesConfig(&dda.Spec)
+	defaultFeaturesConfig(ddaSpec)
 }
 
 // defaultGlobalConfig sets default values in DatadogAgentSpec.Global.
@@ -154,15 +156,15 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	if ddaSpec.Global.Registry == nil {
 		switch *ddaSpec.Global.Site {
 		case defaultEuropeSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultEuropeImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultEuropeImageRegistry)
 		case defaultAsiaSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultAsiaImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultAsiaImageRegistry)
 		case defaultAzureSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultAzureImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultAzureImageRegistry)
 		case defaultGovSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultGovImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultGovImageRegistry)
 		default:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultImageRegistry)
 		}
 	}
 
@@ -175,10 +177,12 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		ddaSpec.Global.ContainerStrategy = &dcs
 	}
 
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.UseFIPSAgent, defaultUseFIPSAgent)
+
 	if ddaSpec.Global.FIPS == nil {
 		ddaSpec.Global.FIPS = &v2alpha1.FIPSConfig{}
 	}
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.FIPS.Enabled, defaultFIPSEnabled)
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.FIPS.Enabled, defaultFIPSProxyEnabled)
 
 	if *ddaSpec.Global.FIPS.Enabled {
 		if ddaSpec.Global.FIPS.Image == nil {
@@ -434,6 +438,8 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 
 	// defaultDogstatsdHostSocketPath matches the default hostPath of the helm chart.
 	apiutils.DefaultStringIfUnset(&ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Path, defaultDogstatsdHostSocketPath)
+
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.Dogstatsd.NonLocalTraffic, defaultDogstatsdNonLocalTraffic)
 
 	// OTLP ingest feature
 	if ddaSpec.Features.OTLP == nil {

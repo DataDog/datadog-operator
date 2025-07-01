@@ -19,6 +19,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/DataDog/dd-trace-go.v1/profiler"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -64,6 +65,7 @@ func init() {
 	utilruntime.Must(datadoghqv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(edsdatadoghqv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(datadoghqv2alpha1.AddToScheme(scheme))
+	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -114,8 +116,10 @@ type options struct {
 	edsCanaryAutoFailEnabled               bool
 	edsCanaryAutoFailMaxRestarts           int
 	edsCanaryAutoPauseMaxSlowStartDuration time.Duration
+	edsSlowStartAdditiveIncrease           string
 	supportCilium                          bool
 	datadogAgentEnabled                    bool
+	datadogAgentInternalEnabled            bool
 	datadogMonitorEnabled                  bool
 	datadogSLOEnabled                      bool
 	operatorMetricsEnabled                 bool
@@ -161,9 +165,13 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
 	flag.BoolVar(&opts.datadogGenericResourceEnabled, "datadogGenericResourceEnabled", false, "Enable the DatadogGenericResource controller")
 
+	// DatadogAgentInternal
+	flag.BoolVar(&opts.datadogAgentInternalEnabled, "datadogAgentInternalEnabled", false, "Enable the DatadogAgentInternal controller")
+
 	// ExtendedDaemonset configuration
 	flag.BoolVar(&opts.supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
 	flag.StringVar(&opts.edsMaxPodUnavailable, "edsMaxPodUnavailable", "", "ExtendedDaemonset number of max unavailable pods during the rolling update")
+	flag.StringVar(&opts.edsSlowStartAdditiveIncrease, "edsSlowStartAdditiveIncrease", "", "ExtendedDaemonset slow start additive increase")
 	flag.StringVar(&opts.edsMaxPodSchedulerFailure, "edsMaxPodSchedulerFailure", "", "ExtendedDaemonset number of max pod scheduler failures")
 	flag.DurationVar(&opts.edsCanaryDuration, "edsCanaryDuration", 10*time.Minute, "ExtendedDaemonset canary duration")
 	flag.StringVar(&opts.edsCanaryReplicas, "edsCanaryReplicas", "", "ExtendedDaemonset number of canary pods")
@@ -256,6 +264,7 @@ func run(opts *options) error {
 		RetryPeriod:                &retryPeriod,
 		Cache: config.CacheOptions(setupLog, config.WatchOptions{
 			DatadogAgentEnabled:           opts.datadogAgentEnabled,
+			DatadogAgentInternalEnabled:   opts.datadogAgentInternalEnabled,
 			DatadogMonitorEnabled:         opts.datadogMonitorEnabled,
 			DatadogSLOEnabled:             opts.datadogSLOEnabled,
 			DatadogAgentProfileEnabled:    opts.datadogAgentProfileEnabled,
@@ -295,6 +304,7 @@ func run(opts *options) error {
 		SupportExtendedDaemonset: controller.ExtendedDaemonsetOptions{
 			Enabled:                             opts.supportExtendedDaemonset,
 			MaxPodUnavailable:                   opts.edsMaxPodUnavailable,
+			SlowStartAdditiveIncrease:           opts.edsSlowStartAdditiveIncrease,
 			CanaryDuration:                      opts.edsCanaryDuration,
 			CanaryReplicas:                      opts.edsCanaryReplicas,
 			CanaryAutoPauseEnabled:              opts.edsCanaryAutoPauseEnabled,
@@ -307,6 +317,7 @@ func run(opts *options) error {
 		SupportCilium:                 opts.supportCilium,
 		Creds:                         creds,
 		DatadogAgentEnabled:           opts.datadogAgentEnabled,
+		DatadogAgentInternalEnabled:   opts.datadogAgentInternalEnabled,
 		DatadogMonitorEnabled:         opts.datadogMonitorEnabled,
 		DatadogSLOEnabled:             opts.datadogSLOEnabled,
 		OperatorMetricsEnabled:        opts.operatorMetricsEnabled,

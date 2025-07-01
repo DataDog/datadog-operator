@@ -8,6 +8,7 @@ package feature
 import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -29,6 +30,8 @@ func (rc *RequiredComponents) IsEnabled() bool {
 }
 
 // IsConfigured returns true if any of the components need to be configured even if not enabled
+// Can be used for features that may require configuration even when disabled
+// Example: setting an env var to false to disable the feature
 func (rc *RequiredComponents) IsConfigured() bool {
 	return rc.ClusterAgent.IsConfigured() || rc.Agent.IsConfigured() || rc.ClusterChecksRunner.IsConfigured()
 }
@@ -45,9 +48,11 @@ func (rc *RequiredComponents) Merge(in *RequiredComponents) *RequiredComponents 
 
 // RequiredComponent is used to know if a component is required and which containers are required.
 // If isRequired is set to:
-//   - nil: the feature doesn't need the corresponding component.
+//   - nil: the feature doesn't need the corresponding component. If the feature is disabled, isRequired should be nil.
 //   - true: the feature needs the corresponding component.
-//   - false: the feature does not need the corresponding component, but if it runs the feature needs to be configured (e.g. explicitly disabled).
+//   - false: the component is disabled (only set in overrides).
+//
+// If a feature is not enabled but needs to be configured, require at least one container.
 type RequiredComponent struct {
 	IsRequired *bool
 	Containers []common.AgentContainerName
@@ -55,12 +60,12 @@ type RequiredComponent struct {
 
 // IsEnabled returns true if the Feature needs the current RequiredComponent
 func (rc *RequiredComponent) IsEnabled() bool {
-	return apiutils.BoolValue(rc.IsRequired) || len(rc.Containers) > 0
+	return apiutils.BoolValue(rc.IsRequired)
 }
 
 // IsConfigured returns true if the Feature does not require the RequiredComponent, but if it runs it needs to be configured appropriately.
 func (rc *RequiredComponent) IsConfigured() bool {
-	return rc.IsRequired != nil || len(rc.Containers) > 0
+	return len(rc.Containers) > 0
 }
 
 // IsPrivileged checks whether component requires privileged access.
@@ -120,16 +125,15 @@ func mergeSlices(a, b []common.AgentContainerName) []common.AgentContainerName {
 }
 
 // Feature interface
-// It returns `true` if the Feature is used, else it return `false`.
 type Feature interface {
 	// ID returns the ID of the Feature
 	ID() IDType
 	// Configure use to configure the internal of a Feature
 	// It should return `true` if the feature is enabled, else `false`.
-	Configure(dda *v2alpha1.DatadogAgent) RequiredComponents
+	Configure(ddaMetaObj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) RequiredComponents
 	// ManageDependencies allows a feature to manage its dependencies.
 	// Feature's dependencies should be added in the store.
-	ManageDependencies(managers ResourceManagers, components RequiredComponents) error
+	ManageDependencies(managers ResourceManagers) error
 	// ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageClusterAgent(managers PodTemplateManagers) error
@@ -147,8 +151,6 @@ type Feature interface {
 
 // Options option that can be pass to the Interface.Configure function
 type Options struct {
-	SupportExtendedDaemonset bool
-
 	Logger logr.Logger
 }
 

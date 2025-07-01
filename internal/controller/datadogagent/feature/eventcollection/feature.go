@@ -64,27 +64,30 @@ func (f *eventCollectionFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *eventCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+func (f *eventCollectionFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
 	// v2alpha1 configures event collection using the cluster agent only
 	// leader election is enabled by default
-	if dda.Spec.Features != nil && dda.Spec.Features.EventCollection != nil && apiutils.BoolValue(dda.Spec.Features.EventCollection.CollectKubernetesEvents) {
-		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
+	if ddaSpec.Features != nil && ddaSpec.Features.EventCollection != nil && apiutils.BoolValue(ddaSpec.Features.EventCollection.CollectKubernetesEvents) {
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 		f.rbacSuffix = common.ClusterAgentSuffix
 
-		if apiutils.BoolValue(dda.Spec.Features.EventCollection.UnbundleEvents) {
-			if len(dda.Spec.Features.EventCollection.CollectedEventTypes) > 0 {
+		if apiutils.BoolValue(ddaSpec.Features.EventCollection.UnbundleEvents) {
+			if len(ddaSpec.Features.EventCollection.CollectedEventTypes) > 0 {
 				f.configMapName = constants.GetConfName(dda, nil, defaultKubeAPIServerConf)
-				f.unbundleEvents = *dda.Spec.Features.EventCollection.UnbundleEvents
-				f.unbundleEventTypes = dda.Spec.Features.EventCollection.CollectedEventTypes
+				f.unbundleEvents = *ddaSpec.Features.EventCollection.UnbundleEvents
+				f.unbundleEventTypes = ddaSpec.Features.EventCollection.CollectedEventTypes
 			} else {
 				f.logger.Info("UnbundleEvents is enabled but no CollectedEventTypes are specified, disabling unbundleEvents")
 			}
 		}
 
 		reqComp = feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
+			ClusterAgent: feature.RequiredComponent{
+				IsRequired: apiutils.NewBoolPointer(true),
+				Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
+			},
 		}
 	}
 
@@ -93,7 +96,7 @@ func (f *eventCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	// Manage RBAC
 	rbacName := getRBACResourceName(f.owner, f.rbacSuffix)
 

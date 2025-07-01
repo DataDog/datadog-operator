@@ -2,7 +2,6 @@ package clusteragent
 
 import (
 	"fmt"
-	"strconv"
 	"testing"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -10,7 +9,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 
@@ -83,7 +82,7 @@ func clusterAgentDefaultPodSpec(dda *datadoghqv2alpha1.DatadogAgent) corev1.PodS
 		Containers: []corev1.Container{
 			{
 				Name:      "cluster-agent",
-				Image:     defaulting.GetLatestClusterAgentImage(),
+				Image:     images.GetLatestClusterAgentImage(),
 				Resources: corev1.ResourceRequirements{},
 				Ports: []corev1.ContainerPort{
 					{
@@ -238,16 +237,53 @@ func clusterAgentDefaultEnvVars(dda *datadoghqv2alpha1.DatadogAgent) []corev1.En
 			Value: testDdaNamespace,
 		},
 		{
-			Name:  "DD_INSTRUMENTATION_INSTALL_TYPE",
-			Value: common.DefaultAgentInstallType,
+			Name: "DD_INSTRUMENTATION_INSTALL_ID",
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: common.APMTelemetryConfigMapName,
+					},
+					Key: common.APMTelemetryInstallIdKey,
+				},
+			},
 		},
 		{
-			Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
-			Value: strconv.Itoa(int(dda.GetCreationTimestamp().Unix())),
+			Name: "DD_INSTRUMENTATION_INSTALL_TIME",
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: common.APMTelemetryConfigMapName,
+					},
+					Key: common.APMTelemetryInstallTimeKey,
+				},
+			},
 		},
 		{
-			Name:  "DD_INSTRUMENTATION_INSTALL_ID",
-			Value: "",
+			Name: "DD_INSTRUMENTATION_INSTALL_TYPE",
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: common.APMTelemetryConfigMapName,
+					},
+					Key: common.APMTelemetryInstallTypeKey,
+				},
+			},
+		},
+		{
+			Name:  "DD_CLUSTER_AGENT_SERVICE_ACCOUNT_NAME",
+			Value: "foo-cluster-agent",
+		},
+		{
+			Name:  "AGENT_DAEMONSET",
+			Value: "foo-agent",
+		},
+		{
+			Name:  "CLUSTER_AGENT_DEPLOYMENT",
+			Value: "foo-cluster-agent",
+		},
+		{
+			Name:  "DATADOGAGENT_CR_NAME",
+			Value: "foo",
 		},
 	}
 }

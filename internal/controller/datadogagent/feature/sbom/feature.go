@@ -38,7 +38,6 @@ func buildSBOMFeature(options *feature.Options) feature.Feature {
 }
 
 type sbomFeature struct {
-	owner  metav1.Object
 	logger logr.Logger
 
 	enabled                                 bool
@@ -56,13 +55,12 @@ func (f *sbomFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *sbomFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	f.owner = dda
+func (f *sbomFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 
 	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
-	mergeConfigs(&dda.Spec, &dda.Status)
+	mergeConfigs(ddaSpec, ddaRCStatus)
 
-	sbomConfig := dda.Spec.Features.SBOM
+	sbomConfig := ddaSpec.Features.SBOM
 
 	if sbomConfig != nil && apiutils.BoolValue(sbomConfig.Enabled) {
 		f.enabled = true
@@ -89,8 +87,8 @@ func (f *sbomFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 	return reqComp
 }
 
-func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) {
-	if ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.SBOM == nil || ddaStatus.RemoteConfigConfiguration.Features.SBOM.Enabled == nil {
+func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) {
+	if ddaRCStatus == nil || ddaRCStatus.Features == nil || ddaRCStatus.Features.SBOM == nil || ddaRCStatus.Features.SBOM.Enabled == nil {
 		return
 	}
 
@@ -102,28 +100,28 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.Datado
 		ddaSpec.Features.SBOM = &v2alpha1.SBOMFeatureConfig{}
 	}
 
-	if ddaStatus.RemoteConfigConfiguration.Features.SBOM.Enabled != nil {
-		ddaSpec.Features.SBOM.Enabled = ddaStatus.RemoteConfigConfiguration.Features.SBOM.Enabled
+	if ddaRCStatus.Features.SBOM.Enabled != nil {
+		ddaSpec.Features.SBOM.Enabled = ddaRCStatus.Features.SBOM.Enabled
 	}
 
-	if ddaStatus.RemoteConfigConfiguration.Features.SBOM.Host != nil && ddaStatus.RemoteConfigConfiguration.Features.SBOM.Host.Enabled != nil {
+	if ddaRCStatus.Features.SBOM.Host != nil && ddaRCStatus.Features.SBOM.Host.Enabled != nil {
 		if ddaSpec.Features.SBOM.Host == nil {
 			ddaSpec.Features.SBOM.Host = &v2alpha1.SBOMHostConfig{}
 		}
-		ddaSpec.Features.SBOM.Host.Enabled = ddaStatus.RemoteConfigConfiguration.Features.SBOM.Host.Enabled
+		ddaSpec.Features.SBOM.Host.Enabled = ddaRCStatus.Features.SBOM.Host.Enabled
 	}
 
-	if ddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage != nil && ddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage.Enabled != nil {
+	if ddaRCStatus.Features.SBOM.ContainerImage != nil && ddaRCStatus.Features.SBOM.ContainerImage.Enabled != nil {
 		if ddaSpec.Features.SBOM.ContainerImage == nil {
 			ddaSpec.Features.SBOM.ContainerImage = &v2alpha1.SBOMContainerImageConfig{}
 		}
-		ddaSpec.Features.SBOM.ContainerImage.Enabled = ddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage.Enabled
+		ddaSpec.Features.SBOM.ContainerImage.Enabled = ddaRCStatus.Features.SBOM.ContainerImage.Enabled
 	}
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *sbomFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (f *sbomFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 
@@ -142,17 +140,17 @@ func (p sbomFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplate
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 		Name:  DDSBOMEnabled,
 		Value: apiutils.BoolToString(&f.enabled),
 	})
 
-	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 		Name:  DDSBOMContainerImageEnabled,
 		Value: apiutils.BoolToString(&f.containerImageEnabled),
 	})
 	if len(f.containerImageAnalyzers) > 0 {
-		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 			Name:  DDSBOMContainerImageAnalyzers,
 			Value: strings.Join(f.containerImageAnalyzers, " "),
 		})
@@ -189,12 +187,12 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 		volMgr.AddVolume(&criLibVol)
 	}
 
-	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 		Name:  DDSBOMHostEnabled,
 		Value: apiutils.BoolToString(&f.hostEnabled),
 	})
 	if len(f.hostAnalyzers) > 0 {
-		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 			Name:  DDSBOMHostAnalyzers,
 			Value: strings.Join(f.hostAnalyzers, " "),
 		})
@@ -203,43 +201,15 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 	if f.hostEnabled {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 			Name:  common.DDHostRootEnvVar,
-			Value: "/host",
+			Value: common.HostRootMountPath,
 		})
 
 		volMgr := managers.Volume()
 		volMountMgr := managers.VolumeMount()
 
-		osReleaseVol, osReleaseVolMount := volume.GetVolumes(common.SystemProbeOSReleaseDirVolumeName, common.SystemProbeOSReleaseDirVolumePath, common.SystemProbeOSReleaseDirMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&osReleaseVolMount, apicommon.CoreAgentContainerName)
-		volMgr.AddVolume(&osReleaseVol)
-
-		hostApkVol, hostApkVolMount := volume.GetVolumes(apkDirVolumeName, apkDirVolumePath, apkDirMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&hostApkVolMount, apicommon.CoreAgentContainerName)
-		volMgr.AddVolume(&hostApkVol)
-
-		hostDpkgVol, hostDpkgVolMount := volume.GetVolumes(dpkgDirVolumeName, dpkgDirVolumePath, dpkgDirMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&hostDpkgVolMount, apicommon.CoreAgentContainerName)
-		volMgr.AddVolume(&hostDpkgVol)
-
-		hostRpmVol, hostRpmVolMount := volume.GetVolumes(rpmDirVolumeName, rpmDirVolumePath, rpmDirMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&hostRpmVolMount, apicommon.CoreAgentContainerName)
-		volMgr.AddVolume(&hostRpmVol)
-
-		hostRedhatReleaseVol, hostRedhatReleaseVolMount := volume.GetVolumes(redhatReleaseVolumeName, redhatReleaseVolumePath, redhatReleaseMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&hostRedhatReleaseVolMount, apicommon.CoreAgentContainerName)
-		volMgr.AddVolume(&hostRedhatReleaseVol)
-
-		hostFedoraReleaseVol, hostFedoraReleaseVolMount := volume.GetVolumes(fedoraReleaseVolumeName, fedoraReleaseVolumePath, fedoraReleaseMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&hostFedoraReleaseVolMount, apicommon.CoreAgentContainerName)
-		volMgr.AddVolume(&hostFedoraReleaseVol)
-
-		hostLsbReleaseVol, hostLsbReleaseVolMount := volume.GetVolumes(lsbReleaseVolumeName, lsbReleaseVolumePath, lsbReleaseMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&hostLsbReleaseVolMount, apicommon.CoreAgentContainerName)
-		volMgr.AddVolume(&hostLsbReleaseVol)
-
-		hostSystemReleaseVol, hostSystemReleaseVolMount := volume.GetVolumes(systemReleaseVolumeName, systemReleaseVolumePath, systemReleaseMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&hostSystemReleaseVolMount, apicommon.CoreAgentContainerName)
-		volMgr.AddVolume(&hostSystemReleaseVol)
+		hostRootVol, hostRootVolMount := volume.GetVolumes(common.HostRootVolumeName, common.HostRootHostPath, common.HostRootMountPath, true)
+		volMountMgr.AddVolumeMountToContainer(&hostRootVolMount, apicommon.CoreAgentContainerName)
+		volMgr.AddVolume(&hostRootVol)
 	}
 
 	return nil

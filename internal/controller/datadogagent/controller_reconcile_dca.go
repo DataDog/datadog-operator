@@ -22,8 +22,10 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/condition"
@@ -41,7 +43,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
-	deployment.Spec.Template = *override.ApplyGlobalSettingsClusterAgent(logger, podManagers, dda, resourcesManager)
+	global.ApplyGlobalSettingsClusterAgent(logger, podManagers, dda, resourcesManager, requiredComponents)
 
 	// Apply features changes on the Deployment.Spec.Template
 	var featErrors []error
@@ -146,7 +148,7 @@ func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, logger logr.L
 		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
 		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
 	}
-	deploymentName := getDeploymentNameFromDCA(dda)
+	deploymentName := component.GetDeploymentNameFromDatadogAgent(dda, &dda.Spec)
 	deploymentList := appsv1.DeploymentList{}
 	if err := r.client.List(ctx, &deploymentList, matchLabels); err != nil {
 		return err
@@ -160,16 +162,4 @@ func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, logger logr.L
 	}
 
 	return nil
-}
-
-// getDeploymentNameFromDCA returns the expected DCA deployment name based on
-// the DDA name and clusterAgent name override
-func getDeploymentNameFromDCA(dda *datadoghqv2alpha1.DatadogAgent) string {
-	deploymentName := componentdca.GetClusterAgentName(dda)
-	if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterAgentComponentName]; ok {
-		if componentOverride.Name != nil && *componentOverride.Name != "" {
-			deploymentName = *componentOverride.Name
-		}
-	}
-	return deploymentName
 }

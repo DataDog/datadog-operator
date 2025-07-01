@@ -7,7 +7,6 @@ package datadogagent
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -15,13 +14,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 const (
@@ -66,50 +63,14 @@ func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, dda client.Object, f
 }
 
 func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) error {
-	// We need to apply the defaults to be able to delete the resources
-	// associated with those defaults.
-	dda := obj.(*datadoghqv2alpha1.DatadogAgent).DeepCopy()
-	defaults.DefaultDatadogAgent(dda)
-
 	if r.options.OperatorMetricsEnabled {
-		r.forwarders.Unregister(dda)
+		r.forwarders.Unregister(obj)
 	}
 
-	// To delete the resources associated with the DatadogAgent that we need to
-	// delete, we figure out its dependencies, store them in the dependencies
-	// store, and then call the DeleteAll function of the store.
-
-	features, requiredComponents := feature.BuildFeatures(
-		dda, reconcilerOptionsToFeatureOptions(&r.options, reqLogger))
-
-	storeOptions := &store.StoreOptions{
-		SupportCilium: r.options.SupportCilium,
-		Logger:        reqLogger,
-		Scheme:        r.scheme,
-		PlatformInfo:  r.platformInfo,
-	}
-	depsStore := store.NewStore(dda, storeOptions)
-	resourceManagers := feature.NewResourceManagers(depsStore)
-
-	var errs []error
-
-	// Set up dependencies required by enabled features
-	for _, feat := range features {
-		if featErr := feat.ManageDependencies(resourceManagers, requiredComponents); featErr != nil {
-			errs = append(errs, featErr)
-		}
-	}
-
-	// Examine user configuration to override any external dependencies (e.g. RBACs)
-	errs = append(errs, override.Dependencies(reqLogger, resourceManagers, dda)...)
-
-	if len(errs) > 0 {
-		return fmt.Errorf("errors calculating dependencies while finalizing the DatadogAgent: %v", errs)
-	}
-
-	deleteErrs := depsStore.DeleteAll(context.TODO(), r.client)
-	if len(deleteErrs) > 0 {
-		return fmt.Errorf("error deleting dependencies while finalizing the DatadogAgent: %v", deleteErrs)
+	if !r.options.DatadogAgentInternalEnabled {
+		// Namespaced resources from the store should be deleted automatically due to owner reference
+		// Delete cluster level resources
+		r.cleanUpClusterLevelResources(reqLogger, obj)
 	}
 
 	if err := r.profilesCleanup(); err != nil {
@@ -167,5 +128,27 @@ func (r *Reconciler) profilesCleanup() error {
 		}
 	}
 
+	return nil
+}
+
+func (r *Reconciler) cleanUpClusterLevelResources(reqLogger logr.Logger, dda client.Object) error {
+	// Cluster level resources must be deleted manually since they cannot have an owner reference
+	r.log.Info("Cleaning up cluster level resources")
+	deleteObjectsForResource(r.client, dda, kubernetes.ObjectFromKind(kubernetes.ClusterRolesKind, r.platformInfo))
+	deleteObjectsForResource(r.client, dda, kubernetes.ObjectFromKind(kubernetes.ClusterRoleBindingKind, r.platformInfo))
+	deleteObjectsForResource(r.client, dda, kubernetes.ObjectFromKind(kubernetes.APIServiceKind, r.platformInfo))
+
+	return nil
+}
+
+func deleteObjectsForResource(c client.Client, dda client.Object, kind client.Object) error {
+	matchingLabels := client.MatchingLabels{
+		store.OperatorStoreLabelKey:              "true",
+		kubernetes.AppKubernetesPartOfLabelKey:   object.NewPartOfLabelValue(dda).String(),
+		kubernetes.AppKubernetesManageByLabelKey: "datadog-operator",
+	}
+	if err := c.DeleteAllOf(context.TODO(), kind, matchingLabels); err != nil {
+		return err
+	}
 	return nil
 }

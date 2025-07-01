@@ -263,7 +263,7 @@ func TestBuilder(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, requiredComponents := feature.BuildFeatures(tt.dda, &tt.featureOptions)
+			_, _, requiredComponents := feature.BuildFeatures(tt.dda, &tt.dda.Spec, tt.dda.Status.RemoteConfigConfiguration, &tt.featureOptions)
 
 			assert.True(t, *requiredComponents.Agent.IsRequired)
 

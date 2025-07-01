@@ -14,7 +14,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector/defaultconfig"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/images"
 )
 
 type DatadogAgentBuilder struct {
@@ -40,7 +40,7 @@ func NewDatadogAgentBuilder() *DatadogAgentBuilder {
 // NewDefaultDatadogAgentBuilder created DatadogAgent and applies defaults
 func NewDefaultDatadogAgentBuilder() *DatadogAgentBuilder {
 	dda := &v2alpha1.DatadogAgent{}
-	defaults.DefaultDatadogAgent(dda)
+	defaults.DefaultDatadogAgentSpec(&dda.Spec)
 
 	return &DatadogAgentBuilder{
 		datadogAgent: *dda,
@@ -64,7 +64,7 @@ func (builder *DatadogAgentBuilder) Build() *v2alpha1.DatadogAgent {
 
 // BuildWithDefaults applies defaults to current properties and returns resulting DatadogAgent
 func (builder *DatadogAgentBuilder) BuildWithDefaults() *v2alpha1.DatadogAgent {
-	defaults.DefaultDatadogAgent(&builder.datadogAgent)
+	defaults.DefaultDatadogAgentSpec(&builder.datadogAgent.Spec)
 	return &builder.datadogAgent
 }
 
@@ -136,8 +136,13 @@ func (builder *DatadogAgentBuilder) WithDogstatsdMapperProfiles(customMapperProf
 	return builder
 }
 
-// Live ContainerCollection
+func (builder *DatadogAgentBuilder) WithDogstatsdNonLocalTraffic(enabled bool) *DatadogAgentBuilder {
+	builder.initDogstatsd()
+	builder.datadogAgent.Spec.Features.Dogstatsd.NonLocalTraffic = apiutils.NewBoolPointer(enabled)
+	return builder
+}
 
+// Live ContainerCollection
 func (builder *DatadogAgentBuilder) initLiveContainer() {
 	if builder.datadogAgent.Spec.Features.LiveContainerCollection == nil {
 		builder.datadogAgent.Spec.Features.LiveContainerCollection = &v2alpha1.LiveContainerCollectionFeatureConfig{}
@@ -277,7 +282,7 @@ func (builder *DatadogAgentBuilder) WithSidecarInjectionEnabled(enabled bool) *D
 		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.ClusterAgentCommunicationEnabled = apiutils.NewBoolPointer(enabled)
 		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Provider = apiutils.NewStringPointer("fargate")
 		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image.Name = "agent"
-		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image.Tag = defaulting.AgentLatestVersion
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image.Tag = images.AgentLatestVersion
 	}
 	return builder
 }
@@ -434,6 +439,24 @@ func (builder *DatadogAgentBuilder) WithOTelCollectorConfigMap() *DatadogAgentBu
 	builder.datadogAgent.Spec.Features.OtelCollector.Conf = &v2alpha1.CustomConfig{}
 	builder.datadogAgent.Spec.Features.OtelCollector.Conf.ConfigMap = &v2alpha1.ConfigMapConfig{
 		Name: "user-provided-config-map",
+	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTelCollectorConfigMapMultipleItems() *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.OtelCollector.Conf = &v2alpha1.CustomConfig{}
+	builder.datadogAgent.Spec.Features.OtelCollector.Conf.ConfigMap = &v2alpha1.ConfigMapConfig{
+		Name: "user-provided-config-map",
+		Items: []corev1.KeyToPath{
+			{
+				Key:  "otel-config.yaml",
+				Path: "otel-config.yaml",
+			},
+			{
+				Key:  "otel-config-two.yaml",
+				Path: "otel-config-two.yaml",
+			},
+		},
 	}
 	return builder
 }
@@ -913,6 +936,37 @@ func (builder *DatadogAgentBuilder) WithCredentials(apiKey, appKey string) *Data
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithCredentialsFromSecret(apiSecretName, apiSecretKey, appSecretName, appSecretKey string) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Global.Credentials = &v2alpha1.DatadogCredentials{}
+	if apiSecretName != "" && apiSecretKey != "" {
+		builder.datadogAgent.Spec.Global.Credentials.APISecret = &v2alpha1.SecretConfig{
+			SecretName: apiSecretName,
+			KeyName:    apiSecretKey,
+		}
+	}
+	if appSecretName != "" && appSecretKey != "" {
+		builder.datadogAgent.Spec.Global.Credentials.AppSecret = &v2alpha1.SecretConfig{
+			SecretName: appSecretName,
+			KeyName:    appSecretKey,
+		}
+	}
+	return builder
+}
+
+// Global DCA Token
+func (builder *DatadogAgentBuilder) WithDCAToken(token string) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Global.ClusterAgentToken = apiutils.NewStringPointer(token)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithDCATokenFromSecret(secretName, secretKey string) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Global.ClusterAgentTokenSecret = &v2alpha1.SecretConfig{
+		SecretName: secretName,
+		KeyName:    secretKey,
+	}
+	return builder
+}
+
 // Global OriginDetectionUnified
 
 func (builder *DatadogAgentBuilder) WithOriginDetectionUnified(enabled bool) *DatadogAgentBuilder {
@@ -939,21 +993,23 @@ func (builder *DatadogAgentBuilder) WithChecksTagCardinality(cardinality string)
 
 // Global SecretBackend
 
-func (builder *DatadogAgentBuilder) WithGlobalSecretBackendGlobalPerms(command string, args string, timeout int32) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithGlobalSecretBackendGlobalPerms(command string, args string, timeout int32, refreshInterval int32) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.SecretBackend = &v2alpha1.SecretBackendConfig{
 		Command:                 apiutils.NewStringPointer(command),
 		Args:                    apiutils.NewStringPointer(args),
 		Timeout:                 apiutils.NewInt32Pointer(timeout),
+		RefreshInterval:         apiutils.NewInt32Pointer(refreshInterval),
 		EnableGlobalPermissions: apiutils.NewBoolPointer(true),
 	}
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithGlobalSecretBackendSpecificRoles(command string, args string, timeout int32, secretNs string, secretNames []string) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithGlobalSecretBackendSpecificRoles(command string, args string, timeout int32, refreshInterval int32, secretNs string, secretNames []string) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.SecretBackend = &v2alpha1.SecretBackendConfig{
 		Command:                 apiutils.NewStringPointer(command),
 		Args:                    apiutils.NewStringPointer(args),
 		Timeout:                 apiutils.NewInt32Pointer(timeout),
+		RefreshInterval:         apiutils.NewInt32Pointer(refreshInterval),
 		EnableGlobalPermissions: apiutils.NewBoolPointer(false),
 		Roles: []*v2alpha1.SecretBackendRolesConfig{
 			{
@@ -977,6 +1033,15 @@ func (builder *DatadogAgentBuilder) WithComponentOverride(componentName v2alpha1
 }
 
 // FIPS
+
+func (builder *DatadogAgentBuilder) WithUseFIPSAgent() *DatadogAgentBuilder {
+	if builder.datadogAgent.Spec.Global == nil {
+		builder.datadogAgent.Spec.Global = &v2alpha1.GlobalConfig{}
+	}
+
+	builder.datadogAgent.Spec.Global.UseFIPSAgent = apiutils.NewBoolPointer(true)
+	return builder
+}
 
 func (builder *DatadogAgentBuilder) WithFIPS(fipsConfig v2alpha1.FIPSConfig) *DatadogAgentBuilder {
 	if builder.datadogAgent.Spec.Global == nil {

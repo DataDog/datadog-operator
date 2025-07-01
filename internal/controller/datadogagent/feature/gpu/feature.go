@@ -4,6 +4,7 @@ import (
 	"path"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -28,7 +29,7 @@ type gpuFeature struct {
 	// podRuntimeClassName is the value to set in the runtimeClassName
 	// configuration of the agent pod. If this is empty, the runtimeClassName
 	// will not be changed.
-	podRuntimeClassName string
+	podRuntimeClassName    string
 	podResourcesSocketPath string
 }
 
@@ -38,8 +39,8 @@ func (f *gpuFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *gpuFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Features == nil || dda.Spec.Features.GPU == nil || !apiutils.BoolValue(dda.Spec.Features.GPU.Enabled) {
+func (f *gpuFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+	if ddaSpec.Features == nil || ddaSpec.Features.GPU == nil || !apiutils.BoolValue(ddaSpec.Features.GPU.Enabled) {
 		return reqComp
 	}
 
@@ -48,23 +49,23 @@ func (f *gpuFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 		Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
 	}
 
-	if dda.Spec.Features.GPU.PodRuntimeClassName == nil {
+	if ddaSpec.Features.GPU.PodRuntimeClassName == nil {
 		// Configuration option not set, so revert to the default
 		f.podRuntimeClassName = defaultGPURuntimeClass
 	} else {
 		// Configuration option set, use the value. Note that here the value might be an empty
 		// string, which tells us to not change the runtime class.
-		f.podRuntimeClassName = *dda.Spec.Features.GPU.PodRuntimeClassName
+		f.podRuntimeClassName = *ddaSpec.Features.GPU.PodRuntimeClassName
 	}
 
-	f.podResourcesSocketPath = dda.Spec.Global.Kubelet.PodResourcesSocketPath
+	f.podResourcesSocketPath = ddaSpec.Global.Kubelet.PodResourcesSocketPath
 
 	return reqComp
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *gpuFeature) ManageDependencies(feature.ResourceManagers, feature.RequiredComponents) error {
+func (f *gpuFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 
@@ -144,7 +145,14 @@ func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ str
 		Name:  DDEnableNVMLDetectionEnvVar,
 		Value: "true",
 	}
-	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, nvmlDetectionEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, nvmlDetectionEnvVar)
+
+	// env var to enable collecting gpu host tags ("gpu_host:true" tag)
+	collectGpuTagsEnvVar := &corev1.EnvVar{
+		Name:  DDCollectGPUTagsEnvVar,
+		Value: "true",
+	}
+	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, collectGpuTagsEnvVar)
 
 	// The agent check does not need to be manually enabled, the init config container will
 	// check if GPU monitoring is enabled and will enable the check automatically (see

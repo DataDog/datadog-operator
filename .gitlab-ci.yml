@@ -1,10 +1,10 @@
-image: registry.ddbuild.io/images/mirror/library/golang:1.23.6
+image: registry.ddbuild.io/images/mirror/library/golang:1.23.10
 variables:
   PROJECTNAME: "datadog-operator"
   PROJECTNAME_CHECK: "datadog-operator-check"
   BUILD_DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
   E2E_DOCKER_REGISTRY: "669783387624.dkr.ecr.us-east-1.amazonaws.com/operator"
-  JOB_DOCKER_IMAGE: "registry.ddbuild.io/ci-containers-project:v46367840-16ecadd-v3.0.0"
+  JOB_DOCKER_IMAGE: "registry.ddbuild.io/ci-containers-project:v68399443-88dc260-v1.22"
   DOCKER_REGISTRY_LOGIN_SSM_KEY: docker_hub_login
   DOCKER_REGISTRY_PWD_SSM_KEY: docker_hub_pwd
   DOCKER_REGISTRY_URL: docker.io
@@ -224,6 +224,11 @@ build_bundle_image:
     when: never
   # Allow mergequeue branches to merge even if tests fail
   - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+    allow_failure: true
+  - if: $CI_COMMIT_TAG
+    allow_failure: true
+  # Allow failure if we're explicitly pushing images to staging
+  - if: $PUSH_IMAGES_TO_STAGING == 'true'
     allow_failure: true
   # Disable on Conductor-triggered jobs (ex: nightly)
   - if: '$DDR == "true"'

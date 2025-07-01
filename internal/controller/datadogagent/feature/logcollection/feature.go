@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -47,12 +48,12 @@ func (f *logCollectionFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *logCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Features == nil {
+func (f *logCollectionFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+	if ddaSpec.Features == nil {
 		return
 	}
 
-	logCollection := dda.Spec.Features.LogCollection
+	logCollection := ddaSpec.Features.LogCollection
 
 	if logCollection != nil && apiutils.BoolValue(logCollection.Enabled) {
 		if logCollection.ContainerCollectAll != nil {
@@ -82,7 +83,7 @@ func (f *logCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp fe
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *logCollectionFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (f *logCollectionFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 

@@ -30,7 +30,6 @@ func buildASMFeature(options *feature.Options) feature.Feature {
 }
 
 type asmFeature struct {
-	owner          metav1.Object
 	threatsEnabled bool
 	iastEnabled    bool
 	scaEnabled     bool
@@ -41,9 +40,9 @@ func (f *asmFeature) ID() feature.IDType {
 	return feature.ASMIDType
 }
 
-func (f *asmFeature) shouldEnableASM(dda *v2alpha1.DatadogAgent) bool {
-	asm := dda.Spec.Features.ASM
-	if dda.Spec.Features.AdmissionController == nil || !apiutils.BoolValue(dda.Spec.Features.AdmissionController.Enabled) {
+func (f *asmFeature) shouldEnableASM(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	asm := ddaSpec.Features.ASM
+	if ddaSpec.Features.AdmissionController == nil || !apiutils.BoolValue(ddaSpec.Features.AdmissionController.Enabled) {
 		return false
 	}
 
@@ -51,10 +50,9 @@ func (f *asmFeature) shouldEnableASM(dda *v2alpha1.DatadogAgent) bool {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *asmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
-	f.owner = dda
-	asm := dda.Spec.Features.ASM
-	if !f.shouldEnableASM(dda) {
+func (f *asmFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
+	asm := ddaSpec.Features.ASM
+	if !f.shouldEnableASM(ddaSpec) {
 		return feature.RequiredComponents{}
 	}
 
@@ -75,7 +73,7 @@ func (f *asmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *asmFeature) ManageDependencies(_ feature.ResourceManagers, _ feature.RequiredComponents) error {
+func (f *asmFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 

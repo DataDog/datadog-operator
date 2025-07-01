@@ -11,7 +11,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/images"
 
 	"github.com/google/go-cmp/cmp"
 	assert "github.com/stretchr/testify/require"
@@ -36,7 +36,7 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
 					Site:     apiutils.NewStringPointer(defaultSite),
-					Registry: apiutils.NewStringPointer(defaulting.DefaultImageRegistry),
+					Registry: apiutils.NewStringPointer(images.DefaultImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -51,7 +51,7 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
 					Site:     apiutils.NewStringPointer(defaultEuropeSite),
-					Registry: apiutils.NewStringPointer(defaulting.DefaultEuropeImageRegistry),
+					Registry: apiutils.NewStringPointer(images.DefaultEuropeImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -66,7 +66,7 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
 					Site:     apiutils.NewStringPointer(defaultAsiaSite),
-					Registry: apiutils.NewStringPointer(defaulting.DefaultAsiaImageRegistry),
+					Registry: apiutils.NewStringPointer(images.DefaultAsiaImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -81,7 +81,7 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
 					Site:     apiutils.NewStringPointer(defaultAzureSite),
-					Registry: apiutils.NewStringPointer(defaulting.DefaultAzureImageRegistry),
+					Registry: apiutils.NewStringPointer(images.DefaultAzureImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -96,23 +96,37 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
 					Site:     apiutils.NewStringPointer(defaultGovSite),
-					Registry: apiutils.NewStringPointer(defaulting.DefaultGovImageRegistry),
+					Registry: apiutils.NewStringPointer(images.DefaultGovImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
 		},
 		{
-			name: "test FIPS defaulting - disabled",
+			name: "test FIPS Agent defaulting - disabled",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Global: &v2alpha1.GlobalConfig{},
+			},
+			want: &v2alpha1.DatadogAgentSpec{
+				Global: &v2alpha1.GlobalConfig{
+					UseFIPSAgent: apiutils.NewBoolPointer(defaultUseFIPSAgent),
+					Site:         apiutils.NewStringPointer(defaultSite),
+					Registry:     apiutils.NewStringPointer(images.DefaultImageRegistry),
+					LogLevel:     apiutils.NewStringPointer(defaultLogLevel),
+				},
+			},
+		},
+		{
+			name: "test FIPS proxy defaulting - disabled",
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{},
 			},
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
 					FIPS: &v2alpha1.FIPSConfig{
-						Enabled: apiutils.NewBoolPointer(defaultFIPSEnabled),
+						Enabled: apiutils.NewBoolPointer(defaultFIPSProxyEnabled),
 					},
 					Site:     apiutils.NewStringPointer(defaultSite),
-					Registry: apiutils.NewStringPointer(defaulting.DefaultImageRegistry),
+					Registry: apiutils.NewStringPointer(images.DefaultImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -140,7 +154,7 @@ func Test_defaultGlobal(t *testing.T) {
 						UseHTTPS:     apiutils.NewBoolPointer(defaultFIPSUseHTTPS),
 					},
 					Site:     apiutils.NewStringPointer(defaultSite),
-					Registry: apiutils.NewStringPointer(defaulting.DefaultImageRegistry),
+					Registry: apiutils.NewStringPointer(images.DefaultImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -255,6 +269,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
+						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
@@ -474,6 +489,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
+						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
@@ -619,6 +635,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
+						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
@@ -773,6 +790,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
+						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
@@ -922,6 +940,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
+						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
@@ -1073,6 +1092,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
+						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
@@ -1229,6 +1249,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
+						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
@@ -1378,6 +1399,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
+						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
@@ -1530,6 +1552,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
+						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
@@ -1692,6 +1715,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
+						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
@@ -1843,6 +1867,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
+						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
@@ -1993,6 +2018,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
+						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
@@ -2165,6 +2191,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
+						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
@@ -2327,6 +2354,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
+						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
@@ -2481,6 +2509,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
+						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{

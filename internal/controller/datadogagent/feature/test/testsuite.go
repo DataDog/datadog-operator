@@ -10,11 +10,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	testutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -62,7 +64,19 @@ func NewDefaultComponentTest() *ComponentTest {
 	defaultProvider := kubernetes.DefaultProvider
 	return &ComponentTest{
 		CreateFunc: func(t testing.TB) (feature.PodTemplateManagers, string) {
-			return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{}), defaultProvider
+			// Bare minimum PodTemplateSpec with one agent container
+			newPTS := v1.PodTemplateSpec{
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Name:    string(apicommon.CoreAgentContainerName),
+							Image:   images.GetLatestAgentImage(),
+							Command: []string{"agent", "run"},
+						},
+					},
+				},
+			}
+			return fake.NewPodTemplateManagers(t, newPTS), defaultProvider
 		},
 	}
 }
@@ -107,7 +121,10 @@ func runTest(t *testing.T, tt FeatureTest) {
 	}
 	featureOptions.Logger = logger
 	if tt.DDA != nil {
-		features, gotConfigure = feature.BuildFeatures(tt.DDA, featureOptions)
+		var configuredFeatures []feature.Feature
+		var enabledFeatures []feature.Feature
+		configuredFeatures, enabledFeatures, gotConfigure = feature.BuildFeatures(tt.DDA, &tt.DDA.Spec, tt.DDA.Status.RemoteConfigConfiguration, featureOptions)
+		features = append(configuredFeatures, enabledFeatures...)
 		dda = tt.DDA
 	} else {
 		t.Fatal("No DatadogAgent CRD provided")
@@ -120,7 +137,7 @@ func runTest(t *testing.T, tt FeatureTest) {
 	store, depsManager := initDependencies(tt, logger, dda)
 
 	for _, feat := range features {
-		if err := feat.ManageDependencies(depsManager, tt.RequiredComponents); (err != nil) != tt.WantManageDependenciesErr {
+		if err := feat.ManageDependencies(depsManager); (err != nil) != tt.WantManageDependenciesErr {
 			t.Errorf("feature.ManageDependencies() error = %v, wantErr %v", err, tt.WantManageDependenciesErr)
 			return
 		}
@@ -180,11 +197,11 @@ func verifyFeatures(t *testing.T, tt FeatureTest, features []feature.Feature, go
 			"it should be 1 if when features is enabled, 0 otherwise. Check code")
 	}
 
-	if tt.WantConfigure && len(features) == 0 {
+	if tt.WantConfigure && gotConfigure.IsEnabled() && len(features) == 0 {
 		t.Errorf("feature wanted but feature.BuildFeatures() return empty slice")
 	}
 
-	if gotConfigure.IsEnabled() != tt.WantConfigure {
-		t.Errorf("feature.Configure() = %v, want %v", gotConfigure.IsEnabled(), tt.WantConfigure)
+	if gotConfigure.IsConfigured() != tt.WantConfigure {
+		t.Errorf("feature.Configure() = %v, want %v", gotConfigure.IsConfigured(), tt.WantConfigure)
 	}
 }

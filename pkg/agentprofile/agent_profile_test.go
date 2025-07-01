@@ -262,6 +262,7 @@ func TestApplyProfile(t *testing.T) {
 func TestOverrideFromProfile(t *testing.T) {
 	overrideNameForLinuxProfile := "datadog-agent-with-profile-default-linux"
 	overrideNameForExampleProfile := "datadog-agent-with-profile-default-example"
+	overrideNameForAllContainersProfile := "datadog-agent-with-profile-default-all-containers"
 
 	tests := []struct {
 		name             string
@@ -287,22 +288,7 @@ func TestOverrideFromProfile(t *testing.T) {
 					"agent.datadoghq.com/datadogagentprofile": "example",
 				},
 				Affinity: &v1.Affinity{
-					PodAntiAffinity: &v1.PodAntiAffinity{
-						RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
-							{
-								LabelSelector: &metav1.LabelSelector{
-									MatchExpressions: []metav1.LabelSelectorRequirement{
-										{
-											Key:      apicommon.AgentDeploymentComponentLabelKey,
-											Operator: metav1.LabelSelectorOpIn,
-											Values:   []string{"agent"},
-										},
-									},
-								},
-								TopologyKey: v1.LabelHostname,
-							},
-						},
-					},
+					PodAntiAffinity: profilePodAntiAffinity(),
 				},
 			},
 		},
@@ -332,22 +318,7 @@ func TestOverrideFromProfile(t *testing.T) {
 							},
 						},
 					},
-					PodAntiAffinity: &v1.PodAntiAffinity{
-						RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
-							{
-								LabelSelector: &metav1.LabelSelector{
-									MatchExpressions: []metav1.LabelSelectorRequirement{
-										{
-											Key:      apicommon.AgentDeploymentComponentLabelKey,
-											Operator: metav1.LabelSelectorOpIn,
-											Values:   []string{"agent"},
-										},
-									},
-								},
-								TopologyKey: v1.LabelHostname,
-							},
-						},
-					},
+					PodAntiAffinity: profilePodAntiAffinity(),
 				},
 				PriorityClassName: apiutils.NewStringPointer("foo"),
 				RuntimeClassName:  apiutils.NewStringPointer("bar"),
@@ -361,11 +332,7 @@ func TestOverrideFromProfile(t *testing.T) {
 				},
 				Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
 					apicommon.CoreAgentContainerName: {
-						Resources: &v1.ResourceRequirements{
-							Requests: v1.ResourceList{
-								v1.ResourceCPU: resource.MustParse("100m"),
-							},
-						},
+						Resources: cpuRequestResource("100m"),
 						Env: []corev1.EnvVar{
 							{
 								Name:  "foo",
@@ -400,21 +367,42 @@ func TestOverrideFromProfile(t *testing.T) {
 							},
 						},
 					},
-					PodAntiAffinity: &v1.PodAntiAffinity{
-						RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
-							{
-								LabelSelector: &metav1.LabelSelector{
-									MatchExpressions: []metav1.LabelSelectorRequirement{
-										{
-											Key:      apicommon.AgentDeploymentComponentLabelKey,
-											Operator: metav1.LabelSelectorOpIn,
-											Values:   []string{"agent"},
-										},
-									},
-								},
-								TopologyKey: v1.LabelHostname,
-							},
-						},
+					PodAntiAffinity: profilePodAntiAffinity(),
+				},
+			},
+		},
+		{
+			name:    "all containers, cpu request override",
+			profile: fixedCpuRequestAllContainersProfile(),
+			expectedOverride: v2alpha1.DatadogAgentComponentOverride{
+				Name: &overrideNameForAllContainersProfile,
+				Labels: map[string]string{
+					"agent.datadoghq.com/datadogagentprofile": "all-containers",
+				},
+				Affinity: &v1.Affinity{
+					PodAntiAffinity: profilePodAntiAffinity(),
+				},
+				Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+					apicommon.CoreAgentContainerName: {
+						Resources: cpuRequestResource("100m"),
+					},
+					apicommon.ProcessAgentContainerName: {
+						Resources: cpuRequestResource("100m"),
+					},
+					apicommon.TraceAgentContainerName: {
+						Resources: cpuRequestResource("100m"),
+					},
+					apicommon.SecurityAgentContainerName: {
+						Resources: cpuRequestResource("100m"),
+					},
+					apicommon.SystemProbeContainerName: {
+						Resources: cpuRequestResource("100m"),
+					},
+					apicommon.OtelAgent: {
+						Resources: cpuRequestResource("100m"),
+					},
+					apicommon.AgentDataPlaneContainerName: {
+						Resources: cpuRequestResource("100m"),
 					},
 				},
 			},
@@ -482,9 +470,9 @@ func Test_labelsOverride(t *testing.T) {
 					Name:      "foo",
 				},
 				Spec: v1alpha1.DatadogAgentProfileSpec{
-					Config: &v1alpha1.Config{
-						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
-							v1alpha1.NodeAgentComponentName: {},
+					Config: &v2alpha1.DatadogAgentSpec{
+						Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+							v2alpha1.NodeAgentComponentName: {},
 						},
 					},
 				},
@@ -501,9 +489,9 @@ func Test_labelsOverride(t *testing.T) {
 					Name:      "foo",
 				},
 				Spec: v1alpha1.DatadogAgentProfileSpec{
-					Config: &v1alpha1.Config{
-						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
-							v1alpha1.NodeAgentComponentName: {
+					Config: &v2alpha1.DatadogAgentSpec{
+						Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+							v2alpha1.NodeAgentComponentName: {
 								Labels: map[string]string{
 									"foo": "bar",
 								},
@@ -526,9 +514,9 @@ func Test_labelsOverride(t *testing.T) {
 					Name:      "foo",
 				},
 				Spec: v1alpha1.DatadogAgentProfileSpec{
-					Config: &v1alpha1.Config{
-						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
-							v1alpha1.NodeAgentComponentName: {
+					Config: &v2alpha1.DatadogAgentSpec{
+						Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+							v2alpha1.NodeAgentComponentName: {
 								Labels: map[string]string{
 									ProfileLabelKey: "bar",
 								},
@@ -712,12 +700,52 @@ func exampleDefaultProfile() v1alpha1.DatadogAgentProfile {
 	}
 }
 
+func fixedCpuRequestAllContainersProfile() v1alpha1.DatadogAgentProfile {
+	return v1alpha1.DatadogAgentProfile{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: testNamespace,
+			Name:      "all-containers",
+		},
+		Spec: v1alpha1.DatadogAgentProfileSpec{
+			Config: &v2alpha1.DatadogAgentSpec{
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {
+						Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+							apicommon.CoreAgentContainerName: {
+								Resources: cpuRequestResource("100m"),
+							},
+							apicommon.ProcessAgentContainerName: {
+								Resources: cpuRequestResource("100m"),
+							},
+							apicommon.TraceAgentContainerName: {
+								Resources: cpuRequestResource("100m"),
+							},
+							apicommon.SecurityAgentContainerName: {
+								Resources: cpuRequestResource("100m"),
+							},
+							apicommon.SystemProbeContainerName: {
+								Resources: cpuRequestResource("100m"),
+							},
+							apicommon.OtelAgent: {
+								Resources: cpuRequestResource("100m"),
+							},
+							apicommon.AgentDataPlaneContainerName: {
+								Resources: cpuRequestResource("100m"),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 // configWithAllOverrides returns a config with all available overrides for the
 // core agent container.
-func configWithAllOverrides(cpuRequest string) *v1alpha1.Config {
-	return &v1alpha1.Config{
-		Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
-			v1alpha1.NodeAgentComponentName: {
+func configWithAllOverrides(cpuRequest string) *v2alpha1.DatadogAgentSpec {
+	return &v2alpha1.DatadogAgentSpec{
+		Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+			v2alpha1.NodeAgentComponentName: {
 				PriorityClassName: apiutils.NewStringPointer("foo"),
 				RuntimeClassName:  apiutils.NewStringPointer("bar"),
 				UpdateStrategy: &apicommon.UpdateStrategy{
@@ -731,7 +759,7 @@ func configWithAllOverrides(cpuRequest string) *v1alpha1.Config {
 				Labels: map[string]string{
 					"foo": "bar",
 				},
-				Containers: map[apicommon.AgentContainerName]*v1alpha1.Container{
+				Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
 					apicommon.CoreAgentContainerName: {
 						Env: []corev1.EnvVar{
 							{
@@ -739,13 +767,36 @@ func configWithAllOverrides(cpuRequest string) *v1alpha1.Config {
 								Value: "bar",
 							},
 						},
-						Resources: &v1.ResourceRequirements{
-							Requests: v1.ResourceList{
-								v1.ResourceCPU: resource.MustParse(cpuRequest),
-							},
+						Resources: cpuRequestResource(cpuRequest),
+					},
+				},
+			},
+		},
+	}
+}
+
+func cpuRequestResource(cpuRequest string) *v1.ResourceRequirements {
+	return &v1.ResourceRequirements{
+		Requests: v1.ResourceList{
+			v1.ResourceCPU: resource.MustParse(cpuRequest),
+		},
+	}
+}
+
+func profilePodAntiAffinity() *v1.PodAntiAffinity {
+	return &v1.PodAntiAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+			{
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      apicommon.AgentDeploymentComponentLabelKey,
+							Operator: metav1.LabelSelectorOpIn,
+							Values:   []string{"agent"},
 						},
 					},
 				},
+				TopologyKey: v1.LabelHostname,
 			},
 		},
 	}
@@ -877,9 +928,9 @@ func TestGetMaxUnavailable(t *testing.T) {
 			},
 			profile: &v1alpha1.DatadogAgentProfile{
 				Spec: v1alpha1.DatadogAgentProfileSpec{
-					Config: &v1alpha1.Config{
-						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
-							v1alpha1.NodeAgentComponentName: {
+					Config: &v2alpha1.DatadogAgentSpec{
+						Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+							v2alpha1.NodeAgentComponentName: {
 								UpdateStrategy: &apicommon.UpdateStrategy{
 									Type: "RollingUpdate",
 									RollingUpdate: &apicommon.RollingUpdate{
@@ -912,9 +963,9 @@ func TestGetMaxUnavailable(t *testing.T) {
 			},
 			profile: &v1alpha1.DatadogAgentProfile{
 				Spec: v1alpha1.DatadogAgentProfileSpec{
-					Config: &v1alpha1.Config{
-						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
-							v1alpha1.NodeAgentComponentName: {
+					Config: &v2alpha1.DatadogAgentSpec{
+						Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+							v2alpha1.NodeAgentComponentName: {
 								PriorityClassName: apiutils.NewStringPointer("test"),
 							},
 						},
@@ -947,9 +998,9 @@ func TestGetMaxUnavailable(t *testing.T) {
 			},
 			profile: &v1alpha1.DatadogAgentProfile{
 				Spec: v1alpha1.DatadogAgentProfileSpec{
-					Config: &v1alpha1.Config{
-						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
-							v1alpha1.NodeAgentComponentName: {
+					Config: &v2alpha1.DatadogAgentSpec{
+						Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+							v2alpha1.NodeAgentComponentName: {
 								PriorityClassName: apiutils.NewStringPointer("test"),
 							},
 						},
@@ -963,7 +1014,7 @@ func TestGetMaxUnavailable(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			testLogger := zap.New(zap.UseDevMode(true))
-			actualMaxUnavailable := GetMaxUnavailable(testLogger, tt.dda, tt.profile, 100, tt.edsOptions)
+			actualMaxUnavailable := GetMaxUnavailable(testLogger, &tt.dda.Spec, tt.profile, 100, tt.edsOptions)
 			assert.Equal(t, tt.expectedMaxUnavailable, actualMaxUnavailable)
 		})
 	}

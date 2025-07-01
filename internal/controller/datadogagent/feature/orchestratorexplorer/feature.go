@@ -51,6 +51,7 @@ func buildOrchestratorExplorerFeature(options *feature.Options) feature.Feature 
 }
 
 type orchestratorExplorerFeature struct {
+	enabled                  bool
 	runInClusterChecksRunner bool
 	scrubContainers          bool
 	extraTags                []string
@@ -77,30 +78,18 @@ func (f *orchestratorExplorerFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+func (f *orchestratorExplorerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
 	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
-	f.mergeConfigs(&dda.Spec, &dda.Status)
+	f.mergeConfigs(ddaSpec, ddaRCStatus)
 
-	orchestratorExplorer := dda.Spec.Features.OrchestratorExplorer
+	orchestratorExplorer := ddaSpec.Features.OrchestratorExplorer
 
 	if orchestratorExplorer != nil && apiutils.BoolValue(orchestratorExplorer.Enabled) {
+		f.enabled = true
 		reqComp.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
-		reqContainers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
-
-		// Process Agent is not required as of agent version 7.51.0
-		if nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
-			if nodeAgent.Image != nil && !utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), NoProcessAgentMinVersion) {
-				f.processAgentRequired = true
-				reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)
-			}
-		}
-
-		reqComp.Agent = feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
-			Containers: reqContainers,
-		}
+		reqComp.Agent.IsRequired = apiutils.NewBoolPointer(true)
 
 		if orchestratorExplorer.Conf != nil || len(orchestratorExplorer.CustomResources) > 0 {
 			f.customConfig = orchestratorExplorer.Conf
@@ -117,18 +106,18 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.OrchestratorExplorerIDType)
 		}
 
-		f.customResources = dda.Spec.Features.OrchestratorExplorer.CustomResources
+		f.customResources = ddaSpec.Features.OrchestratorExplorer.CustomResources
 		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, defaultOrchestratorExplorerConf)
 		f.scrubContainers = apiutils.BoolValue(orchestratorExplorer.ScrubContainers)
 		f.extraTags = orchestratorExplorer.ExtraTags
 		if orchestratorExplorer.DDUrl != nil {
 			f.ddURL = *orchestratorExplorer.DDUrl
 		}
-		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 		// Handle automatic addition of OOTB resources
 		// Autoscaling: Add DPA resource if enabled and replace older versions if present
-		autoscaling := dda.Spec.Features.Autoscaling
+		autoscaling := ddaSpec.Features.Autoscaling
 		if autoscaling != nil && autoscaling.Workload != nil && apiutils.BoolValue(autoscaling.Workload.Enabled) {
 			addRequired := true
 			for i := range f.customResources {
@@ -146,24 +135,39 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 		slices.Sort(f.customResources)
 		f.customResources = slices.Compact(f.customResources)
 
-		if constants.IsClusterChecksEnabled(dda) {
-			if constants.IsCCREnabled(dda) {
+		if constants.IsClusterChecksEnabled(ddaSpec) {
+			if constants.IsCCREnabled(ddaSpec) {
 				f.runInClusterChecksRunner = true
 				f.rbacSuffix = common.ChecksRunnerSuffix
-				f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda)
+				f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda.GetName(), ddaSpec)
 				reqComp.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
 			}
 		}
 	}
 
+	reqComp.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
+	reqContainers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
+	// Process Agent is not required as of agent version 7.51.0
+	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
+		if nodeAgent.Image != nil && !utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), NoProcessAgentMinVersion) {
+			f.processAgentRequired = true
+			reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)
+		}
+	}
+	reqComp.Agent.Containers = reqContainers
+
+	if f.runInClusterChecksRunner {
+		reqComp.ClusterChecksRunner.Containers = []apicommon.AgentContainerName{apicommon.ClusterChecksRunnersContainerName}
+	}
+
 	return reqComp
 }
 
-func (f *orchestratorExplorerFeature) mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) {
-	if ddaStatus.RemoteConfigConfiguration == nil ||
-		ddaStatus.RemoteConfigConfiguration.Features == nil ||
-		ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer == nil ||
-		ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources == nil {
+func (f *orchestratorExplorerFeature) mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.RemoteConfigConfiguration) {
+	if ddaStatus == nil ||
+		ddaStatus.Features == nil ||
+		ddaStatus.Features.OrchestratorExplorer == nil ||
+		ddaStatus.Features.OrchestratorExplorer.CustomResources == nil {
 		return
 	}
 
@@ -175,12 +179,12 @@ func (f *orchestratorExplorerFeature) mergeConfigs(ddaSpec *v2alpha1.DatadogAgen
 		ddaSpec.Features.OrchestratorExplorer = &v2alpha1.OrchestratorExplorerFeatureConfig{}
 	}
 
-	ddaSpec.Features.OrchestratorExplorer.CustomResources = append(ddaSpec.Features.OrchestratorExplorer.CustomResources, ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources...)
+	ddaSpec.Features.OrchestratorExplorer.CustomResources = append(ddaSpec.Features.OrchestratorExplorer.CustomResources, ddaStatus.Features.OrchestratorExplorer.CustomResources...)
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *orchestratorExplorerFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (f *orchestratorExplorerFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	// Create a configMap if CustomConfig.ConfigData is provided and CustomConfig.ConfigMap == nil,
 	// OR if the default configMap is needed.
 	configCM, err := f.buildOrchestratorExplorerConfigMap()
@@ -207,6 +211,13 @@ func (f *orchestratorExplorerFeature) ManageDependencies(managers feature.Resour
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+	// Add the env var to explicitly disable this feature
+	// Otherwise, this feature is enabled by default in the Agent code
+	managers.EnvVar().AddEnvVar(f.getEnabledEnvVar())
+	if !f.enabled {
+		return nil
+	}
+
 	// Manage orchestrator config in configmap
 	var vol corev1.Volume
 	var volMount corev1.VolumeMount
@@ -247,6 +258,13 @@ func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTem
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
 func (f *orchestratorExplorerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	// Add the env var to explicitly disable this feature
+	// Otherwise, this feature is enabled by default in the Agent code
+	managers.EnvVar().AddEnvVar(f.getEnabledEnvVar())
+	if !f.enabled {
+		return nil
+	}
+
 	for _, env := range f.getEnvVars() {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, env)
 	}
@@ -257,11 +275,20 @@ func (f *orchestratorExplorerFeature) ManageSingleContainerNodeAgent(managers fe
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *orchestratorExplorerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	containers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
+	if f.processAgentRequired {
+		containers = append(containers, apicommon.ProcessAgentContainerName)
+	}
+
+	// Add the env var to explicitly disable this feature
+	// Otherwise, this feature is enabled by default in the Agent code
+	managers.EnvVar().AddEnvVarToContainers(containers, f.getEnabledEnvVar())
+	if !f.enabled {
+		return nil
+	}
+
 	for _, env := range f.getEnvVars() {
-		if f.processAgentRequired {
-			managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, env)
-		}
-		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, env)
+		managers.EnvVar().AddEnvVarToContainers(containers, env)
 	}
 
 	return nil
@@ -271,6 +298,13 @@ func (f *orchestratorExplorerFeature) ManageNodeAgent(managers feature.PodTempla
 // It should do nothing if the feature doesn't need to configure it.
 func (f *orchestratorExplorerFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	if f.runInClusterChecksRunner {
+		// Add the env var to explicitly disable this feature
+		// Otherwise, this feature is enabled by default in the Agent code
+		managers.EnvVar().AddEnvVar(f.getEnabledEnvVar())
+		if !f.enabled {
+			return nil
+		}
+
 		for _, env := range f.getEnvVars() {
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterChecksRunnersContainerName, env)
 		}

@@ -6,25 +6,24 @@
 package datadogagent
 
 import (
+	"encoding/json"
 	"fmt"
-	"math/rand"
+	"os"
+	"path/filepath"
+	goruntime "runtime"
 	"strings"
-	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/gobwas/glob"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 )
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
 
 func mergeAnnotationsLabels(logger logr.Logger, previousVal map[string]string, newVal map[string]string, filter string) map[string]string {
 	var globFilter glob.Glob
@@ -120,23 +119,36 @@ func referSameObject(a, b metav1.OwnerReference) bool {
 	return aGV == bGV && a.Kind == b.Kind && a.Name == b.Name
 }
 
-// namespacedName implements the datadog.MonitoredObject interface
-// used to convert reconcile.Request into datadog.MonitoredObject
-type namespacedName struct {
-	reconcile.Request
+// createOwnerReferencePatch creates a patch from owner references
+// We assume there is only one DDAI owner reference
+func createOwnerReferencePatch(ownerRef []metav1.OwnerReference, owner metav1.Object, gvk schema.GroupVersionKind) ([]byte, error) {
+	patchedRefs := make([]metav1.OwnerReference, len(ownerRef))
+	copy(patchedRefs, ownerRef)
+
+	// Replace DDAI owner reference with new owner reference
+	for i, ref := range patchedRefs {
+		if ref.Kind == "DatadogAgentInternal" {
+			patchedRefs[i] = *newOwnerRef(owner, gvk)
+		}
+	}
+
+	// Create JSON patch for ownerReferences field
+	refBytes, err := json.Marshal(patchedRefs)
+	if err != nil {
+		return nil, err
+	}
+
+	return []byte(fmt.Sprintf(`{"metadata":{"ownerReferences":%s}}`, string(refBytes))), nil
 }
 
-func (nsn namespacedName) GetNamespace() string {
-	return nsn.Namespace
-}
-
-func (nsn namespacedName) GetName() string {
-	return nsn.Name
-}
-
-// getMonitoredObj returns a namespacedName from a reconcile.Request object
-func getMonitoredObj(req reconcile.Request) namespacedName {
-	return namespacedName{req}
+// shouldUpdateOwnerReference returns true if the owner reference is a DatadogAgent
+func shouldUpdateOwnerReference(currentOwnerRef []metav1.OwnerReference) bool {
+	for _, ownerRef := range currentOwnerRef {
+		if ownerRef.Kind == "DatadogAgentInternal" {
+			return true
+		}
+	}
+	return false
 }
 
 // getReplicas returns the desired replicas of a
@@ -154,4 +166,41 @@ func getReplicas(currentReplicas, newReplicas *int32) *int32 {
 	}
 
 	return apiutils.NewInt32Pointer(*newReplicas)
+}
+
+// getDDAICRDFromConfig is only used in tests
+//
+//lint:ignore U1000
+func getDDAICRDFromConfig(sch *runtime.Scheme) (*apiextensionsv1.CustomResourceDefinition, error) {
+	_, filename, _, ok := goruntime.Caller(0)
+	if !ok {
+		return nil, fmt.Errorf("unable to get caller")
+	}
+	path := filepath.Join(filepath.Dir(filename), "..", "..", "..", "config", "crd", "bases", "v1", "datadoghq.com_datadogagentinternals.yaml")
+
+	body, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	codecs := serializer.NewCodecFactory(sch)
+	decoder := codecs.UniversalDeserializer()
+	obj, _, err := decoder.Decode(body, nil, &apiextensionsv1.CustomResourceDefinition{})
+	if err != nil {
+		return nil, err
+	}
+
+	if crd, ok := obj.(*apiextensionsv1.CustomResourceDefinition); ok {
+		return crd, nil
+	}
+
+	return nil, fmt.Errorf("decoded object is not a CustomResourceDefinition")
+}
+
+func getDDAIGVK() schema.GroupVersionKind {
+	return schema.GroupVersionKind{
+		Group:   "datadoghq.com",
+		Version: "v1alpha1",
+		Kind:    "DatadogAgentInternal",
+	}
 }

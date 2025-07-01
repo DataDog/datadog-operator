@@ -9,8 +9,9 @@ package updater
 import (
 	"fmt"
 
-	"github.com/DataDog/datadog-operator/test/e2e/rc-updater/api"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/DataDog/datadog-operator/test/e2e/rc-updater/api"
 )
 
 type testSuite interface {
@@ -20,7 +21,7 @@ type testSuite interface {
 func CheckFeaturesState(u testSuite, c assert.TestingT, clusterName string, state bool) {
 	query := fmt.Sprintf("SELECT DISTINCT cluster_name, feature_cws_enabled, feature_cspm_enabled,feature_csm_vm_containers_enabled,feature_csm_vm_hosts_enabled,feature_usm_enabled FROM datadog_agent LEFT JOIN host USING(datadog_agent_key) WHERE cluster_name='%s'", clusterName)
 	resp, err := u.Client().TableQuery(query)
-	if !assert.NoErrorf(c, err, "ddsql query failed") {
+	if !assert.NoErrorf(c, err, "ddsql query failed") { // nolint: testifylint
 		return
 	}
 	if !assert.Len(c, resp.Data, 1, "ddsql query didn't returned a single row") {
@@ -30,7 +31,7 @@ func CheckFeaturesState(u testSuite, c assert.TestingT, clusterName string, stat
 		return
 	}
 	for _, column := range resp.Data[0].Attributes.Columns[1:] {
-		if !assert.True(c, len(column.Values) != 0, "Feature should be set", column.Name) {
+		if !assert.NotEmpty(c, column.Values, "Feature should be set", column.Name) {
 			return
 		}
 		if !assert.Equal(c, column.Values[0].(bool), state, "Feature", column.Name, "should be", state) {

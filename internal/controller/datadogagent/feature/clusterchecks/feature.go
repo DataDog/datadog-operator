@@ -57,12 +57,12 @@ func (f *clusterChecksFeature) ID() feature.IDType {
 	return feature.ClusterChecksIDType
 }
 
-func (f *clusterChecksFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled) {
-		f.updateConfigHash(dda)
+func (f *clusterChecksFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+	if apiutils.BoolValue(ddaSpec.Features.ClusterChecks.Enabled) {
+		f.updateConfigHash(dda, ddaSpec)
 		f.owner = dda
 
-		if enabled, flavor := constants.IsNetworkPolicyEnabled(dda); enabled {
+		if enabled, flavor := constants.IsNetworkPolicyEnabled(ddaSpec); enabled {
 			if flavor == v2alpha1.NetworkPolicyFlavorCilium {
 				f.createCiliumNetworkPolicy = true
 			} else {
@@ -70,18 +70,27 @@ func (f *clusterChecksFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp fe
 			}
 		}
 
-		f.useClusterCheckRunners = apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners)
+		f.useClusterCheckRunners = apiutils.BoolValue(ddaSpec.Features.ClusterChecks.UseClusterChecksRunners)
 		reqComp = feature.RequiredComponents{
-			Agent:               feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
-			ClusterAgent:        feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
-			ClusterChecksRunner: feature.RequiredComponent{IsRequired: &f.useClusterCheckRunners},
+			Agent: feature.RequiredComponent{
+				IsRequired: apiutils.NewBoolPointer(true),
+				Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName},
+			},
+			ClusterAgent: feature.RequiredComponent{
+				IsRequired: apiutils.NewBoolPointer(true),
+				Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
+			},
+			ClusterChecksRunner: feature.RequiredComponent{
+				IsRequired: &f.useClusterCheckRunners,
+				Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName},
+			},
 		}
 	}
 
 	return reqComp
 }
 
-func (f *clusterChecksFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (f *clusterChecksFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	policyName, podSelector := objects.GetNetworkPolicyMetadata(f.owner, v2alpha1.ClusterAgentComponentName)
 	_, ccrPodSelector := objects.GetNetworkPolicyMetadata(f.owner, v2alpha1.ClusterChecksRunnerComponentName)
 	if f.createKubernetesNetworkPolicy {
@@ -227,8 +236,8 @@ func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTem
 	return nil
 }
 
-func (f *clusterChecksFeature) updateConfigHash(dda *v2alpha1.DatadogAgent) {
-	hash, err := comparison.GenerateMD5ForSpec(dda.Spec.Features.ClusterChecks)
+func (f *clusterChecksFeature) updateConfigHash(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) {
+	hash, err := comparison.GenerateMD5ForSpec(ddaSpec.Features.ClusterChecks)
 	if err != nil {
 		f.logger.Error(err, "couldn't generate hash for cluster checks config")
 	} else {

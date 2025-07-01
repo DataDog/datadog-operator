@@ -12,21 +12,26 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlbuilder "sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogmonitor"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 )
 
 // DatadogMonitorReconciler reconciles a DatadogMonitor object.
 type DatadogMonitorReconciler struct {
-	Client   client.Client
-	DDClient datadogclient.DatadogMonitorClient
-	Log      logr.Logger
-	Scheme   *runtime.Scheme
-	Recorder record.EventRecorder
-	internal *datadogmonitor.Reconciler
+	Client                 client.Client
+	DDClient               datadogclient.DatadogMonitorClient
+	Log                    logr.Logger
+	Scheme                 *runtime.Scheme
+	Recorder               record.EventRecorder
+	operatorMetricsEnabled bool
+	internal               *datadogmonitor.Reconciler
 }
 
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogmonitors,verbs=get;list;watch;create;update;patch;delete
@@ -39,18 +44,27 @@ func (r *DatadogMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 }
 
 // SetupWithManager creates a new DatadogMonitor controller.
-func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	internal, err := datadogmonitor.NewReconciler(r.Client, r.DDClient, r.Scheme, r.Log, r.Recorder)
+func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager, metricForwardersMgr datadog.MetricsForwardersManager) error {
+	internal, err := datadogmonitor.NewReconciler(r.Client, r.DDClient, r.Scheme, r.Log, r.Recorder, r.operatorMetricsEnabled, metricForwardersMgr)
 	if err != nil {
 		return err
 	}
 	r.internal = internal
 
-	builder := ctrl.NewControllerManagedBy(mgr).
-		For(&datadoghqv1alpha1.DatadogMonitor{})
+	builder := ctrl.NewControllerManagedBy(mgr)
 
-	err = builder.Complete(r)
-	if err != nil {
+	var builderOptions []ctrlbuilder.ForOption
+	if r.operatorMetricsEnabled {
+		builderOptions = append(builderOptions, ctrlbuilder.WithPredicates(predicate.Funcs{
+			// On `DatadogMonitor` object creation, we register a metrics forwarder for it.
+			CreateFunc: func(e event.CreateEvent) bool {
+				metricForwardersMgr.Register(e.Object)
+				return true
+			},
+		}))
+	}
+
+	if err := builder.For(&datadoghqv1alpha1.DatadogMonitor{}, builderOptions...).WithEventFilter(predicate.GenerationChangedPredicate{}).Complete(r); err != nil {
 		return err
 	}
 

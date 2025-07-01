@@ -82,7 +82,6 @@ rules:
   - '*'
 - apiGroups:
   - apiextensions.k8s.io
-  - extensions
   resources:
   - customresourcedefinitions
   verbs:
@@ -94,6 +93,7 @@ rules:
   - apiservices
   verbs:
   - '*'
+  - deletecollection
   - list
   - watch
 - apiGroups:
@@ -119,23 +119,6 @@ rules:
   - list
   - watch
 - apiGroups:
-  - apps
-  resources:
-  - replicationcontrollers
-  verbs:
-  - list
-  - watch
-- apiGroups:
-  - apps
-  - extensions
-  resources:
-  - daemonsets
-  - deployments
-  - replicasets
-  verbs:
-  - list
-  - watch
-- apiGroups:
   - authentication.k8s.io
   resources:
   - tokenreviews
@@ -151,23 +134,6 @@ rules:
   verbs:
   - create
   - get
-- apiGroups:
-  - authorization.k8s.io
-  - rbac.authorization.k8s.io
-  - roles.rbac.authorization.k8s.io
-  resources:
-  - clusterrolebindings
-  - clusterroles
-  - rolebindings
-  - roles
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
 - apiGroups:
   - autoscaling
   resources:
@@ -226,6 +192,8 @@ rules:
 - apiGroups:
   - datadoghq.com
   resources:
+  - datadogagentinternals
+  - datadogagentinternals/finalizers
   - datadogagentprofiles
   - datadogagentprofiles/finalizers
   - datadogagents
@@ -249,6 +217,7 @@ rules:
 - apiGroups:
   - datadoghq.com
   resources:
+  - datadogagentinternals/status
   - datadogagentprofiles/status
   - datadogagents/status
   - datadogdashboards/status
@@ -290,6 +259,13 @@ rules:
   - watermarkpodautoscalers
   verbs:
   - get
+  - list
+  - watch
+- apiGroups:
+  - discovery.k8s.io
+  resources:
+  - endpointslices
+  verbs:
   - list
   - watch
 - apiGroups:
@@ -345,6 +321,33 @@ rules:
   verbs:
   - get
   - list
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterrolebindings
+  - clusterroles
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
+  - roles
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - security.openshift.io
   resourceNames:

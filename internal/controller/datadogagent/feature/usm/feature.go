@@ -7,6 +7,7 @@ package usm
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -38,11 +39,11 @@ func (f *usmFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *usmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+func (f *usmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
-	mergeConfigs(&dda.Spec, &dda.Status)
+	mergeConfigs(ddaSpec, ddaRCStatus)
 
-	usmConfig := dda.Spec.Features.USM
+	usmConfig := ddaSpec.Features.USM
 
 	if usmConfig != nil && apiutils.BoolValue(usmConfig.Enabled) {
 		reqComp = feature.RequiredComponents{
@@ -60,8 +61,8 @@ func (f *usmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 	return reqComp
 }
 
-func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) {
-	if ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.USM == nil || ddaStatus.RemoteConfigConfiguration.Features.USM.Enabled == nil {
+func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) {
+	if ddaRCStatus == nil || ddaRCStatus.Features == nil || ddaRCStatus.Features.USM == nil || ddaRCStatus.Features.USM.Enabled == nil {
 		return
 	}
 
@@ -73,14 +74,14 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.Datado
 		ddaSpec.Features.USM = &v2alpha1.USMFeatureConfig{}
 	}
 
-	if ddaStatus.RemoteConfigConfiguration.Features.USM.Enabled != nil {
-		ddaSpec.Features.USM.Enabled = ddaStatus.RemoteConfigConfiguration.Features.USM.Enabled
+	if ddaRCStatus.Features.USM.Enabled != nil {
+		ddaSpec.Features.USM.Enabled = ddaRCStatus.Features.USM.Enabled
 	}
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *usmFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (f *usmFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 

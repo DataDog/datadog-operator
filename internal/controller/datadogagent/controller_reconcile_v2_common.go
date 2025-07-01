@@ -36,6 +36,7 @@ import (
 const (
 	updateSucceeded = "UpdateSucceeded"
 	createSucceeded = "CreateSucceeded"
+	patchSucceeded  = "PatchSucceeded"
 
 	profileWaitForCanaryKey = "agent.datadoghq.com/profile-wait-for-canary"
 )
@@ -82,6 +83,26 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 	}
 
 	if alreadyExists {
+		// check owner reference
+		if shouldUpdateOwnerReference(currentDeployment.OwnerReferences) {
+			logger.Info("Updating Deployment owner reference")
+			now := metav1.NewTime(time.Now())
+			patch, e := createOwnerReferencePatch(currentDeployment.OwnerReferences, dda, dda.GetObjectKind().GroupVersionKind())
+			if e != nil {
+				logger.Error(e, "Unable to patch Deployment owner reference")
+				updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, patchSucceeded, "Unable to patch Deployment owner reference")
+				return reconcile.Result{}, e
+			}
+			// use merge patch to replace the entire existing owner reference list
+			err = r.client.Patch(context.TODO(), currentDeployment, client.RawPatch(types.MergePatchType, patch))
+			if err != nil {
+				logger.Error(err, "Unable to patch Deployment owner reference")
+				updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, patchSucceeded, "Unable to patch Deployment owner reference")
+				return reconcile.Result{}, err
+			}
+			logger.Info("Deployment owner reference patched")
+		}
+
 		// check if same hash
 		needUpdate := !comparison.IsSameSpecMD5Hash(hash, currentDeployment.GetAnnotations())
 		if !needUpdate {
@@ -162,6 +183,25 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 	}
 
 	if alreadyExists {
+		// check owner reference
+		if shouldUpdateOwnerReference(currentDaemonset.OwnerReferences) {
+			logger.Info("Updating Daemonset owner reference")
+			now := metav1.NewTime(time.Now())
+			patch, e := createOwnerReferencePatch(currentDaemonset.OwnerReferences, dda, dda.GetObjectKind().GroupVersionKind())
+			if e != nil {
+				logger.Error(e, "Unable to patch Daemonset owner reference")
+				updateStatusFunc(currentDaemonset.Name, currentDaemonset, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to patch Daemonset owner reference")
+				return reconcile.Result{}, e
+			}
+			// use merge patch to replace the entire existing owner reference list
+			err = r.client.Patch(context.TODO(), currentDaemonset, client.RawPatch(types.MergePatchType, patch))
+			if err != nil {
+				logger.Error(err, "Unable to patch Daemonset owner reference")
+				updateStatusFunc(currentDaemonset.Name, currentDaemonset, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to patch Daemonset owner reference")
+				return reconcile.Result{}, err
+			}
+			logger.Info("Daemonset owner reference patched")
+		}
 		now := metav1.Now()
 		if agentprofile.CreateStrategyEnabled() {
 			if profile.Status.CreateStrategy != nil {
@@ -327,6 +367,25 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, d
 	}
 
 	if alreadyExists {
+		// check owner reference
+		if shouldUpdateOwnerReference(currentEDS.OwnerReferences) {
+			logger.Info("Updating ExtendedDaemonSet owner reference")
+			now := metav1.NewTime(time.Now())
+			patch, e := createOwnerReferencePatch(currentEDS.OwnerReferences, dda, dda.GetObjectKind().GroupVersionKind())
+			if e != nil {
+				logger.Error(e, "Unable to patch ExtendedDaemonSet owner reference")
+				updateStatusFunc(currentEDS, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to patch ExtendedDaemonSet owner reference")
+				return reconcile.Result{}, e
+			}
+			// use merge patch to replace the entire existing owner reference list
+			err = r.client.Patch(context.TODO(), currentEDS, client.RawPatch(types.MergePatchType, patch))
+			if err != nil {
+				logger.Error(err, "Unable to patch ExtendedDaemonSet owner reference")
+				updateStatusFunc(currentEDS, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to patch ExtendedDaemonSet owner reference")
+				return reconcile.Result{}, err
+			}
+			logger.Info("ExtendedDaemonSet owner reference patched")
+		}
 		// check if same hash
 		needUpdate := !comparison.IsSameSpecMD5Hash(hash, currentEDS.GetAnnotations())
 		if !needUpdate {
@@ -544,4 +603,49 @@ func shouldProfileWaitForCanary(logger logr.Logger, annotations map[string]strin
 		return waitForCanary
 	}
 	return false
+}
+
+func (r *Reconciler) createOrUpdateDDAI(logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal) error {
+	currentDDAI := &v1alpha1.DatadogAgentInternal{}
+	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: ddai.Name, Namespace: ddai.Namespace}, currentDDAI); err != nil {
+		if !apierrors.IsNotFound(err) {
+			logger.Error(err, "unexpected error during DDAI get")
+			return err
+		}
+		// Create the DDAI object if it doesn't exist
+		logger.Info("creating DatadogAgentInternal", "ns", ddai.Namespace, "name", ddai.Name)
+		if err := r.client.Create(context.TODO(), ddai); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if currentDDAI.Annotations[constants.MD5DDAIDeploymentAnnotationKey] != ddai.Annotations[constants.MD5DDAIDeploymentAnnotationKey] {
+		logger.Info("updating DatadogAgentInternal", "ns", ddai.Namespace, "name", ddai.Name)
+		if err := kubernetes.UpdateFromObject(context.TODO(), r.client, ddai, currentDDAI.ObjectMeta); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *Reconciler) addDDAIStatusToDDAStatus(logger logr.Logger, status *datadoghqv2alpha1.DatadogAgentStatus, ddai metav1.ObjectMeta) error {
+	currentDDAI := &v1alpha1.DatadogAgentInternal{}
+	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: ddai.Name, Namespace: ddai.Namespace}, currentDDAI); err != nil {
+		if !apierrors.IsNotFound(err) {
+			logger.Error(err, "unexpected error during DDAI get")
+			return err
+		}
+		// DDAI not yet created
+		return nil
+	}
+
+	status.Agent = condition.CombineDaemonSetStatus(status.Agent, currentDDAI.Status.Agent)
+	status.ClusterAgent = condition.CombineDeploymentStatus(status.ClusterAgent, currentDDAI.Status.ClusterAgent)
+	status.ClusterChecksRunner = condition.CombineDeploymentStatus(status.ClusterChecksRunner, currentDDAI.Status.ClusterChecksRunner)
+
+	// TODO: Add and/or merge conditions once DDAI reconcile PR is merged
+
+	return nil
 }
