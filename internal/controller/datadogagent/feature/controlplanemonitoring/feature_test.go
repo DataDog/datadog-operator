@@ -35,7 +35,7 @@ func Test_controlPlaneMonitoringFeature_Configure(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
-			Name: "Control Plane Monitoring enabled",
+			Name: "Control Plane Monitoring enabled with default provider",
 			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithControlPlaneMonitoring(true).
 				Build(),
@@ -50,25 +50,8 @@ func Test_controlPlaneMonitoringFeature_Configure(t *testing.T) {
 
 func controlPlaneWantDepsFunc() func(t testing.TB, store store.StoreClient) {
 	return func(t testing.TB, store store.StoreClient) {
-		// Validate default configMap - the feature always creates both configmaps
-		obj, found := store.Get(kubernetes.ConfigMapKind, resourcesNamespace, defaultConfigMapName)
-
-		if !found {
-			t.Error("Should have created a default ConfigMap")
-		} else {
-			cm := obj.(*corev1.ConfigMap)
-			expectedData := map[string]string{
-				"foo.yaml": "bar",
-			}
-			assert.True(
-				t,
-				apiutils.IsEqualStruct(cm.Data, expectedData),
-				"Default ConfigMap data \ndiff = %s", cmp.Diff(cm.Data, expectedData),
-			)
-		}
-
-		// Validate OpenShift configMap - the feature always creates both configmaps
-		obj, found = store.Get(kubernetes.ConfigMapKind, resourcesNamespace, openshiftConfigMapName)
+		// Validate OpenShift configMap - the feature always creates configmaps even if they're not used
+		obj, found := store.Get(kubernetes.ConfigMapKind, resourcesNamespace, openshiftConfigMapName)
 
 		if !found {
 			t.Error("Should have created an OpenShift ConfigMap")
@@ -98,9 +81,16 @@ func controlPlaneWantDepsFunc() func(t testing.TB, store store.StoreClient) {
 
 			if etcdConfig, exists := cm.Data["etcd.yaml"]; exists {
 				assert.Contains(t, etcdConfig, "openshift-etcd")
-				assert.Contains(t, etcdConfig, "/etc/etcd-certs/etcd-client-ca.crt")
-				assert.Contains(t, etcdConfig, "/etc/etcd-certs/etcd-client.crt")
-				assert.Contains(t, etcdConfig, "/etc/etcd-certs/etcd-client.key")
+				assert.Contains(t, etcdConfig, "/etc/etcd-certs/tls.crt")
+				assert.Contains(t, etcdConfig, "/etc/etcd-certs/tls.key")
+			}
+			if kubeControllerManagerConfig, exists := cm.Data["kube_controller_manager.yaml"]; exists {
+				assert.Contains(t, kubeControllerManagerConfig, "kube-controller-manager")
+				assert.Contains(t, kubeControllerManagerConfig, "bearer_token_auth: true")
+			}
+			if kubeSchedulerConfig, exists := cm.Data["kube_scheduler.yaml"]; exists {
+				assert.Contains(t, kubeSchedulerConfig, "openshift-kube-scheduler")
+				assert.Contains(t, kubeSchedulerConfig, "bearer_token_auth: true")
 			}
 		}
 	}
@@ -119,17 +109,6 @@ func controlPlaneWantResourcesFunc() *test.ComponentTest {
 						EmptyDir: &corev1.EmptyDirVolumeSource{},
 					},
 				},
-				{
-					Name: controlPlaneMonitoringVolumeName,
-					VolumeSource: corev1.VolumeSource{
-						ConfigMap: &corev1.ConfigMapVolumeSource{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: defaultConfigMapName,
-								// Default provider is used in tests since provider detection is done at runtime
-							},
-						},
-					},
-				},
 			}
 
 			dcaVols := mgr.VolumeMgr.Volumes
@@ -146,11 +125,6 @@ func controlPlaneWantResourcesFunc() *test.ComponentTest {
 					Name:      emptyDirVolumeName,
 					MountPath: controlPlaneMonitoringVolumeMountPath,
 					ReadOnly:  false,
-				},
-				{
-					Name:      controlPlaneMonitoringVolumeName,
-					MountPath: controlPlaneMonitoringVolumeMountPath,
-					ReadOnly:  true,
 				},
 			}
 

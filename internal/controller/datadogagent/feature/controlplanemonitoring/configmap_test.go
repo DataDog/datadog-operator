@@ -101,9 +101,9 @@ cluster_check: true
 init_config: {}
 instances:
   - prometheus_url: "https://%%host%%:%%port%%/metrics"
-    tls_ca_cert: "/etc/etcd-certs/etcd-client-ca.crt"
-    tls_cert: "/etc/etcd-certs/etcd-client.crt"
-    tls_private_key: "/etc/etcd-certs/etcd-client.key"`,
+    ssl_verify: false
+    tls_cert: "/etc/etcd-certs/tls.crt"
+    tls_private_key: "/etc/etcd-certs/tls.key"`,
 				},
 			},
 		},

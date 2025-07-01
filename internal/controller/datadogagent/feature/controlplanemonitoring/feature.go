@@ -94,7 +94,8 @@ func (f *controlPlaneMonitoringFeature) ManageDependencies(managers feature.Reso
 	}
 
 	// For OpenShift, etcd monitoring requires manual secret copying
-	if f.provider == kubernetes.OpenshiftRHCOSType {
+	_, providerValue := kubernetes.GetProviderLabelKeyValue(f.provider)
+	if providerValue == kubernetes.OpenshiftRHCOSType {
 		targetNamespace := f.owner.GetNamespace()
 		copyCommand := fmt.Sprintf("oc get secret etcd-client -n openshift-etcd-operator -o yaml | sed 's/name: etcd-client/name: etcd-client-cert/' | sed 's/namespace: openshift-etcd-operator/namespace: %s/' | oc apply -f -", targetNamespace)
 
@@ -178,7 +179,8 @@ func (f *controlPlaneMonitoringFeature) ManageNodeAgent(managers feature.PodTemp
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 func (f *controlPlaneMonitoringFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
-	if f.provider == kubernetes.OpenshiftRHCOSType {
+	_, providerValue := kubernetes.GetProviderLabelKeyValue(f.provider)
+	if providerValue == kubernetes.OpenshiftRHCOSType {
 		etcdCertsVolume := &corev1.Volume{
 			Name: etcdCertsVolumeName,
 			VolumeSource: corev1.VolumeSource{
