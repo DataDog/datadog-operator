@@ -820,7 +820,7 @@ type OtelCollectorFeatureConfig struct {
 	CoreConfig *CoreConfig `json:"coreConfig,omitempty"`
 
 	// UseStandaloneImage configures the otel-agent container to use the standalone image.
-	// Please ensure you can pull the ddot-collector image (i.e. gcr.io/datadoghq/ddot-collector:7.67.0) if this is set to true.
+	// Ensure you can pull the ddot-collector image (gcr.io/datadoghq/ddot-collector:7.67.0) if this is set to true.
 	// Requires agent version 7.67.0 or higher.
 	// If false, the otel-agent container will use the `full` flavor of the datadog/agent image.
 	// Default: true

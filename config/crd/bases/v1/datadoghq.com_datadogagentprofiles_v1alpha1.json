@@ -1904,7 +1904,7 @@
                     },
                     "useStandaloneImage": {
                       "default": true,
-                      "description": "UseStandaloneImage configures the otel-agent container to use the standalone image.\nPlease ensure you can pull the ddot-collector image (i.e. gcr.io/datadoghq/ddot-collector:7.67.0) if this is set to true.\nRequires agent version 7.67.0 or higher.\nIf false, the otel-agent container will use the `full` flavor of the datadog/agent image.\nDefault: true",
+                      "description": "UseStandaloneImage configures the otel-agent container to use the standalone image.\nEnsure you can pull the ddot-collector image (gcr.io/datadoghq/ddot-collector:7.67.0) if this is set to true.\nRequires agent version 7.67.0 or higher.\nIf false, the otel-agent container will use the `full` flavor of the datadog/agent image.\nDefault: true",
                       "type": "boolean"
                     }
                   },
