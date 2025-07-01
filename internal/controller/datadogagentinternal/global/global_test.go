@@ -47,7 +47,7 @@ const (
 	secretNamespace       = "postgres"
 )
 
-var secretNames = []string{"db-username", "db-password"}
+var secretNames = []string{"db-password", "db-username"}
 
 func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 	logger := logf.Log.WithName("TestRequiredComponents")
