@@ -102,7 +102,7 @@ func GkeRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params *Kuber
 	//		return err
 	//	}
 	//} else {
-	//	env.Agent = nil
+	env.Agent = nil
 	//}
 	//
 	//for _, workload := range params.yamlWorkloads {
