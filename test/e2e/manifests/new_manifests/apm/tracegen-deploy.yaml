@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: tracegen-tribrid
-  namespace: e2e-operator
+  namespace: datadog
   labels:
     app: tracegen-tribrid
 spec:

@@ -2,7 +2,7 @@ apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
   name: datadog-ccr-enabled
-  namespace: e2e-operator
+  namespace: datadog
   labels:
     agent.datadoghq.com/e2e-test: datadog-agent-ccr-enabled
 spec:

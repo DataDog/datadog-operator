@@ -62,13 +62,13 @@ func GkeRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params *Kuber
 	//	return err
 	//}
 
-	//// Install kustomizations
-	//kustomizeAppFunc := KustomizeWorkloadAppFunc(params.testName, params.kustomizeResources)
-	//
-	//e2eKustomize, err := kustomizeAppFunc(&gcpEnv, cluster.KubeProvider)
-	//if err != nil {
-	//	return err
-	//}
+	// Install kustomizations
+	kustomizeAppFunc := KustomizeWorkloadAppFunc(params.testName, params.kustomizeResources)
+
+	_, err = kustomizeAppFunc(&gcpEnv, cluster.KubeProvider)
+	if err != nil {
+		return err
+	}
 	//
 	//// Create Operator component
 	//var operatorComp *operator.Operator

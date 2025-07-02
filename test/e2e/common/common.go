@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	NamespaceName     = "e2e-operator"
+	NamespaceName     = "datadog"
 	K8sVersion        = GetEnv("K8S_VERSION", "1.32")
 	ImgPullPassword   = GetEnv("IMAGE_PULL_PASSWORD", "")
 	OperatorImageName = GetEnv("IMG", "")

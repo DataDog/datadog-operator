@@ -33,7 +33,7 @@ func TestLocalKindSuite(t *testing.T) {
 	}
 
 	provisionerOptions := []provisioners.KubernetesProvisionerOption{
-		provisioners.WithTestName("e2e-operator"),
+		provisioners.WithTestName("datadog"),
 		provisioners.WithOperatorOptions(operatorOptions...),
 		provisioners.WithoutDDA(),
 		provisioners.WithLocal(true),
