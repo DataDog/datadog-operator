@@ -43,6 +43,7 @@ type k8sSuite struct {
 
 func (s *k8sSuite) SetupSuite() {
 	// Set up the environment
+	s.BaseSuite.SetupSuite()
 	s.UpdateEnv(provisioners.KubernetesProvisioner([]provisioners.KubernetesProvisionerOption{
 		provisioners.WithWorkloadApp(provisioners.KustomizeWorkloadAppFunc("test-kustomize", nil)),
 	}...))
