@@ -7,6 +7,7 @@ package provisioners
 
 import (
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
+
 	"github.com/DataDog/test-infra-definitions/components/datadog/agent"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agentwithoperatorparams"
 	"github.com/DataDog/test-infra-definitions/components/datadog/operator"
@@ -50,6 +51,12 @@ func GkeRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params *Kuber
 		}
 	} else {
 		env.FakeIntake = nil
+	}
+
+	// Wait for cluster to be ready
+	err = waitForClusterReady(env, ctx)
+	if err != nil {
+		return err
 	}
 
 	ns, err := corev1.NewNamespace(ctx, gcpEnv.CommonNamer().ResourceName("k8s-namespace"), &corev1.NamespaceArgs{Metadata: &metav1.ObjectMetaArgs{
@@ -119,5 +126,26 @@ func GkeRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params *Kuber
 		}
 	}
 
+	return nil
+}
+
+func waitForClusterReady(env *environments.Kubernetes, ctx *pulumi.Context) error {
+	var retries = 0
+	var clusterReady = false
+
+	err := ctx.Log.Info("Waiting for GKE cluster to be ready...", nil)
+	if err != nil {
+		return err
+	}
+
+	for !clusterReady && retries < 10 {
+		if env.KubernetesCluster != nil && env.KubernetesCluster.KubeConfig != "" {
+			clusterReady = true
+		}
+		retries++
+	}
+	if !clusterReady && retries >= 10 {
+		return nil
+	}
 	return nil
 }
