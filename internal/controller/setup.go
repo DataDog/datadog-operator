@@ -19,7 +19,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
-	componentagentinternal "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
@@ -186,7 +185,7 @@ func startDatadogAgentInternal(logger logr.Logger, mgr manager.Manager, pInfo ku
 		Scheme:       mgr.GetScheme(),
 		Recorder:     mgr.GetEventRecorderFor(agentInternalControllerName),
 		Options: datadogagentinternal.ReconcilerOptions{
-			ExtendedDaemonsetOptions: componentagentinternal.ExtendedDaemonsetOptions{
+			ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
 				Enabled:                             options.SupportExtendedDaemonset.Enabled,
 				MaxPodUnavailable:                   options.SupportExtendedDaemonset.MaxPodUnavailable,
 				MaxPodSchedulerFailure:              options.SupportExtendedDaemonset.MaxPodSchedulerFailure,
