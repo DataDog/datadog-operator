@@ -612,7 +612,7 @@ spec:
             type: object
         type: object
     served: true
-    storage: true
+    storage: false
     subresources:
       status: {}
   - additionalPrinterColumns:
@@ -885,6 +885,38 @@ spec:
                 required:
                 - maxReplicas
                 type: object
+              fallback:
+                default: {}
+                description: Fallback defines how recommendations should be applied
+                  when in fallback mode.
+                properties:
+                  horizontal:
+                    default: {}
+                    description: Horizontal configures the behavior during horizontal
+                      fallback mode.
+                    properties:
+                      enabled:
+                        default: true
+                        description: 'Enabled determines whether recommendations should
+                          be applied by the controller:'
+                        type: boolean
+                      triggers:
+                        default: {}
+                        description: Triggers defines the triggers that will generate
+                          recommendations.
+                        properties:
+                          staleRecommendationThresholdSeconds:
+                            default: 600
+                            description: StaleRecommendationThresholdSeconds defines
+                              the time window the controller will wait after detecting
+                              an error before applying recommendations.
+                            format: int32
+                            maximum: 1200
+                            minimum: 100
+                            type: integer
+                        type: object
+                    type: object
+                type: object
               objectives:
                 description: |-
                   Objectives are the objectives to reach and maintain for the target resource.
@@ -966,6 +998,7 @@ spec:
                   required:
                   - type
                   type: object
+                minItems: 1
                 type: array
                 x-kubernetes-list-type: atomic
               owner:
@@ -1210,7 +1243,7 @@ spec:
             type: object
         type: object
     served: true
-    storage: false
+    storage: true
     subresources:
       status: {}
 status:
