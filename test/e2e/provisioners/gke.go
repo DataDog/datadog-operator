@@ -6,6 +6,7 @@
 package provisioners
 
 import (
+	"fmt"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agent"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agentwithoperatorparams"
@@ -140,6 +141,10 @@ func waitForClusterReady(env *environments.Kubernetes, ctx *pulumi.Context) erro
 	for !clusterReady && retries < 10 {
 		if env.KubernetesCluster != nil && env.KubernetesCluster.KubeConfig != "" {
 			clusterReady = true
+			err := ctx.Log.Info(fmt.Sprintf("KUBECONFIG: %s", env.KubernetesCluster.KubeConfig), nil)
+			if err != nil {
+				return err
+			}
 		}
 		retries++
 	}
