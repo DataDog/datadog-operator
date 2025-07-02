@@ -72,6 +72,52 @@ instances:
     tls_private_key: "/etc/etcd-certs/tls.key"`,
 			},
 		}
+	} else if provider == kubernetes.EKSAMIType {
+		configMap = &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      configMapName,
+				Namespace: f.owner.GetNamespace(),
+			},
+			Data: map[string]string{
+				"kube_apiserver_metrics.yaml": `advanced_ad_identifiers:
+  - kube_endpoints:
+      name: "kubernetes"
+      namespace: "default"
+      resolve: "ip"
+cluster_check: true
+init_config: {}
+instances:
+    - prometheus_url: "https://%%host%%:%%port%%/metrics"
+    bearer_token_auth: true`,
+
+				"kube_controller_manager.yaml": `advanced_ad_identifiers:
+  - kube_endpoints:
+      name: "kubernetes"
+      namespace: "default"
+cluster_check: true
+init_config: {}
+instances:
+    - prometheus_url: "https://%%host%%:%%port%%/apis/metrics.eks.amazonaws.com/v1/kcm/container/metrics"
+    extra_headers:
+        accept: "*/*"
+    bearer_token_auth: true
+    tls_ca_cert: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"`,
+
+				"kube_scheduler.yaml": `advanced_ad_identifiers:
+  - kube_endpoints:
+      name: "kubernetes"
+      namespace: "default"
+      resolve: "ip"
+cluster_check: true
+init_config: {}
+instances:
+    - prometheus_url: "https://%%host%%:%%port%%/apis/metrics.eks.amazonaws.com/v1/ksh/container/metrics"
+    extra_headers:
+        accept: "*/*"
+    bearer_token_auth: true
+    tls_ca_cert: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"`,
+			},
+		}
 	} else {
 		configMap = &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
