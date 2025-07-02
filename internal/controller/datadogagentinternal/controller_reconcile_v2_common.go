@@ -100,7 +100,7 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, ddai *da
 		if !needUpdate {
 			// no need to update hasn't changed
 			now := metav1.NewTime(time.Now())
-			updateStatusFunc(deployment, newStatus, now, metav1.ConditionTrue, createSucceeded, "Deployment created")
+			updateStatusFunc(currentDeployment, newStatus, now, metav1.ConditionTrue, "DeploymentUpToDate", "Deployment up-to-date")
 			return reconcile.Result{}, nil
 		}
 
