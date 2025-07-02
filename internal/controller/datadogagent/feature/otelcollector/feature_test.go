@@ -315,7 +315,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				defaultVolumes(defaultLocalObjectReferenceName)),
 		},
 		{
-			Name: "otel agent enabled with service ports",
+			Name: "otel agent enabled with service ports default",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithOTelCollectorEnabled(true).
 				WithOTelCollectorConfig().
@@ -336,6 +336,38 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 			Agent: testExpectedAgent(
 				apicommon.OtelAgent,
 				defaultExpectedPorts,
+				defaultExpectedEnvVars,
+				defaultAnnotations,
+				defaultVolumeMounts,
+				defaultVolumes(defaultLocalObjectReferenceName),
+			),
+		},
+		{
+			Name: "otel agent enabled with service ports override",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorPorts(4444, 5555).
+				WithOTelCollectorConfig().
+				Build(),
+			WantConfigure: true,
+			StoreOption: &store.StoreOptions{
+				PlatformInfo: kubernetes.NewPlatformInfo(
+					&version.Info{
+						Major:      "1",
+						Minor:      "32",
+						GitVersion: "1.32.0",
+					},
+					nil,
+					nil,
+				),
+			},
+			WantDependenciesFunc: testExpectedDepsCreatedCM,
+			Agent: testExpectedAgent(
+				apicommon.OtelAgent,
+				expectedPorts{
+					grpcPort: 4444,
+					httpPort: 5555,
+				},
 				defaultExpectedEnvVars,
 				defaultAnnotations,
 				defaultVolumeMounts,
@@ -492,7 +524,8 @@ func testExpectedDepsCreatedCM(t testing.TB, store store.StoreClient) {
 	)
 
 	serviceObject, found := store.Get(kubernetes.ServicesKind, "", "-agent")
-	if t.Name() == "Test_otelCollectorFeature_Configure/otel_agent_enabled_with_service_ports" {
+	switch t.Name() {
+	case "Test_otelCollectorFeature_Configure/otel_agent_enabled_with_service_ports_default":
 		assert.True(t, found)
 		service := serviceObject.(*corev1.Service)
 		assert.Equal(t, []corev1.ServicePort{
@@ -509,7 +542,24 @@ func testExpectedDepsCreatedCM(t testing.TB, store store.StoreClient) {
 				TargetPort: intstr.FromInt(4318),
 			},
 		}, service.Spec.Ports)
-	} else {
+	case "Test_otelCollectorFeature_Configure/otel_agent_enabled_with_service_ports_override":
+		assert.True(t, found)
+		service := serviceObject.(*corev1.Service)
+		assert.Equal(t, []corev1.ServicePort{
+			{
+				Name:       "otlpgrpcport",
+				Port:       4444,
+				Protocol:   corev1.ProtocolTCP,
+				TargetPort: intstr.FromInt(4444),
+			},
+			{
+				Name:       "otlphttpport",
+				Port:       5555,
+				Protocol:   corev1.ProtocolTCP,
+				TargetPort: intstr.FromInt(5555),
+			},
+		}, service.Spec.Ports)
+	default:
 		assert.False(t, found)
 	}
 }

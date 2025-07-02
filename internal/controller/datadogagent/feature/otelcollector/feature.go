@@ -79,11 +79,6 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 	}
 	o.localServiceName = constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec)
 
-	if ddaSpec.Global.LocalService != nil {
-		o.forceEnableLocalService = apiutils.BoolValue(ddaSpec.Global.LocalService.ForceEnableLocalService)
-	}
-	o.localServiceName = constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec)
-
 	if ddaSpec.Features.OtelCollector.CoreConfig != nil {
 		o.coreAgentConfig.enabled = ddaSpec.Features.OtelCollector.CoreConfig.Enabled
 		o.coreAgentConfig.extension_timeout = ddaSpec.Features.OtelCollector.CoreConfig.ExtensionTimeout
@@ -154,15 +149,25 @@ func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManag
 	if o.customConfig == nil {
 		o.customConfig = &v2alpha1.CustomConfig{}
 	}
+
+	grpcPort := 4317
+	httpPort := 4318
+	for _, port := range o.ports {
+		if port.Name == "otel-grpc" {
+			grpcPort = int(port.ContainerPort)
+		}
+		if port.Name == "otel-http" {
+			httpPort = int(port.ContainerPort)
+		}
+	}
+
 	if o.customConfig.ConfigData == nil && o.customConfig.ConfigMap == nil {
 		var defaultConfig = defaultconfig.DefaultOtelCollectorConfig
-		for _, port := range o.ports {
-			if port.Name == "otel-grpc" {
-				defaultConfig = strings.Replace(defaultConfig, "4317", strconv.Itoa(int(port.ContainerPort)), 1)
-			}
-			if port.Name == "otel-http" {
-				defaultConfig = strings.Replace(defaultConfig, "4318", strconv.Itoa(int(port.ContainerPort)), 1)
-			}
+		if grpcPort != 4317 {
+			defaultConfig = strings.Replace(defaultConfig, "4317", strconv.Itoa(grpcPort), 1)
+		}
+		if httpPort != 4318 {
+			defaultConfig = strings.Replace(defaultConfig, "4318", strconv.Itoa(httpPort), 1)
 		}
 		o.customConfig.ConfigData = &defaultConfig
 	}
@@ -184,15 +189,15 @@ func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManag
 	if common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), o.forceEnableLocalService) {
 		otlpGrpcPort := &corev1.ServicePort{
 			Name:       "otlpgrpcport",
-			Port:       4317,
+			Port:       int32(grpcPort),
 			Protocol:   corev1.ProtocolTCP,
-			TargetPort: intstr.FromInt(4317),
+			TargetPort: intstr.FromInt(grpcPort),
 		}
 		otlpHttpPort := &corev1.ServicePort{
 			Name:       "otlphttpport",
-			Port:       4318,
+			Port:       int32(httpPort),
 			Protocol:   corev1.ProtocolTCP,
-			TargetPort: intstr.FromInt(4318),
+			TargetPort: intstr.FromInt(httpPort),
 		}
 		if err := managers.ServiceManager().AddService(
 			o.localServiceName,
