@@ -20,6 +20,7 @@ import (
 	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
 	kubeComp "github.com/DataDog/test-infra-definitions/components/kubernetes"
 	"github.com/DataDog/test-infra-definitions/scenarios/gcp/fakeintake"
+	"github.com/DataDog/test-infra-definitions/scenarios/gcp/gke"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/kustomize"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/yaml"
@@ -41,6 +42,7 @@ type KubernetesProvisionerParams struct {
 	k8sVersion         string
 	kustomizeResources []string
 
+	gkeOptions        []gke.Option // Options for GKE cluster creation
 	fakeintakeOptions []fakeintake.Option
 	extraConfigParams runner.ConfigMap
 	yamlWorkloads     []YAMLWorkload
