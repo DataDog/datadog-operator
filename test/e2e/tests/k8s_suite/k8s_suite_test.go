@@ -35,7 +35,17 @@ var (
 
 type k8sSuite struct {
 	e2e.BaseSuite[environments.Kubernetes]
-	local bool
+	local           bool
+	provisionerOpts []provisioners.KubernetesProvisionerOption
+	ddaOpts         []agentwithoperatorparams.Option
+	operatorOpts    []operatorparams.Option
+}
+
+func (s *k8sSuite) SetupSuite() {
+	// Set up the environment
+	s.UpdateEnv(provisioners.KubernetesProvisioner([]provisioners.KubernetesProvisionerOption{
+		provisioners.WithWorkloadApp(provisioners.KustomizeWorkloadAppFunc("test-kustomize", nil)),
+	}...))
 }
 
 func (s *k8sSuite) TestGenericK8s() {

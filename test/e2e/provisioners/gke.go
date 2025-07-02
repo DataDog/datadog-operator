@@ -7,8 +7,6 @@ package provisioners
 
 import (
 	"fmt"
-	corev1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
-	metav1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/meta/v1"
 
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agentwithoperatorparams"
@@ -56,13 +54,13 @@ func GkeRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params *Kuber
 		return err
 	}
 
-	_, err = corev1.NewNamespace(ctx, gcpEnv.CommonNamer().ResourceName("k8s-namespace"), &corev1.NamespaceArgs{Metadata: &metav1.ObjectMetaArgs{
-		Name: pulumi.String("e2e-operator"),
-	}}, pulumi.Provider(cluster.KubeProvider))
-
-	if err != nil {
-		return err
-	}
+	//_, err = corev1.NewNamespace(ctx, gcpEnv.CommonNamer().ResourceName("k8s-namespace"), &corev1.NamespaceArgs{Metadata: &metav1.ObjectMetaArgs{
+	//	Name: pulumi.String("e2e-operator"),
+	//}}, pulumi.Provider(cluster.KubeProvider))
+	//
+	//if err != nil {
+	//	return err
+	//}
 
 	// Install kustomizations
 	//kustomizeAppFunc := KustomizeWorkloadAppFunc(params.testName, params.kustomizeResources)
