@@ -19,7 +19,7 @@ package datadogagentinternal
 // 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 // 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 // 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-// 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/agent"
+// 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 // 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/testutils"
 // 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 // 	"github.com/DataDog/datadog-operator/pkg/testutils"

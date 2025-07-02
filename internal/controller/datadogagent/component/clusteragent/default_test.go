@@ -35,7 +35,7 @@ func defaultDatadogAgent() *datadoghqv2alpha1.DatadogAgent {
 
 func Test_defaultClusterAgentDeployment(t *testing.T) {
 	dda := defaultDatadogAgent()
-	deployment := NewDefaultClusterAgentDeployment(dda)
+	deployment := NewDefaultClusterAgentDeployment(dda.GetObjectMeta(), &dda.Spec)
 	expectedDeployment := clusterAgentExpectedPodTemplate(dda)
 
 	assert.Empty(t, testutils.CompareKubeResource(&deployment.Spec.Template, expectedDeployment))
