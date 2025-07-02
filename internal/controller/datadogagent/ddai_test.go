@@ -240,6 +240,114 @@ func Test_generateSpecFromDDA(t *testing.T) {
 	}
 }
 
+func Test_addRemoteConfigStatusToDDAIStatus(t *testing.T) {
+	sch := agenttestutils.TestScheme()
+	tests := []struct {
+		name      string
+		ddaStatus v2alpha1.DatadogAgentStatus
+		ddai      *v1alpha1.DatadogAgentInternal
+		want      *v1alpha1.DatadogAgentInternal
+	}{
+		{
+			name: "nil remote config configuration",
+			ddaStatus: v2alpha1.DatadogAgentStatus{
+				RemoteConfigConfiguration: nil,
+			},
+			ddai: &v1alpha1.DatadogAgentInternal{
+				Status: v1alpha1.DatadogAgentInternalStatus{},
+			},
+			want: &v1alpha1.DatadogAgentInternal{
+				Status: v1alpha1.DatadogAgentInternalStatus{},
+			},
+		},
+		{
+			name: "empty remote config configuration",
+			ddaStatus: v2alpha1.DatadogAgentStatus{
+				RemoteConfigConfiguration: &v2alpha1.RemoteConfigConfiguration{},
+			},
+			ddai: &v1alpha1.DatadogAgentInternal{
+				Status: v1alpha1.DatadogAgentInternalStatus{},
+			},
+			want: &v1alpha1.DatadogAgentInternal{
+				Status: v1alpha1.DatadogAgentInternalStatus{
+					RemoteConfigConfiguration: &v2alpha1.RemoteConfigConfiguration{},
+				},
+			},
+		},
+		{
+			name: "remote config configuration with CSPM enabled",
+			ddaStatus: v2alpha1.DatadogAgentStatus{
+				RemoteConfigConfiguration: &v2alpha1.RemoteConfigConfiguration{
+					Features: &v2alpha1.DatadogFeatures{
+						CSPM: &v2alpha1.CSPMFeatureConfig{
+							Enabled: apiutils.NewBoolPointer(true),
+						},
+					},
+				},
+			},
+			ddai: &v1alpha1.DatadogAgentInternal{
+				Status: v1alpha1.DatadogAgentInternalStatus{},
+			},
+			want: &v1alpha1.DatadogAgentInternal{
+				Status: v1alpha1.DatadogAgentInternalStatus{
+					RemoteConfigConfiguration: &v2alpha1.RemoteConfigConfiguration{
+						Features: &v2alpha1.DatadogFeatures{
+							CSPM: &v2alpha1.CSPMFeatureConfig{
+								Enabled: apiutils.NewBoolPointer(true),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "remote config configuration with CSPM enabled, existing status",
+			ddaStatus: v2alpha1.DatadogAgentStatus{
+				ClusterAgent: &v2alpha1.DeploymentStatus{
+					Status: "running",
+				},
+				RemoteConfigConfiguration: &v2alpha1.RemoteConfigConfiguration{
+					Features: &v2alpha1.DatadogFeatures{
+						CSPM: &v2alpha1.CSPMFeatureConfig{
+							Enabled: apiutils.NewBoolPointer(true),
+						},
+					},
+				},
+			},
+			ddai: &v1alpha1.DatadogAgentInternal{
+				Status: v1alpha1.DatadogAgentInternalStatus{
+					Agent: &v2alpha1.DaemonSetStatus{
+						Status: "running",
+					},
+				},
+			},
+			want: &v1alpha1.DatadogAgentInternal{
+				Status: v1alpha1.DatadogAgentInternalStatus{
+					Agent: &v2alpha1.DaemonSetStatus{
+						Status: "running",
+					},
+					RemoteConfigConfiguration: &v2alpha1.RemoteConfigConfiguration{
+						Features: &v2alpha1.DatadogFeatures{
+							CSPM: &v2alpha1.CSPMFeatureConfig{
+								Enabled: apiutils.NewBoolPointer(true),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &Reconciler{
+				client: fake.NewClientBuilder().WithScheme(sch).Build(),
+			}
+			r.addRemoteConfigStatusToDDAIStatus(&tt.ddaStatus, tt.ddai)
+			assert.Equal(t, tt.want, tt.ddai)
+		})
+	}
+}
+
 func Test_cleanUpUnusedDDAIs(t *testing.T) {
 	sch := agenttestutils.TestScheme()
 	ctx := context.Background()
