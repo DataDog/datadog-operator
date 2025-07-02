@@ -7,6 +7,8 @@ package provisioners
 
 import (
 	"fmt"
+	"github.com/DataDog/test-infra-definitions/components/datadog/agent"
+	"github.com/DataDog/test-infra-definitions/components/datadog/operator"
 	"os"
 	"path/filepath"
 	"strings"
@@ -272,12 +274,65 @@ func YAMLWorkloadAppFunc(yamlWorkload YAMLWorkload) func(e config.Env, kubeProvi
 		if err := e.Ctx().RegisterComponentResource("dd:apps", "k8s-apply", k8sComponent); err != nil {
 			return nil, err
 		}
+		opts := []pulumi.ResourceOption{
+			pulumi.Provider(kubeProvider),
+			pulumi.Parent(kubeProvider),
+			pulumi.DeletedWith(kubeProvider),
+		}
 		_, err := yaml.NewConfigFile(e.Ctx(), yamlWorkload.Name, &yaml.ConfigFileArgs{
 			File: yamlWorkload.Path,
-		}, pulumi.Provider(kubeProvider))
+		}, opts...)
 		if err != nil {
 			return nil, err
 		}
+		return k8sComponent, nil
+	}
+}
+
+func OperatorWorkloadApp(operatorOpts []operatorparams.Option) func(e config.Env, kubeProvider *kubernetes.Provider) (*kubeComp.Workload, error) {
+	return func(e config.Env, kubeProvider *kubernetes.Provider) (*kubeComp.Workload, error) {
+		k8sComponent := &kubeComp.Workload{}
+		if err := e.Ctx().RegisterComponentResource("dd:apps", "operator", k8sComponent); err != nil {
+			return nil, err
+		}
+		opts := []pulumi.ResourceOption{
+			pulumi.Provider(kubeProvider),
+			pulumi.Parent(kubeProvider),
+			pulumi.DeletedWith(kubeProvider),
+		}
+		operatorOpts = append(operatorOpts, operatorparams.WithPulumiResourceOptions(opts...))
+
+		// Install operator
+		_, err := operator.NewOperator(e, e.CommonNamer().ResourceName("operator"), kubeProvider, operatorOpts...)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return k8sComponent, nil
+	}
+}
+
+func DDAWorkloadApp(ddaOpts []agentwithoperatorparams.Option) func(e config.Env, kubeProvider *kubernetes.Provider) (*kubeComp.Workload, error) {
+	return func(e config.Env, kubeProvider *kubernetes.Provider) (*kubeComp.Workload, error) {
+		k8sComponent := &kubeComp.Workload{}
+		if err := e.Ctx().RegisterComponentResource("dd:apps", "dda", k8sComponent); err != nil {
+			return nil, err
+		}
+		opts := []pulumi.ResourceOption{
+			pulumi.Provider(kubeProvider),
+			pulumi.Parent(kubeProvider),
+			pulumi.DeletedWith(kubeProvider),
+		}
+		ddaOpts = append(ddaOpts, agentwithoperatorparams.WithPulumiResourceOptions(opts...))
+
+		// Install operator
+		_, err := agent.NewDDAWithOperator(e, e.CommonNamer().ResourceName("dda"), kubeProvider, ddaOpts...)
+
+		if err != nil {
+			return nil, err
+		}
+
 		return k8sComponent, nil
 	}
 }

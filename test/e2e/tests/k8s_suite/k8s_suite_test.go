@@ -39,36 +39,52 @@ type k8sSuite struct {
 	provisionerOpts []provisioners.KubernetesProvisionerOption
 	ddaOpts         []agentwithoperatorparams.Option
 	operatorOpts    []operatorparams.Option
+
+	defaultProvisionerOpts []provisioners.KubernetesProvisionerOption
+	defaultOperatorOpts    []operatorparams.Option
+	defaultDDAOpts         []agentwithoperatorparams.Option
 }
 
 func (s *k8sSuite) SetupSuite() {
 	// Set up the environment
 	s.BaseSuite.SetupSuite()
-	s.UpdateEnv(provisioners.KubernetesProvisioner([]provisioners.KubernetesProvisionerOption{
-		provisioners.WithWorkloadApp(provisioners.KustomizeWorkloadAppFunc("test-kustomize", nil)),
-	}...))
-}
-
-func (s *k8sSuite) TestGenericK8s() {
 	defaultOperatorOpts := []operatorparams.Option{
 		operatorparams.WithNamespace(common.NamespaceName),
 		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
 		operatorparams.WithHelmValues(`
 installCRDs: false`),
 	}
+	s.operatorOpts = defaultOperatorOpts
 
-	defaultProvisionerOpts := []provisioners.KubernetesProvisionerOption{
-		//provisioners.WithTestName("generic-k8s"),
+	s.defaultProvisionerOpts = []provisioners.KubernetesProvisionerOption{
+		provisioners.WithTestName("generic-k8s"),
 		provisioners.WithK8sVersion(common.K8sVersion),
 		provisioners.WithOperatorOptions(defaultOperatorOpts...),
 		provisioners.WithLocal(s.local),
 	}
+	s.provisionerOpts = s.defaultProvisionerOpts
 
-	defaultDDAOpts := []agentwithoperatorparams.Option{
+	s.defaultDDAOpts = []agentwithoperatorparams.Option{
 		agentwithoperatorparams.WithNamespace(common.NamespaceName),
 	}
+	s.ddaOpts = s.defaultDDAOpts
+
+	s.UpdateEnv(provisioners.KubernetesProvisioner([]provisioners.KubernetesProvisionerOption{
+		provisioners.WithWorkloadApp(provisioners.KustomizeWorkloadAppFunc("kustomize", nil)),
+		//provisioners.WithWorkloadApp(provisioners.OperatorWorkloadApp(s.operatorOpts)),
+		//provisioners.WithWorkloadApp(provisioners.DDAWorkloadApp(s.ddaOpts)),
+	}...))
+
+}
+
+func (s *k8sSuite) TestGenericK8s() {
 
 	s.T().Run("Verify Operator", func(t *testing.T) {
+		s.UpdateEnv(provisioners.KubernetesProvisioner([]provisioners.KubernetesProvisionerOption{
+			//provisioners.WithWorkloadApp(provisioners.KustomizeWorkloadAppFunc("kustomize", nil)),
+			provisioners.WithWorkloadApp(provisioners.OperatorWorkloadApp(s.operatorOpts)),
+			//provisioners.WithWorkloadApp(provisioners.DDAWorkloadApp(s.ddaOpts)),
+		}...))
 		s.Assert().EventuallyWithT(func(c *assert.CollectT) {
 			res, _ := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{})
 			containsOperator := false
@@ -92,17 +108,17 @@ installCRDs: false`),
 				YamlFilePath: ddaConfigPath,
 			}),
 		}
-		ddaOpts = append(ddaOpts, defaultDDAOpts...)
+		ddaOpts = append(ddaOpts, s.defaultDDAOpts...)
 
 		provisionerOptions := []provisioners.KubernetesProvisionerOption{
 			provisioners.WithTestName("e2e-operator-minimal-dda"),
 			provisioners.WithK8sVersion(common.K8sVersion),
-			provisioners.WithOperatorOptions(defaultOperatorOpts...),
+			provisioners.WithOperatorOptions(s.defaultOperatorOpts...),
 			provisioners.WithDDAOptions(ddaOpts...),
 			provisioners.WithLocal(s.local),
 		}
 
-		provisionerOptions = append(provisionerOptions, defaultProvisionerOpts...)
+		provisionerOptions = append(provisionerOptions, s.defaultProvisionerOpts...)
 
 		s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
 
@@ -145,12 +161,12 @@ installCRDs: false`),
 				YamlFilePath: ddaConfigPath,
 			}),
 		}
-		ddaOpts = append(ddaOpts, defaultDDAOpts...)
+		ddaOpts = append(ddaOpts, s.defaultDDAOpts...)
 
 		provisionerOptions := []provisioners.KubernetesProvisionerOption{
 			provisioners.WithTestName("e2e-operator-ksm-ccr"),
 			provisioners.WithK8sVersion(common.K8sVersion),
-			provisioners.WithOperatorOptions(defaultOperatorOpts...),
+			provisioners.WithOperatorOptions(s.defaultOperatorOpts...),
 			provisioners.WithDDAOptions(ddaOpts...),
 			provisioners.WithLocal(s.local),
 		}
@@ -174,7 +190,7 @@ installCRDs: false`),
 		ddaOpts := []agentwithoperatorparams.Option{
 			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{Name: "dda-autodiscovery", YamlFilePath: ddaConfigPath}),
 		}
-		ddaOpts = append(ddaOpts, defaultDDAOpts...)
+		ddaOpts = append(ddaOpts, s.defaultDDAOpts...)
 
 		provisionerOptions := []provisioners.KubernetesProvisionerOption{
 			provisioners.WithTestName("e2e-operator-autodiscovery"),
@@ -182,7 +198,7 @@ installCRDs: false`),
 			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{Name: "nginx", Path: strings.Join([]string{common.ManifestsPath, "autodiscovery-annotation.yaml"}, "/")}),
 			provisioners.WithLocal(s.local),
 		}
-		provisionerOptions = append(provisionerOptions, defaultProvisionerOpts...)
+		provisionerOptions = append(provisionerOptions, s.defaultProvisionerOpts...)
 
 		// Add nginx with annotations
 		s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
@@ -207,12 +223,12 @@ installCRDs: false`),
 				YamlFilePath: ddaConfigPath,
 			}),
 		}
-		ddaOpts = append(ddaOpts, defaultDDAOpts...)
+		ddaOpts = append(ddaOpts, s.defaultDDAOpts...)
 
 		provisionerOptions := []provisioners.KubernetesProvisionerOption{
 			provisioners.WithTestName("e2e-operator-logs-collection"),
 			provisioners.WithK8sVersion(common.K8sVersion),
-			provisioners.WithOperatorOptions(defaultOperatorOpts...),
+			provisioners.WithOperatorOptions(s.defaultOperatorOpts...),
 			provisioners.WithDDAOptions(ddaOpts...),
 			provisioners.WithLocal(s.local),
 		}
@@ -245,7 +261,7 @@ installCRDs: false`),
 			provisioners.WithoutDDA(),
 			provisioners.WithLocal(s.local),
 		}
-		withoutDDAProvisionerOptions = append(withoutDDAProvisionerOptions, defaultProvisionerOpts...)
+		withoutDDAProvisionerOptions = append(withoutDDAProvisionerOptions, s.defaultProvisionerOpts...)
 		s.UpdateEnv(provisioners.KubernetesProvisioner(withoutDDAProvisionerOptions...))
 
 		var apmAgentSelector = ",agent.datadoghq.com/name=datadog-agent-apm"
@@ -258,7 +274,7 @@ installCRDs: false`),
 				YamlFilePath: ddaConfigPath,
 			}),
 		}
-		ddaOpts = append(ddaOpts, defaultDDAOpts...)
+		ddaOpts = append(ddaOpts, s.defaultDDAOpts...)
 
 		ddaProvisionerOptions := []provisioners.KubernetesProvisionerOption{
 			provisioners.WithTestName("e2e-operator-apm"),
@@ -269,7 +285,7 @@ installCRDs: false`),
 			}),
 			provisioners.WithLocal(s.local),
 		}
-		ddaProvisionerOptions = append(ddaProvisionerOptions, defaultProvisionerOpts...)
+		ddaProvisionerOptions = append(ddaProvisionerOptions, s.defaultProvisionerOpts...)
 
 		// Deploy APM DatadogAgent and tracegen
 		s.UpdateEnv(provisioners.KubernetesProvisioner(ddaProvisionerOptions...))

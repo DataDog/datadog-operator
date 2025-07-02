@@ -114,13 +114,13 @@ func GkeRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params *Kuber
 	//	}
 	//}
 	//
-	//for _, appFunc := range params.workloadAppFuncs {
-	//	_, err := appFunc(&gcpEnv, cluster.KubeProvider)
-	//	if err != nil {
-	//		return err
-	//	}
-	//}
-	//
+	for _, appFunc := range params.workloadAppFuncs {
+		_, err := appFunc(&gcpEnv, cluster.KubeProvider)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
