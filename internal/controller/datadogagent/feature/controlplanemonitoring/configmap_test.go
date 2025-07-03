@@ -96,7 +96,7 @@ instances:
   - kube_endpoints:
       name: "etcd"
       namespace: "openshift-etcd"
-
+      resolve: "ip"
 cluster_check: true
 init_config: {}
 instances:
