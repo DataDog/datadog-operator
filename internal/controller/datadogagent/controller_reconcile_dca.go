@@ -38,7 +38,7 @@ import (
 func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	var result reconcile.Result
 	now := metav1.NewTime(time.Now())
-
+  
 	// Get provider list for introspection
 	providerList := map[string]struct{}{kubernetes.LegacyProvider: {}}
 	if r.options.IntrospectionEnabled {
@@ -55,7 +55,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Lo
 	for provider := range providerList {
 		logger.Info("DCA providerList", "provider", provider)
 		// Start by creating the Default Cluster-Agent deployment
-		deployment := componentdca.NewDefaultClusterAgentDeployment(dda)
+		deployment := componentdca.NewDefaultClusterAgentDeployment(dda.GetObjectMeta(), &dda.Spec)
 		podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 		// Set Global setting on the default deployment

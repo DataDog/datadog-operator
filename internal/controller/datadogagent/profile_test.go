@@ -17,7 +17,6 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/stretchr/testify/assert"
@@ -197,15 +196,6 @@ func Test_computeProfileMerge(t *testing.T) {
 					Annotations: map[string]string{
 						constants.MD5DDAIDeploymentAnnotationKey: "d302e0505ae43dad0fe5d8556ef539e1",
 					},
-					OwnerReferences: []metav1.OwnerReference{
-						{
-							APIVersion:         "datadoghq.com/v1alpha1",
-							Kind:               "DatadogAgentProfile",
-							Name:               "foo-profile",
-							Controller:         apiutils.NewBoolPointer(true),
-							BlockOwnerDeletion: apiutils.NewBoolPointer(true),
-						},
-					},
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
 					Features: &v2alpha1.DatadogFeatures{
@@ -286,13 +276,16 @@ func Test_computeProfileMerge(t *testing.T) {
 		logger := logf.Log.WithName("Test_computeProfileMerge")
 		eventBroadcaster := record.NewBroadcaster()
 		recorder := eventBroadcaster.NewRecorder(sch, corev1.EventSource{Component: "Test_computeProfileMerge"})
+		fieldManager, err := newFieldManager(fakeClient, sch, v1alpha1.GroupVersion.WithKind("DatadogAgentInternal"))
+		assert.NoError(t, err)
 
 		t.Run(tt.name, func(t *testing.T) {
 			r := &Reconciler{
-				client:   fakeClient,
-				log:      logger,
-				scheme:   sch,
-				recorder: recorder,
+				client:       fakeClient,
+				log:          logger,
+				scheme:       sch,
+				recorder:     recorder,
+				fieldManager: fieldManager,
 			}
 
 			crd := &apiextensionsv1.CustomResourceDefinition{}
@@ -306,7 +299,6 @@ func Test_computeProfileMerge(t *testing.T) {
 			ddai, err := r.computeProfileMerge(&tt.ddai, &tt.profile)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.want.Name, ddai.Name)
-			assert.Equal(t, tt.want.OwnerReferences, ddai.OwnerReferences)
 			assert.Equal(t, tt.want.Annotations[constants.MD5DDAIDeploymentAnnotationKey], ddai.Annotations[constants.MD5DDAIDeploymentAnnotationKey])
 			assert.Equal(t, tt.want.Spec, ddai.Spec)
 		})
@@ -333,6 +325,23 @@ func Test_setProfileSpec(t *testing.T) {
 							Labels: map[string]string{
 								constants.MD5AgentDeploymentProviderLabelKey: "",
 							},
+							Affinity: &corev1.Affinity{
+								NodeAffinity: &corev1.NodeAffinity{
+									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+										NodeSelectorTerms: []corev1.NodeSelectorTerm{
+											{
+												MatchExpressions: []corev1.NodeSelectorRequirement{
+													{
+														Key:      "key",
+														Operator: corev1.NodeSelectorOpIn,
+														Values:   []string{"value"},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
 						},
 					},
 				},
@@ -356,6 +365,11 @@ func Test_setProfileSpec(t *testing.T) {
 										NodeSelectorTerms: []corev1.NodeSelectorTerm{
 											{
 												MatchExpressions: []corev1.NodeSelectorRequirement{
+													{
+														Key:      "key",
+														Operator: corev1.NodeSelectorOpIn,
+														Values:   []string{"value"},
+													},
 													{
 														Key:      "agent.datadoghq.com/datadogagentprofile",
 														Operator: corev1.NodeSelectorOpDoesNotExist,
@@ -406,6 +420,23 @@ func Test_setProfileSpec(t *testing.T) {
 							Labels: map[string]string{
 								constants.MD5AgentDeploymentProviderLabelKey: "",
 							},
+							Affinity: &corev1.Affinity{
+								NodeAffinity: &corev1.NodeAffinity{
+									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+										NodeSelectorTerms: []corev1.NodeSelectorTerm{
+											{
+												MatchExpressions: []corev1.NodeSelectorRequirement{
+													{
+														Key:      "key",
+														Operator: corev1.NodeSelectorOpIn,
+														Values:   []string{"value"},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
 						},
 					},
 				},
@@ -453,6 +484,11 @@ func Test_setProfileSpec(t *testing.T) {
 										NodeSelectorTerms: []corev1.NodeSelectorTerm{
 											{
 												MatchExpressions: []corev1.NodeSelectorRequirement{
+													{
+														Key:      "key",
+														Operator: corev1.NodeSelectorOpIn,
+														Values:   []string{"value"},
+													},
 													{
 														Key:      "test",
 														Operator: corev1.NodeSelectorOpIn,
@@ -543,9 +579,8 @@ func Test_setProfileDDAIMeta(t *testing.T) {
 			},
 			want: v1alpha1.DatadogAgentInternal{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:          "foo",
-					Namespace:     "bar",
-					ManagedFields: []metav1.ManagedFieldsEntry{},
+					Name:      "foo",
+					Namespace: "bar",
 				},
 			},
 		},
@@ -560,13 +595,6 @@ func Test_setProfileDDAIMeta(t *testing.T) {
 							Manager: "datadog-operator",
 						},
 					},
-					OwnerReferences: []metav1.OwnerReference{
-						{
-							APIVersion: "datadoghq.com/v2alpha1",
-							Kind:       "DatadogAgent",
-							Name:       "foo",
-						},
-					},
 				},
 			},
 			profile: v1alpha1.DatadogAgentProfile{
@@ -579,16 +607,9 @@ func Test_setProfileDDAIMeta(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo-profile-foo",
 					Namespace: "bar",
-					OwnerReferences: []metav1.OwnerReference{
-						{
-							APIVersion:         "datadoghq.com/v1alpha1",
-							Kind:               "DatadogAgentProfile",
-							Name:               "foo",
-							Controller:         apiutils.NewBoolPointer(true),
-							BlockOwnerDeletion: apiutils.NewBoolPointer(true),
-						},
+					Labels: map[string]string{
+						agentprofile.ProfileLabelKey: "foo",
 					},
-					ManagedFields: []metav1.ManagedFieldsEntry{},
 				},
 			},
 		},
@@ -596,7 +617,7 @@ func Test_setProfileDDAIMeta(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			setProfileDDAIMeta(&tt.ddai, &tt.profile, agenttestutils.TestScheme())
+			setProfileDDAIMeta(&tt.ddai, &tt.profile)
 			assert.Equal(t, tt.want, tt.ddai)
 		})
 	}

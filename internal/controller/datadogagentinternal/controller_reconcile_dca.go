@@ -23,12 +23,12 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
+	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component"
-	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/clusteragent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/global"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/override"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -40,7 +40,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 	now := metav1.NewTime(time.Now())
 
 	// Start by creating the Default Cluster-Agent deployment
-	deployment := componentdca.NewDefaultClusterAgentDeployment(ddai)
+	deployment := componentdca.NewDefaultClusterAgentDeployment(ddai.GetObjectMeta(), &ddai.Spec)
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
@@ -149,7 +149,7 @@ func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, logger logr.L
 		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
 		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(ddai).String(),
 	}
-	deploymentName := component.GetDeploymentNameFromDatadogAgent(ddai)
+	deploymentName := component.GetDeploymentNameFromDatadogAgent(ddai.GetObjectMeta(), &ddai.Spec)
 	deploymentList := appsv1.DeploymentList{}
 	if err := r.client.List(ctx, &deploymentList, matchLabels); err != nil {
 		return err

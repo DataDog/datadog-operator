@@ -11,16 +11,13 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -28,7 +25,6 @@ import (
 )
 
 const (
-	ddaiCRDName             = "datadogagentinternals.datadoghq.com"
 	profileDDAINameTemplate = "%s-profile-%s"
 )
 
@@ -78,23 +74,18 @@ func (r *Reconciler) computeProfileMerge(ddai *v1alpha1.DatadogAgentInternal, pr
 	// Copy the original DDAI and apply profile spec to create a fake "DDAI" to merge
 	profileDDAI := ddai.DeepCopy()
 	baseDDAI := ddai.DeepCopy()
-	if !agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
-		// Clear owner reference to tie GC to the profile
-		baseDDAI.OwnerReferences = []metav1.OwnerReference{}
-	}
+
 	// Add profile settings to "fake" DDAI
 	setProfileSpec(profileDDAI, profile)
-	if err := setProfileDDAIMeta(profileDDAI, profile, r.scheme); err != nil {
+	if err := setProfileDDAIMeta(profileDDAI, profile); err != nil {
 		return nil, err
 	}
 
-	crd := &apiextensionsv1.CustomResourceDefinition{}
-	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: ddaiCRDName}, crd); err != nil {
-		return nil, fmt.Errorf("failed to get CRD %s: %w", ddaiCRDName, err)
-	}
-
+	// ensure gvk is set
+	baseDDAI.GetObjectKind().SetGroupVersionKind(getDDAIGVK())
+	profileDDAI.GetObjectKind().SetGroupVersionKind(getDDAIGVK())
 	// Server side apply to merge DDAIs
-	obj, err := ssaMergeCRD(baseDDAI, profileDDAI, crd, r.scheme)
+	obj, err := r.ssaMergeCRD(baseDDAI, profileDDAI)
 	if err != nil {
 		return nil, err
 	}
@@ -113,6 +104,8 @@ func (r *Reconciler) computeProfileMerge(ddai *v1alpha1.DatadogAgentInternal, pr
 }
 
 func setProfileSpec(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) {
+	// create affinity from ddai and profile prior to re-set after replacing the ddai spec
+	affinity := setProfileDDAIAffinity(ddai, profile)
 	if !agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
 		ddai.Spec = *profile.Spec.Config
 		// DCA and CCR are auto disabled for user created profiles
@@ -120,7 +113,7 @@ func setProfileSpec(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.Datad
 		disableComponent(ddai, v2alpha1.ClusterChecksRunnerComponentName)
 		setProfileNodeAgentOverride(ddai, profile)
 	}
-	setProfileDDAIAffinity(ddai, profile)
+	ddai.Spec.Override[v2alpha1.NodeAgentComponentName].Affinity = affinity
 }
 
 func disableComponent(ddai *v1alpha1.DatadogAgentInternal, componentName v2alpha1.ComponentName) {
@@ -130,26 +123,28 @@ func disableComponent(ddai *v1alpha1.DatadogAgentInternal, componentName v2alpha
 	ddai.Spec.Override[componentName].Disabled = apiutils.NewBoolPointer(true)
 }
 
-func setProfileDDAIAffinity(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) {
+func setProfileDDAIAffinity(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) *corev1.Affinity {
 	override, ok := ddai.Spec.Override[v2alpha1.NodeAgentComponentName]
 	if !ok {
 		override = &v2alpha1.DatadogAgentComponentOverride{}
 	}
-	override.Affinity = common.MergeAffinities(override.Affinity, agentprofile.AffinityOverride(profile))
+	return common.MergeAffinities(override.Affinity, agentprofile.AffinityOverride(profile))
 }
 
-func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile, scheme *runtime.Scheme) error {
+func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) error {
 	// Name
 	ddai.Name = getProfileDDAIName(ddai.Name, profile.Name, profile.Namespace)
-	// Managed fields
-	ddai.ManagedFields = []metav1.ManagedFieldsEntry{}
-	// Owner reference
+	// Managed fields needs to be nil for server-side apply
+	ddai.ManagedFields = nil
+	// Include the profile label in the DDAI metadata only for non-default profiles.
+	// This is used to determine whether or not the EDS should be created (only for default profile).
+	// This could possibly be used for GC of the profile DDAIs too.
 	if !agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
-		ownerRef, err := object.CreateOwnerRef(profile, scheme)
-		if err != nil {
-			return err
+		// This should not happen, as we add the DDA label upon creation of the DDAI.
+		if ddai.Labels == nil {
+			ddai.Labels = make(map[string]string)
 		}
-		ddai.SetOwnerReferences([]metav1.OwnerReference{*ownerRef})
+		ddai.Labels[agentprofile.ProfileLabelKey] = profile.Name
 	}
 	return nil
 }

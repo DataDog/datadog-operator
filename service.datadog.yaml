@@ -1,12 +1,12 @@
 ---
 schema-version: v2
 dd-service: datadog-operator
-team: container-ecosystems
+dd-team: agent-onboarding
 contacts:
   - type: slack
     contact: https://dd.slack.com/archives/C037CDX0WJV
   - type: email
-    contact: team-containerecosystems@datadoghq.com
+    contact: team-agentonboarding@datadoghq.com
 links:
   - name: Runbook
     type: runbook
@@ -29,9 +29,9 @@ links:
 tags:
   - app:datadog-operator
   - service:datadog-operator
-  - team:container-ecosystems
+  - team:agent-onboarding
 integrations:
-  pagerduty: https://datadog.pagerduty.com/service-directory/PFZC0QZ
+  pagerduty: https://datadog.pagerduty.com/service-directory/PBVS1V3
 extensions:
   datadoghq.com/sdp:
     conductor:
