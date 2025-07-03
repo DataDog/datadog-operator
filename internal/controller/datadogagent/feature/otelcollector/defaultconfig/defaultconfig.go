@@ -21,7 +21,8 @@ exporters:
     verbosity: detailed
   datadog:
     api:
-      key: ""
+      key: ${env:DD_API_KEY}
+      site: ${env:DD_SITE}
 processors:
   infraattributes:
     cardinality: 2
