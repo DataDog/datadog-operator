@@ -7,10 +7,13 @@ package datadogagent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -91,5 +94,22 @@ func (r *Reconciler) cleanUpUnusedDDAIs(ctx context.Context, validDDAIs []*v1alp
 		}
 	}
 
+	return nil
+}
+
+func (r *Reconciler) addRemoteConfigStatusToDDAIStatus(ddaStatus *v2alpha1.DatadogAgentStatus, ddai *v1alpha1.DatadogAgentInternal) error {
+	// remote config configuration
+	if ddaStatus != nil && ddaStatus.RemoteConfigConfiguration != nil {
+		ddai.Status.RemoteConfigConfiguration = ddaStatus.RemoteConfigConfiguration
+	}
+
+	status, err := json.Marshal(ddai.Status)
+	if err != nil {
+		return err
+	}
+	patch := fmt.Sprintf(`{"status":%s}`, string(status))
+	if err := r.client.Status().Patch(context.TODO(), ddai, client.RawPatch(types.MergePatchType, []byte(patch))); err != nil {
+		return err
+	}
 	return nil
 }

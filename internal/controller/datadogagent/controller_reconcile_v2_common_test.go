@@ -885,7 +885,6 @@ func Test_addDDAIStatusToDDAStatus(t *testing.T) {
 	_ = scheme.AddToScheme(sch)
 	_ = v1alpha1.AddToScheme(sch)
 	_ = v2alpha1.AddToScheme(sch)
-	logger := logf.Log.WithName("Test_addDDAIStatusToDDAStatus")
 
 	tests := []struct {
 		name           string
@@ -966,7 +965,7 @@ func Test_addDDAIStatusToDDAStatus(t *testing.T) {
 				log:    logf.Log.WithName(tt.name),
 			}
 
-			err := r.addDDAIStatusToDDAStatus(logger, &tt.status, tt.existingDDAI.ObjectMeta)
+			err := r.addDDAIStatusToDDAStatus(&tt.status, tt.existingDDAI.ObjectMeta)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedStatus, tt.status)
 		})
