@@ -265,12 +265,38 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 
 	// create volume
 	managers.Volume().AddVolume(&vol)
+	commands := []string{}
+	if o.customConfig != nil && o.customConfig.ConfigMap != nil && len(o.customConfig.ConfigMap.Items) > 0 {
+		for _, item := range o.customConfig.ConfigMap.Items {
+			commands = append(commands, common.ConfigVolumePath+"/otel/"+item.Path)
+		}
+		volMount := corev1.VolumeMount{
+			Name:      otelAgentVolumeName,
+			MountPath: common.ConfigVolumePath + "/otel/",
+		}
+		managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.OtelAgent)
 
-	// [investigation needed]: When the user provides a custom config map, the file name *must be* otel-config.yaml. If we choose to allow
-	// any file name, we would need to update both the volume mount here, as well as the otel-agent container command. I haven't seen this
-	// done for other containers, which is why I think it's acceptable to force users to use the `otel-config.yaml` name.
-	volMount := volume.GetVolumeMountWithSubPath(otelAgentVolumeName, common.ConfigVolumePath+"/"+otelConfigFileName, otelConfigFileName)
-	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.OtelAgent)
+	} else {
+		// This part in used in three paths:
+		// - no conf.ConfigMap.Items provided, but conf.ConfigMap.Name provided. We assume only one item/ name otel-config.yaml
+		// - when configData is used
+		// - when no config is passed (we use DefaultOtelCollectorConfig)
+		commands = append(commands, common.ConfigVolumePath+"/"+otelConfigFileName)
+		volMount := volume.GetVolumeMountWithSubPath(otelAgentVolumeName, common.ConfigVolumePath+"/"+otelConfigFileName, otelConfigFileName)
+		managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.OtelAgent)
+	}
+
+	// Add config to otel-agent container command
+	for id, container := range managers.PodTemplateSpec().Spec.Containers {
+		if container.Name == "otel-agent" {
+			for _, command := range commands {
+				managers.PodTemplateSpec().Spec.Containers[id].Command = append(managers.PodTemplateSpec().Spec.Containers[id].Command,
+					"--config="+command,
+				)
+			}
+
+		}
+	}
 
 	// Add md5 hash annotation for configMap
 	if o.customConfigAnnotationKey != "" && o.customConfigAnnotationValue != "" {

@@ -440,7 +440,6 @@ func otelAgentContainer(_ metav1.Object) corev1.Container {
 		Image: ddotCollectorImage(),
 		Command: []string{
 			"otel-agent",
-			"--config=" + otelCustomConfigVolumePath,
 			"--core-config=" + agentCustomConfigVolumePath,
 			"--sync-delay=30s",
 		},

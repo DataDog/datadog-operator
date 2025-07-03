@@ -80,7 +80,7 @@ func (r *Reconciler) manageFeatureDependencies(logger logr.Logger, features []fe
 
 // overrideDependencies wraps the dependency override logic.
 func (r *Reconciler) overrideDependencies(logger logr.Logger, resourceManagers feature.ResourceManagers, instance *datadoghqv2alpha1.DatadogAgent) error {
-	errs := override.Dependencies(logger, resourceManagers, instance)
+	errs := override.Dependencies(logger, resourceManagers, instance.GetObjectMeta(), &instance.Spec)
 	if len(errs) > 0 {
 		return errors.NewAggregate(errs)
 	}

@@ -6,7 +6,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
@@ -128,7 +128,7 @@ func Test_getDaemonSetNameFromDatadogAgent(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			dsName := component.GetDaemonSetNameFromDatadogAgent(tt.ddai)
+			dsName := component.GetDaemonSetNameFromDatadogAgent(tt.ddai.GetObjectMeta(), &tt.ddai.Spec)
 			assert.Equal(t, tt.wantDSName, dsName)
 		})
 	}

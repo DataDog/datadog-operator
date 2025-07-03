@@ -55,6 +55,15 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 }
 
 func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
+	// Set up field manager for crd apply
+	if r.fieldManager == nil {
+		f, err := newFieldManager(r.client, r.scheme, getDDAIGVK())
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		r.fieldManager = f
+	}
+
 	var result reconcile.Result
 	now := metav1.NewTime(time.Now())
 	ddais := []*datadoghqv1alpha1.DatadogAgentInternal{}
@@ -96,6 +105,11 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 		}
 
 		// TODO: copy remote config status from DDA to DDAI
+	}
+
+	// Clean up unused DDAI objects
+	if e := r.cleanUpUnusedDDAIs(ctx, ddais); e != nil {
+		return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
 	}
 
 	// Prevent the reconcile loop from stopping by requeueing the DDAI object after a period of time
