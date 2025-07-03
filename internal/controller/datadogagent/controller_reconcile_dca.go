@@ -49,7 +49,17 @@ func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Lo
 		providerList = kubernetes.GetProviderListFromNodeList(nodeList, logger)
 		logger.Info("providerList for cluster agent", "providerList", providerList) //output is default-rhcos for label node.openshift.io/os_id=rhcos
 	}
-	// TODO: does it make sense to put provider list BEFORE reconciler? this is where the real reconcilation starts
+
+	// One one provider (one deployment) for cluster agent, keep only the non-default provider
+	if len(providerList) > 1 {
+		for provider := range providerList {
+			if provider == kubernetes.DefaultProvider {
+				delete(providerList, provider)
+				break
+			}
+		}
+	}
+
 	// Reconcile cluster agent for each provider
 	var errs []error
 	for provider := range providerList {
