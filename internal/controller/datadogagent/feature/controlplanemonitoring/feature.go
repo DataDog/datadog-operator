@@ -39,6 +39,7 @@ type controlPlaneMonitoringFeature struct {
 	provider               string
 	defaultConfigMapName   string
 	openshiftConfigMapName string
+	eksConfigMapName       string
 }
 
 // ID returns the ID of the Feature
@@ -51,6 +52,7 @@ func (f *controlPlaneMonitoringFeature) Configure(dda metav1.Object, ddaSpec *v2
 	f.owner = dda
 	f.defaultConfigMapName = defaultConfigMapName
 	f.openshiftConfigMapName = openshiftConfigMapName
+	f.eksConfigMapName = eksConfigMapName
 
 	controlPlaneMonitoring := ddaSpec.Features.ControlPlaneMonitoring
 	f.logger.Info("Control plane monitoring feature state",
@@ -80,9 +82,9 @@ func (f *controlPlaneMonitoringFeature) ManageDependencies(managers feature.Reso
 		return nil
 	}
 
-	// Create configmaps for control plane monitoring
+	// Create ConfigMaps for control plane monitoring
 
-	// openshift configmap
+	// OpenShift ConfigMap
 	openshiftConfigMap, err2 := f.buildControlPlaneMonitoringConfigMap(kubernetes.OpenshiftRHCOSType, f.openshiftConfigMapName)
 	if err2 != nil {
 		return fmt.Errorf("failed to build openshift configmap: %w", err2)
@@ -91,6 +93,17 @@ func (f *controlPlaneMonitoringFeature) ManageDependencies(managers feature.Reso
 
 	if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, openshiftConfigMap); err != nil {
 		return fmt.Errorf("failed to add openshift configmap to store: %w", err)
+	}
+
+	// EKS ConfigMap
+	eksConfigMap, err2 := f.buildControlPlaneMonitoringConfigMap(kubernetes.EKSAMIType, f.eksConfigMapName)
+	if err2 != nil {
+		return fmt.Errorf("failed to build eks configmap: %w", err2)
+	}
+	eksConfigMap.Name = f.eksConfigMapName
+
+	if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, eksConfigMap); err != nil {
+		return fmt.Errorf("failed to add eks configmap to store: %w", err)
 	}
 
 	// For OpenShift, etcd monitoring requires manual secret copying
@@ -134,7 +147,7 @@ func (f *controlPlaneMonitoringFeature) ManageClusterAgent(managers feature.PodT
 	if providerValue == kubernetes.OpenshiftRHCOSType {
 		configMapName = f.openshiftConfigMapName
 	} else if providerValue == kubernetes.EKSAMIType {
-		configMapName = f.defaultConfigMapName // TODO: add eks configmap and update here
+		configMapName = f.eksConfigMapName
 	} else {
 		configMapName = f.defaultConfigMapName
 	}
