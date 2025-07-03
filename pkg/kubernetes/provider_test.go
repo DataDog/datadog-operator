@@ -15,6 +15,7 @@ import (
 var (
 	defaultProvider = DefaultProvider
 	gkeCosProvider  = generateValidProviderName(GKECloudProvider, GKECosType)
+	aksRoleProvider = generateValidProviderName(AKSCloudProvider, AKSRoleType)
 )
 
 func Test_determineProvider(t *testing.T) {
@@ -43,6 +44,14 @@ func Test_determineProvider(t *testing.T) {
 			},
 			provider: generateValidProviderName(GKECloudProvider, GKECosType),
 		},
+		{
+			name: "aks provider",
+			labels: map[string]string{
+				"foo":            "bar",
+				AKSProviderLabel: AKSRoleType,
+			},
+			provider: generateValidProviderName(AKSCloudProvider, AKSRoleType),
+		},
 	}
 
 	for _, tt := range tests {
@@ -62,6 +71,11 @@ func Test_isProviderValueAllowed(t *testing.T) {
 		{
 			name:  "valid value",
 			value: GKECosType,
+			want:  true,
+		},
+		{
+			name:  "valid value",
+			value: AKSRoleType,
 			want:  true,
 		},
 		{
@@ -105,14 +119,14 @@ func Test_sortProviders(t *testing.T) {
 		{
 			name: "multiple providers",
 			existingProviders: map[string]struct{}{
-				gkeCosProvider: {},
-				"abcde":        {},
-				"zyxwv":        {},
-				"12345":        {},
+				gkeCosProvider:  {},
+				aksRoleProvider: {},
+				"zyxwv":         {},
+				"12345":         {},
 			},
 			wantSortedProviders: []string{
 				"12345",
-				"abcde",
+				aksRoleProvider,
 				gkeCosProvider,
 				"zyxwv",
 			},
@@ -314,6 +328,158 @@ func Test_getProviderNodeAffinity(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "single aks provider",
+			existingProviders: map[string]struct{}{
+				aksRoleProvider: {},
+			},
+			provider: aksRoleProvider,
+			wantAffinity: &corev1.Affinity{
+				NodeAffinity: &corev1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      AKSProviderLabel,
+										Operator: corev1.NodeSelectorOpIn,
+										Values: []string{
+											AKSRoleType,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "one other provider, default provider with aks",
+			existingProviders: map[string]struct{}{
+				aksRoleProvider: {},
+				defaultProvider: {},
+			},
+			provider: defaultProvider,
+			wantAffinity: &corev1.Affinity{
+				NodeAffinity: &corev1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      AKSProviderLabel,
+										Operator: corev1.NodeSelectorOpNotIn,
+										Values: []string{
+											AKSRoleType,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "one other provider, aks provider",
+			existingProviders: map[string]struct{}{
+				defaultProvider: {},
+				aksRoleProvider: {},
+			},
+			provider: aksRoleProvider,
+			wantAffinity: &corev1.Affinity{
+				NodeAffinity: &corev1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      AKSProviderLabel,
+										Operator: corev1.NodeSelectorOpIn,
+										Values: []string{
+											AKSRoleType,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "multiple providers, default provider with aks and gke",
+			existingProviders: map[string]struct{}{
+				aksRoleProvider: {},
+				gkeCosProvider:  {},
+				"gke-abcde":     {},
+				defaultProvider: {},
+			},
+			provider: defaultProvider,
+			wantAffinity: &corev1.Affinity{
+				NodeAffinity: &corev1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      AKSProviderLabel,
+										Operator: corev1.NodeSelectorOpNotIn,
+										Values: []string{
+											AKSRoleType,
+										},
+									},
+									{
+										Key:      GKEProviderLabel,
+										Operator: corev1.NodeSelectorOpNotIn,
+										Values: []string{
+											"abcde",
+										},
+									},
+									{
+										Key:      GKEProviderLabel,
+										Operator: corev1.NodeSelectorOpNotIn,
+										Values: []string{
+											GKECosType,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "multiple providers, aks provider",
+			existingProviders: map[string]struct{}{
+				defaultProvider: {},
+				"gke-xyz":       {},
+				gkeCosProvider:  {},
+				aksRoleProvider: {},
+			},
+			provider: aksRoleProvider,
+			wantAffinity: &corev1.Affinity{
+				NodeAffinity: &corev1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      AKSProviderLabel,
+										Operator: corev1.NodeSelectorOpIn,
+										Values: []string{
+											AKSRoleType,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -366,6 +532,12 @@ func Test_GetProviderLabelKeyValue(t *testing.T) {
 			provider:  gkeCosProvider,
 			wantLabel: GKEProviderLabel,
 			wantValue: GKECosType,
+		},
+		{
+			name:      "aks provider",
+			provider:  aksRoleProvider,
+			wantLabel: AKSProviderLabel,
+			wantValue: AKSRoleType,
 		},
 	}
 

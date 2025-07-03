@@ -210,7 +210,7 @@ func (f *orchestratorExplorerFeature) ManageDependencies(managers feature.Resour
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	// Add the env var to explicitly disable this feature
 	// Otherwise, this feature is enabled by default in the Agent code
 	managers.EnvVar().AddEnvVar(f.getEnabledEnvVar())

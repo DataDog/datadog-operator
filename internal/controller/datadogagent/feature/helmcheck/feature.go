@@ -132,7 +132,7 @@ func (f *helmCheckFeature) ManageDependencies(managers feature.ResourceManagers)
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *helmCheckFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *helmCheckFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	// Manage Helm check config in configMap
 	var vol corev1.Volume
 	var volMount corev1.VolumeMount
