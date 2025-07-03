@@ -8,6 +8,7 @@ package controlplanemonitoring
 const (
 	openshiftConfigMapName = "datadog-controlplane-configuration-openshift"
 	defaultConfigMapName   = "datadog-controlplane-configuration-default"
+	eksConfigMapName       = "datadog-controlplane-configuration-eks"
 	otherConfigMapName     = "datadog-controlplane-configuration-unknown"
 
 	controlPlaneMonitoringVolumeName      = "controlplane-config"
