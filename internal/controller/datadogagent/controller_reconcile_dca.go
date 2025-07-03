@@ -38,7 +38,7 @@ import (
 func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	var result reconcile.Result
 	now := metav1.NewTime(time.Now())
-  
+
 	// Get provider list for introspection
 	providerList := map[string]struct{}{kubernetes.LegacyProvider: {}}
 	if r.options.IntrospectionEnabled {
