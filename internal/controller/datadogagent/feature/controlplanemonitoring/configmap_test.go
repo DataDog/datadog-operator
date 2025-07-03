@@ -96,7 +96,7 @@ instances:
   - kube_endpoints:
       name: "etcd"
       namespace: "openshift-etcd"
-      resolve: "ip"
+
 cluster_check: true
 init_config: {}
 instances:
@@ -125,11 +125,10 @@ instances:
   - kube_endpoints:
       name: "kubernetes"
       namespace: "default"
-      resolve: "ip"
 cluster_check: true
 init_config: {}
 instances:
-    - prometheus_url: "https://%%host%%:%%port%%/metrics"
+  - prometheus_url: "https://%%host%%:%%port%%/metrics"
     bearer_token_auth: true`,
 
 					"kube_controller_manager.yaml": `advanced_ad_identifiers:
@@ -139,7 +138,7 @@ instances:
 cluster_check: true
 init_config: {}
 instances:
-    - prometheus_url: "https://%%host%%:%%port%%/apis/metrics.eks.amazonaws.com/v1/kcm/container/metrics"
+  - prometheus_url: "https://%%host%%:%%port%%/apis/metrics.eks.amazonaws.com/v1/kcm/container/metrics"
     extra_headers:
         accept: "*/*"
     bearer_token_auth: true
@@ -149,11 +148,10 @@ instances:
   - kube_endpoints:
       name: "kubernetes"
       namespace: "default"
-      resolve: "ip"
 cluster_check: true
 init_config: {}
 instances:
-    - prometheus_url: "https://%%host%%:%%port%%/apis/metrics.eks.amazonaws.com/v1/ksh/container/metrics"
+  - prometheus_url: "https://%%host%%:%%port%%/apis/metrics.eks.amazonaws.com/v1/ksh/container/metrics"
     extra_headers:
         accept: "*/*"
     bearer_token_auth: true
