@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -312,6 +313,26 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				defaultVolumeMounts,
 				defaultVolumes(defaultLocalObjectReferenceName)),
 		},
+		{
+			Name: "otel agent with UseStandaloneImage enabled (default)",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorUseStandaloneImage(true).
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: testExpectedDepsCreatedCM,
+			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultExpectedEnvVars, defaultAnnotations, defaultVolumeMounts, defaultVolumes(defaultLocalObjectReferenceName)),
+		},
+		test.FeatureTest{
+			Name: "otel agent with UseStandaloneImage disabled",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorUseStandaloneImage(false).
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: testExpectedDepsCreatedCM,
+			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultExpectedEnvVars, defaultAnnotations, defaultVolumeMounts, defaultVolumes(defaultLocalObjectReferenceName)),
+		},
 	}
 	tests.Run(t, buildOtelCollectorFeature)
 }
@@ -409,10 +430,8 @@ func testExpectedAgent(
 
 			agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 			otelAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.OtelAgent]
-			image := mgr.PodTemplateSpec().Spec.Containers[0].Image
 			assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
 			assert.True(t, apiutils.IsEqualStruct(otelAgentEnvVars, wantEnvVarsOTel), "OTel Agent envvars \ndiff = %s", cmp.Diff(otelAgentEnvVars, wantEnvVarsOTel))
-			assert.Equal(t, images.GetLatestAgentImageWithSuffix(false, false, true), image)
 
 			// annotations
 			agentAnnotations := mgr.AnnotationMgr.Annotations
@@ -460,4 +479,271 @@ func testExpectedDepsCreatedCM(t testing.TB, store store.StoreClient) {
 		apiutils.IsEqualStruct(configMap.Data, expectedCM),
 		"ConfigMap \ndiff = %s", cmp.Diff(configMap.Data, expectedCM),
 	)
+}
+
+func Test_otelCollectorFeature_ManageNodeAgent(t *testing.T) {
+	tests := test.FeatureTestSuite{
+		test.FeatureTest{
+			Name: "otel agent with UseStandaloneImage enabled (default)",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorUseStandaloneImage(true).
+				Build(),
+			WantConfigure: true,
+			Agent: &test.ComponentTest{
+				CreateFunc: func(t testing.TB) (feature.PodTemplateManagers, string) {
+					// Create pod template with both CoreAgent and OtelAgent containers
+					newPTS := corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:    string(apicommon.CoreAgentContainerName),
+									Image:   images.GetLatestAgentImage(),
+									Command: []string{"agent", "run"},
+								},
+								{
+									Name:    string(apicommon.OtelAgent),
+									Image:   images.GetLatestDdotCollectorImage(),
+									Command: []string{"otel-agent"},
+								},
+							},
+						},
+					}
+					return fake.NewPodTemplateManagers(t, newPTS), kubernetes.DefaultProvider
+				},
+				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+					// When UseStandaloneImage is true, only otel-agent container should use ddot-collector image
+					otelContainerFound := false
+					for _, container := range mgr.PodTemplateSpec().Spec.Containers {
+						if container.Name == string(apicommon.OtelAgent) {
+							otelContainerFound = true
+							expectedOtelImage := images.GetLatestDdotCollectorImage()
+							assert.Equal(t, expectedOtelImage, container.Image, "OTel Agent container should use ddot-collector image when UseStandaloneImage is true")
+						} else {
+							assert.Equal(t, images.GetLatestAgentImage(), container.Image, "Other containers should use agent image when UseStandaloneImage is true")
+						}
+					}
+					assert.True(t, otelContainerFound, "OTel Agent container should be present")
+				},
+			},
+		},
+		{
+			Name: "otel agent with UseStandaloneImage disabled",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorUseStandaloneImage(false).
+				Build(),
+			WantConfigure: true,
+			Agent: &test.ComponentTest{
+				CreateFunc: func(t testing.TB) (feature.PodTemplateManagers, string) {
+					// Create pod template with both CoreAgent and OtelAgent containers
+					newPTS := corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:    string(apicommon.CoreAgentContainerName),
+									Image:   images.GetLatestAgentImageWithSuffix(false, false, true),
+									Command: []string{"agent", "run"},
+								},
+								{
+									Name:    string(apicommon.OtelAgent),
+									Image:   images.GetLatestAgentImageWithSuffix(false, false, true),
+									Command: []string{"otel-agent"},
+								},
+							},
+						},
+					}
+					return fake.NewPodTemplateManagers(t, newPTS), kubernetes.DefaultProvider
+				},
+				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+					// When UseStandaloneImage is false, all containers should use agent image with -full suffix
+					for _, container := range mgr.PodTemplateSpec().Spec.Containers {
+						expectedImage := images.GetLatestAgentImageWithSuffix(false, false, true)
+						assert.Equal(t, expectedImage, container.Image, "All containers should use agent image with -full suffix when UseStandaloneImage is false")
+					}
+				},
+			},
+		},
+	}
+
+	tests.Run(t, buildOtelCollectorFeature)
+}
+
+func Test_otelCollectorFeature_VersionCheck(t *testing.T) {
+	tests := test.FeatureTestSuite{
+		{
+			Name: "UseStandaloneImage enabled by default for 7.67.0+",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorUseStandaloneImage(true).
+				Build(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					// Since default agent version is 7.67.0, UseStandaloneImage should be enabled
+					for _, container := range mgr.PodTemplateSpec().Spec.Containers {
+						if container.Name == string(apicommon.OtelAgent) {
+							assert.Equal(t, images.GetLatestDdotCollectorImage(), container.Image)
+						} else {
+							assert.Equal(t, images.GetLatestAgentImage(), container.Image)
+						}
+					}
+				},
+			),
+		},
+		{
+			Name: "UseStandaloneImage disabled for versions below 7.67.0 with image override",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorUseStandaloneImage(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+					Image: &v2alpha1.AgentImageConfig{
+						Name: "datadog/agent",
+						Tag:  "7.66.0",
+					},
+				}).
+				Build(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					// Version 7.66.0 is below 7.67.0, so UseStandaloneImage should be disabled
+					// However, with explicit image override, the override should be respected as-is
+					// No containers should have -full suffix when there's an explicit override
+					for _, container := range mgr.PodTemplateSpec().Spec.Containers {
+						assert.NotContains(t, container.Image, "-full", "Containers should not use -full image when there's an explicit image override")
+					}
+				},
+			),
+		},
+		{
+			Name: "UseStandaloneImage enabled for 7.67.0+ with image override",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorUseStandaloneImage(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+					Image: &v2alpha1.AgentImageConfig{
+						Name: "datadog/agent",
+						Tag:  "7.68.0",
+					},
+				}).
+				Build(),
+			WantConfigure: true,
+			Agent: &test.ComponentTest{
+				CreateFunc: func(t testing.TB) (feature.PodTemplateManagers, string) {
+					newPTS := corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:    string(apicommon.CoreAgentContainerName),
+									Image:   "datadog/agent:7.68.0",
+									Command: []string{"agent", "run"},
+								},
+								{
+									Name:    string(apicommon.OtelAgent),
+									Image:   "datadog/agent:7.68.0", // This will be changed to ddot-collector:7.68.0
+									Command: []string{"otel-agent"},
+								},
+							},
+						},
+					}
+					return fake.NewPodTemplateManagers(t, newPTS), kubernetes.DefaultProvider
+				},
+				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					// Version 7.68.0 is >= 7.67.0, so UseStandaloneImage should be enabled
+					// With image override, should use the override tag but with appropriate image names
+					for _, container := range mgr.PodTemplateSpec().Spec.Containers {
+						if container.Name == string(apicommon.OtelAgent) {
+							// OTel Agent should use ddot-collector image with override tag
+							// Since the override is datadog/agent:7.68.0, it should become datadog/ddot-collector:7.68.0
+							assert.Equal(t, "datadog/ddot-collector:7.68.0", container.Image)
+						} else {
+							// Other containers should use the override image as-is
+							assert.Equal(t, "datadog/agent:7.68.0", container.Image)
+						}
+					}
+				},
+			},
+		},
+		{
+			Name: "UseStandaloneImage disabled for 7.60.0 with image override",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorUseStandaloneImage(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+					Image: &v2alpha1.AgentImageConfig{
+						Name: "datadog/agent",
+						Tag:  "7.60.0",
+					},
+				}).
+				Build(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					// Version 7.60.0 is below 7.67.0, so UseStandaloneImage should be disabled
+					// However, with explicit image override, the override should be respected as-is
+					for _, container := range mgr.PodTemplateSpec().Spec.Containers {
+						assert.NotContains(t, container.Image, "-full", "Containers should not use -full image when there's an explicit image override")
+					}
+				},
+			),
+		},
+		{
+			Name: "UseStandaloneImage enabled with custom image name and tag 7.67.0+",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorUseStandaloneImage(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+					Image: &v2alpha1.AgentImageConfig{
+						Name: "custom-registry/custom-agent",
+						Tag:  "7.67.0-custom",
+					},
+				}).
+				Build(),
+			WantConfigure: true,
+			Agent: &test.ComponentTest{
+				CreateFunc: func(t testing.TB) (feature.PodTemplateManagers, string) {
+					newPTS := corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:    string(apicommon.CoreAgentContainerName),
+									Image:   "custom-registry/custom-agent:7.67.0-custom",
+									Command: []string{"agent", "run"},
+								},
+								{
+									Name:    string(apicommon.OtelAgent),
+									Image:   "custom-registry/custom-agent:7.67.0-custom", // This will be changed to ddot-collector
+									Command: []string{"otel-agent"},
+								},
+							},
+						},
+					}
+					return fake.NewPodTemplateManagers(t, newPTS), kubernetes.DefaultProvider
+				},
+				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					// Version 7.67.0 is >= 7.67.0, so UseStandaloneImage should be enabled
+					for _, container := range mgr.PodTemplateSpec().Spec.Containers {
+						if container.Name == string(apicommon.OtelAgent) {
+							// With custom image override, OTel Agent should use custom ddot-collector image and the custom registry + tag
+							assert.Equal(t, "custom-registry/ddot-collector:7.67.0-custom", container.Image)
+						} else {
+							// With custom image override, non-OTel containers should use the custom image without -full suffix
+							assert.Equal(t, "custom-registry/custom-agent:7.67.0-custom", container.Image)
+						}
+					}
+				},
+			},
+		},
+	}
+
+	tests.Run(t, buildOtelCollectorFeature)
 }

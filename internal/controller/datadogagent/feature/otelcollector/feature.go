@@ -21,6 +21,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 func init() {
@@ -41,11 +42,13 @@ func buildOtelCollectorFeature(options *feature.Options) feature.Feature {
 }
 
 type otelCollectorFeature struct {
-	customConfig    *v2alpha1.CustomConfig
-	owner           metav1.Object
-	configMapName   string
-	ports           []*corev1.ContainerPort
-	coreAgentConfig coreAgentConfig
+	customConfig           *v2alpha1.CustomConfig
+	owner                  metav1.Object
+	configMapName          string
+	ports                  []*corev1.ContainerPort
+	coreAgentConfig        coreAgentConfig
+	useStandaloneImage     *bool
+	nodeAgentImageOverride *v2alpha1.AgentImageConfig
 
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
@@ -69,6 +72,34 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 		o.customConfig = ddaSpec.Features.OtelCollector.Conf
 	}
 	o.configMapName = constants.GetConfName(dda, o.customConfig, defaultOTelAgentConf)
+
+	// For supported versions, use the user's setting if explicitly set, otherwise default to true
+	if ddaSpec.Features.OtelCollector.UseStandaloneImage != nil {
+		o.useStandaloneImage = ddaSpec.Features.OtelCollector.UseStandaloneImage
+	} else {
+		// Default to true for supported versions when not explicitly set
+		o.useStandaloneImage = apiutils.NewBoolPointer(true)
+	}
+
+	// Check agent version for UseStandaloneImage feature support (7.67.0+)
+	agentVersion := images.AgentLatestVersion
+	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
+		if nodeAgent.Image != nil {
+			agentVersion = common.GetAgentVersionFromImage(*nodeAgent.Image)
+			o.nodeAgentImageOverride = nodeAgent.Image
+		}
+	}
+
+	// Default to UseStandaloneImage=true for 7.67.0+, but allow explicit override
+	supportedVersion := utils.IsAboveMinVersion(agentVersion, "7.67.0-0")
+	if !supportedVersion {
+		// For unsupported versions, force UseStandaloneImage=false and log warning
+		if apiutils.BoolValue(ddaSpec.Features.OtelCollector.Enabled) {
+			o.logger.Info("UseStandaloneImage feature requires agent version 7.67.0 or higher",
+				"current_version", agentVersion, "switching_to_full_image", true)
+		}
+		o.useStandaloneImage = apiutils.NewBoolPointer(false)
+	}
 
 	if ddaSpec.Features.OtelCollector.CoreConfig != nil {
 		o.coreAgentConfig.enabled = ddaSpec.Features.OtelCollector.CoreConfig.Enabled
@@ -172,20 +203,51 @@ func (o *otelCollectorFeature) ManageClusterAgent(managers feature.PodTemplateMa
 }
 
 func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	// // Use -full image for all containers
-	image := &images.Image{}
-	for i, container := range managers.PodTemplateSpec().Spec.Containers {
-		image = images.FromString(container.Image).
-			WithFull(true)
-		// Note: if an image tag override is configured, this image tag will be overwritten
-		managers.PodTemplateSpec().Spec.Containers[i].Image = image.ToString()
-	}
+	if apiutils.BoolValue(o.useStandaloneImage) {
+		// When UseStandaloneImage is true, use the ddot-collector image for the otel-agent container
+		// and ensure other containers don't use -full image. Ignore any image overrides.
+		for i, container := range managers.PodTemplateSpec().Spec.Containers {
+			if container.Name == string(apicommon.OtelAgent) {
+				image := images.FromString(container.Image).
+					WithName(images.DefaultDdotCollectorImageName)
+				managers.PodTemplateSpec().Spec.Containers[i].Image = image.ToString()
+			} else {
+				// Ensure non-OTel containers don't use -full image when UseStandaloneImage is true
+				image := images.FromString(container.Image).
+					WithFull(false)
+				managers.PodTemplateSpec().Spec.Containers[i].Image = image.ToString()
+			}
+		}
+	} else {
+		// When UseStandaloneImage is false, all containers (including OTel agent) should use the regular agent image with -full suffix
+		// However, if there's an explicit image override, respect it and don't modify it
+		if o.nodeAgentImageOverride != nil {
+			// User has provided an explicit image override, respect it as-is
+			o.logger.Info("Respecting explicit image override, skipping -full suffix modification",
+				"override_image", o.nodeAgentImageOverride.Name+":"+o.nodeAgentImageOverride.Tag)
+		} else {
+			// No explicit override, apply the -full suffix logic
+			image := &images.Image{}
+			for i, container := range managers.PodTemplateSpec().Spec.Containers {
+				if container.Name == string(apicommon.OtelAgent) {
+					// For OTel agent container, keep the custom registry and tag but use the ddot-collector image name
+					image = images.FromString(container.Image).
+						WithName(images.DefaultAgentImageName).
+						WithFull(true)
+				} else {
+					// For other containers, just add -full suffix
+					image = images.FromString(container.Image).
+						WithFull(true)
+				}
+				managers.PodTemplateSpec().Spec.Containers[i].Image = image.ToString()
+			}
 
-	for i, container := range managers.PodTemplateSpec().Spec.InitContainers {
-		image = images.FromString(container.Image).
-			WithFull(true)
-		// Note: if an image tag override is configured, this image tag will be overwritten
-		managers.PodTemplateSpec().Spec.InitContainers[i].Image = image.ToString()
+			for i, container := range managers.PodTemplateSpec().Spec.InitContainers {
+				image = images.FromString(container.Image).
+					WithFull(true)
+				managers.PodTemplateSpec().Spec.InitContainers[i].Image = image.ToString()
+			}
+		}
 	}
 
 	var vol corev1.Volume
