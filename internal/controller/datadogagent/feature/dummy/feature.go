@@ -47,7 +47,7 @@ func (f *dummyFeature) ManageDependencies(managers feature.ResourceManagers) err
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *dummyFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *dummyFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	podTemplate := managers.PodTemplateSpec()
 	if podTemplate.Labels == nil {
 		podTemplate.Labels = make(map[string]string)

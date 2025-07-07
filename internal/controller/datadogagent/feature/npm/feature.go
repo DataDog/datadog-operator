@@ -74,7 +74,7 @@ func (f *npmFeature) ManageDependencies(managers feature.ResourceManagers) error
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *npmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *npmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 

@@ -49,7 +49,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 	// Apply features changes on the Deployment.Spec.Template
 	var featErrors []error
 	for _, feat := range features {
-		if errFeat := feat.ManageClusterAgent(podManagers); errFeat != nil {
+		if errFeat := feat.ManageClusterAgent(podManagers, kubernetes.DefaultProvider); errFeat != nil {
 			featErrors = append(featErrors, errFeat)
 		}
 	}

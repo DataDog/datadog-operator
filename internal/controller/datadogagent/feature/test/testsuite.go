@@ -149,7 +149,7 @@ func runTest(t *testing.T, tt FeatureTest) {
 		// check Manage functions
 		if tt.ClusterAgent != nil {
 			tplManager, _ := tt.ClusterAgent.CreateFunc(t)
-			_ = feat.ManageClusterAgent(tplManager)
+			_ = feat.ManageClusterAgent(tplManager, "")
 			tt.ClusterAgent.WantFunc(t, tplManager)
 		}
 
