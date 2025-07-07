@@ -120,7 +120,7 @@ func Test_useSystemProbeCustomSeccomp(t *testing.T) {
 			expected: true,
 		},
 		{
-			name: "Custom seccomp for system probe, but uses configData (not supported)",
+			name: "Custom seccomp for system probe, but uses configData",
 			dda: &v2alpha1.DatadogAgent{
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -138,7 +138,7 @@ func Test_useSystemProbeCustomSeccomp(t *testing.T) {
 					},
 				},
 			},
-			expected: false,
+			expected: true,
 		},
 	}
 

@@ -20,7 +20,7 @@ import (
 )
 
 // Container use to override a corev1.Container with a v2alpha1.DatadogAgentGenericContainer.
-func Container(containerName apicommon.AgentContainerName, manager feature.PodTemplateManagers, override *v2alpha1.DatadogAgentGenericContainer) {
+func Container(containerName apicommon.AgentContainerName, manager feature.PodTemplateManagers, override *v2alpha1.DatadogAgentGenericContainer, ddaName string) {
 	if override == nil {
 		return
 	}
@@ -40,7 +40,7 @@ func Container(containerName apicommon.AgentContainerName, manager feature.PodTe
 	addEnvsToInitContainer(containerName, manager, override.Env)
 	addVolMountsToInitContainer(containerName, manager, override.VolumeMounts)
 
-	overrideSeccompProfile(containerName, manager, override)
+	overrideSeccompProfile(containerName, manager, override, ddaName)
 	overrideAppArmorProfile(containerName, manager, override)
 
 	for i, container := range manager.PodTemplateSpec().Spec.Containers {
@@ -177,7 +177,7 @@ func overrideInitContainer(initContainer *corev1.Container, override *v2alpha1.D
 	}
 }
 
-func overrideSeccompProfile(containerName apicommon.AgentContainerName, manager feature.PodTemplateManagers, override *v2alpha1.DatadogAgentGenericContainer) {
+func overrideSeccompProfile(containerName apicommon.AgentContainerName, manager feature.PodTemplateManagers, override *v2alpha1.DatadogAgentGenericContainer, ddaName string) {
 	// NOTE: for now, only support custom Seccomp Profiles on the System Probe
 	if containerName == apicommon.SystemProbeContainerName {
 		if override.SeccompConfig != nil && override.SeccompConfig.CustomRootPath != nil {
@@ -192,7 +192,7 @@ func overrideSeccompProfile(containerName apicommon.AgentContainerName, manager 
 			manager.Volume().AddVolume(&vol)
 		}
 
-		// TODO support ConfigMap creation when ConfigData is used.
+		// ConfigMap mounted when ConfigMap is used
 		if override.SeccompConfig != nil && override.SeccompConfig.CustomProfile != nil && override.SeccompConfig.CustomProfile.ConfigMap != nil {
 			vol := corev1.Volume{
 				Name: common.SeccompSecurityVolumeName,
@@ -216,6 +216,21 @@ func overrideSeccompProfile(containerName apicommon.AgentContainerName, manager 
 			// 		},
 			// 	}
 			// }
+		}
+
+		// ConfigMap mounted when ConfigData is used
+		if override.SeccompConfig != nil && override.SeccompConfig.CustomProfile != nil && override.SeccompConfig.CustomProfile.ConfigData != nil {
+			vol := corev1.Volume{
+				Name: common.SeccompSecurityVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: ddaName + "-" + common.SystemProbeAgentSecurityConfigMapSuffixName,
+						},
+					},
+				},
+			}
+			manager.Volume().AddVolume(&vol)
 		}
 	}
 }

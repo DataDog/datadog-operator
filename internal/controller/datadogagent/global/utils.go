@@ -46,8 +46,7 @@ func getInstallInfoValue() string {
 func useSystemProbeCustomSeccomp(dda *v2alpha1.DatadogAgent) bool {
 	if componentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
 		if container, ok := componentOverride.Containers[apicommon.SystemProbeContainerName]; ok {
-			// Only ConfigMap is supported for now
-			if container.SeccompConfig != nil && container.SeccompConfig.CustomProfile != nil && container.SeccompConfig.CustomProfile.ConfigMap != nil {
+			if container.SeccompConfig != nil && container.SeccompConfig.CustomProfile != nil && (container.SeccompConfig.CustomProfile.ConfigMap != nil || container.SeccompConfig.CustomProfile.ConfigData != nil) {
 				return true
 			}
 		}
