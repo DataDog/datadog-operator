@@ -33,18 +33,18 @@ func (r *Reconciler) setupDependencies(instance *datadoghqv1alpha1.DatadogAgentI
 func (r *Reconciler) manageGlobalDependencies(logger logr.Logger, ddai *datadoghqv1alpha1.DatadogAgentInternal, resourceManagers feature.ResourceManagers, requiredComponents feature.RequiredComponents) error {
 	var errs []error
 	// Non component specific dependencies
-	if err := global.ApplyGlobalDependencies(logger, ddai.GetObjectMeta(), &ddai.Spec, resourceManagers); len(err) > 0 {
+	if err := global.ApplyGlobalDependencies(logger, ddai.GetObjectMeta(), &ddai.Spec, resourceManagers, true); len(err) > 0 {
 		errs = append(errs, err...)
 	}
 
 	// Component specific dependencies
-	if err := global.ApplyGlobalComponentDependencies(logger, ddai, resourceManagers, datadoghqv2alpha1.ClusterAgentComponentName, requiredComponents.ClusterAgent); len(err) > 0 {
+	if err := global.ApplyGlobalComponentDependencies(logger, ddai.GetObjectMeta(), &ddai.Spec, nil, resourceManagers, datadoghqv2alpha1.ClusterAgentComponentName, requiredComponents.ClusterAgent, true); len(err) > 0 {
 		errs = append(errs, err...)
 	}
-	if err := global.ApplyGlobalComponentDependencies(logger, ddai, resourceManagers, datadoghqv2alpha1.NodeAgentComponentName, requiredComponents.Agent); len(err) > 0 {
+	if err := global.ApplyGlobalComponentDependencies(logger, ddai.GetObjectMeta(), &ddai.Spec, nil, resourceManagers, datadoghqv2alpha1.NodeAgentComponentName, requiredComponents.Agent, true); len(err) > 0 {
 		errs = append(errs, err...)
 	}
-	if err := global.ApplyGlobalComponentDependencies(logger, ddai, resourceManagers, datadoghqv2alpha1.ClusterChecksRunnerComponentName, requiredComponents.ClusterChecksRunner); len(err) > 0 {
+	if err := global.ApplyGlobalComponentDependencies(logger, ddai.GetObjectMeta(), &ddai.Spec, nil, resourceManagers, datadoghqv2alpha1.ClusterChecksRunnerComponentName, requiredComponents.ClusterChecksRunner, true); len(err) > 0 {
 		errs = append(errs, err...)
 	}
 
