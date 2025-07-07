@@ -47,7 +47,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Lo
 			return reconcile.Result{}, err
 		}
 		providerList = kubernetes.GetProviderListFromNodeList(nodeList, logger)
-		logger.Info("providerList for cluster agent", "providerList", providerList) //output is default-rhcos for label node.openshift.io/os_id=rhcos
+		logger.Info("providerList for cluster agent", "providerList", providerList)
 	}
 
 	// One one provider (one deployment) for cluster agent, keep only the non-default provider

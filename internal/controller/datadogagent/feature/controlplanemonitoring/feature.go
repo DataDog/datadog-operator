@@ -55,22 +55,11 @@ func (f *controlPlaneMonitoringFeature) Configure(dda metav1.Object, ddaSpec *v2
 	f.eksConfigMapName = eksConfigMapName
 
 	controlPlaneMonitoring := ddaSpec.Features.ControlPlaneMonitoring
-	f.logger.Info("Control plane monitoring feature state",
-		"feature", feature.ControlPlaneMonitoringIDType,
-		"enabled", controlPlaneMonitoring != nil && apiutils.BoolValue(controlPlaneMonitoring.Enabled),
-		"provider", f.provider,
-		"config", controlPlaneMonitoring)
 
 	if controlPlaneMonitoring != nil && apiutils.BoolValue(controlPlaneMonitoring.Enabled) {
 		f.enabled = true
-		f.logger.V(1).Info("Control plane monitoring feature enabled",
-			"feature", feature.ControlPlaneMonitoringIDType,
-			"requiredComponents", reqComp)
 		reqComp.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
 		reqComp.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
-		f.logger.V(1).Info("Control plane monitoring feature requirements set",
-			"feature", feature.ControlPlaneMonitoringIDType,
-			"requiredComponents", reqComp)
 	}
 	return reqComp
 }
