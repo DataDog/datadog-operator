@@ -282,6 +282,10 @@ func asKey(rule rbacv1.PolicyRule) string {
 }
 
 func normalizePolicyRules(rules []rbacv1.PolicyRule) []rbacv1.PolicyRule {
+	if len(rules) == 0 {
+		return nil
+	}
+
 	// deep copy to avoid modifying the original slice
 	normalized := make([]rbacv1.PolicyRule, 0, len(rules))
 	for _, rule := range rules {
@@ -300,9 +304,6 @@ func normalizePolicyRules(rules []rbacv1.PolicyRule) []rbacv1.PolicyRule {
 		return cmp.Compare(asKey(a), asKey(b))
 	})
 
-	if len(normalized) == 0 {
-		return nil
-	}
 	// remove duplicates
 	j := 0
 	for i := 1; i < len(normalized); i++ {
