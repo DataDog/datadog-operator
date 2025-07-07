@@ -24,14 +24,15 @@ import (
 )
 
 // ApplyGlobalDependencies applies the global dependencies for a DatadogAgent instance.
-func ApplyGlobalDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, resourceManagers feature.ResourceManagers) []error {
-	return addDependencies(logger, ddaMeta, ddaSpec, resourceManagers)
+// fromDDAI is true if the dependencies are being applied to a DatadogAgentInternal instance.
+func ApplyGlobalDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, resourceManagers feature.ResourceManagers, fromDDAI bool) []error {
+	return addDependencies(logger, ddaMeta, ddaSpec, resourceManagers, fromDDAI)
 }
 
 // ApplyGlobalComponentDependencies applies the global dependencies for a component.
-func ApplyGlobalComponentDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, resourceManagers feature.ResourceManagers, componentName v2alpha1.ComponentName, rc feature.RequiredComponent) []error {
+func ApplyGlobalComponentDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus, resourceManagers feature.ResourceManagers, componentName v2alpha1.ComponentName, rc feature.RequiredComponent, fromDDAI bool) []error {
 	if rc.IsEnabled() {
-		return addComponentDependencies(logger, dda, resourceManagers, componentName, rc)
+		return addComponentDependencies(logger, ddaMeta, ddaSpec, ddaStatus, resourceManagers, componentName, rc, fromDDAI)
 	}
 	return nil
 }
