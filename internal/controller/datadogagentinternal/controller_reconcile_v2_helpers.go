@@ -9,9 +9,9 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/global"
 )
 
 // STEP 2 of the reconcile loop: reconcile 3 components
@@ -33,7 +33,7 @@ func (r *Reconciler) setupDependencies(instance *datadoghqv1alpha1.DatadogAgentI
 func (r *Reconciler) manageGlobalDependencies(logger logr.Logger, ddai *datadoghqv1alpha1.DatadogAgentInternal, resourceManagers feature.ResourceManagers, requiredComponents feature.RequiredComponents) error {
 	var errs []error
 	// Non component specific dependencies
-	if err := global.ApplyGlobalDependencies(logger, ddai, resourceManagers); len(err) > 0 {
+	if err := global.ApplyGlobalDependencies(logger, ddai.GetObjectMeta(), &ddai.Spec, resourceManagers); len(err) > 0 {
 		errs = append(errs, err...)
 	}
 
