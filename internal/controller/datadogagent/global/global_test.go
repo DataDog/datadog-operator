@@ -665,7 +665,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				Agent:        reqComp,
 			}
 			ApplyGlobalComponentDependencies(logger, tt.dda, resourcesManager, v2alpha1.NodeAgentComponentName, reqComp)
-			ApplyGlobalSettingsNodeAgent(logger, podTemplateManager, tt.dda, resourcesManager, tt.singleContainerStrategyEnabled, requiredComponents)
+			ApplyGlobalSettingsNodeAgent(logger, podTemplateManager, tt.dda.GetObjectMeta(), &tt.dda.Spec, resourcesManager, tt.singleContainerStrategyEnabled, requiredComponents)
 
 			tt.want(t, podTemplateManager, tt.wantCoreAgentEnvVars, tt.wantEnvVars, tt.wantVolumes, tt.wantCoreAgentVolumeMounts, tt.wantVolumeMounts)
 			// Assert dependencies if and only if a dependency is expected
@@ -955,7 +955,7 @@ func Test_UseFIPSAgent(t *testing.T) {
 	t.Run("test", func(t *testing.T) {
 		resourcesManager := feature.NewResourceManagers(store)
 
-		applyGlobalSettings(logger, existingManager, dda, resourcesManager, requiredComponents)
+		applyGlobalSettings(logger, existingManager, dda.GetObjectMeta(), &dda.Spec, resourcesManager, requiredComponents)
 
 		checkFIPSImages(t, existingManager)
 	})

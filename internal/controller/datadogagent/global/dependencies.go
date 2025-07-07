@@ -30,20 +30,20 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
-func addDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) []error {
+func addDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, manager feature.ResourceManagers) []error {
 	var errs []error
 	// Install info
-	if err := addInstallInfoDependencies(logger, dda, manager); err != nil {
+	if err := addInstallInfoDependencies(logger, ddaMeta, manager); err != nil {
 		errs = append(errs, err)
 	}
 
 	// APM Telemetry
-	if err := AddAPMTelemetryDependencies(logger, dda, manager); err != nil {
+	if err := AddAPMTelemetryDependencies(logger, ddaMeta, manager); err != nil {
 		errs = append(errs, err)
 	}
 
 	// Credentials
-	if err := AddCredentialDependencies(logger, dda, manager); err != nil {
+	if err := AddCredentialDependencies(logger, ddaMeta, ddaSpec, manager); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -69,7 +69,7 @@ func addComponentDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, ma
 		// This is mounted in the init-volume container in the agent default code.
 		for _, containerName := range rc.Containers {
 			if containerName == apicommon.SystemProbeContainerName {
-				if !useSystemProbeCustomSeccomp(dda) {
+				if !useSystemProbeCustomSeccomp(&dda.Spec) {
 					errs = append(errs, manager.ConfigMapManager().AddConfigMap(
 						common.GetDefaultSeccompConfigMapName(dda),
 						dda.GetNamespace(),
@@ -81,17 +81,17 @@ func addComponentDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, ma
 	}
 
 	// RBAC
-	if err := rbacDependencies(logger, dda, manager, componentName); err != nil {
+	if err := rbacDependencies(dda.GetObjectMeta(), &dda.Spec, manager, componentName); err != nil {
 		errs = append(errs, err)
 	}
 
 	// Network policy
-	if err := addNetworkPolicyDependencies(dda, manager, componentName); err != nil {
+	if err := addNetworkPolicyDependencies(dda.GetObjectMeta(), &dda.Spec, manager, componentName); err != nil {
 		errs = append(errs, err)
 	}
 
 	// Secret backend
-	if err := addSecretBackendDependencies(logger, dda, manager, componentName); err != nil {
+	if err := addSecretBackendDependencies(logger, dda.GetObjectMeta(), &dda.Spec, manager, componentName); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -136,10 +136,10 @@ func AddAPMTelemetryDependencies(_ logr.Logger, dda metav1.Object, manager featu
 	return nil
 }
 
-func AddCredentialDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
+func AddCredentialDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, manager feature.ResourceManagers) error {
 	// Prioritize existing secrets
 	// Credentials should be non-nil from validation
-	global := dda.Spec.Global
+	global := ddaSpec.Global
 	apiKeySecretValid := IsValidSecretConfig(global.Credentials.APISecret)
 	appKeySecretValid := IsValidSecretConfig(global.Credentials.AppSecret)
 
@@ -149,13 +149,13 @@ func AddCredentialDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, m
 	}
 
 	// Secret needs to be created for at least one key
-	secretName := secrets.GetDefaultCredentialsSecretName(dda)
+	secretName := secrets.GetDefaultCredentialsSecretName(ddaMeta)
 	// Create API key secret
 	if !apiKeySecretValid {
 		if global.Credentials.APIKey == nil || *global.Credentials.APIKey == "" {
 			return fmt.Errorf("api key must be set")
 		}
-		if err := manager.SecretManager().AddSecret(dda.Namespace, secretName, v2alpha1.DefaultAPIKeyKey, *global.Credentials.APIKey); err != nil {
+		if err := manager.SecretManager().AddSecret(ddaMeta.GetNamespace(), secretName, v2alpha1.DefaultAPIKeyKey, *global.Credentials.APIKey); err != nil {
 			logger.Error(err, "Error adding api key secret")
 		}
 	}
@@ -164,7 +164,7 @@ func AddCredentialDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, m
 	// App key is optional
 	if !appKeySecretValid {
 		if global.Credentials.AppKey != nil && *global.Credentials.AppKey != "" {
-			if err := manager.SecretManager().AddSecret(dda.Namespace, secretName, v2alpha1.DefaultAPPKeyKey, *global.Credentials.AppKey); err != nil {
+			if err := manager.SecretManager().AddSecret(ddaMeta.GetNamespace(), secretName, v2alpha1.DefaultAPPKeyKey, *global.Credentials.AppKey); err != nil {
 				logger.Error(err, "Error adding app key secret")
 			}
 		}
@@ -218,41 +218,41 @@ func AddDCATokenDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, man
 	return nil
 }
 
-func rbacDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers, componentName v2alpha1.ComponentName) error {
+func rbacDependencies(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, manager feature.ResourceManagers, componentName v2alpha1.ComponentName) error {
 	switch componentName {
 	case v2alpha1.ClusterAgentComponentName:
-		return clusterAgentDependencies(logger, dda, manager)
+		return clusterAgentDependencies(ddaMeta, ddaSpec, manager)
 	case v2alpha1.NodeAgentComponentName:
-		return nodeAgentDependencies(logger, dda, manager)
+		return nodeAgentDependencies(ddaMeta, ddaSpec, manager)
 	case v2alpha1.ClusterChecksRunnerComponentName:
-		return clusterChecksRunnerDependencies(logger, dda, manager)
+		return clusterChecksRunnerDependencies(ddaMeta, ddaSpec, manager)
 	}
 
 	return nil
 }
 
-func clusterAgentDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
+func clusterAgentDependencies(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, manager feature.ResourceManagers) error {
 	var errs []error
-	serviceAccountName := constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec)
-	rbacResourcesName := clusteragent.GetClusterAgentRbacResourcesName(dda)
+	serviceAccountName := constants.GetClusterAgentServiceAccount(ddaMeta.GetName(), ddaSpec)
+	rbacResourcesName := clusteragent.GetClusterAgentRbacResourcesName(ddaMeta)
 
 	// Service account
-	if err := manager.RBACManager().AddServiceAccountByComponent(dda.Namespace, serviceAccountName, string(v2alpha1.ClusterAgentComponentName)); err != nil {
+	if err := manager.RBACManager().AddServiceAccountByComponent(ddaMeta.GetNamespace(), serviceAccountName, string(v2alpha1.ClusterAgentComponentName)); err != nil {
 		errs = append(errs, err)
 	}
 
 	// Role Creation
-	if err := manager.RBACManager().AddPolicyRulesByComponent(dda.Namespace, rbacResourcesName, serviceAccountName, clusteragent.GetDefaultClusterAgentRolePolicyRules(dda), string(v2alpha1.ClusterAgentComponentName)); err != nil {
+	if err := manager.RBACManager().AddPolicyRulesByComponent(ddaMeta.GetNamespace(), rbacResourcesName, serviceAccountName, clusteragent.GetDefaultClusterAgentRolePolicyRules(ddaMeta), string(v2alpha1.ClusterAgentComponentName)); err != nil {
 		errs = append(errs, err)
 	}
 
 	// ClusterRole creation
-	if err := manager.RBACManager().AddClusterPolicyRulesByComponent(dda.Namespace, rbacResourcesName, serviceAccountName, clusteragent.GetDefaultClusterAgentClusterRolePolicyRules(dda), string(v2alpha1.ClusterAgentComponentName)); err != nil {
+	if err := manager.RBACManager().AddClusterPolicyRulesByComponent(ddaMeta.GetNamespace(), rbacResourcesName, serviceAccountName, clusteragent.GetDefaultClusterAgentClusterRolePolicyRules(ddaMeta), string(v2alpha1.ClusterAgentComponentName)); err != nil {
 		errs = append(errs, err)
 	}
 
 	// Service
-	service := clusteragent.GetClusterAgentService(dda)
+	service := clusteragent.GetClusterAgentService(ddaMeta)
 	if err := manager.ServiceManager().AddService(service.Name, service.Namespace, service.Spec.Selector, service.Spec.Ports, service.Spec.InternalTrafficPolicy); err != nil {
 		errs = append(errs, err)
 	}
@@ -260,48 +260,48 @@ func clusterAgentDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, ma
 	return nil
 }
 
-func nodeAgentDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
+func nodeAgentDependencies(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, manager feature.ResourceManagers) error {
 	var errs []error
-	serviceAccountName := constants.GetAgentServiceAccount(dda.Name, &dda.Spec)
-	rbacResourcesName := agent.GetAgentRoleName(dda)
+	serviceAccountName := constants.GetAgentServiceAccount(ddaMeta.GetName(), ddaSpec)
+	rbacResourcesName := agent.GetAgentRoleName(ddaMeta)
 
 	// Service account
-	if err := manager.RBACManager().AddServiceAccountByComponent(dda.Namespace, serviceAccountName, string(v2alpha1.NodeAgentComponentName)); err != nil {
+	if err := manager.RBACManager().AddServiceAccountByComponent(ddaMeta.GetNamespace(), serviceAccountName, string(v2alpha1.NodeAgentComponentName)); err != nil {
 		errs = append(errs, err)
 	}
 
 	// ClusterRole creation
-	if err := manager.RBACManager().AddClusterPolicyRulesByComponent(dda.Namespace, rbacResourcesName, serviceAccountName, agent.GetDefaultAgentClusterRolePolicyRules(disableNonResourceRules(dda)), string(v2alpha1.NodeAgentComponentName)); err != nil {
+	if err := manager.RBACManager().AddClusterPolicyRulesByComponent(ddaMeta.GetNamespace(), rbacResourcesName, serviceAccountName, agent.GetDefaultAgentClusterRolePolicyRules(disableNonResourceRules(ddaSpec)), string(v2alpha1.NodeAgentComponentName)); err != nil {
 		errs = append(errs, err)
 	}
 
 	return nil
 }
 
-func clusterChecksRunnerDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
+func clusterChecksRunnerDependencies(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, manager feature.ResourceManagers) error {
 	var errs []error
-	serviceAccountName := constants.GetClusterChecksRunnerServiceAccount(dda.Name, &dda.Spec)
-	rbacResourcesName := clusterchecksrunner.GetCCRRbacResourcesName(dda)
+	serviceAccountName := constants.GetClusterChecksRunnerServiceAccount(ddaMeta.GetName(), ddaSpec)
+	rbacResourcesName := clusterchecksrunner.GetCCRRbacResourcesName(ddaMeta)
 
 	// Service account
-	if err := manager.RBACManager().AddServiceAccountByComponent(dda.Namespace, serviceAccountName, string(v2alpha1.ClusterChecksRunnerComponentName)); err != nil {
+	if err := manager.RBACManager().AddServiceAccountByComponent(ddaMeta.GetNamespace(), serviceAccountName, string(v2alpha1.ClusterChecksRunnerComponentName)); err != nil {
 		errs = append(errs, err)
 	}
 
 	// ClusterRole creation
-	if err := manager.RBACManager().AddClusterPolicyRulesByComponent(dda.Namespace, rbacResourcesName, serviceAccountName, clusterchecksrunner.GetDefaultClusterChecksRunnerClusterRolePolicyRules(dda, disableNonResourceRules(dda)), string(v2alpha1.ClusterChecksRunnerComponentName)); err != nil {
+	if err := manager.RBACManager().AddClusterPolicyRulesByComponent(ddaMeta.GetNamespace(), rbacResourcesName, serviceAccountName, clusterchecksrunner.GetDefaultClusterChecksRunnerClusterRolePolicyRules(ddaMeta, disableNonResourceRules(ddaSpec)), string(v2alpha1.ClusterChecksRunnerComponentName)); err != nil {
 		errs = append(errs, err)
 	}
 
 	return nil
 }
 
-func addNetworkPolicyDependencies(dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers, componentName v2alpha1.ComponentName) error {
-	config := dda.Spec.Global
-	if enabled, flavor := constants.IsNetworkPolicyEnabled(&dda.Spec); enabled {
+func addNetworkPolicyDependencies(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, manager feature.ResourceManagers, componentName v2alpha1.ComponentName) error {
+	config := ddaSpec.Global
+	if enabled, flavor := constants.IsNetworkPolicyEnabled(ddaSpec); enabled {
 		switch flavor {
 		case v2alpha1.NetworkPolicyFlavorKubernetes:
-			return manager.NetworkPolicyManager().AddKubernetesNetworkPolicy(objects.BuildKubernetesNetworkPolicy(dda, componentName))
+			return manager.NetworkPolicyManager().AddKubernetesNetworkPolicy(objects.BuildKubernetesNetworkPolicy(ddaMeta, componentName))
 		case v2alpha1.NetworkPolicyFlavorCilium:
 			var dnsSelectorEndpoints []metav1.LabelSelector
 			if config.NetworkPolicy.DNSSelectorEndpoints != nil {
@@ -309,10 +309,10 @@ func addNetworkPolicyDependencies(dda *v2alpha1.DatadogAgent, manager feature.Re
 			}
 			return manager.CiliumPolicyManager().AddCiliumPolicy(
 				objects.BuildCiliumPolicy(
-					dda,
+					ddaMeta,
 					*config.Site,
-					getURLEndpoint(dda),
-					constants.IsHostNetworkEnabled(&dda.Spec, v2alpha1.ClusterAgentComponentName),
+					getURLEndpoint(ddaSpec),
+					constants.IsHostNetworkEnabled(ddaSpec, v2alpha1.ClusterAgentComponentName),
 					dnsSelectorEndpoints,
 					componentName,
 				),
@@ -323,21 +323,21 @@ func addNetworkPolicyDependencies(dda *v2alpha1.DatadogAgent, manager feature.Re
 	return nil
 }
 
-func addSecretBackendDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers, component v2alpha1.ComponentName) error {
-	global := dda.Spec.Global
+func addSecretBackendDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, manager feature.ResourceManagers, component v2alpha1.ComponentName) error {
+	global := ddaSpec.Global
 	if global.SecretBackend != nil {
 		var componentSaName string
 		switch component {
 		case v2alpha1.ClusterAgentComponentName:
-			componentSaName = constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec)
+			componentSaName = constants.GetClusterAgentServiceAccount(ddaMeta.GetName(), ddaSpec)
 		case v2alpha1.NodeAgentComponentName:
-			componentSaName = constants.GetAgentServiceAccount(dda.Name, &dda.Spec)
+			componentSaName = constants.GetAgentServiceAccount(ddaMeta.GetName(), ddaSpec)
 		case v2alpha1.ClusterChecksRunnerComponentName:
-			componentSaName = constants.GetClusterChecksRunnerServiceAccount(dda.Name, &dda.Spec)
+			componentSaName = constants.GetClusterChecksRunnerServiceAccount(ddaMeta.GetName(), ddaSpec)
 		}
 
-		agentName := dda.GetName()
-		agentNs := dda.GetNamespace()
+		agentName := ddaMeta.GetName()
+		agentNs := ddaMeta.GetNamespace()
 		rbacSuffix := "secret-backend"
 
 		// Set global RBAC config (only if specific roles are not defined)
@@ -380,8 +380,8 @@ func addSecretBackendDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent
 	return nil
 }
 
-func disableNonResourceRules(dda *v2alpha1.DatadogAgent) bool {
-	return dda.Spec.Global != nil && dda.Spec.Global.DisableNonResourceRules != nil && *dda.Spec.Global.DisableNonResourceRules
+func disableNonResourceRules(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	return ddaSpec.Global != nil && ddaSpec.Global.DisableNonResourceRules != nil && *ddaSpec.Global.DisableNonResourceRules
 }
 
 func resourcesAsTagsDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
