@@ -42,7 +42,7 @@ func (r *Reconciler) setupDependencies(instance *datadoghqv2alpha1.DatadogAgent,
 func (r *Reconciler) manageGlobalDependencies(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, resourceManagers feature.ResourceManagers, requiredComponents feature.RequiredComponents) error {
 	var errs []error
 	// Non component specific dependencies
-	if err := global.ApplyGlobalDependencies(logger, dda, resourceManagers); len(err) > 0 {
+	if err := global.ApplyGlobalDependencies(logger, dda.GetObjectMeta(), &dda.Spec, resourceManagers); len(err) > 0 {
 		errs = append(errs, err...)
 	}
 

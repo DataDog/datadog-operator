@@ -25,7 +25,7 @@ func (r *Reconciler) manageDDADependenciesWithDDAI(ctx context.Context, logger l
 	depsStore, resourceManagers := r.setupDependencies(instance, logger)
 
 	// Credentials
-	if err := global.AddCredentialDependencies(logger, instance, resourceManagers); err != nil {
+	if err := global.AddCredentialDependencies(logger, instance.GetObjectMeta(), &instance.Spec, resourceManagers); err != nil {
 		return err
 	}
 	// DCA token
