@@ -95,16 +95,19 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 
 	// Create or update the DDAI object in k8s
 	for _, ddai := range ddais {
-		if e := r.createOrUpdateDDAI(logger, ddai); e != nil {
+		if e := r.createOrUpdateDDAI(ddai); e != nil {
 			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
 		}
 
 		// Add DDAI status to DDA status
-		if e := r.addDDAIStatusToDDAStatus(logger, newDDAStatus, ddai.ObjectMeta); e != nil {
+		if e := r.addDDAIStatusToDDAStatus(newDDAStatus, ddai.ObjectMeta); e != nil {
 			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
 		}
 
-		// TODO: copy remote config status from DDA to DDAI
+		// Add DDA remote config status to DDAI status
+		if e := r.addRemoteConfigStatusToDDAIStatus(newDDAStatus, ddai); e != nil {
+			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
+		}
 	}
 
 	// Clean up unused DDAI objects
