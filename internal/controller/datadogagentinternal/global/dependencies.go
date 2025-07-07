@@ -18,11 +18,11 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/agent"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/clusteragent"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/clusterchecksrunner"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/objects"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
@@ -181,11 +181,6 @@ func clusterAgentDependencies(logger logr.Logger, dda *v1alpha1.DatadogAgentInte
 
 	// ClusterRole creation
 	if err := manager.RBACManager().AddClusterPolicyRulesByComponent(dda.Namespace, rbacResourcesName, serviceAccountName, clusteragent.GetDefaultClusterAgentClusterRolePolicyRules(dda), string(v2alpha1.ClusterAgentComponentName)); err != nil {
-		errs = append(errs, err)
-	}
-
-	// Service
-	if err := manager.Store().AddOrUpdate(kubernetes.ServicesKind, clusteragent.GetClusterAgentService(dda)); err != nil {
 		errs = append(errs, err)
 	}
 

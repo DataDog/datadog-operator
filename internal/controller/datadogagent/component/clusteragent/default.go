@@ -51,9 +51,9 @@ func getDefaultServiceAccountName(dda metav1.Object) string {
 }
 
 // NewDefaultClusterAgentDeployment return a new default cluster-agent deployment
-func NewDefaultClusterAgentDeployment(dda *v2alpha1.DatadogAgent) *appsv1.Deployment {
-	deployment := common.NewDeployment(dda, constants.DefaultClusterAgentResourceSuffix, component.GetClusterAgentName(dda), GetClusterAgentVersion(dda), nil)
-	podTemplate := NewDefaultClusterAgentPodTemplateSpec(dda)
+func NewDefaultClusterAgentDeployment(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) *appsv1.Deployment {
+	deployment := common.NewDeployment(ddaMeta, constants.DefaultClusterAgentResourceSuffix, component.GetClusterAgentName(ddaMeta), GetClusterAgentVersion(ddaMeta), nil)
+	podTemplate := NewDefaultClusterAgentPodTemplateSpec(ddaMeta, ddaSpec)
 	for key, val := range deployment.GetLabels() {
 		podTemplate.Labels[key] = val
 	}
@@ -68,9 +68,9 @@ func NewDefaultClusterAgentDeployment(dda *v2alpha1.DatadogAgent) *appsv1.Deploy
 }
 
 // NewDefaultClusterAgentPodTemplateSpec return a default PodTemplateSpec for the cluster-agent deployment
-func NewDefaultClusterAgentPodTemplateSpec(dda *v2alpha1.DatadogAgent) *corev1.PodTemplateSpec {
+func NewDefaultClusterAgentPodTemplateSpec(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) *corev1.PodTemplateSpec {
 	volumes := []corev1.Volume{
-		common.GetVolumeInstallInfo(dda),
+		common.GetVolumeInstallInfo(ddaMeta),
 		common.GetVolumeForConfd(),
 		common.GetVolumeForLogs(),
 		common.GetVolumeForCertificates(),
@@ -100,15 +100,15 @@ func NewDefaultClusterAgentPodTemplateSpec(dda *v2alpha1.DatadogAgent) *corev1.P
 			Labels:      make(map[string]string),
 			Annotations: make(map[string]string),
 		},
-		Spec: defaultPodSpec(dda, volumes, volumeMounts, defaultEnvVars(dda)),
+		Spec: defaultPodSpec(ddaMeta, ddaSpec, volumes, volumeMounts, defaultEnvVars(ddaMeta, ddaSpec)),
 	}
 
 	return podTemplate
 }
 
-func defaultPodSpec(dda *v2alpha1.DatadogAgent, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) corev1.PodSpec {
+func defaultPodSpec(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) corev1.PodSpec {
 	podSpec := corev1.PodSpec{
-		ServiceAccountName: getDefaultServiceAccountName(dda),
+		ServiceAccountName: getDefaultServiceAccountName(ddaMeta),
 		Containers: []corev1.Container{
 			{
 				Name:  string(apicommon.ClusterAgentContainerName),
@@ -144,7 +144,7 @@ func defaultPodSpec(dda *v2alpha1.DatadogAgent, volumes []corev1.Volume, volumeM
 	return podSpec
 }
 
-func defaultEnvVars(dda *v2alpha1.DatadogAgent) []corev1.EnvVar {
+func defaultEnvVars(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{
 			Name: DDPodName,
@@ -156,11 +156,11 @@ func defaultEnvVars(dda *v2alpha1.DatadogAgent) []corev1.EnvVar {
 		},
 		{
 			Name:  common.DDClusterAgentKubeServiceName,
-			Value: GetClusterAgentServiceName(dda),
+			Value: GetClusterAgentServiceName(ddaMeta),
 		},
 		{
 			Name:  DDKubeResourcesNamespace,
-			Value: utils.GetDatadogAgentResourceNamespace(dda),
+			Value: utils.GetDatadogAgentResourceNamespace(ddaMeta),
 		},
 		{
 			Name:  common.DDLeaderElection,
@@ -209,19 +209,19 @@ func defaultEnvVars(dda *v2alpha1.DatadogAgent) []corev1.EnvVar {
 		},
 		{
 			Name:  DDClusterAgentServiceAccountName,
-			Value: constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec),
+			Value: constants.GetClusterAgentServiceAccount(ddaMeta.GetName(), ddaSpec),
 		},
 		{
 			Name:  DDAgentDaemonSet,
-			Value: component.GetDaemonSetNameFromDatadogAgent(dda, &dda.Spec),
+			Value: component.GetDaemonSetNameFromDatadogAgent(ddaMeta, ddaSpec),
 		},
 		{
 			Name:  DDClusterAgentDeployment,
-			Value: component.GetDeploymentNameFromDatadogAgent(dda, &dda.Spec),
+			Value: component.GetDeploymentNameFromDatadogAgent(ddaMeta, ddaSpec),
 		},
 		{
 			Name:  DDDatadogAgentCustomResource,
-			Value: dda.Name,
+			Value: ddaMeta.GetName(),
 		},
 	}
 

@@ -39,7 +39,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 	now := metav1.NewTime(time.Now())
 
 	// Start by creating the Default Cluster-Agent deployment
-	deployment := componentdca.NewDefaultClusterAgentDeployment(dda)
+	deployment := componentdca.NewDefaultClusterAgentDeployment(dda.GetObjectMeta(), &dda.Spec)
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
