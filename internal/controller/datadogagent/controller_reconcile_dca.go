@@ -47,23 +47,17 @@ func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Lo
 			return reconcile.Result{}, err
 		}
 		providerList = kubernetes.GetProviderListFromNodeList(nodeList, logger)
-		logger.Info("providerList for cluster agent", "providerList", providerList)
 	}
 
-	// One one provider (one deployment) for cluster agent, keep only the non-default provider
+	// When multiple providers exist, we want a single deployment for the cluster agent.
+	// Remove the default provider to keep only specialized providers (OpenShift, EKS).
 	if len(providerList) > 1 {
-		for provider := range providerList {
-			if provider == kubernetes.DefaultProvider {
-				delete(providerList, provider)
-				break
-			}
-		}
+		delete(providerList, kubernetes.DefaultProvider)
 	}
 
 	// Reconcile cluster agent for each provider
 	var errs []error
 	for provider := range providerList {
-		logger.Info("DCA providerList", "provider", provider)
 		// Start by creating the Default Cluster-Agent deployment
 		deployment := componentdca.NewDefaultClusterAgentDeployment(dda)
 		podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
