@@ -6,19 +6,29 @@
 package controller
 
 import (
+	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/go-logr/logr"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/config"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/metadata"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/utils"
+	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 const (
@@ -78,12 +88,41 @@ var controllerStarters = map[string]starterFunc{
 }
 
 // SetupControllers starts all controllers (also used by e2e tests)
-func SetupControllers(logger logr.Logger, mgr manager.Manager, platformInfo kubernetes.PlatformInfo, options SetupOptions) error {
+func SetupControllers(terminationContext context.Context, logger logr.Logger, mgr manager.Manager, options SetupOptions) error {
+	// Get some information about Kubernetes version
+	// Never use original mgr.GetConfig(), always copy as clients might modify the configuration
+	discoveryConfig := rest.CopyConfig(mgr.GetConfig())
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(discoveryConfig)
+	if err != nil {
+		return fmt.Errorf("unable to get discovery client: %w", err)
+	}
+
+	versionInfo, err := discoveryClient.ServerVersion()
+	if err != nil {
+		return fmt.Errorf("unable to get APIServer version: %w", err)
+	}
+
+	if versionInfo != nil {
+		gitVersion := versionInfo.GitVersion
+		if !utils.IsAboveMinVersion(gitVersion, "1.16-0") {
+			logger.Error(nil, "Detected Kubernetes version <1.16 which requires CRD version apiextensions.k8s.io/v1beta1. "+
+				"CRDs of this version will be deprecated and will not be updated starting with Operator v1.8.0 and will be removed in v1.10.0.")
+		}
+	}
+
+	groups, resources, err := getServerGroupsAndResources(logger, discoveryClient)
+	if err != nil {
+		return fmt.Errorf("unable to get API resource versions: %w", err)
+	}
+	platformInfo := kubernetes.NewPlatformInfo(versionInfo, groups, resources)
 
 	var metricForwardersMgr datadog.MetricsForwardersManager
 	if options.OperatorMetricsEnabled {
 		metricForwardersMgr = datadog.NewForwardersManager(mgr.GetClient(), &platformInfo)
 	}
+
+	mdf := setupMetadataForwarder(ctrl.Log.WithName("metadata"), mgr.GetClient(), versionInfo.String(), &options)
+	mdf.Start(terminationContext)
 
 	for controller, starter := range controllerStarters {
 		if err := starter(logger, mgr, platformInfo, options, metricForwardersMgr); err != nil {
@@ -92,6 +131,43 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, platformInfo kube
 	}
 
 	return nil
+}
+
+func getServerGroupsAndResources(log logr.Logger, discoveryClient *discovery.DiscoveryClient) ([]*v1.APIGroup, []*v1.APIResourceList, error) {
+	groups, resources, err := discoveryClient.ServerGroupsAndResources()
+	if err != nil {
+		if !discovery.IsGroupDiscoveryFailedError(err) {
+			log.Info("GetServerGroupsAndResources ERROR", "err", err)
+			return nil, nil, err
+		}
+	}
+	return groups, resources, nil
+}
+
+func setupMetadataForwarder(logger logr.Logger, client client.Client, kubernetesVersion string, options *SetupOptions) *metadata.MetadataForwarder {
+	mf := metadata.NewMetadataForwarder(logger, client)
+	// TODO hardcoded fields
+	mf.OperatorMetadata = metadata.OperatorMetadata{
+		OperatorVersion:               version.GetVersion(),
+		KubernetesVersion:             kubernetesVersion,
+		InstallMethodTool:             "datadog-operator",
+		InstallMethodToolVersion:      version.GetVersion(),
+		IsLeader:                      true,
+		DatadogAgentEnabled:           options.DatadogAgentEnabled,
+		DatadogMonitorEnabled:         options.DatadogMonitorEnabled,
+		DatadogDashboardEnabled:       options.DatadogDashboardEnabled,
+		DatadogSLOEnabled:             options.DatadogSLOEnabled,
+		DatadogGenericResourceEnabled: options.DatadogGenericResourceEnabled,
+		DatadogAgentProfileEnabled:    options.DatadogAgentProfileEnabled,
+		LeaderElectionEnabled:         true,
+		ExtendedDaemonSetEnabled:      options.SupportExtendedDaemonset.Enabled,
+		RemoteConfigEnabled:           false,
+		IntrospectionEnabled:          options.IntrospectionEnabled,
+		ConfigDDURL:                   os.Getenv(constants.DDURL),
+		ConfigDDSite:                  os.Getenv(constants.DDSite),
+	}
+
+	return mf
 }
 
 func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {

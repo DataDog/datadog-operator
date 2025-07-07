@@ -20,17 +20,13 @@ import (
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/DataDog/dd-trace-go.v1/profiler"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/discovery"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/klog/v2"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
@@ -41,13 +37,9 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/config"
-	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/metadata"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
-	"github.com/DataDog/datadog-operator/pkg/utils"
 	"github.com/DataDog/datadog-operator/pkg/version"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -60,9 +52,8 @@ const (
 )
 
 var (
-	scheme      = runtime.NewScheme()
-	setupLog    = ctrl.Log.WithName("setup")
-	metadataLog = ctrl.Log.WithName("metadata")
+	scheme   = runtime.NewScheme()
+	setupLog = ctrl.Log.WithName("setup")
 )
 
 func init() {
@@ -337,61 +328,20 @@ func run(opts *options) error {
 		DatadogGenericResourceEnabled: opts.datadogGenericResourceEnabled,
 	}
 
-	// Never use original mgr.GetConfig(), always copy as clients might modify the configuration
-	discoveryConfig := rest.CopyConfig(mgr.GetConfig())
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(discoveryConfig)
-	if err != nil {
-		return fmt.Errorf("unable to get discovery client: %w", err)
-	}
+	terminationContext := ctrl.SetupSignalHandler()
 
-	versionInfo, err := discoveryClient.ServerVersion()
-	if err != nil {
-		return fmt.Errorf("unable to get APIServer version: %w", err)
-	}
-
-	if versionInfo != nil {
-		gitVersion := versionInfo.GitVersion
-		if !utils.IsAboveMinVersion(gitVersion, "1.16-0") {
-			setupLog.Error(nil, "Detected Kubernetes version <1.16 which requires CRD version apiextensions.k8s.io/v1beta1. "+
-				"CRDs of this version were removed in v1.10.0.")
-		}
-	}
-
-	groups, resources, err := getServerGroupsAndResources(setupLog, discoveryClient)
-	if err != nil {
-		return fmt.Errorf("unable to get API resource versions: %w", err)
-	}
-	platformInfo := kubernetes.NewPlatformInfo(versionInfo, groups, resources)
-
-	if err = controller.SetupControllers(setupLog, mgr, platformInfo, options); err != nil {
+	if err = controller.SetupControllers(terminationContext, setupLog, mgr, options); err != nil {
 		return setupErrorf(setupLog, err, "Unable to start controllers")
 	}
-
-	mdf := setupMetadataForwarder(metadataLog, mgr.GetClient(), versionInfo.String(), opts)
-	mdf.Start()
 
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(terminationContext); err != nil {
 		return setupErrorf(setupLog, err, "Problem running manager")
 	}
 
-	// Stop metadata forwarder
-	mdf.Stop()
-
 	return nil
-}
-
-func getServerGroupsAndResources(log logr.Logger, discoveryClient *discovery.DiscoveryClient) ([]*v1.APIGroup, []*v1.APIResourceList, error) {
-	groups, resources, err := discoveryClient.ServerGroupsAndResources()
-	if err != nil {
-		if !discovery.IsGroupDiscoveryFailedError(err) {
-			log.Info("GetServerGroupsAndResources ERROR", "err", err)
-			return nil, nil, err
-		}
-	}
-	return groups, resources, nil
 }
 
 func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
@@ -434,29 +384,4 @@ func customSetupHealthChecks(logger logr.Logger, mgr manager.Manager, maximumGor
 func setupErrorf(logger logr.Logger, err error, msg string, keysAndValues ...any) error {
 	setupLog.Error(err, msg, keysAndValues...)
 	return fmt.Errorf("%s, err:%w", msg, err)
-}
-
-func setupMetadataForwarder(logger logr.Logger, client client.Client, kubernetesVersion string, options *options) *metadata.MetadataForwarder {
-	mf := metadata.NewMetadataForwarder(logger, client)
-	mf.OperatorMetadata = metadata.OperatorMetadata{
-		OperatorVersion:               version.GetVersion(),
-		KubernetesVersion:             kubernetesVersion,
-		InstallMethodTool:             "datadog-operator",
-		InstallMethodToolVersion:      version.GetVersion(),
-		IsLeader:                      true,
-		DatadogAgentEnabled:           options.datadogAgentEnabled,
-		DatadogMonitorEnabled:         options.datadogMonitorEnabled,
-		DatadogDashboardEnabled:       options.datadogDashboardEnabled,
-		DatadogSLOEnabled:             options.datadogSLOEnabled,
-		DatadogGenericResourceEnabled: options.datadogGenericResourceEnabled,
-		DatadogAgentProfileEnabled:    options.datadogAgentProfileEnabled,
-		LeaderElectionEnabled:         options.enableLeaderElection,
-		ExtendedDaemonSetEnabled:      options.supportExtendedDaemonset,
-		RemoteConfigEnabled:           options.remoteConfigEnabled,
-		IntrospectionEnabled:          options.introspectionEnabled,
-		ConfigDDURL:                   os.Getenv(constants.DDURL),
-		ConfigDDSite:                  os.Getenv(constants.DDSite),
-	}
-
-	return mf
 }

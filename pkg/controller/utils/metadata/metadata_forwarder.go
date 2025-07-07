@@ -39,7 +39,7 @@ const (
 	acceptHeaderKey        = "Accept"
 
 	defaultURLScheme     = "https"
-	defaultURLHost       = "app.datadog.com"
+	defaultURLHost       = "app.datadoghq.com"
 	defaultURLHostPrefix = "app."
 	defaultURLPath       = "api/v1/metadata"
 
@@ -61,7 +61,6 @@ type MetadataForwarder struct {
 
 	OperatorMetadata OperatorMetadata
 	logger           logr.Logger
-	stopChan         chan struct{}
 }
 
 type OperatorMetadataPayload struct {
@@ -110,7 +109,6 @@ func NewMetadataForwarder(logger logr.Logger, k8sClient client.Client) *Metadata
 		},
 		OperatorMetadata: OperatorMetadata{},
 		logger:           logger,
-		stopChan:         make(chan struct{}),
 		decryptor:        secrets.NewSecretBackend(),
 	}
 
@@ -118,7 +116,7 @@ func NewMetadataForwarder(logger logr.Logger, k8sClient client.Client) *Metadata
 }
 
 // Start starts the metadata forwarder
-func (mdf *MetadataForwarder) Start() {
+func (mdf *MetadataForwarder) Start(terminationContext context.Context) {
 	err := mdf.setCredentials()
 	if err != nil {
 		mdf.logger.Error(err, "Could not set credentials; not starting metadata forwarder")
@@ -134,10 +132,10 @@ func (mdf *MetadataForwarder) Start() {
 	mdf.logger.Info("Starting metadata forwarder")
 
 	ticker := time.NewTicker(defaultInterval)
-	go func() {
+	go func(ctx context.Context) {
 		for {
 			select {
-			case <-mdf.stopChan:
+			case <-terminationContext.Done():
 				ticker.Stop()
 				mdf.logger.Info("Stopping ticker for metadata forwarder")
 				return
@@ -147,13 +145,7 @@ func (mdf *MetadataForwarder) Start() {
 				}
 			}
 		}
-	}()
-}
-
-// Stop stops the metadata forwarder
-func (mdf *MetadataForwarder) Stop() {
-	close(mdf.stopChan)
-	mdf.logger.Info("Stopping metadata forwarder")
+	}(terminationContext)
 }
 
 func (mdf *MetadataForwarder) setCredentials() error {
@@ -182,13 +174,13 @@ func (mdf *MetadataForwarder) sendMetadata() error {
 
 	resp, err := mdf.client.Do(req)
 	if err != nil {
-		return fmt.Errorf("Error sending request: %w", err)
+		return fmt.Errorf("error sending request: %w", err)
 	}
 
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("Failed to read response body: %w", err)
+		return fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	mdf.logger.V(1).Info("Read response", "status code", resp.StatusCode, "body", string(body))
@@ -197,7 +189,7 @@ func (mdf *MetadataForwarder) sendMetadata() error {
 
 func (mdf *MetadataForwarder) setupFromOperator() error {
 	if mdf.credsManager == nil {
-		return fmt.Errorf("Credentials Manager is undefined")
+		return fmt.Errorf("fredentials Manager is undefined")
 	}
 
 	creds, err := mdf.credsManager.GetCredentials()

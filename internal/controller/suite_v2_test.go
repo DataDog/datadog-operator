@@ -36,7 +36,6 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/testutils"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	"github.com/DataDog/datadog-operator/pkg/config"
 	// +kubebuilder:scaffold:imports
@@ -113,9 +112,7 @@ var _ = BeforeSuite(func() {
 		V2APIEnabled:               true,
 	}
 
-	dummyPlatformInfo := kubernetes.PlatformInfo{}
-
-	err = SetupControllers(logger, mgr, dummyPlatformInfo, options)
+	err = SetupControllers(context.TODO(), logger, mgr, options)
 	Expect(err).ToNot(HaveOccurred())
 
 	var mgrCtx context.Context
