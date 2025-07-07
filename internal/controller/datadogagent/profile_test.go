@@ -579,9 +579,8 @@ func Test_setProfileDDAIMeta(t *testing.T) {
 			},
 			want: v1alpha1.DatadogAgentInternal{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:          "foo",
-					Namespace:     "bar",
-					ManagedFields: []metav1.ManagedFieldsEntry{},
+					Name:      "foo",
+					Namespace: "bar",
 				},
 			},
 		},
@@ -606,9 +605,8 @@ func Test_setProfileDDAIMeta(t *testing.T) {
 			},
 			want: v1alpha1.DatadogAgentInternal{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:          "foo-profile-foo",
-					Namespace:     "bar",
-					ManagedFields: []metav1.ManagedFieldsEntry{},
+					Name:      "foo-profile-foo",
+					Namespace: "bar",
 					Labels: map[string]string{
 						agentprofile.ProfileLabelKey: "foo",
 					},

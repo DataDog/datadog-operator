@@ -49,13 +49,17 @@ func SetOverrideFromDDA(dda *v2alpha1.DatadogAgent, ddaiSpec *v2alpha1.DatadogAg
 		}
 		ddaiSpec.Override[v2alpha1.ClusterAgentComponentName].Annotations[global.GetDCATokenChecksumAnnotationKey()] = hash
 
-		if _, ok := ddaiSpec.Override[v2alpha1.ClusterChecksRunnerComponentName]; !ok {
-			ddaiSpec.Override[v2alpha1.ClusterChecksRunnerComponentName] = &v2alpha1.DatadogAgentComponentOverride{}
+		// Add checksum annotation to the cluster checks runner pod template only if the cluster checks runners are enabled
+		// Otherwise, adding an override for a disabled component will cause its status to be "Failed" while it should simply not be set.
+		if constants.IsCCREnabled(ddaiSpec) {
+			if _, ok := ddaiSpec.Override[v2alpha1.ClusterChecksRunnerComponentName]; !ok {
+				ddaiSpec.Override[v2alpha1.ClusterChecksRunnerComponentName] = &v2alpha1.DatadogAgentComponentOverride{}
+			}
+			if ddaiSpec.Override[v2alpha1.ClusterChecksRunnerComponentName].Annotations == nil {
+				ddaiSpec.Override[v2alpha1.ClusterChecksRunnerComponentName].Annotations = make(map[string]string)
+			}
+			ddaiSpec.Override[v2alpha1.ClusterChecksRunnerComponentName].Annotations[global.GetDCATokenChecksumAnnotationKey()] = hash
 		}
-		if ddaiSpec.Override[v2alpha1.ClusterChecksRunnerComponentName].Annotations == nil {
-			ddaiSpec.Override[v2alpha1.ClusterChecksRunnerComponentName].Annotations = make(map[string]string)
-		}
-		ddaiSpec.Override[v2alpha1.ClusterChecksRunnerComponentName].Annotations[global.GetDCATokenChecksumAnnotationKey()] = hash
 	}
 }
 

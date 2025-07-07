@@ -81,6 +81,9 @@ func (r *Reconciler) computeProfileMerge(ddai *v1alpha1.DatadogAgentInternal, pr
 		return nil, err
 	}
 
+	// ensure gvk is set
+	baseDDAI.GetObjectKind().SetGroupVersionKind(getDDAIGVK())
+	profileDDAI.GetObjectKind().SetGroupVersionKind(getDDAIGVK())
 	// Server side apply to merge DDAIs
 	obj, err := r.ssaMergeCRD(baseDDAI, profileDDAI)
 	if err != nil {
@@ -131,8 +134,8 @@ func setProfileDDAIAffinity(ddai *v1alpha1.DatadogAgentInternal, profile *v1alph
 func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) error {
 	// Name
 	ddai.Name = getProfileDDAIName(ddai.Name, profile.Name, profile.Namespace)
-	// Managed fields
-	ddai.ManagedFields = []metav1.ManagedFieldsEntry{}
+	// Managed fields needs to be nil for server-side apply
+	ddai.ManagedFields = nil
 	// Include the profile label in the DDAI metadata only for non-default profiles.
 	// This is used to determine whether or not the EDS should be created (only for default profile).
 	// This could possibly be used for GC of the profile DDAIs too.
