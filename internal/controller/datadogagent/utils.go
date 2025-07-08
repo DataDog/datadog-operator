@@ -196,3 +196,11 @@ func getDDAICRDFromConfig(sch *runtime.Scheme) (*apiextensionsv1.CustomResourceD
 
 	return nil, fmt.Errorf("decoded object is not a CustomResourceDefinition")
 }
+
+func getDDAIGVK() schema.GroupVersionKind {
+	return schema.GroupVersionKind{
+		Group:   "datadoghq.com",
+		Version: "v1alpha1",
+		Kind:    "DatadogAgentInternal",
+	}
+}

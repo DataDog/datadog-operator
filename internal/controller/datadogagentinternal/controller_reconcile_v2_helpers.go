@@ -9,9 +9,9 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/global"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/override"
 )
 
 // STEP 2 of the reconcile loop: reconcile 3 components
@@ -33,18 +33,18 @@ func (r *Reconciler) setupDependencies(instance *datadoghqv1alpha1.DatadogAgentI
 func (r *Reconciler) manageGlobalDependencies(logger logr.Logger, ddai *datadoghqv1alpha1.DatadogAgentInternal, resourceManagers feature.ResourceManagers, requiredComponents feature.RequiredComponents) error {
 	var errs []error
 	// Non component specific dependencies
-	if err := global.ApplyGlobalDependencies(logger, ddai, resourceManagers); len(err) > 0 {
+	if err := global.ApplyGlobalDependencies(logger, ddai.GetObjectMeta(), &ddai.Spec, resourceManagers, true); len(err) > 0 {
 		errs = append(errs, err...)
 	}
 
 	// Component specific dependencies
-	if err := global.ApplyGlobalComponentDependencies(logger, ddai, resourceManagers, datadoghqv2alpha1.ClusterAgentComponentName, requiredComponents.ClusterAgent); len(err) > 0 {
+	if err := global.ApplyGlobalComponentDependencies(logger, ddai.GetObjectMeta(), &ddai.Spec, nil, resourceManagers, datadoghqv2alpha1.ClusterAgentComponentName, requiredComponents.ClusterAgent, true); len(err) > 0 {
 		errs = append(errs, err...)
 	}
-	if err := global.ApplyGlobalComponentDependencies(logger, ddai, resourceManagers, datadoghqv2alpha1.NodeAgentComponentName, requiredComponents.Agent); len(err) > 0 {
+	if err := global.ApplyGlobalComponentDependencies(logger, ddai.GetObjectMeta(), &ddai.Spec, nil, resourceManagers, datadoghqv2alpha1.NodeAgentComponentName, requiredComponents.Agent, true); len(err) > 0 {
 		errs = append(errs, err...)
 	}
-	if err := global.ApplyGlobalComponentDependencies(logger, ddai, resourceManagers, datadoghqv2alpha1.ClusterChecksRunnerComponentName, requiredComponents.ClusterChecksRunner); len(err) > 0 {
+	if err := global.ApplyGlobalComponentDependencies(logger, ddai.GetObjectMeta(), &ddai.Spec, nil, resourceManagers, datadoghqv2alpha1.ClusterChecksRunnerComponentName, requiredComponents.ClusterChecksRunner, true); len(err) > 0 {
 		errs = append(errs, err...)
 	}
 
@@ -71,7 +71,7 @@ func (r *Reconciler) manageFeatureDependencies(logger logr.Logger, features []fe
 
 // overrideDependencies wraps the dependency override logic.
 func (r *Reconciler) overrideDependencies(logger logr.Logger, resourceManagers feature.ResourceManagers, instance *datadoghqv1alpha1.DatadogAgentInternal) error {
-	errs := override.Dependencies(logger, resourceManagers, instance)
+	errs := override.Dependencies(logger, resourceManagers, instance.GetObjectMeta(), &instance.Spec)
 	if len(errs) > 0 {
 		return errors.NewAggregate(errs)
 	}

@@ -30,8 +30,8 @@ func SetOverrideFromDDA(dda *v2alpha1.DatadogAgent, ddaiSpec *v2alpha1.DatadogAg
 	// Set empty provider label
 	ddaiSpec.Override[v2alpha1.NodeAgentComponentName].Labels[constants.MD5AgentDeploymentProviderLabelKey] = ""
 
-	// Add checksum annotation to the node agent and cluster agent pod templates if the cluster agent token is set in DDA spec
-	// This is used to trigger a redeployment of the node agent when the cluster agent token is changed
+	// Add checksum annotation to the components (nodeAgent, clusterAgent, clusterChecksRunner) pod templates if the cluster agent token is set in DDA spec
+	// This is used to trigger a redeployment of the components when the cluster agent token is changed
 	// This is needed as DDAI are always using a DCA token secret, while the DDA can use a token from a secret or a literal value
 	if shouldAddDCATokenChecksumAnnotation(dda) {
 		token := apiutils.StringValue(dda.Spec.Global.ClusterAgentToken)
@@ -48,6 +48,18 @@ func SetOverrideFromDDA(dda *v2alpha1.DatadogAgent, ddaiSpec *v2alpha1.DatadogAg
 			ddaiSpec.Override[v2alpha1.ClusterAgentComponentName].Annotations = make(map[string]string)
 		}
 		ddaiSpec.Override[v2alpha1.ClusterAgentComponentName].Annotations[global.GetDCATokenChecksumAnnotationKey()] = hash
+
+		// Add checksum annotation to the cluster checks runner pod template only if the cluster checks runners are enabled
+		// Otherwise, adding an override for a disabled component will cause its status to be "Failed" while it should simply not be set.
+		if constants.IsCCREnabled(ddaiSpec) {
+			if _, ok := ddaiSpec.Override[v2alpha1.ClusterChecksRunnerComponentName]; !ok {
+				ddaiSpec.Override[v2alpha1.ClusterChecksRunnerComponentName] = &v2alpha1.DatadogAgentComponentOverride{}
+			}
+			if ddaiSpec.Override[v2alpha1.ClusterChecksRunnerComponentName].Annotations == nil {
+				ddaiSpec.Override[v2alpha1.ClusterChecksRunnerComponentName].Annotations = make(map[string]string)
+			}
+			ddaiSpec.Override[v2alpha1.ClusterChecksRunnerComponentName].Annotations[global.GetDCATokenChecksumAnnotationKey()] = hash
+		}
 	}
 }
 
