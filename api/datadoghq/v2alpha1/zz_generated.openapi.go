@@ -1494,6 +1494,13 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_OtelCollectorFeatureConfig(r
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CoreConfig"),
 						},
 					},
+					"useStandaloneImage": {
+						SchemaProps: spec.SchemaProps{
+							Description: "UseStandaloneImage configures the otel-agent container to use the standalone image. Ensure you can pull the ddot-collector image (gcr.io/datadoghq/ddot-collector:7.67.0) if this is set to true. Requires agent version 7.67.0 or higher. If false, the otel-agent container will use the `full` flavor of the datadog/agent image. Default: true",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
