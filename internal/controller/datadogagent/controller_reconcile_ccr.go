@@ -40,7 +40,7 @@ func (r *Reconciler) reconcileV2ClusterChecksRunner(logger logr.Logger, required
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
-	global.ApplyGlobalSettingsClusterChecksRunner(logger, podManagers, dda, resourcesManager, requiredComponents)
+	global.ApplyGlobalSettingsClusterChecksRunner(logger, podManagers, dda.GetObjectMeta(), &dda.Spec, resourcesManager, requiredComponents)
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
