@@ -15,11 +15,11 @@ import (
 
 const (
 	// AgentLatestVersion corresponds to the latest stable agent release
-	AgentLatestVersion = "7.66.1"
+	AgentLatestVersion = "7.67.0"
 	// ClusterAgentLatestVersion corresponds to the latest stable cluster-agent release
-	ClusterAgentLatestVersion = "7.66.1"
+	ClusterAgentLatestVersion = "7.67.0"
 	// FIPSProxyLatestVersion corresponds to the latest stable fips-proxy release
-	FIPSProxyLatestVersion = "1.1.12"
+	FIPSProxyLatestVersion = "1.1.13"
 	// GCRContainerRegistry corresponds to the datadoghq GCR registry
 	GCRContainerRegistry = "gcr.io/datadoghq"
 	// DockerHubContainerRegistry corresponds to the datadoghq docker.io registry
@@ -42,7 +42,6 @@ const (
 	// Default Image names
 	DefaultAgentImageName        string = "agent"
 	DefaultClusterAgentImageName string = "cluster-agent"
-	OTelAgentBetaTag                    = "7.63.0-ot-beta-jmx"
 )
 
 // imageHasTag identifies whether an image string contains a tag suffix

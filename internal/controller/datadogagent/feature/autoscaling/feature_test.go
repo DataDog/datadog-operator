@@ -102,14 +102,14 @@ func testRBACResources(t testing.TB, store store.StoreClient) {
 					Resources: []string{"datadogpodautoscalers", "datadogpodautoscalers/status"},
 				},
 				{
-					Verbs:     []string{"get", "update"},
-					APIGroups: []string{"*"},
-					Resources: []string{"*/scale"},
-				},
-				{
 					Verbs:     []string{"create", "patch"},
 					APIGroups: []string{""},
 					Resources: []string{"events"},
+				},
+				{
+					Verbs:     []string{"get", "update"},
+					APIGroups: []string{"*"},
+					Resources: []string{"*/scale"},
 				},
 				{
 					Verbs:     []string{"patch"},

@@ -27,9 +27,9 @@ func GetDCATokenChecksumAnnotationKey() string {
 	return object.GetChecksumAnnotationKey("dca-token")
 }
 
-func getURLEndpoint(dda *v2alpha1.DatadogAgent) string {
-	if dda.Spec.Global.Endpoint != nil && dda.Spec.Global.Endpoint.URL != nil {
-		return *dda.Spec.Global.Endpoint.URL
+func getURLEndpoint(ddaSpec *v2alpha1.DatadogAgentSpec) string {
+	if ddaSpec.Global.Endpoint != nil && ddaSpec.Global.Endpoint.URL != nil {
+		return *ddaSpec.Global.Endpoint.URL
 	}
 	return ""
 }
@@ -43,8 +43,8 @@ func getInstallInfoValue() string {
 	return fmt.Sprintf(installInfoDataTmpl, toolVersion, version.Version)
 }
 
-func useSystemProbeCustomSeccomp(dda *v2alpha1.DatadogAgent) bool {
-	if componentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
+func useSystemProbeCustomSeccomp(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	if componentOverride, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
 		if container, ok := componentOverride.Containers[apicommon.SystemProbeContainerName]; ok {
 			// Only ConfigMap is supported for now
 			if container.SeccompConfig != nil && container.SeccompConfig.CustomProfile != nil && container.SeccompConfig.CustomProfile.ConfigMap != nil {

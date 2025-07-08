@@ -252,7 +252,7 @@ defaults
 			store := store.NewStore(tt.dda, storeOptions)
 			resourcesManager := feature.NewResourceManagers(store)
 
-			applyFIPSConfig(logger, podTemplateManager, tt.dda, resourcesManager)
+			applyFIPSConfig(logger, podTemplateManager, tt.dda.GetObjectMeta(), &tt.dda.Spec, resourcesManager)
 
 			tt.want(t, podTemplateManager, store)
 		})

@@ -55,11 +55,11 @@ func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Lo
 	for provider := range providerList {
 		logger.Info("DCA providerList", "provider", provider)
 		// Start by creating the Default Cluster-Agent deployment
-		deployment := componentdca.NewDefaultClusterAgentDeployment(dda)
+		deployment := componentdca.NewDefaultClusterAgentDeployment(dda.GetObjectMeta(), &dda.Spec)
 		podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 		// Set Global setting on the default deployment
-		global.ApplyGlobalSettingsClusterAgent(logger, podManagers, dda, resourcesManager, requiredComponents)
+		global.ApplyGlobalSettingsClusterAgent(logger, podManagers, dda.GetObjectMeta(), &dda.Spec, resourcesManager, requiredComponents)
 
 		// Apply features changes on the Deployment.Spec.Template
 		var featErrors []error
