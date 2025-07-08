@@ -21,11 +21,11 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/agent"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/global"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/override"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -64,7 +64,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
 
 		// Set Global setting on the default extendeddaemonset
-		global.ApplyGlobalSettingsNodeAgent(logger, podManagers, ddaiCopy, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
+		global.ApplyGlobalSettingsNodeAgent(logger, podManagers, ddaiCopy.GetObjectMeta(), &ddaiCopy.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
 
 		// Apply features changes on the Deployment.Spec.Template
 		for _, feat := range features {
@@ -115,7 +115,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	daemonset = componentagent.NewDefaultAgentDaemonset(ddaiCopy, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 	// Set Global setting on the default daemonset
-	global.ApplyGlobalSettingsNodeAgent(logger, podManagers, ddaiCopy, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
+	global.ApplyGlobalSettingsNodeAgent(logger, podManagers, ddaiCopy.GetObjectMeta(), &ddaiCopy.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {

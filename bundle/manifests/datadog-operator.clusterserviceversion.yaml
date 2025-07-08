@@ -194,12 +194,12 @@ metadata:
       ]
     capabilities: Full Lifecycle
     categories: Monitoring, Logging & Tracing
-    createdAt: "2025-03-17 18:00:52"
+    createdAt: "2025-06-30 18:14:57"
     description: Datadog provides a modern monitoring and analytics platform. Gather metrics, logs and traces for full observability of your Kubernetes cluster with Datadog Operator.
     operators.operatorframework.io/builder: operator-sdk-v1.34.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/DataDog/datadog-operator
-    containerImage: gcr.io/datadoghq/operator:1.13.0
+    containerImage: gcr.io/datadoghq/operator:1.16.0
     support: Datadog, Inc.
     features.operators.openshift.io/disconnected: "true"
     features.operators.openshift.io/fips-compliant: "false"
@@ -208,17 +208,22 @@ metadata:
     features.operators.openshift.io/token-auth-aws: "false"
     features.operators.openshift.io/token-auth-azure: "false"
     features.operators.openshift.io/token-auth-gcp: "false"
-    olm.skipRange: '>=1.7.0 <1.13.0'
+    olm.skipRange: '>=1.7.0 <1.16.0'
   labels:
     operatorframework.io/arch.amd64: supported
     operatorframework.io/arch.arm64: supported
     operatorframework.io/os.linux: supported
-  name: datadog-operator.v1.13.0
+  name: datadog-operator.v1.16.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
+      - description: DatadogAgentInternal is the Schema for the datadogagentinternals API
+        displayName: Datadog Agent Internal
+        kind: DatadogAgentInternal
+        name: datadogagentinternals.datadoghq.com
+        version: v1alpha1
       - description: DatadogAgentProfile is the Schema for the datadogagentprofiles API
         displayName: Datadog Agent Profile
         kind: DatadogAgentProfile
@@ -349,7 +354,6 @@ spec:
                 - '*'
             - apiGroups:
                 - apiextensions.k8s.io
-                - extensions
               resources:
                 - customresourcedefinitions
               verbs:
@@ -361,6 +365,7 @@ spec:
                 - apiservices
               verbs:
                 - '*'
+                - deletecollection
                 - list
                 - watch
             - apiGroups:
@@ -386,23 +391,6 @@ spec:
                 - list
                 - watch
             - apiGroups:
-                - apps
-              resources:
-                - replicationcontrollers
-              verbs:
-                - list
-                - watch
-            - apiGroups:
-                - apps
-                - extensions
-              resources:
-                - daemonsets
-                - deployments
-                - replicasets
-              verbs:
-                - list
-                - watch
-            - apiGroups:
                 - authentication.k8s.io
               resources:
                 - tokenreviews
@@ -418,23 +406,6 @@ spec:
               verbs:
                 - create
                 - get
-            - apiGroups:
-                - authorization.k8s.io
-                - rbac.authorization.k8s.io
-                - roles.rbac.authorization.k8s.io
-              resources:
-                - clusterrolebindings
-                - clusterroles
-                - rolebindings
-                - roles
-              verbs:
-                - create
-                - delete
-                - get
-                - list
-                - patch
-                - update
-                - watch
             - apiGroups:
                 - autoscaling
               resources:
@@ -493,6 +464,8 @@ spec:
             - apiGroups:
                 - datadoghq.com
               resources:
+                - datadogagentinternals
+                - datadogagentinternals/finalizers
                 - datadogagentprofiles
                 - datadogagentprofiles/finalizers
                 - datadogagents
@@ -516,6 +489,7 @@ spec:
             - apiGroups:
                 - datadoghq.com
               resources:
+                - datadogagentinternals/status
                 - datadogagentprofiles/status
                 - datadogagents/status
                 - datadogdashboards/status
@@ -557,6 +531,13 @@ spec:
                 - watermarkpodautoscalers
               verbs:
                 - get
+                - list
+                - watch
+            - apiGroups:
+                - discovery.k8s.io
+              resources:
+                - endpointslices
+              verbs:
                 - list
                 - watch
             - apiGroups:
@@ -612,6 +593,33 @@ spec:
               verbs:
                 - get
                 - list
+            - apiGroups:
+                - rbac.authorization.k8s.io
+              resources:
+                - clusterrolebindings
+                - clusterroles
+              verbs:
+                - create
+                - delete
+                - deletecollection
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - rbac.authorization.k8s.io
+              resources:
+                - rolebindings
+                - roles
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
             - apiGroups:
                 - security.openshift.io
               resourceNames:
@@ -684,7 +692,7 @@ spec:
                             fieldPath: metadata.annotations['olm.targetNamespaces']
                       - name: DD_TOOL_VERSION
                         value: redhat
-                    image: gcr.io/datadoghq/operator:1.13.0
+                    image: gcr.io/datadoghq/operator:1.16.0
                     imagePullPolicy: IfNotPresent
                     livenessProbe:
                       httpGet:
@@ -782,5 +790,5 @@ spec:
   minKubeVersion: 1.16.0
   provider:
     name: Datadog
-  version: 1.13.0
-  replaces: datadog-operator.v1.12.1
+  version: 1.16.0
+  replaces: datadog-operator.v1.15.1
