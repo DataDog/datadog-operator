@@ -6,12 +6,17 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -23,6 +28,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
@@ -125,7 +131,7 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOpti
 	return nil
 }
 
-func getServerGroupsAndResources(log logr.Logger, discoveryClient *discovery.DiscoveryClient) ([]*v1.APIGroup, []*v1.APIResourceList, error) {
+func getServerGroupsAndResources(log logr.Logger, discoveryClient *discovery.DiscoveryClient) ([]*metav1.APIGroup, []*metav1.APIResourceList, error) {
 	groups, resources, err := discoveryClient.ServerGroupsAndResources()
 	if err != nil {
 		if !discovery.IsGroupDiscoveryFailedError(err) {
@@ -141,6 +147,16 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes
 		logger.Info("Feature disabled, not starting the controller", "controller", agentControllerName)
 
 		return nil
+	}
+
+	// Cleanup leftover DatadogAgentInternal resources if DDAI controller is disabled
+	if !options.DatadogAgentInternalEnabled {
+		// Get the REST config for direct API server calls
+		restConfig := rest.CopyConfig(mgr.GetConfig())
+		if err := cleanupDatadogAgentInternalResources(logger, restConfig); err != nil {
+			logger.Error(err, "Failed to cleanup DatadogAgentInternal resources, continuing with controller setup")
+			// Don't fail the controller setup if cleanup fails
+		}
 	}
 
 	return (&DatadogAgentReconciler{
@@ -300,4 +316,128 @@ func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, pInfo ku
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorderFor(profileControllerName),
 	}).SetupWithManager(mgr)
+}
+
+// cleanupDatadogAgentInternalResources removes leftover DatadogAgentInternal resources when DDAI controller is disabled
+func cleanupDatadogAgentInternalResources(logger logr.Logger, restConfig *rest.Config) error {
+	logger.Info("Cleaning up leftover DatadogAgentInternal resources")
+
+	// Create a discovery client to check if the DDAI CRD exists
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create discovery client: %w", err)
+	}
+
+	// Check if the DatadogAgentInternal CRD exists
+	groups, resources, err := getServerGroupsAndResources(logger, discoveryClient)
+	if err != nil {
+		return fmt.Errorf("failed to get server groups and resources: %w", err)
+	}
+
+	ddaiCRDExists := false
+	for _, group := range groups {
+		if group.Name == rbac.DatadogAPIGroup {
+			for _, resource := range resources {
+				if resource.GroupVersion == rbac.DatadogAPIGroup+"/v1alpha1" {
+					for _, apiResource := range resource.APIResources {
+						if apiResource.Kind == "DatadogAgentInternal" {
+							ddaiCRDExists = true
+							break
+						}
+					}
+				}
+				if ddaiCRDExists {
+					break
+				}
+			}
+		}
+		if ddaiCRDExists {
+			break
+		}
+	}
+
+	if !ddaiCRDExists {
+		logger.Info("DatadogAgentInternal CRD not found, skipping cleanup")
+		return nil
+	}
+
+	// Create a dynamic client for direct API server calls
+	dynamicClient, err := dynamic.NewForConfig(restConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create dynamic client: %w", err)
+	}
+
+	// Define the GVR for DatadogAgentInternal
+	ddaiGVR := schema.GroupVersionResource{
+		Group:    rbac.DatadogAPIGroup,
+		Version:  "v1alpha1",
+		Resource: rbac.DatadogAgentInternalsResource,
+	}
+
+	// List all DatadogAgentInternal resources across all namespaces
+	ddaiList, err := dynamicClient.Resource(ddaiGVR).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			logger.Info("DatadogAgentInternal resources not found, skipping cleanup")
+			return nil
+		}
+		return fmt.Errorf("failed to list DatadogAgentInternal resources: %w", err)
+	}
+
+	logger.Info("Found DatadogAgentInternal resources to cleanup", "count", len(ddaiList.Items))
+
+	// Process each DDAI resource
+	for _, ddai := range ddaiList.Items {
+		namespace := ddai.GetNamespace()
+		name := ddai.GetName()
+
+		logger.Info("Cleaning up DatadogAgentInternal resource", "namespace", namespace, "name", name)
+
+		// Remove finalizer if it exists
+		finalizers := ddai.GetFinalizers()
+		if len(finalizers) > 0 {
+			// Create a patch to remove the finalizer
+			patchData := []byte(`{"metadata":{"finalizers":[]}}`)
+
+			_, err := dynamicClient.Resource(ddaiGVR).Namespace(namespace).Patch(
+				context.TODO(),
+				name,
+				types.MergePatchType,
+				patchData,
+				metav1.PatchOptions{},
+			)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					logger.Info("DatadogAgentInternal resource already deleted", "namespace", namespace, "name", name)
+					continue
+				}
+				logger.Error(err, "Failed to remove finalizer from DatadogAgentInternal resource", "namespace", namespace, "name", name)
+				// Continue with other resources even if one fails
+				continue
+			}
+
+			logger.Info("Removed finalizer from DatadogAgentInternal resource", "namespace", namespace, "name", name)
+		}
+
+		// Delete the resource
+		err = dynamicClient.Resource(ddaiGVR).Namespace(namespace).Delete(
+			context.TODO(),
+			name,
+			metav1.DeleteOptions{},
+		)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				logger.Info("DatadogAgentInternal resource already deleted", "namespace", namespace, "name", name)
+				continue
+			}
+			logger.Error(err, "Failed to delete DatadogAgentInternal resource", "namespace", namespace, "name", name)
+			// Continue with other resources even if one fails
+			continue
+		}
+
+		logger.Info("Successfully deleted DatadogAgentInternal resource", "namespace", namespace, "name", name)
+	}
+
+	logger.Info("Completed cleanup of DatadogAgentInternal resources")
+	return nil
 }
