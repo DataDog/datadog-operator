@@ -149,16 +149,6 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes
 		return nil
 	}
 
-	// Cleanup leftover DatadogAgentInternal resources if DDAI controller is disabled
-	if !options.DatadogAgentInternalEnabled {
-		// Get the REST config for direct API server calls
-		restConfig := rest.CopyConfig(mgr.GetConfig())
-		if err := cleanupDatadogAgentInternalResources(logger, restConfig); err != nil {
-			logger.Error(err, "Failed to cleanup DatadogAgentInternal resources, continuing with controller setup")
-			// Don't fail the controller setup if cleanup fails
-		}
-	}
-
 	return (&DatadogAgentReconciler{
 		Client:       mgr.GetClient(),
 		PlatformInfo: pInfo,
@@ -318,48 +308,9 @@ func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, pInfo ku
 	}).SetupWithManager(mgr)
 }
 
-// cleanupDatadogAgentInternalResources removes leftover DatadogAgentInternal resources when DDAI controller is disabled
-func cleanupDatadogAgentInternalResources(logger logr.Logger, restConfig *rest.Config) error {
+// CleanupDatadogAgentInternalResources removes leftover DatadogAgentInternal resources when DDAI controller is disabled
+func CleanupDatadogAgentInternalResources(logger logr.Logger, restConfig *rest.Config) error {
 	logger.Info("Cleaning up leftover DatadogAgentInternal resources")
-
-	// Create a discovery client to check if the DDAI CRD exists
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
-	if err != nil {
-		return fmt.Errorf("failed to create discovery client: %w", err)
-	}
-
-	// Check if the DatadogAgentInternal CRD exists
-	groups, resources, err := getServerGroupsAndResources(logger, discoveryClient)
-	if err != nil {
-		return fmt.Errorf("failed to get server groups and resources: %w", err)
-	}
-
-	ddaiCRDExists := false
-	for _, group := range groups {
-		if group.Name == rbac.DatadogAPIGroup {
-			for _, resource := range resources {
-				if resource.GroupVersion == rbac.DatadogAPIGroup+"/v1alpha1" {
-					for _, apiResource := range resource.APIResources {
-						if apiResource.Kind == "DatadogAgentInternal" {
-							ddaiCRDExists = true
-							break
-						}
-					}
-				}
-				if ddaiCRDExists {
-					break
-				}
-			}
-		}
-		if ddaiCRDExists {
-			break
-		}
-	}
-
-	if !ddaiCRDExists {
-		logger.Info("DatadogAgentInternal CRD not found, skipping cleanup")
-		return nil
-	}
 
 	// Create a dynamic client for direct API server calls
 	dynamicClient, err := dynamic.NewForConfig(restConfig)
@@ -374,11 +325,11 @@ func cleanupDatadogAgentInternalResources(logger logr.Logger, restConfig *rest.C
 		Resource: rbac.DatadogAgentInternalsResource,
 	}
 
-	// List all DatadogAgentInternal resources across all namespaces
+	// Try to list DDAI resources directly - this will fail if CRD doesn't exist
 	ddaiList, err := dynamicClient.Resource(ddaiGVR).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("DatadogAgentInternal resources not found, skipping cleanup")
+			logger.Info("DatadogAgentInternal CRD not found, skipping cleanup")
 			return nil
 		}
 		return fmt.Errorf("failed to list DatadogAgentInternal resources: %w", err)
