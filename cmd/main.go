@@ -310,7 +310,7 @@ func run(opts *options) error {
 			time.Sleep(60 * time.Second)
 
 			setupLog.Info("Starting cleanup of DatadogAgentInternal resources")
-			if err := controller.CleanupDatadogAgentInternalResources(setupLog, restConfig); err != nil {
+			if err = controller.CleanupDatadogAgentInternalResources(setupLog, restConfig); err != nil {
 				setupLog.Error(err, "Failed to cleanup DatadogAgentInternal resources")
 			}
 		}()

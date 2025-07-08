@@ -350,7 +350,7 @@ func CleanupDatadogAgentInternalResources(logger logr.Logger, restConfig *rest.C
 			// Create a patch to remove the finalizer
 			patchData := []byte(`{"metadata":{"finalizers":[]}}`)
 
-			_, err := dynamicClient.Resource(ddaiGVR).Namespace(namespace).Patch(
+			_, err = dynamicClient.Resource(ddaiGVR).Namespace(namespace).Patch(
 				context.TODO(),
 				name,
 				types.MergePatchType,
