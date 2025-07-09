@@ -16,7 +16,6 @@ import (
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
-	"github.com/go-logr/zapr"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/DataDog/dd-trace-go.v1/profiler"
@@ -28,6 +27,7 @@ import (
 	"k8s.io/klog/v2"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	crzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -357,24 +357,31 @@ func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
 		return fmt.Errorf("unknow log encoder: %s", logEncoder)
 	}
 
-	infoLevel := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
-		return level == zapcore.InfoLevel
+	zapOpts := crzap.Options{}
+	zapOpts.BindFlags(flag.CommandLine)
+	
+	core := zap.WrapCore(func(c zapcore.Core) zapcore.Core {
+		infoLevel := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
+			return level == zapcore.InfoLevel
+		})
+
+		otherLevel := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
+			return level != zapcore.InfoLevel
+		})
+
+		stdoutSyncer := zapcore.Lock(os.Stdout)
+		stderrSyncer := zapcore.Lock(os.Stderr)
+
+		tee := zapcore.NewTee(
+			zapcore.NewCore(encoder, stderrSyncer, otherLevel),
+			zapcore.NewCore(encoder, stdoutSyncer, infoLevel),
+		)
+
+		return tee
 	})
 
-	otherLevel := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
-		return level != zapcore.InfoLevel
-	})
-
-	stdoutSyncer := zapcore.Lock(os.Stdout)
-	stderrSyncer := zapcore.Lock(os.Stderr)
-
-	core := zapcore.NewTee(
-		zapcore.NewCore(encoder, stderrSyncer, otherLevel),
-		zapcore.NewCore(encoder, stdoutSyncer, infoLevel),
-	)
-
-	logger := zap.New(core)
-	ctrl.SetLogger(zapr.NewLogger(logger))
+	zapOpts.ZapOpts = append(zapOpts.ZapOpts, core)
+	ctrl.SetLogger(crzap.New(crzap.UseFlagOptions(&zapOpts)))
 
 	return nil
 }

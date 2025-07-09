@@ -47,7 +47,6 @@ require (
 	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.59.0-rc.5
 	github.com/DataDog/datadog-operator/api v0.0.0-20250130131115-7f198adcc856
 	github.com/cenkalti/backoff v2.2.1+incompatible
-	github.com/go-logr/zapr v1.3.0
 	github.com/prometheus/client_golang v1.20.5
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8
 	golang.org/x/text v0.25.0
@@ -100,6 +99,7 @@ require (
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-openapi/jsonpointer v0.21.0 // indirect
 	github.com/go-openapi/jsonreference v0.21.0 // indirect
