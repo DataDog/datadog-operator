@@ -29,8 +29,8 @@ var helmCheckRBACPolicyRules = []rbacv1.PolicyRule{
 	{
 		APIGroups: []string{rbac.CoreAPIGroup},
 		Resources: []string{
-			rbac.SecretsResource,
 			rbac.ConfigMapsResource,
+			rbac.SecretsResource,
 		},
 		Verbs: []string{
 			rbac.GetVerb,

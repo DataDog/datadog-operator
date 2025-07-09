@@ -10,5 +10,5 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 )
 
-func applyClusterAgentResources(manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent) {
+func applyClusterAgentResources(manager feature.PodTemplateManagers, ddaSpec *v2alpha1.DatadogAgentSpec) {
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -25,8 +26,8 @@ import (
 )
 
 // applyFIPSConfig applies FIPS related configs to a pod template spec
-func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) {
-	globalConfig := dda.Spec.Global
+func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, resourcesManager feature.ResourceManagers) {
+	globalConfig := ddaSpec.Global
 	fipsConfig := globalConfig.FIPS
 
 	// Add FIPS env vars to all containers except System Probe
@@ -72,7 +73,7 @@ func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 		manager.PodTemplateSpec().Spec.Containers = append(manager.PodTemplateSpec().Spec.Containers, fipsContainer)
 	}
 
-	vol := getFIPSDefaultVolume(dda.Name)
+	vol := getFIPSDefaultVolume(ddaMeta.GetName())
 	if fipsConfig.CustomFIPSConfig != nil {
 		volMount := corev1.VolumeMount{
 			Name:      FIPSProxyCustomConfigVolumeName,
@@ -94,15 +95,15 @@ func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 		if fipsConfig.CustomFIPSConfig.ConfigMap != nil {
 			vol = volume.GetVolumeFromConfigMap(
 				fipsConfig.CustomFIPSConfig.ConfigMap,
-				fmt.Sprintf(FIPSProxyCustomConfigMapName, dda.Name),
+				fmt.Sprintf(FIPSProxyCustomConfigMapName, ddaMeta.GetName()),
 				FIPSProxyCustomConfigVolumeName,
 			)
 			// configData
 		} else if fipsConfig.CustomFIPSConfig.ConfigData != nil {
 			cm, err := configmap.BuildConfigMapMulti(
-				dda.Namespace,
+				ddaMeta.GetNamespace(),
 				map[string]string{FIPSProxyCustomConfigFileName: *fipsConfig.CustomFIPSConfig.ConfigData},
-				fmt.Sprintf(FIPSProxyCustomConfigMapName, dda.Name),
+				fmt.Sprintf(FIPSProxyCustomConfigMapName, ddaMeta.GetName()),
 				false,
 			)
 			if err != nil {
