@@ -359,7 +359,7 @@ func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
 
 	zapOpts := crzap.Options{}
 	zapOpts.BindFlags(flag.CommandLine)
-	
+
 	core := zap.WrapCore(func(c zapcore.Core) zapcore.Core {
 		infoLevel := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
 			return level == zapcore.InfoLevel
