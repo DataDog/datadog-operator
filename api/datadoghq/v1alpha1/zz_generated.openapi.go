@@ -17,41 +17,41 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.CreateStrategy":                                                  schema_datadog_operator_api_datadoghq_v1alpha1_CreateStrategy(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DashboardTemplateVariable":                                       schema_datadog_operator_api_datadoghq_v1alpha1_DashboardTemplateVariable(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DashboardTemplateVariablePreset":                                 schema_datadog_operator_api_datadoghq_v1alpha1_DashboardTemplateVariablePreset(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DashboardTemplateVariablePresetValue":                            schema_datadog_operator_api_datadoghq_v1alpha1_DashboardTemplateVariablePresetValue(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogAgentInternal":                                            schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentInternal(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogAgentInternalStatus":                                      schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentInternalStatus(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogAgentProfile":                                             schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentProfile(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogAgentProfileStatus":                                       schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentProfileStatus(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogDashboard":                                                schema_datadog_operator_api_datadoghq_v1alpha1_DatadogDashboard(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogDashboardSpec":                                            schema_datadog_operator_api_datadoghq_v1alpha1_DatadogDashboardSpec(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogDashboardStatus":                                          schema_datadog_operator_api_datadoghq_v1alpha1_DatadogDashboardStatus(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericResource":                                          schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResource(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericResourceSpec":                                      schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResourceSpec(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericResourceStatus":                                    schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResourceStatus(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMetric":                                                   schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMetric(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMetricCondition":                                          schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMetricCondition(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitor":                                                  schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitor(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorCondition":                                         schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorCondition(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorControllerOptions":                                 schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorControllerOptions(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorDowntimeStatus":                                    schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorDowntimeStatus(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptions":                                           schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorOptions(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptionsSchedulingOptions":                          schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorOptionsSchedulingOptions(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptionsSchedulingOptionsCustomeSchedule":           schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorOptionsSchedulingOptionsCustomeSchedule(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptionsSchedulingOptionsCustomeScheduleRecurrence": schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorOptionsSchedulingOptionsCustomeScheduleRecurrence(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptionsSchedulingOptionsEvaluationWindow":          schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorOptionsSchedulingOptionsEvaluationWindow(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptionsThresholdWindows":                           schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorOptionsThresholdWindows(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptionsThresholds":                                 schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorOptionsThresholds(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorSpec":                                              schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorSpec(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorStatus":                                            schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorStatus(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorTriggeredState":                                    schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorTriggeredState(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLO":                                                      schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLO(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOControllerOptions":                                     schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOControllerOptions(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOQuery":                                                 schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOQuery(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOSpec":                                                  schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOSpec(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOStatus":                                                schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOStatus(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.CreateStrategy":                                                 schema_datadog_operator_api_datadoghq_v1alpha1_CreateStrategy(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DashboardTemplateVariable":                                      schema_datadog_operator_api_datadoghq_v1alpha1_DashboardTemplateVariable(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DashboardTemplateVariablePreset":                                schema_datadog_operator_api_datadoghq_v1alpha1_DashboardTemplateVariablePreset(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DashboardTemplateVariablePresetValue":                           schema_datadog_operator_api_datadoghq_v1alpha1_DashboardTemplateVariablePresetValue(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogAgentInternal":                                           schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentInternal(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogAgentInternalStatus":                                     schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentInternalStatus(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogAgentProfile":                                            schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentProfile(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogAgentProfileStatus":                                      schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentProfileStatus(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogDashboard":                                               schema_datadog_operator_api_datadoghq_v1alpha1_DatadogDashboard(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogDashboardSpec":                                           schema_datadog_operator_api_datadoghq_v1alpha1_DatadogDashboardSpec(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogDashboardStatus":                                         schema_datadog_operator_api_datadoghq_v1alpha1_DatadogDashboardStatus(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericResource":                                         schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResource(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericResourceSpec":                                     schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResourceSpec(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericResourceStatus":                                   schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResourceStatus(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMetric":                                                  schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMetric(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMetricCondition":                                         schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMetricCondition(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitor":                                                 schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitor(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorCondition":                                        schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorCondition(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorControllerOptions":                                schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorControllerOptions(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorDowntimeStatus":                                   schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorDowntimeStatus(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptions":                                          schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorOptions(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptionsSchedulingOptions":                         schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorOptionsSchedulingOptions(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptionsSchedulingOptionsCustomSchedule":           schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorOptionsSchedulingOptionsCustomSchedule(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptionsSchedulingOptionsCustomScheduleRecurrence": schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorOptionsSchedulingOptionsCustomScheduleRecurrence(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptionsSchedulingOptionsEvaluationWindow":         schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorOptionsSchedulingOptionsEvaluationWindow(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptionsThresholdWindows":                          schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorOptionsThresholdWindows(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptionsThresholds":                                schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorOptionsThresholds(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorSpec":                                             schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorSpec(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorStatus":                                           schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorStatus(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorTriggeredState":                                   schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorTriggeredState(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLO":                                                     schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLO(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOControllerOptions":                                    schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOControllerOptions(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOQuery":                                                schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOQuery(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOSpec":                                                 schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOSpec(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOStatus":                                               schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOStatus(ref),
 	}
 }
 
@@ -1343,10 +1343,10 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorOptionsSchedul
 				Description: "DatadogMonitorOptionsSchedulingOptions is a struct of the different scheduling options",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"customeSchedule": {
+					"customSchedule": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Configuration options for the custom schedule. If start is omitted, the monitor creation time will be used.",
-							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptionsSchedulingOptionsCustomeSchedule"),
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptionsSchedulingOptionsCustomSchedule"),
 						},
 					},
 					"evaluationWindow": {
@@ -1359,36 +1359,36 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorOptionsSchedul
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptionsSchedulingOptionsCustomeSchedule", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptionsSchedulingOptionsEvaluationWindow"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptionsSchedulingOptionsCustomSchedule", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptionsSchedulingOptionsEvaluationWindow"},
 	}
 }
 
-func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorOptionsSchedulingOptionsCustomeSchedule(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorOptionsSchedulingOptionsCustomSchedule(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogMonitorOptionsSchedulingOptionsCustomeSchedule is a struct of the custome schedule options",
+				Description: "DatadogMonitorOptionsSchedulingOptionsCustomSchedule is a struct of the custom schedule options",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"recurrence": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptionsSchedulingOptionsCustomeScheduleRecurrence"),
+							Ref:     ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptionsSchedulingOptionsCustomScheduleRecurrence"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptionsSchedulingOptionsCustomeScheduleRecurrence"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptionsSchedulingOptionsCustomScheduleRecurrence"},
 	}
 }
 
-func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorOptionsSchedulingOptionsCustomeScheduleRecurrence(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorOptionsSchedulingOptionsCustomScheduleRecurrence(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogMonitorOptionsSchedulingOptionsCustomeScheduleRecurrence is a struct of the recurrence definitions",
+				Description: "DatadogMonitorOptionsSchedulingOptionsCustomScheduleRecurrence is a struct of the recurrence definition",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"rrule": {
@@ -1407,7 +1407,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorOptionsSchedul
 					},
 					"start": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The start date of the recurrence rule defined in `YYYY-MM-DDThh:mm:ss` format`. If omitted, the monitor creation time will be used.",
+							Description: "The start date of the recurrence rule defined in `YYYY-MM-DDThh:mm:ss` format. If omitted, the monitor creation time will be used.",
 							Type:        []string{"string"},
 							Format:      "",
 						},

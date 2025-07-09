@@ -128,20 +128,20 @@
               "additionalProperties": false,
               "description": "Configuration options for scheduling.",
               "properties": {
-                "customeSchedule": {
+                "customSchedule": {
                   "additionalProperties": false,
                   "description": "Configuration options for the custom schedule. If start is omitted, the monitor creation time will be used.",
                   "properties": {
                     "recurrence": {
                       "additionalProperties": false,
-                      "description": "DatadogMonitorOptionsSchedulingOptionsCustomeScheduleRecurrence is a struct of the recurrence definitions",
+                      "description": "DatadogMonitorOptionsSchedulingOptionsCustomScheduleRecurrence is a struct of the recurrence definition",
                       "properties": {
                         "rrule": {
                           "description": "The recurrence rule in iCalendar format. For example, `FREQ=MONTHLY;BYMONTHDAY=28,29,30,31;BYSETPOS=-1`.",
                           "type": "string"
                         },
                         "start": {
-                          "description": "The start date of the recurrence rule defined in `YYYY-MM-DDThh:mm:ss` format`.\nIf omitted, the monitor creation time will be used.",
+                          "description": "The start date of the recurrence rule defined in `YYYY-MM-DDThh:mm:ss` format.\nIf omitted, the monitor creation time will be used.",
                           "type": "string"
                         },
                         "timezone": {

@@ -66,8 +66,8 @@ func Test_buildMonitor(t *testing.T) {
 					datadogV1.MONITORRENOTIFYSTATUSTYPE_WARN,
 				},
 				SchedulingOptions: &datadoghqv1alpha1.DatadogMonitorOptionsSchedulingOptions{
-					CustomeSchedule: &datadoghqv1alpha1.DatadogMonitorOptionsSchedulingOptionsCustomeSchedule{
-						Recurrence: datadoghqv1alpha1.DatadogMonitorOptionsSchedulingOptionsCustomeScheduleRecurrence{
+					CustomSchedule: &datadoghqv1alpha1.DatadogMonitorOptionsSchedulingOptionsCustomSchedule{
+						Recurrence: datadoghqv1alpha1.DatadogMonitorOptionsSchedulingOptionsCustomScheduleRecurrence{
 							Rrule:    ptr.To("FREQ=MONTHLY;BYMONTHDAY=28,29,30,31;BYSETPOS=-1"),
 							Timezone: ptr.To("Europe/Madrid"),
 							Start:    ptr.To("2025-01-01T00:00:00"),
@@ -165,14 +165,14 @@ func Test_buildMonitor(t *testing.T) {
 		recurrenceUR = recurrencesUR[0]
 	}
 
-	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.CustomeSchedule.Recurrence.Rrule, recurrence.GetRrule(), "discrepancy found in parameter: Recurrence.Rrule")
-	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.CustomeSchedule.Recurrence.Rrule, recurrenceUR.GetRrule(), "discrepancy found in parameter: Recurrence.Rrule")
+	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.CustomSchedule.Recurrence.Rrule, recurrence.GetRrule(), "discrepancy found in parameter: Recurrence.Rrule")
+	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.CustomSchedule.Recurrence.Rrule, recurrenceUR.GetRrule(), "discrepancy found in parameter: Recurrence.Rrule")
 
-	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.CustomeSchedule.Recurrence.Timezone, recurrence.GetTimezone(), "discrepancy found in parameter: Recurrence.Timezone")
-	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.CustomeSchedule.Recurrence.Timezone, recurrenceUR.GetTimezone(), "discrepancy found in parameter: Recurrence.Timezone")
+	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.CustomSchedule.Recurrence.Timezone, recurrence.GetTimezone(), "discrepancy found in parameter: Recurrence.Timezone")
+	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.CustomSchedule.Recurrence.Timezone, recurrenceUR.GetTimezone(), "discrepancy found in parameter: Recurrence.Timezone")
 
-	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.CustomeSchedule.Recurrence.Start, recurrence.GetStart(), "discrepancy found in parameter: Recurrence.Start")
-	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.CustomeSchedule.Recurrence.Start, recurrenceUR.GetStart(), "discrepancy found in parameter: Recurrence.Start")
+	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.CustomSchedule.Recurrence.Start, recurrence.GetStart(), "discrepancy found in parameter: Recurrence.Start")
+	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.CustomSchedule.Recurrence.Start, recurrenceUR.GetStart(), "discrepancy found in parameter: Recurrence.Start")
 
 	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.EvaluationWindow.DayStarts, monitor.Options.SchedulingOptions.EvaluationWindow.GetDayStarts(), "discrepancy found in parameter: EvaluationWindow.DayStarts")
 	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.EvaluationWindow.DayStarts, monitorUR.Options.SchedulingOptions.EvaluationWindow.GetDayStarts(), "discrepancy found in parameter: EvaluationWindow.DayStarts")
