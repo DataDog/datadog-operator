@@ -743,6 +743,55 @@ func Test_otelCollectorFeature_VersionCheck(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name: "UseStandaloneImage with full image in Name field 7.67.0+",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorUseStandaloneImage(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+					Image: &v2alpha1.AgentImageConfig{
+						Name: "gcr.io/datadoghq/agent:7.67.0-full",
+					},
+				}).
+				Build(),
+			WantConfigure: true,
+			Agent: &test.ComponentTest{
+				CreateFunc: func(t testing.TB) (feature.PodTemplateManagers, string) {
+					newPTS := corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:    string(apicommon.CoreAgentContainerName),
+									Image:   "gcr.io/datadoghq/agent:7.67.0-full",
+									Command: []string{"agent", "run"},
+								},
+								{
+									Name:    string(apicommon.OtelAgent),
+									Image:   "gcr.io/datadoghq/agent:7.67.0-full", // This will be changed to ddot-collector
+									Command: []string{"otel-agent"},
+								},
+							},
+						},
+					}
+					return fake.NewPodTemplateManagers(t, newPTS), kubernetes.DefaultProvider
+				},
+				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					// Version 7.67.0 is >= 7.67.0, so UseStandaloneImage should be enabled
+					// When full image is provided in Name field, it should be used as-is for non-OTel containers
+					// and converted to ddot-collector for OTel Agent
+					for _, container := range mgr.PodTemplateSpec().Spec.Containers {
+						if container.Name == string(apicommon.OtelAgent) {
+							// OTel Agent should use ddot-collector image derived from the full image name
+							assert.Equal(t, "gcr.io/datadoghq/ddot-collector:7.67.0", container.Image)
+						} else {
+							// Other containers should use the full image as provided
+							assert.Equal(t, "gcr.io/datadoghq/agent:7.67.0-full", container.Image)
+						}
+					}
+				},
+			},
+		},
 	}
 
 	tests.Run(t, buildOtelCollectorFeature)

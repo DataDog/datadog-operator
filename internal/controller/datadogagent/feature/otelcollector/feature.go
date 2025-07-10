@@ -94,7 +94,7 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 	supportedVersion := utils.IsAboveMinVersion(agentVersion, "7.67.0-0")
 	if !supportedVersion {
 		// For unsupported versions, force UseStandaloneImage=false and log warning
-		if apiutils.BoolValue(ddaSpec.Features.OtelCollector.Enabled) {
+		if apiutils.BoolValue(ddaSpec.Features.OtelCollector.Enabled) && apiutils.BoolValue(ddaSpec.Features.OtelCollector.UseStandaloneImage) {
 			o.logger.Info("UseStandaloneImage feature requires agent version 7.67.0 or higher",
 				"current_version", agentVersion, "switching_to_full_image", true)
 		}
