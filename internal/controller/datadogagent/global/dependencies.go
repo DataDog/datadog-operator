@@ -78,7 +78,7 @@ func addComponentDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpec
 			if containerName == apicommon.SystemProbeContainerName {
 				var seccompConfigData map[string]string
 
-				if componentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
+				if componentOverride, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
 					if spContainer, ok := componentOverride.Containers[apicommon.SystemProbeContainerName]; ok {
 						if spContainer.SeccompConfig != nil && spContainer.SeccompConfig.CustomProfile != nil && spContainer.SeccompConfig.CustomProfile.ConfigData != nil {
 							seccompConfigData = map[string]string{
