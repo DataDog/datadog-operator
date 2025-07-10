@@ -304,12 +304,6 @@ func (mf *metricsForwarder) setupFromDDA(dda *v2alpha1.DatadogAgent, credsSetFro
 	if !credsSetFromOperator {
 		mf.baseURL = getbaseURL(dda)
 		mf.logger.V(1).Info("Got API URL for DatadogAgent", "site", mf.baseURL)
-		mf.labels = dda.GetLabels()
-
-		status := dda.Status.DeepCopy()
-		mf.dsStatus = status.AgentList
-		mf.dcaStatus = status.ClusterAgent
-		mf.ccrStatus = status.ClusterChecksRunner
 
 		// set apiKey
 		apiKey, err := mf.getCredentialsFromDDA(dda)
@@ -318,6 +312,13 @@ func (mf *metricsForwarder) setupFromDDA(dda *v2alpha1.DatadogAgent, credsSetFro
 		}
 		mf.apiKey = apiKey
 	}
+
+	mf.labels = dda.GetLabels()
+
+	status := dda.Status.DeepCopy()
+	mf.dsStatus = status.AgentList
+	mf.dcaStatus = status.ClusterAgent
+	mf.ccrStatus = status.ClusterChecksRunner
 
 	if dda.Spec.Global != nil && dda.Spec.Global.ClusterName != nil {
 		mf.clusterName = *dda.Spec.Global.ClusterName
