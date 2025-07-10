@@ -809,6 +809,11 @@ var objectKindToSnake = map[string]string{
 }
 
 func (mf *metricsForwarder) sendResourceCountMetric() error {
+	// At start mf.monitoredObjectKind may be empty; don't send metric in this case
+	if _, ok := objectKindToSnake[mf.monitoredObjectKind]; !ok {
+		return nil
+	}
+
 	ts := float64(time.Now().Unix())
 	metricName := fmt.Sprintf(customResourceFormat, mf.metricsPrefix, objectKindToSnake[mf.monitoredObjectKind])
 	tags := append(mf.tags, mf.globalTags...)
