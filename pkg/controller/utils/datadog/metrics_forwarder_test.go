@@ -163,7 +163,6 @@ func Test_setupFromOperator(t *testing.T) {
 		loadFunc    func(*metricsForwarder, *secrets.DummyDecryptor)
 		wantAPIKey  string
 		wantBaseURL string
-		wantErr     bool
 	}{
 		{
 			name: "basic creds with default URL",
@@ -173,7 +172,6 @@ func Test_setupFromOperator(t *testing.T) {
 			},
 			wantBaseURL: defaultbaseURL,
 			wantAPIKey:  "test123",
-			wantErr:     false,
 		},
 		{
 			name: "basic creds with default DD_URL",
@@ -184,7 +182,6 @@ func Test_setupFromOperator(t *testing.T) {
 			},
 			wantBaseURL: "https://api.dd_url.com",
 			wantAPIKey:  "test123",
-			wantErr:     false,
 		},
 		{
 			name: "basic creds with default DD_DD_URL",
@@ -195,7 +192,6 @@ func Test_setupFromOperator(t *testing.T) {
 			},
 			wantBaseURL: "https://api.dd_dd_url.com",
 			wantAPIKey:  "test123",
-			wantErr:     false,
 		},
 		{
 			name: "basic creds with default DD_SITE",
@@ -206,7 +202,6 @@ func Test_setupFromOperator(t *testing.T) {
 			},
 			wantBaseURL: "https://api.dd_site.com",
 			wantAPIKey:  "test123",
-			wantErr:     false,
 		},
 	}
 	for _, tt := range tests {
@@ -221,11 +216,8 @@ func Test_setupFromOperator(t *testing.T) {
 			if tt.loadFunc != nil {
 				tt.loadFunc(mf, d)
 			}
-			_, err := mf.setupFromOperator()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("metricsForwarder.setupFromOperator() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			_ = mf.setupFromOperator()
+
 			if mf.apiKey != tt.wantAPIKey {
 				t.Errorf("metricsForwarder.setupFromOperator() apiKey = %v, want %v", mf.apiKey, tt.wantAPIKey)
 			}

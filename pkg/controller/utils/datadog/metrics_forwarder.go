@@ -254,31 +254,30 @@ func (mf *metricsForwarder) setStatus(newStatus *ConditionCommon) {
 }
 
 func (mf *metricsForwarder) setup() error {
-	// Attempt to set up metrics forwarder with Operator credentials manager
-	credsSet, err := mf.setupFromOperator()
+	credsSet := mf.setupFromOperator()
 
-	// If there was an error or if the clusterName was not set from the Operator,
-	// and this is a DDA forwarder, then try to get clusterName from the DDA
-	if (err != nil || mf.clusterName == "") && mf.monitoredObjectKind == datadogAgentKind {
+	// If this is a DDA forwarder, then need to set status metrics from DDA even if credentials were set by the Operator
+	if mf.monitoredObjectKind == datadogAgentKind {
 		dda, err := mf.getDatadogAgent()
 		if err != nil {
 			mf.logger.Error(err, "cannot retrieve DatadogAgent to get Datadog credentials, will retry later...")
 			return err
 		}
 		return mf.setupFromDDA(dda, credsSet)
-	} else {
-		return nil
 	}
+
+	return nil
+
 }
 
-func (mf *metricsForwarder) setupFromOperator() (bool, error) {
+func (mf *metricsForwarder) setupFromOperator() bool {
 	if mf.credsManager == nil {
-		return false, fmt.Errorf("Credentials Manager is undefined")
+		return false
 	}
 
 	creds, err := mf.credsManager.GetCredentials()
 	if err != nil {
-		return false, err
+		return false
 	}
 
 	// API key
@@ -297,7 +296,7 @@ func (mf *metricsForwarder) setupFromOperator() (bool, error) {
 
 	// cluster name
 	mf.clusterName = os.Getenv(constants.DDClusterName)
-	return true, nil
+	return true
 }
 
 func (mf *metricsForwarder) setupFromDDA(dda *v2alpha1.DatadogAgent, credsSetFromOperator bool) error {
@@ -320,7 +319,7 @@ func (mf *metricsForwarder) setupFromDDA(dda *v2alpha1.DatadogAgent, credsSetFro
 	mf.dcaStatus = status.ClusterAgent
 	mf.ccrStatus = status.ClusterChecksRunner
 
-	if dda.Spec.Global != nil && dda.Spec.Global.ClusterName != nil {
+	if mf.clusterName == "" && dda.Spec.Global != nil && dda.Spec.Global.ClusterName != nil {
 		mf.clusterName = *dda.Spec.Global.ClusterName
 	}
 
