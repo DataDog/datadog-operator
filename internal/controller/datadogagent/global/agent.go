@@ -18,8 +18,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 )
 
-func applyNodeAgentResources(manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, singleContainerStrategyEnabled bool) {
-	config := dda.Spec.Global
+func applyNodeAgentResources(manager feature.PodTemplateManagers, ddaSpec *v2alpha1.DatadogAgentSpec, singleContainerStrategyEnabled bool) {
+	config := ddaSpec.Global
 
 	// Kubelet contains the kubelet configuration parameters.
 	// The environment variable `DD_KUBERNETES_KUBELET_HOST` defaults to `status.hostIP` if not overriden.

@@ -26,9 +26,9 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/global"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -44,7 +44,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
-	global.ApplyGlobalSettingsClusterAgent(logger, podManagers, ddai, resourcesManager, requiredComponents)
+	global.ApplyGlobalSettingsClusterAgent(logger, podManagers, ddai.GetObjectMeta(), &ddai.Spec, resourcesManager, requiredComponents)
 
 	// Apply features changes on the Deployment.Spec.Template
 	var featErrors []error
