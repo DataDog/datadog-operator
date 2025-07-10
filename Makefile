@@ -202,13 +202,17 @@ gotest:
 integration-tests: $(ENVTEST) ## Run integration tests with reconciler
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ROOT)/bin/$(PLATFORM) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/internal/controller -coverprofile cover_integration.out
 
+.PHONY: install-gotestsum
+install-gotestsum: ## Install gotestsum if it's not already installed
+	@which gotestsum > /dev/null || go install gotest.tools/gotestsum@latest
+
 .PHONY: e2e-tests
-e2e-tests: ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.
+e2e-tests: install-gotestsum ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.
 	@if [ -z "$(E2E_RUN_REGEX)" ]; then \
-		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" gotestsum --format pkgname --rerun-fails=3 -- -C test/e2e/ ./... -count=1 --tags=e2e -v -run TestAWSKindSuite -timeout 0s -coverprofile cover_e2e.out; \
+		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" gotestsum --format standard-verbose --rerun-fails=3 --packages="./test/e2e/..." -- -count=1 --tags=e2e -run TestAWSKindSuite -timeout 0s -coverprofile cover_e2e.out; \
 	else \
 	    echo "Running e2e test: $(E2E_RUN_REGEX)"; \
-		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" gotestsum --format pkgname --rerun-fails=3 -- -C test/e2e/ ./... -count=1 --tags=e2e -v -run $(E2E_RUN_REGEX) -timeout 0s -coverprofile cover_e2e.out; \
+		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" gotestsum --format standard-verbose --rerun-fails=3 --packages="./test/e2e/..." -- -count=1 --tags=e2e -run $(E2E_RUN_REGEX) -timeout 0s -coverprofile cover_e2e.out; \
 	fi
 
 .PHONY: e2e-tests-keep-stacks
