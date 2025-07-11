@@ -23,6 +23,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	apimversion "k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/discovery"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -337,16 +338,9 @@ func run(opts *options) error {
 		DatadogGenericResourceEnabled: opts.datadogGenericResourceEnabled,
 	}
 
-	// Never use original mgr.GetConfig(), always copy as clients might modify the configuration
-	discoveryConfig := rest.CopyConfig(mgr.GetConfig())
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(discoveryConfig)
+	versionInfo, platformInfo, err := getVersionAndPlatformInfo(rest.CopyConfig(mgr.GetConfig()))
 	if err != nil {
-		return fmt.Errorf("unable to get discovery client: %w", err)
-	}
-
-	versionInfo, err := discoveryClient.ServerVersion()
-	if err != nil {
-		return fmt.Errorf("unable to get APIServer version: %w", err)
+		return err
 	}
 
 	if versionInfo != nil {
@@ -357,18 +351,11 @@ func run(opts *options) error {
 		}
 	}
 
-	groups, resources, err := getServerGroupsAndResources(setupLog, discoveryClient)
-	if err != nil {
-		return fmt.Errorf("unable to get API resource versions: %w", err)
-	}
-	platformInfo := kubernetes.NewPlatformInfo(versionInfo, groups, resources)
-
 	if err = controller.SetupControllers(setupLog, mgr, platformInfo, options); err != nil {
 		return setupErrorf(setupLog, err, "Unable to start controllers")
 	}
 
-	mdf := setupMetadataForwarder(metadataLog, mgr.GetClient(), versionInfo.String(), opts)
-	mdf.Start()
+	setupAndStartMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts)
 
 	// +kubebuilder:scaffold:builder
 
@@ -377,10 +364,29 @@ func run(opts *options) error {
 		return setupErrorf(setupLog, err, "Problem running manager")
 	}
 
-	// Stop metadata forwarder
-	mdf.Stop()
-
 	return nil
+}
+
+func getVersionAndPlatformInfo(configCopy *rest.Config) (*apimversion.Info, kubernetes.PlatformInfo, error) {
+	// Never use original mgr.GetConfig(), always copy as clients might modify the configuration
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(configCopy)
+	if err != nil {
+		return nil, kubernetes.PlatformInfo{}, fmt.Errorf("unable to get discovery client: %w", err)
+	}
+
+	versionInfo, err := discoveryClient.ServerVersion()
+	if err != nil {
+		return nil, kubernetes.PlatformInfo{}, fmt.Errorf("unable to get APIServer version: %w", err)
+	}
+
+	groups, resources, err := getServerGroupsAndResources(setupLog, discoveryClient)
+	if err != nil {
+		return nil, kubernetes.PlatformInfo{}, fmt.Errorf("unable to get API resource versions: %w", err)
+	}
+	platformInfo := kubernetes.NewPlatformInfo(versionInfo, groups, resources)
+
+	return versionInfo, platformInfo, nil
+
 }
 
 func getServerGroupsAndResources(log logr.Logger, discoveryClient *discovery.DiscoveryClient) ([]*v1.APIGroup, []*v1.APIResourceList, error) {
@@ -436,9 +442,9 @@ func setupErrorf(logger logr.Logger, err error, msg string, keysAndValues ...any
 	return fmt.Errorf("%s, err:%w", msg, err)
 }
 
-func setupMetadataForwarder(logger logr.Logger, client client.Client, kubernetesVersion string, options *options) *metadata.MetadataForwarder {
-	mf := metadata.NewMetadataForwarder(logger, client)
-	mf.OperatorMetadata = metadata.OperatorMetadata{
+func setupAndStartMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options) {
+	mdf := metadata.NewMetadataForwarder(logger, client)
+	mdf.OperatorMetadata = metadata.OperatorMetadata{
 		OperatorVersion:               version.GetVersion(),
 		KubernetesVersion:             kubernetesVersion,
 		InstallMethodTool:             "datadog-operator",
@@ -458,5 +464,7 @@ func setupMetadataForwarder(logger logr.Logger, client client.Client, kubernetes
 		ConfigDDSite:                  os.Getenv(constants.DDSite),
 	}
 
-	return mf
+	mdf.Start()
+
+	return
 }
