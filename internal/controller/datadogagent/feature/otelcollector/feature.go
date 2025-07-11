@@ -7,6 +7,7 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -50,6 +51,9 @@ type otelCollectorFeature struct {
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
 
+	forceEnableLocalService bool
+	localServiceName        string
+
 	logger logr.Logger
 }
 
@@ -69,6 +73,11 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 		o.customConfig = ddaSpec.Features.OtelCollector.Conf
 	}
 	o.configMapName = constants.GetConfName(dda, o.customConfig, defaultOTelAgentConf)
+
+	if ddaSpec.Global.LocalService != nil {
+		o.forceEnableLocalService = apiutils.BoolValue(ddaSpec.Global.LocalService.ForceEnableLocalService)
+	}
+	o.localServiceName = constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec)
 
 	if ddaSpec.Features.OtelCollector.CoreConfig != nil {
 		o.coreAgentConfig.enabled = ddaSpec.Features.OtelCollector.CoreConfig.Enabled
@@ -140,15 +149,25 @@ func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManag
 	if o.customConfig == nil {
 		o.customConfig = &v2alpha1.CustomConfig{}
 	}
+
+	grpcPort := 4317
+	httpPort := 4318
+	for _, port := range o.ports {
+		if port.Name == "otel-grpc" {
+			grpcPort = int(port.ContainerPort)
+		}
+		if port.Name == "otel-http" {
+			httpPort = int(port.ContainerPort)
+		}
+	}
+
 	if o.customConfig.ConfigData == nil && o.customConfig.ConfigMap == nil {
 		var defaultConfig = defaultconfig.DefaultOtelCollectorConfig
-		for _, port := range o.ports {
-			if port.Name == "otel-grpc" {
-				defaultConfig = strings.Replace(defaultConfig, "4317", strconv.Itoa(int(port.ContainerPort)), 1)
-			}
-			if port.Name == "otel-http" {
-				defaultConfig = strings.Replace(defaultConfig, "4318", strconv.Itoa(int(port.ContainerPort)), 1)
-			}
+		if grpcPort != 4317 {
+			defaultConfig = strings.Replace(defaultConfig, "4317", strconv.Itoa(grpcPort), 1)
+		}
+		if httpPort != 4318 {
+			defaultConfig = strings.Replace(defaultConfig, "4318", strconv.Itoa(httpPort), 1)
 		}
 		o.customConfig.ConfigData = &defaultConfig
 	}
@@ -164,6 +183,33 @@ func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManag
 			return err
 		}
 	}
+
+	platformInfo := managers.Store().GetPlatformInfo()
+	internalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
+	if common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), o.forceEnableLocalService) {
+		otlpGrpcPort := &corev1.ServicePort{
+			Name:       "otlpgrpcport",
+			Port:       int32(grpcPort),
+			Protocol:   corev1.ProtocolTCP,
+			TargetPort: intstr.FromInt(grpcPort),
+		}
+		otlpHttpPort := &corev1.ServicePort{
+			Name:       "otlphttpport",
+			Port:       int32(httpPort),
+			Protocol:   corev1.ProtocolTCP,
+			TargetPort: intstr.FromInt(httpPort),
+		}
+		if err := managers.ServiceManager().AddService(
+			o.localServiceName,
+			o.owner.GetNamespace(),
+			common.GetAgentLocalServiceSelector(o.owner),
+			[]corev1.ServicePort{*otlpGrpcPort, *otlpHttpPort},
+			&internalTrafficPolicy,
+		); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -203,12 +249,38 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 
 	// create volume
 	managers.Volume().AddVolume(&vol)
+	commands := []string{}
+	if o.customConfig != nil && o.customConfig.ConfigMap != nil && len(o.customConfig.ConfigMap.Items) > 0 {
+		for _, item := range o.customConfig.ConfigMap.Items {
+			commands = append(commands, common.ConfigVolumePath+"/otel/"+item.Path)
+		}
+		volMount := corev1.VolumeMount{
+			Name:      otelAgentVolumeName,
+			MountPath: common.ConfigVolumePath + "/otel/",
+		}
+		managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.OtelAgent)
 
-	// [investigation needed]: When the user provides a custom config map, the file name *must be* otel-config.yaml. If we choose to allow
-	// any file name, we would need to update both the volume mount here, as well as the otel-agent container command. I haven't seen this
-	// done for other containers, which is why I think it's acceptable to force users to use the `otel-config.yaml` name.
-	volMount := volume.GetVolumeMountWithSubPath(otelAgentVolumeName, common.ConfigVolumePath+"/"+otelConfigFileName, otelConfigFileName)
-	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.OtelAgent)
+	} else {
+		// This part in used in three paths:
+		// - no conf.ConfigMap.Items provided, but conf.ConfigMap.Name provided. We assume only one item/ name otel-config.yaml
+		// - when configData is used
+		// - when no config is passed (we use DefaultOtelCollectorConfig)
+		commands = append(commands, common.ConfigVolumePath+"/"+otelConfigFileName)
+		volMount := volume.GetVolumeMountWithSubPath(otelAgentVolumeName, common.ConfigVolumePath+"/"+otelConfigFileName, otelConfigFileName)
+		managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.OtelAgent)
+	}
+
+	// Add config to otel-agent container command
+	for id, container := range managers.PodTemplateSpec().Spec.Containers {
+		if container.Name == "otel-agent" {
+			for _, command := range commands {
+				managers.PodTemplateSpec().Spec.Containers[id].Command = append(managers.PodTemplateSpec().Spec.Containers[id].Command,
+					"--config="+command,
+				)
+			}
+
+		}
+	}
 
 	// Add md5 hash annotation for configMap
 	if o.customConfigAnnotationKey != "" && o.customConfigAnnotationValue != "" {

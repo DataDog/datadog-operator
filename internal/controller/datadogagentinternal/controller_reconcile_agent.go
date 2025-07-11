@@ -14,7 +14,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -22,15 +21,13 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component"
-	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/agent"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/experimental"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/global"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/override"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
-	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -41,6 +38,11 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	var eds *edsv1alpha1.ExtendedDaemonSet
 	var daemonset *appsv1.DaemonSet
 	var podManagers feature.PodTemplateManagers
+
+	// TODO: temporary fix for DDAI object name
+	// Use DDA name instead of DDAI name
+	ddaiCopy := ddai.DeepCopy()
+	ddaiCopy.Name = ddaiCopy.Labels[apicommon.DatadogAgentNameLabelKey]
 
 	daemonsetLogger := logger.WithValues("component", datadoghqv2alpha1.NodeAgentComponentName)
 
@@ -56,13 +58,13 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	// DaemonSets.
 	// This is to make deployments simpler. With multiple EDS there would be
 	// multiple canaries, etc.
-	if r.options.ExtendedDaemonsetOptions.Enabled {
+	if r.options.ExtendedDaemonsetOptions.Enabled && !isDDAILabeledWithProfile(ddaiCopy) {
 		// Start by creating the Default Agent extendeddaemonset
-		eds = componentagent.NewDefaultAgentExtendedDaemonset(ddai, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
+		eds = componentagent.NewDefaultAgentExtendedDaemonset(ddaiCopy, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
 
 		// Set Global setting on the default extendeddaemonset
-		global.ApplyGlobalSettingsNodeAgent(logger, podManagers, ddai, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
+		global.ApplyGlobalSettingsNodeAgent(logger, podManagers, ddaiCopy.GetObjectMeta(), &ddaiCopy.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
 
 		// Apply features changes on the Deployment.Spec.Template
 		for _, feat := range features {
@@ -81,11 +83,11 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 			if apiutils.BoolValue(componentOverride.Disabled) {
 				disabledByOverride = true
 			}
-			override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, ddai.Name)
+			override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, ddaiCopy.Name)
 			override.ExtendedDaemonSet(eds, componentOverride)
 		}
 
-		experimental.ApplyExperimentalOverrides(logger, ddai, podManagers)
+		experimental.ApplyExperimentalOverrides(logger, ddaiCopy, podManagers)
 
 		if disabledByOverride {
 			if agentEnabled {
@@ -110,10 +112,10 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	}
 
 	// Start by creating the Default Agent daemonset
-	daemonset = componentagent.NewDefaultAgentDaemonset(ddai, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
+	daemonset = componentagent.NewDefaultAgentDaemonset(ddaiCopy, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 	// Set Global setting on the default daemonset
-	global.ApplyGlobalSettingsNodeAgent(logger, podManagers, ddai, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
+	global.ApplyGlobalSettingsNodeAgent(logger, podManagers, ddaiCopy.GetObjectMeta(), &ddaiCopy.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
@@ -138,11 +140,11 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		if apiutils.BoolValue(componentOverride.Disabled) {
 			disabledByOverride = true
 		}
-		override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, ddai.Name)
+		override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, ddaiCopy.Name)
 		override.DaemonSet(daemonset, componentOverride)
 	}
 
-	experimental.ApplyExperimentalOverrides(logger, ddai, podManagers)
+	experimental.ApplyExperimentalOverrides(logger, ddaiCopy, podManagers)
 
 	if disabledByOverride {
 		if agentEnabled {
@@ -214,68 +216,78 @@ func deleteStatusWithAgent(newStatus *datadoghqv1alpha1.DatadogAgentInternalStat
 	condition.DeleteDatadogAgentInternalStatusCondition(newStatus, common.AgentReconcileConditionType)
 }
 
+// isDDAILabeledWithProfile returns true if the DDAI is labeled with a non-default profile.
+// This is used to determine whether or not the EDS should be created.
+func isDDAILabeledWithProfile(ddai *datadoghqv1alpha1.DatadogAgentInternal) bool {
+	labels := ddai.GetLabels()
+	if labels == nil {
+		return false
+	}
+	return labels[agentprofile.ProfileLabelKey] != ""
+}
+
 // cleanupExtraneousDaemonSets deletes DSs/EDSs that no longer apply.
 // Use cases include deleting old DSs/EDSs when:
 // - a DaemonSet's name is changed using node overrides
 // - introspection is disabled or enabled
 // - a profile is deleted
-func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger logr.Logger, ddai *datadoghqv1alpha1.DatadogAgentInternal, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus) error {
-	matchLabels := client.MatchingLabels{
-		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
-		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(ddai).String(),
-	}
+// func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger logr.Logger, ddai *datadoghqv1alpha1.DatadogAgentInternal, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus) error {
+// 	matchLabels := client.MatchingLabels{
+// 		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+// 		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+// 		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(ddai).String(),
+// 	}
 
-	dsName := component.GetDaemonSetNameFromDatadogAgent(ddai)
-	validDaemonSetNames, validExtendedDaemonSetNames := r.getValidDaemonSetNames(dsName)
+// 	dsName := component.GetDaemonSetNameFromDatadogAgent(ddai)
+// 	validDaemonSetNames, validExtendedDaemonSetNames := r.getValidDaemonSetNames(dsName)
 
-	// Only the default profile uses an EDS when profiles are enabled
-	// Multiple EDSs can be created with introspection
-	if r.options.ExtendedDaemonsetOptions.Enabled {
-		edsList := edsv1alpha1.ExtendedDaemonSetList{}
-		if err := r.client.List(ctx, &edsList, matchLabels); err != nil {
-			return err
-		}
+// 	// Only the default profile uses an EDS when profiles are enabled
+// 	// Multiple EDSs can be created with introspection
+// 	if r.options.ExtendedDaemonsetOptions.Enabled {
+// 		edsList := edsv1alpha1.ExtendedDaemonSetList{}
+// 		if err := r.client.List(ctx, &edsList, matchLabels); err != nil {
+// 			return err
+// 		}
 
-		for _, eds := range edsList.Items {
-			if _, ok := validExtendedDaemonSetNames[eds.Name]; !ok {
-				if err := r.deleteV2ExtendedDaemonSet(logger, ddai, &eds, newStatus); err != nil {
-					return err
-				}
-			}
-		}
-	}
+// 		for _, eds := range edsList.Items {
+// 			if _, ok := validExtendedDaemonSetNames[eds.Name]; !ok {
+// 				if err := r.deleteV2ExtendedDaemonSet(logger, ddai, &eds, newStatus); err != nil {
+// 					return err
+// 				}
+// 			}
+// 		}
+// 	}
 
-	daemonSetList := appsv1.DaemonSetList{}
-	if err := r.client.List(ctx, &daemonSetList, matchLabels); err != nil {
-		return err
-	}
+// 	daemonSetList := appsv1.DaemonSetList{}
+// 	if err := r.client.List(ctx, &daemonSetList, matchLabels); err != nil {
+// 		return err
+// 	}
 
-	for _, daemonSet := range daemonSetList.Items {
-		if _, ok := validDaemonSetNames[daemonSet.Name]; !ok {
-			if err := r.deleteV2DaemonSet(logger, ddai, &daemonSet, newStatus); err != nil {
-				return err
-			}
-		}
-	}
+// 	for _, daemonSet := range daemonSetList.Items {
+// 		if _, ok := validDaemonSetNames[daemonSet.Name]; !ok {
+// 			if err := r.deleteV2DaemonSet(logger, ddai, &daemonSet, newStatus); err != nil {
+// 				return err
+// 			}
+// 		}
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 // getValidDaemonSetNames generates a list of valid DS and EDS names
-func (r *Reconciler) getValidDaemonSetNames(dsName string) (map[string]struct{}, map[string]struct{}) {
-	validDaemonSetNames := map[string]struct{}{}
-	validExtendedDaemonSetNames := map[string]struct{}{}
+// func (r *Reconciler) getValidDaemonSetNames(dsName string) (map[string]struct{}, map[string]struct{}) {
+// 	validDaemonSetNames := map[string]struct{}{}
+// 	validExtendedDaemonSetNames := map[string]struct{}{}
 
-	if r.options.ExtendedDaemonsetOptions.Enabled {
-		validExtendedDaemonSetNames = map[string]struct{}{
-			dsName: {},
-		}
-	} else {
-		validDaemonSetNames = map[string]struct{}{
-			dsName: {},
-		}
-	}
+// 	if r.options.ExtendedDaemonsetOptions.Enabled {
+// 		validExtendedDaemonSetNames = map[string]struct{}{
+// 			dsName: {},
+// 		}
+// 	} else {
+// 		validDaemonSetNames = map[string]struct{}{
+// 			dsName: {},
+// 		}
+// 	}
 
-	return validDaemonSetNames, validExtendedDaemonSetNames
-}
+// 	return validDaemonSetNames, validExtendedDaemonSetNames
+// }

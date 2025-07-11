@@ -58,19 +58,22 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	r.updateMetricsForwardersFeatures(instance, enabledFeatures)
 
 	// 1. Manage dependencies.
+	// set the original DDAI as the owner of dependencies
 	depsStore, resourceManagers := r.setupDependencies(instance, logger)
 
 	var err error
-	if err = r.manageGlobalDependencies(logger, instance, resourceManagers, requiredComponents); err != nil {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
+	// only manage dependencies for default DDAIs
+	if !isDDAILabeledWithProfile(instance) {
+		if err = r.manageGlobalDependencies(logger, instance, resourceManagers, requiredComponents); err != nil {
+			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
+		}
+		if err = r.manageFeatureDependencies(logger, enabledFeatures, resourceManagers); err != nil {
+			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
+		}
+		if err = r.overrideDependencies(logger, resourceManagers, instance); err != nil {
+			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
+		}
 	}
-	if err = r.manageFeatureDependencies(logger, enabledFeatures, resourceManagers); err != nil {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
-	}
-	if err = r.overrideDependencies(logger, resourceManagers, instance); err != nil {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
-	}
-
 	// 2. Reconcile each component.
 	// 2.a. Cluster Agent
 
@@ -103,8 +106,11 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	}
 
 	// 4. Apply and cleanup dependencies.
-	if err = r.applyAndCleanupDependencies(ctx, logger, depsStore); err != nil {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
+	// only manage dependencies for default DDAIs
+	if !isDDAILabeledWithProfile(instance) {
+		if err = r.applyAndCleanupDependencies(ctx, logger, depsStore); err != nil {
+			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
+		}
 	}
 
 	// Always requeue

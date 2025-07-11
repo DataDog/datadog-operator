@@ -310,6 +310,22 @@ func run(opts *options) error {
 		}()
 	}
 
+	// Cleanup leftover DatadogAgentInternal resources if DDAI controller is disabled
+	if opts.datadogAgentEnabled && !opts.datadogAgentInternalEnabled {
+		go func() {
+			// Block until this controller manager is elected leader and controllers are set up
+			<-mgr.Elected()
+
+			// Wait a bit more to ensure reconciliation has had a chance to patch ownerRefs
+			time.Sleep(60 * time.Second)
+
+			setupLog.Info("Starting cleanup of DatadogAgentInternal resources")
+			if err = controller.CleanupDatadogAgentInternalResources(setupLog, restConfig); err != nil {
+				setupLog.Error(err, "Failed to cleanup DatadogAgentInternal resources")
+			}
+		}()
+	}
+
 	options := controller.SetupOptions{
 		SupportExtendedDaemonset: controller.ExtendedDaemonsetOptions{
 			Enabled:                             opts.supportExtendedDaemonset,
@@ -415,11 +431,31 @@ func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
 		return fmt.Errorf("unknow log encoder: %s", logEncoder)
 	}
 
-	ctrl.SetLogger(ctrlzap.New(
-		ctrlzap.Encoder(encoder),
-		ctrlzap.Level(logLevel),
-		ctrlzap.StacktraceLevel(zapcore.PanicLevel)),
-	)
+	zapOpts := ctrlzap.Options{}
+	zapOpts.BindFlags(flag.CommandLine)
+
+	core := zap.WrapCore(func(c zapcore.Core) zapcore.Core {
+		infoLevel := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
+			return level == zapcore.InfoLevel
+		})
+
+		otherLevel := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
+			return level != zapcore.InfoLevel
+		})
+
+		stdoutSyncer := zapcore.Lock(os.Stdout)
+		stderrSyncer := zapcore.Lock(os.Stderr)
+
+		tee := zapcore.NewTee(
+			zapcore.NewCore(encoder, stderrSyncer, otherLevel),
+			zapcore.NewCore(encoder, stdoutSyncer, infoLevel),
+		)
+
+		return tee
+	})
+
+	zapOpts.ZapOpts = append(zapOpts.ZapOpts, core)
+	ctrl.SetLogger(ctrlzap.New(ctrlzap.UseFlagOptions(&zapOpts)))
 
 	return nil
 }

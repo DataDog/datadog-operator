@@ -10,9 +10,6 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
-
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 func getDefaultConfigMapName(ddaName, fileName string) string {
@@ -25,21 +22,4 @@ func hasProbeHandler(probe *corev1.Probe) bool {
 		return true
 	}
 	return false
-}
-
-func SetOverrideFromDDA(dda *v2alpha1.DatadogAgent, ddaiSpec *v2alpha1.DatadogAgentSpec) {
-	if ddaiSpec == nil {
-		ddaiSpec = &v2alpha1.DatadogAgentSpec{}
-	}
-	if ddaiSpec.Override == nil {
-		ddaiSpec.Override = make(map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride)
-	}
-	if _, ok := ddaiSpec.Override[v2alpha1.NodeAgentComponentName]; !ok {
-		ddaiSpec.Override[v2alpha1.NodeAgentComponentName] = &v2alpha1.DatadogAgentComponentOverride{}
-	}
-	if ddaiSpec.Override[v2alpha1.NodeAgentComponentName].Labels == nil {
-		ddaiSpec.Override[v2alpha1.NodeAgentComponentName].Labels = make(map[string]string)
-	}
-	// Set empty provider label
-	ddaiSpec.Override[v2alpha1.NodeAgentComponentName].Labels[constants.MD5AgentDeploymentProviderLabelKey] = ""
 }
