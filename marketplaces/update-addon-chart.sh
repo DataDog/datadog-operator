@@ -31,13 +31,6 @@ fi
 
 # clean-up sub-charts to pass add-on validation
 
-# delete v1beta1 CRDs
-rm ./charts/operator-eks-addon/charts/datadog-operator/charts/datadog-crds/templates/datadoghq.com_datadogagents_v1beta1.yaml
-rm ./charts/operator-eks-addon/charts/datadog-operator/charts/datadog-crds/templates/datadoghq.com_datadogmonitors_v1beta1.yaml
-rm ./charts/operator-eks-addon/charts/datadog-operator/charts/datadog-crds/templates/datadoghq.com_datadogslos_v1beta1.yaml
-rm ./charts/operator-eks-addon/charts/datadog-operator/charts/datadog-crds/templates/datadoghq.com_datadogagentprofiles_v1beta1.yaml
-rm ./charts/operator-eks-addon/charts/datadog-operator/charts/datadog-crds/templates/datadoghq.com_datadogmetrics_v1beta1.yaml
-
 # delete semverCompare not allowed by add-on validation
 find ./charts/operator-eks-addon/charts/datadog-operator/charts/datadog-crds/templates/ -type f -name "*.yaml" -exec sed -i '' 's#(semverCompare ">1.21-0" .Capabilities.KubeVersion.GitVersion ) ##g' {} \;
 find ./charts/operator-eks-addon/charts/datadog-operator/charts/datadog-crds/templates/ -type f -name "*.yaml" -exec sed -i '' 's#and ##g' {} \;

@@ -3,15 +3,16 @@
 This is a wrapper chart for installing EKS add-on. Charts required for the add-on are added as a dependency to this chart. Chart itself doesn't contain any templates or configurable properties.
 
 ## Version Mapping
-| `operator-addon-chart` | `datadog-operator` | `datadog-crds` | Operator | Agent | Cluster Agent |
-| :-: | :-: | :-: | :-: | :-: | :-: |
-| < 0.1.6 | 1.0.5 | 1.0.1 | 1.0.3 | 7.43.1 | 7.43.1 | 
-| 0.1.6 | 1.4.1 | 1.3.0 | 1.3.0 | 7.47.1 | 7.47.1 |
-| 0.1.7 | 1.5.1 | 1.4.0 | 1.4.0 | 7.50.3 | 7.50.3 |
-| 0.1.9 | 1.8.1 | 1.7.0 | 1.7.0 | 7.54.0 | 7.54.0 |
-| 0.1.10 | 2.5.1 | 2.3.0 | 1.11.1 | 7.60.0 | 7.60.0 |
-| 0.1.12 | 2.7.0 | 2.4.1 | 1.12.1 | 7.62.2 | 7.62.2 |
-| 0.1.13 | 2.9.1 | 2.7.0 | 1.14.0 | 7.64.3 | 7.64.3 |
+| `operator-addon-chart` | `datadog-operator` |  `datadog-crds`   | Operator |    Agent    |   Cluster Agent    |
+|:----------------------:|:------------------:|:-----------------:|:--------:|:-----------:|:------------------:|
+|        < 0.1.6         |       1.0.5        |       1.0.1       |  1.0.3   |   7.43.1    |       7.43.1       | 
+|         0.1.6          |       1.4.1        |       1.3.0       |  1.3.0   |   7.47.1    |       7.47.1       |
+|         0.1.7          |       1.5.1        |       1.4.0       |  1.4.0   |   7.50.3    |       7.50.3       |
+|         0.1.9          |       1.8.1        |       1.7.0       |  1.7.0   |   7.54.0    |       7.54.0       |
+|         0.1.10         |       2.5.1        |       2.3.0       |  1.11.1  |   7.60.0    |       7.60.0       |
+|         0.1.12         |       2.7.0        |       2.4.1       |  1.12.1  |   7.62.2    |       7.62.2       |
+|         0.1.13         |       2.9.1        |       2.7.0       |  1.14.0  |   7.64.3    |       7.64.3       |
+|         0.1.14         |       2.11.1       |       2.9.0       |  1.16.0  |   7.67.0    |       7.67.0       |
 
 * 0.1.8 failed validation and didn't go through.
 * 0.1.11 failed validation and didn't go through.
@@ -22,9 +23,9 @@ The below steps have been validated using `Helm v3.12.0`.
 
 Prepare Chart:
 
-* Update the `datadog-operator` dependency version in `charts/operator-eks-addon/Chart.yaml`.
+* Update the `datadog-operator` dependency version in `marketplaces/charts/operator-eks-addon/Chart.yaml`.
 * Bump `operator-eks-addon` chart version.
-* Run:
+* From the `marketplaces` directory, run:
     ```sh
     ./update-addon-chart.sh
     ```
