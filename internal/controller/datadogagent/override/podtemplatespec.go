@@ -124,7 +124,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	}
 
 	for agentContainerName, containerOverride := range override.Containers {
-		Container(agentContainerName, manager, containerOverride, ddaName)
+		Container(agentContainerName, manager, containerOverride)
 	}
 
 	for _, vol := range override.Volumes {

@@ -1109,7 +1109,7 @@ func TestContainer(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			manager := test.existingManager()
-			Container(test.containerName, manager, &test.override, "dda")
+			Container(test.containerName, manager, &test.override)
 
 			test.validateManager(t, manager, string(test.containerName))
 		})
