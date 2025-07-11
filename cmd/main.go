@@ -375,14 +375,15 @@ func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
 
 	zapOpts := ctrlzap.Options{}
 	zapOpts.BindFlags(flag.CommandLine)
+	zapOpts.Level = zap.NewAtomicLevelAt(logLevel)
 
 	core := zap.WrapCore(func(c zapcore.Core) zapcore.Core {
 		infoLevel := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
-			return level == zapcore.InfoLevel
+			return level == zapcore.InfoLevel && zapOpts.Level.Enabled(level)
 		})
 
 		otherLevel := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
-			return level != zapcore.InfoLevel
+			return level != zapcore.InfoLevel && zapOpts.Level.Enabled(level)
 		})
 
 		stdoutSyncer := zapcore.Lock(os.Stdout)
