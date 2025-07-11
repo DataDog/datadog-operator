@@ -6,6 +6,7 @@ package k8ssuite
 
 import (
 	"context"
+	"fmt"
 	gcpkubernetes "github.com/DataDog/datadog-agent/test/new-e2e/pkg/provisioners/gcp/kubernetes"
 	"strings"
 	"testing"
@@ -54,5 +55,6 @@ func (v *exampleGkeSuite) TestExampleGKE() {
 	assert.NoError(v.T(), err)
 	assert.Empty(v.T(), stderr)
 	assert.NotEmpty(v.T(), stdout)
-	assert.False(v.T(), true)
+
+	v.T().Log(fmt.Sprintf("KUBECONFIG: %s", v.Env().KubernetesCluster.KubeConfig))
 }
