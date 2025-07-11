@@ -300,6 +300,22 @@ func run(opts *options) error {
 		}()
 	}
 
+	// Cleanup leftover DatadogAgentInternal resources if DDAI controller is disabled
+	if opts.datadogAgentEnabled && !opts.datadogAgentInternalEnabled {
+		go func() {
+			// Block until this controller manager is elected leader and controllers are set up
+			<-mgr.Elected()
+
+			// Wait a bit more to ensure reconciliation has had a chance to patch ownerRefs
+			time.Sleep(60 * time.Second)
+
+			setupLog.Info("Starting cleanup of DatadogAgentInternal resources")
+			if err = controller.CleanupDatadogAgentInternalResources(setupLog, restConfig); err != nil {
+				setupLog.Error(err, "Failed to cleanup DatadogAgentInternal resources")
+			}
+		}()
+	}
+
 	options := controller.SetupOptions{
 		SupportExtendedDaemonset: controller.ExtendedDaemonsetOptions{
 			Enabled:                             opts.supportExtendedDaemonset,
