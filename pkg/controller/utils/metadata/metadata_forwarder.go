@@ -134,8 +134,7 @@ func (mdf *MetadataForwarder) Start() {
 	ticker := time.NewTicker(defaultInterval)
 	go func() {
 		for {
-			select {
-			case <-ticker.C:
+			for range ticker.C {
 				if err := mdf.sendMetadata(); err != nil {
 					mdf.logger.Error(err, "Error while sending metadata")
 				}

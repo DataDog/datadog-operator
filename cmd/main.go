@@ -465,6 +465,4 @@ func setupAndStartMetadataForwarder(logger logr.Logger, client client.Reader, ku
 	}
 
 	mdf.Start()
-
-	return
 }
