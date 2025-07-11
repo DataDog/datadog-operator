@@ -1,6 +1,6 @@
 module github.com/DataDog/datadog-operator/test/e2e
 
-go 1.23.1
+go 1.23
 
 toolchain go1.23.10
 
