@@ -7,14 +7,12 @@ package provisioners
 
 import (
 	"fmt"
-	"github.com/DataDog/test-infra-definitions/scenarios/gcp/gke"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/provisioners"
-	awskubernetes "github.com/DataDog/datadog-agent/test/new-e2e/pkg/provisioners/aws/kubernetes"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/utils/optional"
 	"github.com/DataDog/test-infra-definitions/common/config"
@@ -26,15 +24,14 @@ import (
 	kubeComp "github.com/DataDog/test-infra-definitions/components/kubernetes"
 	"github.com/DataDog/test-infra-definitions/resources/gcp"
 	"github.com/DataDog/test-infra-definitions/resources/local"
-	"github.com/DataDog/test-infra-definitions/scenarios/aws/ec2"
 	"github.com/DataDog/test-infra-definitions/scenarios/aws/fakeintake"
 	gcpfakeintake "github.com/DataDog/test-infra-definitions/scenarios/gcp/fakeintake"
+	"github.com/DataDog/test-infra-definitions/scenarios/gcp/gke"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
 	corev1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/kustomize"
 	metav1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/meta/v1"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/yaml"
-	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 
 	"github.com/DataDog/datadog-operator/test/e2e/common"
@@ -76,36 +73,6 @@ func newKubernetesProvisionerParams() *KubernetesProvisionerParams {
 		workloadAppFuncs:   []func(e config.Env, kubeProvider *kubernetes.Provider) (*kubeComp.Workload, error){},
 		local:              false,
 	}
-}
-
-// newAWSK8sProvisionerOpts Translates the generic KubernetesProvisionerParams into a list of awskubernetes.ProvisionerOption for the AWS Kind provisioner
-func newAWSK8sProvisionerOpts(params *KubernetesProvisionerParams) []awskubernetes.ProvisionerOption {
-	provisionerName := provisionerBaseID + params.name
-
-	extraConfig := params.extraConfigParams
-	extraConfig.Merge(runner.ConfigMap{
-		"ddinfra:kubernetesVersion": auto.ConfigValue{Value: params.k8sVersion},
-		"ddagent:imagePullRegistry": auto.ConfigValue{Value: "669783387624.dkr.ecr.us-east-1.amazonaws.com"},
-		"ddagent:imagePullUsername": auto.ConfigValue{Value: "AWS"},
-		"ddagent:imagePullPassword": auto.ConfigValue{Value: common.ImgPullPassword},
-	})
-
-	newOpts := []awskubernetes.ProvisionerOption{
-		awskubernetes.WithName(provisionerName),
-		awskubernetes.WithOperator(),
-		awskubernetes.WithOperatorDDAOptions(params.ddaOptions...),
-		awskubernetes.WithOperatorOptions(params.operatorOptions...),
-		awskubernetes.WithExtraConfigParams(extraConfig),
-		awskubernetes.WithWorkloadApp(KustomizeWorkloadAppFunc(params.testName, params.kustomizeResources)),
-		awskubernetes.WithFakeIntakeOptions(params.fakeintakeOptions...),
-		awskubernetes.WithEC2VMOptions([]ec2.VMOption{ec2.WithUserData(UserData), ec2.WithInstanceType("m5.xlarge")}...),
-	}
-
-	for _, yamlWorkload := range params.yamlWorkloads {
-		newOpts = append(newOpts, awskubernetes.WithWorkloadApp(YAMLWorkloadAppFunc(yamlWorkload)))
-	}
-
-	return newOpts
 }
 
 // KubernetesProvisionerOption is a function that modifies the KubernetesProvisionerParams
@@ -394,9 +361,9 @@ func gkeRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params *Kuber
 
 	// Deploy a fakeintake
 	if params.fakeintakeOptions != nil {
-		fakeIntake, err := gcpfakeintake.NewVMInstance(gcpEnv)
-		if err != nil {
-			return err
+		fakeIntake, fakeIntakeErr := gcpfakeintake.NewVMInstance(gcpEnv)
+		if fakeIntakeErr != nil {
+			return fakeIntakeErr
 		}
 		err = fakeIntake.Export(ctx, &env.FakeIntake.FakeintakeOutput)
 		if err != nil {
