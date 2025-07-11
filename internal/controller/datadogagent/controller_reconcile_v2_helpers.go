@@ -94,17 +94,14 @@ func (r *Reconciler) reconcileAgentProfiles(ctx context.Context, logger logr.Log
 	profiles := []datadoghqv1alpha1.DatadogAgentProfile{{}}
 	metrics.IntrospectionEnabled.Set(metrics.FalseValue)
 	metrics.DAPEnabled.Set(metrics.FalseValue)
-	logger.Info("reconcileAgentProfiles", "DatadogAgentProfileEnabled", r.options.DatadogAgentProfileEnabled, "IntrospectionEnabled", r.options.IntrospectionEnabled)
 	// If profiles or introspection is enabled, get the node list and update providers.
 	if r.options.DatadogAgentProfileEnabled || r.options.IntrospectionEnabled {
 		nodeList, err := r.getNodeList(ctx)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
-		logger.Info("nodeList", "nodeList", nodeList)
 		if r.options.IntrospectionEnabled {
 			providerList = kubernetes.GetProviderListFromNodeList(nodeList, logger)
-			logger.Info("providerList", "providerList", providerList)
 			metrics.IntrospectionEnabled.Set(metrics.TrueValue)
 		}
 		if r.options.DatadogAgentProfileEnabled {

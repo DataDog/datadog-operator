@@ -41,84 +41,104 @@ func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Lo
 
 	// Get provider list for introspection
 	providerList := map[string]struct{}{kubernetes.LegacyProvider: {}}
+	dcaProvider := kubernetes.LegacyProvider
 	if r.options.IntrospectionEnabled {
 		nodeList, err := r.getNodeList(ctx)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
 		providerList = kubernetes.GetProviderListFromNodeList(nodeList, logger)
-		logger.Info("providerList for cluster agent", "providerList", providerList) //output is default-rhcos for label node.openshift.io/os_id=rhcos
-	}
-	// TODO: does it make sense to put provider list BEFORE reconciler? this is where the real reconcilation starts
-	// Reconcile cluster agent for each provider
-	var errs []error
-	for provider := range providerList {
-		logger.Info("DCA providerList", "provider", provider)
-		// Start by creating the Default Cluster-Agent deployment
-		deployment := componentdca.NewDefaultClusterAgentDeployment(dda.GetObjectMeta(), &dda.Spec)
-		podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
-		// Set Global setting on the default deployment
-		global.ApplyGlobalSettingsClusterAgent(logger, podManagers, dda.GetObjectMeta(), &dda.Spec, resourcesManager, requiredComponents)
-
-		// Apply features changes on the Deployment.Spec.Template
-		var featErrors []error
-		for _, feat := range features {
-			logger.Info("DCA feature", "feature", feat.ID())
-			if errFeat := feat.ManageClusterAgent(podManagers, provider); errFeat != nil {
-				featErrors = append(featErrors, errFeat)
+		dcaProvider = kubernetes.DefaultProvider
+		if len(providerList) == 1 {
+			for provider := range providerList {
+				dcaProvider = provider
+				break
 			}
-		}
-		if len(featErrors) > 0 {
-			err := utilerrors.NewAggregate(featErrors)
-			updateStatusV2WithClusterAgent(deployment, newStatus, now, metav1.ConditionFalse, "ClusterAgent feature error", err.Error())
-			return result, err
-		}
-
-		deploymentLogger := logger.WithValues("component", datadoghqv2alpha1.ClusterAgentComponentName, "provider", provider)
-
-		// The requiredComponents can change depending on if updates to features result in disabled components
-		dcaEnabled := requiredComponents.ClusterAgent.IsEnabled()
-
-		// If Override is defined for the clusterAgent component, apply the override on the PodTemplateSpec, it will cascade to container.
-		if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterAgentComponentName]; ok {
-			if apiutils.BoolValue(componentOverride.Disabled) {
-				if dcaEnabled {
-					// The override supersedes what's set in requiredComponents; update status to reflect the conflict
-					condition.UpdateDatadogAgentStatusConditions(
-						newStatus,
-						metav1.NewTime(time.Now()),
-						common.OverrideReconcileConflictConditionType,
-						metav1.ConditionTrue,
-						"OverrideConflict",
-						"ClusterAgent component is set to disabled",
-						true,
-					)
+		} else if len(providerList) == 2 {
+			if _, ok := providerList[kubernetes.DefaultProvider]; ok {
+				for provider := range providerList {
+					if provider != kubernetes.DefaultProvider {
+						dcaProvider = provider
+						logger.Info("Multiple providers found for Cluster Agent reconciliation, using provider", "provider", dcaProvider)
+						break
+					}
 				}
-				deleteStatusV2WithClusterAgent(newStatus)
-				return r.cleanupV2ClusterAgent(deploymentLogger, dda, deployment, resourcesManager, newStatus)
+			} else {
+				logger.Error(nil, "Multiple specialized providers detected for Cluster Agent reconciliation. Only one specialized provider is supported, falling back to default provider", "selected_provider", dcaProvider)
 			}
-			override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.ClusterAgentComponentName, dda.Name)
-			override.Deployment(deployment, componentOverride)
-		} else if !dcaEnabled {
-			// If the override is not defined, then disable based on dcaEnabled value
+		} else {
+			logger.Error(nil, "Multiple specialized providers detected for Cluster Agent reconciliation. Only one specialized provider is supported, falling back to default provider", "selected_provider", dcaProvider)
+		}
+	}
+
+	// Reconcile cluster agent for dcaProvider
+	var errs []error
+
+	// Start by creating the Default Cluster-Agent deployment
+	deployment := componentdca.NewDefaultClusterAgentDeployment(dda.GetObjectMeta(), &dda.Spec)
+	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
+
+	// Set Global setting on the default deployment
+	global.ApplyGlobalSettingsClusterAgent(logger, podManagers, dda.GetObjectMeta(), &dda.Spec, resourcesManager, requiredComponents)
+
+	// Apply features changes on the Deployment.Spec.Template
+	var featErrors []error
+	for _, feat := range features {
+		logger.Info("DCA feature", "feature", feat.ID())
+		if errFeat := feat.ManageClusterAgent(podManagers, dcaProvider); errFeat != nil {
+			featErrors = append(featErrors, errFeat)
+		}
+	}
+	if len(featErrors) > 0 {
+		err := utilerrors.NewAggregate(featErrors)
+		updateStatusV2WithClusterAgent(deployment, newStatus, now, metav1.ConditionFalse, "ClusterAgent feature error", err.Error())
+		return result, err
+	}
+
+	deploymentLogger := logger.WithValues("component", datadoghqv2alpha1.ClusterAgentComponentName, "provider", dcaProvider)
+
+	// The requiredComponents can change depending on if updates to features result in disabled components
+	dcaEnabled := requiredComponents.ClusterAgent.IsEnabled()
+
+	// If Override is defined for the clusterAgent component, apply the override on the PodTemplateSpec, it will cascade to container.
+	if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterAgentComponentName]; ok {
+		if apiutils.BoolValue(componentOverride.Disabled) {
+			if dcaEnabled {
+				// The override supersedes what's set in requiredComponents; update status to reflect the conflict
+				condition.UpdateDatadogAgentStatusConditions(
+					newStatus,
+					metav1.NewTime(time.Now()),
+					common.OverrideReconcileConflictConditionType,
+					metav1.ConditionTrue,
+					"OverrideConflict",
+					"ClusterAgent component is set to disabled",
+					true,
+				)
+			}
 			deleteStatusV2WithClusterAgent(newStatus)
 			return r.cleanupV2ClusterAgent(deploymentLogger, dda, deployment, resourcesManager, newStatus)
 		}
+		override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.ClusterAgentComponentName, dda.Name)
+		override.Deployment(deployment, componentOverride)
+	} else if !dcaEnabled {
+		// If the override is not defined, then disable based on dcaEnabled value
+		deleteStatusV2WithClusterAgent(newStatus)
+		return r.cleanupV2ClusterAgent(deploymentLogger, dda, deployment, resourcesManager, newStatus)
+	}
 
-		// Add provider label to deployment
-		if deployment.Labels == nil {
-			deployment.Labels = make(map[string]string)
-		}
-		deployment.Labels[constants.MD5AgentDeploymentProviderLabelKey] = provider
+	// Add provider label to deployment
+	if deployment.Labels == nil {
+		deployment.Labels = make(map[string]string)
+	}
+	deployment.Labels[constants.MD5AgentDeploymentProviderLabelKey] = dcaProvider
 
-		res, err := r.createOrUpdateDeployment(deploymentLogger, dda, deployment, newStatus, updateStatusV2WithClusterAgent)
-		if err != nil {
-			errs = append(errs, err)
-		}
-		if utils.ShouldReturn(res, err) {
-			return res, err
-		}
+	res, err := r.createOrUpdateDeployment(deploymentLogger, dda, deployment, newStatus, updateStatusV2WithClusterAgent)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	if utils.ShouldReturn(res, err) {
+		return res, err
 	}
 
 	if len(errs) > 0 {
