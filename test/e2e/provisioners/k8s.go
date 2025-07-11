@@ -18,12 +18,10 @@ import (
 	"github.com/DataDog/test-infra-definitions/common/config"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agent"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agentwithoperatorparams"
-	fakeintakeComp "github.com/DataDog/test-infra-definitions/components/datadog/fakeintake"
 	"github.com/DataDog/test-infra-definitions/components/datadog/operator"
 	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
 	kubeComp "github.com/DataDog/test-infra-definitions/components/kubernetes"
 	"github.com/DataDog/test-infra-definitions/resources/gcp"
-	"github.com/DataDog/test-infra-definitions/resources/local"
 	"github.com/DataDog/test-infra-definitions/scenarios/aws/fakeintake"
 	gcpfakeintake "github.com/DataDog/test-infra-definitions/scenarios/gcp/fakeintake"
 	"github.com/DataDog/test-infra-definitions/scenarios/gcp/gke"
@@ -211,15 +209,15 @@ func KubernetesProvisioner(opts ...KubernetesProvisionerOption) provisioners.Typ
 		}, params.extraConfigParams)
 	}
 
-	provisionerName := "local-" + params.name
+	//provisionerName := "local-" + params.name
 
-	provisioner = provisioners.NewTypedPulumiProvisioner(provisionerName, func(ctx *pulumi.Context, env *environments.Kubernetes) error {
+	provisioner = provisioners.NewTypedPulumiProvisioner("local-kind", func(ctx *pulumi.Context, env *environments.Kubernetes) error {
 		// We ALWAYS need to make a deep copy of `params`, as the provisioner can be called multiple times.
 		// and it's easy to forget about it, leading to hard to debug issues.
 		pprams := newKubernetesProvisionerParams()
 		_ = optional.ApplyOptions(pprams, opts)
 
-		return localKindRunFunc(ctx, env, pprams)
+		return gkeRunFunc(ctx, env, pprams)
 
 	}, params.extraConfigParams)
 
@@ -227,118 +225,118 @@ func KubernetesProvisioner(opts ...KubernetesProvisionerOption) provisioners.Typ
 }
 
 // localKindRunFunc is the Pulumi run function that runs the local Kind provisioner
-func localKindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params *KubernetesProvisionerParams) error {
-	localEnv, err := local.NewEnvironment(ctx)
-	if err != nil {
-		return err
-	}
-
-	kindCluster, err := kubeComp.NewLocalKindCluster(&localEnv, localEnv.CommonNamer().ResourceName("local-kind"), params.k8sVersion)
-	if err != nil {
-		return err
-	}
-
-	if err = kindCluster.Export(ctx, &env.KubernetesCluster.ClusterOutput); err != nil {
-		return err
-	}
-
-	// Build Kubernetes provider
-	kindKubeProvider, err := kubernetes.NewProvider(ctx, localEnv.CommonNamer().ResourceName("k8s-provider"), &kubernetes.ProviderArgs{
-		Kubeconfig:            kindCluster.KubeConfig,
-		EnableServerSideApply: pulumi.BoolPtr(true),
-	})
-	if err != nil {
-		return err
-	}
-
-	if params.fakeintakeOptions != nil {
-		fakeintakeOpts := []fakeintake.Option{fakeintake.WithLoadBalancer()}
-		params.fakeintakeOptions = append(fakeintakeOpts, params.fakeintakeOptions...)
-
-		fakeIntake, intakeErr := fakeintakeComp.NewLocalDockerFakeintake(&localEnv, "fakeintake")
-		if intakeErr != nil {
-			return intakeErr
-		}
-		if err = fakeIntake.Export(ctx, &env.FakeIntake.FakeintakeOutput); err != nil {
-			return err
-		}
-
-		if params.ddaOptions != nil {
-			params.ddaOptions = append(params.ddaOptions, agentwithoperatorparams.WithFakeIntake(fakeIntake))
-		}
-	} else {
-		env.FakeIntake = nil
-	}
-
-	ns, err := corev1.NewNamespace(ctx, localEnv.CommonNamer().ResourceName("k8s-namespace"), &corev1.NamespaceArgs{Metadata: &metav1.ObjectMetaArgs{
-		Name: pulumi.String("e2e-operator"),
-	}}, pulumi.Provider(kindKubeProvider))
-
-	if err != nil {
-		return err
-	}
-
-	// Install kustomizations
-	kustomizeAppFunc := KustomizeWorkloadAppFunc(params.testName, params.kustomizeResources)
-
-	e2eKustomize, err := kustomizeAppFunc(&localEnv, kindKubeProvider)
-	if err != nil {
-		return err
-	}
-
-	// Create Operator component
-	var operatorComp *operator.Operator
-	if params.operatorOptions != nil {
-		operatorOpts := []pulumi.ResourceOption{
-			pulumi.DependsOn([]pulumi.Resource{e2eKustomize, ns}),
-		}
-		params.operatorOptions = append(params.operatorOptions, operatorparams.WithPulumiResourceOptions(operatorOpts...))
-
-		operatorComp, err = operator.NewOperator(&localEnv, localEnv.CommonNamer().ResourceName("operator"), kindKubeProvider, params.operatorOptions...)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Setup DDA options
-	if params.ddaOptions != nil && params.operatorOptions != nil {
-		ddaResourceOpts := []pulumi.ResourceOption{
-			pulumi.DependsOn([]pulumi.Resource{e2eKustomize, operatorComp}),
-		}
-		params.ddaOptions = append(
-			params.ddaOptions,
-			agentwithoperatorparams.WithPulumiResourceOptions(ddaResourceOpts...))
-
-		ddaComp, aErr := agent.NewDDAWithOperator(&localEnv, params.name, kindKubeProvider, params.ddaOptions...)
-		if aErr != nil {
-			return aErr
-		}
-
-		if err = ddaComp.Export(ctx, &env.Agent.KubernetesAgentOutput); err != nil {
-			return err
-		}
-	} else {
-		env.Agent = nil
-	}
-
-	for _, workload := range params.yamlWorkloads {
-		_, err = yaml.NewConfigFile(ctx, workload.Name, &yaml.ConfigFileArgs{
-			File: workload.Path,
-		}, pulumi.Provider(kindKubeProvider))
-		if err != nil {
-			return err
-		}
-	}
-
-	for _, appFunc := range params.workloadAppFuncs {
-		_, err := appFunc(&localEnv, kindKubeProvider)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
+//func localKindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params *KubernetesProvisionerParams) error {
+//	localEnv, err := local.NewEnvironment(ctx)
+//	if err != nil {
+//		return err
+//	}
+//
+//	kindCluster, err := kubeComp.NewLocalKindCluster(&localEnv, localEnv.CommonNamer().ResourceName("local-kind"), params.k8sVersion)
+//	if err != nil {
+//		return err
+//	}
+//
+//	if err = kindCluster.Export(ctx, &env.KubernetesCluster.ClusterOutput); err != nil {
+//		return err
+//	}
+//
+//	// Build Kubernetes provider
+//	kindKubeProvider, err := kubernetes.NewProvider(ctx, localEnv.CommonNamer().ResourceName("k8s-provider"), &kubernetes.ProviderArgs{
+//		Kubeconfig:            kindCluster.KubeConfig,
+//		EnableServerSideApply: pulumi.BoolPtr(true),
+//	})
+//	if err != nil {
+//		return err
+//	}
+//
+//	if params.fakeintakeOptions != nil {
+//		fakeintakeOpts := []fakeintake.Option{fakeintake.WithLoadBalancer()}
+//		params.fakeintakeOptions = append(fakeintakeOpts, params.fakeintakeOptions...)
+//
+//		fakeIntake, intakeErr := fakeintakeComp.NewLocalDockerFakeintake(&localEnv, "fakeintake")
+//		if intakeErr != nil {
+//			return intakeErr
+//		}
+//		if err = fakeIntake.Export(ctx, &env.FakeIntake.FakeintakeOutput); err != nil {
+//			return err
+//		}
+//
+//		if params.ddaOptions != nil {
+//			params.ddaOptions = append(params.ddaOptions, agentwithoperatorparams.WithFakeIntake(fakeIntake))
+//		}
+//	} else {
+//		env.FakeIntake = nil
+//	}
+//
+//	ns, err := corev1.NewNamespace(ctx, localEnv.CommonNamer().ResourceName("k8s-namespace"), &corev1.NamespaceArgs{Metadata: &metav1.ObjectMetaArgs{
+//		Name: pulumi.String("e2e-operator"),
+//	}}, pulumi.Provider(kindKubeProvider))
+//
+//	if err != nil {
+//		return err
+//	}
+//
+//	// Install kustomizations
+//	kustomizeAppFunc := KustomizeWorkloadAppFunc(params.testName, params.kustomizeResources)
+//
+//	e2eKustomize, err := kustomizeAppFunc(&localEnv, kindKubeProvider)
+//	if err != nil {
+//		return err
+//	}
+//
+//	// Create Operator component
+//	var operatorComp *operator.Operator
+//	if params.operatorOptions != nil {
+//		operatorOpts := []pulumi.ResourceOption{
+//			pulumi.DependsOn([]pulumi.Resource{e2eKustomize, ns}),
+//		}
+//		params.operatorOptions = append(params.operatorOptions, operatorparams.WithPulumiResourceOptions(operatorOpts...))
+//
+//		operatorComp, err = operator.NewOperator(&localEnv, localEnv.CommonNamer().ResourceName("operator"), kindKubeProvider, params.operatorOptions...)
+//		if err != nil {
+//			return err
+//		}
+//	}
+//
+//	// Setup DDA options
+//	if params.ddaOptions != nil && params.operatorOptions != nil {
+//		ddaResourceOpts := []pulumi.ResourceOption{
+//			pulumi.DependsOn([]pulumi.Resource{e2eKustomize, operatorComp}),
+//		}
+//		params.ddaOptions = append(
+//			params.ddaOptions,
+//			agentwithoperatorparams.WithPulumiResourceOptions(ddaResourceOpts...))
+//
+//		ddaComp, aErr := agent.NewDDAWithOperator(&localEnv, params.name, kindKubeProvider, params.ddaOptions...)
+//		if aErr != nil {
+//			return aErr
+//		}
+//
+//		if err = ddaComp.Export(ctx, &env.Agent.KubernetesAgentOutput); err != nil {
+//			return err
+//		}
+//	} else {
+//		env.Agent = nil
+//	}
+//
+//	for _, workload := range params.yamlWorkloads {
+//		_, err = yaml.NewConfigFile(ctx, workload.Name, &yaml.ConfigFileArgs{
+//			File: workload.Path,
+//		}, pulumi.Provider(kindKubeProvider))
+//		if err != nil {
+//			return err
+//		}
+//	}
+//
+//	for _, appFunc := range params.workloadAppFuncs {
+//		_, err := appFunc(&localEnv, kindKubeProvider)
+//		if err != nil {
+//			return err
+//		}
+//	}
+//
+//	return nil
+//}
 
 // gkeRunFunc is the Pulumi run function that runs the local Kind provisioner
 func gkeRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params *KubernetesProvisionerParams) error {
