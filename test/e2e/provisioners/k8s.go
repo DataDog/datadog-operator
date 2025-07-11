@@ -7,6 +7,7 @@ package provisioners
 
 import (
 	"fmt"
+	"github.com/DataDog/test-infra-definitions/scenarios/gcp/gke"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,9 +24,11 @@ import (
 	"github.com/DataDog/test-infra-definitions/components/datadog/operator"
 	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
 	kubeComp "github.com/DataDog/test-infra-definitions/components/kubernetes"
+	"github.com/DataDog/test-infra-definitions/resources/gcp"
 	"github.com/DataDog/test-infra-definitions/resources/local"
 	"github.com/DataDog/test-infra-definitions/scenarios/aws/ec2"
 	"github.com/DataDog/test-infra-definitions/scenarios/aws/fakeintake"
+	gcpfakeintake "github.com/DataDog/test-infra-definitions/scenarios/gcp/fakeintake"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
 	corev1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/kustomize"
@@ -38,8 +41,8 @@ import (
 )
 
 const (
-	provisionerBaseID      = "aws-kind"
-	defaultProvisionerName = "kind"
+	provisionerBaseID      = "gke"
+	defaultProvisionerName = "gke"
 )
 
 // KubernetesProvisionerParams contains all the parameters needed to create a Kubernetes environment
@@ -50,6 +53,7 @@ type KubernetesProvisionerParams struct {
 	ddaOptions         []agentwithoperatorparams.Option
 	k8sVersion         string
 	kustomizeResources []string
+	gkeOptions         []gke.Option
 
 	fakeintakeOptions []fakeintake.Option
 	extraConfigParams runner.ConfigMap
@@ -222,7 +226,6 @@ func WithWorkloadApp(appFunc func(e config.Env, kubeProvider *kubernetes.Provide
 func KubernetesProvisioner(opts ...KubernetesProvisionerOption) provisioners.TypedProvisioner[environments.Kubernetes] {
 	// We ALWAYS need to make a deep copy of `params`, as the provisioner can be called multiple times.
 	// and it's easy to forget about it, leading to hard to debug issues.
-	var awsK8sOpts []awskubernetes.ProvisionerOption
 	var provisioner provisioners.TypedProvisioner[environments.Kubernetes]
 
 	params := newKubernetesProvisionerParams()
@@ -230,9 +233,15 @@ func KubernetesProvisioner(opts ...KubernetesProvisionerOption) provisioners.Typ
 	inCI := os.Getenv("GITLAB_CI")
 
 	if !params.local || strings.ToLower(inCI) == "true" {
-		awsK8sOpts = newAWSK8sProvisionerOpts(params)
-		provisioner = awskubernetes.KindProvisioner(awsK8sOpts...)
-		return provisioner
+		provisioner = provisioners.NewTypedPulumiProvisioner("gke", func(ctx *pulumi.Context, env *environments.Kubernetes) error {
+			// We ALWAYS need to make a deep copy of `params`, as the provisioner can be called multiple times.
+			// and it's easy to forget about it, leading to hard to debug issues.
+			pprams := newKubernetesProvisionerParams()
+			_ = optional.ApplyOptions(pprams, opts)
+
+			return gkeRunFunc(ctx, env, pprams)
+
+		}, params.extraConfigParams)
 	}
 
 	provisionerName := "local-" + params.name
@@ -356,6 +365,111 @@ func localKindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params 
 
 	for _, appFunc := range params.workloadAppFuncs {
 		_, err := appFunc(&localEnv, kindKubeProvider)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// gkeRunFunc is the Pulumi run function that runs the local Kind provisioner
+func gkeRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params *KubernetesProvisionerParams) error {
+	gcpEnv, err := gcp.NewEnvironment(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Create the cluster
+	cluster, err := gke.NewGKECluster(gcpEnv, params.gkeOptions...)
+	if err != nil {
+		return err
+	}
+	err = cluster.Export(ctx, &env.KubernetesCluster.ClusterOutput)
+	if err != nil {
+		return err
+	}
+
+	agentOptions := params.ddaOptions
+
+	// Deploy a fakeintake
+	if params.fakeintakeOptions != nil {
+		fakeIntake, err := gcpfakeintake.NewVMInstance(gcpEnv)
+		if err != nil {
+			return err
+		}
+		err = fakeIntake.Export(ctx, &env.FakeIntake.FakeintakeOutput)
+		if err != nil {
+			return err
+		}
+		agentOptions = append(agentOptions, agentwithoperatorparams.WithFakeIntake(fakeIntake))
+
+	} else {
+		env.FakeIntake = nil
+	}
+
+	ns, err := corev1.NewNamespace(ctx, gcpEnv.CommonNamer().ResourceName("k8s-namespace"), &corev1.NamespaceArgs{Metadata: &metav1.ObjectMetaArgs{
+		Name: pulumi.String("e2e-operator"),
+	}}, pulumi.Provider(cluster.KubeProvider))
+
+	if err != nil {
+		return err
+	}
+
+	// Install kustomizations
+	kustomizeAppFunc := KustomizeWorkloadAppFunc(params.testName, params.kustomizeResources)
+
+	e2eKustomize, err := kustomizeAppFunc(&gcpEnv, cluster.KubeProvider)
+	if err != nil {
+		return err
+	}
+
+	// Create Operator component
+	var operatorComp *operator.Operator
+	if params.operatorOptions != nil {
+		operatorOpts := []pulumi.ResourceOption{
+			pulumi.DependsOn([]pulumi.Resource{e2eKustomize, ns}),
+		}
+		params.operatorOptions = append(params.operatorOptions, operatorparams.WithPulumiResourceOptions(operatorOpts...))
+
+		operatorComp, err = operator.NewOperator(&gcpEnv, gcpEnv.CommonNamer().ResourceName("operator"), cluster.KubeProvider, params.operatorOptions...)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Setup DDA options
+	if params.ddaOptions != nil && params.operatorOptions != nil {
+		ddaResourceOpts := []pulumi.ResourceOption{
+			pulumi.DependsOn([]pulumi.Resource{e2eKustomize, operatorComp}),
+		}
+		params.ddaOptions = append(
+			params.ddaOptions,
+			agentwithoperatorparams.WithPulumiResourceOptions(ddaResourceOpts...))
+
+		ddaComp, aErr := agent.NewDDAWithOperator(&gcpEnv, params.name, cluster.KubeProvider, params.ddaOptions...)
+		if aErr != nil {
+			return aErr
+		}
+
+		if err = ddaComp.Export(ctx, &env.Agent.KubernetesAgentOutput); err != nil {
+			return err
+		}
+	} else {
+		env.Agent = nil
+	}
+
+	for _, workload := range params.yamlWorkloads {
+		_, err = yaml.NewConfigFile(ctx, workload.Name, &yaml.ConfigFileArgs{
+			File: workload.Path,
+		}, pulumi.Provider(cluster.KubeProvider))
+		if err != nil {
+			return err
+		}
+	}
+	// Deploy workloads
+	for _, appFunc := range params.workloadAppFuncs {
+		_, err := appFunc(&gcpEnv, cluster.KubeProvider)
 		if err != nil {
 			return err
 		}

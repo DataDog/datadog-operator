@@ -15,11 +15,11 @@ import (
 	"testing"
 )
 
-type awsKindSuite struct {
+type gkeSuite struct {
 	k8sSuite
 }
 
-func TestAWSKindSuite(t *testing.T) {
+func TestGKESuite(t *testing.T) {
 	operatorOptions := []operatorparams.Option{
 		operatorparams.WithNamespace(common.NamespaceName),
 		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
@@ -33,9 +33,9 @@ func TestAWSKindSuite(t *testing.T) {
 	}
 
 	e2eOpts := []e2e.SuiteOption{
-		e2e.WithStackName(fmt.Sprintf("operator-awskind-%s", strings.ReplaceAll(common.K8sVersion, ".", "-"))),
+		e2e.WithStackName(fmt.Sprintf("operator-gke-%s", strings.ReplaceAll(common.K8sVersion, ".", "-"))),
 		e2e.WithProvisioner(provisioners.KubernetesProvisioner(provisionerOptions...)),
 	}
 
-	e2e.Run(t, &awsKindSuite{}, e2eOpts...)
+	e2e.Run(t, &gkeSuite{}, e2eOpts...)
 }
