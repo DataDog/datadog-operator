@@ -27,7 +27,7 @@ import (
 	"k8s.io/klog/v2"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
-	crzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
+	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -357,7 +357,7 @@ func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
 		return fmt.Errorf("unknow log encoder: %s", logEncoder)
 	}
 
-	zapOpts := crzap.Options{}
+	zapOpts := ctrlzap.Options{}
 	zapOpts.BindFlags(flag.CommandLine)
 
 	core := zap.WrapCore(func(c zapcore.Core) zapcore.Core {
@@ -381,7 +381,7 @@ func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
 	})
 
 	zapOpts.ZapOpts = append(zapOpts.ZapOpts, core)
-	ctrl.SetLogger(crzap.New(crzap.UseFlagOptions(&zapOpts)))
+	ctrl.SetLogger(ctrlzap.New(ctrlzap.UseFlagOptions(&zapOpts)))
 
 	return nil
 }
