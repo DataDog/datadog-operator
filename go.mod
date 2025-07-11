@@ -1,6 +1,6 @@
 module github.com/DataDog/datadog-operator
 
-go 1.23
+go 1.23.0
 
 toolchain go1.23.10
 
@@ -42,7 +42,7 @@ require (
 )
 
 require (
-	github.com/DataDog/datadog-agent/pkg/config/model v0.67.0
+	github.com/DataDog/datadog-agent/pkg/config/model v0.59.0-rc.5
 	github.com/DataDog/datadog-agent/pkg/config/remote v0.59.0-rc.5
 	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.59.0-rc.5
 	github.com/DataDog/datadog-operator/api v0.0.0-20250130131115-7f198adcc856
@@ -74,6 +74,7 @@ require (
 	github.com/DataDog/go-tuf v1.1.0-0.5.2 // indirect
 	github.com/DataDog/gostackparse v0.7.0 // indirect
 	github.com/DataDog/sketches-go v1.4.7 // indirect
+	github.com/DataDog/viper v1.13.5 // indirect
 	github.com/DataDog/zstd v1.5.6 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
@@ -119,6 +120,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.1 // indirect
 	github.com/hashicorp/go-secure-stdlib/parseutil v0.1.8 // indirect
 	github.com/hashicorp/go-sockaddr v1.0.6 // indirect
+	github.com/hashicorp/hcl v1.0.1-vault-5 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -126,6 +128,7 @@ require (
 	github.com/klauspost/pgzip v1.2.4 // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
 	github.com/lufia/plan9stats v0.0.0-20240909124753-873cd0166683 // indirect
+	github.com/magiconair/properties v1.8.1 // indirect
 	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/mitchellh/mapstructure v1.5.1-0.20231216201459-8508981c8b6c // indirect
@@ -133,6 +136,7 @@ require (
 	github.com/moby/term v0.5.2 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
+	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
@@ -140,6 +144,7 @@ require (
 	github.com/nxadm/tail v1.4.11 // indirect
 	github.com/outcaste-io/ristretto v0.2.3 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
+	github.com/pelletier/go-toml v1.2.0 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/philhofer/fwd v1.1.3-0.20240916144458-20a13a1f6b7c // indirect
 	github.com/pierrec/lz4/v4 v4.1.18 // indirect
@@ -155,6 +160,9 @@ require (
 	github.com/shirou/gopsutil/v3 v3.24.1 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
+	github.com/spf13/afero v1.9.5 // indirect
+	github.com/spf13/cast v1.3.1 // indirect
+	github.com/spf13/jwalterweatherman v1.0.0 // indirect
 	github.com/stoewer/go-strcase v1.3.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/tinylib/msgp v1.2.5 // indirect
