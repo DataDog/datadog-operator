@@ -47,7 +47,7 @@ func Test_controlPlaneMonitoringFeature_buildControlPlaneMonitoringConfigMap(t *
 			name: "openshift provider",
 			fields: fields{
 				owner:    owner,
-				provider: kubernetes.OpenshiftRHCOSType,
+				provider: kubernetes.OpenShiftProviderLabel,
 				enabled:  true,
 			},
 			configMapName: openshiftConfigMapName,
@@ -111,7 +111,7 @@ instances:
 			name: "eks provider",
 			fields: fields{
 				owner:    owner,
-				provider: kubernetes.EKSAMIType,
+				provider: kubernetes.EKSProviderLabel,
 				enabled:  true,
 			},
 			configMapName: eksConfigMapName,

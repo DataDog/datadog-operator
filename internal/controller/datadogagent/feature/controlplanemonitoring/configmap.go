@@ -16,7 +16,7 @@ func (f *controlPlaneMonitoringFeature) buildControlPlaneMonitoringConfigMap(pro
 	var configMap *corev1.ConfigMap
 	if provider == kubernetes.DefaultProvider {
 		configMap = nil
-	} else if provider == kubernetes.OpenshiftRHCOSType {
+	} else if provider == kubernetes.OpenShiftProviderLabel {
 		configMap = &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      configMapName,
@@ -72,7 +72,7 @@ instances:
     tls_private_key: "/etc/etcd-certs/tls.key"`,
 			},
 		}
-	} else if provider == kubernetes.EKSAMIType {
+	} else if provider == kubernetes.EKSProviderLabel {
 		configMap = &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      configMapName,

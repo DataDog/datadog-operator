@@ -32,8 +32,8 @@ const (
 	// GKEProviderLabel is the GKE node label used to determine the node's provider
 	GKEProviderLabel = "cloud.google.com/gke-os-distribution"
 
-	// OpenshiftRHCOSType is the Red Hat OpenShift node image offered by OpenShift
-	OpenshiftRHCOSType = "rhcos"
+	// OpenshiftProvider is the OpenShift Provider name
+	OpenshiftProvider = "openshift"
 
 	// OpenShiftProviderLabel is the OpenShift node label used to determine the node's provider
 	OpenShiftProviderLabel = "node.openshift.io/os_id"
@@ -43,16 +43,11 @@ const (
 
 	// EKSProviderLabel is the EKS node label used to determine the node's provider
 	EKSProviderLabel = "eks.amazonaws.com/nodegroup-image"
-
-	// EKSAMIType is the base value for EKS nodes
-	EKSAMIType = "eks"
 )
 
 // ProviderValue allowlist
 var providerValueAllowlist = map[string]struct{}{
-	GKECosType:         {},
-	OpenshiftRHCOSType: {},
-	EKSAMIType:         {},
+	GKECosType: {},
 }
 
 // determineProvider creates a Provider based on a map of labels
@@ -66,18 +61,11 @@ func determineProvider(labels map[string]string) string {
 		}
 		// Openshift
 		if val, ok := labels[OpenShiftProviderLabel]; ok {
-			if provider := generateValidProviderName(DefaultProvider, val); provider != "" {
-				return provider
-			}
-
+			return generateValidProviderName(OpenshiftProvider, val)
 		}
 		// EKS
-		if _, ok := labels[EKSProviderLabel]; ok {
-			// For EKS, we just identify it as an EKS node without specifying the AMI type
-			// since the AMI type can vary (Amazon Linux 2, Bottlerocket, custom AMIs, etc.)
-			if provider := generateValidProviderName(EKSCloudProvider, EKSAMIType); provider != "" {
-				return provider
-			}
+		if val, ok := labels[EKSProviderLabel]; ok {
+			return generateValidProviderName(EKSCloudProvider, val)
 		}
 	}
 
@@ -143,6 +131,11 @@ func getProviderNodeAffinity(provider string, providerList map[string]struct{}) 
 // and provider value. NOTE: this should not be used to create a resource name
 // as it may contain underscores
 func generateValidProviderName(cloudProvider, providerValue string) string {
+	// For OpenShift and EKS, accept any value
+	if cloudProvider == OpenshiftProvider || cloudProvider == EKSCloudProvider {
+		return cloudProvider + "-" + providerValue
+	}
+	// For other providers (like GKE), check the allowlist
 	if isProviderValueAllowed(providerValue) {
 		return cloudProvider + "-" + providerValue
 	}
@@ -162,9 +155,9 @@ func isProviderValueAllowed(value string) bool {
 func GetProviderLabelKeyValue(provider string) (string, string) {
 	// cloud provider to label mapping
 	providerMapping := map[string]string{
-		GKECloudProvider: GKEProviderLabel,
-		EKSCloudProvider: EKSProviderLabel,
-		DefaultProvider:  OpenShiftProviderLabel,
+		GKECloudProvider:  GKEProviderLabel,
+		EKSCloudProvider:  EKSProviderLabel,
+		OpenshiftProvider: OpenShiftProviderLabel,
 	}
 
 	cp, value := splitProviderSuffix(provider)

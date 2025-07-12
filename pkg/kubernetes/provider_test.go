@@ -15,8 +15,8 @@ import (
 var (
 	defaultProvider   = DefaultProvider
 	gkeCosProvider    = generateValidProviderName(GKECloudProvider, GKECosType)
-	openshiftProvider = generateValidProviderName(DefaultProvider, OpenshiftRHCOSType)
-	eksProvider       = generateValidProviderName(EKSCloudProvider, EKSAMIType)
+	openshiftProvider = generateValidProviderName(OpenshiftProvider, "test")
+	eksProvider       = generateValidProviderName(EKSCloudProvider, "test")
 )
 
 func Test_determineProvider(t *testing.T) {
@@ -49,9 +49,9 @@ func Test_determineProvider(t *testing.T) {
 			name: "openshift provider",
 			labels: map[string]string{
 				"foo":                  "bar",
-				OpenShiftProviderLabel: OpenshiftRHCOSType,
+				OpenShiftProviderLabel: "rhcos",
 			},
-			provider: generateValidProviderName(DefaultProvider, OpenshiftRHCOSType),
+			provider: generateValidProviderName(OpenshiftProvider, "rhcos"),
 		},
 		{
 			name: "eks provider with amazon linux 2 ami",
@@ -59,7 +59,7 @@ func Test_determineProvider(t *testing.T) {
 				"foo":            "bar",
 				EKSProviderLabel: "ami-0c7217cdde317cfec", // Example Amazon Linux 2 AMI
 			},
-			provider: generateValidProviderName(EKSCloudProvider, EKSAMIType),
+			provider: generateValidProviderName(EKSCloudProvider, "ami-0c7217cdde317cfec"),
 		},
 		{
 			name: "eks provider with bottlerocket ami",
@@ -67,7 +67,7 @@ func Test_determineProvider(t *testing.T) {
 				"foo":            "bar",
 				EKSProviderLabel: "ami-0c2b8ca1dad447f8a", // Example Bottlerocket AMI
 			},
-			provider: generateValidProviderName(EKSCloudProvider, EKSAMIType),
+			provider: generateValidProviderName(EKSCloudProvider, "ami-0c2b8ca1dad447f8a"),
 		},
 	}
 
@@ -92,12 +92,22 @@ func Test_isProviderValueAllowed(t *testing.T) {
 		},
 		{
 			name:  "valid Openshift value",
-			value: OpenshiftRHCOSType,
+			value: "rhel",
+			want:  true,
+		},
+		{
+			name:  "valid Openshift value",
+			value: "testing",
 			want:  true,
 		},
 		{
 			name:  "valid EKS value",
-			value: EKSAMIType,
+			value: "eks",
+			want:  true,
+		},
+		{
+			name:  "valid EKS value",
+			value: "amazonlinux2",
 			want:  true,
 		},
 		{
@@ -407,13 +417,13 @@ func Test_GetProviderLabelKeyValue(t *testing.T) {
 			name:      "openshift provider",
 			provider:  openshiftProvider,
 			wantLabel: OpenShiftProviderLabel,
-			wantValue: OpenshiftRHCOSType,
+			wantValue: "anyvalue",
 		},
 		{
 			name:      "eks provider",
 			provider:  eksProvider,
 			wantLabel: EKSProviderLabel,
-			wantValue: EKSAMIType,
+			wantValue: eksProvider,
 		},
 	}
 

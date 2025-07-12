@@ -74,7 +74,7 @@ func (f *controlPlaneMonitoringFeature) ManageDependencies(managers feature.Reso
 	// Create ConfigMaps for control plane monitoring
 
 	// OpenShift ConfigMap
-	openshiftConfigMap, err2 := f.buildControlPlaneMonitoringConfigMap(kubernetes.OpenshiftRHCOSType, f.openshiftConfigMapName)
+	openshiftConfigMap, err2 := f.buildControlPlaneMonitoringConfigMap(kubernetes.OpenShiftProviderLabel, f.openshiftConfigMapName)
 	if err2 != nil {
 		return fmt.Errorf("failed to build openshift configmap: %w", err2)
 	}
@@ -85,7 +85,7 @@ func (f *controlPlaneMonitoringFeature) ManageDependencies(managers feature.Reso
 	}
 
 	// EKS ConfigMap
-	eksConfigMap, err2 := f.buildControlPlaneMonitoringConfigMap(kubernetes.EKSAMIType, f.eksConfigMapName)
+	eksConfigMap, err2 := f.buildControlPlaneMonitoringConfigMap(kubernetes.EKSProviderLabel, f.eksConfigMapName)
 	if err2 != nil {
 		return fmt.Errorf("failed to build eks configmap: %w", err2)
 	}
@@ -96,8 +96,8 @@ func (f *controlPlaneMonitoringFeature) ManageDependencies(managers feature.Reso
 	}
 
 	// For OpenShift, etcd monitoring requires manual secret copying
-	_, providerValue := kubernetes.GetProviderLabelKeyValue(f.provider)
-	if providerValue == kubernetes.OpenshiftRHCOSType {
+	providerLabel, _ := kubernetes.GetProviderLabelKeyValue(f.provider)
+	if providerLabel == kubernetes.OpenShiftProviderLabel {
 		targetNamespace := f.owner.GetNamespace()
 		copyCommand := fmt.Sprintf("oc get secret etcd-client -n openshift-etcd-operator -o yaml | sed 's/name: etcd-client/name: etcd-client-cert/' | sed 's/namespace: openshift-etcd-operator/namespace: %s/' | oc apply -f -", targetNamespace)
 
@@ -112,7 +112,7 @@ func (f *controlPlaneMonitoringFeature) ManageDependencies(managers feature.Reso
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 func (f *controlPlaneMonitoringFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	f.provider = provider
-	_, providerValue := kubernetes.GetProviderLabelKeyValue(provider)
+	providerLabel, _ := kubernetes.GetProviderLabelKeyValue(provider)
 
 	// Add the writable emptyDir volume for all providers
 	agentConfDVolume := &corev1.Volume{
@@ -133,9 +133,10 @@ func (f *controlPlaneMonitoringFeature) ManageClusterAgent(managers feature.PodT
 
 	// Select the appropriate configmap based on provider
 	var configMapName string
-	if providerValue == kubernetes.OpenshiftRHCOSType {
+	if providerLabel == kubernetes.OpenShiftProviderLabel {
 		configMapName = f.openshiftConfigMapName
-	} else if providerValue == kubernetes.EKSAMIType {
+
+	} else if providerLabel == kubernetes.EKSProviderLabel {
 		configMapName = f.eksConfigMapName
 	} else {
 		configMapName = f.defaultConfigMapName
@@ -181,8 +182,8 @@ func (f *controlPlaneMonitoringFeature) ManageNodeAgent(managers feature.PodTemp
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 func (f *controlPlaneMonitoringFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
-	_, providerValue := kubernetes.GetProviderLabelKeyValue(f.provider)
-	if providerValue == kubernetes.OpenshiftRHCOSType {
+	providerLabel, _ := kubernetes.GetProviderLabelKeyValue(f.provider)
+	if providerLabel == kubernetes.OpenShiftProviderLabel {
 		etcdCertsVolume := &corev1.Volume{
 			Name: etcdCertsVolumeName,
 			VolumeSource: corev1.VolumeSource{
