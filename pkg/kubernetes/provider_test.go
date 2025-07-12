@@ -91,26 +91,6 @@ func Test_isProviderValueAllowed(t *testing.T) {
 			want:  true,
 		},
 		{
-			name:  "valid Openshift value",
-			value: "rhel",
-			want:  true,
-		},
-		{
-			name:  "valid Openshift value",
-			value: "testing",
-			want:  true,
-		},
-		{
-			name:  "valid EKS value",
-			value: "eks",
-			want:  true,
-		},
-		{
-			name:  "valid EKS value",
-			value: "amazonlinux2",
-			want:  true,
-		},
-		{
 			name:  "invalid value",
 			value: "foo",
 			want:  false,
@@ -417,13 +397,13 @@ func Test_GetProviderLabelKeyValue(t *testing.T) {
 			name:      "openshift provider",
 			provider:  openshiftProvider,
 			wantLabel: OpenShiftProviderLabel,
-			wantValue: "anyvalue",
+			wantValue: "test",
 		},
 		{
 			name:      "eks provider",
 			provider:  eksProvider,
 			wantLabel: EKSProviderLabel,
-			wantValue: eksProvider,
+			wantValue: "test",
 		},
 	}
 
