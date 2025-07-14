@@ -22,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -95,13 +96,24 @@ func addComponentDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpec
 					}
 				}
 
-				// Create or update the ConfigMap
 				if seccompConfigData != nil {
-					errs = append(errs, manager.ConfigMapManager().AddConfigMap(
-						common.GetDefaultSeccompConfigMapName(ddaMeta),
-						ddaMeta.GetNamespace(),
-						seccompConfigData,
-					))
+					// Add md5 hash annotation to component for custom config
+					annotationValue, err := comparison.GenerateMD5ForSpec(seccompConfigData)
+					if err != nil {
+						logger.Error(err, "couldn't generate seccomp config hash", "filename", common.SystemProbeSeccompKey)
+					}
+					annotationKey := object.GetChecksumAnnotationKey(string(common.SystemProbeSeccompKey))
+					cm := &corev1.ConfigMap{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      common.GetDefaultSeccompConfigMapName(ddaMeta),
+							Namespace: ddaMeta.GetNamespace(),
+						},
+						Data: seccompConfigData,
+					}
+					if annotationKey != "" && annotationValue != "" {
+						cm.ObjectMeta.Annotations = map[string]string{annotationKey: annotationValue}
+					}
+					manager.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm)
 				}
 			}
 		}

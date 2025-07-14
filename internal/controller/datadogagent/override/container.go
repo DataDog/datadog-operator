@@ -15,8 +15,11 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
 
 // Container use to override a corev1.Container with a v2alpha1.DatadogAgentGenericContainer.
@@ -180,6 +183,7 @@ func overrideInitContainer(initContainer *corev1.Container, override *v2alpha1.D
 func overrideSeccompProfile(containerName apicommon.AgentContainerName, manager feature.PodTemplateManagers, override *v2alpha1.DatadogAgentGenericContainer) {
 	// NOTE: for now, only support custom Seccomp Profiles on the System Probe
 	if containerName == apicommon.SystemProbeContainerName {
+		var profileData string
 		if override.SeccompConfig != nil && override.SeccompConfig.CustomRootPath != nil {
 			vol := corev1.Volume{
 				Name: common.SeccompRootVolumeName,
@@ -216,6 +220,22 @@ func overrideSeccompProfile(containerName apicommon.AgentContainerName, manager 
 			// 		},
 			// 	}
 			// }
+			return
+		}
+
+		if override.SeccompConfig != nil && override.SeccompConfig.CustomProfile != nil && override.SeccompConfig.CustomProfile.ConfigData != nil {
+			profileData = *override.SeccompConfig.CustomProfile.ConfigData
+		}
+
+		if profileData == "" {
+			profileData = agent.DefaultSeccompConfigDataForSystemProbe()[common.SystemProbeSeccompKey]
+		}
+
+		// Add md5 hash annotation for configMap
+		annotationValue, _ := comparison.GenerateMD5ForSpec(profileData)
+		annotationKey := object.GetChecksumAnnotationKey(string(common.SystemProbeSeccompKey))
+		if annotationKey != "" && annotationValue != "" {
+			manager.Annotation().AddAnnotation(annotationKey, annotationValue)
 		}
 	}
 }
