@@ -7,13 +7,10 @@ package provisioners
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/provisioners"
-	awskubernetes "github.com/DataDog/datadog-agent/test/new-e2e/pkg/provisioners/aws/kubernetes"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/utils/optional"
 	"github.com/DataDog/test-infra-definitions/common/config"
@@ -24,14 +21,12 @@ import (
 	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
 	kubeComp "github.com/DataDog/test-infra-definitions/components/kubernetes"
 	"github.com/DataDog/test-infra-definitions/resources/local"
-	"github.com/DataDog/test-infra-definitions/scenarios/aws/ec2"
 	"github.com/DataDog/test-infra-definitions/scenarios/aws/fakeintake"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
 	corev1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/kustomize"
 	metav1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/meta/v1"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/yaml"
-	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 
 	"github.com/DataDog/datadog-operator/test/e2e/common"
@@ -74,35 +69,35 @@ func newKubernetesProvisionerParams() *KubernetesProvisionerParams {
 	}
 }
 
-// newAWSK8sProvisionerOpts Translates the generic KubernetesProvisionerParams into a list of awskubernetes.ProvisionerOption for the AWS Kind provisioner
-func newAWSK8sProvisionerOpts(params *KubernetesProvisionerParams) []awskubernetes.ProvisionerOption {
-	provisionerName := provisionerBaseID + params.name
-
-	extraConfig := params.extraConfigParams
-	extraConfig.Merge(runner.ConfigMap{
-		"ddinfra:kubernetesVersion": auto.ConfigValue{Value: params.k8sVersion},
-		"ddagent:imagePullRegistry": auto.ConfigValue{Value: "669783387624.dkr.ecr.us-east-1.amazonaws.com"},
-		"ddagent:imagePullUsername": auto.ConfigValue{Value: "AWS"},
-		"ddagent:imagePullPassword": auto.ConfigValue{Value: common.ImgPullPassword},
-	})
-
-	newOpts := []awskubernetes.ProvisionerOption{
-		awskubernetes.WithName(provisionerName),
-		awskubernetes.WithOperator(),
-		awskubernetes.WithOperatorDDAOptions(params.ddaOptions...),
-		awskubernetes.WithOperatorOptions(params.operatorOptions...),
-		awskubernetes.WithExtraConfigParams(extraConfig),
-		awskubernetes.WithWorkloadApp(KustomizeWorkloadAppFunc(params.testName, params.kustomizeResources)),
-		awskubernetes.WithFakeIntakeOptions(params.fakeintakeOptions...),
-		awskubernetes.WithEC2VMOptions([]ec2.VMOption{ec2.WithUserData(UserData), ec2.WithInstanceType("m5.xlarge")}...),
-	}
-
-	for _, yamlWorkload := range params.yamlWorkloads {
-		newOpts = append(newOpts, awskubernetes.WithWorkloadApp(YAMLWorkloadAppFunc(yamlWorkload)))
-	}
-
-	return newOpts
-}
+//// newAWSK8sProvisionerOpts Translates the generic KubernetesProvisionerParams into a list of awskubernetes.ProvisionerOption for the AWS Kind provisioner
+//func newAWSK8sProvisionerOpts(params *KubernetesProvisionerParams) []awskubernetes.ProvisionerOption {
+//	provisionerName := provisionerBaseID + params.name
+//
+//	extraConfig := params.extraConfigParams
+//	extraConfig.Merge(runner.ConfigMap{
+//		"ddinfra:kubernetesVersion": auto.ConfigValue{Value: params.k8sVersion},
+//		"ddagent:imagePullRegistry": auto.ConfigValue{Value: "669783387624.dkr.ecr.us-east-1.amazonaws.com"},
+//		"ddagent:imagePullUsername": auto.ConfigValue{Value: "AWS"},
+//		"ddagent:imagePullPassword": auto.ConfigValue{Value: common.ImgPullPassword},
+//	})
+//
+//	newOpts := []awskubernetes.ProvisionerOption{
+//		awskubernetes.WithName(provisionerName),
+//		awskubernetes.WithOperator(),
+//		awskubernetes.WithOperatorDDAOptions(params.ddaOptions...),
+//		awskubernetes.WithOperatorOptions(params.operatorOptions...),
+//		awskubernetes.WithExtraConfigParams(extraConfig),
+//		awskubernetes.WithWorkloadApp(KustomizeWorkloadAppFunc(params.testName, params.kustomizeResources)),
+//		awskubernetes.WithFakeIntakeOptions(params.fakeintakeOptions...),
+//		awskubernetes.WithEC2VMOptions([]ec2.VMOption{ec2.WithUserData(UserData), ec2.WithInstanceType("m5.xlarge")}...),
+//	}
+//
+//	for _, yamlWorkload := range params.yamlWorkloads {
+//		newOpts = append(newOpts, awskubernetes.WithWorkloadApp(YAMLWorkloadAppFunc(yamlWorkload)))
+//	}
+//
+//	return newOpts
+//}
 
 // KubernetesProvisionerOption is a function that modifies the KubernetesProvisionerParams
 type KubernetesProvisionerOption func(params *KubernetesProvisionerParams) error
@@ -222,18 +217,18 @@ func WithWorkloadApp(appFunc func(e config.Env, kubeProvider *kubernetes.Provide
 func KubernetesProvisioner(opts ...KubernetesProvisionerOption) provisioners.TypedProvisioner[environments.Kubernetes] {
 	// We ALWAYS need to make a deep copy of `params`, as the provisioner can be called multiple times.
 	// and it's easy to forget about it, leading to hard to debug issues.
-	var awsK8sOpts []awskubernetes.ProvisionerOption
+	//var awsK8sOpts []awskubernetes.ProvisionerOption
 	var provisioner provisioners.TypedProvisioner[environments.Kubernetes]
 
 	params := newKubernetesProvisionerParams()
 	_ = optional.ApplyOptions(params, opts)
-	inCI := os.Getenv("GITLAB_CI")
+	//inCI := os.Getenv("GITLAB_CI")
 
-	if !params.local || strings.ToLower(inCI) == "true" {
-		awsK8sOpts = newAWSK8sProvisionerOpts(params)
-		provisioner = awskubernetes.KindProvisioner(awsK8sOpts...)
-		return provisioner
-	}
+	//if !params.local || strings.ToLower(inCI) == "true" {
+	//	awsK8sOpts = newAWSK8sProvisionerOpts(params)
+	//	provisioner = awskubernetes.KindProvisioner(awsK8sOpts...)
+	//	return provisioner
+	//}
 
 	provisionerName := "local-" + params.name
 
