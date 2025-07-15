@@ -412,6 +412,9 @@ func NewDatadogAgentWithGlobalConfigSettings(namespace string, name string) v2al
 		KubernetesResourcesAnnotationsAsTags: map[string]map[string]string{
 			"some-group.some-resource": {"some-annotation": "some-tag"},
 		},
+		CSI: &v2alpha1.CSIConfig{
+			Enabled: apiutils.NewBoolPointer(true),
+		},
 		NetworkPolicy: &v2alpha1.NetworkPolicyConfig{
 			Create: apiutils.NewBoolPointer(true),
 			Flavor: v2alpha1.NetworkPolicyFlavorKubernetes,
