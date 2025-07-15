@@ -382,7 +382,11 @@ func getURL() string {
 	// check url env var
 	// example: https://app.datadoghq.com
 	if urlFromEnvVar := os.Getenv("DD_URL"); urlFromEnvVar != "" {
-		mdfURL.Host = urlFromEnvVar
+		tempURL, err := url.Parse(urlFromEnvVar)
+		if err == nil {
+			mdfURL.Host = tempURL.Host
+			mdfURL.Scheme = tempURL.Scheme
+		}
 	}
 
 	return mdfURL.String()
