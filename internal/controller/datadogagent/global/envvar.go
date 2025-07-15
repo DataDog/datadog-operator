@@ -31,4 +31,5 @@ const (
 	DockerHost                             = "DOCKER_HOST"
 	DDKubernetesResourcesLabelsAsTags      = "DD_KUBERNETES_RESOURCES_LABELS_AS_TAGS"
 	DDKubernetesResourcesAnnotationsAsTags = "DD_KUBERNETES_RESOURCES_ANNOTATIONS_AS_TAGS"
+	DDCSIEnabled                           = "DD_CSI_ENABLED"
 )

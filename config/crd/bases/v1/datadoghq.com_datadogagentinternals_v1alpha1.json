@@ -2226,6 +2226,17 @@
               "description": "Path to the container runtime socket (if different from Docker).",
               "type": "string"
             },
+            "csi": {
+              "additionalProperties": false,
+              "description": "CSI contains configuration for Datadog CSI Driver",
+              "properties": {
+                "enabled": {
+                  "description": "Enabled enables usage of CSI driver in datadog agent.\nRequires installation of Datadog CSI Driver https://github.com/DataDog/helm-charts/tree/main/charts/datadog-csi-driver\nDefault: false",
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            },
             "disableNonResourceRules": {
               "description": "Set DisableNonResourceRules to exclude NonResourceURLs from default ClusterRoles.\nRequired 'true' for Google Cloud Marketplace.",
               "type": "boolean"
