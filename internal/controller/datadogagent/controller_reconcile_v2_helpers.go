@@ -94,7 +94,6 @@ func (r *Reconciler) reconcileAgentProfiles(ctx context.Context, logger logr.Log
 	profiles := []datadoghqv1alpha1.DatadogAgentProfile{{}}
 	metrics.IntrospectionEnabled.Set(metrics.FalseValue)
 	metrics.DAPEnabled.Set(metrics.FalseValue)
-
 	// If profiles or introspection is enabled, get the node list and update providers.
 	if r.options.DatadogAgentProfileEnabled || r.options.IntrospectionEnabled {
 		nodeList, err := r.getNodeList(ctx)

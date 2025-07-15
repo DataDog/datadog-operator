@@ -30,13 +30,50 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	var result reconcile.Result
 	now := metav1.NewTime(time.Now())
+
+	// Get provider list for introspection
+	providerList := map[string]struct{}{kubernetes.LegacyProvider: {}}
+	dcaProvider := kubernetes.LegacyProvider
+	if r.options.IntrospectionEnabled {
+		nodeList, err := r.getNodeList(ctx)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		providerList = kubernetes.GetProviderListFromNodeList(nodeList, logger)
+
+		dcaProvider = kubernetes.DefaultProvider
+		if len(providerList) == 1 {
+			for provider := range providerList {
+				dcaProvider = provider
+				break
+			}
+		} else if len(providerList) == 2 {
+			if _, ok := providerList[kubernetes.DefaultProvider]; ok {
+				for provider := range providerList {
+					if provider != kubernetes.DefaultProvider {
+						dcaProvider = provider
+						logger.Info("Multiple providers found for Cluster Agent reconciliation, using provider", "provider", dcaProvider)
+						break
+					}
+				}
+			} else {
+				logger.Error(nil, "Multiple specialized providers detected for Cluster Agent reconciliation. Only one specialized provider is supported, falling back to default provider", "selected_provider", dcaProvider)
+			}
+		} else {
+			logger.Error(nil, "Multiple specialized providers detected for Cluster Agent reconciliation. Only one specialized provider is supported, falling back to default provider", "selected_provider", dcaProvider)
+		}
+	}
+
+	// Reconcile cluster agent for dcaProvider
+	var errs []error
 
 	// Start by creating the Default Cluster-Agent deployment
 	deployment := componentdca.NewDefaultClusterAgentDeployment(dda.GetObjectMeta(), &dda.Spec)
@@ -48,7 +85,8 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 	// Apply features changes on the Deployment.Spec.Template
 	var featErrors []error
 	for _, feat := range features {
-		if errFeat := feat.ManageClusterAgent(podManagers); errFeat != nil {
+		logger.Info("DCA feature", "feature", feat.ID())
+		if errFeat := feat.ManageClusterAgent(podManagers, dcaProvider); errFeat != nil {
 			featErrors = append(featErrors, errFeat)
 		}
 	}
@@ -58,7 +96,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 		return result, err
 	}
 
-	deploymentLogger := logger.WithValues("component", datadoghqv2alpha1.ClusterAgentComponentName)
+	deploymentLogger := logger.WithValues("component", datadoghqv2alpha1.ClusterAgentComponentName, "provider", dcaProvider)
 
 	// The requiredComponents can change depending on if updates to features result in disabled components
 	dcaEnabled := requiredComponents.ClusterAgent.IsEnabled()
@@ -89,7 +127,26 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 		return r.cleanupV2ClusterAgent(deploymentLogger, dda, deployment, resourcesManager, newStatus)
 	}
 
-	return r.createOrUpdateDeployment(deploymentLogger, dda, deployment, newStatus, updateStatusV2WithClusterAgent)
+	// Add provider label to deployment
+	if deployment.Labels == nil {
+		deployment.Labels = make(map[string]string)
+	}
+	deployment.Labels[constants.MD5AgentDeploymentProviderLabelKey] = dcaProvider
+
+	res, err := r.createOrUpdateDeployment(deploymentLogger, dda, deployment, newStatus, updateStatusV2WithClusterAgent)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	if utils.ShouldReturn(res, err) {
+		return res, err
+	}
+
+	if len(errs) > 0 {
+		return result, utilerrors.NewAggregate(errs)
+	}
+
+	condition.UpdateDatadogAgentStatusConditions(newStatus, now, common.ClusterAgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
+	return reconcile.Result{}, nil
 }
 
 func updateStatusV2WithClusterAgent(dca *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {

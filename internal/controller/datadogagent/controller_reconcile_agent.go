@@ -142,6 +142,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
+		logger.Info("Agent feature", "feature", feat.ID())
 		if singleContainerStrategyEnabled {
 			if errFeat := feat.ManageSingleContainerNodeAgent(podManagers, provider); errFeat != nil {
 				return result, errFeat

@@ -13,8 +13,10 @@ import (
 )
 
 var (
-	defaultProvider = DefaultProvider
-	gkeCosProvider  = generateValidProviderName(GKECloudProvider, GKECosType)
+	defaultProvider   = DefaultProvider
+	gkeCosProvider    = generateValidProviderName(GKECloudProvider, GKECosType)
+	openshiftProvider = generateValidProviderName(OpenshiftProvider, "test")
+	eksProvider       = generateValidProviderName(EKSCloudProvider, "test")
 )
 
 func Test_determineProvider(t *testing.T) {
@@ -43,6 +45,30 @@ func Test_determineProvider(t *testing.T) {
 			},
 			provider: generateValidProviderName(GKECloudProvider, GKECosType),
 		},
+		{
+			name: "openshift provider",
+			labels: map[string]string{
+				"foo":                  "bar",
+				OpenShiftProviderLabel: "rhcos",
+			},
+			provider: generateValidProviderName(OpenshiftProvider, "rhcos"),
+		},
+		{
+			name: "eks provider with amazon linux 2 ami",
+			labels: map[string]string{
+				"foo":            "bar",
+				EKSProviderLabel: "ami-0c7217cdde317cfec", // Example Amazon Linux 2 AMI
+			},
+			provider: generateValidProviderName(EKSCloudProvider, "ami-0c7217cdde317cfec"),
+		},
+		{
+			name: "eks provider with bottlerocket ami",
+			labels: map[string]string{
+				"foo":            "bar",
+				EKSProviderLabel: "ami-0c2b8ca1dad447f8a", // Example Bottlerocket AMI
+			},
+			provider: generateValidProviderName(EKSCloudProvider, "ami-0c2b8ca1dad447f8a"),
+		},
 	}
 
 	for _, tt := range tests {
@@ -60,7 +86,7 @@ func Test_isProviderValueAllowed(t *testing.T) {
 		want  bool
 	}{
 		{
-			name:  "valid value",
+			name:  "valid GKE value",
 			value: GKECosType,
 			want:  true,
 		},
@@ -366,6 +392,18 @@ func Test_GetProviderLabelKeyValue(t *testing.T) {
 			provider:  gkeCosProvider,
 			wantLabel: GKEProviderLabel,
 			wantValue: GKECosType,
+		},
+		{
+			name:      "openshift provider",
+			provider:  openshiftProvider,
+			wantLabel: OpenShiftProviderLabel,
+			wantValue: "test",
+		},
+		{
+			name:      "eks provider",
+			provider:  eksProvider,
+			wantLabel: EKSProviderLabel,
+			wantValue: "test",
 		},
 	}
 

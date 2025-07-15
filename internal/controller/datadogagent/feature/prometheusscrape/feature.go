@@ -84,7 +84,7 @@ func (f *prometheusScrapeFeature) ManageDependencies(managers feature.ResourceMa
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *prometheusScrapeFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *prometheusScrapeFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  DDPrometheusScrapeEnabled,
 		Value: "true",
