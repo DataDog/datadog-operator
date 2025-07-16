@@ -1,0 +1,13 @@
+# Note: this monitor type requires Datadog Operator v0.8+
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogMonitor
+metadata:
+  name: ci-pipeline-long-running
+  namespace: datadog
+spec:
+  query: "ci-pipelines("ci_level:pipeline @ci.status:running").rollup("avg", "@duration").by("@ci.pipeline.name").last("5m") > 60000000000"
+  type: "ci-pipelines alert"
+  name: "Test ci pipeline alert made from DatadogMonitor"
+  message: "1-2-3 testing"
+  tags:
+    - "test:datadog"
