@@ -991,6 +991,13 @@ func (builder *DatadogAgentBuilder) WithChecksTagCardinality(cardinality string)
 	return builder
 }
 
+// CSI Activation Config
+
+func (builder *DatadogAgentBuilder) WithCSIActivation(enabled bool) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Global.CSI = &v2alpha1.CSIConfig{Enabled: apiutils.NewBoolPointer(enabled)}
+	return builder
+}
+
 // Global SecretBackend
 
 func (builder *DatadogAgentBuilder) WithGlobalSecretBackendGlobalPerms(command string, args string, timeout int32, refreshInterval int32) *DatadogAgentBuilder {
