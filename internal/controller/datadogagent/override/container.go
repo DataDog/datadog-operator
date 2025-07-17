@@ -220,6 +220,7 @@ func overrideSeccompProfile(containerName apicommon.AgentContainerName, manager 
 			// }
 		}
 
+		// Adds checksum annotation when configData is used
 		if override.SeccompConfig != nil && override.SeccompConfig.CustomProfile != nil && override.SeccompConfig.CustomProfile.ConfigData != nil {
 			annotationValue, _ := comparison.GenerateMD5ForSpec(*override.SeccompConfig.CustomProfile.ConfigData)
 			annotationKey := object.GetChecksumAnnotationKey(string(common.SystemProbeSeccompKey))

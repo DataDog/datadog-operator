@@ -70,7 +70,7 @@ func addComponentDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpec
 	}
 
 	if componentName == v2alpha1.NodeAgentComponentName {
-		// If the user supplies ConfigData, create a ConfigMap
+		// Creates / updates system-probe-seccomp configMap to configData or default
 		for _, containerName := range rc.Containers {
 			if containerName == apicommon.SystemProbeContainerName {
 				var seccompConfigData map[string]string
@@ -84,13 +84,11 @@ func addComponentDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpec
 						}
 					}
 				}
-				// Create default ConfigMap if ConfigData or ConfigMap are not supplied
 				if seccompConfigData == nil {
 					if !useSystemProbeCustomSeccomp(ddaSpec) {
 						seccompConfigData = agent.DefaultSeccompConfigDataForSystemProbe()
 					}
 				}
-				// Create or update the ConfigMap
 				if seccompConfigData != nil {
 					errs = append(errs, manager.ConfigMapManager().AddConfigMap(
 						common.GetDefaultSeccompConfigMapName(ddaMeta),
