@@ -16,7 +16,9 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
 
 // Container use to override a corev1.Container with a v2alpha1.DatadogAgentGenericContainer.
@@ -192,7 +194,7 @@ func overrideSeccompProfile(containerName apicommon.AgentContainerName, manager 
 			manager.Volume().AddVolume(&vol)
 		}
 
-		// TODO support ConfigMap creation when ConfigData is used.
+		// ConfigMap mounted when ConfigMap is used
 		if override.SeccompConfig != nil && override.SeccompConfig.CustomProfile != nil && override.SeccompConfig.CustomProfile.ConfigMap != nil {
 			vol := corev1.Volume{
 				Name: common.SeccompSecurityVolumeName,
@@ -216,6 +218,13 @@ func overrideSeccompProfile(containerName apicommon.AgentContainerName, manager 
 			// 		},
 			// 	}
 			// }
+		}
+
+		// Adds checksum annotation when configData is used
+		if override.SeccompConfig != nil && override.SeccompConfig.CustomProfile != nil && override.SeccompConfig.CustomProfile.ConfigData != nil {
+			annotationValue, _ := comparison.GenerateMD5ForSpec(*override.SeccompConfig.CustomProfile.ConfigData)
+			annotationKey := object.GetChecksumAnnotationKey(string(common.SystemProbeSeccompKey))
+			manager.Annotation().AddAnnotation(annotationKey, annotationValue)
 		}
 	}
 }
