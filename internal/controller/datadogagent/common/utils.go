@@ -49,6 +49,14 @@ func GetDefaultMetadata(owner metav1.Object, componentKind, componentName, versi
 		for key, val := range selector.MatchLabels {
 			labels[key] = val
 		}
+		// if update selector is present, use k8s instance and component as the selector
+	} else if _, ok := owner.GetAnnotations()[apicommon.UpdateSelectorAnnotationKey]; ok {
+		selector = &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				kubernetes.AppKubernetesInstanceLabelKey:   componentName,
+				apicommon.AgentDeploymentComponentLabelKey: componentKind,
+			},
+		}
 	} else {
 		selector = &metav1.LabelSelector{
 			MatchLabels: map[string]string{
