@@ -22,7 +22,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -71,10 +70,7 @@ func addComponentDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpec
 	}
 
 	if componentName == v2alpha1.NodeAgentComponentName {
-		// Create a configmap for the Seccomp profile used by the System Probe
-		// - If the user supplies ConfigData, create a ConfigMap
-		// - If the user supplies a ConfigMap, do nothing (the ConfigMap already exists)
-		// - If no custom profile is supplied, create the default profile ConfigMap
+		// If the user supplies ConfigData, create a ConfigMap
 		for _, containerName := range rc.Containers {
 			if containerName == apicommon.SystemProbeContainerName {
 				var seccompConfigData map[string]string
@@ -88,32 +84,19 @@ func addComponentDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpec
 						}
 					}
 				}
-
 				// Create default ConfigMap if ConfigData or ConfigMap are not supplied
 				if seccompConfigData == nil {
 					if !useSystemProbeCustomSeccomp(ddaSpec) {
 						seccompConfigData = agent.DefaultSeccompConfigDataForSystemProbe()
 					}
 				}
-
+				// Create or update the ConfigMap
 				if seccompConfigData != nil {
-					// Add md5 hash annotation to component for custom config
-					annotationValue, err := comparison.GenerateMD5ForSpec(seccompConfigData)
-					if err != nil {
-						logger.Error(err, "couldn't generate seccomp config hash", "filename", common.SystemProbeSeccompKey)
-					}
-					annotationKey := object.GetChecksumAnnotationKey(string(common.SystemProbeSeccompKey))
-					cm := &corev1.ConfigMap{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      common.GetDefaultSeccompConfigMapName(ddaMeta),
-							Namespace: ddaMeta.GetNamespace(),
-						},
-						Data: seccompConfigData,
-					}
-					if annotationKey != "" && annotationValue != "" {
-						cm.ObjectMeta.Annotations = map[string]string{annotationKey: annotationValue}
-					}
-					manager.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm)
+					errs = append(errs, manager.ConfigMapManager().AddConfigMap(
+						common.GetDefaultSeccompConfigMapName(ddaMeta),
+						ddaMeta.GetNamespace(),
+						seccompConfigData,
+					))
 				}
 			}
 		}
