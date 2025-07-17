@@ -15,7 +15,9 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -1102,6 +1104,80 @@ func TestContainer(t *testing.T) {
 						},
 						container.SecurityContext)
 				})
+			},
+		},
+		{
+			name:          "seccomp inline ConfigData adds checksum annotation",
+			containerName: apicommon.SystemProbeContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{Name: string(apicommon.SystemProbeContainerName)}},
+					},
+				})
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				SeccompConfig: &v2alpha1.SeccompConfig{
+					CustomProfile: &v2alpha1.CustomConfig{
+						ConfigData: apiutils.NewStringPointer("inline-seccomp-data"),
+					},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, _ string) {
+				annotationKey := object.GetChecksumAnnotationKey(string(common.SystemProbeSeccompKey))
+				expectedHash, _ := comparison.GenerateMD5ForSpec("inline-seccomp-data")
+				assert.Equal(t, expectedHash, manager.AnnotationMgr.Annotations[annotationKey])
+			},
+		},
+		{
+			name:          "seccomp custom ConfigMap has no checksum annotation",
+			containerName: apicommon.SystemProbeContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{Name: string(apicommon.SystemProbeContainerName)}},
+					},
+				})
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				SeccompConfig: &v2alpha1.SeccompConfig{
+					CustomProfile: &v2alpha1.CustomConfig{
+						ConfigMap: &v2alpha1.ConfigMapConfig{Name: "custom-seccomp-profile"},
+					},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, _ string) {
+				expectedVolumes := []*corev1.Volume{
+					{
+						Name: common.SeccompSecurityVolumeName,
+						VolumeSource: corev1.VolumeSource{
+							ConfigMap: &corev1.ConfigMapVolumeSource{
+								LocalObjectReference: corev1.LocalObjectReference{Name: "custom-seccomp-profile"},
+							},
+						},
+					},
+				}
+				assert.Equal(t, expectedVolumes, manager.VolumeMgr.Volumes)
+				annotationKey := object.GetChecksumAnnotationKey(string(common.SystemProbeSeccompKey))
+				_, found := manager.AnnotationMgr.Annotations[annotationKey]
+				assert.False(t, found)
+			},
+		},
+		{
+			name:          "seccomp default profile has no checksum annotation",
+			containerName: apicommon.SystemProbeContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{Name: string(apicommon.SystemProbeContainerName)}},
+					},
+				})
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, _ string) {
+				annotationKey := object.GetChecksumAnnotationKey(string(common.SystemProbeSeccompKey))
+				_, found := manager.AnnotationMgr.Annotations[annotationKey]
+				assert.False(t, found)
 			},
 		},
 	}
