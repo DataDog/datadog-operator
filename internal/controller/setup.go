@@ -15,7 +15,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -29,7 +28,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
-	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 const (
@@ -89,33 +87,7 @@ var controllerStarters = map[string]starterFunc{
 }
 
 // SetupControllers starts all controllers (also used by e2e tests)
-func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOptions) error {
-	// Get some information about Kubernetes version
-	// Never use original mgr.GetConfig(), always copy as clients might modify the configuration
-	discoveryConfig := rest.CopyConfig(mgr.GetConfig())
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(discoveryConfig)
-	if err != nil {
-		return fmt.Errorf("unable to get discovery client: %w", err)
-	}
-
-	versionInfo, err := discoveryClient.ServerVersion()
-	if err != nil {
-		return fmt.Errorf("unable to get APIServer version: %w", err)
-	}
-
-	if versionInfo != nil {
-		gitVersion := versionInfo.GitVersion
-		if !utils.IsAboveMinVersion(gitVersion, "1.16-0") {
-			logger.Error(nil, "Detected Kubernetes version <1.16 which requires CRD version apiextensions.k8s.io/v1beta1. "+
-				"CRDs of this version will be deprecated and will not be updated starting with Operator v1.8.0 and will be removed in v1.10.0.")
-		}
-	}
-
-	groups, resources, err := getServerGroupsAndResources(logger, discoveryClient)
-	if err != nil {
-		return fmt.Errorf("unable to get API resource versions: %w", err)
-	}
-	platformInfo := kubernetes.NewPlatformInfo(versionInfo, groups, resources)
+func SetupControllers(logger logr.Logger, mgr manager.Manager, platformInfo kubernetes.PlatformInfo, options SetupOptions) error {
 
 	var metricForwardersMgr datadog.MetricsForwardersManager
 	if options.OperatorMetricsEnabled {
@@ -129,17 +101,6 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOpti
 	}
 
 	return nil
-}
-
-func getServerGroupsAndResources(log logr.Logger, discoveryClient *discovery.DiscoveryClient) ([]*metav1.APIGroup, []*metav1.APIResourceList, error) {
-	groups, resources, err := discoveryClient.ServerGroupsAndResources()
-	if err != nil {
-		if !discovery.IsGroupDiscoveryFailedError(err) {
-			log.Info("GetServerGroupsAndResources ERROR", "err", err)
-			return nil, nil, err
-		}
-	}
-	return groups, resources, nil
 }
 
 func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
