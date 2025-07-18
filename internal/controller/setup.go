@@ -288,14 +288,16 @@ func CleanupDatadogAgentInternalResources(logger logr.Logger, restConfig *rest.C
 
 	// Try to list DDAI resources directly - this will fail if CRD doesn't exist
 	ddaiList, err := dynamicClient.Resource(ddaiGVR).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			logger.Info("DatadogAgentInternal CRD not found, skipping cleanup")
-			return nil
-		}
+	switch {
+	case apierrors.IsNotFound(err):
+		logger.Info("DatadogAgentInternal CRD not found, skipping cleanup")
+		return nil
+	case apierrors.IsForbidden(err):
+		logger.Info("DatadogAgentInternal list forbidden, skipping cleanup")
+		return nil
+	case err != nil:
 		return fmt.Errorf("failed to list DatadogAgentInternal resources: %w", err)
 	}
-
 	logger.Info("Found DatadogAgentInternal resources to cleanup", "count", len(ddaiList.Items))
 
 	// Process each DDAI resource
