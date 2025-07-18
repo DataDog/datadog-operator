@@ -244,7 +244,7 @@ type LanguageDetectionConfig struct {
 
 // CSIConfig contains the config for Datadog CSI driver.
 type CSIConfig struct {
-	// Enabled enables usage of CSI driver in datadog agent.
+	// Enables the usage of CSI driver in Datadog Agent.
 	// Requires installation of Datadog CSI Driver https://github.com/DataDog/helm-charts/tree/main/charts/datadog-csi-driver
 	// Default: false
 	// +optional
