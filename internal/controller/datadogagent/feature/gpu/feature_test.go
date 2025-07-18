@@ -89,6 +89,11 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 				ReadOnly:  true,
 			},
 			{
+				Name:      common.DebugfsVolumeName,
+				MountPath: common.DebugfsPath,
+				ReadOnly:  false,
+			},
+			{
 				Name:      common.SystemProbeSocketVolumeName,
 				MountPath: common.SystemProbeSocketVolumePath,
 				ReadOnly:  false,
@@ -121,6 +126,14 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: common.CgroupsHostPath,
+					},
+				},
+			},
+			{
+				Name:      common.DebugfsVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: common.DebugfsPath,
 					},
 				},
 			},
