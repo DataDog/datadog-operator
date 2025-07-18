@@ -8,7 +8,7 @@ package datadogagent
 import (
 	"context"
 	"errors"
-	"fmt"
+	"maps"
 	"strconv"
 	"time"
 
@@ -101,6 +101,12 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 				return reconcile.Result{}, err
 			}
 			logger.Info("Deployment owner reference patched")
+		}
+		if !maps.Equal(deployment.Spec.Selector.MatchLabels, currentDeployment.Spec.Selector.MatchLabels) {
+			if err = deleteObjectAndOrphanDependents(context.TODO(), logger, r.client, deployment, deployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
+				return result, err
+			}
+			return result, nil
 		}
 
 		// check if same hash
@@ -202,6 +208,14 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 			}
 			logger.Info("Daemonset owner reference patched")
 		}
+
+		if !maps.Equal(daemonset.Spec.Selector.MatchLabels, currentDaemonset.Spec.Selector.MatchLabels) {
+			if err = deleteObjectAndOrphanDependents(context.TODO(), logger, r.client, daemonset, constants.DefaultAgentResourceSuffix); err != nil {
+				return result, err
+			}
+			return result, nil
+		}
+
 		now := metav1.Now()
 		if agentprofile.CreateStrategyEnabled() {
 			if profile.Status.CreateStrategy != nil {
@@ -239,13 +253,6 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		if err != nil {
 			return result, err
 		}
-
-		// TODO: remove in 1.8.0 when v1alpha1 is removed
-		// Spec.Selector is an immutable field and changing it leads to an error.
-		// Template.Labels must include Spec.Selector.
-		// See https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/#pod-selector
-		daemonset.Spec.Selector = currentDaemonset.Spec.Selector
-		daemonset.Spec.Template.Labels = ensureSelectorInPodTemplateLabels(logger, daemonset.Spec.Selector, daemonset.Spec.Template.Labels)
 
 		// From here the PodTemplateSpec should be ready, we can generate the hash that will be used to compare this daemonset with the current one (if it exists).
 		var hash, daemonsetPodTemplateLabelHash string
@@ -437,34 +444,6 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, d
 	logger.Info("Creating ExtendedDaemonSet")
 
 	return result, err
-}
-
-// TODO: remove in 1.8.0 when v1alpha1 is removed
-// ensureSelectorInPodTemplateLabels checks that a label selector's MatchLabels
-// are present in the pod template labels. If the label is missing, it adds it
-// to the pod template labels. If the value doesn't match, it changes the label
-// value to match the selector.
-// If the selector labels aren't present in the pod template labels, there will
-// be a `selector does not match template labels` error when updating the agent
-func ensureSelectorInPodTemplateLabels(logger logr.Logger, selector *metav1.LabelSelector, labels map[string]string) map[string]string {
-	if selector != nil {
-		if labels == nil {
-			labels = map[string]string{}
-		}
-		for k, v := range selector.MatchLabels {
-			value, ok := labels[k]
-			if !ok {
-				logger.Info("Selector not in template labels, adding to template labels", "selector label", fmt.Sprintf("%s: %s", k, v))
-				labels[k] = v
-			}
-			if value != v {
-				logger.Info("Selector value does not match template labels, modifying template labels", "selector label", fmt.Sprintf("%s: %s", k, v), "template label", fmt.Sprintf("%s: %s", k, value))
-				labels[k] = v
-			}
-		}
-	}
-
-	return labels
 }
 
 func shouldCheckCreateStrategyStatus(profile *v1alpha1.DatadogAgentProfile) bool {

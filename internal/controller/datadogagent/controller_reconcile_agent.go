@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -54,6 +55,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 	agentEnabled := requiredComponents.Agent.IsEnabled()
 	singleContainerStrategyEnabled := requiredComponents.Agent.SingleContainerStrategyEnabled()
+	instanceName := GetAgentInstanceLabelValue(dda, profile.Name, profile.Namespace, constants.DefaultAgentResourceSuffix)
 
 	// When EDS is enabled and there are profiles defined, we only create an
 	// EDS for the default profile, for the other profiles we create
@@ -135,7 +137,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	}
 
 	// Start by creating the Default Agent daemonset
-	daemonset = componentagent.NewDefaultAgentDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
+	daemonset = componentagent.NewDefaultAgentDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent, instanceName)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 	// Set Global setting on the default daemonset
 	global.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda.GetObjectMeta(), &dda.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
@@ -521,4 +523,17 @@ func (r *Reconciler) getValidDaemonSetNames(dsName string, providerList map[stri
 	}
 
 	return validDaemonSetNames, validExtendedDaemonSetNames
+}
+
+// GetAgentInstanceLabelValue returns the instance name for the agent
+// The current and default is DDA name + suffix (e.g. -cluster-agent)
+// If the update selector annotation is set to true, we use the DDA name + profile name for profile DSs
+func GetAgentInstanceLabelValue(dda metav1.Object, profileName, profileNamespace, suffix string) string {
+	if val, ok := dda.GetAnnotations()[apicommon.UpdateSelectorAnnotationKey]; ok && val == "true" {
+		if agentprofile.IsDefaultProfile(profileNamespace, profileName) {
+			return fmt.Sprintf("%s-%s", dda.GetName(), suffix)
+		}
+		return fmt.Sprintf(profileDDAINameTemplate, dda.GetName(), profileName)
+	}
+	return component.GetAgentName(dda)
 }
