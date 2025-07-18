@@ -19,6 +19,7 @@ import (
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
@@ -577,6 +578,201 @@ func Test_Introspection(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_otelImageTags(t *testing.T) {
+	const resourcesName = "foo"
+	const resourcesNamespace = "bar"
+	const dsName = "foo-agent"
+
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	defaultRequeueDuration := 15 * time.Second
+
+	tests := []struct {
+		name     string
+		fields   fields
+		dda      *v2alpha1.DatadogAgent
+		wantFunc func(c client.Client) error
+	}{
+		{
+			name: "otelEnabled true, no override - full image all agents",
+			dda: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithOTelCollectorEnabled(true).
+				Build(),
+			wantFunc: func(c client.Client) error {
+				expectedContainers := []string{
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+					string(apicommon.OtelAgent),
+				}
+				assert.NoError(t, verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers))
+				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
+
+				assert.Equal(t, fmt.Sprintf("gcr.io/datadoghq/agent:%s-full", images.AgentLatestVersion), agentContainer[apicommon.CoreAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("gcr.io/datadoghq/agent:%s-full", images.AgentLatestVersion), agentContainer[apicommon.TraceAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("gcr.io/datadoghq/agent:%s-full", images.AgentLatestVersion), agentContainer[apicommon.OtelAgent].Image)
+
+				return nil
+			},
+		},
+		{
+			name: "otelEnabled true, override Tag - override tag all agents",
+			dda: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithOTelCollectorEnabled(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+					Image: &v2alpha1.AgentImageConfig{
+						Tag: "7.65.0-full",
+					},
+				}).
+				Build(),
+			wantFunc: func(c client.Client) error {
+				expectedContainers := []string{
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+					string(apicommon.OtelAgent),
+				}
+				assert.NoError(t, verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers))
+				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
+
+				assert.Equal(t, "gcr.io/datadoghq/agent:7.65.0-full", agentContainer[apicommon.CoreAgentContainerName].Image)
+				assert.Equal(t, "gcr.io/datadoghq/agent:7.65.0-full", agentContainer[apicommon.TraceAgentContainerName].Image)
+				assert.Equal(t, "gcr.io/datadoghq/agent:7.65.0-full", agentContainer[apicommon.OtelAgent].Image)
+
+				return nil
+			},
+		},
+		{
+			name: "otelEnabled true, override Name, Tag - override Name, Tag on all agents",
+			dda: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithOTelCollectorEnabled(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+					Image: &v2alpha1.AgentImageConfig{
+						Name: "testagent",
+						Tag:  "7.65.0-full",
+					},
+				}).Build(),
+			wantFunc: func(c client.Client) error {
+				expectedContainers := []string{
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+					string(apicommon.OtelAgent),
+				}
+				assert.NoError(t, verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers))
+				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
+
+				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.CoreAgentContainerName].Image)
+				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.TraceAgentContainerName].Image)
+				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.OtelAgent].Image)
+
+				return nil
+			},
+		},
+		{
+			name: "otelEnabled true, override Name including tag - override Name including tag on all agents",
+			dda: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithOTelCollectorEnabled(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+					Image: &v2alpha1.AgentImageConfig{
+						Name: "testagent:7.65.0-full",
+					},
+				}).Build(),
+			wantFunc: func(c client.Client) error {
+				expectedContainers := []string{
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+					string(apicommon.OtelAgent),
+				}
+				assert.NoError(t, verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers))
+				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
+
+				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.CoreAgentContainerName].Image)
+				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.TraceAgentContainerName].Image)
+				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.OtelAgent].Image)
+
+				return nil
+			},
+		},
+		{
+			name: "otelEnabled true, override Tag and Name with full name - all agents with full name, ignoring tag",
+			dda: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithOTelCollectorEnabled(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+					Image: &v2alpha1.AgentImageConfig{
+						Name: "gcr.io/datacat/testagent:latest",
+						Tag:  "7.66.0",
+					},
+				}).Build(),
+			wantFunc: func(c client.Client) error {
+				expectedContainers := []string{
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+					string(apicommon.OtelAgent),
+				}
+				assert.NoError(t, verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers))
+				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
+
+				assert.Equal(t, "gcr.io/datacat/testagent:latest", agentContainer[apicommon.CoreAgentContainerName].Image)
+				assert.Equal(t, "gcr.io/datacat/testagent:latest", agentContainer[apicommon.TraceAgentContainerName].Image)
+				assert.Equal(t, "gcr.io/datacat/testagent:latest", agentContainer[apicommon.OtelAgent].Image)
+
+				return nil
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			eventBroadcaster := record.NewBroadcaster()
+			recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgent_Reconcile"})
+			forwarders := dummyManager{}
+			s := agenttestutils.TestScheme()
+
+			client := fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build()
+			// Register operator types with the runtime scheme.
+
+			r := &Reconciler{
+				client:       client,
+				scheme:       s,
+				platformInfo: kubernetes.PlatformInfo{},
+				recorder:     recorder,
+				log:          logf.Log.WithName(tt.name),
+				forwarders:   forwarders,
+				options: ReconcilerOptions{
+					ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
+						Enabled: false,
+					},
+					SupportCilium: false,
+				},
+			}
+
+			client.Create(context.TODO(), tt.dda)
+
+			got, err := r.Reconcile(context.TODO(), tt.dda)
+
+			assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() unexpected error: %v", err)
+			assert.Equal(t, reconcile.Result{RequeueAfter: defaultRequeueDuration}, got, "ReconcileDatadogAgent.Reconcile() unexpected result")
+
+			if tt.wantFunc != nil {
+				err := tt.wantFunc(r.client)
+				assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() wantFunc validation error: %v", err)
+			}
+		})
+	}
+}
+
+func getDsContainers(c client.Client, resourcesNamespace, dsName string) map[apicommon.AgentContainerName]corev1.Container {
+	ds := &appsv1.DaemonSet{}
+	if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds); err != nil {
+		return nil
+	}
+
+	dsContainers := map[apicommon.AgentContainerName]corev1.Container{}
+	for _, container := range ds.Spec.Template.Spec.Containers {
+		dsContainers[apicommon.AgentContainerName(container.Name)] = container
+	}
+
+	return dsContainers
 }
 
 func verifyDaemonsetContainers(c client.Client, resourcesNamespace, dsName string, expectedContainers []string) error {
