@@ -12,10 +12,11 @@ This is a wrapper chart for installing EKS add-on. Charts required for the add-o
 | 0.1.10 | 2.5.1 | 2.3.0 | 1.11.1 | 7.60.0 | 7.60.0 |
 | 0.1.12 | 2.7.0 | 2.4.1 | 1.12.1 | 7.62.2 | 7.62.2 |
 | 0.1.13 | 2.9.1 | 2.7.0 | 1.14.0 | 7.64.3 | 7.64.3 |
-| 0.1.14 | 2.10.0 | 2.8.0 | 1.15.1 | 7.65.2 | 7.65.2 |
+| 0.1.15 | 2.11.0 | 2.9.0 | 1.16.0 | 7.67.0 | 7.67.0 |
 
 * 0.1.8 failed validation and didn't go through.
 * 0.1.11 failed validation and didn't go through.
+* 0.1.14 skipped due to delays in submission.
 
 ## Pushing Add-on Chart
 
