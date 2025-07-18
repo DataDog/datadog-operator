@@ -617,7 +617,7 @@ func Test_otelImageTags(t *testing.T) {
 			},
 		},
 		{
-			name: "otelEnabled, override Tag - override tag all agents",
+			name: "otelEnabled true, override Tag - override tag all agents",
 			dda: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithOTelCollectorEnabled(true).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
