@@ -1,6 +1,6 @@
 module github.com/DataDog/datadog-operator/api
 
-go 1.23
+go 1.23.0
 
 toolchain go1.23.10
 
@@ -39,7 +39,7 @@ require (
 	github.com/rogpeppe/go-internal v1.13.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	golang.org/x/net v0.40.0 // indirect
-	golang.org/x/oauth2 v0.24.0 // indirect
+	golang.org/x/oauth2 v0.27.0 // indirect
 	golang.org/x/text v0.25.0 // indirect
 	google.golang.org/protobuf v1.36.5 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
