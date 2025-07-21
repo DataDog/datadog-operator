@@ -7,11 +7,11 @@ package config
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"strings"
 
 	"github.com/go-logr/logr"
-	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
