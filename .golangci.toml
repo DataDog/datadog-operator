@@ -44,13 +44,11 @@
   enable-all = true
   disable = [
     "exhaustruct",
-    "exportloopref",
     "nonamedreturns",
     "revive",
     "lll",
     "gosec",
     "dupl",
-    "execinquery",
     "gocyclo",
     "gochecknoinits",
     "gochecknoglobals",
