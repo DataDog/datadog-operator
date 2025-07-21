@@ -55,7 +55,6 @@
     "funlen",
     "gocognit",
     "cyclop",
-    "gomnd",
     "wrapcheck",
     "forcetypeassert",
     "err113",
@@ -101,7 +100,8 @@
     "dupword",
     "intrange",
     "mnd",
-    "musttag"
+    "musttag",
+    "tenv"
   ]
 
 [issues]
