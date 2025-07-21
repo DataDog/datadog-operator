@@ -6,7 +6,6 @@
 package utils
 
 import (
-	"context"
 	"strconv"
 	"strings"
 	"testing"
@@ -25,7 +24,7 @@ func VerifyOperator(t *testing.T, c *assert.CollectT, namespace string, k8sClien
 
 func VerifyNumPodsForSelector(t *testing.T, c *assert.CollectT, namespace string, k8sClient kubeClient.Interface, numPods int, selector string) {
 	t.Log("Waiting for number of pods created", "number", numPods, "selector", selector)
-	podsList, err := k8sClient.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
+	podsList, err := k8sClient.CoreV1().Pods(namespace).List(t.Context(), metav1.ListOptions{
 		LabelSelector: selector,
 		FieldSelector: "status.phase=Running",
 	})
@@ -36,7 +35,7 @@ func VerifyNumPodsForSelector(t *testing.T, c *assert.CollectT, namespace string
 }
 
 func VerifyAgentPods(t *testing.T, c *assert.CollectT, namespace string, k8sClient kubeClient.Interface, selector string) {
-	nodesList, err := k8sClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	nodesList, err := k8sClient.CoreV1().Nodes().List(t.Context(), metav1.ListOptions{})
 	require.NoError(c, err)
 	assert.NotNil(c, nodesList)
 	assert.NotEmpty(c, nodesList.Items)
