@@ -527,13 +527,11 @@ func (r *Reconciler) getValidDaemonSetNames(dsName string, providerList map[stri
 
 // GetAgentInstanceLabelValue returns the instance name for the agent
 // The current and default is DDA name + suffix (e.g. -cluster-agent)
+// This is used when profiles are disabled or for the default profile
 // If the update selector annotation is set to true, we use the DDA name + profile name for profile DSs
 func GetAgentInstanceLabelValue(dda metav1.Object, profileName, profileNamespace, suffix string) string {
-	if val, ok := dda.GetAnnotations()[apicommon.UpdateSelectorAnnotationKey]; ok && val == "true" {
-		if agentprofile.IsDefaultProfile(profileNamespace, profileName) {
-			return fmt.Sprintf("%s-%s", dda.GetName(), suffix)
-		}
-		return fmt.Sprintf(profileDDAINameTemplate, dda.GetName(), profileName)
+	if profileName == "" || agentprofile.IsDefaultProfile(profileNamespace, profileName) {
+		return fmt.Sprintf("%s-%s", dda.GetName(), suffix)
 	}
-	return component.GetAgentName(dda)
+	return fmt.Sprintf(profileDDAINameTemplate, dda.GetName(), profileName)
 }
