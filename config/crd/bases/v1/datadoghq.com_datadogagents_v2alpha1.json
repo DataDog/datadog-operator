@@ -2231,7 +2231,7 @@
               "description": "CSI contains configuration for Datadog CSI Driver",
               "properties": {
                 "enabled": {
-                  "description": "Enabled enables usage of CSI driver in datadog agent.\nRequires installation of Datadog CSI Driver https://github.com/DataDog/helm-charts/tree/main/charts/datadog-csi-driver\nDefault: false",
+                  "description": "Enables usage of CSI driver in Datadog Agent.\nRequires installation of Datadog CSI Driver https://github.com/DataDog/helm-charts/tree/main/charts/datadog-csi-driver\nDefault: false",
                   "type": "boolean"
                 }
               },
