@@ -88,6 +88,7 @@ type OperatorMetadata struct {
 	ClusterName                   string `json:"cluster_name"`
 	ConfigDDURL                   string `json:"config_dd_url"`
 	ConfigDDSite                  string `json:"config_site"`
+	AutopilotEnabled			  bool   `json:"autopilot_enabled"`
 }
 
 var (

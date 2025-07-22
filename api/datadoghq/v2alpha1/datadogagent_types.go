@@ -1496,6 +1496,11 @@ type GlobalConfig struct {
 	// Default: 'true'
 	// +optional
 	RunProcessChecksInCoreAgent *bool `json:"runProcessChecksInCoreAgent,omitempty"`
+
+	// Set whether autopilot is enabled or not
+	// Default: 'false'
+	// +optional
+	AutopilotEnabled *bool `json:"autopilotEnabled,omitempty"`
 }
 
 // DatadogCredentials is a generic structure that holds credentials to access Datadog.

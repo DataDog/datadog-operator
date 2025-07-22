@@ -2068,6 +2068,11 @@ spec:
                 global:
                   description: Global settings to configure the agents
                   properties:
+                    autopilotEnabled:
+                      description: |-
+                        Set whether autopilot is enabled or not
+                        Default: 'false'
+                      type: boolean
                     checksTagCardinality:
                       description: |-
                         ChecksTagCardinality configures tag cardinality for the metrics collected by integrations (`low`, `orchestrator` or `high`).

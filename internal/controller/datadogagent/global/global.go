@@ -21,6 +21,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/allowlistsynchronizer"
 )
 
 // ApplyGlobalDependencies applies the global dependencies for a DatadogAgent instance.
@@ -254,6 +255,10 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		applyFIPSConfig(logger, manager, ddaMeta, ddaSpec, resourcesManager)
 	}
 
+	// Creating allowListSynchronizer if autopilot is enabled
+	if *config.AutopilotEnabled {
+		allowlistsynchronizer.CreateAllowlistSynchronizer()
+	}
 }
 
 func updateContainerImages(config *v2alpha1.GlobalConfig, podTemplateManager feature.PodTemplateManagers) {
