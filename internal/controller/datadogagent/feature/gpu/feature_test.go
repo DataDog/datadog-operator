@@ -130,7 +130,7 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 				},
 			},
 			{
-				Name:      common.DebugfsVolumeName,
+				Name: common.DebugfsVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: common.DebugfsPath,
