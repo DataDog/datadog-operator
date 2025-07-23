@@ -50,7 +50,7 @@ func GetDefaultMetadata(owner metav1.Object, componentKind, componentName, versi
 			labels[key] = val
 		}
 		// if update selector is present, use k8s instance and component as the selector
-	} else if _, ok := owner.GetAnnotations()[apicommon.UpdateSelectorAnnotationKey]; ok {
+	} else if val, ok := owner.GetAnnotations()[apicommon.UpdateSelectorAnnotationKey]; ok && val == "true" {
 		selector = &metav1.LabelSelector{
 			MatchLabels: map[string]string{
 				kubernetes.AppKubernetesInstanceLabelKey:   componentName,
