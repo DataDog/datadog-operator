@@ -91,6 +91,10 @@ func configureSystemProbe(managers feature.PodTemplateManagers) {
 	managers.VolumeMount().AddVolumeMountToContainer(&cgroupsMount, apicommon.SystemProbeContainerName)
 	managers.Volume().AddVolume(&cgroupsVol)
 
+	debugfsVol, debugfsMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false)
+	managers.VolumeMount().AddVolumeMountToContainer(&debugfsMount, apicommon.SystemProbeContainerName)
+	managers.Volume().AddVolume(&debugfsVol)
+
 	socketVol, socketVolMount := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, false)
 	managers.Volume().AddVolume(&socketVol)
 	managers.VolumeMount().AddVolumeMountToContainer(&socketVolMount, apicommon.SystemProbeContainerName)
