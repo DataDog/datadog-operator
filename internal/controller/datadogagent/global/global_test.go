@@ -46,7 +46,7 @@ const (
 	secretNamespace       = "postgres"
 )
 
-var secretNames = []string{"db-username", "db-password"}
+var secretNames = []string{"db-password", "db-username"}
 
 func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 	logger := logf.Log.WithName("TestRequiredComponents")
@@ -664,8 +664,8 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				ClusterAgent: reqComp,
 				Agent:        reqComp,
 			}
-			ApplyGlobalComponentDependencies(logger, tt.dda, resourcesManager, v2alpha1.NodeAgentComponentName, reqComp)
-			ApplyGlobalSettingsNodeAgent(logger, podTemplateManager, tt.dda, resourcesManager, tt.singleContainerStrategyEnabled, requiredComponents)
+			ApplyGlobalComponentDependencies(logger, tt.dda.GetObjectMeta(), &tt.dda.Spec, &tt.dda.Status, resourcesManager, v2alpha1.NodeAgentComponentName, reqComp, false)
+			ApplyGlobalSettingsNodeAgent(logger, podTemplateManager, tt.dda.GetObjectMeta(), &tt.dda.Spec, resourcesManager, tt.singleContainerStrategyEnabled, requiredComponents)
 
 			tt.want(t, podTemplateManager, tt.wantCoreAgentEnvVars, tt.wantEnvVars, tt.wantVolumes, tt.wantCoreAgentVolumeMounts, tt.wantVolumeMounts)
 			// Assert dependencies if and only if a dependency is expected
@@ -955,7 +955,7 @@ func Test_UseFIPSAgent(t *testing.T) {
 	t.Run("test", func(t *testing.T) {
 		resourcesManager := feature.NewResourceManagers(store)
 
-		applyGlobalSettings(logger, existingManager, dda, resourcesManager, requiredComponents)
+		applyGlobalSettings(logger, existingManager, dda.GetObjectMeta(), &dda.Spec, resourcesManager, requiredComponents)
 
 		checkFIPSImages(t, existingManager)
 	})

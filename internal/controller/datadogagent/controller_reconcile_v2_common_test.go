@@ -23,100 +23,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func Test_ensureSelectorInPodTemplateLabels(t *testing.T) {
-	logger := logf.Log.WithName("Test_ensureSelectorInPodTemplateLabels")
-
-	tests := []struct {
-		name              string
-		selector          *metav1.LabelSelector
-		podTemplateLabels map[string]string
-		expectedLabels    map[string]string
-	}{
-		{
-			name:     "Nil selector",
-			selector: nil,
-			podTemplateLabels: map[string]string{
-				"foo": "bar",
-			},
-			expectedLabels: map[string]string{
-				"foo": "bar",
-			},
-		},
-		{
-			name:     "Empty selector",
-			selector: &metav1.LabelSelector{},
-			podTemplateLabels: map[string]string{
-				"foo": "bar",
-			},
-			expectedLabels: map[string]string{
-				"foo": "bar",
-			},
-		},
-		{
-			name: "Selector in template labels",
-			selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"foo": "bar",
-				},
-			},
-			podTemplateLabels: map[string]string{
-				"foo": "bar",
-			},
-			expectedLabels: map[string]string{
-				"foo": "bar",
-			},
-		},
-		{
-			name: "Selector not in template labels",
-			selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"bar": "foo",
-				},
-			},
-			podTemplateLabels: map[string]string{
-				"foo": "bar",
-			},
-			expectedLabels: map[string]string{
-				"foo": "bar",
-				"bar": "foo",
-			},
-		},
-		{
-			name: "Selector label value does not match template labels",
-			selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"foo": "foo",
-				},
-			},
-			podTemplateLabels: map[string]string{
-				"foo": "bar",
-			},
-			expectedLabels: map[string]string{
-				"foo": "foo",
-			},
-		},
-		{
-			name: "Nil pod template labels",
-			selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"foo": "foo",
-				},
-			},
-			podTemplateLabels: nil,
-			expectedLabels: map[string]string{
-				"foo": "foo",
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			labels := ensureSelectorInPodTemplateLabels(logger, tt.selector, tt.podTemplateLabels)
-			assert.Equal(t, tt.expectedLabels, labels)
-		})
-	}
-}
-
 func Test_shouldCheckCreateStrategyStatus(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -885,7 +791,6 @@ func Test_addDDAIStatusToDDAStatus(t *testing.T) {
 	_ = scheme.AddToScheme(sch)
 	_ = v1alpha1.AddToScheme(sch)
 	_ = v2alpha1.AddToScheme(sch)
-	logger := logf.Log.WithName("Test_addDDAIStatusToDDAStatus")
 
 	tests := []struct {
 		name           string
@@ -966,7 +871,7 @@ func Test_addDDAIStatusToDDAStatus(t *testing.T) {
 				log:    logf.Log.WithName(tt.name),
 			}
 
-			err := r.addDDAIStatusToDDAStatus(logger, &tt.status, tt.existingDDAI.ObjectMeta)
+			err := r.addDDAIStatusToDDAStatus(&tt.status, tt.existingDDAI.ObjectMeta)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedStatus, tt.status)
 		})
