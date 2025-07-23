@@ -42,6 +42,13 @@ func getRBACClusterPolicyRules(webhookName string, cwsInstrumentationEnabled boo
 			},
 			Verbs: []string{rbac.GetVerb},
 		},
+		{
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{
+				rbac.ReplicationControllersResource,
+			},
+			Verbs: []string{rbac.GetVerb},
+		},
 		// Deployments, Replicasets, Statefulsets, Daemonsets
 		{
 			APIGroups: []string{rbac.AppsAPIGroup},
