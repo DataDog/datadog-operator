@@ -2,13 +2,14 @@ package allowlistsynchronizer
 
 import (
 	"context"
-	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"os"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -25,6 +26,8 @@ var (
 		return nil
 	})
 )
+
+var logger = logf.Log.WithName("AllowlistSynchronizer")
 
 type AllowlistSynchronizer struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -50,8 +53,8 @@ func createAllowlistSynchronizerResource(k8sClient client.Client) error {
 			Kind:       "AllowlistSynchronizer",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "sample-synchronizer",
-			Annotations: map[string] string {
+			Name: "datadog-synchronizer",
+			Annotations: map[string]string{
 				"helm.sh/hook": "pre-install,pre-upgrade",
 				"helm.sh/hook-weight": "-1",
 			},
@@ -69,26 +72,37 @@ func createAllowlistSynchronizerResource(k8sClient client.Client) error {
 func CreateAllowlistSynchronizer() {
 	cfg, err := config.GetConfig()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to load kubeconfig: %v\n", err)
-		os.Exit(1)
+		logger.Error(err, "failed to load kubeconfig")
+		return
 	}
 
 	scheme := runtime.NewScheme()
 	if err := SchemeBuilder.AddToScheme(scheme); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to register AllowlistSynchronizer: %v\n", err)
-		os.Exit(1)
+		logger.Error(err, "failed to register AllowlistSynchronizer scheme")
+		return
 	}
 
 	k8sClient, err := client.New(cfg, client.Options{Scheme: scheme})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to create client: %v\n", err)
-		os.Exit(1)
+		logger.Error(err, "failed to create kubernetes client")
+		return
+	}
+
+	existing := &AllowlistSynchronizer{}
+	if err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: "datadog-synchronizer"}, existing); err == nil {
+		return
+	} else if !apierrors.IsNotFound(err) {
+		logger.Error(err, "failed to check existing AllowlistSynchronizer resource")
+		return
 	}
 
 	if err := createAllowlistSynchronizerResource(k8sClient); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to create resource: %v\n", err)
-		os.Exit(1)
+		if apierrors.IsAlreadyExists(err) {
+			return
+		}
+		logger.Error(err, "failed to create AllowlistSynchronizer resource")
+		return
 	}
 
-	fmt.Println("Successfully created AllowlistSynchronizer")
+	logger.Info("Successfully created AllowlistSynchronizer")
 }

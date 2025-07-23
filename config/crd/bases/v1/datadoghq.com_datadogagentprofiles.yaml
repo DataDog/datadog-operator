@@ -2069,9 +2069,7 @@ spec:
                       description: Global settings to configure the agents
                       properties:
                         autopilotEnabled:
-                          description: |-
-                            Set whether autopilot is enabled or not
-                            Default: 'false'
+                          description: Set whether autopilot is enabled or not
                           type: boolean
                         checksTagCardinality:
                           description: |-

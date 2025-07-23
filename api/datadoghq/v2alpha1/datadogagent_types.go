@@ -1498,7 +1498,6 @@ type GlobalConfig struct {
 	RunProcessChecksInCoreAgent *bool `json:"runProcessChecksInCoreAgent,omitempty"`
 
 	// Set whether autopilot is enabled or not
-	// Default: 'false'
 	// +optional
 	AutopilotEnabled *bool `json:"autopilotEnabled,omitempty"`
 }
