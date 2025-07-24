@@ -200,7 +200,7 @@ spec:
                             StabilizationWindowSeconds is the number of seconds the controller should lookback at previous recommendations
                             before deciding to apply a new one. Defaults to 0.
                           format: int32
-                          maximum: 1800
+                          maximum: 3600
                           minimum: 0
                           type: integer
                         strategy:
@@ -266,7 +266,7 @@ spec:
                             StabilizationWindowSeconds is the number of seconds the controller should lookback at previous recommendations
                             before deciding to apply a new one. Defaults to 0.
                           format: int32
-                          maximum: 1800
+                          maximum: 3600
                           minimum: 0
                           type: integer
                         strategy:
@@ -685,7 +685,7 @@ spec:
                             StabilizationWindowSeconds is the number of seconds the controller should lookback at previous recommendations
                             before deciding to apply a new one. Defaults to 0.
                           format: int32
-                          maximum: 1800
+                          maximum: 3600
                           minimum: 0
                           type: integer
                         strategy:
@@ -741,7 +741,7 @@ spec:
                             StabilizationWindowSeconds is the number of seconds the controller should lookback at previous recommendations
                             before deciding to apply a new one. Defaults to 0.
                           format: int32
-                          maximum: 1800
+                          maximum: 3600
                           minimum: 0
                           type: integer
                         strategy:
