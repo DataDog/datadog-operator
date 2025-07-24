@@ -139,7 +139,7 @@ type options struct {
 	remoteConfigEnabled                    bool
 	datadogDashboardEnabled                bool
 	datadogGenericResourceEnabled          bool
-	autopilotEnabled					   bool
+	autopilotEnabled                       bool
 
 	// Secret Backend options
 	secretBackendCommand string
@@ -283,7 +283,7 @@ func run(opts *options) error {
 			IntrospectionEnabled:          opts.introspectionEnabled,
 			DatadogDashboardEnabled:       opts.datadogDashboardEnabled,
 			DatadogGenericResourceEnabled: opts.datadogGenericResourceEnabled,
-			AutopilotEnabled:			   opts.autopilotEnabled,
+			AutopilotEnabled:              opts.autopilotEnabled,
 		}),
 	})
 	if err != nil {
@@ -355,7 +355,7 @@ func run(opts *options) error {
 		DatadogAgentProfileEnabled:    opts.datadogAgentProfileEnabled,
 		DatadogDashboardEnabled:       opts.datadogDashboardEnabled,
 		DatadogGenericResourceEnabled: opts.datadogGenericResourceEnabled,
-		AutopilotEnabled:			   opts.autopilotEnabled,
+		AutopilotEnabled:              opts.autopilotEnabled,
 	}
 
 	versionInfo, platformInfo, err := getVersionAndPlatformInfo(rest.CopyConfig(mgr.GetConfig()))
@@ -503,7 +503,7 @@ func setupAndStartMetadataForwarder(logger logr.Logger, client client.Reader, ku
 		IntrospectionEnabled:          options.introspectionEnabled,
 		ConfigDDURL:                   os.Getenv(constants.DDURL),
 		ConfigDDSite:                  os.Getenv(constants.DDSite),
-		AutopilotEnabled:			   options.autopilotEnabled,
+		AutopilotEnabled:              options.autopilotEnabled,
 	}
 
 	mdf.Start()

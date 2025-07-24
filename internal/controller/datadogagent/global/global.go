@@ -17,11 +17,11 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/allowlistsynchronizer"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/allowlistsynchronizer"
 )
 
 // ApplyGlobalDependencies applies the global dependencies for a DatadogAgent instance.

@@ -55,7 +55,7 @@ func createAllowlistSynchronizerResource(k8sClient client.Client) error {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "datadog-synchronizer",
 			Annotations: map[string]string{
-				"helm.sh/hook": "pre-install,pre-upgrade",
+				"helm.sh/hook":        "pre-install,pre-upgrade",
 				"helm.sh/hook-weight": "-1",
 			},
 		},
@@ -70,29 +70,29 @@ func createAllowlistSynchronizerResource(k8sClient client.Client) error {
 }
 
 func CreateAllowlistSynchronizer() {
-	cfg, err := config.GetConfig()
-	if err != nil {
-		logger.Error(err, "failed to load kubeconfig")
+	cfg, configErr := config.GetConfig()
+	if configErr != nil {
+		logger.Error(configErr, "failed to load kubeconfig")
 		return
 	}
 
 	scheme := runtime.NewScheme()
-	if err := SchemeBuilder.AddToScheme(scheme); err != nil {
-		logger.Error(err, "failed to register AllowlistSynchronizer scheme")
+	if SchemeErr := SchemeBuilder.AddToScheme(scheme); SchemeErr != nil {
+		logger.Error(SchemeErr, "failed to register AllowlistSynchronizer scheme")
 		return
 	}
 
-	k8sClient, err := client.New(cfg, client.Options{Scheme: scheme})
-	if err != nil {
-		logger.Error(err, "failed to create kubernetes client")
+	k8sClient, clietErr := client.New(cfg, client.Options{Scheme: scheme})
+	if clietErr != nil {
+		logger.Error(clietErr, "failed to create kubernetes client")
 		return
 	}
 
 	existing := &AllowlistSynchronizer{}
-	if err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: "datadog-synchronizer"}, existing); err == nil {
+	if existingErr := k8sClient.Get(context.TODO(), client.ObjectKey{Name: "datadog-synchronizer"}, existing); existingErr == nil {
 		return
-	} else if !apierrors.IsNotFound(err) {
-		logger.Error(err, "failed to check existing AllowlistSynchronizer resource")
+	} else if !apierrors.IsNotFound(existingErr) {
+		logger.Error(existingErr, "failed to check existing AllowlistSynchronizer resource")
 		return
 	}
 

@@ -66,7 +66,7 @@ type WatchOptions struct {
 	IntrospectionEnabled          bool
 	DatadogDashboardEnabled       bool
 	DatadogGenericResourceEnabled bool
-	AutopilotEnabled			  bool
+	AutopilotEnabled              bool
 }
 
 // CacheOptions function configures Controller Runtime cache options on a resource level (supported in v0.16+).

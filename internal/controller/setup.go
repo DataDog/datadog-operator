@@ -56,7 +56,7 @@ type SetupOptions struct {
 	OtelAgentEnabled              bool
 	DatadogDashboardEnabled       bool
 	DatadogGenericResourceEnabled bool
-	AutopilotEnabled			  bool
+	AutopilotEnabled              bool
 }
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
