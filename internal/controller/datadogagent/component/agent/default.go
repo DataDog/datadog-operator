@@ -15,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
@@ -340,7 +341,7 @@ func fullAgentImage() string {
 
 func initContainers(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Container {
 	initContainers := []corev1.Container{
-		initVolumeContainer(),
+		initVolumeContainer(dda),
 		initConfigContainer(dda),
 	}
 	for _, containerName := range requiredContainers {
@@ -353,11 +354,15 @@ func initContainers(dda metav1.Object, requiredContainers []apicommon.AgentConta
 }
 
 func agentSingleContainer(dda metav1.Object) []corev1.Container {
+	autopilot := false
+	if ddaTyped, ok := dda.(*v2alpha1.DatadogAgent); ok {
+		autopilot = apiutils.BoolValue(ddaTyped.Spec.Global.AutopilotEnabled)
+	}
 	agentSingleContainer := corev1.Container{
 		Name:           string(apicommon.UnprivilegedSingleAgentContainerName),
 		Image:          agentImage(),
 		Env:            envVarsForCoreAgent(dda),
-		VolumeMounts:   volumeMountsForCoreAgent(),
+		VolumeMounts:   volumeMountsForCoreAgent(autopilot),
 		LivenessProbe:  constants.GetDefaultLivenessProbe(),
 		ReadinessProbe: constants.GetDefaultReadinessProbe(),
 		StartupProbe:   constants.GetDefaultStartupProbe(),
@@ -396,12 +401,17 @@ func agentOptimizedContainers(dda metav1.Object, requiredContainers []apicommon.
 }
 
 func coreAgentContainer(dda metav1.Object) corev1.Container {
+	autopilot := false
+	if ddaTyped, ok := dda.(*v2alpha1.DatadogAgent); ok {
+		autopilot = apiutils.BoolValue(ddaTyped.Spec.Global.AutopilotEnabled)
+	}
+
 	return corev1.Container{
 		Name:           string(apicommon.CoreAgentContainerName),
 		Image:          agentImage(),
 		Command:        []string{"agent", "run"},
 		Env:            envVarsForCoreAgent(dda),
-		VolumeMounts:   volumeMountsForCoreAgent(),
+		VolumeMounts:   volumeMountsForCoreAgent(autopilot),
 		LivenessProbe:  constants.GetDefaultLivenessProbe(),
 		ReadinessProbe: constants.GetDefaultReadinessProbe(),
 		StartupProbe:   constants.GetDefaultStartupProbe(),
@@ -514,12 +524,22 @@ func agentDataPlaneContainer(dda metav1.Object) corev1.Container {
 	}
 }
 
-func initVolumeContainer() corev1.Container {
+func initVolumeContainer(dda metav1.Object) corev1.Container {
+	autopilot := false
+	if ddaTyped, ok := dda.(*v2alpha1.DatadogAgent); ok {
+		autopilot = apiutils.BoolValue(ddaTyped.Spec.Global.AutopilotEnabled)
+	}
+
+	arg := "cp -vnr /etc/datadog-agent /opt"
+	if autopilot {
+		arg = "cp -r /etc/datadog-agent /opt"
+	}
+
 	return corev1.Container{
 		Name:    "init-volume",
 		Image:   agentImage(),
 		Command: []string{"bash", "-c"},
-		Args:    []string{"cp -vnr /etc/datadog-agent /opt"},
+		Args:    []string{arg},
 		VolumeMounts: []corev1.VolumeMount{
 			{
 				Name:      common.ConfigVolumeName,
@@ -530,6 +550,11 @@ func initVolumeContainer() corev1.Container {
 }
 
 func initConfigContainer(dda metav1.Object) corev1.Container {
+	autopilot := false
+	if ddaTyped, ok := dda.(*v2alpha1.DatadogAgent); ok {
+		autopilot = apiutils.BoolValue(ddaTyped.Spec.Global.AutopilotEnabled)
+	}
+
 	return corev1.Container{
 		Name:    "init-config",
 		Image:   agentImage(),
@@ -537,7 +562,7 @@ func initConfigContainer(dda metav1.Object) corev1.Container {
 		Args: []string{
 			"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done",
 		},
-		VolumeMounts: volumeMountsForInitConfig(),
+		VolumeMounts: volumeMountsForInitConfig(autopilot),
 		Env:          envVarsForCoreAgent(dda),
 	}
 }
@@ -652,8 +677,8 @@ func envVarsForSecurityAgent(dda metav1.Object) []corev1.EnvVar {
 	return append(envs, commonEnvVars(dda)...)
 }
 
-func volumeMountsForInitConfig() []corev1.VolumeMount {
-	return []corev1.VolumeMount{
+func volumeMountsForInitConfig(autopilot bool) []corev1.VolumeMount {
+	mounts := []corev1.VolumeMount{
 		common.GetVolumeMountForLogs(),
 		common.GetVolumeMountForChecksd(),
 		common.GetVolumeMountForAuth(false),
@@ -662,10 +687,23 @@ func volumeMountsForInitConfig() []corev1.VolumeMount {
 		common.GetVolumeMountForProc(),
 		common.GetVolumeMountForRuntimeSocket(true),
 	}
+
+	if autopilot {
+		keep := make([]corev1.VolumeMount, 0, len(mounts))
+		for _, m := range mounts {
+			switch m.Name {
+			case common.AuthVolumeName, common.CriSocketVolumeName: // the volumeMounts that need to be removed
+			default:
+				keep = append(keep, m)
+			}
+		}
+		return keep
+	}
+	return mounts
 }
 
 func volumesForAgent(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Volume {
-	volumes := []corev1.Volume{
+	full := []corev1.Volume{
 		common.GetVolumeForLogs(),
 		common.GetVolumeForAuth(),
 		common.GetVolumeInstallInfo(dda),
@@ -677,6 +715,20 @@ func volumesForAgent(dda metav1.Object, requiredContainers []apicommon.AgentCont
 		common.GetVolumeForDogstatsd(),
 		common.GetVolumeForRuntimeSocket(),
 	}
+
+	if ddaTyped, ok := dda.(*v2alpha1.DatadogAgent); ok && ddaTyped.Spec.Global != nil && apiutils.BoolValue(ddaTyped.Spec.Global.AutopilotEnabled) {
+		keep := make([]corev1.Volume, 0, len(full))
+		for _, v := range full {
+			switch v.Name {
+			case common.AuthVolumeName, common.DogstatsdSocketVolumeName, common.CriSocketVolumeName: // the volumes that need to be removed
+			default:
+				keep = append(keep, v)
+			}
+		}
+		full = keep
+	}
+
+	volumes := full
 
 	for _, containerName := range requiredContainers {
 		if containerName == apicommon.SystemProbeContainerName {
@@ -691,8 +743,8 @@ func volumesForAgent(dda metav1.Object, requiredContainers []apicommon.AgentCont
 	return volumes
 }
 
-func volumeMountsForCoreAgent() []corev1.VolumeMount {
-	return []corev1.VolumeMount{
+func volumeMountsForCoreAgent(autopilot bool) []corev1.VolumeMount {
+	mounts := []corev1.VolumeMount{
 		common.GetVolumeMountForLogs(),
 		common.GetVolumeMountForAuth(false),
 		common.GetVolumeMountForInstallInfo(),
@@ -702,6 +754,19 @@ func volumeMountsForCoreAgent() []corev1.VolumeMount {
 		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForRuntimeSocket(true),
 	}
+
+	if autopilot {
+		keep := make([]corev1.VolumeMount, 0, len(mounts))
+		for _, m := range mounts {
+			switch m.Name {
+			case common.AuthVolumeName, common.DogstatsdSocketVolumeName, common.CriSocketVolumeName: // the volumeMounts that need to be removed
+			default:
+				keep = append(keep, m)
+			}
+		}
+		return keep
+	}
+	return mounts
 }
 
 func volumeMountsForTraceAgent() []corev1.VolumeMount {
