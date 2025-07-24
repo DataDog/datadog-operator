@@ -256,7 +256,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	}
 
 	// Creating allowListSynchronizer if autopilot is enabled
-	if *config.AutopilotEnabled {
+	if config.AutopilotEnabled != nil && *config.AutopilotEnabled {
 		allowlistsynchronizer.CreateAllowlistSynchronizer()
 	}
 }
