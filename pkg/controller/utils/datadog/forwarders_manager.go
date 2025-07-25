@@ -28,9 +28,10 @@ type MetricsForwardersManager interface {
 // ForwardersManager is a collection of metricsForwarder per DatadogAgent
 // ForwardersManager implements the controller-runtime Runnable interface
 type ForwardersManager struct {
-	k8sClient         client.Client
-	platformInfo      *kubernetes.PlatformInfo
-	metricsForwarders map[string]*metricsForwarder
+	k8sClient                   client.Client
+	platformInfo                *kubernetes.PlatformInfo
+	metricsForwarders           map[string]*metricsForwarder
+	datadogAgentInternalEnabled bool
 	// TODO expand this to include a metadataForwarder
 	decryptor secrets.Decryptor
 	wg        sync.WaitGroup
@@ -39,13 +40,14 @@ type ForwardersManager struct {
 
 // NewForwardersManager builds a new ForwardersManager object
 // ForwardersManager implements the controller-runtime Runnable interface
-func NewForwardersManager(k8sClient client.Client, platformInfo *kubernetes.PlatformInfo) *ForwardersManager {
+func NewForwardersManager(k8sClient client.Client, platformInfo *kubernetes.PlatformInfo, datadogAgentInternalEnabled bool) *ForwardersManager {
 	return &ForwardersManager{
-		k8sClient:         k8sClient,
-		platformInfo:      platformInfo,
-		metricsForwarders: make(map[string]*metricsForwarder),
-		decryptor:         secrets.NewSecretBackend(),
-		wg:                sync.WaitGroup{},
+		k8sClient:                   k8sClient,
+		platformInfo:                platformInfo,
+		metricsForwarders:           make(map[string]*metricsForwarder),
+		datadogAgentInternalEnabled: datadogAgentInternalEnabled,
+		decryptor:                   secrets.NewSecretBackend(),
+		wg:                          sync.WaitGroup{},
 	}
 }
 
@@ -64,7 +66,7 @@ func (f *ForwardersManager) Register(obj client.Object) {
 	id := getObjID(obj) // nolint: ifshort
 	if _, found := f.metricsForwarders[id]; !found {
 		log.Info("New Datadog metrics forwarder registered", "ID", id)
-		f.metricsForwarders[id] = newMetricsForwarder(f.k8sClient, f.decryptor, obj, f.platformInfo)
+		f.metricsForwarders[id] = newMetricsForwarder(f.k8sClient, f.decryptor, obj, f.platformInfo, f.datadogAgentInternalEnabled)
 		f.wg.Add(1)
 		go f.metricsForwarders[id].start(&f.wg)
 	}
