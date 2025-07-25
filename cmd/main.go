@@ -139,7 +139,6 @@ type options struct {
 	remoteConfigEnabled                    bool
 	datadogDashboardEnabled                bool
 	datadogGenericResourceEnabled          bool
-	autopilotEnabled                       bool
 
 	// Secret Backend options
 	secretBackendCommand string
@@ -175,7 +174,6 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.remoteConfigEnabled, "remoteConfigEnabled", false, "Enable RemoteConfig capabilities in the Operator (beta)")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
 	flag.BoolVar(&opts.datadogGenericResourceEnabled, "datadogGenericResourceEnabled", false, "Enable the DatadogGenericResource controller")
-	flag.BoolVar(&opts.autopilotEnabled, "autopilotEnabled", false, "Enabling GKE autopilot")
 
 	// DatadogAgentInternal
 	flag.BoolVar(&opts.datadogAgentInternalEnabled, "datadogAgentInternalEnabled", false, "Enable the DatadogAgentInternal controller")
@@ -283,7 +281,6 @@ func run(opts *options) error {
 			IntrospectionEnabled:          opts.introspectionEnabled,
 			DatadogDashboardEnabled:       opts.datadogDashboardEnabled,
 			DatadogGenericResourceEnabled: opts.datadogGenericResourceEnabled,
-			AutopilotEnabled:              opts.autopilotEnabled,
 		}),
 	})
 	if err != nil {
@@ -355,7 +352,6 @@ func run(opts *options) error {
 		DatadogAgentProfileEnabled:    opts.datadogAgentProfileEnabled,
 		DatadogDashboardEnabled:       opts.datadogDashboardEnabled,
 		DatadogGenericResourceEnabled: opts.datadogGenericResourceEnabled,
-		AutopilotEnabled:              opts.autopilotEnabled,
 	}
 
 	versionInfo, platformInfo, err := getVersionAndPlatformInfo(rest.CopyConfig(mgr.GetConfig()))
@@ -503,7 +499,6 @@ func setupAndStartMetadataForwarder(logger logr.Logger, client client.Reader, ku
 		IntrospectionEnabled:          options.introspectionEnabled,
 		ConfigDDURL:                   os.Getenv(constants.DDURL),
 		ConfigDDSite:                  os.Getenv(constants.DDSite),
-		AutopilotEnabled:              options.autopilotEnabled,
 	}
 
 	mdf.Start()

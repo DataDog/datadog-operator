@@ -2142,7 +2142,7 @@
               "description": "Global settings to configure the agents",
               "properties": {
                 "autopilotEnabled": {
-                  "description": "Set whether autopilot is enabled or not",
+                  "description": "Configure whether GKE Autopilot support is enabled.",
                   "type": "boolean"
                 },
                 "checksTagCardinality": {

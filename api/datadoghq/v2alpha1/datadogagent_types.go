@@ -1497,7 +1497,7 @@ type GlobalConfig struct {
 	// +optional
 	RunProcessChecksInCoreAgent *bool `json:"runProcessChecksInCoreAgent,omitempty"`
 
-	// Set whether autopilot is enabled or not
+	// Configure whether GKE Autopilot support is enabled.
 	// +optional
 	AutopilotEnabled *bool `json:"autopilotEnabled,omitempty"`
 }
