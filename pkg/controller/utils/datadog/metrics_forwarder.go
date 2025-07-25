@@ -302,7 +302,6 @@ func (mf *metricsForwarder) setupFromOperator() bool {
 
 	// base URL
 	mf.baseURL = defaultbaseURL
-	mf.logger.V(1).Info("Got API URL for the Datadog Operator", "site", mf.baseURL)
 	if os.Getenv(constants.DDddURL) != "" {
 		mf.baseURL = os.Getenv(constants.DDddURL)
 	} else if os.Getenv(constants.DDURL) != "" {
@@ -310,6 +309,8 @@ func (mf *metricsForwarder) setupFromOperator() bool {
 	} else if site := os.Getenv(constants.DDSite); site != "" {
 		mf.baseURL = urlPrefix + strings.TrimSpace(site)
 	}
+
+	mf.logger.V(1).Info("Got API URL for the Datadog Operator", "site", mf.baseURL)
 
 	// cluster name
 	mf.clusterName = os.Getenv(constants.DDClusterName)
@@ -510,7 +511,13 @@ func (mf *metricsForwarder) delegatedValidateCreds(apiKey string) (*api.Client, 
 		return nil, fmt.Errorf("cannot validate datadog credentials: %w", err)
 	}
 	if !valid {
-		return nil, fmt.Errorf("invalid datadog credentials on %s", mf.baseURL)
+		// CELENE testing
+		n := 5
+		truncatedKey := ""
+		if len(apiKey) > n {
+			truncatedKey = apiKey[len(apiKey)-n:]
+		}
+		return nil, fmt.Errorf("invalid datadog credentials on %s, apiKey: %s", mf.baseURL, truncatedKey)
 	}
 
 	return datadogClient, nil
