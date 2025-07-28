@@ -7,7 +7,6 @@ package datadog
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/fnv"
@@ -150,19 +149,7 @@ type metricsForwarder struct {
 func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj client.Object, platforminfo *kubernetes.PlatformInfo, datadogAgentInternalEnabled bool) *metricsForwarder {
 
 	logger := log.WithValues("CustomResource.Namespace", obj.GetNamespace(), "CustomResource.Name", obj.GetName())
-	objKind := obj.GetObjectKind().GroupVersionKind().Kind
-
-	// There is a known bug where the object frequently has empty GVK info. This is a workaround to get object Kind if that happens.
-	// Ref: https://github.com/kubernetes-sigs/controller-runtime/issues/1735
-	if objKind == "" {
-		var lastConfig map[string]interface{}
-		err := json.Unmarshal([]byte(obj.GetAnnotations()["kubectl.kubernetes.io/last-applied-configuration"]), &lastConfig)
-		if err != nil {
-			logger.Info(fmt.Sprintf("Error unmarshalling last applied configuration; custom resource count metric will not be sent. error: %s", err.Error()))
-		} else {
-			objKind = lastConfig["kind"].(string)
-		}
-	}
+	objKind := getObjKind(obj)
 
 	return &metricsForwarder{
 		id:                          getObjID(obj),
@@ -374,6 +361,8 @@ func (mf *metricsForwarder) setupFromDDAI(ddai *v1alpha1.DatadogAgentInternal) e
 
 	status := ddai.Status.DeepCopy()
 	mf.agentStatus = status.Agent
+	mf.dcaStatus = status.ClusterAgent
+	mf.ccrStatus = status.ClusterChecksRunner
 
 	if mf.clusterName == "" && ddai.Spec.Global != nil && ddai.Spec.Global.ClusterName != nil {
 		mf.clusterName = *ddai.Spec.Global.ClusterName
