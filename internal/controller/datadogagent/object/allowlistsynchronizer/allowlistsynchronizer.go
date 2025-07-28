@@ -1,3 +1,5 @@
+// Package allowlistsynchronizer contains helpers to manage the
+// AllowlistSynchronizer CRD required by GKE Autopilot clusters.
 package allowlistsynchronizer
 
 import (
@@ -67,6 +69,10 @@ func createAllowlistSynchronizerResource(k8sClient client.Client) error {
 	return k8sClient.Create(context.TODO(), obj)
 }
 
+// CreateAllowlistSynchronizer makes sure an AllowlistSynchronizer CRD
+// (auto.gke.io/v1) exists so that GKE Autopilot can fetch and keep the Datadog
+// allowlist in sync. See the CRD reference:
+// https://cloud.google.com/kubernetes-engine/docs/reference/crds/allowlistsynchronizer
 func CreateAllowlistSynchronizer() {
 	cfg, configErr := config.GetConfig()
 	if configErr != nil {
