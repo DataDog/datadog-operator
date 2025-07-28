@@ -18,6 +18,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	common "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -591,7 +592,12 @@ func Test_AutopilotNodeAgent(t *testing.T) {
 		WithKSMEnabled(false).
 		WithDogstatsdUnixDomainSocketConfigEnabled(false).
 		Build()
-	dda.Spec.Global.AutopilotEnabled = apiutils.NewBoolPointer(true)
+
+	if dda.Annotations == nil {
+		dda.Annotations = map[string]string{}
+	}
+	autopilotKey := experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotSubkey
+	dda.Annotations[autopilotKey] = "true"
 
 	s := agenttestutils.TestScheme()
 	broadcaster := record.NewBroadcaster()

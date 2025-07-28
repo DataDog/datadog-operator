@@ -13,12 +13,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/allowlistsynchronizer"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -254,51 +252,6 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	// Apply FIPS proxy settings - UseFIPSAgent must be false
 	if !*config.UseFIPSAgent && config.FIPS != nil && apiutils.BoolValue(config.FIPS.Enabled) {
 		applyFIPSConfig(logger, manager, ddaMeta, ddaSpec, resourcesManager)
-	}
-
-	// Autopilot changes
-	if config.AutopilotEnabled != nil && *config.AutopilotEnabled {
-		allowlistsynchronizer.CreateAllowlistSynchronizer()
-
-		// Change args of init-volume
-		for i := range manager.PodTemplateSpec().Spec.InitContainers {
-			if manager.PodTemplateSpec().Spec.InitContainers[i].Name == "init-volume" {
-				manager.PodTemplateSpec().Spec.InitContainers[i].Args = []string{"cp -r /etc/datadog-agent /opt"}
-			}
-		}
-
-		// Remove agent volumes
-		v := manager.PodTemplateSpec().Spec.Volumes[:0]
-		for _, vol := range manager.PodTemplateSpec().Spec.Volumes {
-			if vol.Name != common.AuthVolumeName && vol.Name != common.DogstatsdSocketVolumeName && vol.Name != common.CriSocketVolumeName {
-				v = append(v, vol)
-			}
-		}
-		manager.PodTemplateSpec().Spec.Volumes = v
-
-		// Remove init-container volume mounts
-		for idx := range manager.PodTemplateSpec().Spec.InitContainers {
-			vm := []corev1.VolumeMount{}
-			for _, m := range manager.PodTemplateSpec().Spec.InitContainers[idx].VolumeMounts {
-				if m.Name != common.AuthVolumeName && m.Name != common.CriSocketVolumeName {
-					vm = append(vm, m)
-				}
-			}
-			manager.PodTemplateSpec().Spec.InitContainers[idx].VolumeMounts = vm
-		}
-
-		// Remove core agent container volume mounts
-		for idx := range manager.PodTemplateSpec().Spec.Containers {
-			if manager.PodTemplateSpec().Spec.Containers[idx].Name == string(apicommon.CoreAgentContainerName) {
-				vm := []corev1.VolumeMount{}
-				for _, m := range manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts {
-					if m.Name != common.AuthVolumeName && m.Name != common.DogstatsdSocketVolumeName && m.Name != common.CriSocketVolumeName {
-						vm = append(vm, m)
-					}
-				}
-				manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts = vm
-			}
-		}
 	}
 }
 
