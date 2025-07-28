@@ -316,7 +316,7 @@ func (mf *metricsForwarder) setupFromOperator() bool {
 
 	// base URL
 	mf.baseURL = defaultbaseURL
-	mf.logger.V(1).Info("Got API URL for the Datadog Operator", "site", mf.baseURL)
+
 	if os.Getenv(constants.DDddURL) != "" {
 		mf.baseURL = os.Getenv(constants.DDddURL)
 	} else if os.Getenv(constants.DDURL) != "" {
@@ -324,6 +324,8 @@ func (mf *metricsForwarder) setupFromOperator() bool {
 	} else if site := os.Getenv(constants.DDSite); site != "" {
 		mf.baseURL = urlPrefix + strings.TrimSpace(site)
 	}
+
+	mf.logger.V(1).Info("Got API URL for the Datadog Operator", "site", mf.baseURL)
 
 	// cluster name
 	mf.clusterName = os.Getenv(constants.DDClusterName)
