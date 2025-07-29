@@ -43,7 +43,7 @@ func applyExperimentalAutopilotOverrides(dda metav1.Object, manager feature.PodT
 		// Remove agent volumes
 		v := manager.PodTemplateSpec().Spec.Volumes[:0]
 		for _, vol := range manager.PodTemplateSpec().Spec.Volumes {
-			if vol.Name != common.AuthVolumeName && vol.Name != common.DogstatsdSocketVolumeName && vol.Name != common.CriSocketVolumeName {
+			if vol.Name != common.AuthVolumeName && vol.Name != common.DogstatsdSocketVolumeName && vol.Name != common.CriSocketVolumeName && vol.Name != common.APMSocketVolumeName {
 				v = append(v, vol)
 			}
 		}
@@ -72,5 +72,23 @@ func applyExperimentalAutopilotOverrides(dda metav1.Object, manager feature.PodT
 				manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts = vm
 			}
 		}
+		
+		// Remove trace agent container volume mounts and change command
+        for idx := range manager.PodTemplateSpec().Spec.Containers {
+            if manager.PodTemplateSpec().Spec.Containers[idx].Name == string(apicommon.TraceAgentContainerName) {
+                vm := []corev1.VolumeMount{}
+                for _, m := range manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts {
+                    if m.Name != common.AuthVolumeName && m.Name != common.CriSocketVolumeName && m.Name != common.ProcdirVolumeName && m.Name != common.CgroupsVolumeName && m.Name != common.APMSocketVolumeName {
+                        vm = append(vm, m)
+                    }
+                }
+                manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts = vm
+
+                manager.PodTemplateSpec().Spec.Containers[idx].Command = []string{
+                    "trace-agent",
+                    "-config=/etc/datadog-agent/datadog.yaml",
+                }
+            }
+        }
 	}
 }

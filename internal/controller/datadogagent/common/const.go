@@ -140,6 +140,7 @@ const (
 	KubeletAgentCAPath            = "/var/run/host-kubelet-ca.crt"
 	KubeletPodResourcesVolumeName = "kubelet-pod-resources"
 
+	APMSocketVolumeName = "apmsocket"
 	APMSocketName = "apm.socket"
 
 	SeccompSecurityVolumeName                   = "datadog-agent-security"
