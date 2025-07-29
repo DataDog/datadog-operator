@@ -14,9 +14,7 @@ import (
 
 func (f *controlPlaneMonitoringFeature) buildControlPlaneMonitoringConfigMap(provider string, configMapName string) (*corev1.ConfigMap, error) {
 	var configMap *corev1.ConfigMap
-	if provider == kubernetes.DefaultProvider {
-		configMap = nil
-	} else if provider == kubernetes.OpenShiftProviderLabel {
+	if provider == kubernetes.OpenShiftProviderLabel {
 		configMap = &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      configMapName,
@@ -116,16 +114,8 @@ instances:
     tls_ca_cert: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"`,
 			},
 		}
-	} else {
-		configMap = &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      configMapName,
-				Namespace: f.owner.GetNamespace(),
-			},
-			Data: map[string]string{
-				"test.yaml": "test",
-			},
-		}
+	} else { // Default provider
+		configMap = nil
 	}
 	return configMap, nil
 }
