@@ -6,6 +6,7 @@
 package controlplanemonitoring
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -14,6 +15,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
@@ -86,7 +88,7 @@ func controlPlaneWantResourcesFunc() *test.ComponentTest {
 			expectedVolMounts := []*corev1.VolumeMount{
 				{
 					Name:      emptyDirVolumeName,
-					MountPath: controlPlaneMonitoringVolumeMountPath,
+					MountPath: fmt.Sprintf("%s%s/%s", common.ConfigVolumePath, common.ConfdVolumePath, controlPlaneMonitoringFolderName),
 					ReadOnly:  false,
 				},
 			}

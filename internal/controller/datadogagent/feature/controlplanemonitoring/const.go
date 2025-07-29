@@ -10,6 +10,7 @@ const (
 	defaultConfigMapName   = "datadog-controlplane-monitoring-default"
 	eksConfigMapName       = "datadog-controlplane-monitoring-eks"
 
+	controlPlaneMonitoringFolderName      = "controlplanemonitoring.d"
 	controlPlaneMonitoringVolumeName      = "controlplane-config"
 	controlPlaneMonitoringVolumeMountPath = "/etc/datadog-agent/conf.d"
 	emptyDirVolumeName                    = "agent-conf-d-writable"
