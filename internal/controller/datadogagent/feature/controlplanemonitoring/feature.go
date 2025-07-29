@@ -15,7 +15,6 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -125,7 +124,7 @@ func (f *controlPlaneMonitoringFeature) ManageClusterAgent(managers feature.PodT
 	// Add volume mount to cluster-agent container
 	agentConfDVolumeMount := corev1.VolumeMount{
 		Name:      emptyDirVolumeName,
-		MountPath: fmt.Sprintf("%s%s/%s", common.ConfigVolumePath, common.ConfdVolumePath, controlPlaneMonitoringFolderName),
+		MountPath: controlPlaneMonitoringVolumeMountPath,
 		ReadOnly:  false,
 	}
 	managers.VolumeMount().AddVolumeMountToContainer(&agentConfDVolumeMount, apicommon.ClusterAgentContainerName)
@@ -134,7 +133,6 @@ func (f *controlPlaneMonitoringFeature) ManageClusterAgent(managers feature.PodT
 	var configMapName string
 	if providerLabel == kubernetes.OpenShiftProviderLabel {
 		configMapName = f.openshiftConfigMapName
-
 	} else if providerLabel == kubernetes.EKSProviderLabel {
 		configMapName = f.eksConfigMapName
 	} else {
@@ -157,7 +155,7 @@ func (f *controlPlaneMonitoringFeature) ManageClusterAgent(managers feature.PodT
 	// Add volume mount for the configmap
 	configMapVolumeMount := corev1.VolumeMount{
 		Name:      controlPlaneMonitoringVolumeName,
-		MountPath: fmt.Sprintf("%s%s/%s", common.ConfigVolumePath, common.ConfdVolumePath, controlPlaneMonitoringFolderName),
+		MountPath: controlPlaneMonitoringVolumeMountPath,
 		ReadOnly:  true,
 	}
 	managers.VolumeMount().AddVolumeMountToContainer(&configMapVolumeMount, apicommon.ClusterAgentContainerName)
