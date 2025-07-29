@@ -69,7 +69,7 @@ func createAllowlistSynchronizerResource(k8sClient client.Client) error {
 	return k8sClient.Create(context.TODO(), obj)
 }
 
-// CreateAllowlistSynchronizer creates a GKE AllowlistSynchronizer Custom Resource (auto.gke.io/v1) for the Datadog WorkloadAllowlist if it doesn't exist. 
+// CreateAllowlistSynchronizer creates a GKE AllowlistSynchronizer Custom Resource (auto.gke.io/v1) for the Datadog WorkloadAllowlist if it doesn't exist.
 // The AllowlistSynchronizer is needed so that GKE Autopilot can sync the Datadog WorkloadAllowlist to the cluster. See the CRD reference:
 // https://cloud.google.com/kubernetes-engine/docs/reference/crds/allowlistsynchronizer
 func CreateAllowlistSynchronizer() {
