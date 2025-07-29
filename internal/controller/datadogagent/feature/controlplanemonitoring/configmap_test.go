@@ -159,24 +159,6 @@ instances:
 				},
 			},
 		},
-		{
-			name: "unknown provider",
-			fields: fields{
-				owner:    owner,
-				provider: "unknown",
-				enabled:  true,
-			},
-			configMapName: otherConfigMapName,
-			want: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      otherConfigMapName,
-					Namespace: "foo",
-				},
-				Data: map[string]string{
-					"test.yaml": "test",
-				},
-			},
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
