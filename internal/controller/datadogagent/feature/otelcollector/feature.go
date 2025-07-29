@@ -274,7 +274,7 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 	for id, container := range managers.PodTemplateSpec().Spec.Containers {
 		if container.Name == "otel-agent" {
 			for _, command := range commands {
-				managers.PodTemplateSpec().Spec.Containers[id].Command = append(managers.PodTemplateSpec().Spec.Containers[id].Command,
+				managers.PodTemplateSpec().Spec.Containers[id].Args = append(managers.PodTemplateSpec().Spec.Containers[id].Args,
 					"--config="+command,
 				)
 			}
