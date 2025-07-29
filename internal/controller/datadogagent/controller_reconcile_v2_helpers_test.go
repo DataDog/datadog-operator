@@ -37,7 +37,7 @@ func (df *dummyFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAg
 }
 
 // ManageDependencies returns a predefined error (or nil for success).
-func (df *dummyFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (df *dummyFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	return df.ManageDependenciesError
 }
 
@@ -57,7 +57,7 @@ func (df *dummyFeature) ManageSingleContainerNodeAgent(managers feature.PodTempl
 }
 
 // ManageClusterChecksRunner returns a predefined error (or nil for success).
-func (df *dummyFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (df *dummyFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return df.ManageClusterChecksRunnerError
 }
 
@@ -97,11 +97,11 @@ func Test_manageFeatureDependencies(t *testing.T) {
 
 	r := &Reconciler{}
 	// Test when all features succeed.
-	err := r.manageFeatureDependencies(dummyLogger, []feature.Feature{f1}, dummyResMgrs)
+	err := r.manageFeatureDependencies(dummyLogger, []feature.Feature{f1}, dummyResMgrs, "")
 	require.NoError(t, err)
 
 	// Test with one failing feature.
-	err = r.manageFeatureDependencies(dummyLogger, []feature.Feature{f1, f2}, dummyResMgrs)
+	err = r.manageFeatureDependencies(dummyLogger, []feature.Feature{f1, f2}, dummyResMgrs, "")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "fail dependency")
 }

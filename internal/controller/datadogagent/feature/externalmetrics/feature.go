@@ -147,7 +147,7 @@ func (f *externalMetricsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	ns := f.owner.GetNamespace()
 	// service
 	emPorts := []corev1.ServicePort{
@@ -353,6 +353,6 @@ func (f *externalMetricsFeature) ManageNodeAgent(managers feature.PodTemplateMan
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *externalMetricsFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (f *externalMetricsFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

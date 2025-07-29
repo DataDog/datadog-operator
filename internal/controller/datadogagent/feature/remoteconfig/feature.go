@@ -85,7 +85,7 @@ func (f *rcFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpe
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *rcFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *rcFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	return nil
 }
 
@@ -130,6 +130,6 @@ func (f *rcFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provid
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *rcFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (f *rcFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

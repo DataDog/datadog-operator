@@ -64,11 +64,12 @@ func (r *Reconciler) manageGlobalDependencies(logger logr.Logger, dda *datadoghq
 }
 
 // manageFeatureDependencies iterates over features to set up dependencies.
-func (r *Reconciler) manageFeatureDependencies(logger logr.Logger, features []feature.Feature, resourceManagers feature.ResourceManagers) error {
+func (r *Reconciler) manageFeatureDependencies(logger logr.Logger, features []feature.Feature, resourceManagers feature.ResourceManagers, provider string) error {
 	var errs []error
+
 	for _, feat := range features {
 		logger.V(1).Info("Managing dependencies", "featureID", feat.ID())
-		if err := feat.ManageDependencies(resourceManagers); err != nil {
+		if err := feat.ManageDependencies(resourceManagers, provider); err != nil {
 			errs = append(errs, err)
 		}
 	}

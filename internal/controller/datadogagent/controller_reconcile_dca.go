@@ -127,11 +127,13 @@ func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Lo
 		return r.cleanupV2ClusterAgent(deploymentLogger, dda, deployment, resourcesManager, newStatus)
 	}
 
-	// Add provider label to deployment
-	if deployment.Labels == nil {
-		deployment.Labels = make(map[string]string)
+	if r.options.IntrospectionEnabled {
+		// Add provider label to deployment
+		if deployment.Labels == nil {
+			deployment.Labels = make(map[string]string)
+		}
+		deployment.Labels[constants.MD5AgentDeploymentProviderLabelKey] = dcaProvider
 	}
-	deployment.Labels[constants.MD5AgentDeploymentProviderLabelKey] = dcaProvider
 
 	res, err := r.createOrUpdateDeployment(deploymentLogger, dda, deployment, newStatus, updateStatusV2WithClusterAgent)
 	if err != nil {

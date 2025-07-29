@@ -26,6 +26,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	pkgutils "github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
@@ -132,11 +133,43 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// 1. Manage dependencies.
 	depsStore, resourceManagers := r.setupDependencies(instance, logger)
 
+	providerList := map[string]struct{}{kubernetes.LegacyProvider: {}}
+	depsProvider := kubernetes.LegacyProvider
+	if r.options.IntrospectionEnabled {
+		nodeList, err := r.getNodeList(ctx)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		providerList = kubernetes.GetProviderListFromNodeList(nodeList, logger)
+
+		depsProvider = kubernetes.DefaultProvider
+		if len(providerList) == 1 {
+			for provider := range providerList {
+				depsProvider = provider
+				break
+			}
+		} else if len(providerList) == 2 {
+			if _, ok := providerList[kubernetes.DefaultProvider]; ok {
+				for provider := range providerList {
+					if provider != kubernetes.DefaultProvider {
+						depsProvider = provider
+						logger.Info("Multiple providers found for Cluster Agent reconciliation, using provider", "provider", depsProvider)
+						break
+					}
+				}
+			} else {
+				logger.Error(nil, "Multiple specialized providers detected for Cluster Agent reconciliation. Only one specialized provider is supported, falling back to default provider", "selected_provider", depsProvider)
+			}
+		} else {
+			logger.Error(nil, "Multiple specialized providers detected for Cluster Agent reconciliation. Only one specialized provider is supported, falling back to default provider", "selected_provider", depsProvider)
+		}
+	}
+
 	var err error
 	if err = r.manageGlobalDependencies(logger, instance, resourceManagers, requiredComponents); err != nil {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 	}
-	if err = r.manageFeatureDependencies(logger, enabledFeatures, resourceManagers); err != nil {
+	if err = r.manageFeatureDependencies(logger, enabledFeatures, resourceManagers, depsProvider); err != nil {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 	}
 	if err = r.overrideDependencies(logger, resourceManagers, instance); err != nil {

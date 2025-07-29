@@ -75,7 +75,7 @@ func (f *defaultFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogA
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *defaultFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *defaultFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	return nil
 }
 
@@ -110,6 +110,6 @@ func (f *defaultFeature) ManageNodeAgent(managers feature.PodTemplateManagers, p
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *defaultFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (f *defaultFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

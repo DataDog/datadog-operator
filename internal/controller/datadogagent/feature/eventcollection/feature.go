@@ -96,7 +96,7 @@ func (f *eventCollectionFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	// Manage RBAC
 	rbacName := getRBACResourceName(f.owner, f.rbacSuffix)
 
@@ -202,6 +202,6 @@ func (f *eventCollectionFeature) ManageNodeAgent(_ feature.PodTemplateManagers, 
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *eventCollectionFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers) error {
+func (f *eventCollectionFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers, _ string) error {
 	return nil
 }

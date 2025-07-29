@@ -37,7 +37,7 @@ func (df *dummyFeature) Configure(ddai metav1.Object, ddaiSpec *v2alpha1.Datadog
 }
 
 // ManageDependencies returns a predefined error (or nil for success).
-func (df *dummyFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (df *dummyFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	return df.ManageDependenciesError
 }
 
@@ -57,7 +57,7 @@ func (df *dummyFeature) ManageSingleContainerNodeAgent(managers feature.PodTempl
 }
 
 // ManageClusterChecksRunner returns a predefined error (or nil for success).
-func (df *dummyFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (df *dummyFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return df.ManageClusterChecksRunnerError
 }
 

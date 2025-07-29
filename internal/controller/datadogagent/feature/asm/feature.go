@@ -73,7 +73,7 @@ func (f *asmFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSp
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *asmFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *asmFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	return nil
 }
 
@@ -118,6 +118,6 @@ func (f *asmFeature) ManageNodeAgent(_ feature.PodTemplateManagers, _ string) er
 	return nil
 }
 
-func (f *asmFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers) error {
+func (f *asmFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers, _ string) error {
 	return nil
 }

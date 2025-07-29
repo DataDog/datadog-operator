@@ -65,7 +65,7 @@ func (f *gpuFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSp
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *gpuFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *gpuFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	return nil
 }
 
@@ -202,6 +202,6 @@ func (f *gpuFeature) ManageSingleContainerNodeAgent(feature.PodTemplateManagers,
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *gpuFeature) ManageClusterChecksRunner(feature.PodTemplateManagers) error {
+func (f *gpuFeature) ManageClusterChecksRunner(feature.PodTemplateManagers, string) error {
 	return nil
 }

@@ -66,44 +66,42 @@ func (f *controlPlaneMonitoringFeature) Configure(dda metav1.Object, ddaSpec *v2
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *controlPlaneMonitoringFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *controlPlaneMonitoringFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	if !f.enabled {
 		return nil
 	}
-
 	// Create ConfigMaps for control plane monitoring
-
-	// OpenShift ConfigMap
-	openshiftConfigMap, err2 := f.buildControlPlaneMonitoringConfigMap(kubernetes.OpenShiftProviderLabel, f.openshiftConfigMapName)
-	if err2 != nil {
-		return fmt.Errorf("failed to build openshift configmap: %w", err2)
-	}
-	openshiftConfigMap.Name = f.openshiftConfigMapName
-
-	if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, openshiftConfigMap); err != nil {
-		return fmt.Errorf("failed to add openshift configmap to store: %w", err)
-	}
-
-	// EKS ConfigMap
-	eksConfigMap, err2 := f.buildControlPlaneMonitoringConfigMap(kubernetes.EKSProviderLabel, f.eksConfigMapName)
-	if err2 != nil {
-		return fmt.Errorf("failed to build eks configmap: %w", err2)
-	}
-	eksConfigMap.Name = f.eksConfigMapName
-
-	if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, eksConfigMap); err != nil {
-		return fmt.Errorf("failed to add eks configmap to store: %w", err)
-	}
-
-	// For OpenShift, etcd monitoring requires manual secret copying
-	providerLabel, _ := kubernetes.GetProviderLabelKeyValue(f.provider)
+	providerLabel, _ := kubernetes.GetProviderLabelKeyValue(provider)
 	if providerLabel == kubernetes.OpenShiftProviderLabel {
+		// OpenShift ConfigMap
+		openshiftConfigMap, err2 := f.buildControlPlaneMonitoringConfigMap(kubernetes.OpenShiftProviderLabel, f.openshiftConfigMapName)
+		if err2 != nil {
+			return fmt.Errorf("failed to build openshift configmap: %w", err2)
+		}
+		openshiftConfigMap.Name = f.openshiftConfigMapName
+
+		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, openshiftConfigMap); err != nil {
+			return fmt.Errorf("failed to add openshift configmap to store: %w", err)
+		}
+
+		// For OpenShift, etcd monitoring requires manual secret copying
 		targetNamespace := f.owner.GetNamespace()
 		copyCommand := fmt.Sprintf("oc get secret etcd-client -n openshift-etcd-operator -o yaml | sed 's/name: etcd-client/name: etcd-client-cert/' | sed 's/namespace: openshift-etcd-operator/namespace: %s/' | oc apply -f -", targetNamespace)
 
 		f.logger.Info("OpenShift control plane monitoring requires manual etcd secret copy",
 			"command", copyCommand,
 			"note", "Run this command if cluster-agent pods fail to start due to missing etcd-client-cert secret")
+	} else if providerLabel == kubernetes.EKSProviderLabel {
+		// EKS ConfigMap
+		eksConfigMap, err2 := f.buildControlPlaneMonitoringConfigMap(kubernetes.EKSProviderLabel, f.eksConfigMapName)
+		if err2 != nil {
+			return fmt.Errorf("failed to build eks configmap: %w", err2)
+		}
+		eksConfigMap.Name = f.eksConfigMapName
+
+		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, eksConfigMap); err != nil {
+			return fmt.Errorf("failed to add eks configmap to store: %w", err)
+		}
 	}
 
 	return nil
@@ -140,29 +138,29 @@ func (f *controlPlaneMonitoringFeature) ManageClusterAgent(managers feature.PodT
 		configMapName = f.eksConfigMapName
 	} else {
 		configMapName = f.defaultConfigMapName
+		return nil
 	}
 	// Add the controlplane configuration configmap volume
-	if configMapName != f.defaultConfigMapName {
-		configMapVolume := &corev1.Volume{
-			Name: controlPlaneMonitoringVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: configMapName,
-					},
+	configMapVolume := &corev1.Volume{
+		Name: controlPlaneMonitoringVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: configMapName,
 				},
 			},
-		}
-		managers.Volume().AddVolume(configMapVolume)
-
-		// Add volume mount for the configmap
-		configMapVolumeMount := corev1.VolumeMount{
-			Name:      controlPlaneMonitoringVolumeName,
-			MountPath: controlPlaneMonitoringVolumeMountPath,
-			ReadOnly:  true,
-		}
-		managers.VolumeMount().AddVolumeMountToContainer(&configMapVolumeMount, apicommon.ClusterAgentContainerName)
+		},
 	}
+	managers.Volume().AddVolume(configMapVolume)
+
+	// Add volume mount for the configmap
+	configMapVolumeMount := corev1.VolumeMount{
+		Name:      controlPlaneMonitoringVolumeName,
+		MountPath: controlPlaneMonitoringVolumeMountPath,
+		ReadOnly:  true,
+	}
+	managers.VolumeMount().AddVolumeMountToContainer(&configMapVolumeMount, apicommon.ClusterAgentContainerName)
+
 	return nil
 }
 
@@ -181,8 +179,8 @@ func (f *controlPlaneMonitoringFeature) ManageNodeAgent(managers feature.PodTemp
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
-func (f *controlPlaneMonitoringFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
-	providerLabel, _ := kubernetes.GetProviderLabelKeyValue(f.provider)
+func (f *controlPlaneMonitoringFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+	providerLabel, _ := kubernetes.GetProviderLabelKeyValue(provider)
 	if providerLabel == kubernetes.OpenShiftProviderLabel {
 		etcdCertsVolume := &corev1.Volume{
 			Name: etcdCertsVolumeName,

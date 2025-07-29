@@ -50,84 +50,12 @@ func Test_controlPlaneMonitoringFeature_Configure(t *testing.T) {
 
 func controlPlaneWantDepsFunc() func(t testing.TB, store store.StoreClient) {
 	return func(t testing.TB, store store.StoreClient) {
-		// Validate OpenShift configMap - the feature always creates configmaps even if they're not used
-		obj, found := store.Get(kubernetes.ConfigMapKind, resourcesNamespace, openshiftConfigMapName)
+		// for a default provider, no configmap is created.
+		_, found := store.Get(kubernetes.ConfigMapKind, resourcesNamespace, openshiftConfigMapName)
+		assert.False(t, found, "Should not have created an OpenShift ConfigMap")
 
-		if !found {
-			t.Error("Should have created an OpenShift ConfigMap")
-		} else {
-			cm := obj.(*corev1.ConfigMap)
-
-			// Check for expected OpenShift configuration files
-			expectedKeys := []string{
-				"kube_apiserver_metrics.yaml",
-				"kube_controller_manager.yaml",
-				"kube_scheduler.yaml",
-				"etcd.yaml",
-			}
-
-			for _, key := range expectedKeys {
-				if _, exists := cm.Data[key]; !exists {
-					t.Errorf("Expected OpenShift ConfigMap to contain key: %s", key)
-				}
-			}
-
-			// Validate specific OpenShift configurations
-			if kubeAPIServerConfig, exists := cm.Data["kube_apiserver_metrics.yaml"]; exists {
-				assert.Contains(t, kubeAPIServerConfig, "kubernetes")
-				assert.Contains(t, kubeAPIServerConfig, "default")
-				assert.Contains(t, kubeAPIServerConfig, "bearer_token_auth: true")
-			}
-			if etcdConfig, exists := cm.Data["etcd.yaml"]; exists {
-				assert.Contains(t, etcdConfig, "openshift-etcd")
-				assert.Contains(t, etcdConfig, "/etc/etcd-certs/tls.crt")
-				assert.Contains(t, etcdConfig, "/etc/etcd-certs/tls.key")
-			}
-			if kubeControllerManagerConfig, exists := cm.Data["kube_controller_manager.yaml"]; exists {
-				assert.Contains(t, kubeControllerManagerConfig, "kube-controller-manager")
-				assert.Contains(t, kubeControllerManagerConfig, "bearer_token_auth: true")
-			}
-			if kubeSchedulerConfig, exists := cm.Data["kube_scheduler.yaml"]; exists {
-				assert.Contains(t, kubeSchedulerConfig, "openshift-kube-scheduler")
-				assert.Contains(t, kubeSchedulerConfig, "bearer_token_auth: true")
-			}
-		}
-
-		obj2, found2 := store.Get(kubernetes.ConfigMapKind, resourcesNamespace, eksConfigMapName)
-		if !found2 {
-			t.Error("Should have created an EKS ConfigMap")
-		} else {
-			cm2 := obj2.(*corev1.ConfigMap)
-
-			// Check for expected EKS configuration files
-			expectedKeys := []string{
-				"kube_apiserver_metrics.yaml",
-				"kube_controller_manager.yaml",
-				"kube_scheduler.yaml",
-			}
-
-			for _, key := range expectedKeys {
-				if _, exists := cm2.Data[key]; !exists {
-					t.Errorf("Expected EKS ConfigMap to contain key: %s", key)
-				}
-			}
-
-			// Validate specific EKS configurations
-			if kubeAPIServerConfig, exists := cm2.Data["kube_apiserver_metrics.yaml"]; exists {
-				assert.Contains(t, kubeAPIServerConfig, "kubernetes")
-				assert.Contains(t, kubeAPIServerConfig, "default")
-				assert.Contains(t, kubeAPIServerConfig, "bearer_token_auth: true")
-			}
-			if kubeControllerManagerConfig, exists := cm2.Data["kube_controller_manager.yaml"]; exists {
-				assert.Contains(t, kubeControllerManagerConfig, "default")
-				assert.Contains(t, kubeControllerManagerConfig, "bearer_token_auth: true")
-			}
-			if kubeSchedulerConfig, exists := cm2.Data["kube_scheduler.yaml"]; exists {
-				assert.Contains(t, kubeSchedulerConfig, "default")
-				assert.Contains(t, kubeSchedulerConfig, "tls_ca_cert")
-				assert.Contains(t, kubeSchedulerConfig, "extra_headers")
-			}
-		}
+		_, found2 := store.Get(kubernetes.ConfigMapKind, resourcesNamespace, eksConfigMapName)
+		assert.False(t, found2, "Should not have created an EKS ConfigMap")
 	}
 }
 

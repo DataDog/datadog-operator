@@ -212,7 +212,7 @@ func (f *apmFeature) shouldEnableLanguageDetection() bool {
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	platformInfo := managers.Store().GetPlatformInfo()
 	// agent local service
 	if common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), f.forceEnableLocalService) {
@@ -484,6 +484,6 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *apmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (f *apmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

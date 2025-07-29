@@ -74,7 +74,7 @@ func (f *liveProcessFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.Datado
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *liveProcessFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *liveProcessFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	return nil
 }
 
@@ -161,6 +161,6 @@ func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommon.AgentC
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *liveProcessFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (f *liveProcessFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

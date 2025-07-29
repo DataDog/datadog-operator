@@ -137,7 +137,7 @@ func runTest(t *testing.T, tt FeatureTest) {
 	store, depsManager := initDependencies(tt, logger, dda)
 
 	for _, feat := range features {
-		if err := feat.ManageDependencies(depsManager); (err != nil) != tt.WantManageDependenciesErr {
+		if err := feat.ManageDependencies(depsManager, ""); (err != nil) != tt.WantManageDependenciesErr {
 			t.Errorf("feature.ManageDependencies() error = %v, wantErr %v", err, tt.WantManageDependenciesErr)
 			return
 		}
@@ -166,7 +166,7 @@ func runTest(t *testing.T, tt FeatureTest) {
 
 		if tt.ClusterChecksRunner != nil {
 			tplManager, _ := tt.ClusterChecksRunner.CreateFunc(t)
-			_ = feat.ManageClusterChecksRunner(tplManager)
+			_ = feat.ManageClusterChecksRunner(tplManager, "")
 			tt.ClusterChecksRunner.WantFunc(t, tplManager)
 		}
 	}
