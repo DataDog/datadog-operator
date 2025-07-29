@@ -253,7 +253,6 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	if !*config.UseFIPSAgent && config.FIPS != nil && apiutils.BoolValue(config.FIPS.Enabled) {
 		applyFIPSConfig(logger, manager, ddaMeta, ddaSpec, resourcesManager)
 	}
-
 }
 
 func updateContainerImages(config *v2alpha1.GlobalConfig, podTemplateManager feature.PodTemplateManagers) {
