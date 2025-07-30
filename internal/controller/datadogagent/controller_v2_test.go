@@ -16,7 +16,9 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	common "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
@@ -773,6 +775,69 @@ func getDsContainers(c client.Client, resourcesNamespace, dsName string) map[api
 	}
 
 	return dsContainers
+}
+
+func Test_AutopilotNodeAgent(t *testing.T) {
+	const resourcesName, resourcesNamespace, dsName = "foo", "bar", "foo-agent"
+
+	dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+		WithAPMEnabled(false).
+		WithClusterChecksEnabled(false).
+		WithAdmissionControllerEnabled(false).
+		WithOrchestratorExplorerEnabled(false).
+		WithKSMEnabled(false).
+		WithDogstatsdUnixDomainSocketConfigEnabled(false).
+		Build()
+
+	if dda.Annotations == nil {
+		dda.Annotations = map[string]string{}
+	}
+	autopilotKey := experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotSubkey
+	dda.Annotations[autopilotKey] = "true"
+
+	s := agenttestutils.TestScheme()
+	broadcaster := record.NewBroadcaster()
+	rec := broadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{})
+	fakeClient := fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build()
+	r := &Reconciler{client: fakeClient, scheme: s, recorder: rec}
+
+	assert.NoError(t, fakeClient.Create(context.TODO(), dda))
+
+	res, err := r.Reconcile(context.TODO(), dda)
+	assert.NoError(t, err)
+	assert.Equal(t, 15*time.Second, res.RequeueAfter)
+
+	expected := []string{string(apicommon.CoreAgentContainerName)}
+	assert.NoError(t, verifyDaemonsetContainers(fakeClient, resourcesNamespace, dsName, expected))
+
+	ds := &appsv1.DaemonSet{}
+	assert.NoError(t, fakeClient.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds))
+
+	forbidden := map[string]struct{}{common.AuthVolumeName: {}, common.CriSocketVolumeName: {}, common.DogstatsdSocketVolumeName: {}}
+	for _, v := range ds.Spec.Template.Spec.Volumes {
+		_, found := forbidden[v.Name]
+		assert.False(t, found, "forbidden volume %s present", v.Name)
+	}
+	patched := false
+	for _, ic := range ds.Spec.Template.Spec.InitContainers {
+		for _, m := range ic.VolumeMounts {
+			_, found := forbidden[m.Name]
+			assert.False(t, found, "forbidden mount %s in init", m.Name)
+		}
+		if ic.Name == "init-volume" {
+			assert.Equal(t, []string{"cp -r /etc/datadog-agent /opt"}, ic.Args)
+			patched = true
+		}
+	}
+	assert.True(t, patched, "init-volume not patched")
+	for _, ctn := range ds.Spec.Template.Spec.Containers {
+		if ctn.Name == string(apicommon.CoreAgentContainerName) {
+			for _, m := range ctn.VolumeMounts {
+				_, found := forbidden[m.Name]
+				assert.False(t, found, "forbidden mount %s in core", m.Name)
+			}
+		}
+	}
 }
 
 func verifyDaemonsetContainers(c client.Client, resourcesNamespace, dsName string, expectedContainers []string) error {

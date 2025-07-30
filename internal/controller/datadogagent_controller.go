@@ -58,6 +58,7 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=pods/exec,verbs=create
+// +kubebuilder:rbac:groups=auto.gke.io,resources=allowlistsynchronizers,verbs=get;list;watch;create
 
 // Finalizer (cluster-scoped resources)
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=deletecollection
