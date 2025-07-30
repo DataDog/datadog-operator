@@ -194,7 +194,7 @@ spec:
 | global.credentials.appSecret.keyName | KeyName is the key of the secret to use. |
 | global.credentials.appSecret.secretName | SecretName is the name of the secret. |
 | global.criSocketPath | Path to the container runtime socket (if different from Docker). |
-| global.csi.enabled | Enables usage of CSI driver in Datadog Agent. Requires installation of Datadog CSI Driver https://github.com/DataDog/helm-charts/tree/main/charts/datadog-csi-driver Default: false |
+| global.csi.enabled | Enables the usage of CSI driver in Datadog Agent. Requires installation of Datadog CSI Driver https://github.com/DataDog/helm-charts/tree/main/charts/datadog-csi-driver Default: false |
 | global.disableNonResourceRules | Set DisableNonResourceRules to exclude NonResourceURLs from default ClusterRoles. Required 'true' for Google Cloud Marketplace. |
 | global.dockerSocketPath | Path to the docker runtime socket. |
 | global.endpoint.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |

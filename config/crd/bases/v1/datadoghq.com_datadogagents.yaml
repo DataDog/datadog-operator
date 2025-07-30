@@ -2149,7 +2149,7 @@ spec:
                       properties:
                         enabled:
                           description: |-
-                            Enables usage of CSI driver in Datadog Agent.
+                            Enables the usage of CSI driver in Datadog Agent.
                             Requires installation of Datadog CSI Driver https://github.com/DataDog/helm-charts/tree/main/charts/datadog-csi-driver
                             Default: false
                           type: boolean
