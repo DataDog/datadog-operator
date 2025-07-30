@@ -7,11 +7,12 @@ package config
 
 import (
 	"fmt"
+	"maps"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/go-logr/logr"
-	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -75,7 +76,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 
 	if opts.DatadogAgentEnabled {
 		agentNamespaces := getWatchNamespacesFromEnv(logger, agentWatchNamespaceEnvVar)
-		logger.Info("DatadogAgent Enabled", "watching namespaces", maps.Keys(agentNamespaces))
+		logger.Info("DatadogAgent Enabled", "watching namespaces", slices.Collect(maps.Keys(agentNamespaces)))
 		byObject[agentObj] = cache.ByObject{
 			Namespaces: agentNamespaces,
 		}
@@ -83,7 +84,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 
 	if opts.DatadogDashboardEnabled {
 		dashboardNamespaces := getWatchNamespacesFromEnv(logger, dashboardWatchNamespaceEnvVar)
-		logger.Info("DatadogDashboard Enabled", "watching namespaces", maps.Keys(dashboardNamespaces))
+		logger.Info("DatadogDashboard Enabled", "watching namespaces", slices.Collect(maps.Keys(dashboardNamespaces)))
 		byObject[dashboardObj] = cache.ByObject{
 			Namespaces: dashboardNamespaces,
 		}
@@ -91,7 +92,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 
 	if opts.DatadogGenericResourceEnabled {
 		genericResourceNamespaces := getWatchNamespacesFromEnv(logger, genericResourceWatchNamespaceEnvVar)
-		logger.Info("DatadogGenericResource Enabled", "watching namespaces", maps.Keys(genericResourceNamespaces))
+		logger.Info("DatadogGenericResource Enabled", "watching namespaces", slices.Collect(maps.Keys(genericResourceNamespaces)))
 		byObject[genericResourceObj] = cache.ByObject{
 			Namespaces: genericResourceNamespaces,
 		}
@@ -99,7 +100,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 
 	if opts.DatadogMonitorEnabled {
 		monitorNamespaces := getWatchNamespacesFromEnv(logger, monitorWatchNamespaceEnvVar)
-		logger.Info("DatadogMonitor Enabled", "watching namespaces", maps.Keys(monitorNamespaces))
+		logger.Info("DatadogMonitor Enabled", "watching namespaces", slices.Collect(maps.Keys(monitorNamespaces)))
 		byObject[monitorObj] = cache.ByObject{
 			Namespaces: monitorNamespaces,
 		}
@@ -107,7 +108,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 
 	if opts.DatadogSLOEnabled {
 		sloNamespaces := getWatchNamespacesFromEnv(logger, sloWatchNamespaceEnvVar)
-		logger.Info("DatadogSLO Enabled", "watching namespaces", maps.Keys(sloNamespaces))
+		logger.Info("DatadogSLO Enabled", "watching namespaces", slices.Collect(maps.Keys(sloNamespaces)))
 		byObject[sloObj] = cache.ByObject{
 			Namespaces: sloNamespaces,
 		}
@@ -115,7 +116,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 
 	if opts.DatadogAgentProfileEnabled {
 		agentProfileNamespaces := getWatchNamespacesFromEnv(logger, profileWatchNamespaceEnvVar)
-		logger.Info("DatadogAgentProfile Enabled", "watching namespace", maps.Keys(agentProfileNamespaces))
+		logger.Info("DatadogAgentProfile Enabled", "watching namespace", slices.Collect(maps.Keys(agentProfileNamespaces)))
 		byObject[profileObj] = cache.ByObject{
 			Namespaces: agentProfileNamespaces,
 		}
@@ -126,7 +127,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		// rest of fields to reduce memory usage.
 		// Pods are watched in DatadogAgent namespace(s) since that's where Agent pods are running.
 		agentNamespaces := getWatchNamespacesFromEnv(logger, agentWatchNamespaceEnvVar)
-		logger.Info("DatadogAgentProfile Enabled", "watching Pods in namespaces", maps.Keys(agentNamespaces))
+		logger.Info("DatadogAgentProfile Enabled", "watching Pods in namespaces", slices.Collect(maps.Keys(agentNamespaces)))
 		byObject[podObj] = cache.ByObject{
 			Namespaces: agentNamespaces,
 
@@ -180,7 +181,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 
 	if opts.DatadogAgentInternalEnabled {
 		agentInternalNamespaces := getWatchNamespacesFromEnv(logger, agentWatchNamespaceEnvVar)
-		logger.Info("DatadogAgentInternal Enabled", "watching namespaces", maps.Keys(agentInternalNamespaces))
+		logger.Info("DatadogAgentInternal Enabled", "watching namespaces", slices.Collect(maps.Keys(agentInternalNamespaces)))
 		byObject[agentInternalObj] = cache.ByObject{
 			Namespaces: agentInternalNamespaces,
 		}

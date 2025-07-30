@@ -14,12 +14,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -131,18 +133,22 @@ func BuildKubernetesNetworkPolicy(dda metav1.Object, componentName v2alpha1.Comp
 
 // GetNetworkPolicyMetadata generates a label selector based on component
 func GetNetworkPolicyMetadata(dda metav1.Object, componentName v2alpha1.ComponentName) (policyName string, podSelector metav1.LabelSelector) {
+	var comp string
 	switch componentName {
 	case v2alpha1.NodeAgentComponentName:
 		policyName = component.GetAgentName(dda)
+		comp = constants.DefaultAgentResourceSuffix
 	case v2alpha1.ClusterAgentComponentName:
 		policyName = component.GetClusterAgentName(dda)
+		comp = constants.DefaultClusterAgentResourceSuffix
 	case v2alpha1.ClusterChecksRunnerComponentName:
 		policyName = componentccr.GetClusterChecksRunnerName(dda)
+		comp = constants.DefaultClusterChecksRunnerResourceSuffix
 	}
 	podSelector = metav1.LabelSelector{
 		MatchLabels: map[string]string{
-			kubernetes.AppKubernetesInstanceLabelKey: policyName,
-			kubernetes.AppKubernetesPartOfLabelKey:   object.NewPartOfLabelValue(dda).String(),
+			apicommon.AgentDeploymentComponentLabelKey: comp,
+			kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
 		},
 	}
 	return policyName, podSelector

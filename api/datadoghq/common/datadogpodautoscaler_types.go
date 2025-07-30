@@ -81,7 +81,7 @@ type DatadogPodAutoscalerScalingPolicy struct {
 	// before deciding to apply a new one. Defaults to 0.
 	// +optional
 	// +kubebuilder:validation:Minimum=0
-	// +kubebuilder:validation:Maximum=1800
+	// +kubebuilder:validation:Maximum=3600
 	StabilizationWindowSeconds int32 `json:"stabilizationWindowSeconds,omitempty"`
 }
 
@@ -109,9 +109,9 @@ type DatadogPodAutoscalerScalingRule struct {
 	Value int32 `json:"value"`
 
 	// PeriodSeconds specifies the window of time for which the policy should hold true.
-	// PeriodSeconds must be greater than zero and less than or equal to 1800 (30 min).
+	// PeriodSeconds must be greater than zero and less than or equal to 3600 (1 hour).
 	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:validation:Maximum=1800
+	// +kubebuilder:validation:Maximum=3600
 	PeriodSeconds int32 `json:"periodSeconds"`
 }
 
