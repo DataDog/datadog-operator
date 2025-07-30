@@ -72,23 +72,41 @@ func applyExperimentalAutopilotOverrides(dda metav1.Object, manager feature.PodT
 				manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts = vm
 			}
 		}
-		
-		// Remove trace agent container volume mounts and change command
-        for idx := range manager.PodTemplateSpec().Spec.Containers {
-            if manager.PodTemplateSpec().Spec.Containers[idx].Name == string(apicommon.TraceAgentContainerName) {
-                vm := []corev1.VolumeMount{}
-                for _, m := range manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts {
-                    if m.Name != common.AuthVolumeName && m.Name != common.CriSocketVolumeName && m.Name != common.ProcdirVolumeName && m.Name != common.CgroupsVolumeName && m.Name != common.APMSocketVolumeName {
-                        vm = append(vm, m)
-                    }
-                }
-                manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts = vm
 
-                manager.PodTemplateSpec().Spec.Containers[idx].Command = []string{
-                    "trace-agent",
-                    "-config=/etc/datadog-agent/datadog.yaml",
-                }
-            }
-        }
+		// Remove trace agent container volume mounts and change command
+		for idx := range manager.PodTemplateSpec().Spec.Containers {
+			if manager.PodTemplateSpec().Spec.Containers[idx].Name == string(apicommon.TraceAgentContainerName) {
+				vm := []corev1.VolumeMount{}
+				for _, m := range manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts {
+					if m.Name != common.AuthVolumeName && m.Name != common.CriSocketVolumeName && m.Name != common.ProcdirVolumeName && m.Name != common.CgroupsVolumeName && m.Name != common.APMSocketVolumeName {
+						vm = append(vm, m)
+					}
+				}
+				manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts = vm
+
+				manager.PodTemplateSpec().Spec.Containers[idx].Command = []string{
+					"trace-agent",
+					"-config=/etc/datadog-agent/datadog.yaml",
+				}
+			}
+		}
+
+		// Remove process agent container volume mounts and change command
+		for idx := range manager.PodTemplateSpec().Spec.Containers {
+			if manager.PodTemplateSpec().Spec.Containers[idx].Name == string(apicommon.ProcessAgentContainerName) {
+				vm := []corev1.VolumeMount{}
+				for _, m := range manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts {
+					if m.Name != common.AuthVolumeName && m.Name != common.CriSocketVolumeName && m.Name != common.DogstatsdSocketVolumeName {
+						vm = append(vm, m)
+					}
+				}
+				manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts = vm
+
+				manager.PodTemplateSpec().Spec.Containers[idx].Command = []string{
+					"process-agent",
+					"-config=/etc/datadog-agent/datadog.yaml",
+				}
+			}
+		}
 	}
 }

@@ -141,7 +141,7 @@ const (
 	KubeletPodResourcesVolumeName = "kubelet-pod-resources"
 
 	APMSocketVolumeName = "apmsocket"
-	APMSocketName = "apm.socket"
+	APMSocketName       = "apm.socket"
 
 	SeccompSecurityVolumeName                   = "datadog-agent-security"
 	SeccompSecurityVolumePath                   = "/etc/config"
