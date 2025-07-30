@@ -207,6 +207,14 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		}
 	}
 
+	// CSI Driver config
+	if config.CSI != nil && config.CSI.Enabled != nil {
+		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  DDCSIEnabled,
+			Value: apiutils.BoolToString(config.CSI.Enabled),
+		})
+	}
+
 	// Credentials
 	credentialResource(ddaMeta, ddaSpec, manager)
 
