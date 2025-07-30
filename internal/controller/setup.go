@@ -91,7 +91,7 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, platformInfo kube
 
 	var metricForwardersMgr datadog.MetricsForwardersManager
 	if options.OperatorMetricsEnabled {
-		metricForwardersMgr = datadog.NewForwardersManager(mgr.GetClient(), &platformInfo)
+		metricForwardersMgr = datadog.NewForwardersManager(mgr.GetClient(), &platformInfo, options.DatadogAgentInternalEnabled)
 	}
 
 	for controller, starter := range controllerStarters {

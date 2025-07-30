@@ -6,11 +6,14 @@
 package datadog
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
@@ -28,9 +31,10 @@ type MetricsForwardersManager interface {
 // ForwardersManager is a collection of metricsForwarder per DatadogAgent
 // ForwardersManager implements the controller-runtime Runnable interface
 type ForwardersManager struct {
-	k8sClient         client.Client
-	platformInfo      *kubernetes.PlatformInfo
-	metricsForwarders map[string]*metricsForwarder
+	k8sClient                   client.Client
+	platformInfo                *kubernetes.PlatformInfo
+	metricsForwarders           map[string]*metricsForwarder
+	datadogAgentInternalEnabled bool
 	// TODO expand this to include a metadataForwarder
 	decryptor secrets.Decryptor
 	wg        sync.WaitGroup
@@ -39,13 +43,14 @@ type ForwardersManager struct {
 
 // NewForwardersManager builds a new ForwardersManager object
 // ForwardersManager implements the controller-runtime Runnable interface
-func NewForwardersManager(k8sClient client.Client, platformInfo *kubernetes.PlatformInfo) *ForwardersManager {
+func NewForwardersManager(k8sClient client.Client, platformInfo *kubernetes.PlatformInfo, datadogAgentInternalEnabled bool) *ForwardersManager {
 	return &ForwardersManager{
-		k8sClient:         k8sClient,
-		platformInfo:      platformInfo,
-		metricsForwarders: make(map[string]*metricsForwarder),
-		decryptor:         secrets.NewSecretBackend(),
-		wg:                sync.WaitGroup{},
+		k8sClient:                   k8sClient,
+		platformInfo:                platformInfo,
+		metricsForwarders:           make(map[string]*metricsForwarder),
+		datadogAgentInternalEnabled: datadogAgentInternalEnabled,
+		decryptor:                   secrets.NewSecretBackend(),
+		wg:                          sync.WaitGroup{},
 	}
 }
 
@@ -64,7 +69,7 @@ func (f *ForwardersManager) Register(obj client.Object) {
 	id := getObjID(obj) // nolint: ifshort
 	if _, found := f.metricsForwarders[id]; !found {
 		log.Info("New Datadog metrics forwarder registered", "ID", id)
-		f.metricsForwarders[id] = newMetricsForwarder(f.k8sClient, f.decryptor, obj, f.platformInfo)
+		f.metricsForwarders[id] = newMetricsForwarder(f.k8sClient, f.decryptor, obj, f.platformInfo, f.datadogAgentInternalEnabled)
 		f.wg.Add(1)
 		go f.metricsForwarders[id].start(&f.wg)
 	}
@@ -87,9 +92,21 @@ func (f *ForwardersManager) ProcessError(obj client.Object, reconcileErr error) 
 	id := getObjID(obj)
 	forwarder, err := f.getForwarder(id)
 	if err != nil {
-		log.Error(err, "cannot process error")
+		// Only auto-register if the object still exists and isn't being deleted
+		if f.shouldAutoRegister(obj) {
+			log.Info("Forwarder not found for error processing, attempting to register", "ID", id)
+			f.Register(obj)
 
-		return
+			// Try again after registration
+			forwarder, err = f.getForwarder(id)
+			if err != nil {
+				log.Error(err, "cannot process error even after registration", "ID", id)
+				return
+			}
+		} else {
+			log.Info("Skipping auto-registration for deleted/non-existent object during error processing", "ID", id)
+			return
+		}
 	}
 	if forwarder.isErrChanFull() {
 		// Discard sending the error to avoid blocking this method
@@ -171,9 +188,51 @@ func (f *ForwardersManager) SetEnabledFeatures(dda client.Object, features []str
 	id := getObjID(dda)
 	forwarder, err := f.getForwarder(id)
 	if err != nil {
-		log.Error(err, "cannot set enabled features for object", "ID", id)
+		// Only auto-register if the object still exists and isn't being deleted
+		if f.shouldAutoRegister(dda) {
+			log.Info("Forwarder not found, attempting to register", "ID", id)
+			f.Register(dda)
 
-		return
+			// Try again after registration
+			forwarder, err = f.getForwarder(id)
+			if err != nil {
+				log.Error(err, "cannot set enabled features for object even after registration", "ID", id)
+				return
+			}
+		} else {
+			log.Info("Skipping auto-registration for deleted/non-existent object", "ID", id)
+			return
+		}
 	}
 	forwarder.setEnabledFeatures(features)
+}
+
+// shouldAutoRegister checks if we should auto-register a forwarder for the given object
+// Returns false if the object is being deleted or doesn't exist
+func (f *ForwardersManager) shouldAutoRegister(obj client.Object) bool {
+	// Don't auto-register for objects that are being deleted
+	if obj.GetDeletionTimestamp() != nil {
+		return false
+	}
+
+	// Verify the object still exists in the cluster
+	namespacedName := GetNamespacedName(obj)
+	switch obj.(type) {
+	case *v2alpha1.DatadogAgent:
+		existingObj := &v2alpha1.DatadogAgent{}
+		if err := f.k8sClient.Get(context.TODO(), namespacedName, existingObj); err != nil {
+			return false
+		}
+	case *v1alpha1.DatadogAgentInternal:
+		existingObj := &v1alpha1.DatadogAgentInternal{}
+		if err := f.k8sClient.Get(context.TODO(), namespacedName, existingObj); err != nil {
+			return false
+		}
+	default:
+		// For unknown types, attempt auto-registration (safe default)
+		// This should never happen as we only register features for DatadogAgent and DatadogAgentInternal
+		return true
+	}
+
+	return true
 }
