@@ -78,7 +78,7 @@ func applyExperimentalAutopilotOverrides(dda metav1.Object, manager feature.PodT
 			if manager.PodTemplateSpec().Spec.Containers[idx].Name == string(apicommon.TraceAgentContainerName) {
 				vm := []corev1.VolumeMount{}
 				for _, m := range manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts {
-					if m.Name != common.AuthVolumeName && m.Name != common.CriSocketVolumeName && m.Name != common.ProcdirVolumeName && m.Name != common.CgroupsVolumeName && m.Name != common.APMSocketVolumeName {
+					if m.Name != common.AuthVolumeName && m.Name != common.CriSocketVolumeName && m.Name != common.ProcdirVolumeName && m.Name != common.CgroupsVolumeName && m.Name != common.APMSocketVolumeName && m.Name != common.DogstatsdSocketVolumeName {
 						vm = append(vm, m)
 					}
 				}
