@@ -144,13 +144,18 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       # https://github.com/marketplace/actions/goreleaser-action
-      # https://github.com/softprops/action-gh-release?tab=readme-ov-file#permissions 
+      # https://github.com/softprops/action-gh-release?tab=readme-ov-file#permissions
       contents: write
       # actions/download-artifact
       actions: read
-      # rajatjindal/krew-release-bot@v0.0.43
-      pull-requests: write
+      # Required for getting the OIDC token from GitHub
+      id-token: write
     steps:
+      - uses: DataDog/dd-octo-sts-action@acaa02eee7e3bb0839e4272dacb37b8f3b58ba80 # v1.0.3
+        id: octo-sts
+        with:
+          scope: DataDog/datadog-operator
+          policy: self.release.create-release
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -202,9 +207,11 @@ jobs:
             dist/checksums.txt
         env:
           COMMIT_TAG: ${{steps.tag.outputs.tag}}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.octo-sts.outputs.token }}
       - name: Update new plugin version in krew-index
         uses: rajatjindal/krew-release-bot@3d9faef30a82761d610544f62afddca00993eef9 # v0.0.47
         continue-on-error: true
         with:
           krew_template_file: dist/datadog-plugin.yaml
+        env:
+          GITHUB_TOKEN: ${{ steps.octo-sts.outputs.token }}
