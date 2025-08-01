@@ -493,6 +493,7 @@ func setupAndStartMetadataForwarder(logger logr.Logger, client client.Reader, ku
 		DatadogSLOEnabled:             options.datadogSLOEnabled,
 		DatadogGenericResourceEnabled: options.datadogGenericResourceEnabled,
 		DatadogAgentProfileEnabled:    options.datadogAgentProfileEnabled,
+		DatadogAgentInternalEnabled:   options.datadogAgentInternalEnabled,
 		LeaderElectionEnabled:         options.enableLeaderElection,
 		ExtendedDaemonSetEnabled:      options.supportExtendedDaemonset,
 		RemoteConfigEnabled:           options.remoteConfigEnabled,
