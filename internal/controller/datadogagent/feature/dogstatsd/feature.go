@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
@@ -68,14 +69,32 @@ func (f *dogstatsdFeature) ID() feature.IDType {
 func (f *dogstatsdFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	dogstatsd := ddaSpec.Features.Dogstatsd
 	f.owner = dda
-	if apiutils.BoolValue(dogstatsd.HostPortConfig.Enabled) {
-		f.hostPortEnabled = true
-		f.hostPortHostPort = *dogstatsd.HostPortConfig.Port
+
+	// Check if autopilot is enabled and override defaults accordingly
+	if experimental.IsAutopilotEnabled(dda) {
+		if dogstatsd.HostPortConfig.Enabled == nil {
+			f.hostPortEnabled = true
+			f.hostPortHostPort = *dogstatsd.HostPortConfig.Port
+		} else {
+			f.hostPortEnabled = apiutils.BoolValue(dogstatsd.HostPortConfig.Enabled)
+			if f.hostPortEnabled {
+				f.hostPortHostPort = *dogstatsd.HostPortConfig.Port
+			}
+		}
+
+		if dogstatsd.UnixDomainSocketConfig.Enabled == nil {
+			f.udsEnabled = false
+		} else {
+			f.udsEnabled = apiutils.BoolValue(dogstatsd.UnixDomainSocketConfig.Enabled)
+		}
+	} else {
+		f.hostPortEnabled = apiutils.BoolValue(dogstatsd.HostPortConfig.Enabled)
+		if f.hostPortEnabled {
+			f.hostPortHostPort = *dogstatsd.HostPortConfig.Port
+		}
+		f.udsEnabled = apiutils.BoolValue(dogstatsd.UnixDomainSocketConfig.Enabled)
 	}
-	// UDS is enabled by default
-	if apiutils.BoolValue(dogstatsd.UnixDomainSocketConfig.Enabled) {
-		f.udsEnabled = true
-	}
+
 	f.udsHostFilepath = *dogstatsd.UnixDomainSocketConfig.Path
 	if apiutils.BoolValue(dogstatsd.OriginDetectionEnabled) {
 		f.originDetectionEnabled = true

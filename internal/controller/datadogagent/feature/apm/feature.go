@@ -22,6 +22,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
@@ -127,8 +128,25 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 	if shouldEnableAPM(apm) {
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 		f.useHostNetwork = constants.IsHostNetworkEnabled(ddaSpec, v2alpha1.NodeAgentComponentName)
-		// hostPort defaults to 'false' in the defaulting code
-		f.hostPortEnabled = apiutils.BoolValue(apm.HostPortConfig.Enabled)
+
+		// Check if autopilot is enabled and override defaults accordingly
+		if experimental.IsAutopilotEnabled(dda) {
+			if apm.HostPortConfig.Enabled == nil {
+				f.hostPortEnabled = true
+			} else {
+				f.hostPortEnabled = apiutils.BoolValue(apm.HostPortConfig.Enabled)
+			}
+
+			if apm.UnixDomainSocketConfig.Enabled == nil {
+				f.udsEnabled = false
+			} else {
+				f.udsEnabled = apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled)
+			}
+		} else {
+			f.hostPortEnabled = apiutils.BoolValue(apm.HostPortConfig.Enabled)
+			f.udsEnabled = apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled)
+		}
+
 		f.hostPortHostPort = *apm.HostPortConfig.Port
 		if f.hostPortEnabled {
 			if enabled, flavor := constants.IsNetworkPolicyEnabled(ddaSpec); enabled {
@@ -139,8 +157,6 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 				}
 			}
 		}
-		// UDS defaults to 'true' in the defaulting code
-		f.udsEnabled = apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled)
 		f.udsHostFilepath = *apm.UnixDomainSocketConfig.Path
 
 		if ddaSpec.Global.LocalService != nil {
