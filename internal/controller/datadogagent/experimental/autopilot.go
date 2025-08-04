@@ -33,6 +33,11 @@ func applyExperimentalAutopilotOverrides(dda metav1.Object, manager feature.PodT
 	if IsAutopilotEnabled(dda) {
 		allowlistsynchronizer.CreateAllowlistSynchronizer()
 
+		if manager.PodTemplateSpec().Labels == nil {
+			manager.PodTemplateSpec().Labels = map[string]string{}
+		}
+		manager.PodTemplateSpec().Labels["admission.datadoghq.com/enabled"] = "false"
+
 		// Change args of init-volume
 		for i := range manager.PodTemplateSpec().Spec.InitContainers {
 			if manager.PodTemplateSpec().Spec.InitContainers[i].Name == "init-volume" {
