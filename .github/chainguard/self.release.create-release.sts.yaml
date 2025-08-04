@@ -4,7 +4,7 @@ subject_pattern: "repo:DataDog/datadog-operator:ref:refs/tags/v.*"
 
 claim_pattern:
   event_name: "push"
-  job_workflow_ref: DataDog/datadog-operator/\.github/workflows/release\.yml@refs/tags/v.*
+  job_workflow_ref: DataDog/datadog-operator/\.github/workflows/release\.yaml@refs/tags/v.*
 
 permissions:
   contents: write
