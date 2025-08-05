@@ -27,7 +27,8 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				GPU: &v2alpha1.GPUFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled:        apiutils.NewBoolPointer(false),
+					PrivilegedMode: apiutils.NewBoolPointer(false),
 				},
 			},
 			Global: &v2alpha1.GlobalConfig{
@@ -39,6 +40,7 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 	}
 	ddaGPUMonitoringEnabled := ddaGPUMonitoringDisabled.DeepCopy()
 	ddaGPUMonitoringEnabled.Spec.Features.GPU.Enabled = apiutils.NewBoolPointer(true)
+	ddaGPUMonitoringEnabled.Spec.Features.GPU.PrivilegedMode = apiutils.NewBoolPointer(true)
 
 	ddaGPUMonitoringEnabledAlternativeRuntimeClass := ddaGPUMonitoringEnabled.DeepCopy()
 	ddaGPUMonitoringEnabledAlternativeRuntimeClass.Spec.Features.GPU.PodRuntimeClassName = apiutils.NewStringPointer(alternativeRuntimeClass)
@@ -169,7 +171,7 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 				Value: common.DefaultSystemProbeSocketPath,
 			},
 			{
-				Name:  DDEnableGPUMonitoringEnvVar,
+				Name:  DDEnableGPUProbeEnvVar,
 				Value: "true",
 			},
 			{
@@ -188,7 +190,7 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 				Value: "true",
 			},
 			{
-				Name:  DDCollectGPUTagsEnvVar,
+				Name:  DDEnableGPUMonitoringCheckEnvVar,
 				Value: "true",
 			},
 		}, wantSystemProbeEnvVars...)
