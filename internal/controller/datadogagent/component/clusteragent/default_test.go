@@ -2,7 +2,6 @@ package clusteragent
 
 import (
 	"fmt"
-	"strconv"
 	"testing"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -36,7 +35,7 @@ func defaultDatadogAgent() *datadoghqv2alpha1.DatadogAgent {
 
 func Test_defaultClusterAgentDeployment(t *testing.T) {
 	dda := defaultDatadogAgent()
-	deployment := NewDefaultClusterAgentDeployment(dda)
+	deployment := NewDefaultClusterAgentDeployment(dda.GetObjectMeta(), &dda.Spec)
 	expectedDeployment := clusterAgentExpectedPodTemplate(dda)
 
 	assert.Empty(t, testutils.CompareKubeResource(&deployment.Spec.Template, expectedDeployment))
@@ -238,16 +237,37 @@ func clusterAgentDefaultEnvVars(dda *datadoghqv2alpha1.DatadogAgent) []corev1.En
 			Value: testDdaNamespace,
 		},
 		{
-			Name:  "DD_INSTRUMENTATION_INSTALL_TYPE",
-			Value: common.DefaultAgentInstallType,
+			Name: "DD_INSTRUMENTATION_INSTALL_ID",
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: common.APMTelemetryConfigMapName,
+					},
+					Key: common.APMTelemetryInstallIdKey,
+				},
+			},
 		},
 		{
-			Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
-			Value: strconv.Itoa(int(dda.GetCreationTimestamp().Unix())),
+			Name: "DD_INSTRUMENTATION_INSTALL_TIME",
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: common.APMTelemetryConfigMapName,
+					},
+					Key: common.APMTelemetryInstallTimeKey,
+				},
+			},
 		},
 		{
-			Name:  "DD_INSTRUMENTATION_INSTALL_ID",
-			Value: "",
+			Name: "DD_INSTRUMENTATION_INSTALL_TYPE",
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: common.APMTelemetryConfigMapName,
+					},
+					Key: common.APMTelemetryInstallTypeKey,
+				},
+			},
 		},
 		{
 			Name:  "DD_CLUSTER_AGENT_SERVICE_ACCOUNT_NAME",

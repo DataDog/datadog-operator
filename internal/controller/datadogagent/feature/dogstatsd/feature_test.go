@@ -195,6 +195,39 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			),
 		},
 		{
+			Name: "dogstatsd with non-local traffic disabled",
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
+				WithDogstatsdHostPortEnabled(true).
+				WithDogstatsdNonLocalTraffic(false).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					wantCustomUDPEnvVars := []*corev1.EnvVar{
+						{
+							Name:  DDDogstatsdPort,
+							Value: "8125",
+						},
+						{
+							Name:  DDDogstatsdNonLocalTraffic,
+							Value: "false",
+						},
+					}
+
+					customPorts := []*corev1.ContainerPort{
+						{
+							Name:          dogstatsdHostPortName,
+							HostPort:      8125,
+							ContainerPort: common.DefaultDogstatsdPort,
+							Protocol:      corev1.ProtocolUDP,
+						},
+					}
+
+					assertWants(t, mgrInterface, "16", getWantVolumeMounts(), getWantVolumes(), wantCustomUDPEnvVars, getWantUDSEnvVars(), customPorts)
+				},
+			),
+		},
+		{
 			Name: "udp origin detection enabled",
 			DDA: testutils.NewDefaultDatadogAgentBuilder().
 				WithDogstatsdHostPortEnabled(true).
@@ -214,7 +247,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-					assertWants(t, mgrInterface, "11", []*corev1.VolumeMount(nil), []*corev1.Volume{}, nil, nil, getWantContainerPorts())
+					assertWants(t, mgrInterface, "11", []*corev1.VolumeMount(nil), []*corev1.Volume{}, []*corev1.EnvVar{getNonLocalTrafficEnvVar()}, nil, getWantContainerPorts())
 				},
 			),
 		},
@@ -245,7 +278,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					}
 					customEnvVars := append([]*corev1.EnvVar{}, getCustomEnvVar()...)
 
-					assertWants(t, mgrInterface, "12", customVolumeMounts, customVolumes, nil, customEnvVars, getWantContainerPorts())
+					assertWants(t, mgrInterface, "12", customVolumeMounts, customVolumes, []*corev1.EnvVar{getNonLocalTrafficEnvVar()}, customEnvVars, getWantContainerPorts())
 				},
 			),
 		},
@@ -258,7 +291,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					assert.True(t, mgr.Tpl.Spec.HostPID, "13. Host PID \ndiff = %s", cmp.Diff(mgr.Tpl.Spec.HostPID, true))
-					assertWants(t, mgrInterface, "13", getWantVolumeMounts(), getWantVolumes(), []*corev1.EnvVar{getOriginDetectionEnvVar(), getOriginDetectionClientEnvVar()}, getWantUDSEnvVars(), getWantContainerPorts())
+					assertWants(t, mgrInterface, "13", getWantVolumeMounts(), getWantVolumes(), []*corev1.EnvVar{getOriginDetectionEnvVar(), getOriginDetectionClientEnvVar(), getNonLocalTrafficEnvVar()}, getWantUDSEnvVars(), getWantContainerPorts())
 				},
 			),
 		},
@@ -275,7 +308,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 						Value: customMapperProfilesJSON,
 					}
 
-					assertWants(t, mgrInterface, "14", getWantVolumeMounts(), getWantVolumes(), []*corev1.EnvVar{&mapperProfilesEnvVar}, getWantUDSEnvVars(), getWantContainerPorts())
+					assertWants(t, mgrInterface, "14", getWantVolumeMounts(), getWantVolumes(), []*corev1.EnvVar{&mapperProfilesEnvVar, getNonLocalTrafficEnvVar()}, getWantUDSEnvVars(), getWantContainerPorts())
 				},
 			),
 		},
@@ -358,6 +391,14 @@ func getOriginDetectionEnvVar() *corev1.EnvVar {
 	return &originDetectionEnvVar
 }
 
+func getNonLocalTrafficEnvVar() *corev1.EnvVar {
+	NonLocalTrafficEnvVar := corev1.EnvVar{
+		Name:  DDDogstatsdNonLocalTraffic,
+		Value: "true",
+	}
+	return &NonLocalTrafficEnvVar
+}
+
 func getOriginDetectionClientEnvVar() *corev1.EnvVar {
 	originDetectionClientEnvVar := corev1.EnvVar{
 		Name:  DDDogstatsdOriginDetectionClient,
@@ -437,10 +478,10 @@ func assertWants(t testing.TB, mgrInterface feature.PodTemplateManagers, testId 
 	assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "%s. Volumes \ndiff = %s", testId, cmp.Diff(volumes, wantVolumes))
 
 	agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
-	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "%s. Agent Container envvars \ndiff = %s", testId, cmp.Diff(agentEnvVars, wantEnvVars))
+	assert.ElementsMatch(t, agentEnvVars, wantEnvVars, "%s. Agent Container envvars \ndiff = %s", testId, cmp.Diff(agentEnvVars, wantEnvVars))
 
 	allEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AllContainers]
-	assert.True(t, apiutils.IsEqualStruct(allEnvVars, wantUDSEnvVars), "%s. All Containers envvars \ndiff = %s", testId, cmp.Diff(allEnvVars, wantUDSEnvVars))
+	assert.ElementsMatch(t, allEnvVars, wantUDSEnvVars, "%s. All Containers envvars \ndiff = %s", testId, cmp.Diff(allEnvVars, wantUDSEnvVars))
 
 	coreAgentPorts := mgr.PortMgr.PortsByC[apicommon.CoreAgentContainerName]
 	assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantContainerPorts), "%s. Agent ports \ndiff = %s", testId, cmp.Diff(coreAgentPorts, wantContainerPorts))

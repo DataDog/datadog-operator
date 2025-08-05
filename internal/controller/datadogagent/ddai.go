@@ -6,26 +6,29 @@
 package datadogagent
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
 
-const (
-	ddaiNameTemplate = "%s-ddai"
-)
-
-func (r *Reconciler) generateDDAIFromDDA(dda *datadoghqv2alpha1.DatadogAgent) (*datadoghqv1alpha1.DatadogAgentInternal, error) {
-	ddai := &datadoghqv1alpha1.DatadogAgentInternal{}
+func (r *Reconciler) generateDDAIFromDDA(dda *v2alpha1.DatadogAgent) (*v1alpha1.DatadogAgentInternal, error) {
+	ddai := &v1alpha1.DatadogAgentInternal{}
 	// Object meta
-	if err := r.generateObjMetaFromDDA(dda, ddai); err != nil {
+	if err := generateObjMetaFromDDA(dda, ddai, r.scheme); err != nil {
 		return nil, err
 	}
 	// Spec
@@ -41,25 +44,72 @@ func (r *Reconciler) generateDDAIFromDDA(dda *datadoghqv2alpha1.DatadogAgent) (*
 	return ddai, nil
 }
 
-func (r *Reconciler) generateObjMetaFromDDA(dda *datadoghqv2alpha1.DatadogAgent, ddai *datadoghqv1alpha1.DatadogAgentInternal) error {
+func generateObjMetaFromDDA(dda *v2alpha1.DatadogAgent, ddai *v1alpha1.DatadogAgentInternal, scheme *runtime.Scheme) error {
 	ddai.ObjectMeta = metav1.ObjectMeta{
-		Name:        getDDAINameFromDDA(dda.Name),
+		Name:        dda.Name,
 		Namespace:   dda.Namespace,
-		Labels:      dda.Labels,
+		Labels:      getDDAILabels(dda),
 		Annotations: dda.Annotations,
 	}
-	if err := object.SetOwnerReference(dda, ddai, r.scheme); err != nil {
+	if err := object.SetOwnerReference(dda, ddai, scheme); err != nil {
 		return err
 	}
 	return nil
 }
 
-func getDDAINameFromDDA(ddaName string) string {
-	return fmt.Sprintf(ddaiNameTemplate, ddaName)
+func generateSpecFromDDA(dda *v2alpha1.DatadogAgent, ddai *v1alpha1.DatadogAgentInternal) error {
+	ddai.Spec = *dda.Spec.DeepCopy()
+	global.SetGlobalFromDDA(dda, ddai.Spec.Global)
+	override.SetOverrideFromDDA(dda, &ddai.Spec)
+	return nil
 }
 
-func generateSpecFromDDA(dda *datadoghqv2alpha1.DatadogAgent, ddai *datadoghqv1alpha1.DatadogAgentInternal) error {
-	ddai.Spec = dda.Spec
-	global.SetGlobalFromDDA(dda, ddai.Spec.Global)
+// getDDAILabels adds the following labels to the DDAI:
+// - all DDA labels
+// - agent.datadoghq.com/datadogagent: <dda-name>
+func getDDAILabels(dda metav1.Object) map[string]string {
+	labels := make(map[string]string)
+	for k, v := range dda.GetLabels() {
+		labels[k] = v
+	}
+	labels[apicommon.DatadogAgentNameLabelKey] = dda.GetName()
+	return labels
+}
+
+func (r *Reconciler) cleanUpUnusedDDAIs(ctx context.Context, validDDAIs []*v1alpha1.DatadogAgentInternal) error {
+	validDDAIMap := make(map[string]struct{}, len(validDDAIs))
+	for _, ddai := range validDDAIs {
+		validDDAIMap[fmt.Sprintf("%s/%s", ddai.Namespace, ddai.Name)] = struct{}{}
+	}
+	ddaiList := &v1alpha1.DatadogAgentInternalList{}
+	if err := r.client.List(ctx, ddaiList); err != nil {
+		return err
+	}
+	for _, ddai := range ddaiList.Items {
+		if _, isValid := validDDAIMap[fmt.Sprintf("%s/%s", ddai.Namespace, ddai.Name)]; !isValid {
+			r.log.Info("Deleting unused DDAI", "namespace", ddai.Namespace, "name", ddai.Name)
+			if err := r.client.Delete(ctx, &ddai); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (r *Reconciler) addRemoteConfigStatusToDDAIStatus(ddaStatus *v2alpha1.DatadogAgentStatus, ddai *v1alpha1.DatadogAgentInternal) error {
+	// remote config configuration
+	if ddaStatus != nil && ddaStatus.RemoteConfigConfiguration != nil {
+		ddai.Status.RemoteConfigConfiguration = ddaStatus.RemoteConfigConfiguration
+	}
+
+	status, err := json.Marshal(ddai.Status)
+	if err != nil {
+		return err
+	}
+	patch := fmt.Sprintf(`{"status":%s}`, string(status))
+	if err := r.client.Status().Patch(context.TODO(), ddai, client.RawPatch(types.MergePatchType, []byte(patch))); err != nil {
+		return err
+	}
 	return nil
 }

@@ -38,7 +38,6 @@ func buildSBOMFeature(options *feature.Options) feature.Feature {
 }
 
 type sbomFeature struct {
-	owner  metav1.Object
 	logger logr.Logger
 
 	enabled                                 bool
@@ -56,13 +55,12 @@ func (f *sbomFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *sbomFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	f.owner = dda
+func (f *sbomFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 
 	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
-	mergeConfigs(&dda.Spec, &dda.Status)
+	mergeConfigs(ddaSpec, ddaRCStatus)
 
-	sbomConfig := dda.Spec.Features.SBOM
+	sbomConfig := ddaSpec.Features.SBOM
 
 	if sbomConfig != nil && apiutils.BoolValue(sbomConfig.Enabled) {
 		f.enabled = true
@@ -89,8 +87,8 @@ func (f *sbomFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 	return reqComp
 }
 
-func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) {
-	if ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.SBOM == nil || ddaStatus.RemoteConfigConfiguration.Features.SBOM.Enabled == nil {
+func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) {
+	if ddaRCStatus == nil || ddaRCStatus.Features == nil || ddaRCStatus.Features.SBOM == nil || ddaRCStatus.Features.SBOM.Enabled == nil {
 		return
 	}
 
@@ -102,22 +100,22 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.Datado
 		ddaSpec.Features.SBOM = &v2alpha1.SBOMFeatureConfig{}
 	}
 
-	if ddaStatus.RemoteConfigConfiguration.Features.SBOM.Enabled != nil {
-		ddaSpec.Features.SBOM.Enabled = ddaStatus.RemoteConfigConfiguration.Features.SBOM.Enabled
+	if ddaRCStatus.Features.SBOM.Enabled != nil {
+		ddaSpec.Features.SBOM.Enabled = ddaRCStatus.Features.SBOM.Enabled
 	}
 
-	if ddaStatus.RemoteConfigConfiguration.Features.SBOM.Host != nil && ddaStatus.RemoteConfigConfiguration.Features.SBOM.Host.Enabled != nil {
+	if ddaRCStatus.Features.SBOM.Host != nil && ddaRCStatus.Features.SBOM.Host.Enabled != nil {
 		if ddaSpec.Features.SBOM.Host == nil {
 			ddaSpec.Features.SBOM.Host = &v2alpha1.SBOMHostConfig{}
 		}
-		ddaSpec.Features.SBOM.Host.Enabled = ddaStatus.RemoteConfigConfiguration.Features.SBOM.Host.Enabled
+		ddaSpec.Features.SBOM.Host.Enabled = ddaRCStatus.Features.SBOM.Host.Enabled
 	}
 
-	if ddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage != nil && ddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage.Enabled != nil {
+	if ddaRCStatus.Features.SBOM.ContainerImage != nil && ddaRCStatus.Features.SBOM.ContainerImage.Enabled != nil {
 		if ddaSpec.Features.SBOM.ContainerImage == nil {
 			ddaSpec.Features.SBOM.ContainerImage = &v2alpha1.SBOMContainerImageConfig{}
 		}
-		ddaSpec.Features.SBOM.ContainerImage.Enabled = ddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage.Enabled
+		ddaSpec.Features.SBOM.ContainerImage.Enabled = ddaRCStatus.Features.SBOM.ContainerImage.Enabled
 	}
 }
 
@@ -133,9 +131,9 @@ func (f *sbomFeature) ManageClusterAgent(managers feature.PodTemplateManagers) e
 	return nil
 }
 
-func (p sbomFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *sbomFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// This feature doesn't set env vars on specific containers, so no specific logic for the single agent
-	p.ManageNodeAgent(managers, provider)
+	f.ManageNodeAgent(managers, provider)
 	return nil
 }
 

@@ -36,18 +36,23 @@ func TestAutoscalingFeature(t *testing.T) {
 		{
 			Name:          "v2alpha1 autoscaling disabled",
 			DDA:           newAgent(false, true),
+			ClusterAgent:  testDCAResources(false),
+			Agent:         testAgentResources(false),
 			WantConfigure: false,
 		},
 		{
-			Name:                 "v2alpha1 autoscaling enabeld",
+			Name:                 "v2alpha1 autoscaling enabled",
 			DDA:                  newAgent(true, true),
 			WantConfigure:        true,
 			ClusterAgent:         testDCAResources(true),
+			Agent:                testAgentResources(true),
 			WantDependenciesFunc: testRBACResources,
 		},
 		{
-			Name:                      "v2alpha1 autoscaling enabeld but admission disabled",
+			Name:                      "v2alpha1 autoscaling enabled but admission disabled",
 			DDA:                       newAgent(true, false),
+			ClusterAgent:              testDCAResources(true),
+			Agent:                     testAgentResources(true),
 			WantConfigure:             true,
 			WantManageDependenciesErr: true,
 		},
@@ -97,14 +102,14 @@ func testRBACResources(t testing.TB, store store.StoreClient) {
 					Resources: []string{"datadogpodautoscalers", "datadogpodautoscalers/status"},
 				},
 				{
-					Verbs:     []string{"get", "update"},
-					APIGroups: []string{"*"},
-					Resources: []string{"*/scale"},
-				},
-				{
 					Verbs:     []string{"create", "patch"},
 					APIGroups: []string{""},
 					Resources: []string{"events"},
+				},
+				{
+					Verbs:     []string{"get", "update"},
+					APIGroups: []string{"*"},
+					Resources: []string{"*/scale"},
 				},
 				{
 					Verbs:     []string{"patch"},
@@ -147,20 +152,55 @@ func testDCAResources(enabled bool) *test.ComponentTest {
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
-			var expectedAgentEnvs []*corev1.EnvVar
+			clusterAgentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+
+			var expectedClusterAgentEnvVars []*corev1.EnvVar
 			if enabled {
-				expectedAgentEnvs = append(expectedAgentEnvs,
+				expectedClusterAgentEnvVars = append(expectedClusterAgentEnvVars,
 					&corev1.EnvVar{
 						Name:  DDAutoscalingWorkloadEnabled,
 						Value: "true",
 					},
+					&corev1.EnvVar{
+						Name:  DDAutoscalingFailoverEnabled,
+						Value: "true",
+					},
 				)
 			}
+
 			assert.True(
 				t,
-				apiutils.IsEqualStruct(agentEnvs, expectedAgentEnvs),
-				"Cluster Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, expectedAgentEnvs),
+				apiutils.IsEqualStruct(clusterAgentEnvs, expectedClusterAgentEnvVars),
+				"Cluster Agent ENVs \ndiff = %s", cmp.Diff(clusterAgentEnvs, expectedClusterAgentEnvVars),
+			)
+		},
+	)
+}
+
+func testAgentResources(enabled bool) *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+			coreAgentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+			var expectedCoreAgentEnvVars []*corev1.EnvVar
+			if enabled {
+				expectedCoreAgentEnvVars = append(expectedCoreAgentEnvVars,
+					&corev1.EnvVar{
+						Name:  DDAutoscalingFailoverEnabled,
+						Value: "true",
+					},
+					&corev1.EnvVar{
+						Name:  DDAutoscalingFailoverMetrics,
+						Value: defaultFailoverMetrics,
+					},
+				)
+			}
+
+			assert.True(
+				t,
+				apiutils.IsEqualStruct(coreAgentEnvs, expectedCoreAgentEnvVars),
+				"Core Agent ENVs \ndiff = %s", cmp.Diff(coreAgentEnvs, expectedCoreAgentEnvVars),
 			)
 		},
 	)

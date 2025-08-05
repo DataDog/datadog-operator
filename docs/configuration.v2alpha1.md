@@ -94,6 +94,7 @@ spec:
 | features.dogstatsd.mapperProfiles.configData | ConfigData corresponds to the configuration file content. |
 | features.dogstatsd.mapperProfiles.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | features.dogstatsd.mapperProfiles.configMap.name | Is the name of the ConfigMap. |
+| features.dogstatsd.nonLocalTraffic | NonLocalTraffic enables non-local traffic for Dogstatsd. Default: true |
 | features.dogstatsd.originDetectionEnabled | OriginDetectionEnabled enables origin detection for container tagging. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging |
 | features.dogstatsd.tagCardinality | TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`). See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables Cardinality default: low |
 | features.dogstatsd.unixDomainSocketConfig.enabled | Enables Unix Domain Socket. Default: true |
@@ -323,6 +324,7 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 | [key].containers.[key].livenessProbe.timeoutSeconds | Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes |
 | [key].containers.[key].logLevel | LogLevel sets logging verbosity (overrides global setting). Valid log levels are: trace, debug, info, warn, error, critical, and off. Default: 'info' |
 | [key].containers.[key].name | Name of the container that is overridden |
+| [key].containers.[key].ports `[]object` | Specify additional ports to be exposed by the container. Not specifying a port here DOES NOT prevent that port from being exposed. See https://pkg.go.dev/k8s.io/api/core/v1#Container documentation for more details. |
 | [key].containers.[key].readinessProbe.exec.command | Command is the command line to execute inside the container, the working directory for the command  is root ('/') in the container's filesystem. The command is simply exec'd, it is not run inside a shell, so traditional shell instructions ('|', etc) won't work. To use a shell, you need to explicitly call out to that shell. Exit status of 0 is treated as live/healthy and non-zero is unhealthy. |
 | [key].containers.[key].readinessProbe.failureThreshold | Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1. |
 | [key].containers.[key].readinessProbe.grpc.port | Port number of the gRPC service. Number must be in the range 1 to 65535. |
@@ -440,6 +442,7 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 | [key].serviceAccountAnnotations `map[string]string` | Sets the ServiceAccountAnnotations used by this component. |
 | [key].serviceAccountName | Sets the ServiceAccount used by this component. Ignored if the field CreateRbac is true. |
 | [key].tolerations `[]object` | Configure the component tolerations. |
+| [key].topologySpreadConstraints `[]object` | TopologySpreadConstraints describes how a group of pods ought to spread across topology domains. Scheduler will schedule pods in a way which abides by the constraints. All topologySpreadConstraints are ANDed. |
 | [key].updateStrategy.rollingUpdate.maxSurge | MaxSurge behaves differently based on the Kubernetes resource. Refer to the Kubernetes API documentation for additional details. |
 | [key].updateStrategy.rollingUpdate.maxUnavailable | The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). Refer to the Kubernetes API documentation for additional details.. |
 | [key].updateStrategy.type | Type can be "RollingUpdate" or "OnDelete" for DaemonSets and "RollingUpdate" or "Recreate" for Deployments |

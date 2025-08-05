@@ -21,12 +21,12 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
-	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/clusterchecksrunner"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/global"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/override"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -41,7 +41,7 @@ func (r *Reconciler) reconcileV2ClusterChecksRunner(logger logr.Logger, required
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
-	global.ApplyGlobalSettingsClusterChecksRunner(logger, podManagers, ddai, resourcesManager, requiredComponents)
+	global.ApplyGlobalSettingsClusterChecksRunner(logger, podManagers, ddai.GetObjectMeta(), &ddai.Spec, resourcesManager, requiredComponents)
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {

@@ -39,11 +39,11 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 	now := metav1.NewTime(time.Now())
 
 	// Start by creating the Default Cluster-Agent deployment
-	deployment := componentdca.NewDefaultClusterAgentDeployment(dda)
+	deployment := componentdca.NewDefaultClusterAgentDeployment(dda.GetObjectMeta(), &dda.Spec)
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
-	global.ApplyGlobalSettingsClusterAgent(logger, podManagers, dda, resourcesManager, requiredComponents)
+	global.ApplyGlobalSettingsClusterAgent(logger, podManagers, dda.GetObjectMeta(), &dda.Spec, resourcesManager, requiredComponents)
 
 	// Apply features changes on the Deployment.Spec.Template
 	var featErrors []error
@@ -148,7 +148,7 @@ func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, logger logr.L
 		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
 		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
 	}
-	deploymentName := component.GetDeploymentNameFromDatadogAgent(dda)
+	deploymentName := component.GetDeploymentNameFromDatadogAgent(dda, &dda.Spec)
 	deploymentList := appsv1.DeploymentList{}
 	if err := r.client.List(ctx, &deploymentList, matchLabels); err != nil {
 		return err

@@ -19,17 +19,17 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
-func isValidSecretConfig(secretConfig *v2alpha1.SecretConfig) bool {
+func IsValidSecretConfig(secretConfig *v2alpha1.SecretConfig) bool {
 	return secretConfig != nil && secretConfig.SecretName != "" && secretConfig.KeyName != ""
 }
 
-func getDCATokenChecksumAnnotationKey() string {
+func GetDCATokenChecksumAnnotationKey() string {
 	return object.GetChecksumAnnotationKey("dca-token")
 }
 
-func getURLEndpoint(dda *v2alpha1.DatadogAgent) string {
-	if dda.Spec.Global.Endpoint != nil && dda.Spec.Global.Endpoint.URL != nil {
-		return *dda.Spec.Global.Endpoint.URL
+func getURLEndpoint(ddaSpec *v2alpha1.DatadogAgentSpec) string {
+	if ddaSpec.Global.Endpoint != nil && ddaSpec.Global.Endpoint.URL != nil {
+		return *ddaSpec.Global.Endpoint.URL
 	}
 	return ""
 }
@@ -43,8 +43,8 @@ func getInstallInfoValue() string {
 	return fmt.Sprintf(installInfoDataTmpl, toolVersion, version.Version)
 }
 
-func useSystemProbeCustomSeccomp(dda *v2alpha1.DatadogAgent) bool {
-	if componentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
+func useSystemProbeCustomSeccomp(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	if componentOverride, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
 		if container, ok := componentOverride.Containers[apicommon.SystemProbeContainerName]; ok {
 			// Only ConfigMap is supported for now
 			if container.SeccompConfig != nil && container.SeccompConfig.CustomProfile != nil && container.SeccompConfig.CustomProfile.ConfigMap != nil {
@@ -71,7 +71,7 @@ func setCredentialsFromDDA(dda metav1.Object, ddaiGlobal *v2alpha1.GlobalConfig)
 		},
 	}
 	// Prioritize existing secret
-	if isValidSecretConfig(ddaiGlobal.Credentials.APISecret) {
+	if IsValidSecretConfig(ddaiGlobal.Credentials.APISecret) {
 		newCredentials.APISecret = ddaiGlobal.Credentials.APISecret
 	}
 
@@ -82,7 +82,7 @@ func setCredentialsFromDDA(dda metav1.Object, ddaiGlobal *v2alpha1.GlobalConfig)
 			KeyName:    v2alpha1.DefaultAPPKeyKey,
 		}
 		// Prioritize existing secret
-		if isValidSecretConfig(ddaiGlobal.Credentials.AppSecret) {
+		if IsValidSecretConfig(ddaiGlobal.Credentials.AppSecret) {
 			newCredentials.AppSecret = ddaiGlobal.Credentials.AppSecret
 		}
 	}
@@ -91,7 +91,7 @@ func setCredentialsFromDDA(dda metav1.Object, ddaiGlobal *v2alpha1.GlobalConfig)
 
 func setDCATokenFromDDA(dda metav1.Object, ddaiGlobal *v2alpha1.GlobalConfig) {
 	// Use existing ClusterAgentTokenSecret if already set
-	if isValidSecretConfig(ddaiGlobal.ClusterAgentTokenSecret) {
+	if IsValidSecretConfig(ddaiGlobal.ClusterAgentTokenSecret) {
 		return
 	}
 

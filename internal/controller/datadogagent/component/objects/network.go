@@ -14,12 +14,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -131,18 +133,22 @@ func BuildKubernetesNetworkPolicy(dda metav1.Object, componentName v2alpha1.Comp
 
 // GetNetworkPolicyMetadata generates a label selector based on component
 func GetNetworkPolicyMetadata(dda metav1.Object, componentName v2alpha1.ComponentName) (policyName string, podSelector metav1.LabelSelector) {
+	var comp string
 	switch componentName {
 	case v2alpha1.NodeAgentComponentName:
 		policyName = component.GetAgentName(dda)
+		comp = constants.DefaultAgentResourceSuffix
 	case v2alpha1.ClusterAgentComponentName:
 		policyName = component.GetClusterAgentName(dda)
+		comp = constants.DefaultClusterAgentResourceSuffix
 	case v2alpha1.ClusterChecksRunnerComponentName:
 		policyName = componentccr.GetClusterChecksRunnerName(dda)
+		comp = constants.DefaultClusterChecksRunnerResourceSuffix
 	}
 	podSelector = metav1.LabelSelector{
 		MatchLabels: map[string]string{
-			kubernetes.AppKubernetesInstanceLabelKey: policyName,
-			kubernetes.AppKubernetesPartOfLabelKey:   object.NewPartOfLabelValue(dda).String(),
+			apicommon.AgentDeploymentComponentLabelKey: comp,
+			kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
 		},
 	}
 	return policyName, podSelector
@@ -191,7 +197,7 @@ func BuildCiliumPolicy(dda metav1.Object, site string, ddURL string, hostNetwork
 			egressMetadataServerRule(podSelector),
 			egressDNS(podSelector, dnsSelectorEndpoints),
 			egressDCADatadogIntake(podSelector, site, ddURL),
-			egressKubeAPIServer(),
+			egressKubeAPIServer(podSelector),
 			ingressAgent(podSelector, dda, hostNetwork),
 			ingressDCA(podSelector, nodeAgentPodSelector),
 			egressDCA(podSelector, nodeAgentPodSelector),
@@ -494,36 +500,14 @@ func egressChecks(podSelector metav1.LabelSelector) cilium.NetworkPolicySpec {
 }
 
 // cilium egress to kube api server
-func egressKubeAPIServer() cilium.NetworkPolicySpec {
+func egressKubeAPIServer(podSelector metav1.LabelSelector) cilium.NetworkPolicySpec {
 	return cilium.NetworkPolicySpec{
-		Description: "Egress to Kube API Server",
+		Description:      "Egress to Kube API Server",
+		EndpointSelector: podSelector,
 		Egress: []cilium.EgressRule{
 			{
-				// ToServices works only for endpoints
-				// outside of the cluster This section
-				// handles the case where the control
-				// plane is outside of the cluster.
-				ToServices: []cilium.Service{
-					{
-						K8sService: &cilium.K8sServiceNamespace{
-							Namespace:   "default",
-							ServiceName: "kubernetes",
-						},
-					},
-				},
 				ToEntities: []cilium.Entity{
-					cilium.EntityHost,
-					cilium.EntityRemoteNode,
-				},
-				ToPorts: []cilium.PortRule{
-					{
-						Ports: []cilium.PortProtocol{
-							{
-								Port:     "443",
-								Protocol: cilium.ProtocolTCP,
-							},
-						},
-					},
+					cilium.EntityKubeApiServer,
 				},
 			},
 		},

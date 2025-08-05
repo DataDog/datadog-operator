@@ -6,6 +6,8 @@
 package dummy
 
 import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 )
@@ -33,7 +35,7 @@ func (f *dummyFeature) ID() feature.IDType {
 	return feature.DummyIDType
 }
 
-func (f *dummyFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
+func (f *dummyFeature) Configure(_ metav1.Object, _ *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	return feature.RequiredComponents{}
 }
 

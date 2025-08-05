@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -77,12 +78,13 @@ type Reconciler struct {
 	scheme       *runtime.Scheme
 	log          logr.Logger
 	recorder     record.EventRecorder
-	forwarders   datadog.MetricForwardersManager
+	forwarders   datadog.MetricsForwardersManager
+	fieldManager *managedfields.FieldManager
 }
 
 // NewReconciler returns a reconciler for DatadogAgent
 func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo kubernetes.PlatformInfo,
-	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwardersMgr datadog.MetricForwardersManager,
+	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwardersMgr datadog.MetricsForwardersManager,
 ) (*Reconciler, error) {
 	return &Reconciler{
 		options:      options,

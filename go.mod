@@ -1,8 +1,8 @@
 module github.com/DataDog/datadog-operator
 
-go 1.23
+go 1.24
 
-toolchain go1.23.8
+toolchain go1.24.5
 
 replace github.com/DataDog/extendeddaemonset v0.10.0-rc.4 => github.com/DataDog/extendeddaemonset/api v0.0.0-20250108205105-6c4d337b78a1
 
@@ -189,7 +189,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/mod v0.23.0 // indirect
 	golang.org/x/net v0.40.0 // indirect
-	golang.org/x/oauth2 v0.24.0 // indirect
+	golang.org/x/oauth2 v0.27.0 // indirect
 	golang.org/x/sync v0.14.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/term v0.32.0 // indirect

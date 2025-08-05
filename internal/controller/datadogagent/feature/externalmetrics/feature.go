@@ -73,9 +73,9 @@ func (f *externalMetricsFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *externalMetricsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+func (f *externalMetricsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
-	em := dda.Spec.Features.ExternalMetricsServer
+	em := ddaSpec.Features.ExternalMetricsServer
 
 	if em != nil && apiutils.BoolValue(em.Enabled) {
 		// By default, we register the external metrics endpoint
@@ -124,9 +124,9 @@ func (f *externalMetricsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 			}
 		}
 
-		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
-		if enabled, flavor := constants.IsNetworkPolicyEnabled(dda); enabled {
+		if enabled, flavor := constants.IsNetworkPolicyEnabled(ddaSpec); enabled {
 			if flavor == v2alpha1.NetworkPolicyFlavorCilium {
 				f.createCiliumNetworkPolicy = true
 			} else {
@@ -152,9 +152,10 @@ func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceMan
 	// service
 	emPorts := []corev1.ServicePort{
 		{
-			Protocol: corev1.ProtocolTCP,
-			Port:     f.port,
-			Name:     externalMetricsPortName,
+			Protocol:   corev1.ProtocolTCP,
+			Port:       f.port,
+			TargetPort: intstr.FromInt(int(f.port)),
+			Name:       externalMetricsPortName,
 		},
 	}
 	selector := map[string]string{

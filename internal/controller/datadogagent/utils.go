@@ -6,6 +6,8 @@
 package datadogagent
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,13 +17,18 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/gobwas/glob"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func mergeAnnotationsLabels(logger logr.Logger, previousVal map[string]string, newVal map[string]string, filter string) map[string]string {
@@ -118,6 +125,38 @@ func referSameObject(a, b metav1.OwnerReference) bool {
 	return aGV == bGV && a.Kind == b.Kind && a.Name == b.Name
 }
 
+// createOwnerReferencePatch creates a patch from owner references
+// We assume there is only one DDAI owner reference
+func createOwnerReferencePatch(ownerRef []metav1.OwnerReference, owner metav1.Object, gvk schema.GroupVersionKind) ([]byte, error) {
+	patchedRefs := make([]metav1.OwnerReference, len(ownerRef))
+	copy(patchedRefs, ownerRef)
+
+	// Replace DDAI owner reference with new owner reference
+	for i, ref := range patchedRefs {
+		if ref.Kind == "DatadogAgentInternal" {
+			patchedRefs[i] = *newOwnerRef(owner, gvk)
+		}
+	}
+
+	// Create JSON patch for ownerReferences field
+	refBytes, err := json.Marshal(patchedRefs)
+	if err != nil {
+		return nil, err
+	}
+
+	return []byte(fmt.Sprintf(`{"metadata":{"ownerReferences":%s}}`, string(refBytes))), nil
+}
+
+// shouldUpdateOwnerReference returns true if the owner reference is a DatadogAgent
+func shouldUpdateOwnerReference(currentOwnerRef []metav1.OwnerReference) bool {
+	for _, ownerRef := range currentOwnerRef {
+		if ownerRef.Kind == "DatadogAgentInternal" {
+			return true
+		}
+	}
+	return false
+}
+
 // getReplicas returns the desired replicas of a
 // deployment based on the current and new replica values.
 func getReplicas(currentReplicas, newReplicas *int32) *int32 {
@@ -162,4 +201,30 @@ func getDDAICRDFromConfig(sch *runtime.Scheme) (*apiextensionsv1.CustomResourceD
 	}
 
 	return nil, fmt.Errorf("decoded object is not a CustomResourceDefinition")
+}
+
+func getDDAIGVK() schema.GroupVersionKind {
+	return schema.GroupVersionKind{
+		Group:   "datadoghq.com",
+		Version: "v1alpha1",
+		Kind:    "DatadogAgentInternal",
+	}
+}
+
+// delete ALL workloads for a given DDA/DDAI and orphan pods
+func deleteObjectAndOrphanDependents(ctx context.Context, logger logr.Logger, c client.Client, obj client.Object, component string) error {
+	propagationPolicy := metav1.DeletePropagationOrphan
+	selector := labels.SelectorFromSet(labels.Set{
+		kubernetes.AppKubernetesPartOfLabelKey:     obj.GetLabels()[kubernetes.AppKubernetesPartOfLabelKey],
+		apicommon.AgentDeploymentComponentLabelKey: component,
+	})
+	logger.Info("deleting all workloads for matching DDA", "labels", selector.String())
+	if err := c.DeleteAllOf(ctx, obj, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{LabelSelector: selector, Namespace: obj.GetNamespace()}, DeleteOptions: client.DeleteOptions{PropagationPolicy: &propagationPolicy}}); err != nil {
+		if apierrors.IsNotFound(err) {
+			logger.Info("object not found, skipping deletion", "object", obj.GetName(), "namespace", obj.GetNamespace())
+			return nil
+		}
+		return err
+	}
+	return nil
 }

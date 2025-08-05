@@ -4,6 +4,7 @@ import (
 	"path"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -38,8 +39,8 @@ func (f *gpuFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *gpuFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Features == nil || dda.Spec.Features.GPU == nil || !apiutils.BoolValue(dda.Spec.Features.GPU.Enabled) {
+func (f *gpuFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+	if ddaSpec.Features == nil || ddaSpec.Features.GPU == nil || !apiutils.BoolValue(ddaSpec.Features.GPU.Enabled) {
 		return reqComp
 	}
 
@@ -48,16 +49,16 @@ func (f *gpuFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 		Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
 	}
 
-	if dda.Spec.Features.GPU.PodRuntimeClassName == nil {
+	if ddaSpec.Features.GPU.PodRuntimeClassName == nil {
 		// Configuration option not set, so revert to the default
 		f.podRuntimeClassName = defaultGPURuntimeClass
 	} else {
 		// Configuration option set, use the value. Note that here the value might be an empty
 		// string, which tells us to not change the runtime class.
-		f.podRuntimeClassName = *dda.Spec.Features.GPU.PodRuntimeClassName
+		f.podRuntimeClassName = *ddaSpec.Features.GPU.PodRuntimeClassName
 	}
 
-	f.podResourcesSocketPath = dda.Spec.Global.Kubelet.PodResourcesSocketPath
+	f.podResourcesSocketPath = ddaSpec.Global.Kubelet.PodResourcesSocketPath
 
 	return reqComp
 }
@@ -89,6 +90,10 @@ func configureSystemProbe(managers feature.PodTemplateManagers) {
 	cgroupsVol, cgroupsMount := volume.GetVolumes(common.CgroupsVolumeName, common.CgroupsHostPath, common.CgroupsMountPath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&cgroupsMount, apicommon.SystemProbeContainerName)
 	managers.Volume().AddVolume(&cgroupsVol)
+
+	debugfsVol, debugfsMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false)
+	managers.VolumeMount().AddVolumeMountToContainer(&debugfsMount, apicommon.SystemProbeContainerName)
+	managers.Volume().AddVolume(&debugfsVol)
 
 	socketVol, socketVolMount := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, false)
 	managers.Volume().AddVolume(&socketVol)

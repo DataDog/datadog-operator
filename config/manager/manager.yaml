@@ -43,6 +43,10 @@ spec:
         imagePullPolicy: IfNotPresent
         name: manager
         env:
+        - name: DD_HOSTNAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
         - name: POD_NAME
           valueFrom:
             fieldRef:

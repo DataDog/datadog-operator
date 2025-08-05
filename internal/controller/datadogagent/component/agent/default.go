@@ -20,16 +20,15 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
 // NewDefaultAgentDaemonset return a new default agent DaemonSet
-func NewDefaultAgentDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent) *appsv1.DaemonSet {
-	daemonset := NewDaemonset(dda, edsOptions, constants.DefaultAgentResourceSuffix, component.GetAgentName(dda), common.GetAgentVersion(dda), nil)
+// TODO: remove instanceName once v2 reconcile is removed
+func NewDefaultAgentDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent, instanceName string) *appsv1.DaemonSet {
+	daemonset := NewDaemonset(dda, edsOptions, constants.DefaultAgentResourceSuffix, instanceName, common.GetAgentVersion(dda), nil)
 	podTemplate := NewDefaultAgentPodTemplateSpec(dda, agentComponent, daemonset.GetLabels())
 	daemonset.Spec.Template = *podTemplate
 	return daemonset
@@ -442,7 +441,6 @@ func otelAgentContainer(_ metav1.Object) corev1.Container {
 		Image: fullAgentImage(),
 		Command: []string{
 			"otel-agent",
-			"--config=" + otelCustomConfigVolumePath,
 			"--core-config=" + agentCustomConfigVolumePath,
 			"--sync-delay=30s",
 		},
@@ -606,16 +604,37 @@ func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
-			Name:  common.DDAPMInstrumentationInstallId,
-			Value: utils.GetDatadogAgentResourceUID(dda),
+			Name: common.DDAPMInstrumentationInstallId,
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: common.APMTelemetryConfigMapName,
+					},
+					Key: common.APMTelemetryInstallIdKey,
+				},
+			},
 		},
 		{
-			Name:  common.DDAPMInstrumentationInstallTime,
-			Value: utils.GetDatadogAgentResourceCreationTime(dda),
+			Name: common.DDAPMInstrumentationInstallTime,
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: common.APMTelemetryConfigMapName,
+					},
+					Key: common.APMTelemetryInstallTimeKey,
+				},
+			},
 		},
 		{
-			Name:  common.DDAPMInstrumentationInstallType,
-			Value: common.DefaultAgentInstallType,
+			Name: common.DDAPMInstrumentationInstallType,
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: common.APMTelemetryConfigMapName,
+					},
+					Key: common.APMTelemetryInstallTypeKey,
+				},
+			},
 		},
 	}
 
@@ -751,23 +770,4 @@ func volumeMountsForAgentDataPlane() []corev1.VolumeMount {
 		common.GetVolumeMountForProc(),
 		common.GetVolumeMountForCgroups(),
 	}
-}
-
-func GetDefaultMetadata(owner metav1.Object, componentKind, componentName, version string, selector *metav1.LabelSelector) (map[string]string, map[string]string, *metav1.LabelSelector) {
-	labels := common.GetDefaultLabels(owner, componentKind, componentName, version)
-	annotations := object.GetDefaultAnnotations(owner)
-
-	if selector != nil {
-		for key, val := range selector.MatchLabels {
-			labels[key] = val
-		}
-	} else {
-		selector = &metav1.LabelSelector{
-			MatchLabels: map[string]string{
-				apicommon.AgentDeploymentNameLabelKey:      owner.GetName(),
-				apicommon.AgentDeploymentComponentLabelKey: componentKind,
-			},
-		}
-	}
-	return labels, annotations, selector
 }

@@ -68,6 +68,7 @@ const (
 	defaultDogstatsdHostPortEnabled        bool   = false
 	defaultDogstatsdSocketEnabled          bool   = true
 	defaultDogstatsdHostSocketPath         string = common.DogstatsdAPMSocketHostPath + "/" + common.DogstatsdSocketName
+	defaultDogstatsdNonLocalTraffic        bool   = true
 
 	defaultOTLPGRPCEnabled         bool   = false
 	defaultOTLPGRPCHostPortEnabled bool   = true
@@ -135,11 +136,11 @@ const (
 	defaultFIPSUseHTTPS     bool   = false
 )
 
-// DefaultDatadogAgent defaults the DatadogAgentSpec GlobalConfig and Features.
-func DefaultDatadogAgent(dda *v2alpha1.DatadogAgent) {
-	defaultGlobalConfig(&dda.Spec)
+// DefaultDatadogAgentSpec defaults the DatadogAgentSpec GlobalConfig and Features.
+func DefaultDatadogAgentSpec(ddaSpec *v2alpha1.DatadogAgentSpec) {
+	defaultGlobalConfig(ddaSpec)
 
-	defaultFeaturesConfig(&dda.Spec)
+	defaultFeaturesConfig(ddaSpec)
 }
 
 // defaultGlobalConfig sets default values in DatadogAgentSpec.Global.
@@ -437,6 +438,8 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 
 	// defaultDogstatsdHostSocketPath matches the default hostPath of the helm chart.
 	apiutils.DefaultStringIfUnset(&ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Path, defaultDogstatsdHostSocketPath)
+
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.Dogstatsd.NonLocalTraffic, defaultDogstatsdNonLocalTraffic)
 
 	// OTLP ingest feature
 	if ddaSpec.Features.OTLP == nil {

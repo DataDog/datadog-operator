@@ -8,7 +8,7 @@ package datadogagent
 import (
 	"context"
 	"errors"
-	"fmt"
+	"maps"
 	"strconv"
 	"time"
 
@@ -36,6 +36,7 @@ import (
 const (
 	updateSucceeded = "UpdateSucceeded"
 	createSucceeded = "CreateSucceeded"
+	patchSucceeded  = "PatchSucceeded"
 
 	profileWaitForCanaryKey = "agent.datadoghq.com/profile-wait-for-canary"
 )
@@ -82,6 +83,32 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 	}
 
 	if alreadyExists {
+		// check owner reference
+		if shouldUpdateOwnerReference(currentDeployment.OwnerReferences) {
+			logger.Info("Updating Deployment owner reference")
+			now := metav1.NewTime(time.Now())
+			patch, e := createOwnerReferencePatch(currentDeployment.OwnerReferences, dda, dda.GetObjectKind().GroupVersionKind())
+			if e != nil {
+				logger.Error(e, "Unable to patch Deployment owner reference")
+				updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, patchSucceeded, "Unable to patch Deployment owner reference")
+				return reconcile.Result{}, e
+			}
+			// use merge patch to replace the entire existing owner reference list
+			err = r.client.Patch(context.TODO(), currentDeployment, client.RawPatch(types.MergePatchType, patch))
+			if err != nil {
+				logger.Error(err, "Unable to patch Deployment owner reference")
+				updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, patchSucceeded, "Unable to patch Deployment owner reference")
+				return reconcile.Result{}, err
+			}
+			logger.Info("Deployment owner reference patched")
+		}
+		if !maps.Equal(deployment.Spec.Selector.MatchLabels, currentDeployment.Spec.Selector.MatchLabels) {
+			if err = deleteObjectAndOrphanDependents(context.TODO(), logger, r.client, deployment, deployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
+				return result, err
+			}
+			return result, nil
+		}
+
 		// check if same hash
 		needUpdate := !comparison.IsSameSpecMD5Hash(hash, currentDeployment.GetAnnotations())
 		if !needUpdate {
@@ -162,6 +189,33 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 	}
 
 	if alreadyExists {
+		// check owner reference
+		if shouldUpdateOwnerReference(currentDaemonset.OwnerReferences) {
+			logger.Info("Updating Daemonset owner reference")
+			now := metav1.NewTime(time.Now())
+			patch, e := createOwnerReferencePatch(currentDaemonset.OwnerReferences, dda, dda.GetObjectKind().GroupVersionKind())
+			if e != nil {
+				logger.Error(e, "Unable to patch Daemonset owner reference")
+				updateStatusFunc(currentDaemonset.Name, currentDaemonset, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to patch Daemonset owner reference")
+				return reconcile.Result{}, e
+			}
+			// use merge patch to replace the entire existing owner reference list
+			err = r.client.Patch(context.TODO(), currentDaemonset, client.RawPatch(types.MergePatchType, patch))
+			if err != nil {
+				logger.Error(err, "Unable to patch Daemonset owner reference")
+				updateStatusFunc(currentDaemonset.Name, currentDaemonset, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to patch Daemonset owner reference")
+				return reconcile.Result{}, err
+			}
+			logger.Info("Daemonset owner reference patched")
+		}
+
+		if !maps.Equal(daemonset.Spec.Selector.MatchLabels, currentDaemonset.Spec.Selector.MatchLabels) {
+			if err = deleteObjectAndOrphanDependents(context.TODO(), logger, r.client, daemonset, constants.DefaultAgentResourceSuffix); err != nil {
+				return result, err
+			}
+			return result, nil
+		}
+
 		now := metav1.Now()
 		if agentprofile.CreateStrategyEnabled() {
 			if profile.Status.CreateStrategy != nil {
@@ -199,13 +253,6 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		if err != nil {
 			return result, err
 		}
-
-		// TODO: remove in 1.8.0 when v1alpha1 is removed
-		// Spec.Selector is an immutable field and changing it leads to an error.
-		// Template.Labels must include Spec.Selector.
-		// See https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/#pod-selector
-		daemonset.Spec.Selector = currentDaemonset.Spec.Selector
-		daemonset.Spec.Template.Labels = ensureSelectorInPodTemplateLabels(logger, daemonset.Spec.Selector, daemonset.Spec.Template.Labels)
 
 		// From here the PodTemplateSpec should be ready, we can generate the hash that will be used to compare this daemonset with the current one (if it exists).
 		var hash, daemonsetPodTemplateLabelHash string
@@ -327,6 +374,25 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, d
 	}
 
 	if alreadyExists {
+		// check owner reference
+		if shouldUpdateOwnerReference(currentEDS.OwnerReferences) {
+			logger.Info("Updating ExtendedDaemonSet owner reference")
+			now := metav1.NewTime(time.Now())
+			patch, e := createOwnerReferencePatch(currentEDS.OwnerReferences, dda, dda.GetObjectKind().GroupVersionKind())
+			if e != nil {
+				logger.Error(e, "Unable to patch ExtendedDaemonSet owner reference")
+				updateStatusFunc(currentEDS, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to patch ExtendedDaemonSet owner reference")
+				return reconcile.Result{}, e
+			}
+			// use merge patch to replace the entire existing owner reference list
+			err = r.client.Patch(context.TODO(), currentEDS, client.RawPatch(types.MergePatchType, patch))
+			if err != nil {
+				logger.Error(err, "Unable to patch ExtendedDaemonSet owner reference")
+				updateStatusFunc(currentEDS, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to patch ExtendedDaemonSet owner reference")
+				return reconcile.Result{}, err
+			}
+			logger.Info("ExtendedDaemonSet owner reference patched")
+		}
 		// check if same hash
 		needUpdate := !comparison.IsSameSpecMD5Hash(hash, currentEDS.GetAnnotations())
 		if !needUpdate {
@@ -378,34 +444,6 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, d
 	logger.Info("Creating ExtendedDaemonSet")
 
 	return result, err
-}
-
-// TODO: remove in 1.8.0 when v1alpha1 is removed
-// ensureSelectorInPodTemplateLabels checks that a label selector's MatchLabels
-// are present in the pod template labels. If the label is missing, it adds it
-// to the pod template labels. If the value doesn't match, it changes the label
-// value to match the selector.
-// If the selector labels aren't present in the pod template labels, there will
-// be a `selector does not match template labels` error when updating the agent
-func ensureSelectorInPodTemplateLabels(logger logr.Logger, selector *metav1.LabelSelector, labels map[string]string) map[string]string {
-	if selector != nil {
-		if labels == nil {
-			labels = map[string]string{}
-		}
-		for k, v := range selector.MatchLabels {
-			value, ok := labels[k]
-			if !ok {
-				logger.Info("Selector not in template labels, adding to template labels", "selector label", fmt.Sprintf("%s: %s", k, v))
-				labels[k] = v
-			}
-			if value != v {
-				logger.Info("Selector value does not match template labels, modifying template labels", "selector label", fmt.Sprintf("%s: %s", k, v), "template label", fmt.Sprintf("%s: %s", k, value))
-				labels[k] = v
-			}
-		}
-	}
-
-	return labels
 }
 
 func shouldCheckCreateStrategyStatus(profile *v1alpha1.DatadogAgentProfile) bool {
@@ -546,15 +584,15 @@ func shouldProfileWaitForCanary(logger logr.Logger, annotations map[string]strin
 	return false
 }
 
-func (r *Reconciler) createOrUpdateDDAI(logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal) error {
+func (r *Reconciler) createOrUpdateDDAI(ddai *v1alpha1.DatadogAgentInternal) error {
 	currentDDAI := &v1alpha1.DatadogAgentInternal{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: ddai.Name, Namespace: ddai.Namespace}, currentDDAI); err != nil {
 		if !apierrors.IsNotFound(err) {
-			logger.Error(err, "unexpected error during DDAI get")
+			r.log.Error(err, "unexpected error during DDAI get")
 			return err
 		}
 		// Create the DDAI object if it doesn't exist
-		logger.Info("creating DatadogAgentInternal", "ns", ddai.Namespace, "name", ddai.Name)
+		r.log.Info("creating DatadogAgentInternal", "ns", ddai.Namespace, "name", ddai.Name)
 		if err := r.client.Create(context.TODO(), ddai); err != nil {
 			return err
 		}
@@ -562,7 +600,7 @@ func (r *Reconciler) createOrUpdateDDAI(logger logr.Logger, ddai *v1alpha1.Datad
 	}
 
 	if currentDDAI.Annotations[constants.MD5DDAIDeploymentAnnotationKey] != ddai.Annotations[constants.MD5DDAIDeploymentAnnotationKey] {
-		logger.Info("updating DatadogAgentInternal", "ns", ddai.Namespace, "name", ddai.Name)
+		r.log.Info("updating DatadogAgentInternal", "ns", ddai.Namespace, "name", ddai.Name)
 		if err := kubernetes.UpdateFromObject(context.TODO(), r.client, ddai, currentDDAI.ObjectMeta); err != nil {
 			return err
 		}
@@ -571,11 +609,11 @@ func (r *Reconciler) createOrUpdateDDAI(logger logr.Logger, ddai *v1alpha1.Datad
 	return nil
 }
 
-func (r *Reconciler) addDDAIStatusToDDAStatus(logger logr.Logger, status *datadoghqv2alpha1.DatadogAgentStatus, ddai metav1.ObjectMeta) error {
+func (r *Reconciler) addDDAIStatusToDDAStatus(status *datadoghqv2alpha1.DatadogAgentStatus, ddai metav1.ObjectMeta) error {
 	currentDDAI := &v1alpha1.DatadogAgentInternal{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: ddai.Name, Namespace: ddai.Namespace}, currentDDAI); err != nil {
 		if !apierrors.IsNotFound(err) {
-			logger.Error(err, "unexpected error during DDAI get")
+			r.log.Error(err, "unexpected error during DDAI get")
 			return err
 		}
 		// DDAI not yet created

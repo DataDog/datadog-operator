@@ -42,18 +42,18 @@ func (r *Reconciler) setupDependencies(instance *datadoghqv2alpha1.DatadogAgent,
 func (r *Reconciler) manageGlobalDependencies(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, resourceManagers feature.ResourceManagers, requiredComponents feature.RequiredComponents) error {
 	var errs []error
 	// Non component specific dependencies
-	if err := global.ApplyGlobalDependencies(logger, dda, resourceManagers); len(err) > 0 {
+	if err := global.ApplyGlobalDependencies(logger, dda.GetObjectMeta(), &dda.Spec, resourceManagers, false); len(err) > 0 {
 		errs = append(errs, err...)
 	}
 
 	// Component specific dependencies
-	if err := global.ApplyGlobalComponentDependencies(logger, dda, resourceManagers, datadoghqv2alpha1.ClusterAgentComponentName, requiredComponents.ClusterAgent); len(err) > 0 {
+	if err := global.ApplyGlobalComponentDependencies(logger, dda.GetObjectMeta(), &dda.Spec, &dda.Status, resourceManagers, datadoghqv2alpha1.ClusterAgentComponentName, requiredComponents.ClusterAgent, false); len(err) > 0 {
 		errs = append(errs, err...)
 	}
-	if err := global.ApplyGlobalComponentDependencies(logger, dda, resourceManagers, datadoghqv2alpha1.NodeAgentComponentName, requiredComponents.Agent); len(err) > 0 {
+	if err := global.ApplyGlobalComponentDependencies(logger, dda.GetObjectMeta(), &dda.Spec, &dda.Status, resourceManagers, datadoghqv2alpha1.NodeAgentComponentName, requiredComponents.Agent, false); len(err) > 0 {
 		errs = append(errs, err...)
 	}
-	if err := global.ApplyGlobalComponentDependencies(logger, dda, resourceManagers, datadoghqv2alpha1.ClusterChecksRunnerComponentName, requiredComponents.ClusterChecksRunner); len(err) > 0 {
+	if err := global.ApplyGlobalComponentDependencies(logger, dda.GetObjectMeta(), &dda.Spec, &dda.Status, resourceManagers, datadoghqv2alpha1.ClusterChecksRunnerComponentName, requiredComponents.ClusterChecksRunner, false); len(err) > 0 {
 		errs = append(errs, err...)
 	}
 
@@ -80,7 +80,7 @@ func (r *Reconciler) manageFeatureDependencies(logger logr.Logger, features []fe
 
 // overrideDependencies wraps the dependency override logic.
 func (r *Reconciler) overrideDependencies(logger logr.Logger, resourceManagers feature.ResourceManagers, instance *datadoghqv2alpha1.DatadogAgent) error {
-	errs := override.Dependencies(logger, resourceManagers, instance)
+	errs := override.Dependencies(logger, resourceManagers, instance.GetObjectMeta(), &instance.Spec)
 	if len(errs) > 0 {
 		return errors.NewAggregate(errs)
 	}
@@ -202,10 +202,11 @@ func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, logger log
 	var errs []error
 	errs = append(errs, depsStore.Apply(ctx, r.client)...)
 	if len(errs) > 0 {
-		logger.V(2).Info("Dependencies apply error", "errs", errs)
+		logger.Error(errors.NewAggregate(errs), "Dependencies apply error")
 		return errors.NewAggregate(errs)
 	}
 	if errs = depsStore.Cleanup(ctx, r.client); len(errs) > 0 {
+		logger.Error(errors.NewAggregate(errs), "Dependencies cleanup error")
 		return errors.NewAggregate(errs)
 	}
 	return nil
@@ -215,9 +216,14 @@ func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, logger log
 // If an existing DCA token is present, it is copied to the new status.
 func generateNewStatusFromDDA(ddaStatus *datadoghqv2alpha1.DatadogAgentStatus) *datadoghqv2alpha1.DatadogAgentStatus {
 	status := &datadoghqv2alpha1.DatadogAgentStatus{}
-	if ddaStatus != nil && ddaStatus.ClusterAgent != nil && ddaStatus.ClusterAgent.GeneratedToken != "" {
-		status.ClusterAgent = &datadoghqv2alpha1.DeploymentStatus{
-			GeneratedToken: ddaStatus.ClusterAgent.GeneratedToken,
+	if ddaStatus != nil {
+		if ddaStatus.ClusterAgent != nil && ddaStatus.ClusterAgent.GeneratedToken != "" {
+			status.ClusterAgent = &datadoghqv2alpha1.DeploymentStatus{
+				GeneratedToken: ddaStatus.ClusterAgent.GeneratedToken,
+			}
+		}
+		if ddaStatus.RemoteConfigConfiguration != nil {
+			status.RemoteConfigConfiguration = ddaStatus.RemoteConfigConfiguration
 		}
 	}
 	return status

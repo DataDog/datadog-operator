@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -54,6 +55,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 	agentEnabled := requiredComponents.Agent.IsEnabled()
 	singleContainerStrategyEnabled := requiredComponents.Agent.SingleContainerStrategyEnabled()
+	instanceName := GetAgentInstanceLabelValue(dda, profile.Name, profile.Namespace, constants.DefaultAgentResourceSuffix)
 
 	// When EDS is enabled and there are profiles defined, we only create an
 	// EDS for the default profile, for the other profiles we create
@@ -67,7 +69,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
 
 		// Set Global setting on the default extendeddaemonset
-		global.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
+		global.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda.GetObjectMeta(), &dda.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
 
 		// Apply features changes on the Deployment.Spec.Template
 		for _, feat := range features {
@@ -135,10 +137,10 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	}
 
 	// Start by creating the Default Agent daemonset
-	daemonset = componentagent.NewDefaultAgentDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
+	daemonset = componentagent.NewDefaultAgentDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent, instanceName)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 	// Set Global setting on the default daemonset
-	global.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
+	global.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda.GetObjectMeta(), &dda.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
@@ -280,9 +282,10 @@ func (r *Reconciler) handleProfiles(ctx context.Context, profilesByNode map[stri
 		return err
 	}
 
-	if err := r.cleanupPodsForProfilesThatNoLongerApply(ctx, profilesByNode, ddaNamespace); err != nil {
-		return err
-	}
+	// TODO: re-evaluate if this is needed
+	// if err := r.cleanupPodsForProfilesThatNoLongerApply(ctx, profilesByNode, ddaNamespace); err != nil {
+	// 	return err
+	// }
 
 	return nil
 }
@@ -358,50 +361,51 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 // might not always be evicted when there's a change in the profiles to apply.
 // Notice that "RequiredDuringSchedulingRequiredDuringExecution" is not
 // available in Kubernetes yet.
-func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context, profilesByNode map[string]types.NamespacedName, ddaNamespace string) error {
-	agentPods := &corev1.PodList{}
-	err := r.client.List(
-		ctx,
-		agentPods,
-		client.MatchingLabels(map[string]string{
-			apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-		}),
-		client.InNamespace(ddaNamespace),
-	)
-	if err != nil {
-		return err
-	}
+// func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context, profilesByNode map[string]types.NamespacedName, ddaNamespace string) error {
+// 	agentPods := &corev1.PodList{}
+// 	err := r.client.List(
+// 		ctx,
+// 		agentPods,
+// 		client.MatchingLabels(map[string]string{
+// 			apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+// 		}),
+// 		client.InNamespace(ddaNamespace),
+// 	)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	for _, agentPod := range agentPods.Items {
-		profileNamespacedName, found := profilesByNode[agentPod.Spec.NodeName]
-		if !found {
-			continue
-		}
+// 	for _, agentPod := range agentPods.Items {
+// 		profileNamespacedName, found := profilesByNode[agentPod.Spec.NodeName]
+// 		if !found {
+// 			continue
+// 		}
 
-		isDefaultProfile := agentprofile.IsDefaultProfile(profileNamespacedName.Namespace, profileNamespacedName.Name)
-		expectedProfileLabelValue := profileNamespacedName.Name
+// 		isDefaultProfile := agentprofile.IsDefaultProfile(profileNamespacedName.Namespace, profileNamespacedName.Name)
+// 		expectedProfileLabelValue := profileNamespacedName.Name
 
-		profileLabelValue, profileLabelExists := agentPod.Labels[agentprofile.ProfileLabelKey]
+// 		profileLabelValue, profileLabelExists := agentPod.Labels[agentprofile.ProfileLabelKey]
 
-		deletePod := (isDefaultProfile && profileLabelExists) ||
-			(!isDefaultProfile && !profileLabelExists) ||
-			(!isDefaultProfile && profileLabelValue != expectedProfileLabelValue)
+// 		deletePod := (isDefaultProfile && profileLabelExists) ||
+// 			(!isDefaultProfile && !profileLabelExists) ||
+// 			(!isDefaultProfile && profileLabelValue != expectedProfileLabelValue)
 
-		if deletePod {
-			toDelete := corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: agentPod.Namespace,
-					Name:      agentPod.Name,
-				},
-			}
-			if err = r.client.Delete(ctx, &toDelete); err != nil && !errors.IsNotFound(err) {
-				return err
-			}
-		}
-	}
+// 		if deletePod {
+// 			toDelete := corev1.Pod{
+// 				ObjectMeta: metav1.ObjectMeta{
+// 					Namespace: agentPod.Namespace,
+// 					Name:      agentPod.Name,
+// 				},
+// 			}
+// 			r.log.Info("Deleting pod for profile cleanup", "pod.Namespace", toDelete.Namespace, "pod.Name", toDelete.Name)
+// 			if err = r.client.Delete(ctx, &toDelete); err != nil && !errors.IsNotFound(err) {
+// 				return err
+// 			}
+// 		}
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 // cleanupExtraneousDaemonSets deletes DSs/EDSs that no longer apply.
 // Use cases include deleting old DSs/EDSs when:
@@ -416,7 +420,7 @@ func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger log
 		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
 	}
 
-	dsName := component.GetDaemonSetNameFromDatadogAgent(dda)
+	dsName := component.GetDaemonSetNameFromDatadogAgent(dda, &dda.Spec)
 	validDaemonSetNames, validExtendedDaemonSetNames := r.getValidDaemonSetNames(dsName, providerList, profiles)
 
 	// Only the default profile uses an EDS when profiles are enabled
@@ -519,4 +523,15 @@ func (r *Reconciler) getValidDaemonSetNames(dsName string, providerList map[stri
 	}
 
 	return validDaemonSetNames, validExtendedDaemonSetNames
+}
+
+// GetAgentInstanceLabelValue returns the instance name for the agent
+// The current and default is DDA name + suffix (e.g. -cluster-agent)
+// This is used when profiles are disabled or for the default profile
+// If the update selector annotation is set to true, we use the DDA name + profile name for profile DSs
+func GetAgentInstanceLabelValue(dda metav1.Object, profileName, profileNamespace, suffix string) string {
+	if profileName == "" || agentprofile.IsDefaultProfile(profileNamespace, profileName) {
+		return fmt.Sprintf("%s-%s", dda.GetName(), suffix)
+	}
+	return fmt.Sprintf(profileDDAINameTemplate, dda.GetName(), profileName)
 }

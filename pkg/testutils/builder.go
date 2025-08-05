@@ -40,7 +40,7 @@ func NewDatadogAgentBuilder() *DatadogAgentBuilder {
 // NewDefaultDatadogAgentBuilder created DatadogAgent and applies defaults
 func NewDefaultDatadogAgentBuilder() *DatadogAgentBuilder {
 	dda := &v2alpha1.DatadogAgent{}
-	defaults.DefaultDatadogAgent(dda)
+	defaults.DefaultDatadogAgentSpec(&dda.Spec)
 
 	return &DatadogAgentBuilder{
 		datadogAgent: *dda,
@@ -64,7 +64,7 @@ func (builder *DatadogAgentBuilder) Build() *v2alpha1.DatadogAgent {
 
 // BuildWithDefaults applies defaults to current properties and returns resulting DatadogAgent
 func (builder *DatadogAgentBuilder) BuildWithDefaults() *v2alpha1.DatadogAgent {
-	defaults.DefaultDatadogAgent(&builder.datadogAgent)
+	defaults.DefaultDatadogAgentSpec(&builder.datadogAgent.Spec)
 	return &builder.datadogAgent
 }
 
@@ -136,8 +136,13 @@ func (builder *DatadogAgentBuilder) WithDogstatsdMapperProfiles(customMapperProf
 	return builder
 }
 
-// Live ContainerCollection
+func (builder *DatadogAgentBuilder) WithDogstatsdNonLocalTraffic(enabled bool) *DatadogAgentBuilder {
+	builder.initDogstatsd()
+	builder.datadogAgent.Spec.Features.Dogstatsd.NonLocalTraffic = apiutils.NewBoolPointer(enabled)
+	return builder
+}
 
+// Live ContainerCollection
 func (builder *DatadogAgentBuilder) initLiveContainer() {
 	if builder.datadogAgent.Spec.Features.LiveContainerCollection == nil {
 		builder.datadogAgent.Spec.Features.LiveContainerCollection = &v2alpha1.LiveContainerCollectionFeatureConfig{}
@@ -434,6 +439,24 @@ func (builder *DatadogAgentBuilder) WithOTelCollectorConfigMap() *DatadogAgentBu
 	builder.datadogAgent.Spec.Features.OtelCollector.Conf = &v2alpha1.CustomConfig{}
 	builder.datadogAgent.Spec.Features.OtelCollector.Conf.ConfigMap = &v2alpha1.ConfigMapConfig{
 		Name: "user-provided-config-map",
+	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTelCollectorConfigMapMultipleItems() *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.OtelCollector.Conf = &v2alpha1.CustomConfig{}
+	builder.datadogAgent.Spec.Features.OtelCollector.Conf.ConfigMap = &v2alpha1.ConfigMapConfig{
+		Name: "user-provided-config-map",
+		Items: []corev1.KeyToPath{
+			{
+				Key:  "otel-config.yaml",
+				Path: "otel-config.yaml",
+			},
+			{
+				Key:  "otel-config-two.yaml",
+				Path: "otel-config-two.yaml",
+			},
+		},
 	}
 	return builder
 }

@@ -46,6 +46,7 @@ const (
 	CustomResourceDefinitionsResource   = "customresourcedefinitions"
 	DaemonsetsResource                  = "daemonsets"
 	DatadogAgentsResource               = "datadogagents"
+	DatadogAgentInternalsResource       = "datadogagentinternals"
 	DatadogMetricsResource              = "datadogmetrics"
 	DatadogMetricsStatusResource        = "datadogmetrics/status"
 	DatadogPodAutoscalersResource       = "datadogpodautoscalers"

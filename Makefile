@@ -170,7 +170,7 @@ docker-build-check-ci:
 # For Gitlab use
 .PHONY: docker-build-push-ci
 docker-build-push-ci:
-	docker buildx build . -t ${IMG} --build-arg FIPS_ENABLED="${FIPS_ENABLED}" --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}" --platform=linux/${GOARCH} --push
+	docker buildx build . -t ${IMG} --build-arg FIPS_ENABLED="${FIPS_ENABLED}" --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}" --platform=linux/${GOARCH} --output=type=image,oci-mediatypes=true --push
 
 # For Gitlab use
 .PHONY: docker-build-push-check-ci
@@ -342,7 +342,7 @@ bin/$(PLATFORM)/jq: Makefile
 	hack/install-jq.sh 1.7.1
 
 bin/$(PLATFORM)/golangci-lint: Makefile
-	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v1.61.0
+	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v1.64.8
 
 bin/$(PLATFORM)/operator-sdk: Makefile
 	hack/install-operator-sdk.sh v1.34.1

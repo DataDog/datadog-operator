@@ -14,8 +14,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/store"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -69,7 +69,9 @@ func (r *Reconciler) finalizeDDAI(reqLogger logr.Logger, obj client.Object) erro
 
 	// Namespaced resources from the store are deleted thanks to owner references.
 	// Cluster level resources must be deleted manually since they cannot have an owner reference.
-	r.cleanUpClusterLevelResources(reqLogger, obj)
+	if err := r.cleanUpClusterLevelResources(obj); err != nil {
+		return err
+	}
 
 	if err := r.profilesCleanup(); err != nil {
 		return err
@@ -129,11 +131,17 @@ func (r *Reconciler) profilesCleanup() error {
 	return nil
 }
 
-func (r *Reconciler) cleanUpClusterLevelResources(_ logr.Logger, ddai client.Object) error {
+func (r *Reconciler) cleanUpClusterLevelResources(ddai client.Object) error {
 	// Cluster level resources must be deleted manually since they cannot have an owner reference
-	deleteObjectsForResource(r.client, ddai, kubernetes.ObjectFromKind(kubernetes.ClusterRolesKind, r.platformInfo))
-	deleteObjectsForResource(r.client, ddai, kubernetes.ObjectFromKind(kubernetes.ClusterRoleBindingKind, r.platformInfo))
-	deleteObjectsForResource(r.client, ddai, kubernetes.ObjectFromKind(kubernetes.APIServiceKind, r.platformInfo))
+	if err := deleteObjectsForResource(r.client, ddai, kubernetes.ObjectFromKind(kubernetes.ClusterRolesKind, r.platformInfo)); err != nil {
+		return err
+	}
+	if err := deleteObjectsForResource(r.client, ddai, kubernetes.ObjectFromKind(kubernetes.ClusterRoleBindingKind, r.platformInfo)); err != nil {
+		return err
+	}
+	if err := deleteObjectsForResource(r.client, ddai, kubernetes.ObjectFromKind(kubernetes.APIServiceKind, r.platformInfo)); err != nil {
+		return err
+	}
 
 	return nil
 }

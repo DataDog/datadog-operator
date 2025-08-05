@@ -16,6 +16,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -30,6 +31,7 @@ import (
 const (
 	updateSucceeded = "UpdateSucceeded"
 	createSucceeded = "CreateSucceeded"
+	patchSucceeded  = "PatchSucceeded"
 )
 
 type updateDepStatusComponentFunc func(deployment *appsv1.Deployment, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
@@ -42,7 +44,7 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, ddai *da
 	var result reconcile.Result
 	var err error
 
-	// Set DatadogAgent instance as the owner and controller
+	// Set DatadogAgentInternal instance as the owner and controller
 	if err = controllerutil.SetControllerReference(ddai, deployment, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -74,6 +76,25 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, ddai *da
 	}
 
 	if alreadyExists {
+		// check owner reference
+		if shouldUpdateOwnerReference(currentDeployment.OwnerReferences) {
+			logger.Info("Updating Deployment owner reference")
+			now := metav1.NewTime(time.Now())
+			patch, e := createOwnerReferencePatch(currentDeployment.OwnerReferences, ddai, ddai.GetObjectKind().GroupVersionKind())
+			if e != nil {
+				logger.Error(e, "Unable to patch Deployment owner reference")
+				updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, patchSucceeded, "Unable to patch Deployment owner reference")
+				return reconcile.Result{}, e
+			}
+			// use merge patch to replace the entire existing owner reference list
+			err = r.client.Patch(context.TODO(), currentDeployment, client.RawPatch(types.MergePatchType, patch))
+			if err != nil {
+				logger.Error(err, "Unable to patch Deployment owner reference")
+				updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, patchSucceeded, "Unable to patch Deployment owner reference")
+				return reconcile.Result{}, err
+			}
+			logger.Info("Deployment owner reference patched")
+		}
 		// check if same hash
 		needUpdate := !comparison.IsSameSpecMD5Hash(hash, currentDeployment.GetAnnotations())
 		if !needUpdate {
@@ -154,6 +175,25 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, ddai *dat
 	}
 
 	if alreadyExists {
+		// check owner reference
+		if shouldUpdateOwnerReference(currentDaemonset.OwnerReferences) {
+			logger.Info("Updating Daemonset owner reference")
+			now := metav1.NewTime(time.Now())
+			patch, e := createOwnerReferencePatch(currentDaemonset.OwnerReferences, ddai, ddai.GetObjectKind().GroupVersionKind())
+			if e != nil {
+				logger.Error(e, "Unable to patch Daemonset owner reference")
+				updateStatusFunc(currentDaemonset.Name, currentDaemonset, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to patch Daemonset owner reference")
+				return reconcile.Result{}, e
+			}
+			// use merge patch to replace the entire existing owner reference list
+			err = r.client.Patch(context.TODO(), currentDaemonset, client.RawPatch(types.MergePatchType, patch))
+			if err != nil {
+				logger.Error(err, "Unable to patch Daemonset owner reference")
+				updateStatusFunc(currentDaemonset.Name, currentDaemonset, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to patch Daemonset owner reference")
+				return reconcile.Result{}, err
+			}
+			logger.Info("Daemonset owner reference patched")
+		}
 		now := metav1.Now()
 
 		// When overriding node labels in <1.7.0, the hash could be updated
@@ -289,6 +329,26 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, d
 	}
 
 	if alreadyExists {
+		// check owner reference
+		if shouldUpdateOwnerReference(currentEDS.OwnerReferences) {
+			logger.Info("Updating ExtendedDaemonSet owner reference")
+			now := metav1.NewTime(time.Now())
+			patch, e := createOwnerReferencePatch(currentEDS.OwnerReferences, ddai, ddai.GetObjectKind().GroupVersionKind())
+			if e != nil {
+				logger.Error(e, "Unable to patch ExtendedDaemonSet owner reference")
+				updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, patchSucceeded, "Unable to patch ExtendedDaemonSet owner reference")
+				return reconcile.Result{}, e
+			}
+			// use merge patch to replace the entire existing owner reference list
+			err = r.client.Patch(context.TODO(), currentEDS, client.RawPatch(types.MergePatchType, patch))
+			if err != nil {
+				logger.Error(err, "Unable to patch ExtendedDaemonSet owner reference")
+				updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, patchSucceeded, "Unable to patch ExtendedDaemonSet owner reference")
+				return reconcile.Result{}, err
+			}
+			logger.Info("ExtendedDaemonSet owner reference patched")
+		}
+
 		// check if same hash
 		needUpdate := !comparison.IsSameSpecMD5Hash(hash, currentEDS.GetAnnotations())
 		if !needUpdate {
