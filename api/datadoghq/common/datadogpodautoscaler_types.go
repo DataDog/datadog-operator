@@ -180,6 +180,7 @@ const (
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerObjectiveValue struct {
 	// Type specifies how the value is expressed (possible values: Utilization).
+	// +kubebuilder:validation:Enum:=Utilization
 	Type DatadogPodAutoscalerObjectiveValueType `json:"type"`
 
 	// Utilization defines a percentage of the target compared to requested workload

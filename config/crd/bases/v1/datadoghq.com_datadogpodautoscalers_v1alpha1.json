@@ -343,6 +343,9 @@
                     "properties": {
                       "type": {
                         "description": "Type specifies how the value is expressed (possible values: Utilization).",
+                        "enum": [
+                          "Utilization"
+                        ],
                         "type": "string"
                       },
                       "utilization": {
@@ -383,6 +386,9 @@
                     "properties": {
                       "type": {
                         "description": "Type specifies how the value is expressed (possible values: Utilization).",
+                        "enum": [
+                          "Utilization"
+                        ],
                         "type": "string"
                       },
                       "utilization": {
