@@ -26,6 +26,31 @@ then
 fi
 
 docker build --pull --platform linux/amd64 --no-cache --build-arg TAG="$FULL_TAG" --tag "$REGISTRY/deployer:$FULL_TAG" . && docker push "$REGISTRY/deployer:$FULL_TAG"
-gcrane mutate --annotation "com.googleapis.cloudmarketplace.product.service.name=datadog" "$REGISTRY/deployer:$FULL_TAG"
+gcrane mutate --annotation "com.googleapis.cloudmarketplace.product.service.name=services/datadog-datadog-saas.cloudpartnerservices.goog" "$REGISTRY/deployer:$FULL_TAG"
 # We use gcloud to add the tag to the existing manifest, as docker push creates a new manifest
 gcloud container images add-tag "$REGISTRY/deployer:$FULL_TAG" "$REGISTRY/deployer:$SHORT_TAG" --quiet
+
+# Get the each platform manifest digest for the operator image
+readarray -t manifest_digests < <(
+  gcrane manifest "$REGISTRY/datadog-operator:$FULL_TAG" | jq -r '.manifests[].digest'
+)
+
+append_manifests = ""
+
+# Mutate each image to add the annotation
+echo "📦 Found ${#manifest_digests[@]} manifest digests:"
+for digest in "${manifest_digests[@]}"; do
+  echo "- $digest"
+  gcrane mutate --annotation "com.googleapis.cloudmarketplace.product.service.name=services/datadog-datadog-saas.cloudpartnerservices.goog" "$REGISTRY/operator@sha256:$digest"
+
+  new_digest=$(gcrane mutate gcr.io/datadog-public/datadog/datadog-operator@$digest \
+    -a com.googleapis.cloudmarketplace.product.service.name=services/datadog-datadog-saas.cloudpartnerservices.goog \
+    | tee /dev/tty | tail -n 1)
+
+  append_cmd+=("-m $new_digest")
+
+done
+
+append_cmd = "gcrane index append" + append_manifests + " -t $REGISTRY/datadog-operator:$FULL_TAG -t $REGISTRY/datadog-operator:$SHORT_TAG"
+
+echo append_cmd
