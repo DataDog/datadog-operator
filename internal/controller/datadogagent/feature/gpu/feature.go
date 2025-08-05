@@ -45,12 +45,17 @@ func (f *gpuFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSp
 		return reqComp
 	}
 
-	reqComp.Agent = feature.RequiredComponent{
-		IsRequired: apiutils.NewBoolPointer(true),
-		Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName},
+	f.isPrivilegedModeEnabled = apiutils.BoolValue(ddaSpec.Features.GPU.PrivilegedMode)
+
+	requiredContainers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
+	if f.isPrivilegedModeEnabled {
+		requiredContainers = append(requiredContainers, apicommon.SystemProbeContainerName)
 	}
 
-	f.isPrivilegedModeEnabled = apiutils.BoolValue(ddaSpec.Features.GPU.PrivilegedMode)
+	reqComp.Agent = feature.RequiredComponent{
+		IsRequired: apiutils.NewBoolPointer(true),
+		Containers: requiredContainers,
+	}
 
 	if ddaSpec.Features.GPU.PodRuntimeClassName == nil {
 		// Configuration option not set, so revert to the default
