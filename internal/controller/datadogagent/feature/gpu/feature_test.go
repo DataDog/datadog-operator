@@ -187,7 +187,7 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 			},
 		}
 
-		wantAgentEnvVars := append([]*corev1.EnvVar{
+		wantAgentEnvVars := []*corev1.EnvVar{
 			{
 				Name:  common.DDKubernetesPodResourcesSocket,
 				Value: path.Join(podResourcesSocketPath, "kubelet.sock"),
@@ -200,13 +200,21 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 				Name:  DDEnableGPUMonitoringCheckEnvVar,
 				Value: "true",
 			},
-		}, wantSystemProbeEnvVars...)
+			{
+				Name:  common.DDSystemProbeSocket,
+				Value: common.DefaultSystemProbeSocketPath,
+			},
+			{
+				Name:  NVIDIAVisibleDevicesEnvVar,
+				Value: "all",
+			},
+		}
 
 		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 		assert.ElementsMatch(t, agentEnvVars, wantAgentEnvVars)
 
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
-		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, wantSystemProbeEnvVars), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, wantSystemProbeEnvVars))
+		assert.ElementsMatch(t, systemProbeEnvVars, wantSystemProbeEnvVars)
 
 		// Check runtime class
 		if expectedRuntimeClass == "" {

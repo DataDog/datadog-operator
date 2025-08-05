@@ -101,9 +101,13 @@ func configureSystemProbe(managers feature.PodTemplateManagers) {
 	// in the NVIDIA container runtime config. In this case, we need to mount the
 	// /var/run/nvidia-container-devices/all directory into the container, so that
 	// the nvidia-container-runtime can see that we want to use all GPUs.
-	devicesVol, devicesMount := volume.GetVolumes(nvidiaDevicesVolumeName, devNullPath, nvidiaDevicesMountPath, true)
-	managers.Volume().AddVolume(&devicesVol)
-	managers.VolumeMount().AddVolumeMountToContainer(&devicesMount, apicommon.SystemProbeContainerName)
+	nvidiaDevicesMount := &corev1.VolumeMount{
+		Name:      nvidiaDevicesVolumeName,
+		MountPath: nvidiaDevicesMountPath,
+		ReadOnly:  true,
+	}
+
+	managers.VolumeMount().AddVolumeMountToContainer(nvidiaDevicesMount, apicommon.SystemProbeContainerName)
 
 	// socket volume mount (needs write perms for the system probe container but not the others)
 	procdirVol, procdirMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true)
