@@ -44,20 +44,17 @@
   enable-all = true
   disable = [
     "exhaustruct",
-    "exportloopref",
     "nonamedreturns",
     "revive",
     "lll",
     "gosec",
     "dupl",
-    "execinquery",
     "gocyclo",
     "gochecknoinits",
     "gochecknoglobals",
     "funlen",
     "gocognit",
     "cyclop",
-    "gomnd",
     "wrapcheck",
     "forcetypeassert",
     "err113",
@@ -103,7 +100,8 @@
     "dupword",
     "intrange",
     "mnd",
-    "musttag"
+    "musttag",
+    "tenv"
   ]
 
 [issues]

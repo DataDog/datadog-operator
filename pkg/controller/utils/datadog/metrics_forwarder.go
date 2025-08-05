@@ -7,6 +7,7 @@ package datadog
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/fnv"
@@ -143,9 +144,25 @@ type metricsForwarder struct {
 
 // newMetricsForwarder returns a new Datadog MetricsForwarder instance
 func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj client.Object, platforminfo *kubernetes.PlatformInfo) *metricsForwarder {
+
+	logger := log.WithValues("CustomResource.Namespace", obj.GetNamespace(), "CustomResource.Name", obj.GetName())
+	objKind := obj.GetObjectKind().GroupVersionKind().Kind
+
+	// There is a known bug where the object frequently has empty GVK info. This is a workaround to get object Kind if that happens.
+	// Ref: https://github.com/kubernetes-sigs/controller-runtime/issues/1735
+	if objKind == "" {
+		var lastConfig map[string]interface{}
+		err := json.Unmarshal([]byte(obj.GetAnnotations()["kubectl.kubernetes.io/last-applied-configuration"]), &lastConfig)
+		if err != nil {
+			logger.Info(fmt.Sprintf("Error unmarshalling last applied configuration; custom resource count metric will not be sent. error: %s", err.Error()))
+		} else {
+			objKind = lastConfig["kind"].(string)
+		}
+	}
+
 	return &metricsForwarder{
 		id:                  getObjID(obj),
-		monitoredObjectKind: obj.GetObjectKind().GroupVersionKind().Kind,
+		monitoredObjectKind: objKind,
 		k8sClient:           k8sClient,
 		platformInfo:        platforminfo,
 		namespacedName:      GetNamespacedName(obj),
@@ -159,7 +176,7 @@ func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, o
 		decryptor:           decryptor,
 		creds:               sync.Map{},
 		baseURL:             defaultbaseURL,
-		logger:              log.WithValues("CustomResource.Namespace", obj.GetNamespace(), "CustomResource.Name", obj.GetName()),
+		logger:              logger,
 		credsManager:        config.NewCredentialManager(),
 		EnabledFeatures:     make(map[string][]string),
 	}
@@ -254,31 +271,30 @@ func (mf *metricsForwarder) setStatus(newStatus *ConditionCommon) {
 }
 
 func (mf *metricsForwarder) setup() error {
-	// Attempt to set up metrics forwarder with Operator credentials manager
-	credsSet, err := mf.setupFromOperator()
+	credsSet := mf.setupFromOperator()
 
-	// If there was an error or if the clusterName was not set from the Operator,
-	// and this is a DDA forwarder, then try to get clusterName from the DDA
-	if (err != nil || mf.clusterName == "") && mf.monitoredObjectKind == datadogAgentKind {
+	// If this is a DDA forwarder, then need to set status metrics from DDA even if credentials were set by the Operator
+	if mf.monitoredObjectKind == datadogAgentKind {
 		dda, err := mf.getDatadogAgent()
 		if err != nil {
 			mf.logger.Error(err, "cannot retrieve DatadogAgent to get Datadog credentials, will retry later...")
 			return err
 		}
 		return mf.setupFromDDA(dda, credsSet)
-	} else {
-		return nil
 	}
+
+	return nil
+
 }
 
-func (mf *metricsForwarder) setupFromOperator() (bool, error) {
+func (mf *metricsForwarder) setupFromOperator() bool {
 	if mf.credsManager == nil {
-		return false, fmt.Errorf("Credentials Manager is undefined")
+		return false
 	}
 
 	creds, err := mf.credsManager.GetCredentials()
 	if err != nil {
-		return false, err
+		return false
 	}
 
 	// API key
@@ -286,7 +302,7 @@ func (mf *metricsForwarder) setupFromOperator() (bool, error) {
 
 	// base URL
 	mf.baseURL = defaultbaseURL
-	mf.logger.V(1).Info("Got API URL for the Datadog Operator", "site", mf.baseURL)
+
 	if os.Getenv(constants.DDddURL) != "" {
 		mf.baseURL = os.Getenv(constants.DDddURL)
 	} else if os.Getenv(constants.DDURL) != "" {
@@ -295,21 +311,17 @@ func (mf *metricsForwarder) setupFromOperator() (bool, error) {
 		mf.baseURL = urlPrefix + strings.TrimSpace(site)
 	}
 
+	mf.logger.V(1).Info("Got API URL for the Datadog Operator", "site", mf.baseURL)
+
 	// cluster name
 	mf.clusterName = os.Getenv(constants.DDClusterName)
-	return true, nil
+	return true
 }
 
 func (mf *metricsForwarder) setupFromDDA(dda *v2alpha1.DatadogAgent, credsSetFromOperator bool) error {
 	if !credsSetFromOperator {
 		mf.baseURL = getbaseURL(dda)
 		mf.logger.V(1).Info("Got API URL for DatadogAgent", "site", mf.baseURL)
-		mf.labels = dda.GetLabels()
-
-		status := dda.Status.DeepCopy()
-		mf.dsStatus = status.AgentList
-		mf.dcaStatus = status.ClusterAgent
-		mf.ccrStatus = status.ClusterChecksRunner
 
 		// set apiKey
 		apiKey, err := mf.getCredentialsFromDDA(dda)
@@ -319,7 +331,14 @@ func (mf *metricsForwarder) setupFromDDA(dda *v2alpha1.DatadogAgent, credsSetFro
 		mf.apiKey = apiKey
 	}
 
-	if dda.Spec.Global != nil && dda.Spec.Global.ClusterName != nil {
+	mf.labels = dda.GetLabels()
+
+	status := dda.Status.DeepCopy()
+	mf.dsStatus = status.AgentList
+	mf.dcaStatus = status.ClusterAgent
+	mf.ccrStatus = status.ClusterChecksRunner
+
+	if mf.clusterName == "" && dda.Spec.Global != nil && dda.Spec.Global.ClusterName != nil {
 		mf.clusterName = *dda.Spec.Global.ClusterName
 	}
 
@@ -809,6 +828,11 @@ var objectKindToSnake = map[string]string{
 }
 
 func (mf *metricsForwarder) sendResourceCountMetric() error {
+	// At start mf.monitoredObjectKind may be empty; don't send metric in this case
+	if _, ok := objectKindToSnake[mf.monitoredObjectKind]; !ok {
+		return nil
+	}
+
 	ts := float64(time.Now().Unix())
 	metricName := fmt.Sprintf(customResourceFormat, mf.metricsPrefix, objectKindToSnake[mf.monitoredObjectKind])
 	tags := append(mf.tags, mf.globalTags...)
