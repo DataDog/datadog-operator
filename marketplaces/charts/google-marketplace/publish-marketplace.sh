@@ -12,9 +12,10 @@ FULL_TAG=$1
 SHORT_TAG=$(echo "$FULL_TAG" | cut -d '.' -f 1-2)
 
 # Determine the script directory
-SCRIPTS_DIR="../../../hack"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OS_ENV_SCRIPT="$SCRIPT_DIR/../../../hack/os-env.sh"
 # Source common installation variables and functions
-source "$SCRIPTS_DIR/os-env.sh"
+source "$OS_ENV_SCRIPT"
 
 echo "### Copying operator '$FULL_TAG/$SHORT_TAG' from DockerHub to '$REGISTRY/operator'"
 
