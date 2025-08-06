@@ -72,21 +72,9 @@ func (f *dogstatsdFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datado
 
 	// Check if autopilot is enabled and override defaults accordingly
 	if experimental.IsAutopilotEnabled(dda) {
-		if dogstatsd.HostPortConfig.Enabled == nil {
-			f.hostPortEnabled = true
-			f.hostPortHostPort = *dogstatsd.HostPortConfig.Port
-		} else {
-			f.hostPortEnabled = apiutils.BoolValue(dogstatsd.HostPortConfig.Enabled)
-			if f.hostPortEnabled {
-				f.hostPortHostPort = *dogstatsd.HostPortConfig.Port
-			}
-		}
-
-		if dogstatsd.UnixDomainSocketConfig.Enabled == nil {
-			f.udsEnabled = false
-		} else {
-			f.udsEnabled = apiutils.BoolValue(dogstatsd.UnixDomainSocketConfig.Enabled)
-		}
+		f.hostPortEnabled = true
+		f.hostPortHostPort = *dogstatsd.HostPortConfig.Port
+		f.udsEnabled = false
 	} else {
 		f.hostPortEnabled = apiutils.BoolValue(dogstatsd.HostPortConfig.Enabled)
 		if f.hostPortEnabled {

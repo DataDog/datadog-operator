@@ -131,17 +131,8 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 
 		// Check if autopilot is enabled and override defaults accordingly
 		if experimental.IsAutopilotEnabled(dda) {
-			if apm.HostPortConfig.Enabled == nil {
-				f.hostPortEnabled = true
-			} else {
-				f.hostPortEnabled = apiutils.BoolValue(apm.HostPortConfig.Enabled)
-			}
-
-			if apm.UnixDomainSocketConfig.Enabled == nil {
-				f.udsEnabled = false
-			} else {
-				f.udsEnabled = apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled)
-			}
+			f.hostPortEnabled = true
+			f.udsEnabled = false
 		} else {
 			f.hostPortEnabled = apiutils.BoolValue(apm.HostPortConfig.Enabled)
 			f.udsEnabled = apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled)
