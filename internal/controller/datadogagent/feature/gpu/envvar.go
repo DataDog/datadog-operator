@@ -12,6 +12,5 @@ const DDEnableGPUProbeEnvVar = "DD_GPU_MONITORING_ENABLED"
 const DDEnableGPUMonitoringCheckEnvVar = "DD_GPU_ENABLED"
 
 // DDEnableNVMLDetectionEnvVar is deprecated and will be removed in a future release
-// DDEnableNVMLDetectionEnvVar is deprecated and will be removed in a future release.
 const DDEnableNVMLDetectionEnvVar = "DD_ENABLE_NVML_DETECTION"
 const NVIDIAVisibleDevicesEnvVar = "NVIDIA_VISIBLE_DEVICES"
