@@ -1070,5 +1070,6 @@ func (builder *DatadogAgentBuilder) initGPUMonitoring() {
 func (builder *DatadogAgentBuilder) WithGPUMonitoringEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initGPUMonitoring()
 	builder.datadogAgent.Spec.Features.GPU.Enabled = apiutils.NewBoolPointer(enabled)
+	builder.datadogAgent.Spec.Features.GPU.PrivilegedMode = apiutils.NewBoolPointer(enabled)
 	return builder
 }
