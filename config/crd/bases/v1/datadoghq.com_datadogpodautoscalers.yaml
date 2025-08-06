@@ -325,6 +325,8 @@ spec:
                             properties:
                               type:
                                 description: 'Type specifies how the value is expressed (possible values: Utilization).'
+                                enum:
+                                  - Utilization
                                 type: string
                               utilization:
                                 description: Utilization defines a percentage of the target compared to requested workload
@@ -353,6 +355,8 @@ spec:
                             properties:
                               type:
                                 description: 'Type specifies how the value is expressed (possible values: Utilization).'
+                                enum:
+                                  - Utilization
                                 type: string
                               utilization:
                                 description: Utilization defines a percentage of the target compared to requested workload
@@ -868,6 +872,8 @@ spec:
                             properties:
                               type:
                                 description: 'Type specifies how the value is expressed (possible values: Utilization).'
+                                enum:
+                                  - Utilization
                                 type: string
                               utilization:
                                 description: Utilization defines a percentage of the target compared to requested workload
@@ -896,6 +902,8 @@ spec:
                             properties:
                               type:
                                 description: 'Type specifies how the value is expressed (possible values: Utilization).'
+                                enum:
+                                  - Utilization
                                 type: string
                               utilization:
                                 description: Utilization defines a percentage of the target compared to requested workload

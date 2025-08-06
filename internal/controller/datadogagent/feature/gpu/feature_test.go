@@ -39,12 +39,21 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 	}
 	ddaGPUMonitoringEnabled := ddaGPUMonitoringDisabled.DeepCopy()
 	ddaGPUMonitoringEnabled.Spec.Features.GPU.Enabled = apiutils.NewBoolPointer(true)
+	ddaGPUMonitoringEnabled.Spec.Features.GPU.PrivilegedMode = apiutils.NewBoolPointer(true)
 
 	ddaGPUMonitoringEnabledAlternativeRuntimeClass := ddaGPUMonitoringEnabled.DeepCopy()
 	ddaGPUMonitoringEnabledAlternativeRuntimeClass.Spec.Features.GPU.PodRuntimeClassName = apiutils.NewStringPointer(alternativeRuntimeClass)
 
 	ddaGPUMonitoringEnabledANoRuntimeClass := ddaGPUMonitoringEnabled.DeepCopy()
 	ddaGPUMonitoringEnabledANoRuntimeClass.Spec.Features.GPU.PodRuntimeClassName = apiutils.NewStringPointer("")
+
+	ddaGPUCoreCheckOnly := ddaGPUMonitoringDisabled.DeepCopy()
+	ddaGPUCoreCheckOnly.Spec.Features.GPU.Enabled = apiutils.NewBoolPointer(true)
+	ddaGPUCoreCheckOnly.Spec.Features.GPU.PrivilegedMode = apiutils.NewBoolPointer(false)
+
+	ddaGPUInvalidConfig := ddaGPUMonitoringDisabled.DeepCopy()
+	ddaGPUInvalidConfig.Spec.Features.GPU.Enabled = apiutils.NewBoolPointer(false)
+	ddaGPUInvalidConfig.Spec.Features.GPU.PrivilegedMode = apiutils.NewBoolPointer(true)
 
 	GPUMonitoringAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers, expectedRuntimeClass string) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -169,7 +178,7 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 				Value: common.DefaultSystemProbeSocketPath,
 			},
 			{
-				Name:  DDEnableGPUMonitoringEnvVar,
+				Name:  DDEnableGPUProbeEnvVar,
 				Value: "true",
 			},
 			{
@@ -178,7 +187,7 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 			},
 		}
 
-		wantAgentEnvVars := append([]*corev1.EnvVar{
+		wantAgentEnvVars := []*corev1.EnvVar{
 			{
 				Name:  common.DDKubernetesPodResourcesSocket,
 				Value: path.Join(podResourcesSocketPath, "kubelet.sock"),
@@ -188,16 +197,108 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 				Value: "true",
 			},
 			{
-				Name:  DDCollectGPUTagsEnvVar,
+				Name:  DDEnableGPUMonitoringCheckEnvVar,
 				Value: "true",
 			},
-		}, wantSystemProbeEnvVars...)
+			{
+				Name:  common.DDSystemProbeSocket,
+				Value: common.DefaultSystemProbeSocketPath,
+			},
+			{
+				Name:  NVIDIAVisibleDevicesEnvVar,
+				Value: "all",
+			},
+		}
 
 		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 		assert.ElementsMatch(t, agentEnvVars, wantAgentEnvVars)
 
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
-		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, wantSystemProbeEnvVars), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, wantSystemProbeEnvVars))
+		assert.ElementsMatch(t, systemProbeEnvVars, wantSystemProbeEnvVars)
+
+		// Check runtime class
+		if expectedRuntimeClass == "" {
+			assert.Nil(t, mgr.PodTemplateSpec().Spec.RuntimeClassName)
+		} else {
+			assert.Equal(t, expectedRuntimeClass, *mgr.PodTemplateSpec().Spec.RuntimeClassName)
+		}
+	}
+
+	GPUCoreCheckOnlyWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers, expectedRuntimeClass string) {
+		mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+		// check that system probe capabilities are NOT set for core-check only
+		sysProbeCapabilities := mgr.SecurityContextMgr.CapabilitiesByC[apicommon.SystemProbeContainerName]
+		assert.Nil(t, sysProbeCapabilities, "System Probe should not have capabilities when privileged mode is disabled")
+
+		// check volume mounts - core agent should only have nvidia devices and kubelet socket
+		wantCoreAgentVolMounts := []*corev1.VolumeMount{
+			{
+				Name:      nvidiaDevicesVolumeName,
+				MountPath: nvidiaDevicesMountPath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      common.KubeletPodResourcesVolumeName,
+				MountPath: podResourcesSocketPath,
+				ReadOnly:  false,
+			},
+		}
+
+		coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.CoreAgentContainerName]
+		assert.ElementsMatch(t, coreAgentVolumeMounts, wantCoreAgentVolMounts)
+
+		// check that system probe has NO volume mounts for core-check only
+		systemProbeVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.SystemProbeContainerName]
+		assert.Empty(t, systemProbeVolumeMounts, "System Probe should not have volume mounts when privileged mode is disabled")
+
+		// check volumes - should only have nvidia devices and kubelet socket
+		wantVolumes := []*corev1.Volume{
+			{
+				Name: nvidiaDevicesVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: devNullPath,
+					},
+				},
+			},
+			{
+				Name: common.KubeletPodResourcesVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{Path: podResourcesSocketPath},
+				},
+			},
+		}
+
+		volumes := mgr.VolumeMgr.Volumes
+		assert.ElementsMatch(t, volumes, wantVolumes)
+
+		// check env vars - core agent should have GPU monitoring check enabled
+		wantAgentEnvVars := []*corev1.EnvVar{
+			{
+				Name:  common.DDKubernetesPodResourcesSocket,
+				Value: path.Join(podResourcesSocketPath, "kubelet.sock"),
+			},
+			{
+				Name:  DDEnableNVMLDetectionEnvVar,
+				Value: "true",
+			},
+			{
+				Name:  DDEnableGPUMonitoringCheckEnvVar,
+				Value: "true",
+			},
+			{
+				Name:  NVIDIAVisibleDevicesEnvVar,
+				Value: "all",
+			},
+		}
+
+		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+		assert.ElementsMatch(t, agentEnvVars, wantAgentEnvVars)
+
+		// check that system probe has NO env vars for core-check only
+		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
+		assert.Empty(t, systemProbeEnvVars, "System Probe should not have env vars when privileged mode is disabled")
 
 		// Check runtime class
 		if expectedRuntimeClass == "" {
@@ -214,7 +315,15 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
-			Name:          "gpu monitoring enabled",
+			Name:          "gpu core-check only (no privileged mode)",
+			DDA:           ddaGPUCoreCheckOnly,
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+				GPUCoreCheckOnlyWantFunc(t, mgrInterface, defaultGPURuntimeClass)
+			}),
+		},
+		{
+			Name:          "gpu monitoring enabled with privileged mode",
 			DDA:           ddaGPUMonitoringEnabled,
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -237,6 +346,11 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 			Agent: test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 				GPUMonitoringAgentNodeWantFunc(t, mgrInterface, "")
 			}),
+		},
+		{
+			Name:          "gpu invalid config (privileged mode without core-check)",
+			DDA:           ddaGPUInvalidConfig,
+			WantConfigure: false,
 		},
 	}
 

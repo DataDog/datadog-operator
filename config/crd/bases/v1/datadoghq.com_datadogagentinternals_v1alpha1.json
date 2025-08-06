@@ -1493,7 +1493,11 @@
               "description": "GPU monitoring",
               "properties": {
                 "enabled": {
-                  "description": "Enabled enables GPU monitoring.\nDefault: false",
+                  "description": "Enabled enables GPU monitoring core check.\nDefault: false",
+                  "type": "boolean"
+                },
+                "privilegedMode": {
+                  "description": "PrivilegedMode enables GPU Probe module in System Probe.\nDefault: false",
                   "type": "boolean"
                 },
                 "requiredRuntimeClassName": {
@@ -8842,7 +8846,11 @@
                   "description": "GPU monitoring",
                   "properties": {
                     "enabled": {
-                      "description": "Enabled enables GPU monitoring.\nDefault: false",
+                      "description": "Enabled enables GPU monitoring core check.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "privilegedMode": {
+                      "description": "PrivilegedMode enables GPU Probe module in System Probe.\nDefault: false",
                       "type": "boolean"
                     },
                     "requiredRuntimeClassName": {
