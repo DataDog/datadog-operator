@@ -29,8 +29,9 @@ type gpuFeature struct {
 	// podRuntimeClassName is the value to set in the runtimeClassName
 	// configuration of the agent pod. If this is empty, the runtimeClassName
 	// will not be changed.
-	podRuntimeClassName    string
-	podResourcesSocketPath string
+	podRuntimeClassName     string
+	podResourcesSocketPath  string
+	isPrivilegedModeEnabled bool
 }
 
 // ID returns the ID of the Feature
@@ -44,9 +45,16 @@ func (f *gpuFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSp
 		return reqComp
 	}
 
+	f.isPrivilegedModeEnabled = apiutils.BoolValue(ddaSpec.Features.GPU.PrivilegedMode)
+
+	requiredContainers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
+	if f.isPrivilegedModeEnabled {
+		requiredContainers = append(requiredContainers, apicommon.SystemProbeContainerName)
+	}
+
 	reqComp.Agent = feature.RequiredComponent{
 		IsRequired: apiutils.NewBoolPointer(true),
-		Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
+		Containers: requiredContainers,
 	}
 
 	if ddaSpec.Features.GPU.PodRuntimeClassName == nil {
@@ -65,7 +73,7 @@ func (f *gpuFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSp
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *gpuFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *gpuFeature) ManageDependencies(_ feature.ResourceManagers) error {
 	return nil
 }
 
@@ -76,11 +84,35 @@ func (f *gpuFeature) ManageClusterAgent(feature.PodTemplateManagers) error {
 }
 
 func configureSystemProbe(managers feature.PodTemplateManagers) {
+	// env var to enable the GPU probe module in system-probe
+	enableSPEnvVar := &corev1.EnvVar{
+		Name:  DDEnableGPUProbeEnvVar,
+		Value: "true",
+	}
+
+	// enable gpu_monitoring module
+	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, enableSPEnvVar)
+
 	// annotations
 	managers.Annotation().AddAnnotation(common.SystemProbeAppArmorAnnotationKey, common.SystemProbeAppArmorAnnotationValue)
 
 	// security context capabilities
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommon.SystemProbeContainerName)
+
+	// Some nvidia-container-runtime setups ignore the NVIDIA_VISIBLE_DEVICES
+	// env variable. This is usually configured with the options
+	//   accept-nvidia-visible-devices-envvar-when-unprivileged = true
+	//   accept-nvidia-visible-devices-as-volume-mounts = true
+	// in the NVIDIA container runtime config. In this case, we need to mount the
+	// /var/run/nvidia-container-devices/all directory into the container, so that
+	// the nvidia-container-runtime can see that we want to use all GPUs.
+	nvidiaDevicesMount := &corev1.VolumeMount{
+		Name:      nvidiaDevicesVolumeName,
+		MountPath: nvidiaDevicesMountPath,
+		ReadOnly:  true,
+	}
+
+	managers.VolumeMount().AddVolumeMountToContainer(nvidiaDevicesMount, apicommon.SystemProbeContainerName)
 
 	// socket volume mount (needs write perms for the system probe container but not the others)
 	procdirVol, procdirMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true)
@@ -109,6 +141,15 @@ func configureSystemProbe(managers feature.PodTemplateManagers) {
 
 	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, socketEnvVar)
 	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, socketEnvVar)
+
+	// Now we need to add the NVIDIA_VISIBLE_DEVICES env var to both agents again so
+	// that the nvidia runtime can expose the GPU devices in the container
+	nvidiaVisibleDevicesEnvVar := &corev1.EnvVar{
+		Name:  NVIDIAVisibleDevicesEnvVar,
+		Value: "all",
+	}
+
+	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, nvidiaVisibleDevicesEnvVar)
 }
 
 func (f *gpuFeature) configurePodResourcesSocket(managers feature.PodTemplateManagers) {
@@ -131,19 +172,13 @@ func (f *gpuFeature) configurePodResourcesSocket(managers feature.PodTemplateMan
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ string) error {
-	configureSystemProbe(managers)
-	f.configurePodResourcesSocket(managers)
-
-	// env var to enable the GPU module
-	enableEnvVar := &corev1.EnvVar{
-		Name:  DDEnableGPUMonitoringEnvVar,
+	// env var to enable the GPU core check
+	enableCoreCheckEnvVar := &corev1.EnvVar{
+		Name:  DDEnableGPUMonitoringCheckEnvVar,
 		Value: "true",
 	}
 
-	// Both in the core agent and the system probe
-	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName}, enableEnvVar)
-
-	// env var to enable NVML detection, so that workloadmeta features depending on it
+	// DEPRECATED: env var to enable NVML detection, so that workloadmeta features depending on it
 	// can be enabled
 	nvmlDetectionEnvVar := &corev1.EnvVar{
 		Name:  DDEnableNVMLDetectionEnvVar,
@@ -151,17 +186,19 @@ func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ str
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, nvmlDetectionEnvVar)
 
-	// env var to enable collecting gpu host tags ("gpu_host:true" tag)
-	collectGpuTagsEnvVar := &corev1.EnvVar{
-		Name:  DDCollectGPUTagsEnvVar,
-		Value: "true",
+	// in the core agent
+	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, enableCoreCheckEnvVar)
+
+	f.configurePodResourcesSocket(managers)
+
+	if f.isPrivilegedModeEnabled {
+		configureSystemProbe(managers)
 	}
-	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, collectGpuTagsEnvVar)
 
 	// The agent check does not need to be manually enabled, the init config container will
 	// check if GPU monitoring is enabled and will enable the check automatically (see
 	// Dockerfiles/agent/cont-init.d/60-sysprobe-check.sh in the datadog-agent repo).
-	managers.EnvVar().AddEnvVarToInitContainer(apicommon.InitConfigContainerName, enableEnvVar)
+	managers.EnvVar().AddEnvVarToInitContainer(apicommon.InitConfigContainerName, enableCoreCheckEnvVar)
 
 	// Now we need to add the NVIDIA_VISIBLE_DEVICES env var to both agents again so
 	// that the nvidia runtime can expose the GPU devices in the container
@@ -170,7 +207,7 @@ func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ str
 		Value: "all",
 	}
 
-	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName}, nvidiaVisibleDevicesEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, nvidiaVisibleDevicesEnvVar)
 
 	// Some nvidia-container-runtime setups ignore the NVIDIA_VISIBLE_DEVICES
 	// env variable. This is usually configured with the options
@@ -181,7 +218,7 @@ func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ str
 	// the nvidia-container-runtime can see that we want to use all GPUs.
 	devicesVol, devicesMount := volume.GetVolumes(nvidiaDevicesVolumeName, devNullPath, nvidiaDevicesMountPath, true)
 	managers.Volume().AddVolume(&devicesVol)
-	managers.VolumeMount().AddVolumeMountToContainers(&devicesMount, []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName})
+	managers.VolumeMount().AddVolumeMountToContainer(&devicesMount, apicommon.CoreAgentContainerName)
 
 	// Configure the runtime class for the pod
 	if f.podRuntimeClassName != "" {
