@@ -167,6 +167,7 @@ properties:
             - apiservices
             verbs:
             - '*'
+            - deletecollection
             - list
             - watch
           - apiGroups:
@@ -177,6 +178,7 @@ properties:
             verbs:
             - create
             - delete
+            - deletecollection
             - get
             - list
             - patch
@@ -189,23 +191,6 @@ properties:
             - statefulsets
             verbs:
             - get
-            - list
-            - watch
-          - apiGroups:
-            - apps
-            resources:
-            - replicationcontrollers
-            verbs:
-            - list
-            - watch
-          - apiGroups:
-            - apps
-            - extensions
-            resources:
-            - daemonsets
-            - deployments
-            - replicasets
-            verbs:
             - list
             - watch
           - apiGroups:
@@ -224,23 +209,6 @@ properties:
             verbs:
             - create
             - get
-          - apiGroups:
-            - authorization.k8s.io
-            - rbac.authorization.k8s.io
-            - roles.rbac.authorization.k8s.io
-            resources:
-            - clusterrolebindings
-            - clusterroles
-            - rolebindings
-            - roles
-            verbs:
-            - create
-            - delete
-            - get
-            - list
-            - patch
-            - update
-            - watch
           - apiGroups:
             - autoscaling
             resources:
@@ -299,6 +267,8 @@ properties:
           - apiGroups:
             - datadoghq.com
             resources:
+            - datadogagentinternals
+            - datadogagentinternals/finalizers
             - datadogagentprofiles
             - datadogagentprofiles/finalizers
             - datadogagents
@@ -322,6 +292,7 @@ properties:
           - apiGroups:
             - datadoghq.com
             resources:
+            - datadogagentinternals/status
             - datadogagentprofiles/status
             - datadogagents/status
             - datadogdashboards/status
@@ -363,6 +334,13 @@ properties:
             - watermarkpodautoscalers
             verbs:
             - get
+            - list
+            - watch
+          - apiGroups:
+              - discovery.k8s.io
+            resources:
+              - endpointslices
+            verbs:
             - list
             - watch
           - apiGroups:
@@ -411,6 +389,33 @@ properties:
             verbs:
             - get
             - list
+          - apiGroups:
+            - rbac.authorization.k8s.io
+            resources:
+              - clusterrolebindings
+              - clusterroles
+            verbs:
+              - create
+              - delete
+              - deletecollection
+              - get
+              - list
+              - patch
+              - update
+              - watch
+          - apiGroups:
+              - rbac.authorization.k8s.io
+            resources:
+              - rolebindings
+              - roles
+            verbs:
+              - create
+              - delete
+              - get
+              - list
+              - patch
+              - update
+              - watch
           - apiGroups:
             - security.openshift.io
             resourceNames:

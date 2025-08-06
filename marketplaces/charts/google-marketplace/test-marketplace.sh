@@ -14,7 +14,7 @@ echo "Running gcrane cp"
 gcrane cp "datadog/operator:$FULL_TAG" "$REGISTRY/datadog-operator:$FULL_TAG"
 echo "Running docker build"
 docker build --pull --platform linux/amd64 --no-cache --build-arg TAG="$FULL_TAG" --tag "$REGISTRY/deployer:$FULL_TAG" --push .
-gcrane mutate --annotation "com.googleapis.cloudmarketplace.product.service.name=datadog" "$REGISTRY/deployer:$FULL_TAG"
+gcrane mutate --annotation "com.googleapis.cloudmarketplace.product.service.name=services/datadog-datadog-saas.cloudpartnerservices.goog" "$REGISTRY/deployer:$FULL_TAG"
 # Note: do not use "createAgent": true, as when resources are cleaned up mpdev will orphan the DatadogAgent
 echo "Running mpdev verify"
 EXTRA_DOCKER_PARAMS=--platform=linux/amd64 mpdev verify --deployer=$REGISTRY/deployer:"$FULL_TAG"

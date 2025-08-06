@@ -335,6 +335,10 @@ check-operator: fmt vet lint
 publish-community-bundles: ## Publish bundles to community repositories
 	hack/publish-community-bundles.sh
 
+.PHONY: annotate-gcp-manifest
+annotate-gcp-manifest: ## Annotate manifest for GCP marketplace
+	go build -o bin/$(PLATFORM)/annotate-manifest ./marketplaces/charts/google-marketplace/cmd/annotate-manifest/main.go
+
 bin/$(PLATFORM)/yq: Makefile
 	hack/install-yq.sh v4.31.2
 
