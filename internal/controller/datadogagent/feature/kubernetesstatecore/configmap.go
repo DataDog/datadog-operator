@@ -6,9 +6,10 @@
 package kubernetesstatecore
 
 import (
-	"fmt"
+	"bytes"
 	"strconv"
 
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -48,11 +49,15 @@ func buildDefaultConfigMap(namespace, cmName string, content string) *corev1.Con
 // the DaemonSet agent instead of the DCA.
 func ksmCheckConfig(clusterCheck bool, collectorOpts collectorOptions) string {
 	stringVal := strconv.FormatBool(clusterCheck)
-	config := fmt.Sprintf(`---
-cluster_check: %s
+	config := bytes.NewBufferString(`---
+cluster_check: `)
+	config.WriteString(stringVal)
+	config.WriteString(`
 init_config:
 instances:
-  - skip_leader_election: %s
+  - skip_leader_election:`)
+	config.WriteString(stringVal)
+	config.WriteString(`
     collectors:
     - pods
     - replicationcontrollers
@@ -77,19 +82,30 @@ instances:
     - ingresses
     - storageclasses
     - volumeattachments
-`, stringVal, stringVal)
+`)
 
 	if collectorOpts.enableVPA {
-		config += "    - verticalpodautoscalers\n"
+		config.WriteString("    - verticalpodautoscalers\n")
 	}
 
 	if collectorOpts.enableAPIService {
-		config += "    - apiservices\n"
+		config.WriteString("    - apiservices\n")
 	}
 
 	if collectorOpts.enableCRD {
-		config += "    - customresourcedefinitions\n"
+		config.WriteString("    - customresourcedefinitions\n")
 	}
 
-	return config
+	if collectorOpts.customResources != nil {
+		config.WriteString(`    custom_resource:
+      spec:
+        resources:
+`)
+		encoder := yaml.NewEncoder(config)
+		encoder.SetIndent(10)
+		encoder.Encode(collectorOpts.customResources)
+		encoder.Close()
+	}
+
+	return config.String()
 }
