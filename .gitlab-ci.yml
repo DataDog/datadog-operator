@@ -585,7 +585,7 @@ publish_community_operators:
   # needs:
   #   - "submit_preflight_redhat_image"
   tags: [ "runner:docker", "size:large" ]
-  image: $JOB_DOCKER_IMAGE
+  image: $JOB_DOCKER_IMAGE # TODO: change to a new image that includes dd-octo-sts
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
