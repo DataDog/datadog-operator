@@ -19,7 +19,7 @@ jobs:
         id: octo-sts
         with:
           scope: DataDog/datadog-operator
-          policy: self.release.create-release
+          policy: self.backport-pr.create-pr
 
       - name: Create backport PR
         uses: tibdex/backport@9565281eda0731b1d20c4025c43339fb0a23812e # v2.0.4
