@@ -19,36 +19,36 @@ import (
 
 var (
 	forbiddenAgentVolumes = map[string]struct{}{
-	common.AuthVolumeName:            {},
-	common.CriSocketVolumeName:       {},
-	common.DogstatsdSocketVolumeName: {},
-	common.APMSocketVolumeName:       {},
+		common.AuthVolumeName:            {},
+		common.CriSocketVolumeName:       {},
+		common.DogstatsdSocketVolumeName: {},
+		common.APMSocketVolumeName:       {},
 	}
 
 	forbiddenInitMounts = map[string]struct{}{
-	common.AuthVolumeName:            {},
-	common.CriSocketVolumeName:       {},
+		common.AuthVolumeName:      {},
+		common.CriSocketVolumeName: {},
 	}
 
 	forbiddenCoreAgentMounts = map[string]struct{}{
-	common.AuthVolumeName:            {},
-	common.CriSocketVolumeName:       {},
-	common.DogstatsdSocketVolumeName: {},
+		common.AuthVolumeName:            {},
+		common.CriSocketVolumeName:       {},
+		common.DogstatsdSocketVolumeName: {},
 	}
 
 	forbiddenTraceAgentMounts = map[string]struct{}{
-	common.AuthVolumeName:            {},
-	common.CriSocketVolumeName:       {},
-	common.DogstatsdSocketVolumeName: {},
-	common.ProcdirVolumeName:         {},
-	common.CgroupsVolumeName:         {},
-	common.APMSocketVolumeName:       {},
+		common.AuthVolumeName:            {},
+		common.CriSocketVolumeName:       {},
+		common.DogstatsdSocketVolumeName: {},
+		common.ProcdirVolumeName:         {},
+		common.CgroupsVolumeName:         {},
+		common.APMSocketVolumeName:       {},
 	}
 
 	forbiddenProcessAgentMounts = map[string]struct{}{
-	common.AuthVolumeName:            {},
-	common.CriSocketVolumeName:       {},
-	common.DogstatsdSocketVolumeName: {},
+		common.AuthVolumeName:            {},
+		common.CriSocketVolumeName:       {},
+		common.DogstatsdSocketVolumeName: {},
 	}
 )
 
