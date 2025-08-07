@@ -17,6 +17,41 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/allowlistsynchronizer"
 )
 
+var (
+	forbiddenAgentVolumes = map[string]struct{}{
+	common.AuthVolumeName:            {},
+	common.CriSocketVolumeName:       {},
+	common.DogstatsdSocketVolumeName: {},
+	common.APMSocketVolumeName:       {},
+	}
+
+	forbiddenInitMounts = map[string]struct{}{
+	common.AuthVolumeName:            {},
+	common.CriSocketVolumeName:       {},
+	}
+
+	forbiddenCoreAgentMounts = map[string]struct{}{
+	common.AuthVolumeName:            {},
+	common.CriSocketVolumeName:       {},
+	common.DogstatsdSocketVolumeName: {},
+	}
+
+	forbiddenTraceAgentMounts = map[string]struct{}{
+	common.AuthVolumeName:            {},
+	common.CriSocketVolumeName:       {},
+	common.DogstatsdSocketVolumeName: {},
+	common.ProcdirVolumeName:         {},
+	common.CgroupsVolumeName:         {},
+	common.APMSocketVolumeName:       {},
+	}
+
+	forbiddenProcessAgentMounts = map[string]struct{}{
+	common.AuthVolumeName:            {},
+	common.CriSocketVolumeName:       {},
+	common.DogstatsdSocketVolumeName: {},
+	}
+)
+
 func IsAutopilotEnabled(obj metav1.Object) bool {
 	if obj == nil {
 		return false
@@ -36,6 +71,7 @@ func applyExperimentalAutopilotOverrides(dda metav1.Object, manager feature.PodT
 		if manager.PodTemplateSpec().Labels == nil {
 			manager.PodTemplateSpec().Labels = map[string]string{}
 		}
+		// Prevent the agent DS from being mutated by the admission controller on Autopilot
 		manager.PodTemplateSpec().Labels["admission.datadoghq.com/enabled"] = "false"
 
 		// Change args of init-volume
@@ -48,7 +84,7 @@ func applyExperimentalAutopilotOverrides(dda metav1.Object, manager feature.PodT
 		// Remove agent volumes
 		v := manager.PodTemplateSpec().Spec.Volumes[:0]
 		for _, vol := range manager.PodTemplateSpec().Spec.Volumes {
-			if vol.Name != common.AuthVolumeName && vol.Name != common.DogstatsdSocketVolumeName && vol.Name != common.CriSocketVolumeName && vol.Name != common.APMSocketVolumeName {
+			if _, found := forbiddenAgentVolumes[vol.Name]; !found {
 				v = append(v, vol)
 			}
 		}
@@ -58,7 +94,7 @@ func applyExperimentalAutopilotOverrides(dda metav1.Object, manager feature.PodT
 		for idx := range manager.PodTemplateSpec().Spec.InitContainers {
 			vm := []corev1.VolumeMount{}
 			for _, m := range manager.PodTemplateSpec().Spec.InitContainers[idx].VolumeMounts {
-				if m.Name != common.AuthVolumeName && m.Name != common.CriSocketVolumeName {
+				if _, found := forbiddenInitMounts[m.Name]; !found {
 					vm = append(vm, m)
 				}
 			}
@@ -70,7 +106,7 @@ func applyExperimentalAutopilotOverrides(dda metav1.Object, manager feature.PodT
 			if manager.PodTemplateSpec().Spec.Containers[idx].Name == string(apicommon.CoreAgentContainerName) {
 				vm := []corev1.VolumeMount{}
 				for _, m := range manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts {
-					if m.Name != common.AuthVolumeName && m.Name != common.DogstatsdSocketVolumeName && m.Name != common.CriSocketVolumeName {
+					if _, found := forbiddenCoreAgentMounts[m.Name]; !found {
 						vm = append(vm, m)
 					}
 				}
@@ -83,7 +119,7 @@ func applyExperimentalAutopilotOverrides(dda metav1.Object, manager feature.PodT
 			if manager.PodTemplateSpec().Spec.Containers[idx].Name == string(apicommon.TraceAgentContainerName) {
 				vm := []corev1.VolumeMount{}
 				for _, m := range manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts {
-					if m.Name != common.AuthVolumeName && m.Name != common.CriSocketVolumeName && m.Name != common.ProcdirVolumeName && m.Name != common.CgroupsVolumeName && m.Name != common.APMSocketVolumeName && m.Name != common.DogstatsdSocketVolumeName {
+					if _, found := forbiddenTraceAgentMounts[m.Name]; !found {
 						vm = append(vm, m)
 					}
 				}
@@ -101,7 +137,7 @@ func applyExperimentalAutopilotOverrides(dda metav1.Object, manager feature.PodT
 			if manager.PodTemplateSpec().Spec.Containers[idx].Name == string(apicommon.ProcessAgentContainerName) {
 				vm := []corev1.VolumeMount{}
 				for _, m := range manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts {
-					if m.Name != common.AuthVolumeName && m.Name != common.CriSocketVolumeName && m.Name != common.DogstatsdSocketVolumeName {
+					if _, found := forbiddenProcessAgentMounts[m.Name]; !found {
 						vm = append(vm, m)
 					}
 				}

@@ -823,7 +823,7 @@ func Test_AutopilotOverrides(t *testing.T) {
 				}
 				for _, v := range ds.Spec.Template.Spec.Volumes {
 					if _, found := forbiddenVolumes[v.Name]; found {
-						return fmt.Errorf("forbidden volume %s should be removed", v.Name)
+						return fmt.Errorf("forbidden volume %s is not allowed in GKE Autopilot", v.Name)
 					}
 				}
 
@@ -842,7 +842,7 @@ func Test_AutopilotOverrides(t *testing.T) {
 					}
 					for _, m := range ic.VolumeMounts {
 						if _, found := forbiddenMounts[m.Name]; found {
-							return fmt.Errorf("forbidden mount %s should be removed from init container %s", m.Name, ic.Name)
+							return fmt.Errorf("forbidden mount %s in init container %s is not allowed in GKE Autopilot", m.Name, ic.Name)
 						}
 					}
 				}
@@ -859,7 +859,7 @@ func Test_AutopilotOverrides(t *testing.T) {
 						}
 						for _, m := range ctn.VolumeMounts {
 							if _, found := forbiddenMounts[m.Name]; found {
-								return fmt.Errorf("forbidden mount %s should be removed from core-agent", m.Name)
+								return fmt.Errorf("forbidden mount %s found in core agent is not allowed in GKE Autopilot", m.Name)
 							}
 						}
 					}
@@ -988,7 +988,7 @@ func Test_AutopilotOverrides(t *testing.T) {
 						}
 						for _, m := range ctn.VolumeMounts {
 							if _, found := forbiddenMounts[m.Name]; found {
-								return fmt.Errorf("forbidden mount %s should be removed from process-agent", m.Name)
+								return fmt.Errorf("forbidden mount %s found in process-agent is not allowed in GKE Autopilot", m.Name)
 							}
 						}
 						processAgentFound = true
