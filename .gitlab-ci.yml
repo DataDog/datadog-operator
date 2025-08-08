@@ -617,6 +617,7 @@ publish_community_operators:
     - make bundle-redhat
 
     # Configure github-cli
+    - git config --global user.email $GITLAB_USER_EMAIL
     # Use dd-octo-sts to get GitHub token
     - dd-octo-sts version
     - dd-octo-sts debug --scope DataDog --policy datadog-operator.publish-community-bundles
