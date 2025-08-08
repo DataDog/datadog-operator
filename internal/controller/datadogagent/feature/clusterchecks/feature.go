@@ -90,7 +90,7 @@ func (f *clusterChecksFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 	return reqComp
 }
 
-func (f *clusterChecksFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *clusterChecksFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	policyName, podSelector := objects.GetNetworkPolicyMetadata(f.owner, v2alpha1.ClusterAgentComponentName)
 	_, ccrPodSelector := objects.GetNetworkPolicyMetadata(f.owner, v2alpha1.ClusterChecksRunnerComponentName)
 	if f.createKubernetesNetworkPolicy {
@@ -147,7 +147,7 @@ func (f *clusterChecksFeature) ManageDependencies(managers feature.ResourceManag
 	return nil
 }
 
-func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	managers.EnvVar().AddEnvVarToContainer(
 		apicommon.ClusterAgentContainerName,
 		&corev1.EnvVar{
@@ -214,7 +214,7 @@ func (f *clusterChecksFeature) manageNodeAgent(agentContainerName apicommon.Agen
 	return nil
 }
 
-func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	if f.useClusterCheckRunners {
 		managers.EnvVar().AddEnvVarToContainer(
 			apicommon.ClusterChecksRunnersContainerName,

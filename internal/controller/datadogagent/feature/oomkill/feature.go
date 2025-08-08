@@ -53,13 +53,13 @@ func (f *oomKillFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAge
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *oomKillFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *oomKillFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *oomKillFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *oomKillFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 
@@ -130,6 +130,6 @@ func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers, p
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *oomKillFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (f *oomKillFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

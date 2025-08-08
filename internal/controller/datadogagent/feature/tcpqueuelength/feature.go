@@ -56,13 +56,13 @@ func (f *tcpQueueLengthFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.Dat
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *tcpQueueLengthFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *tcpQueueLengthFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *tcpQueueLengthFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *tcpQueueLengthFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 
@@ -139,6 +139,6 @@ func (f *tcpQueueLengthFeature) ManageNodeAgent(managers feature.PodTemplateMana
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *tcpQueueLengthFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (f *tcpQueueLengthFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

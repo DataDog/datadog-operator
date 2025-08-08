@@ -112,7 +112,7 @@ func (f *helmCheckFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datado
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *helmCheckFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *helmCheckFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	if f.config != nil {
 		// Add md5 hash annotation for configMap
 		if f.configAnnotationKey != "" && f.configAnnotationValue != "" {
@@ -132,7 +132,7 @@ func (f *helmCheckFeature) ManageDependencies(managers feature.ResourceManagers)
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *helmCheckFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *helmCheckFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	// Manage Helm check config in configMap
 	var vol corev1.Volume
 	var volMount corev1.VolumeMount
@@ -170,6 +170,6 @@ func (f *helmCheckFeature) ManageNodeAgent(managers feature.PodTemplateManagers,
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *helmCheckFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (f *helmCheckFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

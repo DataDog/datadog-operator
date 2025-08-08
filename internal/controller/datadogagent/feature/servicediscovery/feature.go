@@ -57,13 +57,13 @@ func (f *serviceDiscoveryFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.D
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *serviceDiscoveryFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *serviceDiscoveryFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *serviceDiscoveryFeature) ManageClusterAgent(feature.PodTemplateManagers) error {
+func (f *serviceDiscoveryFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 
@@ -148,6 +148,6 @@ func (f *serviceDiscoveryFeature) ManageSingleContainerNodeAgent(feature.PodTemp
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *serviceDiscoveryFeature) ManageClusterChecksRunner(feature.PodTemplateManagers) error {
+func (f *serviceDiscoveryFeature) ManageClusterChecksRunner(feature.PodTemplateManagers, string) error {
 	return nil
 }

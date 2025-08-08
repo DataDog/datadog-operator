@@ -64,11 +64,12 @@ func (r *Reconciler) manageGlobalDependencies(logger logr.Logger, dda *datadoghq
 }
 
 // manageFeatureDependencies iterates over features to set up dependencies.
-func (r *Reconciler) manageFeatureDependencies(logger logr.Logger, features []feature.Feature, resourceManagers feature.ResourceManagers) error {
+func (r *Reconciler) manageFeatureDependencies(logger logr.Logger, features []feature.Feature, resourceManagers feature.ResourceManagers, provider string) error {
 	var errs []error
+
 	for _, feat := range features {
 		logger.V(1).Info("Managing dependencies", "featureID", feat.ID())
-		if err := feat.ManageDependencies(resourceManagers); err != nil {
+		if err := feat.ManageDependencies(resourceManagers, provider); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -94,7 +95,6 @@ func (r *Reconciler) reconcileAgentProfiles(ctx context.Context, logger logr.Log
 	profiles := []datadoghqv1alpha1.DatadogAgentProfile{{}}
 	metrics.IntrospectionEnabled.Set(metrics.FalseValue)
 	metrics.DAPEnabled.Set(metrics.FalseValue)
-
 	// If profiles or introspection is enabled, get the node list and update providers.
 	if r.options.DatadogAgentProfileEnabled || r.options.IntrospectionEnabled {
 		nodeList, err := r.getNodeList(ctx)

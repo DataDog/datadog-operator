@@ -31,6 +31,18 @@ const (
 
 	// GKEProviderLabel is the GKE node label used to determine the node's provider
 	GKEProviderLabel = "cloud.google.com/gke-os-distribution"
+
+	// OpenshiftProvider is the OpenShift Provider name
+	OpenshiftProvider = "openshift"
+
+	// OpenShiftProviderLabel is the OpenShift node label used to determine the node's provider
+	OpenShiftProviderLabel = "node.openshift.io/os_id"
+
+	// EKSCloudProvider is the Amazon EKS CloudProvider name
+	EKSCloudProvider = "eks"
+
+	// EKSProviderLabel is the EKS node label used to determine the node's provider
+	EKSProviderLabel = "eks.amazonaws.com/nodegroup-image"
 )
 
 // ProviderValue allowlist
@@ -46,6 +58,14 @@ func determineProvider(labels map[string]string) string {
 			if provider := generateValidProviderName(GKECloudProvider, val); provider != "" {
 				return provider
 			}
+		}
+		// Openshift
+		if val, ok := labels[OpenShiftProviderLabel]; ok {
+			return generateValidProviderName(OpenshiftProvider, val)
+		}
+		// EKS
+		if val, ok := labels[EKSProviderLabel]; ok {
+			return generateValidProviderName(EKSCloudProvider, val)
 		}
 	}
 
@@ -111,6 +131,11 @@ func getProviderNodeAffinity(provider string, providerList map[string]struct{}) 
 // and provider value. NOTE: this should not be used to create a resource name
 // as it may contain underscores
 func generateValidProviderName(cloudProvider, providerValue string) string {
+	// For OpenShift and EKS, accept any value
+	if cloudProvider == OpenshiftProvider || cloudProvider == EKSCloudProvider {
+		return cloudProvider + "-" + providerValue
+	}
+	// For other providers (like GKE), check the allowlist
 	if isProviderValueAllowed(providerValue) {
 		return cloudProvider + "-" + providerValue
 	}
@@ -130,7 +155,9 @@ func isProviderValueAllowed(value string) bool {
 func GetProviderLabelKeyValue(provider string) (string, string) {
 	// cloud provider to label mapping
 	providerMapping := map[string]string{
-		GKECloudProvider: GKEProviderLabel,
+		GKECloudProvider:  GKEProviderLabel,
+		EKSCloudProvider:  EKSProviderLabel,
+		OpenshiftProvider: OpenShiftProviderLabel,
 	}
 
 	cp, value := splitProviderSuffix(provider)

@@ -135,7 +135,7 @@ type collectorOptions struct {
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	// Create a configMap if CustomConfig.ConfigData is provided and CustomConfig.ConfigMap == nil,
 	// OR if the default configMap is needed.
 	pInfo := managers.Store().GetPlatformInfo()
@@ -167,7 +167,7 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers) error
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	// Manage KSM config in configmap
 	var vol corev1.Volume
 	var volMount corev1.VolumeMount
@@ -234,6 +234,6 @@ func (f *ksmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *ksmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (f *ksmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

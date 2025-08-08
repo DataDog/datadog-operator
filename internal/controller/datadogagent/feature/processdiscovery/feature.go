@@ -60,11 +60,11 @@ func (p *processDiscoveryFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.D
 	return reqComp
 }
 
-func (p *processDiscoveryFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (p *processDiscoveryFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	return nil
 }
 
-func (p *processDiscoveryFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (p *processDiscoveryFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 
@@ -121,6 +121,6 @@ func (p *processDiscoveryFeature) manageNodeAgent(agentContainerName apicommon.A
 	return nil
 }
 
-func (p *processDiscoveryFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (p *processDiscoveryFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

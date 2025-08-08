@@ -75,7 +75,7 @@ func (f *autoscalingFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Data
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *autoscalingFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *autoscalingFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	// Hack to trigger an error if admission feature is not enabled as we cannot return an error in configure
 	if !f.admissionControllerActivated {
 		return errors.New("admission controller feature must be enabled to use the autoscaling feature")
@@ -86,7 +86,7 @@ func (f *autoscalingFeature) ManageDependencies(managers feature.ResourceManager
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *autoscalingFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *autoscalingFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  DDAutoscalingWorkloadEnabled,
 		Value: "true",
@@ -125,6 +125,6 @@ func (f *autoscalingFeature) ManageNodeAgent(managers feature.PodTemplateManager
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *autoscalingFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (f *autoscalingFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
