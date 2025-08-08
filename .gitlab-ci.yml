@@ -5,6 +5,7 @@ variables:
   BUILD_DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
   E2E_DOCKER_REGISTRY: "669783387624.dkr.ecr.us-east-1.amazonaws.com/operator"
   JOB_DOCKER_IMAGE: "registry.ddbuild.io/ci-containers-project:v68399443-88dc260-v1.22"
+  OCTO_JOB_DOCKER_IMAGE: "registry.ddbuild.io/ci-containers-project:v73151907-c38dce1-v1.22.1"
   DOCKER_REGISTRY_LOGIN_SSM_KEY: docker_hub_login
   DOCKER_REGISTRY_PWD_SSM_KEY: docker_hub_pwd
   DOCKER_REGISTRY_URL: docker.io
@@ -585,7 +586,7 @@ publish_community_operators:
   # needs:
   #   - "submit_preflight_redhat_image"
   tags: [ "runner:docker", "size:large" ]
-  image: $JOB_DOCKER_IMAGE # TODO: change to a new image that includes dd-octo-sts
+  image: $OCTO_JOB_DOCKER_IMAGE
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
