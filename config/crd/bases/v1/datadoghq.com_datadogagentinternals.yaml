@@ -1474,7 +1474,12 @@ spec:
                       properties:
                         enabled:
                           description: |-
-                            Enabled enables GPU monitoring.
+                            Enabled enables GPU monitoring core check.
+                            Default: false
+                          type: boolean
+                        privilegedMode:
+                          description: |-
+                            PrivilegedMode enables GPU Probe module in System Probe.
                             Default: false
                           type: boolean
                         requiredRuntimeClassName:
@@ -9068,7 +9073,12 @@ spec:
                           properties:
                             enabled:
                               description: |-
-                                Enabled enables GPU monitoring.
+                                Enabled enables GPU monitoring core check.
+                                Default: false
+                              type: boolean
+                            privilegedMode:
+                              description: |-
+                                PrivilegedMode enables GPU Probe module in System Probe.
                                 Default: false
                               type: boolean
                             requiredRuntimeClassName:

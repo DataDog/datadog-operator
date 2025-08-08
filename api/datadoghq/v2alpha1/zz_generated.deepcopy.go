@@ -1625,6 +1625,11 @@ func (in *GPUFeatureConfig) DeepCopyInto(out *GPUFeatureConfig) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.PrivilegedMode != nil {
+		in, out := &in.PrivilegedMode, &out.PrivilegedMode
+		*out = new(bool)
+		**out = **in
+	}
 	if in.PodRuntimeClassName != nil {
 		in, out := &in.PodRuntimeClassName, &out.PodRuntimeClassName
 		*out = new(string)

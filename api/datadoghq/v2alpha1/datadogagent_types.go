@@ -591,10 +591,15 @@ type ServiceDiscoveryNetworkStatsConfig struct {
 
 // GPUFeatureConfig contains the GPU monitoring configuration.
 type GPUFeatureConfig struct {
-	// Enabled enables GPU monitoring.
+	// Enabled enables GPU monitoring core check.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// PrivilegedMode enables GPU Probe module in System Probe.
+	// Default: false
+	// +optional
+	PrivilegedMode *bool `json:"privilegedMode,omitempty"`
 
 	// PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
 	// If the value is an empty string, the runtime class is not set.

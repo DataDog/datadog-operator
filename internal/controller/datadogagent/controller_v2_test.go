@@ -777,66 +777,326 @@ func getDsContainers(c client.Client, resourcesNamespace, dsName string) map[api
 	return dsContainers
 }
 
-func Test_AutopilotNodeAgent(t *testing.T) {
+func Test_AutopilotOverrides(t *testing.T) {
 	const resourcesName, resourcesNamespace, dsName = "foo", "bar", "foo-agent"
 
-	dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-		WithAPMEnabled(false).
-		WithClusterChecksEnabled(false).
-		WithAdmissionControllerEnabled(false).
-		WithOrchestratorExplorerEnabled(false).
-		WithKSMEnabled(false).
-		WithDogstatsdUnixDomainSocketConfigEnabled(false).
-		Build()
+	tests := []struct {
+		name     string
+		loadFunc func(client.Client) *v2alpha1.DatadogAgent
+		wantFunc func(t *testing.T, c client.Client) error
+	}{
+		{
+			name: "autopilot enabled with core-agent only",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				autopilotKey := experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotSubkey
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithAPMEnabled(false).
+					WithClusterChecksEnabled(false).
+					WithAdmissionControllerEnabled(false).
+					WithOrchestratorExplorerEnabled(false).
+					WithKSMEnabled(false).
+					WithDogstatsdUnixDomainSocketConfigEnabled(false).
+					WithAnnotations(map[string]string{
+						autopilotKey: "true",
+					}).
+					Build()
 
-	if dda.Annotations == nil {
-		dda.Annotations = map[string]string{}
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			wantFunc: func(t *testing.T, c client.Client) error {
+				expectedContainers := []string{string(apicommon.CoreAgentContainerName)}
+				if err := verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers); err != nil {
+					return err
+				}
+
+				ds := &appsv1.DaemonSet{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds); err != nil {
+					return err
+				}
+
+				forbiddenVolumes := map[string]struct{}{
+					common.AuthVolumeName:            {},
+					common.CriSocketVolumeName:       {},
+					common.DogstatsdSocketVolumeName: {},
+					common.APMSocketVolumeName:       {},
+				}
+				for _, v := range ds.Spec.Template.Spec.Volumes {
+					if _, found := forbiddenVolumes[v.Name]; found {
+						return fmt.Errorf("forbidden volume %s is not allowed in GKE Autopilot", v.Name)
+					}
+				}
+
+				initVolumePatchFound := false
+				for _, ic := range ds.Spec.Template.Spec.InitContainers {
+					if ic.Name == "init-volume" {
+						if len(ic.Args) != 1 || ic.Args[0] != "cp -r /etc/datadog-agent /opt" {
+							return fmt.Errorf("init-volume args not patched correctly, got: %v", ic.Args)
+						}
+						initVolumePatchFound = true
+					}
+
+					forbiddenMounts := map[string]struct{}{
+						common.AuthVolumeName:      {},
+						common.CriSocketVolumeName: {},
+					}
+					for _, m := range ic.VolumeMounts {
+						if _, found := forbiddenMounts[m.Name]; found {
+							return fmt.Errorf("forbidden mount %s in init container %s is not allowed in GKE Autopilot", m.Name, ic.Name)
+						}
+					}
+				}
+				if !initVolumePatchFound {
+					return fmt.Errorf("init-volume container not found or not patched")
+				}
+
+				for _, ctn := range ds.Spec.Template.Spec.Containers {
+					if ctn.Name == string(apicommon.CoreAgentContainerName) {
+						forbiddenMounts := map[string]struct{}{
+							common.AuthVolumeName:            {},
+							common.DogstatsdSocketVolumeName: {},
+							common.CriSocketVolumeName:       {},
+						}
+						for _, m := range ctn.VolumeMounts {
+							if _, found := forbiddenMounts[m.Name]; found {
+								return fmt.Errorf("forbidden mount %s found in core agent is not allowed in GKE Autopilot", m.Name)
+							}
+						}
+					}
+				}
+
+				return nil
+			},
+		},
+		{
+			name: "autopilot enabled with core-agent and trace-agent",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				autopilotKey := experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotSubkey
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithAPMEnabled(true).
+					WithClusterChecksEnabled(false).
+					WithAdmissionControllerEnabled(false).
+					WithOrchestratorExplorerEnabled(false).
+					WithKSMEnabled(false).
+					WithDogstatsdUnixDomainSocketConfigEnabled(false).
+					WithAnnotations(map[string]string{
+						autopilotKey: "true",
+					}).
+					Build()
+
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			wantFunc: func(t *testing.T, c client.Client) error {
+				expectedContainers := []string{
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+				}
+				if err := verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers); err != nil {
+					return err
+				}
+
+				ds := &appsv1.DaemonSet{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds); err != nil {
+					return err
+				}
+
+				traceAgentFound := false
+				for _, ctn := range ds.Spec.Template.Spec.Containers {
+					if ctn.Name == string(apicommon.TraceAgentContainerName) {
+						expectedCommand := []string{
+							"trace-agent",
+							"-config=/etc/datadog-agent/datadog.yaml",
+						}
+						if !reflect.DeepEqual(ctn.Command, expectedCommand) {
+							return fmt.Errorf("trace-agent command incorrect, expected: %v, got: %v", expectedCommand, ctn.Command)
+						}
+
+						forbiddenMounts := map[string]struct{}{
+							common.AuthVolumeName:            {},
+							common.CriSocketVolumeName:       {},
+							common.ProcdirVolumeName:         {},
+							common.CgroupsVolumeName:         {},
+							common.APMSocketVolumeName:       {},
+							common.DogstatsdSocketVolumeName: {},
+						}
+						for _, m := range ctn.VolumeMounts {
+							if _, found := forbiddenMounts[m.Name]; found {
+								return fmt.Errorf("forbidden mount %s should be removed from trace-agent", m.Name)
+							}
+						}
+						traceAgentFound = true
+					}
+				}
+				if !traceAgentFound {
+					return fmt.Errorf("trace-agent container not found")
+				}
+
+				return nil
+			},
+		},
+		{
+			name: "autopilot enabled with core-agent and process-agent",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				autopilotKey := experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotSubkey
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithAPMEnabled(false).
+					WithLiveProcessEnabled(true).
+					WithProcessChecksInCoreAgent(false).
+					WithClusterChecksEnabled(false).
+					WithAdmissionControllerEnabled(false).
+					WithOrchestratorExplorerEnabled(false).
+					WithKSMEnabled(false).
+					WithDogstatsdUnixDomainSocketConfigEnabled(false).
+					WithAnnotations(map[string]string{
+						autopilotKey: "true",
+					}).
+					Build()
+
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			wantFunc: func(t *testing.T, c client.Client) error {
+				expectedContainers := []string{
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.ProcessAgentContainerName),
+				}
+				if err := verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers); err != nil {
+					return err
+				}
+
+				ds := &appsv1.DaemonSet{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds); err != nil {
+					return err
+				}
+
+				processAgentFound := false
+				for _, ctn := range ds.Spec.Template.Spec.Containers {
+					if ctn.Name == string(apicommon.ProcessAgentContainerName) {
+						expectedCommand := []string{
+							"process-agent",
+							"-config=/etc/datadog-agent/datadog.yaml",
+						}
+						if !reflect.DeepEqual(ctn.Command, expectedCommand) {
+							return fmt.Errorf("process-agent command incorrect, expected: %v, got: %v", expectedCommand, ctn.Command)
+						}
+
+						forbiddenMounts := map[string]struct{}{
+							common.AuthVolumeName:            {},
+							common.CriSocketVolumeName:       {},
+							common.DogstatsdSocketVolumeName: {},
+						}
+						for _, m := range ctn.VolumeMounts {
+							if _, found := forbiddenMounts[m.Name]; found {
+								return fmt.Errorf("forbidden mount %s found in process-agent is not allowed in GKE Autopilot", m.Name)
+							}
+						}
+						processAgentFound = true
+					}
+				}
+				if !processAgentFound {
+					return fmt.Errorf("process-agent container not found")
+				}
+
+				return nil
+			},
+		},
+		{
+			name: "autopilot enabled with all containers (core, trace, process)",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				autopilotKey := experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotSubkey
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithAPMEnabled(true).
+					WithLiveProcessEnabled(true).
+					WithProcessChecksInCoreAgent(false).
+					WithClusterChecksEnabled(false).
+					WithAdmissionControllerEnabled(false).
+					WithOrchestratorExplorerEnabled(false).
+					WithKSMEnabled(false).
+					WithDogstatsdUnixDomainSocketConfigEnabled(false).
+					WithAnnotations(map[string]string{
+						autopilotKey: "true",
+					}).
+					Build()
+
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			wantFunc: func(t *testing.T, c client.Client) error {
+				expectedContainers := []string{
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+					string(apicommon.ProcessAgentContainerName),
+				}
+				if err := verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers); err != nil {
+					return err
+				}
+
+				ds := &appsv1.DaemonSet{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds); err != nil {
+					return err
+				}
+
+				traceAgentFound := false
+				processAgentFound := false
+				for _, ctn := range ds.Spec.Template.Spec.Containers {
+					switch ctn.Name {
+					case string(apicommon.TraceAgentContainerName):
+						expectedCommand := []string{
+							"trace-agent",
+							"-config=/etc/datadog-agent/datadog.yaml",
+						}
+						if !reflect.DeepEqual(ctn.Command, expectedCommand) {
+							return fmt.Errorf("trace-agent command incorrect, expected: %v, got: %v", expectedCommand, ctn.Command)
+						}
+						traceAgentFound = true
+
+					case string(apicommon.ProcessAgentContainerName):
+						expectedCommand := []string{
+							"process-agent",
+							"-config=/etc/datadog-agent/datadog.yaml",
+						}
+						if !reflect.DeepEqual(ctn.Command, expectedCommand) {
+							return fmt.Errorf("process-agent command incorrect, expected: %v, got: %v", expectedCommand, ctn.Command)
+						}
+						processAgentFound = true
+					}
+				}
+
+				if !traceAgentFound {
+					return fmt.Errorf("trace-agent container not found")
+				}
+				if !processAgentFound {
+					return fmt.Errorf("process-agent container not found")
+				}
+
+				return nil
+			},
+		},
 	}
-	autopilotKey := experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotSubkey
-	dda.Annotations[autopilotKey] = "true"
 
-	s := agenttestutils.TestScheme()
-	broadcaster := record.NewBroadcaster()
-	rec := broadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{})
-	fakeClient := fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build()
-	r := &Reconciler{client: fakeClient, scheme: s, recorder: rec}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := agenttestutils.TestScheme()
+			broadcaster := record.NewBroadcaster()
+			rec := broadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{})
+			fakeClient := fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build()
+			r := &Reconciler{client: fakeClient, scheme: s, recorder: rec}
 
-	assert.NoError(t, fakeClient.Create(context.TODO(), dda))
-
-	res, err := r.Reconcile(context.TODO(), dda)
-	assert.NoError(t, err)
-	assert.Equal(t, 15*time.Second, res.RequeueAfter)
-
-	expected := []string{string(apicommon.CoreAgentContainerName)}
-	assert.NoError(t, verifyDaemonsetContainers(fakeClient, resourcesNamespace, dsName, expected))
-
-	ds := &appsv1.DaemonSet{}
-	assert.NoError(t, fakeClient.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds))
-
-	forbidden := map[string]struct{}{common.AuthVolumeName: {}, common.CriSocketVolumeName: {}, common.DogstatsdSocketVolumeName: {}}
-	for _, v := range ds.Spec.Template.Spec.Volumes {
-		_, found := forbidden[v.Name]
-		assert.False(t, found, "forbidden volume %s present", v.Name)
-	}
-	patched := false
-	for _, ic := range ds.Spec.Template.Spec.InitContainers {
-		for _, m := range ic.VolumeMounts {
-			_, found := forbidden[m.Name]
-			assert.False(t, found, "forbidden mount %s in init", m.Name)
-		}
-		if ic.Name == "init-volume" {
-			assert.Equal(t, []string{"cp -r /etc/datadog-agent /opt"}, ic.Args)
-			patched = true
-		}
-	}
-	assert.True(t, patched, "init-volume not patched")
-	for _, ctn := range ds.Spec.Template.Spec.Containers {
-		if ctn.Name == string(apicommon.CoreAgentContainerName) {
-			for _, m := range ctn.VolumeMounts {
-				_, found := forbidden[m.Name]
-				assert.False(t, found, "forbidden mount %s in core", m.Name)
+			var dda *v2alpha1.DatadogAgent
+			if tt.loadFunc != nil {
+				dda = tt.loadFunc(fakeClient)
 			}
-		}
+
+			res, err := r.Reconcile(context.TODO(), dda)
+			assert.NoError(t, err)
+			assert.Equal(t, 15*time.Second, res.RequeueAfter)
+
+			if tt.wantFunc != nil {
+				err := tt.wantFunc(t, fakeClient)
+				assert.NoError(t, err, "Test validation failed: %v", err)
+			}
+		})
 	}
 }
 
