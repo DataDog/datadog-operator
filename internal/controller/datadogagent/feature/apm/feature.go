@@ -22,11 +22,11 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	providerutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/provider"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
@@ -129,14 +129,8 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 		f.useHostNetwork = constants.IsHostNetworkEnabled(ddaSpec, v2alpha1.NodeAgentComponentName)
 
-		// Check if autopilot is enabled and override defaults accordingly
-		if experimental.IsAutopilotEnabled(dda) {
-			f.hostPortEnabled = true
-			f.udsEnabled = false
-		} else {
-			f.hostPortEnabled = apiutils.BoolValue(apm.HostPortConfig.Enabled)
-			f.udsEnabled = apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled)
-		}
+		f.hostPortEnabled = apiutils.BoolValue(apm.HostPortConfig.Enabled)
+		f.udsEnabled = apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled)
 
 		f.hostPortHostPort = *apm.HostPortConfig.Port
 		if f.hostPortEnabled {
@@ -394,6 +388,14 @@ func supportsInstrumentationTargets(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
 func (f *apmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	// Autopilot: force hostPort=true, UDS=false
+	if providerutils.IsAutopilotProvider(provider) {
+		f.hostPortEnabled = true
+		if f.hostPortHostPort == 0 {
+			f.hostPortHostPort = constants.DefaultApmPort
+		}
+		f.udsEnabled = false
+	}
 	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
 	return nil
 }
@@ -401,6 +403,14 @@ func (f *apmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplate
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	// Autopilot: force hostPort=true, UDS=false
+	if providerutils.IsAutopilotProvider(provider) {
+		f.hostPortEnabled = true
+		if f.hostPortHostPort == 0 {
+			f.hostPortHostPort = constants.DefaultApmPort
+		}
+		f.udsEnabled = false
+	}
 	f.manageNodeAgent(apicommon.TraceAgentContainerName, managers, provider)
 	return nil
 }

@@ -26,11 +26,17 @@ const (
 	// GKECosType is the Container-Optimized OS node image offered by GKE
 	GKECosType = "cos"
 
+	// GKEAutopilotType is the Autopilot mode offered by GKE
+	GKEAutopilotType = "autopilot"
+
 	// GKECloudProvider GKE CloudProvider name
 	GKECloudProvider = "gke"
 
 	// GKEProviderLabel is the GKE node label used to determine the node's provider
 	GKEProviderLabel = "cloud.google.com/gke-os-distribution"
+
+	// GKEAutopilotLabel is a placeholder label for GKE Autopilot detection (TODO: research actual label)
+	GKEAutopilotLabel = "cloud.google.com/gke-autopilot"
 
 	// OpenshiftProvider is the OpenShift Provider name
 	OpenshiftProvider = "openshift"
@@ -47,7 +53,8 @@ const (
 
 // ProviderValue allowlist
 var providerValueAllowlist = map[string]struct{}{
-	GKECosType: {},
+	GKECosType:       {},
+	GKEAutopilotType: {},
 }
 
 // determineProvider creates a Provider based on a map of labels
@@ -66,6 +73,10 @@ func determineProvider(labels map[string]string) string {
 		// EKS
 		if val, ok := labels[EKSProviderLabel]; ok {
 			return generateValidProviderName(EKSCloudProvider, val)
+		}
+		// Autopilot
+		if val, ok := labels[GKEAutopilotLabel]; ok && val == "enabled" {
+			return generateValidProviderName(GKECloudProvider, GKEAutopilotType)
 		}
 	}
 

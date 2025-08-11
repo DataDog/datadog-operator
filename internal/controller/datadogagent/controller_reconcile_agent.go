@@ -32,6 +32,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
+	providerutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/provider"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -114,6 +115,11 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 		experimental.ApplyExperimentalOverrides(logger, dda, podManagers)
 
+		// Apply Autopilot overrides
+		if providerutils.IsAutopilotProvider(provider) {
+			providerutils.ApplyAutopilotOverrides(dda, podManagers)
+		}
+
 		if disabledByOverride {
 			if agentEnabled {
 				// The override supersedes what's set in requiredComponents; update status to reflect the conflict
@@ -191,6 +197,11 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	}
 
 	experimental.ApplyExperimentalOverrides(logger, dda, podManagers)
+
+	// Apply Autopilot overrides
+	if providerutils.IsAutopilotProvider(provider) {
+		providerutils.ApplyAutopilotOverrides(dda, podManagers)
+	}
 
 	if disabledByOverride {
 		if agentEnabled {
