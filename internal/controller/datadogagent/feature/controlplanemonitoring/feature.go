@@ -173,14 +173,14 @@ func (f *controlPlaneMonitoringFeature) ManageSingleContainerNodeAgent(managers 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *controlPlaneMonitoringFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.provider = provider
 	return nil
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 func (f *controlPlaneMonitoringFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
-	providerLabel, _ := kubernetes.GetProviderLabelKeyValue(provider)
+	providerLabel, _ := kubernetes.GetProviderLabelKeyValue(f.provider)
 	if providerLabel == kubernetes.OpenShiftProviderLabel {
+		// Add etcd-certs volume (secret)
 		etcdCertsVolume := &corev1.Volume{
 			Name: etcdCertsVolumeName,
 			VolumeSource: corev1.VolumeSource{
@@ -191,13 +191,30 @@ func (f *controlPlaneMonitoringFeature) ManageClusterChecksRunner(managers featu
 		}
 		managers.Volume().AddVolume(etcdCertsVolume)
 
-		// Add volume mount to cluster-checks-runner container
+		// Add etcd-certs volume mount
 		etcdCertsVolumeMount := corev1.VolumeMount{
 			Name:      etcdCertsVolumeName,
 			MountPath: etcdCertsVolumeMountPath,
 			ReadOnly:  true,
 		}
 		managers.VolumeMount().AddVolumeMountToContainer(&etcdCertsVolumeMount, apicommon.ClusterChecksRunnersContainerName)
+
+		// Add disable-etcd-autoconf volume (emptyDir)
+		disableEtcdAutoconfVolume := &corev1.Volume{
+			Name: disableEtcdAutoconfVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		}
+		managers.Volume().AddVolume(disableEtcdAutoconfVolume)
+
+		// Add disable-etcd-autoconf volume mount
+		disableEtcdAutoconfVolumeMount := corev1.VolumeMount{
+			Name:      disableEtcdAutoconfVolumeName,
+			MountPath: disableEtcdAutoconfVolumeMountPath,
+			ReadOnly:  false,
+		}
+		managers.VolumeMount().AddVolumeMountToContainer(&disableEtcdAutoconfVolumeMount, apicommon.ClusterChecksRunnersContainerName)
 	}
 	return nil
 }
