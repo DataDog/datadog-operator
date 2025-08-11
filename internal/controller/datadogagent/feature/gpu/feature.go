@@ -93,6 +93,9 @@ func configureSystemProbe(managers feature.PodTemplateManagers) {
 	// enable gpu_monitoring module
 	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, enableSPEnvVar)
 
+	// add the env var to the core agent as well, to prevent config mismatches in runtime
+	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, enableSPEnvVar)
+
 	// annotations
 	managers.Annotation().AddAnnotation(common.SystemProbeAppArmorAnnotationKey, common.SystemProbeAppArmorAnnotationValue)
 
