@@ -38,6 +38,11 @@ func (in *DatadogPodAutoscalerConstraints) DeepCopyInto(out *DatadogPodAutoscale
 		*out = new(int32)
 		**out = **in
 	}
+	if in.MaxUnreadyPodsPercent != nil {
+		in, out := &in.MaxUnreadyPodsPercent, &out.MaxUnreadyPodsPercent
+		*out = new(int32)
+		**out = **in
+	}
 	if in.Containers != nil {
 		in, out := &in.Containers, &out.Containers
 		*out = make([]DatadogPodAutoscalerContainerConstraints, len(*in))
