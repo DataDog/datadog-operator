@@ -124,9 +124,8 @@ func (r *Reconciler) reconcileAgentProfiles(ctx context.Context, logger logr.Log
 	var errs []error
 	var result reconcile.Result
 	for _, profile := range profiles {
-		// Check if we should use universal DaemonSet for EKS/OpenShift environments
 		if r.options.IntrospectionEnabled && r.useLegacyDaemonSet(providerList) {
-			// use legacy provider if EKS or OpenShift providers are present to prevent daemonset overrides
+			// Use legacy provider if EKS or OpenShift providers are present to prevent daemonset overrides
 			res, err := r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, kubernetes.LegacyProvider, providerList, &profile)
 			if utils.ShouldReturn(res, err) {
 				errs = append(errs, err)

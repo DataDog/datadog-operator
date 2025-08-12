@@ -195,7 +195,6 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 			}
 		}
 
-		// If provider is empty, this is a universal DaemonSet - don't add any provider override
 		if provider != kubernetes.LegacyProvider {
 			if !hasEKSOrOpenShiftProviders {
 				overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, providerList)
@@ -207,8 +206,6 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 				componentOverrides = append(componentOverrides, &overrideFromProvider)
 			}
 		}
-		// If provider is empty (universal DaemonSet), we don't set any provider label either
-		// The DaemonSet will have no node affinity and can schedule on all nodes
 	} else {
 		daemonset.Labels[constants.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
 	}
