@@ -36,7 +36,7 @@ const (
 	GKEProviderLabel = "cloud.google.com/gke-os-distribution"
 
 	// GKEAutopilotLabel is a placeholder label for GKE Autopilot detection (TODO: research actual label)
-	GKEAutopilotLabel = "cloud.google.com/gke-autopilot"
+	GKEAutopilotLabel = "cloud.google.com/gke-container-runtime"
 
 	// OpenshiftProvider is the OpenShift Provider name
 	OpenshiftProvider = "openshift"
@@ -60,6 +60,10 @@ var providerValueAllowlist = map[string]struct{}{
 // determineProvider creates a Provider based on a map of labels
 func determineProvider(labels map[string]string) string {
 	if len(labels) > 0 {
+		// Autopilot
+		if val, ok := labels[GKEAutopilotLabel]; ok && val == "containerd" {
+			return generateValidProviderName(GKECloudProvider, GKEAutopilotType)
+		}
 		// GKE
 		if val, ok := labels[GKEProviderLabel]; ok {
 			if provider := generateValidProviderName(GKECloudProvider, val); provider != "" {
@@ -73,10 +77,6 @@ func determineProvider(labels map[string]string) string {
 		// EKS
 		if val, ok := labels[EKSProviderLabel]; ok {
 			return generateValidProviderName(EKSCloudProvider, val)
-		}
-		// Autopilot
-		if val, ok := labels[GKEAutopilotLabel]; ok && val == "enabled" {
-			return generateValidProviderName(GKECloudProvider, GKEAutopilotType)
 		}
 	}
 
@@ -164,6 +164,11 @@ func isProviderValueAllowed(value string) bool {
 
 // GetProviderLabelKeyValue gets the corresponding cloud provider label key and value from a provider name
 func GetProviderLabelKeyValue(provider string) (string, string) {
+	// Special case for gke-autopilot
+	if provider == "gke-autopilot" {
+		return GKEProviderLabel, "cos"
+	}
+
 	// cloud provider to label mapping
 	providerMapping := map[string]string{
 		GKECloudProvider:  GKEProviderLabel,
