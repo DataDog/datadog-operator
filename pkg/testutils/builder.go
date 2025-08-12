@@ -991,6 +991,13 @@ func (builder *DatadogAgentBuilder) WithChecksTagCardinality(cardinality string)
 	return builder
 }
 
+// CSI Activation Config
+
+func (builder *DatadogAgentBuilder) WithCSIActivation(enabled bool) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Global.CSI = &v2alpha1.CSIConfig{Enabled: apiutils.NewBoolPointer(enabled)}
+	return builder
+}
+
 // Global SecretBackend
 
 func (builder *DatadogAgentBuilder) WithGlobalSecretBackendGlobalPerms(command string, args string, timeout int32, refreshInterval int32) *DatadogAgentBuilder {
@@ -1063,5 +1070,6 @@ func (builder *DatadogAgentBuilder) initGPUMonitoring() {
 func (builder *DatadogAgentBuilder) WithGPUMonitoringEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initGPUMonitoring()
 	builder.datadogAgent.Spec.Features.GPU.Enabled = apiutils.NewBoolPointer(enabled)
+	builder.datadogAgent.Spec.Features.GPU.PrivilegedMode = apiutils.NewBoolPointer(enabled)
 	return builder
 }

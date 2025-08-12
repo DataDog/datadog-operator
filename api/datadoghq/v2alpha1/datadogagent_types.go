@@ -242,6 +242,15 @@ type LanguageDetectionConfig struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
+// CSIConfig contains the config for Datadog CSI driver.
+type CSIConfig struct {
+	// Enables the usage of CSI driver in Datadog Agent.
+	// Requires installation of Datadog CSI Driver https://github.com/DataDog/helm-charts/tree/main/charts/datadog-csi-driver
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
 // InjectorConfig contains the configuration for the APM Injector.
 type InjectorConfig struct {
 	// Set the image tag to use for the APM Injector.
@@ -589,10 +598,15 @@ type ServiceDiscoveryNetworkStatsConfig struct {
 
 // GPUFeatureConfig contains the GPU monitoring configuration.
 type GPUFeatureConfig struct {
-	// Enabled enables GPU monitoring.
+	// Enabled enables GPU monitoring core check.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// PrivilegedMode enables GPU Probe module in System Probe.
+	// Default: false
+	// +optional
+	PrivilegedMode *bool `json:"privilegedMode,omitempty"`
 
 	// PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
 	// If the value is an empty string, the runtime class is not set.
@@ -1579,6 +1593,9 @@ type GlobalConfig struct {
 	// KUBERNETES_RESOURCE_GROUP should be in the form `{resource}.{group}` or `{resource}` (example: deployments.apps, pods)
 	// +optional
 	KubernetesResourcesAnnotationsAsTags map[string]map[string]string `json:"kubernetesResourcesAnnotationsAsTags,omitempty"`
+
+	// CSI contains configuration for Datadog CSI Driver
+	CSI *CSIConfig `json:"csi,omitempty"`
 
 	// NetworkPolicy contains the network configuration.
 	// +optional

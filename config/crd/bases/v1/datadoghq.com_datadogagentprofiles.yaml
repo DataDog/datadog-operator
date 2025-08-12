@@ -1465,7 +1465,12 @@ spec:
                           properties:
                             enabled:
                               description: |-
-                                Enabled enables GPU monitoring.
+                                Enabled enables GPU monitoring core check.
+                                Default: false
+                              type: boolean
+                            privilegedMode:
+                              description: |-
+                                PrivilegedMode enables GPU Probe module in System Probe.
                                 Default: false
                               type: boolean
                             requiredRuntimeClassName:
@@ -2325,6 +2330,16 @@ spec:
                         criSocketPath:
                           description: Path to the container runtime socket (if different from Docker).
                           type: string
+                        csi:
+                          description: CSI contains configuration for Datadog CSI Driver
+                          properties:
+                            enabled:
+                              description: |-
+                                Enables the usage of CSI driver in Datadog Agent.
+                                Requires installation of Datadog CSI Driver https://github.com/DataDog/helm-charts/tree/main/charts/datadog-csi-driver
+                                Default: false
+                              type: boolean
+                          type: object
                         disableNonResourceRules:
                           description: |-
                             Set DisableNonResourceRules to exclude NonResourceURLs from default ClusterRoles.

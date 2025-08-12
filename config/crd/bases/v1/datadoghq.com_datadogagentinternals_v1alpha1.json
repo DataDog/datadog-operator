@@ -1493,7 +1493,11 @@
               "description": "GPU monitoring",
               "properties": {
                 "enabled": {
-                  "description": "Enabled enables GPU monitoring.\nDefault: false",
+                  "description": "Enabled enables GPU monitoring core check.\nDefault: false",
+                  "type": "boolean"
+                },
+                "privilegedMode": {
+                  "description": "PrivilegedMode enables GPU Probe module in System Probe.\nDefault: false",
                   "type": "boolean"
                 },
                 "requiredRuntimeClassName": {
@@ -2476,6 +2480,17 @@
             "criSocketPath": {
               "description": "Path to the container runtime socket (if different from Docker).",
               "type": "string"
+            },
+            "csi": {
+              "additionalProperties": false,
+              "description": "CSI contains configuration for Datadog CSI Driver",
+              "properties": {
+                "enabled": {
+                  "description": "Enables the usage of CSI driver in Datadog Agent.\nRequires installation of Datadog CSI Driver https://github.com/DataDog/helm-charts/tree/main/charts/datadog-csi-driver\nDefault: false",
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
             },
             "disableNonResourceRules": {
               "description": "Set DisableNonResourceRules to exclude NonResourceURLs from default ClusterRoles.\nRequired 'true' for Google Cloud Marketplace.",
@@ -9093,7 +9108,11 @@
                   "description": "GPU monitoring",
                   "properties": {
                     "enabled": {
-                      "description": "Enabled enables GPU monitoring.\nDefault: false",
+                      "description": "Enabled enables GPU monitoring core check.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "privilegedMode": {
+                      "description": "PrivilegedMode enables GPU Probe module in System Probe.\nDefault: false",
                       "type": "boolean"
                     },
                     "requiredRuntimeClassName": {

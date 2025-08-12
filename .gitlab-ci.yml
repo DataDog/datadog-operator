@@ -5,6 +5,7 @@ variables:
   BUILD_DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
   E2E_DOCKER_REGISTRY: "669783387624.dkr.ecr.us-east-1.amazonaws.com/operator"
   JOB_DOCKER_IMAGE: "registry.ddbuild.io/ci-containers-project:v68399443-88dc260-v1.22"
+  OCTO_JOB_DOCKER_IMAGE: "registry.ddbuild.io/ci-containers-project:v73151907-c38dce1-v1.22.1"
   DOCKER_REGISTRY_LOGIN_SSM_KEY: docker_hub_login
   DOCKER_REGISTRY_PWD_SSM_KEY: docker_hub_pwd
   DOCKER_REGISTRY_URL: docker.io
@@ -13,7 +14,7 @@ variables:
   RH_PARTNER_REGISTRY_USER: "redhat-isv-containers+5e7c8ebc1c86a3163d1a69be-robot"
   RH_PARTNER_REGISTRY_KEY_SSM_KEY: redhat_registry_key
   RH_PARTNER_API_KEY_SSM_KEY: redhat_api_key
-  TEST_INFRA_DEFINITIONS_BUILDIMAGES: 37219b27b29d
+  TEST_INFRA_DEFINITIONS_BUILDIMAGES: b324348d0857
   PUSH_IMAGES_TO_STAGING:
     description: "Set PUSH_IMAGE_TO_STAGING to 'true' if you want to push the operator to internal staging registry."
   FIPS_ENABLED: false
@@ -585,7 +586,10 @@ publish_community_operators:
   # needs:
   #   - "submit_preflight_redhat_image"
   tags: [ "runner:docker", "size:large" ]
-  image: $JOB_DOCKER_IMAGE
+  image: $OCTO_JOB_DOCKER_IMAGE
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
   before_script:
     - make install-tools
   script:
@@ -611,14 +615,20 @@ publish_community_operators:
       ci.datadog-operator.redhat-registry-token --with-decryption --query "Parameter.Value" --out text > ~/.redhat/auths.json
     - cd $CI_PROJECT_DIR
     - make bundle-redhat
-    # configure git and github-cli
+
+    # Configure github-cli
     - git config --global user.email $GITLAB_USER_EMAIL
-    - git config --global user.name $GITLAB_USER_NAME
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.github-robot-token --with-decryption --query "Parameter.Value" --out text > git-token.txt
-    - gh auth login --with-token < git-token.txt
+    # Use dd-octo-sts to get GitHub token
+    - dd-octo-sts version
+    - dd-octo-sts debug --scope DataDog --policy datadog-operator.publish-community-bundles
+    - dd-octo-sts token --scope DataDog --policy datadog-operator.publish-community-bundles > token.txt
+    - gh auth login --with-token < token.txt
     - gh auth setup-git
     # create pull request for each marketplace repo
     - make publish-community-bundles
+  after_script:
+    # Revoke the token after usage
+    - dd-octo-sts revoke -t $(cat token.txt)
   variables:
     SKOPEO_VERSION: release-1.16
 
