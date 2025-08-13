@@ -31,7 +31,6 @@ import (
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	pkgutils "github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 	"github.com/DataDog/datadog-operator/pkg/utils"
@@ -70,11 +69,11 @@ type Reconciler struct {
 	scheme                 *runtime.Scheme
 	recorder               record.EventRecorder
 	operatorMetricsEnabled bool
-	forwarders             datadog.MetricsForwardersManager
+	forwarders             pkgutils.MetricsForwardersManager
 }
 
 // NewReconciler returns a new Reconciler object
-func NewReconciler(client client.Client, ddClient datadogclient.DatadogMonitorClient, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, operatorMetricsEnabled bool, metricForwardersMgr datadog.MetricsForwardersManager) (*Reconciler, error) {
+func NewReconciler(client client.Client, ddClient datadogclient.DatadogMonitorClient, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, operatorMetricsEnabled bool, metricForwardersMgr pkgutils.MetricsForwardersManager) (*Reconciler, error) {
 	return &Reconciler{
 		client:                 client,
 		datadogClient:          ddClient.Client,
@@ -228,7 +227,7 @@ func (r *Reconciler) create(logger logr.Logger, datadogMonitor *datadoghqv1alpha
 	if err != nil {
 		return err
 	}
-	event := buildEventInfo(datadogMonitor.Name, datadogMonitor.Namespace, datadog.CreationEvent)
+	event := buildEventInfo(datadogMonitor.Name, datadogMonitor.Namespace, pkgutils.CreationEvent)
 	r.recordEvent(datadogMonitor, event)
 
 	// As this is a new monitor, add static information to status
@@ -261,7 +260,7 @@ func (r *Reconciler) update(logger logr.Logger, datadogMonitor *datadoghqv1alpha
 		return err
 	}
 
-	event := buildEventInfo(datadogMonitor.Name, datadogMonitor.Namespace, datadog.UpdateEvent)
+	event := buildEventInfo(datadogMonitor.Name, datadogMonitor.Namespace, pkgutils.UpdateEvent)
 	r.recordEvent(datadogMonitor, event)
 
 	// Set Updated Condition

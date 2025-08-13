@@ -28,6 +28,7 @@ import (
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
@@ -47,7 +48,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
 
 	type args struct {
-		request              reconcile.Request
+		request              v1alpha1.DatadogMonitor
 		firstAction          func(c client.Client)
 		firstReconcileCount  int
 		secondAction         func(c client.Client)
@@ -470,7 +471,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 			var result ctrl.Result
 			var err error
 			for i := 0; i < tt.args.firstReconcileCount; i++ {
-				result, err = r.Reconcile(context.TODO(), tt.args.request)
+				result, err = r.Reconcile(context.TODO(), &tt.args.request)
 			}
 
 			assert.NoError(t, err, "ReconcileDatadogMonitor.Reconcile() unexpected error: %v", err)
@@ -485,7 +486,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 				}
 			}
 			for i := 0; i < tt.args.secondReconcileCount; i++ {
-				_, err := r.Reconcile(context.TODO(), tt.args.request)
+				_, err := r.Reconcile(context.TODO(), &tt.args.request)
 				assert.NoError(t, err, "ReconcileDatadogMonitor.Reconcile() unexpected error: %v", err)
 			}
 
@@ -501,9 +502,9 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 	}
 }
 
-func newRequest(ns, name string) reconcile.Request {
-	return reconcile.Request{
-		NamespacedName: types.NamespacedName{
+func newRequest(ns, name string) v1alpha1.DatadogMonitor {
+	return v1alpha1.DatadogMonitor{
+		ObjectMeta: metav1.ObjectMeta{
 			Namespace: ns,
 			Name:      name,
 		},
