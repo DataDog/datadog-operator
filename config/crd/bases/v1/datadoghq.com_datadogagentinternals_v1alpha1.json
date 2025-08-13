@@ -1636,11 +1636,7 @@
                                     }
                                   },
                                   "required": [
-                                    "labelFromKey",
-                                    "labelsFromPath",
-                                    "nilIsZero",
-                                    "path",
-                                    "valueFrom"
+                                    "path"
                                   ],
                                   "type": "object"
                                 },
@@ -1671,8 +1667,6 @@
                                     }
                                   },
                                   "required": [
-                                    "labelFromKey",
-                                    "labelsFromPath",
                                     "path"
                                   ],
                                   "type": "object"
@@ -1718,11 +1712,7 @@
                                     }
                                   },
                                   "required": [
-                                    "labelName",
-                                    "labelsFromPath",
-                                    "list",
-                                    "path",
-                                    "valueFrom"
+                                    "path"
                                   ],
                                   "type": "object"
                                 },
@@ -1756,10 +1746,7 @@
                             }
                           },
                           "required": [
-                            "commonLabels",
                             "each",
-                            "help",
-                            "labelsFromPath",
                             "name"
                           ],
                           "type": "object"
@@ -1772,12 +1759,8 @@
                       }
                     },
                     "required": [
-                      "commonLabels",
                       "groupVersionKind",
-                      "labelsFromPath",
-                      "metricNamePrefix",
-                      "metrics",
-                      "resourcePlural"
+                      "metrics"
                     ],
                     "type": "object"
                   },
@@ -9251,11 +9234,7 @@
                                         }
                                       },
                                       "required": [
-                                        "labelFromKey",
-                                        "labelsFromPath",
-                                        "nilIsZero",
-                                        "path",
-                                        "valueFrom"
+                                        "path"
                                       ],
                                       "type": "object"
                                     },
@@ -9286,8 +9265,6 @@
                                         }
                                       },
                                       "required": [
-                                        "labelFromKey",
-                                        "labelsFromPath",
                                         "path"
                                       ],
                                       "type": "object"
@@ -9333,11 +9310,7 @@
                                         }
                                       },
                                       "required": [
-                                        "labelName",
-                                        "labelsFromPath",
-                                        "list",
-                                        "path",
-                                        "valueFrom"
+                                        "path"
                                       ],
                                       "type": "object"
                                     },
@@ -9371,10 +9344,7 @@
                                 }
                               },
                               "required": [
-                                "commonLabels",
                                 "each",
-                                "help",
-                                "labelsFromPath",
                                 "name"
                               ],
                               "type": "object"
@@ -9387,12 +9357,8 @@
                           }
                         },
                         "required": [
-                          "commonLabels",
                           "groupVersionKind",
-                          "labelsFromPath",
-                          "metricNamePrefix",
-                          "metrics",
-                          "resourcePlural"
+                          "metrics"
                         ],
                         "type": "object"
                       },

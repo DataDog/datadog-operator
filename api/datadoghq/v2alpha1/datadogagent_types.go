@@ -816,6 +816,7 @@ type Resource struct {
 	// MetricNamePrefix defines a prefix for all metrics of the resource.
 	// If set to "", no prefix will be added.
 	// Example: If set to "foo", MetricNamePrefix will be "foo_<metric>".
+	// +optional
 	MetricNamePrefix *string `json:"metricNamePrefix" yaml:"metricNamePrefix"`
 
 	// GroupVersionKind of the custom resource to be monitored.
@@ -828,6 +829,7 @@ type Resource struct {
 	Metrics []Generator `json:"metrics" yaml:"metrics"`
 
 	// ResourcePlural sets the plural name of the resource. Defaults to the plural version of the Kind according to flect.Pluralize.
+	// +optional
 	ResourcePlural string `json:"resourcePlural" yaml:"resourcePlural"`
 }
 
@@ -841,8 +843,10 @@ type GroupVersionKind struct {
 // Labels is common configuration of labels to add to metrics.
 type Labels struct {
 	// CommonLabels are added to all metrics.
+	// +optional
 	CommonLabels map[string]string `json:"commonLabels" yaml:"commonLabels"`
 	// LabelsFromPath adds additional labels where the value is taken from a field in the resource.
+	// +optional
 	LabelsFromPath map[string][]string `json:"labelsFromPath" yaml:"labelsFromPath"`
 }
 
@@ -851,6 +855,7 @@ type Generator struct {
 	// Name of the metric. Subject to prefixing based on the configuration of the Resource.
 	Name string `json:"name" yaml:"name"`
 	// Help text for the metric.
+	// +optional
 	Help string `json:"help" yaml:"help"`
 	// Each targets a value or values from the resource.
 	Each Metric `json:"each" yaml:"each"`
@@ -899,6 +904,7 @@ var (
 // MetricMeta are variables which may used for any metric type.
 type MetricMeta struct {
 	// LabelsFromPath adds additional labels where the value of the label is taken from a field under Path.
+	// +optional
 	LabelsFromPath map[string][]string `json:"labelsFromPath" yaml:"labelsFromPath"`
 	// Path is the path to to generate metric(s) for.
 	Path []string `json:"path" yaml:"path"`
@@ -910,10 +916,13 @@ type MetricGauge struct {
 	MetricMeta `json:",inline" yaml:",inline"`
 
 	// ValueFrom is the path to a numeric field under Path that will be the metric value.
+	// +optional
 	ValueFrom []string `json:"valueFrom" yaml:"valueFrom"`
 	// LabelFromKey adds a label with the given name if Path is an object. The label value will be the object key.
+	// +optional
 	LabelFromKey string `json:"labelFromKey" yaml:"labelFromKey"`
 	// NilIsZero indicates that if a value is nil it will be treated as zero value.
+	// +optional
 	NilIsZero bool `json:"nilIsZero" yaml:"nilIsZero"`
 }
 
@@ -922,6 +931,7 @@ type MetricGauge struct {
 type MetricInfo struct {
 	MetricMeta `json:",inline" yaml:",inline"`
 	// LabelFromKey adds a label with the given name if Path is an object. The label value will be the object key.
+	// +optional
 	LabelFromKey string `json:"labelFromKey" yaml:"labelFromKey"`
 }
 
@@ -931,10 +941,13 @@ type MetricStateSet struct {
 	MetricMeta `json:",inline" yaml:",inline"`
 
 	// List is the list of values to expose a value for.
+	// +optional
 	List []string `json:"list" yaml:"list"`
 	// LabelName is the key of the label which is used for each entry in List to expose the value.
+	// +optional
 	LabelName string `json:"labelName" yaml:"labelName"`
 	// ValueFrom is the subpath to compare the list to.
+	// +optional
 	ValueFrom []string `json:"valueFrom" yaml:"valueFrom"`
 }
 
