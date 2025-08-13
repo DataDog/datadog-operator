@@ -86,7 +86,7 @@ func (f *controlPlaneMonitoringFeature) ManageDependencies(managers feature.Reso
 
 		// For OpenShift, etcd monitoring requires manual secret copying
 		targetNamespace := f.owner.GetNamespace()
-		copyCommand := fmt.Sprintf("oc get secret etcd-metric-client -n openshift-etcd-operator -o yaml | sed 's/name: etcd-metric-client/name: etcd-metric-client/' | sed 's/namespace: openshift-etcd-operator/namespace: %s/' | oc apply -f -", targetNamespace)
+		copyCommand := fmt.Sprintf("oc get secret etcd-metric-client -n openshift-etcd-operator -o yaml | sed 's/namespace: openshift-etcd-operator/namespace: %s/' | oc apply -f -", targetNamespace)
 
 		f.logger.Info("OpenShift control plane monitoring requires manual etcd secret copy",
 			"command", copyCommand,
