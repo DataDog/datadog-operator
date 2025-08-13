@@ -55,7 +55,7 @@ cluster_check: `)
 	config.WriteString(`
 init_config:
 instances:
-  - skip_leader_election:`)
+  - skip_leader_election: `)
 	config.WriteString(stringVal)
 	config.WriteString(`
     collectors:
