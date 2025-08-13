@@ -7,3 +7,4 @@ package experimental
 
 const ExperimentalAnnotationPrefix = "experimental.agent.datadoghq.com"
 const ExperimentalImageOverrideConfigSubkey = "image-override-config"
+const ExperimentalAutopilotSubkey = "autopilot"

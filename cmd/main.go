@@ -433,22 +433,23 @@ func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
 
 	zapOpts := ctrlzap.Options{}
 	zapOpts.BindFlags(flag.CommandLine)
+	zapOpts.Level = zap.NewAtomicLevelAt(logLevel)
 
 	core := zap.WrapCore(func(c zapcore.Core) zapcore.Core {
-		infoLevel := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
-			return level == zapcore.InfoLevel
+		stdoutLevel := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
+			return (level == zapcore.InfoLevel || level == zapcore.DebugLevel) && zapOpts.Level.Enabled(level)
 		})
 
-		otherLevel := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
-			return level != zapcore.InfoLevel
+		stderrLevel := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
+			return (level != zapcore.InfoLevel && level != zapcore.DebugLevel) && zapOpts.Level.Enabled(level)
 		})
 
 		stdoutSyncer := zapcore.Lock(os.Stdout)
 		stderrSyncer := zapcore.Lock(os.Stderr)
 
 		tee := zapcore.NewTee(
-			zapcore.NewCore(encoder, stderrSyncer, otherLevel),
-			zapcore.NewCore(encoder, stdoutSyncer, infoLevel),
+			zapcore.NewCore(encoder, stderrSyncer, stderrLevel),
+			zapcore.NewCore(encoder, stdoutSyncer, stdoutLevel),
 		)
 
 		return tee

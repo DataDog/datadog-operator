@@ -181,6 +181,9 @@ func (mdf *MetadataForwarder) sendMetadata() error {
 }
 
 func (mdf *MetadataForwarder) setupFromOperator() error {
+	// Cluster name
+	mdf.clusterName = os.Getenv(constants.DDClusterName)
+
 	if mdf.credsManager == nil {
 		return fmt.Errorf("credentials Manager is undefined")
 	}
@@ -192,9 +195,6 @@ func (mdf *MetadataForwarder) setupFromOperator() error {
 
 	// API key
 	mdf.apiKey = creds.APIKey
-
-	// Cluster name
-	mdf.clusterName = os.Getenv(constants.DDClusterName)
 
 	return nil
 }
@@ -216,7 +216,12 @@ func (mdf *MetadataForwarder) setupFromDDA(dda *v2alpha1.DatadogAgent) error {
 		// if API key is set from DDA, also update request URL if needed
 		if dda.Spec.Global != nil {
 			if dda.Spec.Global.Site != nil {
-				mdf.requestURL = defaultURLHostPrefix + *dda.Spec.Global.Site
+				mdfURL := url.URL{
+					Scheme: defaultURLScheme,
+					Host:   defaultURLHostPrefix + *dda.Spec.Global.Site,
+					Path:   defaultURLPath,
+				}
+				mdf.requestURL = mdfURL.String()
 			}
 		}
 	}
@@ -382,7 +387,11 @@ func getURL() string {
 	// check url env var
 	// example: https://app.datadoghq.com
 	if urlFromEnvVar := os.Getenv("DD_URL"); urlFromEnvVar != "" {
-		mdfURL.Host = urlFromEnvVar
+		tempURL, err := url.Parse(urlFromEnvVar)
+		if err == nil {
+			mdfURL.Host = tempURL.Host
+			mdfURL.Scheme = tempURL.Scheme
+		}
 	}
 
 	return mdfURL.String()
