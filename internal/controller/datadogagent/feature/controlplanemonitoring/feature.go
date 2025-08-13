@@ -86,11 +86,11 @@ func (f *controlPlaneMonitoringFeature) ManageDependencies(managers feature.Reso
 
 		// For OpenShift, etcd monitoring requires manual secret copying
 		targetNamespace := f.owner.GetNamespace()
-		copyCommand := fmt.Sprintf("oc get secret etcd-client -n openshift-etcd-operator -o yaml | sed 's/name: etcd-client/name: etcd-client-cert/' | sed 's/namespace: openshift-etcd-operator/namespace: %s/' | oc apply -f -", targetNamespace)
+		copyCommand := fmt.Sprintf("oc get secret etcd-metric-client -n openshift-etcd-operator -o yaml | sed 's/name: etcd-metric-client/name: etcd-metric-client-cert/' | sed 's/namespace: openshift-etcd-operator/namespace: %s/' | oc apply -f -", targetNamespace)
 
 		f.logger.Info("OpenShift control plane monitoring requires manual etcd secret copy",
 			"command", copyCommand,
-			"note", "Run this command if cluster-agent pods fail to start due to missing etcd-client-cert secret")
+			"note", "Run this command if cluster-checks-runner and node-agent pods fail to start due to missing etcd-metric-cert secret")
 	} else if providerLabel == kubernetes.EKSProviderLabel {
 		// EKS ConfigMap
 		eksConfigMap, err2 := f.buildControlPlaneMonitoringConfigMap(kubernetes.EKSProviderLabel, f.eksConfigMapName)
@@ -173,6 +173,45 @@ func (f *controlPlaneMonitoringFeature) ManageSingleContainerNodeAgent(managers 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *controlPlaneMonitoringFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	providerLabel, _ := kubernetes.GetProviderLabelKeyValue(f.provider)
+	if providerLabel == kubernetes.OpenShiftProviderLabel {
+		// Add etcd-certs volume (secret)
+		etcdCertsVolume := &corev1.Volume{
+			Name: etcdCertsVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName:  etcdCertsSecretName,
+					DefaultMode: apiutils.NewInt32Pointer(420),
+				},
+			},
+		}
+		managers.Volume().AddVolume(etcdCertsVolume)
+
+		// Add etcd-certs volume mount
+		etcdCertsVolumeMount := corev1.VolumeMount{
+			Name:      etcdCertsVolumeName,
+			MountPath: etcdCertsVolumeMountPath,
+			ReadOnly:  true,
+		}
+		managers.VolumeMount().AddVolumeMountToContainer(&etcdCertsVolumeMount, apicommon.ClusterChecksRunnersContainerName)
+
+		// Add disable-etcd-autoconf volume (emptyDir)
+		disableEtcdAutoconfVolume := &corev1.Volume{
+			Name: disableEtcdAutoconfVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		}
+		managers.Volume().AddVolume(disableEtcdAutoconfVolume)
+
+		// Add disable-etcd-autoconf volume mount
+		disableEtcdAutoconfVolumeMount := corev1.VolumeMount{
+			Name:      disableEtcdAutoconfVolumeName,
+			MountPath: disableEtcdAutoconfVolumeMountPath,
+			ReadOnly:  false,
+		}
+		managers.VolumeMount().AddVolumeMountToContainer(&disableEtcdAutoconfVolumeMount, apicommon.ClusterChecksRunnersContainerName)
+	}
 	return nil
 }
 
