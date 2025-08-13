@@ -70,6 +70,7 @@ func (f *controlPlaneMonitoringFeature) ManageDependencies(managers feature.Reso
 	if !f.enabled {
 		return nil
 	}
+	f.provider = provider
 	// Create ConfigMaps for control plane monitoring
 	providerLabel, _ := kubernetes.GetProviderLabelKeyValue(provider)
 	if providerLabel == kubernetes.OpenShiftProviderLabel {

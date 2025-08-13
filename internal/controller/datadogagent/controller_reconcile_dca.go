@@ -34,42 +34,9 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus, dcaProvider string) (reconcile.Result, error) {
 	var result reconcile.Result
 	now := metav1.NewTime(time.Now())
-
-	// Get provider list for introspection
-	providerList := map[string]struct{}{kubernetes.LegacyProvider: {}}
-	dcaProvider := kubernetes.LegacyProvider
-	if r.options.IntrospectionEnabled {
-		nodeList, err := r.getNodeList(ctx)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-		providerList = kubernetes.GetProviderListFromNodeList(nodeList, logger)
-
-		dcaProvider = kubernetes.DefaultProvider
-		if len(providerList) == 1 {
-			for provider := range providerList {
-				dcaProvider = provider
-				break
-			}
-		} else if len(providerList) == 2 {
-			if _, ok := providerList[kubernetes.DefaultProvider]; ok {
-				for provider := range providerList {
-					if provider != kubernetes.DefaultProvider {
-						dcaProvider = provider
-						logger.Info("Multiple providers found for Cluster Agent reconciliation, using provider", "provider", dcaProvider)
-						break
-					}
-				}
-			} else {
-				logger.Error(nil, "Multiple specialized providers detected for Cluster Agent reconciliation. Only one specialized provider is supported, falling back to default provider", "selected_provider", dcaProvider)
-			}
-		} else {
-			logger.Error(nil, "Multiple specialized providers detected for Cluster Agent reconciliation. Only one specialized provider is supported, falling back to default provider", "selected_provider", dcaProvider)
-		}
-	}
 
 	// Start by creating the Default Cluster-Agent deployment
 	deployment := componentdca.NewDefaultClusterAgentDeployment(dda.GetObjectMeta(), &dda.Spec)
