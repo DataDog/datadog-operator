@@ -1114,6 +1114,7 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 	const resourcesName = "foo"
 	const resourcesNamespace = "bar"
 	const dcaName = "foo-cluster-agent"
+	const dsName = "foo-agent"
 
 	eventBroadcaster := record.NewBroadcaster()
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgent_Reconcile"})
@@ -1157,7 +1158,13 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
 			wantFunc: func(t *testing.T, c client.Client) error {
-				return verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "openshift")
+				if err := verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "openshift"); err != nil {
+					return err
+				}
+				expectedDaemonsets := []string{
+					string("foo-agent"),
+				}
+				return verifyDaemonsetNames(t, c, resourcesNamespace, dsName, expectedDaemonsets)
 			},
 		},
 		{
@@ -1190,7 +1197,13 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
 			wantFunc: func(t *testing.T, c client.Client) error {
-				return verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "eks")
+				if err := verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "eks"); err != nil {
+					return err
+				}
+				expectedDaemonsets := []string{
+					string("foo-agent"),
+				}
+				return verifyDaemonsetNames(t, c, resourcesNamespace, dsName, expectedDaemonsets)
 			},
 		},
 		{
@@ -1223,7 +1236,13 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
 			wantFunc: func(t *testing.T, c client.Client) error {
-				return verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "default")
+				if err := verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "default"); err != nil {
+					return err
+				}
+				expectedDaemonsets := []string{
+					string("foo-agent"),
+				}
+				return verifyDaemonsetNames(t, c, resourcesNamespace, dsName, expectedDaemonsets)
 			},
 		},
 		{
@@ -1251,7 +1270,13 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
 			wantFunc: func(t *testing.T, c client.Client) error {
-				return verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "default")
+				if err := verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "default"); err != nil {
+					return err
+				}
+				expectedDaemonsets := []string{
+					string("foo-agent-default"),
+				}
+				return verifyDaemonsetNames(t, c, resourcesNamespace, dsName, expectedDaemonsets)
 			},
 		},
 	}
