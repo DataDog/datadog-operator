@@ -201,6 +201,10 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 				Value: "true",
 			},
 			{
+				Name:  DDEnableGPUProbeEnvVar,
+				Value: "true",
+			},
+			{
 				Name:  common.DDSystemProbeSocket,
 				Value: common.DefaultSystemProbeSocketPath,
 			},
