@@ -163,14 +163,14 @@ func ApplyDefaultProfile(profilesToApply []v1alpha1.DatadogAgentProfile, profile
 
 // OverrideFromProfile returns the component override that should be
 // applied according to the given profile.
-func OverrideFromProfile(profile *v1alpha1.DatadogAgentProfile) v2alpha1.DatadogAgentComponentOverride {
+func OverrideFromProfile(profile *v1alpha1.DatadogAgentProfile, useV3Metadata bool) v2alpha1.DatadogAgentComponentOverride {
 	if profile.Name == "" && profile.Namespace == "" {
 		return v2alpha1.DatadogAgentComponentOverride{}
 	}
 	overrideDSName := DaemonSetName(types.NamespacedName{
 		Namespace: profile.Namespace,
 		Name:      profile.Name,
-	})
+	}, useV3Metadata)
 
 	profileComponentOverride := v2alpha1.DatadogAgentComponentOverride{
 		Name:     &overrideDSName,
@@ -199,9 +199,13 @@ func IsDefaultProfile(profileNamespace string, profileName string) bool {
 
 // DaemonSetName returns the name that the DaemonSet should have according to
 // the name of the profile associated with it.
-func DaemonSetName(profileNamespacedName types.NamespacedName) string {
+func DaemonSetName(profileNamespacedName types.NamespacedName, useV3Metadata bool) string {
 	if IsDefaultProfile(profileNamespacedName.Namespace, profileNamespacedName.Name) {
 		return "" // Return empty so it does not override the default DaemonSet name
+	}
+
+	if useV3Metadata {
+		return fmt.Sprintf("%s-%s", profileNamespacedName.Name, constants.DefaultAgentResourceSuffix)
 	}
 
 	return daemonSetNamePrefix + profileNamespacedName.Namespace + "-" + profileNamespacedName.Name

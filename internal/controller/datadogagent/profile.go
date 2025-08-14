@@ -158,12 +158,7 @@ func getProfileDDAIName(ddaiName, profileName, profileNamespace string) string {
 
 // The node agent component override is non-nil from the default DDAI creation
 func setProfileNodeAgentOverride(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) {
-	setProfileDSName(ddai.Spec.Override[v2alpha1.NodeAgentComponentName], profile)
 	setProfileDDAILabels(ddai.Spec.Override[v2alpha1.NodeAgentComponentName], profile)
-}
-
-func setProfileDSName(override *v2alpha1.DatadogAgentComponentOverride, profile *v1alpha1.DatadogAgentProfile) {
-	override.Name = apiutils.NewStringPointer(agentprofile.DaemonSetName(types.NamespacedName{Namespace: profile.Namespace, Name: profile.Name}))
 }
 
 func setProfileDDAILabels(override *v2alpha1.DatadogAgentComponentOverride, profile *v1alpha1.DatadogAgentProfile) {

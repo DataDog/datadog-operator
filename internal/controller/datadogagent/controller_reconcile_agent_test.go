@@ -162,7 +162,7 @@ func Test_getValidDaemonSetNames(t *testing.T) {
 				},
 			}
 
-			validDSNames, validEDSNames := r.getValidDaemonSetNames(tt.dsName, tt.existingProviders, tt.existingProfiles)
+			validDSNames, validEDSNames := r.getValidDaemonSetNames(tt.dsName, tt.existingProviders, tt.existingProfiles, false)
 			assert.Equal(t, tt.wantDS, validDSNames)
 			assert.Equal(t, tt.wantEDS, validEDSNames)
 		})

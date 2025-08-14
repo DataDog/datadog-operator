@@ -19,8 +19,8 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -47,15 +47,6 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 	agentEnabled := requiredComponents.Agent.IsEnabled()
 	singleContainerStrategyEnabled := requiredComponents.Agent.SingleContainerStrategyEnabled()
-
-	// instanceName is used for daemonset label selector.
-	// If the DDAI is labeled with a profile, we use the DDAI name + profile name as the instance name.
-	// Otherwise, we use the DDAI name + default agent resource suffix.
-	profileName := ""
-	if isDDAILabeledWithProfile(ddai) {
-		profileName = ddai.Labels[constants.ProfileLabelKey]
-	}
-	instanceName := datadogagent.GetAgentInstanceLabelValue(ddai, profileName, "", constants.DefaultAgentResourceSuffix)
 
 	// When EDS is enabled and there are profiles defined, we only create an
 	// EDS for the default profile, for the other profiles we create
@@ -116,7 +107,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	}
 
 	// Start by creating the Default Agent daemonset
-	daemonset = componentagent.NewDefaultAgentDaemonset(ddai, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent, instanceName)
+	daemonset = componentagent.NewDefaultAgentDaemonset(ddai, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent, component.GetAgentName(ddai))
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 	// Set Global setting on the default daemonset
 	global.ApplyGlobalSettingsNodeAgent(logger, podManagers, ddai.GetObjectMeta(), &ddai.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)

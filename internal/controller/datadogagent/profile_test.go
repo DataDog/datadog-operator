@@ -190,10 +190,10 @@ func Test_computeProfileMerge(t *testing.T) {
 			},
 			want: v1alpha1.DatadogAgentInternal{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo-profile-foo-profile",
+					Name:      "foo-profile",
 					Namespace: "bar",
 					Annotations: map[string]string{
-						constants.MD5DDAIDeploymentAnnotationKey: "d302e0505ae43dad0fe5d8556ef539e1",
+						constants.MD5DDAIDeploymentAnnotationKey: "f4acb355091265e0ede2f743dabedc7e",
 					},
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
@@ -252,7 +252,6 @@ func Test_computeProfileMerge(t *testing.T) {
 								constants.ProfileLabelKey:                    "foo-profile",
 								constants.MD5AgentDeploymentProviderLabelKey: "",
 							},
-							Name: apiutils.NewStringPointer("datadog-agent-with-profile-bar-foo-profile"),
 						},
 						v2alpha1.ClusterAgentComponentName: {
 							Disabled: apiutils.NewBoolPointer(true),
@@ -529,7 +528,6 @@ func Test_setProfileSpec(t *testing.T) {
 							Labels: map[string]string{
 								constants.ProfileLabelKey: "foo-profile",
 							},
-							Name: apiutils.NewStringPointer("datadog-agent-with-profile-bar-foo-profile"),
 						},
 						v2alpha1.ClusterAgentComponentName: {
 							Disabled: apiutils.NewBoolPointer(true),
@@ -604,7 +602,7 @@ func Test_setProfileDDAIMeta(t *testing.T) {
 			},
 			want: v1alpha1.DatadogAgentInternal{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo-profile-foo",
+					Name:      "foo",
 					Namespace: "bar",
 					Labels: map[string]string{
 						constants.ProfileLabelKey: "foo",
