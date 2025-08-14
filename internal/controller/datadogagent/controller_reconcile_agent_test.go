@@ -1532,11 +1532,11 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 			},
 			wantNodeLabels: map[string]map[string]string{
 				"node-1": {
-					agentprofile.ProfileLabelKey: "profile-1",
-					"1":                          "1",
+					constants.ProfileLabelKey: "profile-1",
+					"1":                       "1",
 				},
 				"node-2": {
-					agentprofile.ProfileLabelKey: "profile-2",
+					constants.ProfileLabelKey: "profile-2",
 				},
 				"node-default": nil,
 			},
@@ -1576,19 +1576,19 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-default",
 						Labels: map[string]string{
-							agentprofile.ProfileLabelKey: "profile-1",
-							"foo":                        "bar",
+							constants.ProfileLabelKey: "profile-1",
+							"foo":                     "bar",
 						},
 					},
 				},
 			},
 			wantNodeLabels: map[string]map[string]string{
 				"node-1": {
-					agentprofile.ProfileLabelKey: "profile-1",
-					"1":                          "1",
+					constants.ProfileLabelKey: "profile-1",
+					"1":                       "1",
 				},
 				"node-2": {
-					agentprofile.ProfileLabelKey: "profile-2",
+					constants.ProfileLabelKey: "profile-2",
 				},
 				"node-default": {
 					"foo": "bar",
@@ -1633,7 +1633,7 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-default",
 						Labels: map[string]string{
-							agentprofile.ProfileLabelKey:    "profile-1",
+							constants.ProfileLabelKey:       "profile-1",
 							agentprofile.OldProfileLabelKey: "profile-2",
 							"foo":                           "bar",
 						},
@@ -1642,11 +1642,11 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 			},
 			wantNodeLabels: map[string]map[string]string{
 				"node-1": {
-					agentprofile.ProfileLabelKey: "profile-1",
-					"1":                          "1",
+					constants.ProfileLabelKey: "profile-1",
+					"1":                       "1",
 				},
 				"node-2": {
-					agentprofile.ProfileLabelKey: "profile-2",
+					constants.ProfileLabelKey: "profile-2",
 				},
 				"node-default": {
 					"foo": "bar",
@@ -1675,8 +1675,8 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-1",
 						Labels: map[string]string{
-							"1":                          "1",
-							agentprofile.ProfileLabelKey: "profile-2",
+							"1":                       "1",
+							constants.ProfileLabelKey: "profile-2",
 						},
 					},
 				},
@@ -1692,7 +1692,7 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-default",
 						Labels: map[string]string{
-							agentprofile.ProfileLabelKey:    "profile-1",
+							constants.ProfileLabelKey:       "profile-1",
 							agentprofile.OldProfileLabelKey: "profile-2",
 							"foo":                           "bar",
 						},
@@ -1701,11 +1701,11 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 			},
 			wantNodeLabels: map[string]map[string]string{
 				"node-1": {
-					agentprofile.ProfileLabelKey: "profile-1",
-					"1":                          "1",
+					constants.ProfileLabelKey: "profile-1",
+					"1":                       "1",
 				},
 				"node-2": {
-					agentprofile.ProfileLabelKey: "profile-2",
+					constants.ProfileLabelKey: "profile-2",
 				},
 				"node-default": {
 					"foo": "bar",
@@ -1734,8 +1734,8 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-1",
 						Labels: map[string]string{
-							"1":                          "1",
-							agentprofile.ProfileLabelKey: "profile-1",
+							"1":                       "1",
+							constants.ProfileLabelKey: "profile-1",
 						},
 					},
 				},
@@ -1743,7 +1743,7 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-2",
 						Labels: map[string]string{
-							agentprofile.ProfileLabelKey: "profile-2",
+							constants.ProfileLabelKey: "profile-2",
 						},
 					},
 				},
@@ -1758,11 +1758,11 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 			},
 			wantNodeLabels: map[string]map[string]string{
 				"node-1": {
-					agentprofile.ProfileLabelKey: "profile-1",
-					"1":                          "1",
+					constants.ProfileLabelKey: "profile-1",
+					"1":                       "1",
 				},
 				"node-2": {
-					agentprofile.ProfileLabelKey: "profile-2",
+					constants.ProfileLabelKey: "profile-2",
 				},
 				"node-default": {
 					"foo": "bar",
@@ -1792,7 +1792,7 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 						Name: "node-1",
 						Labels: map[string]string{
 							"1":                             "1",
-							agentprofile.ProfileLabelKey:    "profile-1",
+							constants.ProfileLabelKey:       "profile-1",
 							agentprofile.OldProfileLabelKey: "profile-2",
 						},
 					},
@@ -1801,7 +1801,7 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-2",
 						Labels: map[string]string{
-							agentprofile.ProfileLabelKey: "profile-2",
+							constants.ProfileLabelKey: "profile-2",
 						},
 					},
 				},
@@ -1809,19 +1809,19 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-default",
 						Labels: map[string]string{
-							"foo":                        "bar",
-							agentprofile.ProfileLabelKey: "profile-2",
+							"foo":                     "bar",
+							constants.ProfileLabelKey: "profile-2",
 						},
 					},
 				},
 			},
 			wantNodeLabels: map[string]map[string]string{
 				"node-1": {
-					agentprofile.ProfileLabelKey: "profile-1",
-					"1":                          "1",
+					constants.ProfileLabelKey: "profile-1",
+					"1":                       "1",
 				},
 				"node-2": {
-					agentprofile.ProfileLabelKey: "profile-2",
+					constants.ProfileLabelKey: "profile-2",
 				},
 				"node-default": {
 					"foo": "bar",
@@ -1850,8 +1850,8 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-1",
 						Labels: map[string]string{
-							"1":                          "1",
-							agentprofile.ProfileLabelKey: "profile-2",
+							"1":                       "1",
+							constants.ProfileLabelKey: "profile-2",
 						},
 					},
 				},
@@ -1872,11 +1872,11 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 			},
 			wantNodeLabels: map[string]map[string]string{
 				"node-1": {
-					agentprofile.ProfileLabelKey: "profile-1",
-					"1":                          "1",
+					constants.ProfileLabelKey: "profile-1",
+					"1":                       "1",
 				},
 				"node-2": {
-					agentprofile.ProfileLabelKey: "profile-2",
+					constants.ProfileLabelKey: "profile-2",
 				},
 				"node-default": {
 					"foo": "bar",
@@ -1948,7 +1948,7 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 // 						Namespace: "foo",
 // 						Labels: map[string]string{
 // 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-// 							agentprofile.ProfileLabelKey:               "profile-1",
+// 							constants.ProfileLabelKey:               "profile-1",
 // 						},
 // 					},
 // 					Spec: corev1.PodSpec{
@@ -1961,7 +1961,7 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 // 						Namespace: "foo",
 // 						Labels: map[string]string{
 // 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-// 							agentprofile.ProfileLabelKey:               "profile-1",
+// 							constants.ProfileLabelKey:               "profile-1",
 // 						},
 // 					},
 // 					Spec: corev1.PodSpec{
@@ -1976,7 +1976,7 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 // 						Namespace: "foo",
 // 						Labels: map[string]string{
 // 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-// 							agentprofile.ProfileLabelKey:               "profile-1",
+// 							constants.ProfileLabelKey:               "profile-1",
 // 						},
 // 						ResourceVersion: "999",
 // 					},
@@ -2011,7 +2011,7 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 // 						Namespace: "foo",
 // 						Labels: map[string]string{
 // 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-// 							agentprofile.ProfileLabelKey:               "profile-1",
+// 							constants.ProfileLabelKey:               "profile-1",
 // 						},
 // 					},
 // 					Spec: corev1.PodSpec{
@@ -2038,7 +2038,7 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 // 						Namespace: "foo",
 // 						Labels: map[string]string{
 // 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-// 							agentprofile.ProfileLabelKey:               "profile-1",
+// 							constants.ProfileLabelKey:               "profile-1",
 // 						},
 // 						ResourceVersion: "999",
 // 					},
@@ -2073,7 +2073,7 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 // 						Namespace: "foo",
 // 						Labels: map[string]string{
 // 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-// 							agentprofile.ProfileLabelKey:               "profile-1",
+// 							constants.ProfileLabelKey:               "profile-1",
 // 						},
 // 					},
 // 					Spec: corev1.PodSpec{
@@ -2086,7 +2086,7 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 // 						Namespace: "foo",
 // 						Labels: map[string]string{
 // 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-// 							agentprofile.ProfileLabelKey:               "profile-2",
+// 							constants.ProfileLabelKey:               "profile-2",
 // 						},
 // 					},
 // 					Spec: corev1.PodSpec{
@@ -2101,7 +2101,7 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 // 						Namespace: "foo",
 // 						Labels: map[string]string{
 // 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-// 							agentprofile.ProfileLabelKey:               "profile-1",
+// 							constants.ProfileLabelKey:               "profile-1",
 // 						},
 // 						ResourceVersion: "999",
 // 					},

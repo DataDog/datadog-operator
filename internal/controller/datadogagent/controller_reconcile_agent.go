@@ -308,15 +308,15 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 		// If the profile is the default one and the label exists in the node,
 		// it should be removed.
 		if isDefaultProfile {
-			if _, profileLabelExists := node.Labels[agentprofile.ProfileLabelKey]; profileLabelExists {
-				labelsToRemove[agentprofile.ProfileLabelKey] = true
+			if _, profileLabelExists := node.Labels[constants.ProfileLabelKey]; profileLabelExists {
+				labelsToRemove[constants.ProfileLabelKey] = true
 			}
 		} else {
 			// If the profile is not the default one and the label does not exist in
 			// the node, it should be added. If the label value is outdated, it
 			// should be updated.
-			if profileLabelValue := node.Labels[agentprofile.ProfileLabelKey]; profileLabelValue != profileNamespacedName.Name {
-				labelsToAddOrChange[agentprofile.ProfileLabelKey] = profileNamespacedName.Name
+			if profileLabelValue := node.Labels[constants.ProfileLabelKey]; profileLabelValue != profileNamespacedName.Name {
+				labelsToAddOrChange[constants.ProfileLabelKey] = profileNamespacedName.Name
 			}
 		}
 
@@ -384,7 +384,7 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 // 		isDefaultProfile := agentprofile.IsDefaultProfile(profileNamespacedName.Namespace, profileNamespacedName.Name)
 // 		expectedProfileLabelValue := profileNamespacedName.Name
 
-// 		profileLabelValue, profileLabelExists := agentPod.Labels[agentprofile.ProfileLabelKey]
+// 		profileLabelValue, profileLabelExists := agentPod.Labels[constants.ProfileLabelKey]
 
 // 		deletePod := (isDefaultProfile && profileLabelExists) ||
 // 			(!isDefaultProfile && !profileLabelExists) ||

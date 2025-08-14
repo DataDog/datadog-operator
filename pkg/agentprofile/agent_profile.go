@@ -25,11 +25,11 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
 
 const (
-	ProfileLabelKey = "agent.datadoghq.com/datadogagentprofile"
 	// OldProfileLabelKey was deprecated in operator v1.8.0
 	OldProfileLabelKey  = "agent.datadoghq.com/profile"
 	defaultProfileName  = "default"
@@ -95,7 +95,7 @@ func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nod
 				UpdateProfileStatus(logger, profile, profileStatus, now)
 				return profileAppliedByNode, fmt.Errorf("conflict with existing profile")
 			} else {
-				profileLabelValue, labelExists := node.Labels[ProfileLabelKey]
+				profileLabelValue, labelExists := node.Labels[constants.ProfileLabelKey]
 				if labelExists && profileLabelValue == profile.Name {
 					matchingNodes[node.Name] = true
 				} else {
@@ -249,7 +249,7 @@ func AffinityOverride(profile *v1alpha1.DatadogAgentProfile) *v1.Affinity {
 // agent.datadoghq.com/datadogagentprofile:<profile-name>
 func profileLabelKeyNSR(profileName string) v1.NodeSelectorRequirement {
 	return v1.NodeSelectorRequirement{
-		Key:      ProfileLabelKey,
+		Key:      constants.ProfileLabelKey,
 		Operator: v1.NodeSelectorOpIn,
 		Values:   []string{profileName},
 	}
@@ -266,7 +266,7 @@ func affinityOverrideForDefaultProfile() *v1.Affinity {
 					{
 						MatchExpressions: []v1.NodeSelectorRequirement{
 							{
-								Key:      ProfileLabelKey,
+								Key:      constants.ProfileLabelKey,
 								Operator: v1.NodeSelectorOpDoesNotExist,
 							},
 						},
@@ -344,7 +344,7 @@ func labelsOverride(profile *v1alpha1.DatadogAgentProfile) map[string]string {
 		}
 	}
 
-	labels[ProfileLabelKey] = profile.Name
+	labels[constants.ProfileLabelKey] = profile.Name
 
 	return labels
 }

@@ -27,7 +27,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
-	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -60,7 +59,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	// Otherwise, we use the DDAI name + default agent resource suffix.
 	profileName := ""
 	if isDDAILabeledWithProfile(ddai) {
-		profileName = ddai.Labels[agentprofile.ProfileLabelKey]
+		profileName = ddai.Labels[constants.ProfileLabelKey]
 	}
 	instanceName := datadogagent.GetAgentInstanceLabelValue(ddai, profileName, "", constants.DefaultAgentResourceSuffix)
 
@@ -234,7 +233,7 @@ func isDDAILabeledWithProfile(ddai *datadoghqv1alpha1.DatadogAgentInternal) bool
 	if labels == nil {
 		return false
 	}
-	return labels[agentprofile.ProfileLabelKey] != ""
+	return labels[constants.ProfileLabelKey] != ""
 }
 
 // cleanupExtraneousDaemonSets deletes DSs/EDSs that no longer apply.

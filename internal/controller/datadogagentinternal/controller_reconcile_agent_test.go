@@ -7,7 +7,7 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
-	"github.com/DataDog/datadog-operator/pkg/agentprofile"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	"github.com/stretchr/testify/assert"
@@ -155,7 +155,7 @@ func Test_isDDAILabeledWithProfile(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "foo",
 					Labels: map[string]string{
-						agentprofile.ProfileLabelKey: "foo",
+						constants.ProfileLabelKey: "foo",
 					},
 				},
 			},

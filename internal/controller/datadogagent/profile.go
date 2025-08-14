@@ -144,7 +144,7 @@ func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.D
 		if ddai.Labels == nil {
 			ddai.Labels = make(map[string]string)
 		}
-		ddai.Labels[agentprofile.ProfileLabelKey] = profile.Name
+		ddai.Labels[constants.ProfileLabelKey] = profile.Name
 	}
 	return nil
 }
@@ -170,5 +170,5 @@ func setProfileDDAILabels(override *v2alpha1.DatadogAgentComponentOverride, prof
 	if override.Labels == nil {
 		override.Labels = make(map[string]string)
 	}
-	override.Labels[agentprofile.ProfileLabelKey] = profile.Name
+	override.Labels[constants.ProfileLabelKey] = profile.Name
 }

@@ -17,7 +17,6 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/stretchr/testify/assert"
 )
@@ -250,7 +249,7 @@ func Test_computeProfileMerge(t *testing.T) {
 								},
 							},
 							Labels: map[string]string{
-								agentprofile.ProfileLabelKey:                 "foo-profile",
+								constants.ProfileLabelKey:                    "foo-profile",
 								constants.MD5AgentDeploymentProviderLabelKey: "",
 							},
 							Name: apiutils.NewStringPointer("datadog-agent-with-profile-bar-foo-profile"),
@@ -528,7 +527,7 @@ func Test_setProfileSpec(t *testing.T) {
 								},
 							},
 							Labels: map[string]string{
-								agentprofile.ProfileLabelKey: "foo-profile",
+								constants.ProfileLabelKey: "foo-profile",
 							},
 							Name: apiutils.NewStringPointer("datadog-agent-with-profile-bar-foo-profile"),
 						},
@@ -608,7 +607,7 @@ func Test_setProfileDDAIMeta(t *testing.T) {
 					Name:      "foo-profile-foo",
 					Namespace: "bar",
 					Labels: map[string]string{
-						agentprofile.ProfileLabelKey: "foo",
+						constants.ProfileLabelKey: "foo",
 					},
 				},
 			},
