@@ -32,13 +32,14 @@ import (
 
 func addDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, manager feature.ResourceManagers, fromDDAI bool) []error {
 	var errs []error
-	// Install info
-	if err := addInstallInfoDependencies(logger, ddaMeta, manager); err != nil {
-		errs = append(errs, err)
-	}
 
 	// APM Telemetry and Credentials are managed by DDA controller (manageDDADependenciesWithDDAI).
 	if !fromDDAI {
+		// Install info
+		if err := AddInstallInfoDependencies(ddaMeta, manager); err != nil {
+			errs = append(errs, err)
+		}
+
 		// APM Telemetry
 		if err := AddAPMTelemetryDependencies(logger, ddaMeta, manager); err != nil {
 			errs = append(errs, err)
@@ -103,7 +104,7 @@ func addComponentDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpec
 	return errs
 }
 
-func addInstallInfoDependencies(_ logr.Logger, dda metav1.Object, manager feature.ResourceManagers) error {
+func AddInstallInfoDependencies(dda metav1.Object, manager feature.ResourceManagers) error {
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.GetInstallInfoConfigMapName(dda),
