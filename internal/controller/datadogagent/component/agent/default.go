@@ -326,7 +326,7 @@ func GetAgentRoleName(dda metav1.Object) string {
 }
 
 func getDefaultServiceAccountName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", constants.GetDDAName(dda), constants.DefaultAgentResourceSuffix)
 }
 
 func agentImage() string {

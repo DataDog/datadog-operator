@@ -8,6 +8,7 @@ package common
 import (
 	"fmt"
 
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -124,7 +125,7 @@ func GetVolumeForDogstatsd() corev1.Volume {
 
 // GetInstallInfoConfigMapName return the InstallInfo config map name base on the dda name
 func GetInstallInfoConfigMapName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-install-info", dda.GetName())
+	return fmt.Sprintf("%s-install-info", constants.GetDDAName(dda))
 }
 
 // GetVolumeMountForConfig return the VolumeMount that contains the agent config

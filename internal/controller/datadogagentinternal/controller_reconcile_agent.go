@@ -16,7 +16,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -39,11 +38,6 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	var eds *edsv1alpha1.ExtendedDaemonSet
 	var daemonset *appsv1.DaemonSet
 	var podManagers feature.PodTemplateManagers
-
-	// TODO: temporary fix for DDAI object name
-	// Use DDA name instead of DDAI name
-	ddaiCopy := ddai.DeepCopy()
-	ddaiCopy.Name = ddaiCopy.Labels[apicommon.DatadogAgentNameLabelKey]
 
 	daemonsetLogger := logger.WithValues("component", datadoghqv2alpha1.NodeAgentComponentName)
 
@@ -68,13 +62,13 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	// DaemonSets.
 	// This is to make deployments simpler. With multiple EDS there would be
 	// multiple canaries, etc.
-	if r.options.ExtendedDaemonsetOptions.Enabled && !isDDAILabeledWithProfile(ddaiCopy) {
+	if r.options.ExtendedDaemonsetOptions.Enabled && !isDDAILabeledWithProfile(ddai) {
 		// Start by creating the Default Agent extendeddaemonset
-		eds = componentagent.NewDefaultAgentExtendedDaemonset(ddaiCopy, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
+		eds = componentagent.NewDefaultAgentExtendedDaemonset(ddai, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
 
 		// Set Global setting on the default extendeddaemonset
-		global.ApplyGlobalSettingsNodeAgent(logger, podManagers, ddaiCopy.GetObjectMeta(), &ddaiCopy.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
+		global.ApplyGlobalSettingsNodeAgent(logger, podManagers, ddai.GetObjectMeta(), &ddai.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
 
 		// Apply features changes on the Deployment.Spec.Template
 		for _, feat := range features {
@@ -93,11 +87,11 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 			if apiutils.BoolValue(componentOverride.Disabled) {
 				disabledByOverride = true
 			}
-			override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, ddaiCopy.Name)
+			override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, ddai.Name)
 			override.ExtendedDaemonSet(eds, componentOverride)
 		}
 
-		experimental.ApplyExperimentalOverrides(logger, ddaiCopy, podManagers)
+		experimental.ApplyExperimentalOverrides(logger, ddai, podManagers)
 
 		if disabledByOverride {
 			if agentEnabled {
@@ -122,10 +116,10 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	}
 
 	// Start by creating the Default Agent daemonset
-	daemonset = componentagent.NewDefaultAgentDaemonset(ddaiCopy, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent, instanceName)
+	daemonset = componentagent.NewDefaultAgentDaemonset(ddai, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent, instanceName)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 	// Set Global setting on the default daemonset
-	global.ApplyGlobalSettingsNodeAgent(logger, podManagers, ddaiCopy.GetObjectMeta(), &ddaiCopy.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
+	global.ApplyGlobalSettingsNodeAgent(logger, podManagers, ddai.GetObjectMeta(), &ddai.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
@@ -150,11 +144,11 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		if apiutils.BoolValue(componentOverride.Disabled) {
 			disabledByOverride = true
 		}
-		override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, ddaiCopy.Name)
+		override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, ddai.Name)
 		override.DaemonSet(daemonset, componentOverride)
 	}
 
-	experimental.ApplyExperimentalOverrides(logger, ddaiCopy, podManagers)
+	experimental.ApplyExperimentalOverrides(logger, ddai, podManagers)
 
 	if disabledByOverride {
 		if agentEnabled {

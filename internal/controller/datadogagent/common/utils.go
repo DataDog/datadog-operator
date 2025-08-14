@@ -69,8 +69,10 @@ func GetDefaultMetadata(owner metav1.Object, componentKind, componentName, versi
 }
 
 func GetDefaultLabels(owner metav1.Object, componentKind, componentName, version string) map[string]string {
+	name := constants.GetDDAName(owner)
+
 	labels := object.GetDefaultLabels(owner, componentName, version)
-	labels[apicommon.AgentDeploymentNameLabelKey] = owner.GetName()
+	labels[apicommon.AgentDeploymentNameLabelKey] = name // Always use DDA name
 	labels[apicommon.AgentDeploymentComponentLabelKey] = componentKind
 	labels[kubernetes.AppKubernetesComponentLabelKey] = componentKind
 
