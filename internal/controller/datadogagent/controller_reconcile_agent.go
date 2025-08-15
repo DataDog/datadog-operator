@@ -57,17 +57,6 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	singleContainerStrategyEnabled := requiredComponents.Agent.SingleContainerStrategyEnabled()
 	instanceName := GetAgentInstanceLabelValue(dda, profile.Name, profile.Namespace, constants.DefaultAgentResourceSuffix)
 
-	// Check if we have EKS or OpenShift providers in the cluster
-	hasEKSOrOpenShiftProviders := false
-	if r.options.IntrospectionEnabled {
-		for p := range providerList {
-			providerLabel, _ := kubernetes.GetProviderLabelKeyValue(p)
-			if providerLabel == kubernetes.OpenShiftProviderLabel || providerLabel == kubernetes.EKSProviderLabel {
-				hasEKSOrOpenShiftProviders = true
-				break
-			}
-		}
-	}
 	// When EDS is enabled and there are profiles defined, we only create an
 	// EDS for the default profile, for the other profiles we create
 	// DaemonSets.
@@ -109,15 +98,8 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 					overrideName = *componentOverride.Name
 				}
 			}
-			if !hasEKSOrOpenShiftProviders {
-				overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, providerList)
-				componentOverrides = append(componentOverrides, &overrideFromProvider)
-			} else {
-				// When EKS or OpenShift providers are present, pass empty provider list to get nil affinity
-				// This allows scheduling on all nodes including EKS and OpenShift nodes
-				overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, map[string]struct{}{})
-				componentOverrides = append(componentOverrides, &overrideFromProvider)
-			}
+			overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, map[string]struct{}{})
+			componentOverrides = append(componentOverrides, &overrideFromProvider)
 		} else {
 			eds.Labels[constants.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
 		}
@@ -194,18 +176,8 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 				overrideName = *componentOverride.Name
 			}
 		}
-
-		if provider != kubernetes.LegacyProvider {
-			if !hasEKSOrOpenShiftProviders {
-				overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, providerList)
-				componentOverrides = append(componentOverrides, &overrideFromProvider)
-			} else {
-				// When EKS or OpenShift providers are present, pass empty provider list to get nil affinity
-				// This allows scheduling on all nodes including EKS and OpenShift nodes
-				overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, map[string]struct{}{})
-				componentOverrides = append(componentOverrides, &overrideFromProvider)
-			}
-		}
+		overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, providerList)
+		componentOverrides = append(componentOverrides, &overrideFromProvider)
 	} else {
 		daemonset.Labels[constants.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
 	}
