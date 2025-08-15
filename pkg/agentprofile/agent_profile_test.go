@@ -15,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -309,7 +310,7 @@ func TestOverrideFromProfile(t *testing.T) {
 											Values:   []string{"linux"},
 										},
 										{
-											Key:      ProfileLabelKey,
+											Key:      constants.ProfileLabelKey,
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{"linux"},
 										},
@@ -359,7 +360,7 @@ func TestOverrideFromProfile(t *testing.T) {
 								{
 									MatchExpressions: []v1.NodeSelectorRequirement{
 										{
-											Key:      ProfileLabelKey,
+											Key:      constants.ProfileLabelKey,
 											Operator: v1.NodeSelectorOpDoesNotExist,
 										},
 									},
@@ -411,7 +412,7 @@ func TestOverrideFromProfile(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.expectedOverride, OverrideFromProfile(&test.profile))
+			assert.Equal(t, test.expectedOverride, OverrideFromProfile(&test.profile, false))
 		})
 	}
 }
@@ -420,6 +421,7 @@ func TestDaemonSetName(t *testing.T) {
 	tests := []struct {
 		name                  string
 		profileNamespacedName types.NamespacedName
+		useV3Metadata         bool
 		expectedDaemonSetName string
 	}{
 		{
@@ -428,6 +430,7 @@ func TestDaemonSetName(t *testing.T) {
 				Namespace: "",
 				Name:      "default",
 			},
+			useV3Metadata:         false,
 			expectedDaemonSetName: "",
 		},
 		{
@@ -436,13 +439,23 @@ func TestDaemonSetName(t *testing.T) {
 				Namespace: "agent",
 				Name:      "linux",
 			},
+			useV3Metadata:         false,
 			expectedDaemonSetName: "datadog-agent-with-profile-agent-linux",
+		},
+		{
+			name: "non-default profile name, v3 metadata",
+			profileNamespacedName: types.NamespacedName{
+				Namespace: "agent",
+				Name:      "linux",
+			},
+			useV3Metadata:         true,
+			expectedDaemonSetName: "linux-agent",
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.expectedDaemonSetName, DaemonSetName(test.profileNamespacedName))
+			assert.Equal(t, test.expectedDaemonSetName, DaemonSetName(test.profileNamespacedName, test.useV3Metadata))
 		})
 	}
 }
@@ -478,7 +491,7 @@ func Test_labelsOverride(t *testing.T) {
 				},
 			},
 			expectedLabels: map[string]string{
-				ProfileLabelKey: "foo",
+				constants.ProfileLabelKey: "foo",
 			},
 		},
 		{
@@ -501,13 +514,13 @@ func Test_labelsOverride(t *testing.T) {
 				},
 			},
 			expectedLabels: map[string]string{
-				ProfileLabelKey: "foo",
-				"foo":           "bar",
+				constants.ProfileLabelKey: "foo",
+				"foo":                     "bar",
 			},
 		},
 		{
-			// ProfileLabelKey should not be overriden by a user-created profile
-			name: "profile with label overriding ProfileLabelKey",
+			// constants.ProfileLabelKey should not be overriden by a user-created profile
+			name: "profile with label overriding constants.ProfileLabelKey",
 			profile: v1alpha1.DatadogAgentProfile{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: testNamespace,
@@ -518,7 +531,7 @@ func Test_labelsOverride(t *testing.T) {
 						Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 							v2alpha1.NodeAgentComponentName: {
 								Labels: map[string]string{
-									ProfileLabelKey: "bar",
+									constants.ProfileLabelKey: "bar",
 								},
 							},
 						},
@@ -526,7 +539,7 @@ func Test_labelsOverride(t *testing.T) {
 				},
 			},
 			expectedLabels: map[string]string{
-				ProfileLabelKey: "foo",
+				constants.ProfileLabelKey: "foo",
 			},
 		},
 	}

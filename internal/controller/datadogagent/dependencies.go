@@ -28,6 +28,12 @@ func (r *Reconciler) manageDDADependenciesWithDDAI(ctx context.Context, logger l
 	if err := global.AddCredentialDependencies(logger, instance.GetObjectMeta(), &instance.Spec, resourceManagers); err != nil {
 		return err
 	}
+
+	// Install info
+	if err := global.AddInstallInfoDependencies(instance, resourceManagers); err != nil {
+		return err
+	}
+
 	// DCA token
 	if err := global.AddDCATokenDependencies(logger, instance.GetObjectMeta(), &instance.Spec, &instance.Status, resourceManagers); err != nil {
 		return err

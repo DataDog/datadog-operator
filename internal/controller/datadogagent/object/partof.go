@@ -10,6 +10,8 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 const (
@@ -33,7 +35,7 @@ type PartOfLabelValue struct {
 func NewPartOfLabelValue(obj metav1.Object) *PartOfLabelValue {
 	value := strings.ReplaceAll(obj.GetNamespace(), partOfSplitChar, partOfEscapedSplitChar) +
 		partOfSplitChar +
-		strings.ReplaceAll(obj.GetName(), partOfSplitChar, partOfEscapedSplitChar)
+		strings.ReplaceAll(constants.GetDDAName(obj), partOfSplitChar, partOfEscapedSplitChar)
 
 	return &PartOfLabelValue{Value: value}
 }

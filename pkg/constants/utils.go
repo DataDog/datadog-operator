@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 )
@@ -209,4 +210,12 @@ func GetDefaultAgentDataPlaneReadinessProbe() *corev1.Probe {
 		},
 	}
 	return readinessProbe
+}
+
+// GetDDAName returns the name of the DDA from DDAI labels or directly from the DDA
+func GetDDAName(dda metav1.Object) string {
+	if val, ok := dda.GetLabels()[apicommon.DatadogAgentNameLabelKey]; ok && val != "" {
+		return val
+	}
+	return dda.GetName()
 }

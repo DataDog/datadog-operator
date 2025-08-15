@@ -15,6 +15,6 @@ const (
 	AgentDeploymentComponentLabelKey = "agent.datadoghq.com/component"
 	// DatadogAgentNameLabelKey is used to know the name of the DatadogAgent
 	DatadogAgentNameLabelKey = "agent.datadoghq.com/datadogagent"
-	// UpdateSelectorAnnotationKey is used when the workload selector should be updated
-	UpdateSelectorAnnotationKey = "agent.datadoghq.com/update-selector"
+	// UpdateMetadataAnnotationKey is used when the workload metadata should be updated
+	UpdateMetadataAnnotationKey = "agent.datadoghq.com/update-metadata"
 )

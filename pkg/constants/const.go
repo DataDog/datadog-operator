@@ -72,3 +72,8 @@ const (
 	// MD5ChecksumAnnotationKey annotation key is used to identify customConfig configurations
 	MD5ChecksumAnnotationKey = "checksum/%s-custom-config"
 )
+
+// Profiles
+const (
+	ProfileLabelKey = "agent.datadoghq.com/datadogagentprofile"
+)
