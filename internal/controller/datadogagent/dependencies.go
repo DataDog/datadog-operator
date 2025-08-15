@@ -30,7 +30,7 @@ func (r *Reconciler) manageDDADependenciesWithDDAI(ctx context.Context, logger l
 	}
 
 	// Install info
-	if err := global.AddInstallInfoDependencies(instance.GetObjectMeta(), resourceManagers); err != nil {
+	if err := global.AddInstallInfoDependencies(instance, resourceManagers); err != nil {
 		return err
 	}
 

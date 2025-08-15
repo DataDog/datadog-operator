@@ -8,9 +8,10 @@ package common
 import (
 	"fmt"
 
-	"github.com/DataDog/datadog-operator/pkg/constants"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 // This file contains definitions of volumes used in the agent specs
