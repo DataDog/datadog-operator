@@ -17,11 +17,11 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	providerutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/provider"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
@@ -70,22 +70,11 @@ func (f *dogstatsdFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datado
 	dogstatsd := ddaSpec.Features.Dogstatsd
 	f.owner = dda
 
-	// Check if autopilot is enabled and override defaults accordingly
-	if experimental.IsAutopilotEnabled(dda) {
-		f.hostPortEnabled = true
-		if dogstatsd != nil && dogstatsd.HostPortConfig.Port != nil {
-			f.hostPortHostPort = *dogstatsd.HostPortConfig.Port
-		} else {
-			f.hostPortHostPort = common.DefaultDogstatsdPort
-		}
-		f.udsEnabled = false
-	} else {
-		f.hostPortEnabled = apiutils.BoolValue(dogstatsd.HostPortConfig.Enabled)
-		if f.hostPortEnabled {
-			f.hostPortHostPort = *dogstatsd.HostPortConfig.Port
-		}
-		f.udsEnabled = apiutils.BoolValue(dogstatsd.UnixDomainSocketConfig.Enabled)
+	f.hostPortEnabled = apiutils.BoolValue(dogstatsd.HostPortConfig.Enabled)
+	if f.hostPortEnabled {
+		f.hostPortHostPort = *dogstatsd.HostPortConfig.Port
 	}
+	f.udsEnabled = apiutils.BoolValue(dogstatsd.UnixDomainSocketConfig.Enabled)
 
 	f.udsHostFilepath = *dogstatsd.UnixDomainSocketConfig.Path
 	if apiutils.BoolValue(dogstatsd.OriginDetectionEnabled) {
@@ -157,6 +146,14 @@ func (f *dogstatsdFeature) ManageClusterAgent(managers feature.PodTemplateManage
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
 func (f *dogstatsdFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	// Autopilot: force hostPort=true, UDS=false (port defaults if unset)
+	if providerutils.IsAutopilotProvider(provider) {
+		f.hostPortEnabled = true
+		if f.hostPortHostPort == 0 {
+			f.hostPortHostPort = common.DefaultDogstatsdPort
+		}
+		f.udsEnabled = false
+	}
 	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
 
 	// When ADP is enabled, we set `DD_USE_DOGSTATSD` to `false`, and `DD_ADP_ENABLED` to `true`.
@@ -177,6 +174,14 @@ func (f *dogstatsdFeature) ManageSingleContainerNodeAgent(managers feature.PodTe
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	// Autopilot: force hostPort=true, UDS=false (port defaults if unset)
+	if providerutils.IsAutopilotProvider(provider) {
+		f.hostPortEnabled = true
+		if f.hostPortHostPort == 0 {
+			f.hostPortHostPort = common.DefaultDogstatsdPort
+		}
+		f.udsEnabled = false
+	}
 	// When ADP is enabled, we apply the DSD configuration to the ADP container instead, and set `DD_USE_DOGSTATSD` to
 	// `false` on the Core Agent container. This disables DSD in the Core Agent, and allows ADP to take over.
 	//

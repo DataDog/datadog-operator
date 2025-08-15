@@ -33,5 +33,4 @@ func ApplyExperimentalOverrides(logger logr.Logger, dda metav1.Object, manager f
 	elogger.V(2).Info("Applying experimental overrides")
 
 	applyExperimentalImageOverrides(elogger, dda, manager)
-	applyExperimentalAutopilotOverrides(dda, manager)
 }
