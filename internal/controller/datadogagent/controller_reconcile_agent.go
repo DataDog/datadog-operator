@@ -109,15 +109,8 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 					overrideName = *componentOverride.Name
 				}
 			}
-			if !hasEKSOrOpenShiftProviders {
-				overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, providerList)
-				componentOverrides = append(componentOverrides, &overrideFromProvider)
-			} else {
-				// When EKS or OpenShift providers are present, pass empty provider list to get nil affinity
-				// This allows scheduling on all nodes including EKS and OpenShift nodes
-				overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, map[string]struct{}{})
-				componentOverrides = append(componentOverrides, &overrideFromProvider)
-			}
+			overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, map[string]struct{}{})
+			componentOverrides = append(componentOverrides, &overrideFromProvider)
 		} else {
 			eds.Labels[constants.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
 		}
