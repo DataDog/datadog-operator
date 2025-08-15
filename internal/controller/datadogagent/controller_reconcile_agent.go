@@ -57,6 +57,17 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	singleContainerStrategyEnabled := requiredComponents.Agent.SingleContainerStrategyEnabled()
 	instanceName := GetAgentInstanceLabelValue(dda, profile.Name, profile.Namespace, constants.DefaultAgentResourceSuffix)
 
+	// Check if we have EKS or OpenShift providers in the cluster
+	hasEKSOrOpenShiftProviders := false
+	if r.options.IntrospectionEnabled {
+		for p := range providerList {
+			providerLabel, _ := kubernetes.GetProviderLabelKeyValue(p)
+			if providerLabel == kubernetes.OpenShiftProviderLabel || providerLabel == kubernetes.EKSProviderLabel {
+				hasEKSOrOpenShiftProviders = true
+				break
+			}
+		}
+	}
 	// When EDS is enabled and there are profiles defined, we only create an
 	// EDS for the default profile, for the other profiles we create
 	// DaemonSets.
@@ -98,8 +109,15 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 					overrideName = *componentOverride.Name
 				}
 			}
-			overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, providerList)
-			componentOverrides = append(componentOverrides, &overrideFromProvider)
+			if !hasEKSOrOpenShiftProviders {
+				overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, providerList)
+				componentOverrides = append(componentOverrides, &overrideFromProvider)
+			} else {
+				// When EKS or OpenShift providers are present, pass empty provider list to get nil affinity
+				// This allows scheduling on all nodes including EKS and OpenShift nodes
+				overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, map[string]struct{}{})
+				componentOverrides = append(componentOverrides, &overrideFromProvider)
+			}
 		} else {
 			eds.Labels[constants.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
 		}
@@ -144,6 +162,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
+		logger.Info("Agent feature", "feature", feat.ID())
 		if singleContainerStrategyEnabled {
 			if errFeat := feat.ManageSingleContainerNodeAgent(podManagers, provider); errFeat != nil {
 				return result, errFeat
@@ -175,8 +194,18 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 				overrideName = *componentOverride.Name
 			}
 		}
-		overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, providerList)
-		componentOverrides = append(componentOverrides, &overrideFromProvider)
+
+		if provider != kubernetes.LegacyProvider {
+			if !hasEKSOrOpenShiftProviders {
+				overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, providerList)
+				componentOverrides = append(componentOverrides, &overrideFromProvider)
+			} else {
+				// When EKS or OpenShift providers are present, pass empty provider list to get nil affinity
+				// This allows scheduling on all nodes including EKS and OpenShift nodes
+				overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, map[string]struct{}{})
+				componentOverrides = append(componentOverrides, &overrideFromProvider)
+			}
+		}
 	} else {
 		daemonset.Labels[constants.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
 	}
@@ -463,11 +492,21 @@ func (r *Reconciler) getValidDaemonSetNames(dsName string, providerList map[stri
 
 	// Introspection includes names with a provider suffix
 	if r.options.IntrospectionEnabled {
-		for provider := range providerList {
+		if r.useLegacyDaemonSet(providerList) {
+			// Legacy DaemonSet uses the base name without provider suffix
 			if r.options.ExtendedDaemonsetOptions.Enabled {
-				validExtendedDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
+				validExtendedDaemonSetNames[dsName] = struct{}{}
 			} else {
-				validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
+				validDaemonSetNames[dsName] = struct{}{}
+			}
+		} else {
+			// Normal provider-specific DaemonSets
+			for provider := range providerList {
+				if r.options.ExtendedDaemonsetOptions.Enabled {
+					validExtendedDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
+				} else {
+					validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
+				}
 			}
 		}
 	}

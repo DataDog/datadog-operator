@@ -73,13 +73,13 @@ func (f *asmFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSp
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *asmFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *asmFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *asmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *asmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	if f.threatsEnabled {
 		if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  DDAdmissionControllerAppsecEnabled,
@@ -118,6 +118,6 @@ func (f *asmFeature) ManageNodeAgent(_ feature.PodTemplateManagers, _ string) er
 	return nil
 }
 
-func (f *asmFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers) error {
+func (f *asmFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers, _ string) error {
 	return nil
 }

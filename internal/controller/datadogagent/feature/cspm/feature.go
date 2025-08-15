@@ -133,7 +133,7 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.Remo
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	// Create configMap if one does not already exist and ConfigData is defined
 	if f.customConfig != nil && f.customConfig.ConfigMap == nil && f.customConfig.ConfigData != nil {
 		cm, err := configmap.BuildConfigMapConfigData(f.owner.GetNamespace(), f.customConfig.ConfigData, f.configMapName, cspmConfFileName)
@@ -162,7 +162,7 @@ func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers) erro
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	if f.customConfig != nil {
 		var vol corev1.Volume
 		var volMount corev1.VolumeMount
@@ -352,6 +352,6 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *cspmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (f *cspmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
