@@ -134,7 +134,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	depsStore, resourceManagers := r.setupDependencies(instance, logger)
 
 	providerList := map[string]struct{}{kubernetes.LegacyProvider: {}}
-	depsProvider := kubernetes.LegacyProvider
+	k8sProvider := kubernetes.LegacyProvider
 	if r.options.IntrospectionEnabled {
 		nodeList, err := r.getNodeList(ctx)
 		if err != nil {
@@ -142,26 +142,26 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		}
 		providerList = kubernetes.GetProviderListFromNodeList(nodeList, logger)
 
-		depsProvider = kubernetes.DefaultProvider
+		k8sProvider = kubernetes.DefaultProvider
 		if len(providerList) == 1 {
 			for provider := range providerList {
-				depsProvider = provider
+				k8sProvider = provider
 				break
 			}
 		} else if len(providerList) == 2 {
 			if _, ok := providerList[kubernetes.DefaultProvider]; ok {
 				for provider := range providerList {
 					if provider != kubernetes.DefaultProvider {
-						depsProvider = provider
-						logger.Info("Multiple providers found for Cluster Agent reconciliation, using provider", "provider", depsProvider)
+						k8sProvider = provider
+						logger.Info("Multiple providers detected, using selected provider for cluster agent and dependencies", "provider", k8sProvider)
 						break
 					}
 				}
 			} else {
-				logger.Error(nil, "Multiple specialized providers detected for Cluster Agent reconciliation. Only one specialized provider is supported, falling back to default provider", "selected_provider", depsProvider)
+				logger.Error(nil, "Multiple specialized providers detected, falling back to default provider for cluster agent and dependencies", "selected_provider", k8sProvider)
 			}
 		} else {
-			logger.Error(nil, "Multiple specialized providers detected for Cluster Agent reconciliation. Only one specialized provider is supported, falling back to default provider", "selected_provider", depsProvider)
+			logger.Error(nil, "Multiple specialized providers detected, falling back to default provider for cluster agent and dependencies", "selected_provider", k8sProvider)
 		}
 	}
 
@@ -169,7 +169,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	if err = r.manageGlobalDependencies(logger, instance, resourceManagers, requiredComponents); err != nil {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 	}
-	if err = r.manageFeatureDependencies(logger, enabledFeatures, resourceManagers, depsProvider); err != nil {
+	if err = r.manageFeatureDependencies(logger, enabledFeatures, resourceManagers, k8sProvider); err != nil {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 	}
 	if err = r.overrideDependencies(logger, resourceManagers, instance); err != nil {
@@ -179,7 +179,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// 2. Reconcile each component.
 	// 2.a. Cluster Agent
 
-	result, err = r.reconcileV2ClusterAgent(ctx, logger, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus)
+	result, err = r.reconcileV2ClusterAgent(ctx, logger, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus, k8sProvider)
 	if utils.ShouldReturn(result, err) {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	}

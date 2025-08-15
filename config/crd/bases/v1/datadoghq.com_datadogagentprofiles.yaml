@@ -2158,6 +2158,16 @@ spec:
                         criSocketPath:
                           description: Path to the container runtime socket (if different from Docker).
                           type: string
+                        csi:
+                          description: CSI contains configuration for Datadog CSI Driver
+                          properties:
+                            enabled:
+                              description: |-
+                                Enables the usage of CSI driver in Datadog Agent.
+                                Requires installation of Datadog CSI Driver https://github.com/DataDog/helm-charts/tree/main/charts/datadog-csi-driver
+                                Default: false
+                              type: boolean
+                          type: object
                         disableNonResourceRules:
                           description: |-
                             Set DisableNonResourceRules to exclude NonResourceURLs from default ClusterRoles.

@@ -124,10 +124,19 @@ func (r *Reconciler) reconcileAgentProfiles(ctx context.Context, logger logr.Log
 	var errs []error
 	var result reconcile.Result
 	for _, profile := range profiles {
-		for provider := range providerList {
-			res, err := r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, provider, providerList, &profile)
+		if r.options.IntrospectionEnabled && r.useLegacyDaemonSet(providerList) {
+			// Use legacy provider if EKS or OpenShift providers are present to prevent daemonset overrides
+			res, err := r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, kubernetes.LegacyProvider, providerList, &profile)
 			if utils.ShouldReturn(res, err) {
 				errs = append(errs, err)
+			}
+		} else {
+			// Create one DaemonSet per provider (for GKE, etc.)
+			for provider := range providerList {
+				res, err := r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, provider, providerList, &profile)
+				if utils.ShouldReturn(res, err) {
+					errs = append(errs, err)
+				}
 			}
 		}
 	}
@@ -136,6 +145,21 @@ func (r *Reconciler) reconcileAgentProfiles(ctx context.Context, logger logr.Log
 	}
 	condition.UpdateDatadogAgentStatusConditions(newStatus, now, common.AgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 	return reconcile.Result{}, nil
+}
+
+// useLegacyDaemonSet determines if we should use a legacy provider specific Daemonset for EKS and Openshift providers
+func (r *Reconciler) useLegacyDaemonSet(providerList map[string]struct{}) bool {
+	if len(providerList) == 0 {
+		return false
+	}
+
+	for provider := range providerList {
+		providerLabel, _ := kubernetes.GetProviderLabelKeyValue(provider)
+		if providerLabel == kubernetes.OpenShiftProviderLabel || providerLabel == kubernetes.EKSProviderLabel {
+			return true
+		}
+	}
+	return false
 }
 
 // *************************************

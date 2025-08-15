@@ -17,4 +17,7 @@ const (
 	etcdCertsVolumeName      = "etcd-client-certs"
 	etcdCertsVolumeMountPath = "/etc/etcd-certs"
 	etcdCertsSecretName      = "etcd-metric-client"
+
+	disableEtcdAutoconfVolumeName      = "disable-etcd-autoconf"
+	disableEtcdAutoconfVolumeMountPath = "/etc/datadog-agent/conf.d/etcd.d"
 )
