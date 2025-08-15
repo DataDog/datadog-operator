@@ -35,7 +35,7 @@ const (
 	// GKEProviderLabel is the GKE node label used to determine the node's provider
 	GKEProviderLabel = "cloud.google.com/gke-os-distribution"
 
-	// GKEAutopilotLabel is a placeholder label for GKE Autopilot detection (TODO: research actual label)
+	// GKEAutopilotLabel is a placeholder label for GKE Autopilot detection
 	GKEAutopilotLabel = "cloud.google.com/gke-container-runtime"
 
 	// OpenshiftProvider is the OpenShift Provider name
