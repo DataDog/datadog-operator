@@ -124,6 +124,12 @@ spec:
                       description: MaxReplicas is the upper limit for the number of POD replicas. Needs to be >= minReplicas.
                       format: int32
                       type: integer
+                    maxUnreadyPodsPercent:
+                      description: MaxUnreadyPodsPercent is the maximum percentage of unready pods allowed before pausing scaling. Disabled by default.
+                      format: int32
+                      maximum: 100
+                      minimum: 0
+                      type: integer
                     minReplicas:
                       description: MinReplicas is the lower limit for the number of pod replicas. Needs to be >= 1. Defaults to 1.
                       format: int32
@@ -814,6 +820,12 @@ spec:
                     maxReplicas:
                       description: MaxReplicas is the upper limit for the number of POD replicas. Needs to be >= minReplicas.
                       format: int32
+                      type: integer
+                    maxUnreadyPodsPercent:
+                      description: MaxUnreadyPodsPercent is the maximum percentage of unready pods allowed before pausing scaling. Disabled by default.
+                      format: int32
+                      maximum: 100
+                      minimum: 0
                       type: integer
                     minReplicas:
                       description: MinReplicas is the lower limit for the number of pod replicas. Needs to be >= 1. Defaults to 1.

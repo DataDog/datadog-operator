@@ -199,6 +199,11 @@ type DatadogPodAutoscalerConstraints struct {
 	// MaxReplicas is the upper limit for the number of POD replicas. Needs to be >= minReplicas.
 	MaxReplicas int32 `json:"maxReplicas"`
 
+	// MaxUnreadyPodsPercent is the maximum percentage of unready pods allowed before pausing scaling. Disabled by default.
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=100
+	MaxUnreadyPodsPercent *int32 `json:"maxUnreadyPodsPercent,omitempty"`
+
 	// Containers defines constraints for the containers.
 	Containers []DatadogPodAutoscalerContainerConstraints `json:"containers,omitempty"`
 }
