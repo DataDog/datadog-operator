@@ -57,17 +57,6 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	singleContainerStrategyEnabled := requiredComponents.Agent.SingleContainerStrategyEnabled()
 	instanceName := GetAgentInstanceLabelValue(dda, profile.Name, profile.Namespace, constants.DefaultAgentResourceSuffix)
 
-	// Check if we have EKS or OpenShift providers in the cluster
-	hasEKSOrOpenShiftProviders := false
-	if r.options.IntrospectionEnabled {
-		for p := range providerList {
-			providerLabel, _ := kubernetes.GetProviderLabelKeyValue(p)
-			if providerLabel == kubernetes.OpenShiftProviderLabel || providerLabel == kubernetes.EKSProviderLabel {
-				hasEKSOrOpenShiftProviders = true
-				break
-			}
-		}
-	}
 	// When EDS is enabled and there are profiles defined, we only create an
 	// EDS for the default profile, for the other profiles we create
 	// DaemonSets.
