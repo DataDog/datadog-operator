@@ -28,6 +28,7 @@ import (
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
@@ -47,8 +48,8 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
 
 	type args struct {
-		request              reconcile.Request
-		firstAction          func(c client.Client)
+		request              *v1alpha1.DatadogMonitor
+		loadFunc             func(c client.Client) *v1alpha1.DatadogMonitor
 		firstReconcileCount  int
 		secondAction         func(c client.Client)
 		secondReconcileCount int
@@ -71,10 +72,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 		{
 			name: "DatadogMonitor created, add finalizer",
 			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				firstAction: func(c client.Client) {
-					_ = c.Create(context.TODO(), genericDatadogMonitor())
-				},
+				loadFunc: genericDatadogMonitor,
 			},
 			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
 			wantFunc: func(c client.Client) error {
@@ -89,10 +87,8 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 		{
 			name: "DatadogMonitor created, check Status.Primary",
 			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				firstAction: func(c client.Client) {
-					_ = c.Create(context.TODO(), genericDatadogMonitor())
-				},
+				request:             newRequest(resourcesNamespace, resourcesName),
+				loadFunc:            genericDatadogMonitor,
 				firstReconcileCount: 3,
 			},
 			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
@@ -108,10 +104,8 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 		{
 			name: "DatadogMonitor exists, check required tags",
 			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				firstAction: func(c client.Client) {
-					_ = c.Create(context.TODO(), genericDatadogMonitor())
-				},
+				request:             newRequest(resourcesNamespace, resourcesName),
+				loadFunc:            genericDatadogMonitor,
 				firstReconcileCount: 2,
 			},
 			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
@@ -127,10 +121,8 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 		{
 			name: "DatadogMonitor exists, needs update",
 			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				firstAction: func(c client.Client) {
-					_ = c.Create(context.TODO(), genericDatadogMonitor())
-				},
+				request:             newRequest(resourcesNamespace, resourcesName),
+				loadFunc:            genericDatadogMonitor,
 				firstReconcileCount: 2,
 				secondAction: func(c client.Client) {
 					_ = c.Update(context.TODO(), &datadoghqv1alpha1.DatadogMonitor{
@@ -168,14 +160,11 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 		{
 			name: "DatadogMonitor exists, needs delete",
 			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				firstAction: func(c client.Client) {
-					err := c.Create(context.TODO(), genericDatadogMonitor())
-					assert.NoError(t, err)
-				},
+				request:             newRequest(resourcesNamespace, resourcesName),
+				loadFunc:            genericDatadogMonitor1,
 				firstReconcileCount: 2,
 				secondAction: func(c client.Client) {
-					err := c.Delete(context.TODO(), genericDatadogMonitor())
+					err := c.Delete(context.TODO(), newRequest(resourcesNamespace, resourcesName))
 					assert.NoError(t, err)
 				},
 			},
@@ -192,10 +181,8 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 		{
 			name: "DatadogMonitor, query alert",
 			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				firstAction: func(c client.Client) {
-					_ = c.Create(context.TODO(), testQueryMonitor())
-				},
+				request:             newRequest(resourcesNamespace, resourcesName),
+				loadFunc:            testQueryMonitor,
 				firstReconcileCount: 2,
 			},
 			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
@@ -212,10 +199,8 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 		{
 			name: "DatadogMonitor, service check alert",
 			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				firstAction: func(c client.Client) {
-					_ = c.Create(context.TODO(), testServiceMonitor())
-				},
+				request:  newRequest(resourcesNamespace, resourcesName),
+				loadFunc: testServiceMonitor,
 
 				firstReconcileCount: 10,
 			},
@@ -233,10 +218,8 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 		{
 			name: "DatadogMonitor, event alert",
 			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				firstAction: func(c client.Client) {
-					_ = c.Create(context.TODO(), testEventMonitor())
-				},
+				request:  newRequest(resourcesNamespace, resourcesName),
+				loadFunc: testEventMonitor,
 
 				firstReconcileCount: 10,
 			},
@@ -254,10 +237,8 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 		{
 			name: "DatadogMonitor, event v2 alert",
 			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				firstAction: func(c client.Client) {
-					_ = c.Create(context.TODO(), testEventV2Monitor())
-				},
+				request:  newRequest(resourcesNamespace, resourcesName),
+				loadFunc: testEventV2Monitor,
 
 				firstReconcileCount: 10,
 			},
@@ -275,10 +256,8 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 		{
 			name: "DatadogMonitor, process alert",
 			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				firstAction: func(c client.Client) {
-					_ = c.Create(context.TODO(), testProcessMonitor())
-				},
+				request:  newRequest(resourcesNamespace, resourcesName),
+				loadFunc: testProcessMonitor,
 
 				firstReconcileCount: 10,
 			},
@@ -296,10 +275,8 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 		{
 			name: "DatadogMonitor, trace analytics alert",
 			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				firstAction: func(c client.Client) {
-					_ = c.Create(context.TODO(), testTraceAnalyticsMonitor())
-				},
+				request:  newRequest(resourcesNamespace, resourcesName),
+				loadFunc: testTraceAnalyticsMonitor,
 
 				firstReconcileCount: 10,
 			},
@@ -317,10 +294,8 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 		{
 			name: "DatadogMonitor, SLO alert",
 			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				firstAction: func(c client.Client) {
-					_ = c.Create(context.TODO(), testSLOMonitor())
-				},
+				request:  newRequest(resourcesNamespace, resourcesName),
+				loadFunc: testSLOMonitor,
 
 				firstReconcileCount: 10,
 			},
@@ -338,10 +313,8 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 		{
 			name: "DatadogMonitor, log alert",
 			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				firstAction: func(c client.Client) {
-					_ = c.Create(context.TODO(), testLogMonitor())
-				},
+				request:  newRequest(resourcesNamespace, resourcesName),
+				loadFunc: testLogMonitor,
 
 				firstReconcileCount: 10,
 			},
@@ -359,10 +332,8 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 		{
 			name: "DatadogMonitor, rum alert",
 			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				firstAction: func(c client.Client) {
-					_ = c.Create(context.TODO(), testRUMMonitor())
-				},
+				request:  newRequest(resourcesNamespace, resourcesName),
+				loadFunc: testRUMMonitor,
 
 				firstReconcileCount: 10,
 			},
@@ -380,11 +351,8 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 		{
 			name: "DatadogMonitor, audit alert",
 			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				firstAction: func(c client.Client) {
-					_ = c.Create(context.TODO(), testAuditMonitor())
-				},
-
+				request:             newRequest(resourcesNamespace, resourcesName),
+				loadFunc:            testAuditMonitor,
 				firstReconcileCount: 10,
 			},
 			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
@@ -402,8 +370,8 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 			name: "DatadogMonitor of unsupported type (composite)",
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
-				firstAction: func(c client.Client) {
-					_ = c.Create(context.TODO(), &datadoghqv1alpha1.DatadogMonitor{
+				loadFunc: func(c client.Client) *v1alpha1.DatadogMonitor {
+					dm := &datadoghqv1alpha1.DatadogMonitor{
 						TypeMeta: metav1.TypeMeta{
 							Kind:       "DatadogMonitor",
 							APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
@@ -418,7 +386,9 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 							Name:    "test monitor",
 							Message: "something is wrong",
 						},
-					})
+					}
+					_ = c.Create(context.TODO(), dm)
+					return dm
 				},
 				firstReconcileCount: 2,
 			},
@@ -460,8 +430,9 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 			}
 
 			// First monitor action
-			if tt.args.firstAction != nil {
-				tt.args.firstAction(r.client)
+			dm := tt.args.request
+			if tt.args.loadFunc != nil {
+				dm = tt.args.loadFunc(r.client)
 				// Make sure there's minimum 1 reconcile loop
 				if tt.args.firstReconcileCount == 0 {
 					tt.args.firstReconcileCount = 1
@@ -470,7 +441,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 			var result ctrl.Result
 			var err error
 			for i := 0; i < tt.args.firstReconcileCount; i++ {
-				result, err = r.Reconcile(context.TODO(), tt.args.request)
+				result, err = r.Reconcile(context.TODO(), dm)
 			}
 
 			assert.NoError(t, err, "ReconcileDatadogMonitor.Reconcile() unexpected error: %v", err)
@@ -485,7 +456,8 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 				}
 			}
 			for i := 0; i < tt.args.secondReconcileCount; i++ {
-				_, err := r.Reconcile(context.TODO(), tt.args.request)
+				r.client.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm)
+				_, err := r.Reconcile(context.TODO(), dm)
 				assert.NoError(t, err, "ReconcileDatadogMonitor.Reconcile() unexpected error: %v", err)
 			}
 
@@ -501,9 +473,9 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 	}
 }
 
-func newRequest(ns, name string) reconcile.Request {
-	return reconcile.Request{
-		NamespacedName: types.NamespacedName{
+func newRequest(ns, name string) *v1alpha1.DatadogMonitor {
+	return &v1alpha1.DatadogMonitor{
+		ObjectMeta: metav1.ObjectMeta{
 			Namespace: ns,
 			Name:      name,
 		},
@@ -728,8 +700,8 @@ func Test_convertStateToStatus(t *testing.T) {
 	}
 }
 
-func genericDatadogMonitor() *datadoghqv1alpha1.DatadogMonitor {
-	return &datadoghqv1alpha1.DatadogMonitor{
+func genericDatadogMonitor(c client.Client) *datadoghqv1alpha1.DatadogMonitor {
+	dm := &datadoghqv1alpha1.DatadogMonitor{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "DatadogMonitor",
 			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
@@ -745,10 +717,33 @@ func genericDatadogMonitor() *datadoghqv1alpha1.DatadogMonitor {
 			Message: "something is wrong",
 		},
 	}
+	_ = c.Create(context.TODO(), dm)
+	return dm
 }
 
-func testQueryMonitor() *datadoghqv1alpha1.DatadogMonitor {
-	return &datadoghqv1alpha1.DatadogMonitor{
+func genericDatadogMonitor1(c client.Client) *datadoghqv1alpha1.DatadogMonitor {
+	dm := &datadoghqv1alpha1.DatadogMonitor{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "DatadogMonitor",
+			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: resourcesNamespace,
+			Name:      resourcesName,
+		},
+		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+			Query:   "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.1",
+			Type:    datadoghqv1alpha1.DatadogMonitorTypeMetric,
+			Name:    "test monitor",
+			Message: "something is wrong",
+		},
+	}
+	_ = c.Create(context.TODO(), dm)
+	return dm
+}
+
+func testQueryMonitor(c client.Client) *datadoghqv1alpha1.DatadogMonitor {
+	dm := &datadoghqv1alpha1.DatadogMonitor{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "DatadogMonitor",
 			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
@@ -764,10 +759,12 @@ func testQueryMonitor() *datadoghqv1alpha1.DatadogMonitor {
 			Message: "something is wrong",
 		},
 	}
+	_ = c.Create(context.TODO(), dm)
+	return dm
 }
 
-func testServiceMonitor() *datadoghqv1alpha1.DatadogMonitor {
-	return &datadoghqv1alpha1.DatadogMonitor{
+func testServiceMonitor(c client.Client) *datadoghqv1alpha1.DatadogMonitor {
+	dm := &datadoghqv1alpha1.DatadogMonitor{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "DatadogMonitor",
 			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
@@ -783,10 +780,12 @@ func testServiceMonitor() *datadoghqv1alpha1.DatadogMonitor {
 			Message: "something is wrong",
 		},
 	}
+	_ = c.Create(context.TODO(), dm)
+	return dm
 }
 
-func testEventMonitor() *datadoghqv1alpha1.DatadogMonitor {
-	return &datadoghqv1alpha1.DatadogMonitor{
+func testEventMonitor(c client.Client) *datadoghqv1alpha1.DatadogMonitor {
+	dm := &datadoghqv1alpha1.DatadogMonitor{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "DatadogMonitor",
 			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
@@ -802,10 +801,12 @@ func testEventMonitor() *datadoghqv1alpha1.DatadogMonitor {
 			Message: "something is wrong",
 		},
 	}
+	_ = c.Create(context.TODO(), dm)
+	return dm
 }
 
-func testLogMonitor() *datadoghqv1alpha1.DatadogMonitor {
-	return &datadoghqv1alpha1.DatadogMonitor{
+func testLogMonitor(c client.Client) *datadoghqv1alpha1.DatadogMonitor {
+	dm := &datadoghqv1alpha1.DatadogMonitor{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "DatadogMonitor",
 			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
@@ -821,10 +822,12 @@ func testLogMonitor() *datadoghqv1alpha1.DatadogMonitor {
 			Message: "something is wrong",
 		},
 	}
+	_ = c.Create(context.TODO(), dm)
+	return dm
 }
 
-func testProcessMonitor() *datadoghqv1alpha1.DatadogMonitor {
-	return &datadoghqv1alpha1.DatadogMonitor{
+func testProcessMonitor(c client.Client) *datadoghqv1alpha1.DatadogMonitor {
+	dm := &datadoghqv1alpha1.DatadogMonitor{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "DatadogMonitor",
 			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
@@ -840,10 +843,12 @@ func testProcessMonitor() *datadoghqv1alpha1.DatadogMonitor {
 			Message: "something is wrong",
 		},
 	}
+	_ = c.Create(context.TODO(), dm)
+	return dm
 }
 
-func testRUMMonitor() *datadoghqv1alpha1.DatadogMonitor {
-	return &datadoghqv1alpha1.DatadogMonitor{
+func testRUMMonitor(c client.Client) *datadoghqv1alpha1.DatadogMonitor {
+	dm := &datadoghqv1alpha1.DatadogMonitor{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "DatadogMonitor",
 			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
@@ -859,11 +864,13 @@ func testRUMMonitor() *datadoghqv1alpha1.DatadogMonitor {
 			Message: "something is wrong",
 		},
 	}
+	_ = c.Create(context.TODO(), dm)
+	return dm
 }
 
-func testSLOMonitor() *datadoghqv1alpha1.DatadogMonitor {
+func testSLOMonitor(c client.Client) *datadoghqv1alpha1.DatadogMonitor {
 	threshold := "10"
-	return &datadoghqv1alpha1.DatadogMonitor{
+	dm := &datadoghqv1alpha1.DatadogMonitor{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "DatadogMonitor",
 			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
@@ -884,10 +891,12 @@ func testSLOMonitor() *datadoghqv1alpha1.DatadogMonitor {
 			Message: "something is wrong",
 		},
 	}
+	_ = c.Create(context.TODO(), dm)
+	return dm
 }
 
-func testEventV2Monitor() *datadoghqv1alpha1.DatadogMonitor {
-	return &datadoghqv1alpha1.DatadogMonitor{
+func testEventV2Monitor(c client.Client) *datadoghqv1alpha1.DatadogMonitor {
+	dm := &datadoghqv1alpha1.DatadogMonitor{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "DatadogMonitor",
 			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
@@ -903,10 +912,12 @@ func testEventV2Monitor() *datadoghqv1alpha1.DatadogMonitor {
 			Message: "something is wrong",
 		},
 	}
+	_ = c.Create(context.TODO(), dm)
+	return dm
 }
 
-func testTraceAnalyticsMonitor() *datadoghqv1alpha1.DatadogMonitor {
-	return &datadoghqv1alpha1.DatadogMonitor{
+func testTraceAnalyticsMonitor(c client.Client) *datadoghqv1alpha1.DatadogMonitor {
+	dm := &datadoghqv1alpha1.DatadogMonitor{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "DatadogMonitor",
 			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
@@ -922,10 +933,12 @@ func testTraceAnalyticsMonitor() *datadoghqv1alpha1.DatadogMonitor {
 			Message: "something is wrong",
 		},
 	}
+	_ = c.Create(context.TODO(), dm)
+	return dm
 }
 
-func testAuditMonitor() *datadoghqv1alpha1.DatadogMonitor {
-	return &datadoghqv1alpha1.DatadogMonitor{
+func testAuditMonitor(c client.Client) *datadoghqv1alpha1.DatadogMonitor {
+	dm := &datadoghqv1alpha1.DatadogMonitor{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "DatadogMonitor",
 			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
@@ -941,4 +954,6 @@ func testAuditMonitor() *datadoghqv1alpha1.DatadogMonitor {
 			Message: "something is wrong",
 		},
 	}
+	_ = c.Create(context.TODO(), dm)
+	return dm
 }
