@@ -412,7 +412,7 @@ func TestOverrideFromProfile(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.expectedOverride, OverrideFromProfile(&test.profile))
+			assert.Equal(t, test.expectedOverride, OverrideFromProfile(&test.profile, false))
 		})
 	}
 }
@@ -421,6 +421,7 @@ func TestDaemonSetName(t *testing.T) {
 	tests := []struct {
 		name                  string
 		profileNamespacedName types.NamespacedName
+		useV3Metadata         bool
 		expectedDaemonSetName string
 	}{
 		{
@@ -429,6 +430,7 @@ func TestDaemonSetName(t *testing.T) {
 				Namespace: "",
 				Name:      "default",
 			},
+			useV3Metadata:         false,
 			expectedDaemonSetName: "",
 		},
 		{
@@ -437,13 +439,23 @@ func TestDaemonSetName(t *testing.T) {
 				Namespace: "agent",
 				Name:      "linux",
 			},
+			useV3Metadata:         false,
 			expectedDaemonSetName: "datadog-agent-with-profile-agent-linux",
+		},
+		{
+			name: "non-default profile name, v3 metadata",
+			profileNamespacedName: types.NamespacedName{
+				Namespace: "agent",
+				Name:      "linux",
+			},
+			useV3Metadata:         true,
+			expectedDaemonSetName: "linux-agent",
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.expectedDaemonSetName, DaemonSetName(test.profileNamespacedName))
+			assert.Equal(t, test.expectedDaemonSetName, DaemonSetName(test.profileNamespacedName, test.useV3Metadata))
 		})
 	}
 }
