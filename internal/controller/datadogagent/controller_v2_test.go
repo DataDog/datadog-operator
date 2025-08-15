@@ -462,7 +462,6 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 func Test_Introspection(t *testing.T) {
 	const resourcesName = "foo"
 	const resourcesNamespace = "bar"
-	const dsName = "foo-agent"
 
 	eventBroadcaster := record.NewBroadcaster()
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgent_Reconcile"})
@@ -538,7 +537,7 @@ func Test_Introspection(t *testing.T) {
 					string("foo-agent-gke-cos"),
 				}
 
-				return verifyDaemonsetNames(t, c, resourcesNamespace, dsName, expectedDaemonsets)
+				return verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
 			},
 		},
 	}
@@ -1114,7 +1113,6 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 	const resourcesName = "foo"
 	const resourcesNamespace = "bar"
 	const dcaName = "foo-cluster-agent"
-	const dsName = "foo-agent"
 
 	eventBroadcaster := record.NewBroadcaster()
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgent_Reconcile"})
@@ -1164,7 +1162,7 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 				expectedDaemonsets := []string{
 					string("foo-agent"),
 				}
-				return verifyDaemonsetNames(t, c, resourcesNamespace, dsName, expectedDaemonsets)
+				return verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
 			},
 		},
 		{
@@ -1203,7 +1201,7 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 				expectedDaemonsets := []string{
 					string("foo-agent"),
 				}
-				return verifyDaemonsetNames(t, c, resourcesNamespace, dsName, expectedDaemonsets)
+				return verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
 			},
 		},
 		{
@@ -1242,7 +1240,7 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 				expectedDaemonsets := []string{
 					string("foo-agent"),
 				}
-				return verifyDaemonsetNames(t, c, resourcesNamespace, dsName, expectedDaemonsets)
+				return verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
 			},
 		},
 		{
@@ -1276,7 +1274,7 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 				expectedDaemonsets := []string{
 					string("foo-agent-default"),
 				}
-				return verifyDaemonsetNames(t, c, resourcesNamespace, dsName, expectedDaemonsets)
+				return verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
 			},
 		},
 	}
@@ -1386,7 +1384,7 @@ func verifyDaemonsetContainers(c client.Client, resourcesNamespace, dsName strin
 	}
 }
 
-func verifyDaemonsetNames(t *testing.T, c client.Client, resourcesNamespace, dsName string, expectedDSNames []string) error {
+func verifyDaemonsetNames(t *testing.T, c client.Client, resourcesNamespace string, expectedDSNames []string) error {
 	daemonSetList := appsv1.DaemonSetList{}
 	if err := c.List(context.TODO(), &daemonSetList, client.HasLabels{constants.MD5AgentDeploymentProviderLabelKey}); err != nil {
 		return err
