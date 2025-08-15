@@ -24,10 +24,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
 
-const (
-	profileDDAINameTemplate = "%s-profile-%s"
-)
-
 func sendProfileEnabledMetric(enabled bool) {
 	if enabled {
 		metrics.DAPEnabled.Set(metrics.TrueValue)
@@ -149,11 +145,13 @@ func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.D
 	return nil
 }
 
+// getProfileDDAIName returns the name of the DDAI when profiles are used.
+// Default profiles use the DDA name. User created profiles use the profile name.
 func getProfileDDAIName(ddaiName, profileName, profileNamespace string) string {
 	if agentprofile.IsDefaultProfile(profileNamespace, profileName) {
 		return ddaiName
 	}
-	return fmt.Sprintf(profileDDAINameTemplate, ddaiName, profileName)
+	return profileName
 }
 
 // The node agent component override is non-nil from the default DDAI creation
