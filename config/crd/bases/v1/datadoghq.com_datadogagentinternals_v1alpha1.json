@@ -1066,7 +1066,7 @@
               "description": "ControlPlaneMonitoring configuration.",
               "properties": {
                 "enabled": {
-                  "description": "Enabled enabled control plane monitoring checks in the cluster agent.\nDefault: true",
+                  "description": "Enabled enables control plane monitoring checks in the cluster agent.\nDefault: true",
                   "type": "boolean"
                 }
               },
@@ -8441,7 +8441,7 @@
                   "description": "ControlPlaneMonitoring configuration.",
                   "properties": {
                     "enabled": {
-                      "description": "Enabled enabled control plane monitoring checks in the cluster agent.\nDefault: true",
+                      "description": "Enabled enables control plane monitoring checks in the cluster agent.\nDefault: true",
                       "type": "boolean"
                     }
                   },
