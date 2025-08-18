@@ -1431,9 +1431,9 @@ func verifyEtcdMountsOpenshift(t *testing.T, c client.Client, resourcesNamespace
 	}
 
 	var coreAgentContainer *corev1.Container
-	for i, container := range ds.Spec.Template.Spec.Containers {
+	for _, container := range ds.Spec.Template.Spec.Containers {
 		if container.Name == string(apicommon.CoreAgentContainerName) {
-			coreAgentContainer = &ds.Spec.Template.Spec.Containers[i]
+			coreAgentContainer = &container
 			break
 		}
 	}
@@ -1474,9 +1474,9 @@ func verifyEtcdMountsOpenshift(t *testing.T, c client.Client, resourcesNamespace
 	}
 
 	var ccrContainer *corev1.Container
-	for i, container := range ccrDeployment.Spec.Template.Spec.Containers {
+	for _, container := range ccrDeployment.Spec.Template.Spec.Containers {
 		if container.Name == string(apicommon.ClusterChecksRunnersContainerName) {
-			ccrContainer = &ccrDeployment.Spec.Template.Spec.Containers[i]
+			ccrContainer = &container
 			break
 		}
 	}
