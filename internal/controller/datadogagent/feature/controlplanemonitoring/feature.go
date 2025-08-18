@@ -194,7 +194,7 @@ func (f *controlPlaneMonitoringFeature) ManageNodeAgent(managers feature.PodTemp
 			MountPath: etcdCertsVolumeMountPath,
 			ReadOnly:  true,
 		}
-		managers.VolumeMount().AddVolumeMountToContainer(&etcdCertsVolumeMount, apicommon.ClusterChecksRunnersContainerName)
+		managers.VolumeMount().AddVolumeMountToContainer(&etcdCertsVolumeMount, apicommon.CoreAgentContainerName)
 
 		// Add disable-etcd-autoconf volume (emptyDir)
 		disableEtcdAutoconfVolume := &corev1.Volume{
@@ -211,7 +211,7 @@ func (f *controlPlaneMonitoringFeature) ManageNodeAgent(managers feature.PodTemp
 			MountPath: disableEtcdAutoconfVolumeMountPath,
 			ReadOnly:  false,
 		}
-		managers.VolumeMount().AddVolumeMountToContainer(&disableEtcdAutoconfVolumeMount, apicommon.ClusterChecksRunnersContainerName)
+		managers.VolumeMount().AddVolumeMountToContainer(&disableEtcdAutoconfVolumeMount, apicommon.CoreAgentContainerName)
 	}
 	return nil
 }
