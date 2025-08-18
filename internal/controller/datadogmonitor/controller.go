@@ -31,7 +31,7 @@ import (
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	pkgutils "github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
@@ -69,11 +69,11 @@ type Reconciler struct {
 	scheme                 *runtime.Scheme
 	recorder               record.EventRecorder
 	operatorMetricsEnabled bool
-	forwarders             datadog.MetricsForwardersManager
+	forwarders             pkgutils.MetricsForwardersManager
 }
 
 // NewReconciler returns a new Reconciler object
-func NewReconciler(client client.Client, ddClient datadogclient.DatadogMonitorClient, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, operatorMetricsEnabled bool, metricForwardersMgr datadog.MetricsForwardersManager) (*Reconciler, error) {
+func NewReconciler(client client.Client, ddClient datadogclient.DatadogMonitorClient, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, operatorMetricsEnabled bool, metricForwardersMgr pkgutils.MetricsForwardersManager) (*Reconciler, error) {
 	return &Reconciler{
 		client:                 client,
 		datadogClient:          ddClient.Client,
@@ -87,23 +87,8 @@ func NewReconciler(client client.Client, ddClient datadogclient.DatadogMonitorCl
 }
 
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context
-func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	// Get instance
-	instance := &datadoghqv1alpha1.DatadogMonitor{}
-	err := r.client.Get(ctx, request.NamespacedName, instance)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			// Request object not found, could have been deleted after reconcile request.
-			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
-			// Return and don't requeue
-			return ctrl.Result{}, nil
-
-		}
-		// Error reading the object - return error so it gets requeued
-		return ctrl.Result{}, err
-	}
-
-	res, err := r.internalReconcile(ctx, request, instance)
+func (r *Reconciler) Reconcile(ctx context.Context, instance *datadoghqv1alpha1.DatadogMonitor) (reconcile.Result, error) {
+	res, err := r.internalReconcile(ctx, instance)
 
 	if r.operatorMetricsEnabled {
 		r.forwarders.ProcessError(instance, err)
@@ -113,8 +98,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 }
 
 // Reconcile loop for DatadogMonitor
-func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Request, instance *datadoghqv1alpha1.DatadogMonitor) (reconcile.Result, error) {
-	logger := r.log.WithValues("datadogmonitor", req.NamespacedName)
+func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv1alpha1.DatadogMonitor) (reconcile.Result, error) {
+	logger := r.log.WithValues("datadogmonitor", pkgutils.GetNamespacedName(instance))
 	logger.Info("Reconciling DatadogMonitor")
 	now := metav1.NewTime(time.Now())
 	forceSyncPeriod := defaultForceSyncPeriod
@@ -242,7 +227,7 @@ func (r *Reconciler) create(logger logr.Logger, datadogMonitor *datadoghqv1alpha
 	if err != nil {
 		return err
 	}
-	event := buildEventInfo(datadogMonitor.Name, datadogMonitor.Namespace, datadog.CreationEvent)
+	event := buildEventInfo(datadogMonitor.Name, datadogMonitor.Namespace, pkgutils.CreationEvent)
 	r.recordEvent(datadogMonitor, event)
 
 	// As this is a new monitor, add static information to status
@@ -275,7 +260,7 @@ func (r *Reconciler) update(logger logr.Logger, datadogMonitor *datadoghqv1alpha
 		return err
 	}
 
-	event := buildEventInfo(datadogMonitor.Name, datadogMonitor.Namespace, datadog.UpdateEvent)
+	event := buildEventInfo(datadogMonitor.Name, datadogMonitor.Namespace, pkgutils.UpdateEvent)
 	r.recordEvent(datadogMonitor, event)
 
 	// Set Updated Condition

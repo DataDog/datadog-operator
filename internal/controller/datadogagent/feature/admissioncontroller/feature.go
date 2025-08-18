@@ -245,7 +245,7 @@ func (f *admissionControllerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 	return reqComp
 }
 
-func (f *admissionControllerFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *admissionControllerFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	ns := f.owner.GetNamespace()
 	rbacName := componentdca.GetClusterAgentRbacResourcesName(f.owner)
 
@@ -328,7 +328,7 @@ func (f *admissionControllerFeature) ManageDependencies(managers feature.Resourc
 	return nil
 }
 
-func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  DDAdmissionControllerEnabled,
 		Value: "true",
@@ -484,6 +484,6 @@ func (f *admissionControllerFeature) ManageNodeAgent(managers feature.PodTemplat
 	return nil
 }
 
-func (f *admissionControllerFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (f *admissionControllerFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

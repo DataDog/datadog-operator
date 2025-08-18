@@ -45,7 +45,7 @@ func (r *Reconciler) reconcileV2ClusterChecksRunner(logger logr.Logger, required
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
-		if errFeat := feat.ManageClusterChecksRunner(podManagers); errFeat != nil {
+		if errFeat := feat.ManageClusterChecksRunner(podManagers, ""); errFeat != nil {
 			return result, errFeat
 		}
 	}

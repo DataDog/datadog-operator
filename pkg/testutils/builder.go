@@ -1073,3 +1073,15 @@ func (builder *DatadogAgentBuilder) WithGPUMonitoringEnabled(enabled bool) *Data
 	builder.datadogAgent.Spec.Features.GPU.PrivilegedMode = apiutils.NewBoolPointer(enabled)
 	return builder
 }
+
+func (builder *DatadogAgentBuilder) initControlPlaneMonitoring() {
+	if builder.datadogAgent.Spec.Features.ControlPlaneMonitoring == nil {
+		builder.datadogAgent.Spec.Features.ControlPlaneMonitoring = &v2alpha1.ControlPlaneMonitoringFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithControlPlaneMonitoring(enabled bool) *DatadogAgentBuilder {
+	builder.initControlPlaneMonitoring()
+	builder.datadogAgent.Spec.Features.ControlPlaneMonitoring.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}

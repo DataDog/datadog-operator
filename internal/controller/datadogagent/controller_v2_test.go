@@ -462,7 +462,6 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 func Test_Introspection(t *testing.T) {
 	const resourcesName = "foo"
 	const resourcesNamespace = "bar"
-	const dsName = "foo-agent"
 
 	eventBroadcaster := record.NewBroadcaster()
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgent_Reconcile"})
@@ -538,7 +537,7 @@ func Test_Introspection(t *testing.T) {
 					string("foo-agent-gke-cos"),
 				}
 
-				return verifyDaemonsetNames(t, c, resourcesNamespace, dsName, expectedDaemonsets)
+				return verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
 			},
 		},
 	}
@@ -1100,6 +1099,272 @@ func Test_AutopilotOverrides(t *testing.T) {
 	}
 }
 
+// Helper function for creating DatadogAgent with cluster checks enabled
+func createDatadogAgentWithClusterChecks(c client.Client, namespace, name string) *v2alpha1.DatadogAgent {
+	dda := testutils.NewInitializedDatadogAgentBuilder(namespace, name).
+		WithClusterChecksEnabled(true).
+		WithClusterChecksUseCLCEnabled(true).
+		Build()
+	_ = c.Create(context.TODO(), dda)
+	return dda
+}
+
+func Test_Control_Plane_Monitoring(t *testing.T) {
+	const resourcesName = "foo"
+	const resourcesNamespace = "bar"
+	const dcaName = "foo-cluster-agent"
+
+	eventBroadcaster := record.NewBroadcaster()
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgent_Reconcile"})
+	forwarders := dummyManager{}
+
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	// Register operator types with the runtime scheme.
+	s := agenttestutils.TestScheme()
+
+	defaultRequeueDuration := 15 * time.Second
+
+	tests := []struct {
+		name     string
+		fields   fields
+		loadFunc func(c client.Client) *v2alpha1.DatadogAgent
+		nodes    []client.Object
+		want     reconcile.Result
+		wantErr  bool
+		wantFunc func(t *testing.T, c client.Client) error
+	}{
+		{
+			name: "[introspection] Control Plane Monitoring for Openshift",
+			fields: fields{
+				scheme:   s,
+				recorder: recorder,
+			},
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				return createDatadogAgentWithClusterChecks(c, resourcesNamespace, resourcesName)
+			},
+			nodes: []client.Object{
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "openshift-node-1",
+						Labels: map[string]string{
+							kubernetes.OpenShiftProviderLabel: "rhel",
+						},
+					},
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) error {
+				if err := verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "openshift"); err != nil {
+					return err
+				}
+				expectedDaemonsets := []string{
+					string("foo-agent"),
+				}
+				return verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
+			},
+		},
+		{
+			name: "[introspection] Control Plane Monitoring with EKS",
+			fields: fields{
+				scheme:   s,
+				recorder: recorder,
+			},
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				return createDatadogAgentWithClusterChecks(c, resourcesNamespace, resourcesName)
+			},
+			nodes: []client.Object{
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "eks-node-1",
+						Labels: map[string]string{
+							kubernetes.EKSProviderLabel: "amazon-eks-node-1.29-v20240627",
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "default-node-2",
+						Labels: map[string]string{
+							kubernetes.DefaultProvider: "",
+						},
+					},
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) error {
+				if err := verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "eks"); err != nil {
+					return err
+				}
+				expectedDaemonsets := []string{
+					string("foo-agent"),
+				}
+				return verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
+			},
+		},
+		{
+			name: "[introspection] Control Plane Monitoring with multiple providers",
+			fields: fields{
+				scheme:   s,
+				recorder: recorder,
+			},
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				return createDatadogAgentWithClusterChecks(c, resourcesNamespace, resourcesName)
+			},
+			nodes: []client.Object{
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "eks-node-1",
+						Labels: map[string]string{
+							kubernetes.EKSProviderLabel: "amazon-eks-node-1.29-v20240627",
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "openshift-node-2",
+						Labels: map[string]string{
+							kubernetes.OpenShiftProviderLabel: "rhcos",
+						},
+					},
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) error {
+				if err := verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "default"); err != nil {
+					return err
+				}
+				expectedDaemonsets := []string{
+					string("foo-agent"),
+				}
+				return verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
+			},
+		},
+		{
+			// This test verifies that when a node has a GKE provider label with an unsupported OS value,
+			// the system falls back to the "default" provider for control plane monitoring
+			name: "[introspection] Control Plane Monitoring with unsupported provider",
+			fields: fields{
+				scheme:   s,
+				recorder: recorder,
+			},
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				return createDatadogAgentWithClusterChecks(c, resourcesNamespace, resourcesName)
+			},
+			nodes: []client.Object{
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "gke-node-1",
+						Labels: map[string]string{
+							// Use unsupported OS value to trigger fallback to "default" provider
+							kubernetes.GKEProviderLabel: "unsupported-os",
+						},
+					},
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) error {
+				if err := verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "default"); err != nil {
+					return err
+				}
+				expectedDaemonsets := []string{
+					string("foo-agent-default"),
+				}
+				return verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &Reconciler{
+				client:       fake.NewClientBuilder().WithStatusSubresource(&corev1.Node{}, &v2alpha1.DatadogAgent{}).WithObjects(tt.nodes...).Build(),
+				scheme:       tt.fields.scheme,
+				platformInfo: tt.fields.platformInfo,
+				recorder:     recorder,
+				log:          logf.Log.WithName(tt.name),
+				forwarders:   forwarders,
+				options: ReconcilerOptions{
+					ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
+						Enabled: false,
+					},
+					SupportCilium:        false,
+					IntrospectionEnabled: true,
+				},
+			}
+
+			var dda *v2alpha1.DatadogAgent
+			if tt.loadFunc != nil {
+				dda = tt.loadFunc(r.client)
+			}
+			got, err := r.Reconcile(context.TODO(), dda)
+			if tt.wantErr {
+				assert.Error(t, err, "ReconcileDatadogAgent.Reconcile() expected an error")
+			} else {
+				assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() unexpected error: %v", err)
+			}
+
+			assert.Equal(t, tt.want, got, "ReconcileDatadogAgent.Reconcile() unexpected result")
+
+			if tt.wantFunc != nil {
+				err := tt.wantFunc(t, r.client)
+				assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() wantFunc validation error: %v", err)
+			}
+		})
+	}
+}
+
+func verifyDCADeployment(t *testing.T, c client.Client, ddaName, resourcesNamespace, expectedName string, provider string) error {
+	daemonSetList := appsv1.DeploymentList{}
+	if err := c.List(context.TODO(), &daemonSetList, client.HasLabels{constants.MD5AgentDeploymentProviderLabelKey}); err != nil {
+		return err
+	}
+	assert.Equal(t, 1, len(daemonSetList.Items))
+	assert.Equal(t, expectedName, daemonSetList.Items[0].ObjectMeta.Name)
+
+	cms := corev1.ConfigMapList{}
+	if err := c.List(context.TODO(), &cms, client.InNamespace(resourcesNamespace)); err != nil {
+		return err
+	}
+	cpCm := corev1.ConfigMap{}
+	c.Get(context.TODO(), types.NamespacedName{
+		Name:      fmt.Sprintf("datadog-controlplane-monitoring-%s", provider),
+		Namespace: resourcesNamespace,
+	}, &cpCm)
+
+	dcaDeployment := daemonSetList.Items[0]
+	if provider == "default" {
+		assert.NotContains(t, cms.Items, corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("datadog-controlplane-monitoring-%s", provider),
+				Namespace: resourcesNamespace,
+			},
+		})
+	} else {
+		assert.Contains(t, dcaDeployment.Spec.Template.Spec.Volumes, corev1.Volume{
+			Name: "controlplane-config",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: fmt.Sprintf("datadog-controlplane-monitoring-%s", provider),
+					},
+				},
+			},
+		})
+		dcaContainer := dcaDeployment.Spec.Template.Spec.Containers[0]
+		assert.Contains(t, dcaContainer.VolumeMounts, corev1.VolumeMount{
+			Name:      "controlplane-config",
+			MountPath: "/etc/datadog-agent/conf.d",
+			ReadOnly:  true,
+		})
+	}
+	return nil
+}
+
 func verifyDaemonsetContainers(c client.Client, resourcesNamespace, dsName string, expectedContainers []string) error {
 	ds := &appsv1.DaemonSet{}
 	if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds); err != nil {
@@ -1119,7 +1384,7 @@ func verifyDaemonsetContainers(c client.Client, resourcesNamespace, dsName strin
 	}
 }
 
-func verifyDaemonsetNames(t *testing.T, c client.Client, resourcesNamespace, dsName string, expectedDSNames []string) error {
+func verifyDaemonsetNames(t *testing.T, c client.Client, resourcesNamespace string, expectedDSNames []string) error {
 	daemonSetList := appsv1.DaemonSetList{}
 	if err := c.List(context.TODO(), &daemonSetList, client.HasLabels{constants.MD5AgentDeploymentProviderLabelKey}); err != nil {
 		return err

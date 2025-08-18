@@ -52,13 +52,13 @@ func (f *ebpfCheckFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogA
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *ebpfCheckFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *ebpfCheckFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *ebpfCheckFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *ebpfCheckFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 
@@ -110,6 +110,6 @@ func (f *ebpfCheckFeature) ManageSingleContainerNodeAgent(managers feature.PodTe
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *ebpfCheckFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (f *ebpfCheckFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

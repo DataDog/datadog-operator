@@ -1065,6 +1065,17 @@
                   },
                   "type": "object"
                 },
+                "controlPlaneMonitoring": {
+                  "additionalProperties": false,
+                  "description": "ControlPlaneMonitoring configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enabled control plane monitoring checks in the cluster agent.\nDefault: true",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
                 "cspm": {
                   "additionalProperties": false,
                   "description": "CSPM (Cloud Security Posture Management) configuration.",
