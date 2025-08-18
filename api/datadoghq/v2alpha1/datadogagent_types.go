@@ -839,7 +839,7 @@ type OtelCollectorFeatureConfig struct {
 // ControlPlaneMonitoringFeatureConfig contains the configuration for the control plane monitoring.
 // +k8s:openapi-gen=true
 type ControlPlaneMonitoringFeatureConfig struct {
-	// Enabled enabled control plane monitoring checks in the cluster agent.
+	// Enabled enables control plane monitoring checks in the cluster agent.
 	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
