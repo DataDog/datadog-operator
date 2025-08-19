@@ -71,7 +71,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	// multiple canaries, etc.
 	if r.options.ExtendedDaemonsetOptions.Enabled && !isDDAILabeledWithProfile(ddaiCopy) {
 		// Start by creating the Default Agent extendeddaemonset
-		eds = componentagent.NewDefaultAgentExtendedDaemonset(ddaiCopy, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
+		eds = componentagent.NewDefaultAgentExtendedDaemonset(logger, ddaiCopy, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
 
 		// Set Global setting on the default extendeddaemonset
@@ -123,7 +123,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	}
 
 	// Start by creating the Default Agent daemonset
-	daemonset = componentagent.NewDefaultAgentDaemonset(ddaiCopy, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent, instanceName)
+	daemonset = componentagent.NewDefaultAgentDaemonset(logger, ddaiCopy, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent, instanceName)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 	// Set Global setting on the default daemonset
 	global.ApplyGlobalSettingsNodeAgent(logger, podManagers, ddaiCopy.GetObjectMeta(), &ddaiCopy.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)

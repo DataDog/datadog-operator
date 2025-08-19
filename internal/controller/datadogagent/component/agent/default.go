@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
+	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,16 +28,16 @@ import (
 
 // NewDefaultAgentDaemonset return a new default agent DaemonSet
 // TODO: remove instanceName once v2 reconcile is removed
-func NewDefaultAgentDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent, instanceName string) *appsv1.DaemonSet {
-	daemonset := NewDaemonset(dda, edsOptions, constants.DefaultAgentResourceSuffix, instanceName, common.GetAgentVersion(dda), nil)
+func NewDefaultAgentDaemonset(logger logr.Logger, dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent, instanceName string) *appsv1.DaemonSet {
+	daemonset := NewDaemonset(logger, dda, edsOptions, constants.DefaultAgentResourceSuffix, instanceName, common.GetAgentVersion(dda), nil)
 	podTemplate := NewDefaultAgentPodTemplateSpec(dda, agentComponent, daemonset.GetLabels())
 	daemonset.Spec.Template = *podTemplate
 	return daemonset
 }
 
 // NewDefaultAgentExtendedDaemonset return a new default agent DaemonSet
-func NewDefaultAgentExtendedDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent) *edsv1alpha1.ExtendedDaemonSet {
-	edsDaemonset := NewExtendedDaemonset(dda, edsOptions, constants.DefaultAgentResourceSuffix, component.GetAgentName(dda), common.GetAgentVersion(dda), nil)
+func NewDefaultAgentExtendedDaemonset(logger logr.Logger, dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent) *edsv1alpha1.ExtendedDaemonSet {
+	edsDaemonset := NewExtendedDaemonset(logger, dda, edsOptions, constants.DefaultAgentResourceSuffix, component.GetAgentName(dda), common.GetAgentVersion(dda), nil)
 	edsDaemonset.Spec.Template = *NewDefaultAgentPodTemplateSpec(dda, agentComponent, edsDaemonset.GetLabels())
 	return edsDaemonset
 }

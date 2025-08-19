@@ -17,4 +17,6 @@ const (
 	DatadogAgentNameLabelKey = "agent.datadoghq.com/datadogagent"
 	// UpdateSelectorAnnotationKey is used when the workload selector should be updated
 	UpdateSelectorAnnotationKey = "agent.datadoghq.com/update-selector"
+	// HelmMigrationAnnotationKey is used when the workload selector should be updated
+	HelmMigrationAnnotationKey = "agent.datadoghq.com/helm-migration"
 )

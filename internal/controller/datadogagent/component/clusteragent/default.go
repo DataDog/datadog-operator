@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,8 +52,8 @@ func getDefaultServiceAccountName(dda metav1.Object) string {
 }
 
 // NewDefaultClusterAgentDeployment return a new default cluster-agent deployment
-func NewDefaultClusterAgentDeployment(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) *appsv1.Deployment {
-	deployment := common.NewDeployment(ddaMeta, constants.DefaultClusterAgentResourceSuffix, component.GetClusterAgentName(ddaMeta), GetClusterAgentVersion(ddaMeta), nil)
+func NewDefaultClusterAgentDeployment(logger logr.Logger, ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) *appsv1.Deployment {
+	deployment := common.NewDeployment(logger, ddaMeta, constants.DefaultClusterAgentResourceSuffix, component.GetClusterAgentName(ddaMeta), GetClusterAgentVersion(ddaMeta), nil)
 	podTemplate := NewDefaultClusterAgentPodTemplateSpec(ddaMeta, ddaSpec)
 	for key, val := range deployment.GetLabels() {
 		podTemplate.Labels[key] = val
