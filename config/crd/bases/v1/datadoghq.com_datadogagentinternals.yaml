@@ -1070,7 +1070,7 @@ spec:
                       properties:
                         enabled:
                           description: |-
-                            Enabled enabled control plane monitoring checks in the cluster agent.
+                            Enabled enables control plane monitoring checks in the cluster agent.
                             Default: true
                           type: boolean
                       type: object
@@ -8843,7 +8843,7 @@ spec:
                           properties:
                             enabled:
                               description: |-
-                                Enabled enabled control plane monitoring checks in the cluster agent.
+                                Enabled enables control plane monitoring checks in the cluster agent.
                                 Default: true
                               type: boolean
                           type: object
