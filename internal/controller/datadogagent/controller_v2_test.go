@@ -1162,7 +1162,10 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 				expectedDaemonsets := []string{
 					string("foo-agent"),
 				}
-				return verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
+				if err := verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets); err != nil {
+					return err
+				}
+				return verifyEtcdMountsOpenshift(t, c, resourcesNamespace, "foo-agent", "openshift")
 			},
 		},
 		{
@@ -1362,6 +1365,13 @@ func verifyDCADeployment(t *testing.T, c client.Client, ddaName, resourcesNamesp
 			ReadOnly:  true,
 		})
 	}
+
+	assert.Contains(t, dcaDeployment.Spec.Template.Spec.Volumes, corev1.Volume{
+		Name: "agent-conf-d-writable",
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	})
 	return nil
 }
 
@@ -1397,6 +1407,97 @@ func verifyDaemonsetNames(t *testing.T, c client.Client, resourcesNamespace stri
 	sort.Strings(actualDSNames)
 	sort.Strings(expectedDSNames)
 	assert.Equal(t, expectedDSNames, actualDSNames)
+	return nil
+}
+
+func verifyEtcdMountsOpenshift(t *testing.T, c client.Client, resourcesNamespace, dsName string, provider string) error {
+	expectedMounts := []corev1.VolumeMount{
+		{
+			Name:      "etcd-client-certs",
+			MountPath: "/etc/etcd-certs",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "disable-etcd-autoconf",
+			MountPath: "/etc/datadog-agent/conf.d/etcd.d",
+			ReadOnly:  false,
+		},
+	}
+
+	// Node Agent
+	ds := &appsv1.DaemonSet{}
+	if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds); err != nil {
+		return err
+	}
+
+	var coreAgentContainer *corev1.Container
+	for _, container := range ds.Spec.Template.Spec.Containers {
+		if container.Name == string(apicommon.CoreAgentContainerName) {
+			coreAgentContainer = &container
+			break
+		}
+	}
+
+	if coreAgentContainer == nil {
+		return fmt.Errorf("core agent container not found in DaemonSet %s", dsName)
+	}
+
+	for _, expectedMount := range expectedMounts {
+		found := false
+		for _, mount := range coreAgentContainer.VolumeMounts {
+			if mount.Name == expectedMount.Name {
+				found = true
+				assert.Equal(t, expectedMount.MountPath, mount.MountPath, "Mount path mismatch for %s in core agent", expectedMount.Name)
+				assert.Equal(t, expectedMount.ReadOnly, mount.ReadOnly, "ReadOnly mismatch for %s in core agent", expectedMount.Name)
+				break
+			}
+		}
+		assert.True(t, found, "Expected volume mount %s not found in core agent container", expectedMount.Name)
+	}
+
+	// Cluster Checks Runner
+	deploymentList := appsv1.DeploymentList{}
+	if err := c.List(context.TODO(), &deploymentList, client.InNamespace(resourcesNamespace)); err != nil {
+		return err
+	}
+
+	var ccrDeployment *appsv1.Deployment
+	for _, deployment := range deploymentList.Items {
+		if deployment.Name == "foo-cluster-checks-runner" {
+			ccrDeployment = &deployment
+			break
+		}
+	}
+
+	if ccrDeployment == nil {
+		return fmt.Errorf("cluster-checks-runner deployment not found")
+	}
+
+	var ccrContainer *corev1.Container
+	for _, container := range ccrDeployment.Spec.Template.Spec.Containers {
+		if container.Name == string(apicommon.ClusterChecksRunnersContainerName) {
+			ccrContainer = &container
+			break
+		}
+	}
+
+	if ccrContainer == nil {
+		return fmt.Errorf("cluster-checks-runner container not found in deployment")
+	}
+
+	for _, expectedMount := range expectedMounts {
+		found := false
+		for _, mount := range ccrContainer.VolumeMounts {
+			if mount.Name == expectedMount.Name {
+				found = true
+				assert.Equal(t, expectedMount.MountPath, mount.MountPath, "Mount path mismatch for %s in CCR", expectedMount.Name)
+				assert.Equal(t, expectedMount.ReadOnly, mount.ReadOnly, "ReadOnly mismatch for %s in CCR", expectedMount.Name)
+				break
+			}
+		}
+		assert.True(t, found, "Expected volume mount %s not found in cluster-checks-runner container", expectedMount.Name)
+	}
+
 	return nil
 }
 
