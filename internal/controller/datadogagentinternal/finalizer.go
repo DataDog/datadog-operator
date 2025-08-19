@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -104,7 +105,7 @@ func (r *Reconciler) profilesCleanup() error {
 	}
 
 	for _, node := range nodeList.Items {
-		_, profileLabelExists := node.Labels[agentprofile.ProfileLabelKey]
+		_, profileLabelExists := node.Labels[constants.ProfileLabelKey]
 		_, oldProfileLabelExists := node.Labels[agentprofile.OldProfileLabelKey]
 		if !profileLabelExists && !oldProfileLabelExists {
 			continue
@@ -113,7 +114,7 @@ func (r *Reconciler) profilesCleanup() error {
 		newLabels := map[string]string{}
 		for k, v := range node.Labels {
 			// Remove profile labels from nodes
-			if k == agentprofile.OldProfileLabelKey || k == agentprofile.ProfileLabelKey {
+			if k == agentprofile.OldProfileLabelKey || k == constants.ProfileLabelKey {
 				continue
 			}
 			newLabels[k] = v

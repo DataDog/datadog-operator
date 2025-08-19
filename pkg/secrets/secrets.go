@@ -19,6 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 var (
@@ -152,7 +153,7 @@ func GetDefaultCredentialsSecretName(dda metav1.Object) string {
 
 // GetDefaultDCATokenSecretName returns the default name for cluster-agent secret
 func GetDefaultDCATokenSecretName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-token", dda.GetName())
+	return fmt.Sprintf("%s-token", constants.GetDDAName(dda))
 }
 
 // GetAPIKeySecret returns the API key secret name and the key inside the secret
