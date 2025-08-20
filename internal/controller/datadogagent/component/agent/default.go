@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+	"github.com/DataDog/datadog-operator/pkg/helm"
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -30,7 +32,7 @@ import (
 // TODO: remove instanceName once v2 reconcile is removed
 func NewDefaultAgentDaemonset(logger logr.Logger, dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent, instanceName string) *appsv1.DaemonSet {
 	daemonset := NewDaemonset(logger, dda, edsOptions, constants.DefaultAgentResourceSuffix, instanceName, common.GetAgentVersion(dda), nil)
-	podTemplate := NewDefaultAgentPodTemplateSpec(dda, agentComponent, daemonset.GetLabels())
+	podTemplate := NewDefaultAgentPodTemplateSpec(logger, dda, agentComponent, daemonset.GetLabels())
 	daemonset.Spec.Template = *podTemplate
 	return daemonset
 }
@@ -38,12 +40,12 @@ func NewDefaultAgentDaemonset(logger logr.Logger, dda metav1.Object, edsOptions 
 // NewDefaultAgentExtendedDaemonset return a new default agent DaemonSet
 func NewDefaultAgentExtendedDaemonset(logger logr.Logger, dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent) *edsv1alpha1.ExtendedDaemonSet {
 	edsDaemonset := NewExtendedDaemonset(logger, dda, edsOptions, constants.DefaultAgentResourceSuffix, component.GetAgentName(dda), common.GetAgentVersion(dda), nil)
-	edsDaemonset.Spec.Template = *NewDefaultAgentPodTemplateSpec(dda, agentComponent, edsDaemonset.GetLabels())
+	edsDaemonset.Spec.Template = *NewDefaultAgentPodTemplateSpec(logger, dda, agentComponent, edsDaemonset.GetLabels())
 	return edsDaemonset
 }
 
 // NewDefaultAgentPodTemplateSpec returns a defaulted node agent PodTemplateSpec with a single multi-process container or multiple single-process containers
-func NewDefaultAgentPodTemplateSpec(dda metav1.Object, agentComponent feature.RequiredComponent, labels map[string]string) *corev1.PodTemplateSpec {
+func NewDefaultAgentPodTemplateSpec(logger logr.Logger, dda metav1.Object, agentComponent feature.RequiredComponent, labels map[string]string) *corev1.PodTemplateSpec {
 	requiredContainers := agentComponent.Containers
 
 	var agentContainers []corev1.Container
@@ -52,11 +54,15 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, agentComponent feature.Re
 	} else {
 		agentContainers = agentOptimizedContainers(dda, requiredContainers)
 	}
+	annotations := make(map[string]string)
+	if val, ok := dda.GetAnnotations()[apicommon.HelmMigrationAnnotationKey]; ok && val == "true" {
+		annotations = object.MergeAnnotationsLabels(logger, annotations, map[string]string{helm.ResourcePolicyAnnotationKey: "keep"}, "*")
+	}
 
 	return &corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:      labels,
-			Annotations: make(map[string]string),
+			Annotations: annotations,
 		},
 		Spec: corev1.PodSpec{
 			// Force root user for when the agent Dockerfile will be updated to use a non-root user by default
