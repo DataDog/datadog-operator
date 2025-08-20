@@ -8,6 +8,7 @@ package datadogagent
 import (
 	"context"
 	"errors"
+	"fmt"
 	"maps"
 	"strconv"
 	"time"
@@ -207,6 +208,23 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 				return reconcile.Result{}, err
 			}
 			logger.Info("Daemonset owner reference patched")
+		}
+
+		logger.Info(fmt.Sprintf("DAEMONSET NAME: %s\n ANNOTATIONS: %v", daemonset.Name, daemonset.GetAnnotations()))
+		logger.Info(fmt.Sprintf("DAEMONSET NAME: %s\n MATCHLABELS: %v", daemonset.Name, daemonset.Spec.Selector.MatchLabels))
+		logger.Info(fmt.Sprintf("DAEMONSET NAME: %s\n LABELS: %v", daemonset.Name, daemonset.ObjectMeta.Labels))
+
+		logger.Info(fmt.Sprintf("CURRENT DAEMONSET NAME: %s\n ANNOTATIONS: %v", currentDaemonset.Name, currentDaemonset.GetAnnotations()))
+		logger.Info(fmt.Sprintf("CURRENT DAEMONSET NAME: %s\n MATCHLABELS: %v", currentDaemonset.Name, currentDaemonset.Spec.Selector.MatchLabels))
+		logger.Info(fmt.Sprintf("CURRENT DAEMONSET NAME: %s\n LABELS: %v", currentDaemonset.Name, currentDaemonset.ObjectMeta.Labels))
+
+		if val, ok := currentDaemonset.GetAnnotations()[apicommon.HelmMigrationAnnotationKey]; ok && val == "true" {
+			logger.Info("Helm migration annotation found, deleting Daemonset to recreate it")
+			if err = deleteObjectAndOrphanDependents(context.TODO(), logger, r.client, currentDaemonset, constants.DefaultAgentResourceSuffix); err != nil {
+				return result, err
+			}
+			return result, nil
+
 		}
 
 		if !maps.Equal(daemonset.Spec.Selector.MatchLabels, currentDaemonset.Spec.Selector.MatchLabels) {
