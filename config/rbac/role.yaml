@@ -202,6 +202,13 @@ rules:
 - apiGroups:
   - datadoghq.com
   resources:
+  - '*'
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - datadoghq.com
+  resources:
   - datadogagentinternals
   - datadogagentinternals/finalizers
   - datadogagentprofiles
