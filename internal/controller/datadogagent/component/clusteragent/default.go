@@ -26,7 +26,7 @@ import (
 
 // GetClusterAgentServiceName return the Cluster-Agent service name based on the DatadogAgent name
 func GetClusterAgentServiceName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultClusterAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", constants.GetDDAName(dda), constants.DefaultClusterAgentResourceSuffix)
 }
 
 // GetClusterAgentPodDisruptionBudgetName return the Cluster-Agent PodDisruptionBudget name based on the DatadogAgent name
