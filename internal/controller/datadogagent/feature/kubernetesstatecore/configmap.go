@@ -7,6 +7,7 @@ package kubernetesstatecore
 
 import (
 	"bytes"
+	"io"
 	"strconv"
 
 	"gopkg.in/yaml.v3"
@@ -39,6 +40,51 @@ func buildDefaultConfigMap(namespace, cmName string, content string) *corev1.Con
 		},
 	}
 	return configMap
+}
+
+// indentWriter wraps an io.Writer and adds indentation to each line
+type indentWriter struct {
+	w          io.Writer
+	indent     []byte
+	needIndent bool
+}
+
+// newIndentWriter creates a new indentWriter with the specified number of spaces for indentation
+func newIndentWriter(w io.Writer, spaces int) *indentWriter {
+	return &indentWriter{
+		w:          w,
+		indent:     bytes.Repeat([]byte(" "), spaces),
+		needIndent: true,
+	}
+}
+
+// Write implements io.Writer interface, adding indentation at the start of each line
+func (iw *indentWriter) Write(p []byte) (int, error) {
+	if len(p) == 0 {
+		return 0, nil
+	}
+
+	for _, b := range p {
+		if iw.needIndent && b != '\n' {
+			_, err := iw.w.Write(iw.indent)
+			if err != nil {
+				return 0, err
+			}
+			iw.needIndent = false
+		}
+
+		_, err := iw.w.Write([]byte{b})
+		if err != nil {
+			return 0, err
+		}
+
+		if b == '\n' {
+			iw.needIndent = true
+		}
+	}
+
+	// Return the original byte count to satisfy the io.Writer contract
+	return len(p), nil
 }
 
 // KSM should be configured as a cluster check only when there are Cluster Check
@@ -101,8 +147,10 @@ instances:
       spec:
         resources:
 `)
-		encoder := yaml.NewEncoder(config)
-		encoder.SetIndent(10)
+		// Use indentWriter to add proper indentation (10 spaces for YAML nesting)
+		indentedWriter := newIndentWriter(config, 10)
+		encoder := yaml.NewEncoder(indentedWriter)
+		encoder.SetIndent(2) // Keep YAML's internal indentation
 		encoder.Encode(collectorOpts.customResources)
 		encoder.Close()
 	}
