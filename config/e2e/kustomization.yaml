@@ -6,11 +6,6 @@ images:
 kind: Kustomization
 namePrefix: datadog-operator-e2e-
 namespace: e2e-operator
-patches:
-- path: rc-e2e-manager.yaml
-  target:
-    kind: Deployment
-    name: manager
 resources:
 - ../crd
 - ../rbac
