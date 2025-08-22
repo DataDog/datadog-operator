@@ -171,7 +171,7 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		return reconcile.Result{}, err
 	}
 
-	dsNamesToCheck := []types.NamespacedName{}
+	var dsNamesToCheck []types.NamespacedName
 
 	// Get the current daemonset and compare
 	nsName := types.NamespacedName{
