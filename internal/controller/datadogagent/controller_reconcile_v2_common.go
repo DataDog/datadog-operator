@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"maps"
 	"strconv"
+	"strings"
 	"time"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -170,22 +171,40 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		return reconcile.Result{}, err
 	}
 
+	dsNamesToCheck := []types.NamespacedName{}
+
 	// Get the current daemonset and compare
 	nsName := types.NamespacedName{
 		Name:      daemonset.GetName(),
 		Namespace: daemonset.GetNamespace(),
 	}
 
+	dsNamesToCheck = append(dsNamesToCheck, nsName)
+
+	helmNsName := types.NamespacedName{}
+	if val, ok := dda.Annotations[apicommon.HelmMigrationAnnotationKey]; ok && val == "true" {
+		helmNsName = types.NamespacedName{
+			Name:      strings.TrimSuffix(daemonset.GetName(), "-agent"),
+			Namespace: daemonset.GetNamespace(),
+		}
+		dsNamesToCheck = append(dsNamesToCheck, helmNsName)
+	}
+
 	currentDaemonset := &appsv1.DaemonSet{}
 	alreadyExists := true
-	err = r.client.Get(context.TODO(), nsName, currentDaemonset)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			logger.Info("daemonset is not found")
-			alreadyExists = false
-		} else {
-			logger.Error(err, "unexpected error during daemonset get")
-			return reconcile.Result{}, err
+
+	for _, ns := range dsNamesToCheck {
+		err = r.client.Get(context.TODO(), ns, currentDaemonset)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				logger.Info(fmt.Sprintf("daemonset %s is not found", ns.Name))
+				alreadyExists = false
+			} else {
+				logger.Error(err, "unexpected error during daemonset get")
+				return reconcile.Result{}, err
+			}
+		} else if alreadyExists && currentDaemonset.Name == helmNsName.Name {
+			logger.Info(fmt.Sprintf("Found helm-managed Daemonset %s", currentDaemonset.Name))
 		}
 	}
 
@@ -209,14 +228,6 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 			}
 			logger.Info("Daemonset owner reference patched")
 		}
-
-		logger.Info(fmt.Sprintf("DAEMONSET NAME: %s\n ANNOTATIONS: %v", daemonset.Name, daemonset.GetAnnotations()))
-		logger.Info(fmt.Sprintf("DAEMONSET NAME: %s\n MATCHLABELS: %v", daemonset.Name, daemonset.Spec.Selector.MatchLabels))
-		logger.Info(fmt.Sprintf("DAEMONSET NAME: %s\n LABELS: %v", daemonset.Name, daemonset.ObjectMeta.Labels))
-
-		logger.Info(fmt.Sprintf("CURRENT DAEMONSET NAME: %s\n ANNOTATIONS: %v", currentDaemonset.Name, currentDaemonset.GetAnnotations()))
-		logger.Info(fmt.Sprintf("CURRENT DAEMONSET NAME: %s\n MATCHLABELS: %v", currentDaemonset.Name, currentDaemonset.Spec.Selector.MatchLabels))
-		logger.Info(fmt.Sprintf("CURRENT DAEMONSET NAME: %s\n LABELS: %v", currentDaemonset.Name, currentDaemonset.ObjectMeta.Labels))
 
 		if val, ok := currentDaemonset.GetAnnotations()[apicommon.HelmMigrationAnnotationKey]; ok && val == "true" {
 			logger.Info("Helm migration annotation found, deleting Daemonset to recreate it")
