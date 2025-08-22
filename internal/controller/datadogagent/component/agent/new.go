@@ -18,8 +18,8 @@ import (
 )
 
 // NewDaemonset use to generate the skeleton of a new daemonset based on few information
-func NewDaemonset(logger logr.Logger, owner metav1.Object, edsOptions *ExtendedDaemonsetOptions, componentKind, componentName, version string, selector *metav1.LabelSelector) *appsv1.DaemonSet {
-	labels, annotations, selector := common.GetDefaultMetadata(logger, owner, componentKind, componentName, version, selector)
+func NewDaemonset(logger logr.Logger, owner metav1.Object, edsOptions *ExtendedDaemonsetOptions, componentKind, componentName, version string, selector *metav1.LabelSelector, instanceName string) *appsv1.DaemonSet {
+	labels, annotations, selector := common.GetDefaultMetadata(logger, owner, componentKind, instanceName, version, selector)
 
 	daemonset := &appsv1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{

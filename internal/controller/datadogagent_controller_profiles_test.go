@@ -21,6 +21,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/internal/controller/testutils"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -145,7 +146,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			Name: agentprofile.DaemonSetName(types.NamespacedName{
 				Namespace: profile.Namespace,
 				Name:      profile.Name,
-			}),
+			}, false),
 		}
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
@@ -169,7 +170,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Values:   []string{"3"},
 										},
 										{
-											Key:      agentprofile.ProfileLabelKey,
+											Key:      constants.ProfileLabelKey,
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{profile.Name},
 										},
@@ -270,7 +271,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			Name: agentprofile.DaemonSetName(types.NamespacedName{
 				Namespace: profile.Namespace,
 				Name:      profile.Name,
-			}),
+			}, false),
 		}
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
@@ -294,7 +295,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Values:   []string{"1", "2"},
 										},
 										{
-											Key:      agentprofile.ProfileLabelKey,
+											Key:      constants.ProfileLabelKey,
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{profile.Name},
 										},
@@ -400,7 +401,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			Name: agentprofile.DaemonSetName(types.NamespacedName{
 				Namespace: profile.Namespace,
 				Name:      profile.Name,
-			}),
+			}, false),
 		}
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
@@ -424,7 +425,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Values:   []string{"1"},
 										},
 										{
-											Key:      agentprofile.ProfileLabelKey,
+											Key:      constants.ProfileLabelKey,
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{profile.Name},
 										},
@@ -554,7 +555,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			Name: agentprofile.DaemonSetName(types.NamespacedName{
 				Namespace: profiles[0].Namespace,
 				Name:      profiles[0].Name,
-			}),
+			}, false),
 		}
 
 		profile2DaemonSetName := types.NamespacedName{
@@ -562,7 +563,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			Name: agentprofile.DaemonSetName(types.NamespacedName{
 				Namespace: profiles[1].Namespace,
 				Name:      profiles[1].Name,
-			}),
+			}, false),
 		}
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
@@ -586,7 +587,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Values:   []string{"1"},
 										},
 										{
-											Key:      agentprofile.ProfileLabelKey,
+											Key:      constants.ProfileLabelKey,
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{profiles[0].Name},
 										},
@@ -622,7 +623,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Values:   []string{"2"},
 										},
 										{
-											Key:      agentprofile.ProfileLabelKey,
+											Key:      constants.ProfileLabelKey,
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{profiles[1].Name},
 										},
@@ -754,7 +755,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			Name: agentprofile.DaemonSetName(types.NamespacedName{
 				Namespace: profiles[0].Namespace,
 				Name:      profiles[0].Name,
-			}),
+			}, false),
 		}
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
@@ -778,7 +779,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Values:   []string{"1"},
 										},
 										{
-											Key:      agentprofile.ProfileLabelKey,
+											Key:      constants.ProfileLabelKey,
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{profiles[0].Name},
 										},
@@ -889,7 +890,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			Name: agentprofile.DaemonSetName(types.NamespacedName{
 				Namespace: profile.Namespace,
 				Name:      profile.Name,
-			}),
+			}, false),
 		}
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
@@ -922,7 +923,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Values:   []string{"1"},
 										},
 										{
-											Key:      agentprofile.ProfileLabelKey,
+											Key:      constants.ProfileLabelKey,
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{profile.Name},
 										},
@@ -1020,7 +1021,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			Name: agentprofile.DaemonSetName(types.NamespacedName{
 				Namespace: profile.Namespace,
 				Name:      profile.Name,
-			}),
+			}, false),
 		}
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
@@ -1049,7 +1050,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Values:   []string{"2"},
 										},
 										{
-											Key:      agentprofile.ProfileLabelKey,
+											Key:      constants.ProfileLabelKey,
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{profile.Name},
 										},
@@ -1169,8 +1170,8 @@ func testProfilesFunc(testScenario profilesTestScenario) func() {
 					for _, node := range nodeList.Items {
 						_, expectLabel := testScenario.expectedLabeledNodes[node.Name]
 
-						if expectLabel && node.Labels[agentprofile.ProfileLabelKey] != "true" ||
-							!expectLabel && node.Labels[agentprofile.ProfileLabelKey] != "" {
+						if expectLabel && node.Labels[constants.ProfileLabelKey] != "true" ||
+							!expectLabel && node.Labels[constants.ProfileLabelKey] != "" {
 							return false
 						}
 					}
@@ -1238,7 +1239,7 @@ func affinityForDefaultProfile() *v1.Affinity {
 					{
 						MatchExpressions: []v1.NodeSelectorRequirement{
 							{
-								Key:      agentprofile.ProfileLabelKey,
+								Key:      constants.ProfileLabelKey,
 								Operator: v1.NodeSelectorOpDoesNotExist,
 							},
 						},

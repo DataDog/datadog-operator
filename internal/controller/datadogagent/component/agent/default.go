@@ -31,7 +31,7 @@ import (
 // NewDefaultAgentDaemonset return a new default agent DaemonSet
 // TODO: remove instanceName once v2 reconcile is removed
 func NewDefaultAgentDaemonset(logger logr.Logger, dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent, instanceName string) *appsv1.DaemonSet {
-	daemonset := NewDaemonset(logger, dda, edsOptions, constants.DefaultAgentResourceSuffix, instanceName, common.GetAgentVersion(dda), nil)
+	daemonset := NewDaemonset(logger, dda, edsOptions, constants.DefaultAgentResourceSuffix, component.GetAgentName(dda), common.GetAgentVersion(dda), nil, instanceName)
 	podTemplate := NewDefaultAgentPodTemplateSpec(logger, dda, agentComponent, daemonset.GetLabels())
 	daemonset.Spec.Template = *podTemplate
 	return daemonset
@@ -333,7 +333,7 @@ func GetAgentRoleName(dda metav1.Object) string {
 }
 
 func getDefaultServiceAccountName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", constants.GetDDAName(dda), constants.DefaultAgentResourceSuffix)
 }
 
 func agentImage() string {

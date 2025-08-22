@@ -171,41 +171,45 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		return reconcile.Result{}, err
 	}
 
-	var dsNamesToCheck []types.NamespacedName
+	//var dsNamesToCheck []types.NamespacedName
+
+	//dsNamesToCheck = append(dsNamesToCheck, nsName)
+	//
+	//helmNsName := types.NamespacedName{}
+	//if val, ok := dda.Annotations[apicommon.HelmMigrationAnnotationKey]; ok && val == "true" {
+	//	helmNsName = types.NamespacedName{
+	//		Name:      strings.TrimSuffix(daemonset.GetName(), "-agent"),
+	//		Namespace: daemonset.GetNamespace(),
+	//	}
+	//	dsNamesToCheck = append(dsNamesToCheck, helmNsName)
+	//}
+
+	//for _, ns := range dsNamesToCheck {
+	//	err = r.client.Get(context.TODO(), ns, currentDaemonset)
+	//	if err != nil {
+	//		if apierrors.IsNotFound(err) {
+	//			logger.Info(fmt.Sprintf("daemonset %s is not found", ns.Name))
+	//			alreadyExists = false
+	//		} else {
+	//			logger.Error(err, "unexpected error during daemonset get")
+	//			return reconcile.Result{}, err
+	//		}
+	//	} else if alreadyExists && currentDaemonset.Name == helmNsName.Name {
+	//		logger.Info(fmt.Sprintf("Found helm-managed Daemonset %s", currentDaemonset.Name))
+	//	}
+	//}
 
 	// Get the current daemonset and compare
-	nsName := types.NamespacedName{
-		Name:      daemonset.GetName(),
-		Namespace: daemonset.GetNamespace(),
+	currentDaemonset, err := r.getCurrentDaemonset(dda, daemonset)
+	if err != nil {
+		logger.Error(err, "unexpected error during daemonset get")
+		return reconcile.Result{}, err
 	}
 
-	dsNamesToCheck = append(dsNamesToCheck, nsName)
-
-	helmNsName := types.NamespacedName{}
-	if val, ok := dda.Annotations[apicommon.HelmMigrationAnnotationKey]; ok && val == "true" {
-		helmNsName = types.NamespacedName{
-			Name:      strings.TrimSuffix(daemonset.GetName(), "-agent"),
-			Namespace: daemonset.GetNamespace(),
-		}
-		dsNamesToCheck = append(dsNamesToCheck, helmNsName)
-	}
-
-	currentDaemonset := &appsv1.DaemonSet{}
 	alreadyExists := true
-
-	for _, ns := range dsNamesToCheck {
-		err = r.client.Get(context.TODO(), ns, currentDaemonset)
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				logger.Info(fmt.Sprintf("daemonset %s is not found", ns.Name))
-				alreadyExists = false
-			} else {
-				logger.Error(err, "unexpected error during daemonset get")
-				return reconcile.Result{}, err
-			}
-		} else if alreadyExists && currentDaemonset.Name == helmNsName.Name {
-			logger.Info(fmt.Sprintf("Found helm-managed Daemonset %s", currentDaemonset.Name))
-		}
+	if currentDaemonset == nil {
+		logger.Info("daemonset is not found")
+		alreadyExists = false
 	}
 
 	if alreadyExists {
@@ -229,16 +233,16 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 			logger.Info("Daemonset owner reference patched")
 		}
 
-		if val, ok := currentDaemonset.GetAnnotations()[apicommon.HelmMigrationAnnotationKey]; ok && val == "true" {
-			logger.Info("Helm migration annotation found, deleting Daemonset to recreate it")
-			if err = deleteObjectAndOrphanDependents(context.TODO(), logger, r.client, currentDaemonset, constants.DefaultAgentResourceSuffix); err != nil {
-				return result, err
-			}
-			return result, nil
+		//if val, ok := currentDaemonset.GetAnnotations()[apicommon.HelmMigrationAnnotationKey]; ok && val == "true" {
+		//	logger.Info("Helm migration annotation found, deleting Daemonset to recreate it")
+		//	if err = deleteObjectAndOrphanDependents(context.TODO(), logger, r.client, currentDaemonset, constants.DefaultAgentResourceSuffix); err != nil {
+		//		return result, err
+		//	}
+		//	return result, nil
+		//
+		//}
 
-		}
-
-		if !maps.Equal(daemonset.Spec.Selector.MatchLabels, currentDaemonset.Spec.Selector.MatchLabels) {
+		if restartDaemonset(daemonset, currentDaemonset) {
 			if err = deleteObjectAndOrphanDependents(context.TODO(), logger, r.client, daemonset, constants.DefaultAgentResourceSuffix); err != nil {
 				return result, err
 			}
@@ -656,4 +660,59 @@ func (r *Reconciler) addDDAIStatusToDDAStatus(status *datadoghqv2alpha1.DatadogA
 	// TODO: Add and/or merge conditions once DDAI reconcile PR is merged
 
 	return nil
+}
+
+// getCurrentDaemonset returns the current daemonset for a given DDA
+// The Daemonset may use the old naming format so we retrieve it via labels
+func (r *Reconciler) getCurrentDaemonset(dda, daemonset metav1.Object) (*appsv1.DaemonSet, error) {
+	// Profile daemonset
+	if profileName, ok := dda.GetLabels()[constants.ProfileLabelKey]; ok {
+		dsList := appsv1.DaemonSetList{}
+		if err := r.client.List(context.TODO(), &dsList, client.MatchingLabels{
+			apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+			kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+			constants.ProfileLabelKey:                  profileName,
+		}); err != nil {
+			return nil, err
+		}
+		switch len(dsList.Items) {
+		case 0:
+			r.log.Info("daemonset is not found")
+			return nil, nil
+		case 1:
+			return &dsList.Items[0], nil
+		default:
+			return nil, fmt.Errorf("expected 1 daemonset for profile: %s, got %d", profileName, len(dsList.Items))
+		}
+	}
+
+	// Default daemonset
+	nsName := types.NamespacedName{
+		Name:      daemonset.GetName(),
+		Namespace: daemonset.GetNamespace(),
+	}
+	currentDaemonset := &appsv1.DaemonSet{}
+	if err := r.client.Get(context.TODO(), nsName, currentDaemonset); err != nil {
+		if apierrors.IsNotFound(err) {
+			r.log.Info("daemonset is not found")
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return currentDaemonset, nil
+}
+
+func restartDaemonset(daemonset, currentDaemonset *appsv1.DaemonSet) bool {
+	// name change
+	if daemonset.Name != currentDaemonset.Name {
+		return true
+	}
+
+	// selectors are immutable
+	if !maps.Equal(daemonset.Spec.Selector.MatchLabels, currentDaemonset.Spec.Selector.MatchLabels) {
+		return true
+	}
+
+	return false
 }
