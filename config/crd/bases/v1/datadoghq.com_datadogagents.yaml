@@ -1477,6 +1477,13 @@ spec:
                             Enabled enables GPU monitoring core check.
                             Default: false
                           type: boolean
+                        patchCgroupPermissions:
+                          description: |-
+                            PatchCgroupPermissions enables the patch of cgroup permissions for the GPU monitoring feature,
+                            in cases where the container runtime is not properly configured and the agent containers lose
+                            access the GPU devices
+                            Default: false
+                          type: boolean
                         privilegedMode:
                           description: |-
                             PrivilegedMode enables GPU Probe module in System Probe.
@@ -9134,6 +9141,13 @@ spec:
                             enabled:
                               description: |-
                                 Enabled enables GPU monitoring core check.
+                                Default: false
+                              type: boolean
+                            patchCgroupPermissions:
+                              description: |-
+                                PatchCgroupPermissions enables the patch of cgroup permissions for the GPU monitoring feature,
+                                in cases where the container runtime is not properly configured and the agent containers lose
+                                access the GPU devices
                                 Default: false
                               type: boolean
                             privilegedMode:

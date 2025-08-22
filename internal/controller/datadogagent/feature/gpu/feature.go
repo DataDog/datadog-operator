@@ -1,6 +1,7 @@
 package gpu
 
 import (
+	"errors"
 	"path"
 
 	corev1 "k8s.io/api/core/v1"
@@ -32,6 +33,7 @@ type gpuFeature struct {
 	podRuntimeClassName     string
 	podResourcesSocketPath  string
 	isPrivilegedModeEnabled bool
+	patchCgroupPermissions  bool
 }
 
 // ID returns the ID of the Feature
@@ -46,6 +48,7 @@ func (f *gpuFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSp
 	}
 
 	f.isPrivilegedModeEnabled = apiutils.BoolValue(ddaSpec.Features.GPU.PrivilegedMode)
+	f.patchCgroupPermissions = apiutils.BoolValue(ddaSpec.Features.GPU.PatchCgroupPermissions)
 
 	requiredContainers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 	if f.isPrivilegedModeEnabled {
@@ -172,6 +175,23 @@ func (f *gpuFeature) configurePodResourcesSocket(managers feature.PodTemplateMan
 	managers.Volume().AddVolume(&podResourcesVol)
 }
 
+func (f *gpuFeature) configureCgroupPermissions(managers feature.PodTemplateManagers) error {
+	if !f.isPrivilegedModeEnabled {
+		return errors.New("patchCgroupPermissions is only supported in privileged mode")
+	}
+
+	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, &corev1.EnvVar{
+		Name:  DDPatchCgroupPermissionsEnvVar,
+		Value: "true",
+	})
+
+	hostRunVol, hostRunMount := volume.GetVolumes(common.HostRunVolumeName, common.HostRunPath, common.HostRunMountPath, false)
+	managers.VolumeMount().AddVolumeMountToContainer(&hostRunMount, apicommon.SystemProbeContainerName)
+	managers.Volume().AddVolume(&hostRunVol)
+
+	return nil
+}
+
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ string) error {
@@ -196,6 +216,12 @@ func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ str
 
 	if f.isPrivilegedModeEnabled {
 		configureSystemProbe(managers)
+	}
+
+	if f.patchCgroupPermissions {
+		if err := f.configureCgroupPermissions(managers); err != nil {
+			return err
+		}
 	}
 
 	// The agent check does not need to be manually enabled, the init config container will
