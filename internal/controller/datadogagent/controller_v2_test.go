@@ -1113,6 +1113,7 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 	const resourcesName = "foo"
 	const resourcesNamespace = "bar"
 	const dcaName = "foo-cluster-agent"
+	const dsName = "foo-agent-default"
 
 	eventBroadcaster := record.NewBroadcaster()
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgent_Reconcile"})
@@ -1160,12 +1161,12 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 					return err
 				}
 				expectedDaemonsets := []string{
-					string("foo-agent"),
+					dsName,
 				}
 				if err := verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets); err != nil {
 					return err
 				}
-				return verifyEtcdMountsOpenshift(t, c, resourcesNamespace, "foo-agent", "openshift")
+				return verifyEtcdMountsOpenshift(t, c, resourcesNamespace, dsName, "openshift")
 			},
 		},
 		{
@@ -1202,7 +1203,7 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 					return err
 				}
 				expectedDaemonsets := []string{
-					string("foo-agent"),
+					dsName,
 				}
 				return verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
 			},
@@ -1241,7 +1242,7 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 					return err
 				}
 				expectedDaemonsets := []string{
-					string("foo-agent"),
+					dsName,
 				}
 				return verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
 			},
@@ -1275,7 +1276,7 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 					return err
 				}
 				expectedDaemonsets := []string{
-					string("foo-agent-default"),
+					dsName,
 				}
 				return verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
 			},
