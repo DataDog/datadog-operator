@@ -39,8 +39,6 @@ spec:
         args:
         - --enable-leader-election
         - --pprof
-        - --datadogAgentInternalEnabled
-        - --datadogAgentProfileEnabled
         image: controller:latest
         imagePullPolicy: IfNotPresent
         name: manager

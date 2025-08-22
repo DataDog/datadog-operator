@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"maps"
 	"strconv"
-	"strings"
 	"time"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -171,34 +170,6 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		return reconcile.Result{}, err
 	}
 
-	//var dsNamesToCheck []types.NamespacedName
-
-	//dsNamesToCheck = append(dsNamesToCheck, nsName)
-	//
-	//helmNsName := types.NamespacedName{}
-	//if val, ok := dda.Annotations[apicommon.HelmMigrationAnnotationKey]; ok && val == "true" {
-	//	helmNsName = types.NamespacedName{
-	//		Name:      strings.TrimSuffix(daemonset.GetName(), "-agent"),
-	//		Namespace: daemonset.GetNamespace(),
-	//	}
-	//	dsNamesToCheck = append(dsNamesToCheck, helmNsName)
-	//}
-
-	//for _, ns := range dsNamesToCheck {
-	//	err = r.client.Get(context.TODO(), ns, currentDaemonset)
-	//	if err != nil {
-	//		if apierrors.IsNotFound(err) {
-	//			logger.Info(fmt.Sprintf("daemonset %s is not found", ns.Name))
-	//			alreadyExists = false
-	//		} else {
-	//			logger.Error(err, "unexpected error during daemonset get")
-	//			return reconcile.Result{}, err
-	//		}
-	//	} else if alreadyExists && currentDaemonset.Name == helmNsName.Name {
-	//		logger.Info(fmt.Sprintf("Found helm-managed Daemonset %s", currentDaemonset.Name))
-	//	}
-	//}
-
 	// Get the current daemonset and compare
 	currentDaemonset, err := r.getCurrentDaemonset(dda, daemonset)
 	if err != nil {
@@ -232,15 +203,6 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 			}
 			logger.Info("Daemonset owner reference patched")
 		}
-
-		//if val, ok := currentDaemonset.GetAnnotations()[apicommon.HelmMigrationAnnotationKey]; ok && val == "true" {
-		//	logger.Info("Helm migration annotation found, deleting Daemonset to recreate it")
-		//	if err = deleteObjectAndOrphanDependents(context.TODO(), logger, r.client, currentDaemonset, constants.DefaultAgentResourceSuffix); err != nil {
-		//		return result, err
-		//	}
-		//	return result, nil
-		//
-		//}
 
 		if restartDaemonset(daemonset, currentDaemonset) {
 			if err = deleteObjectAndOrphanDependents(context.TODO(), logger, r.client, daemonset, constants.DefaultAgentResourceSuffix); err != nil {
@@ -683,6 +645,27 @@ func (r *Reconciler) getCurrentDaemonset(dda, daemonset metav1.Object) (*appsv1.
 			return &dsList.Items[0], nil
 		default:
 			return nil, fmt.Errorf("expected 1 daemonset for profile: %s, got %d", profileName, len(dsList.Items))
+		}
+	}
+
+	// Helm-migrated daemonset
+	if val, ok := dda.GetAnnotations()[apicommon.HelmMigrationAnnotationKey]; ok && val == "true" {
+		dsList := appsv1.DaemonSetList{}
+		if err := r.client.List(context.TODO(), &dsList, client.MatchingLabels{
+			apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+			kubernetes.AppKubernetesManageByLabelKey:   "Helm",
+			apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
+		}); err != nil {
+			return nil, err
+		}
+		switch len(dsList.Items) {
+		case 0:
+			r.log.Info("Helm-deployed daemonset is not found")
+			return nil, nil
+		case 1:
+			return &dsList.Items[0], nil
+		default:
+			return nil, fmt.Errorf("expected 1 daemonset for datadog helm release: %s, got %d", dda.GetName(), len(dsList.Items))
 		}
 	}
 
