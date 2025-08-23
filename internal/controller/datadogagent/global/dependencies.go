@@ -69,15 +69,30 @@ func addComponentDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpec
 	}
 
 	if componentName == v2alpha1.NodeAgentComponentName {
-		// Create a configmap for the default seccomp profile in the System Probe.
-		// This is mounted in the init-volume container in the agent default code.
+		// Creates / updates system-probe-seccomp configMap to configData or default
 		for _, containerName := range rc.Containers {
 			if containerName == apicommon.SystemProbeContainerName {
-				if !useSystemProbeCustomSeccomp(ddaSpec) {
+				var seccompConfigData map[string]string
+
+				if componentOverride, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
+					if spContainer, ok := componentOverride.Containers[apicommon.SystemProbeContainerName]; ok {
+						if spContainer.SeccompConfig != nil && spContainer.SeccompConfig.CustomProfile != nil && spContainer.SeccompConfig.CustomProfile.ConfigData != nil {
+							seccompConfigData = map[string]string{
+								common.SystemProbeSeccompKey: *spContainer.SeccompConfig.CustomProfile.ConfigData,
+							}
+						}
+					}
+				}
+				if seccompConfigData == nil {
+					if !useSystemProbeCustomSeccomp(ddaSpec) {
+						seccompConfigData = agent.DefaultSeccompConfigDataForSystemProbe()
+					}
+				}
+				if seccompConfigData != nil {
 					errs = append(errs, manager.ConfigMapManager().AddConfigMap(
 						common.GetDefaultSeccompConfigMapName(ddaMeta),
 						ddaMeta.GetNamespace(),
-						agent.DefaultSeccompConfigDataForSystemProbe(),
+						seccompConfigData,
 					))
 				}
 			}
