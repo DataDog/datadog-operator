@@ -151,6 +151,10 @@ const (
 	SystemProbeSeccompKey                       = "system-probe-seccomp.json"
 	SystemProbeAgentSecurityConfigMapSuffixName = "system-probe-seccomp"
 	SystemProbeSeccompProfileName               = "system-probe"
+
+	HostRunVolumeName = "hostrun"
+	HostRunPath       = "/run"
+	HostRunMountPath  = "/host/run"
 )
 
 // Field paths

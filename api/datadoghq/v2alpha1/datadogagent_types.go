@@ -615,6 +615,13 @@ type GPUFeatureConfig struct {
 	// Default: nvidia
 	// +optional
 	PodRuntimeClassName *string `json:"requiredRuntimeClassName"`
+
+	// PatchCgroupPermissions enables the patch of cgroup permissions for the GPU monitoring feature,
+	// in cases where the container runtime is not properly configured and the agent containers lose
+	// access the GPU devices
+	// Default: false
+	// +optional
+	PatchCgroupPermissions *bool `json:"patchCgroupPermissions,omitempty"`
 }
 
 // DogstatsdFeatureConfig contains the Dogstatsd configuration parameters.
