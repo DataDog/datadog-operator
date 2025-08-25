@@ -113,23 +113,6 @@ func (f *controlPlaneMonitoringFeature) ManageClusterAgent(managers feature.PodT
 	f.provider = provider
 	providerLabel, _ := kubernetes.GetProviderLabelKeyValue(provider)
 
-	// Add the writable emptyDir volume for all providers
-	agentConfDVolume := &corev1.Volume{
-		Name: emptyDirVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{},
-		},
-	}
-	managers.Volume().AddVolume(agentConfDVolume)
-
-	// Add volume mount to cluster-agent container
-	agentConfDVolumeMount := corev1.VolumeMount{
-		Name:      emptyDirVolumeName,
-		MountPath: controlPlaneMonitoringVolumeMountPath,
-		ReadOnly:  false,
-	}
-	managers.VolumeMount().AddVolumeMountToContainer(&agentConfDVolumeMount, apicommon.ClusterAgentContainerName)
-
 	// Select the appropriate configmap based on provider
 	var configMapName string
 	if providerLabel == kubernetes.OpenShiftProviderLabel {
@@ -140,26 +123,109 @@ func (f *controlPlaneMonitoringFeature) ManageClusterAgent(managers feature.PodT
 		configMapName = f.defaultConfigMapName
 		return nil
 	}
-	// Add the controlplane configuration configmap volume
-	configMapVolume := &corev1.Volume{
-		Name: controlPlaneMonitoringVolumeName,
+
+	// Mount checks from configmap to subdirectories
+	kubeApiserverVolume := &corev1.Volume{
+		Name: kubeApiserverVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{
 					Name: configMapName,
 				},
+				Items: []corev1.KeyToPath{
+					{
+						Key:  "kube_apiserver_metrics.yaml",
+						Path: "kube_apiserver_metrics.yaml",
+					},
+				},
 			},
 		},
 	}
-	managers.Volume().AddVolume(configMapVolume)
+	managers.Volume().AddVolume(kubeApiserverVolume)
 
-	// Add volume mount for the configmap
-	configMapVolumeMount := corev1.VolumeMount{
-		Name:      controlPlaneMonitoringVolumeName,
-		MountPath: controlPlaneMonitoringVolumeMountPath,
+	kubeApiserverVolumeMount := corev1.VolumeMount{
+		Name:      kubeApiserverVolumeName,
+		MountPath: kubeApiserverMountPath,
 		ReadOnly:  true,
 	}
-	managers.VolumeMount().AddVolumeMountToContainer(&configMapVolumeMount, apicommon.ClusterAgentContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&kubeApiserverVolumeMount, apicommon.ClusterAgentContainerName)
+
+	kubeControllerManagerVolume := &corev1.Volume{
+		Name: kubeControllerManagerVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: configMapName,
+				},
+				Items: []corev1.KeyToPath{
+					{
+						Key:  "kube_controller_manager.yaml",
+						Path: "kube_controller_manager.yaml",
+					},
+				},
+			},
+		},
+	}
+	managers.Volume().AddVolume(kubeControllerManagerVolume)
+
+	kubeControllerManagerVolumeMount := corev1.VolumeMount{
+		Name:      kubeControllerManagerVolumeName,
+		MountPath: kubeControllerManagerMountPath,
+		ReadOnly:  true,
+	}
+	managers.VolumeMount().AddVolumeMountToContainer(&kubeControllerManagerVolumeMount, apicommon.ClusterAgentContainerName)
+
+	kubeSchedulerVolume := &corev1.Volume{
+		Name: kubeSchedulerVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: configMapName,
+				},
+				Items: []corev1.KeyToPath{
+					{
+						Key:  "kube_scheduler.yaml",
+						Path: "kube_scheduler.yaml",
+					},
+				},
+			},
+		},
+	}
+	managers.Volume().AddVolume(kubeSchedulerVolume)
+
+	kubeSchedulerVolumeMount := corev1.VolumeMount{
+		Name:      kubeSchedulerVolumeName,
+		MountPath: kubeSchedulerMountPath,
+		ReadOnly:  true,
+	}
+	managers.VolumeMount().AddVolumeMountToContainer(&kubeSchedulerVolumeMount, apicommon.ClusterAgentContainerName)
+
+	if providerLabel == kubernetes.OpenShiftProviderLabel {
+		etcdVolume := &corev1.Volume{
+			Name: etcdVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: configMapName,
+					},
+					Items: []corev1.KeyToPath{
+						{
+							Key:  "etcd.yaml",
+							Path: "etcd.yaml",
+						},
+					},
+				},
+			},
+		}
+		managers.Volume().AddVolume(etcdVolume)
+
+		etcdVolumeMount := corev1.VolumeMount{
+			Name:      etcdVolumeName,
+			MountPath: etcdMountPath,
+			ReadOnly:  true,
+		}
+		managers.VolumeMount().AddVolumeMountToContainer(&etcdVolumeMount, apicommon.ClusterAgentContainerName)
+	}
 
 	return nil
 }
