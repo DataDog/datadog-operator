@@ -616,9 +616,8 @@ type GPUFeatureConfig struct {
 	// +optional
 	PodRuntimeClassName *string `json:"requiredRuntimeClassName"`
 
-	// PatchCgroupPermissions enables the patch of cgroup permissions for the GPU monitoring feature,
-	// in cases where the container runtime is not properly configured and the agent containers lose
-	// access the GPU devices
+	// PatchCgroupPermissions enables the patch of cgroup permissions for GPU monitoring
+	// in case the container runtime is not properly configured and the Agent containers lose access to GPU devices.
 	// Default: false
 	// +optional
 	PatchCgroupPermissions *bool `json:"patchCgroupPermissions,omitempty"`
