@@ -64,17 +64,12 @@ func controlPlaneWantResourcesFunc() *test.ComponentTest {
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			// Validate volumes
-			expectedVols := []*corev1.Volume{
-				{
-					Name: emptyDirVolumeName,
-					VolumeSource: corev1.VolumeSource{
-						EmptyDir: &corev1.EmptyDirVolumeSource{},
-					},
-				},
-			}
-
+			// For default provider, no volumes should be created
 			dcaVols := mgr.VolumeMgr.Volumes
+			dcaVolMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.ClusterAgentContainerName]
+
+			// No volumes should be created for the default provider
+			expectedVols := []*corev1.Volume{}
 
 			assert.True(
 				t,
@@ -82,16 +77,8 @@ func controlPlaneWantResourcesFunc() *test.ComponentTest {
 				"DCA Volumes \ndiff = %s", cmp.Diff(dcaVols, expectedVols),
 			)
 
-			// Validate volumeMounts
-			expectedVolMounts := []*corev1.VolumeMount{
-				{
-					Name:      emptyDirVolumeName,
-					MountPath: controlPlaneMonitoringVolumeMountPath,
-					ReadOnly:  false,
-				},
-			}
-
-			dcaVolMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.ClusterAgentContainerName]
+			// No volume mounts should be created for the default provider
+			var expectedVolMounts []*corev1.VolumeMount
 
 			assert.True(
 				t,
