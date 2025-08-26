@@ -176,9 +176,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 				overrideName = *componentOverride.Name
 			}
 		}
-		logger.Info("providerList", "providerList", providerList)
-		logger.Info("provider", "provider", provider)
-		overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, providerList) // this worked when providerList was nil
+		overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, providerList)
 		componentOverrides = append(componentOverrides, &overrideFromProvider)
 	} else {
 		daemonset.Labels[constants.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
