@@ -124,9 +124,9 @@ func (r *Reconciler) reconcileAgentProfiles(ctx context.Context, logger logr.Log
 	var errs []error
 	var result reconcile.Result
 	for _, profile := range profiles {
-		if r.options.IntrospectionEnabled && r.useLegacyDaemonSet(providerList) {
+		if r.options.IntrospectionEnabled && r.useDefaultDaemonset(providerList) {
 			// Use legacy provider if EKS or OpenShift providers are present to prevent daemonset overrides
-			res, err := r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, kubernetes.LegacyProvider, providerList, &profile)
+			res, err := r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, kubernetes.DefaultProvider, providerList, &profile)
 			if utils.ShouldReturn(res, err) {
 				errs = append(errs, err)
 			}
@@ -147,8 +147,8 @@ func (r *Reconciler) reconcileAgentProfiles(ctx context.Context, logger logr.Log
 	return reconcile.Result{}, nil
 }
 
-// useLegacyDaemonSet determines if we should use a legacy provider specific Daemonset for EKS and Openshift providers
-func (r *Reconciler) useLegacyDaemonSet(providerList map[string]struct{}) bool {
+// useDefaultDaemonset determines if we should use a legacy provider specific Daemonset for EKS and Openshift providers
+func (r *Reconciler) useDefaultDaemonset(providerList map[string]struct{}) bool {
 	if len(providerList) == 0 {
 		return false
 	}
