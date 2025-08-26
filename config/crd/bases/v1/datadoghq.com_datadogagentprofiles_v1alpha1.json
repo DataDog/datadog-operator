@@ -1512,7 +1512,7 @@
                       "type": "boolean"
                     },
                     "patchCgroupPermissions": {
-                      "description": "PatchCgroupPermissions enables the patch of cgroup permissions for the GPU monitoring feature,\nin cases where the container runtime is not properly configured and the agent containers lose\naccess the GPU devices\nDefault: false",
+                      "description": "PatchCgroupPermissions enables the patch of cgroup permissions for GPU monitoring\nin case the container runtime is not properly configured and the Agent containers lose access to GPU devices.\nDefault: false",
                       "type": "boolean"
                     },
                     "privilegedMode": {
