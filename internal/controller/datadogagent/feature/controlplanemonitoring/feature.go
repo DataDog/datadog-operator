@@ -126,7 +126,7 @@ func (f *controlPlaneMonitoringFeature) ManageClusterAgent(managers feature.PodT
 
 	// Mount checks from configmap to subdirectories
 	kubeApiserverVolume := &corev1.Volume{
-		Name: kubeApiserverVolumeName,
+		Name: kubeApiserverMetricsVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{
@@ -144,8 +144,8 @@ func (f *controlPlaneMonitoringFeature) ManageClusterAgent(managers feature.PodT
 	managers.Volume().AddVolume(kubeApiserverVolume)
 
 	kubeApiserverVolumeMount := corev1.VolumeMount{
-		Name:      kubeApiserverVolumeName,
-		MountPath: kubeApiserverMountPath,
+		Name:      kubeApiserverMetricsVolumeName,
+		MountPath: kubeApiserverMetricsMountPath,
 		ReadOnly:  true,
 	}
 	managers.VolumeMount().AddVolumeMountToContainer(&kubeApiserverVolumeMount, apicommon.ClusterAgentContainerName)

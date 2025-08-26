@@ -1341,7 +1341,7 @@ func verifyDCADeployment(t *testing.T, c client.Client, ddaName, resourcesNamesp
 				"Default provider should not create control plane monitoring ConfigMap")
 		}
 		for _, volume := range dcaDeployment.Spec.Template.Spec.Volumes {
-			assert.NotEqual(t, "kube-apiserver-config", volume.Name,
+			assert.NotEqual(t, "kube-apiserver-metrics-config", volume.Name,
 				"Default provider should not have control plane volumes")
 		}
 	} else if provider == kubernetes.OpenshiftProvider || provider == kubernetes.EKSCloudProvider {
@@ -1352,7 +1352,7 @@ func verifyDCADeployment(t *testing.T, c client.Client, ddaName, resourcesNamesp
 		}, &cpCm)
 		assert.NoError(t, err, "Control plane monitoring ConfigMap should exist for provider %s", provider)
 
-		if err := verifyCheckMounts(t, dcaDeployment, provider, "kube-apiserver"); err != nil {
+		if err := verifyCheckMounts(t, dcaDeployment, provider, "kube-apiserver-metrics"); err != nil {
 			return err
 		}
 		if err := verifyCheckMounts(t, dcaDeployment, provider, "kube-controller-manager"); err != nil {
@@ -1372,7 +1372,7 @@ func verifyDCADeployment(t *testing.T, c client.Client, ddaName, resourcesNamesp
 
 func verifyCheckMounts(t *testing.T, dcaDeployment appsv1.Deployment, provider string, checkName string) error {
 	volumeToKeyMap := map[string]string{
-		"kube-apiserver":          "kube_apiserver_metrics",
+		"kube-apiserver-metrics":  "kube_apiserver_metrics",
 		"kube-controller-manager": "kube_controller_manager",
 		"kube-scheduler":          "kube_scheduler",
 		"etcd":                    "etcd",
