@@ -22,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -76,7 +77,7 @@ func addComponentDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpec
 
 				if componentOverride, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
 					if spContainer, ok := componentOverride.Containers[apicommon.SystemProbeContainerName]; ok {
-						if spContainer.SeccompConfig != nil && spContainer.SeccompConfig.CustomProfile != nil && spContainer.SeccompConfig.CustomProfile.ConfigData != nil {
+						if utils.IsCustomSeccompConfig(spContainer.SeccompConfig) && spContainer.SeccompConfig.CustomProfile.ConfigData != nil {
 							seccompConfigData = map[string]string{
 								common.SystemProbeSeccompKey: *spContainer.SeccompConfig.CustomProfile.ConfigData,
 							}
@@ -89,11 +90,21 @@ func addComponentDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpec
 					}
 				}
 				if seccompConfigData != nil {
-					errs = append(errs, manager.ConfigMapManager().AddConfigMap(
+					err := manager.ConfigMapManager().AddConfigMap(
 						common.GetDefaultSeccompConfigMapName(ddaMeta),
 						ddaMeta.GetNamespace(),
 						seccompConfigData,
-					))
+					)
+
+					if err == nil && useSystemProbeCustomSeccomp(ddaSpec) {
+						// Add checksum annotation to the configMap
+						if seccompCM, ok := manager.Store().Get(kubernetes.ConfigMapKind, ddaMeta.GetNamespace(), common.GetDefaultSeccompConfigMapName(ddaMeta)); ok {
+							configHash, _ := comparison.GenerateMD5ForSpec(seccompConfigData)
+							annotations := object.MergeAnnotationsLabels(logger, seccompCM.GetAnnotations(), map[string]string{object.GetChecksumAnnotationKey(common.SystemProbeSeccompKey): configHash}, "*")
+							seccompCM.SetAnnotations(annotations)
+						}
+					}
+					errs = append(errs, err)
 				}
 			}
 		}

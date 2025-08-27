@@ -18,6 +18,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
 
@@ -220,10 +221,11 @@ func overrideSeccompProfile(containerName apicommon.AgentContainerName, manager 
 			// }
 		}
 
-		// Adds checksum annotation when configData is used
-		if override.SeccompConfig != nil && override.SeccompConfig.CustomProfile != nil && override.SeccompConfig.CustomProfile.ConfigData != nil {
-			annotationValue, _ := comparison.GenerateMD5ForSpec(*override.SeccompConfig.CustomProfile.ConfigData)
-			annotationKey := object.GetChecksumAnnotationKey(string(common.SystemProbeSeccompKey))
+		// Adds checksum annotation to DaemonSet when configData is used
+		if utils.IsCustomSeccompConfig(override.SeccompConfig) && override.SeccompConfig.CustomProfile.ConfigData != nil {
+			annotationValue, _ := comparison.GenerateMD5ForSpec(map[string]string{
+				common.SystemProbeSeccompKey: *override.SeccompConfig.CustomProfile.ConfigData})
+			annotationKey := object.GetChecksumAnnotationKey(common.SystemProbeSeccompKey)
 			manager.Annotation().AddAnnotation(annotationKey, annotationValue)
 		}
 	}
