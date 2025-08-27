@@ -705,7 +705,7 @@ spec:
                           fieldRef:
                             fieldPath: metadata.annotations['olm.targetNamespaces']
                       - name: DD_TOOL_VERSION
-                        value: redhat
+                        value: operatorhub
                     image: gcr.io/datadoghq/operator:1.18.0-rc.2
                     imagePullPolicy: IfNotPresent
                     livenessProbe:
@@ -805,4 +805,3 @@ spec:
   provider:
     name: Datadog
   version: 1.18.0-rc.2
-  replaces: datadog-operator.v1.17.0
