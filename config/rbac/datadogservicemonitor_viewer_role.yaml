@@ -1,0 +1,20 @@
+# permissions for end users to view datadogservicemonitors.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: datadogservicemonitor-viewer-role
+rules:
+- apiGroups:
+  - datadoghq.com
+  resources:
+  - datadogservicemonitors
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - datadoghq.com
+  resources:
+  - datadogservicemonitors/status
+  verbs:
+  - get
