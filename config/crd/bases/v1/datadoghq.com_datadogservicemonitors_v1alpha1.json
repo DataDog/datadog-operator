@@ -258,6 +258,10 @@
           },
           "type": "object",
           "x-kubernetes-map-type": "atomic"
+        },
+        "priority": {
+          "description": "Priority is the priority of the service monitor.",
+          "type": "integer"
         }
       },
       "type": "object"

@@ -33,6 +33,9 @@ type DatadogServiceMonitorSpec struct {
 	// +listType=map
 	// +listMapKey=name
 	TracerConfigs []corev1.EnvVar `json:"ddTraceConfigs,omitempty"`
+	// Priority is the priority of the service monitor.
+	// +optional
+	Priority int `json:"priority,omitempty"`
 }
 
 // NamespaceSelector is a struct to store the configuration for the namespace selector. It can be used to match the
