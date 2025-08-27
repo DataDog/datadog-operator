@@ -269,6 +269,9 @@ spec:
                       type: object
                   type: object
                   x-kubernetes-map-type: atomic
+                priority:
+                  description: Priority is the priority of the service monitor.
+                  type: integer
               type: object
             status:
               description: DatadogServiceMonitorStatus defines the observed state of DatadogServiceMonitor
