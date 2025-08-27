@@ -100,4 +100,6 @@ func setDCATokenFromDDA(dda metav1.Object, ddaiGlobal *v2alpha1.GlobalConfig) {
 		SecretName: secrets.GetDefaultDCATokenSecretName(dda),
 		KeyName:    common.DefaultTokenKey,
 	}
+	// Clear the literal token value
+	ddaiGlobal.ClusterAgentToken = nil
 }
