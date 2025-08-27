@@ -105,7 +105,7 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 				}
 				return result, nil
 			} else {
-				if err = deleteObjectAndOrphanDependents(context.TODO(), logger, r.client, currentDeployment, currentDeployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
+				if err = deleteObjectAndOrphanDependents(context.TODO(), logger, r.client, deployment, deployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
 					return result, err
 				}
 			}
