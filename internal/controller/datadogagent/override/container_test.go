@@ -1125,7 +1125,8 @@ func TestContainer(t *testing.T) {
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, _ string) {
 				annotationKey := object.GetChecksumAnnotationKey(string(common.SystemProbeSeccompKey))
-				expectedHash, _ := comparison.GenerateMD5ForSpec("inline-seccomp-data")
+				expectedHash, _ := comparison.GenerateMD5ForSpec(map[string]string{
+					common.SystemProbeSeccompKey: "inline-seccomp-data"})
 				assert.Equal(t, expectedHash, manager.AnnotationMgr.Annotations[annotationKey])
 			},
 		},

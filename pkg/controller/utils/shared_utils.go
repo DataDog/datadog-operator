@@ -11,6 +11,8 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
 // ShouldReturn returns if we should stop the reconcile loop based on result
@@ -41,4 +43,9 @@ func GetDatadogAgentResourceUID(dda metav1.Object) string {
 // GetDatadogAgentResourceCreationTime returns the creation timestamp of the Datadog Agent Resource
 func GetDatadogAgentResourceCreationTime(dda metav1.Object) string {
 	return strconv.FormatInt(dda.GetCreationTimestamp().Unix(), 10)
+}
+
+// IsCustomSeccompConfig returns true if the given seccomp configuration contains a custom profile with config data or a config map
+func IsCustomSeccompConfig(seccompConfig *v2alpha1.SeccompConfig) bool {
+	return seccompConfig != nil && seccompConfig.CustomProfile != nil && (seccompConfig.CustomProfile.ConfigMap != nil || seccompConfig.CustomProfile.ConfigData != nil)
 }
