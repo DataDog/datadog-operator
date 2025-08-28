@@ -10,9 +10,15 @@ const (
 	defaultConfigMapName   = "datadog-controlplane-monitoring-default"
 	eksConfigMapName       = "datadog-controlplane-monitoring-eks"
 
-	controlPlaneMonitoringVolumeName      = "controlplane-config"
-	controlPlaneMonitoringVolumeMountPath = "/etc/datadog-agent/conf.d"
-	emptyDirVolumeName                    = "agent-conf-d-writable"
+	kubeApiserverMetricsVolumeName  = "kube-apiserver-metrics-config"
+	kubeControllerManagerVolumeName = "kube-controller-manager-config"
+	kubeSchedulerVolumeName         = "kube-scheduler-config"
+	etcdVolumeName                  = "etcd-config"
+
+	kubeApiserverMetricsMountPath  = "/etc/datadog-agent/conf.d/kube_apiserver_metrics.d"
+	kubeControllerManagerMountPath = "/etc/datadog-agent/conf.d/kube_controller_manager.d"
+	kubeSchedulerMountPath         = "/etc/datadog-agent/conf.d/kube_scheduler.d"
+	etcdMountPath                  = "/etc/datadog-agent/conf.d/etcd.d"
 
 	etcdCertsVolumeName      = "etcd-client-certs"
 	etcdCertsVolumeMountPath = "/etc/etcd-certs"
