@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
@@ -68,14 +69,24 @@ func (f *dogstatsdFeature) ID() feature.IDType {
 func (f *dogstatsdFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	dogstatsd := ddaSpec.Features.Dogstatsd
 	f.owner = dda
-	if apiutils.BoolValue(dogstatsd.HostPortConfig.Enabled) {
+
+	// Check if autopilot is enabled and override defaults accordingly
+	if experimental.IsAutopilotEnabled(dda) {
 		f.hostPortEnabled = true
-		f.hostPortHostPort = *dogstatsd.HostPortConfig.Port
+		if dogstatsd != nil && dogstatsd.HostPortConfig.Port != nil {
+			f.hostPortHostPort = *dogstatsd.HostPortConfig.Port
+		} else {
+			f.hostPortHostPort = common.DefaultDogstatsdPort
+		}
+		f.udsEnabled = false
+	} else {
+		f.hostPortEnabled = apiutils.BoolValue(dogstatsd.HostPortConfig.Enabled)
+		if f.hostPortEnabled {
+			f.hostPortHostPort = *dogstatsd.HostPortConfig.Port
+		}
+		f.udsEnabled = apiutils.BoolValue(dogstatsd.UnixDomainSocketConfig.Enabled)
 	}
-	// UDS is enabled by default
-	if apiutils.BoolValue(dogstatsd.UnixDomainSocketConfig.Enabled) {
-		f.udsEnabled = true
-	}
+
 	f.udsHostFilepath = *dogstatsd.UnixDomainSocketConfig.Path
 	if apiutils.BoolValue(dogstatsd.OriginDetectionEnabled) {
 		f.originDetectionEnabled = true
@@ -110,7 +121,7 @@ func (f *dogstatsdFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datado
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	platformInfo := managers.Store().GetPlatformInfo()
 	// agent local service
 	if common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), f.forceEnableLocalService) {
@@ -138,7 +149,7 @@ func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers)
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *dogstatsdFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *dogstatsdFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 
@@ -282,6 +293,6 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentCon
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *dogstatsdFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (f *dogstatsdFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

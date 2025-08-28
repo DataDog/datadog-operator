@@ -22,6 +22,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
@@ -127,8 +128,16 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 	if shouldEnableAPM(apm) {
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 		f.useHostNetwork = constants.IsHostNetworkEnabled(ddaSpec, v2alpha1.NodeAgentComponentName)
-		// hostPort defaults to 'false' in the defaulting code
-		f.hostPortEnabled = apiutils.BoolValue(apm.HostPortConfig.Enabled)
+
+		// Check if autopilot is enabled and override defaults accordingly
+		if experimental.IsAutopilotEnabled(dda) {
+			f.hostPortEnabled = true
+			f.udsEnabled = false
+		} else {
+			f.hostPortEnabled = apiutils.BoolValue(apm.HostPortConfig.Enabled)
+			f.udsEnabled = apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled)
+		}
+
 		f.hostPortHostPort = *apm.HostPortConfig.Port
 		if f.hostPortEnabled {
 			if enabled, flavor := constants.IsNetworkPolicyEnabled(ddaSpec); enabled {
@@ -139,8 +148,6 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 				}
 			}
 		}
-		// UDS defaults to 'true' in the defaulting code
-		f.udsEnabled = apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled)
 		f.udsHostFilepath = *apm.UnixDomainSocketConfig.Path
 
 		if ddaSpec.Global.LocalService != nil {
@@ -212,7 +219,7 @@ func (f *apmFeature) shouldEnableLanguageDetection() bool {
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	platformInfo := managers.Store().GetPlatformInfo()
 	// agent local service
 	if common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), f.forceEnableLocalService) {
@@ -301,7 +308,7 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers) error
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	if f.singleStepInstrumentation != nil {
 		if len(f.singleStepInstrumentation.disabledNamespaces) > 0 && len(f.singleStepInstrumentation.enabledNamespaces) > 0 {
 			// This configuration is not supported
@@ -484,6 +491,6 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *apmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (f *apmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

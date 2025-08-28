@@ -54,6 +54,8 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 	agentEnabled := requiredComponents.Agent.IsEnabled()
 	singleContainerStrategyEnabled := requiredComponents.Agent.SingleContainerStrategyEnabled()
+	// TODO: remove this once reconcileV2 is removed
+	instanceName := GetAgentInstanceLabelValue(dda, profile)
 
 	// When EDS is enabled and there are profiles defined, we only create an
 	// EDS for the default profile, for the other profiles we create
@@ -84,7 +86,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 		if r.options.DatadogAgentProfileEnabled {
 			// Apply overrides from profiles after override from manifest, so they can override what's defined in the DDA.
-			overrideFromProfile := agentprofile.OverrideFromProfile(profile)
+			overrideFromProfile := agentprofile.OverrideFromProfile(profile, false)
 			componentOverrides = append(componentOverrides, &overrideFromProfile)
 		}
 
@@ -135,13 +137,14 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	}
 
 	// Start by creating the Default Agent daemonset
-	daemonset = componentagent.NewDefaultAgentDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
+	daemonset = componentagent.NewDefaultAgentDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent, instanceName)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 	// Set Global setting on the default daemonset
 	global.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda.GetObjectMeta(), &dda.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
+		logger.Info("Agent feature", "feature", feat.ID())
 		if singleContainerStrategyEnabled {
 			if errFeat := feat.ManageSingleContainerNodeAgent(podManagers, provider); errFeat != nil {
 				return result, errFeat
@@ -161,7 +164,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 	if r.options.DatadogAgentProfileEnabled {
 		// Apply overrides from profiles after override from manifest, so they can override what's defined in the DDA.
-		overrideFromProfile := agentprofile.OverrideFromProfile(profile)
+		overrideFromProfile := agentprofile.OverrideFromProfile(profile, useV3Metadata(dda))
 		componentOverrides = append(componentOverrides, &overrideFromProfile)
 	}
 
@@ -306,15 +309,15 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 		// If the profile is the default one and the label exists in the node,
 		// it should be removed.
 		if isDefaultProfile {
-			if _, profileLabelExists := node.Labels[agentprofile.ProfileLabelKey]; profileLabelExists {
-				labelsToRemove[agentprofile.ProfileLabelKey] = true
+			if _, profileLabelExists := node.Labels[constants.ProfileLabelKey]; profileLabelExists {
+				labelsToRemove[constants.ProfileLabelKey] = true
 			}
 		} else {
 			// If the profile is not the default one and the label does not exist in
 			// the node, it should be added. If the label value is outdated, it
 			// should be updated.
-			if profileLabelValue := node.Labels[agentprofile.ProfileLabelKey]; profileLabelValue != profileNamespacedName.Name {
-				labelsToAddOrChange[agentprofile.ProfileLabelKey] = profileNamespacedName.Name
+			if profileLabelValue := node.Labels[constants.ProfileLabelKey]; profileLabelValue != profileNamespacedName.Name {
+				labelsToAddOrChange[constants.ProfileLabelKey] = profileNamespacedName.Name
 			}
 		}
 
@@ -382,7 +385,7 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 // 		isDefaultProfile := agentprofile.IsDefaultProfile(profileNamespacedName.Namespace, profileNamespacedName.Name)
 // 		expectedProfileLabelValue := profileNamespacedName.Name
 
-// 		profileLabelValue, profileLabelExists := agentPod.Labels[agentprofile.ProfileLabelKey]
+// 		profileLabelValue, profileLabelExists := agentPod.Labels[constants.ProfileLabelKey]
 
 // 		deletePod := (isDefaultProfile && profileLabelExists) ||
 // 			(!isDefaultProfile && !profileLabelExists) ||
@@ -419,7 +422,7 @@ func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger log
 	}
 
 	dsName := component.GetDaemonSetNameFromDatadogAgent(dda, &dda.Spec)
-	validDaemonSetNames, validExtendedDaemonSetNames := r.getValidDaemonSetNames(dsName, providerList, profiles)
+	validDaemonSetNames, validExtendedDaemonSetNames := r.getValidDaemonSetNames(dsName, providerList, profiles, useV3Metadata(dda))
 
 	// Only the default profile uses an EDS when profiles are enabled
 	// Multiple EDSs can be created with introspection
@@ -455,17 +458,27 @@ func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger log
 }
 
 // getValidDaemonSetNames generates a list of valid DS and EDS names
-func (r *Reconciler) getValidDaemonSetNames(dsName string, providerList map[string]struct{}, profiles []v1alpha1.DatadogAgentProfile) (map[string]struct{}, map[string]struct{}) {
+func (r *Reconciler) getValidDaemonSetNames(dsName string, providerList map[string]struct{}, profiles []v1alpha1.DatadogAgentProfile, useV3Metadata bool) (map[string]struct{}, map[string]struct{}) {
 	validDaemonSetNames := map[string]struct{}{}
 	validExtendedDaemonSetNames := map[string]struct{}{}
 
 	// Introspection includes names with a provider suffix
 	if r.options.IntrospectionEnabled {
-		for provider := range providerList {
+		if r.useDefaultDaemonset(providerList) {
+			// Legacy DaemonSet uses the base name without provider suffix
 			if r.options.ExtendedDaemonsetOptions.Enabled {
-				validExtendedDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
+				validExtendedDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, kubernetes.DefaultProvider)] = struct{}{}
 			} else {
-				validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
+				validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, kubernetes.DefaultProvider)] = struct{}{}
+			}
+		} else {
+			// Normal provider-specific DaemonSets
+			for provider := range providerList {
+				if r.options.ExtendedDaemonsetOptions.Enabled {
+					validExtendedDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
+				} else {
+					validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
+				}
 			}
 		}
 	}
@@ -476,7 +489,7 @@ func (r *Reconciler) getValidDaemonSetNames(dsName string, providerList map[stri
 				Namespace: profile.Namespace,
 				Name:      profile.Name,
 			}
-			dsProfileName := agentprofile.DaemonSetName(name)
+			dsProfileName := agentprofile.DaemonSetName(name, useV3Metadata)
 
 			// The default profile can be a DS or an EDS and uses the DS/EDS name
 			if agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
@@ -521,4 +534,19 @@ func (r *Reconciler) getValidDaemonSetNames(dsName string, providerList map[stri
 	}
 
 	return validDaemonSetNames, validExtendedDaemonSetNames
+}
+
+// GetAgentInstanceLabelValue returns the instance name for the agent
+// The current and default is DDA name + suffix (e.g. <dda-name>-agent)
+// This is used when profiles are disabled or for the default profile
+// If profiles are enabled, use the profile name (e.g. <profile-name>-agent) for profile DSs
+func GetAgentInstanceLabelValue(dda, profile metav1.Object) string {
+	// Always use v3 metadata for instance name
+	if profile.GetName() != "" {
+		if name := agentprofile.DaemonSetName(types.NamespacedName{Name: profile.GetName(), Namespace: profile.GetNamespace()}, true); name != "" {
+			return name
+		}
+	}
+	// Use default daemonset name
+	return component.GetAgentName(dda)
 }

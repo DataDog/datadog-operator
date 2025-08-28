@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -34,6 +35,7 @@ import (
 
 const (
 	datadogAgentKind            = "DatadogAgent"
+	datadogAgentInternalKind    = "DatadogAgentInternal"
 	datadogMonitorKind          = "DatadogMonitor"
 	defaultMetricsRetryInterval = 15 * time.Second
 	defaultSendMetricsInterval  = 15 * time.Second
@@ -117,51 +119,58 @@ type metricsForwarder struct {
 	dsStatus     []*v2alpha1.DaemonSetStatus
 	dcaStatus    *v2alpha1.DeploymentStatus
 	ccrStatus    *v2alpha1.DeploymentStatus
+	agentStatus  *v2alpha1.DaemonSetStatus
 
 	EnabledFeatures map[string][]string
 
-	keysHash            uint64
-	retryInterval       time.Duration
-	sendMetricsInterval time.Duration
-	metricsPrefix       string
-	globalTags          []string
-	tags                []string
-	stopChan            chan struct{}
-	errorChan           chan error
-	eventChan           chan Event
-	lastReconcileErr    error
-	namespacedName      types.NamespacedName
-	logger              logr.Logger
-	delegator           delegatedAPI
-	decryptor           secrets.Decryptor
-	creds               sync.Map
-	baseURL             string
-	status              *ConditionCommon
-	credsManager        *config.CredentialManager
+	keysHash                    uint64
+	retryInterval               time.Duration
+	sendMetricsInterval         time.Duration
+	metricsPrefix               string
+	globalTags                  []string
+	tags                        []string
+	stopChan                    chan struct{}
+	errorChan                   chan error
+	eventChan                   chan Event
+	lastReconcileErr            error
+	namespacedName              types.NamespacedName
+	logger                      logr.Logger
+	delegator                   delegatedAPI
+	decryptor                   secrets.Decryptor
+	creds                       sync.Map
+	baseURL                     string
+	status                      *ConditionCommon
+	credsManager                *config.CredentialManager
+	datadogAgentInternalEnabled bool
 	sync.RWMutex
 }
 
 // newMetricsForwarder returns a new Datadog MetricsForwarder instance
-func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj client.Object, platforminfo *kubernetes.PlatformInfo) *metricsForwarder {
+func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj client.Object, platforminfo *kubernetes.PlatformInfo, datadogAgentInternalEnabled bool) *metricsForwarder {
+
+	logger := log.WithValues("CustomResource.Namespace", obj.GetNamespace(), "CustomResource.Name", obj.GetName())
+	objKind := getObjKind(obj)
+
 	return &metricsForwarder{
-		id:                  getObjID(obj),
-		monitoredObjectKind: obj.GetObjectKind().GroupVersionKind().Kind,
-		k8sClient:           k8sClient,
-		platformInfo:        platforminfo,
-		namespacedName:      GetNamespacedName(obj),
-		retryInterval:       defaultMetricsRetryInterval,
-		sendMetricsInterval: defaultSendMetricsInterval,
-		metricsPrefix:       defaultMetricsNamespace,
-		stopChan:            make(chan struct{}),
-		errorChan:           make(chan error, 100),
-		eventChan:           make(chan Event, 10),
-		lastReconcileErr:    errInitValue,
-		decryptor:           decryptor,
-		creds:               sync.Map{},
-		baseURL:             defaultbaseURL,
-		logger:              log.WithValues("CustomResource.Namespace", obj.GetNamespace(), "CustomResource.Name", obj.GetName()),
-		credsManager:        config.NewCredentialManager(),
-		EnabledFeatures:     make(map[string][]string),
+		id:                          getObjID(obj),
+		monitoredObjectKind:         objKind,
+		k8sClient:                   k8sClient,
+		platformInfo:                platforminfo,
+		namespacedName:              GetNamespacedName(obj),
+		retryInterval:               defaultMetricsRetryInterval,
+		sendMetricsInterval:         defaultSendMetricsInterval,
+		metricsPrefix:               defaultMetricsNamespace,
+		stopChan:                    make(chan struct{}),
+		errorChan:                   make(chan error, 100),
+		eventChan:                   make(chan Event, 10),
+		lastReconcileErr:            errInitValue,
+		decryptor:                   decryptor,
+		creds:                       sync.Map{},
+		baseURL:                     defaultbaseURL,
+		logger:                      logger,
+		credsManager:                config.NewCredentialManager(),
+		EnabledFeatures:             make(map[string][]string),
+		datadogAgentInternalEnabled: datadogAgentInternalEnabled,
 	}
 }
 
@@ -266,6 +275,15 @@ func (mf *metricsForwarder) setup() error {
 		return mf.setupFromDDA(dda, credsSet)
 	}
 
+	if mf.monitoredObjectKind == datadogAgentInternalKind {
+		ddai, err := mf.getDatadogAgentInternal()
+		if err != nil {
+			mf.logger.Error(err, "cannot retrieve DatadogAgentInternal to get Datadog credentials, will retry later...")
+			return err
+		}
+		return mf.setupFromDDAI(ddai)
+	}
+
 	return nil
 
 }
@@ -285,7 +303,7 @@ func (mf *metricsForwarder) setupFromOperator() bool {
 
 	// base URL
 	mf.baseURL = defaultbaseURL
-	mf.logger.V(1).Info("Got API URL for the Datadog Operator", "site", mf.baseURL)
+
 	if os.Getenv(constants.DDddURL) != "" {
 		mf.baseURL = os.Getenv(constants.DDddURL)
 	} else if os.Getenv(constants.DDURL) != "" {
@@ -294,6 +312,8 @@ func (mf *metricsForwarder) setupFromOperator() bool {
 		mf.baseURL = urlPrefix + strings.TrimSpace(site)
 	}
 
+	mf.logger.V(1).Info("Got API URL for the Datadog Operator", "site", mf.baseURL)
+
 	// cluster name
 	mf.clusterName = os.Getenv(constants.DDClusterName)
 	return true
@@ -301,7 +321,7 @@ func (mf *metricsForwarder) setupFromOperator() bool {
 
 func (mf *metricsForwarder) setupFromDDA(dda *v2alpha1.DatadogAgent, credsSetFromOperator bool) error {
 	if !credsSetFromOperator {
-		mf.baseURL = getbaseURL(dda)
+		mf.baseURL = getbaseURL(&dda.Spec)
 		mf.logger.V(1).Info("Got API URL for DatadogAgent", "site", mf.baseURL)
 
 		// set apiKey
@@ -321,6 +341,31 @@ func (mf *metricsForwarder) setupFromDDA(dda *v2alpha1.DatadogAgent, credsSetFro
 
 	if mf.clusterName == "" && dda.Spec.Global != nil && dda.Spec.Global.ClusterName != nil {
 		mf.clusterName = *dda.Spec.Global.ClusterName
+	}
+
+	return nil
+}
+
+func (mf *metricsForwarder) setupFromDDAI(ddai *v1alpha1.DatadogAgentInternal) error {
+	mf.baseURL = getbaseURL(&ddai.Spec)
+	mf.logger.V(1).Info("Got API URL for DatadogAgentInternal", "site", mf.baseURL)
+
+	// set apiKey
+	apiKey, err := mf.getCredentialsFromDDAI(ddai)
+	if err != nil {
+		return err
+	}
+	mf.apiKey = apiKey
+
+	mf.labels = ddai.GetLabels()
+
+	status := ddai.Status.DeepCopy()
+	mf.agentStatus = status.Agent
+	mf.dcaStatus = status.ClusterAgent
+	mf.ccrStatus = status.ClusterChecksRunner
+
+	if mf.clusterName == "" && ddai.Spec.Global != nil && ddai.Spec.Global.ClusterName != nil {
+		mf.clusterName = *ddai.Spec.Global.ClusterName
 	}
 
 	return nil
@@ -366,9 +411,13 @@ func (mf *metricsForwarder) forwardMetrics() error {
 	mf.logger.V(1).Info("Collecting metrics")
 
 	// Send status-based metrics
-	if err = mf.sendStatusMetrics(mf.dsStatus, mf.dcaStatus, mf.ccrStatus); err != nil {
-		mf.logger.Error(err, "cannot send status metrics to Datadog")
-		return err
+	if mf.monitoredObjectKind == datadogAgentKind && mf.datadogAgentInternalEnabled {
+		mf.logger.V(1).Info("DatadogAgentInternal is enabled, skipping status metrics for DatadogAgent")
+	} else {
+		if err = mf.sendStatusMetrics(mf.dsStatus, mf.dcaStatus, mf.ccrStatus, mf.agentStatus); err != nil {
+			mf.logger.Error(err, "cannot send status metrics to Datadog")
+			return err
+		}
 	}
 
 	// Send reconcile errors metric
@@ -499,10 +548,10 @@ func (mf *metricsForwarder) delegatedValidateCreds(apiKey string) (*api.Client, 
 	return datadogClient, nil
 }
 
-func (mf *metricsForwarder) sendStatusMetrics(dsStatus []*v2alpha1.DaemonSetStatus, dcaStatus, ccrStatus *v2alpha1.DeploymentStatus) error {
+func (mf *metricsForwarder) sendStatusMetrics(dsStatus []*v2alpha1.DaemonSetStatus, dcaStatus, ccrStatus *v2alpha1.DeploymentStatus, agentStatus *v2alpha1.DaemonSetStatus) error {
 	var metricValue float64
 
-	// Agent deployment metrics
+	// Agent deployment metrics from DDA
 	if len(dsStatus) > 0 {
 		for _, status := range dsStatus {
 			if status.Available == status.Desired {
@@ -516,6 +565,21 @@ func (mf *metricsForwarder) sendStatusMetrics(dsStatus []*v2alpha1.DaemonSetStat
 			if err := mf.sendDeploymentMetric(metricValue, agentName, tags); err != nil {
 				return err
 			}
+		}
+	}
+
+	// Agent deployment metrics from DDAI
+	if agentStatus != nil {
+		if agentStatus.Available == agentStatus.Desired {
+			metricValue = deploymentSuccessValue
+		} else {
+			metricValue = deploymentFailureValue
+		}
+		tags := mf.tagsWithExtraTag(stateTagFormat, agentStatus.State)
+		tags = append(tags, mf.getCRVersionTags()...)
+		tags = append(tags, fmt.Sprintf(crAgentNameTagFormat, agentStatus.DaemonsetName))
+		if err := mf.sendDeploymentMetric(metricValue, agentName, tags); err != nil {
+			return err
 		}
 	}
 
@@ -617,6 +681,14 @@ func (mf *metricsForwarder) getDatadogAgent() (*v2alpha1.DatadogAgent, error) {
 	return dda, err
 }
 
+// getDatadogAgentInternal retrieves the DatadogAgentInternal using Get client method
+func (mf *metricsForwarder) getDatadogAgentInternal() (*v1alpha1.DatadogAgentInternal, error) {
+	ddai := &v1alpha1.DatadogAgentInternal{}
+	err := mf.k8sClient.Get(context.TODO(), mf.namespacedName, ddai)
+
+	return ddai, err
+}
+
 // getCredentialsFromDDA retrieves the API key configured in the DatadogAgent
 func (mf *metricsForwarder) getCredentialsFromDDA(dda *v2alpha1.DatadogAgent) (string, error) {
 	if dda.Spec.Global == nil || dda.Spec.Global.Credentials == nil {
@@ -636,6 +708,28 @@ func (mf *metricsForwarder) getCredentialsFromDDA(dda *v2alpha1.DatadogAgent) (s
 		if err != nil {
 			return "", err
 		}
+	}
+
+	if apiKey == "" {
+		return "", ErrEmptyAPIKey
+	}
+
+	return mf.resolveSecretsIfNeeded(apiKey)
+}
+
+// getCredentialsFromDDAI retrieves the API key configured in the DatadogAgentInternal
+// DatadogAgentInternal are always stored in a secret, so we don't need to resolve secrets
+func (mf *metricsForwarder) getCredentialsFromDDAI(ddai *v1alpha1.DatadogAgentInternal) (string, error) {
+
+	var err error
+	apiKey := ""
+
+	defaultSecretName := secrets.GetDefaultCredentialsSecretName(ddai)
+
+	_, secretName, secretKeyName := secrets.GetAPIKeySecret(ddai.Spec.Global.Credentials, defaultSecretName)
+	apiKey, err = mf.getKeyFromSecret(ddai.Namespace, secretName, secretKeyName)
+	if err != nil {
+		return "", err
 	}
 
 	if apiKey == "" {
@@ -804,8 +898,9 @@ func (mf *metricsForwarder) delegatedSendFeatureMetric(feature string) error {
 }
 
 var objectKindToSnake = map[string]string{
-	datadogAgentKind:   "datadog_agent",
-	datadogMonitorKind: "datadog_monitor",
+	datadogAgentKind:         "datadog_agent",
+	datadogAgentInternalKind: "datadog_agent_internal",
+	datadogMonitorKind:       "datadog_monitor",
 }
 
 func (mf *metricsForwarder) sendResourceCountMetric() error {
@@ -845,11 +940,11 @@ func (mf *metricsForwarder) isEventChanFull() bool {
 	return len(mf.eventChan) == cap(mf.eventChan)
 }
 
-func getbaseURL(dda *v2alpha1.DatadogAgent) string {
-	if dda.Spec.Global != nil && dda.Spec.Global.Endpoint != nil && dda.Spec.Global.Endpoint.URL != nil {
-		return *dda.Spec.Global.Endpoint.URL
-	} else if dda.Spec.Global != nil && dda.Spec.Global.Site != nil && *dda.Spec.Global.Site != "" {
-		return urlPrefix + *dda.Spec.Global.Site
+func getbaseURL(dda *v2alpha1.DatadogAgentSpec) string {
+	if dda.Global != nil && dda.Global.Endpoint != nil && dda.Global.Endpoint.URL != nil {
+		return *dda.Global.Endpoint.URL
+	} else if dda.Global != nil && dda.Global.Site != nil && *dda.Global.Site != "" {
+		return urlPrefix + *dda.Global.Site
 	}
 	return defaultbaseURL
 }

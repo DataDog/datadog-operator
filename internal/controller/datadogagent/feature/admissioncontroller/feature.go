@@ -19,6 +19,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -119,15 +120,19 @@ func (f *admissionControllerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 		if ac.AgentCommunicationMode != nil && *ac.AgentCommunicationMode != "" {
 			f.agentCommunicationMode = *ac.AgentCommunicationMode
 		} else {
-			// agent communication mode set automatically
-			// use `socket` mode if either apm or dsd uses uds
-			apm := ddaSpec.Features.APM
-			dsd := ddaSpec.Features.Dogstatsd
-			if (apm != nil && apm.UnixDomainSocketConfig != nil && apiutils.BoolValue(apm.Enabled) && apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled)) ||
-				(dsd != nil && dsd.UnixDomainSocketConfig != nil && apiutils.BoolValue(dsd.UnixDomainSocketConfig.Enabled)) {
-				f.agentCommunicationMode = admissionControllerSocketCommunicationMode
+			if experimental.IsAutopilotEnabled(dda) {
+				f.agentCommunicationMode = admissionControllerHostipCommunicationMode
+			} else {
+				// agent communication mode set automatically
+				// use `socket` mode if either apm or dsd uses uds
+				apm := ddaSpec.Features.APM
+				dsd := ddaSpec.Features.Dogstatsd
+				if (apm != nil && apm.UnixDomainSocketConfig != nil && apiutils.BoolValue(apm.Enabled) && apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled)) ||
+					(dsd != nil && dsd.UnixDomainSocketConfig != nil && apiutils.BoolValue(dsd.UnixDomainSocketConfig.Enabled)) {
+					f.agentCommunicationMode = admissionControllerSocketCommunicationMode
+				}
+				// otherwise don't set to fall back to default agent setting `hostip`
 			}
-			// otherwise don't set to fall back to default agent setting `hostip`
 		}
 		f.localServiceName = constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec)
 		reqComp = feature.RequiredComponents{
@@ -240,7 +245,7 @@ func (f *admissionControllerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 	return reqComp
 }
 
-func (f *admissionControllerFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *admissionControllerFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	ns := f.owner.GetNamespace()
 	rbacName := componentdca.GetClusterAgentRbacResourcesName(f.owner)
 
@@ -323,7 +328,7 @@ func (f *admissionControllerFeature) ManageDependencies(managers feature.Resourc
 	return nil
 }
 
-func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  DDAdmissionControllerEnabled,
 		Value: "true",
@@ -479,6 +484,6 @@ func (f *admissionControllerFeature) ManageNodeAgent(managers feature.PodTemplat
 	return nil
 }
 
-func (f *admissionControllerFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (f *admissionControllerFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

@@ -105,6 +105,8 @@ type DatadogFeatures struct {
 	PrometheusScrape *PrometheusScrapeFeatureConfig `json:"prometheusScrape,omitempty"`
 	// HelmCheck configuration.
 	HelmCheck *HelmCheckFeatureConfig `json:"helmCheck,omitempty"`
+	// ControlPlaneMonitoring configuration.
+	ControlPlaneMonitoring *ControlPlaneMonitoringFeatureConfig `json:"controlPlaneMonitoring,omitempty"`
 }
 
 // Configuration structs for each feature in DatadogFeatures. All parameters are optional and have default values when necessary.
@@ -238,6 +240,15 @@ type LanguageDetectionConfig struct {
 	// Enabled enables Language Detection to automatically detect languages of user workloads (beta).
 	// Requires SingleStepInstrumentation.Enabled to be true.
 	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// CSIConfig contains the config for Datadog CSI driver.
+type CSIConfig struct {
+	// Enables the usage of CSI driver in Datadog Agent.
+	// Requires installation of Datadog CSI Driver https://github.com/DataDog/helm-charts/tree/main/charts/datadog-csi-driver
+	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
@@ -589,10 +600,15 @@ type ServiceDiscoveryNetworkStatsConfig struct {
 
 // GPUFeatureConfig contains the GPU monitoring configuration.
 type GPUFeatureConfig struct {
-	// Enabled enables GPU monitoring.
+	// Enabled enables GPU monitoring core check.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// PrivilegedMode enables GPU Probe module in System Probe.
+	// Default: false
+	// +optional
+	PrivilegedMode *bool `json:"privilegedMode,omitempty"`
 
 	// PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
 	// If the value is an empty string, the runtime class is not set.
@@ -818,6 +834,15 @@ type OtelCollectorFeatureConfig struct {
 	// OTelCollector Config Relevant to the Core agent
 	// +optional
 	CoreConfig *CoreConfig `json:"coreConfig,omitempty"`
+}
+
+// ControlPlaneMonitoringFeatureConfig contains the configuration for the control plane monitoring.
+// +k8s:openapi-gen=true
+type ControlPlaneMonitoringFeatureConfig struct {
+	// Enabled enables control plane monitoring checks in the cluster agent.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // CoreConfig exposes the otel collector configs relevant to the core agent.
@@ -1447,6 +1472,9 @@ type GlobalConfig struct {
 	// KUBERNETES_RESOURCE_GROUP should be in the form `{resource}.{group}` or `{resource}` (example: deployments.apps, pods)
 	// +optional
 	KubernetesResourcesAnnotationsAsTags map[string]map[string]string `json:"kubernetesResourcesAnnotationsAsTags,omitempty"`
+
+	// CSI contains configuration for Datadog CSI Driver
+	CSI *CSIConfig `json:"csi,omitempty"`
 
 	// NetworkPolicy contains the network configuration.
 	// +optional

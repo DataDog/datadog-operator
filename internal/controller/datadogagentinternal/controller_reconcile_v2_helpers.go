@@ -59,7 +59,7 @@ func (r *Reconciler) manageFeatureDependencies(logger logr.Logger, features []fe
 	var errs []error
 	for _, feat := range features {
 		logger.V(1).Info("Managing dependencies", "featureID", feat.ID())
-		if err := feat.ManageDependencies(resourceManagers); err != nil {
+		if err := feat.ManageDependencies(resourceManagers, ""); err != nil {
 			errs = append(errs, err)
 		}
 	}

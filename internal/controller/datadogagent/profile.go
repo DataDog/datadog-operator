@@ -24,10 +24,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
 
-const (
-	profileDDAINameTemplate = "%s-profile-%s"
-)
-
 func sendProfileEnabledMetric(enabled bool) {
 	if enabled {
 		metrics.DAPEnabled.Set(metrics.TrueValue)
@@ -144,31 +140,28 @@ func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.D
 		if ddai.Labels == nil {
 			ddai.Labels = make(map[string]string)
 		}
-		ddai.Labels[agentprofile.ProfileLabelKey] = profile.Name
+		ddai.Labels[constants.ProfileLabelKey] = profile.Name
 	}
 	return nil
 }
 
+// getProfileDDAIName returns the name of the DDAI when profiles are used.
+// Default profiles use the DDA name. User created profiles use the profile name.
 func getProfileDDAIName(ddaiName, profileName, profileNamespace string) string {
 	if agentprofile.IsDefaultProfile(profileNamespace, profileName) {
 		return ddaiName
 	}
-	return fmt.Sprintf(profileDDAINameTemplate, ddaiName, profileName)
+	return profileName
 }
 
 // The node agent component override is non-nil from the default DDAI creation
 func setProfileNodeAgentOverride(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) {
-	setProfileDSName(ddai.Spec.Override[v2alpha1.NodeAgentComponentName], profile)
 	setProfileDDAILabels(ddai.Spec.Override[v2alpha1.NodeAgentComponentName], profile)
-}
-
-func setProfileDSName(override *v2alpha1.DatadogAgentComponentOverride, profile *v1alpha1.DatadogAgentProfile) {
-	override.Name = apiutils.NewStringPointer(agentprofile.DaemonSetName(types.NamespacedName{Namespace: profile.Namespace, Name: profile.Name}))
 }
 
 func setProfileDDAILabels(override *v2alpha1.DatadogAgentComponentOverride, profile *v1alpha1.DatadogAgentProfile) {
 	if override.Labels == nil {
 		override.Labels = make(map[string]string)
 	}
-	override.Labels[agentprofile.ProfileLabelKey] = profile.Name
+	override.Labels[constants.ProfileLabelKey] = profile.Name
 }

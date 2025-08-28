@@ -64,11 +64,12 @@ func (r *Reconciler) manageGlobalDependencies(logger logr.Logger, dda *datadoghq
 }
 
 // manageFeatureDependencies iterates over features to set up dependencies.
-func (r *Reconciler) manageFeatureDependencies(logger logr.Logger, features []feature.Feature, resourceManagers feature.ResourceManagers) error {
+func (r *Reconciler) manageFeatureDependencies(logger logr.Logger, features []feature.Feature, resourceManagers feature.ResourceManagers, provider string) error {
 	var errs []error
+
 	for _, feat := range features {
 		logger.V(1).Info("Managing dependencies", "featureID", feat.ID())
-		if err := feat.ManageDependencies(resourceManagers); err != nil {
+		if err := feat.ManageDependencies(resourceManagers, provider); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -94,7 +95,6 @@ func (r *Reconciler) reconcileAgentProfiles(ctx context.Context, logger logr.Log
 	profiles := []datadoghqv1alpha1.DatadogAgentProfile{{}}
 	metrics.IntrospectionEnabled.Set(metrics.FalseValue)
 	metrics.DAPEnabled.Set(metrics.FalseValue)
-
 	// If profiles or introspection is enabled, get the node list and update providers.
 	if r.options.DatadogAgentProfileEnabled || r.options.IntrospectionEnabled {
 		nodeList, err := r.getNodeList(ctx)
@@ -124,10 +124,19 @@ func (r *Reconciler) reconcileAgentProfiles(ctx context.Context, logger logr.Log
 	var errs []error
 	var result reconcile.Result
 	for _, profile := range profiles {
-		for provider := range providerList {
-			res, err := r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, provider, providerList, &profile)
+		if r.options.IntrospectionEnabled && r.useDefaultDaemonset(providerList) {
+			// Use legacy provider if EKS or OpenShift providers are present to prevent daemonset overrides
+			res, err := r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, kubernetes.DefaultProvider, providerList, &profile)
 			if utils.ShouldReturn(res, err) {
 				errs = append(errs, err)
+			}
+		} else {
+			// Create one DaemonSet per provider (for GKE, etc.)
+			for provider := range providerList {
+				res, err := r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, provider, providerList, &profile)
+				if utils.ShouldReturn(res, err) {
+					errs = append(errs, err)
+				}
 			}
 		}
 	}
@@ -136,6 +145,21 @@ func (r *Reconciler) reconcileAgentProfiles(ctx context.Context, logger logr.Log
 	}
 	condition.UpdateDatadogAgentStatusConditions(newStatus, now, common.AgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 	return reconcile.Result{}, nil
+}
+
+// useDefaultDaemonset determines if we should use a legacy provider specific Daemonset for EKS and Openshift providers
+func (r *Reconciler) useDefaultDaemonset(providerList map[string]struct{}) bool {
+	if len(providerList) == 0 {
+		return false
+	}
+
+	for provider := range providerList {
+		providerLabel, _ := kubernetes.GetProviderLabelKeyValue(provider)
+		if providerLabel == kubernetes.OpenShiftProviderLabel || providerLabel == kubernetes.EKSProviderLabel {
+			return true
+		}
+	}
+	return false
 }
 
 // *************************************
