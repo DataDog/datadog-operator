@@ -196,7 +196,7 @@ func overrideSeccompProfile(containerName apicommon.AgentContainerName, manager 
 		}
 
 		// ConfigMap mounted when ConfigMap is used
-		if override.SeccompConfig != nil && override.SeccompConfig.CustomProfile != nil && override.SeccompConfig.CustomProfile.ConfigMap != nil {
+		if utils.IsCustomSeccompConfig(override.SeccompConfig) && override.SeccompConfig.CustomProfile.ConfigMap != nil {
 			vol := corev1.Volume{
 				Name: common.SeccompSecurityVolumeName,
 				VolumeSource: corev1.VolumeSource{
