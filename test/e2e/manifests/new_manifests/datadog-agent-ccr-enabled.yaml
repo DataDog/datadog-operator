@@ -17,3 +17,19 @@ spec:
       enabled: true
     logCollection:
       enabled: true
+    kubeStateMetricsCore:
+      collectCustomResources:
+      - groupVersionKind:
+          group: datadoghq.com
+          kind: DatadogAgent
+          version: v2alpha1
+        metrics:
+        - each:
+            gauge:
+              path:
+              - status
+              - agent
+              - upToDate
+            type: gauge
+          help: Number of up-to-date agents
+          name: uptodateagents
