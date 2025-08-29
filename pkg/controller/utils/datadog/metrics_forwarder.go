@@ -16,6 +16,8 @@ import (
 	"sync"
 	"time"
 
+	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
+	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV2"
 	"github.com/go-logr/logr"
 	api "github.com/zorkian/go-datadog-api"
 	corev1 "k8s.io/api/core/v1"
@@ -89,9 +91,9 @@ const (
 
 // delegatedAPI is used for testing purpose, it serves for mocking the Datadog API
 type delegatedAPI interface {
-	delegatedSendDeploymentMetric(float64, string, []string) error
-	delegatedSendReconcileMetric(float64, []string) error
-	delegatedSendFeatureMetric(string) error
+	delegatedSendDeploymentMetric(context.Context, float64, string, []string) error
+	delegatedSendReconcileMetric(context.Context, float64, []string) error
+	delegatedSendFeatureMetric(context.Context, string) error
 	delegatedSendEvent(string, EventType) error
 	delegatedValidateCreds(string) (*api.Client, error)
 }
@@ -109,7 +111,8 @@ func hashKeys(apiKey string) uint64 {
 type metricsForwarder struct {
 	id                  string
 	monitoredObjectKind string
-	datadogClient       *api.Client
+	datadogClient       *api.Client           // api key validation and events
+	datadogMetricsApi   *datadogV2.MetricsApi // metrics
 	k8sClient           client.Client
 
 	platformInfo *kubernetes.PlatformInfo
@@ -194,6 +197,8 @@ func (mf *metricsForwarder) start(wg *sync.WaitGroup) {
 
 	// Global tags need to be set only once
 	mf.initGlobalTags()
+	// Set up v2 datadog client
+	mf.setUpDatadogAPIClient()
 
 	mf.logger.Info("Datadog metrics forwarder initialized successfully")
 
@@ -407,6 +412,7 @@ func (mf *metricsForwarder) forwardMetrics() error {
 		mf.logger.Error(err, "cannot update Datadog credentials")
 		return err
 	}
+	ctx := mf.generateDatadogContext()
 
 	mf.logger.V(1).Info("Collecting metrics")
 
@@ -414,7 +420,7 @@ func (mf *metricsForwarder) forwardMetrics() error {
 	if mf.monitoredObjectKind == datadogAgentKind && mf.datadogAgentInternalEnabled {
 		mf.logger.V(1).Info("DatadogAgentInternal is enabled, skipping status metrics for DatadogAgent")
 	} else {
-		if err = mf.sendStatusMetrics(mf.dsStatus, mf.dcaStatus, mf.ccrStatus, mf.agentStatus); err != nil {
+		if err = mf.sendStatusMetrics(ctx, mf.dsStatus, mf.dcaStatus, mf.ccrStatus, mf.agentStatus); err != nil {
 			mf.logger.Error(err, "cannot send status metrics to Datadog")
 			return err
 		}
@@ -429,7 +435,7 @@ func (mf *metricsForwarder) forwardMetrics() error {
 		mf.logger.Error(err, "cannot prepare reconcile metric")
 		return err
 	}
-	if err = mf.sendReconcileMetric(metricValue, tags); err != nil {
+	if err = mf.sendReconcileMetric(ctx, metricValue, tags); err != nil {
 		mf.logger.Error(err, "cannot send reconcile errors metric to Datadog")
 		return err
 	}
@@ -437,11 +443,11 @@ func (mf *metricsForwarder) forwardMetrics() error {
 	// send feature metrics
 	for _, featuresList := range mf.EnabledFeatures {
 		for _, feature := range featuresList {
-			mf.sendFeatureMetric(feature)
+			mf.sendFeatureMetric(ctx, feature)
 		}
 	}
 
-	mf.sendResourceCountMetric()
+	mf.sendResourceCountMetric(ctx)
 
 	return nil
 }
@@ -462,7 +468,7 @@ func (mf *metricsForwarder) processReconcileError(reconcileErr error) error {
 	if err != nil {
 		return err
 	}
-	return mf.sendReconcileMetric(metricValue, tags)
+	return mf.sendReconcileMetric(mf.generateDatadogContext(), metricValue, tags)
 }
 
 // prepareReconcileMetric returns the corresponding metric value and tags for the last reconcile error metric
@@ -548,7 +554,7 @@ func (mf *metricsForwarder) delegatedValidateCreds(apiKey string) (*api.Client, 
 	return datadogClient, nil
 }
 
-func (mf *metricsForwarder) sendStatusMetrics(dsStatus []*v2alpha1.DaemonSetStatus, dcaStatus, ccrStatus *v2alpha1.DeploymentStatus, agentStatus *v2alpha1.DaemonSetStatus) error {
+func (mf *metricsForwarder) sendStatusMetrics(ctx context.Context, dsStatus []*v2alpha1.DaemonSetStatus, dcaStatus, ccrStatus *v2alpha1.DeploymentStatus, agentStatus *v2alpha1.DaemonSetStatus) error {
 	var metricValue float64
 
 	// Agent deployment metrics from DDA
@@ -562,7 +568,7 @@ func (mf *metricsForwarder) sendStatusMetrics(dsStatus []*v2alpha1.DaemonSetStat
 			tags := mf.tagsWithExtraTag(stateTagFormat, status.State)
 			tags = append(tags, mf.getCRVersionTags()...)
 			tags = append(tags, fmt.Sprintf(crAgentNameTagFormat, status.DaemonsetName))
-			if err := mf.sendDeploymentMetric(metricValue, agentName, tags); err != nil {
+			if err := mf.sendDeploymentMetric(ctx, metricValue, agentName, tags); err != nil {
 				return err
 			}
 		}
@@ -578,7 +584,7 @@ func (mf *metricsForwarder) sendStatusMetrics(dsStatus []*v2alpha1.DaemonSetStat
 		tags := mf.tagsWithExtraTag(stateTagFormat, agentStatus.State)
 		tags = append(tags, mf.getCRVersionTags()...)
 		tags = append(tags, fmt.Sprintf(crAgentNameTagFormat, agentStatus.DaemonsetName))
-		if err := mf.sendDeploymentMetric(metricValue, agentName, tags); err != nil {
+		if err := mf.sendDeploymentMetric(ctx, metricValue, agentName, tags); err != nil {
 			return err
 		}
 	}
@@ -592,7 +598,7 @@ func (mf *metricsForwarder) sendStatusMetrics(dsStatus []*v2alpha1.DaemonSetStat
 		}
 		tags := mf.tagsWithExtraTag(stateTagFormat, dcaStatus.State)
 		tags = append(tags, mf.getCRVersionTags()...)
-		if err := mf.sendDeploymentMetric(metricValue, clusteragentName, tags); err != nil {
+		if err := mf.sendDeploymentMetric(ctx, metricValue, clusteragentName, tags); err != nil {
 			return err
 		}
 	}
@@ -606,7 +612,7 @@ func (mf *metricsForwarder) sendStatusMetrics(dsStatus []*v2alpha1.DaemonSetStat
 		}
 		tags := mf.tagsWithExtraTag(stateTagFormat, ccrStatus.State)
 		tags = append(tags, mf.getCRVersionTags()...)
-		if err := mf.sendDeploymentMetric(metricValue, clusterchecksrunnerName, tags); err != nil {
+		if err := mf.sendDeploymentMetric(ctx, metricValue, clusterchecksrunnerName, tags); err != nil {
 			return err
 		}
 	}
@@ -637,28 +643,14 @@ func (mf *metricsForwarder) getCRVersionTags() []string {
 }
 
 // sendDeploymentMetric is a generic method used to forward component deployment metrics to Datadog
-func (mf *metricsForwarder) sendDeploymentMetric(metricValue float64, component string, tags []string) error {
-	return mf.delegator.delegatedSendDeploymentMetric(metricValue, component, tags)
+func (mf *metricsForwarder) sendDeploymentMetric(ctx context.Context, metricValue float64, component string, tags []string) error {
+	return mf.delegator.delegatedSendDeploymentMetric(ctx, metricValue, component, tags)
 }
 
 // delegatedSendDeploymentMetric is separated from sendDeploymentMetric to facilitate mocking the Datadog API
-func (mf *metricsForwarder) delegatedSendDeploymentMetric(metricValue float64, component string, tags []string) error {
-	ts := float64(time.Now().Unix())
+func (mf *metricsForwarder) delegatedSendDeploymentMetric(ctx context.Context, metricValue float64, component string, tags []string) error {
 	metricName := fmt.Sprintf(deploymentMetricFormat, mf.metricsPrefix, component)
-	serie := []api.Metric{
-		{
-			Metric: api.String(metricName),
-			Points: []api.DataPoint{
-				{
-					api.Float64(ts),
-					api.Float64(metricValue),
-				},
-			},
-			Type: api.String(gaugeType),
-			Tags: tags,
-		},
-	}
-	return mf.datadogClient.PostMetrics(serie)
+	return mf.sendMetric(ctx, metricName, datadogV2.METRICINTAKETYPE_GAUGE, tags, metricValue)
 }
 
 // initGlobalTags defines the Custom Resource namespace and name tags
@@ -828,28 +820,14 @@ func (mf *metricsForwarder) updateStatusIfNeeded(err error) {
 }
 
 // sendReconcileMetric is used to forward reconcile metrics to Datadog
-func (mf *metricsForwarder) sendReconcileMetric(metricValue float64, tags []string) error {
-	return mf.delegator.delegatedSendReconcileMetric(metricValue, tags)
+func (mf *metricsForwarder) sendReconcileMetric(ctx context.Context, metricValue float64, tags []string) error {
+	return mf.delegator.delegatedSendReconcileMetric(ctx, metricValue, tags)
 }
 
 // delegatedSendReconcileMetric is separated from sendReconcileMetric to facilitate mocking the Datadog API
-func (mf *metricsForwarder) delegatedSendReconcileMetric(metricValue float64, tags []string) error {
-	ts := float64(time.Now().Unix())
+func (mf *metricsForwarder) delegatedSendReconcileMetric(ctx context.Context, metricValue float64, tags []string) error {
 	metricName := fmt.Sprintf(reconcileMetricFormat, mf.metricsPrefix)
-	serie := []api.Metric{
-		{
-			Metric: api.String(metricName),
-			Points: []api.DataPoint{
-				{
-					api.Float64(ts),
-					api.Float64(metricValue),
-				},
-			},
-			Type: api.String(gaugeType),
-			Tags: tags,
-		},
-	}
-	return mf.datadogClient.PostMetrics(serie)
+	return mf.sendMetric(ctx, metricName, datadogV2.METRICINTAKETYPE_GAUGE, tags, metricValue)
 }
 
 // forwardEvent sends events to Datadog
@@ -873,28 +851,14 @@ func (mf *metricsForwarder) delegatedSendEvent(eventTitle string, eventType Even
 }
 
 // sendFeatureMetric is used to forward feature enabled metrics to Datadog
-func (mf *metricsForwarder) sendFeatureMetric(feature string) error {
-	return mf.delegator.delegatedSendFeatureMetric(feature)
+func (mf *metricsForwarder) sendFeatureMetric(ctx context.Context, feature string) error {
+	return mf.delegator.delegatedSendFeatureMetric(ctx, feature)
 }
 
 // delegatedSendFeatureMetric is separated from sendFeatureMetric to facilitate mocking the Datadog API
-func (mf *metricsForwarder) delegatedSendFeatureMetric(feature string) error {
-	ts := float64(time.Now().Unix())
+func (mf *metricsForwarder) delegatedSendFeatureMetric(ctx context.Context, feature string) error {
 	metricName := fmt.Sprintf(featureEnabledFormat, mf.metricsPrefix, feature)
-	series := []api.Metric{
-		{
-			Metric: api.String(metricName),
-			Points: []api.DataPoint{
-				{
-					api.Float64(ts),
-					api.Float64(featureEnabledValue),
-				},
-			},
-			Type: api.String(gaugeType),
-			Tags: mf.globalTags,
-		},
-	}
-	return mf.datadogClient.PostMetrics(series)
+	return mf.sendMetric(ctx, metricName, datadogV2.METRICINTAKETYPE_GAUGE, mf.globalTags, featureEnabledValue)
 }
 
 var objectKindToSnake = map[string]string{
@@ -903,31 +867,15 @@ var objectKindToSnake = map[string]string{
 	datadogMonitorKind:       "datadog_monitor",
 }
 
-func (mf *metricsForwarder) sendResourceCountMetric() error {
+func (mf *metricsForwarder) sendResourceCountMetric(ctx context.Context) error {
 	// At start mf.monitoredObjectKind may be empty; don't send metric in this case
 	if _, ok := objectKindToSnake[mf.monitoredObjectKind]; !ok {
 		return nil
 	}
 
-	ts := float64(time.Now().Unix())
 	metricName := fmt.Sprintf(customResourceFormat, mf.metricsPrefix, objectKindToSnake[mf.monitoredObjectKind])
 	tags := append(mf.tags, mf.globalTags...)
-	series := []api.Metric{
-		{
-			Metric: api.String(metricName),
-			Points: []api.DataPoint{
-				{
-					api.Float64(ts),
-					// Each forwarder corresponds to one resource, so always submit a count of 1
-					api.Float64(1),
-				},
-			},
-			Type: api.String(countType),
-			Tags: tags,
-		},
-	}
-
-	return mf.datadogClient.PostMetrics(series)
+	return mf.sendMetric(ctx, metricName, datadogV2.METRICINTAKETYPE_COUNT, tags, 1)
 }
 
 // isErrChanFull returs if the errorChan is full
@@ -959,4 +907,52 @@ func (mf *metricsForwarder) setEnabledFeatures(features []string) {
 	}
 
 	mf.EnabledFeatures[mf.id] = features
+}
+
+func (mf *metricsForwarder) setUpDatadogAPIClient() {
+	// v2 client is used for metrics only
+	configuration := datadogapi.NewConfiguration()
+	apiClient := datadogapi.NewAPIClient(configuration)
+	mf.datadogMetricsApi = datadogV2.NewMetricsApi(apiClient)
+}
+
+func (mf *metricsForwarder) generateDatadogContext() context.Context {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, datadogapi.ContextAPIKeys,
+		map[string]datadogapi.APIKey{"apiKeyAuth": {Key: mf.apiKey}},
+	)
+	ctx = context.WithValue(ctx, datadogapi.ContextServerIndex, 1)
+	ctx = context.WithValue(ctx, datadogapi.ContextServerVariables,
+		map[string]string{"name": strings.TrimPrefix(mf.baseURL, "https://")},
+	)
+
+	return ctx
+}
+
+func (mf *metricsForwarder) sendMetric(ctx context.Context, metricName string, metricType datadogV2.MetricIntakeType, tags []string, value float64) error {
+	body := datadogV2.MetricPayload{
+		Series: []datadogV2.MetricSeries{
+			{
+				Metric: metricName,
+				Points: []datadogV2.MetricPoint{
+					{
+						Timestamp: datadogapi.PtrInt64(time.Now().Unix()),
+						Value:     datadogapi.PtrFloat64(value),
+					},
+				},
+				Type: metricType.Ptr(),
+				Tags: tags,
+				Metadata: &datadogV2.MetricMetadata{
+					Origin: &datadogV2.MetricOrigin{
+						AdditionalProperties: map[string]interface{}{
+							"origin_product":     datadogapi.PtrInt32(34),
+							"origin_sub_product": datadogapi.PtrInt32(64),
+						},
+					},
+				},
+			},
+		},
+	}
+	_, _, err := mf.datadogMetricsApi.SubmitMetrics(ctx, body, *datadogV2.NewSubmitMetricsOptionalParameters())
+	return err
 }
