@@ -1,0 +1,24 @@
+# permissions for end users to edit datadogservicemonitors.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: datadogservicemonitor-editor-role
+rules:
+- apiGroups:
+  - datadoghq.com
+  resources:
+  - datadogservicemonitors
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - datadoghq.com
+  resources:
+  - datadogservicemonitors/status
+  verbs:
+  - get

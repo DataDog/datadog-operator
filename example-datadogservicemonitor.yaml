@@ -1,0 +1,16 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogServiceMonitor
+metadata:
+  name: ms-web-server
+  namespace: application
+spec:
+  name: "ms-web-server"
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: ms-web-server
+      app.kubernetes.io/name: app
+  namespaceSelector:
+    matchNames:
+      - "application"
+  ddTraceVersions:
+    python: "3"
