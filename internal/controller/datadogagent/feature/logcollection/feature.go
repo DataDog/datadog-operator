@@ -40,6 +40,7 @@ type logCollectionFeature struct {
 	containerSymlinksPath      string
 	tempStoragePath            string
 	openFilesLimit             int32
+	autoMultiLineDetection     *bool
 }
 
 // ID returns the ID of the Feature
@@ -68,6 +69,7 @@ func (f *logCollectionFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.Data
 		if logCollection.OpenFilesLimit != nil {
 			f.openFilesLimit = *logCollection.OpenFilesLimit
 		}
+		f.autoMultiLineDetection = logCollection.AutoMultiLineDetection
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
@@ -146,6 +148,12 @@ func (f *logCollectionFeature) manageNodeAgent(agentContainerName apicommon.Agen
 		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 			Name:  DDLogsConfigOpenFilesLimit,
 			Value: strconv.FormatInt(int64(f.openFilesLimit), 10),
+		})
+	}
+	if f.autoMultiLineDetection != nil {
+		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
+			Name:  DDLogsConfigAutoMultiLineDetection,
+			Value: strconv.FormatBool(*f.autoMultiLineDetection),
 		})
 	}
 

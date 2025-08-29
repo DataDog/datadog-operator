@@ -508,6 +508,12 @@ func (builder *DatadogAgentBuilder) WithLogCollectionOpenFilesLimit(limit int32)
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithLogCollectionAutoMultiLineDetection(enabled bool) *DatadogAgentBuilder {
+	builder.initLogCollection()
+	builder.datadogAgent.Spec.Features.LogCollection.AutoMultiLineDetection = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
 func (builder *DatadogAgentBuilder) WithLogCollectionPaths(podLogs, containerLogs, containerSymlinks, tempStorate string) *DatadogAgentBuilder {
 	builder.initLogCollection()
 	builder.datadogAgent.Spec.Features.LogCollection.PodLogsPath = apiutils.NewStringPointer(podLogs)

@@ -91,6 +91,56 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 			),
 		},
 		{
+			Name: "auto multi line detection enabled",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithLogCollectionEnabled(true).
+				WithLogCollectionAutoMultiLineDetection(true).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					wantEnvVars := createEnvVars("true", "false", "true")
+					wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
+						Name:  DDLogsConfigAutoMultiLineDetection,
+						Value: "true",
+					})
+					assertWants(t, mgrInterface, getWantVolumeMounts(), getWantVolumes(), wantEnvVars)
+				},
+			),
+		},
+		{
+			Name: "auto multi line detection disabled",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithLogCollectionEnabled(true).
+				WithLogCollectionAutoMultiLineDetection(false).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					wantEnvVars := createEnvVars("true", "false", "true")
+					wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
+						Name:  DDLogsConfigAutoMultiLineDetection,
+						Value: "false",
+					})
+					assertWants(t, mgrInterface, getWantVolumeMounts(), getWantVolumes(), wantEnvVars)
+				},
+			),
+		},
+		{
+			Name: "auto multi line detection not specified",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithLogCollectionEnabled(true).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					wantEnvVars := createEnvVars("true", "false", "true")
+					// Should not include DD_LOGS_CONFIG_AUTO_MULTI_LINE_DETECTION when not specified
+					assertWants(t, mgrInterface, getWantVolumeMounts(), getWantVolumes(), wantEnvVars)
+				},
+			),
+		},
+		{
 			Name: "custom volumes",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithLogCollectionEnabled(true).

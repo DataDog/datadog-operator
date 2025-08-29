@@ -350,6 +350,11 @@ type LogCollectionFeatureConfig struct {
 	// Default: 100
 	// +optional
 	OpenFilesLimit *int32 `json:"openFilesLimit,omitempty"`
+
+	// AutoMultiLineDetection allows the Agent to detect and aggregate common multi-line logs automatically.
+	// See also: https://docs.datadoghq.com/agent/logs/auto_multiline_detection/
+	// +optional
+	AutoMultiLineDetection *bool `json:"autoMultiLineDetection,omitempty"`
 }
 
 // LiveProcessCollectionFeatureConfig contains Process Collection configuration.
