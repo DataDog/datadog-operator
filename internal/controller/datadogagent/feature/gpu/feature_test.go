@@ -55,6 +55,9 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 	ddaGPUInvalidConfig.Spec.Features.GPU.Enabled = apiutils.NewBoolPointer(false)
 	ddaGPUInvalidConfig.Spec.Features.GPU.PrivilegedMode = apiutils.NewBoolPointer(true)
 
+	ddaGPUCgroupPermissionsEnabled := ddaGPUMonitoringEnabled.DeepCopy()
+	ddaGPUCgroupPermissionsEnabled.Spec.Features.GPU.PatchCgroupPermissions = apiutils.NewBoolPointer(true)
+
 	GPUMonitoringAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers, expectedRuntimeClass string) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 
@@ -312,6 +315,38 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 		}
 	}
 
+	GPUMonitoringWithCgroupPermissionsWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers, expectedRuntimeClass string) {
+		mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+		// Check that cgroup permission patching environment variable is set
+		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
+		cgroupPermsEnvVar := &corev1.EnvVar{
+			Name:  "DD_GPU_MONITORING_CONFIGURE_CGROUP_PERMS",
+			Value: "true",
+		}
+		assert.Contains(t, systemProbeEnvVars, cgroupPermsEnvVar, "System Probe should have cgroup permissions environment variable")
+
+		// Check that host run volume is mounted
+		hostRunVolume := &corev1.Volume{
+			Name: common.HostRunVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: common.HostRunPath,
+				},
+			},
+		}
+		assert.Contains(t, mgr.VolumeMgr.Volumes, hostRunVolume, "Should have host run volume")
+
+		// Check that host run volume is mounted in system probe
+		hostRunVolumeMount := &corev1.VolumeMount{
+			Name:      common.HostRunVolumeName,
+			MountPath: common.HostRunMountPath,
+			ReadOnly:  false,
+		}
+		systemProbeVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.SystemProbeContainerName]
+		assert.Contains(t, systemProbeVolumeMounts, hostRunVolumeMount, "System Probe should have host run volume mount")
+	}
+
 	tests := test.FeatureTestSuite{
 		{
 			Name:          "gpu monitoring not enabled",
@@ -355,6 +390,14 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 			Name:          "gpu invalid config (privileged mode without core-check)",
 			DDA:           ddaGPUInvalidConfig,
 			WantConfigure: false,
+		},
+		{
+			Name:          "gpu cgroup permissions enabled",
+			DDA:           ddaGPUCgroupPermissionsEnabled,
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+				GPUMonitoringWithCgroupPermissionsWantFunc(t, mgrInterface, defaultGPURuntimeClass)
+			}),
 		},
 	}
 
