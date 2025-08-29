@@ -35,7 +35,7 @@ func GetDatadogTokenResourceName(dda metav1.Object) string {
 	return fmt.Sprintf("%stoken", dda.GetName())
 }
 
-// GetDatadogAgentResourceNamespace returns the UID of the Datadog Agent Resource
+// GetDatadogAgentResourceUID returns the UID of the Datadog Agent Resource
 func GetDatadogAgentResourceUID(dda metav1.Object) string {
 	return string(dda.GetUID())
 }
@@ -45,7 +45,12 @@ func GetDatadogAgentResourceCreationTime(dda metav1.Object) string {
 	return strconv.FormatInt(dda.GetCreationTimestamp().Unix(), 10)
 }
 
-// IsCustomSeccompConfig returns true if the given seccomp configuration contains a custom profile with config data or a config map
-func IsCustomSeccompConfig(seccompConfig *v2alpha1.SeccompConfig) bool {
-	return seccompConfig != nil && seccompConfig.CustomProfile != nil && (seccompConfig.CustomProfile.ConfigMap != nil || seccompConfig.CustomProfile.ConfigData != nil)
+// UseCustomSeccompConfigMap returns true if a custom Seccomp profile configMap is configured
+func UseCustomSeccompConfigMap(seccompConfig *v2alpha1.SeccompConfig) bool {
+	return seccompConfig != nil && seccompConfig.CustomProfile != nil && seccompConfig.CustomProfile.ConfigMap != nil
+}
+
+// UseCustomSeccompConfigData returns true if a custom Seccomp profile configData is configured and configMap is *not* configured
+func UseCustomSeccompConfigData(seccompConfig *v2alpha1.SeccompConfig) bool {
+	return seccompConfig != nil && seccompConfig.CustomProfile != nil && seccompConfig.CustomProfile.ConfigMap == nil && seccompConfig.CustomProfile.ConfigData != nil
 }

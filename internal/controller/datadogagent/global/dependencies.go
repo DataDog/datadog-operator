@@ -75,13 +75,18 @@ func addComponentDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpec
 		for _, containerName := range rc.Containers {
 			if containerName == apicommon.SystemProbeContainerName {
 				var seccompConfigData map[string]string
+				useCustomSeccompConfigData := false
 
 				if componentOverride, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
 					if spContainer, ok := componentOverride.Containers[apicommon.SystemProbeContainerName]; ok {
-						if utils.IsCustomSeccompConfig(spContainer.SeccompConfig) && spContainer.SeccompConfig.CustomProfile.ConfigData != nil {
+						if useSystemProbeCustomSeccomp(ddaSpec) && spContainer.SeccompConfig.CustomProfile.ConfigMap != nil {
+							break
+						}
+						if useSystemProbeCustomSeccomp(ddaSpec) && spContainer.SeccompConfig.CustomProfile.ConfigData != nil {
 							seccompConfigData = map[string]string{
 								common.SystemProbeSeccompKey: *spContainer.SeccompConfig.CustomProfile.ConfigData,
 							}
+							useCustomSeccompConfigData = true
 						}
 					}
 				}
@@ -97,7 +102,7 @@ func addComponentDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpec
 						seccompConfigData,
 					)
 
-					if err == nil && useSystemProbeCustomSeccomp(ddaSpec) {
+					if err == nil && useSystemProbeCustomSeccomp(ddaSpec) && useCustomSeccompConfigData {
 						// Add checksum annotation to the configMap
 						if seccompCM, ok := manager.Store().Get(kubernetes.ConfigMapKind, ddaMeta.GetNamespace(), common.GetDefaultSeccompConfigMapName(ddaMeta)); ok {
 							configHash, _ := comparison.GenerateMD5ForSpec(seccompConfigData)
