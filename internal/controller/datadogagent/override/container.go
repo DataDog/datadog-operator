@@ -196,7 +196,7 @@ func overrideSeccompProfile(containerName apicommon.AgentContainerName, manager 
 		}
 
 		// ConfigMap mounted when ConfigMap is used
-		if utils.IsCustomSeccompConfig(override.SeccompConfig) && override.SeccompConfig.CustomProfile.ConfigMap != nil {
+		if utils.UseCustomSeccompConfigMap(override.SeccompConfig) {
 			vol := corev1.Volume{
 				Name: common.SeccompSecurityVolumeName,
 				VolumeSource: corev1.VolumeSource{
@@ -222,7 +222,7 @@ func overrideSeccompProfile(containerName apicommon.AgentContainerName, manager 
 		}
 
 		// Adds checksum annotation to DaemonSet when configData is used
-		if utils.IsCustomSeccompConfig(override.SeccompConfig) && override.SeccompConfig.CustomProfile.ConfigData != nil {
+		if utils.UseCustomSeccompConfigData(override.SeccompConfig) {
 			annotationValue, _ := comparison.GenerateMD5ForSpec(map[string]string{
 				common.SystemProbeSeccompKey: *override.SeccompConfig.CustomProfile.ConfigData})
 			annotationKey := object.GetChecksumAnnotationKey(common.SystemProbeSeccompKey)
