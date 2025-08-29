@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"os"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"

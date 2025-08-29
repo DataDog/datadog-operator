@@ -1159,7 +1159,7 @@ func TestContainer(t *testing.T) {
 					},
 				}
 				assert.Equal(t, expectedVolumes, manager.VolumeMgr.Volumes)
-				annotationKey := object.GetChecksumAnnotationKey(string(common.SystemProbeSeccompKey))
+				annotationKey := object.GetChecksumAnnotationKey(common.SystemProbeSeccompKey)
 				_, found := manager.AnnotationMgr.Annotations[annotationKey]
 				assert.False(t, found)
 			},
