@@ -1507,6 +1507,10 @@
                   "description": "Enabled enables GPU monitoring core check.\nDefault: false",
                   "type": "boolean"
                 },
+                "patchCgroupPermissions": {
+                  "description": "PatchCgroupPermissions enables the patch of cgroup permissions for GPU monitoring, in case\nthe container runtime is not properly configured and the Agent containers lose access to GPU devices.\nDefault: false",
+                  "type": "boolean"
+                },
                 "privilegedMode": {
                   "description": "PrivilegedMode enables GPU Probe module in System Probe.\nDefault: false",
                   "type": "boolean"
@@ -8945,6 +8949,10 @@
                   "properties": {
                     "enabled": {
                       "description": "Enabled enables GPU monitoring core check.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "patchCgroupPermissions": {
+                      "description": "PatchCgroupPermissions enables the patch of cgroup permissions for GPU monitoring, in case\nthe container runtime is not properly configured and the Agent containers lose access to GPU devices.\nDefault: false",
                       "type": "boolean"
                     },
                     "privilegedMode": {
