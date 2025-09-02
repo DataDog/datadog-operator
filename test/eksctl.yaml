@@ -1,0 +1,24 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: lenaic-karpenter-test
+  region: us-east-1
+  version: "1.33"
+  tags:
+    Creator: lenaic
+
+vpc:
+  id: vpc-029c0faf8f49dee8d
+  subnets:
+    private:
+      us-east-1a:
+        id: subnet-0a15f3482cd3f9820
+      us-east-1b:
+        id: subnet-091570395d476e9ce
+      us-east-1d:
+        id: subnet-003831c49a10df3dd
+  clusterEndpoints:
+    privateAccess: true
+    publicAccess: false
+  securityGroup: REPLACE_ME
