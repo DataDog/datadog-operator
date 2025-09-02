@@ -35,7 +35,7 @@ introspection:
   enabled: true
 ```
 
-Or via command line:
+Or using the command line:
 ```bash
 helm install datadog-operator datadog/datadog-operator --set introspection.enabled=true
 ```
