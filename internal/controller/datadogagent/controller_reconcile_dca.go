@@ -48,7 +48,6 @@ func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Lo
 	// Apply features changes on the Deployment.Spec.Template
 	var featErrors []error
 	for _, feat := range features {
-		logger.Info("DCA feature", "feature", feat.ID())
 		if errFeat := feat.ManageClusterAgent(podManagers, dcaProvider); errFeat != nil {
 			featErrors = append(featErrors, errFeat)
 		}
