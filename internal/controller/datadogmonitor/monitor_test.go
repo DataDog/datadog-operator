@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
@@ -66,6 +67,13 @@ func Test_buildMonitor(t *testing.T) {
 					datadogV1.MONITORRENOTIFYSTATUSTYPE_WARN,
 				},
 				SchedulingOptions: &datadoghqv1alpha1.DatadogMonitorOptionsSchedulingOptions{
+					CustomSchedule: &datadoghqv1alpha1.DatadogMonitorOptionsSchedulingOptionsCustomSchedule{
+						Recurrence: datadoghqv1alpha1.DatadogMonitorOptionsSchedulingOptionsCustomScheduleRecurrence{
+							Rrule:    ptr.To("FREQ=MONTHLY;BYMONTHDAY=28,29,30,31;BYSETPOS=-1"),
+							Timezone: ptr.To("Europe/Madrid"),
+							Start:    ptr.To("2025-01-01T00:00:00"),
+						},
+					},
 					EvaluationWindow: &datadoghqv1alpha1.DatadogMonitorOptionsSchedulingOptionsEvaluationWindow{
 						DayStarts:   ptr.To("01:00"),
 						HourStarts:  ptr.To(int32(2)),
@@ -146,6 +154,27 @@ func Test_buildMonitor(t *testing.T) {
 	assert.Equal(t, dm.Spec.Options.RenotifyStatuses, monitor.Options.GetRenotifyStatuses(), "discrepancy found in parameter: RenotifyStatuses")
 	assert.Equal(t, dm.Spec.Options.RenotifyStatuses, monitorUR.Options.GetRenotifyStatuses(), "discrepancy found in parameter: RenotifyStatuses")
 
+	recurrences := monitor.Options.SchedulingOptions.CustomSchedule.GetRecurrences()
+	var recurrence datadogV1.MonitorOptionsCustomScheduleRecurrence
+	if assert.Len(t, recurrences, 1, "discrepancy found in parameter: CustomeSchedule.Recurrence") {
+		recurrence = recurrences[0]
+	}
+
+	recurrencesUR := monitorUR.Options.SchedulingOptions.CustomSchedule.GetRecurrences()
+	var recurrenceUR datadogV1.MonitorOptionsCustomScheduleRecurrence
+	if assert.Len(t, recurrencesUR, 1, "discrepancy found in parameter: CustomeSchedule.Recurrence") {
+		recurrenceUR = recurrencesUR[0]
+	}
+
+	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.CustomSchedule.Recurrence.Rrule, recurrence.GetRrule(), "discrepancy found in parameter: Recurrence.Rrule")
+	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.CustomSchedule.Recurrence.Rrule, recurrenceUR.GetRrule(), "discrepancy found in parameter: Recurrence.Rrule")
+
+	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.CustomSchedule.Recurrence.Timezone, recurrence.GetTimezone(), "discrepancy found in parameter: Recurrence.Timezone")
+	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.CustomSchedule.Recurrence.Timezone, recurrenceUR.GetTimezone(), "discrepancy found in parameter: Recurrence.Timezone")
+
+	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.CustomSchedule.Recurrence.Start, recurrence.GetStart(), "discrepancy found in parameter: Recurrence.Start")
+	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.CustomSchedule.Recurrence.Start, recurrenceUR.GetStart(), "discrepancy found in parameter: Recurrence.Start")
+
 	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.EvaluationWindow.DayStarts, monitor.Options.SchedulingOptions.EvaluationWindow.GetDayStarts(), "discrepancy found in parameter: EvaluationWindow.DayStarts")
 	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.EvaluationWindow.DayStarts, monitorUR.Options.SchedulingOptions.EvaluationWindow.GetDayStarts(), "discrepancy found in parameter: EvaluationWindow.DayStarts")
 
@@ -197,8 +226,22 @@ func Test_getMonitor(t *testing.T) {
 }
 
 func Test_validateMonitor(t *testing.T) {
-	dm := genericDatadogMonitor()
-
+	dm := &datadoghqv1alpha1.DatadogMonitor{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "DatadogMonitor",
+			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: resourcesNamespace,
+			Name:      resourcesName,
+		},
+		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+			Query:   "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.1",
+			Type:    datadoghqv1alpha1.DatadogMonitorTypeMetric,
+			Name:    "test monitor",
+			Message: "something is wrong",
+		},
+	}
 	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 	}))

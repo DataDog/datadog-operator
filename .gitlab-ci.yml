@@ -1,10 +1,11 @@
-image: registry.ddbuild.io/images/mirror/library/golang:1.23.10
+image: registry.ddbuild.io/images/mirror/library/golang:1.24.6
 variables:
   PROJECTNAME: "datadog-operator"
   PROJECTNAME_CHECK: "datadog-operator-check"
   BUILD_DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
   E2E_DOCKER_REGISTRY: "669783387624.dkr.ecr.us-east-1.amazonaws.com/operator"
   JOB_DOCKER_IMAGE: "registry.ddbuild.io/ci-containers-project:v68399443-88dc260-v1.22"
+  OCTO_JOB_DOCKER_IMAGE: "registry.ddbuild.io/ci-containers-project:v73151907-c38dce1-v1.22.1"
   DOCKER_REGISTRY_LOGIN_SSM_KEY: docker_hub_login
   DOCKER_REGISTRY_PWD_SSM_KEY: docker_hub_pwd
   DOCKER_REGISTRY_URL: docker.io
@@ -13,7 +14,7 @@ variables:
   RH_PARTNER_REGISTRY_USER: "redhat-isv-containers+5e7c8ebc1c86a3163d1a69be-robot"
   RH_PARTNER_REGISTRY_KEY_SSM_KEY: redhat_registry_key
   RH_PARTNER_API_KEY_SSM_KEY: redhat_api_key
-  TEST_INFRA_DEFINITIONS_BUILDIMAGES: 37219b27b29d
+  TEST_INFRA_DEFINITIONS_BUILDIMAGES: b324348d0857
   PUSH_IMAGES_TO_STAGING:
     description: "Set PUSH_IMAGE_TO_STAGING to 'true' if you want to push the operator to internal staging registry."
   FIPS_ENABLED: false
@@ -190,30 +191,6 @@ build_bundle_image:
     - BUNDLE_IMG=$TARGET_IMAGE make bundle-build-push
     - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
 
-.new_e2e_template:
-  stage: e2e
-  tags: ["arch:amd64"]
-  image: $BUILD_DOCKER_REGISTRY/test-infra-definitions/runner:$TEST_INFRA_DEFINITIONS_BUILDIMAGES
-  before_script:
-    # Setup AWS Credentials
-    - echo "Starting setup for E2E testing..."
-    - mkdir -p ~/.aws
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.agent-qa-profile --with-decryption --query "Parameter.Value" --out text >> ~/.aws/config
-    - export AWS_PROFILE=agent-qa-ci
-    # Now all `aws` commands target the agent-qa profile
-    - echo "Retrieving SSH keys from AWS..."
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_public_key --with-decryption --query "Parameter.Value" --out text > $E2E_AWS_PUBLIC_KEY_PATH
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_private_key --with-decryption --query "Parameter.Value" --out text > $E2E_AWS_PRIVATE_KEY_PATH
-    # Use S3 backend to store stack status
-    - echo "Logging in to Pulumi with S3 backend..."
-    - pulumi login "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE"
-  variables:
-    E2E_AWS_PUBLIC_KEY_PATH: /tmp/agent-qa-ssh-key.pub
-    E2E_AWS_PRIVATE_KEY_PATH: /tmp/agent-qa-ssh-key
-    E2E_KEY_PAIR_NAME: ci.datadog-operator
-    KUBERNETES_MEMORY_REQUEST: 12Gi
-    KUBERNETES_MEMORY_LIMIT: 16Gi
-
 .on_run_e2e:
   # Skip if only .md files are changed
   - if: $CI_COMMIT_BRANCH
@@ -249,8 +226,9 @@ trigger_e2e_operator_image:
     IMG_REGISTRIES: agent-qa
 
 e2e:
-  extends: .new_e2e_template
   stage: e2e
+  tags:
+    - "arch:amd64"
   needs:
     - "trigger_e2e_operator_image"
   rules: !reference [.on_run_e2e]
@@ -266,10 +244,30 @@ e2e:
           - "1.30"
           - "1.32"
   variables:
+    E2E_AWS_PUBLIC_KEY_PATH: /tmp/agent-qa-ssh-key.pub
+    E2E_AWS_PRIVATE_KEY_PATH: /tmp/agent-qa-ssh-key
+    E2E_KEY_PAIR_NAME: ci.datadog-operator
+    KUBERNETES_MEMORY_REQUEST: 12Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
     TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+  image: $BUILD_DOCKER_REGISTRY/test-infra-definitions/runner:$TEST_INFRA_DEFINITIONS_BUILDIMAGES
+  before_script:
+    # Setup AWS Credentials
+    - echo "Starting setup for E2E testing..."
+    - mkdir -p ~/.aws
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.agent-qa-profile --with-decryption --query "Parameter.Value" --out text >> ~/.aws/config
+    - export AWS_PROFILE=agent-qa-ci
+    # Now all `aws` commands target the agent-qa profile
+    - echo "Retrieving SSH keys from AWS..."
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_public_key --with-decryption --query "Parameter.Value" --out text > $E2E_AWS_PUBLIC_KEY_PATH
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_private_key --with-decryption --query "Parameter.Value" --out text > $E2E_AWS_PRIVATE_KEY_PATH
+    # Use S3 backend to store stack status
+    - echo "Logging in to Pulumi with S3 backend..."
+    - pulumi login "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE"
   script:
     - echo "Running e2e test with target image $TARGET_IMAGE"
     - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-tests
+  retry: 2
 
 publish_public_main:
   stage: release
@@ -585,7 +583,10 @@ publish_community_operators:
   # needs:
   #   - "submit_preflight_redhat_image"
   tags: [ "runner:docker", "size:large" ]
-  image: $JOB_DOCKER_IMAGE
+  image: $OCTO_JOB_DOCKER_IMAGE
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
   before_script:
     - make install-tools
   script:
@@ -611,14 +612,20 @@ publish_community_operators:
       ci.datadog-operator.redhat-registry-token --with-decryption --query "Parameter.Value" --out text > ~/.redhat/auths.json
     - cd $CI_PROJECT_DIR
     - make bundle-redhat
-    # configure git and github-cli
+
+    # Configure github-cli
     - git config --global user.email $GITLAB_USER_EMAIL
-    - git config --global user.name $GITLAB_USER_NAME
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.github-robot-token --with-decryption --query "Parameter.Value" --out text > git-token.txt
-    - gh auth login --with-token < git-token.txt
+    # Use dd-octo-sts to get GitHub token
+    - dd-octo-sts version
+    - dd-octo-sts debug --scope DataDog --policy datadog-operator.publish-community-bundles
+    - dd-octo-sts token --scope DataDog --policy datadog-operator.publish-community-bundles > token.txt
+    - gh auth login --with-token < token.txt
     - gh auth setup-git
     # create pull request for each marketplace repo
     - make publish-community-bundles
+  after_script:
+    # Revoke the token after usage
+    - dd-octo-sts revoke -t $(cat token.txt)
   variables:
     SKOPEO_VERSION: release-1.16
 

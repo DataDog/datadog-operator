@@ -34,7 +34,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus, dcaProvider string) (reconcile.Result, error) {
 	var result reconcile.Result
 	now := metav1.NewTime(time.Now())
 
@@ -48,7 +48,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 	// Apply features changes on the Deployment.Spec.Template
 	var featErrors []error
 	for _, feat := range features {
-		if errFeat := feat.ManageClusterAgent(podManagers); errFeat != nil {
+		if errFeat := feat.ManageClusterAgent(podManagers, dcaProvider); errFeat != nil {
 			featErrors = append(featErrors, errFeat)
 		}
 	}
@@ -58,7 +58,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 		return result, err
 	}
 
-	deploymentLogger := logger.WithValues("component", datadoghqv2alpha1.ClusterAgentComponentName)
+	deploymentLogger := logger.WithValues("component", datadoghqv2alpha1.ClusterAgentComponentName, "provider", dcaProvider)
 
 	// The requiredComponents can change depending on if updates to features result in disabled components
 	dcaEnabled := requiredComponents.ClusterAgent.IsEnabled()
@@ -87,6 +87,14 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 		// If the override is not defined, then disable based on dcaEnabled value
 		deleteStatusV2WithClusterAgent(newStatus)
 		return r.cleanupV2ClusterAgent(deploymentLogger, dda, deployment, resourcesManager, newStatus)
+	}
+
+	if r.options.IntrospectionEnabled {
+		// Add provider label to deployment
+		if deployment.Labels == nil {
+			deployment.Labels = make(map[string]string)
+		}
+		deployment.Labels[constants.MD5AgentDeploymentProviderLabelKey] = dcaProvider
 	}
 
 	return r.createOrUpdateDeployment(deploymentLogger, dda, deployment, newStatus, updateStatusV2WithClusterAgent)

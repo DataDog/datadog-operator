@@ -140,7 +140,8 @@ const (
 	KubeletAgentCAPath            = "/var/run/host-kubelet-ca.crt"
 	KubeletPodResourcesVolumeName = "kubelet-pod-resources"
 
-	APMSocketName = "apm.socket"
+	APMSocketVolumeName = "apmsocket"
+	APMSocketName       = "apm.socket"
 
 	SeccompSecurityVolumeName                   = "datadog-agent-security"
 	SeccompSecurityVolumePath                   = "/etc/config"
@@ -150,6 +151,10 @@ const (
 	SystemProbeSeccompKey                       = "system-probe-seccomp.json"
 	SystemProbeAgentSecurityConfigMapSuffixName = "system-probe-seccomp"
 	SystemProbeSeccompProfileName               = "system-probe"
+
+	HostRunVolumeName = "hostrun"
+	HostRunPath       = "/run"
+	HostRunMountPath  = "/host/run"
 )
 
 // Field paths

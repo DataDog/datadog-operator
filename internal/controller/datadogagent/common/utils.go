@@ -41,13 +41,21 @@ func NewDeployment(owner metav1.Object, componentKind, componentName, version st
 	return deployment
 }
 
-func GetDefaultMetadata(owner metav1.Object, componentKind, componentName, version string, selector *metav1.LabelSelector) (map[string]string, map[string]string, *metav1.LabelSelector) {
-	labels := GetDefaultLabels(owner, componentKind, componentName, version)
+func GetDefaultMetadata(owner metav1.Object, componentKind, instanceName, version string, selector *metav1.LabelSelector) (map[string]string, map[string]string, *metav1.LabelSelector) {
+	labels := GetDefaultLabels(owner, componentKind, instanceName, version)
 	annotations := object.GetDefaultAnnotations(owner)
 
 	if selector != nil {
 		for key, val := range selector.MatchLabels {
 			labels[key] = val
+		}
+		// if update metadata is present, use k8s instance and component as the selector
+	} else if val, ok := owner.GetAnnotations()[apicommon.UpdateMetadataAnnotationKey]; ok && val == "true" {
+		selector = &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				kubernetes.AppKubernetesInstanceLabelKey:   instanceName,
+				apicommon.AgentDeploymentComponentLabelKey: componentKind,
+			},
 		}
 	} else {
 		selector = &metav1.LabelSelector{
@@ -60,9 +68,11 @@ func GetDefaultMetadata(owner metav1.Object, componentKind, componentName, versi
 	return labels, annotations, selector
 }
 
-func GetDefaultLabels(owner metav1.Object, componentKind, componentName, version string) map[string]string {
-	labels := object.GetDefaultLabels(owner, componentName, version)
-	labels[apicommon.AgentDeploymentNameLabelKey] = owner.GetName()
+func GetDefaultLabels(owner metav1.Object, componentKind, instanceName, version string) map[string]string {
+	name := constants.GetDDAName(owner)
+
+	labels := object.GetDefaultLabels(owner, instanceName, version)
+	labels[apicommon.AgentDeploymentNameLabelKey] = name // Always use DDA name
 	labels[apicommon.AgentDeploymentComponentLabelKey] = componentKind
 	labels[kubernetes.AppKubernetesComponentLabelKey] = componentKind
 

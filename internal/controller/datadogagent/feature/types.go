@@ -133,10 +133,10 @@ type Feature interface {
 	Configure(ddaMetaObj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) RequiredComponents
 	// ManageDependencies allows a feature to manage its dependencies.
 	// Feature's dependencies should be added in the store.
-	ManageDependencies(managers ResourceManagers) error
+	ManageDependencies(managers ResourceManagers, provider string) error
 	// ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
-	ManageClusterAgent(managers PodTemplateManagers) error
+	ManageClusterAgent(managers PodTemplateManagers, provider string) error
 	// ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageNodeAgent(managers PodTemplateManagers, provider string) error
@@ -146,7 +146,7 @@ type Feature interface {
 	ManageSingleContainerNodeAgent(managers PodTemplateManagers, provider string) error
 	// ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
-	ManageClusterChecksRunner(managers PodTemplateManagers) error
+	ManageClusterChecksRunner(managers PodTemplateManagers, provider string) error
 }
 
 // Options option that can be pass to the Interface.Configure function

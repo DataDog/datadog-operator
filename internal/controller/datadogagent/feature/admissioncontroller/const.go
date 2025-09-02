@@ -8,6 +8,7 @@ package admissioncontroller
 const (
 	admissionControllerPortName                = "admissioncontrollerport"
 	admissionControllerSocketCommunicationMode = "socket"
+	admissionControllerHostipCommunicationMode = "hostip"
 
 	// DefaultAdmissionControllerServicePort default admission controller service port
 	defaultAdmissionControllerServicePort = 443

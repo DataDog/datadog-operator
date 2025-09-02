@@ -163,7 +163,6 @@ func Test_setupFromOperator(t *testing.T) {
 		loadFunc    func(*metricsForwarder, *secrets.DummyDecryptor)
 		wantAPIKey  string
 		wantBaseURL string
-		wantErr     bool
 	}{
 		{
 			name: "basic creds with default URL",
@@ -173,7 +172,6 @@ func Test_setupFromOperator(t *testing.T) {
 			},
 			wantBaseURL: defaultbaseURL,
 			wantAPIKey:  "test123",
-			wantErr:     false,
 		},
 		{
 			name: "basic creds with default DD_URL",
@@ -184,7 +182,6 @@ func Test_setupFromOperator(t *testing.T) {
 			},
 			wantBaseURL: "https://api.dd_url.com",
 			wantAPIKey:  "test123",
-			wantErr:     false,
 		},
 		{
 			name: "basic creds with default DD_DD_URL",
@@ -195,7 +192,6 @@ func Test_setupFromOperator(t *testing.T) {
 			},
 			wantBaseURL: "https://api.dd_dd_url.com",
 			wantAPIKey:  "test123",
-			wantErr:     false,
 		},
 		{
 			name: "basic creds with default DD_SITE",
@@ -206,7 +202,6 @@ func Test_setupFromOperator(t *testing.T) {
 			},
 			wantBaseURL: "https://api.dd_site.com",
 			wantAPIKey:  "test123",
-			wantErr:     false,
 		},
 	}
 	for _, tt := range tests {
@@ -221,11 +216,8 @@ func Test_setupFromOperator(t *testing.T) {
 			if tt.loadFunc != nil {
 				tt.loadFunc(mf, d)
 			}
-			_, err := mf.setupFromOperator()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("metricsForwarder.setupFromOperator() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			_ = mf.setupFromOperator()
+
 			if mf.apiKey != tt.wantAPIKey {
 				t.Errorf("metricsForwarder.setupFromOperator() apiKey = %v, want %v", mf.apiKey, tt.wantAPIKey)
 			}
@@ -241,44 +233,189 @@ func Test_setupFromDDA(t *testing.T) {
 	}
 
 	type args struct {
-		dda *v2alpha1.DatadogAgent
+		dda                  *v2alpha1.DatadogAgent
+		credsSetFromOperator bool
 	}
 	tests := []struct {
 		name            string
-		dda             *v2alpha1.DatadogAgent
+		args            args
 		wantLabels      map[string]string
 		wantClusterName string
 		wantBaseURL     string
 		wantAPIKey      string
+		wantDsStatus    []*v2alpha1.DaemonSetStatus
+		wantDcaStatus   *v2alpha1.DeploymentStatus
+		wantCcrStatus   *v2alpha1.DeploymentStatus
 		wantErr         bool
 	}{
 		{
 			name: "base URL, cluster name and API key",
-			dda: &v2alpha1.DatadogAgent{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "DatadogAgent",
-					APIVersion: apiVersion,
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace:  "foo",
-					Name:       "bar",
-					Labels:     labels,
-					Finalizers: []string{"finalizer.agent.datadoghq.com"},
-				},
-				Spec: v2alpha1.DatadogAgentSpec{
-					Global: &v2alpha1.GlobalConfig{
-						ClusterName: apiutils.NewStringPointer("test-cluster"),
-						Credentials: &v2alpha1.DatadogCredentials{
-							APIKey: apiutils.NewStringPointer(apiKey),
+			args: args{
+				dda: &v2alpha1.DatadogAgent{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "DatadogAgent",
+						APIVersion: apiVersion,
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace:  "foo",
+						Name:       "bar",
+						Labels:     labels,
+						Finalizers: []string{"finalizer.agent.datadoghq.com"},
+					},
+					Spec: v2alpha1.DatadogAgentSpec{
+						Global: &v2alpha1.GlobalConfig{
+							ClusterName: apiutils.NewStringPointer("test-cluster"),
+							Credentials: &v2alpha1.DatadogCredentials{
+								APIKey: apiutils.NewStringPointer(apiKey),
+							},
 						},
 					},
 				},
+				credsSetFromOperator: false,
 			},
 			wantLabels:      labels,
 			wantClusterName: "test-cluster",
 			wantBaseURL:     defaultbaseURL,
 			wantAPIKey:      "foundAPIKey",
 			wantErr:         false,
+		},
+		{
+			name: "creds set from operator, status and labels copied from DDA",
+			args: args{
+				dda: &v2alpha1.DatadogAgent{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "DatadogAgent",
+						APIVersion: apiVersion,
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace:  "foo",
+						Name:       "bar",
+						Labels:     labels,
+						Finalizers: []string{"finalizer.agent.datadoghq.com"},
+					},
+					Spec: v2alpha1.DatadogAgentSpec{
+						Global: &v2alpha1.GlobalConfig{
+							ClusterName: apiutils.NewStringPointer("test-cluster"),
+							Credentials: &v2alpha1.DatadogCredentials{
+								APIKey: apiutils.NewStringPointer(apiKey),
+							},
+						},
+					},
+					Status: v2alpha1.DatadogAgentStatus{
+						AgentList: []*v2alpha1.DaemonSetStatus{
+							{
+								DaemonsetName: "datadog-agent",
+								State:         "Running",
+								Desired:       3,
+								Available:     3,
+							},
+						},
+						ClusterAgent: &v2alpha1.DeploymentStatus{
+							State:             "Running",
+							Replicas:          1,
+							AvailableReplicas: 1,
+						},
+						ClusterChecksRunner: &v2alpha1.DeploymentStatus{
+							State:             "Running",
+							Replicas:          2,
+							AvailableReplicas: 2,
+						},
+					},
+				},
+				credsSetFromOperator: true,
+			},
+			wantLabels:      labels,
+			wantClusterName: "test-cluster",
+			wantBaseURL:     "", // Should not be set when credsSetFromOperator is true
+			wantAPIKey:      "", // Should not be set when credsSetFromOperator is true
+			wantDsStatus: []*v2alpha1.DaemonSetStatus{
+				{
+					DaemonsetName: "datadog-agent",
+					State:         "Running",
+					Desired:       3,
+					Available:     3,
+				},
+			},
+			wantDcaStatus: &v2alpha1.DeploymentStatus{
+				State:             "Running",
+				Replicas:          1,
+				AvailableReplicas: 1,
+			},
+			wantCcrStatus: &v2alpha1.DeploymentStatus{
+				State:             "Running",
+				Replicas:          2,
+				AvailableReplicas: 2,
+			},
+			wantErr: false,
+		},
+		{
+			name: "creds not set from operator, status and labels copied from DDA",
+			args: args{
+				dda: &v2alpha1.DatadogAgent{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "DatadogAgent",
+						APIVersion: apiVersion,
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace:  "foo",
+						Name:       "bar",
+						Labels:     labels,
+						Finalizers: []string{"finalizer.agent.datadoghq.com"},
+					},
+					Spec: v2alpha1.DatadogAgentSpec{
+						Global: &v2alpha1.GlobalConfig{
+							ClusterName: apiutils.NewStringPointer("test-cluster"),
+							Credentials: &v2alpha1.DatadogCredentials{
+								APIKey: apiutils.NewStringPointer(apiKey),
+							},
+						},
+					},
+					Status: v2alpha1.DatadogAgentStatus{
+						AgentList: []*v2alpha1.DaemonSetStatus{
+							{
+								DaemonsetName: "datadog-agent",
+								State:         "Pending",
+								Desired:       2,
+								Available:     1,
+							},
+						},
+						ClusterAgent: &v2alpha1.DeploymentStatus{
+							State:             "Pending",
+							Replicas:          1,
+							AvailableReplicas: 0,
+						},
+						ClusterChecksRunner: &v2alpha1.DeploymentStatus{
+							State:             "Running",
+							Replicas:          1,
+							AvailableReplicas: 1,
+						},
+					},
+				},
+				credsSetFromOperator: false,
+			},
+			wantLabels:      labels,
+			wantClusterName: "test-cluster",
+			wantBaseURL:     defaultbaseURL,
+			wantAPIKey:      "foundAPIKey",
+			wantDsStatus: []*v2alpha1.DaemonSetStatus{
+				{
+					DaemonsetName: "datadog-agent",
+					State:         "Pending",
+					Desired:       2,
+					Available:     1,
+				},
+			},
+			wantDcaStatus: &v2alpha1.DeploymentStatus{
+				State:             "Pending",
+				Replicas:          1,
+				AvailableReplicas: 0,
+			},
+			wantCcrStatus: &v2alpha1.DeploymentStatus{
+				State:             "Running",
+				Replicas:          1,
+				AvailableReplicas: 1,
+			},
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
@@ -291,7 +428,7 @@ func Test_setupFromDDA(t *testing.T) {
 				credsManager: config.NewCredentialManager(),
 			}
 
-			err := mf.setupFromDDA(tt.dda, false)
+			err := mf.setupFromDDA(tt.args.dda, tt.args.credsSetFromOperator)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("metricsForwarder.setupFromDDA() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -300,16 +437,26 @@ func Test_setupFromDDA(t *testing.T) {
 				t.Errorf("metricsForwarder.setupFromDDA() apiKey = %v, want %v", mf.apiKey, tt.wantAPIKey)
 			}
 			if mf.baseURL != tt.wantBaseURL {
-				t.Errorf("metricsForwarder.setupFromDDA() apiKey = %v, want %v", mf.baseURL, tt.wantBaseURL)
+				t.Errorf("metricsForwarder.setupFromDDA() baseURL = %v, want %v", mf.baseURL, tt.wantBaseURL)
 			}
 			if mf.clusterName != tt.wantClusterName {
-				t.Errorf("metricsForwarder.setupFromDDA() apiKey = %v, want %v", mf.clusterName, tt.wantClusterName)
+				t.Errorf("metricsForwarder.setupFromDDA() clusterName = %v, want %v", mf.clusterName, tt.wantClusterName)
 			}
 			for k, v := range mf.labels {
 				if tt.wantLabels[k] != v {
 					t.Errorf("metricsForwarder.setupFromDDA() label value = %v, want %v", v, tt.wantLabels[k])
-
 				}
+			}
+
+			// Check status fields are copied over
+			if !reflect.DeepEqual(mf.dsStatus, tt.wantDsStatus) {
+				t.Errorf("metricsForwarder.setupFromDDA() dsStatus = %v, want %v", mf.dsStatus, tt.wantDsStatus)
+			}
+			if !reflect.DeepEqual(mf.dcaStatus, tt.wantDcaStatus) {
+				t.Errorf("metricsForwarder.setupFromDDA() dcaStatus = %v, want %v", mf.dcaStatus, tt.wantDcaStatus)
+			}
+			if !reflect.DeepEqual(mf.ccrStatus, tt.wantCcrStatus) {
+				t.Errorf("metricsForwarder.setupFromDDA() ccrStatus = %v, want %v", mf.ccrStatus, tt.wantCcrStatus)
 			}
 		})
 	}
@@ -816,7 +963,7 @@ func Test_getbaseURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getbaseURL(tt.args.dda); got != tt.want {
+			if got := getbaseURL(&tt.args.dda.Spec); got != tt.want {
 				t.Errorf("getbaseURL() = %v, want %v", got, tt.want)
 			}
 		})

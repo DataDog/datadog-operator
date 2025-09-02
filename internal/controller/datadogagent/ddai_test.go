@@ -378,7 +378,7 @@ func Test_cleanUpUnusedDDAIs(t *testing.T) {
 				},
 			},
 			validDDAIs: []*v1alpha1.DatadogAgentInternal{
-				&v1alpha1.DatadogAgentInternal{
+				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "dda-foo-agent",
 						Namespace: "default",
@@ -420,7 +420,7 @@ func Test_cleanUpUnusedDDAIs(t *testing.T) {
 				},
 			},
 			validDDAIs: []*v1alpha1.DatadogAgentInternal{
-				&v1alpha1.DatadogAgentInternal{
+				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "dda-foo-agent",
 						Namespace: "default",
@@ -462,7 +462,7 @@ func Test_cleanUpUnusedDDAIs(t *testing.T) {
 				},
 			},
 			validDDAIs: []*v1alpha1.DatadogAgentInternal{
-				&v1alpha1.DatadogAgentInternal{
+				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "dda-foo-agent",
 						Namespace: "foo",

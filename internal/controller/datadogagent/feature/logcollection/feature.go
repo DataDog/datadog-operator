@@ -83,13 +83,13 @@ func (f *logCollectionFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.Data
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *logCollectionFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *logCollectionFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *logCollectionFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *logCollectionFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 
@@ -154,6 +154,6 @@ func (f *logCollectionFeature) manageNodeAgent(agentContainerName apicommon.Agen
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *logCollectionFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (f *logCollectionFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

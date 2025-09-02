@@ -75,6 +75,7 @@ spec:
 | features.autoscaling.workload.enabled | Enables the workload autoscaling product. Default: false |
 | features.clusterChecks.enabled | Enables Cluster Checks scheduling in the Cluster Agent. Default: true |
 | features.clusterChecks.useClusterChecksRunners | Enabled enables Cluster Checks Runners to run all Cluster Checks. Default: false |
+| features.controlPlaneMonitoring.enabled | Enables control plane monitoring checks in the cluster agent. Default: true |
 | features.cspm.checkInterval | CheckInterval defines the check interval. |
 | features.cspm.customBenchmarks.configData | ConfigData corresponds to the configuration file content. |
 | features.cspm.customBenchmarks.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
@@ -115,7 +116,9 @@ spec:
 | features.externalMetricsServer.registerAPIService | RegisterAPIService registers the External Metrics endpoint as an APIService Default: true |
 | features.externalMetricsServer.useDatadogMetrics | UseDatadogMetrics enables usage of the DatadogMetrics CRD (allowing one to scale on arbitrary Datadog metric queries). Default: true |
 | features.externalMetricsServer.wpaController | WPAController enables the informer and controller of the Watermark Pod Autoscaler. NOTE: The Watermark Pod Autoscaler controller needs to be installed. See also: https://github.com/DataDog/watermarkpodautoscaler. Default: false |
-| features.gpu.enabled | Enables GPU monitoring. Default: false |
+| features.gpu.enabled | Enables GPU monitoring core check. Default: false |
+| features.gpu.patchCgroupPermissions | PatchCgroupPermissions enables the patch of cgroup permissions for GPU monitoring, in case the container runtime is not properly configured and the Agent containers lose access to GPU devices. Default: false |
+| features.gpu.privilegedMode | PrivilegedMode enables GPU Probe module in System Probe. Default: false |
 | features.gpu.requiredRuntimeClassName | PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature. If the value is an empty string, the runtime class is not set. Default: nvidia |
 | features.helmCheck.collectEvents | CollectEvents set to `true` enables event collection in the Helm check (Requires Agent 7.36.0+ and Cluster Agent 1.20.0+) Default: false |
 | features.helmCheck.enabled | Enables the Helm check. Default: false |
@@ -194,6 +197,7 @@ spec:
 | global.credentials.appSecret.keyName | KeyName is the key of the secret to use. |
 | global.credentials.appSecret.secretName | SecretName is the name of the secret. |
 | global.criSocketPath | Path to the container runtime socket (if different from Docker). |
+| global.csi.enabled | Enables the usage of CSI driver in Datadog Agent. Requires installation of Datadog CSI Driver https://github.com/DataDog/helm-charts/tree/main/charts/datadog-csi-driver Default: false |
 | global.disableNonResourceRules | Set DisableNonResourceRules to exclude NonResourceURLs from default ClusterRoles. Required 'true' for Google Cloud Marketplace. |
 | global.dockerSocketPath | Path to the docker runtime socket. |
 | global.endpoint.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |

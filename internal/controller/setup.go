@@ -6,12 +6,16 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/discovery"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -23,7 +27,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-	"github.com/DataDog/datadog-operator/pkg/utils"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
 const (
@@ -83,37 +87,11 @@ var controllerStarters = map[string]starterFunc{
 }
 
 // SetupControllers starts all controllers (also used by e2e tests)
-func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOptions) error {
-	// Get some information about Kubernetes version
-	// Never use original mgr.GetConfig(), always copy as clients might modify the configuration
-	discoveryConfig := rest.CopyConfig(mgr.GetConfig())
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(discoveryConfig)
-	if err != nil {
-		return fmt.Errorf("unable to get discovery client: %w", err)
-	}
-
-	versionInfo, err := discoveryClient.ServerVersion()
-	if err != nil {
-		return fmt.Errorf("unable to get APIServer version: %w", err)
-	}
-
-	if versionInfo != nil {
-		gitVersion := versionInfo.GitVersion
-		if !utils.IsAboveMinVersion(gitVersion, "1.16-0") {
-			logger.Error(nil, "Detected Kubernetes version <1.16 which requires CRD version apiextensions.k8s.io/v1beta1. "+
-				"CRDs of this version will be deprecated and will not be updated starting with Operator v1.8.0 and will be removed in v1.10.0.")
-		}
-	}
-
-	groups, resources, err := getServerGroupsAndResources(logger, discoveryClient)
-	if err != nil {
-		return fmt.Errorf("unable to get API resource versions: %w", err)
-	}
-	platformInfo := kubernetes.NewPlatformInfo(versionInfo, groups, resources)
+func SetupControllers(logger logr.Logger, mgr manager.Manager, platformInfo kubernetes.PlatformInfo, options SetupOptions) error {
 
 	var metricForwardersMgr datadog.MetricsForwardersManager
 	if options.OperatorMetricsEnabled {
-		metricForwardersMgr = datadog.NewForwardersManager(mgr.GetClient(), &platformInfo)
+		metricForwardersMgr = datadog.NewForwardersManager(mgr.GetClient(), &platformInfo, options.DatadogAgentInternalEnabled)
 	}
 
 	for controller, starter := range controllerStarters {
@@ -123,17 +101,6 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOpti
 	}
 
 	return nil
-}
-
-func getServerGroupsAndResources(log logr.Logger, discoveryClient *discovery.DiscoveryClient) ([]*v1.APIGroup, []*v1.APIResourceList, error) {
-	groups, resources, err := discoveryClient.ServerGroupsAndResources()
-	if err != nil {
-		if !discovery.IsGroupDiscoveryFailedError(err) {
-			log.Info("GetServerGroupsAndResources ERROR", "err", err)
-			return nil, nil, err
-		}
-	}
-	return groups, resources, nil
 }
 
 func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
@@ -300,4 +267,89 @@ func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, pInfo ku
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorderFor(profileControllerName),
 	}).SetupWithManager(mgr)
+}
+
+// CleanupDatadogAgentInternalResources removes leftover DatadogAgentInternal resources when DDAI controller is disabled
+func CleanupDatadogAgentInternalResources(logger logr.Logger, restConfig *rest.Config) error {
+	logger.Info("Cleaning up leftover DatadogAgentInternal resources")
+
+	// Create a dynamic client for direct API server calls
+	dynamicClient, err := dynamic.NewForConfig(restConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create dynamic client: %w", err)
+	}
+
+	// Define the GVR for DatadogAgentInternal
+	ddaiGVR := schema.GroupVersionResource{
+		Group:    rbac.DatadogAPIGroup,
+		Version:  "v1alpha1",
+		Resource: rbac.DatadogAgentInternalsResource,
+	}
+
+	// Try to list DDAI resources directly - this will fail if CRD doesn't exist
+	ddaiList, err := dynamicClient.Resource(ddaiGVR).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			logger.Info("DatadogAgentInternal CRD not found, skipping cleanup")
+			return nil
+		}
+		return fmt.Errorf("failed to list DatadogAgentInternal resources: %w", err)
+	}
+
+	logger.Info("Found DatadogAgentInternal resources to cleanup", "count", len(ddaiList.Items))
+
+	// Process each DDAI resource
+	for _, ddai := range ddaiList.Items {
+		namespace := ddai.GetNamespace()
+		name := ddai.GetName()
+
+		logger.Info("Cleaning up DatadogAgentInternal resource", "namespace", namespace, "name", name)
+
+		// Remove finalizer if it exists
+		finalizers := ddai.GetFinalizers()
+		if len(finalizers) > 0 {
+			// Create a patch to remove the finalizer
+			patchData := []byte(`{"metadata":{"finalizers":[]}}`)
+
+			_, err = dynamicClient.Resource(ddaiGVR).Namespace(namespace).Patch(
+				context.TODO(),
+				name,
+				types.MergePatchType,
+				patchData,
+				metav1.PatchOptions{},
+			)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					logger.Info("DatadogAgentInternal resource already deleted", "namespace", namespace, "name", name)
+					continue
+				}
+				logger.Error(err, "Failed to remove finalizer from DatadogAgentInternal resource", "namespace", namespace, "name", name)
+				// Continue with other resources even if one fails
+				continue
+			}
+
+			logger.Info("Removed finalizer from DatadogAgentInternal resource", "namespace", namespace, "name", name)
+		}
+
+		// Delete the resource
+		err = dynamicClient.Resource(ddaiGVR).Namespace(namespace).Delete(
+			context.TODO(),
+			name,
+			metav1.DeleteOptions{},
+		)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				logger.Info("DatadogAgentInternal resource already deleted", "namespace", namespace, "name", name)
+				continue
+			}
+			logger.Error(err, "Failed to delete DatadogAgentInternal resource", "namespace", namespace, "name", name)
+			// Continue with other resources even if one fails
+			continue
+		}
+
+		logger.Info("Successfully deleted DatadogAgentInternal resource", "namespace", namespace, "name", name)
+	}
+
+	logger.Info("Completed cleanup of DatadogAgentInternal resources")
+	return nil
 }

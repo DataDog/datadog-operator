@@ -42,7 +42,6 @@ core,github.com/cespare/xxhash/v2,MIT
 core,github.com/cihub/seelog,BSD-3-Clause
 core,github.com/davecgh/go-spew/spew,ISC
 core,github.com/dustin/go-humanize,MIT
-core,github.com/ebitengine/purego,Apache-2.0
 core,github.com/emicklei/go-restful/v3,MIT
 core,github.com/evanphx/json-patch/v5,BSD-3-Clause
 core,github.com/felixge/httpsnoop,MIT
@@ -122,7 +121,7 @@ core,go.opentelemetry.io/proto/otlp,Apache-2.0
 core,go.uber.org/atomic,MIT
 core,go.uber.org/multierr,MIT
 core,go.uber.org/zap,MIT
-core,golang.org/x/exp,BSD-3-Clause
+core,golang.org/x/exp/slices,BSD-3-Clause
 core,golang.org/x/mod/semver,BSD-3-Clause
 core,golang.org/x/net,BSD-3-Clause
 core,golang.org/x/oauth2,BSD-3-Clause

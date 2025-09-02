@@ -144,7 +144,7 @@ func (o *otelCollectorFeature) buildOTelAgentCoreConfigMap() (*corev1.ConfigMap,
 	return nil, nil
 }
 
-func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	// check if an otel collector config was provided. If not, use default.
 	if o.customConfig == nil {
 		o.customConfig = &v2alpha1.CustomConfig{}
@@ -213,7 +213,7 @@ func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManag
 	return nil
 }
 
-func (o *otelCollectorFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (o *otelCollectorFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 
@@ -274,7 +274,7 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 	for id, container := range managers.PodTemplateSpec().Spec.Containers {
 		if container.Name == "otel-agent" {
 			for _, command := range commands {
-				managers.PodTemplateSpec().Spec.Containers[id].Command = append(managers.PodTemplateSpec().Spec.Containers[id].Command,
+				managers.PodTemplateSpec().Spec.Containers[id].Args = append(managers.PodTemplateSpec().Spec.Containers[id].Args,
 					"--config="+command,
 				)
 			}
@@ -350,6 +350,6 @@ func (o *otelCollectorFeature) ManageSingleContainerNodeAgent(managers feature.P
 	return nil
 }
 
-func (o *otelCollectorFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (o *otelCollectorFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

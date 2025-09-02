@@ -17,7 +17,6 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/stretchr/testify/assert"
 )
@@ -191,10 +190,10 @@ func Test_computeProfileMerge(t *testing.T) {
 			},
 			want: v1alpha1.DatadogAgentInternal{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo-profile-foo-profile",
+					Name:      "foo-profile",
 					Namespace: "bar",
 					Annotations: map[string]string{
-						constants.MD5DDAIDeploymentAnnotationKey: "d302e0505ae43dad0fe5d8556ef539e1",
+						constants.MD5DDAIDeploymentAnnotationKey: "f4acb355091265e0ede2f743dabedc7e",
 					},
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
@@ -250,15 +249,14 @@ func Test_computeProfileMerge(t *testing.T) {
 								},
 							},
 							Labels: map[string]string{
-								agentprofile.ProfileLabelKey:                 "foo-profile",
+								constants.ProfileLabelKey:                    "foo-profile",
 								constants.MD5AgentDeploymentProviderLabelKey: "",
 							},
-							Name: apiutils.NewStringPointer("datadog-agent-with-profile-bar-foo-profile"),
 						},
-						v2alpha1.ClusterAgentComponentName: &v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.ClusterAgentComponentName: {
 							Disabled: apiutils.NewBoolPointer(true),
 						},
-						v2alpha1.ClusterChecksRunnerComponentName: &v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.ClusterChecksRunnerComponentName: {
 							Disabled: apiutils.NewBoolPointer(true),
 						},
 					},
@@ -528,14 +526,13 @@ func Test_setProfileSpec(t *testing.T) {
 								},
 							},
 							Labels: map[string]string{
-								agentprofile.ProfileLabelKey: "foo-profile",
+								constants.ProfileLabelKey: "foo-profile",
 							},
-							Name: apiutils.NewStringPointer("datadog-agent-with-profile-bar-foo-profile"),
 						},
-						v2alpha1.ClusterAgentComponentName: &v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.ClusterAgentComponentName: {
 							Disabled: apiutils.NewBoolPointer(true),
 						},
-						v2alpha1.ClusterChecksRunnerComponentName: &v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.ClusterChecksRunnerComponentName: {
 							Disabled: apiutils.NewBoolPointer(true),
 						},
 					},
@@ -605,10 +602,10 @@ func Test_setProfileDDAIMeta(t *testing.T) {
 			},
 			want: v1alpha1.DatadogAgentInternal{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo-profile-foo",
+					Name:      "foo",
 					Namespace: "bar",
 					Labels: map[string]string{
-						agentprofile.ProfileLabelKey: "foo",
+						constants.ProfileLabelKey: "foo",
 					},
 				},
 			},

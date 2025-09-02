@@ -5,7 +5,15 @@
 
 package gpu
 
-const DDEnableGPUMonitoringEnvVar = "DD_GPU_MONITORING_ENABLED"
+// DDEnableGPUProbeEnvVar is the name of the system-probe gpu_monitoring module enablement knob
+const DDEnableGPUProbeEnvVar = "DD_GPU_MONITORING_ENABLED"
+
+// DDEnableGPUMonitoringCheckEnvVar is the name of the gpu core-check config enablement knob
+const DDEnableGPUMonitoringCheckEnvVar = "DD_GPU_ENABLED"
+
+// DDEnableNVMLDetectionEnvVar is deprecated and will be removed in a future release
 const DDEnableNVMLDetectionEnvVar = "DD_ENABLE_NVML_DETECTION"
-const DDCollectGPUTagsEnvVar = "DD_COLLECT_GPU_TAGS"
 const NVIDIAVisibleDevicesEnvVar = "NVIDIA_VISIBLE_DEVICES"
+
+// DDPatchCgroupPermissionsEnvVar is the name of the system-probe gpu_monitoring module cgroup permissions patch knob
+const DDPatchCgroupPermissionsEnvVar = "DD_GPU_MONITORING_CONFIGURE_CGROUP_PERMS"

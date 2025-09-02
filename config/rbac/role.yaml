@@ -104,6 +104,7 @@ rules:
   verbs:
   - create
   - delete
+  - deletecollection
   - get
   - list
   - patch
@@ -134,6 +135,15 @@ rules:
   verbs:
   - create
   - get
+- apiGroups:
+  - auto.gke.io
+  resources:
+  - allowlistsynchronizers
+  verbs:
+  - create
+  - get
+  - list
+  - watch
 - apiGroups:
   - autoscaling
   resources:
@@ -188,6 +198,13 @@ rules:
   - list
   - patch
   - update
+  - watch
+- apiGroups:
+  - datadoghq.com
+  resources:
+  - '*'
+  verbs:
+  - list
   - watch
 - apiGroups:
   - datadoghq.com
