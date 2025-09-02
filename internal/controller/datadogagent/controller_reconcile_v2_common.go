@@ -65,22 +65,15 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 	}
 
 	// Get the current deployment and compare
-	nsName := types.NamespacedName{
-		Name:      deployment.GetName(),
-		Namespace: deployment.GetNamespace(),
+	currentDeployment, err := r.getCurrentDeployment(dda, deployment)
+	if err != nil {
+		return reconcile.Result{}, err
 	}
 
-	currentDeployment := &appsv1.Deployment{}
 	alreadyExists := true
-	err = r.client.Get(context.TODO(), nsName, currentDeployment)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			logger.Info("deployment is not found")
-			alreadyExists = false
-		} else {
-			logger.Error(err, "unexpected error during deployment get")
-			return reconcile.Result{}, err
-		}
+	if currentDeployment == nil {
+		logger.Info("deployment is not found")
+		alreadyExists = false
 	}
 
 	if alreadyExists {
@@ -103,9 +96,18 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 			}
 			logger.Info("Deployment owner reference patched")
 		}
-		if !maps.Equal(deployment.Spec.Selector.MatchLabels, currentDeployment.Spec.Selector.MatchLabels) {
-			if err = deleteObjectAndOrphanDependents(context.TODO(), logger, r.client, deployment, deployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
-				return result, err
+		if restartDeployment(deployment, currentDeployment) {
+			// if its a helm cluster checks runner deployment, delete the workload and dependents
+			helmCCRDeployment := currentDeployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey] == "clusterchecks-agent" && dda.GetAnnotations()[apicommon.HelmMigrationAnnotationKey] == "true"
+			if helmCCRDeployment {
+				if err = deleteAllWorkloadsAndDependentsBackground(context.TODO(), logger, r.client, currentDeployment, currentDeployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
+					return result, err
+				}
+				return result, nil
+			} else {
+				if err = deleteObjectAndOrphanDependents(context.TODO(), logger, r.client, deployment, deployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
+					return result, err
+				}
 			}
 			return result, nil
 		}
@@ -622,6 +624,78 @@ func (r *Reconciler) addDDAIStatusToDDAStatus(status *datadoghqv2alpha1.DatadogA
 	// TODO: Add and/or merge conditions once DDAI reconcile PR is merged
 
 	return nil
+}
+
+// getCurrentDeployment returns the current deployment for a given DDA
+func (r *Reconciler) getCurrentDeployment(dda, deployment metav1.Object) (*appsv1.Deployment, error) {
+	// Helm-migrated deployment
+	if val, ok := dda.GetAnnotations()[apicommon.HelmMigrationAnnotationKey]; ok && val == "true" {
+		componentType := deployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]
+		if componentType == "" {
+			r.log.Info("No component label found in deployment, using default")
+			componentType = constants.DefaultAgentResourceSuffix
+		}
+		dsList := appsv1.DeploymentList{}
+		matchLabels := client.MatchingLabels{}
+		// Special handling for cluster checks runner - helm has different component name
+		if componentType == constants.DefaultClusterChecksRunnerResourceSuffix {
+			matchLabels = client.MatchingLabels{
+				kubernetes.AppKubernetesManageByLabelKey:  "Helm",
+				kubernetes.AppKubernetesInstanceLabelKey:  dda.GetName(),
+				kubernetes.AppKubernetesComponentLabelKey: "clusterchecks-agent",
+			}
+		} else {
+			matchLabels = client.MatchingLabels{
+				kubernetes.AppKubernetesManageByLabelKey:   "Helm",
+				apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
+				apicommon.AgentDeploymentComponentLabelKey: componentType,
+			}
+		}
+
+		if err := r.client.List(context.TODO(), &dsList, matchLabels); err != nil {
+			return nil, err
+		}
+
+		switch len(dsList.Items) {
+		case 0:
+			r.log.Info("Helm-deployed deployment is not found", "component", componentType)
+			return nil, nil
+		case 1:
+			r.log.Info("Found Helm-deployed deployment", "name", dsList.Items[0].Name)
+			return &dsList.Items[0], nil
+		default:
+			return nil, fmt.Errorf("expected 1 deployment for datadog helm release: %s, got %d", dda.GetName(), len(dsList.Items))
+		}
+	}
+
+	// Default deployment
+	nsName := types.NamespacedName{
+		Name:      deployment.GetName(),
+		Namespace: deployment.GetNamespace(),
+	}
+	currentDeployment := &appsv1.Deployment{}
+	if err := r.client.Get(context.TODO(), nsName, currentDeployment); err != nil {
+		if apierrors.IsNotFound(err) {
+			r.log.Info("deployment is not found")
+			return nil, nil
+		}
+		return nil, err
+	}
+	return currentDeployment, nil
+}
+
+func restartDeployment(deployment, currentDeployment *appsv1.Deployment) bool {
+	// name change
+	if deployment.Name != currentDeployment.Name {
+		return true
+	}
+
+	// selectors are immutable
+	if !maps.Equal(deployment.Spec.Selector.MatchLabels, currentDeployment.Spec.Selector.MatchLabels) {
+		return true
+	}
+
+	return false
 }
 
 // getCurrentDaemonset returns the current daemonset for a given DDA
