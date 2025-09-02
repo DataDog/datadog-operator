@@ -120,6 +120,13 @@ rules:
   - list
   - watch
 - apiGroups:
+  - argoproj.io
+  resources:
+  - rollouts
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - authentication.k8s.io
   resources:
   - tokenreviews
@@ -202,13 +209,6 @@ rules:
 - apiGroups:
   - datadoghq.com
   resources:
-  - '*'
-  verbs:
-  - list
-  - watch
-- apiGroups:
-  - datadoghq.com
-  resources:
   - datadogagentinternals
   - datadogagentinternals/finalizers
   - datadogagentprofiles
@@ -276,6 +276,16 @@ rules:
   - watermarkpodautoscalers
   verbs:
   - get
+  - list
+  - watch
+- apiGroups:
+  - datadoghq.com
+  - karpenter.azure.com
+  - karpenter.k8s.aws
+  - karpenter.sh
+  resources:
+  - '*'
+  verbs:
   - list
   - watch
 - apiGroups:
