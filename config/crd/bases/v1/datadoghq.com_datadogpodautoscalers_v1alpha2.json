@@ -289,6 +289,16 @@
               "default": {},
               "description": "Horizontal configures the behavior during horizontal fallback mode.",
               "properties": {
+                "direction": {
+                  "default": "ScaleUp",
+                  "description": "Direction determines the direction that recommendations should be applied.",
+                  "enum": [
+                    "ScaleUp",
+                    "ScaleDown",
+                    "All"
+                  ],
+                  "type": "string"
+                },
                 "enabled": {
                   "default": true,
                   "description": "Enabled determines whether recommendations should be applied by the controller:",
