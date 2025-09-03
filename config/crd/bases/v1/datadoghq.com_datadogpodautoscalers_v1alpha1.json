@@ -528,6 +528,30 @@
               },
               "type": "array"
             },
+            "lastRecommendations": {
+              "description": "LastRecommendations stores the most recent recommendations",
+              "items": {
+                "additionalProperties": false,
+                "description": "DatadogPodAutoscalerRecommendation represents a single horizontal scaling recommendation",
+                "properties": {
+                  "recommendedReplicas": {
+                    "description": "RecommendedReplicas is the unconstrainted number of replicas recommended by Datadog",
+                    "format": "int32",
+                    "type": "integer"
+                  },
+                  "time": {
+                    "format": "date-time",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "recommendedReplicas",
+                  "time"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
             "target": {
               "additionalProperties": false,
               "description": "Target is the current target of the horizontal scaling",

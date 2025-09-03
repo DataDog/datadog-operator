@@ -278,6 +278,9 @@ type DatadogPodAutoscalerHorizontalStatus struct {
 
 	// LastActions are the last successful actions done by the controller
 	LastActions []DatadogPodAutoscalerHorizontalAction `json:"lastActions,omitempty"`
+
+	// LastRecommendations stores the most recent recommendations
+	LastRecommendations []DatadogPodAutoscalerRecommendation `json:"lastRecommendations,omitempty"`
 }
 
 // DatadogPodAutoscalerHorizontalTargetStatus defines the current target of the horizontal scaling
@@ -310,6 +313,15 @@ type DatadogPodAutoscalerHorizontalAction struct {
 
 	// LimitedReason is the reason why the action was limited (that is ToReplicas != RecommendedReplicas)
 	LimitedReason *string `json:"limitedReason,omitempty"`
+}
+
+// DatadogPodAutoscalerRecommendation represents a single horizontal scaling recommendation
+// +kubebuilder:object:generate=true
+type DatadogPodAutoscalerRecommendation struct {
+	Time metav1.Time `json:"time"`
+
+	// RecommendedReplicas is the unconstrainted number of replicas recommended by Datadog
+	RecommendedReplicas int32 `json:"recommendedReplicas"`
 }
 
 // DatadogPodAutoscalerVerticalStatus defines the status of the vertical scaling
