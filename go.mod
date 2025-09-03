@@ -3,20 +3,25 @@ module github.com/L3n41c/karpenter_installer_wizard
 go 1.24.3
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.38.3 // indirect
-	github.com/aws/aws-sdk-go-v2/config v1.31.6 // indirect
+	github.com/aws/aws-sdk-go-v2 v1.38.3
+	github.com/aws/aws-sdk-go-v2/config v1.31.6
+	github.com/aws/aws-sdk-go-v2/service/cloudformation v1.65.2
+	github.com/aws/smithy-go v1.23.0
+	github.com/stretchr/testify v1.11.1
+	k8s.io/client-go v0.34.0
+)
+
+require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.18.10 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.6 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.6 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.6 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.3 // indirect
-	github.com/aws/aws-sdk-go-v2/service/cloudformation v1.65.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.6 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.29.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.34.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.38.2 // indirect
-	github.com/aws/smithy-go v1.23.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
@@ -25,6 +30,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
@@ -35,8 +41,8 @@ require (
 	golang.org/x/text v0.23.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/apimachinery v0.34.0 // indirect
-	k8s.io/client-go v0.34.0 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397 // indirect
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
