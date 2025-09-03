@@ -274,26 +274,27 @@ const (
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerHorizontalStatus struct {
 	// Target is the current target of the horizontal scaling
-	Target *DatadogPodAutoscalerHorizontalTargetStatus `json:"target,omitempty"`
+	Target *DatadogPodAutoscalerHorizontalRecommendation `json:"target,omitempty"`
 
 	// LastActions are the last successful actions done by the controller
 	LastActions []DatadogPodAutoscalerHorizontalAction `json:"lastActions,omitempty"`
 
 	// LastRecommendations stores the most recent recommendations
-	LastRecommendations []DatadogPodAutoscalerRecommendation `json:"lastRecommendations,omitempty"`
+	LastRecommendations []DatadogPodAutoscalerHorizontalRecommendation `json:"lastRecommendations,omitempty"`
 }
 
-// DatadogPodAutoscalerHorizontalTargetStatus defines the current target of the horizontal scaling
+// DatadogPodAutoscalerHorizontalRecommendation defines a horizontal scaling recommendation
 // +kubebuilder:object:generate=true
-type DatadogPodAutoscalerHorizontalTargetStatus struct {
+type DatadogPodAutoscalerHorizontalRecommendation struct {
 	// Source is the source of the value used to scale the target workload
-	Source DatadogPodAutoscalerValueSource `json:"source"`
+	// +optional
+	Source DatadogPodAutoscalerValueSource `json:"source,omitempty"`
 
 	// GeneratedAt is the timestamp at which the recommendation was generated
 	GeneratedAt metav1.Time `json:"generatedAt,omitempty"`
 
-	// Replicas is the desired number of replicas for the workload
-	Replicas int32 `json:"desiredReplicas"`
+	// Replicas is the recommended number of replicas for the workload
+	Replicas int32 `json:"replicas"`
 }
 
 // DatadogPodAutoscalerHorizontalAction represents a horizontal action done by the controller
@@ -313,15 +314,6 @@ type DatadogPodAutoscalerHorizontalAction struct {
 
 	// LimitedReason is the reason why the action was limited (that is ToReplicas != RecommendedReplicas)
 	LimitedReason *string `json:"limitedReason,omitempty"`
-}
-
-// DatadogPodAutoscalerRecommendation represents a single horizontal scaling recommendation
-// +kubebuilder:object:generate=true
-type DatadogPodAutoscalerRecommendation struct {
-	Time metav1.Time `json:"time"`
-
-	// RecommendedReplicas is the unconstrainted number of replicas recommended by Datadog
-	RecommendedReplicas int32 `json:"recommendedReplicas"`
 }
 
 // DatadogPodAutoscalerVerticalStatus defines the status of the vertical scaling
