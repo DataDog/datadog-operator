@@ -240,12 +240,6 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, policiesDirEnvVar)
 
-	hostRootEnvVar := &corev1.EnvVar{
-		Name:  common.DDHostRootEnvVar,
-		Value: common.HostRootMountPath,
-	}
-	managers.EnvVar().AddEnvVarToContainer(apicommon.SecurityAgentContainerName, hostRootEnvVar)
-
 	volMountMgr := managers.VolumeMount()
 	volMgr := managers.Volume()
 
@@ -298,11 +292,6 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	volMountMgr.AddVolumeMountToContainer(&osReleaseVolMount, apicommon.SystemProbeContainerName)
 	volMgr.AddVolume(&osReleaseVol)
 
-	// hostroot volume mount
-	hostrootVol, hostrootVolMount := volume.GetVolumes(common.HostRootVolumeName, common.HostRootHostPath, common.HostRootMountPath, true)
-	volMountMgr.AddVolumeMountToContainer(&hostrootVolMount, apicommon.SecurityAgentContainerName)
-	volMgr.AddVolume(&hostrootVol)
-
 	// Custom policies are copied and merged with default policies via a workaround in the init-volume container.
 	if f.customConfig != nil {
 		var vol corev1.Volume
@@ -344,12 +333,9 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 			}
 		}
 
-		// Add policies directory envvar to Security Agent, and empty volume to System Probe and Security Agent.
-		managers.EnvVar().AddEnvVarToContainer(apicommon.SecurityAgentContainerName, policiesDirEnvVar)
-
 		policiesVol, policiesVolMount := volume.GetVolumesEmptyDir(securityAgentRuntimePoliciesDirVolumeName, securityAgentRuntimePoliciesDirVolumePath, true)
 		volMgr.AddVolume(&policiesVol)
-		volMountMgr.AddVolumeMountToContainers(&policiesVolMount, []apicommon.AgentContainerName{apicommon.SecurityAgentContainerName, apicommon.SystemProbeContainerName})
+		volMountMgr.AddVolumeMountToContainer(&policiesVolMount, apicommon.SystemProbeContainerName)
 
 		// Add runtime-security.d volume mount to init-volume container at different path
 		policiesVolMountInitVol := corev1.VolumeMount{
