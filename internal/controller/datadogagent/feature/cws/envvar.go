@@ -14,4 +14,5 @@ const (
 	DDRuntimeSecurityConfigNetworkEnabled             = "DD_RUNTIME_SECURITY_CONFIG_NETWORK_ENABLED"
 	DDRuntimeSecurityConfigActivityDumpEnabled        = "DD_RUNTIME_SECURITY_CONFIG_ACTIVITY_DUMP_ENABLED"
 	DDRuntimeSecurityConfigRemoteConfigurationEnabled = "DD_RUNTIME_SECURITY_CONFIG_REMOTE_CONFIGURATION_ENABLED"
+	DDRuntimeSecurityConfigDirectSendFromSystemProbe  = "DD_RUNTIME_SECURITY_CONFIG_DIRECT_SEND_FROM_SYSTEM_PROBE"
 )

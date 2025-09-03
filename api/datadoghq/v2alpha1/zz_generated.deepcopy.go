@@ -460,6 +460,11 @@ func (in *CWSFeatureConfig) DeepCopyInto(out *CWSFeatureConfig) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.DirectSendFromSystemProbe != nil {
+		in, out := &in.DirectSendFromSystemProbe, &out.DirectSendFromSystemProbe
+		*out = new(bool)
+		**out = **in
+	}
 	if in.Network != nil {
 		in, out := &in.Network, &out.Network
 		*out = new(CWSNetworkConfig)
