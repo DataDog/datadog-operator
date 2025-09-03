@@ -26,6 +26,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -627,24 +628,45 @@ func (r *Reconciler) addDDAIStatusToDDAStatus(status *datadoghqv2alpha1.DatadogA
 // getCurrentDaemonset returns the current daemonset for a given DDA
 // The Daemonset may use the old naming format so we retrieve it via labels
 func (r *Reconciler) getCurrentDaemonset(dda, daemonset metav1.Object) (*appsv1.DaemonSet, error) {
-	// Profile daemonset
-	if profileName, ok := dda.GetLabels()[constants.ProfileLabelKey]; ok {
-		dsList := appsv1.DaemonSetList{}
-		if err := r.client.List(context.TODO(), &dsList, client.MatchingLabels{
-			apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-			kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
-			constants.ProfileLabelKey:                  profileName,
-		}); err != nil {
-			return nil, err
-		}
-		switch len(dsList.Items) {
-		case 0:
-			r.log.Info("daemonset is not found")
-			return nil, nil
-		case 1:
-			return &dsList.Items[0], nil
-		default:
-			return nil, fmt.Errorf("expected 1 daemonset for profile: %s, got %d", profileName, len(dsList.Items))
+	// Profile daemonset: infer from desired PodTemplate labels, not DDA labels
+	if ds, ok := daemonset.(*appsv1.DaemonSet); ok {
+		if profileName := ds.Spec.Template.Labels[constants.ProfileLabelKey]; profileName != "" {
+			dsList := appsv1.DaemonSetList{}
+			if err := r.client.List(
+				context.TODO(),
+				&dsList,
+				client.InNamespace(ds.GetNamespace()),
+				client.MatchingLabels(map[string]string{
+					kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+					kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
+					apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+				}),
+			); err != nil {
+				return nil, err
+			}
+
+			instanceName := ds.Spec.Template.Labels[kubernetes.AppKubernetesInstanceLabelKey]
+			candidates := make([]*appsv1.DaemonSet, 0, len(dsList.Items))
+			for i := range dsList.Items {
+				cur := &dsList.Items[i]
+				if cur.Spec.Template.Labels[constants.ProfileLabelKey] != profileName {
+					continue
+				}
+				if instanceName != "" && cur.Spec.Template.Labels[kubernetes.AppKubernetesInstanceLabelKey] != instanceName {
+					continue
+				}
+				candidates = append(candidates, cur)
+			}
+
+			switch len(candidates) {
+			case 0:
+				r.log.Info("daemonset is not found")
+				return nil, nil
+			case 1:
+				return candidates[0], nil
+			default:
+				return nil, fmt.Errorf("expected 1 daemonset for profile: %s, got %d", profileName, len(candidates))
+			}
 		}
 	}
 
