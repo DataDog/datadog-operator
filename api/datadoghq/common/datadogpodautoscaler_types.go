@@ -294,7 +294,7 @@ type DatadogPodAutoscalerHorizontalRecommendation struct {
 	GeneratedAt metav1.Time `json:"generatedAt,omitempty"`
 
 	// Replicas is the recommended number of replicas for the workload
-	Replicas int32 `json:"replicas"`
+	Replicas int32 `json:"desiredReplicas"`
 }
 
 // DatadogPodAutoscalerHorizontalAction represents a horizontal action done by the controller

@@ -581,15 +581,15 @@
                 "additionalProperties": false,
                 "description": "DatadogPodAutoscalerHorizontalRecommendation defines a horizontal scaling recommendation",
                 "properties": {
+                  "desiredReplicas": {
+                    "description": "Replicas is the recommended number of replicas for the workload",
+                    "format": "int32",
+                    "type": "integer"
+                  },
                   "generatedAt": {
                     "description": "GeneratedAt is the timestamp at which the recommendation was generated",
                     "format": "date-time",
                     "type": "string"
-                  },
-                  "replicas": {
-                    "description": "Replicas is the recommended number of replicas for the workload",
-                    "format": "int32",
-                    "type": "integer"
                   },
                   "source": {
                     "description": "Source is the source of the value used to scale the target workload",
@@ -597,7 +597,7 @@
                   }
                 },
                 "required": [
-                  "replicas"
+                  "desiredReplicas"
                 ],
                 "type": "object"
               },
@@ -607,15 +607,15 @@
               "additionalProperties": false,
               "description": "Target is the current target of the horizontal scaling",
               "properties": {
+                "desiredReplicas": {
+                  "description": "Replicas is the recommended number of replicas for the workload",
+                  "format": "int32",
+                  "type": "integer"
+                },
                 "generatedAt": {
                   "description": "GeneratedAt is the timestamp at which the recommendation was generated",
                   "format": "date-time",
                   "type": "string"
-                },
-                "replicas": {
-                  "description": "Replicas is the recommended number of replicas for the workload",
-                  "format": "int32",
-                  "type": "integer"
                 },
                 "source": {
                   "description": "Source is the source of the value used to scale the target workload",
@@ -623,7 +623,7 @@
                 }
               },
               "required": [
-                "replicas"
+                "desiredReplicas"
               ],
               "type": "object"
             }
