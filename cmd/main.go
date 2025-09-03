@@ -224,7 +224,7 @@ func run(opts *options) error {
 	if opts.datadogAgentEnabled {
 		setupLog.Error(nil, "[WARNING] Upcoming Agent DaemonSet selector changes in Operator v1.20. If you rely on Datadog Agent pod labels e.g. in NetworkPolicies, verify if you may be impacted. See README for details.")
 		if opts.datadogAgentProfileEnabled {
-			setupLog.Error(nil, "[WARNING] Upcoming selector change in Agent DaemonSets managed by DAPs in Operator v1.18 and v1.20. If you rely on Datadog Agent pod labels e.g. in NetworkPolicies review if you may be impacted. See README for details.")
+			setupLog.Error(nil, "[WARNING] Upcoming selector changes in Agent DaemonSets managed by DAPs in Operator v1.18 and v1.20. If you rely on Datadog Agent pod labels, e.g. in NetworkPolicies, verify if you may be impacted. See README for details.")
 		}
 	}
 
