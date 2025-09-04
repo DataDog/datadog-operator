@@ -227,6 +227,10 @@ datadog-agent-lkfqt                          0/1     Running    0          15s
 datadog-agent-zvdbw                          1/1     Running    0          8m1s
 ```
 
+## Configuration
+
+For a full list of configuration options, see the [configuration spec][12].
+
 ## Install the kubectl plugin
 
 See the [`kubectl` plugin documentation][11].
@@ -270,3 +274,4 @@ helm delete my-datadog-operator
 [9]: https://github.com/DataDog/datadog-operator/blob/main/docs/custom-operator-image.md
 [10]: https://docs.datadoghq.com/containers/kubernetes/installation
 [11]: https://github.com/DataDog/datadog-operator/blob/main/docs/kubectl-plugin.md
+[12]: https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md
