@@ -35,9 +35,17 @@ introspection:
   enabled: true
 ```
 
-Or using the command line:
+Using the command line:
 ```bash
 helm install datadog-operator datadog/datadog-operator --set introspection.enabled=true
+```
+
+Or, for **OpenShift users** who installed the operator via OperatorHub/Marketplace (the [recommended method](install-openshift.md)), by patching the operator cluster service version:
+
+```bash
+oc patch csv <datadog-operator.VERSION> -n <datadog-operator-namespace> \
+  --type='json' \
+  -p='[{"op": "add", "path": "/spec/install/spec/deployments/0/spec/template/spec/containers/0/args/-", "value": "--introspectionEnabled=true"}]'
 ```
 
 Since this feature is enabled by default, you can deploy a minimal DatadogAgent spec. 
