@@ -108,7 +108,7 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 	if options.GroupRetentionDuration != nil {
 		o.SetGroupRetentionDuration(*options.GroupRetentionDuration)
 	}
-	
+
 	if options.GroupbySimpleMonitor != nil {
 		o.SetGroupbySimpleMonitor(*options.GroupbySimpleMonitor)
 	}
