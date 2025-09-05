@@ -48,6 +48,7 @@ func Test_buildMonitor(t *testing.T) {
 				EvaluationDelay:        ptr.To(int64(100)),
 				EscalationMessage:      ptr.To("This is an escalation message"),
 				IncludeTags:            ptr.To(true),
+				GroupRetentionDuration: ptr.To("2d"),
 				GroupbySimpleMonitor:   ptr.To(true),
 				Locked:                 ptr.To(true),
 				NewGroupDelay:          ptr.To(int64(400)),
@@ -117,6 +118,9 @@ func Test_buildMonitor(t *testing.T) {
 
 	assert.Equal(t, *dm.Spec.Options.EscalationMessage, monitor.Options.GetEscalationMessage(), "discrepancy found in parameter: EscalationMessage")
 	assert.Equal(t, *dm.Spec.Options.EscalationMessage, monitorUR.Options.GetEscalationMessage(), "discrepancy found in parameter: EscalationMessage")
+
+	assert.Equal(t, *dm.Spec.Options.GroupRetentionDuration, monitor.Options.GetGroupRetentionDuration(), "discrepancy found in parameter: GroupRetentionDuration")
+	assert.Equal(t, *dm.Spec.Options.GroupRetentionDuration, monitorUR.Options.GetGroupRetentionDuration(), "discrepancy found in parameter: GroupRetentionDuration")
 
 	assert.Equal(t, *dm.Spec.Options.GroupbySimpleMonitor, monitor.Options.GetGroupbySimpleMonitor(), "discrepancy found in parameter: GroupbySimpleMonitor")
 	assert.Equal(t, *dm.Spec.Options.GroupbySimpleMonitor, monitorUR.Options.GetGroupbySimpleMonitor(), "discrepancy found in parameter: GroupbySimpleMonitor")
