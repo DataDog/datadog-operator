@@ -1214,6 +1214,10 @@
                       },
                       "type": "object"
                     },
+                    "directSendFromSystemProbe": {
+                      "description": "DirectSendFromSystemProbe enables direct sending of events from the System Probe.\nDefault: false",
+                      "type": "boolean"
+                    },
                     "enabled": {
                       "description": "Enabled enables Cloud Workload Security.\nDefault: false",
                       "type": "boolean"

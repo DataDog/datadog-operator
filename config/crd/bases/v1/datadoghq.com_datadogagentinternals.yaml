@@ -1198,6 +1198,11 @@ spec:
                                   type: string
                               type: object
                           type: object
+                        directSendFromSystemProbe:
+                          description: |-
+                            DirectSendFromSystemProbe enables direct sending of events from the System Probe.
+                            Default: false
+                          type: boolean
                         enabled:
                           description: |-
                             Enabled enables Cloud Workload Security.
@@ -8818,6 +8823,11 @@ spec:
                                       type: string
                                   type: object
                               type: object
+                            directSendFromSystemProbe:
+                              description: |-
+                                DirectSendFromSystemProbe enables direct sending of events from the System Probe.
+                                Default: false
+                              type: boolean
                             enabled:
                               description: |-
                                 Enabled enables Cloud Workload Security.

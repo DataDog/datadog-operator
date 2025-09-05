@@ -48,6 +48,7 @@ type cwsFeature struct {
 	networkEnabled             bool
 	activityDumpEnabled        bool
 	remoteConfigurationEnabled bool
+	directSendFromSystemProbe  bool
 
 	owner  metav1.Object
 	logger logr.Logger
@@ -74,6 +75,7 @@ func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 
 	if cwsConfig != nil && apiutils.BoolValue(cwsConfig.Enabled) {
 		f.syscallMonitorEnabled = apiutils.BoolValue(cwsConfig.SyscallMonitorEnabled)
+		f.directSendFromSystemProbe = apiutils.BoolValue(cwsConfig.DirectSendFromSystemProbe)
 
 		if cwsConfig.CustomPolicies != nil {
 			f.customConfig = cwsConfig.CustomPolicies
@@ -102,13 +104,18 @@ func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			}
 		}
 
+		reqContainers := []apicommon.AgentContainerName{
+			apicommon.SystemProbeContainerName,
+		}
+
+		if !f.directSendFromSystemProbe {
+			reqContainers = append(reqContainers, apicommon.SecurityAgentContainerName)
+		}
+
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommon.AgentContainerName{
-					apicommon.SecurityAgentContainerName,
-					apicommon.SystemProbeContainerName,
-				},
+				Containers: reqContainers,
 			},
 		}
 	}
@@ -186,8 +193,11 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	// env vars for Core Agent, Security Agent and System Probe
 	containersForEnvVars := []apicommon.AgentContainerName{
 		apicommon.CoreAgentContainerName,
-		apicommon.SecurityAgentContainerName,
 		apicommon.SystemProbeContainerName,
+	}
+
+	if !f.directSendFromSystemProbe {
+		containersForEnvVars = append(containersForEnvVars, apicommon.SecurityAgentContainerName)
 	}
 
 	enabledEnvVar := &corev1.EnvVar{
@@ -208,6 +218,14 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 			Value: "true",
 		}
 		managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, monitorEnvVar)
+	}
+
+	if f.directSendFromSystemProbe {
+		directSendEnvVar := &corev1.EnvVar{
+			Name:  DDRuntimeSecurityConfigDirectSendFromSystemProbe,
+			Value: "true",
+		}
+		managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, directSendEnvVar)
 	}
 
 	if f.networkEnabled {
@@ -262,13 +280,17 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	socketVol, socketVolMount := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, false)
 	volMountMgr.AddVolumeMountToContainer(&socketVolMount, apicommon.SystemProbeContainerName)
 
+	readOnlySocketVolMountContainers := []apicommon.AgentContainerName{
+		apicommon.CoreAgentContainerName,
+	}
+	if !f.directSendFromSystemProbe {
+		readOnlySocketVolMountContainers = append(readOnlySocketVolMountContainers, apicommon.SecurityAgentContainerName)
+	}
+
 	_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, true)
 	managers.VolumeMount().AddVolumeMountToContainers(
 		&socketVolMountReadOnly,
-		[]apicommon.AgentContainerName{
-			apicommon.CoreAgentContainerName,
-			apicommon.SecurityAgentContainerName,
-		},
+		readOnlySocketVolMountContainers,
 	)
 	volMgr.AddVolume(&socketVol)
 

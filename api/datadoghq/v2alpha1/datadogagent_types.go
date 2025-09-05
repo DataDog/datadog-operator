@@ -463,6 +463,11 @@ type CWSFeatureConfig struct {
 	// +optional
 	SyscallMonitorEnabled *bool `json:"syscallMonitorEnabled,omitempty"`
 
+	// DirectSendFromSystemProbe enables direct sending of events from the System Probe.
+	// Default: false
+	// +optional
+	DirectSendFromSystemProbe *bool `json:"directSendFromSystemProbe,omitempty"`
+
 	Network             *CWSNetworkConfig             `json:"network,omitempty"`
 	SecurityProfiles    *CWSSecurityProfilesConfig    `json:"securityProfiles,omitempty"`
 	RemoteConfiguration *CWSRemoteConfigurationConfig `json:"remoteConfiguration,omitempty"`
