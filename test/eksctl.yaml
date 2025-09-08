@@ -22,3 +22,16 @@ vpc:
     privateAccess: true
     publicAccess: false
   securityGroup: REPLACE_ME
+
+managedNodeGroups:
+  - name: ng
+    instanceType: t4g.large
+    amiFamily: AmazonLinux2023
+    desiredCapacity: 2
+    minSize: 0
+    maxSize: 10
+    privateNetworking: true
+    tags:
+      Creator: lenaic
+    ssh:
+      publicKeyName: lenaic

@@ -30,6 +30,7 @@ aws ec2 authorize-security-group-ingress \
 yq -i "
    .metadata.name = \"${CLUSTER_NAME}\" |
    .metadata.tags.Creator = \"${USER}\" |
+   .managedNodeGroups[0].tags.Creator = \"${USER}\" |
    .vpc.id = \"${VPC}\" |
    .vpc.securityGroup = \"${SG}\"
 " eksctl.yaml
