@@ -166,7 +166,7 @@ type DatadogPodAutoscalerHorizontalFallbackPolicy struct {
 	// Direction determines the direction that recommendations should be applied.
 	// +optional
 	// +kubebuilder:default=ScaleUp
-	Direction DatadogPodAutoscalerFallbackDirection `json:"direction"`
+	Direction DatadogPodAutoscalerFallbackDirection `json:"direction,omitempty"`
 }
 
 // HorizontalFallbackTriggers defines the triggers that will cause local fallback to be enabled.
