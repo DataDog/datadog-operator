@@ -17,8 +17,8 @@ aws cloudformation delete-stack \
     --stack-name "eksctl-${CLUSTER_NAME}-cluster"
 
 SG=$(aws ec2 describe-security-groups \
-         --filter Name=vpc-id,Values=${VPC} Name=group-name,Values="${CLUSTER_NAME}" \
+         --filter Name=vpc-id,Values="${VPC}" Name=group-name,Values="${CLUSTER_NAME}" \
          --query 'SecurityGroups[*].[GroupId]' \
          --output text)
-[[ -n ${SG+x} ]] && aws ec2 delete-security-group \
+[[ -n ${SG} ]] && aws ec2 delete-security-group \
                         --group-id "${SG}"
