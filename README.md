@@ -6,6 +6,19 @@
 
 ## Overview
 
+> [!WARNING]
+> Upcoming changes to Agent DaemonSet labels and selectors may affect your setup.
+> 
+> - In **Operator v1.18.0**, the `app.kubernetes.io/instance` label value was changed from `<dda-name>-agent` to `<dap-name>-agent` on Pods and DaemonSets managed by [DatadogAgentProfile][17] (beta).
+> 
+> - In **Operator v1.21.0**, the following changes will occur:
+>   - DAP-managed DaemonSets will be renamed from `datadog-agent-with-profile-<dda-name>-<dap-name>` to `<dap-name>-agent`.
+>   - All DaemonSets (default and DAP) will replace the `matchLabels` selector `agent.datadoghq.com/name: <dda-name>` with `agent.datadoghq.com/instance: <dda-name>-agent` or `<dap-name>-agent`.
+> 
+> ⚠️ If you rely on these labels or `matchLabels` (e.g., in NetworkPolicies, admission controllers, or automation), you may need to update those resources.
+> 
+> For a safe, zero-downtime migration path and full details, see the [migration guide][18].
+
 The **Datadog Operator** aims to provide a new way of deploying the [Datadog Agent][1] on Kubernetes. Once deployed, the Datadog Operator provides:
 
 - Agent configuration validation that limits configuration mistakes.
@@ -77,6 +90,8 @@ See the [How to Contribute page][9].
 [14]: https://docs.datadoghq.com/containers/guide/datadogoperator_migration/
 [15]: https://github.com/DataDog/helm-charts/tree/main/charts/datadog-operator#migration
 [16]: https://kubernetes.io/docs/concepts/extend-kubernetes/operator/
+[17]: https://github.com/DataDog/datadog-operator/blob/main/docs/datadog_agent_profiles.md
+[18]: https://github.com/DataDog/datadog-operator/blob/main/docs/agent_metadata_changes.md
 
 ## Release
 
