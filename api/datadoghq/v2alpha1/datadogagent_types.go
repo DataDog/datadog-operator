@@ -1528,13 +1528,6 @@ type GlobalConfig struct {
 	// Configure the secret backend feature https://docs.datadoghq.com/agent/guide/secrets-management
 	// See also: https://github.com/DataDog/datadog-operator/blob/main/docs/secret_management.md
 	SecretBackend *SecretBackendConfig `json:"secretBackend,omitempty"`
-
-	// Configure whether the Process Agent or core Agent collects process and/or container information (Linux only).
-	// If no other checks are running, the Process Agent container will not initialize.
-	// (Requires Agent 7.60.0+)
-	// Default: 'true'
-	// +optional
-	RunProcessChecksInCoreAgent *bool `json:"runProcessChecksInCoreAgent,omitempty"`
 }
 
 // DatadogCredentials is a generic structure that holds credentials to access Datadog.
