@@ -356,6 +356,13 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, true, "", nil).
 				WithAdmissionControllerEnabled(true).
+				WithComponentOverride(
+					v2alpha1.NodeAgentComponentName,
+					v2alpha1.DatadogAgentComponentOverride{
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.60.0"},
+						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "false"}},
+					},
+				).
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  testAPMInstrumentationWithLanguageDetectionEnabledForClusterAgent(),
@@ -400,7 +407,6 @@ func TestAPMFeature(t *testing.T) {
 						Image: &v2alpha1.AgentImageConfig{Tag: "7.60.0"},
 					},
 				).
-				WithProcessChecksInCoreAgent(true).
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  testAPMInstrumentationWithLanguageDetectionEnabledForClusterAgent(),

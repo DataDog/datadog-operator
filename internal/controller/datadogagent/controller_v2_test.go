@@ -369,32 +369,6 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "DatadogAgent with container monitoring in process agent",
-			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
-				scheme:   s,
-				recorder: recorder,
-			},
-			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-					WithProcessChecksInCoreAgent(false).
-					Build()
-				_ = c.Create(context.TODO(), dda)
-				return dda
-			},
-			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
-			wantErr: false,
-			wantFunc: func(c client.Client) error {
-				expectedContainers := []string{
-					string(apicommon.CoreAgentContainerName),
-					string(apicommon.ProcessAgentContainerName),
-					string(apicommon.TraceAgentContainerName),
-				}
-
-				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
-			},
-		},
-		{
 			name: "DatadogAgent with override.nodeAgent.disabled true",
 			fields: fields{
 				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
@@ -942,7 +916,7 @@ func Test_AutopilotOverrides(t *testing.T) {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithAPMEnabled(false).
 					WithLiveProcessEnabled(true).
-					WithProcessChecksInCoreAgent(false).
+					WithNPMEnabled(true).
 					WithClusterChecksEnabled(false).
 					WithAdmissionControllerEnabled(false).
 					WithOrchestratorExplorerEnabled(false).
@@ -1008,7 +982,7 @@ func Test_AutopilotOverrides(t *testing.T) {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithAPMEnabled(true).
 					WithLiveProcessEnabled(true).
-					WithProcessChecksInCoreAgent(false).
+					WithNPMEnabled(true).
 					WithClusterChecksEnabled(false).
 					WithAdmissionControllerEnabled(false).
 					WithOrchestratorExplorerEnabled(false).
