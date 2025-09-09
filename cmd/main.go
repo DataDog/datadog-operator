@@ -21,16 +21,16 @@ import (
 )
 
 var (
-	//go:embed assets/podidentityrole.json
+	//go:embed assets/cfn/podidentityrole.yaml
 	PodIdentityRoleCfn string
 
-	//go:embed assets/cloudformation.yaml
-	CloudformationTemplate string
+	//go:embed assets/cfn/karpenter.yaml
+	KarpenterCfn string
 
-	//go:embed assets/eks-pod-identity-agent-0.1.33.tgz
+	//go:embed assets/charts/eks-pod-identity-agent-0.1.33.tgz
 	EksPodIdentityAgentHelmChart []byte
 
-	//go:embed assets/karpenter-1.6.3.tgz
+	//go:embed assets/charts/karpenter-1.6.3.tgz
 	KarpenterHelmChart []byte
 )
 
@@ -52,7 +52,7 @@ func main() {
 	}
 	cloudformationClient := cloudformation.NewFromConfig(awsConfig)
 
-	if err := aws.CreateOrUpdateStack(ctx, cloudformationClient, "dd-karpenter-"+*clusterName+"-karpenter", CloudformationTemplate, map[string]string{
+	if err := aws.CreateOrUpdateStack(ctx, cloudformationClient, "dd-karpenter-"+*clusterName+"-karpenter", KarpenterCfn, map[string]string{
 		"ClusterName": *clusterName,
 	}); err != nil {
 		log.Fatal(err)
