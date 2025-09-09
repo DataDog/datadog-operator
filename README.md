@@ -9,7 +9,7 @@
 > [!WARNING]
 > Upcoming changes to Agent DaemonSet labels and selectors may affect your setup.
 > 
-> - In **Operator v1.18.0**, the `app.kubernetes.io/instance` label value was changed from `<dda-name>-agent` to `<dap-name>-agent` on Pods and DaemonSets managed by [DatadogAgentProfile][17] (beta).
+> - In **Operator v1.18.0**, the `app.kubernetes.io/instance` label value was changed from `<dda-name>-agent` to `<dap-name>-agent` on Pods and DaemonSets managed by [DatadogAgentProfile][17] (preview).
 > 
 > - In **Operator v1.21.0**, the following changes will occur:
 >   - DAP-managed DaemonSets will be renamed from `datadog-agent-with-profile-<dda-name>-<dap-name>` to `<dap-name>-agent`.
