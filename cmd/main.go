@@ -21,11 +21,17 @@ import (
 )
 
 var (
+	//go:embed assets/podidentityrole.json
+	PodIdentityRoleCfn string
+
 	//go:embed assets/cloudformation.yaml
 	CloudformationTemplate string
 
+	//go:embed assets/eks-pod-identity-agent-0.1.33.tgz
+	EksPodIdentityAgentHelmChart []byte
+
 	//go:embed assets/karpenter-1.6.3.tgz
-	HelmChart []byte
+	KarpenterHelmChart []byte
 )
 
 func main() {
@@ -36,7 +42,6 @@ func main() {
 
 	var (
 		clusterName        = flag.String("cluster-name", guessclusterName, "Name of the EKS cluster")
-		stackName          = flag.String("stack-name", "karpenter-stack-find-a-better-name", "Name of the CloudFormation stack")
 		karpenterNamespace = flag.String("karpenter-namespace", "dd-karpenter", "Name of the Kubernetes namespace in which deploying Karpenter")
 	)
 	flag.Parse()
@@ -47,7 +52,13 @@ func main() {
 	}
 	cloudformationClient := cloudformation.NewFromConfig(awsConfig)
 
-	if err := aws.CreateOrUpdateStack(ctx, cloudformationClient, *stackName, CloudformationTemplate, map[string]string{
+	if err := aws.CreateOrUpdateStack(ctx, cloudformationClient, "dd-karpenter-"+*clusterName+"-karpenter", CloudformationTemplate, map[string]string{
+		"ClusterName": *clusterName,
+	}); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := aws.CreateOrUpdateStack(ctx, cloudformationClient, "dd-karpenter-"+*clusterName+"-podidentityrole", PodIdentityRoleCfn, map[string]string{
 		"ClusterName": *clusterName,
 	}); err != nil {
 		log.Fatal(err)
@@ -61,13 +72,24 @@ func main() {
 	}
 
 	values := map[string]any{
+		"clusterName": *clusterName,
+		"env": map[string]any{
+			"AWS_REGION": awsConfig.Region,
+		},
+	}
+
+	if err := helm.CreateOrUpgrade(ctx, actionConfig, "eks-pod-identity-agent", *karpenterNamespace, EksPodIdentityAgentHelmChart, values); err != nil {
+		log.Fatal(err)
+	}
+
+	values = map[string]any{
 		"settings": map[string]any{
 			"clusterName":       clusterName,
 			"interruptionQueue": clusterName,
 		},
 	}
 
-	if err := helm.CreateOrUpgrade(ctx, actionConfig, "karpenter", *karpenterNamespace, HelmChart, values); err != nil {
+	if err := helm.CreateOrUpgrade(ctx, actionConfig, "karpenter", *karpenterNamespace, KarpenterHelmChart, values); err != nil {
 		log.Fatal(err)
 	}
 }

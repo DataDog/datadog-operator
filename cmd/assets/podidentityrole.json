@@ -1,0 +1,47 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "IAM role for pod identity association",
+  "Parameters": {
+    "ClusterName": {
+      "Type": "String",
+      "Description": "EKS cluster name"
+    }
+  },
+  "Resources": {
+    "Role1": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": {
+          "Fn::Sub": "${ClusterName}-karpenter"
+        },
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "sts:AssumeRole",
+                "sts:TagSession"
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "pods.eks.amazonaws.com"
+              }
+            }
+          ],
+          "Version": "2012-10-17"
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerPolicy-${ClusterName}"
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "Role1": {
+      "Value": {
+        "Fn::GetAtt": "Role1.Arn"
+      }
+    }
+  }
+}
