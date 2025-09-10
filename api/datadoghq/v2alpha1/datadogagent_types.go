@@ -464,7 +464,7 @@ type CWSFeatureConfig struct {
 	SyscallMonitorEnabled *bool `json:"syscallMonitorEnabled,omitempty"`
 
 	// DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.
-	// This is an experimental feature, please do not use without validating with support first.
+	// This is an experimental feature. Contact support before using.
 	// Default: false
 	// +optional
 	DirectSendFromSystemProbe *bool `json:"directSendFromSystemProbe,omitempty"`
