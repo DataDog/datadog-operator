@@ -17,6 +17,7 @@ import (
 	"time"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
+	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV2"
 	"github.com/go-logr/logr"
 	api "github.com/zorkian/go-datadog-api"
@@ -113,6 +114,7 @@ type metricsForwarder struct {
 	monitoredObjectKind string
 	datadogClient       *api.Client           // api key validation and events
 	datadogMetricsApi   *datadogV2.MetricsApi // metrics
+	datadogEventsApi    *datadogV1.EventsApi  // events
 	k8sClient           client.Client
 
 	platformInfo *kubernetes.PlatformInfo
@@ -837,17 +839,17 @@ func (mf *metricsForwarder) forwardEvent(event Event) error {
 
 // delegatedSendEvent is separated from forwardEvent to facilitate mocking the Datadog API
 func (mf *metricsForwarder) delegatedSendEvent(eventTitle string, eventType EventType) error {
-	event := &api.Event{
-		Time:       api.Int(int(time.Now().Unix())),
-		Title:      api.String(eventTitle),
-		EventType:  api.String(string(eventType)),
-		SourceType: api.String(datadogOperatorSourceType),
-		Tags:       append(mf.globalTags, mf.tags...),
+	eventRequest := datadogV1.EventCreateRequest{
+		DateHappened:   datadogapi.PtrInt64(int64(time.Now().Unix())),
+		Title:          eventTitle,
+		Text:           eventTitle,
+		Tags:           append(mf.globalTags, mf.tags...),
+		SourceTypeName: datadogapi.PtrString(datadogOperatorSourceType),
 	}
-	if _, err := mf.datadogClient.PostEvent(event); err != nil {
-		return err
-	}
-	return nil
+
+	ctx := mf.generateDatadogContext()
+	_, _, err := mf.datadogEventsApi.CreateEvent(ctx, eventRequest)
+	return err
 }
 
 // sendFeatureMetric is used to forward feature enabled metrics to Datadog
