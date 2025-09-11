@@ -657,11 +657,11 @@ func (r *Reconciler) getCurrentDeployment(dda, deployment metav1.Object) (*appsv
 		}
 
 		switch len(dsList.Items) {
-		case 0:
-			r.log.Info("Helm-deployed deployment is not found", "component", componentType)
-			return nil, nil
+		case 0: // Migration has completed; check for default deployment
+			r.log.Info("Helm-managed deployment has been migrated, checking for default deployment", "component", componentType)
+			break
 		case 1:
-			r.log.Info("Found Helm-deployed deployment", "name", dsList.Items[0].Name)
+			r.log.Info("Found Helm-managed deployment", "name", dsList.Items[0].Name)
 			return &dsList.Items[0], nil
 		default:
 			return nil, fmt.Errorf("expected 1 deployment for datadog helm release: %s, got %d", dda.GetName(), len(dsList.Items))
@@ -733,9 +733,9 @@ func (r *Reconciler) getCurrentDaemonset(dda, daemonset metav1.Object) (*appsv1.
 			return nil, err
 		}
 		switch len(dsList.Items) {
-		case 0:
-			r.log.Info("Helm-deployed daemonset is not found")
-			return nil, nil
+		case 0: // Migration has completed; check for default daemonset
+			r.log.Info("Helm-managed daemonset has been migrated, checking for default daemonset")
+			break
 		case 1:
 			return &dsList.Items[0], nil
 		default:
