@@ -840,7 +840,7 @@ func (mf *metricsForwarder) forwardEvent(event Event) error {
 // delegatedSendEvent is separated from forwardEvent to facilitate mocking the Datadog API
 func (mf *metricsForwarder) delegatedSendEvent(eventTitle string, eventType EventType) error {
 	eventRequest := datadogV1.EventCreateRequest{
-		DateHappened:   datadogapi.PtrInt64(int64(time.Now().Unix())),
+		DateHappened:   datadogapi.PtrInt64(time.Now().Unix()),
 		Title:          eventTitle,
 		Text:           eventTitle,
 		Tags:           append(mf.globalTags, mf.tags...),
@@ -912,10 +912,11 @@ func (mf *metricsForwarder) setEnabledFeatures(features []string) {
 }
 
 func (mf *metricsForwarder) setUpDatadogAPIClient() {
-	// v2 client is used for metrics only
+	// v2 client is used for metrics and events
 	configuration := datadogapi.NewConfiguration()
 	apiClient := datadogapi.NewAPIClient(configuration)
 	mf.datadogMetricsApi = datadogV2.NewMetricsApi(apiClient)
+	mf.datadogEventsApi = datadogV1.NewEventsApi(apiClient) // Initialize events API
 }
 
 func (mf *metricsForwarder) generateDatadogContext() context.Context {
