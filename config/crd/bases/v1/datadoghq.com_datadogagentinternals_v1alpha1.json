@@ -1507,6 +1507,10 @@
                   "description": "Enabled enables GPU monitoring core check.\nDefault: false",
                   "type": "boolean"
                 },
+                "patchCgroupPermissions": {
+                  "description": "PatchCgroupPermissions enables the patch of cgroup permissions for GPU monitoring, in case\nthe container runtime is not properly configured and the Agent containers lose access to GPU devices.\nDefault: false",
+                  "type": "boolean"
+                },
                 "privilegedMode": {
                   "description": "PrivilegedMode enables GPU Probe module in System Probe.\nDefault: false",
                   "type": "boolean"
@@ -1639,6 +1643,10 @@
               "additionalProperties": false,
               "description": "LogCollection configuration.",
               "properties": {
+                "autoMultiLineDetection": {
+                  "description": "AutoMultiLineDetection allows the Agent to detect and aggregate common multi-line logs automatically.\nSee also: https://docs.datadoghq.com/agent/logs/auto_multiline_detection/",
+                  "type": "boolean"
+                },
                 "containerCollectAll": {
                   "description": "ContainerCollectAll enables Log collection from all containers.\nDefault: false",
                   "type": "boolean"
@@ -8882,6 +8890,10 @@
                       "description": "Enabled enables GPU monitoring core check.\nDefault: false",
                       "type": "boolean"
                     },
+                    "patchCgroupPermissions": {
+                      "description": "PatchCgroupPermissions enables the patch of cgroup permissions for GPU monitoring, in case\nthe container runtime is not properly configured and the Agent containers lose access to GPU devices.\nDefault: false",
+                      "type": "boolean"
+                    },
                     "privilegedMode": {
                       "description": "PrivilegedMode enables GPU Probe module in System Probe.\nDefault: false",
                       "type": "boolean"
@@ -9014,6 +9026,10 @@
                   "additionalProperties": false,
                   "description": "LogCollection configuration.",
                   "properties": {
+                    "autoMultiLineDetection": {
+                      "description": "AutoMultiLineDetection allows the Agent to detect and aggregate common multi-line logs automatically.\nSee also: https://docs.datadoghq.com/agent/logs/auto_multiline_detection/",
+                      "type": "boolean"
+                    },
                     "containerCollectAll": {
                       "description": "ContainerCollectAll enables Log collection from all containers.\nDefault: false",
                       "type": "boolean"

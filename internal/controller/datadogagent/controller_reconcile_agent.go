@@ -98,7 +98,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 					overrideName = *componentOverride.Name
 				}
 			}
-			overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, map[string]struct{}{})
+			overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, providerList)
 			componentOverrides = append(componentOverrides, &overrideFromProvider)
 		} else {
 			eds.Labels[constants.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
@@ -144,7 +144,6 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
-		logger.Info("Agent feature", "feature", feat.ID())
 		if singleContainerStrategyEnabled {
 			if errFeat := feat.ManageSingleContainerNodeAgent(podManagers, provider); errFeat != nil {
 				return result, errFeat
@@ -464,12 +463,12 @@ func (r *Reconciler) getValidDaemonSetNames(dsName string, providerList map[stri
 
 	// Introspection includes names with a provider suffix
 	if r.options.IntrospectionEnabled {
-		if r.useLegacyDaemonSet(providerList) {
+		if r.useDefaultDaemonset(providerList) {
 			// Legacy DaemonSet uses the base name without provider suffix
 			if r.options.ExtendedDaemonsetOptions.Enabled {
-				validExtendedDaemonSetNames[dsName] = struct{}{}
+				validExtendedDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, kubernetes.DefaultProvider)] = struct{}{}
 			} else {
-				validDaemonSetNames[dsName] = struct{}{}
+				validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, kubernetes.DefaultProvider)] = struct{}{}
 			}
 		} else {
 			// Normal provider-specific DaemonSets

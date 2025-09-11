@@ -350,6 +350,11 @@ type LogCollectionFeatureConfig struct {
 	// Default: 100
 	// +optional
 	OpenFilesLimit *int32 `json:"openFilesLimit,omitempty"`
+
+	// AutoMultiLineDetection allows the Agent to detect and aggregate common multi-line logs automatically.
+	// See also: https://docs.datadoghq.com/agent/logs/auto_multiline_detection/
+	// +optional
+	AutoMultiLineDetection *bool `json:"autoMultiLineDetection,omitempty"`
 }
 
 // LiveProcessCollectionFeatureConfig contains Process Collection configuration.
@@ -615,6 +620,12 @@ type GPUFeatureConfig struct {
 	// Default: nvidia
 	// +optional
 	PodRuntimeClassName *string `json:"requiredRuntimeClassName"`
+
+	// PatchCgroupPermissions enables the patch of cgroup permissions for GPU monitoring, in case
+	// the container runtime is not properly configured and the Agent containers lose access to GPU devices.
+	// Default: false
+	// +optional
+	PatchCgroupPermissions *bool `json:"patchCgroupPermissions,omitempty"`
 }
 
 // DogstatsdFeatureConfig contains the Dogstatsd configuration parameters.

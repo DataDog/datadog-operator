@@ -1113,6 +1113,7 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 	const resourcesName = "foo"
 	const resourcesNamespace = "bar"
 	const dcaName = "foo-cluster-agent"
+	const dsName = "foo-agent-default"
 
 	eventBroadcaster := record.NewBroadcaster()
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgent_Reconcile"})
@@ -1160,12 +1161,12 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 					return err
 				}
 				expectedDaemonsets := []string{
-					string("foo-agent"),
+					dsName,
 				}
 				if err := verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets); err != nil {
 					return err
 				}
-				return verifyEtcdMountsOpenshift(t, c, resourcesNamespace, "foo-agent", "openshift")
+				return verifyEtcdMountsOpenshift(t, c, resourcesNamespace, dsName, "openshift")
 			},
 		},
 		{
@@ -1202,7 +1203,7 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 					return err
 				}
 				expectedDaemonsets := []string{
-					string("foo-agent"),
+					dsName,
 				}
 				return verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
 			},
@@ -1241,7 +1242,7 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 					return err
 				}
 				expectedDaemonsets := []string{
-					string("foo-agent"),
+					dsName,
 				}
 				return verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
 			},
@@ -1275,7 +1276,7 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 					return err
 				}
 				expectedDaemonsets := []string{
-					string("foo-agent-default"),
+					dsName,
 				}
 				return verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
 			},
@@ -1322,55 +1323,85 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 }
 
 func verifyDCADeployment(t *testing.T, c client.Client, ddaName, resourcesNamespace, expectedName string, provider string) error {
-	daemonSetList := appsv1.DeploymentList{}
-	if err := c.List(context.TODO(), &daemonSetList, client.HasLabels{constants.MD5AgentDeploymentProviderLabelKey}); err != nil {
+	deploymentList := appsv1.DeploymentList{}
+	if err := c.List(context.TODO(), &deploymentList, client.HasLabels{constants.MD5AgentDeploymentProviderLabelKey}); err != nil {
 		return err
 	}
-	assert.Equal(t, 1, len(daemonSetList.Items))
-	assert.Equal(t, expectedName, daemonSetList.Items[0].ObjectMeta.Name)
+	assert.Equal(t, 1, len(deploymentList.Items))
+	assert.Equal(t, expectedName, deploymentList.Items[0].ObjectMeta.Name)
 
 	cms := corev1.ConfigMapList{}
 	if err := c.List(context.TODO(), &cms, client.InNamespace(resourcesNamespace)); err != nil {
 		return err
 	}
-	cpCm := corev1.ConfigMap{}
-	c.Get(context.TODO(), types.NamespacedName{
-		Name:      fmt.Sprintf("datadog-controlplane-monitoring-%s", provider),
-		Namespace: resourcesNamespace,
-	}, &cpCm)
 
-	dcaDeployment := daemonSetList.Items[0]
-	if provider == "default" {
-		assert.NotContains(t, cms.Items, corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      fmt.Sprintf("datadog-controlplane-monitoring-%s", provider),
-				Namespace: resourcesNamespace,
-			},
-		})
-	} else {
-		assert.Contains(t, dcaDeployment.Spec.Template.Spec.Volumes, corev1.Volume{
-			Name: "controlplane-config",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: fmt.Sprintf("datadog-controlplane-monitoring-%s", provider),
+	dcaDeployment := deploymentList.Items[0]
+	if provider == kubernetes.DefaultProvider {
+		for _, cm := range cms.Items {
+			assert.NotEqual(t, fmt.Sprintf("datadog-controlplane-monitoring-%s", provider), cm.ObjectMeta.Name,
+				"Default provider should not create control plane monitoring ConfigMap")
+		}
+		for _, volume := range dcaDeployment.Spec.Template.Spec.Volumes {
+			assert.NotEqual(t, "kube-apiserver-metrics-config", volume.Name,
+				"Default provider should not have control plane volumes")
+		}
+	} else if provider == kubernetes.OpenshiftProvider || provider == kubernetes.EKSCloudProvider {
+		cpCm := corev1.ConfigMap{}
+		err := c.Get(context.TODO(), types.NamespacedName{
+			Name:      fmt.Sprintf("datadog-controlplane-monitoring-%s", provider),
+			Namespace: resourcesNamespace,
+		}, &cpCm)
+		assert.NoError(t, err, "Control plane monitoring ConfigMap should exist for provider %s", provider)
+
+		if err := verifyCheckMounts(t, dcaDeployment, provider, "kube-apiserver-metrics"); err != nil {
+			return err
+		}
+		if err := verifyCheckMounts(t, dcaDeployment, provider, "kube-controller-manager"); err != nil {
+			return err
+		}
+		if err := verifyCheckMounts(t, dcaDeployment, provider, "kube-scheduler"); err != nil {
+			return err
+		}
+	}
+	if provider == kubernetes.OpenshiftProvider {
+		if err := verifyCheckMounts(t, dcaDeployment, provider, "etcd"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func verifyCheckMounts(t *testing.T, dcaDeployment appsv1.Deployment, provider string, checkName string) error {
+	volumeToKeyMap := map[string]string{
+		"kube-apiserver-metrics":  "kube_apiserver_metrics",
+		"kube-controller-manager": "kube_controller_manager",
+		"kube-scheduler":          "kube_scheduler",
+		"etcd":                    "etcd",
+	}
+	configMapKey := volumeToKeyMap[checkName]
+
+	assert.Contains(t, dcaDeployment.Spec.Template.Spec.Volumes, corev1.Volume{
+		Name: fmt.Sprintf("%s-config", checkName),
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: fmt.Sprintf("datadog-controlplane-monitoring-%s", provider),
+				},
+				Items: []corev1.KeyToPath{
+					{
+						Key:  fmt.Sprintf("%s.yaml", configMapKey),
+						Path: fmt.Sprintf("%s.yaml", configMapKey),
 					},
 				},
 			},
-		})
-		dcaContainer := dcaDeployment.Spec.Template.Spec.Containers[0]
-		assert.Contains(t, dcaContainer.VolumeMounts, corev1.VolumeMount{
-			Name:      "controlplane-config",
-			MountPath: "/etc/datadog-agent/conf.d",
-			ReadOnly:  true,
-		})
-	}
-
-	assert.Contains(t, dcaDeployment.Spec.Template.Spec.Volumes, corev1.Volume{
-		Name: "agent-conf-d-writable",
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
+	})
+
+	dcaContainer := dcaDeployment.Spec.Template.Spec.Containers[0]
+	assert.Contains(t, dcaContainer.VolumeMounts, corev1.VolumeMount{
+		Name:      fmt.Sprintf("%s-config", checkName),
+		MountPath: fmt.Sprintf("/etc/datadog-agent/conf.d/%s.d", configMapKey),
+		ReadOnly:  true,
 	})
 	return nil
 }

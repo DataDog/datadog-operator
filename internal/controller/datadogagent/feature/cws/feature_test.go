@@ -124,14 +124,6 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 					Name:  DDRuntimeSecurityConfigSyscallMonitorEnabled,
 					Value: "true",
 				},
-				{
-					Name:  common.DDHostRootEnvVar,
-					Value: common.HostRootMountPath,
-				},
-				{
-					Name:  DDRuntimeSecurityConfigPoliciesDir,
-					Value: securityAgentRuntimePoliciesDirVolumePath,
-				},
 			}
 			sysProbeWant := []*corev1.EnvVar{
 				{
@@ -182,16 +174,6 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 				{
 					Name:      common.SystemProbeSocketVolumeName,
 					MountPath: common.SystemProbeSocketVolumePath,
-					ReadOnly:  true,
-				},
-				{
-					Name:      common.HostRootVolumeName,
-					MountPath: common.HostRootMountPath,
-					ReadOnly:  true,
-				},
-				{
-					Name:      securityAgentRuntimePoliciesDirVolumeName,
-					MountPath: securityAgentRuntimePoliciesDirVolumePath,
 					ReadOnly:  true,
 				},
 			}
@@ -309,14 +291,6 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
 							Path: common.SystemProbeOSReleaseDirVolumePath,
-						},
-					},
-				},
-				{
-					Name: common.HostRootVolumeName,
-					VolumeSource: corev1.VolumeSource{
-						HostPath: &corev1.HostPathVolumeSource{
-							Path: common.HostRootHostPath,
 						},
 					},
 				},
