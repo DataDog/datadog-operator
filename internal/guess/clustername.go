@@ -4,32 +4,24 @@ import (
 	"context"
 	"strings"
 
-	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/clientcmd/api"
 )
 
 // GetClusterNameFromKubeconfig attempts to extract the EKS cluster name from the current kubectl context
-func GetClusterNameFromKubeconfig(ctx context.Context) string {
-	config := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		clientcmd.NewDefaultClientConfigLoadingRules(),
-		&clientcmd.ConfigOverrides{},
-	)
-
-	rawConfig, err := config.RawConfig()
-	if err != nil {
+func GetClusterNameFromKubeconfig(ctx context.Context, rawConfig api.Config, kubeContext string) (clusterName string) {
+	if kubeContext == "" {
+		kubeContext = rawConfig.CurrentContext
+	}
+	if kubeContext == "" {
 		return ""
 	}
 
-	currentContext := rawConfig.CurrentContext
-	if currentContext == "" {
-		return ""
-	}
-
-	context, exists := rawConfig.Contexts[currentContext]
+	context, exists := rawConfig.Contexts[kubeContext]
 	if !exists {
 		return ""
 	}
 
-	clusterName := context.Cluster
+	clusterName = context.Cluster
 
 	// For EKS, the cluster name in kubeconfig is often an ARN
 	// Format: arn:aws:eks:region:account:cluster/cluster-name
