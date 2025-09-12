@@ -182,9 +182,9 @@ spec:
                             periodSeconds:
                               description: |-
                                 PeriodSeconds specifies the window of time for which the policy should hold true.
-                                PeriodSeconds must be greater than zero and less than or equal to 1800 (30 min).
+                                PeriodSeconds must be greater than zero and less than or equal to 3600 (1 hour).
                               format: int32
-                              maximum: 1800
+                              maximum: 3600
                               minimum: 1
                               type: integer
                             type:
@@ -212,7 +212,7 @@ spec:
                           StabilizationWindowSeconds is the number of seconds the controller should lookback at previous recommendations
                           before deciding to apply a new one. Defaults to 0.
                         format: int32
-                        maximum: 1800
+                        maximum: 3600
                         minimum: 0
                         type: integer
                       strategy:
@@ -251,9 +251,9 @@ spec:
                             periodSeconds:
                               description: |-
                                 PeriodSeconds specifies the window of time for which the policy should hold true.
-                                PeriodSeconds must be greater than zero and less than or equal to 1800 (30 min).
+                                PeriodSeconds must be greater than zero and less than or equal to 3600 (1 hour).
                               format: int32
-                              maximum: 1800
+                              maximum: 3600
                               minimum: 1
                               type: integer
                             type:
@@ -281,7 +281,7 @@ spec:
                           StabilizationWindowSeconds is the number of seconds the controller should lookback at previous recommendations
                           before deciding to apply a new one. Defaults to 0.
                         format: int32
-                        maximum: 1800
+                        maximum: 3600
                         minimum: 0
                         type: integer
                       strategy:
@@ -343,6 +343,8 @@ spec:
                             type:
                               description: 'Type specifies how the value is expressed
                                 (possible values: Utilization).'
+                              enum:
+                              - Utilization
                               type: string
                             utilization:
                               description: Utilization defines a percentage of the
@@ -374,6 +376,8 @@ spec:
                             type:
                               description: 'Type specifies how the value is expressed
                                 (possible values: Utilization).'
+                              enum:
+                              - Utilization
                               type: string
                             utilization:
                               description: Utilization defines a percentage of the
@@ -709,9 +713,9 @@ spec:
                             periodSeconds:
                               description: |-
                                 PeriodSeconds specifies the window of time for which the policy should hold true.
-                                PeriodSeconds must be greater than zero and less than or equal to 1800 (30 min).
+                                PeriodSeconds must be greater than zero and less than or equal to 3600 (1 hour).
                               format: int32
-                              maximum: 1800
+                              maximum: 3600
                               minimum: 1
                               type: integer
                             type:
@@ -739,7 +743,7 @@ spec:
                           StabilizationWindowSeconds is the number of seconds the controller should lookback at previous recommendations
                           before deciding to apply a new one. Defaults to 0.
                         format: int32
-                        maximum: 1800
+                        maximum: 3600
                         minimum: 0
                         type: integer
                       strategy:
@@ -768,9 +772,9 @@ spec:
                             periodSeconds:
                               description: |-
                                 PeriodSeconds specifies the window of time for which the policy should hold true.
-                                PeriodSeconds must be greater than zero and less than or equal to 1800 (30 min).
+                                PeriodSeconds must be greater than zero and less than or equal to 3600 (1 hour).
                               format: int32
-                              maximum: 1800
+                              maximum: 3600
                               minimum: 1
                               type: integer
                             type:
@@ -798,7 +802,7 @@ spec:
                           StabilizationWindowSeconds is the number of seconds the controller should lookback at previous recommendations
                           before deciding to apply a new one. Defaults to 0.
                         format: int32
-                        maximum: 1800
+                        maximum: 3600
                         minimum: 0
                         type: integer
                       strategy:
@@ -943,6 +947,8 @@ spec:
                             type:
                               description: 'Type specifies how the value is expressed
                                 (possible values: Utilization).'
+                              enum:
+                              - Utilization
                               type: string
                             utilization:
                               description: Utilization defines a percentage of the
@@ -974,6 +980,8 @@ spec:
                             type:
                               description: 'Type specifies how the value is expressed
                                 (possible values: Utilization).'
+                              enum:
+                              - Utilization
                               type: string
                             utilization:
                               description: Utilization defines a percentage of the

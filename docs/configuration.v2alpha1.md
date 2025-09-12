@@ -85,6 +85,7 @@ spec:
 | features.cws.customPolicies.configData | ConfigData corresponds to the configuration file content. |
 | features.cws.customPolicies.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | features.cws.customPolicies.configMap.name | Is the name of the ConfigMap. |
+| features.cws.directSendFromSystemProbe | DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent. This is an experimental feature. Contact support before using. Default: false |
 | features.cws.enabled | Enables Cloud Workload Security. Default: false |
 | features.cws.network.enabled | Enables Cloud Workload Security Network detections. Default: true |
 | features.cws.remoteConfiguration.enabled | Enables Remote Configuration for Cloud Workload Security. Default: true |
@@ -117,6 +118,7 @@ spec:
 | features.externalMetricsServer.useDatadogMetrics | UseDatadogMetrics enables usage of the DatadogMetrics CRD (allowing one to scale on arbitrary Datadog metric queries). Default: true |
 | features.externalMetricsServer.wpaController | WPAController enables the informer and controller of the Watermark Pod Autoscaler. NOTE: The Watermark Pod Autoscaler controller needs to be installed. See also: https://github.com/DataDog/watermarkpodautoscaler. Default: false |
 | features.gpu.enabled | Enables GPU monitoring core check. Default: false |
+| features.gpu.patchCgroupPermissions | PatchCgroupPermissions enables the patch of cgroup permissions for GPU monitoring, in case the container runtime is not properly configured and the Agent containers lose access to GPU devices. Default: false |
 | features.gpu.privilegedMode | PrivilegedMode enables GPU Probe module in System Probe. Default: false |
 | features.gpu.requiredRuntimeClassName | PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature. If the value is an empty string, the runtime class is not set. Default: nvidia |
 | features.helmCheck.collectEvents | CollectEvents set to `true` enables event collection in the Helm check (Requires Agent 7.36.0+ and Cluster Agent 1.20.0+) Default: false |
@@ -130,6 +132,7 @@ spec:
 | features.liveProcessCollection.enabled | Enables Process monitoring. Default: false |
 | features.liveProcessCollection.scrubProcessArguments | ScrubProcessArguments enables scrubbing of sensitive data in process command-lines (passwords, tokens, etc. ). Default: true |
 | features.liveProcessCollection.stripProcessArguments | StripProcessArguments enables stripping of all process arguments. Default: false |
+| features.logCollection.autoMultiLineDetection | AutoMultiLineDetection allows the Agent to detect and aggregate common multi-line logs automatically. See also: https://docs.datadoghq.com/agent/logs/auto_multiline_detection/ |
 | features.logCollection.containerCollectAll | ContainerCollectAll enables Log collection from all containers. Default: false |
 | features.logCollection.containerCollectUsingFiles | ContainerCollectUsingFiles enables log collection from files in `/var/log/pods instead` of using the container runtime API. Collecting logs from files is usually the most efficient way of collecting logs. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup Default: true |
 | features.logCollection.containerLogsPath | ContainerLogsPath allows log collection from the container log path. Set to a different path if you are not using the Docker runtime. See also: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest Default: `/var/lib/docker/containers` |
