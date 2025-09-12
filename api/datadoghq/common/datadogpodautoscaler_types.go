@@ -116,7 +116,7 @@ type DatadogPodAutoscalerScalingRule struct {
 }
 
 // DatadogPodAutoscalerObjectiveType defines the type of the objective.
-// +kubebuilder:validation:Enum:=PodResource;ContainerResource
+// +kubebuilder:validation:Enum:=PodResource;ContainerResource;ControllerObjective
 type DatadogPodAutoscalerObjectiveType string
 
 const (
@@ -125,6 +125,9 @@ const (
 
 	// DatadogPodAutoscalerContainerResourceObjectiveType allows to set container-level resource objectives.
 	DatadogPodAutoscalerContainerResourceObjectiveType DatadogPodAutoscalerObjectiveType = "ContainerResource"
+
+	// DatadogPodAutoscalerControllerObjectiveType allows to set controller-level objectives.
+	DatadogPodAutoscalerControllerObjectiveType DatadogPodAutoscalerObjectiveType = "ControllerObjective"
 )
 
 // DatadogPodAutoscalerObjective defines the objectives to reach and maintain for the target workload.
@@ -138,6 +141,9 @@ type DatadogPodAutoscalerObjective struct {
 
 	// ContainerResource allows to set a container-level resource objective.
 	ContainerResource *DatadogPodAutoscalerContainerResourceObjective `json:"containerResource,omitempty"`
+
+	// ControllerObjective allows to set a controller-level objective.
+	ControllerObjective *DatadogPodAutoscalerControllerObjective `json:"controllerObjective,omitempty"`
 }
 
 // DatadogPodAutoscalerPodResourceObjective defines a pod-level resource objective (for instance, CPU Utilization at 80%)
@@ -167,8 +173,75 @@ type DatadogPodAutoscalerContainerResourceObjective struct {
 	Container string `json:"container"`
 }
 
+// DatadogPodAutoscalerControllerObjective defines a controller-level objective
+// +kubebuilder:object:generate=true
+type DatadogPodAutoscalerControllerObjective struct {
+	Query TimeseriesFormulaRequest `json:"query"`
+	// Value is the value of the objective
+	Value DatadogPodAutoscalerObjectiveValue `json:"value"`
+}
+
+// TimeseriesFormulaRequest is the Schema for the timeseriesformularequests API
+// It's a part of TimeseriesFormulaRequest from the metrics API:
+// https://github.com/DataDog/datadog-api-spec/blob/94d1542b31ad0df1da915bae84686b13ba1a65ae/spec/v2/query.yaml#L124
+// +kubebuilder:object:generate=true
+type TimeseriesFormulaRequest struct {
+	Spec TimeseriesFormulaRequestSpec `json:"spec,omitempty"`
+}
+
+// Spec mirrors the OpenAPI "TimeseriesFormulaRequestAttributes".
+// +kubebuilder:object:generate=true
+type TimeseriesFormulaRequestSpec struct {
+	// Start time (inclusive).
+	From metav1.Time `json:"from"`
+	// End time (exclusive).
+	To metav1.Time `json:"to"`
+	// Optional sampling interval.
+	// +optional
+	Interval *metav1.Duration `json:"interval,omitempty"`
+	// Formulas to compute (optional).
+	// +optional
+	Formulas []QueryFormula `json:"formulas,omitempty"`
+	// +kubebuilder:validation:MinItems=1
+	Queries []TimeseriesQuery `json:"queries"`
+}
+
+// +kubebuilder:object:generate=true
+type QueryFormula struct {
+	// +kubebuilder:validation:MinLength=1
+	Formula string `json:"formula"`
+}
+
+// TimeseriesQuery is a discriminated union. Only Metrics are supported for autoscaling.
+// +kubebuilder:object:generate=true
+type TimeseriesQuery struct {
+	// +optional
+	Metrics *MetricsTimeseriesQuery `json:"metrics,omitempty"`
+}
+
+// +kubebuilder:object:generate=true
+type MetricsTimeseriesQuery struct {
+	// Data source: "metrics" or "cloud_cost".
+	// +kubebuilder:validation:Enum=metrics;cloud_cost
+	DataSource MetricsDataSource `json:"dataSource"`
+	// Optional variable name ("a", "b", etc.) to reference in formulas.
+	// +optional
+	Name *string `json:"name,omitempty"`
+	// Classic Datadog metrics query, e.g. "avg:system.cpu.user{*} by {env}".
+	// +kubebuilder:validation:MinLength=1
+	Query string `json:"query"`
+}
+
+// +kubebuilder:validation:Enum=metrics;cloud_cost
+type MetricsDataSource string
+
+const (
+	MetricsDataSourceMetrics   MetricsDataSource = "metrics"
+	MetricsDataSourceCloudCost MetricsDataSource = "cloud_cost"
+)
+
 // DatadogPodAutoscalerObjectiveValueType specifies the type of objective value.
-// kubebuilder:validation:Enum:=Utilization
+// +kubebuilder:validation:Enum:=Utilization
 type DatadogPodAutoscalerObjectiveValueType string
 
 const (

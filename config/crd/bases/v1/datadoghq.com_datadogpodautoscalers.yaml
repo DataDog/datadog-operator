@@ -324,9 +324,12 @@ spec:
                             description: Value is the value of the objective
                             properties:
                               type:
+                                allOf:
+                                  - enum:
+                                      - Utilization
+                                  - enum:
+                                      - Utilization
                                 description: 'Type specifies how the value is expressed (possible values: Utilization).'
-                                enum:
-                                  - Utilization
                                 type: string
                               utilization:
                                 description: Utilization defines a percentage of the target compared to requested workload
@@ -342,6 +345,100 @@ spec:
                           - name
                           - value
                         type: object
+                      controllerObjective:
+                        description: ControllerObjective allows to set a controller-level objective.
+                        properties:
+                          query:
+                            description: |-
+                              TimeseriesFormulaRequest is the Schema for the timeseriesformularequests API
+                              It's a part of TimeseriesFormulaRequest from the metrics API:
+                              https://github.com/DataDog/datadog-api-spec/blob/94d1542b31ad0df1da915bae84686b13ba1a65ae/spec/v2/query.yaml#L124
+                            properties:
+                              spec:
+                                description: Spec mirrors the OpenAPI "TimeseriesFormulaRequestAttributes".
+                                properties:
+                                  formulas:
+                                    description: Formulas to compute (optional).
+                                    items:
+                                      properties:
+                                        formula:
+                                          minLength: 1
+                                          type: string
+                                      required:
+                                        - formula
+                                      type: object
+                                    type: array
+                                  from:
+                                    description: Start time (inclusive).
+                                    format: date-time
+                                    type: string
+                                  interval:
+                                    description: Optional sampling interval.
+                                    type: string
+                                  queries:
+                                    items:
+                                      description: TimeseriesQuery is a discriminated union. Only Metrics are supported for autoscaling.
+                                      properties:
+                                        metrics:
+                                          properties:
+                                            dataSource:
+                                              allOf:
+                                                - enum:
+                                                    - metrics
+                                                    - cloud_cost
+                                                - enum:
+                                                    - metrics
+                                                    - cloud_cost
+                                              description: 'Data source: "metrics" or "cloud_cost".'
+                                              type: string
+                                            name:
+                                              description: Optional variable name ("a", "b", etc.) to reference in formulas.
+                                              type: string
+                                            query:
+                                              description: Classic Datadog metrics query, e.g. "avg:system.cpu.user{*} by {env}".
+                                              minLength: 1
+                                              type: string
+                                          required:
+                                            - dataSource
+                                            - query
+                                          type: object
+                                      type: object
+                                    minItems: 1
+                                    type: array
+                                  to:
+                                    description: End time (exclusive).
+                                    format: date-time
+                                    type: string
+                                required:
+                                  - from
+                                  - queries
+                                  - to
+                                type: object
+                            type: object
+                          value:
+                            description: Value is the value of the objective
+                            properties:
+                              type:
+                                allOf:
+                                  - enum:
+                                      - Utilization
+                                  - enum:
+                                      - Utilization
+                                description: 'Type specifies how the value is expressed (possible values: Utilization).'
+                                type: string
+                              utilization:
+                                description: Utilization defines a percentage of the target compared to requested workload
+                                format: int32
+                                maximum: 100
+                                minimum: 0
+                                type: integer
+                            required:
+                              - type
+                            type: object
+                        required:
+                          - query
+                          - value
+                        type: object
                       podResource:
                         description: PodResource allows to set a pod-level resource objective.
                         properties:
@@ -354,9 +451,12 @@ spec:
                             description: Value is the value of the objective.
                             properties:
                               type:
+                                allOf:
+                                  - enum:
+                                      - Utilization
+                                  - enum:
+                                      - Utilization
                                 description: 'Type specifies how the value is expressed (possible values: Utilization).'
-                                enum:
-                                  - Utilization
                                 type: string
                               utilization:
                                 description: Utilization defines a percentage of the target compared to requested workload
@@ -376,6 +476,7 @@ spec:
                         enum:
                           - PodResource
                           - ContainerResource
+                          - ControllerObjective
                         type: string
                     required:
                       - type
@@ -898,9 +999,12 @@ spec:
                             description: Value is the value of the objective
                             properties:
                               type:
+                                allOf:
+                                  - enum:
+                                      - Utilization
+                                  - enum:
+                                      - Utilization
                                 description: 'Type specifies how the value is expressed (possible values: Utilization).'
-                                enum:
-                                  - Utilization
                                 type: string
                               utilization:
                                 description: Utilization defines a percentage of the target compared to requested workload
@@ -916,6 +1020,100 @@ spec:
                           - name
                           - value
                         type: object
+                      controllerObjective:
+                        description: ControllerObjective allows to set a controller-level objective.
+                        properties:
+                          query:
+                            description: |-
+                              TimeseriesFormulaRequest is the Schema for the timeseriesformularequests API
+                              It's a part of TimeseriesFormulaRequest from the metrics API:
+                              https://github.com/DataDog/datadog-api-spec/blob/94d1542b31ad0df1da915bae84686b13ba1a65ae/spec/v2/query.yaml#L124
+                            properties:
+                              spec:
+                                description: Spec mirrors the OpenAPI "TimeseriesFormulaRequestAttributes".
+                                properties:
+                                  formulas:
+                                    description: Formulas to compute (optional).
+                                    items:
+                                      properties:
+                                        formula:
+                                          minLength: 1
+                                          type: string
+                                      required:
+                                        - formula
+                                      type: object
+                                    type: array
+                                  from:
+                                    description: Start time (inclusive).
+                                    format: date-time
+                                    type: string
+                                  interval:
+                                    description: Optional sampling interval.
+                                    type: string
+                                  queries:
+                                    items:
+                                      description: TimeseriesQuery is a discriminated union. Only Metrics are supported for autoscaling.
+                                      properties:
+                                        metrics:
+                                          properties:
+                                            dataSource:
+                                              allOf:
+                                                - enum:
+                                                    - metrics
+                                                    - cloud_cost
+                                                - enum:
+                                                    - metrics
+                                                    - cloud_cost
+                                              description: 'Data source: "metrics" or "cloud_cost".'
+                                              type: string
+                                            name:
+                                              description: Optional variable name ("a", "b", etc.) to reference in formulas.
+                                              type: string
+                                            query:
+                                              description: Classic Datadog metrics query, e.g. "avg:system.cpu.user{*} by {env}".
+                                              minLength: 1
+                                              type: string
+                                          required:
+                                            - dataSource
+                                            - query
+                                          type: object
+                                      type: object
+                                    minItems: 1
+                                    type: array
+                                  to:
+                                    description: End time (exclusive).
+                                    format: date-time
+                                    type: string
+                                required:
+                                  - from
+                                  - queries
+                                  - to
+                                type: object
+                            type: object
+                          value:
+                            description: Value is the value of the objective
+                            properties:
+                              type:
+                                allOf:
+                                  - enum:
+                                      - Utilization
+                                  - enum:
+                                      - Utilization
+                                description: 'Type specifies how the value is expressed (possible values: Utilization).'
+                                type: string
+                              utilization:
+                                description: Utilization defines a percentage of the target compared to requested workload
+                                format: int32
+                                maximum: 100
+                                minimum: 0
+                                type: integer
+                            required:
+                              - type
+                            type: object
+                        required:
+                          - query
+                          - value
+                        type: object
                       podResource:
                         description: PodResource allows to set a pod-level resource objective.
                         properties:
@@ -928,9 +1126,12 @@ spec:
                             description: Value is the value of the objective.
                             properties:
                               type:
+                                allOf:
+                                  - enum:
+                                      - Utilization
+                                  - enum:
+                                      - Utilization
                                 description: 'Type specifies how the value is expressed (possible values: Utilization).'
-                                enum:
-                                  - Utilization
                                 type: string
                               utilization:
                                 description: Utilization defines a percentage of the target compared to requested workload
@@ -950,6 +1151,7 @@ spec:
                         enum:
                           - PodResource
                           - ContainerResource
+                          - ControllerObjective
                         type: string
                     required:
                       - type
