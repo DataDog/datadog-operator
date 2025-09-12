@@ -29,6 +29,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -49,7 +50,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 	// Apply features changes on the Deployment.Spec.Template
 	var featErrors []error
 	for _, feat := range features {
-		if errFeat := feat.ManageClusterAgent(podManagers); errFeat != nil {
+		if errFeat := feat.ManageClusterAgent(podManagers, kubernetes.DefaultProvider); errFeat != nil {
 			featErrors = append(featErrors, errFeat)
 		}
 	}
@@ -104,6 +105,10 @@ func deleteStatusV2WithClusterAgent(newStatus *datadoghqv1alpha1.DatadogAgentInt
 }
 
 func (r *Reconciler) cleanupV2ClusterAgent(logger logr.Logger, ddai *datadoghqv1alpha1.DatadogAgentInternal, deployment *appsv1.Deployment, resourcesManager feature.ResourceManagers, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus) (reconcile.Result, error) {
+	// don't delete existing DCAs for profiles
+	if val, ok := ddai.GetLabels()[constants.ProfileLabelKey]; ok && !agentprofile.IsDefaultProfile(ddai.GetNamespace(), val) {
+		return reconcile.Result{}, nil
+	}
 	nsName := types.NamespacedName{
 		Name:      deployment.GetName(),
 		Namespace: deployment.GetNamespace(),

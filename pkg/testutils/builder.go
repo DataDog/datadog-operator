@@ -508,6 +508,12 @@ func (builder *DatadogAgentBuilder) WithLogCollectionOpenFilesLimit(limit int32)
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithLogCollectionAutoMultiLineDetection(enabled bool) *DatadogAgentBuilder {
+	builder.initLogCollection()
+	builder.datadogAgent.Spec.Features.LogCollection.AutoMultiLineDetection = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
 func (builder *DatadogAgentBuilder) WithLogCollectionPaths(podLogs, containerLogs, containerSymlinks, tempStorate string) *DatadogAgentBuilder {
 	builder.initLogCollection()
 	builder.datadogAgent.Spec.Features.LogCollection.PodLogsPath = apiutils.NewStringPointer(podLogs)
@@ -1071,5 +1077,17 @@ func (builder *DatadogAgentBuilder) WithGPUMonitoringEnabled(enabled bool) *Data
 	builder.initGPUMonitoring()
 	builder.datadogAgent.Spec.Features.GPU.Enabled = apiutils.NewBoolPointer(enabled)
 	builder.datadogAgent.Spec.Features.GPU.PrivilegedMode = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) initControlPlaneMonitoring() {
+	if builder.datadogAgent.Spec.Features.ControlPlaneMonitoring == nil {
+		builder.datadogAgent.Spec.Features.ControlPlaneMonitoring = &v2alpha1.ControlPlaneMonitoringFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithControlPlaneMonitoring(enabled bool) *DatadogAgentBuilder {
+	builder.initControlPlaneMonitoring()
+	builder.datadogAgent.Spec.Features.ControlPlaneMonitoring.Enabled = apiutils.NewBoolPointer(enabled)
 	return builder
 }

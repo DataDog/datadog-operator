@@ -40,6 +40,7 @@ type logCollectionFeature struct {
 	containerSymlinksPath      string
 	tempStoragePath            string
 	openFilesLimit             int32
+	autoMultiLineDetection     *bool
 }
 
 // ID returns the ID of the Feature
@@ -68,6 +69,7 @@ func (f *logCollectionFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.Data
 		if logCollection.OpenFilesLimit != nil {
 			f.openFilesLimit = *logCollection.OpenFilesLimit
 		}
+		f.autoMultiLineDetection = logCollection.AutoMultiLineDetection
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
@@ -83,13 +85,13 @@ func (f *logCollectionFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.Data
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *logCollectionFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *logCollectionFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *logCollectionFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *logCollectionFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 
@@ -148,12 +150,18 @@ func (f *logCollectionFeature) manageNodeAgent(agentContainerName apicommon.Agen
 			Value: strconv.FormatInt(int64(f.openFilesLimit), 10),
 		})
 	}
+	if f.autoMultiLineDetection != nil {
+		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
+			Name:  DDLogsConfigAutoMultiLineDetection,
+			Value: strconv.FormatBool(*f.autoMultiLineDetection),
+		})
+	}
 
 	return nil
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *logCollectionFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (f *logCollectionFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

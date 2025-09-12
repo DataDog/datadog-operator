@@ -103,6 +103,26 @@ func getRBACPolicyRules(logger logr.Logger, crs []string) []rbacv1.PolicyRule {
 			APIGroups: []string{rbac.DiscoveryAPIGroup},
 			Resources: []string{rbac.EndpointsSlicesResource},
 		},
+		{
+			APIGroups: []string{rbac.DatadogAPIGroup},
+			Resources: []string{rbac.Wildcard},
+		},
+		{
+			APIGroups: []string{rbac.ArgoProjAPIGroup},
+			Resources: []string{rbac.Rollout},
+		},
+		{
+			APIGroups: []string{rbac.KarpenterAPIGroup},
+			Resources: []string{rbac.Wildcard},
+		},
+		{
+			APIGroups: []string{rbac.KarpenterAWSAPIGroup},
+			Resources: []string{rbac.Wildcard},
+		},
+		{
+			APIGroups: []string{rbac.KarpenterAzureAPIGroup},
+			Resources: []string{rbac.Wildcard},
+		},
 	}
 
 	groupResources := mapAPIGroupsResources(logger, crs)

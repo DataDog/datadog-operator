@@ -66,13 +66,13 @@ func (f *liveContainerFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.Data
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *liveContainerFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *liveContainerFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *liveContainerFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *liveContainerFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 
@@ -130,6 +130,6 @@ func (f *liveContainerFeature) manageNodeAgent(agentContainerName apicommon.Agen
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *liveContainerFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (f *liveContainerFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

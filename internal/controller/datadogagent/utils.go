@@ -228,3 +228,10 @@ func deleteObjectAndOrphanDependents(ctx context.Context, logger logr.Logger, c 
 	}
 	return nil
 }
+
+func useV3Metadata(dda metav1.Object) bool {
+	if val, ok := dda.GetAnnotations()[apicommon.UpdateMetadataAnnotationKey]; ok && val == "true" {
+		return true
+	}
+	return false
+}

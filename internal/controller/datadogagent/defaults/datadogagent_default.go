@@ -43,20 +43,21 @@ const (
 	defaultServiceDiscoveryEnabled             bool = false
 	defaultServiceDiscoveryNetworkStatsEnabled bool = true
 
-	defaultAPMEnabled                 bool   = true
-	defaultAPMHostPortEnabled         bool   = false
-	defaultAPMHostPort                int32  = 8126
-	defaultAPMSocketEnabled           bool   = true
-	defaultAPMSocketHostPath          string = common.DogstatsdAPMSocketHostPath + "/" + common.APMSocketName
-	defaultAPMSingleStepInstrEnabled  bool   = false
-	defaultLanguageDetectionEnabled   bool   = true
-	defaultCSPMEnabled                bool   = false
-	defaultCSPMHostBenchmarksEnabled  bool   = true
-	defaultCWSEnabled                 bool   = false
-	defaultCWSSyscallMonitorEnabled   bool   = false
-	defaultCWSNetworkEnabled          bool   = true
-	defaultCWSSecurityProfilesEnabled bool   = true
-	defaultAPMErrorTrackingStandalone bool   = false
+	defaultAPMEnabled                   bool   = true
+	defaultAPMHostPortEnabled           bool   = false
+	defaultAPMHostPort                  int32  = 8126
+	defaultAPMSocketEnabled             bool   = true
+	defaultAPMSocketHostPath            string = common.DogstatsdAPMSocketHostPath + "/" + common.APMSocketName
+	defaultAPMSingleStepInstrEnabled    bool   = false
+	defaultLanguageDetectionEnabled     bool   = true
+	defaultCSPMEnabled                  bool   = false
+	defaultCSPMHostBenchmarksEnabled    bool   = true
+	defaultCWSEnabled                   bool   = false
+	defaultCWSSyscallMonitorEnabled     bool   = false
+	defaultCWSDirectSendFromSystemProbe bool   = false
+	defaultCWSNetworkEnabled            bool   = true
+	defaultCWSSecurityProfilesEnabled   bool   = true
+	defaultAPMErrorTrackingStandalone   bool   = false
 
 	defaultNPMEnabled         bool = false
 	defaultNPMEnableConntrack bool = true
@@ -134,6 +135,8 @@ const (
 	defaultFIPSPort         int32  = 9803
 	defaultFIPSPortRange    int32  = 15
 	defaultFIPSUseHTTPS     bool   = false
+
+	defaultControlPlaneMonitoringEnabled bool = true
 )
 
 // DefaultDatadogAgentSpec defaults the DatadogAgentSpec GlobalConfig and Features.
@@ -395,6 +398,7 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.SyscallMonitorEnabled, defaultCWSSyscallMonitorEnabled)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.Network.Enabled, defaultCWSNetworkEnabled)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.SecurityProfiles.Enabled, defaultCWSSecurityProfilesEnabled)
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.DirectSendFromSystemProbe, defaultCWSDirectSendFromSystemProbe)
 	}
 
 	// NPM (Network Performance Monitoring) Feature
@@ -609,4 +613,10 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	if *ddaSpec.Features.HelmCheck.Enabled {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.HelmCheck.CollectEvents, defaultHelmCheckCollectEvents)
 	}
+
+	// ControlPlaneMonitoring Feature
+	if ddaSpec.Features.ControlPlaneMonitoring == nil {
+		ddaSpec.Features.ControlPlaneMonitoring = &v2alpha1.ControlPlaneMonitoringFeatureConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ControlPlaneMonitoring.Enabled, defaultControlPlaneMonitoringEnabled)
 }

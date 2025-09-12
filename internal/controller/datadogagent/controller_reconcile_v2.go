@@ -26,6 +26,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	pkgutils "github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
@@ -132,11 +133,43 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// 1. Manage dependencies.
 	depsStore, resourceManagers := r.setupDependencies(instance, logger)
 
+	providerList := map[string]struct{}{kubernetes.LegacyProvider: {}}
+	k8sProvider := kubernetes.LegacyProvider
+	if r.options.IntrospectionEnabled {
+		nodeList, err := r.getNodeList(ctx)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		providerList = kubernetes.GetProviderListFromNodeList(nodeList, logger)
+
+		k8sProvider = kubernetes.DefaultProvider
+		if len(providerList) == 1 {
+			for provider := range providerList {
+				k8sProvider = provider
+				break
+			}
+		} else if len(providerList) == 2 {
+			if _, ok := providerList[kubernetes.DefaultProvider]; ok {
+				for provider := range providerList {
+					if provider != kubernetes.DefaultProvider {
+						k8sProvider = provider
+						logger.Info("Multiple providers detected, using selected provider for cluster agent and dependencies", "provider", k8sProvider)
+						break
+					}
+				}
+			} else {
+				logger.Error(nil, "Multiple specialized providers detected, falling back to default provider for cluster agent and dependencies", "selected_provider", k8sProvider)
+			}
+		} else {
+			logger.Error(nil, "Multiple specialized providers detected, falling back to default provider for cluster agent and dependencies", "selected_provider", k8sProvider)
+		}
+	}
+
 	var err error
 	if err = r.manageGlobalDependencies(logger, instance, resourceManagers, requiredComponents); err != nil {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 	}
-	if err = r.manageFeatureDependencies(logger, enabledFeatures, resourceManagers); err != nil {
+	if err = r.manageFeatureDependencies(logger, enabledFeatures, resourceManagers, k8sProvider); err != nil {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 	}
 	if err = r.overrideDependencies(logger, resourceManagers, instance); err != nil {
@@ -146,7 +179,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// 2. Reconcile each component.
 	// 2.a. Cluster Agent
 
-	result, err = r.reconcileV2ClusterAgent(logger, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus)
+	result, err = r.reconcileV2ClusterAgent(ctx, logger, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus, k8sProvider)
 	if utils.ShouldReturn(result, err) {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	}

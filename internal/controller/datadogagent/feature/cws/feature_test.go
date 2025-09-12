@@ -78,6 +78,10 @@ func Test_cwsFeature_Configure(t *testing.T) {
 		ddaCWSFullEnabled.Spec.Features.CWS.SyscallMonitorEnabled = apiutils.NewBoolPointer(true)
 		ddaCWSFullEnabled.Spec.Features.RemoteConfiguration.Enabled = apiutils.NewBoolPointer(true)
 	}
+	ddaCWSLiteDirectSendEnabled := ddaCWSLiteEnabled.DeepCopy()
+	{
+		ddaCWSLiteDirectSendEnabled.Spec.Features.CWS.DirectSendFromSystemProbe = apiutils.NewBoolPointer(true)
+	}
 
 	tests := test.FeatureTestSuite{
 		{
@@ -89,20 +93,26 @@ func Test_cwsFeature_Configure(t *testing.T) {
 			Name:          "v2alpha1 CWS enabled",
 			DDA:           ddaCWSLiteEnabled,
 			WantConfigure: true,
-			Agent:         cwsAgentNodeWantFunc(false),
+			Agent:         cwsAgentNodeWantFunc(false, false),
 		},
 		{
 			Name:          "v2alpha1 CWS enabled (with network, security profiles and remote configuration)",
 			DDA:           ddaCWSFullEnabled,
 			WantConfigure: true,
-			Agent:         cwsAgentNodeWantFunc(true),
+			Agent:         cwsAgentNodeWantFunc(true, false),
+		},
+		{
+			Name:          "v2alpha1 CWS enabled in direct sender mode",
+			DDA:           ddaCWSLiteDirectSendEnabled,
+			WantConfigure: true,
+			Agent:         cwsAgentNodeWantFunc(false, true),
 		},
 	}
 
 	tests.Run(t, buildCWSFeature)
 }
 
-func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
+func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -123,14 +133,6 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 				{
 					Name:  DDRuntimeSecurityConfigSyscallMonitorEnabled,
 					Value: "true",
-				},
-				{
-					Name:  common.DDHostRootEnvVar,
-					Value: common.HostRootMountPath,
-				},
-				{
-					Name:  DDRuntimeSecurityConfigPoliciesDir,
-					Value: securityAgentRuntimePoliciesDirVolumePath,
 				},
 			}
 			sysProbeWant := []*corev1.EnvVar{
@@ -164,6 +166,15 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 					},
 				)
 			}
+			if directSendFromSysProbe {
+				sysProbeWant = append(
+					sysProbeWant,
+					&corev1.EnvVar{
+						Name:  DDRuntimeSecurityConfigDirectSendFromSystemProbe,
+						Value: "true",
+					},
+				)
+			}
 			sysProbeWant = append(
 				sysProbeWant,
 				&corev1.EnvVar{
@@ -173,7 +184,11 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 			)
 
 			securityAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SecurityAgentContainerName]
-			assert.True(t, apiutils.IsEqualStruct(securityAgentEnvVars, securityWant), "Security agent envvars \ndiff = %s", cmp.Diff(securityAgentEnvVars, securityWant))
+			if directSendFromSysProbe {
+				assert.True(t, apiutils.IsEqualStruct(securityAgentEnvVars, nil), "Security agent envvars \ndiff = %s", cmp.Diff(securityAgentEnvVars, securityWant))
+			} else {
+				assert.True(t, apiutils.IsEqualStruct(securityAgentEnvVars, securityWant), "Security agent envvars \ndiff = %s", cmp.Diff(securityAgentEnvVars, securityWant))
+			}
 			sysProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
 			assert.True(t, apiutils.IsEqualStruct(sysProbeEnvVars, sysProbeWant), "System probe envvars \ndiff = %s", cmp.Diff(sysProbeEnvVars, sysProbeWant))
 
@@ -182,16 +197,6 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 				{
 					Name:      common.SystemProbeSocketVolumeName,
 					MountPath: common.SystemProbeSocketVolumePath,
-					ReadOnly:  true,
-				},
-				{
-					Name:      common.HostRootVolumeName,
-					MountPath: common.HostRootMountPath,
-					ReadOnly:  true,
-				},
-				{
-					Name:      securityAgentRuntimePoliciesDirVolumeName,
-					MountPath: securityAgentRuntimePoliciesDirVolumePath,
 					ReadOnly:  true,
 				},
 			}
@@ -244,7 +249,11 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 			}
 
 			securityAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.SecurityAgentContainerName]
-			assert.True(t, apiutils.IsEqualStruct(securityAgentVolumeMounts, securityWantVolumeMount), "Security Agent volume mounts \ndiff = %s", cmp.Diff(securityAgentVolumeMounts, securityWantVolumeMount))
+			if directSendFromSysProbe {
+				assert.True(t, apiutils.IsEqualStruct(securityAgentVolumeMounts, nil), "Security Agent volume mounts \ndiff = %s", cmp.Diff(securityAgentVolumeMounts, securityWantVolumeMount))
+			} else {
+				assert.True(t, apiutils.IsEqualStruct(securityAgentVolumeMounts, securityWantVolumeMount), "Security Agent volume mounts \ndiff = %s", cmp.Diff(securityAgentVolumeMounts, securityWantVolumeMount))
+			}
 			sysProbeVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.SystemProbeContainerName]
 			assert.True(t, apiutils.IsEqualStruct(sysProbeVolumeMounts, sysprobeWantVolumeMount), "System probe volume mounts \ndiff = %s", cmp.Diff(sysProbeVolumeMounts, sysprobeWantVolumeMount))
 
@@ -313,14 +322,6 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 					},
 				},
 				{
-					Name: common.HostRootVolumeName,
-					VolumeSource: corev1.VolumeSource{
-						HostPath: &corev1.HostPathVolumeSource{
-							Path: common.HostRootHostPath,
-						},
-					},
-				},
-				{
 					Name: cwsConfigVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -362,7 +363,6 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 			}
 			annotations := mgr.AnnotationMgr.Annotations
 			assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
-
 		},
 	)
 }

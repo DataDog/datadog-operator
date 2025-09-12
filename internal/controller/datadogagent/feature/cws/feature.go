@@ -48,6 +48,7 @@ type cwsFeature struct {
 	networkEnabled             bool
 	activityDumpEnabled        bool
 	remoteConfigurationEnabled bool
+	directSendFromSystemProbe  bool
 
 	owner  metav1.Object
 	logger logr.Logger
@@ -74,6 +75,7 @@ func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 
 	if cwsConfig != nil && apiutils.BoolValue(cwsConfig.Enabled) {
 		f.syscallMonitorEnabled = apiutils.BoolValue(cwsConfig.SyscallMonitorEnabled)
+		f.directSendFromSystemProbe = apiutils.BoolValue(cwsConfig.DirectSendFromSystemProbe)
 
 		if cwsConfig.CustomPolicies != nil {
 			f.customConfig = cwsConfig.CustomPolicies
@@ -102,13 +104,18 @@ func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			}
 		}
 
+		reqContainers := []apicommon.AgentContainerName{
+			apicommon.SystemProbeContainerName,
+		}
+
+		if !f.directSendFromSystemProbe {
+			reqContainers = append(reqContainers, apicommon.SecurityAgentContainerName)
+		}
+
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommon.AgentContainerName{
-					apicommon.SecurityAgentContainerName,
-					apicommon.SystemProbeContainerName,
-				},
+				Containers: reqContainers,
 			},
 		}
 	}
@@ -136,7 +143,7 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.Remo
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *cwsFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *cwsFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	// Create configMap if one does not already exist and ConfigData is defined
 	if f.customConfig != nil && f.customConfig.ConfigMap == nil && f.customConfig.ConfigData != nil {
 		cm, err := configmap.BuildConfigMapConfigData(f.owner.GetNamespace(), f.customConfig.ConfigData, f.configMapName, cwsConfFileName)
@@ -161,7 +168,7 @@ func (f *cwsFeature) ManageDependencies(managers feature.ResourceManagers) error
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *cwsFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *cwsFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 
@@ -186,8 +193,11 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	// env vars for Core Agent, Security Agent and System Probe
 	containersForEnvVars := []apicommon.AgentContainerName{
 		apicommon.CoreAgentContainerName,
-		apicommon.SecurityAgentContainerName,
 		apicommon.SystemProbeContainerName,
+	}
+
+	if !f.directSendFromSystemProbe {
+		containersForEnvVars = append(containersForEnvVars, apicommon.SecurityAgentContainerName)
 	}
 
 	enabledEnvVar := &corev1.EnvVar{
@@ -208,6 +218,14 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 			Value: "true",
 		}
 		managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, monitorEnvVar)
+	}
+
+	if f.directSendFromSystemProbe {
+		directSendEnvVar := &corev1.EnvVar{
+			Name:  DDRuntimeSecurityConfigDirectSendFromSystemProbe,
+			Value: "true",
+		}
+		managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, directSendEnvVar)
 	}
 
 	if f.networkEnabled {
@@ -240,12 +258,6 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, policiesDirEnvVar)
 
-	hostRootEnvVar := &corev1.EnvVar{
-		Name:  common.DDHostRootEnvVar,
-		Value: common.HostRootMountPath,
-	}
-	managers.EnvVar().AddEnvVarToContainer(apicommon.SecurityAgentContainerName, hostRootEnvVar)
-
 	volMountMgr := managers.VolumeMount()
 	volMgr := managers.Volume()
 
@@ -268,13 +280,17 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	socketVol, socketVolMount := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, false)
 	volMountMgr.AddVolumeMountToContainer(&socketVolMount, apicommon.SystemProbeContainerName)
 
+	readOnlySocketVolMountContainers := []apicommon.AgentContainerName{
+		apicommon.CoreAgentContainerName,
+	}
+	if !f.directSendFromSystemProbe {
+		readOnlySocketVolMountContainers = append(readOnlySocketVolMountContainers, apicommon.SecurityAgentContainerName)
+	}
+
 	_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, true)
 	managers.VolumeMount().AddVolumeMountToContainers(
 		&socketVolMountReadOnly,
-		[]apicommon.AgentContainerName{
-			apicommon.CoreAgentContainerName,
-			apicommon.SecurityAgentContainerName,
-		},
+		readOnlySocketVolMountContainers,
 	)
 	volMgr.AddVolume(&socketVol)
 
@@ -297,11 +313,6 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	osReleaseVol, osReleaseVolMount := volume.GetVolumes(common.SystemProbeOSReleaseDirVolumeName, common.SystemProbeOSReleaseDirVolumePath, common.SystemProbeOSReleaseDirMountPath, true)
 	volMountMgr.AddVolumeMountToContainer(&osReleaseVolMount, apicommon.SystemProbeContainerName)
 	volMgr.AddVolume(&osReleaseVol)
-
-	// hostroot volume mount
-	hostrootVol, hostrootVolMount := volume.GetVolumes(common.HostRootVolumeName, common.HostRootHostPath, common.HostRootMountPath, true)
-	volMountMgr.AddVolumeMountToContainer(&hostrootVolMount, apicommon.SecurityAgentContainerName)
-	volMgr.AddVolume(&hostrootVol)
 
 	// Custom policies are copied and merged with default policies via a workaround in the init-volume container.
 	if f.customConfig != nil {
@@ -344,12 +355,9 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 			}
 		}
 
-		// Add policies directory envvar to Security Agent, and empty volume to System Probe and Security Agent.
-		managers.EnvVar().AddEnvVarToContainer(apicommon.SecurityAgentContainerName, policiesDirEnvVar)
-
 		policiesVol, policiesVolMount := volume.GetVolumesEmptyDir(securityAgentRuntimePoliciesDirVolumeName, securityAgentRuntimePoliciesDirVolumePath, true)
 		volMgr.AddVolume(&policiesVol)
-		volMountMgr.AddVolumeMountToContainers(&policiesVolMount, []apicommon.AgentContainerName{apicommon.SecurityAgentContainerName, apicommon.SystemProbeContainerName})
+		volMountMgr.AddVolumeMountToContainer(&policiesVolMount, apicommon.SystemProbeContainerName)
 
 		// Add runtime-security.d volume mount to init-volume container at different path
 		policiesVolMountInitVol := corev1.VolumeMount{
@@ -365,6 +373,6 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *cwsFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (f *cwsFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

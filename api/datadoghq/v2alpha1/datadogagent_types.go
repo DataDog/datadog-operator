@@ -105,6 +105,8 @@ type DatadogFeatures struct {
 	PrometheusScrape *PrometheusScrapeFeatureConfig `json:"prometheusScrape,omitempty"`
 	// HelmCheck configuration.
 	HelmCheck *HelmCheckFeatureConfig `json:"helmCheck,omitempty"`
+	// ControlPlaneMonitoring configuration.
+	ControlPlaneMonitoring *ControlPlaneMonitoringFeatureConfig `json:"controlPlaneMonitoring,omitempty"`
 }
 
 // Configuration structs for each feature in DatadogFeatures. All parameters are optional and have default values when necessary.
@@ -348,6 +350,11 @@ type LogCollectionFeatureConfig struct {
 	// Default: 100
 	// +optional
 	OpenFilesLimit *int32 `json:"openFilesLimit,omitempty"`
+
+	// AutoMultiLineDetection allows the Agent to detect and aggregate common multi-line logs automatically.
+	// See also: https://docs.datadoghq.com/agent/logs/auto_multiline_detection/
+	// +optional
+	AutoMultiLineDetection *bool `json:"autoMultiLineDetection,omitempty"`
 }
 
 // LiveProcessCollectionFeatureConfig contains Process Collection configuration.
@@ -455,6 +462,12 @@ type CWSFeatureConfig struct {
 	// Default: false
 	// +optional
 	SyscallMonitorEnabled *bool `json:"syscallMonitorEnabled,omitempty"`
+
+	// DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.
+	// This is an experimental feature. Contact support before using.
+	// Default: false
+	// +optional
+	DirectSendFromSystemProbe *bool `json:"directSendFromSystemProbe,omitempty"`
 
 	Network             *CWSNetworkConfig             `json:"network,omitempty"`
 	SecurityProfiles    *CWSSecurityProfilesConfig    `json:"securityProfiles,omitempty"`
@@ -613,6 +626,12 @@ type GPUFeatureConfig struct {
 	// Default: nvidia
 	// +optional
 	PodRuntimeClassName *string `json:"requiredRuntimeClassName"`
+
+	// PatchCgroupPermissions enables the patch of cgroup permissions for GPU monitoring, in case
+	// the container runtime is not properly configured and the Agent containers lose access to GPU devices.
+	// Default: false
+	// +optional
+	PatchCgroupPermissions *bool `json:"patchCgroupPermissions,omitempty"`
 }
 
 // DogstatsdFeatureConfig contains the Dogstatsd configuration parameters.
@@ -832,6 +851,15 @@ type OtelCollectorFeatureConfig struct {
 	// OTelCollector Config Relevant to the Core agent
 	// +optional
 	CoreConfig *CoreConfig `json:"coreConfig,omitempty"`
+}
+
+// ControlPlaneMonitoringFeatureConfig contains the configuration for the control plane monitoring.
+// +k8s:openapi-gen=true
+type ControlPlaneMonitoringFeatureConfig struct {
+	// Enabled enables control plane monitoring checks in the cluster agent.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // CoreConfig exposes the otel collector configs relevant to the core agent.

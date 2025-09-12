@@ -1065,6 +1065,17 @@
                   },
                   "type": "object"
                 },
+                "controlPlaneMonitoring": {
+                  "additionalProperties": false,
+                  "description": "ControlPlaneMonitoring configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables control plane monitoring checks in the cluster agent.\nDefault: true",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
                 "cspm": {
                   "additionalProperties": false,
                   "description": "CSPM (Cloud Security Posture Management) configuration.",
@@ -1202,6 +1213,10 @@
                         }
                       },
                       "type": "object"
+                    },
+                    "directSendFromSystemProbe": {
+                      "description": "DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.\nThis is an experimental feature. Contact support before using.\nDefault: false",
+                      "type": "boolean"
                     },
                     "enabled": {
                       "description": "Enabled enables Cloud Workload Security.\nDefault: false",
@@ -1500,6 +1515,10 @@
                       "description": "Enabled enables GPU monitoring core check.\nDefault: false",
                       "type": "boolean"
                     },
+                    "patchCgroupPermissions": {
+                      "description": "PatchCgroupPermissions enables the patch of cgroup permissions for GPU monitoring, in case\nthe container runtime is not properly configured and the Agent containers lose access to GPU devices.\nDefault: false",
+                      "type": "boolean"
+                    },
                     "privilegedMode": {
                       "description": "PrivilegedMode enables GPU Probe module in System Probe.\nDefault: false",
                       "type": "boolean"
@@ -1632,6 +1651,10 @@
                   "additionalProperties": false,
                   "description": "LogCollection configuration.",
                   "properties": {
+                    "autoMultiLineDetection": {
+                      "description": "AutoMultiLineDetection allows the Agent to detect and aggregate common multi-line logs automatically.\nSee also: https://docs.datadoghq.com/agent/logs/auto_multiline_detection/",
+                      "type": "boolean"
+                    },
                     "containerCollectAll": {
                       "description": "ContainerCollectAll enables Log collection from all containers.\nDefault: false",
                       "type": "boolean"

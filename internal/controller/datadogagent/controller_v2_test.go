@@ -462,7 +462,6 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 func Test_Introspection(t *testing.T) {
 	const resourcesName = "foo"
 	const resourcesNamespace = "bar"
-	const dsName = "foo-agent"
 
 	eventBroadcaster := record.NewBroadcaster()
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgent_Reconcile"})
@@ -538,7 +537,7 @@ func Test_Introspection(t *testing.T) {
 					string("foo-agent-gke-cos"),
 				}
 
-				return verifyDaemonsetNames(t, c, resourcesNamespace, dsName, expectedDaemonsets)
+				return verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
 			},
 		},
 	}
@@ -1100,6 +1099,313 @@ func Test_AutopilotOverrides(t *testing.T) {
 	}
 }
 
+// Helper function for creating DatadogAgent with cluster checks enabled
+func createDatadogAgentWithClusterChecks(c client.Client, namespace, name string) *v2alpha1.DatadogAgent {
+	dda := testutils.NewInitializedDatadogAgentBuilder(namespace, name).
+		WithClusterChecksEnabled(true).
+		WithClusterChecksUseCLCEnabled(true).
+		Build()
+	_ = c.Create(context.TODO(), dda)
+	return dda
+}
+
+func Test_Control_Plane_Monitoring(t *testing.T) {
+	const resourcesName = "foo"
+	const resourcesNamespace = "bar"
+	const dcaName = "foo-cluster-agent"
+	const dsName = "foo-agent-default"
+
+	eventBroadcaster := record.NewBroadcaster()
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgent_Reconcile"})
+	forwarders := dummyManager{}
+
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	// Register operator types with the runtime scheme.
+	s := agenttestutils.TestScheme()
+
+	defaultRequeueDuration := 15 * time.Second
+
+	tests := []struct {
+		name     string
+		fields   fields
+		loadFunc func(c client.Client) *v2alpha1.DatadogAgent
+		nodes    []client.Object
+		want     reconcile.Result
+		wantErr  bool
+		wantFunc func(t *testing.T, c client.Client) error
+	}{
+		{
+			name: "[introspection] Control Plane Monitoring for Openshift",
+			fields: fields{
+				scheme:   s,
+				recorder: recorder,
+			},
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				return createDatadogAgentWithClusterChecks(c, resourcesNamespace, resourcesName)
+			},
+			nodes: []client.Object{
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "openshift-node-1",
+						Labels: map[string]string{
+							kubernetes.OpenShiftProviderLabel: "rhel",
+						},
+					},
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) error {
+				if err := verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "openshift"); err != nil {
+					return err
+				}
+				expectedDaemonsets := []string{
+					dsName,
+				}
+				if err := verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets); err != nil {
+					return err
+				}
+				return verifyEtcdMountsOpenshift(t, c, resourcesNamespace, dsName, "openshift")
+			},
+		},
+		{
+			name: "[introspection] Control Plane Monitoring with EKS",
+			fields: fields{
+				scheme:   s,
+				recorder: recorder,
+			},
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				return createDatadogAgentWithClusterChecks(c, resourcesNamespace, resourcesName)
+			},
+			nodes: []client.Object{
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "eks-node-1",
+						Labels: map[string]string{
+							kubernetes.EKSProviderLabel: "amazon-eks-node-1.29-v20240627",
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "default-node-2",
+						Labels: map[string]string{
+							kubernetes.DefaultProvider: "",
+						},
+					},
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) error {
+				if err := verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "eks"); err != nil {
+					return err
+				}
+				expectedDaemonsets := []string{
+					dsName,
+				}
+				return verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
+			},
+		},
+		{
+			name: "[introspection] Control Plane Monitoring with multiple providers",
+			fields: fields{
+				scheme:   s,
+				recorder: recorder,
+			},
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				return createDatadogAgentWithClusterChecks(c, resourcesNamespace, resourcesName)
+			},
+			nodes: []client.Object{
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "eks-node-1",
+						Labels: map[string]string{
+							kubernetes.EKSProviderLabel: "amazon-eks-node-1.29-v20240627",
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "openshift-node-2",
+						Labels: map[string]string{
+							kubernetes.OpenShiftProviderLabel: "rhcos",
+						},
+					},
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) error {
+				if err := verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "default"); err != nil {
+					return err
+				}
+				expectedDaemonsets := []string{
+					dsName,
+				}
+				return verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
+			},
+		},
+		{
+			// This test verifies that when a node has a GKE provider label with an unsupported OS value,
+			// the system falls back to the "default" provider for control plane monitoring
+			name: "[introspection] Control Plane Monitoring with unsupported provider",
+			fields: fields{
+				scheme:   s,
+				recorder: recorder,
+			},
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				return createDatadogAgentWithClusterChecks(c, resourcesNamespace, resourcesName)
+			},
+			nodes: []client.Object{
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "gke-node-1",
+						Labels: map[string]string{
+							// Use unsupported OS value to trigger fallback to "default" provider
+							kubernetes.GKEProviderLabel: "unsupported-os",
+						},
+					},
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) error {
+				if err := verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "default"); err != nil {
+					return err
+				}
+				expectedDaemonsets := []string{
+					dsName,
+				}
+				return verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &Reconciler{
+				client:       fake.NewClientBuilder().WithStatusSubresource(&corev1.Node{}, &v2alpha1.DatadogAgent{}).WithObjects(tt.nodes...).Build(),
+				scheme:       tt.fields.scheme,
+				platformInfo: tt.fields.platformInfo,
+				recorder:     recorder,
+				log:          logf.Log.WithName(tt.name),
+				forwarders:   forwarders,
+				options: ReconcilerOptions{
+					ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
+						Enabled: false,
+					},
+					SupportCilium:        false,
+					IntrospectionEnabled: true,
+				},
+			}
+
+			var dda *v2alpha1.DatadogAgent
+			if tt.loadFunc != nil {
+				dda = tt.loadFunc(r.client)
+			}
+			got, err := r.Reconcile(context.TODO(), dda)
+			if tt.wantErr {
+				assert.Error(t, err, "ReconcileDatadogAgent.Reconcile() expected an error")
+			} else {
+				assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() unexpected error: %v", err)
+			}
+
+			assert.Equal(t, tt.want, got, "ReconcileDatadogAgent.Reconcile() unexpected result")
+
+			if tt.wantFunc != nil {
+				err := tt.wantFunc(t, r.client)
+				assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() wantFunc validation error: %v", err)
+			}
+		})
+	}
+}
+
+func verifyDCADeployment(t *testing.T, c client.Client, ddaName, resourcesNamespace, expectedName string, provider string) error {
+	deploymentList := appsv1.DeploymentList{}
+	if err := c.List(context.TODO(), &deploymentList, client.HasLabels{constants.MD5AgentDeploymentProviderLabelKey}); err != nil {
+		return err
+	}
+	assert.Equal(t, 1, len(deploymentList.Items))
+	assert.Equal(t, expectedName, deploymentList.Items[0].ObjectMeta.Name)
+
+	cms := corev1.ConfigMapList{}
+	if err := c.List(context.TODO(), &cms, client.InNamespace(resourcesNamespace)); err != nil {
+		return err
+	}
+
+	dcaDeployment := deploymentList.Items[0]
+	if provider == kubernetes.DefaultProvider {
+		for _, cm := range cms.Items {
+			assert.NotEqual(t, fmt.Sprintf("datadog-controlplane-monitoring-%s", provider), cm.ObjectMeta.Name,
+				"Default provider should not create control plane monitoring ConfigMap")
+		}
+		for _, volume := range dcaDeployment.Spec.Template.Spec.Volumes {
+			assert.NotEqual(t, "kube-apiserver-metrics-config", volume.Name,
+				"Default provider should not have control plane volumes")
+		}
+	} else if provider == kubernetes.OpenshiftProvider || provider == kubernetes.EKSCloudProvider {
+		cpCm := corev1.ConfigMap{}
+		err := c.Get(context.TODO(), types.NamespacedName{
+			Name:      fmt.Sprintf("datadog-controlplane-monitoring-%s", provider),
+			Namespace: resourcesNamespace,
+		}, &cpCm)
+		assert.NoError(t, err, "Control plane monitoring ConfigMap should exist for provider %s", provider)
+
+		if err := verifyCheckMounts(t, dcaDeployment, provider, "kube-apiserver-metrics"); err != nil {
+			return err
+		}
+		if err := verifyCheckMounts(t, dcaDeployment, provider, "kube-controller-manager"); err != nil {
+			return err
+		}
+		if err := verifyCheckMounts(t, dcaDeployment, provider, "kube-scheduler"); err != nil {
+			return err
+		}
+	}
+	if provider == kubernetes.OpenshiftProvider {
+		if err := verifyCheckMounts(t, dcaDeployment, provider, "etcd"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func verifyCheckMounts(t *testing.T, dcaDeployment appsv1.Deployment, provider string, checkName string) error {
+	volumeToKeyMap := map[string]string{
+		"kube-apiserver-metrics":  "kube_apiserver_metrics",
+		"kube-controller-manager": "kube_controller_manager",
+		"kube-scheduler":          "kube_scheduler",
+		"etcd":                    "etcd",
+	}
+	configMapKey := volumeToKeyMap[checkName]
+
+	assert.Contains(t, dcaDeployment.Spec.Template.Spec.Volumes, corev1.Volume{
+		Name: fmt.Sprintf("%s-config", checkName),
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: fmt.Sprintf("datadog-controlplane-monitoring-%s", provider),
+				},
+				Items: []corev1.KeyToPath{
+					{
+						Key:  fmt.Sprintf("%s.yaml", configMapKey),
+						Path: fmt.Sprintf("%s.yaml", configMapKey),
+					},
+				},
+			},
+		},
+	})
+
+	dcaContainer := dcaDeployment.Spec.Template.Spec.Containers[0]
+	assert.Contains(t, dcaContainer.VolumeMounts, corev1.VolumeMount{
+		Name:      fmt.Sprintf("%s-config", checkName),
+		MountPath: fmt.Sprintf("/etc/datadog-agent/conf.d/%s.d", configMapKey),
+		ReadOnly:  true,
+	})
+	return nil
+}
+
 func verifyDaemonsetContainers(c client.Client, resourcesNamespace, dsName string, expectedContainers []string) error {
 	ds := &appsv1.DaemonSet{}
 	if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds); err != nil {
@@ -1119,7 +1425,7 @@ func verifyDaemonsetContainers(c client.Client, resourcesNamespace, dsName strin
 	}
 }
 
-func verifyDaemonsetNames(t *testing.T, c client.Client, resourcesNamespace, dsName string, expectedDSNames []string) error {
+func verifyDaemonsetNames(t *testing.T, c client.Client, resourcesNamespace string, expectedDSNames []string) error {
 	daemonSetList := appsv1.DaemonSetList{}
 	if err := c.List(context.TODO(), &daemonSetList, client.HasLabels{constants.MD5AgentDeploymentProviderLabelKey}); err != nil {
 		return err
@@ -1132,6 +1438,97 @@ func verifyDaemonsetNames(t *testing.T, c client.Client, resourcesNamespace, dsN
 	sort.Strings(actualDSNames)
 	sort.Strings(expectedDSNames)
 	assert.Equal(t, expectedDSNames, actualDSNames)
+	return nil
+}
+
+func verifyEtcdMountsOpenshift(t *testing.T, c client.Client, resourcesNamespace, dsName string, provider string) error {
+	expectedMounts := []corev1.VolumeMount{
+		{
+			Name:      "etcd-client-certs",
+			MountPath: "/etc/etcd-certs",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "disable-etcd-autoconf",
+			MountPath: "/etc/datadog-agent/conf.d/etcd.d",
+			ReadOnly:  false,
+		},
+	}
+
+	// Node Agent
+	ds := &appsv1.DaemonSet{}
+	if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds); err != nil {
+		return err
+	}
+
+	var coreAgentContainer *corev1.Container
+	for _, container := range ds.Spec.Template.Spec.Containers {
+		if container.Name == string(apicommon.CoreAgentContainerName) {
+			coreAgentContainer = &container
+			break
+		}
+	}
+
+	if coreAgentContainer == nil {
+		return fmt.Errorf("core agent container not found in DaemonSet %s", dsName)
+	}
+
+	for _, expectedMount := range expectedMounts {
+		found := false
+		for _, mount := range coreAgentContainer.VolumeMounts {
+			if mount.Name == expectedMount.Name {
+				found = true
+				assert.Equal(t, expectedMount.MountPath, mount.MountPath, "Mount path mismatch for %s in core agent", expectedMount.Name)
+				assert.Equal(t, expectedMount.ReadOnly, mount.ReadOnly, "ReadOnly mismatch for %s in core agent", expectedMount.Name)
+				break
+			}
+		}
+		assert.True(t, found, "Expected volume mount %s not found in core agent container", expectedMount.Name)
+	}
+
+	// Cluster Checks Runner
+	deploymentList := appsv1.DeploymentList{}
+	if err := c.List(context.TODO(), &deploymentList, client.InNamespace(resourcesNamespace)); err != nil {
+		return err
+	}
+
+	var ccrDeployment *appsv1.Deployment
+	for _, deployment := range deploymentList.Items {
+		if deployment.Name == "foo-cluster-checks-runner" {
+			ccrDeployment = &deployment
+			break
+		}
+	}
+
+	if ccrDeployment == nil {
+		return fmt.Errorf("cluster-checks-runner deployment not found")
+	}
+
+	var ccrContainer *corev1.Container
+	for _, container := range ccrDeployment.Spec.Template.Spec.Containers {
+		if container.Name == string(apicommon.ClusterChecksRunnersContainerName) {
+			ccrContainer = &container
+			break
+		}
+	}
+
+	if ccrContainer == nil {
+		return fmt.Errorf("cluster-checks-runner container not found in deployment")
+	}
+
+	for _, expectedMount := range expectedMounts {
+		found := false
+		for _, mount := range ccrContainer.VolumeMounts {
+			if mount.Name == expectedMount.Name {
+				found = true
+				assert.Equal(t, expectedMount.MountPath, mount.MountPath, "Mount path mismatch for %s in CCR", expectedMount.Name)
+				assert.Equal(t, expectedMount.ReadOnly, mount.ReadOnly, "ReadOnly mismatch for %s in CCR", expectedMount.Name)
+				break
+			}
+		}
+		assert.True(t, found, "Expected volume mount %s not found in cluster-checks-runner container", expectedMount.Name)
+	}
+
 	return nil
 }
 

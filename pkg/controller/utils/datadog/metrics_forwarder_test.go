@@ -963,7 +963,7 @@ func Test_getbaseURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getbaseURL(tt.args.dda); got != tt.want {
+			if got := getbaseURL(&tt.args.dda.Spec); got != tt.want {
 				t.Errorf("getbaseURL() = %v, want %v", got, tt.want)
 			}
 		})

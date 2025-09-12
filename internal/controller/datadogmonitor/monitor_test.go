@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
@@ -47,6 +48,7 @@ func Test_buildMonitor(t *testing.T) {
 				EvaluationDelay:        ptr.To(int64(100)),
 				EscalationMessage:      ptr.To("This is an escalation message"),
 				IncludeTags:            ptr.To(true),
+				GroupRetentionDuration: ptr.To("2d"),
 				GroupbySimpleMonitor:   ptr.To(true),
 				Locked:                 ptr.To(true),
 				NewGroupDelay:          ptr.To(int64(400)),
@@ -116,6 +118,9 @@ func Test_buildMonitor(t *testing.T) {
 
 	assert.Equal(t, *dm.Spec.Options.EscalationMessage, monitor.Options.GetEscalationMessage(), "discrepancy found in parameter: EscalationMessage")
 	assert.Equal(t, *dm.Spec.Options.EscalationMessage, monitorUR.Options.GetEscalationMessage(), "discrepancy found in parameter: EscalationMessage")
+
+	assert.Equal(t, *dm.Spec.Options.GroupRetentionDuration, monitor.Options.GetGroupRetentionDuration(), "discrepancy found in parameter: GroupRetentionDuration")
+	assert.Equal(t, *dm.Spec.Options.GroupRetentionDuration, monitorUR.Options.GetGroupRetentionDuration(), "discrepancy found in parameter: GroupRetentionDuration")
 
 	assert.Equal(t, *dm.Spec.Options.GroupbySimpleMonitor, monitor.Options.GetGroupbySimpleMonitor(), "discrepancy found in parameter: GroupbySimpleMonitor")
 	assert.Equal(t, *dm.Spec.Options.GroupbySimpleMonitor, monitorUR.Options.GetGroupbySimpleMonitor(), "discrepancy found in parameter: GroupbySimpleMonitor")
@@ -225,8 +230,22 @@ func Test_getMonitor(t *testing.T) {
 }
 
 func Test_validateMonitor(t *testing.T) {
-	dm := genericDatadogMonitor()
-
+	dm := &datadoghqv1alpha1.DatadogMonitor{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "DatadogMonitor",
+			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: resourcesNamespace,
+			Name:      resourcesName,
+		},
+		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+			Query:   "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.1",
+			Type:    datadoghqv1alpha1.DatadogMonitorTypeMetric,
+			Name:    "test monitor",
+			Message: "something is wrong",
+		},
+	}
 	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 	}))
