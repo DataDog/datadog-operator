@@ -6,10 +6,13 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.38.3
 	github.com/aws/aws-sdk-go-v2/config v1.31.6
 	github.com/aws/aws-sdk-go-v2/service/cloudformation v1.65.2
+	github.com/aws/aws-sdk-go-v2/service/sts v1.38.2
 	github.com/aws/smithy-go v1.23.0
 	github.com/stretchr/testify v1.11.1
+	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.18.6
-	k8s.io/client-go v0.34.0
+	k8s.io/apimachinery v0.34.1
+	k8s.io/client-go v0.34.1
 )
 
 require (
@@ -31,7 +34,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.6 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.29.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.34.2 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.38.2 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
 	github.com/containerd/containerd v1.7.27 // indirect
@@ -117,10 +119,8 @@ require (
 	google.golang.org/protobuf v1.36.5 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/api v0.34.0 // indirect
+	k8s.io/api v0.34.1 // indirect
 	k8s.io/apiextensions-apiserver v0.33.3 // indirect
-	k8s.io/apimachinery v0.34.0 // indirect
 	k8s.io/apiserver v0.33.3 // indirect
 	k8s.io/cli-runtime v0.33.3 // indirect
 	k8s.io/component-base v0.33.3 // indirect
