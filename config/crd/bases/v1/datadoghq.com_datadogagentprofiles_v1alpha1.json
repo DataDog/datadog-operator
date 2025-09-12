@@ -1214,6 +1214,10 @@
                       },
                       "type": "object"
                     },
+                    "directSendFromSystemProbe": {
+                      "description": "DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.\nThis is an experimental feature. Contact support before using.\nDefault: false",
+                      "type": "boolean"
+                    },
                     "enabled": {
                       "description": "Enabled enables Cloud Workload Security.\nDefault: false",
                       "type": "boolean"

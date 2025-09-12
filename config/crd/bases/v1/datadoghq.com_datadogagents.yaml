@@ -1198,6 +1198,12 @@ spec:
                                   type: string
                               type: object
                           type: object
+                        directSendFromSystemProbe:
+                          description: |-
+                            DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.
+                            This is an experimental feature. Contact support before using.
+                            Default: false
+                          type: boolean
                         enabled:
                           description: |-
                             Enabled enables Cloud Workload Security.
@@ -8868,6 +8874,12 @@ spec:
                                       type: string
                                   type: object
                               type: object
+                            directSendFromSystemProbe:
+                              description: |-
+                                DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.
+                                This is an experimental feature. Contact support before using.
+                                Default: false
+                              type: boolean
                             enabled:
                               description: |-
                                 Enabled enables Cloud Workload Security.

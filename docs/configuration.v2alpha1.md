@@ -85,6 +85,7 @@ spec:
 | features.cws.customPolicies.configData | ConfigData corresponds to the configuration file content. |
 | features.cws.customPolicies.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | features.cws.customPolicies.configMap.name | Is the name of the ConfigMap. |
+| features.cws.directSendFromSystemProbe | DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent. This is an experimental feature. Contact support before using. Default: false |
 | features.cws.enabled | Enables Cloud Workload Security. Default: false |
 | features.cws.network.enabled | Enables Cloud Workload Security Network detections. Default: true |
 | features.cws.remoteConfiguration.enabled | Enables Remote Configuration for Cloud Workload Security. Default: true |
