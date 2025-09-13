@@ -12,6 +12,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apiextensionv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
@@ -43,5 +44,6 @@ func TestScheme() *runtime.Scheme {
 	s.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
 	s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.DatadogAgentInternal{})
 	s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.DatadogAgentInternalList{})
+	s.AddKnownTypes(apiextensionv1.SchemeGroupVersion, &apiextensionv1.CustomResourceDefinition{})
 	return s
 }
