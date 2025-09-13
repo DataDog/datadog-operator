@@ -38,13 +38,13 @@ type fakeMetricsForwarder struct {
 	mock.Mock
 }
 
-func (c *fakeMetricsForwarder) delegatedSendDeploymentMetric(metricValue float64, component string, tags []string) error {
-	c.Called(metricValue, component, tags)
+func (c *fakeMetricsForwarder) delegatedSendDeploymentMetric(ctx context.Context, metricValue float64, component string, tags []string) error {
+	c.Called(ctx, metricValue, component, tags)
 	return nil
 }
 
-func (c *fakeMetricsForwarder) delegatedSendReconcileMetric(metricValue float64, tags []string) error {
-	c.Called(metricValue, tags)
+func (c *fakeMetricsForwarder) delegatedSendReconcileMetric(ctx context.Context, metricValue float64, tags []string) error {
+	c.Called(ctx, metricValue, tags)
 	return nil
 }
 
@@ -53,8 +53,8 @@ func (c *fakeMetricsForwarder) delegatedSendEvent(eventTitle string, eventType E
 	return nil
 }
 
-func (c *fakeMetricsForwarder) delegatedSendFeatureMetric(feature string) error {
-	c.Called(feature)
+func (c *fakeMetricsForwarder) delegatedSendFeatureMetric(ctx context.Context, feature string) error {
+	c.Called(ctx, feature)
 	return nil
 }
 
@@ -639,6 +639,7 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 		platformInfo:        &platformInfo,
 	}
 	mf.initGlobalTags()
+	ctx := mf.generateDatadogContext()
 
 	tests := []struct {
 		name     string
@@ -651,7 +652,7 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			name: "last error init value, new unknown error => send unsuccess metric",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendReconcileMetric", 0.0, []string{"kube_namespace:foo", "resource_name:bar", "reconcile_err:err_msg", "cr_preferred_version:null"}).Once()
+				f.On("delegatedSendReconcileMetric", ctx, 0.0, []string{"kube_namespace:foo", "resource_name:bar", "reconcile_err:err_msg", "cr_preferred_version:null"}).Once()
 				mf.delegator = f
 				mf.lastReconcileErr = errInitValue
 				return mf, f
@@ -667,7 +668,7 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			name: "last error init value, new auth error => send unsuccess metric",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendReconcileMetric", 0.0, []string{"kube_namespace:foo", "resource_name:bar", "reconcile_err:Unauthorized", "cr_preferred_version:null"}).Once()
+				f.On("delegatedSendReconcileMetric", ctx, 0.0, []string{"kube_namespace:foo", "resource_name:bar", "reconcile_err:Unauthorized", "cr_preferred_version:null"}).Once()
 				mf.delegator = f
 				mf.lastReconcileErr = errInitValue
 				return mf, f
@@ -683,7 +684,7 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			name: "last error init value, new error is nil => send success metric",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendReconcileMetric", 1.0, []string{"kube_namespace:foo", "resource_name:bar", "reconcile_err:null", "cr_preferred_version:null"}).Once()
+				f.On("delegatedSendReconcileMetric", ctx, 1.0, []string{"kube_namespace:foo", "resource_name:bar", "reconcile_err:null", "cr_preferred_version:null"}).Once()
 				mf.delegator = f
 				mf.lastReconcileErr = errInitValue
 				return mf, f
@@ -995,6 +996,7 @@ func TestMetricsForwarder_sendFeatureMetric(t *testing.T) {
 		monitoredObjectKind: "DatadogAgent",
 	}
 	mf.initGlobalTags()
+	ctx := mf.generateDatadogContext()
 
 	tests := []struct {
 		name     string
@@ -1008,14 +1010,14 @@ func TestMetricsForwarder_sendFeatureMetric(t *testing.T) {
 			name: "send feature metric",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendFeatureMetric", "test_feature")
+				f.On("delegatedSendFeatureMetric", ctx, "test_feature")
 				mf.delegator = f
 				return mf, f
 			},
 			feature: "test_feature",
 			wantErr: false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendFeatureMetric", "test_feature") {
+				if !f.AssertCalled(t, "delegatedSendFeatureMetric", ctx, "test_feature") {
 					return errors.New("Function not called")
 				}
 				if !f.AssertNumberOfCalls(t, "delegatedSendFeatureMetric", 1) {
@@ -1028,7 +1030,7 @@ func TestMetricsForwarder_sendFeatureMetric(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dd, f := tt.loadFunc()
-			if err := dd.sendFeatureMetric(tt.feature); (err != nil) != tt.wantErr {
+			if err := dd.sendFeatureMetric(ctx, tt.feature); (err != nil) != tt.wantErr {
 				t.Errorf("metricsForwarder.sendFeatureMetric() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err := tt.wantFunc(f); err != nil {
