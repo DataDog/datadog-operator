@@ -55,7 +55,7 @@ func (f *liveProcessFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.Datado
 			apicommon.CoreAgentContainerName,
 		}
 
-		f.runInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(ddaSpec, apiutils.BoolValue(ddaSpec.Global.RunProcessChecksInCoreAgent))
+		f.runInCoreAgent = featutils.ShouldRunProcessChecksInCoreAgent(ddaSpec)
 
 		if !f.runInCoreAgent {
 			reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)

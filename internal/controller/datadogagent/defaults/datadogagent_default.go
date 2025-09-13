@@ -31,7 +31,6 @@ const (
 	defaultLiveProcessCollectionEnabled   bool = false
 	defaultLiveContainerCollectionEnabled bool = true
 	defaultProcessDiscoveryEnabled        bool = true
-	defaultRunProcessChecksInCoreAgent    bool = true
 
 	defaultOOMKillEnabled        bool = false
 	defaultTCPQueueLengthEnabled bool = false
@@ -210,8 +209,6 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	if ddaSpec.Global.Kubelet.PodResourcesSocketPath == "" {
 		ddaSpec.Global.Kubelet.PodResourcesSocketPath = defaultKubeletPodResourcesSocketDir
 	}
-
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.RunProcessChecksInCoreAgent, defaultRunProcessChecksInCoreAgent)
 }
 
 // defaultFeaturesConfig sets default values in DatadogAgentSpec.Features.
