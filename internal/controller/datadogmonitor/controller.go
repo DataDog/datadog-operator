@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,6 +22,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -130,6 +132,19 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 		return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
 	}
 
+	if instance.Spec.SLORef != nil {
+		slo := &datadoghqv1alpha1.DatadogSLO{}
+		err := r.client.Get(ctx, types.NamespacedName{
+			Name:      instance.Spec.SLORef.Name,
+			Namespace: instance.Spec.SLORef.Namespace,
+		}, slo)
+		if err != nil {
+			logger.Error(err, "unable to fetch referenced SLO", "sloRef", instance.Spec.SLORef)
+			return result, err
+		}
+		instance.Spec.Query = replaceSLOPlaceholders(instance.Spec.Query, slo.Status.ID)
+	}
+
 	instanceSpecHash, err := comparison.GenerateMD5ForSpec(&instance.Spec)
 	if err != nil {
 		logger.Error(err, "error generating hash")
@@ -214,6 +229,26 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 
 	// Update the status
 	return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
+}
+
+func replaceSLOPlaceholders(query, sloID string) string {
+	// Matches error_budget("...").func1().func2() and burn_rate("...").func()
+	re := regexp.MustCompile(`(error_budget|burn_rate)\(".*?"\)((?:\.\w+\(\))*)?`)
+	result := re.ReplaceAllStringFunc(query, func(match string) string {
+		submatches := re.FindStringSubmatch(match)
+		if len(submatches) >= 3 {
+			functionName := submatches[1]
+			suffix := submatches[2]
+			return fmt.Sprintf(`%s("%s")%s`, functionName, sloID, suffix)
+		}
+		return query
+	})
+	return result
+}
+
+func (r *Reconciler) updateDatadogMonitorQueryFromSLORef(logger logr.Logger, ctx context.Context, instance *datadoghqv1alpha1.DatadogMonitor) error {
+
+	return nil
 }
 
 func (r *Reconciler) create(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, status *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time, instanceSpecHash string) error {

@@ -254,6 +254,23 @@
           "type": "array",
           "x-kubernetes-list-type": "set"
         },
+        "sloRef": {
+          "additionalProperties": false,
+          "description": "SLORef is SLO reference when specifying slo type alert.",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "namespace": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "namespace"
+          ],
+          "type": "object"
+        },
         "tags": {
           "description": "Tags is the monitor tags associated with your monitor",
           "items": {
