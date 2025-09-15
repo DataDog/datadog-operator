@@ -728,7 +728,7 @@ func (r *Reconciler) getCurrentDaemonset(dda, daemonset metav1.Object) (*appsv1.
 		if err := r.client.List(context.TODO(), &dsList, client.MatchingLabels{
 			apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 			kubernetes.AppKubernetesManageByLabelKey:   "Helm",
-			apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
+			apicommon.AgentDeploymentNameLabelKey:      "datadog",
 		}); err != nil {
 			return nil, err
 		}
