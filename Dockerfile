@@ -31,6 +31,7 @@ COPY api/ api/
 COPY internal/controller/ internal/controller/
 COPY pkg/ pkg/
 COPY cmd/helpers/ cmd/helpers/
+COPY cmd/helm-mapper/ cmd/helm-mapper/
 
 # Build
 ARG LDFLAGS
@@ -44,6 +45,8 @@ RUN if [ "$FIPS_ENABLED" = "true" ]; then \
     fi
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GO111MODULE=on go build -a -ldflags "${LDFLAGS}" -o helpers cmd/helpers/main.go
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GO111MODULE=on go build -a -ldflags "${LDFLAGS}" -o helm-mapper cmd/helm-mapper/main.go
 
 FROM registry.access.redhat.com/ubi9/ubi-minimal:latest AS certs
 
@@ -66,6 +69,11 @@ COPY --from=builder /workspace/manager .
 COPY --from=builder /workspace/helpers .
 COPY scripts/readsecret.sh .
 RUN chmod 550 readsecret.sh && chmod 550 helpers
+
+COPY --from=builder /workspace/helm-mapper .
+RUN chmod 550 helm-mapper
+COPY ./cmd/helm-mapper/mapping_datadog_helm_to_datadogagent_crd_v2.yaml /mapping_datadog_helm_to_datadogagent_crd_v2.yaml
+RUN chmod 644 /mapping_datadog_helm_to_datadogagent_crd_v2.yaml
 
 COPY ./LICENSE ./LICENSE-3rdparty.csv /licenses/
 RUN chmod -R 755 /licenses

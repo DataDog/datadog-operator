@@ -325,6 +325,10 @@ sync: ## Run go work sync
 kubectl-datadog: lint
 	go build -ldflags '${LDFLAGS}' -o bin/kubectl-datadog ./cmd/kubectl-datadog/main.go
 
+.PHONY: helm-mapper
+helm-mapper: fmt vet lint
+	go build -ldflags '${LDFLAGS}' -o bin/helm-mapper ./cmd/helm-mapper/main.go
+
 .PHONY: check-operator
 check-operator: fmt vet lint
 	go build -ldflags '${LDFLAGS}' -o bin/check-operator ./cmd/check-operator/main.go
