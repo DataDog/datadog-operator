@@ -22,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -69,16 +70,46 @@ func addComponentDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpec
 	}
 
 	if componentName == v2alpha1.NodeAgentComponentName {
-		// Create a configmap for the default seccomp profile in the System Probe.
-		// This is mounted in the init-volume container in the agent default code.
+		// Creates / updates system-probe-seccomp configMap to configData or default
 		for _, containerName := range rc.Containers {
 			if containerName == apicommon.SystemProbeContainerName {
-				if !useSystemProbeCustomSeccomp(ddaSpec) {
-					errs = append(errs, manager.ConfigMapManager().AddConfigMap(
+				var seccompConfigData map[string]string
+				useCustomSeccompConfigData := false
+
+				if componentOverride, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
+					if spContainer, ok := componentOverride.Containers[apicommon.SystemProbeContainerName]; ok {
+						if useSystemProbeCustomSeccomp(ddaSpec) && spContainer.SeccompConfig.CustomProfile.ConfigMap != nil {
+							break
+						}
+						if useSystemProbeCustomSeccomp(ddaSpec) && spContainer.SeccompConfig.CustomProfile.ConfigData != nil {
+							seccompConfigData = map[string]string{
+								common.SystemProbeSeccompKey: *spContainer.SeccompConfig.CustomProfile.ConfigData,
+							}
+							useCustomSeccompConfigData = true
+						}
+					}
+				}
+				if seccompConfigData == nil {
+					if !useSystemProbeCustomSeccomp(ddaSpec) {
+						seccompConfigData = agent.DefaultSeccompConfigDataForSystemProbe()
+					}
+				}
+				if seccompConfigData != nil {
+					err := manager.ConfigMapManager().AddConfigMap(
 						common.GetDefaultSeccompConfigMapName(ddaMeta),
 						ddaMeta.GetNamespace(),
-						agent.DefaultSeccompConfigDataForSystemProbe(),
-					))
+						seccompConfigData,
+					)
+
+					if err == nil && useSystemProbeCustomSeccomp(ddaSpec) && useCustomSeccompConfigData {
+						// Add checksum annotation to the configMap
+						if seccompCM, ok := manager.Store().Get(kubernetes.ConfigMapKind, ddaMeta.GetNamespace(), common.GetDefaultSeccompConfigMapName(ddaMeta)); ok {
+							configHash, _ := comparison.GenerateMD5ForSpec(seccompConfigData)
+							annotations := object.MergeAnnotationsLabels(logger, seccompCM.GetAnnotations(), map[string]string{object.GetChecksumAnnotationKey(common.SystemProbeSeccompKey): configHash}, "*")
+							seccompCM.SetAnnotations(annotations)
+						}
+					}
+					errs = append(errs, err)
 				}
 			}
 		}
