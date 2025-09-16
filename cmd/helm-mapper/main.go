@@ -6,9 +6,11 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"reflect"
@@ -16,31 +18,21 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
-
 	"helm.sh/helm/v3/pkg/chartutil"
 )
 
 const defaultDDAMappingPath = "mapping_datadog_helm_to_datadogagent_crd.yaml"
 
 func main() {
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, `helm-mapper: migrate Datadog Helm values to the DatadogAgent CRD
+Usage:
+	helm-mapper -sourceFile=<FILE> -destFile=<DEST_FILE> -mappingFile=<MAPPING_FILE>
 
-	if len(os.Args) > 1 {
-		switch os.Args[1] {
-		case "help":
-			fmt.Println("Helper binary to convert a YAML file into another YAML file using a provided mapping.")
-			fmt.Println("Flags (all optional):")
-			fmt.Println("  -printOutput (bool) [default: true]")
-			fmt.Println(fmt.Sprintf("  -mappingFile (string) [default: %s]", defaultDDAMappingPath))
-			fmt.Println("  -sourceFile (string) [default: datadog/values.yaml]")
-			fmt.Println("  -destFile (string) [default: destination.yaml]")
-			fmt.Println("  -name (string) [default: datadog")
-			fmt.Println("  -namespace (string)")
-			fmt.Println("  -updateMap (bool) [default: false]")
-			return
-		}
+Options:
+`)
+		flag.PrintDefaults()
 	}
-
-	printPtr := flag.Bool("printOutput", true, "print output to stdout")
 
 	var mappingFile string
 	var sourceFile string
@@ -48,24 +40,26 @@ func main() {
 	var ddaName string
 	var namespace string
 	var updateMap bool
+	var printPtr bool
 	flag.StringVar(&mappingFile, "mappingFile", "", "Path to mapping YAML file. Example: mapping.yaml")
 	flag.StringVar(&sourceFile, "sourceFile", "", "Path to source YAML file. Example: source.yaml")
 	flag.StringVar(&destFile, "destFile", "destination.yaml", "Path to destination YAML file.")
 	flag.StringVar(&ddaName, "ddaName", "", "Name to use for the destination DDA manifest.")
 	flag.StringVar(&namespace, "namespace", "", "Namespace to use in destination DDA manifest.")
 	flag.BoolVar(&updateMap, "updateMap", false, fmt.Sprintf("Update 'mappingFile' with provided 'sourceFile'. (default false) If set to 'true', default mappingFile is %s and default sourceFile is latest published Datadog chart values.yaml.", defaultDDAMappingPath))
+	flag.BoolVar(&printPtr, "printOutput", true, "print output to stdout")
 
 	flag.Parse()
 
-	fmt.Println("Mapper Config: ")
-	fmt.Println("mappingFile:", mappingFile)
-	fmt.Println("sourceFile:", sourceFile)
-	fmt.Println("destFile:", destFile)
-	fmt.Println("ddaName:", ddaName)
-	fmt.Println("namespace:", namespace)
-	fmt.Println("updateMap:", updateMap)
-	fmt.Println("printOutput:", *printPtr)
-	fmt.Println("")
+	log.Println("Mapper Config: ")
+	log.Println("mappingFile:", mappingFile)
+	log.Println("sourceFile:", sourceFile)
+	log.Println("destFile:", destFile)
+	log.Println("ddaName:", ddaName)
+	log.Println("namespace:", namespace)
+	log.Println("updateMap:", updateMap)
+	log.Println("printOutput:", printPtr)
+	log.Println("")
 
 	// If updating mapping:
 	// Use latest datadog chart values.yaml as sourceFile if none provided
@@ -84,12 +78,12 @@ func main() {
 	// Read mapping file
 	mapping, err := os.ReadFile(mappingFile)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
 	mappingValues, err := chartutil.ReadValues(mapping)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
 
@@ -101,19 +95,18 @@ func main() {
 		defer os.Remove(tmpSourceFile)
 	}
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
 	sourceValues, err := chartutil.ReadValues(source)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
 
 	// Create an interim map that that has period-delimited destination key as the key, and the value from the source.yaml for the value
 	var pathVal interface{}
-	var destKey interface{}
-	var ok bool
+
 	interim := map[string]interface{}{
 		"apiVersion": "datadoghq.com/v2alpha1",
 		"kind":       "DatadogAgent",
@@ -143,7 +136,7 @@ func main() {
 		}
 		newMapYaml, e := chartutil.Values(interim).YAML()
 		if e != nil {
-			fmt.Println(e)
+			log.Println(e)
 			return
 		}
 		if mappingFile == defaultDDAMappingPath || tmpSourceFile != "" {
@@ -151,18 +144,18 @@ func main() {
 ` + newMapYaml
 		}
 
-		if *printPtr {
-			fmt.Println("")
-			fmt.Println(newMapYaml)
+		if printPtr {
+			log.Println("")
+			log.Println(newMapYaml)
 		}
 
 		e = os.WriteFile(mappingFile, []byte(newMapYaml), 0660)
 		if e != nil {
-			fmt.Printf("Error updating mapping yaml. %v", e)
+			log.Printf("Error updating mapping yaml. %v", e)
 			return
 		}
 
-		fmt.Printf("Mapping file, %s, successfully updated", mappingFile)
+		log.Printf("Mapping file, %s, successfully updated", mappingFile)
 		return
 	}
 	// Map values.yaml => DDA
@@ -180,10 +173,10 @@ func main() {
 			}
 		}
 
-		destKey, ok = mappingValues[sourceKey]
+		destKey, ok := mappingValues[sourceKey]
 		rt := reflect.TypeOf(destKey)
 		if !ok || destKey == "" || destKey == nil {
-			fmt.Printf("Warning: key not found: %s\n", sourceKey)
+			log.Printf("Warning: key not found: %s\n", sourceKey)
 			// Continue through loop
 		} else if rt.Kind() == reflect.Slice {
 			// Provide support for the case where one source key may map to multiple destination keys
@@ -196,15 +189,15 @@ func main() {
 			newType, newTypeOk := destKey.(map[string]interface{})["newType"].(string)
 			// if values type is different from new type, convert it
 			pathValType := reflect.TypeOf(pathVal).Kind().String()
-
+			var newPathVal []byte
 			if newTypeOk && newType != "" && pathValType != newType {
 				switch {
 				case newType == "string":
 					switch {
 					case pathValType == "slice":
-						newPathVal, err := yaml.Marshal(pathVal)
+						newPathVal, err = yaml.Marshal(pathVal)
 						if err != nil {
-							fmt.Println(err)
+							log.Println(err)
 							return
 						}
 						interim[newPath] = string(newPathVal)
@@ -214,7 +207,7 @@ func main() {
 					case pathValType == "string":
 						interim[newPath], err = strconv.Atoi(pathVal.(string))
 						if err != nil {
-							fmt.Println(err)
+							log.Println(err)
 							return
 						}
 					}
@@ -243,23 +236,21 @@ func main() {
 	// Pretty print to YAML format
 	out, err := chartutil.Values(result).YAML()
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
 
-	if *printPtr {
-		fmt.Println("")
-		fmt.Println(out)
+	if printPtr {
+		log.Println("")
+		log.Println(out)
 	}
 
 	err = os.WriteFile(destFile, []byte(out), 0660)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 
-	fmt.Println("YAML file successfully written to", destFile)
-
-	return
+	log.Println("YAML file successfully written to", destFile)
 }
 
 func makeTable(path string, val interface{}, mapName map[string]interface{}) map[string]interface{} {
@@ -313,38 +304,38 @@ func getChartVersion() string {
 	ddChart, err := chartutil.LoadChartfile(chartYamlPath)
 	defer os.Remove(chartYamlPath)
 	if err != nil {
-		fmt.Println(fmt.Printf("Error loading Chart.yaml: %s", err))
+		log.Printf("Error loading Chart.yaml: %s", err)
 	}
 	return ddChart.Version
 }
 
 func downloadYaml(url string, name string) string {
-	resp, err := http.Get(url)
+	resp, err := fetchUrl(context.TODO(), url)
 	if err != nil {
-		fmt.Printf("Error fetching yaml file: %v\n", err)
+		log.Printf("Error fetching yaml file: %v\n", err)
 		return ""
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("Failed to fetch yaml file %s: %v\n", url, resp.Status)
+		log.Printf("Failed to fetch yaml file %s: %v\n", url, resp.Status)
 		return ""
 	}
 
 	tmpFile, err := os.CreateTemp("", fmt.Sprintf("%s.yaml.*", name))
 	if err != nil {
-		fmt.Printf("Error creating temporary file: %v\n", err)
+		log.Printf("Error creating temporary file: %v\n", err)
 		return ""
 	}
 	defer tmpFile.Close()
 
 	_, err = io.Copy(tmpFile, resp.Body)
 	if err != nil {
-		fmt.Printf("Error saving file: %v\n", err)
+		log.Printf("Error saving file: %v\n", err)
 		return ""
 	}
 
-	// fmt.Printf("File downloaded and saved to temporary file: %s\n", tmpFile.Name())
+	// log.Printf("File downloaded and saved to temporary file: %s\n", tmpFile.Name())
 	return tmpFile.Name()
 }
 
@@ -383,4 +374,12 @@ func mapAppSecretKey(interim map[string]interface{}, newPath string, pathVal int
 func mapTokenSecretKey(interim map[string]interface{}, newPath string, pathVal interface{}) {
 	interim[newPath] = pathVal
 	interim["spec.global.clusterAgentTokenSecret.keyName"] = "token"
+}
+
+func fetchUrl(ctx context.Context, url string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	return http.DefaultClient.Do(req)
 }
