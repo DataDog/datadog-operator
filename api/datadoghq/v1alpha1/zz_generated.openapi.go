@@ -1186,6 +1186,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorOptions(ref co
 							Format:      "",
 						},
 					},
+					"groupRetentionDuration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The time span after which groups with missing data are dropped from the monitor state. The minimum value is one hour, and the maximum value is 72 hours. Example values are: \"60m\", \"1h\", and \"2d\". This option is only available for APM Trace Analytics, Audit Trail, CI, Error Tracking, Event, Logs, and RUM monitors.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"groupbySimpleMonitor": {
 						SchemaProps: spec.SchemaProps{
 							Description: "A Boolean indicating whether the log alert monitor triggers a single alert or multiple alerts when any group breaches a threshold.",
