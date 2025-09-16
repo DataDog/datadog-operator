@@ -7,9 +7,9 @@ metadata:
   namespace: datadog-agent
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.12.1
+    helm.sh/chart: datadog-operator-2.13.1
     app.kubernetes.io/instance: operator-eks-addon
-    app.kubernetes.io/version: "1.17.0"
+    app.kubernetes.io/version: "1.18.0"
     app.kubernetes.io/managed-by: eks-addon
 ---
 # Source: operator-eks-addon/charts/datadog-operator/charts/datadogCRDs/templates/datadoghq.com_datadogagents_v1.yaml
@@ -20,7 +20,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.16.3
   name: datadogagents.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.10.0'
+    helm.sh/chart: 'datadogCRDs-2.11.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -5028,7 +5028,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.16.3
   name: datadogmetrics.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.10.0'
+    helm.sh/chart: 'datadogCRDs-2.11.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -5156,7 +5156,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.16.3
   name: datadogpodautoscalers.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.10.0'
+    helm.sh/chart: 'datadogCRDs-2.11.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -6310,9 +6310,9 @@ metadata:
   name: operator-eks-addon-datadog-operator
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.12.1
+    helm.sh/chart: datadog-operator-2.13.1
     app.kubernetes.io/instance: operator-eks-addon
-    app.kubernetes.io/version: "1.17.0"
+    app.kubernetes.io/version: "1.18.0"
     app.kubernetes.io/managed-by: eks-addon
 rules:
 - nonResourceURLs:
@@ -6700,9 +6700,9 @@ metadata:
   namespace: datadog-agent
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.12.1
+    helm.sh/chart: datadog-operator-2.13.1
     app.kubernetes.io/instance: operator-eks-addon
-    app.kubernetes.io/version: "1.17.0"
+    app.kubernetes.io/version: "1.18.0"
     app.kubernetes.io/managed-by: eks-addon
 spec:
   replicas: 1
@@ -6728,7 +6728,7 @@ spec:
       serviceAccountName: operator-eks-addon-datadog-operator
       containers:
         - name: datadog-operator
-          image: "709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator:1.17.0"
+          image: "709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator:1.18.0"
           imagePullPolicy: IfNotPresent
           env:
             - name: WATCH_NAMESPACE
