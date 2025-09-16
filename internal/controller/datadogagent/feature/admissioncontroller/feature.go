@@ -99,11 +99,11 @@ func (f *admissionControllerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 	ac := ddaSpec.Features.AdmissionController
 
 	if ac != nil && apiutils.BoolValue(ac.Enabled) {
-		if ac.Validation != nil && ac.Validation.Enabled != nil {
-			f.validationWebhookConfig = &ValidationConfig{enabled: apiutils.BoolValue(ac.Validation.Enabled)}
+		f.validationWebhookConfig = &ValidationConfig{
+			enabled: ac.Validation != nil && apiutils.BoolValue(ac.Validation.Enabled),
 		}
-		if ac.Mutation != nil && ac.Mutation.Enabled != nil {
-			f.mutationWebhookConfig = &MutationConfig{enabled: apiutils.BoolValue(ac.Mutation.Enabled)}
+		f.mutationWebhookConfig = &MutationConfig{
+			enabled: ac.Mutation != nil && apiutils.BoolValue(ac.Mutation.Enabled),
 		}
 
 		f.mutateUnlabelled = apiutils.BoolValue(ac.MutateUnlabelled)
