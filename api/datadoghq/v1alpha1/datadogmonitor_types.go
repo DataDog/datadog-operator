@@ -100,6 +100,11 @@ type DatadogMonitorOptions struct {
 	EvaluationDelay *int64 `json:"evaluationDelay,omitempty"`
 	// A Boolean indicating whether notifications from this monitor automatically inserts its triggering tags into the title.
 	IncludeTags *bool `json:"includeTags,omitempty"`
+	// The time span after which groups with missing data are dropped from the monitor state.
+	// The minimum value is one hour, and the maximum value is 72 hours.
+	// Example values are: "60m", "1h", and "2d".
+	// This option is only available for APM Trace Analytics, Audit Trail, CI, Error Tracking, Event, Logs, and RUM monitors.
+	GroupRetentionDuration *string `json:"groupRetentionDuration,omitempty"`
 	// A Boolean indicating whether the log alert monitor triggers a single alert or multiple alerts when any group breaches a threshold.
 	GroupbySimpleMonitor *bool `json:"groupbySimpleMonitor,omitempty"`
 	// DEPRECATED: Whether or not the monitor is locked (only editable by creator and admins). Use `restricted_roles` instead.
