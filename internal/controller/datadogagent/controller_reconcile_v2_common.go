@@ -659,7 +659,6 @@ func (r *Reconciler) getCurrentDeployment(dda, deployment metav1.Object) (*appsv
 		switch len(dsList.Items) {
 		case 0: // Migration has completed; check for default deployment
 			r.log.Info("Helm-managed deployment has been migrated, checking for default deployment", "component", componentType)
-			break
 		case 1:
 			r.log.Info("Found Helm-managed deployment", "name", dsList.Items[0].Name)
 			return &dsList.Items[0], nil
@@ -735,7 +734,6 @@ func (r *Reconciler) getCurrentDaemonset(dda, daemonset metav1.Object) (*appsv1.
 		switch len(dsList.Items) {
 		case 0: // Migration has completed; check for default daemonset
 			r.log.Info("Helm-managed daemonset has been migrated, checking for default daemonset")
-			break
 		case 1:
 			return &dsList.Items[0], nil
 		default:
