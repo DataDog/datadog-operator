@@ -351,11 +351,35 @@
                     "additionalProperties": false,
                     "description": "Value is the value of the objective",
                     "properties": {
-                      "type": {
-                        "description": "Type specifies how the value is expressed (possible values: Utilization).",
-                        "enum": [
-                          "Utilization"
+                      "averageValue": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "string"
+                          }
                         ],
+                        "description": "AverageValue defines a target as an absolute value divided by the number of running pods.\nUse a plain number (e.g., \"11\" or \"11.5\").\nRepresented as a resource.Quantity to avoid floating point in CRDs.",
+                        "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                        "x-kubernetes-int-or-string": true
+                      },
+                      "type": {
+                        "allOf": [
+                          {
+                            "enum": [
+                              "Utilization",
+                              "AverageValue"
+                            ]
+                          },
+                          {
+                            "enum": [
+                              "Utilization",
+                              "AverageValue"
+                            ]
+                          }
+                        ],
+                        "description": "Type specifies how the value is expressed (possible values: Utilization, AverageValue).",
                         "type": "string"
                       },
                       "utilization": {
@@ -379,6 +403,170 @@
                 ],
                 "type": "object"
               },
+              "controllerObjective": {
+                "additionalProperties": false,
+                "description": "ControllerObjective allows to set a controller-level objective.",
+                "properties": {
+                  "query": {
+                    "additionalProperties": false,
+                    "description": "TimeseriesFormulaRequest is a subset of the v2 timeseries query API (metrics only).\nIt mirrors the OpenAPI \"TimeseriesFormulaRequestAttributes\" fields relevant to autoscaling.\nReference: https://github.com/DataDog/datadog-api-spec/blob/94d1542b31ad0df1da915bae84686b13ba1a65ae/spec/v2/query.yaml#L124",
+                    "properties": {
+                      "attributes": {
+                        "additionalProperties": false,
+                        "description": "Spec mirrors the OpenAPI \"TimeseriesFormulaRequestAttributes\".",
+                        "properties": {
+                          "formulas": {
+                            "description": "Formulas to compute (optional).",
+                            "items": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "formula": {
+                                  "minLength": 1,
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "formula"
+                              ],
+                              "type": "object"
+                            },
+                            "type": "array"
+                          },
+                          "interval": {
+                            "description": "Optional sampling interval in milliseconds.",
+                            "format": "int64",
+                            "type": "integer"
+                          },
+                          "queries": {
+                            "items": {
+                              "additionalProperties": false,
+                              "description": "TimeseriesQuery is a discriminated union. Only Metrics are supported for autoscaling.",
+                              "properties": {
+                                "metrics": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "dataSource": {
+                                      "allOf": [
+                                        {
+                                          "enum": [
+                                            "metrics",
+                                            "cloud_cost"
+                                          ]
+                                        },
+                                        {
+                                          "enum": [
+                                            "metrics",
+                                            "cloud_cost"
+                                          ]
+                                        }
+                                      ],
+                                      "description": "Data source (Metrics API): \"metrics\" or \"cloud_cost\".",
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "description": "Optional variable name (\"a\", \"b\", etc.) to reference in formulas.",
+                                      "type": "string"
+                                    },
+                                    "query": {
+                                      "description": "Classic Datadog metrics query, e.g. \"avg:system.cpu.user{*} by {env}\".",
+                                      "minLength": 1,
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "dataSource",
+                                    "query"
+                                  ],
+                                  "type": "object"
+                                }
+                              },
+                              "type": "object",
+                              "x-kubernetes-validations": [
+                                {
+                                  "message": "metrics is required",
+                                  "rule": "has(self.metrics)"
+                                }
+                              ]
+                            },
+                            "minItems": 1,
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "queries"
+                        ],
+                        "type": "object"
+                      }
+                    },
+                    "required": [
+                      "attributes"
+                    ],
+                    "type": "object"
+                  },
+                  "value": {
+                    "additionalProperties": false,
+                    "description": "Value is the value of the objective",
+                    "properties": {
+                      "averageValue": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "string"
+                          }
+                        ],
+                        "description": "AverageValue defines a target as an absolute value divided by the number of running pods.\nUse a plain number (e.g., \"11\" or \"11.5\").\nRepresented as a resource.Quantity to avoid floating point in CRDs.",
+                        "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                        "x-kubernetes-int-or-string": true
+                      },
+                      "type": {
+                        "allOf": [
+                          {
+                            "enum": [
+                              "Utilization",
+                              "AverageValue"
+                            ]
+                          },
+                          {
+                            "enum": [
+                              "Utilization",
+                              "AverageValue"
+                            ]
+                          }
+                        ],
+                        "description": "Type specifies how the value is expressed (possible values: Utilization, AverageValue).",
+                        "type": "string"
+                      },
+                      "utilization": {
+                        "description": "Utilization defines a percentage of the target compared to requested workload",
+                        "format": "int32",
+                        "maximum": 100,
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "type"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "query",
+                  "value"
+                ],
+                "type": "object"
+              },
+              "mode": {
+                "description": "Mode describes when the objective will be active.",
+                "enum": [
+                  "RemoteOnly",
+                  "LocalOnly",
+                  "RemoteAndLocal"
+                ],
+                "type": "string"
+              },
               "podResource": {
                 "additionalProperties": false,
                 "description": "PodResource allows to set a pod-level resource objective.",
@@ -394,11 +582,35 @@
                     "additionalProperties": false,
                     "description": "Value is the value of the objective.",
                     "properties": {
-                      "type": {
-                        "description": "Type specifies how the value is expressed (possible values: Utilization).",
-                        "enum": [
-                          "Utilization"
+                      "averageValue": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "string"
+                          }
                         ],
+                        "description": "AverageValue defines a target as an absolute value divided by the number of running pods.\nUse a plain number (e.g., \"11\" or \"11.5\").\nRepresented as a resource.Quantity to avoid floating point in CRDs.",
+                        "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                        "x-kubernetes-int-or-string": true
+                      },
+                      "type": {
+                        "allOf": [
+                          {
+                            "enum": [
+                              "Utilization",
+                              "AverageValue"
+                            ]
+                          },
+                          {
+                            "enum": [
+                              "Utilization",
+                              "AverageValue"
+                            ]
+                          }
+                        ],
+                        "description": "Type specifies how the value is expressed (possible values: Utilization, AverageValue).",
                         "type": "string"
                       },
                       "utilization": {
@@ -425,7 +637,8 @@
                 "description": "Type sets the type of the objective.",
                 "enum": [
                   "PodResource",
-                  "ContainerResource"
+                  "ContainerResource",
+                  "ControllerObjective"
                 ],
                 "type": "string"
               }

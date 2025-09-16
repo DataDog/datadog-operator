@@ -116,7 +116,7 @@ type DatadogPodAutoscalerScalingRule struct {
 }
 
 // DatadogPodAutoscalerObjectiveType defines the type of the objective.
-// +kubebuilder:validation:Enum:=PodResource;ContainerResource
+// +kubebuilder:validation:Enum:=PodResource;ContainerResource;ControllerObjective
 type DatadogPodAutoscalerObjectiveType string
 
 const (
@@ -125,6 +125,9 @@ const (
 
 	// DatadogPodAutoscalerContainerResourceObjectiveType allows to set container-level resource objectives.
 	DatadogPodAutoscalerContainerResourceObjectiveType DatadogPodAutoscalerObjectiveType = "ContainerResource"
+
+	// DatadogPodAutoscalerControllerObjectiveType allows to set controller-level objectives.
+	DatadogPodAutoscalerControllerObjectiveType DatadogPodAutoscalerObjectiveType = "ControllerObjective"
 )
 
 // DatadogPodAutoscalerObjective defines the objectives to reach and maintain for the target workload.
@@ -138,7 +141,27 @@ type DatadogPodAutoscalerObjective struct {
 
 	// ContainerResource allows to set a container-level resource objective.
 	ContainerResource *DatadogPodAutoscalerContainerResourceObjective `json:"containerResource,omitempty"`
+
+	// ControllerObjective allows to set a controller-level objective.
+	ControllerObjective *DatadogPodAutoscalerControllerObjective `json:"controllerObjective,omitempty"`
+
+	// Mode describes when the objective will be active.
+	// +optional
+	Mode ObjectiveMode `json:"mode,omitempty"`
 }
+
+// ObjectiveMode defines when the objective should be active.
+// +kubebuilder:validation:Enum:=RemoteOnly;LocalOnly;RemoteAndLocal
+type ObjectiveMode string
+
+const (
+	// ObjectiveModeRemoteOnly activates the objective for remote recommender only.
+	ObjectiveModeRemoteOnly ObjectiveMode = "RemoteOnly"
+	// ObjectiveModeLocalOnly activates the objective for local fallback recommender only.
+	ObjectiveModeLocalOnly ObjectiveMode = "LocalOnly"
+	// ObjectiveModeRemoteAndLocal activates the objective for both remote and local recommenders.
+	ObjectiveModeRemoteAndLocal ObjectiveMode = "RemoteAndLocal"
+)
 
 // DatadogPodAutoscalerPodResourceObjective defines a pod-level resource objective (for instance, CPU Utilization at 80%)
 // For pod-level objectives, resources are the sum of all containers resources.
@@ -167,26 +190,97 @@ type DatadogPodAutoscalerContainerResourceObjective struct {
 	Container string `json:"container"`
 }
 
+// DatadogPodAutoscalerControllerObjective defines a controller-level objective
+// +kubebuilder:object:generate=true
+type DatadogPodAutoscalerControllerObjective struct {
+	Query TimeseriesFormulaRequest `json:"query"`
+	// Value is the value of the objective
+	Value DatadogPodAutoscalerObjectiveValue `json:"value"`
+}
+
+// TimeseriesFormulaRequest is a subset of the v2 timeseries query API (metrics only).
+// It mirrors the OpenAPI "TimeseriesFormulaRequestAttributes" fields relevant to autoscaling.
+// Reference: https://github.com/DataDog/datadog-api-spec/blob/94d1542b31ad0df1da915bae84686b13ba1a65ae/spec/v2/query.yaml#L124
+// +kubebuilder:object:generate=true
+type TimeseriesFormulaRequest struct {
+	// +kubebuilder:validation:Required
+	Attributes TimeseriesFormulaRequestAttributes `json:"attributes"`
+}
+
+// Spec mirrors the OpenAPI "TimeseriesFormulaRequestAttributes".
+// +kubebuilder:object:generate=true
+type TimeseriesFormulaRequestAttributes struct {
+	// Optional sampling interval in milliseconds.
+	// +optional
+	Interval *int64 `json:"interval,omitempty"`
+	// Formulas to compute (optional).
+	// +optional
+	Formulas []QueryFormula `json:"formulas,omitempty"`
+	// +kubebuilder:validation:MinItems=1
+	Queries []TimeseriesQuery `json:"queries"`
+}
+
+// +kubebuilder:object:generate=true
+type QueryFormula struct {
+	// +kubebuilder:validation:MinLength=1
+	Formula string `json:"formula"`
+}
+
+// TimeseriesQuery is a discriminated union. Only Metrics are supported for autoscaling.
+// +kubebuilder:validation:XValidation:rule="has(self.metrics)",message="metrics is required"
+// +kubebuilder:object:generate=true
+type TimeseriesQuery struct {
+	Metrics *MetricsTimeseriesQuery `json:"metrics,omitempty"`
+}
+
+// +kubebuilder:object:generate=true
+type MetricsTimeseriesQuery struct {
+	// Data source (Metrics API): "metrics" or "cloud_cost".
+	// +kubebuilder:validation:Enum=metrics;cloud_cost
+	DataSource MetricsDataSource `json:"dataSource"`
+	// Optional variable name ("a", "b", etc.) to reference in formulas.
+	// +optional
+	Name *string `json:"name,omitempty"`
+	// Classic Datadog metrics query, e.g. "avg:system.cpu.user{*} by {env}".
+	// +kubebuilder:validation:MinLength=1
+	Query string `json:"query"`
+}
+
+// +kubebuilder:validation:Enum=metrics;cloud_cost
+type MetricsDataSource string
+
+const (
+	MetricsDataSourceMetrics   MetricsDataSource = "metrics"
+	MetricsDataSourceCloudCost MetricsDataSource = "cloud_cost"
+)
+
 // DatadogPodAutoscalerObjectiveValueType specifies the type of objective value.
-// kubebuilder:validation:Enum:=Utilization
+// +kubebuilder:validation:Enum:=Utilization;AverageValue
 type DatadogPodAutoscalerObjectiveValueType string
 
 const (
 	// DatadogPodAutoscalerUtilizationObjectiveValueType declares an objective based on a Utilization (percentage, 0-100).
 	DatadogPodAutoscalerUtilizationObjectiveValueType DatadogPodAutoscalerObjectiveValueType = "Utilization"
+	// DatadogPodAutoscalerAverageValueObjectiveValueType declares an objective based on an AverageValue (absolute value divided by the number of running pods).
+	DatadogPodAutoscalerAverageValueObjectiveValueType DatadogPodAutoscalerObjectiveValueType = "AverageValue"
 )
 
 // DatadogPodAutoscalerObjectiveValue defines the target value of the objective.
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerObjectiveValue struct {
-	// Type specifies how the value is expressed (possible values: Utilization).
-	// +kubebuilder:validation:Enum:=Utilization
+	// Type specifies how the value is expressed (possible values: Utilization, AverageValue).
+	// +kubebuilder:validation:Enum:=Utilization;AverageValue
 	Type DatadogPodAutoscalerObjectiveValueType `json:"type"`
 
 	// Utilization defines a percentage of the target compared to requested workload
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100
 	Utilization *int32 `json:"utilization,omitempty"`
+
+	// AverageValue defines a target as an absolute value divided by the number of running pods.
+	// Use a plain number (e.g., "11" or "11.5").
+	// Represented as a resource.Quantity to avoid floating point in CRDs.
+	AverageValue *resource.Quantity `json:"averageValue,omitempty"`
 }
 
 // DatadogPodAutoscalerConstraints defines constraints that should always be respected.
