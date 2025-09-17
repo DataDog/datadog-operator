@@ -334,14 +334,10 @@ spec:
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
                               type:
-                                allOf:
-                                  - enum:
-                                      - Utilization
-                                      - AbsoluteValue
-                                  - enum:
-                                      - Utilization
-                                      - AbsoluteValue
                                 description: 'Type specifies how the value is expressed (possible values: Utilization, AbsoluteValue).'
+                                enum:
+                                  - Utilization
+                                  - AbsoluteValue
                                 type: string
                               utilization:
                                 description: Utilization defines a percentage of the target compared to requested workload
@@ -384,14 +380,9 @@ spec:
                                     metrics:
                                       properties:
                                         dataSource:
-                                          allOf:
-                                            - enum:
-                                                - metrics
-                                                - cloud_cost
-                                            - enum:
-                                                - metrics
-                                                - cloud_cost
-                                          description: 'Data source (Metrics API): "metrics" or "cloud_cost".'
+                                          enum:
+                                            - metrics
+                                            - cloud_cost
                                           type: string
                                         name:
                                           description: Optional variable name ("a", "b", etc.) to reference in formulas.
@@ -424,14 +415,10 @@ spec:
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
                               type:
-                                allOf:
-                                  - enum:
-                                      - Utilization
-                                      - AbsoluteValue
-                                  - enum:
-                                      - Utilization
-                                      - AbsoluteValue
                                 description: 'Type specifies how the value is expressed (possible values: Utilization, AbsoluteValue).'
+                                enum:
+                                  - Utilization
+                                  - AbsoluteValue
                                 type: string
                               utilization:
                                 description: Utilization defines a percentage of the target compared to requested workload
@@ -475,14 +462,10 @@ spec:
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
                               type:
-                                allOf:
-                                  - enum:
-                                      - Utilization
-                                      - AbsoluteValue
-                                  - enum:
-                                      - Utilization
-                                      - AbsoluteValue
                                 description: 'Type specifies how the value is expressed (possible values: Utilization, AbsoluteValue).'
+                                enum:
+                                  - Utilization
+                                  - AbsoluteValue
                                 type: string
                               utilization:
                                 description: Utilization defines a percentage of the target compared to requested workload
@@ -1035,14 +1018,10 @@ spec:
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
                               type:
-                                allOf:
-                                  - enum:
-                                      - Utilization
-                                      - AbsoluteValue
-                                  - enum:
-                                      - Utilization
-                                      - AbsoluteValue
                                 description: 'Type specifies how the value is expressed (possible values: Utilization, AbsoluteValue).'
+                                enum:
+                                  - Utilization
+                                  - AbsoluteValue
                                 type: string
                               utilization:
                                 description: Utilization defines a percentage of the target compared to requested workload
@@ -1085,14 +1064,9 @@ spec:
                                     metrics:
                                       properties:
                                         dataSource:
-                                          allOf:
-                                            - enum:
-                                                - metrics
-                                                - cloud_cost
-                                            - enum:
-                                                - metrics
-                                                - cloud_cost
-                                          description: 'Data source (Metrics API): "metrics" or "cloud_cost".'
+                                          enum:
+                                            - metrics
+                                            - cloud_cost
                                           type: string
                                         name:
                                           description: Optional variable name ("a", "b", etc.) to reference in formulas.
@@ -1125,14 +1099,10 @@ spec:
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
                               type:
-                                allOf:
-                                  - enum:
-                                      - Utilization
-                                      - AbsoluteValue
-                                  - enum:
-                                      - Utilization
-                                      - AbsoluteValue
                                 description: 'Type specifies how the value is expressed (possible values: Utilization, AbsoluteValue).'
+                                enum:
+                                  - Utilization
+                                  - AbsoluteValue
                                 type: string
                               utilization:
                                 description: Utilization defines a percentage of the target compared to requested workload
@@ -1176,14 +1146,10 @@ spec:
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
                               type:
-                                allOf:
-                                  - enum:
-                                      - Utilization
-                                      - AbsoluteValue
-                                  - enum:
-                                      - Utilization
-                                      - AbsoluteValue
                                 description: 'Type specifies how the value is expressed (possible values: Utilization, AbsoluteValue).'
+                                enum:
+                                  - Utilization
+                                  - AbsoluteValue
                                 type: string
                               utilization:
                                 description: Utilization defines a percentage of the target compared to requested workload

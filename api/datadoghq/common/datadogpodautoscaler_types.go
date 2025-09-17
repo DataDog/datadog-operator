@@ -224,8 +224,6 @@ type DatadogPodAutoscalerTimeseriesQuery struct {
 
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerMetricsTimeseriesQuery struct {
-	// Data source (Metrics API): "metrics" or "cloud_cost".
-	// +kubebuilder:validation:Enum=metrics;cloud_cost
 	DataSource DatadogPodAutoscalerMetricsDataSource `json:"dataSource"`
 	// Optional variable name ("a", "b", etc.) to reference in formulas.
 	// +optional
@@ -244,7 +242,7 @@ const (
 )
 
 // DatadogPodAutoscalerObjectiveValueType specifies the type of objective value.
-// +kubebuilder:validation:Enum:=Utilization;AbsoluteValue
+// +kubebuilder:validation:Enum=Utilization;AbsoluteValue
 type DatadogPodAutoscalerObjectiveValueType string
 
 const (
@@ -258,7 +256,6 @@ const (
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerObjectiveValue struct {
 	// Type specifies how the value is expressed (possible values: Utilization, AbsoluteValue).
-	// +kubebuilder:validation:Enum:=Utilization;AbsoluteValue
 	Type DatadogPodAutoscalerObjectiveValueType `json:"type"`
 
 	// Utilization defines a percentage of the target compared to requested workload

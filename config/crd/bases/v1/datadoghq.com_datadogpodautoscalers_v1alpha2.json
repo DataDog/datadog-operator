@@ -365,21 +365,11 @@
                         "x-kubernetes-int-or-string": true
                       },
                       "type": {
-                        "allOf": [
-                          {
-                            "enum": [
-                              "Utilization",
-                              "AbsoluteValue"
-                            ]
-                          },
-                          {
-                            "enum": [
-                              "Utilization",
-                              "AbsoluteValue"
-                            ]
-                          }
-                        ],
                         "description": "Type specifies how the value is expressed (possible values: Utilization, AbsoluteValue).",
+                        "enum": [
+                          "Utilization",
+                          "AbsoluteValue"
+                        ],
                         "type": "string"
                       },
                       "utilization": {
@@ -437,21 +427,10 @@
                               "additionalProperties": false,
                               "properties": {
                                 "dataSource": {
-                                  "allOf": [
-                                    {
-                                      "enum": [
-                                        "metrics",
-                                        "cloud_cost"
-                                      ]
-                                    },
-                                    {
-                                      "enum": [
-                                        "metrics",
-                                        "cloud_cost"
-                                      ]
-                                    }
+                                  "enum": [
+                                    "metrics",
+                                    "cloud_cost"
                                   ],
-                                  "description": "Data source (Metrics API): \"metrics\" or \"cloud_cost\".",
                                   "type": "string"
                                 },
                                 "name": {
@@ -500,21 +479,11 @@
                         "x-kubernetes-int-or-string": true
                       },
                       "type": {
-                        "allOf": [
-                          {
-                            "enum": [
-                              "Utilization",
-                              "AbsoluteValue"
-                            ]
-                          },
-                          {
-                            "enum": [
-                              "Utilization",
-                              "AbsoluteValue"
-                            ]
-                          }
-                        ],
                         "description": "Type specifies how the value is expressed (possible values: Utilization, AbsoluteValue).",
+                        "enum": [
+                          "Utilization",
+                          "AbsoluteValue"
+                        ],
                         "type": "string"
                       },
                       "utilization": {
@@ -575,21 +544,11 @@
                         "x-kubernetes-int-or-string": true
                       },
                       "type": {
-                        "allOf": [
-                          {
-                            "enum": [
-                              "Utilization",
-                              "AbsoluteValue"
-                            ]
-                          },
-                          {
-                            "enum": [
-                              "Utilization",
-                              "AbsoluteValue"
-                            ]
-                          }
-                        ],
                         "description": "Type specifies how the value is expressed (possible values: Utilization, AbsoluteValue).",
+                        "enum": [
+                          "Utilization",
+                          "AbsoluteValue"
+                        ],
                         "type": "string"
                       },
                       "utilization": {
