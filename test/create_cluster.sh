@@ -37,3 +37,12 @@ yq -i "
 
 eksctl create cluster \
        --config-file eksctl.yaml
+
+kubeconfig="$(mktemp)"
+trap 'rm ${kubeconfig}' EXIT
+
+eksctl utils write-kubeconfig \
+       --config-file eksctl.yaml \
+       --kubeconfig "${kubeconfig}"
+
+kubectl --kubeconfig "${kubeconfig}" apply -f workload.yaml
