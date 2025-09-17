@@ -7,9 +7,9 @@ metadata:
   namespace: datadog-agent
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.12.1
+    helm.sh/chart: datadog-operator-2.13.1
     app.kubernetes.io/instance: operator-eks-addon
-    app.kubernetes.io/version: "1.17.0"
+    app.kubernetes.io/version: "1.18.0"
     app.kubernetes.io/managed-by: eks-addon
 ---
 # Source: operator-eks-addon/charts/datadog-operator/charts/datadogCRDs/templates/datadoghq.com_datadogagents_v1.yaml
@@ -20,7 +20,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.16.3
   name: datadogagents.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.10.0'
+    helm.sh/chart: 'datadogCRDs-2.11.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -591,6 +591,11 @@ spec:
                         useClusterChecksRunners:
                           type: boolean
                       type: object
+                    controlPlaneMonitoring:
+                      properties:
+                        enabled:
+                          type: boolean
+                      type: object
                     cspm:
                       properties:
                         checkInterval:
@@ -808,6 +813,8 @@ spec:
                     gpu:
                       properties:
                         enabled:
+                          type: boolean
+                        privilegedMode:
                           type: boolean
                         requiredRuntimeClassName:
                           type: string
@@ -1170,6 +1177,11 @@ spec:
                       type: object
                     criSocketPath:
                       type: string
+                    csi:
+                      properties:
+                        enabled:
+                          type: boolean
+                      type: object
                     disableNonResourceRules:
                       type: boolean
                     dockerSocketPath:
@@ -4460,6 +4472,11 @@ spec:
                             useClusterChecksRunners:
                               type: boolean
                           type: object
+                        controlPlaneMonitoring:
+                          properties:
+                            enabled:
+                              type: boolean
+                          type: object
                         cspm:
                           properties:
                             checkInterval:
@@ -4677,6 +4694,8 @@ spec:
                         gpu:
                           properties:
                             enabled:
+                              type: boolean
+                            privilegedMode:
                               type: boolean
                             requiredRuntimeClassName:
                               type: string
@@ -5009,7 +5028,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.16.3
   name: datadogmetrics.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.10.0'
+    helm.sh/chart: 'datadogCRDs-2.11.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -5137,7 +5156,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.16.3
   name: datadogpodautoscalers.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.10.0'
+    helm.sh/chart: 'datadogCRDs-2.11.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -5306,9 +5325,9 @@ spec:
                               periodSeconds:
                                 description: |-
                                   PeriodSeconds specifies the window of time for which the policy should hold true.
-                                  PeriodSeconds must be greater than zero less than or equal to 1800 (30 min).
+                                  PeriodSeconds must be greater than zero less than or equal to 3600 (1 hour).
                                 format: int32
-                                maximum: 1800
+                                maximum: 3600
                                 minimum: 1
                                 type: integer
                               type:
@@ -5336,7 +5355,7 @@ spec:
                             StabilizationWindowSeconds is the number of seconds the controller should lookback at previous recommendations
                             before deciding to apply a new one. Defaults to 0.
                           format: int32
-                          maximum: 1800
+                          maximum: 3600
                           minimum: 0
                           type: integer
                         strategy:
@@ -5372,9 +5391,9 @@ spec:
                               periodSeconds:
                                 description: |-
                                   PeriodSeconds specifies the window of time for which the policy should hold true.
-                                  PeriodSeconds must be greater than zero less than or equal to 1800 (30 min).
+                                  PeriodSeconds must be greater than zero less than or equal to 3600 (1 hour).
                                 format: int32
-                                maximum: 1800
+                                maximum: 3600
                                 minimum: 1
                                 type: integer
                               type:
@@ -5402,7 +5421,7 @@ spec:
                             StabilizationWindowSeconds is the number of seconds the controller should lookback at previous recommendations
                             before deciding to apply a new one. Defaults to 0.
                           format: int32
-                          maximum: 1800
+                          maximum: 3600
                           minimum: 0
                           type: integer
                         strategy:
@@ -5461,6 +5480,8 @@ spec:
                             properties:
                               type:
                                 description: 'Type specifies how the value is expressed (possible values: Utilization).'
+                                enum:
+                                  - Utilization
                                 type: string
                               utilization:
                                 description: Utilization defines a percentage of the target compared to requested workload
@@ -5489,6 +5510,8 @@ spec:
                             properties:
                               type:
                                 description: 'Type specifies how the value is expressed (possible values: Utilization).'
+                                enum:
+                                  - Utilization
                                 type: string
                               utilization:
                                 description: Utilization defines a percentage of the target compared to requested workload
@@ -5791,9 +5814,9 @@ spec:
                               periodSeconds:
                                 description: |-
                                   PeriodSeconds specifies the window of time for which the policy should hold true.
-                                  PeriodSeconds must be greater than zero less than or equal to 1800 (30 min).
+                                  PeriodSeconds must be greater than zero less than or equal to 3600 (1 hour).
                                 format: int32
-                                maximum: 1800
+                                maximum: 3600
                                 minimum: 1
                                 type: integer
                               type:
@@ -5821,7 +5844,7 @@ spec:
                             StabilizationWindowSeconds is the number of seconds the controller should lookback at previous recommendations
                             before deciding to apply a new one. Defaults to 0.
                           format: int32
-                          maximum: 1800
+                          maximum: 3600
                           minimum: 0
                           type: integer
                         strategy:
@@ -5847,9 +5870,9 @@ spec:
                               periodSeconds:
                                 description: |-
                                   PeriodSeconds specifies the window of time for which the policy should hold true.
-                                  PeriodSeconds must be greater than zero less than or equal to 1800 (30 min).
+                                  PeriodSeconds must be greater than zero less than or equal to 3600 (1 hour).
                                 format: int32
-                                maximum: 1800
+                                maximum: 3600
                                 minimum: 1
                                 type: integer
                               type:
@@ -5877,7 +5900,7 @@ spec:
                             StabilizationWindowSeconds is the number of seconds the controller should lookback at previous recommendations
                             before deciding to apply a new one. Defaults to 0.
                           format: int32
-                          maximum: 1800
+                          maximum: 3600
                           minimum: 0
                           type: integer
                         strategy:
@@ -6004,6 +6027,8 @@ spec:
                             properties:
                               type:
                                 description: 'Type specifies how the value is expressed (possible values: Utilization).'
+                                enum:
+                                  - Utilization
                                 type: string
                               utilization:
                                 description: Utilization defines a percentage of the target compared to requested workload
@@ -6032,6 +6057,8 @@ spec:
                             properties:
                               type:
                                 description: 'Type specifies how the value is expressed (possible values: Utilization).'
+                                enum:
+                                  - Utilization
                                 type: string
                               utilization:
                                 description: Utilization defines a percentage of the target compared to requested workload
@@ -6283,9 +6310,9 @@ metadata:
   name: operator-eks-addon-datadog-operator
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.12.1
+    helm.sh/chart: datadog-operator-2.13.1
     app.kubernetes.io/instance: operator-eks-addon
-    app.kubernetes.io/version: "1.17.0"
+    app.kubernetes.io/version: "1.18.0"
     app.kubernetes.io/managed-by: eks-addon
 rules:
 - nonResourceURLs:
@@ -6412,6 +6439,15 @@ rules:
   verbs:
   - create
   - get
+- apiGroups:
+  - auto.gke.io
+  resources:
+  - allowlistsynchronizers
+  verbs:
+  - create
+  - get
+  - list
+  - watch
 - apiGroups:
   - autoscaling
   resources:
@@ -6664,9 +6700,9 @@ metadata:
   namespace: datadog-agent
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.12.1
+    helm.sh/chart: datadog-operator-2.13.1
     app.kubernetes.io/instance: operator-eks-addon
-    app.kubernetes.io/version: "1.17.0"
+    app.kubernetes.io/version: "1.18.0"
     app.kubernetes.io/managed-by: eks-addon
 spec:
   replicas: 1
@@ -6692,7 +6728,7 @@ spec:
       serviceAccountName: operator-eks-addon-datadog-operator
       containers:
         - name: datadog-operator
-          image: "709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator:1.17.0"
+          image: "709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator:1.18.0"
           imagePullPolicy: IfNotPresent
           env:
             - name: WATCH_NAMESPACE
@@ -6731,6 +6767,7 @@ spec:
             httpGet:
               path: /healthz/
               port: 8081
+            initialDelaySeconds: 15
             periodSeconds: 10
           resources:
             {}
