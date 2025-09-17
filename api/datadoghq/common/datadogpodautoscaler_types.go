@@ -245,13 +245,13 @@ const (
 
 // DatadogPodAutoscalerObjectiveValueType specifies the type of objective value.
 // +kubebuilder:validation:Enum:=Utilization;AbsoluteValue
-type DatadogPodAutoscalerDatadogPodAutoscalerObjectiveValueType string
+type DatadogPodAutoscalerObjectiveValueType string
 
 const (
 	// DatadogPodAutoscalerUtilizationObjectiveValueType declares an objective based on a Utilization (percentage, 0-100).
-	DatadogPodAutoscalerUtilizationObjectiveValueType DatadogPodAutoscalerDatadogPodAutoscalerObjectiveValueType = "Utilization"
+	DatadogPodAutoscalerUtilizationObjectiveValueType DatadogPodAutoscalerObjectiveValueType = "Utilization"
 	// DatadogPodAutoscalerAbsoluteValueObjectiveValueType declares an objective based on an AbsoluteValue (absolute value divided by the number of running pods).
-	DatadogPodAutoscalerAbsoluteValueObjectiveValueType DatadogPodAutoscalerDatadogPodAutoscalerObjectiveValueType = "AbsoluteValue"
+	DatadogPodAutoscalerAbsoluteValueObjectiveValueType DatadogPodAutoscalerObjectiveValueType = "AbsoluteValue"
 )
 
 // DatadogPodAutoscalerObjectiveValue defines the target value of the objective.
@@ -259,7 +259,7 @@ const (
 type DatadogPodAutoscalerObjectiveValue struct {
 	// Type specifies how the value is expressed (possible values: Utilization, AbsoluteValue).
 	// +kubebuilder:validation:Enum:=Utilization;AbsoluteValue
-	Type DatadogPodAutoscalerDatadogPodAutoscalerObjectiveValueType `json:"type"`
+	Type DatadogPodAutoscalerObjectiveValueType `json:"type"`
 
 	// Utilization defines a percentage of the target compared to requested workload
 	// +kubebuilder:validation:Minimum=0
