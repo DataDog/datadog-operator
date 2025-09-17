@@ -496,15 +496,6 @@
                 ],
                 "type": "object"
               },
-              "mode": {
-                "description": "Mode describes when the objective will be active.",
-                "enum": [
-                  "RemoteOnly",
-                  "LocalOnly",
-                  "RemoteAndLocal"
-                ],
-                "type": "string"
-              },
               "podResource": {
                 "additionalProperties": false,
                 "description": "PodResource allows to set a pod-level resource objective.",

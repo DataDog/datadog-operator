@@ -144,24 +144,7 @@ type DatadogPodAutoscalerObjective struct {
 
 	// ControllerObjective allows to set a controller-level objective.
 	ControllerObjective *DatadogPodAutoscalerControllerObjective `json:"controllerObjective,omitempty"`
-
-	// Mode describes when the objective will be active.
-	// +optional
-	Mode ObjectiveMode `json:"mode,omitempty"`
 }
-
-// ObjectiveMode defines when the objective should be active.
-// +kubebuilder:validation:Enum:=RemoteOnly;LocalOnly;RemoteAndLocal
-type ObjectiveMode string
-
-const (
-	// ObjectiveModeRemoteOnly activates the objective for remote recommender only.
-	ObjectiveModeRemoteOnly ObjectiveMode = "RemoteOnly"
-	// ObjectiveModeLocalOnly activates the objective for local fallback recommender only.
-	ObjectiveModeLocalOnly ObjectiveMode = "LocalOnly"
-	// ObjectiveModeRemoteAndLocal activates the objective for both remote and local recommenders.
-	ObjectiveModeRemoteAndLocal ObjectiveMode = "RemoteAndLocal"
-)
 
 // DatadogPodAutoscalerPodResourceObjective defines a pod-level resource objective (for instance, CPU Utilization at 80%)
 // For pod-level objectives, resources are the sum of all containers resources.
