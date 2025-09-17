@@ -294,21 +294,17 @@ func getACEnvVars(validation, mutation bool, acm, registry string, cws bool) []*
 		},
 	}
 
-	if validation {
-		validationEnv := corev1.EnvVar{
-			Name:  DDAdmissionControllerValidationEnabled,
-			Value: apiutils.BoolToString(&validation),
-		}
-		envVars = append(envVars, &validationEnv)
+	validationEnv := corev1.EnvVar{
+		Name:  DDAdmissionControllerValidationEnabled,
+		Value: apiutils.BoolToString(&validation),
 	}
+	envVars = append(envVars, &validationEnv)
 
-	if mutation {
-		mutationEnv := corev1.EnvVar{
-			Name:  DDAdmissionControllerMutationEnabled,
-			Value: apiutils.BoolToString(&mutation),
-		}
-		envVars = append(envVars, &mutationEnv)
+	mutationEnv := corev1.EnvVar{
+		Name:  DDAdmissionControllerMutationEnabled,
+		Value: apiutils.BoolToString(&mutation),
 	}
+	envVars = append(envVars, &mutationEnv)
 
 	if acm != "" {
 		acmEnv := corev1.EnvVar{
