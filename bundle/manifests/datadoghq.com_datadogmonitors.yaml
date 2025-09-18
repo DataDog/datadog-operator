@@ -308,6 +308,7 @@ spec:
                 - event-v2 alert
                 - audit alert
                 - composite
+                - network-performance alert
                 type: string
             required:
             - message
