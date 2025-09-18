@@ -15,12 +15,12 @@ If your setup makes any assumptions about the Agent pod labels or DaemonSet name
 
 ## What’s Changing?
 
-| Operator Version | DaemonSet Type | Pod Label Change | Selector Change | DaemonSet Name Change |
-|------------------|----------------|------------------|------------------|------------------------|
-| **v1.18**        | Default DS     | _No change_       | _No change_       | _No change_            |
-|                  | DAP DS         | `app.kubernetes.io/instance: <dda-name>-agent` → `<dap-name>-agent` | _No change_ | _No change_ |
-| **v1.21**        | Default DS     | _No change_       | `agent.datadoghq.com/name: <dda-name>` → `agent.datadoghq.com/instance: <dda-name>-agent` | _No change_ |
-|                  | DAP DS         | _No change_       | `agent.datadoghq.com/name: <dda-name>` → `agent.datadoghq.com/instance: <dap-name>-agent` | `datadog-agent-with-profile-<dda-name>-<dap-name>` → `<dap-name>-agent` |
+| Operator Version | DaemonSet Type | DaemonSet Name Change | Pod Label Change | Selector Change |
+|------------------|----------------|-----------------------|------------------|-----------------|
+| **v1.18**        | Default DS     | _No change_           | _No change_      | _No change_     |
+|                  | DAP DS         | _No change_           | `app.kubernetes.io/instance: <dda-name>-agent` → `<dap-name>-agent` | _No change_ |
+| **v1.21**        | Default DS     | _No change_           | _No change_      | `agent.datadoghq.com/name: <dda-name>` → `agent.datadoghq.com/instance: <dda-name>-agent` |
+|                  | DAP DS         | `datadog-agent-with-profile-<dda-name>-<dap-name>` → `<dap-name>-agent` | _No change_       | `agent.datadoghq.com/name: <dda-name>` → `agent.datadoghq.com/instance: <dap-name>-agent` |
 
 ---
 
