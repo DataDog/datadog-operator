@@ -216,7 +216,7 @@ type DatadogPodAutoscalerMetricsTimeseriesQuery struct {
 	Query string `json:"query"`
 }
 
-// +kubebuilder:validation:Enum=metrics;cloud_cost
+// +kubebuilder:validation:Enum:=metrics;cloud_cost
 type DatadogPodAutoscalerMetricsDataSource string
 
 const (
@@ -225,7 +225,7 @@ const (
 )
 
 // DatadogPodAutoscalerObjectiveValueType specifies the type of objective value.
-// +kubebuilder:validation:Enum=Utilization;AbsoluteValue
+// +kubebuilder:validation:Enum:=Utilization;AbsoluteValue
 type DatadogPodAutoscalerObjectiveValueType string
 
 const (
