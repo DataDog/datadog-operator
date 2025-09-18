@@ -73,7 +73,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			name:                           "Kubelet volume configured",
 			singleContainerStrategyEnabled: false,
 			dda: testutils.NewDatadogAgentBuilder().
-				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocketDir).
+				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocketDir, false).
 				WithGlobalDockerSocketPath(dockerSocketPath).
 				WithCredentials("apiKey", "appKey").
 				BuildWithDefaults(),
@@ -134,7 +134,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			name:                           "Kubelet volume configured",
 			singleContainerStrategyEnabled: true,
 			dda: testutils.NewDatadogAgentBuilder().
-				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocketDir).
+				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocketDir, false).
 				WithGlobalDockerSocketPath(dockerSocketPath).
 				WithCredentials("apiKey", "appKey").
 				BuildWithDefaults(),
