@@ -302,6 +302,7 @@ func nodeAgentDependencies(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 	var errs []error
 	serviceAccountName := constants.GetAgentServiceAccount(ddaMeta.GetName(), ddaSpec)
 	rbacResourcesName := agent.GetAgentRoleName(ddaMeta)
+	useFineGrainedAuthorization := *ddaSpec.Global.Kubelet.FineGrainedAuthorization
 
 	// Service account
 	if err := manager.RBACManager().AddServiceAccountByComponent(ddaMeta.GetNamespace(), serviceAccountName, string(v2alpha1.NodeAgentComponentName)); err != nil {
@@ -309,7 +310,7 @@ func nodeAgentDependencies(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 	}
 
 	// ClusterRole creation
-	if err := manager.RBACManager().AddClusterPolicyRulesByComponent(ddaMeta.GetNamespace(), rbacResourcesName, serviceAccountName, agent.GetDefaultAgentClusterRolePolicyRules(disableNonResourceRules(ddaSpec)), string(v2alpha1.NodeAgentComponentName)); err != nil {
+	if err := manager.RBACManager().AddClusterPolicyRulesByComponent(ddaMeta.GetNamespace(), rbacResourcesName, serviceAccountName, agent.GetDefaultAgentClusterRolePolicyRules(disableNonResourceRules(ddaSpec), useFineGrainedAuthorization), string(v2alpha1.NodeAgentComponentName)); err != nil {
 		errs = append(errs, err)
 	}
 
