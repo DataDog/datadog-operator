@@ -353,8 +353,8 @@ spec:
                           - name
                           - value
                         type: object
-                      controllerObjective:
-                        description: ControllerObjective allows to set a controller-level objective.
+                      customQueryObjective:
+                        description: CustomQueryObjective allows to set a controller-level objective.
                         properties:
                           query:
                             description: |-
@@ -478,7 +478,7 @@ spec:
                         enum:
                           - PodResource
                           - ContainerResource
-                          - ControllerObjective
+                          - CustomQuery
                         type: string
                     required:
                       - type
@@ -1014,8 +1014,8 @@ spec:
                                 - name
                                 - value
                               type: object
-                            controllerObjective:
-                              description: ControllerObjective allows to set a controller-level objective.
+                            customQueryObjective:
+                              description: CustomQueryObjective allows to set a controller-level objective.
                               properties:
                                 query:
                                   description: |-
@@ -1139,7 +1139,7 @@ spec:
                               enum:
                                 - PodResource
                                 - ContainerResource
-                                - ControllerObjective
+                                - CustomQuery
                               type: string
                           required:
                             - type
@@ -1209,8 +1209,8 @@ spec:
                           - name
                           - value
                         type: object
-                      controllerObjective:
-                        description: ControllerObjective allows to set a controller-level objective.
+                      customQueryObjective:
+                        description: CustomQueryObjective allows to set a controller-level objective.
                         properties:
                           query:
                             description: |-
@@ -1334,7 +1334,7 @@ spec:
                         enum:
                           - PodResource
                           - ContainerResource
-                          - ControllerObjective
+                          - CustomQuery
                         type: string
                     required:
                       - type

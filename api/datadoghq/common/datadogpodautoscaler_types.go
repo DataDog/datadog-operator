@@ -116,7 +116,7 @@ type DatadogPodAutoscalerScalingRule struct {
 }
 
 // DatadogPodAutoscalerObjectiveType defines the type of the objective.
-// +kubebuilder:validation:Enum:=PodResource;ContainerResource;ControllerObjective
+// +kubebuilder:validation:Enum:=PodResource;ContainerResource;CustomQuery
 type DatadogPodAutoscalerObjectiveType string
 
 const (
@@ -126,8 +126,8 @@ const (
 	// DatadogPodAutoscalerContainerResourceObjectiveType allows to set container-level resource objectives.
 	DatadogPodAutoscalerContainerResourceObjectiveType DatadogPodAutoscalerObjectiveType = "ContainerResource"
 
-	// DatadogPodAutoscalerControllerObjectiveType allows to set controller-level objectives.
-	DatadogPodAutoscalerControllerObjectiveType DatadogPodAutoscalerObjectiveType = "ControllerObjective"
+	// DatadogPodAutoscalerCustomQueryObjectiveType allows to set controller-level objectives.
+	DatadogPodAutoscalerCustomQueryObjectiveType DatadogPodAutoscalerObjectiveType = "CustomQuery"
 )
 
 // DatadogPodAutoscalerObjective defines the objectives to reach and maintain for the target workload.
@@ -142,8 +142,8 @@ type DatadogPodAutoscalerObjective struct {
 	// ContainerResource allows to set a container-level resource objective.
 	ContainerResource *DatadogPodAutoscalerContainerResourceObjective `json:"containerResource,omitempty"`
 
-	// ControllerObjective allows to set a controller-level objective.
-	ControllerObjective *DatadogPodAutoscalerControllerObjective `json:"controllerObjective,omitempty"`
+	// CustomQueryObjective allows to set a controller-level objective.
+	CustomQueryObjective *DatadogPodAutoscalerCustomQueryObjective `json:"customQueryObjective,omitempty"`
 }
 
 // DatadogPodAutoscalerPodResourceObjective defines a pod-level resource objective (for instance, CPU Utilization at 80%)
@@ -173,9 +173,9 @@ type DatadogPodAutoscalerContainerResourceObjective struct {
 	Container string `json:"container"`
 }
 
-// DatadogPodAutoscalerControllerObjective defines a controller-level objective
+// DatadogPodAutoscalerCustomQueryObjective defines a controller-level objective
 // +kubebuilder:object:generate=true
-type DatadogPodAutoscalerControllerObjective struct {
+type DatadogPodAutoscalerCustomQueryObjective struct {
 	Query DatadogPodAutoscalerTimeseriesFormulaRequest `json:"query"`
 	// Value is the value of the objective
 	Value DatadogPodAutoscalerObjectiveValue `json:"value"`

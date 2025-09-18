@@ -383,9 +383,9 @@
                 ],
                 "type": "object"
               },
-              "controllerObjective": {
+              "customQueryObjective": {
                 "additionalProperties": false,
-                "description": "ControllerObjective allows to set a controller-level objective.",
+                "description": "CustomQueryObjective allows to set a controller-level objective.",
                 "properties": {
                   "query": {
                     "additionalProperties": false,
@@ -557,7 +557,7 @@
                 "enum": [
                   "PodResource",
                   "ContainerResource",
-                  "ControllerObjective"
+                  "CustomQuery"
                 ],
                 "type": "string"
               }
