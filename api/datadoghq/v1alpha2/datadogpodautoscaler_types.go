@@ -171,7 +171,7 @@ type DatadogPodAutoscalerHorizontalFallbackPolicy struct {
 	// Objective is the objective to reach and maintain for the target resource during fallback mode.
 	// If not set a CPU PodResource from the current objectives will be used or a default one (80% CPU PodResource) if no CPU objective is set.
 	// +optional
-	// +kubebuilder:default={}
+	// +kubebuilder:validation:Nullable
 	Objective *common.DatadogPodAutoscalerObjective `json:"objective,omitempty"`
 }
 
