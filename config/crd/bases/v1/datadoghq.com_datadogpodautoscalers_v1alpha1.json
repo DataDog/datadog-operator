@@ -341,10 +341,24 @@
                     "additionalProperties": false,
                     "description": "Value is the value of the objective",
                     "properties": {
+                      "absoluteValue": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "string"
+                          }
+                        ],
+                        "description": "AbsoluteValue defines a target as an absolute value divided by the number of running pods.\nUse a plain number (e.g., \"11\" or \"11.5\").\nRepresented as a resource.Quantity to avoid floating point in CRDs.",
+                        "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                        "x-kubernetes-int-or-string": true
+                      },
                       "type": {
-                        "description": "Type specifies how the value is expressed (possible values: Utilization).",
+                        "description": "Type specifies how the value is expressed (possible values: Utilization, AbsoluteValue).",
                         "enum": [
-                          "Utilization"
+                          "Utilization",
+                          "AbsoluteValue"
                         ],
                         "type": "string"
                       },
@@ -369,6 +383,119 @@
                 ],
                 "type": "object"
               },
+              "customQueryObjective": {
+                "additionalProperties": false,
+                "description": "CustomQueryObjective allows to set a controller-level objective.",
+                "properties": {
+                  "query": {
+                    "additionalProperties": false,
+                    "description": "DatadogPodAutoscalerTimeseriesFormulaRequest is a subset of the v2 timeseries query API (metrics only).\nIt mirrors the OpenAPI \"DatadogPodAutoscalerTimeseriesFormulaRequestAttributes\" fields relevant to autoscaling.\nReference: https://github.com/DataDog/datadog-api-spec/blob/94d1542b31ad0df1da915bae84686b13ba1a65ae/spec/v2/query.yaml#L124",
+                    "properties": {
+                      "formulas": {
+                        "description": "Formulas to compute (optional).",
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "formula": {
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "formula"
+                          ],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      },
+                      "queries": {
+                        "items": {
+                          "additionalProperties": false,
+                          "description": "TimeseriesQuery is a discriminated union. Only Metrics are supported for autoscaling.",
+                          "properties": {
+                            "metrics": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "dataSource": {
+                                  "enum": [
+                                    "metrics",
+                                    "cloud_cost"
+                                  ],
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "description": "Optional variable name (\"a\", \"b\", etc.) to reference in formulas.",
+                                  "type": "string"
+                                },
+                                "query": {
+                                  "description": "Classic Datadog metrics query, e.g. \"avg:system.cpu.user{*} by {env}\".",
+                                  "minLength": 1,
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "dataSource",
+                                "query"
+                              ],
+                              "type": "object"
+                            }
+                          },
+                          "type": "object"
+                        },
+                        "minItems": 1,
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "queries"
+                    ],
+                    "type": "object"
+                  },
+                  "value": {
+                    "additionalProperties": false,
+                    "description": "Value is the value of the objective",
+                    "properties": {
+                      "absoluteValue": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "string"
+                          }
+                        ],
+                        "description": "AbsoluteValue defines a target as an absolute value divided by the number of running pods.\nUse a plain number (e.g., \"11\" or \"11.5\").\nRepresented as a resource.Quantity to avoid floating point in CRDs.",
+                        "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                        "x-kubernetes-int-or-string": true
+                      },
+                      "type": {
+                        "description": "Type specifies how the value is expressed (possible values: Utilization, AbsoluteValue).",
+                        "enum": [
+                          "Utilization",
+                          "AbsoluteValue"
+                        ],
+                        "type": "string"
+                      },
+                      "utilization": {
+                        "description": "Utilization defines a percentage of the target compared to requested workload",
+                        "format": "int32",
+                        "maximum": 100,
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "type"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "query",
+                  "value"
+                ],
+                "type": "object"
+              },
               "podResource": {
                 "additionalProperties": false,
                 "description": "PodResource allows to set a pod-level resource objective.",
@@ -384,10 +511,24 @@
                     "additionalProperties": false,
                     "description": "Value is the value of the objective.",
                     "properties": {
+                      "absoluteValue": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "string"
+                          }
+                        ],
+                        "description": "AbsoluteValue defines a target as an absolute value divided by the number of running pods.\nUse a plain number (e.g., \"11\" or \"11.5\").\nRepresented as a resource.Quantity to avoid floating point in CRDs.",
+                        "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                        "x-kubernetes-int-or-string": true
+                      },
                       "type": {
-                        "description": "Type specifies how the value is expressed (possible values: Utilization).",
+                        "description": "Type specifies how the value is expressed (possible values: Utilization, AbsoluteValue).",
                         "enum": [
-                          "Utilization"
+                          "Utilization",
+                          "AbsoluteValue"
                         ],
                         "type": "string"
                       },
@@ -415,7 +556,8 @@
                 "description": "Type sets the type of the objective.",
                 "enum": [
                   "PodResource",
-                  "ContainerResource"
+                  "ContainerResource",
+                  "CustomQuery"
                 ],
                 "type": "string"
               }
