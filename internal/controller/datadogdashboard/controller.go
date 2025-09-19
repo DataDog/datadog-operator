@@ -121,7 +121,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		if instanceSpecHash != statusSpecHash {
 			logger.Info("DatadogDashboard manifest has changed")
 			shouldUpdate = true
-		} else if instance.Status.LastForceSyncTime == nil || ((forceSyncPeriod - now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0) {
+		} else if instance.Status.DashboardLastForceSyncTime == nil || ((forceSyncPeriod - now.Sub(instance.Status.DashboardLastForceSyncTime.Time)) <= 0) {
 			// Periodically force a sync with the API to ensure parity
 			// Get Dashboard to make sure it exists before trying any updates. If it doesn't, set shouldCreate
 			_, err = r.get(instance)
@@ -134,7 +134,6 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 			} else {
 				shouldUpdate = true
 			}
-			status.LastForceSyncTime = &now
 		}
 	}
 
@@ -186,7 +185,7 @@ func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogDashbo
 	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeUpdated, metav1.ConditionTrue, "UpdatingDashboard", "DatadogDashboard Update")
 	status.SyncStatus = v1alpha1.DatadogDashboardSyncStatusOK
 	status.CurrentHash = hash
-	status.LastForceSyncTime = &now
+	status.DashboardLastForceSyncTime = &now
 
 	logger.Info("Updated DatadogDashboard", "Dashboard ID", instance.Status.ID)
 	return nil
@@ -211,7 +210,7 @@ func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogDashbo
 	status.Creator = createdDashboard.GetAuthorHandle()
 	status.Created = &createdTime
 	status.SyncStatus = v1alpha1.DatadogDashboardSyncStatusOK
-	status.LastForceSyncTime = &createdTime
+	status.DashboardLastForceSyncTime = &createdTime
 	status.CurrentHash = hash
 
 	// Set condition and status
