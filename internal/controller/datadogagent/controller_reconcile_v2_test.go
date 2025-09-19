@@ -101,7 +101,7 @@ func Test_profilesToApply(t *testing.T) {
 					Valid:       "Unknown",
 					Applied:     "Unknown",
 				}
-				profileList[0].ResourceVersion = "1000"
+				profileList[0].ResourceVersion = "999"
 				return profileList
 			},
 			wantProfileAppliedByNode: map[string]types.NamespacedName{},
@@ -151,7 +151,7 @@ func Test_profilesToApply(t *testing.T) {
 					Valid:   "True",
 					Applied: "True",
 				}
-				profileList[0].ResourceVersion = "1000"
+				profileList[0].ResourceVersion = "999"
 				return profileList
 			},
 			wantProfileAppliedByNode: map[string]types.NamespacedName{
@@ -210,7 +210,7 @@ func Test_profilesToApply(t *testing.T) {
 					Valid:   "True",
 					Applied: "True",
 				}
-				profileList[0].ResourceVersion = "1000"
+				profileList[0].ResourceVersion = "999"
 				profileList[1].Status = v1alpha1.DatadogAgentProfileStatus{
 					LastUpdate:  &now,
 					CurrentHash: "e7eda6755e8a98d127140e2169204312",
@@ -233,7 +233,7 @@ func Test_profilesToApply(t *testing.T) {
 					Valid:   "True",
 					Applied: "True",
 				}
-				profileList[1].ResourceVersion = "1000"
+				profileList[1].ResourceVersion = "999"
 				return profileList
 			},
 			wantProfileAppliedByNode: map[string]types.NamespacedName{
@@ -313,7 +313,7 @@ func Test_profilesToApply(t *testing.T) {
 					Valid:   "True",
 					Applied: "True",
 				}
-				profileList[0].ResourceVersion = "1000"
+				profileList[0].ResourceVersion = "999"
 				profileList[1].Status = v1alpha1.DatadogAgentProfileStatus{
 					LastUpdate:  &now,
 					CurrentHash: "6cc0746a51b8e52da6e4e625d3181686",
@@ -336,7 +336,7 @@ func Test_profilesToApply(t *testing.T) {
 					Valid:   "True",
 					Applied: "True",
 				}
-				profileList[1].ResourceVersion = "1000"
+				profileList[1].ResourceVersion = "999"
 				return profileList
 			},
 			wantProfileAppliedByNode: map[string]types.NamespacedName{
@@ -399,7 +399,7 @@ func Test_profilesToApply(t *testing.T) {
 					Valid:   "True",
 					Applied: "True",
 				}
-				profileList[0].ResourceVersion = "1000"
+				profileList[0].ResourceVersion = "999"
 				return profileList
 			},
 			wantProfileAppliedByNode: map[string]types.NamespacedName{
@@ -521,7 +521,7 @@ func Test_profilesToApply(t *testing.T) {
 					Valid:   "True",
 					Applied: "True",
 				}
-				profileList[0].ResourceVersion = "1000"
+				profileList[0].ResourceVersion = "999"
 				profileList[1].Status = v1alpha1.DatadogAgentProfileStatus{
 					LastUpdate:  &now,
 					CurrentHash: "e7eda6755e8a98d127140e2169204312",
@@ -537,7 +537,7 @@ func Test_profilesToApply(t *testing.T) {
 					Valid:   "True",
 					Applied: "Unknown",
 				}
-				profileList[1].ResourceVersion = "1000"
+				profileList[1].ResourceVersion = "999"
 				return profileList
 			},
 			wantProfileAppliedByNode: map[string]types.NamespacedName{
@@ -569,20 +569,7 @@ func Test_profilesToApply(t *testing.T) {
 			require.NoError(t, err)
 
 			wantProfilesToApply := tt.wantProfilesToApply()
-
-			for i := range wantProfilesToApply {
-				// After version update need to truncate times set by fake to Seconds
-				wantProfilesToApply[i].CreationTimestamp.Time = wantProfilesToApply[i].CreationTimestamp.Time.Truncate(time.Second)
-				profilesToApply[i].CreationTimestamp.Time = profilesToApply[i].CreationTimestamp.Time.Truncate(time.Second)
-				if wantProfilesToApply[i].Status.LastUpdate != nil {
-					wantProfilesToApply[i].Status.LastUpdate.Time = wantProfilesToApply[i].Status.LastUpdate.Time.Truncate(time.Second)
-					profilesToApply[i].Status.LastUpdate.Time = profilesToApply[i].Status.LastUpdate.Time.Truncate(time.Second)
-				}
-
-				assert.Equal(t, wantProfilesToApply[i], profilesToApply[i])
-			}
 			assert.Equal(t, wantProfilesToApply, profilesToApply)
-			// assert.ElementsMatch(t, wantProfilesToApply, profilesToApply)
 			assert.Equal(t, tt.wantProfileAppliedByNode, profileAppliedByNode)
 		})
 	}
