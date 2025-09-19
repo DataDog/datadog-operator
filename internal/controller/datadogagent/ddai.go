@@ -98,10 +98,11 @@ func (r *Reconciler) cleanUpUnusedDDAIs(ctx context.Context, validDDAIs []*v1alp
 }
 
 func (r *Reconciler) addRemoteConfigStatusToDDAIStatus(ddaStatus *v2alpha1.DatadogAgentStatus, ddai *v1alpha1.DatadogAgentInternal) error {
-	// remote config configuration
-	if ddaStatus != nil && ddaStatus.RemoteConfigConfiguration != nil {
-		ddai.Status.RemoteConfigConfiguration = ddaStatus.RemoteConfigConfiguration
+	if ddaStatus == nil || ddaStatus.RemoteConfigConfiguration == nil {
+		return nil
 	}
+	// remote config configuration
+	ddai.Status.RemoteConfigConfiguration = ddaStatus.RemoteConfigConfiguration
 
 	status, err := json.Marshal(ddai.Status)
 	if err != nil {
