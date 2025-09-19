@@ -102,12 +102,25 @@ type DatadogPodAutoscalerSpec struct {
 // +kubebuilder:validation:Enum:=Apply;Preview
 type DatadogPodAutoscalerApplyMode string
 
+// DatadogPodAutoscalerFallbackDirection specifies the direction that fallback recommendations can be applied.
+// +kubebuilder:validation:Enum:=ScaleUp;ScaleDown;All
+type DatadogPodAutoscalerFallbackDirection string
+
 const (
 	// DatadogPodAutoscalerApplyModeApply allows the controller to apply all recommendations (regular and manual)
 	DatadogPodAutoscalerApplyModeApply DatadogPodAutoscalerApplyMode = "Apply"
 
 	// DatadogPodAutoscalerApplyModePreview doesn't allow the controller to apply any recommendations
 	DatadogPodAutoscalerApplyModePreview DatadogPodAutoscalerApplyMode = "Preview"
+
+	// DatadogPodAutoscalerFallbackDirectionScaleUp allows the controller to apply fallback recommendations to scale up the target resource.
+	DatadogPodAutoscalerFallbackDirectionScaleUp DatadogPodAutoscalerFallbackDirection = "ScaleUp"
+
+	// DatadogPodAutoscalerFallbackDirectionScaleDown allows the controller to apply fallback recommendations to scale down the target resource.
+	DatadogPodAutoscalerFallbackDirectionScaleDown DatadogPodAutoscalerFallbackDirection = "ScaleDown"
+
+	// DatadogPodAutoscalerFallbackDirectionAll allows the controller to apply fallback recommendations to scale up or down the target resource.
+	DatadogPodAutoscalerFallbackDirectionAll DatadogPodAutoscalerFallbackDirection = "All"
 )
 
 // DatadogPodAutoscalerApplyPolicy defines how recommendations should be applied.
@@ -149,13 +162,18 @@ type DatadogPodAutoscalerHorizontalFallbackPolicy struct {
 	// +optional
 	// +kubebuilder:default={}
 	Triggers HorizontalFallbackTriggers `json:"triggers,omitempty"`
+
+	// Direction determines the direction that recommendations should be applied.
+	// +optional
+	// +kubebuilder:default=ScaleUp
+	Direction DatadogPodAutoscalerFallbackDirection `json:"direction,omitempty"`
 }
 
 // HorizontalFallbackTriggers defines the triggers that will cause local fallback to be enabled.
 type HorizontalFallbackTriggers struct {
 	// StaleRecommendationThresholdSeconds defines the time window the controller will wait after detecting an error before applying recommendations.
 	// +optional
-	// +kubebuilder:default=1800
+	// +kubebuilder:default=600
 	// +kubebuilder:validation:Minimum=100
 	// +kubebuilder:validation:Maximum=3600
 	StaleRecommendationThresholdSeconds int32 `json:"staleRecommendationThresholdSeconds,omitempty"`
