@@ -475,3 +475,25 @@ func CombineDeploymentStatus(deploymentStatus *v2alpha1.DeploymentStatus, ddaiSt
 	deploymentStatus.DeploymentName = ddaiStatus.DeploymentName
 	return deploymentStatus
 }
+
+func IsEqualConditions(current []metav1.Condition, newCond []metav1.Condition) bool {
+	if len(current) != len(newCond) {
+		return false
+	}
+	for i := range current {
+		if !IsEqualCondition(&current[i], &newCond[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func IsEqualCondition(current *metav1.Condition, newCond *metav1.Condition) bool {
+	if current.Type != newCond.Type ||
+		current.Status != newCond.Status ||
+		current.Reason != newCond.Reason ||
+		current.Message != newCond.Message {
+		return false
+	}
+	return true
+}

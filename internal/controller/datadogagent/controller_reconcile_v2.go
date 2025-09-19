@@ -124,7 +124,7 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
 	var result reconcile.Result
 	newStatus := instance.Status.DeepCopy()
-	now := metav1.NewTime(time.Now())
+	now := metav1.Now()
 
 	configuredFeatures, enabledFeatures, requiredComponents := feature.BuildFeatures(instance, &instance.Spec, instance.Status.RemoteConfigConfiguration, reconcilerOptionsToFeatureOptions(&r.options, r.log))
 	// update list of enabled features for metrics forwarder
@@ -250,16 +250,28 @@ func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment 
 	return result, currentError
 }
 
-func (r *Reconciler) updateDAPStatus(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentProfile) {
+func (r *Reconciler) updateDAPStatus(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentProfile) (reconcile.Result, error) {
 	// update dap status for non-default profiles only
 	if !agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
-		if err := r.client.Status().Update(context.TODO(), profile); err != nil {
-			if apierrors.IsConflict(err) {
-				logger.V(1).Info("unable to update DatadogAgentProfile status due to update conflict")
+		current := datadoghqv1alpha1.DatadogAgentProfile{}
+		if err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: profile.Namespace, Name: profile.Name}, &current); err != nil {
+			return reconcile.Result{}, err
+		}
+
+		if !agentprofile.IsEqualStatus(&current.Status, &profile.Status) {
+			// copy status to current profile to avoid updating aside from status
+			current.Status = profile.Status
+			if err := r.client.Status().Update(context.TODO(), &current); err != nil {
+				if apierrors.IsConflict(err) {
+					logger.V(1).Info("unable to update DatadogAgentProfile status due to update conflict")
+					return reconcile.Result{RequeueAfter: time.Second}, nil
+				}
+				logger.Error(err, "unable to update DatadogAgentProfile status")
+				return reconcile.Result{}, err
 			}
-			logger.Error(err, "unable to update DatadogAgentProfile status")
 		}
 	}
+	return reconcile.Result{}, nil
 }
 
 // setMetricsForwarderStatus sets the metrics forwarder status condition if enabled
@@ -317,7 +329,9 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 	for _, profile := range sortedProfiles {
 		maxUnavailable := agentprofile.GetMaxUnavailable(logger, ddaSpec, &profile, len(nodeList), &r.options.ExtendedDaemonsetOptions)
 		profileAppliedByNode, err = agentprofile.ApplyProfile(logger, &profile, nodeList, profileAppliedByNode, now, maxUnavailable)
-		r.updateDAPStatus(logger, &profile)
+		if result, e := r.updateDAPStatus(logger, &profile); utils.ShouldReturn(result, e) {
+			return nil, nil, e
+		}
 		if err != nil {
 			// profile is invalid or conflicts
 			logger.Error(err, "profile cannot be applied", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
