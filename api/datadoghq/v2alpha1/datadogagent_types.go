@@ -1222,6 +1222,11 @@ type KubeletConfig struct {
 	// Default: `/var/lib/kubelet/pod-resources/`
 	// +optional
 	PodResourcesSocketPath string `json:"podResourcesSocketPath,omitempty"`
+
+	// Enable fine-grained authentication for kubelet (requires: Kubernetes 1.32+)
+	// Default: false
+	// +optional
+	FineGrainedAuthorization *bool `json:"fineGrainedAuthorization,omitempty"`
 }
 
 // HostPortConfig contains host port configuration.
