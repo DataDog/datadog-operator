@@ -491,12 +491,36 @@ spec:
                       - toReplicas
                       type: object
                     type: array
+                  lastRecommendations:
+                    description: LastRecommendations stores the most recent recommendations
+                    items:
+                      description: DatadogPodAutoscalerHorizontalRecommendation defines
+                        a horizontal scaling recommendation
+                      properties:
+                        desiredReplicas:
+                          description: Replicas is the recommended number of replicas
+                            for the workload
+                          format: int32
+                          type: integer
+                        generatedAt:
+                          description: GeneratedAt is the timestamp at which the recommendation
+                            was generated
+                          format: date-time
+                          type: string
+                        source:
+                          description: Source is the source of the value used to scale
+                            the target workload
+                          type: string
+                      required:
+                      - desiredReplicas
+                      type: object
+                    type: array
                   target:
                     description: Target is the current target of the horizontal scaling
                     properties:
                       desiredReplicas:
-                        description: Replicas is the desired number of replicas for
-                          the workload
+                        description: Replicas is the recommended number of replicas
+                          for the workload
                         format: int32
                         type: integer
                       generatedAt:
@@ -510,7 +534,6 @@ spec:
                         type: string
                     required:
                     - desiredReplicas
-                    - source
                     type: object
                 type: object
               vertical:
@@ -899,6 +922,15 @@ spec:
                     description: Horizontal configures the behavior during horizontal
                       fallback mode.
                     properties:
+                      direction:
+                        default: ScaleUp
+                        description: Direction determines the direction that recommendations
+                          should be applied.
+                        enum:
+                        - ScaleUp
+                        - ScaleDown
+                        - All
+                        type: string
                       enabled:
                         default: true
                         description: 'Enabled determines whether recommendations should
@@ -910,7 +942,7 @@ spec:
                           recommendations.
                         properties:
                           staleRecommendationThresholdSeconds:
-                            default: 1800
+                            default: 600
                             description: StaleRecommendationThresholdSeconds defines
                               the time window the controller will wait after detecting
                               an error before applying recommendations.
@@ -1126,12 +1158,36 @@ spec:
                       - toReplicas
                       type: object
                     type: array
+                  lastRecommendations:
+                    description: LastRecommendations stores the most recent recommendations
+                    items:
+                      description: DatadogPodAutoscalerHorizontalRecommendation defines
+                        a horizontal scaling recommendation
+                      properties:
+                        desiredReplicas:
+                          description: Replicas is the recommended number of replicas
+                            for the workload
+                          format: int32
+                          type: integer
+                        generatedAt:
+                          description: GeneratedAt is the timestamp at which the recommendation
+                            was generated
+                          format: date-time
+                          type: string
+                        source:
+                          description: Source is the source of the value used to scale
+                            the target workload
+                          type: string
+                      required:
+                      - desiredReplicas
+                      type: object
+                    type: array
                   target:
                     description: Target is the current target of the horizontal scaling
                     properties:
                       desiredReplicas:
-                        description: Replicas is the desired number of replicas for
-                          the workload
+                        description: Replicas is the recommended number of replicas
+                          for the workload
                         format: int32
                         type: integer
                       generatedAt:
@@ -1145,7 +1201,6 @@ spec:
                         type: string
                     required:
                     - desiredReplicas
-                    - source
                     type: object
                 type: object
               vertical:
