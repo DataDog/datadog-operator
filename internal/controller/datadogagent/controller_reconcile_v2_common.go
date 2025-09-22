@@ -228,7 +228,8 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 				}
 				profile.Status.CreateStrategy.Status = newStatus
 			}
-			r.updateDAPStatus(logger, profile)
+			oldStatus := profile.Status
+			r.updateDAPStatus(context.TODO(), logger, profile, &oldStatus)
 		}
 
 		// When overriding node labels in <1.7.0, the hash could be updated

@@ -250,21 +250,20 @@ func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment 
 	return result, currentError
 }
 
-func (r *Reconciler) updateDAPStatus(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentProfile) (reconcile.Result, error) {
+func (r *Reconciler) updateDAPStatus(ctx context.Context, logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentProfile, oldStatus *datadoghqv1alpha1.DatadogAgentProfileStatus) (reconcile.Result, error) {
 	// update dap status for non-default profiles only
 	if !agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
-		current := datadoghqv1alpha1.DatadogAgentProfile{}
-		if err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: profile.Namespace, Name: profile.Name}, &current); err != nil {
-			return reconcile.Result{}, err
-		}
-
-		if !agentprofile.IsEqualStatus(&current.Status, &profile.Status) {
-			// copy status to current profile to avoid updating aside from status
-			current.Status = profile.Status
-			if err := r.client.Status().Update(context.TODO(), &current); err != nil {
+		if !agentprofile.IsEqualStatus(oldStatus, &profile.Status) {
+			// Update a deep copy to avoid mutating the in-memory object used later
+			toUpdate := profile.DeepCopy()
+			if err := r.client.Status().Update(ctx, toUpdate); err != nil {
 				if apierrors.IsConflict(err) {
 					logger.V(1).Info("unable to update DatadogAgentProfile status due to update conflict")
 					return reconcile.Result{RequeueAfter: time.Second}, nil
+				}
+				if apierrors.IsNotFound(err) {
+					// Profile deleted between list and update; no action needed
+					return reconcile.Result{}, nil
 				}
 				logger.Error(err, "unable to update DatadogAgentProfile status")
 				return reconcile.Result{}, err
@@ -328,8 +327,9 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 	sortedProfiles := agentprofile.SortProfiles(profilesList.Items)
 	for _, profile := range sortedProfiles {
 		maxUnavailable := agentprofile.GetMaxUnavailable(logger, ddaSpec, &profile, len(nodeList), &r.options.ExtendedDaemonsetOptions)
+		oldStatus := profile.Status
 		profileAppliedByNode, err = agentprofile.ApplyProfile(logger, &profile, nodeList, profileAppliedByNode, now, maxUnavailable)
-		if result, e := r.updateDAPStatus(logger, &profile); utils.ShouldReturn(result, e) {
+		if result, e := r.updateDAPStatus(ctx, logger, &profile, &oldStatus); utils.ShouldReturn(result, e) {
 			return nil, nil, e
 		}
 		if err != nil {

@@ -6,7 +6,9 @@
 package condition
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -480,8 +482,14 @@ func IsEqualConditions(current []metav1.Condition, newCond []metav1.Condition) b
 	if len(current) != len(newCond) {
 		return false
 	}
-	for i := range current {
-		if !IsEqualCondition(&current[i], &newCond[i]) {
+
+	// Compare order-insensitively. The CRD uses listMapKey=type so types are unique.
+	ac := append([]metav1.Condition(nil), current...)
+	bc := append([]metav1.Condition(nil), newCond...)
+	slices.SortFunc(ac, func(a, b metav1.Condition) int { return cmp.Compare(a.Type, b.Type) })
+	slices.SortFunc(bc, func(a, b metav1.Condition) int { return cmp.Compare(a.Type, b.Type) })
+	for i := range ac {
+		if !IsEqualCondition(&ac[i], &bc[i]) {
 			return false
 		}
 	}
