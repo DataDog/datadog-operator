@@ -1,0 +1,23 @@
+# Note: this monitor type requires Datadog Operator v1.8+
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogMonitor
+metadata:
+  name: datadog-error-tracking-alert-test
+  namespace: datadog
+spec:
+  query: "errors(\"service:my-app\").rollup(\"count\", \"@error.fingerprint\").last(\"5m\") > 10"
+  type: "error-tracking alert"
+  name: "Test error tracking alert made from DatadogMonitor"
+  message: "High error rate detected in error tracking for service my-app"
+  tags:
+    - "test:datadog"
+    - "service:my-app"
+  priority: 3
+  options:
+    evaluationDelay: 300
+    includeTags: true
+    locked: false
+    newGroupDelay: 300
+    notifyNoData: true
+    noDataTimeframe: 30
+    renotifyInterval: 1440

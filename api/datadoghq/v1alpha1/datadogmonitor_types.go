@@ -38,7 +38,7 @@ type DatadogMonitorSpec struct {
 	Tags []string `json:"tags,omitempty"`
 	// Type is the monitor type
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Enum=metric alert;query alert;service check;event alert;log alert;process alert;rum alert;trace-analytics alert;slo alert;event-v2 alert;audit alert;composite
+	// +kubebuilder:validation:Enum=metric alert;query alert;service check;event alert;log alert;process alert;rum alert;trace-analytics alert;slo alert;event-v2 alert;audit alert;composite;error-tracking alert
 	Type DatadogMonitorType `json:"type,omitempty"`
 	// Options are the optional parameters associated with your monitor
 	Options DatadogMonitorOptions `json:"options,omitempty"`
@@ -75,6 +75,8 @@ const (
 	DatadogMonitorTypeAudit DatadogMonitorType = "audit alert"
 	// DatadogMonitorTypeComposite is the composite alert monitor type
 	DatadogMonitorTypeComposite DatadogMonitorType = "composite"
+	// DatadogMonitorTypeErrorTracking is the error-tracking alert monitor type
+	DatadogMonitorTypeErrorTracking DatadogMonitorType = "error-tracking alert"
 )
 
 // DatadogMonitorOptionsNotificationPreset toggles the display of additional content sent in the monitor notification.
