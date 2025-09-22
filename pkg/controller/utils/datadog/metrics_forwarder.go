@@ -20,7 +20,6 @@ import (
 	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV2"
 	"github.com/go-logr/logr"
-	api "github.com/zorkian/go-datadog-api"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -68,9 +67,6 @@ const (
 	datadogOperatorSourceType   = "datadog"
 	defaultbaseURL              = "https://api.datadoghq.com"
 	urlPrefix                   = "https://api."
-
-	// We use an empty application key as solely the API key is necessary to send metrics and events
-	emptyAppKey = ""
 )
 
 var (
@@ -96,7 +92,7 @@ type delegatedAPI interface {
 	delegatedSendReconcileMetric(context.Context, float64, []string) error
 	delegatedSendFeatureMetric(context.Context, string) error
 	delegatedSendEvent(string, EventType) error
-	delegatedValidateCreds(string) (*api.Client, error)
+	delegatedValidateCreds(string) error
 }
 
 // hashKeys is used to detect if credentials have changed
@@ -112,7 +108,6 @@ func hashKeys(apiKey string) uint64 {
 type metricsForwarder struct {
 	id                  string
 	monitoredObjectKind string
-	datadogClient       *api.Client           // api key validation and events
 	datadogMetricsApi   *datadogV2.MetricsApi // metrics
 	datadogEventsApi    *datadogV1.EventsApi  // events
 	k8sClient           client.Client
@@ -519,11 +514,10 @@ func (mf *metricsForwarder) initAPIClient(apiKey string) error {
 	if mf.delegator == nil {
 		mf.delegator = mf
 	}
-	datadogClient, err := mf.validateCreds(apiKey)
+	err := mf.validateCreds(apiKey)
 	if err != nil {
 		return err
 	}
-	mf.datadogClient = datadogClient
 	mf.keysHash = hashKeys(apiKey)
 	return nil
 }
@@ -536,24 +530,26 @@ func (mf *metricsForwarder) updateCredsIfNeeded(apiKey string) error {
 	return nil
 }
 
-// validateCreds returns validates the API key by querying the Datadog API
-func (mf *metricsForwarder) validateCreds(apiKey string) (*api.Client, error) {
+// validateCreds validates the API key by querying the Datadog API
+func (mf *metricsForwarder) validateCreds(apiKey string) error {
 	return mf.delegator.delegatedValidateCreds(apiKey)
 }
 
 // delegatedValidateCreds is separated from validateCreds to facilitate mocking the Datadog API
-func (mf *metricsForwarder) delegatedValidateCreds(apiKey string) (*api.Client, error) {
-	datadogClient := api.NewClient(apiKey, emptyAppKey)
-	datadogClient.SetBaseUrl(mf.baseURL)
-	valid, err := datadogClient.Validate()
+func (mf *metricsForwarder) delegatedValidateCreds(apiKey string) error {
+	// Create context with API key for validation
+	ctx := mf.generateDatadogContext()
+
+	config := datadogapi.NewConfiguration()
+	apiClient := datadogapi.NewAPIClient(config)
+	authApi := datadogV1.NewAuthenticationApi(apiClient)
+
+	_, _, err := authApi.Validate(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("cannot validate datadog credentials: %w", err)
-	}
-	if !valid {
-		return nil, fmt.Errorf("invalid datadog credentials on %s", mf.baseURL)
+		return fmt.Errorf("cannot validate datadog credentials: %w", err)
 	}
 
-	return datadogClient, nil
+	return nil
 }
 
 func (mf *metricsForwarder) sendStatusMetrics(ctx context.Context, dsStatus []*v2alpha1.DaemonSetStatus, dcaStatus, ccrStatus *v2alpha1.DeploymentStatus, agentStatus *v2alpha1.DaemonSetStatus) error {
@@ -842,7 +838,7 @@ func (mf *metricsForwarder) delegatedSendEvent(eventTitle string, eventType Even
 	eventRequest := datadogV1.EventCreateRequest{
 		DateHappened:   datadogapi.PtrInt64(time.Now().Unix()),
 		Title:          eventTitle,
-		Text:           eventTitle,
+		Text:           "",
 		Tags:           append(mf.globalTags, mf.tags...),
 		SourceTypeName: datadogapi.PtrString(datadogOperatorSourceType),
 	}
