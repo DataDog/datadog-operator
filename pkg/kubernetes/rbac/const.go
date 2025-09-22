@@ -14,6 +14,7 @@ const (
 	AdmissionAPIGroup        = "admissionregistration.k8s.io"
 	APIExtensionsAPIGroup    = "apiextensions.k8s.io"
 	AppsAPIGroup             = "apps"
+	ArgoProjAPIGroup         = "argoproj.io"
 	AuthorizationAPIGroup    = "authorization.k8s.io"
 	AutoscalingAPIGroup      = "autoscaling"
 	AutoscalingK8sIoAPIGroup = "autoscaling.k8s.io"
@@ -32,6 +33,9 @@ const (
 	RegistrationAPIGroup     = "apiregistration.k8s.io"
 	StorageAPIGroup          = "storage.k8s.io"
 	EKSMetricsAPIGroup       = "metrics.eks.amazonaws.com"
+	KarpenterAPIGroup        = "karpenter.sh"
+	KarpenterAWSAPIGroup     = "karpenter.k8s.aws"
+	KarpenterAzureAPIGroup   = "karpenter.azure.com"
 
 	// Resources
 
@@ -79,6 +83,7 @@ const (
 	ResourceQuotasResource              = "resourcequotas"
 	RoleBindingResource                 = "rolebindings"
 	RoleResource                        = "roles"
+	Rollout                             = "rollouts"
 	SecretsResource                     = "secrets"
 	ServiceAccountResource              = "serviceaccounts"
 	ServicesResource                    = "services"

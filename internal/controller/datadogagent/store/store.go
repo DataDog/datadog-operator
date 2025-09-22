@@ -219,8 +219,8 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 				objStore.(*v1.Service).Spec.ClusterIPs = objAPIServer.(*v1.Service).Spec.ClusterIPs
 				objStore.SetResourceVersion(objAPIServer.GetResourceVersion())
 			}
-			// The APIServiceKind and CiliumNetworkPoliciesKind resource version must be set.
-			if kind == kubernetes.APIServiceKind || kind == kubernetes.CiliumNetworkPoliciesKind {
+			// The APIServiceKind, CiliumNetworkPoliciesKind, and PodDisruptionBudgetsKind resource version must be set.
+			if kind == kubernetes.APIServiceKind || kind == kubernetes.CiliumNetworkPoliciesKind || kind == kubernetes.PodDisruptionBudgetsKind {
 				objStore.SetResourceVersion(objAPIServer.GetResourceVersion())
 			}
 
