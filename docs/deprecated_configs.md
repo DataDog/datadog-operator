@@ -14,8 +14,8 @@ This document lists configuration options that are deprecated or will be depreca
 
 The `runProcessChecksInCoreAgent` field in the Global configuration is being deprecated. This field previously controlled whether the Process Agent or Core Agent collects process and container checks and featurres.
 
-**Migration Path:**
-Process checks are now run in the core agent by default. 
+### Migration Path
+Process checks are now run in the core Agent by default. 
 
 If this field was set to `true`, it can be removed with no behavior change. If you are using Agent v7.60 or below, you can use environment variable overrides or upgrade your Agent version.
 
