@@ -6,7 +6,7 @@ This document lists configuration options that are deprecated or will be depreca
 
 | Feature | Deprecation Notice | Deprecation Version | Removal Version |
 |---------|-------------------|-------------------|-------------------|
-| `global.runProcessChecksInCoreAgent` | The `runProcessChecksInCoreAgent` configuration is deprecated in 1.19, and will be removed in v1.21. See deprecation and migration guidelines for details. | v1.19 | v1.21 |
+| `global.runProcessChecksInCoreAgent` | The `runProcessChecksInCoreAgent` configuration is deprecated in 1.19, and will be removed in v1.21. | v1.19 | v1.21 |
 
 ## Migration Guidelines
 
