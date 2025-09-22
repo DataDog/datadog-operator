@@ -42,7 +42,7 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 	// Check for deprecated configurations and log warnings
 	if instance.Spec.Global != nil && instance.Spec.Global.RunProcessChecksInCoreAgent != nil &&
 		*instance.Spec.Global.RunProcessChecksInCoreAgent {
-		reqLogger.Error(nil, "DEPRECATION WARNING: The 'runProcessChecksInCoreAgent' configuration will be deprecated in v1.21. This field can be safely removed with no behavior change.")
+		reqLogger.Error(nil, "DEPRECATION WARNING: The 'runProcessChecksInCoreAgent' configuration will be deprecated in v1.21. See deprecation and migration guidelines for details.")
 	}
 
 	// 2. Handle finalizer logic.

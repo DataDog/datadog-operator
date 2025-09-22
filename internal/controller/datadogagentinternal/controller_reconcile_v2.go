@@ -35,12 +35,6 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *v1alpha1
 	// 	return result, err
 	// }
 
-	// Check for deprecated configurations and log warnings
-	if instance.Spec.Global != nil && instance.Spec.Global.RunProcessChecksInCoreAgent != nil &&
-		*instance.Spec.Global.RunProcessChecksInCoreAgent {
-		reqLogger.Error(nil, "DEPRECATION WARNING: The 'runProcessChecksInCoreAgent' configuration will be deprecated in v1.21. This field can be safely removed with no behavior change.")
-	}
-
 	// 2. Handle finalizer logic.
 	if result, err := r.handleFinalizer(reqLogger, instance, r.finalizeDDAI); utils.ShouldReturn(result, err) {
 		return result, err

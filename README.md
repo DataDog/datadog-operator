@@ -60,7 +60,7 @@ The Datadog operator also allows you to:
 
 ## Deprecation Notice
 
-See the [deprecation table][17] for deprecated configurations and migration guidance.
+See the [deprecated configurations and migration guidelines][17] page.
 
 ## How to contribute
 
