@@ -628,7 +628,7 @@ func (r *Reconciler) addDDAIStatusToDDAStatus(status *datadoghqv2alpha1.DatadogA
 // The Daemonset may use the old naming format so we retrieve it via labels
 func (r *Reconciler) getCurrentDaemonset(dda, daemonset metav1.Object) (*appsv1.DaemonSet, error) {
 	// Profile daemonset
-	if profileName, ok := dda.GetLabels()[constants.ProfileLabelKey]; ok {
+	if profileName, ok := daemonset.GetLabels()[constants.ProfileLabelKey]; ok {
 		dsList := appsv1.DaemonSetList{}
 		if err := r.client.List(context.TODO(), &dsList, client.MatchingLabels{
 			apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,

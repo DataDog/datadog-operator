@@ -46,8 +46,7 @@ func getInstallInfoValue() string {
 func useSystemProbeCustomSeccomp(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	if componentOverride, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
 		if container, ok := componentOverride.Containers[apicommon.SystemProbeContainerName]; ok {
-			// Only ConfigMap is supported for now
-			if container.SeccompConfig != nil && container.SeccompConfig.CustomProfile != nil && container.SeccompConfig.CustomProfile.ConfigMap != nil {
+			if container.SeccompConfig != nil && container.SeccompConfig.CustomProfile != nil && (container.SeccompConfig.CustomProfile.ConfigMap != nil || container.SeccompConfig.CustomProfile.ConfigData != nil) {
 				return true
 			}
 		}
@@ -100,4 +99,6 @@ func setDCATokenFromDDA(dda metav1.Object, ddaiGlobal *v2alpha1.GlobalConfig) {
 		SecretName: secrets.GetDefaultDCATokenSecretName(dda),
 		KeyName:    common.DefaultTokenKey,
 	}
+	// Clear the literal token value
+	ddaiGlobal.ClusterAgentToken = nil
 }

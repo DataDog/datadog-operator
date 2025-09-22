@@ -63,6 +63,7 @@ Use the conversion webhook in `v1.7.0` to migrate, and then upgrade to a recent 
 - Orchestrator Explorer
 - UnixDomainSocket transport for DogStatsD (and APM if enabled)
 - Process Discovery
+- Control Plane Monitoring
 
 ## Functionalities
 

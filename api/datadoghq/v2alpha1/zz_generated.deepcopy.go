@@ -460,6 +460,11 @@ func (in *CWSFeatureConfig) DeepCopyInto(out *CWSFeatureConfig) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.DirectSendFromSystemProbe != nil {
+		in, out := &in.DirectSendFromSystemProbe, &out.DirectSendFromSystemProbe
+		*out = new(bool)
+		**out = **in
+	}
 	if in.Network != nil {
 		in, out := &in.Network, &out.Network
 		*out = new(CWSNetworkConfig)
@@ -2158,6 +2163,11 @@ func (in *LogCollectionFeatureConfig) DeepCopyInto(out *LogCollectionFeatureConf
 	if in.OpenFilesLimit != nil {
 		in, out := &in.OpenFilesLimit, &out.OpenFilesLimit
 		*out = new(int32)
+		**out = **in
+	}
+	if in.AutoMultiLineDetection != nil {
+		in, out := &in.AutoMultiLineDetection, &out.AutoMultiLineDetection
+		*out = new(bool)
 		**out = **in
 	}
 }

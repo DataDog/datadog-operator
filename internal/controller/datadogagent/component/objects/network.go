@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -48,19 +49,34 @@ func BuildKubernetesNetworkPolicy(dda metav1.Object, componentName v2alpha1.Comp
 		// * annotate its pod
 		// * add an ingress policy from the agent on its own pod
 		// In order to not ask end-users to inject NetworkPolicy on the
-		// agent in the agent namespace, the agent must be allowed to
-		// probe any pod.
+		// agent in the agent namespace, the agent has egress to everything to allow checks.
+		// The other specific ports/rules are added to highlight what is used by the agent.
 		egress = []netv1.NetworkPolicyEgressRule{
 			{
-				Ports: append([]netv1.NetworkPolicyPort{}, ddIntakePort()),
+				Ports: append([]netv1.NetworkPolicyPort{}, ddIntakePort(), ntpPort(), metadataServerPort(), dnsUDPPort(), dnsTCPPort(), kubeletPort(), allTCPPorts()),
 			},
 		}
 		ingress = []netv1.NetworkPolicyIngressRule{}
 	case v2alpha1.ClusterAgentComponentName:
 		_, nodeAgentPodSelector := GetNetworkPolicyMetadata(dda, v2alpha1.NodeAgentComponentName)
+		_, ccrPodSelector := GetNetworkPolicyMetadata(dda, v2alpha1.ClusterChecksRunnerComponentName)
 		egress = []netv1.NetworkPolicyEgressRule{
+			// Egress to Datadog intake and API Server
 			{
 				Ports: append([]netv1.NetworkPolicyPort{}, ddIntakePort()),
+			},
+			// Egress to 6443 (sometimes for API server)
+			{
+				Ports: append([]netv1.NetworkPolicyPort{}, netv1.NetworkPolicyPort{
+					Port: &intstr.IntOrString{
+						Type:   intstr.Int,
+						IntVal: 6443,
+					},
+				}),
+			},
+			// Egress to metadata server
+			{
+				Ports: append([]netv1.NetworkPolicyPort{}, metadataServerPort()),
 			},
 			// Egress to other cluster agents
 			{
@@ -70,6 +86,10 @@ func BuildKubernetesNetworkPolicy(dda metav1.Object, componentName v2alpha1.Comp
 						PodSelector: &podSelector,
 					},
 				},
+			},
+			// Egress to DNS
+			{
+				Ports: append([]netv1.NetworkPolicyPort{}, dnsUDPPort(), dnsTCPPort()),
 			},
 		}
 		ingress = []netv1.NetworkPolicyIngressRule{
@@ -82,6 +102,9 @@ func BuildKubernetesNetworkPolicy(dda metav1.Object, componentName v2alpha1.Comp
 					},
 					{
 						PodSelector: &podSelector,
+					},
+					{
+						PodSelector: &ccrPodSelector,
 					},
 				},
 			},
@@ -111,18 +134,21 @@ func BuildKubernetesNetworkPolicy(dda metav1.Object, componentName v2alpha1.Comp
 		// * add an ingress policy from the CLC on its own pod
 		// In order to not ask end-users to inject NetworkPolicy on the agent in
 		// the agent namespace, the agent must be allowed to probe any service.
+		_, dcaPodSelector := GetNetworkPolicyMetadata(dda, v2alpha1.ClusterAgentComponentName)
 		egress = []netv1.NetworkPolicyEgressRule{
+			// Egress to DCA service
 			{
-				Ports: append([]netv1.NetworkPolicyPort{}, ddIntakePort(), dcaServicePort()),
+				Ports: append([]netv1.NetworkPolicyPort{}, dcaServicePort()),
 				To: []netv1.NetworkPolicyPeer{
 					{
-						PodSelector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{
-								"app": policyName,
-							},
-						},
+						PodSelector: &dcaPodSelector,
 					},
 				},
+			},
+			// Egress to everything for checks, intake, DNS
+			// This makes the first rule not necessary but we keep it for clarity
+			{
+				Ports: append([]netv1.NetworkPolicyPort{}, ddIntakePort(), ntpPort(), dnsUDPPort(), dnsTCPPort(), allTCPPorts()),
 			},
 		}
 		ingress = []netv1.NetworkPolicyIngressRule{}
@@ -172,6 +198,69 @@ func dcaServicePort() netv1.NetworkPolicyPort {
 			IntVal: common.DefaultClusterAgentServicePort,
 		},
 	}
+}
+
+// ntp UDP port
+func ntpPort() netv1.NetworkPolicyPort {
+	protocol := corev1.ProtocolUDP
+	return netv1.NetworkPolicyPort{
+		Protocol: &protocol,
+		Port: &intstr.IntOrString{
+			Type:   intstr.Int,
+			IntVal: 123,
+		},
+	}
+}
+
+// metadata server port
+
+func metadataServerPort() netv1.NetworkPolicyPort {
+	return netv1.NetworkPolicyPort{
+		Port: &intstr.IntOrString{
+			Type:   intstr.Int,
+			IntVal: 80,
+		},
+	}
+}
+
+// dns port
+func dnsUDPPort() netv1.NetworkPolicyPort {
+	protocol := corev1.ProtocolUDP
+	return netv1.NetworkPolicyPort{
+		Protocol: &protocol,
+		Port: &intstr.IntOrString{
+			Type:   intstr.Int,
+			IntVal: 53,
+		},
+	}
+}
+
+func dnsTCPPort() netv1.NetworkPolicyPort {
+	protocol := corev1.ProtocolTCP
+	return netv1.NetworkPolicyPort{
+		Protocol: &protocol,
+		Port: &intstr.IntOrString{
+			Type:   intstr.Int,
+			IntVal: 53,
+		},
+	}
+}
+
+// kubelet port
+
+func kubeletPort() netv1.NetworkPolicyPort {
+	return netv1.NetworkPolicyPort{
+		Port: &intstr.IntOrString{
+			Type:   intstr.Int,
+			IntVal: 10250,
+		},
+	}
+}
+
+// all ports to allow checks
+
+func allTCPPorts() netv1.NetworkPolicyPort {
+	return netv1.NetworkPolicyPort{}
 }
 
 // BuildCiliumPolicy creates the base node agent, DCA, or CCR cilium network policy

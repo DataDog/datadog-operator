@@ -210,6 +210,15 @@ properties:
             - create
             - get
           - apiGroups:
+            - auto.gke.io
+            resources:
+            - allowlistsynchronizers
+            verbs:
+            - create
+            - get
+            - list
+            - watch
+          - apiGroups:
             - autoscaling
             resources:
             - horizontalpodautoscalers
