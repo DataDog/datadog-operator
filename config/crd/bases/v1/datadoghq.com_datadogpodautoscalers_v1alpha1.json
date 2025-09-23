@@ -389,7 +389,7 @@
                 "properties": {
                   "query": {
                     "additionalProperties": false,
-                    "description": "DatadogPodAutoscalerTimeseriesFormulaRequest is a subset of the v2 timeseries query API (metrics only).\nIt mirrors the OpenAPI \"DatadogPodAutoscalerTimeseriesFormulaRequestAttributes\" fields relevant to autoscaling.\nReference: https://github.com/DataDog/datadog-api-spec/blob/94d1542b31ad0df1da915bae84686b13ba1a65ae/spec/v2/query.yaml#L124",
+                    "description": "Query is the timeseries query to use for the objective.",
                     "properties": {
                       "formulas": {
                         "description": "Formulas to compute (optional).",
@@ -419,7 +419,7 @@
                                 "dataSource": {
                                   "enum": [
                                     "metrics",
-                                    "cloud_cost"
+                                    "apm_metrics"
                                   ],
                                   "type": "string"
                                 },
@@ -488,11 +488,16 @@
                       "type"
                     ],
                     "type": "object"
+                  },
+                  "window": {
+                    "description": "Window is the time duration over which the query is computed. It should contain at least one full sample.",
+                    "type": "string"
                   }
                 },
                 "required": [
                   "query",
-                  "value"
+                  "value",
+                  "window"
                 ],
                 "type": "object"
               },

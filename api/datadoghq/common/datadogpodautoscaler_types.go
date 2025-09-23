@@ -176,9 +176,14 @@ type DatadogPodAutoscalerContainerResourceObjective struct {
 // DatadogPodAutoscalerCustomQueryObjective defines a controller-level objective
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerCustomQueryObjective struct {
+	// Query is the timeseries query to use for the objective.
 	Query DatadogPodAutoscalerTimeseriesFormulaRequest `json:"query"`
+
 	// Value is the value of the objective
 	Value DatadogPodAutoscalerObjectiveValue `json:"value"`
+
+	// Window is the time duration over which the query is computed. It should contain at least one full sample.
+	Window metav1.Duration `json:"window"`
 }
 
 // DatadogPodAutoscalerTimeseriesFormulaRequest is a subset of the v2 timeseries query API (metrics only).
@@ -216,12 +221,12 @@ type DatadogPodAutoscalerMetricsTimeseriesQuery struct {
 	Query string `json:"query"`
 }
 
-// +kubebuilder:validation:Enum:=metrics;cloud_cost
+// +kubebuilder:validation:Enum:=metrics;apm_metrics
 type DatadogPodAutoscalerMetricsDataSource string
 
 const (
-	MetricsDataSourceMetrics   DatadogPodAutoscalerMetricsDataSource = "metrics"
-	MetricsDataSourceCloudCost DatadogPodAutoscalerMetricsDataSource = "cloud_cost"
+	MetricsDataSourceMetrics    DatadogPodAutoscalerMetricsDataSource = "metrics"
+	MetricsDataSourceApmMetrics DatadogPodAutoscalerMetricsDataSource = "apm_metrics"
 )
 
 // DatadogPodAutoscalerObjectiveValueType specifies the type of objective value.
@@ -231,7 +236,7 @@ type DatadogPodAutoscalerObjectiveValueType string
 const (
 	// DatadogPodAutoscalerUtilizationObjectiveValueType declares an objective based on a Utilization (percentage, 0-100).
 	DatadogPodAutoscalerUtilizationObjectiveValueType DatadogPodAutoscalerObjectiveValueType = "Utilization"
-	// DatadogPodAutoscalerAbsoluteValueObjectiveValueType declares an objective based on an AbsoluteValue (absolute value divided by the number of running pods).
+	// DatadogPodAutoscalerAbsoluteValueObjectiveValueType declares an objective based on an AbsoluteValue.
 	DatadogPodAutoscalerAbsoluteValueObjectiveValueType DatadogPodAutoscalerObjectiveValueType = "AbsoluteValue"
 )
 
