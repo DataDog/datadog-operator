@@ -619,3 +619,83 @@ func Test_setProfileDDAIMeta(t *testing.T) {
 		})
 	}
 }
+
+func Test_setProfileNodeAgentOverride(t *testing.T) {
+	testCases := []struct {
+		name           string
+		ddai           v1alpha1.DatadogAgentInternal
+		profile        v1alpha1.DatadogAgentProfile
+		expectedDSName *string
+		expectedLabels map[string]string
+	}{
+		{
+			name: "non-default profile should get DaemonSet name override",
+			ddai: v1alpha1.DatadogAgentInternal{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-profile",
+					Namespace: "default",
+				},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {},
+					},
+				},
+			},
+			profile: v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-profile",
+					Namespace: "default",
+				},
+			},
+			expectedDSName: apiutils.NewStringPointer("my-profile-agent"),
+			expectedLabels: map[string]string{
+				constants.ProfileLabelKey: "my-profile",
+			},
+		},
+		{
+			name: "default profile should not get name override",
+			ddai: v1alpha1.DatadogAgentInternal{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "datadog-agent",
+					Namespace: "default",
+				},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {},
+					},
+				},
+			},
+			profile: v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "default",
+					Namespace: "",
+				},
+			},
+			expectedDSName: nil,
+			expectedLabels: map[string]string{
+				constants.ProfileLabelKey: "default",
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			setProfileNodeAgentOverride(&tt.ddai, &tt.profile)
+
+			// Check that the override exists
+			override, ok := tt.ddai.Spec.Override[v2alpha1.NodeAgentComponentName]
+			assert.True(t, ok, "NodeAgent override should exist")
+
+			// Check DaemonSet name override
+			if tt.expectedDSName != nil {
+				assert.NotNil(t, override.Name, "Override Name should not be nil")
+				assert.Equal(t, *tt.expectedDSName, *override.Name, "DaemonSet name should match expected")
+			} else {
+				assert.Nil(t, override.Name, "Override Name should be nil for default profile")
+			}
+
+			// Check labels
+			assert.Equal(t, tt.expectedLabels, override.Labels, "Labels should match expected")
+		})
+	}
+}

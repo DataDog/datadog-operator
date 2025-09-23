@@ -556,6 +556,15 @@ func initSeccompSetupContainer() corev1.Container {
 }
 
 func commonEnvVars(dda metav1.Object) []corev1.EnvVar {
+	// Use the original DDA name for dependencies that are created by the DatadogAgent controller
+	ddaForDependencies := dda
+	if originalDDAName, ok := dda.GetLabels()[apicommon.DatadogAgentNameLabelKey]; ok {
+		ddaForDependencies = &metav1.ObjectMeta{
+			Name:      originalDDAName,
+			Namespace: dda.GetNamespace(),
+		}
+	}
+
 	return []corev1.EnvVar{
 		{
 			Name:  common.KubernetesEnvVar,
@@ -567,11 +576,11 @@ func commonEnvVars(dda metav1.Object) []corev1.EnvVar {
 		},
 		{
 			Name:  common.DDClusterAgentKubeServiceName,
-			Value: componentdca.GetClusterAgentServiceName(dda),
+			Value: componentdca.GetClusterAgentServiceName(ddaForDependencies),
 		},
 		{
 			Name:  common.DDClusterAgentTokenName,
-			Value: secrets.GetDefaultDCATokenSecretName(dda),
+			Value: secrets.GetDefaultDCATokenSecretName(ddaForDependencies),
 		},
 		{
 			Name: common.DDKubeletHost,
@@ -665,10 +674,19 @@ func volumeMountsForInitConfig() []corev1.VolumeMount {
 }
 
 func volumesForAgent(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Volume {
+	// Use the original DDA name for dependencies that are created by the DatadogAgent controller
+	ddaForDependencies := dda
+	if originalDDAName, ok := dda.GetLabels()[apicommon.DatadogAgentNameLabelKey]; ok {
+		ddaForDependencies = &metav1.ObjectMeta{
+			Name:      originalDDAName,
+			Namespace: dda.GetNamespace(),
+		}
+	}
+
 	volumes := []corev1.Volume{
 		common.GetVolumeForLogs(),
 		common.GetVolumeForAuth(),
-		common.GetVolumeInstallInfo(dda),
+		common.GetVolumeInstallInfo(ddaForDependencies),
 		common.GetVolumeForChecksd(),
 		common.GetVolumeForConfd(),
 		common.GetVolumeForConfig(),
@@ -681,7 +699,7 @@ func volumesForAgent(dda metav1.Object, requiredContainers []apicommon.AgentCont
 	for _, containerName := range requiredContainers {
 		if containerName == apicommon.SystemProbeContainerName {
 			sysProbeVolumes := []corev1.Volume{
-				common.GetVolumeForSecurity(dda),
+				common.GetVolumeForSecurity(ddaForDependencies),
 				common.GetVolumeForSeccomp(),
 			}
 			volumes = append(volumes, sysProbeVolumes...)
