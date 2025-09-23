@@ -66,8 +66,8 @@ To deploy a `DatadogSLO` with the Datadog Operator, use the [`datadog-operator` 
     ```
 
     This automatically creates a new SLO in Datadog. You can find it on the [SLOs][8] page of your Datadog account.
-    Datadog Operator will occasionally reconcile and keep SLOs in line with the given configuration. There is also a force 
-    sync every hour, so if a SLO is deleted in the Datadog UI, it will be back up in under an hour.
+    Datadog Operator occasionally reconciles and keeps SLOs in line with the given configuration. There is also a force 
+    sync every hour, so if a user deletes an SLO in the Datadog UI, Datadog Operator restores it in under an hour.
 
 ## Cleanup
 
