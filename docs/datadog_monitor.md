@@ -168,9 +168,9 @@ Events:
   ----    ------                 ----  ----            -------
   Normal  Create DatadogMonitor  22m   DatadogMonitor  system/datadog-event-v2-alert-test
 ```
-Unlike dashboards and SLOs, Monitor state is synced every minute to ensure that changes to state are tracked in K8s. 
-This means that if a monitor's state transitions from OK to Warn, the CR's state will be updated to Warn in a minute. 
-It also means that if a monitor is deleted in the datadog UI, it will be back up in a minute.
+Unlike dashboards and SLOs, monitor state is synced every minute to ensure that K8s contains up-to-date state changes. 
+This means that if a monitor's state transitions from OK to Warn, the CR's state gets updated to Warn in a minute. 
+It also means that a user deletes a dashboard in the Datadog UI, Datadog Operator restores it in under an hour.
 
 To investigate any issues, view the Operator logs (of the leader pod, if more than one):
 
