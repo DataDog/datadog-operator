@@ -1540,6 +1540,7 @@ type GlobalConfig struct {
 	// (Requires Agent 7.60.0+)
 	// Default: 'true'
 	// +optional
+	// Deprecated: Functionality now handled automatically. Use env var `DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED` to override.
 	RunProcessChecksInCoreAgent *bool `json:"runProcessChecksInCoreAgent,omitempty"`
 }
 
