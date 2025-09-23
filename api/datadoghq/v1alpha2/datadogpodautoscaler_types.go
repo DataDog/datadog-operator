@@ -50,11 +50,34 @@ import (
 //           type: Absolute|Utilization
 //           absolute: 500m
 //           utilization: 80
+//     - type: CustomQuery
+//       customQueryObjective:
+//         query:
+//           formulas:
+//             - "query1 / query2"
+//           queries:
+//             -
+//                 metrics:
+//                   dataSource: metrics
+//                   name: query1
+//                   query: "avg:system.cpu.user{*}"
+//             -
+//                 metrics:
+//                   dataSource: metrics
+//                   name: query2
+//                   query: "avg:system.cpu.user{*}"
 //   fallback:
 // 	   horizontal:
 //       enabled: true
 //       triggers:
 //         staleRecommendationThresholdSeconds: 600
+//		 objective:
+//         type: PodResource
+//         podResource:
+//           name: cpu
+//           value:
+//             type: Utilization
+//             utilization: 80
 //   constraints:
 //     minReplicas: 1
 //     maxReplicas: 10
