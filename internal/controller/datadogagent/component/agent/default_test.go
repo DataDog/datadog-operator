@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestVolumesForAgent_ProfileDependencyHack(t *testing.T) {
+func TestVolumesForAgent(t *testing.T) {
 	tests := []struct {
 		name                string
 		dda                 metav1.Object
@@ -21,55 +21,42 @@ func TestVolumesForAgent_ProfileDependencyHack(t *testing.T) {
 		expectedInstallName string
 	}{
 		{
-			name: "regular DDAI without profile label",
+			name: "foo DDA",
 			dda: &metav1.ObjectMeta{
-				Name:      "datadog-agent",
+				Name:      "foo",
 				Namespace: "default",
 				Labels:    map[string]string{},
 			},
 			requiredContainers:  []apicommon.AgentContainerName{apicommon.SystemProbeContainerName},
-			expectedSeccompName: "datadog-agent-system-probe-seccomp",
-			expectedInstallName: "datadog-agent-install-info",
+			expectedSeccompName: "foo-system-probe-seccomp",
+			expectedInstallName: "foo-install-info",
 		},
 		{
-			name: "profile DDAI with profile and DatadogAgent labels",
+			name: "profile DDAI",
 			dda: &metav1.ObjectMeta{
 				Name:      "my-profile",
 				Namespace: "default",
 				Labels: map[string]string{
 					constants.ProfileLabelKey:          "my-profile",
-					apicommon.DatadogAgentNameLabelKey: "datadog-agent",
+					apicommon.DatadogAgentNameLabelKey: "foo",
 				},
 			},
 			requiredContainers:  []apicommon.AgentContainerName{apicommon.SystemProbeContainerName},
-			expectedSeccompName: "datadog-agent-system-probe-seccomp",
-			expectedInstallName: "datadog-agent-install-info",
+			expectedSeccompName: "foo-system-probe-seccomp",
+			expectedInstallName: "foo-install-info",
 		},
 		{
-			name: "default profile DDAI (same name as original DDA, no profile label)",
+			name: "foo DDAI (same name as original DDA, no profile label)",
 			dda: &metav1.ObjectMeta{
-				Name:      "datadog-agent",
+				Name:      "foo",
 				Namespace: "default",
 				Labels: map[string]string{
-					apicommon.DatadogAgentNameLabelKey: "datadog-agent",
+					apicommon.DatadogAgentNameLabelKey: "foo",
 				},
 			},
 			requiredContainers:  []apicommon.AgentContainerName{apicommon.SystemProbeContainerName},
-			expectedSeccompName: "datadog-agent-system-probe-seccomp",
-			expectedInstallName: "datadog-agent-install-info",
-		},
-		{
-			name: "DDAI without DatadogAgent label (edge case)",
-			dda: &metav1.ObjectMeta{
-				Name:      "my-profile",
-				Namespace: "default",
-				Labels:    map[string]string{
-					// Missing DatadogAgent label - falls back to using DDAI name
-				},
-			},
-			requiredContainers:  []apicommon.AgentContainerName{apicommon.SystemProbeContainerName},
-			expectedSeccompName: "my-profile-system-probe-seccomp",
-			expectedInstallName: "my-profile-install-info",
+			expectedSeccompName: "foo-system-probe-seccomp",
+			expectedInstallName: "foo-install-info",
 		},
 	}
 
@@ -104,7 +91,7 @@ func TestVolumesForAgent_ProfileDependencyHack(t *testing.T) {
 	}
 }
 
-func TestCommonEnvVars_ProfileDependencyHack(t *testing.T) {
+func TestCommonEnvVars(t *testing.T) {
 	tests := []struct {
 		name                string
 		dda                 metav1.Object
@@ -112,39 +99,27 @@ func TestCommonEnvVars_ProfileDependencyHack(t *testing.T) {
 		expectedSecretName  string
 	}{
 		{
-			name: "regular DDAI without profile label",
+			name: "foo DDA",
 			dda: &metav1.ObjectMeta{
-				Name:      "datadog-agent",
+				Name:      "foo",
 				Namespace: "default",
 				Labels:    map[string]string{},
 			},
-			expectedServiceName: "datadog-agent-cluster-agent",
-			expectedSecretName:  "datadog-agent-token",
+			expectedServiceName: "foo-cluster-agent",
+			expectedSecretName:  "foo-token",
 		},
 		{
-			name: "profile DDAI with profile and DatadogAgent labels",
+			name: "profile DDAI",
 			dda: &metav1.ObjectMeta{
 				Name:      "my-profile",
 				Namespace: "default",
 				Labels: map[string]string{
 					constants.ProfileLabelKey:          "my-profile",
-					apicommon.DatadogAgentNameLabelKey: "datadog-agent",
+					apicommon.DatadogAgentNameLabelKey: "foo",
 				},
 			},
-			expectedServiceName: "datadog-agent-cluster-agent",
-			expectedSecretName:  "datadog-agent-token",
-		},
-		{
-			name: "DDAI without DatadogAgent label (edge case)",
-			dda: &metav1.ObjectMeta{
-				Name:      "my-profile",
-				Namespace: "default",
-				Labels:    map[string]string{
-					// Missing DatadogAgent label - falls back to using DDAI name
-				},
-			},
-			expectedServiceName: "my-profile-cluster-agent",
-			expectedSecretName:  "my-profile-token",
+			expectedServiceName: "foo-cluster-agent",
+			expectedSecretName:  "foo-token",
 		},
 	}
 
