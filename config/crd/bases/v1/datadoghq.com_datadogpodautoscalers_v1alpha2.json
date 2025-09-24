@@ -404,8 +404,7 @@
                                     "properties": {
                                       "dataSource": {
                                         "enum": [
-                                          "metrics",
-                                          "apm_metrics"
+                                          "metrics"
                                         ],
                                         "type": "string"
                                       },
@@ -682,8 +681,7 @@
                               "properties": {
                                 "dataSource": {
                                   "enum": [
-                                    "metrics",
-                                    "apm_metrics"
+                                    "metrics"
                                   ],
                                   "type": "string"
                                 },

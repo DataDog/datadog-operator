@@ -221,12 +221,11 @@ type DatadogPodAutoscalerMetricsTimeseriesQuery struct {
 	Query string `json:"query"`
 }
 
-// +kubebuilder:validation:Enum:=metrics;apm_metrics
+// +kubebuilder:validation:Enum:=metrics
 type DatadogPodAutoscalerMetricsDataSource string
 
 const (
-	MetricsDataSourceMetrics    DatadogPodAutoscalerMetricsDataSource = "metrics"
-	MetricsDataSourceApmMetrics DatadogPodAutoscalerMetricsDataSource = "apm_metrics"
+	MetricsDataSourceMetrics DatadogPodAutoscalerMetricsDataSource = "metrics"
 )
 
 // DatadogPodAutoscalerObjectiveValueType specifies the type of objective value.

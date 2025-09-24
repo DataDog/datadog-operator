@@ -77,7 +77,7 @@ import (
 //           name: cpu
 //           value:
 //             type: Utilization
-//             utilization: 80
+//             utilization: 8
 //   constraints:
 //     minReplicas: 1
 //     maxReplicas: 10
