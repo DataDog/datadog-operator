@@ -1714,7 +1714,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 				profileDDAI := getBaseDDAI(dda)
 				profileDDAI.Name = "foo-profile"
 				profileDDAI.Annotations = map[string]string{
-					constants.MD5DDAIDeploymentAnnotationKey: "74a9d7cc65524e555ad895710ab603dd",
+					constants.MD5DDAIDeploymentAnnotationKey: "170a45bb48198417dcc38bf60595ab70",
 				}
 				profileDDAI.Labels[constants.ProfileLabelKey] = "foo-profile"
 				profileDDAI.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -1725,6 +1725,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 						Disabled: apiutils.NewBoolPointer(true),
 					},
 					v2alpha1.NodeAgentComponentName: {
+						Name: apiutils.NewStringPointer("foo-profile-agent"),
 						Labels: map[string]string{
 							constants.MD5AgentDeploymentProviderLabelKey: "",
 							"foo":                     "bar",
