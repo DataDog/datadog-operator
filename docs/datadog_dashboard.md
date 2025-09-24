@@ -114,6 +114,8 @@ To deploy a `DatadogDashboard` with the Datadog Operator, use the [`datadog-oper
     ```
 
     This automatically creates a new dashboard in Datadog. You can find it on the [Dashboards][8] page of your Datadog account.
+    Datadog Operator occasionally reconciles and keeps dashboards in line with the given configuration. There is also a force 
+    sync every hour, so if a user deletes a dashboard in the Datadog UI, Datadog Operator restores it in under an hour.
 
 
 ## Cleanup
