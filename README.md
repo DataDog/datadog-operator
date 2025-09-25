@@ -48,6 +48,7 @@ Use the conversion webhook in `v1.7.0` to migrate, and then upgrade to a recent 
 - Orchestrator Explorer
 - UnixDomainSocket transport for DogStatsD (and APM if enabled)
 - Process Discovery
+- Control Plane Monitoring
 
 ## Functionalities
 
@@ -56,6 +57,10 @@ The Datadog operator also allows you to:
 - [Configure and provide custom checks to the Agents][6].
 - [Deploy the Datadog Cluster Agent with your node Agents][7].
 - [Secrets Management with the Datadog Operator][8].
+
+## Deprecation Notice
+
+See the [deprecated configurations and migration guidelines][17] page.
 
 ## How to contribute
 
@@ -77,6 +82,7 @@ See the [How to Contribute page][9].
 [14]: https://docs.datadoghq.com/containers/guide/datadogoperator_migration/
 [15]: https://github.com/DataDog/helm-charts/tree/main/charts/datadog-operator#migration
 [16]: https://kubernetes.io/docs/concepts/extend-kubernetes/operator/
+[17]: https://github.com/DataDog/datadog-operator/blob/main/docs/deprecated_configs.md
 
 ## Release
 

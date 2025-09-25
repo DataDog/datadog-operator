@@ -14,6 +14,7 @@ import (
 	"time"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	common "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -1549,4 +1550,383 @@ func verifyPDB(t *testing.T, c client.Client) error {
 	assert.Equal(t, intstr.FromInt(1), *ccrPDB.Spec.MaxUnavailable)
 	assert.Nil(t, ccrPDB.Spec.MinAvailable)
 	return nil
+}
+
+func Test_DDAI_ReconcileV3(t *testing.T) {
+	const resourcesName = "foo"
+	const resourcesNamespace = "bar"
+
+	// Register operator types with the runtime scheme.
+	s := agenttestutils.TestScheme()
+	// Load CRD from config folder
+	crd, err := getDDAICRDFromConfig(s)
+	assert.NoError(t, err)
+	eventBroadcaster := record.NewBroadcaster()
+	recorder := eventBroadcaster.NewRecorder(s, corev1.EventSource{Component: "Test_DDAI_ReconcileV3"})
+
+	forwarders := dummyManager{}
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	defaultRequeueDuration := 15 * time.Second
+
+	dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).BuildWithDefaults()
+
+	tests := []struct {
+		name            string
+		profilesEnabled bool
+		profile         *v1alpha1.DatadogAgentProfile
+		loadFunc        func(c client.Client) *v2alpha1.DatadogAgent
+		want            reconcile.Result
+		wantErr         bool
+		wantFunc        func(t *testing.T, c client.Client) error
+	}{
+		{
+			name: "[ddai] Create DDAI from minimal DDA",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) error {
+				expectedDDAI := getBaseDDAI(dda)
+				expectedDDAI.Annotations = map[string]string{
+					constants.MD5DDAIDeploymentAnnotationKey: "db25da8b5c8cd681d92f0049101605d6",
+				}
+
+				return verifyDDAI(t, c, []v1alpha1.DatadogAgentInternal{expectedDDAI})
+			},
+		},
+		{
+			name: "[ddai] Create DDAI from customized DDA",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				ddaCustom := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithDCAToken("abcdefghijklmnopqrstuvwxyz").
+					WithCredentialsFromSecret("custom-secret", "api", "custom-secret2", "app").
+					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+						Labels: map[string]string{
+							"custom-label": "custom-value",
+						},
+					}).
+					WithClusterChecksEnabled(true).
+					WithClusterChecksUseCLCEnabled(true).
+					BuildWithDefaults()
+				_ = c.Create(context.TODO(), ddaCustom)
+				return ddaCustom
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) error {
+				baseDDAI := getBaseDDAI(dda)
+				expectedDDAI := baseDDAI.DeepCopy()
+				expectedDDAI.Annotations = map[string]string{
+					constants.MD5DDAIDeploymentAnnotationKey: "ecf20e786d34265b5ad2a2e841837b55",
+				}
+				expectedDDAI.Spec.Features.ClusterChecks.UseClusterChecksRunners = apiutils.NewBoolPointer(true)
+				expectedDDAI.Spec.Global.Credentials = &v2alpha1.DatadogCredentials{
+					APISecret: &v2alpha1.SecretConfig{
+						SecretName: "custom-secret",
+						KeyName:    "api",
+					},
+					AppSecret: &v2alpha1.SecretConfig{
+						SecretName: "custom-secret2",
+						KeyName:    "app",
+					},
+				}
+				expectedDDAI.Spec.Global.ClusterAgentTokenSecret = &v2alpha1.SecretConfig{
+					SecretName: "foo-token",
+					KeyName:    "token",
+				}
+				expectedDDAI.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {
+						Labels: map[string]string{
+							"custom-label": "custom-value",
+							constants.MD5AgentDeploymentProviderLabelKey: "",
+						},
+						Annotations: map[string]string{
+							"checksum/dca-token-custom-config": "0c85492446fadac292912bb6d5fc3efd",
+						},
+					},
+					v2alpha1.ClusterAgentComponentName: {
+						Annotations: map[string]string{
+							"checksum/dca-token-custom-config": "0c85492446fadac292912bb6d5fc3efd",
+						},
+					},
+					v2alpha1.ClusterChecksRunnerComponentName: {
+						Annotations: map[string]string{
+							"checksum/dca-token-custom-config": "0c85492446fadac292912bb6d5fc3efd",
+						},
+					},
+				}
+
+				return verifyDDAI(t, c, []v1alpha1.DatadogAgentInternal{*expectedDDAI})
+			},
+		},
+		{
+			name: "[ddai] Create DDAI from minimal DDA and default profile",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			profilesEnabled: true,
+			want:            reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr:         false,
+			wantFunc: func(t *testing.T, c client.Client) error {
+				return verifyDDAI(t, c, []v1alpha1.DatadogAgentInternal{getDefaultDDAI(dda)})
+			},
+		},
+		{
+			name: "[ddai] Create DDAI from minimal DDA and user created profile",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			profilesEnabled: true,
+			profile: &v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo-profile",
+					Namespace: resourcesNamespace,
+				},
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					ProfileAffinity: &v1alpha1.ProfileAffinity{
+						ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
+							{
+								Key:      "foo",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{"foo-profile"},
+							},
+						},
+					},
+					Config: &v2alpha1.DatadogAgentSpec{
+						Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+							v2alpha1.NodeAgentComponentName: {
+								Labels: map[string]string{
+									"foo": "bar",
+								},
+							},
+						},
+					},
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) error {
+				profileDDAI := getBaseDDAI(dda)
+				profileDDAI.Name = "foo-profile"
+				profileDDAI.Annotations = map[string]string{
+					constants.MD5DDAIDeploymentAnnotationKey: "170a45bb48198417dcc38bf60595ab70",
+				}
+				profileDDAI.Labels[constants.ProfileLabelKey] = "foo-profile"
+				profileDDAI.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.ClusterAgentComponentName: {
+						Disabled: apiutils.NewBoolPointer(true),
+					},
+					v2alpha1.ClusterChecksRunnerComponentName: {
+						Disabled: apiutils.NewBoolPointer(true),
+					},
+					v2alpha1.NodeAgentComponentName: {
+						Name: apiutils.NewStringPointer("foo-profile-agent"),
+						Labels: map[string]string{
+							constants.MD5AgentDeploymentProviderLabelKey: "",
+							"foo":                     "bar",
+							constants.ProfileLabelKey: "foo-profile",
+						},
+						Affinity: &corev1.Affinity{
+							NodeAffinity: &corev1.NodeAffinity{
+								RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+									NodeSelectorTerms: []corev1.NodeSelectorTerm{
+										{
+											MatchExpressions: []corev1.NodeSelectorRequirement{
+												{
+													Key:      "foo",
+													Operator: corev1.NodeSelectorOpIn,
+													Values:   []string{"foo-profile"},
+												},
+												{
+													Key:      constants.ProfileLabelKey,
+													Operator: corev1.NodeSelectorOpIn,
+													Values:   []string{"foo-profile"},
+												},
+											},
+										},
+									},
+								},
+							},
+							PodAntiAffinity: &corev1.PodAntiAffinity{
+								RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+									{
+										LabelSelector: &metav1.LabelSelector{
+											MatchExpressions: []metav1.LabelSelectorRequirement{
+												{
+													Key:      apicommon.AgentDeploymentComponentLabelKey,
+													Operator: metav1.LabelSelectorOpIn,
+													Values:   []string{string(apicommon.CoreAgentContainerName)},
+												},
+											},
+										},
+										TopologyKey: "kubernetes.io/hostname",
+									},
+								},
+							},
+						},
+					},
+				}
+
+				return verifyDDAI(t, c, []v1alpha1.DatadogAgentInternal{getDefaultDDAI(dda), profileDDAI})
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			objs := []client.Object{crd}
+			if tt.profile != nil {
+				objs = append(objs, tt.profile)
+			}
+			r := &Reconciler{
+				client:     fake.NewClientBuilder().WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}).WithObjects(objs...).Build(),
+				scheme:     s,
+				recorder:   recorder,
+				log:        logf.Log.WithName(tt.name),
+				forwarders: forwarders,
+				options: ReconcilerOptions{
+					DatadogAgentInternalEnabled: true,
+					DatadogAgentProfileEnabled:  tt.profilesEnabled,
+				},
+			}
+
+			var dda *v2alpha1.DatadogAgent
+			if tt.loadFunc != nil {
+				dda = tt.loadFunc(r.client)
+			}
+
+			got, err := r.Reconcile(context.TODO(), dda)
+			if tt.wantErr {
+				assert.Error(t, err, "ReconcileDatadogAgent.Reconcile() expected an error")
+			} else {
+				assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() unexpected error: %v", err)
+			}
+
+			assert.Equal(t, tt.want, got, "ReconcileDatadogAgent.Reconcile() unexpected result")
+
+			if tt.wantFunc != nil {
+				err := tt.wantFunc(t, r.client)
+				assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() wantFunc validation error: %v", err)
+			}
+		})
+	}
+}
+
+func verifyDDAI(t *testing.T, c client.Client, expectedDDAI []v1alpha1.DatadogAgentInternal) error {
+	ddaiList := v1alpha1.DatadogAgentInternalList{}
+	if err := c.List(context.TODO(), &ddaiList); err != nil {
+		return err
+	}
+	assert.Equal(t, len(expectedDDAI), len(ddaiList.Items))
+	for i := range ddaiList.Items {
+		// clear managed fields
+		ddaiList.Items[i].ObjectMeta.ManagedFields = nil
+		// type meta is only added when merging ddais
+		ddaiList.Items[i].TypeMeta = metav1.TypeMeta{}
+	}
+	assert.ElementsMatch(t, expectedDDAI, ddaiList.Items)
+	return nil
+}
+
+func getBaseDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
+	expectedDDAI := v1alpha1.DatadogAgentInternal{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            dda.Name,
+			Namespace:       dda.Namespace,
+			ResourceVersion: "1",
+			Labels: map[string]string{
+				apicommon.DatadogAgentNameLabelKey: dda.Name,
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion:         "datadoghq.com/v2alpha1",
+					Kind:               "DatadogAgent",
+					Name:               dda.Name,
+					Controller:         apiutils.NewBoolPointer(true),
+					BlockOwnerDeletion: apiutils.NewBoolPointer(true),
+				},
+			},
+		},
+		Spec: v2alpha1.DatadogAgentSpec{
+			Features: dda.Spec.Features,
+			Global:   dda.Spec.Global,
+			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {
+					Labels: map[string]string{
+						constants.MD5AgentDeploymentProviderLabelKey: "",
+					},
+				},
+			},
+		},
+	}
+
+	expectedDDAI.Spec.Global.Credentials = &v2alpha1.DatadogCredentials{
+		APISecret: &v2alpha1.SecretConfig{
+			SecretName: "foo-secret",
+			KeyName:    "api_key",
+		},
+		AppSecret: &v2alpha1.SecretConfig{
+			SecretName: "foo-secret",
+			KeyName:    "app_key",
+		},
+	}
+
+	expectedDDAI.Spec.Global.ClusterAgentTokenSecret = &v2alpha1.SecretConfig{
+		SecretName: "foo-token",
+		KeyName:    "token",
+	}
+
+	return expectedDDAI
+}
+
+func getDefaultDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
+	expectedDDAI := getBaseDDAI(dda)
+	expectedDDAI.Annotations = map[string]string{
+		constants.MD5DDAIDeploymentAnnotationKey: "8b985778b07536be633b3f49cb113e02",
+	}
+	expectedDDAI.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+		v2alpha1.NodeAgentComponentName: {
+			Labels: map[string]string{
+				constants.MD5AgentDeploymentProviderLabelKey: "",
+			},
+			Affinity: &corev1.Affinity{
+				NodeAffinity: &corev1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      constants.ProfileLabelKey,
+										Operator: corev1.NodeSelectorOpDoesNotExist,
+									},
+								},
+							},
+						},
+					},
+				},
+				PodAntiAffinity: &corev1.PodAntiAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+						{
+							LabelSelector: &metav1.LabelSelector{
+								MatchExpressions: []metav1.LabelSelectorRequirement{
+									{
+										Key:      apicommon.AgentDeploymentComponentLabelKey,
+										Operator: metav1.LabelSelectorOpIn,
+										Values:   []string{string(apicommon.CoreAgentContainerName)},
+									},
+								},
+							},
+							TopologyKey: "kubernetes.io/hostname",
+						},
+					},
+				},
+			},
+		},
+	}
+	return expectedDDAI
 }

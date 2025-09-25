@@ -116,7 +116,7 @@ type DatadogPodAutoscalerScalingRule struct {
 }
 
 // DatadogPodAutoscalerObjectiveType defines the type of the objective.
-// +kubebuilder:validation:Enum:=PodResource;ContainerResource
+// +kubebuilder:validation:Enum:=PodResource;ContainerResource;CustomQuery
 type DatadogPodAutoscalerObjectiveType string
 
 const (
@@ -125,6 +125,9 @@ const (
 
 	// DatadogPodAutoscalerContainerResourceObjectiveType allows to set container-level resource objectives.
 	DatadogPodAutoscalerContainerResourceObjectiveType DatadogPodAutoscalerObjectiveType = "ContainerResource"
+
+	// DatadogPodAutoscalerCustomQueryObjectiveType allows to set controller-level objectives.
+	DatadogPodAutoscalerCustomQueryObjectiveType DatadogPodAutoscalerObjectiveType = "CustomQuery"
 )
 
 // DatadogPodAutoscalerObjective defines the objectives to reach and maintain for the target workload.
@@ -138,6 +141,9 @@ type DatadogPodAutoscalerObjective struct {
 
 	// ContainerResource allows to set a container-level resource objective.
 	ContainerResource *DatadogPodAutoscalerContainerResourceObjective `json:"containerResource,omitempty"`
+
+	// CustomQueryObjective allows to set a controller-level objective.
+	CustomQueryObjective *DatadogPodAutoscalerCustomQueryObjective `json:"customQueryObjective,omitempty"`
 }
 
 // DatadogPodAutoscalerPodResourceObjective defines a pod-level resource objective (for instance, CPU Utilization at 80%)
@@ -167,26 +173,87 @@ type DatadogPodAutoscalerContainerResourceObjective struct {
 	Container string `json:"container"`
 }
 
+// DatadogPodAutoscalerCustomQueryObjective defines a controller-level objective
+// +kubebuilder:object:generate=true
+type DatadogPodAutoscalerCustomQueryObjective struct {
+	// Query is the timeseries query to use for the objective.
+	Query DatadogPodAutoscalerTimeseriesFormulaRequest `json:"query"`
+
+	// Value is the value of the objective
+	Value DatadogPodAutoscalerObjectiveValue `json:"value"`
+
+	// Window is the time duration over which the query is computed. It should contain at least one full sample.
+	Window metav1.Duration `json:"window"`
+}
+
+// DatadogPodAutoscalerTimeseriesFormulaRequest is a subset of the v2 timeseries query API (metrics only).
+// It mirrors the OpenAPI "DatadogPodAutoscalerTimeseriesFormulaRequestAttributes" fields relevant to autoscaling.
+// Reference: https://github.com/DataDog/datadog-api-spec/blob/94d1542b31ad0df1da915bae84686b13ba1a65ae/spec/v2/query.yaml#L124
+// +kubebuilder:object:generate=true
+type DatadogPodAutoscalerTimeseriesFormulaRequest struct {
+	// Formulas to compute (optional).
+	// +optional
+	Formulas []DatadogPodAutoscalerQueryFormula `json:"formulas,omitempty"`
+	// +kubebuilder:validation:MinItems=1
+	Queries []DatadogPodAutoscalerTimeseriesQuery `json:"queries"`
+}
+
+// +kubebuilder:object:generate=true
+type DatadogPodAutoscalerQueryFormula struct {
+	// +kubebuilder:validation:MinLength=1
+	Formula string `json:"formula"`
+}
+
+// TimeseriesQuery is a discriminated union. Only Metrics are supported for autoscaling.
+// +kubebuilder:object:generate=true
+type DatadogPodAutoscalerTimeseriesQuery struct {
+	Metrics *DatadogPodAutoscalerMetricsTimeseriesQuery `json:"metrics,omitempty"`
+}
+
+// +kubebuilder:object:generate=true
+type DatadogPodAutoscalerMetricsTimeseriesQuery struct {
+	DataSource DatadogPodAutoscalerMetricsDataSource `json:"dataSource"`
+	// Optional variable name ("a", "b", etc.) to reference in formulas.
+	// +optional
+	Name *string `json:"name,omitempty"`
+	// Classic Datadog metrics query, e.g. "avg:system.cpu.user{*} by {env}".
+	// +kubebuilder:validation:MinLength=1
+	Query string `json:"query"`
+}
+
+// +kubebuilder:validation:Enum:=metrics
+type DatadogPodAutoscalerMetricsDataSource string
+
+const (
+	MetricsDataSourceMetrics DatadogPodAutoscalerMetricsDataSource = "metrics"
+)
+
 // DatadogPodAutoscalerObjectiveValueType specifies the type of objective value.
-// kubebuilder:validation:Enum:=Utilization
+// +kubebuilder:validation:Enum:=Utilization;AbsoluteValue
 type DatadogPodAutoscalerObjectiveValueType string
 
 const (
 	// DatadogPodAutoscalerUtilizationObjectiveValueType declares an objective based on a Utilization (percentage, 0-100).
 	DatadogPodAutoscalerUtilizationObjectiveValueType DatadogPodAutoscalerObjectiveValueType = "Utilization"
+	// DatadogPodAutoscalerAbsoluteValueObjectiveValueType declares an objective based on an AbsoluteValue.
+	DatadogPodAutoscalerAbsoluteValueObjectiveValueType DatadogPodAutoscalerObjectiveValueType = "AbsoluteValue"
 )
 
 // DatadogPodAutoscalerObjectiveValue defines the target value of the objective.
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerObjectiveValue struct {
-	// Type specifies how the value is expressed (possible values: Utilization).
-	// +kubebuilder:validation:Enum:=Utilization
+	// Type specifies how the value is expressed (possible values: Utilization, AbsoluteValue).
 	Type DatadogPodAutoscalerObjectiveValueType `json:"type"`
 
 	// Utilization defines a percentage of the target compared to requested workload
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100
 	Utilization *int32 `json:"utilization,omitempty"`
+
+	// AbsoluteValue defines a target as an absolute value divided by the number of running pods.
+	// Use a plain number (e.g., "11" or "11.5").
+	// Represented as a resource.Quantity to avoid floating point in CRDs.
+	AbsoluteValue *resource.Quantity `json:"absoluteValue,omitempty"`
 }
 
 // DatadogPodAutoscalerConstraints defines constraints that should always be respected.
@@ -274,22 +341,26 @@ const (
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerHorizontalStatus struct {
 	// Target is the current target of the horizontal scaling
-	Target *DatadogPodAutoscalerHorizontalTargetStatus `json:"target,omitempty"`
+	Target *DatadogPodAutoscalerHorizontalRecommendation `json:"target,omitempty"`
 
 	// LastActions are the last successful actions done by the controller
 	LastActions []DatadogPodAutoscalerHorizontalAction `json:"lastActions,omitempty"`
+
+	// LastRecommendations stores the most recent recommendations
+	LastRecommendations []DatadogPodAutoscalerHorizontalRecommendation `json:"lastRecommendations,omitempty"`
 }
 
-// DatadogPodAutoscalerHorizontalTargetStatus defines the current target of the horizontal scaling
+// DatadogPodAutoscalerHorizontalRecommendation defines a horizontal scaling recommendation
 // +kubebuilder:object:generate=true
-type DatadogPodAutoscalerHorizontalTargetStatus struct {
+type DatadogPodAutoscalerHorizontalRecommendation struct {
 	// Source is the source of the value used to scale the target workload
-	Source DatadogPodAutoscalerValueSource `json:"source"`
+	// +optional
+	Source DatadogPodAutoscalerValueSource `json:"source,omitempty"`
 
 	// GeneratedAt is the timestamp at which the recommendation was generated
 	GeneratedAt metav1.Time `json:"generatedAt,omitempty"`
 
-	// Replicas is the desired number of replicas for the workload
+	// Replicas is the recommended number of replicas for the workload
 	Replicas int32 `json:"desiredReplicas"`
 }
 
