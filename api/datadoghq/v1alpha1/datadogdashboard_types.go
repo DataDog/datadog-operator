@@ -70,8 +70,8 @@ type DatadogDashboardStatus struct {
 	// CurrentHash tracks the hash of the current DatadogDashboardSpec to know
 	// if the Spec has changed and needs an update.
 	CurrentHash string `json:"currentHash,omitempty"`
-	// LastForceSyncTime is the last time the API dashboard was last force synced with the DatadogDashboard resource
-	LastForceSyncTime *metav1.Time `json:"lastForceSyncTime,omitempty"`
+	// DashboardLastForceSyncTime is the last time the API dashboard was last force synced with the DatadogDashboard resource
+	DashboardLastForceSyncTime *metav1.Time `json:"dashboardLastForceSyncTime,omitempty"`
 }
 
 type DatadogDashboardSyncStatus string

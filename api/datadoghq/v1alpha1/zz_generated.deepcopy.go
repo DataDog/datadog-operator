@@ -456,8 +456,8 @@ func (in *DatadogDashboardStatus) DeepCopyInto(out *DatadogDashboardStatus) {
 		in, out := &in.Created, &out.Created
 		*out = (*in).DeepCopy()
 	}
-	if in.LastForceSyncTime != nil {
-		in, out := &in.LastForceSyncTime, &out.LastForceSyncTime
+	if in.DashboardLastForceSyncTime != nil {
+		in, out := &in.DashboardLastForceSyncTime, &out.DashboardLastForceSyncTime
 		*out = (*in).DeepCopy()
 	}
 }
