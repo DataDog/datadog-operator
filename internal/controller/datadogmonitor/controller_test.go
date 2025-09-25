@@ -367,6 +367,48 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 			},
 		},
 		{
+			name: "DatadogMonitor, ci pipeline alert",
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				firstAction: func(c client.Client) {
+					_ = c.Create(context.TODO(), testCiPipelineMonitor())
+				},
+
+				firstReconcileCount: 10,
+			},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantErr:    false,
+			wantFunc: func(c client.Client) error {
+				dm := &datadoghqv1alpha1.DatadogMonitor{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm); err != nil {
+					return err
+				}
+				assert.NotContains(t, dm.Status.Conditions[0].Message, "error")
+				return nil
+			},
+		},
+		{
+			name: "DatadogMonitor, ci tests alert",
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				firstAction: func(c client.Client) {
+					_ = c.Create(context.TODO(), testCiTestsMonitor())
+				},
+
+				firstReconcileCount: 10,
+			},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantErr:    false,
+			wantFunc: func(c client.Client) error {
+				dm := &datadoghqv1alpha1.DatadogMonitor{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm); err != nil {
+					return err
+				}
+				assert.NotContains(t, dm.Status.Conditions[0].Message, "error")
+				return nil
+			},
+		},
+		{
 			name: "DatadogMonitor of unsupported type (composite)",
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -956,4 +998,42 @@ func testAuditMonitor(c client.Client) *datadoghqv1alpha1.DatadogMonitor {
 	}
 	_ = c.Create(context.TODO(), dm)
 	return dm
+}
+
+func testCiPipelineMonitor() *datadoghqv1alpha1.DatadogMonitor {
+	return &datadoghqv1alpha1.DatadogMonitor{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "DatadogMonitor",
+			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: resourcesNamespace,
+			Name:      resourcesName,
+		},
+		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+			Query:   "ci-pipelines(\"ci_level:pipeline @ci.status:running\").rollup(\"avg\", \"@duration\").by(\"@ci.pipeline.name\").last(\"5m\") > 60000000000",
+			Type:    datadoghqv1alpha1.DatadogMonitorTypeCiPipeline,
+			Name:    "test ci pipeline monitor",
+			Message: "something is wrong",
+		},
+	}
+}
+
+func testCiTestsMonitor() *datadoghqv1alpha1.DatadogMonitor {
+	return &datadoghqv1alpha1.DatadogMonitor{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "DatadogMonitor",
+			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: resourcesNamespace,
+			Name:      resourcesName,
+		},
+		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+			Query:   "ci-tests(\"test_level:test @test.service:* @git.branch:* @git.commit.author.email:* @test.status:fail\").rollup(\"count\").last(\"5m\") > 2",
+			Type:    datadoghqv1alpha1.DatadogMonitorTypeCiTests,
+			Name:    "test ci tests monitor",
+			Message: "something is wrong",
+		},
+	}
 }
