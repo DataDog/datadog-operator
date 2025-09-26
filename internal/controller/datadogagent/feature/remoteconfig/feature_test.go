@@ -106,7 +106,7 @@ func rcClusterAgentNodeWantFunc(rcEnabled bool) *test.ComponentTest {
 	)
 }
 
-func checkEqual(t testing.TB, description string, expected interface{}, actual interface{}) {
+func checkEqual(t testing.TB, description string, expected any, actual any) {
 	assert.True(
 		t,
 		apiutils.IsEqualStruct(expected, actual),

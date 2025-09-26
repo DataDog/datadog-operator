@@ -812,7 +812,7 @@ func Test_metricsForwarder_cleanSecretsCache(t *testing.T) {
 	_, found := mf.creds.Load("k")
 	assert.False(t, found)
 
-	mf.creds.Range(func(k, v interface{}) bool {
+	mf.creds.Range(func(k, v any) bool {
 		t.Error("creds cache not empty")
 		return false
 	})

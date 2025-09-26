@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	"reflect"
+	"slices"
 
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
@@ -63,17 +64,11 @@ func hasWpaRbacs(policyRules []rbacv1.PolicyRule) bool {
 		groupFound := false
 		verbsFound := false
 
-		for _, resource := range policyRule.Resources {
-			if resource == "watermarkpodautoscalers" {
-				resourceFound = true
-				break
-			}
+		if slices.Contains(policyRule.Resources, "watermarkpodautoscalers") {
+			resourceFound = true
 		}
-		for _, group := range policyRule.APIGroups {
-			if group == "datadoghq.com" {
-				groupFound = true
-				break
-			}
+		if slices.Contains(policyRule.APIGroups, "datadoghq.com") {
+			groupFound = true
 		}
 		if reflect.DeepEqual(policyRule.Verbs, requiredVerbs) {
 			verbsFound = true

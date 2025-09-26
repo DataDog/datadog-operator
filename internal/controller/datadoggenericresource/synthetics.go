@@ -129,7 +129,7 @@ func updateSyntheticsAPITest(auth context.Context, client *datadogV1.SyntheticsA
 }
 
 // updateStatusFromSyntheticsTest retrieves the common fields from a synthetic test (API, browser) and updates the status of the DatadogGenericResource
-func updateStatusFromSyntheticsTest(createdTest interface{ GetPublicId() string }, additionalProperties map[string]interface{}, status *v1alpha1.DatadogGenericResourceStatus, logger logr.Logger, hash string) error {
+func updateStatusFromSyntheticsTest(createdTest interface{ GetPublicId() string }, additionalProperties map[string]any, status *v1alpha1.DatadogGenericResourceStatus, logger logr.Logger, hash string) error {
 	// All synthetic test types share this method
 	status.Id = createdTest.GetPublicId()
 
@@ -152,7 +152,7 @@ func updateStatusFromSyntheticsTest(createdTest interface{ GetPublicId() string 
 	status.LastForceSyncTime = &createdTime
 
 	// Update Creator
-	if createdBy, ok := additionalProperties["created_by"].(map[string]interface{}); ok {
+	if createdBy, ok := additionalProperties["created_by"].(map[string]any); ok {
 		if handle, ok := createdBy["handle"].(string); ok {
 			status.Creator = handle
 		} else {

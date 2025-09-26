@@ -327,7 +327,7 @@ func (mdf *MetadataForwarder) resetSecretsCache(newSecrets map[string]string) {
 
 // cleanSecretsCache deletes all cached secrets
 func (mdf *MetadataForwarder) cleanSecretsCache() {
-	mdf.creds.Range(func(k, v interface{}) bool {
+	mdf.creds.Range(func(k, v any) bool {
 		mdf.creds.Delete(k)
 		return true
 	})

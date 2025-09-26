@@ -1,6 +1,7 @@
 package fake
 
 import (
+	"slices"
 	"testing"
 
 	v1 "k8s.io/api/core/v1"
@@ -25,13 +26,7 @@ func (_m *VolumeMountManager) AddVolumeMount(volumeMount *v1.VolumeMount) {
 
 // AddVolumeMountToContainer provides a mock function with given fields: volumeMount, containerName
 func (_m *VolumeMountManager) AddVolumeMountToContainer(volumeMount *v1.VolumeMount, containerName common.AgentContainerName) {
-	isInitContainer := false
-	for _, initContainerName := range initContainerNames {
-		if containerName == initContainerName {
-			isInitContainer = true
-			break
-		}
-	}
+	isInitContainer := slices.Contains(initContainerNames, containerName)
 	if !isInitContainer {
 		_m.VolumeMountsByC[containerName] = append(_m.VolumeMountsByC[containerName], volumeMount)
 	}

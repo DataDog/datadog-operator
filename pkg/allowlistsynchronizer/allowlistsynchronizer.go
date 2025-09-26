@@ -31,9 +31,9 @@ var logger = logf.Log.WithName("AllowlistSynchronizer")
 
 type AllowlistSynchronizer struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.ObjectMeta `json:"metadata"`
 
-	Spec AllowlistSynchronizerSpec `json:"spec,omitempty"`
+	Spec AllowlistSynchronizerSpec `json:"spec"`
 }
 
 func (in *AllowlistSynchronizer) DeepCopyObject() runtime.Object {

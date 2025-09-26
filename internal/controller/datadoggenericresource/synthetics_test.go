@@ -18,14 +18,14 @@ func Test_updateStatusFromSyntheticsTest(t *testing.T) {
 
 	tests := []struct {
 		name                 string
-		additionalProperties map[string]interface{}
+		additionalProperties map[string]any
 		expectedStatus       v1alpha1.DatadogGenericResourceStatus
 	}{
 		{
 			name: "valid properties",
-			additionalProperties: map[string]interface{}{
+			additionalProperties: map[string]any{
 				"created_at": "2024-01-01T00:00:00Z",
-				"created_by": map[string]interface{}{
+				"created_by": map[string]any{
 					"handle": "test-handle",
 				},
 			},
@@ -40,8 +40,8 @@ func Test_updateStatusFromSyntheticsTest(t *testing.T) {
 		},
 		{
 			name: "missing created_at",
-			additionalProperties: map[string]interface{}{
-				"created_by": map[string]interface{}{
+			additionalProperties: map[string]any{
+				"created_by": map[string]any{
 					"handle": "test-handle",
 				},
 			},
@@ -56,9 +56,9 @@ func Test_updateStatusFromSyntheticsTest(t *testing.T) {
 		},
 		{
 			name: "invalid created_at",
-			additionalProperties: map[string]interface{}{
+			additionalProperties: map[string]any{
 				"created_at": "invalid-date",
-				"created_by": map[string]interface{}{
+				"created_by": map[string]any{
 					"handle": "test-handle",
 				},
 			},
@@ -73,7 +73,7 @@ func Test_updateStatusFromSyntheticsTest(t *testing.T) {
 		},
 		{
 			name: "missing created_by",
-			additionalProperties: map[string]interface{}{
+			additionalProperties: map[string]any{
 				"created_at": "2024-01-01T00:00:00Z",
 			},
 			expectedStatus: v1alpha1.DatadogGenericResourceStatus{
@@ -87,9 +87,9 @@ func Test_updateStatusFromSyntheticsTest(t *testing.T) {
 		},
 		{
 			name: "missing handle in created_by",
-			additionalProperties: map[string]interface{}{
+			additionalProperties: map[string]any{
 				"created_at": "2024-01-01T00:00:00Z",
-				"created_by": map[string]interface{}{},
+				"created_by": map[string]any{},
 			},
 			expectedStatus: v1alpha1.DatadogGenericResourceStatus{
 				Id:                "123456789",

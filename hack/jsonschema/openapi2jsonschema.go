@@ -83,7 +83,7 @@ func writeSchemaFile(schema *apiextensions.JSONSchemaProps, filename string) err
 		return fmt.Errorf("error marshalling JSON: %w", err)
 	}
 
-	var ifce interface{}
+	var ifce any
 	err = json.Unmarshal(b, &ifce)
 	if err != nil {
 		return fmt.Errorf("error marshalling JSON: %w", err)

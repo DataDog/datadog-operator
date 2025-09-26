@@ -33,7 +33,7 @@ func IsSameMD5Hash(hash string, annotations map[string]string, annotationKey str
 }
 
 // GenerateMD5ForSpec used to generate MD5 hashes for the Agent and Cluster Agent specs
-func GenerateMD5ForSpec(spec interface{}) (string, error) {
+func GenerateMD5ForSpec(spec any) (string, error) {
 	b, err := json.Marshal(spec)
 	if err != nil {
 		return "", err
@@ -49,12 +49,12 @@ func GenerateMD5ForSpec(spec interface{}) (string, error) {
 }
 
 // SetMD5DatadogAgentGenerationAnnotation is used to set the md5 annotation key/value from spec
-func SetMD5DatadogAgentGenerationAnnotation(obj *metav1.ObjectMeta, spec interface{}) (string, error) {
+func SetMD5DatadogAgentGenerationAnnotation(obj *metav1.ObjectMeta, spec any) (string, error) {
 	return SetMD5GenerationAnnotation(obj, spec, constants.MD5AgentDeploymentAnnotationKey)
 }
 
 // SetMD5GenerationAnnotation is used to set the md5 annotation key/value from spec
-func SetMD5GenerationAnnotation(obj *metav1.ObjectMeta, spec interface{}, annotationKey string) (string, error) {
+func SetMD5GenerationAnnotation(obj *metav1.ObjectMeta, spec any, annotationKey string) (string, error) {
 	hash, err := GenerateMD5ForSpec(spec)
 	if err != nil {
 		return "", fmt.Errorf("unable to generate the spec MD5, %w", err)

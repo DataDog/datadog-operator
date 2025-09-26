@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	"context"
+	"maps"
 	"time"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -333,9 +334,7 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 				newLabels[k] = v
 			}
 
-			for k, v := range labelsToAddOrChange {
-				newLabels[k] = v
-			}
+			maps.Copy(newLabels, labelsToAddOrChange)
 		}
 
 		if len(newLabels) == 0 {

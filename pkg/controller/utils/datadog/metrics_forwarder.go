@@ -785,7 +785,7 @@ func (mf *metricsForwarder) resetSecretsCache(newSecrets map[string]string) {
 
 // cleanSecretsCache deletes all cached secrets
 func (mf *metricsForwarder) cleanSecretsCache() {
-	mf.creds.Range(func(k, v interface{}) bool {
+	mf.creds.Range(func(k, v any) bool {
 		mf.creds.Delete(k)
 		return true
 	})

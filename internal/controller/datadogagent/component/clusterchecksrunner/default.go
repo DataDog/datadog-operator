@@ -7,6 +7,7 @@ package clusterchecksrunner
 
 import (
 	"fmt"
+	"maps"
 	"strconv"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -40,13 +41,9 @@ func NewDefaultClusterChecksRunnerDeployment(dda metav1.Object) *appsv1.Deployme
 	deployment := common.NewDeployment(dda, constants.DefaultClusterChecksRunnerResourceSuffix, GetClusterChecksRunnerName(dda), common.GetAgentVersion(dda), nil)
 
 	podTemplate := NewDefaultClusterChecksRunnerPodTemplateSpec(dda)
-	for key, val := range deployment.GetLabels() {
-		podTemplate.Labels[key] = val
-	}
+	maps.Copy(podTemplate.Labels, deployment.GetLabels())
 
-	for key, val := range deployment.GetAnnotations() {
-		podTemplate.Annotations[key] = val
-	}
+	maps.Copy(podTemplate.Annotations, deployment.GetAnnotations())
 
 	deployment.Spec.Template = *podTemplate
 	deployment.Spec.Replicas = apiutils.NewInt32Pointer(defaultClusterChecksRunnerReplicas)

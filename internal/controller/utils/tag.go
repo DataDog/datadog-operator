@@ -5,6 +5,8 @@
 
 package utils
 
+import "slices"
+
 const requiredTag = "generated:kubernetes"
 
 func GetRequiredTags() []string {
@@ -15,13 +17,7 @@ func GetTagsToAdd(tags []string) []string {
 	tagsToAdd := []string{}
 	var found bool
 	for _, rT := range GetRequiredTags() {
-		found = false
-		for _, t := range tags {
-			if t == rT {
-				found = true
-				break
-			}
-		}
+		found = slices.Contains(tags, rT)
 		if !found {
 			tagsToAdd = append(tagsToAdd, rT)
 		}

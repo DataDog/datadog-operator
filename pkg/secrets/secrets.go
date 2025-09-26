@@ -71,7 +71,7 @@ func (sb *SecretBackend) fetchSecret(encrypted []string) (map[string]string, err
 		return nil, NewDecryptorError(err, false)
 	}
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"version": PayloadVersion,
 		"secrets": handles,
 	}

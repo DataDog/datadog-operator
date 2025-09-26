@@ -7,7 +7,7 @@ package volume
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
@@ -138,7 +138,7 @@ func GetVolumeFromMultiCustomConfig(multiCustomConfig *v2alpha1.MultiCustomConfi
 		for _, filename := range sortedKeys {
 			configData := multiCustomConfig.ConfigDataMap[filename]
 			// Validate that user input is valid YAML
-			m := make(map[interface{}]interface{})
+			m := make(map[any]any)
 			if yaml.Unmarshal([]byte(configData), m) != nil {
 				continue
 			}
@@ -190,8 +190,6 @@ func sortKeys(keysMap map[string]string) []string {
 	for key := range keysMap {
 		sortedKeys = append(sortedKeys, key)
 	}
-	sort.Slice(sortedKeys, func(i, j int) bool {
-		return sortedKeys[i] < sortedKeys[j]
-	})
+	slices.Sort(sortedKeys)
 	return sortedKeys
 }

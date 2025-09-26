@@ -7,7 +7,8 @@ package override
 
 import (
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -162,9 +163,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 		manager.Annotation().AddAnnotation(annotationName, annotationVal)
 	}
 
-	for labelName, labelVal := range override.Labels {
-		manager.PodTemplateSpec().Labels[labelName] = labelVal
-	}
+	maps.Copy(manager.PodTemplateSpec().Labels, override.Labels)
 
 	if override.HostNetwork != nil {
 		manager.PodTemplateSpec().Spec.HostNetwork = *override.HostNetwork
@@ -235,8 +234,6 @@ func sortKeys(keysMap map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig) []
 	for key := range keysMap {
 		sortedKeys = append(sortedKeys, key)
 	}
-	sort.Slice(sortedKeys, func(i, j int) bool {
-		return sortedKeys[i] < sortedKeys[j]
-	})
+	slices.Sort(sortedKeys)
 	return sortedKeys
 }

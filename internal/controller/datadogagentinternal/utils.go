@@ -8,6 +8,7 @@ package datadogagentinternal
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -31,9 +32,7 @@ func mergeAnnotationsLabels(logger logr.Logger, previousVal map[string]string, n
 	}
 
 	mergedMap := make(map[string]string, len(newVal))
-	for k, v := range newVal {
-		mergedMap[k] = v
-	}
+	maps.Copy(mergedMap, newVal)
 
 	// Copy from previous if not in new match and matches globfilter
 	for k, v := range previousVal {
@@ -133,7 +132,7 @@ func createOwnerReferencePatch(ownerRef []metav1.OwnerReference, owner metav1.Ob
 		return nil, err
 	}
 
-	return []byte(fmt.Sprintf(`{"metadata":{"ownerReferences":%s}}`, string(refBytes))), nil
+	return fmt.Appendf(nil, `{"metadata":{"ownerReferences":%s}}`, string(refBytes)), nil
 }
 
 // shouldUpdateOwnerReference returns true if the owner reference is a DatadogAgent

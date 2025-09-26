@@ -5,15 +5,11 @@
 
 package utils
 
+import "slices"
+
 // ContainsString checks if a slice contains a specific string
 func ContainsString(list []string, s string) bool {
-	for _, v := range list {
-		if v == s {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(list, s)
 }
 
 // RemoveString removes a specific string from a slice

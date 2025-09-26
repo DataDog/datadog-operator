@@ -426,7 +426,7 @@ func Test_translateClientError(t *testing.T) {
 		message                string
 		expectedErrorType      error
 		expectedError          error
-		expectedErrorInterface interface{}
+		expectedErrorInterface any
 	}{
 		{
 			name:              "no message, generic error",
