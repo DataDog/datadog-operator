@@ -7608,6 +7608,9 @@ spec:
                   type: string
               type: object
           type: object
+          x-kubernetes-validations:
+            - message: DatadogAgentProfile name must be less than 34 characters.
+              rule: (20 + self.metadata.name.size() + 9) <= 63
       served: true
       storage: true
       subresources:
