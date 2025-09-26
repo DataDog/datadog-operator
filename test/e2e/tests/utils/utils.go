@@ -57,7 +57,7 @@ func VerifyCheck(c *assert.CollectT, collectorOutput string, checkName string) {
 
 		if check, found := runningChecks[checkName].(map[string]interface{}); found {
 			for _, instance := range check {
-				assert.EqualValues(c, checkName, instance.(map[string]interface{})["CheckName"].(string))
+				assert.Equal(c, checkName, instance.(map[string]interface{})["CheckName"].(string))
 
 				lastError, exists := instance.(map[string]interface{})["LastError"].(string)
 				assert.True(c, exists)
