@@ -51,127 +51,127 @@ var _ = Describe("V2 Controller - DatadogAgent Deployment", func() {
 
 	Context(
 		"with admission controller enabled",
-		testFunction(testutils.NewDatadogAgentWithAdmissionController(namespace, "with-admission-controller")),
+		testFunction(testutils.NewDatadogAgentWithAdmissionController(namespace, "admission-controller")),
 	)
 
 	Context(
 		"with admission controller enabled, CWS Instrumentation enabled",
-		testFunction(testutils.NewDatadogAgentWithCWSInstrumentation(namespace, "with-cws-instrumentation")),
+		testFunction(testutils.NewDatadogAgentWithCWSInstrumentation(namespace, "cws-instrumentation")),
 	)
 
 	Context(
 		"with APM enabled",
-		testFunction(testutils.NewDatadogAgentWithAPM(namespace, "with-apm")),
+		testFunction(testutils.NewDatadogAgentWithAPM(namespace, "apm")),
 	)
 
 	Context(
 		"with cluster checks enabled",
-		testFunction(testutils.NewDatadogAgentWithClusterChecks(namespace, "with-cluster-checks")),
+		testFunction(testutils.NewDatadogAgentWithClusterChecks(namespace, "cluster-checks")),
 	)
 
 	Context(
 		"with CSPM enabled",
-		testFunction(testutils.NewDatadogAgentWithCSPM(namespace, "with-cspm")),
+		testFunction(testutils.NewDatadogAgentWithCSPM(namespace, "cspm")),
 	)
 
 	Context(
 		"with CWS enabled",
-		testFunction(testutils.NewDatadogAgentWithCWS(namespace, "with-cws")),
+		testFunction(testutils.NewDatadogAgentWithCWS(namespace, "cws")),
 	)
 
 	Context(
 		"with Dogstatsd enabled",
-		testFunction(testutils.NewDatadogAgentWithDogstatsd(namespace, "with-dogstatsd")),
+		testFunction(testutils.NewDatadogAgentWithDogstatsd(namespace, "dogstatsd")),
 	)
 
 	Context(
 		"with eBPF check enabled",
-		testFunction(testutils.NewDatadogAgentWithEBPFCheck(namespace, "with-ebpfcheck")),
+		testFunction(testutils.NewDatadogAgentWithEBPFCheck(namespace, "ebpfcheck")),
 	)
 
 	Context(
 		"with service discovery enabled",
-		testFunction(testutils.NewDatadogAgentWithServiceDiscovery(namespace, "with-service-discovery")),
+		testFunction(testutils.NewDatadogAgentWithServiceDiscovery(namespace, "service-discovery")),
 	)
 
 	Context(
 		"with Event Collection",
-		testFunction(testutils.NewDatadogAgentWithEventCollection(namespace, "with-event-collection")),
+		testFunction(testutils.NewDatadogAgentWithEventCollection(namespace, "event-collection")),
 	)
 
 	Context(
 		"with External Metrics Server",
-		testFunction(testutils.NewDatadogAgentWithExternalMetrics(namespace, "with-external-metrics")),
+		testFunction(testutils.NewDatadogAgentWithExternalMetrics(namespace, "external-metrics")),
 	)
 
 	Context(
 		"with KSM core",
-		testFunction(testutils.NewDatadogAgentWithKSM(namespace, "with-ksm")),
+		testFunction(testutils.NewDatadogAgentWithKSM(namespace, "ksm")),
 	)
 
 	Context(
 		"with live container collection",
-		testFunction(testutils.NewDatadogAgentWithLiveContainerCollection(namespace, "with-live-container-collection")),
+		testFunction(testutils.NewDatadogAgentWithLiveContainerCollection(namespace, "live-container-col")),
 	)
 
 	Context(
 		"with live process collection",
-		testFunction(testutils.NewDatadogAgentWithLiveProcessCollection(namespace, "with-live-process-collection")),
+		testFunction(testutils.NewDatadogAgentWithLiveProcessCollection(namespace, "live-process-col")),
 	)
 
 	Context(
 		"with log collection",
-		testFunction(testutils.NewDatadogAgentWithLogCollection(namespace, "with-log-collection")),
+		testFunction(testutils.NewDatadogAgentWithLogCollection(namespace, "log-collection")),
 	)
 
 	Context(
 		"with NPM",
-		testFunction(testutils.NewDatadogAgentWithNPM(namespace, "with-npm")),
+		testFunction(testutils.NewDatadogAgentWithNPM(namespace, "npm")),
 	)
 
 	Context(
 		"with OOM Kill",
-		testFunction(testutils.NewDatadogAgentWithOOMKill(namespace, "with-oom-kill")),
+		testFunction(testutils.NewDatadogAgentWithOOMKill(namespace, "oom-kill")),
 	)
 
 	Context(
 		"with orchestrator explorer",
-		testFunction(testutils.NewDatadogAgentWithOrchestratorExplorer(namespace, "with-orchestrator-explorer")),
+		testFunction(testutils.NewDatadogAgentWithOrchestratorExplorer(namespace, "orch-explorer")),
 	)
 
 	Context(
 		"with OTLP",
-		testFunction(testutils.NewDatadogAgentWithOTLP(namespace, "with-otlp")),
+		testFunction(testutils.NewDatadogAgentWithOTLP(namespace, "otlp")),
 	)
 
 	Context(
 		"with Prometheus scrape",
-		testFunction(testutils.NewDatadogAgentWithPrometheusScrape(namespace, "with-prometheus-scrape")),
+		testFunction(testutils.NewDatadogAgentWithPrometheusScrape(namespace, "prometheus-scrape")),
 	)
 
 	Context(
 		"with TCP queue length",
-		testFunction(testutils.NewDatadogAgentWithTCPQueueLength(namespace, "with-tcp-queue-length")),
+		testFunction(testutils.NewDatadogAgentWithTCPQueueLength(namespace, "tcp-queue-len")),
 	)
 
 	Context(
 		"with USM",
-		testFunction(testutils.NewDatadogAgentWithUSM(namespace, "with-usm")),
+		testFunction(testutils.NewDatadogAgentWithUSM(namespace, "usm")),
 	)
 
 	Context(
 		"with some global settings set",
-		testFunction(testutils.NewDatadogAgentWithGlobalConfigSettings(namespace, "with-global-settings")),
+		testFunction(testutils.NewDatadogAgentWithGlobalConfigSettings(namespace, "global-settings")),
 	)
 
 	Context(
 		"with overrides",
-		testFunction(testutils.NewDatadogAgentWithOverrides(namespace, "with-overrides")),
+		testFunction(testutils.NewDatadogAgentWithOverrides(namespace, "overrides")),
 	)
 
 	Context(
 		"with GPU monitoring",
-		testFunction(testutils.NewDatadogAgentWithGPUMonitoring(namespace, "with-gpu-monitoring")),
+		testFunction(testutils.NewDatadogAgentWithGPUMonitoring(namespace, "gpu-monitoring")),
 	)
 })
 
