@@ -2008,6 +2008,7 @@ type DatadogAgentStatus struct {
 // +kubebuilder:printcolumn:name="cluster-agent",type="string",JSONPath=".status.clusterAgent.status"
 // +kubebuilder:printcolumn:name="cluster-checks-runner",type="string",JSONPath=".status.clusterChecksRunner.status"
 // +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:validation:XValidation:rule="self.metadata.name.size() <=20",message="DatadogAgent name must be less than 20 characters."
 // +k8s:openapi-gen=true
 // +genclient
 type DatadogAgent struct {
