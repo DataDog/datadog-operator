@@ -108,6 +108,10 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups="",resources=nodes/proxy,verbs=get
 // +kubebuilder:rbac:groups="",resources=nodes/spec,verbs=get
 // +kubebuilder:rbac:groups="",resources=nodes/stats,verbs=get
+// +kubebuilder:rbac:groups="",resources=nodes/pods,verbs=get
+// +kubebuilder:rbac:groups="",resources=nodes/healthz,verbs=get
+// +kubebuilder:rbac:groups="",resources=nodes/configz,verbs=get
+// +kubebuilder:rbac:groups="",resources=nodes/logs,verbs=get
 // +kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
