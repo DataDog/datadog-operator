@@ -177,12 +177,15 @@ type DatadogPodAutoscalerContainerResourceObjective struct {
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerCustomQueryObjective struct {
 	// Query is the timeseries query to use for the objective.
+	// +kubebuilder:validation:Required
 	Query DatadogPodAutoscalerTimeseriesFormulaRequest `json:"query"`
 
 	// Value is the value of the objective
+	// +kubebuilder:validation:Required
 	Value DatadogPodAutoscalerObjectiveValue `json:"value"`
 
 	// Window is the time duration over which the query is computed. It should contain at least one full sample.
+	// +kubebuilder:validation:Required
 	Window metav1.Duration `json:"window"`
 }
 
@@ -195,6 +198,7 @@ type DatadogPodAutoscalerTimeseriesFormulaRequest struct {
 	// +optional
 	Formulas []DatadogPodAutoscalerQueryFormula `json:"formulas,omitempty"`
 	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:vallidation:Required
 	Queries []DatadogPodAutoscalerTimeseriesQuery `json:"queries"`
 }
 
@@ -207,7 +211,10 @@ type DatadogPodAutoscalerQueryFormula struct {
 // TimeseriesQuery is a discriminated union. Only Metrics are supported for autoscaling.
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerTimeseriesQuery struct {
+	// +optional
 	Metrics *DatadogPodAutoscalerMetricsTimeseriesQuery `json:"metrics,omitempty"`
+	// +optional
+	ApmMetrics *DatadogPodAutoscalerApmMetricsTimeseriesQuery `json:"apm_metrics,omitempty"`
 }
 
 // +kubebuilder:object:generate=true
@@ -221,11 +228,51 @@ type DatadogPodAutoscalerMetricsTimeseriesQuery struct {
 	Query string `json:"query"`
 }
 
-// +kubebuilder:validation:Enum:=metrics
+// +kubebuilder:object:generate=true
+type DatadogPodAutoscalerApmMetricsTimeseriesQuery struct {
+	Name          string                             `json:"name"`
+	Stat          DatadogPodAutoscalerApmMetricsStat `json:"stat"`
+	Service       *string                            `json:"service,omitempty"`
+	Resource      *string                            `json:"resource,omitempty"`
+	ResourceName  *string                            `json:"resource_name,omitempty"`
+	ResourceHash  *string                            `json:"resource_hash,omitempty"`
+	OperationName *string                            `json:"operation_name,omitempty"`
+	PeerTags      []string                           `json:"peer_tags,omitempty"`
+	GroupBy       []string                           `json:"group_by,omitempty"`
+	QueryFilter   *string                            `json:"query_filter,omitempty"`
+	SpanKind      *string                            `json:"span_kind,omitempty"`
+	OperationMode *string                            `json:"operation_mode,omitempty"`
+}
+
+// DatadogPodAutoscalerApmMetricsStat represents the statistic to compute for an APM metrics query.
+// +kubebuilder:validation:Enum:=error_rate;errors;errors_per_second;hits;hits_per_second;apdex;latency_avg;latency_max;latency_p50;latency_p75;latency_p90;latency_p95;latency_p99;latency_p999;latency_distribution;total_time
+type DatadogPodAutoscalerApmMetricsStat string
+
+const (
+	APM_METRIC_STAT_ERROR_RATE           DatadogPodAutoscalerApmMetricsStat = "error_rate"
+	APM_METRIC_STAT_ERRORS               DatadogPodAutoscalerApmMetricsStat = "errors"
+	APM_METRIC_STAT_ERRORS_PER_SECOND    DatadogPodAutoscalerApmMetricsStat = "errors_per_second"
+	APM_METRIC_STAT_HITS                 DatadogPodAutoscalerApmMetricsStat = "hits"
+	APM_METRIC_STAT_HITS_PER_SECOND      DatadogPodAutoscalerApmMetricsStat = "hits_per_second"
+	APM_METRIC_STAT_APDEX                DatadogPodAutoscalerApmMetricsStat = "apdex"
+	APM_METRIC_STAT_LATENCY_AVG          DatadogPodAutoscalerApmMetricsStat = "latency_avg"
+	APM_METRIC_STAT_LATENCY_MAX          DatadogPodAutoscalerApmMetricsStat = "latency_max"
+	APM_METRIC_STAT_LATENCY_P50          DatadogPodAutoscalerApmMetricsStat = "latency_p50"
+	APM_METRIC_STAT_LATENCY_P75          DatadogPodAutoscalerApmMetricsStat = "latency_p75"
+	APM_METRIC_STAT_LATENCY_P90          DatadogPodAutoscalerApmMetricsStat = "latency_p90"
+	APM_METRIC_STAT_LATENCY_P95          DatadogPodAutoscalerApmMetricsStat = "latency_p95"
+	APM_METRIC_STAT_LATENCY_P99          DatadogPodAutoscalerApmMetricsStat = "latency_p99"
+	APM_METRIC_STAT_LATENCY_P999         DatadogPodAutoscalerApmMetricsStat = "latency_p999"
+	APM_METRIC_STAT_LATENCY_DISTRIBUTION DatadogPodAutoscalerApmMetricsStat = "latency_distribution"
+	APM_METRIC_STAT_TOTAL_TIME           DatadogPodAutoscalerApmMetricsStat = "total_time"
+)
+
+// +kubebuilder:validation:Enum:=metrics;apm_metrics
 type DatadogPodAutoscalerMetricsDataSource string
 
 const (
-	MetricsDataSourceMetrics DatadogPodAutoscalerMetricsDataSource = "metrics"
+	MetricsDataSourceMetrics    DatadogPodAutoscalerMetricsDataSource = "metrics"
+	MetricsDataSourceApmMetrics DatadogPodAutoscalerMetricsDataSource = "apm_metrics"
 )
 
 // DatadogPodAutoscalerObjectiveValueType specifies the type of objective value.

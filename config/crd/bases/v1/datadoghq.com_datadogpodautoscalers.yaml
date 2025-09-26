@@ -374,11 +374,64 @@ spec:
                                 items:
                                   description: TimeseriesQuery is a discriminated union. Only Metrics are supported for autoscaling.
                                   properties:
+                                    apm_metrics:
+                                      properties:
+                                        group_by:
+                                          items:
+                                            type: string
+                                          type: array
+                                        name:
+                                          type: string
+                                        operation_mode:
+                                          type: string
+                                        operation_name:
+                                          type: string
+                                        peer_tags:
+                                          items:
+                                            type: string
+                                          type: array
+                                        query_filter:
+                                          type: string
+                                        resource:
+                                          type: string
+                                        resource_hash:
+                                          type: string
+                                        resource_name:
+                                          type: string
+                                        service:
+                                          type: string
+                                        span_kind:
+                                          type: string
+                                        stat:
+                                          description: DatadogPodAutoscalerApmMetricsStat represents the statistic to compute for an APM metrics query.
+                                          enum:
+                                            - error_rate
+                                            - errors
+                                            - errors_per_second
+                                            - hits
+                                            - hits_per_second
+                                            - apdex
+                                            - latency_avg
+                                            - latency_max
+                                            - latency_p50
+                                            - latency_p75
+                                            - latency_p90
+                                            - latency_p95
+                                            - latency_p99
+                                            - latency_p999
+                                            - latency_distribution
+                                            - total_time
+                                          type: string
+                                      required:
+                                        - name
+                                        - stat
+                                      type: object
                                     metrics:
                                       properties:
                                         dataSource:
                                           enum:
                                             - metrics
+                                            - apm_metrics
                                           type: string
                                         name:
                                           description: Optional variable name ("a", "b", etc.) to reference in formulas.
@@ -1035,11 +1088,64 @@ spec:
                                       items:
                                         description: TimeseriesQuery is a discriminated union. Only Metrics are supported for autoscaling.
                                         properties:
+                                          apm_metrics:
+                                            properties:
+                                              group_by:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              name:
+                                                type: string
+                                              operation_mode:
+                                                type: string
+                                              operation_name:
+                                                type: string
+                                              peer_tags:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              query_filter:
+                                                type: string
+                                              resource:
+                                                type: string
+                                              resource_hash:
+                                                type: string
+                                              resource_name:
+                                                type: string
+                                              service:
+                                                type: string
+                                              span_kind:
+                                                type: string
+                                              stat:
+                                                description: DatadogPodAutoscalerApmMetricsStat represents the statistic to compute for an APM metrics query.
+                                                enum:
+                                                  - error_rate
+                                                  - errors
+                                                  - errors_per_second
+                                                  - hits
+                                                  - hits_per_second
+                                                  - apdex
+                                                  - latency_avg
+                                                  - latency_max
+                                                  - latency_p50
+                                                  - latency_p75
+                                                  - latency_p90
+                                                  - latency_p95
+                                                  - latency_p99
+                                                  - latency_p999
+                                                  - latency_distribution
+                                                  - total_time
+                                                type: string
+                                            required:
+                                              - name
+                                              - stat
+                                            type: object
                                           metrics:
                                             properties:
                                               dataSource:
                                                 enum:
                                                   - metrics
+                                                  - apm_metrics
                                                 type: string
                                               name:
                                                 description: Optional variable name ("a", "b", etc.) to reference in formulas.
@@ -1230,11 +1336,64 @@ spec:
                                 items:
                                   description: TimeseriesQuery is a discriminated union. Only Metrics are supported for autoscaling.
                                   properties:
+                                    apm_metrics:
+                                      properties:
+                                        group_by:
+                                          items:
+                                            type: string
+                                          type: array
+                                        name:
+                                          type: string
+                                        operation_mode:
+                                          type: string
+                                        operation_name:
+                                          type: string
+                                        peer_tags:
+                                          items:
+                                            type: string
+                                          type: array
+                                        query_filter:
+                                          type: string
+                                        resource:
+                                          type: string
+                                        resource_hash:
+                                          type: string
+                                        resource_name:
+                                          type: string
+                                        service:
+                                          type: string
+                                        span_kind:
+                                          type: string
+                                        stat:
+                                          description: DatadogPodAutoscalerApmMetricsStat represents the statistic to compute for an APM metrics query.
+                                          enum:
+                                            - error_rate
+                                            - errors
+                                            - errors_per_second
+                                            - hits
+                                            - hits_per_second
+                                            - apdex
+                                            - latency_avg
+                                            - latency_max
+                                            - latency_p50
+                                            - latency_p75
+                                            - latency_p90
+                                            - latency_p95
+                                            - latency_p99
+                                            - latency_p999
+                                            - latency_distribution
+                                            - total_time
+                                          type: string
+                                      required:
+                                        - name
+                                        - stat
+                                      type: object
                                     metrics:
                                       properties:
                                         dataSource:
                                           enum:
                                             - metrics
+                                            - apm_metrics
                                           type: string
                                         name:
                                           description: Optional variable name ("a", "b", etc.) to reference in formulas.
