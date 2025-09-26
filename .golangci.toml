@@ -1,116 +1,119 @@
+version = '2'
+
 [run]
-  tests = false
-  timeout = "10m"
-
-[linters-settings]
-
-  [linters-settings.govet]
-    enable = [
-      "shadow"
-    ]
-
-  [linters-settings.gocyclo]
-    min-complexity = 12.0
-
-  [linters-settings.goconst]
-    min-len = 3.0
-    min-occurrences = 3.0
-
-  [linters-settings.misspell]
-    locale = "US"
-
-  [linters-settings.gci]
-    sections = [
-      "standard",
-      "default",
-      "prefix(github.com/DataDog/datadog-operator)",
-      "blank",
-      "dot",
-    ]
-
-  [linters-settings.godot]
-    exclude = [
-      ' \+',
-    ]
-
-  [[linters-settings.depguard.rules.main.deny]]
-    pkg = "math/rand$"
-    desc = "Please use math/rand/v2 instead of math/rand."
-  [[linters-settings.depguard.rules.main.deny]]
-    pkg = "github.com/pkg/errors"
-    desc = "Please use standard errors package."
+tests = false
+timeout = "10m"
 
 [linters]
-  enable-all = true
-  disable = [
-    "exhaustruct",
-    "nonamedreturns",
-    "revive",
-    "lll",
-    "gosec",
-    "dupl",
-    "gocyclo",
-    "gochecknoinits",
-    "gochecknoglobals",
-    "funlen",
-    "gocognit",
-    "cyclop",
-    "wrapcheck",
-    "forcetypeassert",
-    "err113",
-    "testpackage",
-    "wastedassign",
-    "thelper",
-    "paralleltest",
-    "nestif",
-    "exhaustive",
-    "wsl",
-    "godox",
-    "godot",
-    "nlreturn",
-    "varnamelen",
-    "tagliatelle",
-    "containedctx",
-    "contextcheck",
-    "nilnil",
-    "ireturn",
-    "maintidx",
-    "gocritic",
-    "errchkjson",
-    "gofumpt",
-    "stylecheck",
-    "staticcheck",
-    "whitespace",
-    "nolintlint",
-    "usestdlibvars",
-    "interfacebloat",
-    "ineffassign",
-    "prealloc",
-    "bodyclose",
-    "unparam",
-    "goconst",
-    "errcheck",
-    "misspell",
-    "rowserrcheck",
-    "sqlclosecheck",
-    "perfsprint",
-    "inamedparam",
-    "nakedret",
-    "gomoddirectives",
-    "dupword",
-    "intrange",
-    "mnd",
-    "musttag",
-    "tenv"
-  ]
+default = 'all'
+disable = [
+  'bodyclose',
+  'containedctx',
+  'contextcheck',
+  'cyclop',
+  'dupl',
+  'dupword',
+  'embeddedstructfieldcheck',
+  'err113',
+  'errcheck',
+  'errchkjson',
+  'exhaustive',
+  'exhaustruct',
+  'forcetypeassert',
+  'funcorder',
+  'funlen',
+  'gochecknoglobals',
+  'gochecknoinits',
+  'gocognit',
+  'goconst',
+  'gocritic',
+  'gocyclo',
+  'godoclint',
+  'godot',
+  'godox',
+  'gomoddirectives',
+  'gosec',
+  'inamedparam',
+  'ineffassign',
+  'interfacebloat',
+  'intrange',
+  'ireturn',
+  'lll',
+  'maintidx',
+  'misspell',
+  'mnd',
+  'musttag',
+  'nakedret',
+  'nestif',
+  'nilnil',
+  'nlreturn',
+  'nolintlint',
+  'noinlineerr',
+  'nonamedreturns',
+  'paralleltest',
+  'perfsprint',
+  'prealloc',
+  'revive',
+  'rowserrcheck',
+  'sqlclosecheck',
+  'staticcheck',
+  'tagliatelle',
+  'testpackage',
+  'thelper',
+  'unparam',
+  'usestdlibvars',
+  'varnamelen',
+  'wastedassign',
+  'whitespace',
+  'wrapcheck',
+  'wsl',
+  'wsl_v5',
+]
+
+[linters.settings]
+[linters.settings.depguard]
+[linters.settings.depguard.rules]
+[linters.settings.depguard.rules.main]
+[[linters.settings.depguard.rules.main.deny]]
+pkg = 'math/rand$'
+desc = 'Please use math/rand/v2 instead of math/rand.'
+
+[[linters.settings.depguard.rules.main.deny]]
+pkg = 'github.com/pkg/errors'
+desc = 'Please use standard errors package.'
+
+[linters.settings.goconst]
+min-len = 3
+min-occurrences = 3
+
+[linters.settings.gocyclo]
+min-complexity = 12
+
+[linters.settings.godot]
+exclude = [
+  ' \+'
+]
+
+[linters.settings.govet]
+enable = [
+  'shadow'
+]
+
+[linters.settings.misspell]
+locale = 'US'
+
+[linters.exclusions]
+generated = 'lax'
+paths = [
+  '.cache',
+  'go/pkg/mod',
+  'pkg/mod',
+  'examples$'
+]
 
 [issues]
-  exclude-use-default = false
-  max-per-linter = 0
-  max-same-issues = 0
-  exclude = []
-  exclude-dirs = [
-    ".cache",
-    "go/pkg/mod",
-    "pkg/mod",
-  ]
+exclude-use-default = false
+max-per-linter = 0
+max-same-issues = 0
+exclude = []
+
