@@ -8,6 +8,7 @@ package store
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strings"
 	"sync"
 
@@ -103,9 +104,7 @@ func (ds *Store) AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) erro
 	if ds.owner != nil {
 		defaultLabels := object.GetDefaultLabels(ds.owner, ds.owner.GetName(), common.GetAgentVersion(ds.owner))
 		if len(defaultLabels) > 0 {
-			for key, val := range defaultLabels {
-				obj.GetLabels()[key] = val
-			}
+			maps.Copy(obj.GetLabels(), defaultLabels)
 		}
 
 		defaultAnnotations := object.GetDefaultAnnotations(ds.owner)
@@ -113,9 +112,7 @@ func (ds *Store) AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) erro
 			if obj.GetAnnotations() == nil {
 				obj.SetAnnotations(map[string]string{})
 			}
-			for key, val := range defaultAnnotations {
-				obj.GetAnnotations()[key] = val
-			}
+			maps.Copy(obj.GetAnnotations(), defaultAnnotations)
 		}
 
 		// Owner-reference should not be added to cluster level objects

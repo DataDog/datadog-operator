@@ -7,6 +7,7 @@ package common
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -46,9 +47,7 @@ func GetDefaultMetadata(owner metav1.Object, componentKind, instanceName, versio
 	annotations := object.GetDefaultAnnotations(owner)
 
 	if selector != nil {
-		for key, val := range selector.MatchLabels {
-			labels[key] = val
-		}
+		maps.Copy(labels, selector.MatchLabels)
 		// if update metadata is present, use k8s instance and component as the selector
 	} else if val, ok := owner.GetAnnotations()[apicommon.UpdateMetadataAnnotationKey]; ok && val == "true" {
 		selector = &metav1.LabelSelector{

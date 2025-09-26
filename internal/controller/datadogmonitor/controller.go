@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -322,13 +323,7 @@ func (r *Reconciler) checkRequiredTags(logger logr.Logger, datadogMonitor *datad
 	var found bool
 	tags := datadogMonitor.Spec.Tags
 	for _, rT := range getRequiredTags() {
-		found = false
-		for _, t := range tags {
-			if t == rT {
-				found = true
-				break
-			}
-		}
+		found = slices.Contains(tags, rT)
 		if !found {
 			tagsToAdd = append(tagsToAdd, rT)
 		}
