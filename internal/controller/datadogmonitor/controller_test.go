@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -30,6 +31,7 @@ import (
 	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
 
@@ -45,7 +47,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	s := scheme.Scheme
-	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{}, &datadoghqv1alpha1.DatadogSLO{})
 
 	type args struct {
 		request              *v1alpha1.DatadogMonitor
@@ -307,6 +309,30 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 					return err
 				}
 				assert.NotContains(t, dm.Status.Conditions[0].Message, "error")
+				return nil
+			},
+		},
+		{
+			name: "DatadogMonitor, SLO alert with SLORef",
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				firstAction: func(c client.Client) {
+					_ = c.Create(context.TODO(), testSLO())
+				},
+				firstReconcileCount: 10,
+
+				secondAction: func(c client.Client) {
+					_ = c.Create(context.TODO(), testSLOMonitorWithSLORef())
+				},
+				secondReconcileCount: 10,
+			},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				dm := &datadoghqv1alpha1.DatadogMonitor{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm); err != nil {
+					return err
+				}
+				assert.Equal(t, "error_budget(\"123\").over(\"7d\") > 10", dm.Spec.Query)
 				return nil
 			},
 		},
@@ -893,6 +919,60 @@ func testSLOMonitor(c client.Client) *datadoghqv1alpha1.DatadogMonitor {
 	}
 	_ = c.Create(context.TODO(), dm)
 	return dm
+}
+func testSLO() *v1alpha1.DatadogSLO {
+	return &v1alpha1.DatadogSLO{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "DatadogMonitor",
+			APIVersion: fmt.Sprintf("%s/%s", v1alpha1.GroupVersion.Group, v1alpha1.GroupVersion.Version),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: resourcesNamespace,
+			Name:      resourcesName,
+		},
+		Spec: v1alpha1.DatadogSLOSpec{
+			Name: "Test SLO",
+			Query: &v1alpha1.DatadogSLOQuery{
+				Numerator:   "sum:my.custom.count.metric{type:good_events}.as_count()",
+				Denominator: "sum:my.custom.count.metric{*}.as_count()",
+			},
+			Type:            v1alpha1.DatadogSLOTypeMetric,
+			TargetThreshold: resource.MustParse("99.0"),
+			Timeframe:       v1alpha1.DatadogSLOTimeFrame30d,
+			Tags:            utils.GetRequiredTags(),
+		},
+		Status: v1alpha1.DatadogSLOStatus{
+			ID: "123",
+		},
+	}
+}
+func testSLOMonitorWithSLORef() *datadoghqv1alpha1.DatadogMonitor {
+	threshold := "10"
+	return &datadoghqv1alpha1.DatadogMonitor{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "DatadogMonitor",
+			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: resourcesNamespace,
+			Name:      resourcesName,
+		},
+		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+			SLORef: &datadoghqv1alpha1.SLORef{
+				Name:      resourcesName,
+				Namespace: resourcesNamespace,
+			},
+			Query: "error_budget(\"slo-hash-id\").over(\"7d\") > 10",
+			Options: datadoghqv1alpha1.DatadogMonitorOptions{
+				Thresholds: &datadoghqv1alpha1.DatadogMonitorOptionsThresholds{
+					Critical: &threshold,
+				},
+			},
+			Type:    datadoghqv1alpha1.DatadogMonitorTypeSLO,
+			Name:    "test SLO monitor",
+			Message: "something is wrong",
+		},
+	}
 }
 
 func testEventV2Monitor(c client.Client) *datadoghqv1alpha1.DatadogMonitor {
