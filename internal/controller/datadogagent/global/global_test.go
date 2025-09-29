@@ -73,7 +73,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			name:                           "Kubelet volume configured",
 			singleContainerStrategyEnabled: false,
 			dda: testutils.NewDatadogAgentBuilder().
-				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocketDir, false).
+				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocketDir).
 				WithGlobalDockerSocketPath(dockerSocketPath).
 				WithCredentials("apiKey", "appKey").
 				BuildWithDefaults(),
@@ -134,7 +134,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			name:                           "Kubelet volume configured",
 			singleContainerStrategyEnabled: true,
 			dda: testutils.NewDatadogAgentBuilder().
-				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocketDir, false).
+				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocketDir).
 				WithGlobalDockerSocketPath(dockerSocketPath).
 				WithCredentials("apiKey", "appKey").
 				BuildWithDefaults(),
@@ -709,7 +709,8 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			singleContainerStrategyEnabled: false,
 			dda: testutils.NewDatadogAgentBuilder().
 				WithCredentials("apiKey", "appKey").
-				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocketDir, true).
+				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocketDir).
+				WithAnnotations(map[string]string{"agent.datadoghq.com/fine-grained-kubelet-authorization-enabled": "true"}).
 				BuildWithDefaults(),
 			wantCoreAgentEnvVars: nil,
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{

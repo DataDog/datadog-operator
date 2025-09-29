@@ -227,7 +227,6 @@ spec:
 | global.fips.resources.requests | Resource requests for the FIPS sidecar. If undefined, defaults to global.fips.resources.limits (if set), then to an implementation-defined value. See https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#resource-requests-and-limits-of-pod-and-container . |
 | global.fips.useHTTPS | If true, enables HTTPS on the FIPS sidecar. Default: false |
 | global.kubelet.agentCAPath | AgentCAPath is the container path where the kubelet CA certificate is stored. Default: '/var/run/host-kubelet-ca.crt' if hostCAPath is set, else '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt' |
-| global.kubelet.fineGrainedAuthorization | Enable fine-grained authentication for kubelet (requires: Kubernetes 1.32+) Default: false |
 | global.kubelet.host.configMapKeyRef.key | The key to select. |
 | global.kubelet.host.configMapKeyRef.name | Of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names |
 | global.kubelet.host.configMapKeyRef.optional | Specify whether the ConfigMap or its key must be defined |

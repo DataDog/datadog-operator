@@ -2666,10 +2666,6 @@
                       "description": "AgentCAPath is the container path where the kubelet CA certificate is stored.\nDefault: '/var/run/host-kubelet-ca.crt' if hostCAPath is set, else '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'",
                       "type": "string"
                     },
-                    "fineGrainedAuthorization": {
-                      "description": "Enable fine-grained authentication for kubelet (requires: Kubernetes 1.32+)\nDefault: false",
-                      "type": "boolean"
-                    },
                     "host": {
                       "additionalProperties": false,
                       "description": "Host overrides the host used to contact kubelet API (default to status.hostIP).",
