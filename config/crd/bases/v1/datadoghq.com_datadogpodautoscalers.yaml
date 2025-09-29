@@ -426,13 +426,13 @@ spec:
                                         - name
                                         - stat
                                       type: object
+                                    dataSource:
+                                      enum:
+                                        - metrics
+                                        - apm_metrics
+                                      type: string
                                     metrics:
                                       properties:
-                                        dataSource:
-                                          enum:
-                                            - metrics
-                                            - apm_metrics
-                                          type: string
                                         name:
                                           description: Optional variable name ("a", "b", etc.) to reference in formulas.
                                           type: string
@@ -441,9 +441,10 @@ spec:
                                           minLength: 1
                                           type: string
                                       required:
-                                        - dataSource
                                         - query
                                       type: object
+                                  required:
+                                    - dataSource
                                   type: object
                                 minItems: 1
                                 type: array
@@ -1140,13 +1141,13 @@ spec:
                                               - name
                                               - stat
                                             type: object
+                                          dataSource:
+                                            enum:
+                                              - metrics
+                                              - apm_metrics
+                                            type: string
                                           metrics:
                                             properties:
-                                              dataSource:
-                                                enum:
-                                                  - metrics
-                                                  - apm_metrics
-                                                type: string
                                               name:
                                                 description: Optional variable name ("a", "b", etc.) to reference in formulas.
                                                 type: string
@@ -1155,9 +1156,10 @@ spec:
                                                 minLength: 1
                                                 type: string
                                             required:
-                                              - dataSource
                                               - query
                                             type: object
+                                        required:
+                                          - dataSource
                                         type: object
                                       minItems: 1
                                       type: array
@@ -1388,13 +1390,13 @@ spec:
                                         - name
                                         - stat
                                       type: object
+                                    dataSource:
+                                      enum:
+                                        - metrics
+                                        - apm_metrics
+                                      type: string
                                     metrics:
                                       properties:
-                                        dataSource:
-                                          enum:
-                                            - metrics
-                                            - apm_metrics
-                                          type: string
                                         name:
                                           description: Optional variable name ("a", "b", etc.) to reference in formulas.
                                           type: string
@@ -1403,9 +1405,10 @@ spec:
                                           minLength: 1
                                           type: string
                                       required:
-                                        - dataSource
                                         - query
                                       type: object
+                                  required:
+                                    - dataSource
                                   type: object
                                 minItems: 1
                                 type: array

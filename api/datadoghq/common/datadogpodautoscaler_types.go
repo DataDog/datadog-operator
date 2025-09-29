@@ -211,6 +211,8 @@ type DatadogPodAutoscalerQueryFormula struct {
 // TimeseriesQuery is a discriminated union. Only Metrics and APMMetrics are supported for autoscaling.
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerTimeseriesQuery struct {
+	// +required
+	DataSource DatadogPodAutoscalerMetricsDataSource `json:"dataSource"`
 	// +optional
 	Metrics *DatadogPodAutoscalerMetricsTimeseriesQuery `json:"metrics,omitempty"`
 	// +optional
@@ -219,7 +221,6 @@ type DatadogPodAutoscalerTimeseriesQuery struct {
 
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerMetricsTimeseriesQuery struct {
-	DataSource DatadogPodAutoscalerMetricsDataSource `json:"dataSource"`
 	// Optional variable name ("a", "b", etc.) to reference in formulas.
 	// +optional
 	Name *string `json:"name,omitempty"`
