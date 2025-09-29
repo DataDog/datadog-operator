@@ -2,7 +2,7 @@
 
 Starting in **Operator v1.18.0**, we are introducing changes to the **labels, selectors, and naming conventions** used for the Agent DaemonSets. These updates aim to improve consistency and reduce the length of DaemonSet names managed by [DatadogAgentProfiles (DAPs)][1].
 
-These changes may affect **other Kubernetes resources** that rely on **matching these labels**, such as:
+These changes may affect other Kubernetes resources that rely on matching these labels, such as:
 
 - Network Policies
 - Service Mesh configurations
