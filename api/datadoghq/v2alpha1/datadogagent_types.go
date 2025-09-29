@@ -2008,7 +2008,8 @@ type DatadogAgentStatus struct {
 // +kubebuilder:printcolumn:name="cluster-agent",type="string",JSONPath=".status.clusterAgent.status"
 // +kubebuilder:printcolumn:name="cluster-checks-runner",type="string",JSONPath=".status.clusterChecksRunner.status"
 // +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:validation:XValidation:rule="self.metadata.name.size() <=20",message="DatadogAgent name must be less than 20 characters."
+// +kubebuilder:validation:XValidation:rule="self.metadata.name.size() + 29 <=63",message="DatadogAgent name must be less than 34 characters."
+// +kubebuilder:note:For the validation rule, 29 represents the length of the "-cluster-agent-metrics-server" string, and 63 represents the maximum length of a service name (<DatadogAgent name>-cluster-agent-metrics-server).
 // +k8s:openapi-gen=true
 // +genclient
 type DatadogAgent struct {

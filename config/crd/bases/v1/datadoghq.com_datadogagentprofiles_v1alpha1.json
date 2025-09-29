@@ -7324,8 +7324,8 @@
   "type": "object",
   "x-kubernetes-validations": [
     {
-      "message": "DatadogAgentProfile name must be less than 34 characters.",
-      "rule": "(20 + self.metadata.name.size() + 9) \u003c= 63"
+      "message": "DatadogAgentProfile name must be less than 57 characters.",
+      "rule": "(self.metadata.name.size() + 6) \u003c= 63"
     }
   ]
 }

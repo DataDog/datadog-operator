@@ -96,8 +96,8 @@ type CreateStrategy struct {
 // +kubebuilder:printcolumn:name="valid",type="string",JSONPath=".status.valid"
 // +kubebuilder:printcolumn:name="applied",type="string",JSONPath=".status.applied"
 // +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:validation:XValidation:rule="(20 + self.metadata.name.size() + 9) <= 63",message="DatadogAgentProfile name must be less than 34 characters."
-// +kubebuilder:note:For the validation rule, 20 represents the maximum length of the DatadogAgent name, 9 represents the length of the "-profile-" string, and 63 represents the maximum length of a label value (<DDA name>-profile-<DatadogAgentProfile name>)
+// +kubebuilder:validation:XValidation:rule="(self.metadata.name.size() + 6) <= 63",message="DatadogAgentProfile name must be less than 57 characters."
+// +kubebuilder:note:For the validation rule, 6 represents the length of the "-agent" string, and 63 represents the maximum length of a label value (<DatadogAgentProfile name>-agent) used for the DaemonSet.
 // +k8s:openapi-gen=true
 type DatadogAgentProfile struct {
 	metav1.TypeMeta   `json:",inline"`
