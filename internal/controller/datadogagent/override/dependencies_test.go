@@ -184,7 +184,7 @@ func TestServiceAccountAnnotationOverride(t *testing.T) {
 	tests := []struct {
 		name string
 		dda  *v2alpha1.DatadogAgent
-		want map[v2alpha1.ComponentName]map[string]interface{}
+		want map[v2alpha1.ComponentName]map[string]any
 	}{
 		{
 			name: "custom serviceaccount annotations for dda, dca and clc",
@@ -207,7 +207,7 @@ func TestServiceAccountAnnotationOverride(t *testing.T) {
 					},
 				},
 			},
-			want: map[v2alpha1.ComponentName]map[string]interface{}{
+			want: map[v2alpha1.ComponentName]map[string]any{
 				v2alpha1.ClusterAgentComponentName: {
 					"name":        customServiceAccount,
 					"annotations": customServiceAccountAnnotations,
@@ -237,7 +237,7 @@ func TestServiceAccountAnnotationOverride(t *testing.T) {
 					},
 				},
 			},
-			want: map[v2alpha1.ComponentName]map[string]interface{}{
+			want: map[v2alpha1.ComponentName]map[string]any{
 				v2alpha1.NodeAgentComponentName: {
 					"name":        fmt.Sprintf("%s-%s", ddaName, constants.DefaultAgentResourceSuffix),
 					"annotations": map[string]string{},
@@ -255,7 +255,7 @@ func TestServiceAccountAnnotationOverride(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res := map[v2alpha1.ComponentName]map[string]interface{}{
+			res := map[v2alpha1.ComponentName]map[string]any{
 				v2alpha1.NodeAgentComponentName: {
 					"name":        constants.GetAgentServiceAccount(tt.dda.Name, &tt.dda.Spec),
 					"annotations": getSaAnnotations(tt.dda, v2alpha1.NodeAgentComponentName),
