@@ -7,6 +7,7 @@ package agentprofile
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"sort"
 
@@ -342,9 +343,7 @@ func labelsOverride(profile *v1alpha1.DatadogAgentProfile) map[string]string {
 
 	if profile.Spec.Config != nil {
 		if nodeAgentOverride, ok := profile.Spec.Config.Override[v2alpha1.NodeAgentComponentName]; ok {
-			for labelName, labelVal := range nodeAgentOverride.Labels {
-				labels[labelName] = labelVal
-			}
+			maps.Copy(labels, nodeAgentOverride.Labels)
 		}
 	}
 

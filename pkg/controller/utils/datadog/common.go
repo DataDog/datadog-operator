@@ -27,7 +27,7 @@ func getObjKind(obj client.Object) string {
 		// Try to get it from the last-applied-configuration annotation
 		if annotations := obj.GetAnnotations(); annotations != nil {
 			if lastConfig, exists := annotations["kubectl.kubernetes.io/last-applied-configuration"]; exists {
-				var config map[string]interface{}
+				var config map[string]any
 				if err := json.Unmarshal([]byte(lastConfig), &config); err == nil {
 					if kind, ok := config["kind"].(string); ok {
 						objKind = kind

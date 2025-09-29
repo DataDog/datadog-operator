@@ -1,6 +1,7 @@
 package test
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -275,10 +276,5 @@ func TestBuilder(t *testing.T) {
 }
 
 func wantAgentContainer(wantedContainer common.AgentContainerName, requiredComponents feature.RequiredComponents) bool {
-	for _, agentContainerName := range requiredComponents.Agent.Containers {
-		if agentContainerName == wantedContainer {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(requiredComponents.Agent.Containers, wantedContainer)
 }

@@ -12,7 +12,7 @@ import (
 )
 
 // DebugPrint prints a JSON representation of a compatible obj to given writer
-func DebugPrint(writer io.Writer, obj interface{}) {
+func DebugPrint(writer io.Writer, obj any) {
 	marshaled, err := json.MarshalIndent(obj, "", "  ")
 	if err != nil {
 		fmt.Fprint(writer, err)
