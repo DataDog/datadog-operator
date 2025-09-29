@@ -33,7 +33,7 @@ If your setup makes any assumptions about the Agent pod labels or DaemonSet name
 
 ## Migration Paths
 
-Due to the immutability of label selectors in Kubernetes, the Operator **cannot update DaemonSets in place**. Instead, it must delete and recreate them potentially leading to **Agent downtime** or **undesired disruption**.
+Due to the immutability of label selectors in Kubernetes, the Operator cannot update DaemonSets in place. Instead, it must delete and recreate them potentially leading to Agent downtime or undesired disruption.
 
 In order to minimize downtime, the Operator can [orphan its dependent pods](2). This method keeps Agent Pods running while the Operator deletes and recreates DaemonSets with the necessary selector and name changes. This process is fully decoupled from the Operator upgrade and other DaemonSet updates and enables a **zero-downtime migration**.
 
