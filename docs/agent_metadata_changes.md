@@ -9,7 +9,7 @@ These changes may affect other Kubernetes resources that rely on matching these 
 - Vertical Pod Autoscalers (VPA)
 - Admission Controllers or Mutating Webhooks
 
-If your setup makes any assumptions about the Agent pod labels or DaemonSet names (e.g., for targeting or exclusion), you may need to **update those configurations** to avoid unexpected behavior.
+**If your setup makes any assumptions about the Agent pod labels or DaemonSet names (e.g., for targeting or exclusion), you may need to update those configurations to avoid unexpected behavior.**
 
 ---
 
