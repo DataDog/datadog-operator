@@ -13,11 +13,11 @@ import (
 )
 
 // ValidateDatadogAgentProfileSpec is used to check if a DatadogAgentProfileSpec is valid
-func ValidateDatadogAgentProfileSpec(spec *DatadogAgentProfileSpec) error {
+func ValidateDatadogAgentProfileSpec(spec *DatadogAgentProfileSpec, datadogAgentInternalEnabled bool) error {
 	if err := validateProfileAffinity(spec.ProfileAffinity); err != nil {
 		return err
 	}
-	if err := validateConfig(spec.Config); err != nil {
+	if err := validateConfig(spec.Config, datadogAgentInternalEnabled); err != nil {
 		return err
 	}
 
@@ -38,25 +38,126 @@ func validateProfileAffinity(profileAffinity *ProfileAffinity) error {
 	return nil
 }
 
-func validateConfig(spec *v2alpha1.DatadogAgentSpec) error {
+func validateConfig(spec *v2alpha1.DatadogAgentSpec, datadogAgentInternalEnabled bool) error {
 	if spec == nil {
 		return fmt.Errorf("config must be defined")
 	}
-	// features are not supported
-	if spec.Features != nil {
-		return fmt.Errorf("feature overrides are not supported")
+	if err := validateFeatures(spec.Features, datadogAgentInternalEnabled); err != nil {
+		return err
 	}
 	// global is not supported
 	if spec.Global != nil {
 		return fmt.Errorf("global overrides are not supported")
 	}
-	if spec.Override == nil {
+	if !datadogAgentInternalEnabled && spec.Override == nil {
 		return fmt.Errorf("config override must be defined")
 	}
 	for component, override := range spec.Override {
 		if err := validateOverride(component, override); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func validateFeatures(features *v2alpha1.DatadogFeatures, datadogAgentInternalEnabled bool) error {
+	if features == nil {
+		return nil
+	}
+	if !datadogAgentInternalEnabled {
+		return fmt.Errorf("features are not supported when DatadogAgentInternal is disabled")
+	}
+
+	// Valid features:
+	// - GPU
+
+	if features.OtelCollector != nil {
+		return fmt.Errorf("otel collector feature override is not supported")
+	}
+	if features.LogCollection != nil {
+		return fmt.Errorf("log collection feature override is not supported")
+	}
+	if features.LiveProcessCollection != nil {
+		return fmt.Errorf("live process collection feature override is not supported")
+	}
+	if features.LiveContainerCollection != nil {
+		return fmt.Errorf("live container collection feature override is not supported")
+	}
+	if features.ProcessDiscovery != nil {
+		return fmt.Errorf("process discovery feature override is not supported")
+	}
+	if features.OOMKill != nil {
+		return fmt.Errorf("oom kill feature override is not supported")
+	}
+	if features.TCPQueueLength != nil {
+		return fmt.Errorf("tcp queue length feature override is not supported")
+	}
+	if features.EBPFCheck != nil {
+		return fmt.Errorf("ebpf check feature override is not supported")
+	}
+	if features.APM != nil {
+		return fmt.Errorf("apm feature override is not supported")
+	}
+	if features.ASM != nil {
+		return fmt.Errorf("asm feature override is not supported")
+	}
+	if features.CSPM != nil {
+		return fmt.Errorf("cspm feature override is not supported")
+	}
+	if features.CWS != nil {
+		return fmt.Errorf("cws feature override is not supported")
+	}
+	if features.NPM != nil {
+		return fmt.Errorf("npm feature override is not supported")
+	}
+	if features.USM != nil {
+		return fmt.Errorf("usm feature override is not supported")
+	}
+	if features.Dogstatsd != nil {
+		return fmt.Errorf("dogstatsd feature override is not supported")
+	}
+	if features.OTLP != nil {
+		return fmt.Errorf("otlp feature override is not supported")
+	}
+	if features.RemoteConfiguration != nil {
+		return fmt.Errorf("remote configuration feature override is not supported")
+	}
+	if features.SBOM != nil {
+		return fmt.Errorf("sbom feature override is not supported")
+	}
+	if features.ServiceDiscovery != nil {
+		return fmt.Errorf("service discovery feature override is not supported")
+	}
+	if features.EventCollection != nil {
+		return fmt.Errorf("event collection feature override is not supported")
+	}
+	if features.OrchestratorExplorer != nil {
+		return fmt.Errorf("orchestrator explorer feature override is not supported")
+	}
+	if features.KubeStateMetricsCore != nil {
+		return fmt.Errorf("kube state metrics core feature override is not supported")
+	}
+	if features.AdmissionController != nil {
+		return fmt.Errorf("admission controller feature override is not supported")
+	}
+	if features.ExternalMetricsServer != nil {
+		return fmt.Errorf("external metrics server feature override is not supported")
+	}
+	if features.Autoscaling != nil {
+		return fmt.Errorf("autoscaling feature override is not supported")
+	}
+	if features.ClusterChecks != nil {
+		return fmt.Errorf("cluster checks feature override is not supported")
+	}
+	if features.PrometheusScrape != nil {
+		return fmt.Errorf("prometheus scrape feature override is not supported")
+	}
+	if features.HelmCheck != nil {
+		return fmt.Errorf("helm check feature override is not supported")
+	}
+	if features.ControlPlaneMonitoring != nil {
+		return fmt.Errorf("control plane monitoring feature override is not supported")
 	}
 
 	return nil

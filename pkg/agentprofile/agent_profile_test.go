@@ -253,7 +253,7 @@ func TestApplyProfile(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			testLogger := zap.New(zap.UseDevMode(true))
 			now := metav1.NewTime(time.Now())
-			profileAppliedByNode, err := ApplyProfile(testLogger, &test.profile, test.nodes, test.profileAppliedByNode, now, 1)
+			profileAppliedByNode, err := ApplyProfile(testLogger, &test.profile, test.nodes, test.profileAppliedByNode, now, 1, true)
 			assert.Equal(t, test.expectedErr, err)
 			assert.Equal(t, test.expectedProfilesAppliedPerNode, profileAppliedByNode)
 		})
