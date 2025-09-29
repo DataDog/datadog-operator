@@ -58,7 +58,7 @@ The Agent DaemonSet's pod selector will automatically be updated whether or not 
 
 #### Operator ≥v1.18 and <v1.21
 
-Starting in Operator v1.18, the Operator will automatically change the following DAP DaemonSet and Pod label value: `app.kubernetes.io/instance: <dda-name>-agent` → `<dap-name>-agent`. After this change is rolled out, it is possible to update the Agent DaemonSet selector and name ahead of time by adding the annotation `agent.datadoghq.com/update-metadata: "true"` to the DatadogAgent object.
+Starting in Operator v1.18, the Operator will automatically change the following DAP DaemonSet and Pod label value: `app.kubernetes.io/instance: <dda-name>-agent` → `<dap-name>-agent`. After this change is rolled out, you can update the Agent DaemonSet selector and name ahead of time by adding the annotation `agent.datadoghq.com/update-metadata: "true"` to the DatadogAgent object.
 
 #### Operator 1.21+
 
