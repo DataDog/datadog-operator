@@ -2,7 +2,7 @@
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
-source common.sh
+source common.container-integrations.sh
 
 SG=$(aws ec2 create-security-group \
          --description "Security group for ${CLUSTER_NAME} EKS cluster" \
@@ -10,22 +10,16 @@ SG=$(aws ec2 create-security-group \
          --vpc-id ${VPC} \
          --output text)
 
-SG_APPGATE=$(aws ec2 describe-security-groups \
-                 --filter Name=vpc-id,Values=${VPC} Name=group-name,Values=appgate-gateway \
-                 --query 'SecurityGroups[*].[GroupId]' \
+PL_APPGATE=$(aws ec2 describe-managed-prefix-lists \
+                 --filters "Name=prefix-list-name,Values=vpn-services-commercial-appgate" \
+                 --query "PrefixLists[*].PrefixListId" \
                  --output text)
 
-aws ec2 authorize-security-group-ingress \
-    --group-id "${SG}" \
-    --protocol tcp \
-    --port 22 \
-    --source-group "${SG_APPGATE}"
-
-aws ec2 authorize-security-group-ingress \
-    --group-id "${SG}" \
-    --protocol tcp \
-    --port 443 \
-    --source-group "${SG_APPGATE}"
+for tcp_port in 22 443; do
+    aws ec2 authorize-security-group-ingress \
+        --group-id "${SG}" \
+        --ip-permissions "IpProtocol=tcp,FromPort=${tcp_port},ToPort=${tcp_port},PrefixListIds=[{PrefixListId=${PL_APPGATE}}]"
+done
 
 yq -i "
    .metadata.name = \"${CLUSTER_NAME}\" |
