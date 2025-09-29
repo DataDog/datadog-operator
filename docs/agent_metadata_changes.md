@@ -1,4 +1,4 @@
-# Breaking Change: Updates to Agent DaemonSet Labels, Selectors & Names
+# Breaking Change: Operator v1.18.0/v1.21.0 - Updates to Agent DaemonSet Labels, Selectors & Names
 
 Starting in **Operator v1.18.0**, we are introducing changes to the **labels, selectors, and naming conventions** used for the Agent DaemonSets. These updates aim to improve consistency and reduce the length of DaemonSet names managed by [DatadogAgentProfiles (DAPs)][1].
 
