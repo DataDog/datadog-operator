@@ -14,10 +14,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
 var (
@@ -61,9 +61,9 @@ func Test_handleFinalizer(t *testing.T) {
 			_, err := r.handleFinalizer(reqLogger, test.db)
 			assert.NoError(t, err)
 			if test.finalizerShouldExist {
-				assert.True(t, utils.ContainsString(test.db.GetFinalizers(), datadogDashboardFinalizer))
+				assert.True(t, controllerutil.ContainsFinalizer(test.db, datadogDashboardFinalizer))
 			} else {
-				assert.False(t, utils.ContainsString(test.db.GetFinalizers(), datadogDashboardFinalizer))
+				assert.False(t, controllerutil.ContainsFinalizer(test.db, datadogDashboardFinalizer))
 			}
 		})
 	}

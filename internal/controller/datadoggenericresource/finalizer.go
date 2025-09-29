@@ -11,9 +11,9 @@ import (
 
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 )
 
@@ -24,10 +24,10 @@ const (
 func (r *Reconciler) handleFinalizer(logger logr.Logger, instance *datadoghqv1alpha1.DatadogGenericResource) (ctrl.Result, error) {
 	// Check if the DatadogGenericResource instance is marked to be deleted, which is indicated by the deletion timestamp being set.
 	if instance.GetDeletionTimestamp() != nil {
-		if utils.ContainsString(instance.GetFinalizers(), datadogGenericResourceFinalizer) {
+		if controllerutil.ContainsFinalizer(instance, datadogGenericResourceFinalizer) {
 			r.finalizeDatadogCustomResource(logger, instance)
 
-			instance.SetFinalizers(utils.RemoveString(instance.GetFinalizers(), datadogGenericResourceFinalizer))
+			controllerutil.RemoveFinalizer(instance, datadogGenericResourceFinalizer)
 			err := r.client.Update(context.TODO(), instance)
 			if err != nil {
 				return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, err
@@ -39,7 +39,7 @@ func (r *Reconciler) handleFinalizer(logger logr.Logger, instance *datadoghqv1al
 	}
 
 	// Add finalizer for this resource if it doesn't already exist.
-	if !utils.ContainsString(instance.GetFinalizers(), datadogGenericResourceFinalizer) {
+	if !controllerutil.ContainsFinalizer(instance, datadogGenericResourceFinalizer) {
 		if err := r.addFinalizer(logger, instance); err != nil {
 			return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, err
 		}
@@ -66,7 +66,7 @@ func (r *Reconciler) finalizeDatadogCustomResource(logger logr.Logger, instance 
 func (r *Reconciler) addFinalizer(logger logr.Logger, instance *datadoghqv1alpha1.DatadogGenericResource) error {
 	logger.Info("Adding Finalizer for the DatadogGenericResource")
 
-	instance.SetFinalizers(append(instance.GetFinalizers(), datadogGenericResourceFinalizer))
+	controllerutil.AddFinalizer(instance, datadogGenericResourceFinalizer)
 
 	err := r.client.Update(context.TODO(), instance)
 	if err != nil {

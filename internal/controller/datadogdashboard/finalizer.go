@@ -9,12 +9,11 @@ import (
 	"context"
 	"fmt"
 
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
-
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
@@ -24,10 +23,10 @@ const (
 func (r *Reconciler) handleFinalizer(logger logr.Logger, db *datadoghqv1alpha1.DatadogDashboard) (ctrl.Result, error) {
 	// Check if the DatadogDashboard instance is marked to be deleted, which is indicated by the deletion timestamp being set.
 	if db.GetDeletionTimestamp() != nil {
-		if utils.ContainsString(db.GetFinalizers(), datadogDashboardFinalizer) {
+		if controllerutil.ContainsFinalizer(db, datadogDashboardFinalizer) {
 			r.finalizeDatadogDashboard(logger, db)
 
-			db.SetFinalizers(utils.RemoveString(db.GetFinalizers(), datadogDashboardFinalizer))
+			controllerutil.RemoveFinalizer(db, datadogDashboardFinalizer)
 			err := r.client.Update(context.TODO(), db)
 			if err != nil {
 				return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, err
@@ -39,7 +38,7 @@ func (r *Reconciler) handleFinalizer(logger logr.Logger, db *datadoghqv1alpha1.D
 	}
 
 	// Add finalizer for this resource if it doesn't already exist.
-	if !utils.ContainsString(db.GetFinalizers(), datadogDashboardFinalizer) {
+	if !controllerutil.ContainsFinalizer(db, datadogDashboardFinalizer) {
 		if err := r.addFinalizer(logger, db); err != nil {
 			return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, err
 		}
@@ -66,7 +65,7 @@ func (r *Reconciler) finalizeDatadogDashboard(logger logr.Logger, db *datadoghqv
 func (r *Reconciler) addFinalizer(logger logr.Logger, db *datadoghqv1alpha1.DatadogDashboard) error {
 	logger.Info("Adding Finalizer for the DatadogDashboard")
 
-	db.SetFinalizers(append(db.GetFinalizers(), datadogDashboardFinalizer))
+	controllerutil.AddFinalizer(db, datadogDashboardFinalizer)
 
 	err := r.client.Update(context.TODO(), db)
 	if err != nil {

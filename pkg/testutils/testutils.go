@@ -27,7 +27,7 @@ func init() {
 		reflect.TypeOf([]corev1.Container{}):   {},
 	}
 
-	sliceToMapFilterFunc := func(x interface{}, y interface{}) bool {
+	sliceToMapFilterFunc := func(x any, y any) bool {
 		xType := reflect.TypeOf(x)
 		yType := reflect.TypeOf(y)
 
@@ -42,9 +42,9 @@ func init() {
 		return true
 	}
 
-	sliceToMapFunc := func(x interface{}) interface{} {
+	sliceToMapFunc := func(x any) any {
 		xVal := reflect.ValueOf(x)
-		res := make(map[string]interface{}, xVal.Len())
+		res := make(map[string]any, xVal.Len())
 		for i := 0; i < xVal.Len(); i++ {
 			elemVal := xVal.Index(i)
 			res[elemVal.FieldByName("Name").String()] = elemVal.Interface()
@@ -53,13 +53,13 @@ func init() {
 		return res
 	}
 
-	k8sCmpOps = append(k8sCmpOps, cmp.Transformer("", func(x []corev1.EnvVar) interface{} { return sliceToMapFunc(x) }))
-	k8sCmpOps = append(k8sCmpOps, cmp.Transformer("", func(x []corev1.Volume) interface{} { return sliceToMapFunc(x) }))
-	k8sCmpOps = append(k8sCmpOps, cmp.Transformer("", func(x []corev1.VolumeMount) interface{} { return sliceToMapFunc(x) }))
-	k8sCmpOps = append(k8sCmpOps, cmp.Transformer("", func(x []corev1.Container) interface{} { return sliceToMapFunc(x) }))
-	k8sCmpOps = append(k8sCmpOps, cmp.FilterValues(func(x interface{}, y interface{}) bool {
+	k8sCmpOps = append(k8sCmpOps, cmp.Transformer("", func(x []corev1.EnvVar) any { return sliceToMapFunc(x) }))
+	k8sCmpOps = append(k8sCmpOps, cmp.Transformer("", func(x []corev1.Volume) any { return sliceToMapFunc(x) }))
+	k8sCmpOps = append(k8sCmpOps, cmp.Transformer("", func(x []corev1.VolumeMount) any { return sliceToMapFunc(x) }))
+	k8sCmpOps = append(k8sCmpOps, cmp.Transformer("", func(x []corev1.Container) any { return sliceToMapFunc(x) }))
+	k8sCmpOps = append(k8sCmpOps, cmp.FilterValues(func(x any, y any) bool {
 		return !sliceToMapFilterFunc(x, y)
-	}, cmpopts.SortSlices(func(x, y interface{}) bool {
+	}, cmpopts.SortSlices(func(x, y any) bool {
 		xVal := reflect.ValueOf(x)
 		yVal := reflect.ValueOf(y)
 		if xVal.Kind() == reflect.Struct && xVal.FieldByName("Name").IsValid() {
@@ -71,7 +71,7 @@ func init() {
 }
 
 // CompareKubeResource performs a Diff based cmp.Diff() with some options
-func CompareKubeResource(got, want interface{}) string {
+func CompareKubeResource(got, want any) string {
 	diff := cmp.Diff(got, want, k8sCmpOps...)
 	if len(diff) > 0 {
 		diff = diffHeader + diff
