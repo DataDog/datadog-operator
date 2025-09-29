@@ -37,3 +37,6 @@ spec:
           command:
             - sleep
             - infinity
+          resources:
+            requests:
+              memory: 1G

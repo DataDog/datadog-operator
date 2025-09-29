@@ -37,14 +37,11 @@ import (
 )
 
 var (
-	//go:embed assets/cfn/podidentityrole.yaml
-	PodIdentityRoleCfn string
+	//go:embed assets/cfn/dd-karpenter.yaml
+	DdKarpenterCfn string
 
 	//go:embed assets/cfn/karpenter.yaml
 	KarpenterCfn string
-
-	//go:embed assets/charts/eks-pod-identity-agent-0.1.33.tgz
-	EksPodIdentityAgentHelmChart []byte
 
 	//go:embed assets/charts/karpenter-1.6.3.tgz
 	KarpenterHelmChart []byte
@@ -112,8 +109,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := aws.CreateOrUpdateStack(ctx, cloudformationClient, "dd-karpenter-"+*clusterName+"-podidentityrole", PodIdentityRoleCfn, map[string]string{
-		"ClusterName": *clusterName,
+	if err := aws.CreateOrUpdateStack(ctx, cloudformationClient, "dd-karpenter-"+*clusterName+"-dd-karpenter", DdKarpenterCfn, map[string]string{
+		"ClusterName":        *clusterName,
+		"KarpenterNamespace": *karpenterNamespace,
 	}); err != nil {
 		log.Fatal(err)
 	}
@@ -148,7 +146,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Install Helm charts
+	// Install Helm chart
 	restClientGetter := kube.GetConfig(*kubeConfig, *kubeContext, *karpenterNamespace)
 	actionConfig := new(action.Configuration)
 
@@ -157,20 +155,9 @@ func main() {
 	}
 
 	values := map[string]any{
-		"clusterName": *clusterName,
-		"env": map[string]any{
-			"AWS_REGION": awsConfig.Region,
-		},
-	}
-
-	if err := helm.CreateOrUpgrade(ctx, actionConfig, "eks-pod-identity-agent", *karpenterNamespace, EksPodIdentityAgentHelmChart, values); err != nil {
-		log.Fatal(err)
-	}
-
-	values = map[string]any{
 		"settings": map[string]any{
-			"clusterName":       clusterName,
-			"interruptionQueue": clusterName,
+			"clusterName":       *clusterName,
+			"interruptionQueue": *clusterName,
 		},
 	}
 
