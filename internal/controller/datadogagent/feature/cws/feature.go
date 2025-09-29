@@ -284,7 +284,7 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 		apicommon.CoreAgentContainerName,
 	}
 	if !f.directSendFromSystemProbe {
-		readOnlySocketVolMountContainers = append(readOnlySocketVolMountContainers, apicommon.SecurityAgentContainerName)
+		volMountMgr.AddVolumeMountToContainer(&socketVolMount, apicommon.SecurityAgentContainerName)
 	}
 
 	_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, true)
