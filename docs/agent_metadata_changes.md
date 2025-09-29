@@ -48,7 +48,7 @@ To give users control over when label and name changes are applied, the followin
 
 #### Operator ≥v1.18 and <v1.21
 
-It is possible to update the Agent DaemonSet selector ahead of time by adding the annotation `agent.datadoghq.com/update-metadata: "true"` to the DatadogAgent object.
+To update the Agent DaemonSet selector ahead of time, you can add the annotation `agent.datadoghq.com/update-metadata: "true"` to the DatadogAgent object.
 
 #### Operator 1.21+
 
