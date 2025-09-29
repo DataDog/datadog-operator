@@ -18,6 +18,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -103,9 +104,9 @@ func Test_handleFinalizer(t *testing.T) {
 
 			assert.NoError(t, err)
 			if test.finalizerShouldExist {
-				assert.Contains(t, testGcr.GetFinalizers(), datadogGenericResourceFinalizer)
+				assert.True(t, controllerutil.ContainsFinalizer(testGcr, datadogGenericResourceFinalizer))
 			} else {
-				assert.NotContains(t, testGcr.GetFinalizers(), datadogGenericResourceFinalizer)
+				assert.False(t, controllerutil.ContainsFinalizer(testGcr, datadogGenericResourceFinalizer))
 			}
 		})
 	}

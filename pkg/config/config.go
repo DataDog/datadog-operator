@@ -135,7 +135,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 				common.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 			}),
 
-			Transform: func(obj interface{}) (interface{}, error) {
+			Transform: func(obj any) (any, error) {
 				pod := obj.(*corev1.Pod)
 
 				newPod := &corev1.Pod{
@@ -163,7 +163,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		//
 		// Node being non-namespace resources shouldn't have a namespace configuration.
 		byObject[nodeObj] = cache.ByObject{
-			Transform: func(obj interface{}) (interface{}, error) {
+			Transform: func(obj any) (any, error) {
 				node := obj.(*corev1.Node)
 
 				newNode := &corev1.Node{
