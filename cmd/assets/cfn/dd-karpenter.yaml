@@ -1,0 +1,46 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: IAM role for pod identity association
+Parameters:
+  ClusterName:
+    Type: String
+    Description: "EKS cluster name"
+  KarpenterNamespace:
+    Type: String
+    Description: "Namespace where Karpenter will be deployed"
+Resources:
+  EKSPodIdentityAddon:
+    Type: AWS::EKS::Addon
+    Properties:
+      ClusterName: !Ref ClusterName
+      AddonName: eks-pod-identity-agent
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ClusterName}-karpenter"
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+              - sts:AssumeRole
+              - sts:TagSession
+            Effect: Allow
+            Principal:
+              Service: pods.eks.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerPolicy-${ClusterName}"
+  PodIdentityAssociation:
+    Type: AWS::EKS::PodIdentityAssociation
+    DependsOn:
+      - EKSPodIdentityAddon
+      - Role
+    Properties:
+      ClusterName: !Ref ClusterName
+      Namespace: !Ref KarpenterNamespace
+      ServiceAccount: karpenter
+      RoleArn: !GetAtt Role.Arn
+  NodeAccessEntry:
+    Type: AWS::EKS::AccessEntry
+    Properties:
+      ClusterName: !Ref ClusterName
+      PrincipalArn: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-${ClusterName}"
+      Type: EC2_LINUX

@@ -19,11 +19,10 @@ func CreateOrUpdateEC2NodeClass(ctx context.Context, client client.Client, clust
 			Name: "dd-karpenter",
 		},
 		Spec: karpawsv1.EC2NodeClassSpec{
-			Role:      "KarpenterNodeRole-" + clusterName,
-			AMIFamily: &karpawsv1.AMIFamilyAL2023, // TODO: FIX
+			Role: "KarpenterNodeRole-" + clusterName,
 			AMISelectorTerms: lo.Map(AMIs, func(ami string, _ int) karpawsv1.AMISelectorTerm {
 				return karpawsv1.AMISelectorTerm{
-					ID: ami,
+					Alias: "al2023@latest", // TODO: FIX
 				}
 			}),
 			SubnetSelectorTerms: lo.Map(subnets, func(subnet string, _ int) karpawsv1.SubnetSelectorTerm {
