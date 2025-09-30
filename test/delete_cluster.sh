@@ -2,7 +2,7 @@
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
-source common.sh
+source common.container-integrations.sh
 
 set +e  # Ignore error and proceed to deep clean.
         # `eksctl` can claim that the cluster doesn’t exist anymore
