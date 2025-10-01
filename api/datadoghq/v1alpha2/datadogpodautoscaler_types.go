@@ -57,15 +57,17 @@ import (
 //             - "query1 / query2"
 //           queries:
 //             -
+//                 name: query1
+//                 dataSource: metrics
 //                 metrics:
-//                   dataSource: metrics
-//                   name: query1
 //                   query: "avg:system.cpu.user{*}"
 //             -
-//                 metrics:
-//                   dataSource: metrics
-//                   name: query2
-//                   query: "avg:system.cpu.user{*}"
+//                 name: query2
+//                 dataSource: apm_metrics
+//                 apm_metrics:
+//                   	stat: "latency_avg"
+//						service: "my-service"
+// 				   		query_filter: "account:prod"
 //   fallback:
 // 	   horizontal:
 //       enabled: true

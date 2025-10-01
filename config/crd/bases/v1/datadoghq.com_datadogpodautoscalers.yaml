@@ -372,25 +372,69 @@ spec:
                                 type: array
                               queries:
                                 items:
-                                  description: TimeseriesQuery is a discriminated union. Only Metrics are supported for autoscaling.
+                                  description: TimeseriesQuery is a discriminated union. Only Metrics and APMMetrics are supported for autoscaling.
                                   properties:
+                                    apm_metrics:
+                                      properties:
+                                        group_by:
+                                          items:
+                                            type: string
+                                          type: array
+                                        operation_name:
+                                          type: string
+                                        query_filter:
+                                          type: string
+                                        resource_hash:
+                                          description: ResourceHash is a fingerprint of the resource name that can be used to identify the resource instead of the resource name.
+                                          type: string
+                                        resource_name:
+                                          type: string
+                                        service:
+                                          type: string
+                                        span_kind:
+                                          type: string
+                                        stat:
+                                          description: DatadogPodAutoscalerApmMetricsStat represents the statistic to compute for an APM metrics query.
+                                          enum:
+                                            - error_rate
+                                            - errors
+                                            - errors_per_second
+                                            - hits
+                                            - hits_per_second
+                                            - apdex
+                                            - latency_avg
+                                            - latency_max
+                                            - latency_p50
+                                            - latency_p75
+                                            - latency_p90
+                                            - latency_p95
+                                            - latency_p99
+                                            - latency_p999
+                                            - latency_distribution
+                                            - total_time
+                                          type: string
+                                      required:
+                                        - stat
+                                      type: object
                                     metrics:
                                       properties:
-                                        dataSource:
-                                          enum:
-                                            - metrics
-                                          type: string
-                                        name:
-                                          description: Optional variable name ("a", "b", etc.) to reference in formulas.
-                                          type: string
                                         query:
                                           description: Classic Datadog metrics query, e.g. "avg:system.cpu.user{*} by {env}".
                                           minLength: 1
                                           type: string
                                       required:
-                                        - dataSource
                                         - query
                                       type: object
+                                    name:
+                                      description: Optional variable name ("a", "b", etc.) to reference in formulas.
+                                      type: string
+                                    source:
+                                      enum:
+                                        - metrics
+                                        - apm_metrics
+                                      type: string
+                                  required:
+                                    - source
                                   type: object
                                 minItems: 1
                                 type: array
@@ -1033,25 +1077,69 @@ spec:
                                       type: array
                                     queries:
                                       items:
-                                        description: TimeseriesQuery is a discriminated union. Only Metrics are supported for autoscaling.
+                                        description: TimeseriesQuery is a discriminated union. Only Metrics and APMMetrics are supported for autoscaling.
                                         properties:
+                                          apm_metrics:
+                                            properties:
+                                              group_by:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              operation_name:
+                                                type: string
+                                              query_filter:
+                                                type: string
+                                              resource_hash:
+                                                description: ResourceHash is a fingerprint of the resource name that can be used to identify the resource instead of the resource name.
+                                                type: string
+                                              resource_name:
+                                                type: string
+                                              service:
+                                                type: string
+                                              span_kind:
+                                                type: string
+                                              stat:
+                                                description: DatadogPodAutoscalerApmMetricsStat represents the statistic to compute for an APM metrics query.
+                                                enum:
+                                                  - error_rate
+                                                  - errors
+                                                  - errors_per_second
+                                                  - hits
+                                                  - hits_per_second
+                                                  - apdex
+                                                  - latency_avg
+                                                  - latency_max
+                                                  - latency_p50
+                                                  - latency_p75
+                                                  - latency_p90
+                                                  - latency_p95
+                                                  - latency_p99
+                                                  - latency_p999
+                                                  - latency_distribution
+                                                  - total_time
+                                                type: string
+                                            required:
+                                              - stat
+                                            type: object
                                           metrics:
                                             properties:
-                                              dataSource:
-                                                enum:
-                                                  - metrics
-                                                type: string
-                                              name:
-                                                description: Optional variable name ("a", "b", etc.) to reference in formulas.
-                                                type: string
                                               query:
                                                 description: Classic Datadog metrics query, e.g. "avg:system.cpu.user{*} by {env}".
                                                 minLength: 1
                                                 type: string
                                             required:
-                                              - dataSource
                                               - query
                                             type: object
+                                          name:
+                                            description: Optional variable name ("a", "b", etc.) to reference in formulas.
+                                            type: string
+                                          source:
+                                            enum:
+                                              - metrics
+                                              - apm_metrics
+                                            type: string
+                                        required:
+                                          - source
                                         type: object
                                       minItems: 1
                                       type: array
@@ -1228,25 +1316,69 @@ spec:
                                 type: array
                               queries:
                                 items:
-                                  description: TimeseriesQuery is a discriminated union. Only Metrics are supported for autoscaling.
+                                  description: TimeseriesQuery is a discriminated union. Only Metrics and APMMetrics are supported for autoscaling.
                                   properties:
+                                    apm_metrics:
+                                      properties:
+                                        group_by:
+                                          items:
+                                            type: string
+                                          type: array
+                                        operation_name:
+                                          type: string
+                                        query_filter:
+                                          type: string
+                                        resource_hash:
+                                          description: ResourceHash is a fingerprint of the resource name that can be used to identify the resource instead of the resource name.
+                                          type: string
+                                        resource_name:
+                                          type: string
+                                        service:
+                                          type: string
+                                        span_kind:
+                                          type: string
+                                        stat:
+                                          description: DatadogPodAutoscalerApmMetricsStat represents the statistic to compute for an APM metrics query.
+                                          enum:
+                                            - error_rate
+                                            - errors
+                                            - errors_per_second
+                                            - hits
+                                            - hits_per_second
+                                            - apdex
+                                            - latency_avg
+                                            - latency_max
+                                            - latency_p50
+                                            - latency_p75
+                                            - latency_p90
+                                            - latency_p95
+                                            - latency_p99
+                                            - latency_p999
+                                            - latency_distribution
+                                            - total_time
+                                          type: string
+                                      required:
+                                        - stat
+                                      type: object
                                     metrics:
                                       properties:
-                                        dataSource:
-                                          enum:
-                                            - metrics
-                                          type: string
-                                        name:
-                                          description: Optional variable name ("a", "b", etc.) to reference in formulas.
-                                          type: string
                                         query:
                                           description: Classic Datadog metrics query, e.g. "avg:system.cpu.user{*} by {env}".
                                           minLength: 1
                                           type: string
                                       required:
-                                        - dataSource
                                         - query
                                       type: object
+                                    name:
+                                      description: Optional variable name ("a", "b", etc.) to reference in formulas.
+                                      type: string
+                                    source:
+                                      enum:
+                                        - metrics
+                                        - apm_metrics
+                                      type: string
+                                  required:
+                                    - source
                                   type: object
                                 minItems: 1
                                 type: array
