@@ -128,17 +128,7 @@ func (o *options) run(cmd *cobra.Command) error {
 		mappingFile = latestMapping
 	}
 
-	output, err := yamlmapper.MapYaml(mappingFile, sourceFile, destFile, ddaName, namespace, updateMap, printPtr)
-
-	if printPtr && output != nil {
-		for _, out := range output {
-			cmd.Println(out)
-		}
-	}
-
-	if err != nil {
-		cmd.PrintErrln(err)
-	}
+	yamlmapper.MapYaml(mappingFile, sourceFile, destFile, ddaName, namespace, updateMap, printPtr)
 
 	return nil
 }
@@ -149,7 +139,6 @@ func getDatadogMapping(cmd *cobra.Command) (string, error) {
 
 	// Get default mapping
 	if err != nil {
-		mappingName := "mapping_datadog_helm_to_datadogagent_crd_v2"
 		//url := "https://raw.githubusercontent.com/DataDog/helm-charts/main/tools/yaml-mapper/mapping_datadog_helm_to_datadogagent_crd_v2.yaml"
 		url := "https://raw.githubusercontent.com/DataDog/helm-charts/refs/heads/fanny/AGENTONB-2450/migration-mapper/tools/yaml-mapper/mapping_datadog_helm_to_datadogagent_crd_v2.yaml"
 
@@ -169,7 +158,7 @@ func getDatadogMapping(cmd *cobra.Command) (string, error) {
 			return "", fmt.Errorf("Failed to fetch yaml file %s: %v\n", url, resp.Status)
 		}
 
-		tmpFile, err := os.CreateTemp("", fmt.Sprintf("%s.yaml.*", mappingName))
+		tmpFile, err := os.CreateTemp("", defaultMappingPath)
 		if err != nil {
 			cmd.Printf("Error creating temporary file: %v\n", err)
 			return "", err
