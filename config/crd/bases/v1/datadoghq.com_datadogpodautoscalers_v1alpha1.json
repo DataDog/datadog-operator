@@ -422,9 +422,6 @@
                                   },
                                   "type": "array"
                                 },
-                                "name": {
-                                  "type": "string"
-                                },
                                 "operation_name": {
                                   "type": "string"
                                 },
@@ -468,25 +465,13 @@
                                 }
                               },
                               "required": [
-                                "name",
                                 "stat"
                               ],
                               "type": "object"
                             },
-                            "dataSource": {
-                              "enum": [
-                                "metrics",
-                                "apm_metrics"
-                              ],
-                              "type": "string"
-                            },
                             "metrics": {
                               "additionalProperties": false,
                               "properties": {
-                                "name": {
-                                  "description": "Optional variable name (\"a\", \"b\", etc.) to reference in formulas.",
-                                  "type": "string"
-                                },
                                 "query": {
                                   "description": "Classic Datadog metrics query, e.g. \"avg:system.cpu.user{*} by {env}\".",
                                   "minLength": 1,
@@ -497,10 +482,21 @@
                                 "query"
                               ],
                               "type": "object"
+                            },
+                            "name": {
+                              "description": "Optional variable name (\"a\", \"b\", etc.) to reference in formulas.",
+                              "type": "string"
+                            },
+                            "source": {
+                              "enum": [
+                                "metrics",
+                                "apm_metrics"
+                              ],
+                              "type": "string"
                             }
                           },
                           "required": [
-                            "dataSource"
+                            "source"
                           ],
                           "type": "object"
                         },

@@ -380,8 +380,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        name:
-                                          type: string
                                         operation_name:
                                           type: string
                                         query_filter:
@@ -416,19 +414,10 @@ spec:
                                             - total_time
                                           type: string
                                       required:
-                                        - name
                                         - stat
                                       type: object
-                                    dataSource:
-                                      enum:
-                                        - metrics
-                                        - apm_metrics
-                                      type: string
                                     metrics:
                                       properties:
-                                        name:
-                                          description: Optional variable name ("a", "b", etc.) to reference in formulas.
-                                          type: string
                                         query:
                                           description: Classic Datadog metrics query, e.g. "avg:system.cpu.user{*} by {env}".
                                           minLength: 1
@@ -436,8 +425,16 @@ spec:
                                       required:
                                         - query
                                       type: object
+                                    name:
+                                      description: Optional variable name ("a", "b", etc.) to reference in formulas.
+                                      type: string
+                                    source:
+                                      enum:
+                                        - metrics
+                                        - apm_metrics
+                                      type: string
                                   required:
-                                    - dataSource
+                                    - source
                                   type: object
                                 minItems: 1
                                 type: array
@@ -1088,8 +1085,6 @@ spec:
                                                 items:
                                                   type: string
                                                 type: array
-                                              name:
-                                                type: string
                                               operation_name:
                                                 type: string
                                               query_filter:
@@ -1124,19 +1119,10 @@ spec:
                                                   - total_time
                                                 type: string
                                             required:
-                                              - name
                                               - stat
                                             type: object
-                                          dataSource:
-                                            enum:
-                                              - metrics
-                                              - apm_metrics
-                                            type: string
                                           metrics:
                                             properties:
-                                              name:
-                                                description: Optional variable name ("a", "b", etc.) to reference in formulas.
-                                                type: string
                                               query:
                                                 description: Classic Datadog metrics query, e.g. "avg:system.cpu.user{*} by {env}".
                                                 minLength: 1
@@ -1144,8 +1130,16 @@ spec:
                                             required:
                                               - query
                                             type: object
+                                          name:
+                                            description: Optional variable name ("a", "b", etc.) to reference in formulas.
+                                            type: string
+                                          source:
+                                            enum:
+                                              - metrics
+                                              - apm_metrics
+                                            type: string
                                         required:
-                                          - dataSource
+                                          - source
                                         type: object
                                       minItems: 1
                                       type: array
@@ -1330,8 +1324,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        name:
-                                          type: string
                                         operation_name:
                                           type: string
                                         query_filter:
@@ -1366,19 +1358,10 @@ spec:
                                             - total_time
                                           type: string
                                       required:
-                                        - name
                                         - stat
                                       type: object
-                                    dataSource:
-                                      enum:
-                                        - metrics
-                                        - apm_metrics
-                                      type: string
                                     metrics:
                                       properties:
-                                        name:
-                                          description: Optional variable name ("a", "b", etc.) to reference in formulas.
-                                          type: string
                                         query:
                                           description: Classic Datadog metrics query, e.g. "avg:system.cpu.user{*} by {env}".
                                           minLength: 1
@@ -1386,8 +1369,16 @@ spec:
                                       required:
                                         - query
                                       type: object
+                                    name:
+                                      description: Optional variable name ("a", "b", etc.) to reference in formulas.
+                                      type: string
+                                    source:
+                                      enum:
+                                        - metrics
+                                        - apm_metrics
+                                      type: string
                                   required:
-                                    - dataSource
+                                    - source
                                   type: object
                                 minItems: 1
                                 type: array
