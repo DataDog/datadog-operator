@@ -231,18 +231,16 @@ type DatadogPodAutoscalerMetricsTimeseriesQuery struct {
 
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerApmMetricsTimeseriesQuery struct {
-	Name          string                             `json:"name"`
-	Stat          DatadogPodAutoscalerApmMetricsStat `json:"stat"`
-	Service       *string                            `json:"service,omitempty"`
-	Resource      *string                            `json:"resource,omitempty"`
-	ResourceName  *string                            `json:"resource_name,omitempty"`
-	ResourceHash  *string                            `json:"resource_hash,omitempty"`
-	OperationName *string                            `json:"operation_name,omitempty"`
-	PeerTags      []string                           `json:"peer_tags,omitempty"`
-	GroupBy       []string                           `json:"group_by,omitempty"`
-	QueryFilter   *string                            `json:"query_filter,omitempty"`
-	SpanKind      *string                            `json:"span_kind,omitempty"`
-	OperationMode *string                            `json:"operation_mode,omitempty"`
+	Name         string                             `json:"name"`
+	Stat         DatadogPodAutoscalerApmMetricsStat `json:"stat"`
+	Service      *string                            `json:"service,omitempty"`
+	ResourceName *string                            `json:"resource_name,omitempty"`
+	// ResourceHash is a fingerprint of the resource name that can be used to identify the resource instead of the resource name.
+	ResourceHash  *string  `json:"resource_hash,omitempty"`
+	OperationName *string  `json:"operation_name,omitempty"`
+	GroupBy       []string `json:"group_by,omitempty"`
+	QueryFilter   *string  `json:"query_filter,omitempty"`
+	SpanKind      *string  `json:"span_kind,omitempty"`
 }
 
 // DatadogPodAutoscalerApmMetricsStat represents the statistic to compute for an APM metrics query.

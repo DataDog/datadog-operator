@@ -22,11 +22,6 @@ func (in *DatadogPodAutoscalerApmMetricsTimeseriesQuery) DeepCopyInto(out *Datad
 		*out = new(string)
 		**out = **in
 	}
-	if in.Resource != nil {
-		in, out := &in.Resource, &out.Resource
-		*out = new(string)
-		**out = **in
-	}
 	if in.ResourceName != nil {
 		in, out := &in.ResourceName, &out.ResourceName
 		*out = new(string)
@@ -42,11 +37,6 @@ func (in *DatadogPodAutoscalerApmMetricsTimeseriesQuery) DeepCopyInto(out *Datad
 		*out = new(string)
 		**out = **in
 	}
-	if in.PeerTags != nil {
-		in, out := &in.PeerTags, &out.PeerTags
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
 	if in.GroupBy != nil {
 		in, out := &in.GroupBy, &out.GroupBy
 		*out = make([]string, len(*in))
@@ -59,11 +49,6 @@ func (in *DatadogPodAutoscalerApmMetricsTimeseriesQuery) DeepCopyInto(out *Datad
 	}
 	if in.SpanKind != nil {
 		in, out := &in.SpanKind, &out.SpanKind
-		*out = new(string)
-		**out = **in
-	}
-	if in.OperationMode != nil {
-		in, out := &in.OperationMode, &out.OperationMode
 		*out = new(string)
 		**out = **in
 	}

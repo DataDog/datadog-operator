@@ -411,7 +411,7 @@
                       "queries": {
                         "items": {
                           "additionalProperties": false,
-                          "description": "TimeseriesQuery is a discriminated union. Only Metrics are supported for autoscaling.",
+                          "description": "TimeseriesQuery is a discriminated union. Only Metrics and APMMetrics are supported for autoscaling.",
                           "properties": {
                             "apm_metrics": {
                               "additionalProperties": false,
@@ -425,25 +425,14 @@
                                 "name": {
                                   "type": "string"
                                 },
-                                "operation_mode": {
-                                  "type": "string"
-                                },
                                 "operation_name": {
                                   "type": "string"
-                                },
-                                "peer_tags": {
-                                  "items": {
-                                    "type": "string"
-                                  },
-                                  "type": "array"
                                 },
                                 "query_filter": {
                                   "type": "string"
                                 },
-                                "resource": {
-                                  "type": "string"
-                                },
                                 "resource_hash": {
+                                  "description": "ResourceHash is a fingerprint of the resource name that can be used to identify the resource instead of the resource name.",
                                   "type": "string"
                                 },
                                 "resource_name": {
