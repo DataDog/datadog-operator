@@ -6,6 +6,7 @@
 package datadog
 
 import (
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/helmddaconvert"
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
@@ -50,6 +51,9 @@ func NewCmd(streams genericclioptions.IOStreams) *cobra.Command {
 
 	// DatadogMetric commands
 	cmd.AddCommand(metrics.New(streams))
+
+	// HelmDDAConvert commands
+	cmd.AddCommand(helmddaconvert.New(streams))
 
 	o := newOptions(streams)
 	o.configFlags.AddFlags(cmd.Flags())
