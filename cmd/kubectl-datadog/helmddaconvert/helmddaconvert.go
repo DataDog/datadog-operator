@@ -23,36 +23,48 @@ var (
 # Map Datadog Helm values to DatadogAgent CRD schema
 Convert a Datadog Helm chart values YAML file to a DatadogAgent custom resource YAML file. 
 
-%[1]s --valuesFile=<datadog-values>.yaml
+%[1]s --values-file=<datadog-values>.yaml
 
 # Use custom mapping YAML file to map source YAML file. 
 Mapping YAML should follow the YAML map format with key: value pairs where the 
 key is the source key and value is the new key. Nested YAML keys should be period-delimited.
 
-Example: 
+%[1]s --mapping-file=<custom-mapping-file> --values-file=<values-file> --dest-file=<dest-file>
 
-Source YAML
+Custom YAML mapping file example: 
+
+// <custom-mapping-file>
+source.key: new.key
+
+// <values-file>
 source: 
   key
 
-New YAML
+// <dest-file>
 new:
   key
 
-Mapping
-source.key: new.key
-
-%[1]s --mappingFile=<custom-mapping>.yaml --valuesFile=<values>.yaml
-
 # Update provided mapping YAML file with keys from source values YAML file.
 Keys that are present in the source YAML file, but missing from the mapping YAML file, are 
-then added to the mapping YAML file.
+then added to the mapping YAML file with a placeholder "" value.
 
-%[1]s --mappingFile=<custom-mapping>.yaml --valuesFile=<values>.yaml --updateMap
+%[1]s --mapping-file=<custom-mapping-file> --values-file=<values-file> --update-map
+
+# Use custom Kubernetes apiVersion and kind for destination YAML file, by providing a 
+prefix YAML file. 
+
+%[1]s --mapping-file=<custom-mapping-file> --values-file=<values-file> --prefix-file=<prefix-file>
+
+Example:
+
+// <prefix-file>
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
 `
 	mappingFile        string
 	sourceFile         string
 	destFile           string
+	prefixFile         string
 	ddaName            string
 	namespace          string
 	updateMap          bool
@@ -81,7 +93,7 @@ func New(streams genericiooptions.IOStreams) *cobra.Command {
 	o := newOptions(streams)
 	cmd := &cobra.Command{
 		Use:          "helmddaconvert [flags]",
-		Short:        "Map Datadog Helm values to DatadogAgent CRD",
+		Short:        "Map Datadog Helm values to DatadogAgent CRD schema",
 		Example:      fmt.Sprintf(convertExample, "kubectl datadog helmddaconvert"),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
@@ -96,6 +108,7 @@ func New(streams genericiooptions.IOStreams) *cobra.Command {
 	cmd.Flags().StringVarP(&sourceFile, "values-file", "", "", "Path to source Helm values YAML file. [Required] Example: values.yaml")
 	cmd.Flags().StringVarP(&mappingFile, "mapping-file", "", "", "Path to the YAML mapping file. Example: mapping.yaml")
 	cmd.Flags().StringVarP(&destFile, "dest-file", "", "", "Path the the destination DDA YAML manifest file.")
+	cmd.Flags().StringVarP(&prefixFile, "prefix-file", "", "", "Path to prefix YAML file. The content in this file will be prepended to the output.")
 	cmd.Flags().StringVarP(&ddaName, "dda-name", "", "", "Name to use for the destination DDA custom resource.")
 	cmd.Flags().StringVarP(&namespace, "dda-namespace", "", "", "Namespace to use in the destination DDA custom resource.")
 	cmd.Flags().BoolVarP(&updateMap, "update-map", "", false, "Update 'mappingFile' with provided 'sourceFile'. (default false) If set to 'true', default mappingFile is %s and default sourceFile is latest published Datadog chart values.yaml.")
@@ -113,7 +126,7 @@ func (o *options) complete(cmd *cobra.Command, args []string) error {
 	}
 
 	if sourceFile == "" {
-		return fmt.Errorf("values-file is required")
+		return fmt.Errorf("--values-file is required")
 	}
 	return o.Init(cmd)
 }
@@ -128,7 +141,7 @@ func (o *options) run(cmd *cobra.Command) error {
 		mappingFile = latestMapping
 	}
 
-	yamlmapper.MapYaml(mappingFile, sourceFile, destFile, ddaName, namespace, updateMap, printPtr)
+	yamlmapper.MapYaml(mappingFile, sourceFile, destFile, prefixFile, ddaName, namespace, updateMap, printPtr)
 
 	return nil
 }
@@ -149,7 +162,7 @@ func getDatadogMapping(cmd *cobra.Command) (string, error) {
 		resp, err := http.DefaultClient.Do(req)
 
 		if err != nil {
-			cmd.Printf("Error fetching yaml file: %v\n", err)
+			cmd.Printf("Error fetching Datadog mapping yaml file: %v\n", err)
 			return "", err
 		}
 		defer resp.Body.Close()
