@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/config/create"
 	"github.com/DataDog/datadog-agent/pkg/config/model"
 	"github.com/DataDog/datadog-agent/pkg/config/remote/client"
 	"github.com/DataDog/datadog-agent/pkg/config/remote/service"
@@ -204,7 +205,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 
 // configureService fills the configuration needed to start the rc service
 func (r *RemoteConfigUpdater) configureService(apiKey, site, clusterName, directorRoot, configRoot, endpoint string) error {
-	cfg := model.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
+	cfg := create.NewConfig("datadog")
 
 	cfg.SetWithoutSource("api_key", apiKey)
 	cfg.SetWithoutSource("site", site)
