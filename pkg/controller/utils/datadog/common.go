@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -21,10 +23,22 @@ func getObjKind(obj client.Object) string {
 	// First try to get the kind from GVK
 	objKind := obj.GetObjectKind().GroupVersionKind().Kind
 
-	// There is a known bug where the object frequently has empty GVK info. This is a workaround to get object Kind if that happens.
+	// There is a known bug where the object frequently has empty GVK info.
 	// Ref: https://github.com/kubernetes-sigs/controller-runtime/issues/1735
+	// If GVK is empty, prefer inspecting the concrete type to avoid annotation-induced misclassification
 	if objKind == "" {
-		// Try to get it from the last-applied-configuration annotation
+		switch obj.(type) {
+		case *v2alpha1.DatadogAgent:
+			return datadogAgentKind
+		case *v1alpha1.DatadogAgentInternal:
+			return datadogAgentInternalKind
+		case *v1alpha1.DatadogMonitor:
+			return datadogMonitorKind
+		}
+	}
+
+	// As a secondary fallback, try to get it from the last-applied-configuration annotation.
+	if objKind == "" {
 		if annotations := obj.GetAnnotations(); annotations != nil {
 			if lastConfig, exists := annotations["kubectl.kubernetes.io/last-applied-configuration"]; exists {
 				var config map[string]any
