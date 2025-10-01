@@ -11,7 +11,6 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -106,7 +105,7 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 		}
 
 		// Add DDA remote config status to DDAI status
-		if e := r.addRemoteConfigStatusToDDAIStatus(newDDAStatus, ddai); e != nil {
+		if res, e := r.addRemoteConfigStatusToDDAIStatus(ctx, newDDAStatus, ddai.ObjectMeta); utils.ShouldReturn(res, e) {
 			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
 		}
 	}
@@ -234,7 +233,7 @@ func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment 
 
 	r.setMetricsForwarderStatusV2(logger, agentdeployment, newStatus)
 
-	if !apiequality.Semantic.DeepEqual(&agentdeployment.Status, newStatus) {
+	if !IsEqualStatus(&agentdeployment.Status, newStatus) {
 		updateAgentDeployment := agentdeployment.DeepCopy()
 		updateAgentDeployment.Status = *newStatus
 		if err := r.client.Status().Update(context.TODO(), updateAgentDeployment); err != nil {
