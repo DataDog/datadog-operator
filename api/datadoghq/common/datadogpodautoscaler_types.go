@@ -208,11 +208,22 @@ type DatadogPodAutoscalerQueryFormula struct {
 	Formula string `json:"formula"`
 }
 
+// +kubebuilder:validation:Enum:=metrics;apm_metrics
+type DatadogPodAutoscalerMetricsDataSource string
+
+const (
+	DatadogPodAutoscalerMetricsDataSourceMetrics    DatadogPodAutoscalerMetricsDataSource = "metrics"
+	DatadogPodAutoscalerMetricsDataSourceApmMetrics DatadogPodAutoscalerMetricsDataSource = "apm_metrics"
+)
+
 // TimeseriesQuery is a discriminated union. Only Metrics and APMMetrics are supported for autoscaling.
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerTimeseriesQuery struct {
+	// Optional variable name ("a", "b", etc.) to reference in formulas.
+	// +optional
+	Name string `json:"name"`
 	// +required
-	DataSource DatadogPodAutoscalerMetricsDataSource `json:"dataSource"`
+	Source DatadogPodAutoscalerMetricsDataSource `json:"source"`
 	// +optional
 	Metrics *DatadogPodAutoscalerMetricsTimeseriesQuery `json:"metrics,omitempty"`
 	// +optional
@@ -221,9 +232,6 @@ type DatadogPodAutoscalerTimeseriesQuery struct {
 
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerMetricsTimeseriesQuery struct {
-	// Optional variable name ("a", "b", etc.) to reference in formulas.
-	// +optional
-	Name *string `json:"name,omitempty"`
 	// Classic Datadog metrics query, e.g. "avg:system.cpu.user{*} by {env}".
 	// +kubebuilder:validation:MinLength=1
 	Query string `json:"query"`
@@ -231,7 +239,6 @@ type DatadogPodAutoscalerMetricsTimeseriesQuery struct {
 
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerApmMetricsTimeseriesQuery struct {
-	Name         string                             `json:"name"`
 	Stat         DatadogPodAutoscalerApmMetricsStat `json:"stat"`
 	Service      *string                            `json:"service,omitempty"`
 	ResourceName *string                            `json:"resource_name,omitempty"`
@@ -264,14 +271,6 @@ const (
 	APM_METRIC_STAT_LATENCY_P999         DatadogPodAutoscalerApmMetricsStat = "latency_p999"
 	APM_METRIC_STAT_LATENCY_DISTRIBUTION DatadogPodAutoscalerApmMetricsStat = "latency_distribution"
 	APM_METRIC_STAT_TOTAL_TIME           DatadogPodAutoscalerApmMetricsStat = "total_time"
-)
-
-// +kubebuilder:validation:Enum:=metrics;apm_metrics
-type DatadogPodAutoscalerMetricsDataSource string
-
-const (
-	MetricsDataSourceMetrics    DatadogPodAutoscalerMetricsDataSource = "metrics"
-	MetricsDataSourceApmMetrics DatadogPodAutoscalerMetricsDataSource = "apm_metrics"
 )
 
 // DatadogPodAutoscalerObjectiveValueType specifies the type of objective value.
