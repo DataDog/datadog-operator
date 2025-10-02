@@ -91,10 +91,12 @@ func (in *DatadogPodAutoscalerApplyPolicy) DeepCopy() *DatadogPodAutoscalerApply
 func (in *DatadogPodAutoscalerHorizontalFallbackPolicy) DeepCopyInto(out *DatadogPodAutoscalerHorizontalFallbackPolicy) {
 	*out = *in
 	out.Triggers = in.Triggers
-	if in.Objective != nil {
-		in, out := &in.Objective, &out.Objective
-		*out = new(common.DatadogPodAutoscalerObjective)
-		(*in).DeepCopyInto(*out)
+	if in.Objectives != nil {
+		in, out := &in.Objectives, &out.Objectives
+		*out = make([]common.DatadogPodAutoscalerObjective, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
 	}
 }
 
