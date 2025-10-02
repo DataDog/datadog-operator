@@ -825,6 +825,11 @@ func (in *DatadogMonitorOptions) DeepCopyInto(out *DatadogMonitorOptions) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.GroupRetentionDuration != nil {
+		in, out := &in.GroupRetentionDuration, &out.GroupRetentionDuration
+		*out = new(string)
+		**out = **in
+	}
 	if in.GroupbySimpleMonitor != nil {
 		in, out := &in.GroupbySimpleMonitor, &out.GroupbySimpleMonitor
 		*out = new(bool)

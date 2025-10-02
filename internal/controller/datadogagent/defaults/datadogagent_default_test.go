@@ -2375,8 +2375,9 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 					},
 					CWS: &v2alpha1.CWSFeatureConfig{
-						Enabled:               apiutils.NewBoolPointer(valueTrue),
-						SyscallMonitorEnabled: apiutils.NewBoolPointer(defaultCWSSyscallMonitorEnabled),
+						Enabled:                   apiutils.NewBoolPointer(valueTrue),
+						SyscallMonitorEnabled:     apiutils.NewBoolPointer(defaultCWSSyscallMonitorEnabled),
+						DirectSendFromSystemProbe: apiutils.NewBoolPointer(defaultCWSDirectSendFromSystemProbe),
 						Network: &v2alpha1.CWSNetworkConfig{
 							Enabled: apiutils.NewBoolPointer(defaultCWSNetworkEnabled),
 						},
