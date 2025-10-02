@@ -193,11 +193,10 @@ type DatadogPodAutoscalerHorizontalFallbackPolicy struct {
 	// +kubebuilder:default=ScaleUp
 	Direction DatadogPodAutoscalerFallbackDirection `json:"direction,omitempty"`
 
-	// Objective is the objective to reach and maintain for the target resource during fallback mode.
-	// If not set a CPU PodResource from the current objectives will be used or a default one (80% CPU PodResource) if no CPU objective is set.
-	// +optional
-	// +kubebuilder:validation:Nullable
-	Objective *common.DatadogPodAutoscalerObjective `json:"objective,omitempty"`
+	// Objectives are the objectives to reach and maintain for the target resource in fallback mode.
+	// If not set, the regular objectives will be used.
+	// +listType=atomic
+	Objectives []common.DatadogPodAutoscalerObjective `json:"objective,omitempty"`
 }
 
 // HorizontalFallbackTriggers defines the triggers that will cause local fallback to be enabled.
