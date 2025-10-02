@@ -50,11 +50,36 @@ import (
 //           type: Absolute|Utilization
 //           absolute: 500m
 //           utilization: 80
+//     - type: CustomQuery
+//       customQueryObjective:
+//         query:
+//           formulas:
+//             - "query1 / query2"
+//           queries:
+//             -
+//                 name: query1
+//                 dataSource: metrics
+//                 metrics:
+//                   query: "avg:system.cpu.user{*}"
+//             -
+//                 name: query2
+//                 dataSource: apm_metrics
+//                 apm_metrics:
+//                   	stat: "latency_avg"
+//						service: "my-service"
+// 				   		query_filter: "account:prod"
 //   fallback:
 // 	   horizontal:
 //       enabled: true
 //       triggers:
 //         staleRecommendationThresholdSeconds: 600
+//		 objective:
+//         type: PodResource
+//         podResource:
+//           name: cpu
+//           value:
+//             type: Utilization
+//             utilization: 8
 //   constraints:
 //     minReplicas: 1
 //     maxReplicas: 10
@@ -167,6 +192,12 @@ type DatadogPodAutoscalerHorizontalFallbackPolicy struct {
 	// +optional
 	// +kubebuilder:default=ScaleUp
 	Direction DatadogPodAutoscalerFallbackDirection `json:"direction,omitempty"`
+
+	// Objective is the objective to reach and maintain for the target resource during fallback mode.
+	// If not set a CPU PodResource from the current objectives will be used or a default one (80% CPU PodResource) if no CPU objective is set.
+	// +optional
+	// +kubebuilder:validation:Nullable
+	Objective *common.DatadogPodAutoscalerObjective `json:"objective,omitempty"`
 }
 
 // HorizontalFallbackTriggers defines the triggers that will cause local fallback to be enabled.

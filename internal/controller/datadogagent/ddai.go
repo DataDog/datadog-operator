@@ -8,6 +8,7 @@ package datadogagent
 import (
 	"context"
 	"fmt"
+	"maps"
 	"time"
 
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -71,9 +72,7 @@ func generateSpecFromDDA(dda *v2alpha1.DatadogAgent, ddai *v1alpha1.DatadogAgent
 // - agent.datadoghq.com/datadogagent: <dda-name>
 func getDDAILabels(dda metav1.Object) map[string]string {
 	labels := make(map[string]string)
-	for k, v := range dda.GetLabels() {
-		labels[k] = v
-	}
+	maps.Copy(labels, dda.GetLabels())
 	labels[apicommon.DatadogAgentNameLabelKey] = dda.GetName()
 	return labels
 }

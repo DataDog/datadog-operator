@@ -12,13 +12,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -33,7 +33,7 @@ func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, dda client.Object, f
 	// indicated by the deletion timestamp being set.
 	isDadMarkedToBeDeleted := dda.GetDeletionTimestamp() != nil
 	if isDadMarkedToBeDeleted {
-		if utils.ContainsString(dda.GetFinalizers(), datadogAgentFinalizer) {
+		if controllerutil.ContainsFinalizer(dda, datadogAgentFinalizer) {
 			// Run finalization logic for datadogAgentFinalizer. If the
 			// finalization logic fails, don't remove the finalizer so
 			// that we can retry during the next reconciliation.
@@ -43,7 +43,7 @@ func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, dda client.Object, f
 
 			// Remove datadogAgentFinalizer. Once all finalizers have been
 			// removed, the object will be deleted.
-			dda.SetFinalizers(utils.RemoveString(dda.GetFinalizers(), datadogAgentFinalizer))
+			controllerutil.RemoveFinalizer(dda, datadogAgentFinalizer)
 			err := r.client.Update(context.TODO(), dda)
 			if err != nil {
 				return reconcile.Result{}, err
@@ -53,7 +53,7 @@ func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, dda client.Object, f
 	}
 
 	// Add finalizer for this CR
-	if !utils.ContainsString(dda.GetFinalizers(), datadogAgentFinalizer) {
+	if !controllerutil.ContainsFinalizer(dda, datadogAgentFinalizer) {
 		if err := r.addFinalizer(reqLogger, dda); err != nil {
 			return reconcile.Result{}, err
 		}
@@ -84,7 +84,7 @@ func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) err
 
 func (r *Reconciler) addFinalizer(reqLogger logr.Logger, dda client.Object) error {
 	reqLogger.Info("Adding Finalizer for the DatadogAgent")
-	dda.SetFinalizers(append(dda.GetFinalizers(), datadogAgentFinalizer))
+	controllerutil.AddFinalizer(dda, datadogAgentFinalizer)
 
 	// Update CR
 	err := r.client.Update(context.TODO(), dda)

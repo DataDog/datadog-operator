@@ -704,6 +704,64 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			wantVolumes:               getExpectedVolumes(),
 			want:                      assertAll,
 		},
+		{
+			name:                           "Fine grained authorization enabled",
+			singleContainerStrategyEnabled: false,
+			dda: testutils.NewDatadogAgentBuilder().
+				WithCredentials("apiKey", "appKey").
+				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocketDir).
+				WithAnnotations(map[string]string{"agent.datadoghq.com/fine-grained-kubelet-authorization-enabled": "true"}).
+				BuildWithDefaults(),
+			wantCoreAgentEnvVars: nil,
+			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
+				{
+					Name: constants.DDAPIKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-secret",
+							},
+							Key: v2alpha1.DefaultAPIKeyKey,
+						},
+					},
+				},
+				{
+					Name: constants.DDAppKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-secret",
+							},
+							Key: v2alpha1.DefaultAPPKeyKey,
+						},
+					},
+				},
+				{
+					Name: DDClusterAgentAuthToken,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-token",
+							},
+							Key: common.DefaultTokenKey,
+						},
+					},
+				},
+				{
+					Name:  DDKubeletTLSVerify,
+					Value: "true",
+				},
+				{
+					Name:  DDKubeletCAPath,
+					Value: agentCAPath,
+				},
+			}...),
+			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(kubeletCAVolumes),
+			wantVolumeMounts:          getExpectedVolumeMounts(kubeletCAVolumes),
+			wantVolumes:               getExpectedVolumes(kubeletCAVolumes),
+			want:                      assertAll,
+			wantDependency:            assertClusterRolesFineGrainedAuthz,
+		},
 	}
 
 	for _, tt := range tests {
@@ -954,6 +1012,52 @@ func assertSecretBackendSpecificPerms(t testing.TB, resourcesManager feature.Res
 			"RoleBinding Subject \ndiff = %s", cmp.Diff(rb.Subjects, expectedSubject),
 		)
 	}
+}
+
+func assertClusterRolesFineGrainedAuthz(t testing.TB, resourcesManager feature.ResourceManagers) {
+	store := resourcesManager.Store()
+
+	rObj, found := store.Get(kubernetes.ClusterRolesKind, "", "-agent")
+	if !found {
+		t.Error("Should have created ClusterRole")
+	}
+
+	role, ok := rObj.(*rbacv1.ClusterRole)
+	if !ok {
+		t.Error("ClusterRole has wrong type")
+	}
+
+	required := []string{
+		rbac.NodeConfigzResource,
+		rbac.NodeHealthzResource,
+		rbac.NodeLogsResource,
+		rbac.NodePodsResource,
+	}
+	unwanted := []string{rbac.NodeProxyResource}
+
+	for _, rule := range role.Rules {
+		allRequired := true
+		for _, r := range required {
+			if !slices.Contains(rule.Resources, r) {
+				allRequired = false
+				break
+			}
+		}
+		if !allRequired {
+			continue
+		}
+		for _, r := range unwanted {
+			if slices.Contains(rule.Resources, r) {
+				allRequired = false
+				break
+			}
+		}
+		if allRequired {
+			return
+		}
+	}
+
+	t.Error("ClusterRole does not have the expected resources")
 }
 
 func Test_UseFIPSAgent(t *testing.T) {

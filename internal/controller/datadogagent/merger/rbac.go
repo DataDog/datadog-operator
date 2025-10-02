@@ -9,6 +9,7 @@ import (
 	"cmp"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"slices"
 
 	corev1 "k8s.io/api/core/v1"
@@ -101,9 +102,7 @@ func (m *rbacManagerImpl) AddServiceAccountAnnotations(namespace, saName string,
 	if sa.Annotations == nil {
 		sa.Annotations = make(map[string]string)
 	}
-	for key, value := range annotations {
-		sa.Annotations[key] = value
-	}
+	maps.Copy(sa.Annotations, annotations)
 	return m.store.AddOrUpdate(kubernetes.ServiceAccountsKind, sa)
 }
 
