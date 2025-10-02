@@ -196,7 +196,7 @@ type DatadogPodAutoscalerHorizontalFallbackPolicy struct {
 	// Objectives are the objectives to reach and maintain for the target resource in fallback mode.
 	// If not set, the regular objectives will be used.
 	// +listType=atomic
-	Objectives []common.DatadogPodAutoscalerObjective `json:"objective,omitempty"`
+	Objectives []common.DatadogPodAutoscalerObjective `json:"objectives,omitempty"`
 }
 
 // HorizontalFallbackTriggers defines the triggers that will cause local fallback to be enabled.

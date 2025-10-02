@@ -1009,7 +1009,7 @@ spec:
                           default: true
                           description: 'Enabled determines whether recommendations should be applied by the controller:'
                           type: boolean
-                        objective:
+                        objectives:
                           description: |-
                             Objectives are the objectives to reach and maintain for the target resource in fallback mode.
                             If not set, the regular objectives will be used.
