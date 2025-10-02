@@ -1544,8 +1544,8 @@
               "additionalProperties": false,
               "description": "KubeStateMetricsCore check configuration.",
               "properties": {
-                "collectCustomResources": {
-                  "description": "`CollectCustomResources` defines custom resources for the kube-state-metrics core check to collect.",
+                "collectCrMetrics": {
+                  "description": "`CollectCrMetrics` defines custom resources for the kube-state-metrics core check to collect.\n\nThe datadog agent uses the same logic as upstream `kube-state-metrics`. So is its configuration.\nThe exact structure and existing fields of each item in this list can be found in:\nhttps://github.com/kubernetes/kube-state-metrics/blob/main/docs/metrics/extend/customresourcestate-metrics.md",
                   "items": {
                     "additionalProperties": false,
                     "description": "Resource configures a custom resource for metric generation.",
@@ -9218,8 +9218,8 @@
                   "additionalProperties": false,
                   "description": "KubeStateMetricsCore check configuration.",
                   "properties": {
-                    "collectCustomResources": {
-                      "description": "`CollectCustomResources` defines custom resources for the kube-state-metrics core check to collect.",
+                    "collectCrMetrics": {
+                      "description": "`CollectCrMetrics` defines custom resources for the kube-state-metrics core check to collect.\n\nThe datadog agent uses the same logic as upstream `kube-state-metrics`. So is its configuration.\nThe exact structure and existing fields of each item in this list can be found in:\nhttps://github.com/kubernetes/kube-state-metrics/blob/main/docs/metrics/extend/customresourcestate-metrics.md",
                       "items": {
                         "additionalProperties": false,
                         "description": "Resource configures a custom resource for metric generation.",

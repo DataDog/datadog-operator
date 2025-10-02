@@ -85,7 +85,7 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 
 		f.collectAPIServiceMetrics = true
 		f.collectCRDMetrics = true
-		f.collectCrMetrics = ddaSpec.Features.KubeStateMetricsCore.CollectCustomResources
+		f.collectCrMetrics = ddaSpec.Features.KubeStateMetricsCore.CollectCrMetrics
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 		// This check will only run in the Cluster Checks Runners or Cluster Agent (not the Node Agent)

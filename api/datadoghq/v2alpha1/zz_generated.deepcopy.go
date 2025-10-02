@@ -1992,8 +1992,8 @@ func (in *KubeStateMetricsCoreFeatureConfig) DeepCopyInto(out *KubeStateMetricsC
 		*out = new(CustomConfig)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.CollectCustomResources != nil {
-		in, out := &in.CollectCustomResources, &out.CollectCustomResources
+	if in.CollectCrMetrics != nil {
+		in, out := &in.CollectCrMetrics, &out.CollectCrMetrics
 		*out = make([]Resource, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
