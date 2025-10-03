@@ -9,7 +9,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
-  "time"
+	"time"
 
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
