@@ -149,12 +149,15 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 			kubernetes.AppKubernetesManageByLabelKey:   "Helm",
 			apicommon.AgentDeploymentNameLabelKey:      "datadog",
 		}); err == nil && len(dsList.Items) == 0 {
-			// No Helm DaemonSet found - migration completed, add label to operator DaemonSet
-			if daemonset.Labels == nil {
-				daemonset.Labels = make(map[string]string)
+			if _, exists := daemonset.Labels[constants.MD5AgentDeploymentMigratedLabelKey]; !exists {
+				if daemonset.Labels == nil {
+					daemonset.Labels = make(map[string]string)
+				}
+				daemonset.Labels[constants.MD5AgentDeploymentMigratedLabelKey] = "true"
+				logger.Info("Adding migration label to operator daemonset as Helm migration has completed")
+			} else {
+				logger.Info("Migration label already exists on operator daemonset, skipping")
 			}
-			daemonset.Labels[constants.MD5AgentDeploymentMigratedLabelKey] = "true"
-			logger.Info("Adding migration label to operator daemonset as Helm migration has completed")
 		}
 	}
 	// Set Global setting on the default daemonset
