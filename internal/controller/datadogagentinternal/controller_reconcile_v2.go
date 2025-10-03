@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -129,7 +128,7 @@ func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment 
 
 	r.setMetricsForwarderStatusV2(logger, agentdeployment, newStatus)
 
-	if !apiequality.Semantic.DeepEqual(&agentdeployment.Status, newStatus) {
+	if !IsEqualStatus(&agentdeployment.Status, newStatus) {
 		updateAgentDeployment := agentdeployment.DeepCopy()
 		updateAgentDeployment.Status = *newStatus
 		if err := r.client.Status().Update(context.TODO(), updateAgentDeployment); err != nil {
