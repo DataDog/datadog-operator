@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -45,11 +46,16 @@ func (r *Reconciler) generateDDAIFromDDA(dda *v2alpha1.DatadogAgent) (*v1alpha1.
 }
 
 func generateObjMetaFromDDA(dda *v2alpha1.DatadogAgent, ddai *v1alpha1.DatadogAgentInternal, scheme *runtime.Scheme) error {
+	// Copy ddaiAnnotations but strip kubectl last-applied-configuration to avoid confusing kind detection for metrics forwarder
+	// Moreover, the applied configuration is the one for DDA, not DDAI, so it doesn't make sense.
+	ddaiAnnotations := maps.Clone(dda.Annotations)
+	delete(ddaiAnnotations, "kubectl.kubernetes.io/last-applied-configuration")
+
 	ddai.ObjectMeta = metav1.ObjectMeta{
 		Name:        dda.Name,
 		Namespace:   dda.Namespace,
 		Labels:      getDDAILabels(dda),
-		Annotations: dda.Annotations,
+		Annotations: ddaiAnnotations,
 	}
 	if err := object.SetOwnerReference(dda, ddai, scheme); err != nil {
 		return err
