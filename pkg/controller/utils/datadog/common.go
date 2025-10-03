@@ -29,31 +29,24 @@ func getObjKind(obj client.Object) string {
 	if objKind == "" {
 		switch obj.(type) {
 		case *v2alpha1.DatadogAgent:
-			return datadogAgentKind
+			objKind = datadogAgentKind
 		case *v1alpha1.DatadogAgentInternal:
-			return datadogAgentInternalKind
+			objKind = datadogAgentInternalKind
 		case *v1alpha1.DatadogMonitor:
-			return datadogMonitorKind
-		}
-	}
-
-	// As a secondary fallback, try to get it from the last-applied-configuration annotation.
-	if objKind == "" {
-		if annotations := obj.GetAnnotations(); annotations != nil {
-			if lastConfig, exists := annotations["kubectl.kubernetes.io/last-applied-configuration"]; exists {
-				var config map[string]any
-				if err := json.Unmarshal([]byte(lastConfig), &config); err == nil {
-					if kind, ok := config["kind"].(string); ok {
-						objKind = kind
+			objKind = datadogMonitorKind
+		default:
+			// As a fallback, get it from the last-applied-configuration annotation.
+			if annotations := obj.GetAnnotations(); annotations != nil {
+				if lastConfig, exists := annotations["kubectl.kubernetes.io/last-applied-configuration"]; exists {
+					var config map[string]any
+					if err := json.Unmarshal([]byte(lastConfig), &config); err == nil {
+						if kind, ok := config["kind"].(string); ok {
+							objKind = kind
+						}
 					}
 				}
 			}
 		}
-	}
-
-	// Last fallback after GVK is empty and last-applied-configuration annotation is not present
-	if objKind == "" {
-		objKind = "Unknown"
 	}
 
 	return objKind
