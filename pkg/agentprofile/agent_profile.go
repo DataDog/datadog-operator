@@ -25,7 +25,6 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
-	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
@@ -521,29 +520,4 @@ func GetMaxUnavailable(logger logr.Logger, ddaSpec *v2alpha1.DatadogAgentSpec, p
 
 	// k8s default
 	return defaultMaxUnavailable
-}
-
-func IsEqualStatus(current *v1alpha1.DatadogAgentProfileStatus, newStatus *v1alpha1.DatadogAgentProfileStatus) bool {
-	if current.CurrentHash != newStatus.CurrentHash ||
-		current.Valid != newStatus.Valid ||
-		current.Applied != newStatus.Applied {
-		return false
-	}
-	if !isEqualCreateStrategy(current.CreateStrategy, newStatus.CreateStrategy) {
-		return false
-	}
-	return condition.IsEqualConditions(current.Conditions, newStatus.Conditions)
-}
-
-func isEqualCreateStrategy(current *v1alpha1.CreateStrategy, newStrategy *v1alpha1.CreateStrategy) bool {
-	if current == nil && newStrategy == nil {
-		return true
-	}
-	if current == nil || newStrategy == nil {
-		return false
-	}
-	return current.Status == newStrategy.Status &&
-		current.NodesLabeled == newStrategy.NodesLabeled &&
-		current.PodsReady == newStrategy.PodsReady &&
-		current.MaxUnavailable == newStrategy.MaxUnavailable
 }

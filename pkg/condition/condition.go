@@ -505,3 +505,48 @@ func IsEqualCondition(current *metav1.Condition, newCond *metav1.Condition) bool
 	}
 	return true
 }
+
+func IsEqualDaemonSetStatus(current *v2alpha1.DaemonSetStatus, newStatus *v2alpha1.DaemonSetStatus) bool {
+	if current == nil && newStatus == nil {
+		return true
+	}
+	if current == nil || newStatus == nil {
+		return false
+	}
+
+	if current.Desired != newStatus.Desired ||
+		current.Current != newStatus.Current ||
+		current.Ready != newStatus.Ready ||
+		current.Available != newStatus.Available ||
+		current.UpToDate != newStatus.UpToDate ||
+		current.CurrentHash != newStatus.CurrentHash ||
+		current.Status != newStatus.Status ||
+		current.State != newStatus.State ||
+		current.DaemonsetName != newStatus.DaemonsetName {
+		return false
+	}
+	return true
+}
+
+func IsEqualDeploymentStatus(current *v2alpha1.DeploymentStatus, newStatus *v2alpha1.DeploymentStatus) bool {
+	if current == nil && newStatus == nil {
+		return true
+	}
+	if current == nil || newStatus == nil {
+		return false
+	}
+
+	if current.Replicas != newStatus.Replicas ||
+		current.UpdatedReplicas != newStatus.UpdatedReplicas ||
+		current.ReadyReplicas != newStatus.ReadyReplicas ||
+		current.AvailableReplicas != newStatus.AvailableReplicas ||
+		current.UnavailableReplicas != newStatus.UnavailableReplicas ||
+		current.CurrentHash != newStatus.CurrentHash ||
+		current.GeneratedToken != newStatus.GeneratedToken ||
+		current.Status != newStatus.Status ||
+		current.State != newStatus.State ||
+		current.DeploymentName != newStatus.DeploymentName {
+		return false
+	}
+	return true
+}
