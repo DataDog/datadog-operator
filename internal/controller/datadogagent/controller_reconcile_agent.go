@@ -142,21 +142,27 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 	// Check if this operator daemonset should have migration label (after Helm migration completed)
 	if val, ok := dda.GetAnnotations()[apicommon.HelmMigrationAnnotationKey]; ok && val == "true" {
-		// Check if Helm daemonset still exists
 		dsList := appsv1.DaemonSetList{}
 		if err := r.client.List(context.TODO(), &dsList, client.MatchingLabels{
 			apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 			kubernetes.AppKubernetesManageByLabelKey:   "Helm",
 			apicommon.AgentDeploymentNameLabelKey:      "datadog",
 		}); err == nil && len(dsList.Items) == 0 {
-			if _, exists := daemonset.Labels[constants.MD5AgentDeploymentMigratedLabelKey]; !exists {
+			nsName := types.NamespacedName{
+				Name:      daemonset.GetName(),
+				Namespace: daemonset.GetNamespace(),
+			}
+			existingDaemonset := &appsv1.DaemonSet{}
+			if err := r.client.Get(context.TODO(), nsName, existingDaemonset); err == nil {
+				if _, exists := existingDaemonset.Labels[constants.MD5AgentDeploymentMigratedLabelKey]; exists {
+					logger.Info("Migration label already exists on existing operator daemonset, skipping")
+				}
+			} else {
 				if daemonset.Labels == nil {
 					daemonset.Labels = make(map[string]string)
 				}
 				daemonset.Labels[constants.MD5AgentDeploymentMigratedLabelKey] = "true"
-				logger.Info("Adding migration label to operator daemonset as Helm migration has completed")
-			} else {
-				logger.Info("Migration label already exists on operator daemonset, skipping")
+				logger.Info("Adding migration label to new operator daemonset and pod template as Helm migration has completed")
 			}
 		}
 	}
