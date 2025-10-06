@@ -41,7 +41,7 @@ eksctl create cluster \
        --config-file eksctl.yaml
 
 kubeconfig="$(mktemp)"
-trap 'rm ${kubeconfig}' EXIT
+trap 'rm "${kubeconfig}"' EXIT
 
 eksctl utils write-kubeconfig \
        --config-file eksctl.yaml \
