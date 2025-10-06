@@ -6,6 +6,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -242,6 +243,10 @@ func Test_generateSpecFromDDA(t *testing.T) {
 
 func Test_addRemoteConfigStatusToDDAIStatus(t *testing.T) {
 	sch := agenttestutils.TestScheme()
+	baseObjMeta := metav1.ObjectMeta{
+		Name:      "ddai-foo",
+		Namespace: "default",
+	}
 	tests := []struct {
 		name      string
 		ddaStatus v2alpha1.DatadogAgentStatus
@@ -254,7 +259,8 @@ func Test_addRemoteConfigStatusToDDAIStatus(t *testing.T) {
 				RemoteConfigConfiguration: nil,
 			},
 			ddai: &v1alpha1.DatadogAgentInternal{
-				Status: v1alpha1.DatadogAgentInternalStatus{},
+				ObjectMeta: baseObjMeta,
+				Status:     v1alpha1.DatadogAgentInternalStatus{},
 			},
 			want: &v1alpha1.DatadogAgentInternal{
 				Status: v1alpha1.DatadogAgentInternalStatus{},
@@ -266,7 +272,8 @@ func Test_addRemoteConfigStatusToDDAIStatus(t *testing.T) {
 				RemoteConfigConfiguration: &v2alpha1.RemoteConfigConfiguration{},
 			},
 			ddai: &v1alpha1.DatadogAgentInternal{
-				Status: v1alpha1.DatadogAgentInternalStatus{},
+				ObjectMeta: baseObjMeta,
+				Status:     v1alpha1.DatadogAgentInternalStatus{},
 			},
 			want: &v1alpha1.DatadogAgentInternal{
 				Status: v1alpha1.DatadogAgentInternalStatus{
@@ -286,7 +293,8 @@ func Test_addRemoteConfigStatusToDDAIStatus(t *testing.T) {
 				},
 			},
 			ddai: &v1alpha1.DatadogAgentInternal{
-				Status: v1alpha1.DatadogAgentInternalStatus{},
+				ObjectMeta: baseObjMeta,
+				Status:     v1alpha1.DatadogAgentInternalStatus{},
 			},
 			want: &v1alpha1.DatadogAgentInternal{
 				Status: v1alpha1.DatadogAgentInternalStatus{
@@ -315,6 +323,7 @@ func Test_addRemoteConfigStatusToDDAIStatus(t *testing.T) {
 				},
 			},
 			ddai: &v1alpha1.DatadogAgentInternal{
+				ObjectMeta: baseObjMeta,
 				Status: v1alpha1.DatadogAgentInternalStatus{
 					Agent: &v2alpha1.DaemonSetStatus{
 						Status: "running",
@@ -339,11 +348,17 @@ func Test_addRemoteConfigStatusToDDAIStatus(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithStatusSubresource(&v1alpha1.DatadogAgentInternal{}).WithObjects(tt.ddai).Build()
 			r := &Reconciler{
-				client: fake.NewClientBuilder().WithScheme(sch).Build(),
+				client: fakeClient,
 			}
-			r.addRemoteConfigStatusToDDAIStatus(&tt.ddaStatus, tt.ddai)
-			assert.Equal(t, tt.want, tt.ddai)
+			_, err := r.addRemoteConfigStatusToDDAIStatus(context.TODO(), &tt.ddaStatus, tt.ddai.ObjectMeta)
+			assert.NoError(t, err)
+
+			updatedDDAI := &v1alpha1.DatadogAgentInternal{}
+			err = r.client.Get(context.TODO(), types.NamespacedName{Name: tt.ddai.Name, Namespace: tt.ddai.Namespace}, updatedDDAI)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want.Status, updatedDDAI.Status)
 		})
 	}
 }
