@@ -144,6 +144,16 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 			},
 		},
 	}
+	invalidFeatures := &DatadogAgentProfileSpec{
+		ProfileAffinity: basicProfileAffinity,
+		Config: &v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				NPM: &v2alpha1.NPMFeatureConfig{
+					Enabled: utils.NewBoolPointer(true),
+				},
+			},
+		},
+	}
 	invalidFeaturesNoDDAI := &DatadogAgentProfileSpec{
 		ProfileAffinity: basicProfileAffinity,
 		Config: &v2alpha1.DatadogAgentSpec{
@@ -224,10 +234,16 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 			datadogAgentInternalEnabled: true,
 		},
 		{
+			name:                        "dap with unsupported feature when ddai enabled",
+			spec:                        invalidFeatures,
+			datadogAgentInternalEnabled: true,
+			wantErr:                     "npm override is not supported",
+		},
+		{
 			name:                        "features not supported when ddai disabled",
 			spec:                        invalidFeaturesNoDDAI,
 			datadogAgentInternalEnabled: false,
-			wantErr:                     "features are not supported when DatadogAgentInternal is disabled",
+			wantErr:                     "the 'features' field is only supported when DatadogAgentInternal is enabled",
 		},
 	}
 	for _, test := range testCases {

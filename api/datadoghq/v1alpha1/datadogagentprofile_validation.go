@@ -7,6 +7,8 @@ package v1alpha1
 
 import (
 	"fmt"
+	"reflect"
+	"strings"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -50,7 +52,7 @@ func validateConfig(spec *v2alpha1.DatadogAgentSpec, datadogAgentInternalEnabled
 		return unsupportedError("global")
 	}
 	if !datadogAgentInternalEnabled && spec.Override == nil {
-		return undefinedError("config")
+		return undefinedError("config override")
 	}
 	for component, override := range spec.Override {
 		if err := validateOverride(component, override); err != nil {
@@ -69,95 +71,33 @@ func validateFeatures(features *v2alpha1.DatadogFeatures, datadogAgentInternalEn
 		return fmt.Errorf("the 'features' field is only supported when DatadogAgentInternal is enabled")
 	}
 
-	// Valid features:
-	// - GPU
+	validFeatures := map[string]struct{}{
+		"gpu": {},
+	}
 
-	if features.OtelCollector != nil {
-		return unsupportedError("otel collector feature")
-	}
-	if features.LogCollection != nil {
-		return unsupportedError("log collection feature")
-	}
-	if features.LiveProcessCollection != nil {
-		return unsupportedError("live process collection feature")
-	}
-	if features.LiveContainerCollection != nil {
-		return unsupportedError("live container collection feature")
-	}
-	if features.ProcessDiscovery != nil {
-		return unsupportedError("process discovery feature")
-	}
-	if features.OOMKill != nil {
-		return unsupportedError("oom kill feature")
-	}
-	if features.TCPQueueLength != nil {
-		return unsupportedError("tcp queue length feature")
-	}
-	if features.EBPFCheck != nil {
-		return unsupportedError("ebpf check feature")
-	}
-	if features.APM != nil {
-		return unsupportedError("apm feature")
-	}
-	if features.ASM != nil {
-		return unsupportedError("asm feature")
-	}
-	if features.CSPM != nil {
-		return unsupportedError("cspm feature")
-	}
-	if features.CWS != nil {
-		return unsupportedError("cws feature")
-	}
-	if features.NPM != nil {
-		return unsupportedError("npm feature")
-	}
-	if features.USM != nil {
-		return unsupportedError("usm feature")
-	}
-	if features.Dogstatsd != nil {
-		return unsupportedError("dogstatsd feature")
-	}
-	if features.OTLP != nil {
-		return unsupportedError("otlp feature")
-	}
-	if features.RemoteConfiguration != nil {
-		return unsupportedError("remote configuration feature")
-	}
-	if features.SBOM != nil {
-		return unsupportedError("sbom feature")
-	}
-	if features.ServiceDiscovery != nil {
-		return unsupportedError("service discovery feature")
-	}
-	if features.EventCollection != nil {
-		return unsupportedError("event collection feature")
-	}
-	if features.OrchestratorExplorer != nil {
-		return unsupportedError("orchestrator explorer feature")
-	}
-	if features.KubeStateMetricsCore != nil {
-		return unsupportedError("kube state metrics core feature")
-	}
-	if features.AdmissionController != nil {
-		return unsupportedError("admission controller feature")
-	}
-	if features.ExternalMetricsServer != nil {
-		return unsupportedError("external metrics server feature")
-	}
-	if features.Autoscaling != nil {
-		return unsupportedError("autoscaling feature")
-	}
-	if features.ClusterChecks != nil {
-		return unsupportedError("cluster checks feature")
-	}
-	if features.PrometheusScrape != nil {
-		return unsupportedError("prometheus scrape feature")
-	}
-	if features.HelmCheck != nil {
-		return unsupportedError("helm check feature")
-	}
-	if features.ControlPlaneMonitoring != nil {
-		return unsupportedError("control plane monitoring feature")
+	v := reflect.ValueOf(features).Elem()
+	t := v.Type()
+
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		fieldValue := v.Field(i)
+
+		if jsonTag, ok := field.Tag.Lookup("json"); ok {
+			// Use feature name from json tag
+			featureName := jsonTag
+			if idx := strings.Index(jsonTag, ","); idx != -1 {
+				featureName = jsonTag[:idx]
+			}
+
+			// Skip valid features
+			if _, valid := validFeatures[featureName]; valid {
+				continue
+			}
+
+			if !fieldValue.IsNil() {
+				return unsupportedError(featureName)
+			}
+		}
 	}
 
 	return nil
