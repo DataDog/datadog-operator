@@ -2,7 +2,7 @@
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
-source common.container-integrations.sh
+source common.sh
 
 set +e  # Ignore error and proceed to deep clean.
         # `eksctl` can claim that the cluster doesn’t exist anymore
@@ -17,7 +17,7 @@ aws cloudformation delete-stack \
     --stack-name "eksctl-${CLUSTER_NAME}-cluster"
 
 SG=$(aws ec2 describe-security-groups \
-         --filter Name=vpc-id,Values="${VPC}" Name=group-name,Values="${CLUSTER_NAME}" \
+         --filters "Name=vpc-id,Values=${VPC}" "Name=group-name,Values=${CLUSTER_NAME}" \
          --query 'SecurityGroups[*].[GroupId]' \
          --output text)
 [[ -n ${SG} ]] && aws ec2 delete-security-group \
