@@ -13,6 +13,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/utils"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -34,6 +35,7 @@ func TestApplyProfile(t *testing.T) {
 		name                           string
 		profile                        v1alpha1.DatadogAgentProfile
 		nodes                          []v1.Node
+		datadogAgentInternalEnabled    bool
 		profileAppliedByNode           map[string]types.NamespacedName
 		expectedProfilesAppliedPerNode map[string]types.NamespacedName
 		expectedErr                    error
@@ -51,6 +53,7 @@ func TestApplyProfile(t *testing.T) {
 					},
 				},
 			},
+			datadogAgentInternalEnabled:    true,
 			profileAppliedByNode:           map[string]types.NamespacedName{},
 			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{},
 			expectedErr:                    fmt.Errorf("Profile name cannot be empty"),
@@ -68,6 +71,7 @@ func TestApplyProfile(t *testing.T) {
 					},
 				},
 			},
+			datadogAgentInternalEnabled: true,
 			profileAppliedByNode: map[string]types.NamespacedName{
 				"node1": {
 					Namespace: testNamespace,
@@ -92,6 +96,7 @@ func TestApplyProfile(t *testing.T) {
 					Name:      "linux",
 				},
 			},
+			datadogAgentInternalEnabled: true,
 			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
 				"node1": {
 					Namespace: testNamespace,
@@ -113,7 +118,8 @@ func TestApplyProfile(t *testing.T) {
 					},
 				},
 			},
-			profileAppliedByNode: map[string]types.NamespacedName{},
+			datadogAgentInternalEnabled: true,
+			profileAppliedByNode:        map[string]types.NamespacedName{},
 			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
 				"node1": {
 					Namespace: testNamespace,
@@ -143,6 +149,7 @@ func TestApplyProfile(t *testing.T) {
 					},
 				},
 			},
+			datadogAgentInternalEnabled: true,
 			profileAppliedByNode: map[string]types.NamespacedName{
 				"node2": {
 					Namespace: testNamespace,
@@ -171,6 +178,7 @@ func TestApplyProfile(t *testing.T) {
 					Name:      "windows",
 				},
 			},
+			datadogAgentInternalEnabled: true,
 			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
 				"node2": {
 					Namespace: testNamespace,
@@ -200,12 +208,14 @@ func TestApplyProfile(t *testing.T) {
 					},
 				},
 			},
+			datadogAgentInternalEnabled: true,
 			profileAppliedByNode: map[string]types.NamespacedName{
 				"node1": {
 					Namespace: testNamespace,
 					Name:      "linux",
 				},
-			}, expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
+			},
+			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
 				"node1": {
 					Namespace: testNamespace,
 					Name:      "linux",
@@ -234,6 +244,7 @@ func TestApplyProfile(t *testing.T) {
 					},
 				},
 			},
+			datadogAgentInternalEnabled: true,
 			profileAppliedByNode: map[string]types.NamespacedName{
 				"node1": {
 					Namespace: testNamespace,
@@ -247,13 +258,39 @@ func TestApplyProfile(t *testing.T) {
 			},
 			expectedErr: fmt.Errorf("profileAffinity must be defined"),
 		},
+		{
+			name:    "feature override when ddai disabled",
+			profile: exampleFeatureOverrideProfile(),
+			nodes: []v1.Node{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node1",
+						Labels: map[string]string{
+							"os": "linux",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node2",
+						Labels: map[string]string{
+							"os": "windows",
+						},
+					},
+				},
+			},
+			datadogAgentInternalEnabled:    false,
+			profileAppliedByNode:           map[string]types.NamespacedName{},
+			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{},
+			expectedErr:                    fmt.Errorf("the 'features' field is only supported when DatadogAgentInternal is enabled"),
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			testLogger := zap.New(zap.UseDevMode(true))
 			now := metav1.NewTime(time.Now())
-			profileAppliedByNode, err := ApplyProfile(testLogger, &test.profile, test.nodes, test.profileAppliedByNode, now, 1, true)
+			profileAppliedByNode, err := ApplyProfile(testLogger, &test.profile, test.nodes, test.profileAppliedByNode, now, 1, test.datadogAgentInternalEnabled)
 			assert.Equal(t, test.expectedErr, err)
 			assert.Equal(t, test.expectedProfilesAppliedPerNode, profileAppliedByNode)
 		})
@@ -697,6 +734,40 @@ func exampleInvalidProfile() v1alpha1.DatadogAgentProfile {
 		Spec: v1alpha1.DatadogAgentProfileSpec{
 			// missing ProfileAffinity
 			Config: configWithAllOverrides("200m"),
+		},
+	}
+}
+
+func exampleFeatureOverrideProfile() v1alpha1.DatadogAgentProfile {
+	return v1alpha1.DatadogAgentProfile{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: testNamespace,
+			Name:      "feature",
+		},
+		Spec: v1alpha1.DatadogAgentProfileSpec{
+			ProfileAffinity: &v1alpha1.ProfileAffinity{
+				ProfileNodeAffinity: []v1.NodeSelectorRequirement{
+					{
+						Key:      "os",
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"linux"},
+					},
+				},
+			},
+			Config: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					GPU: &v2alpha1.GPUFeatureConfig{
+						Enabled: utils.NewBoolPointer(true),
+					},
+				},
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {
+						Labels: map[string]string{
+							"foo": "bar",
+						},
+					},
+				},
+			},
 		},
 	}
 }
