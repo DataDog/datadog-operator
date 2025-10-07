@@ -1,6 +1,7 @@
 package fake
 
 import (
+	"slices"
 	"testing"
 
 	v1 "k8s.io/api/core/v1"
@@ -24,13 +25,7 @@ func (_m *EnvFromVarManager) AddEnvFromVar(newEnvFromVar *v1.EnvFromSource) {
 
 // AddEnvFromVarToContainer provides a mock function with given fields: containerName, newEnvFromVar
 func (_m *EnvFromVarManager) AddEnvFromVarToContainer(containerName common.AgentContainerName, newEnvFromVar *v1.EnvFromSource) {
-	isInitContainer := false
-	for _, initContainerName := range initContainerNames {
-		if containerName == initContainerName {
-			isInitContainer = true
-			break
-		}
-	}
+	isInitContainer := slices.Contains(initContainerNames, containerName)
 	if !isInitContainer {
 		_m.t.Logf("AddEnvFromVar %s", newEnvFromVar.SecretRef.Name)
 		_m.EnvFromVarsByC[containerName] = append(_m.EnvFromVarsByC[containerName], newEnvFromVar)

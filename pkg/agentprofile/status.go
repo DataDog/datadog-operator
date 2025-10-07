@@ -13,7 +13,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/condition"
 )
 
 const (
@@ -94,4 +96,36 @@ func SetDatadogAgentProfileCondition(conditionsList []metav1.Condition, newCondi
 	}
 
 	return conditionsList
+}
+
+func IsEqualStatus(current *v1alpha1.DatadogAgentProfileStatus, newStatus *v1alpha1.DatadogAgentProfileStatus) bool {
+	if current == nil && newStatus == nil {
+		return true
+	}
+	if current == nil || newStatus == nil {
+		return false
+	}
+
+	if current.CurrentHash != newStatus.CurrentHash ||
+		current.Valid != newStatus.Valid ||
+		current.Applied != newStatus.Applied {
+		return false
+	}
+	if !isEqualCreateStrategy(current.CreateStrategy, newStatus.CreateStrategy) {
+		return false
+	}
+	return condition.IsEqualConditions(current.Conditions, newStatus.Conditions)
+}
+
+func isEqualCreateStrategy(current *v1alpha1.CreateStrategy, newStrategy *v1alpha1.CreateStrategy) bool {
+	if current == nil && newStrategy == nil {
+		return true
+	}
+	if current == nil || newStrategy == nil {
+		return false
+	}
+	return current.Status == newStrategy.Status &&
+		current.NodesLabeled == newStrategy.NodesLabeled &&
+		current.PodsReady == newStrategy.PodsReady &&
+		current.MaxUnavailable == newStrategy.MaxUnavailable
 }

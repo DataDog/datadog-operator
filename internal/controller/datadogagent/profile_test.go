@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/stretchr/testify/assert"
 )
@@ -193,7 +194,7 @@ func Test_computeProfileMerge(t *testing.T) {
 					Name:      "foo-profile",
 					Namespace: "bar",
 					Annotations: map[string]string{
-						constants.MD5DDAIDeploymentAnnotationKey: "f4acb355091265e0ede2f743dabedc7e",
+						constants.MD5DDAIDeploymentAnnotationKey: "7540aac2cb9cbb8adc8666a70fc3e822",
 					},
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
@@ -204,6 +205,7 @@ func Test_computeProfileMerge(t *testing.T) {
 					},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
+							Name: apiutils.NewStringPointer("foo-profile-agent"),
 							Affinity: &corev1.Affinity{
 								NodeAffinity: &corev1.NodeAffinity{
 									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -476,6 +478,7 @@ func Test_setProfileSpec(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
+							Name: apiutils.NewStringPointer("foo-profile-agent"),
 							Affinity: &corev1.Affinity{
 								NodeAffinity: &corev1.NodeAffinity{
 									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -534,6 +537,65 @@ func Test_setProfileSpec(t *testing.T) {
 						},
 						v2alpha1.ClusterChecksRunnerComponentName: {
 							Disabled: apiutils.NewBoolPointer(true),
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "nil override map and component",
+			ddai: v1alpha1.DatadogAgentInternal{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+				},
+				Spec: v2alpha1.DatadogAgentSpec{},
+			},
+			profile: v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "default",
+				},
+			},
+			want: v1alpha1.DatadogAgentInternal{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+				},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							Affinity: &corev1.Affinity{
+								NodeAffinity: &corev1.NodeAffinity{
+									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+										NodeSelectorTerms: []corev1.NodeSelectorTerm{
+											{
+												MatchExpressions: []corev1.NodeSelectorRequirement{
+													{
+														Key:      "agent.datadoghq.com/datadogagentprofile",
+														Operator: corev1.NodeSelectorOpDoesNotExist,
+													},
+												},
+											},
+										},
+									},
+								},
+								PodAntiAffinity: &corev1.PodAntiAffinity{
+									RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+										{
+											LabelSelector: &metav1.LabelSelector{
+												MatchExpressions: []metav1.LabelSelectorRequirement{
+													{
+														Key:      "agent.datadoghq.com/component",
+														Operator: metav1.LabelSelectorOpIn,
+														Values:   []string{"agent"},
+													},
+												},
+											},
+											TopologyKey: "kubernetes.io/hostname",
+										},
+									},
+								},
+							},
 						},
 					},
 				},
@@ -616,6 +678,60 @@ func Test_setProfileDDAIMeta(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			setProfileDDAIMeta(&tt.ddai, &tt.profile)
 			assert.Equal(t, tt.want, tt.ddai)
+		})
+	}
+}
+
+func Test_setProfileNodeAgentOverride(t *testing.T) {
+	testCases := []struct {
+		name                                   string
+		ddai                                   v1alpha1.DatadogAgentInternal
+		profile                                v1alpha1.DatadogAgentProfile
+		expectedNodeAgentComponentNameOverride *string
+		expectedLabels                         map[string]string
+	}{
+		{
+			name: "non-default profile should get DaemonSet name override",
+			ddai: v1alpha1.DatadogAgentInternal{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-profile",
+					Namespace: "default",
+				},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {},
+					},
+				},
+			},
+			profile: v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-profile",
+					Namespace: "default",
+				},
+			},
+			expectedNodeAgentComponentNameOverride: apiutils.NewStringPointer("my-profile-agent"),
+			expectedLabels: map[string]string{
+				constants.ProfileLabelKey: "my-profile",
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			setProfileNodeAgentOverride(&tt.ddai, &tt.profile)
+
+			// Check that the override exists
+			override, ok := tt.ddai.Spec.Override[v2alpha1.NodeAgentComponentName]
+			assert.True(t, ok, "NodeAgent override should exist")
+
+			// Check Node Agent component override name
+			if !agentprofile.IsDefaultProfile(tt.profile.Namespace, tt.profile.Name) {
+				assert.NotNil(t, override.Name, "Override Name should not be nil")
+				assert.Equal(t, *tt.expectedNodeAgentComponentNameOverride, *override.Name, "Node Agent component override name should match expected")
+			}
+
+			// Check labels
+			assert.Equal(t, tt.expectedLabels, override.Labels, "Labels should match expected")
 		})
 	}
 }
