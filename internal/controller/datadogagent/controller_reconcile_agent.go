@@ -153,16 +153,12 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 				Namespace: daemonset.GetNamespace(),
 			}
 			existingDaemonset := &appsv1.DaemonSet{}
-			if err := r.client.Get(context.TODO(), nsName, existingDaemonset); err == nil {
-				if _, exists := existingDaemonset.Labels[constants.MD5AgentDeploymentMigratedLabelKey]; exists {
-					logger.Info("Migration label already exists on existing operator daemonset, skipping")
-				}
-			} else {
+			if err := r.client.Get(context.TODO(), nsName, existingDaemonset); err != nil {
 				if daemonset.Labels == nil {
 					daemonset.Labels = make(map[string]string)
 				}
 				daemonset.Labels[constants.MD5AgentDeploymentMigratedLabelKey] = "true"
-				logger.Info("Adding migration label to new operator daemonset and pod template as Helm migration has completed")
+				logger.Info("Adding migration label to new operator daemonset as Helm migration has completed")
 			}
 		}
 	}
