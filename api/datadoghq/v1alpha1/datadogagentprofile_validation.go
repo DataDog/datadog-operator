@@ -8,7 +8,6 @@ package v1alpha1
 import (
 	"fmt"
 	"reflect"
-	"strings"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
