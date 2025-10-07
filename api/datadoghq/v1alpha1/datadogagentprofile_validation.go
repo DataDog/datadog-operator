@@ -71,35 +71,52 @@ func validateFeatures(features *v2alpha1.DatadogFeatures, datadogAgentInternalEn
 		return fmt.Errorf("the 'features' field is only supported when DatadogAgentInternal is enabled")
 	}
 
-	validFeatures := map[string]struct{}{
-		"gpu": {},
+	// Only GPU feature is currently supported in DatadogAgentProfile context.
+	// Remove supported features from the `unsupportedFeatures` array.
+	unsupportedFeatures := []struct {
+		value any
+		name  string
+	}{
+		{features.OtelCollector, "otelCollector"},
+		{features.LogCollection, "logCollection"},
+		{features.LiveProcessCollection, "liveProcessCollection"},
+		{features.LiveContainerCollection, "liveContainerCollection"},
+		{features.ProcessDiscovery, "processDiscovery"},
+		{features.OOMKill, "oomKill"},
+		{features.TCPQueueLength, "tcpQueueLength"},
+		{features.EBPFCheck, "ebpfCheck"},
+		{features.APM, "apm"},
+		{features.ASM, "asm"},
+		{features.CSPM, "cspm"},
+		{features.CWS, "cws"},
+		{features.NPM, "npm"},
+		{features.USM, "usm"},
+		{features.Dogstatsd, "dogstatsd"},
+		{features.OTLP, "otlp"},
+		{features.RemoteConfiguration, "remoteConfiguration"},
+		{features.SBOM, "sbom"},
+		{features.ServiceDiscovery, "serviceDiscovery"},
+		{features.EventCollection, "eventCollection"},
+		{features.OrchestratorExplorer, "orchestratorExplorer"},
+		{features.KubeStateMetricsCore, "kubeStateMetricsCore"},
+		{features.AdmissionController, "admissionController"},
+		{features.ExternalMetricsServer, "externalMetricsServer"},
+		{features.Autoscaling, "autoscaling"},
+		{features.ClusterChecks, "clusterChecks"},
+		{features.PrometheusScrape, "prometheusScrape"},
+		{features.HelmCheck, "helmCheck"},
+		{features.ControlPlaneMonitoring, "controlPlaneMonitoring"},
 	}
 
-	v := reflect.ValueOf(features).Elem()
-	t := v.Type()
-
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-		fieldValue := v.Field(i)
-
-		if jsonTag, ok := field.Tag.Lookup("json"); ok {
-			// Use feature name from json tag
-			featureName := jsonTag
-			if idx := strings.Index(jsonTag, ","); idx != -1 {
-				featureName = jsonTag[:idx]
-			}
-
-			// Skip valid features
-			if _, valid := validFeatures[featureName]; valid {
-				continue
-			}
-
-			if !fieldValue.IsNil() {
-				return unsupportedError(featureName)
-			}
+	for _, feature := range unsupportedFeatures {
+		// Use reflection to check if the underlying value is actually nil
+		// because any can hold a typed nil pointer
+		if feature.value != nil && !reflect.ValueOf(feature.value).IsNil() {
+			return unsupportedError(feature.name)
 		}
 	}
 
+	// GPU is allowed, no error returned
 	return nil
 }
 
