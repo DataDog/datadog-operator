@@ -10,27 +10,14 @@ import (
 	"net/http/pprof"
 )
 
-// Options used to provide configuration options
-type Options struct {
-	CmdLine bool
-	Profile bool
-	Symbol  bool
-	Trace   bool
-}
-
-// DefaultOptions returns default options configuration
-func DefaultOptions() *Options {
-	return &Options{
-		CmdLine: true,
-		Profile: true,
-		Symbol:  true,
-		Trace:   true,
-	}
-}
-
-// GetExtraMetricHandlers creates debug endpoints.
-func GetExtraMetricHandlers() map[string]http.Handler {
+// GetExtraMetricHandlers creates debug endpoints if enabled.
+func GetExtraMetricHandlers(enabled bool) map[string]http.Handler {
 	handlers := make(map[string]http.Handler)
+
+	if !enabled {
+		return handlers
+	}
+
 	handlers["/debug/pprof/"] = http.HandlerFunc(pprof.Index)
 	handlers["/debug/pprof/cmdline"] = http.HandlerFunc(pprof.Cmdline)
 	handlers["/debug/pprof/profile"] = http.HandlerFunc(pprof.Profile)
@@ -42,5 +29,6 @@ func GetExtraMetricHandlers() map[string]http.Handler {
 	handlers["/debug/pprof/block"] = pprof.Handler("block")
 	handlers["/debug/pprof/mutex"] = pprof.Handler("mutex")
 	handlers["/debug/pprof/allocs"] = pprof.Handler("allocs")
+
 	return handlers
 }
