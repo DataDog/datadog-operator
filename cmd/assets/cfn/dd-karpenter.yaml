@@ -44,7 +44,10 @@ Resources:
   PodIdentityAssociation:
     Type: AWS::EKS::PodIdentityAssociation
     DependsOn:
-      - Role
+      !If
+        - ShouldDeployPodIdentityAddon
+        - [Role, EKSPodIdentityAddon]
+        - [Role]
     Properties:
       ClusterName: !Ref ClusterName
       Namespace: !Ref KarpenterNamespace
