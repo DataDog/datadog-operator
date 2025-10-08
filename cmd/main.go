@@ -9,11 +9,13 @@ import (
 	"os"
 	"os/signal"
 	"slices"
+	"strconv"
 	"syscall"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -100,6 +102,13 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Check if the EKS Pod Identity Agent is already installed and unmanaged
+	eksClient := eks.NewFromConfig(awsConfig)
+	isUnmanagedEKSPIAInstalled, err := guess.IsThereUnmanagedEKSPodIdentityAgentInstalled(ctx, eksClient, *clusterName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// Create CloudFormation stacks
 	cloudformationClient := cloudformation.NewFromConfig(awsConfig)
 
@@ -110,8 +119,9 @@ func main() {
 	}
 
 	if err := aws.CreateOrUpdateStack(ctx, cloudformationClient, "dd-karpenter-"+*clusterName+"-dd-karpenter", DdKarpenterCfn, map[string]string{
-		"ClusterName":        *clusterName,
-		"KarpenterNamespace": *karpenterNamespace,
+		"ClusterName":            *clusterName,
+		"KarpenterNamespace":     *karpenterNamespace,
+		"DeployPodIdentityAddon": strconv.FormatBool(!isUnmanagedEKSPIAInstalled),
 	}); err != nil {
 		log.Fatal(err)
 	}
