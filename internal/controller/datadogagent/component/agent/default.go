@@ -187,6 +187,8 @@ func DefaultSeccompConfigDataForSystemProbe() map[string]string {
 					"memfd_create",
 					"mkdir",
 					"mkdirat",
+					"mknod",
+					"mknodat",
 					"mmap",
 					"mmap2",
 					"mprotect",
