@@ -139,6 +139,29 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	// Start by creating the Default Agent daemonset
 	daemonset = componentagent.NewDefaultAgentDaemonset(logger, dda, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent, instanceName)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
+
+	// Check if this operator daemonset should have migration label (after Helm migration completed)
+	if val, ok := dda.GetAnnotations()[apicommon.HelmMigrationAnnotationKey]; ok && val == "true" {
+		dsList := appsv1.DaemonSetList{}
+		if err := r.client.List(context.TODO(), &dsList, client.MatchingLabels{
+			apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+			kubernetes.AppKubernetesManageByLabelKey:   "Helm",
+			apicommon.AgentDeploymentNameLabelKey:      "datadog",
+		}); err == nil && len(dsList.Items) == 0 {
+			nsName := types.NamespacedName{
+				Name:      daemonset.GetName(),
+				Namespace: daemonset.GetNamespace(),
+			}
+			existingDaemonset := &appsv1.DaemonSet{}
+			if err := r.client.Get(context.TODO(), nsName, existingDaemonset); err != nil {
+				if daemonset.Labels == nil {
+					daemonset.Labels = make(map[string]string)
+				}
+				daemonset.Labels[constants.MD5AgentDeploymentMigratedLabelKey] = "true"
+				logger.Info("Adding migration label to new operator daemonset as Helm migration has completed")
+			}
+		}
+	}
 	// Set Global setting on the default daemonset
 	global.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda.GetObjectMeta(), &dda.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
 

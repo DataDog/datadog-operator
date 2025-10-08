@@ -732,8 +732,19 @@ func (r *Reconciler) getCurrentDaemonset(dda, daemonset metav1.Object) (*appsv1.
 			return nil, err
 		}
 		switch len(dsList.Items) {
-		case 0: // Migration has completed; check for default daemonset
-			r.log.Info("Helm-managed daemonset has been migrated, checking for default daemonset")
+		case 0: // No Helm-managed daemonsets found; check for operator-managed daemonset
+			nsName := types.NamespacedName{
+				Name:      daemonset.GetName(),
+				Namespace: daemonset.GetNamespace(),
+			}
+			existingDaemonset := &appsv1.DaemonSet{}
+			if err := r.client.Get(context.TODO(), nsName, existingDaemonset); err != nil {
+				r.log.V(1).Info("Helm migration in progress: operator-managed daemonset not found")
+			} else {
+				if _, exists := existingDaemonset.Labels[constants.MD5AgentDeploymentMigratedLabelKey]; !exists {
+					r.log.V(1).Info("Helm migration in progress: operator-managed daemonset exists and migration label not found")
+				}
+			}
 		case 1:
 			return &dsList.Items[0], nil
 		default:
