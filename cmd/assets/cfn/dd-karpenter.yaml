@@ -1,5 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: IAM role for pod identity association
+Conditions:
+  ShouldDeployPodIdentityAddon: !Equals [!Ref DeployPodIdentityAddon, "true"]
 Parameters:
   ClusterName:
     Type: String
@@ -7,12 +9,23 @@ Parameters:
   KarpenterNamespace:
     Type: String
     Description: "Namespace where Karpenter will be deployed"
+  DeployPodIdentityAddon:
+    Type: String
+    Description: "Whether to deploy the eks-pod-identity-agent EKS addon"
+    Default: "true"
+    AllowedValues:
+      - "true"
+      - "false"
 Resources:
   EKSPodIdentityAddon:
     Type: AWS::EKS::Addon
+    Condition: ShouldDeployPodIdentityAddon
     Properties:
       ClusterName: !Ref ClusterName
       AddonName: eks-pod-identity-agent
+      Tags:
+        - Key: managed-by
+          Value: dd-karpenter
   Role:
     Type: AWS::IAM::Role
     Properties:
@@ -31,7 +44,6 @@ Resources:
   PodIdentityAssociation:
     Type: AWS::EKS::PodIdentityAssociation
     DependsOn:
-      - EKSPodIdentityAddon
       - Role
     Properties:
       ClusterName: !Ref ClusterName
