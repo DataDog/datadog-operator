@@ -105,6 +105,10 @@ func configureSystemProbe(managers feature.PodTemplateManagers) {
 	// security context capabilities
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommon.SystemProbeContainerName)
 
+	// We need CAP_MKNOD in both containers to be able to create the nvidia devices nodes if the driver is not loaded when the container starts
+	managers.SecurityContext().AddCapabilitiesToContainer([]corev1.Capability{"MKNOD"}, apicommon.SystemProbeContainerName)
+	managers.SecurityContext().AddCapabilitiesToContainer([]corev1.Capability{"MKNOD"}, apicommon.CoreAgentContainerName)
+
 	// Some nvidia-container-runtime setups ignore the NVIDIA_VISIBLE_DEVICES
 	// env variable. This is usually configured with the options
 	//   accept-nvidia-visible-devices-envvar-when-unprivileged = true
