@@ -63,12 +63,17 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 
 		// check security context capabilities
 		sysProbeCapabilities := mgr.SecurityContextMgr.CapabilitiesByC[apicommon.SystemProbeContainerName]
+		wantedCapabilities := agent.DefaultCapabilitiesForSystemProbe()
+		wantedCapabilities = append(wantedCapabilities, corev1.Capability("MKNOD"))
 		assert.True(
 			t,
-			apiutils.IsEqualStruct(sysProbeCapabilities, agent.DefaultCapabilitiesForSystemProbe()),
+			apiutils.IsEqualStruct(sysProbeCapabilities, wantedCapabilities),
 			"System Probe security context capabilities \ndiff = %s",
-			cmp.Diff(sysProbeCapabilities, agent.DefaultCapabilitiesForSystemProbe()),
+			cmp.Diff(sysProbeCapabilities, wantedCapabilities),
 		)
+
+		coreAgentCapabilities := mgr.SecurityContextMgr.CapabilitiesByC[apicommon.CoreAgentContainerName]
+		assert.Contains(t, coreAgentCapabilities, corev1.Capability("MKNOD"))
 
 		// check volume mounts
 		wantCoreAgentVolMounts := []*corev1.VolumeMount{
