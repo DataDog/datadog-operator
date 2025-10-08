@@ -1579,11 +1579,6 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "group",
-                          "kind",
-                          "version"
-                        ],
                         "type": "object"
                       },
                       "labelsFromPath": {
@@ -1740,9 +1735,6 @@
                                   "type": "string"
                                 }
                               },
-                              "required": [
-                                "type"
-                              ],
                               "type": "object"
                             },
                             "help": {
@@ -1764,10 +1756,6 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "each",
-                            "name"
-                          ],
                           "type": "object"
                         },
                         "type": "array"
@@ -1777,10 +1765,6 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "groupVersionKind",
-                      "metrics"
-                    ],
                     "type": "object"
                   },
                   "type": "array",
@@ -9265,11 +9249,6 @@
                                 "type": "string"
                               }
                             },
-                            "required": [
-                              "group",
-                              "kind",
-                              "version"
-                            ],
                             "type": "object"
                           },
                           "labelsFromPath": {
@@ -9426,9 +9405,6 @@
                                       "type": "string"
                                     }
                                   },
-                                  "required": [
-                                    "type"
-                                  ],
                                   "type": "object"
                                 },
                                 "help": {
@@ -9450,10 +9426,6 @@
                                   "type": "string"
                                 }
                               },
-                              "required": [
-                                "each",
-                                "name"
-                              ],
                               "type": "object"
                             },
                             "type": "array"
@@ -9463,10 +9435,6 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "groupVersionKind",
-                          "metrics"
-                        ],
                         "type": "object"
                       },
                       "type": "array",

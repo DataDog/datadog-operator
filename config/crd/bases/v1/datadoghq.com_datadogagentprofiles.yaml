@@ -1551,10 +1551,6 @@ spec:
                                         type: string
                                       version:
                                         type: string
-                                    required:
-                                      - group
-                                      - kind
-                                      - version
                                     type: object
                                   labelsFromPath:
                                     additionalProperties:
@@ -1666,8 +1662,6 @@ spec:
                                             type:
                                               description: Type defines the type of the metric.
                                               type: string
-                                          required:
-                                            - type
                                           type: object
                                         help:
                                           description: Help text for the metric.
@@ -1682,17 +1676,11 @@ spec:
                                         name:
                                           description: Name of the metric. Subject to prefixing based on the configuration of the Resource.
                                           type: string
-                                      required:
-                                        - each
-                                        - name
                                       type: object
                                     type: array
                                   resourcePlural:
                                     description: ResourcePlural sets the plural name of the resource. Defaults to the plural version of the Kind according to flect.Pluralize.
                                     type: string
-                                required:
-                                  - groupVersionKind
-                                  - metrics
                                 type: object
                               type: array
                               x-kubernetes-list-type: atomic
