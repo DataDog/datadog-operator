@@ -841,48 +841,48 @@ type Resource struct {
 	// If set to "", no prefix will be added.
 	// Example: If set to "foo", MetricNamePrefix will be "foo_<metric>".
 	// +optional
-	MetricNamePrefix *string `json:"metricNamePrefix" yaml:"metricNamePrefix"`
+	MetricNamePrefix *string `json:"metricNamePrefix,omitempty" yaml:"metricNamePrefix,omitempty"`
 
 	// GroupVersionKind of the custom resource to be monitored.
-	GroupVersionKind GroupVersionKind `json:"groupVersionKind" yaml:"groupVersionKind"`
+	GroupVersionKind GroupVersionKind `json:"groupVersionKind,omitempty" yaml:"groupVersionKind,omitempty"`
 
 	// Labels are added to all metrics. If the same key is used in a metric, the value from the metric will overwrite the value here.
 	Labels `json:",inline" yaml:",inline"`
 
 	// Metrics are the custom resource fields to be collected.
-	Metrics []Generator `json:"metrics" yaml:"metrics"`
+	Metrics []Generator `json:"metrics,omitempty" yaml:"metrics,omitempty"`
 
 	// ResourcePlural sets the plural name of the resource. Defaults to the plural version of the Kind according to flect.Pluralize.
 	// +optional
-	ResourcePlural string `json:"resourcePlural" yaml:"resourcePlural"`
+	ResourcePlural string `json:"resourcePlural,omitempty" yaml:"resourcePlural,omitempty"`
 }
 
 // GroupVersionKind is the Kubernetes group, version, and kind of a resource.
 type GroupVersionKind struct {
-	Group   string `json:"group"   yaml:"group"`
-	Version string `json:"version" yaml:"version"`
-	Kind    string `json:"kind"    yaml:"kind"`
+	Group   string `json:"group,omitempty"   yaml:"group,omitempty"`
+	Version string `json:"version,omitempty" yaml:"version,omitempty"`
+	Kind    string `json:"kind,omitempty"    yaml:"kind,omitempty"`
 }
 
 // Labels is common configuration of labels to add to metrics.
 type Labels struct {
 	// CommonLabels are added to all metrics.
 	// +optional
-	CommonLabels map[string]string `json:"commonLabels" yaml:"commonLabels"`
+	CommonLabels map[string]string `json:"commonLabels,omitempty" yaml:"commonLabels,omitempty"`
 	// LabelsFromPath adds additional labels where the value is taken from a field in the resource.
 	// +optional
-	LabelsFromPath map[string][]string `json:"labelsFromPath" yaml:"labelsFromPath"`
+	LabelsFromPath map[string][]string `json:"labelsFromPath,omitempty" yaml:"labelsFromPath,omitempty"`
 }
 
 // Generator describes a unique metric name.
 type Generator struct {
 	// Name of the metric. Subject to prefixing based on the configuration of the Resource.
-	Name string `json:"name" yaml:"name"`
+	Name string `json:"name,omitempty" yaml:"name,omitempty"`
 	// Help text for the metric.
 	// +optional
-	Help string `json:"help" yaml:"help"`
+	Help string `json:"help,omitempty" yaml:"help,omitempty"`
 	// Each targets a value or values from the resource.
-	Each Metric `json:"each" yaml:"each"`
+	Each Metric `json:"each,omitempty" yaml:"each,omitempty"`
 
 	// Labels are added to all metrics. Labels from Each will overwrite these if using the same key.
 	Labels `json:",inline" yaml:",inline"` // json will inline because it is already tagged
@@ -893,17 +893,17 @@ type Generator struct {
 type Metric struct {
 	// Type defines the type of the metric.
 	// +unionDiscriminator
-	Type MetricType `json:"type" yaml:"type"`
+	Type MetricType `json:"type,omitempty" yaml:"type,omitempty"`
 
 	// Gauge defines a gauge metric.
 	// +optional
-	Gauge *MetricGauge `json:"gauge" yaml:"gauge"`
+	Gauge *MetricGauge `json:"gauge,omitempty" yaml:"gauge,omitempty"`
 	// StateSet defines a state set metric.
 	// +optional
-	StateSet *MetricStateSet `json:"stateSet" yaml:"stateSet"`
+	StateSet *MetricStateSet `json:"stateSet,omitempty" yaml:"stateSet,omitempty"`
 	// Info defines an info metric.
 	// +optional
-	Info *MetricInfo `json:"info" yaml:"info"`
+	Info *MetricInfo `json:"info,omitempty" yaml:"info,omitempty"`
 }
 
 // Type represents the type of the metric. See https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#metric-types.
@@ -929,7 +929,7 @@ var (
 type MetricMeta struct {
 	// LabelsFromPath adds additional labels where the value of the label is taken from a field under Path.
 	// +optional
-	LabelsFromPath map[string][]string `json:"labelsFromPath" yaml:"labelsFromPath"`
+	LabelsFromPath map[string][]string `json:"labelsFromPath,omitempty" yaml:"labelsFromPath,omitempty"`
 	// Path is the path to to generate metric(s) for.
 	Path []string `json:"path" yaml:"path"`
 }
@@ -941,13 +941,13 @@ type MetricGauge struct {
 
 	// ValueFrom is the path to a numeric field under Path that will be the metric value.
 	// +optional
-	ValueFrom []string `json:"valueFrom" yaml:"valueFrom"`
+	ValueFrom []string `json:"valueFrom,omitempty" yaml:"valueFrom,omitempty"`
 	// LabelFromKey adds a label with the given name if Path is an object. The label value will be the object key.
 	// +optional
-	LabelFromKey string `json:"labelFromKey" yaml:"labelFromKey"`
+	LabelFromKey string `json:"labelFromKey,omitempty" yaml:"labelFromKey,omitempty"`
 	// NilIsZero indicates that if a value is nil it will be treated as zero value.
 	// +optional
-	NilIsZero bool `json:"nilIsZero" yaml:"nilIsZero"`
+	NilIsZero bool `json:"nilIsZero,omitempty" yaml:"nilIsZero,omitempty"`
 }
 
 // MetricInfo is a metric which is used to expose textual information.
@@ -956,7 +956,7 @@ type MetricInfo struct {
 	MetricMeta `json:",inline" yaml:",inline"`
 	// LabelFromKey adds a label with the given name if Path is an object. The label value will be the object key.
 	// +optional
-	LabelFromKey string `json:"labelFromKey" yaml:"labelFromKey"`
+	LabelFromKey string `json:"labelFromKey,omitempty" yaml:"labelFromKey,omitempty"`
 }
 
 // MetricStateSet is a metric which represent a series of related boolean values, also called a bitset.
@@ -966,13 +966,13 @@ type MetricStateSet struct {
 
 	// List is the list of values to expose a value for.
 	// +optional
-	List []string `json:"list" yaml:"list"`
+	List []string `json:"list,omitempty" yaml:"list,omitempty"`
 	// LabelName is the key of the label which is used for each entry in List to expose the value.
 	// +optional
-	LabelName string `json:"labelName" yaml:"labelName"`
+	LabelName string `json:"labelName,omitempty" yaml:"labelName,omitempty"`
 	// ValueFrom is the subpath to compare the list to.
 	// +optional
-	ValueFrom []string `json:"valueFrom" yaml:"valueFrom"`
+	ValueFrom []string `json:"valueFrom,omitempty" yaml:"valueFrom,omitempty"`
 }
 
 // OtelCollectorFeatureConfig contains the configuration for the otel-agent.
