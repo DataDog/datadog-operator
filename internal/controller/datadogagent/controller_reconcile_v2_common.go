@@ -16,6 +16,7 @@ import (
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -25,6 +26,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
@@ -678,4 +680,24 @@ func restartDaemonset(daemonset, currentDaemonset *appsv1.DaemonSet) bool {
 	}
 
 	return false
+}
+
+func IsEqualStatus(current *v2alpha1.DatadogAgentStatus, newStatus *v2alpha1.DatadogAgentStatus) bool {
+	if !condition.IsEqualDaemonSetStatus(current.Agent, newStatus.Agent) ||
+		!apiequality.Semantic.DeepEqual(current.RemoteConfigConfiguration, newStatus.RemoteConfigConfiguration) {
+		return false
+	}
+
+	for i, agent := range current.AgentList {
+		if !condition.IsEqualDaemonSetStatus(agent, newStatus.AgentList[i]) {
+			return false
+		}
+	}
+
+	if !condition.IsEqualDeploymentStatus(current.ClusterAgent, newStatus.ClusterAgent) ||
+		!condition.IsEqualDeploymentStatus(current.ClusterChecksRunner, newStatus.ClusterChecksRunner) {
+		return false
+	}
+
+	return condition.IsEqualConditions(current.Conditions, newStatus.Conditions)
 }

@@ -7,17 +7,18 @@ package v1alpha1
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
 // ValidateDatadogAgentProfileSpec is used to check if a DatadogAgentProfileSpec is valid
-func ValidateDatadogAgentProfileSpec(spec *DatadogAgentProfileSpec) error {
+func ValidateDatadogAgentProfileSpec(spec *DatadogAgentProfileSpec, datadogAgentInternalEnabled bool) error {
 	if err := validateProfileAffinity(spec.ProfileAffinity); err != nil {
 		return err
 	}
-	if err := validateConfig(spec.Config); err != nil {
+	if err := validateConfig(spec.Config, datadogAgentInternalEnabled); err != nil {
 		return err
 	}
 
@@ -26,10 +27,10 @@ func ValidateDatadogAgentProfileSpec(spec *DatadogAgentProfileSpec) error {
 
 func validateProfileAffinity(profileAffinity *ProfileAffinity) error {
 	if profileAffinity == nil {
-		return fmt.Errorf("profileAffinity must be defined")
+		return undefinedError("profileAffinity")
 	}
 	if profileAffinity.ProfileNodeAffinity == nil {
-		return fmt.Errorf("profileNodeAffinity must be defined")
+		return undefinedError("profileNodeAffinity")
 	}
 	if len(profileAffinity.ProfileNodeAffinity) < 1 {
 		return fmt.Errorf("profileNodeAffinity must have at least 1 requirement")
@@ -38,20 +39,19 @@ func validateProfileAffinity(profileAffinity *ProfileAffinity) error {
 	return nil
 }
 
-func validateConfig(spec *v2alpha1.DatadogAgentSpec) error {
+func validateConfig(spec *v2alpha1.DatadogAgentSpec, datadogAgentInternalEnabled bool) error {
 	if spec == nil {
-		return fmt.Errorf("config must be defined")
+		return undefinedError("config")
 	}
-	// features are not supported
-	if spec.Features != nil {
-		return fmt.Errorf("feature overrides are not supported")
+	if err := validateFeatures(spec.Features, datadogAgentInternalEnabled); err != nil {
+		return err
 	}
 	// global is not supported
 	if spec.Global != nil {
-		return fmt.Errorf("global overrides are not supported")
+		return unsupportedError("global")
 	}
-	if spec.Override == nil {
-		return fmt.Errorf("config override must be defined")
+	if !datadogAgentInternalEnabled && spec.Override == nil {
+		return undefinedError("config override")
 	}
 	for component, override := range spec.Override {
 		if err := validateOverride(component, override); err != nil {
@@ -62,46 +62,103 @@ func validateConfig(spec *v2alpha1.DatadogAgentSpec) error {
 	return nil
 }
 
+func validateFeatures(features *v2alpha1.DatadogFeatures, datadogAgentInternalEnabled bool) error {
+	if features == nil {
+		return nil
+	}
+	if !datadogAgentInternalEnabled {
+		return fmt.Errorf("the 'features' field is only supported when DatadogAgentInternal is enabled")
+	}
+
+	// Only GPU feature is currently supported in DatadogAgentProfile context.
+	// Remove supported features from the `unsupportedFeatures` array.
+	unsupportedFeatures := []struct {
+		value any
+		name  string
+	}{
+		{features.OtelCollector, "otelCollector"},
+		{features.LogCollection, "logCollection"},
+		{features.LiveProcessCollection, "liveProcessCollection"},
+		{features.LiveContainerCollection, "liveContainerCollection"},
+		{features.ProcessDiscovery, "processDiscovery"},
+		{features.OOMKill, "oomKill"},
+		{features.TCPQueueLength, "tcpQueueLength"},
+		{features.EBPFCheck, "ebpfCheck"},
+		{features.APM, "apm"},
+		{features.ASM, "asm"},
+		{features.CSPM, "cspm"},
+		{features.CWS, "cws"},
+		{features.NPM, "npm"},
+		{features.USM, "usm"},
+		{features.Dogstatsd, "dogstatsd"},
+		{features.OTLP, "otlp"},
+		{features.RemoteConfiguration, "remoteConfiguration"},
+		{features.SBOM, "sbom"},
+		{features.ServiceDiscovery, "serviceDiscovery"},
+		{features.EventCollection, "eventCollection"},
+		{features.OrchestratorExplorer, "orchestratorExplorer"},
+		{features.KubeStateMetricsCore, "kubeStateMetricsCore"},
+		{features.AdmissionController, "admissionController"},
+		{features.ExternalMetricsServer, "externalMetricsServer"},
+		{features.Autoscaling, "autoscaling"},
+		{features.ClusterChecks, "clusterChecks"},
+		{features.PrometheusScrape, "prometheusScrape"},
+		{features.HelmCheck, "helmCheck"},
+		{features.ControlPlaneMonitoring, "controlPlaneMonitoring"},
+	}
+
+	for _, feature := range unsupportedFeatures {
+		// Use reflection to check if the underlying value is actually nil
+		// because any can hold a typed nil pointer
+		if feature.value != nil && !reflect.ValueOf(feature.value).IsNil() {
+			return unsupportedError(feature.name)
+		}
+	}
+
+	// GPU is allowed, no error returned
+	return nil
+}
+
 func validateOverride(component v2alpha1.ComponentName, override *v2alpha1.DatadogAgentComponentOverride) error {
 	if component != v2alpha1.NodeAgentComponentName {
 		return fmt.Errorf("only node agent componentoverrides are supported")
 	}
 
 	if override.Name != nil {
-		return fmt.Errorf("component name override is not supported")
+		return unsupportedError("component name")
 	}
 	if override.Replicas != nil {
-		return fmt.Errorf("component replicas override is not supported")
+		return unsupportedError("component replicas")
 	}
 	if override.CreatePodDisruptionBudget != nil {
-		return fmt.Errorf("component create pod disruption budget override is not supported")
+		return unsupportedError("component create pod disruption budget")
 	}
 	if override.CreateRbac != nil {
-		return fmt.Errorf("component create rbac override is not supported")
+		return unsupportedError("component create rbac")
 	}
 	if override.ServiceAccountName != nil {
-		return fmt.Errorf("component service account name override is not supported")
+		return unsupportedError("component service account name")
 	}
 	if override.ServiceAccountAnnotations != nil {
-		return fmt.Errorf("component service account annotations override is not supported")
+		return unsupportedError("component service account annotations")
 	}
 	if override.Image != nil {
-		return fmt.Errorf("component image override is not supported")
+		return unsupportedError("component image")
 	}
 	if override.Env != nil {
-		return fmt.Errorf("component env override is not supported")
+		return unsupportedError("component env")
 	}
 	if override.EnvFrom != nil {
-		return fmt.Errorf("component env from override is not supported")
+		return unsupportedError("component env from")
 	}
 	if override.CustomConfigurations != nil {
-		return fmt.Errorf("component custom configurations override is not supported")
+		return unsupportedError("component custom configurations")
 	}
 	if override.ExtraConfd != nil {
-		return fmt.Errorf("component extra confd override is not supported")
+		return unsupportedError("component extra confd")
 	}
 	if override.ExtraChecksd != nil {
-		return fmt.Errorf("component extra checksd override is not supported")
+		return unsupportedError("component extra checksd")
 	}
 	for name, override := range override.Containers {
 		if err := validateContainerOverride(name, override); err != nil {
@@ -109,37 +166,37 @@ func validateOverride(component v2alpha1.ComponentName, override *v2alpha1.Datad
 		}
 	}
 	if override.Volumes != nil {
-		return fmt.Errorf("component volumes override is not supported")
+		return unsupportedError("component volumes")
 	}
 	if override.SecurityContext != nil {
-		return fmt.Errorf("component security context override is not supported")
+		return unsupportedError("component security context")
 	}
 	if override.Affinity != nil {
-		return fmt.Errorf("component affinity override is not supported")
+		return unsupportedError("component affinity")
 	}
 	if override.DNSPolicy != nil {
-		return fmt.Errorf("component dns policy override is not supported")
+		return unsupportedError("component dns policy")
 	}
 	if override.DNSConfig != nil {
-		return fmt.Errorf("component dns config override is not supported")
+		return unsupportedError("component dns config")
 	}
 	if override.NodeSelector != nil {
-		return fmt.Errorf("component node selector override is not supported")
+		return unsupportedError("component node selector")
 	}
 	if override.Tolerations != nil {
-		return fmt.Errorf("component tolerations override is not supported")
+		return unsupportedError("component tolerations")
 	}
 	if override.Annotations != nil {
-		return fmt.Errorf("component annotations override is not supported")
+		return unsupportedError("component annotations")
 	}
 	if override.HostNetwork != nil {
-		return fmt.Errorf("component host network override is not supported")
+		return unsupportedError("component host network")
 	}
 	if override.HostPID != nil {
-		return fmt.Errorf("component host pid override is not supported")
+		return unsupportedError("component host pid")
 	}
 	if override.Disabled != nil {
-		return fmt.Errorf("component disabled override is not supported")
+		return unsupportedError("component disabled")
 	}
 
 	return nil
@@ -156,45 +213,53 @@ func validateContainerOverride(name common.AgentContainerName, override *v2alpha
 		common.AgentDataPlaneContainerName: {},
 	}
 	if _, ok := supportedContainers[name]; !ok {
-		return fmt.Errorf("container %s override is not supported", name)
+		return unsupportedError(fmt.Sprintf("container %s", name))
 	}
 
 	if override.Name != nil {
-		return fmt.Errorf("container name override is not supported")
+		return unsupportedError("container name")
 	}
 	if override.LogLevel != nil {
-		return fmt.Errorf("container log level override is not supported")
+		return unsupportedError("container log level")
 	}
 	if override.VolumeMounts != nil {
-		return fmt.Errorf("container volume mounts override is not supported")
+		return unsupportedError("container volume mounts")
 	}
 	if override.Command != nil {
-		return fmt.Errorf("container command override is not supported")
+		return unsupportedError("container command")
 	}
 	if override.Args != nil {
-		return fmt.Errorf("container args override is not supported")
+		return unsupportedError("container args")
 	}
 	if override.HealthPort != nil {
-		return fmt.Errorf("container health port override is not supported")
+		return unsupportedError("container health port")
 	}
 	if override.ReadinessProbe != nil {
-		return fmt.Errorf("container readiness probe override is not supported")
+		return unsupportedError("container readiness probe")
 	}
 	if override.LivenessProbe != nil {
-		return fmt.Errorf("container liveness probe override is not supported")
+		return unsupportedError("container liveness probe")
 	}
 	if override.StartupProbe != nil {
-		return fmt.Errorf("container startup probe override is not supported")
+		return unsupportedError("container startup probe")
 	}
 	if override.SecurityContext != nil {
-		return fmt.Errorf("container security context override is not supported")
+		return unsupportedError("container security context")
 	}
 	if override.SeccompConfig != nil {
-		return fmt.Errorf("container seccomp config override is not supported")
+		return unsupportedError("container seccomp config")
 	}
 	if override.AppArmorProfileName != nil {
-		return fmt.Errorf("container app armor profile name override is not supported")
+		return unsupportedError("container app armor profile name")
 	}
 
 	return nil
+}
+
+func unsupportedError(config string) error {
+	return fmt.Errorf("%s override is not supported", config)
+}
+
+func undefinedError(config string) error {
+	return fmt.Errorf("%s must be defined", config)
 }

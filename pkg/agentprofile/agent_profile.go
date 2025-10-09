@@ -26,7 +26,6 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
-	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
@@ -45,7 +44,7 @@ const (
 // - existing nodes with the correct label
 // - nodes that need a new or corrected label up to maxUnavailable # of nodes
 func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nodes []v1.Node, profileAppliedByNode map[string]types.NamespacedName,
-	now metav1.Time, maxUnavailable int) (map[string]types.NamespacedName, error) {
+	now metav1.Time, maxUnavailable int, datadogAgentInternalEnabled bool) (map[string]types.NamespacedName, error) {
 	matchingNodes := map[string]bool{}
 	profileStatus := v1alpha1.DatadogAgentProfileStatus{}
 
@@ -63,7 +62,7 @@ func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nod
 		return profileAppliedByNode, err
 	}
 
-	if err := v1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec); err != nil {
+	if err := v1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec, datadogAgentInternalEnabled); err != nil {
 		logger.Error(err, "profile spec is invalid, skipping", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
 		metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.FalseValue)
 		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))
@@ -520,29 +519,4 @@ func GetMaxUnavailable(logger logr.Logger, ddaSpec *v2alpha1.DatadogAgentSpec, p
 
 	// k8s default
 	return defaultMaxUnavailable
-}
-
-func IsEqualStatus(current *v1alpha1.DatadogAgentProfileStatus, newStatus *v1alpha1.DatadogAgentProfileStatus) bool {
-	if current.CurrentHash != newStatus.CurrentHash ||
-		current.Valid != newStatus.Valid ||
-		current.Applied != newStatus.Applied {
-		return false
-	}
-	if !isEqualCreateStrategy(current.CreateStrategy, newStatus.CreateStrategy) {
-		return false
-	}
-	return condition.IsEqualConditions(current.Conditions, newStatus.Conditions)
-}
-
-func isEqualCreateStrategy(current *v1alpha1.CreateStrategy, newStrategy *v1alpha1.CreateStrategy) bool {
-	if current == nil && newStrategy == nil {
-		return true
-	}
-	if current == nil || newStrategy == nil {
-		return false
-	}
-	return current.Status == newStrategy.Status &&
-		current.NodesLabeled == newStrategy.NodesLabeled &&
-		current.PodsReady == newStrategy.PodsReady &&
-		current.MaxUnavailable == newStrategy.MaxUnavailable
 }
