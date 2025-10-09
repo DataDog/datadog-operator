@@ -126,17 +126,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Get AWS account ID
-	stsClient := sts.NewFromConfig(awsConfig)
-	callerIdentity, err := stsClient.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
-	if err != nil {
-		log.Fatal(err)
-	}
-	if callerIdentity.Account == nil {
-		log.Fatal("unable to determine AWS account ID from STS GetCallerIdentity")
-	}
-	accountID := *callerIdentity.Account
-
 	// Get kube client
 	kubeClientConfig, err := k8sClientConfig.ClientConfig()
 	if err != nil {
@@ -147,13 +136,31 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Add role mapping in the `aws-auth` ConfigMap
-	if err := aws.EnsureAwsAuthRole(ctx, kubeClientSet, aws.RoleMapping{
-		RoleArn:  "arn:aws:iam::" + accountID + ":role/KarpenterNodeRole-" + *clusterName,
-		Username: "system:node:{{EC2PrivateDNSName}}",
-		Groups:   []string{"system:bootstrappers", "system:nodes"},
-	}); err != nil {
+	awsAuthConfigMapPresent, err := guess.IsAwsAuthConfigMapPresent(ctx, kubeClientSet)
+	if err != nil {
 		log.Fatal(err)
+	}
+
+	if awsAuthConfigMapPresent {
+		// Get AWS account ID
+		stsClient := sts.NewFromConfig(awsConfig)
+		callerIdentity, err := stsClient.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
+		if err != nil {
+			log.Fatal(err)
+		}
+		if callerIdentity.Account == nil {
+			log.Fatal("unable to determine AWS account ID from STS GetCallerIdentity")
+		}
+		accountID := *callerIdentity.Account
+
+		// Add role mapping in the `aws-auth` ConfigMap
+		if err := aws.EnsureAwsAuthRole(ctx, kubeClientSet, aws.RoleMapping{
+			RoleArn:  "arn:aws:iam::" + accountID + ":role/KarpenterNodeRole-" + *clusterName,
+			Username: "system:node:{{EC2PrivateDNSName}}",
+			Groups:   []string{"system:bootstrappers", "system:nodes"},
+		}); err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	// Install Helm chart
