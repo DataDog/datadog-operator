@@ -176,6 +176,18 @@ func main() {
 			"clusterName":       *clusterName,
 			"interruptionQueue": *clusterName,
 		},
+		"podAnnotations": map[string]any{
+			"ad.datadoghq.com/controller.checks": `{
+  "karpenter": {
+    "init_config": {},
+    "instances": [
+      {
+        "openmetrics_endpoint": "http://%%host%%:8080/metrics"
+      }
+    ]
+  }
+}`,
+		},
 	}
 
 	if err := helm.CreateOrUpgrade(ctx, actionConfig, "karpenter", *karpenterNamespace, KarpenterHelmChart, values); err != nil {
