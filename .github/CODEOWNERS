@@ -19,6 +19,7 @@ README.md               @DataDog/documentation @DataDog/container-ecosystems
 /internal/controller/datadogagent/feature/clusterchecks/*          @DataDog/container-platform
 /internal/controller/datadogagent/feature/kubernetesstatecore/*    @DataDog/container-integrations
 /internal/controller/datadogagent/feature/helmcheck/*              @DataDog/container-integrations
+/internal/controller/datadogagent/feature/autoscaling/*            @DataDog/container-autoscaling
 
 
 /api/**/datadogpodautoscaler*.go              @DataDog/container-autoscaling
