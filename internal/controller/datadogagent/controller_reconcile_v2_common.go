@@ -10,7 +10,9 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -683,14 +685,44 @@ func restartDaemonset(daemonset, currentDaemonset *appsv1.DaemonSet) bool {
 }
 
 func IsEqualStatus(current *v2alpha1.DatadogAgentStatus, newStatus *v2alpha1.DatadogAgentStatus) bool {
+	if current == nil && newStatus == nil {
+		return true
+	}
+	if current == nil || newStatus == nil {
+		return false
+	}
+
 	if !condition.IsEqualDaemonSetStatus(current.Agent, newStatus.Agent) ||
 		!apiequality.Semantic.DeepEqual(current.RemoteConfigConfiguration, newStatus.RemoteConfigConfiguration) {
 		return false
 	}
 
-	for i, agent := range current.AgentList {
-		if !condition.IsEqualDaemonSetStatus(agent, newStatus.AgentList[i]) {
-			return false
+	// Compare AgentList order-insensitively to avoid spurious diffs and prevent panics
+	if len(current.AgentList) != len(newStatus.AgentList) {
+		return false
+	}
+	if len(current.AgentList) > 0 {
+		// Clone to avoid mutating the original slices
+		ac := slices.Clone(current.AgentList)
+		bc := slices.Clone(newStatus.AgentList)
+
+		sortByNameFunc := func(a, b *v2alpha1.DaemonSetStatus) int {
+			var an, bn string
+			if a != nil {
+				an = a.DaemonsetName
+			}
+			if b != nil {
+				bn = b.DaemonsetName
+			}
+			return strings.Compare(an, bn)
+		}
+
+		slices.SortFunc(ac, sortByNameFunc)
+		slices.SortFunc(bc, sortByNameFunc)
+		for i := range ac {
+			if !condition.IsEqualDaemonSetStatus(ac[i], bc[i]) {
+				return false
+			}
 		}
 	}
 
