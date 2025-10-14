@@ -30,17 +30,17 @@ type CredentialManager struct {
 	creds            Creds
 	credsMutex       sync.Mutex
 	decryptorBackoff wait.Backoff
-	// callbacks        []CredentialChangeCallback
-	// callbackMutex    sync.RWMutex
+	callbacks        []CredentialChangeCallback
+	callbackMutex    sync.RWMutex
 }
 
-// type CredentialChangeCallback func(newCreds Creds) error
+type CredentialChangeCallback func(newCreds Creds) error
 
-// func (cm *CredentialManager) RegisterCallback(cb CredentialChangeCallback) {
-// 	cm.callbackMutex.Lock()
-// 	defer cm.callbackMutex.Unlock()
-
-// }
+func (cm *CredentialManager) RegisterCallback(cb CredentialChangeCallback) {
+	cm.callbackMutex.Lock()
+	defer cm.callbackMutex.Unlock()
+	cm.callbacks = append(cm.callbacks, cb)
+}
 
 // NewCredentialManager returns a CredentialManager.
 func NewCredentialManager() *CredentialManager {
@@ -149,6 +149,7 @@ func (cm *CredentialManager) getCredsFromCache() (Creds, bool) {
 // 	return nil
 // }
 
+// // start refresh routine here?
 // func (cm *CredentialManager) notifyCallbacks(newCreds Creds) error {
 // 	cm.callbackMutex.RLock()
 // 	defer cm.callbackMutex.RUnlock()
