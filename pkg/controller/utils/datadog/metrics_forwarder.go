@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"hash/fnv"
 	"os"
-	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -388,6 +387,11 @@ func (mf *metricsForwarder) connectToDatadogAPI() (bool, error) {
 		mf.logger.Error(err, "cannot retrieve Datadog metrics forwarder to send deployment metrics, will retry later...")
 		return false, nil
 	}
+	// Initialize lastReconcileErr to nil after successful setup so the first
+	// reconcile metric reports success instead of an initialization error.
+	if errors.Is(mf.getLastReconcileError(), errInitValue) {
+		mf.setLastReconcileError(nil)
+	}
 	return true, nil
 }
 
@@ -452,7 +456,7 @@ func (mf *metricsForwarder) forwardMetrics() error {
 // processReconcileError updates lastReconcileErr
 // and sends reconcile metrics based on the reconcile errors
 func (mf *metricsForwarder) processReconcileError(reconcileErr error) error {
-	if reflect.DeepEqual(mf.getLastReconcileError(), reconcileErr) {
+	if errors.Is(reconcileErr, mf.getLastReconcileError()) {
 		// Error didn't change
 		return nil
 	}

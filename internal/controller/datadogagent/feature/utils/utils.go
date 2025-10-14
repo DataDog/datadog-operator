@@ -18,6 +18,7 @@ import (
 
 const ProcessConfigRunInCoreAgentMinVersion = "7.60.0-0"
 const EnableADPAnnotation = "agent.datadoghq.com/adp-enabled"
+const EnableFineGrainedKubeletAuthz = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
 
 func agentSupportsRunInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	// Agent version must >= 7.60.0 to run feature in core agent
@@ -60,4 +61,9 @@ func hasFeatureEnableAnnotation(dda metav1.Object, annotation string) bool {
 // HasAgentDataPlaneAnnotation returns true if the Agent Data Plane is enabled via the dedicated `agent.datadoghq.com/adp-enabled` annotation
 func HasAgentDataPlaneAnnotation(dda metav1.Object) bool {
 	return hasFeatureEnableAnnotation(dda, EnableADPAnnotation)
+}
+
+// HasFineGrainedKubeletAuthz returns true if the feature is enabled via the dedicated `agent.datadoghq.com/fine-grained-kubelet-authorization-enabled` annotation
+func HasFineGrainedKubeletAuthz(dda metav1.Object) bool {
+	return hasFeatureEnableAnnotation(dda, EnableFineGrainedKubeletAuthz)
 }

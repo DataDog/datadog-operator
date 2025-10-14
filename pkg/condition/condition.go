@@ -6,7 +6,9 @@
 package condition
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -474,4 +476,77 @@ func CombineDeploymentStatus(deploymentStatus *v2alpha1.DeploymentStatus, ddaiSt
 	deploymentStatus.State = ddaiStatus.State
 	deploymentStatus.DeploymentName = ddaiStatus.DeploymentName
 	return deploymentStatus
+}
+
+func IsEqualConditions(current []metav1.Condition, newCond []metav1.Condition) bool {
+	if len(current) != len(newCond) {
+		return false
+	}
+
+	// Compare order-insensitively. The CRD uses listMapKey=type so types are unique.
+	ac := append([]metav1.Condition(nil), current...)
+	bc := append([]metav1.Condition(nil), newCond...)
+	slices.SortFunc(ac, func(a, b metav1.Condition) int { return cmp.Compare(a.Type, b.Type) })
+	slices.SortFunc(bc, func(a, b metav1.Condition) int { return cmp.Compare(a.Type, b.Type) })
+	for i := range ac {
+		if !IsEqualCondition(&ac[i], &bc[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func IsEqualCondition(current *metav1.Condition, newCond *metav1.Condition) bool {
+	if current.Type != newCond.Type ||
+		current.Status != newCond.Status ||
+		current.Reason != newCond.Reason ||
+		current.Message != newCond.Message {
+		return false
+	}
+	return true
+}
+
+func IsEqualDaemonSetStatus(current *v2alpha1.DaemonSetStatus, newStatus *v2alpha1.DaemonSetStatus) bool {
+	if current == nil && newStatus == nil {
+		return true
+	}
+	if current == nil || newStatus == nil {
+		return false
+	}
+
+	if current.Desired != newStatus.Desired ||
+		current.Current != newStatus.Current ||
+		current.Ready != newStatus.Ready ||
+		current.Available != newStatus.Available ||
+		current.UpToDate != newStatus.UpToDate ||
+		current.CurrentHash != newStatus.CurrentHash ||
+		current.Status != newStatus.Status ||
+		current.State != newStatus.State ||
+		current.DaemonsetName != newStatus.DaemonsetName {
+		return false
+	}
+	return true
+}
+
+func IsEqualDeploymentStatus(current *v2alpha1.DeploymentStatus, newStatus *v2alpha1.DeploymentStatus) bool {
+	if current == nil && newStatus == nil {
+		return true
+	}
+	if current == nil || newStatus == nil {
+		return false
+	}
+
+	if current.Replicas != newStatus.Replicas ||
+		current.UpdatedReplicas != newStatus.UpdatedReplicas ||
+		current.ReadyReplicas != newStatus.ReadyReplicas ||
+		current.AvailableReplicas != newStatus.AvailableReplicas ||
+		current.UnavailableReplicas != newStatus.UnavailableReplicas ||
+		current.CurrentHash != newStatus.CurrentHash ||
+		current.GeneratedToken != newStatus.GeneratedToken ||
+		current.Status != newStatus.Status ||
+		current.State != newStatus.State ||
+		current.DeploymentName != newStatus.DeploymentName {
+		return false
+	}
+	return true
 }

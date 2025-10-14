@@ -121,6 +121,11 @@ func testRBACResources(t testing.TB, store store.StoreClient) {
 					APIGroups: []string{"apps"},
 					Resources: []string{"deployments"},
 				},
+				{
+					Verbs:     []string{"patch"},
+					APIGroups: []string{"argoproj.io"},
+					Resources: []string{"rollouts"},
+				},
 			}),
 			"ClusterRole Policy Rules \ndiff = %s", cmp.Diff(cr.Rules, ""),
 		)
