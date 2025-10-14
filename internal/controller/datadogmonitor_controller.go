@@ -7,6 +7,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -20,6 +21,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogmonitor"
+	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 )
@@ -69,5 +71,16 @@ func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager, metricForw
 		return err
 	}
 
+	return nil
+}
+
+// Callback function for credential change from credential manager
+func (r *DatadogMonitorReconciler) onCredentialChange(newCreds config.Creds) error {
+	ddClient, err := datadogclient.InitDatadogMonitorClient(r.Log, newCreds)
+	if err != nil {
+		return fmt.Errorf("unable to create Datadog API Client: %w", err)
+	}
+
+	r.DDClient = ddClient
 	return nil
 }

@@ -184,16 +184,21 @@ func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, pInfo kubernet
 		return fmt.Errorf("unable to create Datadog API Client: %w", err)
 	}
 
-	return (&DatadogMonitorReconciler{
+	monitorReconciler := &DatadogMonitorReconciler{
 		Client:                 mgr.GetClient(),
 		DDClient:               ddClient,
 		Log:                    ctrl.Log.WithName("controllers").WithName(monitorControllerName),
 		Scheme:                 mgr.GetScheme(),
 		Recorder:               mgr.GetEventRecorderFor(monitorControllerName),
 		operatorMetricsEnabled: options.OperatorMetricsEnabled,
-	}).SetupWithManager(mgr, metricForwardersMgr)
+	}
 
 	// set CredentialManager callback
+	if options.CredsManager != nil {
+		options.CredsManager.RegisterCallback(monitorReconciler.onCredentialChange)
+	}
+
+	return monitorReconciler.SetupWithManager(mgr, metricForwardersMgr)
 }
 
 func startDatadogDashboard(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
@@ -207,13 +212,19 @@ func startDatadogDashboard(logger logr.Logger, mgr manager.Manager, pInfo kubern
 		return fmt.Errorf("unable to create Datadog API Client: %w", err)
 	}
 
-	return (&DatadogDashboardReconciler{
+	dashboardReconciler := &DatadogDashboardReconciler{
 		Client:   mgr.GetClient(),
 		DDClient: ddClient,
 		Log:      ctrl.Log.WithName("controllers").WithName(dashboardControllerName),
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorderFor(dashboardControllerName),
-	}).SetupWithManager(mgr)
+	}
+
+	if options.CredsManager != nil {
+		options.CredsManager.RegisterCallback(dashboardReconciler.onCredentialChange)
+	}
+
+	return dashboardReconciler.SetupWithManager(mgr)
 }
 
 func startDatadogGenericResource(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
@@ -227,13 +238,19 @@ func startDatadogGenericResource(logger logr.Logger, mgr manager.Manager, pInfo 
 		return fmt.Errorf("unable to create Datadog API Client: %w", err)
 	}
 
-	return (&DatadogGenericResourceReconciler{
+	genericResourceReconciler := &DatadogGenericResourceReconciler{
 		Client:   mgr.GetClient(),
 		DDClient: ddClient,
 		Log:      ctrl.Log.WithName("controllers").WithName(genericResourceControllerName),
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorderFor(genericResourceControllerName),
-	}).SetupWithManager(mgr)
+	}
+
+	if options.CredsManager != nil {
+		options.CredsManager.RegisterCallback(genericResourceReconciler.onCredentialChange)
+	}
+
+	return genericResourceReconciler.SetupWithManager(mgr)
 }
 
 func startDatadogSLO(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
@@ -247,7 +264,7 @@ func startDatadogSLO(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.P
 		return fmt.Errorf("unable to create Datadog API Client: %w", err)
 	}
 
-	controller := &DatadogSLOReconciler{
+	sloReconciler := &DatadogSLOReconciler{
 		Client:   mgr.GetClient(),
 		DDClient: ddClient,
 		Log:      ctrl.Log.WithName("controllers").WithName(sloControllerName),
@@ -255,7 +272,10 @@ func startDatadogSLO(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.P
 		Recorder: mgr.GetEventRecorderFor(sloControllerName),
 	}
 
-	return controller.SetupWithManager(mgr)
+	if options.CredsManager != nil {
+		options.CredsManager.RegisterCallback(sloReconciler.onCredentialChange)
+	}
+	return sloReconciler.SetupWithManager(mgr)
 }
 
 func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
