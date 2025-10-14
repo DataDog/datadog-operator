@@ -44,6 +44,7 @@ const (
 type SetupOptions struct {
 	SupportExtendedDaemonset      ExtendedDaemonsetOptions
 	SupportCilium                 bool
+	CredsManager                  *config.CredentialManager
 	Creds                         config.Creds
 	DatadogAgentEnabled           bool
 	DatadogAgentInternalEnabled   bool
@@ -88,10 +89,10 @@ var controllerStarters = map[string]starterFunc{
 
 // SetupControllers starts all controllers (also used by e2e tests)
 func SetupControllers(logger logr.Logger, mgr manager.Manager, platformInfo kubernetes.PlatformInfo, options SetupOptions) error {
-
+	// Metrics Forwarder created -- creds
 	var metricForwardersMgr datadog.MetricsForwardersManager
 	if options.OperatorMetricsEnabled {
-		metricForwardersMgr = datadog.NewForwardersManager(mgr.GetClient(), &platformInfo, options.DatadogAgentInternalEnabled)
+		metricForwardersMgr = datadog.NewForwardersManager(mgr.GetClient(), &platformInfo, options.DatadogAgentInternalEnabled, options.CredsManager)
 	}
 
 	for controller, starter := range controllerStarters {
@@ -191,6 +192,8 @@ func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, pInfo kubernet
 		Recorder:               mgr.GetEventRecorderFor(monitorControllerName),
 		operatorMetricsEnabled: options.OperatorMetricsEnabled,
 	}).SetupWithManager(mgr, metricForwardersMgr)
+
+	// set CredentialManager callback
 }
 
 func startDatadogDashboard(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {

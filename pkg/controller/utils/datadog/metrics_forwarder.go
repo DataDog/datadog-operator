@@ -146,7 +146,7 @@ type metricsForwarder struct {
 }
 
 // newMetricsForwarder returns a new Datadog MetricsForwarder instance
-func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj client.Object, platforminfo *kubernetes.PlatformInfo, datadogAgentInternalEnabled bool) *metricsForwarder {
+func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj client.Object, platforminfo *kubernetes.PlatformInfo, datadogAgentInternalEnabled bool, credsManager *config.CredentialManager) *metricsForwarder {
 
 	logger := log.WithValues("CustomResource.Namespace", obj.GetNamespace(), "CustomResource.Name", obj.GetName())
 	objKind := getObjKind(obj)
@@ -409,6 +409,7 @@ func (mf *metricsForwarder) forwardMetrics() error {
 		mf.logger.Error(err, "cannot update Datadog credentials")
 		return err
 	}
+	// NOTE: in generateDatadogContext
 	ctx := mf.generateDatadogContext()
 
 	mf.logger.V(1).Info("Collecting metrics")
@@ -915,6 +916,7 @@ func (mf *metricsForwarder) setUpDatadogAPIClient() {
 	mf.datadogEventsApi = datadogV1.NewEventsApi(apiClient) // Initialize events API
 }
 
+// API key set here. This and Get API from etc. etc.
 func (mf *metricsForwarder) generateDatadogContext() context.Context {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, datadogapi.ContextAPIKeys,

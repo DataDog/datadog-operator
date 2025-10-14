@@ -298,7 +298,8 @@ func run(opts *options) error {
 	// Custom setup
 	customSetupHealthChecks(setupLog, mgr, &opts.maximumGoroutines)
 
-	creds, err := config.NewCredentialManager().GetCredentials()
+	credsManager := config.NewCredentialManager()
+	creds, err := credsManager.GetCredentials()
 	if err != nil && opts.datadogMonitorEnabled {
 		return setupErrorf(setupLog, err, "Unable to get credentials for DatadogMonitor")
 	}
@@ -348,6 +349,7 @@ func run(opts *options) error {
 			MaxPodSchedulerFailure:              opts.edsMaxPodSchedulerFailure,
 		},
 		SupportCilium:                 opts.supportCilium,
+		CredsManager:                  credsManager,
 		Creds:                         creds,
 		DatadogAgentEnabled:           opts.datadogAgentEnabled,
 		DatadogAgentInternalEnabled:   opts.datadogAgentInternalEnabled,
@@ -373,12 +375,12 @@ func run(opts *options) error {
 				"CRDs of this version were removed in v1.10.0.")
 		}
 	}
-
+	// START controllers setup
 	if err = controller.SetupControllers(setupLog, mgr, platformInfo, options); err != nil {
 		return setupErrorf(setupLog, err, "Unable to start controllers")
 	}
 
-	setupAndStartMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts)
+	setupAndStartMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
 
 	// +kubebuilder:scaffold:builder
 
@@ -486,8 +488,8 @@ func setupErrorf(logger logr.Logger, err error, msg string, keysAndValues ...any
 	return fmt.Errorf("%s, err:%w", msg, err)
 }
 
-func setupAndStartMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options) {
-	mdf := metadata.NewMetadataForwarder(logger, client)
+func setupAndStartMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options, credsManager *config.CredentialManager) {
+	mdf := metadata.NewMetadataForwarder(logger, client, credsManager)
 	mdf.OperatorMetadata = metadata.OperatorMetadata{
 		OperatorVersion:               version.GetVersion(),
 		KubernetesVersion:             kubernetesVersion,
