@@ -17,6 +17,8 @@ variables:
   TEST_INFRA_DEFINITIONS_BUILDIMAGES: b324348d0857
   PUSH_IMAGES_TO_STAGING:
     description: "Set PUSH_IMAGE_TO_STAGING to 'true' if you want to push the operator to internal staging registry."
+  PUBLISH_COMMUNITY_OPERATORS_FOR_RELEASE:
+    description: "Set PUBLISH_COMMUNITY_OPERATORS_FOR_RELEASE to release tag e.g. v1.2.3 if you want to retry community operators publish job."
   FIPS_ENABLED: false
   FF_TIMESTAMPS: true
 
@@ -38,10 +40,15 @@ stages:
 .on_build_images:
   - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
     when: never
+  - if: $PUBLISH_COMMUNITY_OPERATORS_FOR_RELEASE
+    when: never
   - when: always
 
 build:
   stage: build
+  rules:
+    - if: $PUBLISH_COMMUNITY_OPERATORS_FOR_RELEASE
+      when: never
   tags: ["arch:amd64"]
   variables:
     KUBERNETES_MEMORY_REQUEST: 16Gi
@@ -61,6 +68,8 @@ unit_tests:
   rules:
     - if: '$DDR == "true"'
       when: never
+    - if: $PUBLISH_COMMUNITY_OPERATORS_FOR_RELEASE
+      when: never      
     - when: on_success
   variables:
     KUBERNETES_MEMORY_REQUEST: 16Gi
@@ -76,6 +85,9 @@ unit_tests:
 
 check-golang-version:
   stage: build
+  rules:
+    - if: $PUBLISH_COMMUNITY_OPERATORS_FOR_RELEASE
+      when: never  
   tags: ["arch:amd64"]
   before_script:
     - make install-tools
@@ -85,10 +97,13 @@ check-golang-version:
 
 generate_code:
   stage: test
+  
   tags: ["arch:amd64"]
   rules:
     - if: '$DDR == "true"'
       when: never
+    - if: $PUBLISH_COMMUNITY_OPERATORS_FOR_RELEASE
+      when: never      
     - when: on_success
   before_script:
     - make install-tools
@@ -181,6 +196,9 @@ build_operator_check_image_arm64:
 
 build_bundle_image:
   stage: image
+  rules:
+    - if: $PUBLISH_COMMUNITY_OPERATORS_FOR_RELEASE
+      when: never  
   tags:
     - "arch:amd64"
   image: $JOB_DOCKER_IMAGE
@@ -209,6 +227,8 @@ build_bundle_image:
     allow_failure: true
   # Disable on Conductor-triggered jobs (ex: nightly)
   - if: '$DDR == "true"'
+    when: never
+  - if: $PUBLISH_COMMUNITY_OPERATORS_FOR_RELEASE
     when: never
   # Run automatically otherwise
   - when: on_success
@@ -577,6 +597,8 @@ publish_community_operators:
   rules:
       - if: $CI_COMMIT_TAG
         when: manual
+      - if: $PUBLISH_COMMUNITY_OPERATORS_FOR_RELEASE
+        when: manual
       - when: never
   # Allow the job to be run manually even if submit_preflight_redhat_image fails, so that
   # preflight submission can be retried locally followed by this manual job trigger in the pipeline
@@ -591,7 +613,7 @@ publish_community_operators:
     - make install-tools
   script:
     # Set version
-    - export VERSION=${CI_COMMIT_TAG:1} # vX.Y.Z => X.Y.Z
+    - export VERSION=${PUBLISH_COMMUNITY_OPERATORS_FOR_RELEASE:1} # vX.Y.Z => X.Y.Z
     # Install github-cli and skopeo deps
     - curl -fsSL "https://cli.github.com/packages/githubcli-archive-keyring.gpg" -o /usr/share/keyrings/githubcli-archive-keyring.gpg
     - echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
@@ -617,8 +639,9 @@ publish_community_operators:
     - git config --global user.email $GITLAB_USER_EMAIL
     # Use dd-octo-sts to get GitHub token
     - dd-octo-sts version
-    - dd-octo-sts debug --scope DataDog --policy datadog-operator.publish-community-bundles
-    - dd-octo-sts token --scope DataDog --policy datadog-operator.publish-community-bundles > token.txt
+    - dd-octo-sts debug --disable-tracing --scope DataDog --policy datadog-operator.publish-community-bundles
+    - dd-octo-sts check --disable-tracing --scope DataDog --policy datadog-operator.publish-community-bundles
+    - dd-octo-sts token --disable-tracing --scope DataDog --policy datadog-operator.publish-community-bundles > token.txt
     - gh auth login --with-token < token.txt
     - gh auth setup-git
     # create pull request for each marketplace repo
