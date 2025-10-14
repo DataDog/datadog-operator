@@ -168,7 +168,7 @@ func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, o
 		creds:                       sync.Map{},
 		baseURL:                     defaultbaseURL,
 		logger:                      logger,
-		credsManager:                config.NewCredentialManager(),
+		credsManager:                credsManager,
 		EnabledFeatures:             make(map[string][]string),
 		datadogAgentInternalEnabled: datadogAgentInternalEnabled,
 	}
@@ -294,7 +294,6 @@ func (mf *metricsForwarder) setupFromOperator() bool {
 	if mf.credsManager == nil {
 		return false
 	}
-
 	creds, err := mf.credsManager.GetCredentials()
 	if err != nil {
 		return false
