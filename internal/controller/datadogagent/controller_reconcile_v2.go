@@ -333,9 +333,9 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 		maxUnavailable := agentprofile.GetMaxUnavailable(logger, ddaSpec, &profile, len(nodeList), &r.options.ExtendedDaemonsetOptions)
 		oldStatus := profile.Status
 		profileAppliedByNode, err = agentprofile.ApplyProfile(logger, &profile, nodeList, profileAppliedByNode, now, maxUnavailable)
-		if result, e := r.updateDAPStatus(ctx, logger, &profile, &oldStatus); utils.ShouldReturn(result, e) {
-			return nil, nil, e
-		}
+
+		r.updateDAPStatus(ctx, logger, &profile, &oldStatus)
+
 		if err != nil {
 			// profile is invalid or conflicts
 			logger.Error(err, "profile cannot be applied", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
