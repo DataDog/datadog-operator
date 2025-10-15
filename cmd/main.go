@@ -141,8 +141,9 @@ type options struct {
 	datadogGenericResourceEnabled          bool
 
 	// Secret Backend options
-	secretBackendCommand string
-	secretBackendArgs    stringSlice
+	secretBackendCommand  string
+	secretBackendArgs     stringSlice
+	secretRefreshInterval time.Duration
 }
 
 func (opts *options) Parse() {
@@ -163,6 +164,7 @@ func (opts *options) Parse() {
 	// Custom flags
 	flag.StringVar(&opts.secretBackendCommand, "secretBackendCommand", "", "Secret backend command")
 	flag.Var(&opts.secretBackendArgs, "secretBackendArgs", "Space separated arguments of the secret backend command")
+	flag.DurationVar(&opts.secretRefreshInterval, "secretRefreshInterval", 5*time.Minute, "Interval for refreshing secrets from secret backend")
 	flag.BoolVar(&opts.supportCilium, "supportCilium", false, "Support usage of Cilium network policies.")
 	flag.BoolVar(&opts.datadogAgentEnabled, "datadogAgentEnabled", true, "Enable the DatadogAgent controller")
 	flag.BoolVar(&opts.datadogMonitorEnabled, "datadogMonitorEnabled", false, "Enable the DatadogMonitor controller")
@@ -253,6 +255,15 @@ func run(opts *options) error {
 	secrets.SetSecretBackendCommand(opts.secretBackendCommand)
 	secrets.SetSecretBackendArgs(opts.secretBackendArgs)
 
+	credsManager := config.NewCredentialManager()
+	creds, err := credsManager.GetCredentials()
+	if err != nil && opts.datadogMonitorEnabled {
+		return setupErrorf(setupLog, err, "Unable to get credentials for DatadogMonitor")
+	}
+
+	if opts.secretRefreshInterval > 0 {
+		go credsManager.StartCredentialRefreshRoutine(opts.secretRefreshInterval, setupLog)
+	}
 	renewDeadline := opts.leaderElectionLeaseDuration / 2
 	retryPeriod := opts.leaderElectionLeaseDuration / 4
 
@@ -297,12 +308,6 @@ func run(opts *options) error {
 
 	// Custom setup
 	customSetupHealthChecks(setupLog, mgr, &opts.maximumGoroutines)
-
-	credsManager := config.NewCredentialManager()
-	creds, err := credsManager.GetCredentials()
-	if err != nil && opts.datadogMonitorEnabled {
-		return setupErrorf(setupLog, err, "Unable to get credentials for DatadogMonitor")
-	}
 
 	if opts.remoteConfigEnabled {
 		go func() {
@@ -351,6 +356,7 @@ func run(opts *options) error {
 		SupportCilium:                 opts.supportCilium,
 		CredsManager:                  credsManager,
 		Creds:                         creds,
+		SecretRefreshInterval:         opts.secretRefreshInterval,
 		DatadogAgentEnabled:           opts.datadogAgentEnabled,
 		DatadogAgentInternalEnabled:   opts.datadogAgentInternalEnabled,
 		DatadogMonitorEnabled:         opts.datadogMonitorEnabled,

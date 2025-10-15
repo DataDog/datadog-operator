@@ -16,6 +16,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
+	"github.com/go-logr/logr"
 )
 
 // Creds holds the api and app keys.
@@ -122,42 +123,53 @@ func (cm *CredentialManager) getCredsFromCache() (Creds, bool) {
 	return Creds{}, false
 }
 
-// func (cm *CredentialManager) refresh() error {
-// 	// invalidate cache
-// 	cm.credsMutex.Lock()
-// 	defer cm.credsMutex.Unlock()
+func (cm *CredentialManager) refresh() error {
+	// // invalidate cache
+	// cm.credsMutex.Lock()
+	// defer cm.credsMutex.Unlock()
 
-// 	oldCreds := cm.creds
-// 	cm.creds = Creds{}
+	oldCreds := cm.creds
+	cm.creds = Creds{}
 
-// 	newCreds, err := cm.GetCredentials()
+	newCreds, err := cm.GetCredentials()
 
-// 	if err != nil {
-// 		return err
-// 	}
+	if err != nil {
+		return err
+	}
 
-// 	if oldCreds != newCreds {
-// 		// callbacks
-// 		cm.creds = newCreds
-// 		err = cm.notifyCallbacks(newCreds)
+	if oldCreds != newCreds {
+		// callbacks
+		cm.creds = newCreds
+		err = cm.notifyCallbacks(newCreds)
 
-// 		if err != nil {
-// 			return err
-// 		}
-// 	}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
-// 	return nil
-// }
+// Recreate custom resource clients
+func (cm *CredentialManager) notifyCallbacks(newCreds Creds) error {
+	cm.callbackMutex.RLock()
+	defer cm.callbackMutex.RUnlock()
 
-// // start refresh routine here?
-// func (cm *CredentialManager) notifyCallbacks(newCreds Creds) error {
-// 	cm.callbackMutex.RLock()
-// 	defer cm.callbackMutex.RUnlock()
+	for _, cb := range cm.callbacks {
+		if err := cb(newCreds); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
-// 	for _, cb := range cm.callbacks {
-// 		if err := cb(newCreds); err != nil {
-// 			return err
-// 		}
-// 	}
-// 	return nil
-// }
+func (cm *CredentialManager) StartCredentialRefreshRoutine(interval time.Duration, logger logr.Logger) {
+	logger.Info("Starting secret refresh routine", "interval", interval)
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		<-ticker.C
+		cm.refresh()
+	}
+}

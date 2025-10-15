@@ -46,6 +46,7 @@ type SetupOptions struct {
 	SupportCilium                 bool
 	CredsManager                  *config.CredentialManager
 	Creds                         config.Creds
+	SecretRefreshInterval         time.Duration
 	DatadogAgentEnabled           bool
 	DatadogAgentInternalEnabled   bool
 	DatadogMonitorEnabled         bool
@@ -193,8 +194,8 @@ func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, pInfo kubernet
 		operatorMetricsEnabled: options.OperatorMetricsEnabled,
 	}
 
-	// set CredentialManager callback
-	if options.CredsManager != nil {
+	// set CredentialManager callback - only if secret refresh is enabled
+	if options.CredsManager != nil && options.SecretRefreshInterval > 0 {
 		options.CredsManager.RegisterCallback(monitorReconciler.onCredentialChange)
 	}
 
@@ -220,7 +221,7 @@ func startDatadogDashboard(logger logr.Logger, mgr manager.Manager, pInfo kubern
 		Recorder: mgr.GetEventRecorderFor(dashboardControllerName),
 	}
 
-	if options.CredsManager != nil {
+	if options.CredsManager != nil && options.SecretRefreshInterval > 0 {
 		options.CredsManager.RegisterCallback(dashboardReconciler.onCredentialChange)
 	}
 
@@ -246,7 +247,7 @@ func startDatadogGenericResource(logger logr.Logger, mgr manager.Manager, pInfo 
 		Recorder: mgr.GetEventRecorderFor(genericResourceControllerName),
 	}
 
-	if options.CredsManager != nil {
+	if options.CredsManager != nil && options.SecretRefreshInterval > 0 {
 		options.CredsManager.RegisterCallback(genericResourceReconciler.onCredentialChange)
 	}
 
@@ -272,7 +273,7 @@ func startDatadogSLO(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.P
 		Recorder: mgr.GetEventRecorderFor(sloControllerName),
 	}
 
-	if options.CredsManager != nil {
+	if options.CredsManager != nil && options.SecretRefreshInterval > 0 {
 		options.CredsManager.RegisterCallback(sloReconciler.onCredentialChange)
 	}
 	return sloReconciler.SetupWithManager(mgr)
