@@ -613,9 +613,9 @@ publish_community_operators:
     - make install-tools
     # Use dd-octo-sts to get GitHub token
     - dd-octo-sts version
-    - dd-octo-sts debug --disable-tracing --scope DataDog --policy datadog-operator.publish-community-bundles --repo DataDog/.github
-    - dd-octo-sts check --disable-tracing --scope DataDog --policy datadog-operator.publish-community-bundles --repo DataDog/.github
-    - dd-octo-sts token --disable-tracing --scope DataDog --policy datadog-operator.publish-community-bundles --repo DataDog/.github > token.txt
+    - dd-octo-sts debug --disable-tracing --scope DataDog --policy datadog-operator.publish-community-bundles
+    - dd-octo-sts check --disable-tracing --scope DataDog --policy datadog-operator.publish-community-bundles
+    - dd-octo-sts token --disable-tracing --scope DataDog --policy datadog-operator.publish-community-bundles > token.txt
     - gh auth login --with-token < token.txt
     - gh auth setup-git
   script:
