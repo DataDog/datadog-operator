@@ -50,7 +50,7 @@ func getDCAClusterPolicyRules() []rbacv1.PolicyRule {
 			// Patching POD to add annotations. TODO: Remove when we have a better way to generate single event
 			APIGroups: []string{rbac.CoreAPIGroup},
 			Resources: []string{
-				"pods",
+				rbac.PodsResource,
 			},
 			Verbs: []string{
 				rbac.PatchVerb,
@@ -60,8 +60,15 @@ func getDCAClusterPolicyRules() []rbacv1.PolicyRule {
 			// Patching Deployment to trigger rollout.
 			APIGroups: []string{rbac.AppsAPIGroup},
 			Resources: []string{
-				"deployments",
+				rbac.DeploymentsResource,
 			},
+			Verbs: []string{
+				rbac.PatchVerb,
+			},
+		},
+		{
+			APIGroups: []string{rbac.ArgoProjAPIGroup},
+			Resources: []string{rbac.Rollout},
 			Verbs: []string{
 				rbac.PatchVerb,
 			},

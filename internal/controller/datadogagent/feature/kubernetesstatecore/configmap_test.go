@@ -31,6 +31,52 @@ instances:
 	optionsWithCRD := collectorOptions{enableCRD: true}
 	optionsWithAPIService := collectorOptions{enableAPIService: true}
 
+	// Test custom resources
+	optionsWithCustomResources := collectorOptions{
+		customResources: []v2alpha1.Resource{
+			{
+				GroupVersionKind: v2alpha1.GroupVersionKind{
+					Group:   "monitoring.example.com",
+					Version: "v1beta1",
+					Kind:    "ServiceMonitor",
+				},
+			},
+		},
+	}
+
+	optionsWithMultipleCustomResources := collectorOptions{
+		customResources: []v2alpha1.Resource{
+			{
+				GroupVersionKind: v2alpha1.GroupVersionKind{
+					Group:   "kafka.strimzi.io",
+					Version: "v1beta2",
+					Kind:    "Kafka",
+				},
+			},
+			{
+				GroupVersionKind: v2alpha1.GroupVersionKind{
+					Group:   "postgresql.cnpg.io",
+					Version: "v1",
+					Kind:    "Cluster",
+				},
+			},
+		},
+	}
+
+	// Combined options
+	optionsWithVPAAndCustomResources := collectorOptions{
+		enableVPA: true,
+		customResources: []v2alpha1.Resource{
+			{
+				GroupVersionKind: v2alpha1.GroupVersionKind{
+					Group:   "networking.istio.io",
+					Version: "v1beta1",
+					Kind:    "VirtualService",
+				},
+			},
+		},
+	}
+
 	type fields struct {
 		enable                   bool
 		runInClusterChecksRunner bool
@@ -112,6 +158,50 @@ instances:
 				collectorOpts:            optionsWithAPIService,
 			},
 			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithAPIService)),
+		},
+		{
+			name: "with custom resources",
+			fields: fields{
+				owner:                    owner,
+				enable:                   true,
+				runInClusterChecksRunner: true,
+				configConfigMapName:      defaultKubeStateMetricsCoreConf,
+				collectorOpts:            optionsWithCustomResources,
+			},
+			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithCustomResources)),
+		},
+		{
+			name: "with multiple custom resources",
+			fields: fields{
+				owner:                    owner,
+				enable:                   true,
+				runInClusterChecksRunner: true,
+				configConfigMapName:      defaultKubeStateMetricsCoreConf,
+				collectorOpts:            optionsWithMultipleCustomResources,
+			},
+			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithMultipleCustomResources)),
+		},
+		{
+			name: "with VPA and custom resources",
+			fields: fields{
+				owner:                    owner,
+				enable:                   true,
+				runInClusterChecksRunner: true,
+				configConfigMapName:      defaultKubeStateMetricsCoreConf,
+				collectorOpts:            optionsWithVPAAndCustomResources,
+			},
+			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithVPAAndCustomResources)),
+		},
+		{
+			name: "with custom resources and no cluster check",
+			fields: fields{
+				owner:                    owner,
+				enable:                   true,
+				runInClusterChecksRunner: false,
+				configConfigMapName:      defaultKubeStateMetricsCoreConf,
+				collectorOpts:            optionsWithCustomResources,
+			},
+			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(false, optionsWithCustomResources)),
 		},
 	}
 	for _, tt := range tests {
