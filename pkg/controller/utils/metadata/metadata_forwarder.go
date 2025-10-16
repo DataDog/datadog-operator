@@ -33,10 +33,7 @@ import (
 )
 
 const (
-	apiHTTPHeaderKey       = "Dd-Api-Key"
 	userAgentHTTPHeaderKey = "User-Agent"
-	contentTypeHeaderKey   = "Content-Type"
-	acceptHeaderKey        = "Accept"
 
 	defaultURLScheme     = "https"
 	defaultURLHost       = "app.datadoghq.com"
@@ -47,20 +44,17 @@ const (
 )
 
 type MetadataForwarder struct {
+	*SharedMetadata
 	credsManager *config.CredentialManager
 	client       *http.Client
-	k8sClient    client.Reader
 
-	apiKey        string
 	requestURL    string
 	hostName      string
-	clusterName   string
 	creds         sync.Map
 	payloadHeader http.Header
 	decryptor     secrets.Decryptor
 
 	OperatorMetadata OperatorMetadata
-	logger           logr.Logger
 }
 
 type OperatorMetadataPayload struct {
@@ -99,20 +93,17 @@ var (
 
 // NewMetadataForwarder creates a new instance of the metadata forwarder
 func NewMetadataForwarder(logger logr.Logger, k8sClient client.Reader) *MetadataForwarder {
-	mdf := &MetadataForwarder{
-		hostName:     os.Getenv(constants.DDHostName),
-		credsManager: config.NewCredentialManager(),
-		requestURL:   getURL(),
-		k8sClient:    k8sClient,
+	return &MetadataForwarder{
+		SharedMetadata: NewSharedMetadata(logger, k8sClient),
+		hostName:       os.Getenv(constants.DDHostName),
+		credsManager:   config.NewCredentialManager(),
+		requestURL:     getURL(),
 		client: &http.Client{
 			Timeout: 10 * time.Second,
 		},
 		OperatorMetadata: OperatorMetadata{},
-		logger:           logger,
 		decryptor:        secrets.NewSecretBackend(),
 	}
-
-	return mdf
 }
 
 // Start starts the metadata forwarder
@@ -125,9 +116,10 @@ func (mdf *MetadataForwarder) Start() {
 
 	if mdf.hostName == "" {
 		mdf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting metadata forwarder")
+		return
 	}
 
-	mdf.payloadHeader = getHeader(mdf.apiKey)
+	mdf.payloadHeader = mdf.getHeaders()
 
 	mdf.logger.Info("Starting metadata forwarder")
 
@@ -156,12 +148,17 @@ func (mdf *MetadataForwarder) setCredentials() error {
 }
 
 func (mdf *MetadataForwarder) sendMetadata() error {
+	payload := mdf.GetPayload()
+
+	mdf.logger.Info("Metadata payload", "payload", string(payload))
+
 	mdf.logger.V(1).Info("Sending metadata to URL", "url", mdf.requestURL)
 
-	reader := bytes.NewReader(mdf.getPayload())
+	reader := bytes.NewReader(payload)
 	req, err := http.NewRequestWithContext(context.TODO(), "POST", mdf.requestURL, reader)
 	if err != nil {
 		mdf.logger.Error(err, "Error creating request", "url", mdf.requestURL, "reader", reader)
+		return err
 	}
 	req.Header = mdf.payloadHeader
 
@@ -181,7 +178,6 @@ func (mdf *MetadataForwarder) sendMetadata() error {
 }
 
 func (mdf *MetadataForwarder) setupFromOperator() error {
-	// Cluster name
 	mdf.clusterName = os.Getenv(constants.DDClusterName)
 
 	if mdf.credsManager == nil {
@@ -344,10 +340,12 @@ func (mdf *MetadataForwarder) getKeyFromSecret(namespace, secretName, dataKey st
 	return string(secret.Data[dataKey]), nil
 }
 
-func (mdf *MetadataForwarder) getPayload() []byte {
+func (mdf *MetadataForwarder) GetPayload() []byte {
 	now := time.Now().Unix()
 
 	mdf.OperatorMetadata.ClusterName = mdf.clusterName
+	mdf.OperatorMetadata.OperatorVersion = mdf.operatorVersion
+	mdf.OperatorMetadata.KubernetesVersion = mdf.kubernetesVersion
 
 	payload := OperatorMetadataPayload{
 		Hostname:  mdf.hostName,
@@ -363,13 +361,10 @@ func (mdf *MetadataForwarder) getPayload() []byte {
 	return jsonPayload
 }
 
-func getHeader(apiKey string) http.Header {
-	header := http.Header{}
-	header.Set(apiHTTPHeaderKey, apiKey)
-	header.Set(userAgentHTTPHeaderKey, fmt.Sprintf("Datadog Operator/%s", version.GetVersion()))
-	header.Set(contentTypeHeaderKey, "application/json")
-	header.Set(acceptHeaderKey, "application/json")
-	return header
+func (mdf *MetadataForwarder) getHeaders() http.Header {
+	headers := mdf.GetBaseHeaders()
+	headers.Set(userAgentHTTPHeaderKey, fmt.Sprintf("Datadog Operator/%s", version.GetVersion()))
+	return headers
 }
 
 func getURL() string {

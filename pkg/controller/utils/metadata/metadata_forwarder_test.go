@@ -7,6 +7,7 @@ package metadata
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -136,10 +137,11 @@ func Test_setup(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			os.Clearenv()
 
-			mdf := MetadataForwarder{
-				requestURL:   getURL(),
-				logger:       zap.New(zap.UseDevMode(true)),
-				credsManager: config.NewCredentialManager(),
+			// Create MetadataForwarder with the new structure
+			mdf := &MetadataForwarder{
+				SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil),
+				requestURL:     getURL(),
+				credsManager:   config.NewCredentialManager(),
 			}
 
 			tt.loadFunc()
@@ -161,4 +163,60 @@ func Test_setup(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Test that payload generation works correctly
+func Test_GetPayload(t *testing.T) {
+	mdf := &MetadataForwarder{
+		SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil),
+		hostName:       "test-host",
+
+		OperatorMetadata: OperatorMetadata{
+			OperatorVersion:   "v1.19.0",
+			KubernetesVersion: "v1.28.0",
+			ClusterName:       "test-cluster",
+			IsLeader:          true,
+		},
+	}
+
+	payload := mdf.GetPayload()
+
+	// Verify payload is valid JSON
+	if len(payload) == 0 {
+		t.Error("GetPayload() returned empty payload")
+	}
+
+	// Verify it contains expected fields
+	payloadStr := string(payload)
+	expectedFields := []string{
+		"hostname",
+		"timestamp",
+		"datadog_operator_metadata",
+		"operator_version",
+		"kubernetes_version",
+		"install_method_tool",
+		"install_method_tool_version",
+		"is_leader",
+		"datadogagent_enabled",
+		"datadogmonitor_enabled",
+		"datadogdashboard_enabled",
+		"datadogslo_enabled",
+		"datadoggenericresource_enabled",
+		"datadogagentprofile_enabled",
+		"leader_election_enabled",
+		"extendeddaemonset_enabled",
+		"remote_config_enabled",
+		"introspection_enabled",
+		"cluster_name",
+		"config_dd_url",
+		"config_site",
+	}
+
+	for _, field := range expectedFields {
+		if !strings.Contains(payloadStr, field) {
+			t.Errorf("GetPayload() missing expected field: %s", field)
+		}
+	}
+
+	t.Logf("Generated payload: %s", payloadStr)
 }
