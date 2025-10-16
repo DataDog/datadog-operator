@@ -80,7 +80,8 @@ type Reconciler struct {
 
 func (r *Reconciler) initializeComponentRegistry() {
 	r.componentRegistry = NewComponentRegistry(r)
-	// Components will be registered in subsequent commits
+	// Register all components
+	r.componentRegistry.Register(NewClusterAgentComponent(r))
 }
 
 // NewReconciler returns a reconciler for DatadogAgent

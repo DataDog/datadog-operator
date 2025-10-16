@@ -180,15 +180,22 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 	}
 
-	// 2. Reconcile each component.
-	// 2.a. Cluster Agent
+	// 2. Reconcile each component using the component registry
+	params := &ReconcileComponentParams{
+		Logger:             logger,
+		DDA:                instance,
+		RequiredComponents: requiredComponents,
+		Features:           append(configuredFeatures, enabledFeatures...),
+		ResourceManagers:   resourceManagers,
+		Status:             newStatus,
+		Provider:           k8sProvider,
+		ProviderList:       providerList,
+	}
 
-	result, err = r.reconcileV2ClusterAgent(ctx, logger, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus, k8sProvider)
+	result, err = r.componentRegistry.ReconcileComponents(ctx, params)
 	if utils.ShouldReturn(result, err) {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	}
-	// Update the status to make it the ClusterAgentReconcileConditionType successful
-	condition.UpdateDatadogAgentStatusConditions(newStatus, now, common.ClusterAgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 
 	// 2.b. Node Agent and profiles
 	// TODO: ignore profiles and introspection for DDAI
