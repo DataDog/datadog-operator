@@ -420,7 +420,7 @@ func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger log
 	}
 
 	dsName := component.GetDaemonSetNameFromDatadogAgent(dda, &dda.Spec)
-	logger.V(1).Info("Computing valid DaemonSet names", "dsName", dsName)
+
 	validDaemonSetNames, validExtendedDaemonSetNames := r.getValidDaemonSetNames(dsName, providerList, profiles, useV3Metadata(dda))
 	// log computed valid names for debugging
 	vd := make([]string, 0, len(validDaemonSetNames))
@@ -431,7 +431,6 @@ func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger log
 	for n := range validExtendedDaemonSetNames {
 		veds = append(veds, n)
 	}
-	logger.Info("Valid names for cleanup decision", "validDS", vd, "validEDS", veds, "providersLen", len(providerList), "profilesLen", len(profiles))
 
 	// Safety guard: if no valid names could be computed, skip cleanup to avoid
 	// deleting all DaemonSets during transient cache hiccups (e.g., empty provider list).

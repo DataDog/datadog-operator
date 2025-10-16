@@ -101,14 +101,8 @@ func (r *Reconciler) reconcileAgentProfiles(ctx context.Context, logger logr.Log
 		if err != nil {
 			return reconcile.Result{}, err
 		}
-		logger.Info("Fetched nodes for profiles/introspection", "nodeCount", len(nodeList))
 		if r.options.IntrospectionEnabled {
 			providerList = kubernetes.GetProviderListFromNodeList(nodeList, logger)
-			providersLogged := make([]string, 0, len(providerList))
-			for p := range providerList {
-				providersLogged = append(providersLogged, p)
-			}
-			logger.Info("Computed provider list", "providers", providersLogged)
 			metrics.IntrospectionEnabled.Set(metrics.TrueValue)
 		}
 		if r.options.DatadogAgentProfileEnabled {
@@ -123,12 +117,6 @@ func (r *Reconciler) reconcileAgentProfiles(ctx context.Context, logger logr.Log
 			if err = r.handleProfiles(ctx, profilesByNode, instance.Namespace); err != nil {
 				return reconcile.Result{}, err
 			}
-			// Log selected profiles
-			profileNames := make([]string, 0, len(profiles))
-			for _, p := range profiles {
-				profileNames = append(profileNames, types.NamespacedName{Namespace: p.Namespace, Name: p.Name}.String())
-			}
-			logger.Info("Profiles selected for reconciliation", "profiles", profileNames)
 		}
 	}
 
@@ -193,15 +181,9 @@ func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, logger logr
 		if e != nil {
 			return e
 		}
-		logger.Info("Fetched nodes for cleanup", "nodeCount", len(nodeList))
 
 		if r.options.IntrospectionEnabled {
 			providerList = kubernetes.GetProviderListFromNodeList(nodeList, logger)
-			providersLogged := make([]string, 0, len(providerList))
-			for p := range providerList {
-				providersLogged = append(providersLogged, p)
-			}
-			logger.Info("Computed provider list for cleanup", "providers", providersLogged)
 		}
 
 		if r.options.DatadogAgentProfileEnabled {
@@ -214,12 +196,6 @@ func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, logger logr
 			if err := r.handleProfiles(ctx, profilesByNode, instance.Namespace); err != nil {
 				return err
 			}
-			// Log selected profiles for cleanup pass as well
-			profileNames := make([]string, 0, len(profiles))
-			for _, p := range profiles {
-				profileNames = append(profileNames, types.NamespacedName{Namespace: p.Namespace, Name: p.Name}.String())
-			}
-			logger.Info("Profiles selected for cleanup", "profiles", profileNames)
 		}
 	}
 
