@@ -322,7 +322,7 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 	profilesList := datadoghqv1alpha1.DatadogAgentProfileList{}
 	err := r.client.List(ctx, &profilesList)
 	if err != nil {
-		return nil, nil, err
+		logger.Info("unable to list DatadogAgentProfiles", "error", err)
 	}
 
 	var profileListToApply []datadoghqv1alpha1.DatadogAgentProfile
@@ -334,7 +334,7 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 		oldStatus := profile.Status
 		profileAppliedByNode, err = agentprofile.ApplyProfile(logger, &profile, nodeList, profileAppliedByNode, now, maxUnavailable)
 		if result, e := r.updateDAPStatus(ctx, logger, &profile, &oldStatus); utils.ShouldReturn(result, e) {
-			return nil, nil, e
+			logger.Info("unable to update DatadogAgentProfile status", "error", e, "requeue", result.Requeue, "requeueAfter", result.RequeueAfter)
 		}
 		if err != nil {
 			// profile is invalid or conflicts
