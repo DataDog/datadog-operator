@@ -44,7 +44,7 @@ const (
 // - existing nodes with the correct label
 // - nodes that need a new or corrected label up to maxUnavailable # of nodes
 func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nodes []v1.Node, profileAppliedByNode map[string]types.NamespacedName,
-	now metav1.Time, maxUnavailable int) (map[string]types.NamespacedName, error) {
+	now metav1.Time, maxUnavailable int, datadogAgentInternalEnabled bool) (map[string]types.NamespacedName, error) {
 	matchingNodes := map[string]bool{}
 	profileStatus := v1alpha1.DatadogAgentProfileStatus{}
 
@@ -62,7 +62,7 @@ func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nod
 		return profileAppliedByNode, err
 	}
 
-	if err := v1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec); err != nil {
+	if err := v1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec, datadogAgentInternalEnabled); err != nil {
 		logger.Error(err, "profile spec is invalid, skipping", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
 		metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.FalseValue)
 		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))
