@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/google/uuid"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,7 +30,7 @@ import (
 )
 
 func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
-	reqLogger := r.log.WithValues("datadogagent", pkgutils.GetNamespacedName(instance))
+	reqLogger := r.log.WithValues("id", uuid.New().String(), "datadogagent", pkgutils.GetNamespacedName(instance))
 	reqLogger.Info("Reconciling DatadogAgent")
 	var result reconcile.Result
 
@@ -322,7 +323,7 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 	profilesList := datadoghqv1alpha1.DatadogAgentProfileList{}
 	err := r.client.List(ctx, &profilesList)
 	if err != nil {
-		return nil, nil, err
+		logger.Info("unable to list DatadogAgentProfiles", "error", err)
 	}
 
 	var profileListToApply []datadoghqv1alpha1.DatadogAgentProfile
@@ -333,9 +334,9 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 		maxUnavailable := agentprofile.GetMaxUnavailable(logger, ddaSpec, &profile, len(nodeList), &r.options.ExtendedDaemonsetOptions)
 		oldStatus := profile.Status
 		profileAppliedByNode, err = agentprofile.ApplyProfile(logger, &profile, nodeList, profileAppliedByNode, now, maxUnavailable)
-
-		r.updateDAPStatus(ctx, logger, &profile, &oldStatus)
-
+		if result, e := r.updateDAPStatus(ctx, logger, &profile, &oldStatus); utils.ShouldReturn(result, e) {
+			logger.Info("unable to update DatadogAgentProfile status", "error", e, "requeue", result.Requeue, "requeueAfter", result.RequeueAfter)
+		}
 		if err != nil {
 			// profile is invalid or conflicts
 			logger.Error(err, "profile cannot be applied", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
