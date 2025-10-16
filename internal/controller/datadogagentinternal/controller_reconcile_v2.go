@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/google/uuid"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -25,7 +24,7 @@ import (
 )
 
 func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *v1alpha1.DatadogAgentInternal) (reconcile.Result, error) {
-	reqLogger := r.log.WithValues("id", uuid.New().String(), "datadogagentinternal", pkgutils.GetNamespacedName(instance))
+	reqLogger := r.log.WithValues("datadogagentinternal", pkgutils.GetNamespacedName(instance))
 	reqLogger.Info("Reconciling DatadogAgentInternal")
 	// var result reconcile.Result
 
