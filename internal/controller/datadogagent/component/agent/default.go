@@ -104,6 +104,7 @@ func DefaultSeccompConfigDataForSystemProbe() map[string]string {
 					"capset",
 					"chdir",
 					"chmod",
+					"chown",
 					"clock_gettime",
 					"clone",
 					"clone3",
