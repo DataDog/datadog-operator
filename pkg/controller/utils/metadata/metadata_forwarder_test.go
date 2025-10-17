@@ -6,8 +6,8 @@
 package metadata
 
 import (
+	"encoding/json"
 	"os"
-	"strings"
 	"testing"
 
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -139,7 +139,7 @@ func Test_setup(t *testing.T) {
 
 			// Create MetadataForwarder with the new structure
 			mdf := &MetadataForwarder{
-				SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil),
+				SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0"),
 				requestURL:     getURL(),
 				credsManager:   config.NewCredentialManager(),
 			}
@@ -167,17 +167,23 @@ func Test_setup(t *testing.T) {
 
 // Test that payload generation works correctly
 func Test_GetPayload(t *testing.T) {
+	expectedKubernetesVersion := "v1.28.0"
+	expectedOperatorVersion := "v1.19.0"
+	expectedClusterName := "test-cluster"
+	expectedHostname := "test-host"
+
 	mdf := &MetadataForwarder{
-		SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil),
-		hostName:       "test-host",
+		SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, expectedKubernetesVersion, expectedOperatorVersion),
+		hostName:       expectedHostname,
 
 		OperatorMetadata: OperatorMetadata{
-			OperatorVersion:   "v1.19.0",
-			KubernetesVersion: "v1.28.0",
-			ClusterName:       "test-cluster",
-			IsLeader:          true,
+			ClusterName: expectedClusterName,
+			IsLeader:    true,
 		},
 	}
+
+	// Set cluster name in SharedMetadata to simulate it being populated
+	mdf.clusterName = expectedClusterName
 
 	payload := mdf.GetPayload()
 
@@ -186,12 +192,46 @@ func Test_GetPayload(t *testing.T) {
 		t.Error("GetPayload() returned empty payload")
 	}
 
-	// Verify it contains expected fields
-	payloadStr := string(payload)
+	// Parse JSON to validate specific values
+	var parsed map[string]interface{}
+	if err := json.Unmarshal(payload, &parsed); err != nil {
+		t.Fatalf("GetPayload() returned invalid JSON: %v", err)
+	}
+
+	// Validate top-level fields
+	if hostname, ok := parsed["hostname"].(string); !ok || hostname != expectedHostname {
+		t.Errorf("GetPayload() hostname = %v, want %v", hostname, expectedHostname)
+	}
+
+	if timestamp, ok := parsed["timestamp"].(float64); !ok || timestamp <= 0 {
+		t.Errorf("GetPayload() timestamp = %v, want positive number", timestamp)
+	}
+
+	// Validate metadata object exists
+	metadata, ok := parsed["datadog_operator_metadata"].(map[string]interface{})
+	if !ok {
+		t.Fatal("GetPayload() missing or invalid datadog_operator_metadata")
+	}
+
+	// Validate specific metadata values
+	if operatorVersion, ok := metadata["operator_version"].(string); !ok || operatorVersion != expectedOperatorVersion {
+		t.Errorf("GetPayload() operator_version = %v, want %v", operatorVersion, expectedOperatorVersion)
+	}
+
+	if kubernetesVersion, ok := metadata["kubernetes_version"].(string); !ok || kubernetesVersion != expectedKubernetesVersion {
+		t.Errorf("GetPayload() kubernetes_version = %v, want %v", kubernetesVersion, expectedKubernetesVersion)
+	}
+
+	if clusterName, ok := metadata["cluster_name"].(string); !ok || clusterName != expectedClusterName {
+		t.Errorf("GetPayload() cluster_name = %v, want %v", clusterName, expectedClusterName)
+	}
+
+	if isLeader, ok := metadata["is_leader"].(bool); !ok || !isLeader {
+		t.Errorf("GetPayload() is_leader = %v, want true", isLeader)
+	}
+
+	// Verify all expected fields exist
 	expectedFields := []string{
-		"hostname",
-		"timestamp",
-		"datadog_operator_metadata",
 		"operator_version",
 		"kubernetes_version",
 		"install_method_tool",
@@ -213,10 +253,8 @@ func Test_GetPayload(t *testing.T) {
 	}
 
 	for _, field := range expectedFields {
-		if !strings.Contains(payloadStr, field) {
+		if _, exists := metadata[field]; !exists {
 			t.Errorf("GetPayload() missing expected field: %s", field)
 		}
 	}
-
-	t.Logf("Generated payload: %s", payloadStr)
 }

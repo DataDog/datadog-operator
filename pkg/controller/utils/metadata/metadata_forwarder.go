@@ -92,9 +92,9 @@ var (
 )
 
 // NewMetadataForwarder creates a new instance of the metadata forwarder
-func NewMetadataForwarder(logger logr.Logger, k8sClient client.Reader) *MetadataForwarder {
+func NewMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string) *MetadataForwarder {
 	return &MetadataForwarder{
-		SharedMetadata: NewSharedMetadata(logger, k8sClient),
+		SharedMetadata: NewSharedMetadata(logger, k8sClient, kubernetesVersion, operatorVersion),
 		hostName:       os.Getenv(constants.DDHostName),
 		credsManager:   config.NewCredentialManager(),
 		requestURL:     getURL(),

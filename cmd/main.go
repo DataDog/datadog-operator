@@ -487,10 +487,8 @@ func setupErrorf(logger logr.Logger, err error, msg string, keysAndValues ...any
 }
 
 func setupAndStartMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options) {
-	mdf := metadata.NewMetadataForwarder(logger, client)
+	mdf := metadata.NewMetadataForwarder(logger, client, kubernetesVersion, version.GetVersion())
 	mdf.OperatorMetadata = metadata.OperatorMetadata{
-		OperatorVersion:               version.GetVersion(),
-		KubernetesVersion:             kubernetesVersion,
 		InstallMethodTool:             "datadog-operator",
 		InstallMethodToolVersion:      version.GetVersion(),
 		IsLeader:                      true,

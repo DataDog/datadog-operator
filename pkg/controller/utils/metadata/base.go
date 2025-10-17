@@ -14,8 +14,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 const (
@@ -37,11 +35,12 @@ type SharedMetadata struct {
 }
 
 // NewSharedMetadata creates a new instance of shared metadata
-func NewSharedMetadata(logger logr.Logger, k8sClient client.Reader) *SharedMetadata {
+func NewSharedMetadata(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string) *SharedMetadata {
 	return &SharedMetadata{
-		k8sClient:       k8sClient,
-		logger:          logger,
-		operatorVersion: version.GetVersion(),
+		k8sClient:         k8sClient,
+		logger:            logger,
+		operatorVersion:   operatorVersion,
+		kubernetesVersion: kubernetesVersion,
 	}
 }
 
