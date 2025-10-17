@@ -18,6 +18,14 @@ The DatadogDashboard controller supports the following environment variable:
 
 - `DD_DASHBOARD_FORCE_SYNC_PERIOD`: Configures the frequency at which the controller performs a force sync with the Datadog API to ensure dashboard parity. Defaults to 60 minutes if not set. Example: `DD_DASHBOARD_FORCE_SYNC_PERIOD=30m`
 
+## Configuration
+
+### Environment Variables
+
+The DatadogDashboard controller supports the following environment variable:
+
+- `DD_DASHBOARD_FORCE_SYNC_PERIOD`: Configures the frequency at which the controller performs a force sync with the Datadog API to ensure dashboard parity. Defaults to 60 minutes if not set. Example: `DD_DASHBOARD_FORCE_SYNC_PERIOD=30m`
+
 
 ## Adding a DatadogDashboard
 
