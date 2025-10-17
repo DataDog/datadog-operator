@@ -88,6 +88,7 @@ func (r *Reconciler) initializeComponentRegistry() {
 	r.componentRegistry = NewComponentRegistry(r)
 	// Register all components
 	r.componentRegistry.Register(NewClusterAgentComponent(r))
+	r.componentRegistry.Register(NewClusterChecksRunnerComponent(r))
 }
 
 // NewReconciler returns a reconciler for DatadogAgent
