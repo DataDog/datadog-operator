@@ -10,8 +10,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -30,6 +32,12 @@ const (
 	apiHTTPHeaderKey     = "Dd-Api-Key"
 	contentTypeHeaderKey = "Content-Type"
 	acceptHeaderKey      = "Accept"
+
+	// URL constants for metadata endpoints
+	defaultURLScheme     = "https"
+	defaultURLHost       = "app.datadoghq.com"
+	defaultURLHostPrefix = "app."
+	defaultURLPath       = "api/v1/metadata"
 )
 
 var (
@@ -50,6 +58,9 @@ type SharedMetadata struct {
 	clusterName       string
 	operatorVersion   string
 	kubernetesVersion string
+	requestURL        string
+	hostName          string
+	httpClient        *http.Client
 
 	// Shared credential management
 	credsManager *config.CredentialManager
@@ -64,8 +75,13 @@ func NewSharedMetadata(logger logr.Logger, k8sClient client.Reader, kubernetesVe
 		logger:            logger,
 		operatorVersion:   operatorVersion,
 		kubernetesVersion: kubernetesVersion,
-		credsManager:      config.NewCredentialManager(),
-		decryptor:         secrets.NewSecretBackend(),
+		requestURL:        getURL(),
+		hostName:          os.Getenv(constants.DDHostName),
+		httpClient: &http.Client{
+			Timeout: 10 * time.Second,
+		},
+		credsManager: config.NewCredentialManager(),
+		decryptor:    secrets.NewSecretBackend(),
 	}
 }
 
@@ -83,21 +99,6 @@ func (sm *SharedMetadata) GetOrCreateClusterUID() (string, error) {
 
 	sm.clusterUID = string(kubeSystemNS.UID)
 	return sm.clusterUID, nil
-}
-
-// SetCredentials sets up credentials from operator environment or DatadogAgent
-func (sm *SharedMetadata) SetCredentials() error {
-	err := sm.setupFromOperator()
-	if err == nil && sm.clusterName != "" {
-		return nil
-	}
-
-	dda, err := sm.getDatadogAgent()
-	if err != nil {
-		return err
-	}
-
-	return sm.setupFromDDA(dda)
 }
 
 func (sm *SharedMetadata) setupFromOperator() error {
@@ -131,6 +132,16 @@ func (sm *SharedMetadata) setupFromDDA(dda *v2alpha1.DatadogAgent) error {
 			return err
 		}
 		sm.apiKey = apiKey
+
+		// if API key is set from DDA, also update request URL if needed
+		if dda.Spec.Global != nil && dda.Spec.Global.Site != nil {
+			mdfURL := url.URL{
+				Scheme: defaultURLScheme,
+				Host:   defaultURLHostPrefix + *dda.Spec.Global.Site,
+				Path:   defaultURLPath,
+			}
+			sm.requestURL = mdfURL.String()
+		}
 	}
 
 	return nil
@@ -258,4 +269,29 @@ func (sm *SharedMetadata) GetBaseHeaders() http.Header {
 	header.Set(contentTypeHeaderKey, "application/json")
 	header.Set(acceptHeaderKey, "application/json")
 	return header
+}
+
+func getURL() string {
+	mdfURL := url.URL{
+		Scheme: defaultURLScheme,
+		Host:   defaultURLHost,
+		Path:   defaultURLPath,
+	}
+
+	// check site env var
+	// example: datadoghq.com
+	if siteFromEnvVar := os.Getenv("DD_SITE"); siteFromEnvVar != "" {
+		mdfURL.Host = defaultURLHostPrefix + siteFromEnvVar
+	}
+	// check url env var
+	// example: https://app.datadoghq.com
+	if urlFromEnvVar := os.Getenv("DD_URL"); urlFromEnvVar != "" {
+		tempURL, err := url.Parse(urlFromEnvVar)
+		if err == nil {
+			mdfURL.Host = tempURL.Host
+			mdfURL.Scheme = tempURL.Scheme
+		}
+	}
+
+	return mdfURL.String()
 }

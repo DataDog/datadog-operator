@@ -12,24 +12,17 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
-	"os"
 	"time"
 
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 const (
 	userAgentHTTPHeaderKey = "User-Agent"
-
-	defaultURLScheme     = "https"
-	defaultURLHost       = "app.datadoghq.com"
-	defaultURLHostPrefix = "app."
-	defaultURLPath       = "api/v1/metadata"
 
 	defaultInterval = 1 * time.Minute
 )
@@ -38,9 +31,6 @@ type OperatorMetadataForwarder struct {
 	*SharedMetadata
 
 	// Operator-specific fields
-	client           *http.Client
-	requestURL       string
-	hostName         string
 	payloadHeader    http.Header
 	OperatorMetadata OperatorMetadata
 }
@@ -75,26 +65,21 @@ type OperatorMetadata struct {
 // NewOperatorMetadataForwarder creates a new instance of the operator metadata forwarder
 func NewOperatorMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string) *OperatorMetadataForwarder {
 	return &OperatorMetadataForwarder{
-		SharedMetadata: NewSharedMetadata(logger, k8sClient, kubernetesVersion, operatorVersion),
-		hostName:       os.Getenv(constants.DDHostName),
-		requestURL:     getURL(),
-		client: &http.Client{
-			Timeout: 10 * time.Second,
-		},
+		SharedMetadata:   NewSharedMetadata(logger, k8sClient, kubernetesVersion, operatorVersion),
 		OperatorMetadata: OperatorMetadata{},
 	}
 }
 
 // Start starts the operator metadata forwarder
 func (omf *OperatorMetadataForwarder) Start() {
-	err := omf.SetCredentials()
+	err := omf.setCredentials()
 	if err != nil {
-		omf.logger.Error(err, "Could not set credentials; not starting metadata forwarder")
+		omf.logger.Error(err, "Could not set credentials; not starting operator metadata forwarder")
 		return
 	}
 
 	if omf.hostName == "" {
-		omf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting metadata forwarder")
+		omf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting operator metadata forwarder")
 		return
 	}
 
@@ -106,7 +91,7 @@ func (omf *OperatorMetadataForwarder) Start() {
 	go func() {
 		for range ticker.C {
 			if err := omf.sendMetadata(); err != nil {
-				omf.logger.Error(err, "Error while sending metadata")
+				omf.logger.Error(err, "Error while sending operator metadata")
 			}
 		}
 	}()
@@ -115,9 +100,9 @@ func (omf *OperatorMetadataForwarder) Start() {
 func (omf *OperatorMetadataForwarder) sendMetadata() error {
 	payload := omf.GetPayload()
 
-	omf.logger.Info("Metadata payload", "payload", string(payload))
+	omf.logger.Info("Operator metadata payload", "payload", string(payload))
 
-	omf.logger.V(1).Info("Sending metadata to URL", "url", omf.requestURL)
+	omf.logger.V(1).Info("Sending operator metadata to URL", "url", omf.requestURL)
 
 	reader := bytes.NewReader(payload)
 	req, err := http.NewRequestWithContext(context.TODO(), "POST", omf.requestURL, reader)
@@ -127,18 +112,18 @@ func (omf *OperatorMetadataForwarder) sendMetadata() error {
 	}
 	req.Header = omf.payloadHeader
 
-	resp, err := omf.client.Do(req)
+	resp, err := omf.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("error sending request: %w", err)
+		return fmt.Errorf("error sending operator metadata request: %w", err)
 	}
 
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to read response body: %w", err)
+		return fmt.Errorf("failed to read operator metadata response body: %w", err)
 	}
 
-	omf.logger.V(1).Info("Read response", "status code", resp.StatusCode, "body", string(body))
+	omf.logger.V(1).Info("Read operator metadata response", "status code", resp.StatusCode, "body", string(body))
 	return nil
 }
 
@@ -163,33 +148,32 @@ func (omf *OperatorMetadataForwarder) GetPayload() []byte {
 	return jsonPayload
 }
 
+// setupFromOperator delegates to SharedMetadata setupFromOperator method
+func (omf *OperatorMetadataForwarder) setupFromOperator() error {
+	return omf.SharedMetadata.setupFromOperator()
+}
+
+// setupFromDDA delegates to SharedMetadata setupFromDDA method
+func (omf *OperatorMetadataForwarder) setupFromDDA(dda *v2alpha1.DatadogAgent) error {
+	return omf.SharedMetadata.setupFromDDA(dda)
+}
+
+func (omf *OperatorMetadataForwarder) setCredentials() error {
+	err := omf.setupFromOperator()
+	if err == nil && omf.clusterName != "" {
+		return nil
+	}
+
+	dda, err := omf.SharedMetadata.getDatadogAgent()
+	if err != nil {
+		return err
+	}
+
+	return omf.setupFromDDA(dda)
+}
+
 func (omf *OperatorMetadataForwarder) getHeaders() http.Header {
 	headers := omf.GetBaseHeaders()
 	headers.Set(userAgentHTTPHeaderKey, fmt.Sprintf("Datadog Operator/%s", version.GetVersion()))
 	return headers
-}
-
-func getURL() string {
-	mdfURL := url.URL{
-		Scheme: defaultURLScheme,
-		Host:   defaultURLHost,
-		Path:   defaultURLPath,
-	}
-
-	// check site env var
-	// example: datadoghq.com
-	if siteFromEnvVar := os.Getenv("DD_SITE"); siteFromEnvVar != "" {
-		mdfURL.Host = defaultURLHostPrefix + siteFromEnvVar
-	}
-	// check url env var
-	// example: https://app.datadoghq.com
-	if urlFromEnvVar := os.Getenv("DD_URL"); urlFromEnvVar != "" {
-		tempURL, err := url.Parse(urlFromEnvVar)
-		if err == nil {
-			mdfURL.Host = tempURL.Host
-			mdfURL.Scheme = tempURL.Scheme
-		}
-	}
-
-	return mdfURL.String()
 }

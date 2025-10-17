@@ -50,10 +50,11 @@ func Test_getURL(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.loadFunc()
 
-			u := getURL()
+			// Create SharedMetadata to test URL generation
+			sm := NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0")
 
-			if u != tt.wantURL {
-				t.Errorf("getURL() url = %v, want %v", u, tt.wantURL)
+			if sm.requestURL != tt.wantURL {
+				t.Errorf("getURL() url = %v, want %v", sm.requestURL, tt.wantURL)
 
 			}
 		})
@@ -139,23 +140,24 @@ func Test_setup(t *testing.T) {
 			// Create OperatorMetadataForwarder with the new structure
 			omf := &OperatorMetadataForwarder{
 				SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0"),
-				requestURL:     getURL(),
 			}
 
 			tt.loadFunc()
 
-			_ = omf.SetCredentials()
+			_ = omf.setupFromOperator()
+
+			_ = omf.setupFromDDA(tt.dda)
 
 			if omf.clusterName != tt.wantClusterName {
-				t.Errorf("SetCredentials() clusterName = %v, want %v", omf.clusterName, tt.wantClusterName)
+				t.Errorf("setupFromDDA() clusterName = %v, want %v", omf.clusterName, tt.wantClusterName)
 			}
 
 			if omf.apiKey != tt.wantAPIKey {
-				t.Errorf("SetCredentials() apiKey = %v, want %v", omf.apiKey, tt.wantAPIKey)
+				t.Errorf("setupFromDDA() apiKey = %v, want %v", omf.apiKey, tt.wantAPIKey)
 			}
 
 			if omf.requestURL != tt.wantURL {
-				t.Errorf("SetCredentials() url = %v, want %v", omf.requestURL, tt.wantURL)
+				t.Errorf("setupFromDDA() url = %v, want %v", omf.requestURL, tt.wantURL)
 			}
 		})
 	}
@@ -170,13 +172,14 @@ func Test_GetPayload(t *testing.T) {
 
 	omf := &OperatorMetadataForwarder{
 		SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, expectedKubernetesVersion, expectedOperatorVersion),
-		hostName:       expectedHostname,
-
 		OperatorMetadata: OperatorMetadata{
 			ClusterName: expectedClusterName,
 			IsLeader:    true,
 		},
 	}
+
+	// Set hostname in SharedMetadata to simulate it being populated
+	omf.hostName = expectedHostname
 
 	// Set cluster name in SharedMetadata to simulate it being populated
 	omf.clusterName = expectedClusterName
