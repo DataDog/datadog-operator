@@ -168,7 +168,7 @@ func (s *k8sSuite) TestGenericK8s() {
 				utils.VerifyCheck(c, output, "kubernetes_state_core")
 			}
 
-			s.verifyKSMCheck(c)
+			s.verifyKSMCheck(c, "kubernetes_state_customresource.uptodateagents")
 		}, 15*time.Minute, 15*time.Second, "could not validate kubernetes_state_core (cluster check on CCR) check in time")
 	})
 
@@ -331,10 +331,13 @@ func (s *k8sSuite) verifyAPITraces(c *assert.CollectT) {
 	assert.NotEmptyf(c, traces, fmt.Sprintf("Expected fake intake-ingested traces to not be empty: %s", err))
 }
 
-func (s *k8sSuite) verifyKSMCheck(c *assert.CollectT) {
+func (s *k8sSuite) verifyKSMCheck(c *assert.CollectT, expectedMetrics ...string) {
 	metricNames, err := s.Env().FakeIntake.Client().GetMetricNames()
 	assert.NoError(c, err)
 	assert.Contains(c, metricNames, "kubernetes_state.container.running")
+	for _, metric := range expectedMetrics {
+		assert.Contains(c, metricNames, metric)
+	}
 
 	metrics, err := s.Env().FakeIntake.Client().FilterMetrics("kubernetes_state.container.running", matchOpts...)
 	assert.NoError(c, err)

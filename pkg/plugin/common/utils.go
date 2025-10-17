@@ -139,7 +139,7 @@ func ValidateAnnotationsContent(annotations map[string]string, identifier string
 		if !found {
 			continue
 		}
-		var unmarshalled interface{}
+		var unmarshalled any
 		if err := json.Unmarshal([]byte(value), &unmarshalled); err != nil {
 			errors = append(errors, fmt.Sprintf("Annotation %s with value %s is not a valid JSON: %v", annotation, value, err))
 		}

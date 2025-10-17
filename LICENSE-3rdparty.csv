@@ -53,6 +53,7 @@ core,github.com/go-logr/zapr,Apache-2.0
 core,github.com/go-openapi/jsonpointer,Apache-2.0
 core,github.com/go-openapi/jsonreference,Apache-2.0
 core,github.com/go-openapi/swag,Apache-2.0
+core,github.com/gobuffalo/flect,MIT
 core,github.com/gobwas/glob,MIT
 core,github.com/gogo/protobuf,BSD-3-Clause
 core,github.com/golang/protobuf,BSD-3-Clause
@@ -107,7 +108,6 @@ core,github.com/stretchr/objx,MIT
 core,github.com/stretchr/testify,MIT
 core,github.com/tinylib/msgp/msgp,MIT
 core,github.com/x448/float16,MIT
-core,github.com/zorkian/go-datadog-api,BSD-3-Clause
 core,go.etcd.io/bbolt,MIT
 core,go.opentelemetry.io/auto/sdk,Apache-2.0
 core,go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp,Apache-2.0

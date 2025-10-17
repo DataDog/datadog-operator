@@ -15,9 +15,9 @@ import (
 // RBAC for Agent
 
 // GetDefaultAgentClusterRolePolicyRules returns the default policy rules for the Agent cluster role
-func GetDefaultAgentClusterRolePolicyRules(excludeNonResourceRules bool) []rbacv1.PolicyRule {
+func GetDefaultAgentClusterRolePolicyRules(excludeNonResourceRules bool, useFineGrainedAuthorization bool) []rbacv1.PolicyRule {
 	policyRule := []rbacv1.PolicyRule{
-		getKubeletPolicyRule(),
+		getKubeletPolicyRule(useFineGrainedAuthorization),
 		getEndpointsPolicyRule(),
 		getLeaderElectionPolicyRule(),
 		component.GetEKSControlPlaneMetricsPolicyRule(),
@@ -40,16 +40,31 @@ func getMetricsEndpointPolicyRule() rbacv1.PolicyRule {
 	}
 }
 
-func getKubeletPolicyRule() rbacv1.PolicyRule {
-	return rbacv1.PolicyRule{
-		APIGroups: []string{rbac.CoreAPIGroup},
-		Resources: []string{
+func getKubeletPolicyRule(useFineGrainedAuthorization bool) rbacv1.PolicyRule {
+	var resources []string
+	if useFineGrainedAuthorization {
+		resources = []string{
+			rbac.NodeMetricsResource,
+			rbac.NodeSpecResource,
+			rbac.NodeStats,
+			rbac.NodePodsResource,
+			rbac.NodeHealthzResource,
+			rbac.NodeConfigzResource,
+			rbac.NodeLogsResource,
+		}
+	} else {
+		resources = []string{
 			rbac.NodeMetricsResource,
 			rbac.NodeSpecResource,
 			rbac.NodeProxyResource,
 			rbac.NodeStats,
-		},
-		Verbs: []string{rbac.GetVerb},
+		}
+	}
+
+	return rbacv1.PolicyRule{
+		APIGroups: []string{rbac.CoreAPIGroup},
+		Resources: resources,
+		Verbs:     []string{rbac.GetVerb},
 	}
 }
 

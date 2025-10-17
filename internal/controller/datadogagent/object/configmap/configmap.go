@@ -26,7 +26,7 @@ func BuildConfigMapConfigData(namespace string, configDataPointer *string, confi
 
 	// Validate that user input is valid YAML
 	// Maybe later we can implement that directly verifies against Agent configuration?
-	m := make(map[interface{}]interface{})
+	m := make(map[any]any)
 	if err := yaml.Unmarshal([]byte(configData), m); err != nil {
 		return nil, fmt.Errorf("unable to parse YAML from 'customConfig.ConfigData' field: %w", err)
 	}
@@ -52,7 +52,7 @@ func BuildConfigMapMulti(namespace string, configDataMap map[string]string, conf
 	for path, configData := range configDataMap {
 		if validate {
 			// Validate that user input is valid YAML
-			m := make(map[interface{}]interface{})
+			m := make(map[any]any)
 			if err := yaml.Unmarshal([]byte(configData), m); err != nil {
 				errs = append(errs, fmt.Errorf("unable to parse YAML from 'multiCustomConfig.ConfigDataMap' field: %w", err))
 				continue

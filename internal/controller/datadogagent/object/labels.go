@@ -7,6 +7,7 @@ package object
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -54,9 +55,7 @@ func MergeAnnotationsLabels(logger logr.Logger, previousVal map[string]string, n
 	}
 
 	mergedMap := make(map[string]string, len(newVal))
-	for k, v := range newVal {
-		mergedMap[k] = v
-	}
+	maps.Copy(mergedMap, newVal)
 
 	// Copy from previous if not in new match and matches globfilter
 	for k, v := range previousVal {

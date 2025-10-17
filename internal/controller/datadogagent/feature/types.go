@@ -9,6 +9,7 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"slices"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -109,13 +110,7 @@ func merge(a, b *bool) *bool {
 func mergeSlices(a, b []common.AgentContainerName) []common.AgentContainerName {
 	out := a
 	for _, containerB := range b {
-		found := false
-		for _, containerA := range a {
-			if containerA == containerB {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(a, containerB)
 		if !found {
 			out = append(out, containerB)
 		}

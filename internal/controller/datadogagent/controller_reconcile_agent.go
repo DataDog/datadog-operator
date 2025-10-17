@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	"context"
+	"maps"
 	"time"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -333,9 +334,7 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 				newLabels[k] = v
 			}
 
-			for k, v := range labelsToAddOrChange {
-				newLabels[k] = v
-			}
+			maps.Copy(newLabels, labelsToAddOrChange)
 		}
 
 		if len(newLabels) == 0 {
@@ -421,7 +420,24 @@ func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger log
 	}
 
 	dsName := component.GetDaemonSetNameFromDatadogAgent(dda, &dda.Spec)
+
 	validDaemonSetNames, validExtendedDaemonSetNames := r.getValidDaemonSetNames(dsName, providerList, profiles, useV3Metadata(dda))
+	// log computed valid names for debugging
+	vd := make([]string, 0, len(validDaemonSetNames))
+	for n := range validDaemonSetNames {
+		vd = append(vd, n)
+	}
+	veds := make([]string, 0, len(validExtendedDaemonSetNames))
+	for n := range validExtendedDaemonSetNames {
+		veds = append(veds, n)
+	}
+
+	// Safety guard: if no valid names could be computed, skip cleanup to avoid
+	// deleting all DaemonSets during transient cache hiccups (e.g., empty provider list).
+	if len(validDaemonSetNames) == 0 && len(validExtendedDaemonSetNames) == 0 {
+		logger.Info("Skipping cleanup of DaemonSets: no valid names computed", "providersLen", len(providerList), "profilesLen", len(profiles))
+		return nil
+	}
 
 	// Only the default profile uses an EDS when profiles are enabled
 	// Multiple EDSs can be created with introspection
@@ -430,9 +446,10 @@ func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger log
 		if err := r.client.List(ctx, &edsList, matchLabels); err != nil {
 			return err
 		}
-
+		logger.V(1).Info("Listed ExtendedDaemonSets for cleanup", "count", len(edsList.Items))
 		for _, eds := range edsList.Items {
 			if _, ok := validExtendedDaemonSetNames[eds.Name]; !ok {
+				logger.Info("Candidate ExtendedDaemonSet deletion", "name", eds.Name)
 				if err := r.deleteV2ExtendedDaemonSet(logger, dda, &eds, newStatus); err != nil {
 					return err
 				}
@@ -445,8 +462,10 @@ func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger log
 		return err
 	}
 
+	logger.V(1).Info("Listed DaemonSets for cleanup", "count", len(daemonSetList.Items))
 	for _, daemonSet := range daemonSetList.Items {
 		if _, ok := validDaemonSetNames[daemonSet.Name]; !ok {
+			logger.Info("Candidate DaemonSet deletion", "name", daemonSet.Name)
 			if err := r.deleteV2DaemonSet(logger, dda, &daemonSet, newStatus); err != nil {
 				return err
 			}

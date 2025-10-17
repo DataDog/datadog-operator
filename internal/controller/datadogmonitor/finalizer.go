@@ -11,9 +11,9 @@ import (
 
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 )
 
@@ -24,10 +24,10 @@ const (
 func (r *Reconciler) handleFinalizer(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (ctrl.Result, error) {
 	// Check if the DatadogMonitor instance is marked to be deleted, which is indicated by the deletion timestamp being set.
 	if dm.GetDeletionTimestamp() != nil {
-		if utils.ContainsString(dm.GetFinalizers(), datadogMonitorFinalizer) {
+		if controllerutil.ContainsFinalizer(dm, datadogMonitorFinalizer) {
 			r.finalizeDatadogMonitor(logger, dm)
 
-			dm.SetFinalizers(utils.RemoveString(dm.GetFinalizers(), datadogMonitorFinalizer))
+			controllerutil.RemoveFinalizer(dm, datadogMonitorFinalizer)
 			err := r.client.Update(context.TODO(), dm)
 			if err != nil {
 				return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, err
@@ -39,7 +39,7 @@ func (r *Reconciler) handleFinalizer(logger logr.Logger, dm *datadoghqv1alpha1.D
 	}
 
 	// Add finalizer for this resource if it doesn't already exist.
-	if !utils.ContainsString(dm.GetFinalizers(), datadogMonitorFinalizer) {
+	if !controllerutil.ContainsFinalizer(dm, datadogMonitorFinalizer) {
 		if err := r.addFinalizer(logger, dm); err != nil {
 			return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, err
 		}
@@ -68,7 +68,7 @@ func (r *Reconciler) finalizeDatadogMonitor(logger logr.Logger, dm *datadoghqv1a
 func (r *Reconciler) addFinalizer(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) error {
 	logger.Info("Adding Finalizer for the DatadogMonitor")
 
-	dm.SetFinalizers(append(dm.GetFinalizers(), datadogMonitorFinalizer))
+	controllerutil.AddFinalizer(dm, datadogMonitorFinalizer)
 
 	err := r.client.Update(context.TODO(), dm)
 	if err != nil {
