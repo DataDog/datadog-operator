@@ -43,7 +43,7 @@ const (
 	defaultInterval = 1 * time.Minute
 )
 
-type MetadataForwarder struct {
+type OperatorMetadataForwarder struct {
 	*SharedMetadata
 	credsManager *config.CredentialManager
 	client       *http.Client
@@ -91,9 +91,9 @@ var (
 	ErrEmptyHostName = errors.New("empty host name")
 )
 
-// NewMetadataForwarder creates a new instance of the metadata forwarder
-func NewMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string) *MetadataForwarder {
-	return &MetadataForwarder{
+// NewOperatorMetadataForwarder creates a new instance of the operator metadata forwarder
+func NewOperatorMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string) *OperatorMetadataForwarder {
+	return &OperatorMetadataForwarder{
 		SharedMetadata: NewSharedMetadata(logger, k8sClient, kubernetesVersion, operatorVersion),
 		hostName:       os.Getenv(constants.DDHostName),
 		credsManager:   config.NewCredentialManager(),
@@ -106,8 +106,8 @@ func NewMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernete
 	}
 }
 
-// Start starts the metadata forwarder
-func (mdf *MetadataForwarder) Start() {
+// Start starts the operator metadata forwarder
+func (mdf *OperatorMetadataForwarder) Start() {
 	err := mdf.setCredentials()
 	if err != nil {
 		mdf.logger.Error(err, "Could not set credentials; not starting metadata forwarder")
@@ -133,7 +133,7 @@ func (mdf *MetadataForwarder) Start() {
 	}()
 }
 
-func (mdf *MetadataForwarder) setCredentials() error {
+func (mdf *OperatorMetadataForwarder) setCredentials() error {
 	err := mdf.setupFromOperator()
 	if err == nil && mdf.clusterName != "" {
 		return nil
@@ -147,7 +147,7 @@ func (mdf *MetadataForwarder) setCredentials() error {
 	return mdf.setupFromDDA(dda)
 }
 
-func (mdf *MetadataForwarder) sendMetadata() error {
+func (mdf *OperatorMetadataForwarder) sendMetadata() error {
 	payload := mdf.GetPayload()
 
 	mdf.logger.Info("Metadata payload", "payload", string(payload))
@@ -177,7 +177,7 @@ func (mdf *MetadataForwarder) sendMetadata() error {
 	return nil
 }
 
-func (mdf *MetadataForwarder) setupFromOperator() error {
+func (mdf *OperatorMetadataForwarder) setupFromOperator() error {
 	mdf.clusterName = os.Getenv(constants.DDClusterName)
 
 	if mdf.credsManager == nil {
@@ -195,7 +195,7 @@ func (mdf *MetadataForwarder) setupFromOperator() error {
 	return nil
 }
 
-func (mdf *MetadataForwarder) setupFromDDA(dda *v2alpha1.DatadogAgent) error {
+func (mdf *OperatorMetadataForwarder) setupFromDDA(dda *v2alpha1.DatadogAgent) error {
 	if mdf.clusterName == "" {
 		if dda.Spec.Global != nil && dda.Spec.Global.ClusterName != nil {
 			mdf.clusterName = *dda.Spec.Global.ClusterName
@@ -226,7 +226,7 @@ func (mdf *MetadataForwarder) setupFromDDA(dda *v2alpha1.DatadogAgent) error {
 }
 
 // getDatadogAgent retrieves the DatadogAgent using Get client method
-func (mdf *MetadataForwarder) getDatadogAgent() (*v2alpha1.DatadogAgent, error) {
+func (mdf *OperatorMetadataForwarder) getDatadogAgent() (*v2alpha1.DatadogAgent, error) {
 	// Note: If there are no DDAs present when the Operator starts, the metadata forwarder does not re-try to get credentials from a future DDA
 	ddaList := v2alpha1.DatadogAgentList{}
 
@@ -250,7 +250,7 @@ func (mdf *MetadataForwarder) getDatadogAgent() (*v2alpha1.DatadogAgent, error) 
 	return &ddaList.Items[0], nil
 }
 
-func (mdf *MetadataForwarder) getCredentialsFromDDA(dda *v2alpha1.DatadogAgent) (string, error) {
+func (mdf *OperatorMetadataForwarder) getCredentialsFromDDA(dda *v2alpha1.DatadogAgent) (string, error) {
 	if dda.Spec.Global == nil || dda.Spec.Global.Credentials == nil {
 		return "", fmt.Errorf("credentials not configured in the DatadogAgent")
 	}
@@ -278,7 +278,7 @@ func (mdf *MetadataForwarder) getCredentialsFromDDA(dda *v2alpha1.DatadogAgent) 
 }
 
 // getSecretsFromCache returns the cached and decrypted values of encrypted creds
-func (mdf *MetadataForwarder) getSecretsFromCache(encAPIKey string) (string, bool) {
+func (mdf *OperatorMetadataForwarder) getSecretsFromCache(encAPIKey string) (string, bool) {
 	decAPIKey, found := mdf.creds.Load(encAPIKey)
 	if !found {
 		return "", false
@@ -288,7 +288,7 @@ func (mdf *MetadataForwarder) getSecretsFromCache(encAPIKey string) (string, boo
 }
 
 // resolveSecretsIfNeeded calls the secret backend if creds are encrypted
-func (mdf *MetadataForwarder) resolveSecretsIfNeeded(apiKey string) (string, error) {
+func (mdf *OperatorMetadataForwarder) resolveSecretsIfNeeded(apiKey string) (string, error) {
 	if !secrets.IsEnc(apiKey) {
 		// Credentials are not encrypted
 		return apiKey, nil
@@ -314,7 +314,7 @@ func (mdf *MetadataForwarder) resolveSecretsIfNeeded(apiKey string) (string, err
 }
 
 // resetSecretsCache updates the local secret cache with new secret values
-func (mdf *MetadataForwarder) resetSecretsCache(newSecrets map[string]string) {
+func (mdf *OperatorMetadataForwarder) resetSecretsCache(newSecrets map[string]string) {
 	mdf.cleanSecretsCache()
 	for k, v := range newSecrets {
 		mdf.creds.Store(k, v)
@@ -322,7 +322,7 @@ func (mdf *MetadataForwarder) resetSecretsCache(newSecrets map[string]string) {
 }
 
 // cleanSecretsCache deletes all cached secrets
-func (mdf *MetadataForwarder) cleanSecretsCache() {
+func (mdf *OperatorMetadataForwarder) cleanSecretsCache() {
 	mdf.creds.Range(func(k, v any) bool {
 		mdf.creds.Delete(k)
 		return true
@@ -330,7 +330,7 @@ func (mdf *MetadataForwarder) cleanSecretsCache() {
 }
 
 // getKeyFromSecret is used to retrieve an API or App key from a secret object
-func (mdf *MetadataForwarder) getKeyFromSecret(namespace, secretName, dataKey string) (string, error) {
+func (mdf *OperatorMetadataForwarder) getKeyFromSecret(namespace, secretName, dataKey string) (string, error) {
 	secret := &corev1.Secret{}
 	err := mdf.k8sClient.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: secretName}, secret)
 	if err != nil {
@@ -340,7 +340,7 @@ func (mdf *MetadataForwarder) getKeyFromSecret(namespace, secretName, dataKey st
 	return string(secret.Data[dataKey]), nil
 }
 
-func (mdf *MetadataForwarder) GetPayload() []byte {
+func (mdf *OperatorMetadataForwarder) GetPayload() []byte {
 	now := time.Now().Unix()
 
 	mdf.OperatorMetadata.ClusterName = mdf.clusterName
@@ -361,7 +361,7 @@ func (mdf *MetadataForwarder) GetPayload() []byte {
 	return jsonPayload
 }
 
-func (mdf *MetadataForwarder) getHeaders() http.Header {
+func (mdf *OperatorMetadataForwarder) getHeaders() http.Header {
 	headers := mdf.GetBaseHeaders()
 	headers.Set(userAgentHTTPHeaderKey, fmt.Sprintf("Datadog Operator/%s", version.GetVersion()))
 	return headers

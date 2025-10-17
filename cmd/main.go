@@ -378,7 +378,7 @@ func run(opts *options) error {
 		return setupErrorf(setupLog, err, "Unable to start controllers")
 	}
 
-	setupAndStartMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts)
+	setupAndStartOperatorMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts)
 
 	// +kubebuilder:scaffold:builder
 
@@ -486,8 +486,8 @@ func setupErrorf(logger logr.Logger, err error, msg string, keysAndValues ...any
 	return fmt.Errorf("%s, err:%w", msg, err)
 }
 
-func setupAndStartMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options) {
-	mdf := metadata.NewMetadataForwarder(logger, client, kubernetesVersion, version.GetVersion())
+func setupAndStartOperatorMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options) {
+	mdf := metadata.NewOperatorMetadataForwarder(logger, client, kubernetesVersion, version.GetVersion())
 	mdf.OperatorMetadata = metadata.OperatorMetadata{
 		InstallMethodTool:             "datadog-operator",
 		InstallMethodToolVersion:      version.GetVersion(),

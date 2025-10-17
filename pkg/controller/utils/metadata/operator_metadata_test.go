@@ -137,8 +137,8 @@ func Test_setup(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			os.Clearenv()
 
-			// Create MetadataForwarder with the new structure
-			mdf := &MetadataForwarder{
+			// Create OperatorMetadataForwarder with the new structure
+			mdf := &OperatorMetadataForwarder{
 				SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0"),
 				requestURL:     getURL(),
 				credsManager:   config.NewCredentialManager(),
@@ -172,7 +172,7 @@ func Test_GetPayload(t *testing.T) {
 	expectedClusterName := "test-cluster"
 	expectedHostname := "test-host"
 
-	mdf := &MetadataForwarder{
+	mdf := &OperatorMetadataForwarder{
 		SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, expectedKubernetesVersion, expectedOperatorVersion),
 		hostName:       expectedHostname,
 
