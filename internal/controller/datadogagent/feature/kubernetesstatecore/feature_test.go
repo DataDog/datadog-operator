@@ -90,6 +90,72 @@ func Test_ksmFeature_Configure(t *testing.T) {
 			ClusterAgent:  ksmClusterAgentWantFunc(true),
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentSingleAgentWantFunc),
 		},
+		{
+			Name: "ksm-core enabled, cluster agent with image >= 7.72.0",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithClusterAgentImage("gcr.io/datadoghq/agent:7.72.0").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentWantFunc(false),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+		},
+		{
+			Name: "ksm-core enabled, cluster agent with image < 7.72.0",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithClusterAgentImage("gcr.io/datadoghq/agent:7.71.0").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentWantFunc(false),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+		},
+		{
+			Name: "ksm-core enabled, cluster checks runner with image >= 7.72.0",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithClusterChecks(true, true).
+				WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.72.0").
+				Build(),
+			WantConfigure:       true,
+			Agent:               test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {}),
+			ClusterChecksRunner: test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {}),
+		},
+		{
+			Name: "ksm-core enabled, cluster checks runner with image < 7.72.0",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithClusterChecks(true, true).
+				WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.71.0").
+				Build(),
+			WantConfigure:       true,
+			Agent:               test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {}),
+			ClusterChecksRunner: test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {}),
+		},
+		{
+			Name: "ksm-core enabled, explicit collectControllerRevisions=true",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithClusterAgentImage("gcr.io/datadoghq/agent:7.71.0").
+				WithKSMCollectControllerRevisions(true).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentWantFunc(false),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+		},
+		{
+			Name: "ksm-core enabled, explicit collectControllerRevisions=false",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithClusterAgentImage("gcr.io/datadoghq/agent:7.72.0").
+				WithKSMCollectControllerRevisions(false).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentWantFunc(false),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+		},
 	}
 
 	tests.Run(t, buildKSMFeature)
