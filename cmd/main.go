@@ -259,7 +259,7 @@ func run(opts *options) error {
 	metricsServerOptions := metricsserver.Options{
 		BindAddress:   opts.metricsAddr,
 		SecureServing: opts.secureMetrics,
-		ExtraHandlers: debug.GetExtraMetricHandlers(),
+		ExtraHandlers: debug.GetExtraMetricHandlers(opts.pprofActive),
 	}
 
 	if opts.secureMetrics {
