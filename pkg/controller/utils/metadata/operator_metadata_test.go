@@ -14,7 +14,6 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/pkg/config"
 )
 
 func Test_getURL(t *testing.T) {
@@ -138,28 +137,25 @@ func Test_setup(t *testing.T) {
 			os.Clearenv()
 
 			// Create OperatorMetadataForwarder with the new structure
-			mdf := &OperatorMetadataForwarder{
+			omf := &OperatorMetadataForwarder{
 				SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0"),
 				requestURL:     getURL(),
-				credsManager:   config.NewCredentialManager(),
 			}
 
 			tt.loadFunc()
 
-			_ = mdf.setupFromOperator()
+			_ = omf.SetCredentials()
 
-			_ = mdf.setupFromDDA(tt.dda)
-
-			if mdf.clusterName != tt.wantClusterName {
-				t.Errorf("setupFromDDA() clusterName = %v, want %v", mdf.clusterName, tt.wantClusterName)
+			if omf.clusterName != tt.wantClusterName {
+				t.Errorf("SetCredentials() clusterName = %v, want %v", omf.clusterName, tt.wantClusterName)
 			}
 
-			if mdf.apiKey != tt.wantAPIKey {
-				t.Errorf("setupFromDDA() apiKey = %v, want %v", mdf.apiKey, tt.wantAPIKey)
+			if omf.apiKey != tt.wantAPIKey {
+				t.Errorf("SetCredentials() apiKey = %v, want %v", omf.apiKey, tt.wantAPIKey)
 			}
 
-			if mdf.requestURL != tt.wantURL {
-				t.Errorf("setupFromDDA() url = %v, want %v", mdf.requestURL, tt.wantURL)
+			if omf.requestURL != tt.wantURL {
+				t.Errorf("SetCredentials() url = %v, want %v", omf.requestURL, tt.wantURL)
 			}
 		})
 	}
@@ -172,7 +168,7 @@ func Test_GetPayload(t *testing.T) {
 	expectedClusterName := "test-cluster"
 	expectedHostname := "test-host"
 
-	mdf := &OperatorMetadataForwarder{
+	omf := &OperatorMetadataForwarder{
 		SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, expectedKubernetesVersion, expectedOperatorVersion),
 		hostName:       expectedHostname,
 
@@ -183,9 +179,9 @@ func Test_GetPayload(t *testing.T) {
 	}
 
 	// Set cluster name in SharedMetadata to simulate it being populated
-	mdf.clusterName = expectedClusterName
+	omf.clusterName = expectedClusterName
 
-	payload := mdf.GetPayload()
+	payload := omf.GetPayload()
 
 	// Verify payload is valid JSON
 	if len(payload) == 0 {
