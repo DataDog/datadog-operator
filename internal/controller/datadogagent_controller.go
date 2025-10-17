@@ -176,6 +176,7 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=apps,resources=replicasets,verbs=list;watch
 // +kubebuilder:rbac:groups="",resources=replicationcontrollers,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=list;watch
+// +kubebuilder:rbac:groups=apps,resources=controllerrevisions,verbs=list;watch
 // +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=list;watch
 // +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=list;watch
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=list;watch

@@ -92,6 +92,10 @@ instances:
 		config.WriteString("    - apiservices\n")
 	}
 
+	if collectorOpts.enableControllerRevisions {
+		config.WriteString("    - controllerrevisions\n")
+	}
+
 	if collectorOpts.enableCRD {
 		config.WriteString("    - customresourcedefinitions\n")
 	}

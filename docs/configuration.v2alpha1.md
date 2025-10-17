@@ -124,6 +124,7 @@ spec:
 | features.helmCheck.collectEvents | CollectEvents set to `true` enables event collection in the Helm check (Requires Agent 7.36.0+ and Cluster Agent 1.20.0+) Default: false |
 | features.helmCheck.enabled | Enables the Helm check. Default: false |
 | features.helmCheck.valuesAsTags | ValuesAsTags collects Helm values from a release and uses them as tags (Requires Agent and Cluster Agent 7.40.0+). Default: {} |
+| features.kubeStateMetricsCore.collectControllerRevisions | CollectControllerRevisions enables collection of ControllerRevision metrics. (Requires Agent and Cluster Agent 7.72.0+) Default: false |
 | features.kubeStateMetricsCore.collectCrMetrics | `CollectCrMetrics` defines custom resources for the kube-state-metrics core check to collect.  The datadog agent uses the same logic as upstream `kube-state-metrics`. So is its configuration. The exact structure and existing fields of each item in this list can be found in: https://github.com/kubernetes/kube-state-metrics/blob/main/docs/metrics/extend/customresourcestate-metrics.md |
 | features.kubeStateMetricsCore.conf.configData | ConfigData corresponds to the configuration file content. |
 | features.kubeStateMetricsCore.conf.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
@@ -274,7 +275,7 @@ spec:
 
 The table below lists parameters that can be used to override default or global settings. Maps and arrays have a type annotation in the table; properties that are configured as map values contain a `[key]` element which should be replaced by the actual map key. `override` itself is a map with the following possible keys: `nodeAgent`, `clusterAgent`, or `clusterChecksRunner`. Other keys can be added, but they do not have any effect.
 
-For example, the manifest below can be used to override the node Agent image, tag, and the resource limits of the system probe container. 
+For example, the manifest below can be used to override the node Agent image, tag, and the resource limits of the system probe container.
 
 ```yaml
 apiVersion: datadoghq.com/v2alpha1
