@@ -102,10 +102,14 @@ var _ = BeforeSuite(func() {
 		Scheme: scheme.Scheme,
 	})
 
+	// Initialize credential manager for testing
+	credsManager := config.NewCredentialManager()
+
 	options := SetupOptions{
 		SupportExtendedDaemonset: ExtendedDaemonsetOptions{
 			Enabled: false,
 		},
+		CredsManager:               credsManager,
 		Creds:                      config.Creds{APIKey: "dummy_api_key", AppKey: "dummy_app_key"},
 		DatadogAgentEnabled:        true,
 		DatadogMonitorEnabled:      true,
