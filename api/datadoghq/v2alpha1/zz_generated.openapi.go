@@ -1153,6 +1153,13 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_KubeStateMetricsCoreFeatureC
 							},
 						},
 					},
+					"collectControllerRevisions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CollectControllerRevisions enables collection of ControllerRevision metrics. This requires agent version 7.72.0 or later. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
