@@ -20,6 +20,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/config"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
@@ -35,26 +36,54 @@ const (
 )
 
 type Reconciler struct {
-	client        client.Client
-	datadogClient *datadogV1.DashboardsApi
-	datadogAuth   context.Context
-	scheme        *runtime.Scheme
-	log           logr.Logger
-	recorder      record.EventRecorder
+	client           client.Client
+	datadogClient    *datadogV1.DashboardsApi
+	datadogAuth      context.Context
+	credsManager     *config.CredentialManager
+	lastCredsVersion int64
+	scheme           *runtime.Scheme
+	log              logr.Logger
+	recorder         record.EventRecorder
 }
 
-func NewReconciler(client client.Client, ddClient datadogclient.DatadogDashboardClient, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) *Reconciler {
+func NewReconciler(client client.Client, ddClient datadogclient.DatadogDashboardClient, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) *Reconciler {
 	return &Reconciler{
-		client:        client,
-		datadogClient: ddClient.Client,
-		datadogAuth:   ddClient.Auth,
-		scheme:        scheme,
-		log:           log,
-		recorder:      recorder,
+		client:           client,
+		datadogClient:    ddClient.Client,
+		datadogAuth:      ddClient.Auth,
+		credsManager:     credsManager,
+		lastCredsVersion: credsManager.GetCredentialVersion(),
+		scheme:           scheme,
+		log:              log,
+		recorder:         recorder,
 	}
 }
 
+func (r *Reconciler) checkAndUpdateCredentials() error {
+	version := r.credsManager.GetCredentialVersion()
+
+	if version != r.lastCredsVersion {
+		creds, err := r.credsManager.GetCredentials()
+		if err != nil {
+			return err
+		}
+		newClient, err := datadogclient.InitDatadogDashboardClient(r.log, creds)
+		if err != nil {
+			return err
+		}
+		r.datadogClient = newClient.Client
+		r.lastCredsVersion = version
+		r.datadogAuth = newClient.Auth
+		r.log.V(1).Info("Updated Dashboard client with new credentials")
+	}
+	return nil
+}
+
 func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
+	if r.credsManager != nil && r.credsManager.IsRefreshEnabled {
+		r.checkAndUpdateCredentials()
+	}
+
 	return r.internalReconcile(ctx, request)
 }
 

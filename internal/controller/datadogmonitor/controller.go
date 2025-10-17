@@ -29,6 +29,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/pkg/config"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
@@ -66,6 +67,8 @@ type Reconciler struct {
 	client                 client.Client
 	datadogClient          *datadogV1.MonitorsApi
 	datadogAuth            context.Context
+	credsManager           *config.CredentialManager
+	lastCredsVersion       int64
 	log                    logr.Logger
 	scheme                 *runtime.Scheme
 	recorder               record.EventRecorder
@@ -74,11 +77,13 @@ type Reconciler struct {
 }
 
 // NewReconciler returns a new Reconciler object
-func NewReconciler(client client.Client, ddClient datadogclient.DatadogMonitorClient, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, operatorMetricsEnabled bool, metricForwardersMgr pkgutils.MetricsForwardersManager) (*Reconciler, error) {
+func NewReconciler(client client.Client, ddClient datadogclient.DatadogMonitorClient, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, operatorMetricsEnabled bool, metricForwardersMgr pkgutils.MetricsForwardersManager) (*Reconciler, error) {
 	return &Reconciler{
 		client:                 client,
 		datadogClient:          ddClient.Client,
 		datadogAuth:            ddClient.Auth,
+		credsManager:           credsManager,
+		lastCredsVersion:       credsManager.GetCredentialVersion(),
 		scheme:                 scheme,
 		log:                    log,
 		recorder:               recorder,
@@ -87,8 +92,32 @@ func NewReconciler(client client.Client, ddClient datadogclient.DatadogMonitorCl
 	}, nil
 }
 
+func (r *Reconciler) checkAndUpdateCredentials() error {
+	version := r.credsManager.GetCredentialVersion()
+
+	if version != r.lastCredsVersion {
+		creds, err := r.credsManager.GetCredentials()
+		if err != nil {
+			return err
+		}
+		newClient, err := datadogclient.InitDatadogMonitorClient(r.log, creds)
+		if err != nil {
+			return err
+		}
+		r.datadogClient = newClient.Client
+		r.lastCredsVersion = version
+		r.datadogAuth = newClient.Auth
+		r.log.V(1).Info("Updated Monitor client with new credentials")
+	}
+	return nil
+}
+
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context
 func (r *Reconciler) Reconcile(ctx context.Context, instance *datadoghqv1alpha1.DatadogMonitor) (reconcile.Result, error) {
+	if r.credsManager != nil && r.credsManager.IsRefreshEnabled {
+		r.checkAndUpdateCredentials()
+	}
+
 	res, err := r.internalReconcile(ctx, instance)
 
 	if r.operatorMetricsEnabled {

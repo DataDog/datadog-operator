@@ -7,7 +7,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -24,12 +23,13 @@ import (
 )
 
 type DatadogSLOReconciler struct {
-	Client   client.Client
-	DDClient datadogclient.DatadogSLOClient
-	Log      logr.Logger
-	Scheme   *runtime.Scheme
-	Recorder record.EventRecorder
-	internal *datadogslo.Reconciler
+	Client       client.Client
+	DDClient     datadogclient.DatadogSLOClient
+	CredsManager *config.CredentialManager
+	Log          logr.Logger
+	Scheme       *runtime.Scheme
+	Recorder     record.EventRecorder
+	internal     *datadogslo.Reconciler
 }
 
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogslos,verbs=get;list;watch;create;update;patch;delete
@@ -42,7 +42,7 @@ func (r *DatadogSLOReconciler) Reconcile(ctx context.Context, req reconcile.Requ
 }
 
 func (r *DatadogSLOReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.internal = datadogslo.NewReconciler(r.Client, r.DDClient, r.Log, r.Recorder)
+	r.internal = datadogslo.NewReconciler(r.Client, r.DDClient, r.CredsManager, r.Log, r.Recorder)
 
 	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.DatadogSLO{}).
@@ -56,14 +56,3 @@ func (r *DatadogSLOReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 var _ reconcile.Reconciler = (*DatadogSLOReconciler)(nil)
-
-// Callback function for credential change from credential manager
-func (r *DatadogSLOReconciler) onCredentialChange(newCreds config.Creds) error {
-	ddClient, err := datadogclient.InitDatadogSLOClient(r.Log, newCreds)
-	if err != nil {
-		return fmt.Errorf("unable to create Datadog API Client: %w", err)
-	}
-
-	r.DDClient = ddClient
-	return nil
-}

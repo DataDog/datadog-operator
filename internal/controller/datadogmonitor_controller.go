@@ -7,7 +7,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,6 +29,7 @@ import (
 type DatadogMonitorReconciler struct {
 	Client                 client.Client
 	DDClient               datadogclient.DatadogMonitorClient
+	CredsManager           *config.CredentialManager
 	Log                    logr.Logger
 	Scheme                 *runtime.Scheme
 	Recorder               record.EventRecorder
@@ -48,7 +48,7 @@ func (r *DatadogMonitorReconciler) Reconcile(ctx context.Context, instance *data
 
 // SetupWithManager creates a new DatadogMonitor controller.
 func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager, metricForwardersMgr datadog.MetricsForwardersManager) error {
-	internal, err := datadogmonitor.NewReconciler(r.Client, r.DDClient, r.Scheme, r.Log, r.Recorder, r.operatorMetricsEnabled, metricForwardersMgr)
+	internal, err := datadogmonitor.NewReconciler(r.Client, r.DDClient, r.CredsManager, r.Scheme, r.Log, r.Recorder, r.operatorMetricsEnabled, metricForwardersMgr)
 	if err != nil {
 		return err
 	}
@@ -71,16 +71,5 @@ func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager, metricForw
 		return err
 	}
 
-	return nil
-}
-
-// Callback function for credential change from credential manager
-func (r *DatadogMonitorReconciler) onCredentialChange(newCreds config.Creds) error {
-	ddClient, err := datadogclient.InitDatadogMonitorClient(r.Log, newCreds)
-	if err != nil {
-		return fmt.Errorf("unable to create Datadog API Client: %w", err)
-	}
-
-	r.DDClient = ddClient
 	return nil
 }

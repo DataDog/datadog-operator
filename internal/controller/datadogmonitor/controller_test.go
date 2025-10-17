@@ -10,8 +10,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 
 	corev1 "k8s.io/api/core/v1"
@@ -30,6 +32,7 @@ import (
 	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
 
@@ -956,4 +959,122 @@ func testAuditMonitor(c client.Client) *datadoghqv1alpha1.DatadogMonitor {
 	}
 	_ = c.Create(context.TODO(), dm)
 	return dm
+}
+
+func Test_checkAndUpdateCredentials(t *testing.T) {
+	tests := []struct {
+		name                string
+		setupFunc           func() (*Reconciler, *config.CredentialManager)
+		expectClientUpdate  bool
+		expectVersionUpdate bool
+		expectError         bool
+		resetFunc           func()
+	}{
+		{
+			name: "client updates when version is newer",
+			setupFunc: func() (*Reconciler, *config.CredentialManager) {
+				// Setup credential manager with newer version
+				cm := config.NewCredentialManager()
+
+				// Set up environment variables
+				os.Setenv("DD_API_KEY", "newkey")
+				os.Setenv("DD_APP_KEY", "newapp")
+
+				// Simulate credential change by incrementing version
+				cm.SetCredentialVersionForTesting(2)
+
+				// Create reconciler with older version
+				r := &Reconciler{
+					credsManager:     cm,
+					lastCredsVersion: 1,
+					log:              logr.Discard(),
+				}
+
+				return r, cm
+			},
+			expectClientUpdate:  true,
+			expectVersionUpdate: true,
+			expectError:         false,
+			resetFunc: func() {
+				os.Unsetenv("DD_API_KEY")
+				os.Unsetenv("DD_APP_KEY")
+			},
+		},
+		{
+			name: "no client update when versions match",
+			setupFunc: func() (*Reconciler, *config.CredentialManager) {
+				cm := config.NewCredentialManager()
+				cm.IsRefreshEnabled = true
+
+				os.Setenv("DD_API_KEY", "key")
+				os.Setenv("DD_APP_KEY", "app")
+
+				// Both reconciler and credential manager have same version
+				cm.SetCredentialVersionForTesting(1)
+
+				r := &Reconciler{
+					credsManager:     cm,
+					lastCredsVersion: 1,
+					log:              logr.Discard(),
+				}
+
+				return r, cm
+			},
+			expectClientUpdate:  false,
+			expectVersionUpdate: false,
+			expectError:         false,
+			resetFunc: func() {
+				os.Unsetenv("DD_API_KEY")
+				os.Unsetenv("DD_APP_KEY")
+			},
+		},
+		{
+			name: "error when credential retrieval fails",
+			setupFunc: func() (*Reconciler, *config.CredentialManager) {
+				cm := config.NewCredentialManager()
+				cm.IsRefreshEnabled = true
+				// Don't set env variables to make credential retrieval fail
+				cm.SetCredentialVersionForTesting(2)
+
+				r := &Reconciler{
+					credsManager:     cm,
+					lastCredsVersion: 1,
+					log:              logr.Discard(),
+				}
+
+				return r, cm
+			},
+			expectClientUpdate:  false,
+			expectVersionUpdate: false,
+			expectError:         true,
+			resetFunc:           func() {},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			r, cm := tt.setupFunc()
+
+			initialVersion := r.lastCredsVersion
+			t.Logf("InitialVersion: %d", initialVersion)
+
+			err := r.checkAndUpdateCredentials()
+			t.Logf("UpdatedVersion: %d", r.lastCredsVersion)
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			if tt.expectVersionUpdate {
+				assert.Greater(t, r.lastCredsVersion, initialVersion)
+				assert.Equal(t, cm.GetCredentialVersion(), r.lastCredsVersion)
+			} else {
+				assert.Equal(t, initialVersion, r.lastCredsVersion)
+			}
+
+			tt.resetFunc()
+		})
+	}
 }

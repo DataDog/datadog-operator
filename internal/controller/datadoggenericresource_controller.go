@@ -7,7 +7,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -24,12 +23,13 @@ import (
 
 // DatadogGenericResourceReconciler reconciles a DatadogGenericResource object
 type DatadogGenericResourceReconciler struct {
-	Client   client.Client
-	DDClient datadogclient.DatadogGenericClient
-	Log      logr.Logger
-	Scheme   *runtime.Scheme
-	Recorder record.EventRecorder
-	internal *ddgr.Reconciler
+	Client       client.Client
+	DDClient     datadogclient.DatadogGenericClient
+	CredsManager *config.CredentialManager
+	Log          logr.Logger
+	Scheme       *runtime.Scheme
+	Recorder     record.EventRecorder
+	internal     *ddgr.Reconciler
 }
 
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericresources,verbs=get;list;watch;create;update;patch;delete
@@ -42,7 +42,7 @@ func (r *DatadogGenericResourceReconciler) Reconcile(ctx context.Context, req ct
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *DatadogGenericResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.internal = ddgr.NewReconciler(r.Client, r.DDClient, r.Scheme, r.Log, r.Recorder)
+	r.internal = ddgr.NewReconciler(r.Client, r.DDClient, r.CredsManager, r.Scheme, r.Log, r.Recorder)
 
 	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.DatadogGenericResource{}).
@@ -53,16 +53,5 @@ func (r *DatadogGenericResourceReconciler) SetupWithManager(mgr ctrl.Manager) er
 	if err != nil {
 		return err
 	}
-	return nil
-}
-
-// Callback function for credential change from credential manager
-func (r *DatadogGenericResourceReconciler) onCredentialChange(newCreds config.Creds) error {
-	ddClient, err := datadogclient.InitDatadogGenericClient(r.Log, newCreds)
-	if err != nil {
-		return fmt.Errorf("unable to create Datadog API Client: %w", err)
-	}
-
-	r.DDClient = ddClient
 	return nil
 }

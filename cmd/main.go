@@ -262,6 +262,7 @@ func run(opts *options) error {
 	}
 
 	if opts.secretRefreshInterval > 0 {
+		credsManager.IsRefreshEnabled = true
 		go credsManager.StartCredentialRefreshRoutine(opts.secretRefreshInterval, setupLog)
 	}
 	renewDeadline := opts.leaderElectionLeaseDuration / 2

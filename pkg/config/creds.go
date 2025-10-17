@@ -27,20 +27,12 @@ type Creds struct {
 
 // CredentialManager provides the credentials from the operator configuration.
 type CredentialManager struct {
-	secretBackend    secrets.Decryptor
-	creds            Creds
-	credsMutex       sync.Mutex
-	decryptorBackoff wait.Backoff
-	callbacks        []CredentialChangeCallback
-	callbackMutex    sync.RWMutex
-}
-
-type CredentialChangeCallback func(newCreds Creds) error
-
-func (cm *CredentialManager) RegisterCallback(cb CredentialChangeCallback) {
-	cm.callbackMutex.Lock()
-	defer cm.callbackMutex.Unlock()
-	cm.callbacks = append(cm.callbacks, cb)
+	secretBackend     secrets.Decryptor
+	creds             Creds
+	credsMutex        sync.Mutex
+	decryptorBackoff  wait.Backoff
+	credentialVersion int64
+	IsRefreshEnabled  bool
 }
 
 // NewCredentialManager returns a CredentialManager.
@@ -54,7 +46,18 @@ func NewCredentialManager() *CredentialManager {
 			Factor:   5.0,
 			Cap:      20 * time.Second,
 		},
+		credentialVersion: 1,
+		IsRefreshEnabled:  false,
 	}
+}
+
+func (cm *CredentialManager) GetCredentialVersion() int64 {
+	return cm.credentialVersion
+}
+
+// SetCredentialVersionForTesting sets the credential version for testing purposes
+func (cm *CredentialManager) SetCredentialVersionForTesting(version int64) {
+	cm.credentialVersion = version
 }
 
 // GetCredentials returns the API and APP keys respectively from the operator configurations.
@@ -138,26 +141,9 @@ func (cm *CredentialManager) refresh() error {
 	}
 
 	if oldCreds != newCreds {
-		// callbacks
 		cm.creds = newCreds
-		err = cm.notifyCallbacks(newCreds)
-
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// Recreate custom resource clients
-func (cm *CredentialManager) notifyCallbacks(newCreds Creds) error {
-	cm.callbackMutex.RLock()
-	defer cm.callbackMutex.RUnlock()
-
-	for _, cb := range cm.callbacks {
-		if err := cb(newCreds); err != nil {
-			return err
-		}
+		// increment credential version
+		cm.credentialVersion++
 	}
 	return nil
 }
@@ -170,6 +156,8 @@ func (cm *CredentialManager) StartCredentialRefreshRoutine(interval time.Duratio
 
 	for {
 		<-ticker.C
-		cm.refresh()
+		if err := cm.refresh(); err != nil {
+			logger.Error(err, "Error getting credentials")
+		}
 	}
 }

@@ -7,7 +7,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -24,12 +23,13 @@ import (
 
 // DatadogDashboardReconciler reconciles a DatadogDashboard object
 type DatadogDashboardReconciler struct {
-	Client   client.Client
-	DDClient datadogclient.DatadogDashboardClient
-	Log      logr.Logger
-	Scheme   *runtime.Scheme
-	Recorder record.EventRecorder
-	internal *datadogdashboard.Reconciler
+	Client       client.Client
+	DDClient     datadogclient.DatadogDashboardClient
+	CredsManager *config.CredentialManager
+	Log          logr.Logger
+	Scheme       *runtime.Scheme
+	Recorder     record.EventRecorder
+	internal     *datadogdashboard.Reconciler
 }
 
 //+kubebuilder:rbac:groups=datadoghq.com,resources=datadogdashboards,verbs=get;list;watch;create;update;patch;delete
@@ -43,7 +43,7 @@ func (r *DatadogDashboardReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *DatadogDashboardReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.internal = datadogdashboard.NewReconciler(r.Client, r.DDClient, r.Scheme, r.Log, r.Recorder)
+	r.internal = datadogdashboard.NewReconciler(r.Client, r.DDClient, r.CredsManager, r.Scheme, r.Log, r.Recorder)
 
 	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.DatadogDashboard{}).
@@ -54,16 +54,5 @@ func (r *DatadogDashboardReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err != nil {
 		return err
 	}
-	return nil
-}
-
-// Callback function for credential change from credential manager
-func (r *DatadogDashboardReconciler) onCredentialChange(newCreds config.Creds) error {
-	ddClient, err := datadogclient.InitDatadogDashboardClient(r.Log, newCreds)
-	if err != nil {
-		return fmt.Errorf("unable to create Datadog API Client: %w", err)
-	}
-
-	r.DDClient = ddClient
 	return nil
 }
