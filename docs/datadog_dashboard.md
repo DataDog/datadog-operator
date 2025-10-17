@@ -10,6 +10,14 @@ The `DatadogDashboard` Custom Resource Definition (CRD) allows users to create [
 - [Helm][2], to deploy the Datadog Operator
 - The [kubectl CLI][3], to install a `DatadogDashboard`
 
+## Configuration
+
+### Environment Variables
+
+The DatadogDashboard controller supports the following environment variable:
+
+- `DD_DASHBOARD_FORCE_SYNC_PERIOD`: Configures the frequency at which the controller performs a force sync with the Datadog API to ensure dashboard parity. Defaults to 60 minutes if not set. Example: `DD_DASHBOARD_FORCE_SYNC_PERIOD=30m`
+
 
 ## Adding a DatadogDashboard
 
