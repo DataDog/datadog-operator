@@ -89,6 +89,21 @@ func Test_usmFeature_Configure(t *testing.T) {
 
 		processWantVolumeMounts := []corev1.VolumeMount{
 			{
+				Name:      common.ProcdirVolumeName,
+				MountPath: common.ProcdirMountPath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      common.CgroupsVolumeName,
+				MountPath: common.CgroupsMountPath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      common.DebugfsVolumeName,
+				MountPath: common.DebugfsPath,
+				ReadOnly:  false,
+			},
+			{
 				Name:      common.SystemProbeSocketVolumeName,
 				MountPath: common.SystemProbeSocketVolumePath,
 				ReadOnly:  true,
