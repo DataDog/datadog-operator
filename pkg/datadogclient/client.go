@@ -13,13 +13,12 @@ import (
 	"os"
 	"strings"
 
+	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
+	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/go-logr/logr"
 
 	"github.com/DataDog/datadog-operator/pkg/config"
-
-	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
-	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
-	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 const prefix = "https://api."
@@ -72,6 +71,61 @@ func InitDatadogSLOClient(logger logr.Logger, creds config.Creds) (DatadogSLOCli
 	return DatadogSLOClient{Client: client, Auth: authV1}, nil
 }
 
+type DatadogDashboardClient struct {
+	Client *datadogV1.DashboardsApi
+	Auth   context.Context
+}
+
+// InitDatadogDashboardClient initializes the Datadog Dashboard API Client and establishes credentials.
+func InitDatadogDashboardClient(logger logr.Logger, creds config.Creds) (DatadogDashboardClient, error) {
+	if creds.APIKey == "" || creds.AppKey == "" {
+		return DatadogDashboardClient{}, errors.New("error obtaining API key and/or app key")
+	}
+
+	configV1 := datadogapi.NewConfiguration()
+	apiClient := datadogapi.NewAPIClient(configV1)
+	client := datadogV1.NewDashboardsApi(apiClient)
+
+	authV1, err := setupAuth(logger, creds)
+	if err != nil {
+		return DatadogDashboardClient{}, err
+	}
+
+	return DatadogDashboardClient{Client: client, Auth: authV1}, nil
+}
+
+type DatadogGenericClient struct {
+	SyntheticsClient *datadogV1.SyntheticsApi
+	NotebooksClient  *datadogV1.NotebooksApi
+	MonitorsClient   *datadogV1.MonitorsApi
+	Auth             context.Context
+}
+
+// InitDatadogGenericClient initializes the Datadog Generic API Client and establishes credentials.
+func InitDatadogGenericClient(logger logr.Logger, creds config.Creds) (DatadogGenericClient, error) {
+	if creds.APIKey == "" || creds.AppKey == "" {
+		return DatadogGenericClient{}, errors.New("error obtaining API key and/or app key")
+	}
+
+	configV1 := datadogapi.NewConfiguration()
+	apiClient := datadogapi.NewAPIClient(configV1)
+	syntheticsClient := datadogV1.NewSyntheticsApi(apiClient)
+	notebooksClient := datadogV1.NewNotebooksApi(apiClient)
+	monitorsClient := datadogV1.NewMonitorsApi(apiClient)
+
+	authV1, err := setupAuth(logger, creds)
+	if err != nil {
+		return DatadogGenericClient{}, err
+	}
+
+	return DatadogGenericClient{
+		SyntheticsClient: syntheticsClient,
+		NotebooksClient:  notebooksClient,
+		MonitorsClient:   monitorsClient,
+		Auth:             authV1,
+	}, nil
+}
+
 func setupAuth(logger logr.Logger, creds config.Creds) (context.Context, error) {
 	// Initialize the official Datadog V1 API client.
 	authV1 := context.WithValue(
@@ -88,9 +142,11 @@ func setupAuth(logger logr.Logger, creds config.Creds) (context.Context, error) 
 	)
 
 	apiURL := ""
-	if os.Getenv(config.DDURLEnvVar) != "" {
-		apiURL = os.Getenv(config.DDURLEnvVar)
-	} else if site := os.Getenv(apicommon.DDSite); site != "" {
+	if os.Getenv(constants.DDddURL) != "" {
+		apiURL = os.Getenv(constants.DDddURL)
+	} else if os.Getenv(constants.DDURL) != "" {
+		apiURL = os.Getenv(constants.DDURL)
+	} else if site := os.Getenv(constants.DDSite); site != "" {
 		apiURL = prefix + strings.TrimSpace(site)
 	}
 

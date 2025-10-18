@@ -6,27 +6,60 @@
 package datadog
 
 import (
+	"encoding/json"
 	"fmt"
 
+	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var log = logf.Log.WithName("DatadogMetricForwarders")
 
-// MonitoredObject must be implemented by the monitored object (e.g DatadogAgent)
-type MonitoredObject interface {
-	GetNamespace() string
-	GetName() string
+// getObjKind extracts the object kind from a client.Object in a robust way
+func getObjKind(obj client.Object) string {
+	// First try to get the kind from GVK
+	objKind := obj.GetObjectKind().GroupVersionKind().Kind
+
+	// There is a known bug where the object frequently has empty GVK info.
+	// Ref: https://github.com/kubernetes-sigs/controller-runtime/issues/1735
+	// If GVK is empty, prefer inspecting the concrete type to avoid annotation-induced misclassification
+	if objKind == "" {
+		switch obj.(type) {
+		case *v2alpha1.DatadogAgent:
+			objKind = datadogAgentKind
+		case *v1alpha1.DatadogAgentInternal:
+			objKind = datadogAgentInternalKind
+		case *v1alpha1.DatadogMonitor:
+			objKind = datadogMonitorKind
+		default:
+			// As a fallback, get it from the last-applied-configuration annotation.
+			if annotations := obj.GetAnnotations(); annotations != nil {
+				if lastConfig, exists := annotations["kubectl.kubernetes.io/last-applied-configuration"]; exists {
+					var config map[string]any
+					if err := json.Unmarshal([]byte(lastConfig), &config); err == nil {
+						if kind, ok := config["kind"].(string); ok {
+							objKind = kind
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return objKind
 }
 
 // getObjID builds an identifier for a given monitored object
-func getObjID(obj MonitoredObject) string {
-	return fmt.Sprintf("%s/%s", obj.GetNamespace(), obj.GetName())
+func getObjID(obj client.Object) string {
+	kind := getObjKind(obj)
+	return fmt.Sprintf("%s/%s/%s", kind, obj.GetNamespace(), obj.GetName())
 }
 
-// getNamespacedName builds a NamespacedName for a given monitored object
-func getNamespacedName(obj MonitoredObject) types.NamespacedName {
+// GetNamespacedName builds a NamespacedName for a given monitored object
+func GetNamespacedName(obj client.Object) types.NamespacedName {
 	return types.NamespacedName{
 		Namespace: obj.GetNamespace(),
 		Name:      obj.GetName(),

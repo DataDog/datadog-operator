@@ -1,5 +1,4 @@
 name: Release
-
 on:
   push:
     branches:
@@ -7,41 +6,52 @@ on:
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
       - "v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+"
-
+# Permission forced by repo-level setting; only elevate on job-level
+permissions:
+  contents: read
+  # packages: read
+env:
+  GO_VERSION: 1.24.6
 jobs:
   build-linux-binary:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    permissions:
+      # https://github.com/marketplace/actions/goreleaser-action
+      contents: write
+      # actions/upload-artifact
+      actions: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
       - name: gcc install
         run: sudo apt-get update; sudo apt install gcc-aarch64-linux-gnu
       - name: Get tag
-        uses: little-core-labs/get-git-tag@v3.0.2
+        uses: little-core-labs/get-git-tag@2c292ff564c1a61b989e29f0410d131317f89b03 # v3.0.2
         id: tag
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
         with:
-          go-version: 1.19
+          go-version: ${{ env.GO_VERSION }}
       - name: Get Latest Release
         id: latest_version
-        uses: pozetroninc/github-action-get-latest-release@master
+        uses: pozetroninc/github-action-get-latest-release@53d33d213ee71c72360e3c829caf7cee94ec21e2 # master
         with:
-            owner: ${{ github.repository_owner }}
-            repo: datadog-operator
-            excludes: prerelease, draft
+          owner: ${{ github.repository_owner }}
+          repo: datadog-operator
+          excludes: prerelease, draft
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v3
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
         with:
-          version: latest
-          args: release --skip-publish --config .goreleaser-for-linux.yaml
+          version: 2.4.1
+          args: release --skip=publish --config .goreleaser-for-linux.yaml
         env:
           GORELEASER_PREVIOUS_TAG: ${{steps.latest_version.outputs.release}}
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: kubectl-datadog-linux
           path: |
@@ -51,32 +61,38 @@ jobs:
   build-darwin-binary:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: macos-latest
+    permissions:
+      # https://github.com/marketplace/actions/goreleaser-action
+      contents: write
+      # actions/upload-artifact
+      actions: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
       - name: Get tag
-        uses: little-core-labs/get-git-tag@v3.0.2
+        uses: little-core-labs/get-git-tag@2c292ff564c1a61b989e29f0410d131317f89b03 # v3.0.2
         id: tag
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
         with:
-          go-version: 1.19
+          go-version: ${{ env.GO_VERSION }}
       - name: Get Latest Release
         id: latest_version
-        uses: pozetroninc/github-action-get-latest-release@master
+        uses: pozetroninc/github-action-get-latest-release@53d33d213ee71c72360e3c829caf7cee94ec21e2 # master
         with:
-            owner: ${{ github.repository_owner }}
-            repo: datadog-operator
-            excludes: prerelease, draft
+          owner: ${{ github.repository_owner }}
+          repo: datadog-operator
+          excludes: prerelease, draft
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build
-        uses: goreleaser/goreleaser-action@v3
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
         with:
-          args: release --skip-publish --config .goreleaser-for-darwin.yaml
+          args: release --skip=publish --config .goreleaser-for-darwin.yaml
         env:
           GORELEASER_PREVIOUS_TAG: ${{steps.latest_version.outputs.release}}
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: kubectl-datadog-darwin
           path: |
@@ -85,32 +101,38 @@ jobs:
   build-windows-binary:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    permissions:
+      # https://github.com/marketplace/actions/goreleaser-action
+      contents: write
+      # actions/upload-artifact
+      actions: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
       - name: Get tag
-        uses: little-core-labs/get-git-tag@v3.0.2
+        uses: little-core-labs/get-git-tag@2c292ff564c1a61b989e29f0410d131317f89b03 # v3.0.2
         id: tag
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
         with:
-          go-version: 1.19
+          go-version: ${{ env.GO_VERSION }}
       - name: Get Latest Release
         id: latest_version
-        uses: pozetroninc/github-action-get-latest-release@master
+        uses: pozetroninc/github-action-get-latest-release@53d33d213ee71c72360e3c829caf7cee94ec21e2 # master
         with:
-            owner: ${{ github.repository_owner }}
-            repo: datadog-operator
-            excludes: prerelease, draft
+          owner: ${{ github.repository_owner }}
+          repo: datadog-operator
+          excludes: prerelease, draft
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build
-        uses: goreleaser/goreleaser-action@v3
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
         with:
-          args: release --skip-publish --config .goreleaser-for-windows.yaml
+          args: release --skip=publish --config .goreleaser-for-windows.yaml
         env:
           GORELEASER_PREVIOUS_TAG: ${{steps.latest_version.outputs.release}}
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: kubectl-datadog-windows
           path: |
@@ -120,9 +142,22 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [build-linux-binary, build-darwin-binary, build-windows-binary]
     runs-on: ubuntu-latest
+    permissions:
+      # https://github.com/marketplace/actions/goreleaser-action
+      # https://github.com/softprops/action-gh-release?tab=readme-ov-file#permissions
+      contents: write
+      # actions/download-artifact
+      actions: read
+      # Required for getting the OIDC token from GitHub
+      id-token: write
     steps:
+      - uses: DataDog/dd-octo-sts-action@acaa02eee7e3bb0839e4272dacb37b8f3b58ba80 # v1.0.3
+        id: octo-sts
+        with:
+          scope: DataDog/datadog-operator
+          policy: self.release.create-release
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
       - name: Make directories
@@ -131,22 +166,22 @@ jobs:
           mkdir -p ./dist/darwin
           mkdir -p ./dist/windows
       - name: Download linux binaries
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
           name: kubectl-datadog-linux
           path: ./tmp-build/linux
       - name: Download darwin binaries
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
           name: kubectl-datadog-darwin
           path: ./tmp-build/darwin
       - name: Download windows binaries
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
           name: kubectl-datadog-windows
           path: ./tmp-build/windows
       - name: Get tag
-        uses: little-core-labs/get-git-tag@v3.0.2
+        uses: little-core-labs/get-git-tag@2c292ff564c1a61b989e29f0410d131317f89b03 # v3.0.2
         id: tag
       - name: Prepare ./dist folder
         run: |
@@ -161,7 +196,7 @@ jobs:
       - name: Generate Plugin manifest
         run: ./hack/release/generate-plugin-manifest.sh ${{steps.tag.outputs.tag}}
       - name: Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@6cbd405e2c4e67a21c47fa9e383d020e4e28b836 # v2.3.3
         with:
           body_path: dist/CHANGELOG.md
           prerelease: ${{ contains(github.ref, '-rc.') }}
@@ -172,9 +207,11 @@ jobs:
             dist/checksums.txt
         env:
           COMMIT_TAG: ${{steps.tag.outputs.tag}}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.octo-sts.outputs.token }}
       - name: Update new plugin version in krew-index
-        uses: rajatjindal/krew-release-bot@v0.0.43
+        uses: rajatjindal/krew-release-bot@3d9faef30a82761d610544f62afddca00993eef9 # v0.0.47
         continue-on-error: true
         with:
           krew_template_file: dist/datadog-plugin.yaml
+        env:
+          GITHUB_TOKEN: ${{ steps.octo-sts.outputs.token }}

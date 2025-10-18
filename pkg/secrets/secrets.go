@@ -11,9 +11,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 var (
@@ -65,7 +71,7 @@ func (sb *SecretBackend) fetchSecret(encrypted []string) (map[string]string, err
 		return nil, NewDecryptorError(err, false)
 	}
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"version": PayloadVersion,
 		"secrets": handles,
 	}
@@ -138,4 +144,88 @@ func (sb *SecretBackend) execCommand(inputPayload string) ([]byte, error) {
 // isConfigured returns true if the secret backend command is configured
 func (sb *SecretBackend) isConfigured() bool {
 	return sb.cmd != ""
+}
+
+// GetDefaultCredentialsSecretName returns the default name for credentials secret
+func GetDefaultCredentialsSecretName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-secret", dda.GetName())
+}
+
+// GetDefaultDCATokenSecretName returns the default name for cluster-agent secret
+func GetDefaultDCATokenSecretName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-token", constants.GetDDAName(dda))
+}
+
+// GetAPIKeySecret returns the API key secret name and the key inside the secret
+// returns <isSet>, secretName, secretKey
+// Note that the default name can differ depending on where this is called
+func GetAPIKeySecret(credentials *v2alpha1.DatadogCredentials, defaultName string) (bool, string, string) {
+	isSet := false
+	secretName := defaultName
+	secretKey := v2alpha1.DefaultAPIKeyKey
+
+	if credentials.APISecret != nil {
+		isSet = true
+		secretName = credentials.APISecret.SecretName
+		if credentials.APISecret.KeyName != "" {
+			secretKey = credentials.APISecret.KeyName
+		}
+	} else if credentials.APIKey != nil && *credentials.APIKey != "" {
+		isSet = true
+	}
+
+	return isSet, secretName, secretKey
+}
+
+// GetAppKeySecret returns the APP key secret name and the key inside the secret
+// returns <isSet>, secretName, secretKey
+// Note that the default name can differ depending on where this is called
+func GetAppKeySecret(credentials *v2alpha1.DatadogCredentials, defaultName string) (bool, string, string) {
+	isSet := false
+	secretName := defaultName
+	secretKey := v2alpha1.DefaultAPPKeyKey
+
+	if credentials.AppSecret != nil {
+		isSet = true
+		secretName = credentials.AppSecret.SecretName
+		if credentials.AppSecret.KeyName != "" {
+			secretKey = credentials.AppSecret.KeyName
+		}
+	} else if credentials.AppKey != nil && *credentials.AppKey != "" {
+		isSet = true
+	}
+
+	return isSet, secretName, secretKey
+}
+
+// GetKeysFromCredentials returns any key data that need to be stored in a new secret
+func GetKeysFromCredentials(credentials *v2alpha1.DatadogCredentials) map[string][]byte {
+	data := make(map[string][]byte)
+	// Create secret using DatadogAgent credentials if it exists
+	if credentials.APIKey != nil && *credentials.APIKey != "" {
+		data[v2alpha1.DefaultAPIKeyKey] = []byte(*credentials.APIKey)
+	}
+	if credentials.AppKey != nil && *credentials.AppKey != "" {
+		data[v2alpha1.DefaultAPPKeyKey] = []byte(*credentials.AppKey)
+	}
+
+	return data
+}
+
+// CheckAPIKeySufficiency use to check for the API key if:
+// 1. an existing secret is defined, or
+// 2. the corresponding env var is defined (whether in ENC format or not)
+// If either of these is true, the secret is not needed.
+func CheckAPIKeySufficiency(creds *v2alpha1.DatadogCredentials, envVarName string) bool {
+	return ((creds.APISecret != nil && creds.APISecret.SecretName != "") ||
+		os.Getenv(envVarName) != "")
+}
+
+// CheckAppKeySufficiency use to check for the APP key if:
+// 1. an existing secret is defined, or
+// 2. the corresponding env var is defined (whether in ENC format or not)
+// If either of these is true, the secret is not needed.
+func CheckAppKeySufficiency(creds *v2alpha1.DatadogCredentials, envVarName string) bool {
+	return ((creds.AppSecret != nil && creds.AppSecret.SecretName != "") ||
+		os.Getenv(envVarName) != "")
 }

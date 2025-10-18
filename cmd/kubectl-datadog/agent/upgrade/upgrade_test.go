@@ -10,11 +10,8 @@ import (
 	"fmt"
 	"testing"
 
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -23,144 +20,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
-
-func Test_options_upgrade(t *testing.T) {
-	s := scheme.Scheme
-	if err := datadoghqv1alpha1.AddToScheme(s); err != nil {
-		t.Fatalf("Unable to add DatadogAgent scheme: %v", err)
-	}
-
-	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogAgent{})
-
-	tests := []struct {
-		name     string
-		loadFunc func(c client.Client) *datadoghqv1alpha1.DatadogAgent
-		image    string
-		wantErr  bool
-		wantFunc func(c client.Client, image string) error
-	}{
-		{
-			name: "agent upgrade",
-			loadFunc: func(c client.Client) *datadoghqv1alpha1.DatadogAgent {
-				dd := buildDatadogAgent("datadog/agent:6.17.1")
-				_ = c.Create(context.TODO(), dd)
-				return dd
-			},
-			image:   "datadog/agent:7.17.1",
-			wantErr: false,
-			wantFunc: func(c client.Client, image string) error {
-				dd := &datadoghqv1alpha1.DatadogAgent{}
-				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: "datadog-agent", Name: "dd"}, dd); err != nil {
-					return err
-				}
-				if dd.Spec.Agent.Image.Name != image {
-					return fmt.Errorf("current image: %s, wanted: %s", dd.Spec.Agent.Image.Name, image)
-				}
-				return nil
-			},
-		},
-		{
-			name: "same image, no upgrade",
-			loadFunc: func(c client.Client) *datadoghqv1alpha1.DatadogAgent {
-				dd := buildDatadogAgent("datadog/agent:7.17.1")
-				_ = c.Create(context.TODO(), dd)
-				return dd
-			},
-			image:   "datadog/agent:7.17.1",
-			wantErr: true,
-			wantFunc: func(c client.Client, image string) error {
-				dd := &datadoghqv1alpha1.DatadogAgent{}
-				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: "datadog-agent", Name: "dd"}, dd); err != nil {
-					return err
-				}
-				if dd.Spec.Agent.Image.Name != image {
-					return fmt.Errorf("current image: %s, wanted: %s", dd.Spec.Agent.Image.Name, image)
-				}
-				return nil
-			},
-		},
-		{
-			name: "same tag, different repo",
-			loadFunc: func(c client.Client) *datadoghqv1alpha1.DatadogAgent {
-				dd := buildDatadogAgent("datadog/agent:7.17.1")
-				_ = c.Create(context.TODO(), dd)
-				return dd
-			},
-			image:   "datadog/agent-custom:7.17.1",
-			wantErr: false,
-			wantFunc: func(c client.Client, image string) error {
-				dd := &datadoghqv1alpha1.DatadogAgent{}
-				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: "datadog-agent", Name: "dd"}, dd); err != nil {
-					return err
-				}
-				if dd.Spec.Agent.Image.Name != image {
-					return fmt.Errorf("current image: %s, wanted: %s", dd.Spec.Agent.Image.Name, image)
-				}
-				return nil
-			},
-		},
-		{
-			name: "with clc runner",
-			loadFunc: func(c client.Client) *datadoghqv1alpha1.DatadogAgent {
-				dd := buildDatadogAgent("datadog/agent:7.17.1")
-				dd.Spec.ClusterChecksRunner = datadoghqv1alpha1.DatadogAgentSpecClusterChecksRunnerSpec{
-					Image: &commonv1.AgentImageConfig{
-						Name: "datadog/agent:7.17.1",
-					},
-				}
-				_ = c.Create(context.TODO(), dd)
-				return dd
-			},
-			image:   defaulting.GetLatestAgentImage(),
-			wantErr: false,
-			wantFunc: func(c client.Client, image string) error {
-				dd := &datadoghqv1alpha1.DatadogAgent{}
-				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: "datadog-agent", Name: "dd"}, dd); err != nil {
-					return err
-				}
-				if dd.Spec.Agent.Image.Name != image {
-					return fmt.Errorf("current image: %s, wanted: %s", dd.Spec.Agent.Image.Name, image)
-				}
-				if dd.Spec.ClusterChecksRunner.Image.Name != image {
-					return fmt.Errorf("current image: %s, wanted: %s", dd.Spec.Agent.Image.Name, image)
-				}
-				return nil
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			o := &options{}
-			o.Client = fake.NewClientBuilder().WithScheme(s).Build()
-			if err := o.upgradeV1(tt.loadFunc(o.Client), tt.image); (err != nil) != tt.wantErr {
-				t.Errorf("options.upgrade() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if err := tt.wantFunc(o.Client, tt.image); err != nil {
-				t.Errorf("wantFunc returned an error: %v", err)
-			}
-		})
-	}
-}
-
-func buildDatadogAgent(image string) *datadoghqv1alpha1.DatadogAgent {
-	return &datadoghqv1alpha1.DatadogAgent{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "DatadogAgent",
-			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "datadog-agent",
-			Name:      "dd",
-		},
-		Spec: datadoghqv1alpha1.DatadogAgentSpec{
-			Agent: datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
-				Image: &commonv1.AgentImageConfig{
-					Name: image,
-				},
-			},
-		},
-	}
-}
 
 func Test_options_upgradeV2(t *testing.T) {
 	s := scheme.Scheme

@@ -18,7 +18,7 @@ import (
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -39,6 +39,8 @@ func IsEqualObject(kind kubernetes.ObjectKind, a, b client.Object) bool {
 		return IsEqualRoles(a, b)
 	case kubernetes.RoleBindingKind:
 		return IsEqualRoleBinding(a, b)
+	case kubernetes.ValidatingWebhookConfigurationsKind:
+		return IsEqualValidatingWebhookConfigurations(a, b)
 	case kubernetes.MutatingWebhookConfigurationsKind:
 		return IsEqualMutatingWebhookConfigurations(a, b)
 	case kubernetes.APIServiceKind:
@@ -53,8 +55,6 @@ func IsEqualObject(kind kubernetes.ObjectKind, a, b client.Object) bool {
 		return IsEqualPodDisruptionBudgets(a, b)
 	case kubernetes.NetworkPoliciesKind:
 		return IsEqualNetworkPolicies(a, b)
-	case kubernetes.PodSecurityPoliciesKind:
-		return IsEqualPodSecurityPolicies(a, b)
 	case kubernetes.CiliumNetworkPoliciesKind:
 		return IsEqualCiliumNetworkPolicies(a, b)
 	default:
@@ -118,6 +118,16 @@ func IsEqualRoleBinding(objA, objB client.Object) bool {
 	return false
 }
 
+// IsEqualValidatingWebhookConfigurations return true if the two ValidatingWebhookConfigurations are equal
+func IsEqualValidatingWebhookConfigurations(objA, objB client.Object) bool {
+	a, okA := objA.(*admissionregistrationv1.ValidatingWebhookConfiguration)
+	b, okB := objB.(*admissionregistrationv1.ValidatingWebhookConfiguration)
+	if okA && okB && a != nil && b != nil {
+		return apiequality.Semantic.DeepEqual(a.Webhooks, b.Webhooks)
+	}
+	return false
+}
+
 // IsEqualMutatingWebhookConfigurations return true if the two MutatingWebhookConfigurations are equal
 func IsEqualMutatingWebhookConfigurations(objA, objB client.Object) bool {
 	a, okA := objA.(*admissionregistrationv1.MutatingWebhookConfiguration)
@@ -140,16 +150,10 @@ func IsEqualAPIService(objA, objB client.Object) bool {
 
 // IsEqualSecrets return true if the two Secrets are equal
 func IsEqualSecrets(a, b client.Object) bool {
-	sA, okA := a.(*corev1.ConfigMap)
-	sB, okB := b.(*corev1.ConfigMap)
+	sA, okA := a.(*corev1.Secret)
+	sB, okB := b.(*corev1.Secret)
 	if okA && okB && sA != nil && sB != nil {
-		if !apiutils.IsEqualStruct(sA.Data, sB.Data) {
-			return false
-		}
-		if !apiutils.IsEqualStruct(sA.BinaryData, sA.BinaryData) {
-			return false
-		}
-		return true
+		return apiutils.IsEqualStruct(sA.Data, sB.Data)
 	}
 	return false
 }
@@ -159,9 +163,17 @@ func IsEqualServices(objA, objB client.Object) bool {
 	a, okA := objA.(*corev1.Service)
 	b, okB := objB.(*corev1.Service)
 	if okA && okB && a != nil && b != nil {
-		return apiequality.Semantic.DeepEqual(a.Spec, b.Spec)
+		return isEqualServiceSpec(&a.Spec, &b.Spec)
 	}
 	return false
+}
+
+// isEqualServiceSpec checks two ServiceSpecs for equality based on the
+// configurable fields in `internal/controller/datadogagent/merger/service.go`
+func isEqualServiceSpec(a, b *corev1.ServiceSpec) bool {
+	return apiequality.Semantic.DeepEqual(a.Selector, b.Selector) &&
+		apiequality.Semantic.DeepEqual(a.Ports, b.Ports) &&
+		apiequality.Semantic.DeepEqual(a.InternalTrafficPolicy, b.InternalTrafficPolicy)
 }
 
 // IsEqualServiceAccounts return true if the two ServiceAccounts are equal
@@ -181,12 +193,11 @@ func IsEqualPodDisruptionBudgets(objA, objB client.Object) bool {
 
 	if okA && okB && a != nil && b != nil {
 		return apiequality.Semantic.DeepEqual(a.Spec, b.Spec)
-	} else {
-		ax, okA := objA.(*policyv1beta1.PodDisruptionBudget)
-		bx, okB := objB.(*policyv1beta1.PodDisruptionBudget)
-		if okA && okB && ax != nil && bx != nil {
-			return apiequality.Semantic.DeepEqual(ax.Spec, bx.Spec)
-		}
+	}
+	ax, okA := objA.(*policyv1beta1.PodDisruptionBudget)
+	bx, okB := objB.(*policyv1beta1.PodDisruptionBudget)
+	if okA && okB && ax != nil && bx != nil {
+		return apiequality.Semantic.DeepEqual(ax.Spec, bx.Spec)
 	}
 
 	return false
@@ -196,16 +207,6 @@ func IsEqualPodDisruptionBudgets(objA, objB client.Object) bool {
 func IsEqualNetworkPolicies(objA, objB client.Object) bool {
 	a, okA := objA.(*networkingv1.NetworkPolicy)
 	b, okB := objB.(*networkingv1.NetworkPolicy)
-	if okA && okB && a != nil && b != nil {
-		return apiequality.Semantic.DeepEqual(a.Spec, b.Spec)
-	}
-	return false
-}
-
-// IsEqualPodSecurityPolicies return true if the two PodSecurityPolicies are equal
-func IsEqualPodSecurityPolicies(objA, objB client.Object) bool {
-	a, okA := objA.(*policyv1beta1.PodSecurityPolicy)
-	b, okB := objB.(*policyv1beta1.PodSecurityPolicy)
 	if okA && okB && a != nil && b != nil {
 		return apiequality.Semantic.DeepEqual(a.Spec, b.Spec)
 	}
@@ -238,12 +239,10 @@ func IsEqualOperatorObjectMeta(a, b metav1.Object) bool {
 
 // IsEqualOperatorAnnotations use to check if Operator annotations are equal between 2 Objects
 func IsEqualOperatorAnnotations(a, b metav1.Object) bool {
-	// TODO compare Operator annotations only
-	return true
+	return apiequality.Semantic.DeepEqual(a.GetAnnotations(), b.GetAnnotations())
 }
 
 // IsEqualOperatorLabels use to check if Operator labels are equal between 2 Objects
 func IsEqualOperatorLabels(a, b metav1.Object) bool {
-	// TODO compare Operator labels only
-	return true
+	return apiequality.Semantic.DeepEqual(a.GetLabels(), b.GetLabels())
 }

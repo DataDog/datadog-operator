@@ -1,0 +1,62 @@
+---
+schema-version: v2
+dd-service: datadog-operator
+dd-team: agent-onboarding
+contacts:
+  - type: slack
+    contact: https://dd.slack.com/archives/C037CDX0WJV
+  - type: email
+    contact: team-agentonboarding@datadoghq.com
+links:
+  - name: Runbook
+    type: runbook
+    url: https://datadoghq.atlassian.net/wiki/spaces/ContEco/pages/2446754987/Runbooks
+  - name: datadog-operator
+    type: repo
+    url: https://github.com/DataDog/datadog-operator
+  - name: deployment
+    type: repo
+    url: https://github.com/DataDog/k8s-datadog-agent-ops
+  - name: internal-chart
+    type: repo
+    url: https://github.com/DataDog/k8s-resources/tree/master/k8s/datadog-operator
+  - name: internal-image
+    type: repo
+    url: https://github.com/DataDog/images/tree/master/datadog-operator
+  - name: On Call documentation
+    type: doc
+    url: https://datadoghq.atlassian.net/wiki/spaces/ContEco/pages/2445645960/On+Call
+tags:
+  - app:datadog-operator
+  - service:datadog-operator
+  - team:agent-onboarding
+integrations:
+  pagerduty: https://datadog.pagerduty.com/service-directory/PBVS1V3
+extensions:
+  datadoghq.com/sdp:
+    conductor:
+      slack: "datadog-operator"
+      options:
+        rollout_strategy: "installation"
+        disable_bia: true
+      targets:
+        - name: "nightly-build"
+          # For now, this config is mandatory, even if the target is not a ci_pipeline CNAB object.
+          # Setting this to a placeholder value for now, the intended pipeline that will be triggered will
+          # be the one that is defined in the main .gitlab-ci.yml file.
+          ci_pipeline: "//fake_placeholder:fake_placeholder"
+          parent_environments: 
+            - "staging"
+          branch: "main"
+          schedule: "30 23 * * SUN-THU"
+          workflows:
+            - "k8s-datadog-agent-ops/workflows/deploy_operator_nightly.operator_nightly"
+          options:
+            disable_failure_notifications: true
+        - name: "conductor-test"
+          ci_pipeline: "//fake_placeholder:fake_placeholder"
+          # Test branch
+          branch: "celene/conductor_testing_branch"
+          slack: "celene-conductor-test"
+          options:
+            disable_failure_notifications: true

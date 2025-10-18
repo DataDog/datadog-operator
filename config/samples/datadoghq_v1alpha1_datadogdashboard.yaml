@@ -1,0 +1,12 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogDashboard
+metadata:
+  labels:
+    app.kubernetes.io/name: datadogdashboard
+    app.kubernetes.io/instance: datadogdashboard-sample
+    app.kubernetes.io/part-of: datadog-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: datadog-operator
+  name: datadogdashboard-sample
+spec:
+  # TODO(user): Add fields here

@@ -6,11 +6,11 @@
 package ad
 
 import (
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/validate/ad/pod"
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/validate/ad/service"
-
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/validate/ad/pod"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/validate/ad/service"
 )
 
 // options provides information required by ad command.

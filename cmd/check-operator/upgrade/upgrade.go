@@ -14,15 +14,13 @@ import (
 
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Options provides information required to manage canary.
@@ -131,19 +129,6 @@ func (o *Options) Validate() error {
 	return nil
 }
 
-func (o *Options) getV1Status() (common.StatusWrapper, error) {
-	datadogAgent := &v1alpha1.DatadogAgent{}
-	err := o.Client.Get(context.TODO(), client.ObjectKey{Namespace: o.UserNamespace, Name: o.datadogAgentName}, datadogAgent)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return nil, err
-		}
-
-		return nil, fmt.Errorf("unable to get DatadogAgent, err: %w", err)
-	}
-	return common.NewV1StatusWrapper(datadogAgent), nil
-}
-
 func (o *Options) getV2Status() (common.StatusWrapper, error) {
 	datadogAgent := &v2alpha1.DatadogAgent{}
 	err := o.Client.Get(context.TODO(), client.ObjectKey{Namespace: o.UserNamespace, Name: o.datadogAgentName}, datadogAgent)
@@ -179,18 +164,9 @@ func (o *Options) Run() error {
 	o.printOutf("Start checking rolling-update status")
 	checkFunc := func() (bool, error) {
 		var agentDone, dcaDone, ccrDone, reconcileError bool
-		v2Available, err := common.IsV2Available(o.Clientset)
-		if err != nil {
-			return false, fmt.Errorf("unable to detect if CRD v2 is available, err:%w", err)
-		}
 		var status common.StatusWrapper
-		if v2Available {
-			o.printOutf("v2alpha1 is available")
-			status, err = o.getV2Status()
-		} else {
-			o.printOutf("Only v1alpha1 is available")
-			status, err = o.getV1Status()
-		}
+		o.printOutf("v2alpha1 is available")
+		status, err := o.getV2Status()
 
 		if errors.IsNotFound(err) {
 			o.printOutf("Got a not found error while getting %s/%s. Assuming this DatadogAgent CR has never been deployed in this environment", o.UserNamespace, o.datadogAgentName)
@@ -240,7 +216,7 @@ func (o *Options) Run() error {
 	return wait.Poll(o.checkPeriod, o.checkTimeout, checkFunc)
 }
 
-func (o *Options) isAgentDone(status *commonv1.DaemonSetStatus) bool {
+func (o *Options) isAgentDone(status *v2alpha1.DaemonSetStatus) bool {
 	if status == nil {
 		return true
 	}
@@ -254,7 +230,7 @@ func (o *Options) isAgentDone(status *commonv1.DaemonSetStatus) bool {
 	return false
 }
 
-func (o *Options) isDeploymentDone(status *commonv1.DeploymentStatus, minUpToDate int32, component string) bool {
+func (o *Options) isDeploymentDone(status *v2alpha1.DeploymentStatus, minUpToDate int32, component string) bool {
 	if status == nil {
 		return true
 	}
@@ -268,8 +244,8 @@ func (o *Options) isDeploymentDone(status *commonv1.DeploymentStatus, minUpToDat
 	return false
 }
 
-func (o *Options) printOutf(format string, a ...interface{}) {
-	args := []interface{}{time.Now().UTC().Format("2006-01-02T15:04:05.999Z"), o.UserNamespace, o.datadogAgentName}
+func (o *Options) printOutf(format string, a ...any) {
+	args := []any{time.Now().UTC().Format("2006-01-02T15:04:05.999Z"), o.UserNamespace, o.datadogAgentName}
 	args = append(args, a...)
 	_, _ = fmt.Fprintf(o.Out, "[%s] DatadogAgent '%s/%s': "+format+"\n", args...)
 }

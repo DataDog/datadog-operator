@@ -6,6 +6,21 @@
 
 ## Overview
 
+> [!WARNING]
+> Upcoming changes to Agent DaemonSet labels and selectors may affect your setup.
+>
+> - In **Operator v1.21.0**, all DaemonSets will replace the `matchLabels` selector `agent.datadoghq.com/name: <dda-name>` with `agent.datadoghq.com/instance: <dda-name>-agent`.
+>
+> If using the preview feature [DatadogAgentProfiles][18] (DAPs), the following changes will occur:
+> - In **Operator v1.18.0**, the `app.kubernetes.io/instance` label value was changed from `<dda-name>-agent` to `<dap-name>-agent` on DAP-managed Pods and DaemonSets.
+> - In **Operator v1.21.0**, the following changes will occur:
+>   - All DaemonSets will replace the `matchLabels` selector `agent.datadoghq.com/name: <dda-name>` with `agent.datadoghq.com/instance: <dda-name>-agent` (for default DaemonSets) or `<dap-name>-agent` (for DAP-managed DaemonSets).
+>   - DAP-managed DaemonSets will be renamed from `datadog-agent-with-profile-<dda-name>-<dap-name>` to `<dap-name>-agent`.
+> 
+> ⚠️ If you rely on these labels or `matchLabels` (e.g., in NetworkPolicies, admission controllers, or automation), you may need to update those resources.
+> 
+> For a safe, zero-downtime migration path and full details, see the [migration guide][19].
+
 The **Datadog Operator** aims to provide a new way of deploying the [Datadog Agent][1] on Kubernetes. Once deployed, the Datadog Operator provides:
 
 - Agent configuration validation that limits configuration mistakes.
@@ -31,14 +46,11 @@ Datadog fully supports using a DaemonSet to deploy the Agent, but manual DaemonS
 
 See the [Getting Started][5] dedicated documentation to learn how to deploy the Datadog operator and your first Agent, and [Configuration][12] to see examples, a list of all configuration keys, and default values.
 
-### Migrating from `0.8.x` to `1.0.0`
+### Migrating from `v1alpha1` to `v2alpha1`
 
-Operator `1.0.0` contains several changes users need to be aware of:
-* `DatadogAgent` CRD has two versions, `v1alpha1` and `v2alpha1`. They are used as a stored version by Operator `0.8.x` and `1.0.0` respectively. See this [Kubernetes documentation page][13] for more details about CRD versioning.
-* `v1alpha1` and `v2alpha1` are not backward or forward compatible. The Datadog Operator `1.0.0` implements a Conversion Webhook to migrate, though it only supports migrating from `v1alpha1` to `v2alpha1`.
-* With the Conversion Webhook enabled, users can run `1.0.0` but continue applying a `v1alpha1` manifest. However, they won't be able to retrieve the `DatadogAgent` manifest as a `v1alpha1` object (see the previous item).
-*  The Conversion Webhook requires a cert manager. See the migration guide in the [public][14] or [helm chart][15] documentation for more details.
-* `0.8.x` managed `PodDisruptionBudget` for Cluster Agent and Cluster Checks Worker deployments. `1.0.0` doesn't, however this is on our roadmap.
+Datadog Operator `v1.8.0+` does not support migrating from `DatadogAgent` CRD `v1alpha1` to `v2alpha1` or from Operator `v0.8.x` to `v1.x.x`.
+
+Use the conversion webhook in `v1.7.0` to migrate, and then upgrade to a recent version.
 
 ### Default Enabled Features
 
@@ -51,6 +63,7 @@ Operator `1.0.0` contains several changes users need to be aware of:
 - Orchestrator Explorer
 - UnixDomainSocket transport for DogStatsD (and APM if enabled)
 - Process Discovery
+- Control Plane Monitoring
 
 ## Functionalities
 
@@ -59,6 +72,10 @@ The Datadog operator also allows you to:
 - [Configure and provide custom checks to the Agents][6].
 - [Deploy the Datadog Cluster Agent with your node Agents][7].
 - [Secrets Management with the Datadog Operator][8].
+
+## Deprecation Notice
+
+See the [deprecated configurations and migration guidelines][17] page.
 
 ## How to contribute
 
@@ -80,6 +97,9 @@ See the [How to Contribute page][9].
 [14]: https://docs.datadoghq.com/containers/guide/datadogoperator_migration/
 [15]: https://github.com/DataDog/helm-charts/tree/main/charts/datadog-operator#migration
 [16]: https://kubernetes.io/docs/concepts/extend-kubernetes/operator/
+[17]: https://github.com/DataDog/datadog-operator/blob/main/docs/deprecated_configs.md
+[18]: https://github.com/DataDog/datadog-operator/blob/main/docs/datadog_agent_profiles.md
+[19]: https://github.com/DataDog/datadog-operator/blob/main/docs/agent_metadata_changes.md
 
 ## Release
 

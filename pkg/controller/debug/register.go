@@ -10,58 +10,25 @@ import (
 	"net/http/pprof"
 )
 
-// Options used to provide configuration options
-type Options struct {
-	CmdLine bool
-	Profile bool
-	Symbol  bool
-	Trace   bool
-}
+// GetExtraMetricHandlers creates debug endpoints if enabled.
+func GetExtraMetricHandlers(enabled bool) map[string]http.Handler {
+	handlers := make(map[string]http.Handler)
 
-// DefaultOptions returns default options configuration
-func DefaultOptions() *Options {
-	return &Options{
-		CmdLine: true,
-		Profile: true,
-		Symbol:  true,
-		Trace:   true,
-	}
-}
-
-// RegisterEndpoint used to register the different debug endpoints
-func RegisterEndpoint(register func(string, http.Handler) error, options *Options) error {
-	err := register("/debug/pprof", http.HandlerFunc(pprof.Index))
-	if err != nil {
-		return err
+	if !enabled {
+		return handlers
 	}
 
-	if options == nil {
-		options = DefaultOptions()
-	}
-	if options.CmdLine {
-		err := register("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
-		if err != nil {
-			return err
-		}
-	}
-	if options.Profile {
-		err := register("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
-		if err != nil {
-			return err
-		}
-	}
-	if options.Symbol {
-		err := register("/debug/pprof/symobol", http.HandlerFunc(pprof.Symbol))
-		if err != nil {
-			return err
-		}
-	}
-	if options.Trace {
-		err := register("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
-		if err != nil {
-			return err
-		}
-	}
+	handlers["/debug/pprof/"] = http.HandlerFunc(pprof.Index)
+	handlers["/debug/pprof/cmdline"] = http.HandlerFunc(pprof.Cmdline)
+	handlers["/debug/pprof/profile"] = http.HandlerFunc(pprof.Profile)
+	handlers["/debug/pprof/symbol"] = http.HandlerFunc(pprof.Symbol)
+	handlers["/debug/pprof/trace"] = http.HandlerFunc(pprof.Trace)
+	handlers["/debug/pprof/heap"] = pprof.Handler("heap")
+	handlers["/debug/pprof/goroutine"] = pprof.Handler("goroutine")
+	handlers["/debug/pprof/threadcreate"] = pprof.Handler("threadcreate")
+	handlers["/debug/pprof/block"] = pprof.Handler("block")
+	handlers["/debug/pprof/mutex"] = pprof.Handler("mutex")
+	handlers["/debug/pprof/allocs"] = pprof.Handler("allocs")
 
-	return nil
+	return handlers
 }

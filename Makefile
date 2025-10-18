@@ -8,8 +8,8 @@ SHELL = /usr/bin/env bash -o pipefail
 # Datadog custom variables
 #
 BUILDINFOPKG=github.com/DataDog/datadog-operator/pkg/version
-GIT_TAG?=$(shell git tag -l --contains HEAD | tail -1)
-TAG_HASH=$(shell git tag | tail -1)_$(shell git rev-parse --short HEAD)
+GIT_TAG?=$(shell git tag | tr - \~ | sort -V | tr \~ - | tail -1)
+TAG_HASH=$(shell git tag | tr - \~ | sort -V | tr \~ - | tail -1)_$(shell git rev-parse --short HEAD)
 IMG_VERSION?=$(if $(VERSION),$(VERSION),latest)
 VERSION?=$(if $(GIT_TAG),$(GIT_TAG),$(TAG_HASH))
 GIT_COMMIT?=$(shell git rev-parse HEAD)
@@ -21,6 +21,7 @@ GOARCH?=
 PLATFORM=$(shell uname -s | tr '[:upper:]' '[:lower:]')-$(shell uname -m)
 ROOT=$(dir $(abspath $(firstword $(MAKEFILE_LIST))))
 KUSTOMIZE_CONFIG?=config/default
+FIPS_ENABLED?=false
 
 # Default bundle image tag
 BUNDLE_IMG ?= controller-bundle:$(VERSION)
@@ -49,9 +50,8 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 IMG ?= gcr.io/datadoghq/operator:$(IMG_VERSION)
 IMG_CHECK ?= gcr.io/datadoghq/operator-check:latest
 
-CRD_OPTIONS ?= "crd:preserveUnknownFields=false"
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.24
+ENVTEST_K8S_VERSION = 1.30
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -69,8 +69,9 @@ all: build test ## Build test
 build: manager kubectl-datadog ## Builds manager + kubectl plugin
 
 .PHONY: fmt
-fmt: ## Run go fmt against code
+fmt: bin/$(PLATFORM)/golangci-lint ## Run formatters against code
 	go fmt ./...
+	bin/$(PLATFORM)/golangci-lint run ./... --fix
 
 .PHONY: vet
 vet: ## Run go vet against code
@@ -83,11 +84,11 @@ echo-img: ## Use `make -s echo-img` to get image string for other shell commands
 ##@ Tools
 CONTROLLER_GEN = bin/$(PLATFORM)/controller-gen
 $(CONTROLLER_GEN): Makefile  ## Download controller-gen locally if necessary.
-	$(call go-get-tool,$@,sigs.k8s.io/controller-tools/cmd/controller-gen@v0.6.1)
+	$(call go-get-tool,$@,sigs.k8s.io/controller-tools/cmd/controller-gen@v0.16.3)
 
 KUSTOMIZE = bin/$(PLATFORM)/kustomize
 $(KUSTOMIZE): Makefile  ## Download kustomize locally if necessary.
-	$(call go-get-tool,$@,sigs.k8s.io/kustomize/kustomize/v4@v4.5.7)
+	$(call go-get-tool,$@,sigs.k8s.io/kustomize/kustomize/v5@v5.6.0)
 
 ENVTEST = bin/$(PLATFORM)/setup-envtest
 $(ENVTEST): Makefile ## Download envtest-setup locally if necessary.
@@ -110,18 +111,14 @@ endef
 ##@ Deploy
 
 .PHONY: manager
-manager: generate lint managergobuild ## Build manager binary
-	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager main.go
+manager: sync generate lint managergobuild ## Build manager binary
+	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
 managergobuild: ## Builds only manager go binary
-	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager main.go
-
-##@ Deploy
-
-manager: generate lint managergobuild ## Build manager binary
+	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
 
 .PHONY: run
 run: generate lint manifests ## Run against the configured Kubernetes cluster in ~/.kube/config
-	go run ./main.go
+	go run ./cmd/main.go
 
 .PHONY: install
 install: manifests $(KUSTOMIZE) ## Install CRDs into a cluster
@@ -133,7 +130,7 @@ uninstall: manifests $(KUSTOMIZE) ## Uninstall CRDs from a cluster
 
 .PHONY: deploy
 deploy: manifests $(KUSTOMIZE) ## Deploy controller in the configured Kubernetes cluster in ~/.kube/config
-	cd config/manager && $(ROOT)/$(KUSTOMIZE) edit set image controller=${IMG}
+	cd config/manager && $(ROOT)/$(KUSTOMIZE) edit set image controller=$(subst operator:v,operator:,$(IMG))
 	$(KUSTOMIZE) build $(KUSTOMIZE_CONFIG) | kubectl apply --force-conflicts --server-side -f -
 
 .PHONY: undeploy
@@ -145,16 +142,15 @@ manifests: generate-manifests patch-crds ## Generate manifestcd s e.g. CRD, RBAC
 
 .PHONY: generate-manifests
 generate-manifests: $(CONTROLLER_GEN)
-	$(CONTROLLER_GEN) $(CRD_OPTIONS),crdVersions=v1 rbac:roleName=manager-role webhook paths="./apis/..." output:crd:artifacts:config=config/crd/bases/v1
-	$(CONTROLLER_GEN) $(CRD_OPTIONS),crdVersions=v1beta1 rbac:roleName=manager-role webhook paths="./apis/..." output:crd:artifacts:config=config/crd/bases/v1beta1
+	$(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=manager-role paths="./api/..." paths="./internal/controller/..." output:crd:artifacts:config=config/crd/bases/v1
 
 .PHONY: generate
 generate: $(CONTROLLER_GEN) generate-openapi generate-docs ## Generate code
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./api/..."
 
 .PHONY: generate-docs
 generate-docs: manifests
-	go run ./hack/generate-docs.go
+	go run ./hack/generate-docs/generate-docs.go
 
 # Build the docker images, for local use
 .PHONY: docker-build
@@ -163,7 +159,7 @@ docker-build: generate docker-build-ci docker-build-check-ci
 # For local use
 .PHONY: docker-build-ci
 docker-build-ci:
-	docker build . -t ${IMG} --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}"
+	docker build . -t ${IMG} --build-arg FIPS_ENABLED="${FIPS_ENABLED}" --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}"
 
 # For local use
 .PHONY: docker-build-check-ci
@@ -174,7 +170,7 @@ docker-build-check-ci:
 # For Gitlab use
 .PHONY: docker-build-push-ci
 docker-build-push-ci:
-	docker buildx build . -t ${IMG} --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}" --platform=linux/${GOARCH} --provenance=false --push
+	docker buildx build . -t ${IMG} --build-arg FIPS_ENABLED="${FIPS_ENABLED}" --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}" --platform=linux/${GOARCH} --output=type=image,oci-mediatypes=true --push
 
 # For Gitlab use
 .PHONY: docker-build-push-check-ci
@@ -196,23 +192,30 @@ docker-push-check-img:
 ##@ Test
 
 .PHONY: test
-test: build manifests generate fmt vet verify-licenses gotest integration-tests integration-tests-v2 ## Run unit tests and E2E tests
+test: build manifests generate fmt vet verify-licenses gotest integration-tests ## Run unit tests and integration tests
 
 .PHONY: gotest
 gotest:
 	go test ./... -coverprofile cover.out
 
 .PHONY: integration-tests
-integration-tests: $(ENVTEST) ## Run tests.
-	KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test --tags=integration github.com/DataDog/datadog-operator/controllers -coverprofile cover_integration_v1.out
+integration-tests: $(ENVTEST) ## Run integration tests with reconciler
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ROOT)/bin/$(PLATFORM) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/internal/controller -coverprofile cover_integration.out
 
-.PHONY: integration-tests-v2
-integration-tests-v2: $(ENVTEST) ## Run tests with reconciler V2
-	KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test --tags=integration_v2 github.com/DataDog/datadog-operator/controllers -coverprofile cover_integration_v2.out
+.PHONY: e2e-tests
+e2e-tests: ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.
+	@if [ -z "$(E2E_RUN_REGEX)" ]; then \
+		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -v -run TestAWSKindSuite -timeout 0s -coverprofile cover_e2e.out; \
+	else \
+	    echo "Running e2e test: $(E2E_RUN_REGEX)"; \
+		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -v -run $(E2E_RUN_REGEX) -timeout 0s -coverprofile cover_e2e.out; \
+	fi
+
+
 
 .PHONY: bundle
 bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests ## Generate bundle manifests and metadata, then validate generated files.
-	bin/$(PLATFORM)/operator-sdk generate kustomize manifests -q
+	bin/$(PLATFORM)/operator-sdk generate kustomize manifests --apis-dir ./api -q
 	cd config/manager && $(ROOT)/$(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | bin/$(PLATFORM)/operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	hack/patch-bundle.sh
@@ -224,9 +227,10 @@ bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests #
 bundle-redhat: bin/$(PLATFORM)/operator-manifest-tools
 	hack/redhat-bundle.sh
 
+# Build and push the multiarch bundle image.
 .PHONY: bundle-build-push
-bundle-build-push: ## Build and load the bundle image.
-	docker buildx build --push -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+bundle-build-push:
+	docker buildx build --platform linux/amd64,linux/arm64 --push -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
 bundle-push:
@@ -275,16 +279,18 @@ catalog-push: ## Push a catalog image.
 
 ##@ Datadog Custom part
 .PHONY: install-tools
-install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq bin/$(PLATFORM)/kubebuilder bin/$(PLATFORM)/kubebuilder-tools bin/$(PLATFORM)/go-licenses bin/$(PLATFORM)/openapi-gen
+install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq bin/$(PLATFORM)/jq bin/$(PLATFORM)/kubebuilder bin/$(PLATFORM)/kubebuilder-tools bin/$(PLATFORM)/go-licenses bin/$(PLATFORM)/openapi-gen
 
 .PHONY: generate-openapi
 generate-openapi: bin/$(PLATFORM)/openapi-gen
-	bin/$(PLATFORM)/openapi-gen --logtostderr=true -o "./" -i ./apis/datadoghq/v1alpha1 -O zz_generated.openapi -p ./apis/datadoghq/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
-	bin/$(PLATFORM)/openapi-gen --logtostderr=true -o "./" -i ./apis/datadoghq/v2alpha1 -O zz_generated.openapi -p ./apis/datadoghq/v2alpha1 -h ./hack/boilerplate.go.txt -r "-"
+	@set -o pipefail; \
+	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v1alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v1alpha1 --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/v1alpha1 2>&1 | tee /dev/stderr | grep -q "violation" && { echo "Error: Warnings detected"; exit 1; } || true
+	@set -o pipefail; \
+	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v2alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v2alpha1 --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/v2alpha1 2>&1 | tee /dev/stderr | grep -q "violation" && { echo "Error: Warnings detected"; exit 1; } || true
 
 .PHONY: preflight-redhat-container
 preflight-redhat-container: bin/$(PLATFORM)/preflight
-	bin/$(PLATFORM)/preflight check container ${IMG} -d ~/.docker/config.json
+	bin/$(PLATFORM)/preflight check container ${IMG} -d ~/.docker/config.json --loglevel debug
 
 # Runs only on Linux and requires `docker login` to scan.connect.redhat.com
 .PHONY: preflight-redhat-container-submit
@@ -296,20 +302,25 @@ patch-crds: bin/$(PLATFORM)/yq ## Patch-crds
 	hack/patch-crds.sh
 
 .PHONY: lint
-lint: bin/$(PLATFORM)/golangci-lint fmt vet ## Lint
-	bin/$(PLATFORM)/golangci-lint run ./...
+lint: bin/$(PLATFORM)/golangci-lint vet ## Lint
+	bin/$(PLATFORM)/golangci-lint run ./... ./api/... ./test/e2e/...
 
 .PHONY: licenses
 licenses: bin/$(PLATFORM)/go-licenses
-	./bin/$(PLATFORM)/go-licenses report . --template ./hack/licenses.tpl > LICENSE-3rdparty.csv 2> errors
+	./bin/$(PLATFORM)/go-licenses report ./cmd --template ./hack/licenses.tpl > LICENSE-3rdparty.csv 2> errors
 
 .PHONY: verify-licenses
 verify-licenses: bin/$(PLATFORM)/go-licenses ## Verify licenses
 	hack/verify-licenses.sh
 
-.PHONY: tidy
-tidy: ## Run go tidy
-	go mod tidy -v
+# Update the golang version in different repository files from the version present in go.mod file
+.PHONY: update-golang
+update-golang:
+	hack/update-golang.sh
+
+.PHONY: sync
+sync: ## Run go work sync
+	go work sync
 
 kubectl-datadog: lint
 	go build -ldflags '${LDFLAGS}' -o bin/kubectl-datadog ./cmd/kubectl-datadog/main.go
@@ -322,34 +333,41 @@ check-operator: fmt vet lint
 publish-community-bundles: ## Publish bundles to community repositories
 	hack/publish-community-bundles.sh
 
+.PHONY: annotate-gcp-manifest
+annotate-gcp-manifest: ## Annotate manifest for GCP marketplace
+	go build -o bin/$(PLATFORM)/annotate-manifest ./marketplaces/charts/google-marketplace/cmd/annotate-manifest/main.go
+
 bin/$(PLATFORM)/yq: Makefile
 	hack/install-yq.sh v4.31.2
 
+bin/$(PLATFORM)/jq: Makefile
+	hack/install-jq.sh 1.7.1
+
 bin/$(PLATFORM)/golangci-lint: Makefile
-	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v1.56.0
+	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v2.5.0
 
 bin/$(PLATFORM)/operator-sdk: Makefile
-	hack/install-operator-sdk.sh v1.23.0
+	hack/install-operator-sdk.sh v1.34.1
 
 bin/$(PLATFORM)/go-licenses:
 	mkdir -p $(ROOT)/bin/$(PLATFORM)
 	GOBIN=$(ROOT)/bin/$(PLATFORM) go install github.com/google/go-licenses@v1.5.0
 
 bin/$(PLATFORM)/operator-manifest-tools: Makefile
-	hack/install-operator-manifest-tools.sh 0.2.0
+	hack/install-operator-manifest-tools.sh 0.6.0
 
 bin/$(PLATFORM)/preflight: Makefile
-	hack/install-openshift-preflight.sh 1.9.4
+	hack/install-openshift-preflight.sh latest
 
 bin/$(PLATFORM)/openapi-gen:
 	mkdir -p $(ROOT)/bin/$(PLATFORM)
-	GOBIN=$(ROOT)/bin/$(PLATFORM) go install k8s.io/kube-openapi/cmd/openapi-gen
+	GOBIN=$(ROOT)/bin/$(PLATFORM) go install k8s.io/kube-openapi/cmd/openapi-gen@v0.0.0-20240228011516-70dd3763d340
 
 bin/$(PLATFORM)/kubebuilder:
-	./hack/install-kubebuilder.sh 3.4.0 ./bin/$(PLATFORM)
+	./hack/install-kubebuilder.sh 4.1.1 ./bin/$(PLATFORM)
 
 bin/$(PLATFORM)/kubebuilder-tools:
-	./hack/install-kubebuilder-tools.sh 1.24.1 ./bin/$(PLATFORM)
+	./hack/install-kubebuilder-tools.sh 1.28.3 ./bin/$(PLATFORM)
 
 .DEFAULT_GOAL := help
 .PHONY: help

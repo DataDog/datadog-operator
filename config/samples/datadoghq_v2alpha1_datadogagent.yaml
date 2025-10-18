@@ -3,5 +3,47 @@ kind: DatadogAgent
 metadata:
   name: datadogagent-sample
 spec:
-  # Add fields here
-  foo: bar
+  global:
+    clusterAgentToken: <DATADOG_CLUSTER_AGENT_TOKEN>
+    clusterName: <CLUSTER_NAME>
+    credentials:
+      apiKey: <DATADOG_API_KEY>
+      appKey: <DATADOG_APP_KEY>
+    criSocketPath: /var/run/crio/crio.sock
+    kubelet:
+      # This is needed if the kubelet certificate is self-signed.
+      # Alternatively, the CA certificate used to sign the kubelet certificate can be mounted.
+      tlsVerify: false
+  features:
+    admissionController:
+      enabled: false
+    apm:
+      enabled: false
+    clusterChecks:
+      enabled: true
+      useClusterChecksRunners: true
+    liveProcessCollection:
+      enabled: false
+    logCollection:
+      containerCollectAll: true
+      enabled: true
+  override:
+    nodeAgent:
+      hostNetwork: true
+      serviceAccountName: datadog-agent-scc
+      securityContext:
+        runAsUser: 0
+        seLinuxOptions:
+          user: system_u
+          role: system_r
+          type: spc_t
+          level: s0
+    clusterAgent:
+      serviceAccountName: datadog-agent-scc
+      replicas: 2
+      containers:
+        cluster-agent:
+          securityContext:
+            readOnlyRootFilesystem: false
+    clusterChecksRunner:
+      replicas: 2

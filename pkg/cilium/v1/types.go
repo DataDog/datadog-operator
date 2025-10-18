@@ -31,12 +31,14 @@ const (
 	EntityRemoteNode Entity = "remote-node"
 	// EntityWorld is a world entity
 	EntityWorld Entity = "world"
+	// EntityKubeApiServer is a Kube Api Server
+	EntityKubeApiServer Entity = "kube-apiserver"
 )
 
 // NetworkPolicy is a Cilium network policy
 type NetworkPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.ObjectMeta `json:"metadata"`
 
 	Specs []NetworkPolicySpec `json:"specs,omitempty"`
 }
@@ -44,7 +46,7 @@ type NetworkPolicy struct {
 // NetworkPolicySpec is a Cilium network policy spec
 type NetworkPolicySpec struct {
 	Description      string               `json:"description,omitempty"`
-	EndpointSelector metav1.LabelSelector `json:"endpointSelector,omitempty"`
+	EndpointSelector metav1.LabelSelector `json:"endpointSelector"`
 	Ingress          []IngressRule        `json:"ingress,omitempty"`
 	Egress           []EgressRule         `json:"egress,omitempty"`
 }

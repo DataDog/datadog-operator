@@ -44,10 +44,13 @@ create_pr() {
   git add -A
   git commit -s -m "$message"
   git push -f --set-upstream origin "$PR_BRANCH_NAME"
-  gh pr create --title "$message" \
-               --body "$body" \
-               --repo "$ORG"/"$repo" \
-               --base main
+  curl -L \
+    -X POST \
+    -H "Accept: application/vnd.github+json" \
+    -H "Authorization: Bearer $GITHUB_TOKEN" \
+    -H "X-GitHub-Api-Version: 2022-11-28" \
+    -d "{\"title\":\"$message\",\"body\":\"$body\",\"head\":\"$(git rev-parse --abbrev-ref HEAD)\",\"base\":\"main\"}" \
+    "https://api.github.com/repos/$ORG/$repo/pulls"
 }
 
 
@@ -68,7 +71,7 @@ do
     certified-operators)
       ORG="redhat-openshift-ecosystem"
       OPERATOR_SUBPATH="datadog-operator-certified"
-      BUNDLE_NAME="bundle-redhat"
+      BUNDLE_NAME="bundle-redhat-certified"
       ;;
     redhat-marketplace-operators)
       ORG="redhat-openshift-ecosystem"

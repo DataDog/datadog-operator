@@ -1,0 +1,22 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  global:
+    clusterName: my-example-cluster
+    credentials:
+      apiKey: <DATADOG_API_KEY>
+  override:
+    nodeAgent:
+      extraConfd:
+        configMap:
+          name: <existing_config_map>
+          items:
+            - key: 'conf.yaml'
+              path: '<integration_name>.yaml'
+        # Alternative to referencing a configmap
+        # configDataMap:
+        #   <integration_name>.yaml: |-
+        #     init_config:
+        #     instances:

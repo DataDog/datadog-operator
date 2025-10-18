@@ -65,40 +65,25 @@ func (platformInfo *PlatformInfo) UseV1Beta1PDB() bool {
 	preferredVersion := platformInfo.apiPreferredVersions["PodDisruptionBudget"]
 
 	// If policy isn't v1beta1 version, we default to v1.
-	if preferredVersion == "policy/v1beta1" {
-		return true
-	} else {
-		return false
-	}
+	return preferredVersion == "policy/v1beta1"
 }
 
 func (platformInfo *PlatformInfo) CreatePDBObject() client.Object {
 	if platformInfo.UseV1Beta1PDB() {
 		return &policyv1beta1.PodDisruptionBudget{}
-	} else {
-		return &policyv1.PodDisruptionBudget{}
 	}
+	return &policyv1.PodDisruptionBudget{}
 }
 
 func (platformInfo *PlatformInfo) CreatePDBObjectList() client.ObjectList {
 	if platformInfo.UseV1Beta1PDB() {
 		return &policyv1beta1.PodDisruptionBudgetList{}
-	} else {
-		return &policyv1.PodDisruptionBudgetList{}
 	}
+	return &policyv1.PodDisruptionBudgetList{}
 }
 
 func (platformInfo *PlatformInfo) GetAgentResourcesKind(withCiliumResources bool) []ObjectKind {
-	return getResourcesKind(withCiliumResources, platformInfo.supportsPSP())
-}
-
-func (platformInfo *PlatformInfo) supportsPSP() bool {
-	if platformInfo.apiOtherVersions == nil || platformInfo.apiPreferredVersions == nil {
-		return true
-	}
-	_, otherExists := platformInfo.apiOtherVersions["PodSecurityPolicy"]
-	_, preferredExists := platformInfo.apiPreferredVersions["PodSecurityPolicy"]
-	return otherExists || preferredExists
+	return getResourcesKind(withCiliumResources)
 }
 
 // IsResourceSupported returns true if a Kubernetes resource is supported by the server
@@ -119,4 +104,8 @@ func (platformInfo *PlatformInfo) GetApiVersions(name string) (preferred string,
 	preferred = platformInfo.apiPreferredVersions[name]
 	other = platformInfo.apiOtherVersions[name]
 	return preferred, other
+}
+
+func (platformInfo *PlatformInfo) GetVersionInfo() *version.Info {
+	return platformInfo.versionInfo
 }

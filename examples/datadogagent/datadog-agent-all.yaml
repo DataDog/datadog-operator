@@ -1,0 +1,67 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  global:
+    clusterName: my-example-cluster
+    credentials:
+      apiKey: <DATADOG_API_KEY>
+      appKey: <DATADOG_APP_KEY>
+  features:
+    logCollection:
+      enabled: true
+    liveProcessCollection:
+      enabled: true
+    liveContainerCollection:
+      enabled: true
+    processDiscovery:
+      enabled: true
+    oomKill:
+      enabled: true
+    tcpQueueLength:
+      enabled: true
+    ebpfCheck:
+      enabled: true
+    apm:
+      enabled: true
+    cspm:
+      enabled: true
+    cws:
+      enabled: true
+    npm:
+      enabled: true
+    usm:
+      enabled: true
+    dogstatsd:
+      unixDomainSocketConfig:
+        enabled: true
+    otlp:
+      receiver:
+        protocols:
+          grpc:
+            enabled: true
+    remoteConfiguration:
+      enabled: true
+    sbom:
+      enabled: true
+    serviceDiscovery:
+      enabled: true
+      networkStats:
+        enabled: true
+    gpu:
+      enabled: true
+    eventCollection:
+      collectKubernetesEvents: true
+    orchestratorExplorer:
+      enabled: true
+    kubeStateMetricsCore:
+      enabled: true
+    admissionController:
+      enabled: true
+    externalMetricsServer:
+      enabled: true
+    clusterChecks:
+      enabled: true
+    prometheusScrape:
+      enabled: true

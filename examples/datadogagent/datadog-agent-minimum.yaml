@@ -1,0 +1,9 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  global:
+    clusterName: my-example-cluster
+    credentials:
+      apiKey: <DATADOG_API_KEY>

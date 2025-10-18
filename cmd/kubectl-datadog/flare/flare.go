@@ -23,10 +23,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/pkg/plugin/common"
-	"github.com/DataDog/datadog-operator/pkg/version"
-
 	"github.com/mholt/archiver/v3"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -36,6 +32,10 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/tools/remotecommand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/plugin/common"
+	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 const (
@@ -245,7 +245,7 @@ func (o *options) run(cmd *cobra.Command) error {
 // createCRFiles gets the available datadogagent custom resource definitions
 func (o *options) createCRFiles(dir string, cmd *cobra.Command) error {
 	// List all custom resources
-	ddList := &v1alpha1.DatadogAgentList{}
+	ddList := &v2alpha1.DatadogAgentList{}
 	if err := o.Client.List(context.TODO(), ddList, &client.ListOptions{Namespace: o.UserNamespace}); err != nil {
 		return err
 	}

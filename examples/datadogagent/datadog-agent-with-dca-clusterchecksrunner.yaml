@@ -1,0 +1,24 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  features:
+    externalMetricsServer:
+      enabled: true
+      useDatadogMetrics: false
+    clusterChecks:
+      enabled: true
+      useClusterChecksRunners: true
+  global:
+    clusterName: my-example-cluster
+    credentials:
+      apiKey: <DATADOG_API_KEY>
+      appKey: <DATADOG_APP_KEY>
+    clusterAgentToken: <DATADOG_CLUSTER_AGENT_TOKEN>
+  override:
+    clusterAgent:
+      replicas: 2
+    nodeAgent:
+      tolerations:
+        - operator: Exists

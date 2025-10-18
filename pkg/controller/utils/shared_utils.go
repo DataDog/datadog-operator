@@ -9,9 +9,10 @@ import (
 	"fmt"
 	"strconv"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
 // ShouldReturn returns if we should stop the reconcile loop based on result
@@ -34,7 +35,7 @@ func GetDatadogTokenResourceName(dda metav1.Object) string {
 	return fmt.Sprintf("%stoken", dda.GetName())
 }
 
-// GetDatadogAgentResourceNamespace returns the UID of the Datadog Agent Resource
+// GetDatadogAgentResourceUID returns the UID of the Datadog Agent Resource
 func GetDatadogAgentResourceUID(dda metav1.Object) string {
 	return string(dda.GetUID())
 }
@@ -42,4 +43,14 @@ func GetDatadogAgentResourceUID(dda metav1.Object) string {
 // GetDatadogAgentResourceCreationTime returns the creation timestamp of the Datadog Agent Resource
 func GetDatadogAgentResourceCreationTime(dda metav1.Object) string {
 	return strconv.FormatInt(dda.GetCreationTimestamp().Unix(), 10)
+}
+
+// UseCustomSeccompConfigMap returns true if a custom Seccomp profile configMap is configured
+func UseCustomSeccompConfigMap(seccompConfig *v2alpha1.SeccompConfig) bool {
+	return seccompConfig != nil && seccompConfig.CustomProfile != nil && seccompConfig.CustomProfile.ConfigMap != nil
+}
+
+// UseCustomSeccompConfigData returns true if a custom Seccomp profile configData is configured and configMap is *not* configured
+func UseCustomSeccompConfigData(seccompConfig *v2alpha1.SeccompConfig) bool {
+	return seccompConfig != nil && seccompConfig.CustomProfile != nil && seccompConfig.CustomProfile.ConfigMap == nil && seccompConfig.CustomProfile.ConfigData != nil
 }

@@ -8,24 +8,23 @@ package datadog
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
 	"reflect"
-	"sort"
 	"strings"
 	"sync"
 	"testing"
 
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	test "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
-	testV2 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
-	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/pkg/config"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/stretchr/testify/mock"
 	assert "github.com/stretchr/testify/require"
-	api "github.com/zorkian/go-datadog-api"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,13 +37,13 @@ type fakeMetricsForwarder struct {
 	mock.Mock
 }
 
-func (c *fakeMetricsForwarder) delegatedSendDeploymentMetric(metricValue float64, component string, tags []string) error {
-	c.Called(metricValue, component, tags)
+func (c *fakeMetricsForwarder) delegatedSendDeploymentMetric(ctx context.Context, metricValue float64, component string, tags []string) error {
+	c.Called(ctx, metricValue, component, tags)
 	return nil
 }
 
-func (c *fakeMetricsForwarder) delegatedSendReconcileMetric(metricValue float64, tags []string) error {
-	c.Called(metricValue, tags)
+func (c *fakeMetricsForwarder) delegatedSendReconcileMetric(ctx context.Context, metricValue float64, tags []string) error {
+	c.Called(ctx, metricValue, tags)
 	return nil
 }
 
@@ -53,341 +52,17 @@ func (c *fakeMetricsForwarder) delegatedSendEvent(eventTitle string, eventType E
 	return nil
 }
 
-func (c *fakeMetricsForwarder) delegatedSendFeatureMetric(feature string) error {
-	c.Called(feature)
+func (c *fakeMetricsForwarder) delegatedSendFeatureMetric(ctx context.Context, feature string) error {
+	c.Called(ctx, feature)
 	return nil
 }
 
-func (c *fakeMetricsForwarder) delegatedValidateCreds(apiKey string) (*api.Client, error) {
+func (c *fakeMetricsForwarder) delegatedValidateCreds(apiKey string) error {
 	c.Called(apiKey)
 	if strings.Contains(apiKey, "invalid") {
-		return nil, errors.New("invalid creds")
+		return errors.New("invalid creds")
 	}
-	return &api.Client{}, nil
-}
-
-func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
-	fmf := &fakeMetricsForwarder{}
-	nsn := types.NamespacedName{
-		Namespace: "foo",
-		Name:      "bar",
-	}
-	mf := &metricsForwarder{
-		namespacedName:      nsn,
-		delegator:           fmf,
-		monitoredObjectKind: "DatadogAgent",
-		platformInfo:        createPlatformInfo(),
-	}
-	mf.initGlobalTags()
-
-	tests := []struct {
-		name      string
-		loadFunc  func() (*metricsForwarder, *fakeMetricsForwarder)
-		dsStatus  []*commonv1.DaemonSetStatus
-		dcaStatus *commonv1.DeploymentStatus
-		ccrStatus *commonv1.DeploymentStatus
-		wantErr   bool
-		wantFunc  func(*fakeMetricsForwarder) error
-	}{
-		{
-			name: "nil statuses",
-			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
-				return mf, fmf
-			},
-			dsStatus:  nil,
-			dcaStatus: nil,
-			ccrStatus: nil,
-			wantErr:   false,
-			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 0) {
-					return errors.New("Wrong number of calls")
-				}
-				return nil
-			},
-		},
-		{
-			name: "agent only, available",
-			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
-				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"})
-				mf.delegator = f
-				return mf, f
-			},
-			dsStatus: []*commonv1.DaemonSetStatus{
-				{
-					Desired:       int32(1337),
-					Available:     int32(1337),
-					State:         string(datadoghqv1alpha1.DatadogAgentStateRunning),
-					DaemonsetName: "ds-foo",
-				},
-			},
-			dcaStatus: nil,
-			ccrStatus: nil,
-			wantErr:   false,
-			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"}) {
-					return errors.New("Function not called")
-				}
-				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 1) {
-					return errors.New("Wrong number of calls")
-				}
-				return nil
-			},
-		},
-		{
-			name: "agent only, available + tags not empty",
-			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
-				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "cluster_name:testcluster", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"})
-				mf.delegator = f
-				mf.tags = []string{"cluster_name:testcluster"}
-				return mf, f
-			},
-			dsStatus: []*commonv1.DaemonSetStatus{
-				{
-					Desired:       int32(1337),
-					Available:     int32(1337),
-					State:         string(datadoghqv1alpha1.DatadogAgentStateRunning),
-					DaemonsetName: "ds-foo",
-				},
-			},
-			dcaStatus: nil,
-			ccrStatus: nil,
-			wantErr:   false,
-			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "cluster_name:testcluster", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"}) {
-					return errors.New("Function not called")
-				}
-				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 1) {
-					return errors.New("Wrong number of calls")
-				}
-				return nil
-			},
-		},
-		{
-			name: "agent only, not available",
-			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
-				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendDeploymentMetric", 0.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Failed", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"})
-				mf.delegator = f
-				mf.tags = []string{}
-				return mf, f
-			},
-			dsStatus: []*commonv1.DaemonSetStatus{
-				{
-					Desired:       int32(1337),
-					Available:     int32(1336),
-					State:         string(datadoghqv1alpha1.DatadogAgentStateFailed),
-					DaemonsetName: "ds-foo",
-				},
-			},
-			dcaStatus: nil,
-			ccrStatus: nil,
-			wantErr:   false,
-			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 0.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Failed", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"}) {
-					return errors.New("Function not called")
-				}
-				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 1) {
-					return errors.New("Wrong number of calls")
-				}
-				return nil
-			},
-		},
-		{
-			name: "all components, all available",
-			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
-				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"})
-				f.On("delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"})
-				f.On("delegatedSendDeploymentMetric", 1.0, "clusterchecksrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"})
-				mf.delegator = f
-				return mf, f
-			},
-			dsStatus: []*commonv1.DaemonSetStatus{
-				{
-					Desired:       int32(1337),
-					Available:     int32(1337),
-					State:         string(datadoghqv1alpha1.DatadogAgentStateRunning),
-					DaemonsetName: "ds-foo",
-				},
-			},
-			dcaStatus: &commonv1.DeploymentStatus{
-				Replicas:          int32(2),
-				AvailableReplicas: int32(2),
-				State:             string(datadoghqv1alpha1.DatadogAgentStateRunning),
-			},
-			ccrStatus: &commonv1.DeploymentStatus{
-				Replicas:          int32(3),
-				AvailableReplicas: int32(3),
-				State:             string(datadoghqv1alpha1.DatadogAgentStateRunning),
-			},
-			wantErr: false,
-			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"}) {
-					return errors.New("Function not called")
-				}
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"}) {
-					return errors.New("Function not called")
-				}
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "clusterchecksrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"}) {
-					return errors.New("Function not called")
-				}
-				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 3) {
-					return errors.New("Wrong number of calls")
-				}
-				return nil
-			},
-		},
-		{
-			name: "agent and clusteragent, clusteragent not available",
-			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
-				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"})
-				f.On("delegatedSendDeploymentMetric", 0.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Progressing", "cr_preferred_version:v1", "cr_other_version:v1alpha1"})
-				mf.delegator = f
-				return mf, f
-			},
-			dsStatus: []*commonv1.DaemonSetStatus{
-				{
-					Desired:       int32(1337),
-					Available:     int32(1337),
-					State:         string(datadoghqv1alpha1.DatadogAgentStateRunning),
-					DaemonsetName: "ds-foo",
-				},
-			},
-			dcaStatus: &commonv1.DeploymentStatus{
-				Replicas:          int32(2),
-				AvailableReplicas: int32(0),
-				State:             string(datadoghqv1alpha1.DatadogAgentStateProgressing),
-			},
-			ccrStatus: nil,
-			wantErr:   false,
-			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"}) {
-					return errors.New("Function not called")
-				}
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 0.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Progressing", "cr_preferred_version:v1", "cr_other_version:v1alpha1"}) {
-					return errors.New("Function not called")
-				}
-				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 2) {
-					return errors.New("Wrong number of calls")
-				}
-				return nil
-			},
-		},
-		{
-			name: "all components, clusterchecksrunner not available",
-			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
-				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"})
-				f.On("delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"})
-				f.On("delegatedSendDeploymentMetric", 0.0, "clusterchecksrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"})
-				mf.delegator = f
-				return mf, f
-			},
-			dsStatus: []*commonv1.DaemonSetStatus{
-				{
-					Desired:       int32(1337),
-					Available:     int32(1337),
-					State:         string(datadoghqv1alpha1.DatadogAgentStateRunning),
-					DaemonsetName: "ds-foo",
-				},
-			},
-			dcaStatus: &commonv1.DeploymentStatus{
-				Replicas:          int32(2),
-				AvailableReplicas: int32(2),
-				State:             string(datadoghqv1alpha1.DatadogAgentStateRunning),
-			},
-			ccrStatus: &commonv1.DeploymentStatus{
-				Replicas:          int32(3),
-				AvailableReplicas: int32(1),
-				State:             string(datadoghqv1alpha1.DatadogAgentStateRunning),
-			},
-			wantErr: false,
-			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"}) {
-					return errors.New("Function not called")
-				}
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"}) {
-					return errors.New("Function not called")
-				}
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 0.0, "clusterchecksrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"}) {
-					return errors.New("Function not called")
-				}
-				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 3) {
-					return errors.New("Wrong number of calls")
-				}
-				return nil
-			},
-		},
-		{
-			name: "all components, agent has multiple DaemonSetStatus",
-			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
-				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"})
-				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-bar"})
-				f.On("delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"})
-				f.On("delegatedSendDeploymentMetric", 0.0, "clusterchecksrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"})
-				mf.delegator = f
-				return mf, f
-			},
-			dsStatus: []*commonv1.DaemonSetStatus{
-				{
-					Desired:       int32(1337),
-					Available:     int32(1337),
-					State:         string(datadoghqv1alpha1.DatadogAgentStateRunning),
-					DaemonsetName: "ds-foo",
-				},
-				{
-					Desired:       int32(90),
-					Available:     int32(90),
-					State:         string(datadoghqv1alpha1.DatadogAgentStateRunning),
-					DaemonsetName: "ds-bar",
-				},
-			},
-			dcaStatus: &commonv1.DeploymentStatus{
-				Replicas:          int32(2),
-				AvailableReplicas: int32(2),
-				State:             string(datadoghqv1alpha1.DatadogAgentStateRunning),
-			},
-			ccrStatus: &commonv1.DeploymentStatus{
-				Replicas:          int32(3),
-				AvailableReplicas: int32(1),
-				State:             string(datadoghqv1alpha1.DatadogAgentStateRunning),
-			},
-			wantErr: false,
-			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"}) {
-					return errors.New("Function not called")
-				}
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-bar"}) {
-					return errors.New("Function not called")
-				}
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"}) {
-					return errors.New("Function not called")
-				}
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 0.0, "clusterchecksrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"}) {
-					return errors.New("Function not called")
-				}
-				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 4) {
-					return errors.New("Wrong number of calls")
-				}
-				return nil
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			dd, f := tt.loadFunc()
-			if err := dd.sendStatusMetrics(tt.dsStatus, tt.dcaStatus, tt.ccrStatus); (err != nil) != tt.wantErr {
-				t.Errorf("metricsForwarder.sendStatusMetrics() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if err := tt.wantFunc(f); err != nil {
-				t.Errorf("metricsForwarder.sendStatusMetrics() wantFunc validation error: %v", err)
-			}
-		})
-	}
+	return nil
 }
 
 func TestMetricsForwarder_updateCredsIfNeeded(t *testing.T) {
@@ -477,7 +152,316 @@ func TestMetricsForwarder_updateCredsIfNeeded(t *testing.T) {
 	}
 }
 
-func TestReconcileDatadogAgent_getCredentialsV2(t *testing.T) {
+func Test_setupFromOperator(t *testing.T) {
+	type fields struct {
+		client client.Client
+	}
+
+	tests := []struct {
+		name        string
+		loadFunc    func(*metricsForwarder, *secrets.DummyDecryptor)
+		wantAPIKey  string
+		wantBaseURL string
+	}{
+		{
+			name: "basic creds with default URL",
+			loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
+				os.Setenv(constants.DDAPIKey, "test123")
+				os.Setenv(constants.DDAppKey, "testabc")
+			},
+			wantBaseURL: defaultbaseURL,
+			wantAPIKey:  "test123",
+		},
+		{
+			name: "basic creds with default DD_URL",
+			loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
+				os.Setenv(constants.DDAppKey, "testabc")
+				os.Setenv(constants.DDAppKey, "testabc")
+				os.Setenv(constants.DDddURL, "https://api.dd_url.com")
+			},
+			wantBaseURL: "https://api.dd_url.com",
+			wantAPIKey:  "test123",
+		},
+		{
+			name: "basic creds with default DD_DD_URL",
+			loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
+				os.Setenv(constants.DDAPIKey, "test123")
+				os.Setenv(constants.DDAppKey, "testabc")
+				os.Setenv(constants.DDddURL, "https://api.dd_dd_url.com")
+			},
+			wantBaseURL: "https://api.dd_dd_url.com",
+			wantAPIKey:  "test123",
+		},
+		{
+			name: "basic creds with default DD_SITE",
+			loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
+				os.Setenv(constants.DDAPIKey, "test123")
+				os.Setenv(constants.DDAppKey, "testabc")
+				os.Setenv(constants.DDSite, "dd_site.com")
+			},
+			wantBaseURL: "https://api.dd_site.com",
+			wantAPIKey:  "test123",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &secrets.DummyDecryptor{}
+			mf := &metricsForwarder{
+				k8sClient:    fake.NewFakeClient(),
+				decryptor:    d,
+				creds:        sync.Map{},
+				credsManager: config.NewCredentialManager(),
+			}
+			if tt.loadFunc != nil {
+				tt.loadFunc(mf, d)
+			}
+			_ = mf.setupFromOperator()
+
+			if mf.apiKey != tt.wantAPIKey {
+				t.Errorf("metricsForwarder.setupFromOperator() apiKey = %v, want %v", mf.apiKey, tt.wantAPIKey)
+			}
+		})
+	}
+}
+
+func Test_setupFromDDA(t *testing.T) {
+	apiVersion := fmt.Sprintf("%s/%s", v2alpha1.GroupVersion.Group, v2alpha1.GroupVersion.Version)
+	apiKey := "foundAPIKey"
+	labels := map[string]string{
+		"labelKey1": "labelValue1",
+	}
+
+	type args struct {
+		dda                  *v2alpha1.DatadogAgent
+		credsSetFromOperator bool
+	}
+	tests := []struct {
+		name            string
+		args            args
+		wantLabels      map[string]string
+		wantClusterName string
+		wantBaseURL     string
+		wantAPIKey      string
+		wantDsStatus    []*v2alpha1.DaemonSetStatus
+		wantDcaStatus   *v2alpha1.DeploymentStatus
+		wantCcrStatus   *v2alpha1.DeploymentStatus
+		wantErr         bool
+	}{
+		{
+			name: "base URL, cluster name and API key",
+			args: args{
+				dda: &v2alpha1.DatadogAgent{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "DatadogAgent",
+						APIVersion: apiVersion,
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace:  "foo",
+						Name:       "bar",
+						Labels:     labels,
+						Finalizers: []string{"finalizer.agent.datadoghq.com"},
+					},
+					Spec: v2alpha1.DatadogAgentSpec{
+						Global: &v2alpha1.GlobalConfig{
+							ClusterName: apiutils.NewStringPointer("test-cluster"),
+							Credentials: &v2alpha1.DatadogCredentials{
+								APIKey: apiutils.NewStringPointer(apiKey),
+							},
+						},
+					},
+				},
+				credsSetFromOperator: false,
+			},
+			wantLabels:      labels,
+			wantClusterName: "test-cluster",
+			wantBaseURL:     defaultbaseURL,
+			wantAPIKey:      "foundAPIKey",
+			wantErr:         false,
+		},
+		{
+			name: "creds set from operator, status and labels copied from DDA",
+			args: args{
+				dda: &v2alpha1.DatadogAgent{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "DatadogAgent",
+						APIVersion: apiVersion,
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace:  "foo",
+						Name:       "bar",
+						Labels:     labels,
+						Finalizers: []string{"finalizer.agent.datadoghq.com"},
+					},
+					Spec: v2alpha1.DatadogAgentSpec{
+						Global: &v2alpha1.GlobalConfig{
+							ClusterName: apiutils.NewStringPointer("test-cluster"),
+							Credentials: &v2alpha1.DatadogCredentials{
+								APIKey: apiutils.NewStringPointer(apiKey),
+							},
+						},
+					},
+					Status: v2alpha1.DatadogAgentStatus{
+						AgentList: []*v2alpha1.DaemonSetStatus{
+							{
+								DaemonsetName: "datadog-agent",
+								State:         "Running",
+								Desired:       3,
+								Available:     3,
+							},
+						},
+						ClusterAgent: &v2alpha1.DeploymentStatus{
+							State:             "Running",
+							Replicas:          1,
+							AvailableReplicas: 1,
+						},
+						ClusterChecksRunner: &v2alpha1.DeploymentStatus{
+							State:             "Running",
+							Replicas:          2,
+							AvailableReplicas: 2,
+						},
+					},
+				},
+				credsSetFromOperator: true,
+			},
+			wantLabels:      labels,
+			wantClusterName: "test-cluster",
+			wantBaseURL:     "", // Should not be set when credsSetFromOperator is true
+			wantAPIKey:      "", // Should not be set when credsSetFromOperator is true
+			wantDsStatus: []*v2alpha1.DaemonSetStatus{
+				{
+					DaemonsetName: "datadog-agent",
+					State:         "Running",
+					Desired:       3,
+					Available:     3,
+				},
+			},
+			wantDcaStatus: &v2alpha1.DeploymentStatus{
+				State:             "Running",
+				Replicas:          1,
+				AvailableReplicas: 1,
+			},
+			wantCcrStatus: &v2alpha1.DeploymentStatus{
+				State:             "Running",
+				Replicas:          2,
+				AvailableReplicas: 2,
+			},
+			wantErr: false,
+		},
+		{
+			name: "creds not set from operator, status and labels copied from DDA",
+			args: args{
+				dda: &v2alpha1.DatadogAgent{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "DatadogAgent",
+						APIVersion: apiVersion,
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace:  "foo",
+						Name:       "bar",
+						Labels:     labels,
+						Finalizers: []string{"finalizer.agent.datadoghq.com"},
+					},
+					Spec: v2alpha1.DatadogAgentSpec{
+						Global: &v2alpha1.GlobalConfig{
+							ClusterName: apiutils.NewStringPointer("test-cluster"),
+							Credentials: &v2alpha1.DatadogCredentials{
+								APIKey: apiutils.NewStringPointer(apiKey),
+							},
+						},
+					},
+					Status: v2alpha1.DatadogAgentStatus{
+						AgentList: []*v2alpha1.DaemonSetStatus{
+							{
+								DaemonsetName: "datadog-agent",
+								State:         "Pending",
+								Desired:       2,
+								Available:     1,
+							},
+						},
+						ClusterAgent: &v2alpha1.DeploymentStatus{
+							State:             "Pending",
+							Replicas:          1,
+							AvailableReplicas: 0,
+						},
+						ClusterChecksRunner: &v2alpha1.DeploymentStatus{
+							State:             "Running",
+							Replicas:          1,
+							AvailableReplicas: 1,
+						},
+					},
+				},
+				credsSetFromOperator: false,
+			},
+			wantLabels:      labels,
+			wantClusterName: "test-cluster",
+			wantBaseURL:     defaultbaseURL,
+			wantAPIKey:      "foundAPIKey",
+			wantDsStatus: []*v2alpha1.DaemonSetStatus{
+				{
+					DaemonsetName: "datadog-agent",
+					State:         "Pending",
+					Desired:       2,
+					Available:     1,
+				},
+			},
+			wantDcaStatus: &v2alpha1.DeploymentStatus{
+				State:             "Pending",
+				Replicas:          1,
+				AvailableReplicas: 0,
+			},
+			wantCcrStatus: &v2alpha1.DeploymentStatus{
+				State:             "Running",
+				Replicas:          1,
+				AvailableReplicas: 1,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &secrets.DummyDecryptor{}
+			mf := &metricsForwarder{
+				k8sClient:    fake.NewFakeClient(),
+				decryptor:    d,
+				creds:        sync.Map{},
+				credsManager: config.NewCredentialManager(),
+			}
+
+			err := mf.setupFromDDA(tt.args.dda, tt.args.credsSetFromOperator)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("metricsForwarder.setupFromDDA() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if mf.apiKey != tt.wantAPIKey {
+				t.Errorf("metricsForwarder.setupFromDDA() apiKey = %v, want %v", mf.apiKey, tt.wantAPIKey)
+			}
+			if mf.baseURL != tt.wantBaseURL {
+				t.Errorf("metricsForwarder.setupFromDDA() baseURL = %v, want %v", mf.baseURL, tt.wantBaseURL)
+			}
+			if mf.clusterName != tt.wantClusterName {
+				t.Errorf("metricsForwarder.setupFromDDA() clusterName = %v, want %v", mf.clusterName, tt.wantClusterName)
+			}
+			for k, v := range mf.labels {
+				if tt.wantLabels[k] != v {
+					t.Errorf("metricsForwarder.setupFromDDA() label value = %v, want %v", v, tt.wantLabels[k])
+				}
+			}
+
+			// Check status fields are copied over
+			if !reflect.DeepEqual(mf.dsStatus, tt.wantDsStatus) {
+				t.Errorf("metricsForwarder.setupFromDDA() dsStatus = %v, want %v", mf.dsStatus, tt.wantDsStatus)
+			}
+			if !reflect.DeepEqual(mf.dcaStatus, tt.wantDcaStatus) {
+				t.Errorf("metricsForwarder.setupFromDDA() dcaStatus = %v, want %v", mf.dcaStatus, tt.wantDcaStatus)
+			}
+			if !reflect.DeepEqual(mf.ccrStatus, tt.wantCcrStatus) {
+				t.Errorf("metricsForwarder.setupFromDDA() ccrStatus = %v, want %v", mf.ccrStatus, tt.wantCcrStatus)
+			}
+		})
+	}
+}
+
+func Test_getCredentialsFromDDA(t *testing.T) {
 	apiKey := "foundAPIKey"
 
 	encAPIKey := "ENC[APIKey]"
@@ -486,7 +470,7 @@ func TestReconcileDatadogAgent_getCredentialsV2(t *testing.T) {
 		client client.Client
 	}
 	type args struct {
-		dda      *datadoghqv2alpha1.DatadogAgent
+		dda      *v2alpha1.DatadogAgent
 		loadFunc func(*metricsForwarder, *secrets.DummyDecryptor)
 	}
 	tests := []struct {
@@ -503,8 +487,8 @@ func TestReconcileDatadogAgent_getCredentialsV2(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dda: testV2.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
-					Credentials: &datadoghqv2alpha1.DatadogCredentials{
+				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
+					Credentials: &v2alpha1.DatadogCredentials{
 						APIKey: apiutils.NewStringPointer(apiKey),
 					},
 				}),
@@ -518,9 +502,9 @@ func TestReconcileDatadogAgent_getCredentialsV2(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dda: testV2.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
-					Credentials: &datadoghqv2alpha1.DatadogCredentials{
-						APISecret: &commonv1.SecretConfig{
+				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
+					Credentials: &v2alpha1.DatadogCredentials{
+						APISecret: &v2alpha1.SecretConfig{
 							SecretName: "datadog-creds-api",
 							KeyName:    "datadog_api_key",
 						},
@@ -548,8 +532,8 @@ func TestReconcileDatadogAgent_getCredentialsV2(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dda: testV2.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
-					Credentials: &datadoghqv2alpha1.DatadogCredentials{
+				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
+					Credentials: &v2alpha1.DatadogCredentials{
 						APIKey: apiutils.NewStringPointer(encAPIKey),
 					},
 				}),
@@ -574,8 +558,8 @@ func TestReconcileDatadogAgent_getCredentialsV2(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dda: testV2.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
-					Credentials: &datadoghqv2alpha1.DatadogCredentials{
+				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
+					Credentials: &v2alpha1.DatadogCredentials{
 						APIKey: apiutils.NewStringPointer(encAPIKey),
 					},
 				}),
@@ -601,7 +585,9 @@ func TestReconcileDatadogAgent_getCredentialsV2(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dda: testV2.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{}),
+				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{}),
+				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
+				},
 			},
 			wantErr: true,
 		},
@@ -610,268 +596,26 @@ func TestReconcileDatadogAgent_getCredentialsV2(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &secrets.DummyDecryptor{}
 			mf := &metricsForwarder{
-				k8sClient: tt.fields.client,
-				decryptor: d,
-				creds:     sync.Map{},
+				k8sClient:    tt.fields.client,
+				decryptor:    d,
+				creds:        sync.Map{},
+				credsManager: config.NewCredentialManager(),
 			}
 			if tt.args.loadFunc != nil {
 				tt.args.loadFunc(mf, d)
 			}
-			apiKey, err := mf.getCredentialsV2(tt.args.dda)
+			apiKey, err := mf.getCredentialsFromDDA(tt.args.dda)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("metricsForwarder.getCredentialsV2() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("metricsForwarder.getCredentialsFromDDA() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if apiKey != tt.wantAPIKey {
-				t.Errorf("metricsForwarder.getCredentialsV2() apiKey = %v, want %v", apiKey, tt.wantAPIKey)
+				t.Errorf("metricsForwarder.getCredentialsFromDDA() apiKey = %v, want %v", apiKey, tt.wantAPIKey)
 			}
 			if tt.wantFunc != nil {
 				if err := tt.wantFunc(mf, d); err != nil {
-					t.Errorf("metricsForwarder.getCredentialsV2() wantFunc validation error: %v", err)
+					t.Errorf("metricsForwarder.getCredentialsFromDDA() wantFunc validation error: %v", err)
 				}
-			}
-		})
-	}
-}
-
-func TestReconcileDatadogAgent_getCredsFromDatadogAgent(t *testing.T) {
-	type fields struct {
-		client client.Client
-	}
-	type args struct {
-		dda      *datadoghqv1alpha1.DatadogAgent
-		loadFunc func(*metricsForwarder, *secrets.DummyDecryptor)
-	}
-	tests := []struct {
-		name       string
-		fields     fields
-		args       args
-		wantAPIKey string
-		wantErr    bool
-		wantFunc   func(*metricsForwarder, *secrets.DummyDecryptor) error
-	}{
-		{
-			name: "creds found in CR",
-			fields: fields{
-				client: fake.NewFakeClient(),
-			},
-			args: args{
-				dda: test.NewDefaultedDatadogAgent("foo", "bar",
-					&test.NewDatadogAgentOptions{
-						Creds: &datadoghqv1alpha1.AgentCredentials{
-							DatadogCredentials: datadoghqv1alpha1.DatadogCredentials{
-								APIKey: "foundApiKey",
-							},
-						},
-					}),
-			},
-			wantAPIKey: "foundApiKey",
-			wantErr:    false,
-		},
-		{
-			name: "creds found in secrets",
-			fields: fields{
-				client: fake.NewFakeClient(),
-			},
-			args: args{
-				dda: test.NewDefaultedDatadogAgent("foo", "bar",
-					&test.NewDatadogAgentOptions{
-						Creds: &datadoghqv1alpha1.AgentCredentials{
-							DatadogCredentials: datadoghqv1alpha1.DatadogCredentials{
-								APISecret: &commonv1.SecretConfig{
-									SecretName: "datadog-creds-api",
-									KeyName:    "datadog_api_key",
-								},
-							},
-						},
-					}),
-				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
-					secret := &corev1.Secret{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "datadog-creds-api",
-							Namespace: "foo",
-						},
-						Data: map[string][]byte{
-							"datadog_api_key": []byte("foundApiKey"),
-						},
-					}
-					_ = m.k8sClient.Create(context.TODO(), secret)
-				},
-			},
-			wantAPIKey: "foundApiKey",
-			wantErr:    false,
-		},
-		{
-			name: "creds found in deprecated secrets",
-			fields: fields{
-				client: fake.NewFakeClient(),
-			},
-			args: args{
-				dda: test.NewDefaultedDatadogAgent("foo", "bar",
-					&test.NewDatadogAgentOptions{
-						Creds: &datadoghqv1alpha1.AgentCredentials{
-							DatadogCredentials: datadoghqv1alpha1.DatadogCredentials{
-								APIKeyExistingSecret: "datadog-creds",
-							},
-						},
-					}),
-				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
-					secret := &corev1.Secret{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "datadog-creds",
-							Namespace: "foo",
-						},
-						Data: map[string][]byte{
-							"api_key": []byte("foundApiKey"),
-						},
-					}
-					_ = m.k8sClient.Create(context.TODO(), secret)
-				},
-			},
-			wantAPIKey: "foundApiKey",
-			wantErr:    false,
-		},
-		{
-			name: "enc creds found in cache",
-			fields: fields{
-				client: fake.NewFakeClient(),
-			},
-			args: args{
-				dda: test.NewDefaultedDatadogAgent("foo", "bar",
-					&test.NewDatadogAgentOptions{
-						Creds: &datadoghqv1alpha1.AgentCredentials{
-							DatadogCredentials: datadoghqv1alpha1.DatadogCredentials{
-								APIKey: "ENC[ApiKey]",
-							},
-						},
-					}),
-				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
-					m.cleanSecretsCache()
-					m.creds.Store("ENC[ApiKey]", "cachedApiKey")
-				},
-			},
-			wantAPIKey: "cachedApiKey",
-			wantErr:    false,
-			wantFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) error {
-				if !d.AssertNumberOfCalls(t, "Decrypt", 0) {
-					return errors.New("Wrong number of calls")
-				}
-				d.AssertExpectations(t)
-				return nil
-			},
-		},
-		{
-			name: "enc creds not found in cache, call secret backend",
-			fields: fields{
-				client: fake.NewFakeClient(),
-			},
-			args: args{
-				dda: test.NewDefaultedDatadogAgent("foo", "bar",
-					&test.NewDatadogAgentOptions{
-						Creds: &datadoghqv1alpha1.AgentCredentials{
-							DatadogCredentials: datadoghqv1alpha1.DatadogCredentials{
-								APIKey: "ENC[ApiKey]",
-							},
-						},
-					}),
-				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
-					m.cleanSecretsCache()
-					d.On("Decrypt", []string{"ENC[ApiKey]"}).Once()
-				},
-			},
-			wantAPIKey: "DEC[ENC[ApiKey]]",
-			wantErr:    false,
-			wantFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) error {
-				v, found := m.creds.Load("ENC[ApiKey]")
-				assert.True(t, found)
-				assert.Equal(t, "DEC[ENC[ApiKey]]", v)
-
-				d.AssertExpectations(t)
-				return nil
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := &secrets.DummyDecryptor{}
-			mf := &metricsForwarder{
-				k8sClient: tt.fields.client,
-				decryptor: d,
-				creds:     sync.Map{},
-			}
-			if tt.args.loadFunc != nil {
-				tt.args.loadFunc(mf, d)
-			}
-			apiKey, err := mf.getCredsFromDatadogAgent(tt.args.dda)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("metricsForwarder.getCredsFromDatadogAgent() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if apiKey != tt.wantAPIKey {
-				t.Errorf("metricsForwarder.getCredsFromDatadogAgent() apiKey = %v, want %v", apiKey, tt.wantAPIKey)
-			}
-			if tt.wantFunc != nil {
-				if err := tt.wantFunc(mf, d); err != nil {
-					t.Errorf("metricsForwarder.getCredsFromDatadogAgent() wantFunc validation error: %v", err)
-				}
-			}
-		})
-	}
-}
-
-func TestMetricsForwarder_setTags(t *testing.T) {
-	tests := []struct {
-		name        string
-		clusterName string
-		labels      map[string]string
-		want        []string
-	}{
-		{
-			name:   "empty labels",
-			labels: map[string]string{},
-			want:   []string{},
-		},
-		{
-			name: "with labels",
-			labels: map[string]string{
-				"firstKey":  "firstValue",
-				"secondKey": "secondValue",
-			},
-			want: []string{
-				"firstKey:firstValue",
-				"secondKey:secondValue",
-			},
-		},
-		{
-			name:        "with clustername",
-			clusterName: "testcluster",
-			want: []string{
-				"cluster_name:testcluster",
-			},
-		},
-		{
-			name:        "with clustername and labels",
-			clusterName: "testcluster",
-			labels: map[string]string{
-				"firstKey":  "firstValue",
-				"secondKey": "secondValue",
-			},
-			want: []string{
-				"cluster_name:testcluster",
-				"firstKey:firstValue",
-				"secondKey:secondValue",
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			dd := &metricsForwarder{}
-			dd.updateTags(tt.clusterName, tt.labels)
-
-			sort.Strings(dd.tags)
-			sort.Strings(tt.want)
-			if !reflect.DeepEqual(dd.tags, tt.want) {
-				t.Errorf("metricsForwarder.setTags() dd.tags = %v, want %v", dd.tags, tt.want)
 			}
 		})
 	}
@@ -894,6 +638,7 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 		platformInfo:        &platformInfo,
 	}
 	mf.initGlobalTags()
+	ctx := mf.generateDatadogContext()
 
 	tests := []struct {
 		name     string
@@ -903,10 +648,10 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 		wantFunc func(*fakeMetricsForwarder) error
 	}{
 		{
-			name: "last error init value, new unknown error => send unsucess metric",
+			name: "last error init value, new unknown error => send unsuccess metric",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendReconcileMetric", 0.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:err_msg", "cr_preferred_version:null"}).Once()
+				f.On("delegatedSendReconcileMetric", ctx, 0.0, []string{"kube_namespace:foo", "resource_name:bar", "reconcile_err:err_msg", "cr_preferred_version:null"}).Once()
 				mf.delegator = f
 				mf.lastReconcileErr = errInitValue
 				return mf, f
@@ -919,10 +664,10 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			},
 		},
 		{
-			name: "last error init value, new auth error => send unsucess metric",
+			name: "last error init value, new auth error => send unsuccess metric",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendReconcileMetric", 0.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:Unauthorized", "cr_preferred_version:null"}).Once()
+				f.On("delegatedSendReconcileMetric", ctx, 0.0, []string{"kube_namespace:foo", "resource_name:bar", "reconcile_err:Unauthorized", "cr_preferred_version:null"}).Once()
 				mf.delegator = f
 				mf.lastReconcileErr = errInitValue
 				return mf, f
@@ -938,7 +683,7 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			name: "last error init value, new error is nil => send success metric",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendReconcileMetric", 1.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:null", "cr_preferred_version:null"}).Once()
+				f.On("delegatedSendReconcileMetric", ctx, 1.0, []string{"kube_namespace:foo", "resource_name:bar", "reconcile_err:null", "cr_preferred_version:null"}).Once()
 				mf.delegator = f
 				mf.lastReconcileErr = errInitValue
 				return mf, f
@@ -969,9 +714,10 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			},
 		},
 		{
-			name: "last error not nil and not init value, new error equals last error => don't send metric",
+			name: "last error not nil and not init value, new error equals last error => send unsuccess metric",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
+				f.On("delegatedSendReconcileMetric", ctx, 0.0, []string{"kube_namespace:foo", "resource_name:bar", "reconcile_err:Unauthorized", "cr_preferred_version:null"}).Once()
 				mf.delegator = f
 				mf.lastReconcileErr = apierrors.NewUnauthorized("Auth error")
 				return mf, f
@@ -979,9 +725,6 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			err:     apierrors.NewUnauthorized("Auth error"),
 			wantErr: false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertNumberOfCalls(t, "delegatedSendReconcileMetric", 0) {
-					return errors.New("Wrong number of calls")
-				}
 				f.AssertExpectations(t)
 				return nil
 			},
@@ -1067,7 +810,7 @@ func Test_metricsForwarder_cleanSecretsCache(t *testing.T) {
 	_, found := mf.creds.Load("k")
 	assert.False(t, found)
 
-	mf.creds.Range(func(k, v interface{}) bool {
+	mf.creds.Range(func(k, v any) bool {
 		t.Error("creds cache not empty")
 		return false
 	})
@@ -1166,68 +909,10 @@ func Test_metricsForwarder_getSecretsFromCache(t *testing.T) {
 }
 
 func Test_getbaseURL(t *testing.T) {
-	type args struct {
-		dda *datadoghqv1alpha1.DatadogAgent
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
-	}{
-		{
-			name: "Get default baseURL",
-			args: args{
-				dda: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{}),
-			},
-			want: "https://api.datadoghq.com",
-		},
-		{
-			name: "Compute baseURL from site when passing Site",
-			args: args{
-				dda: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
-					Site: "datadoghq.eu",
-				}),
-			},
-			want: "https://api.datadoghq.eu",
-		},
-		{
-			name: "Compute baseURL from ddUrl when Site is not defined",
-			args: args{
-				dda: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
-					NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
-						DDUrl: apiutils.NewStringPointer("https://test.url.com"),
-					},
-				}),
-			},
-			want: "https://test.url.com",
-		},
-		{
-			name: "Test that DDUrl takes precedence over Site",
-			args: args{
-				dda: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
-					Site: "datadoghq.eu",
-					NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
-						DDUrl: apiutils.NewStringPointer("https://test.url.com"),
-					},
-				}),
-			},
-			want: "https://test.url.com",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := getbaseURL(tt.args.dda); got != tt.want {
-				t.Errorf("getbaseURL() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_getbaseURLV2(t *testing.T) {
 	euSite := "datadoghq.eu"
 
 	type args struct {
-		dda *datadoghqv2alpha1.DatadogAgent
+		dda *v2alpha1.DatadogAgent
 	}
 	tests := []struct {
 		name string
@@ -1237,14 +922,14 @@ func Test_getbaseURLV2(t *testing.T) {
 		{
 			name: "Get default baseURL",
 			args: args{
-				dda: testV2.NewDatadogAgent("foo", "bar", nil),
+				dda: testutils.NewDatadogAgent("foo", "bar", nil),
 			},
 			want: "https://api.datadoghq.com",
 		},
 		{
 			name: "Compute baseURL from site when passing Site",
 			args: args{
-				dda: testV2.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
+				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
 					Site: &euSite,
 				}),
 			},
@@ -1253,8 +938,8 @@ func Test_getbaseURLV2(t *testing.T) {
 		{
 			name: "Compute baseURL from endpoint.URL when Site is not defined",
 			args: args{
-				dda: testV2.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
-					Endpoint: &datadoghqv2alpha1.Endpoint{
+				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
+					Endpoint: &v2alpha1.Endpoint{
 						URL: apiutils.NewStringPointer("https://test.url.com"),
 					},
 				}),
@@ -1264,9 +949,9 @@ func Test_getbaseURLV2(t *testing.T) {
 		{
 			name: "Test that DDUrl takes precedence over Site",
 			args: args{
-				dda: testV2.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
+				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
 					Site: &euSite,
-					Endpoint: &datadoghqv2alpha1.Endpoint{
+					Endpoint: &v2alpha1.Endpoint{
 						URL: apiutils.NewStringPointer("https://test.url.com"),
 					},
 				}),
@@ -1276,7 +961,7 @@ func Test_getbaseURLV2(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getbaseURLV2(tt.args.dda); got != tt.want {
+			if got := getbaseURL(&tt.args.dda.Spec); got != tt.want {
 				t.Errorf("getbaseURL() = %v, want %v", got, tt.want)
 			}
 		})
@@ -1308,6 +993,7 @@ func TestMetricsForwarder_sendFeatureMetric(t *testing.T) {
 		monitoredObjectKind: "DatadogAgent",
 	}
 	mf.initGlobalTags()
+	ctx := mf.generateDatadogContext()
 
 	tests := []struct {
 		name     string
@@ -1321,14 +1007,14 @@ func TestMetricsForwarder_sendFeatureMetric(t *testing.T) {
 			name: "send feature metric",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendFeatureMetric", "test_feature")
+				f.On("delegatedSendFeatureMetric", ctx, "test_feature")
 				mf.delegator = f
 				return mf, f
 			},
 			feature: "test_feature",
 			wantErr: false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendFeatureMetric", "test_feature") {
+				if !f.AssertCalled(t, "delegatedSendFeatureMetric", ctx, "test_feature") {
 					return errors.New("Function not called")
 				}
 				if !f.AssertNumberOfCalls(t, "delegatedSendFeatureMetric", 1) {
@@ -1341,12 +1027,47 @@ func TestMetricsForwarder_sendFeatureMetric(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dd, f := tt.loadFunc()
-			if err := dd.sendFeatureMetric(tt.feature); (err != nil) != tt.wantErr {
+			if err := dd.sendFeatureMetric(ctx, tt.feature); (err != nil) != tt.wantErr {
 				t.Errorf("metricsForwarder.sendFeatureMetric() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err := tt.wantFunc(f); err != nil {
 				t.Errorf("metricsForwarder.sendFeatureMetric() wantFunc validation error: %v", err)
 			}
+		})
+	}
+}
+
+func Test_setEnabledFeatures(t *testing.T) {
+	tests := []struct {
+		name            string
+		enabledFeatures []string
+		expected        map[string][]string
+	}{
+		{
+			name:            "empty features",
+			enabledFeatures: []string{},
+			expected:        map[string][]string{"foo": {}},
+		},
+		{
+			name:            "one feature",
+			enabledFeatures: []string{"feature1"},
+			expected:        map[string][]string{"foo": {"feature1"}},
+		},
+		{
+			name:            "multiple features",
+			enabledFeatures: []string{"feature1", "feature2"},
+			expected:        map[string][]string{"foo": {"feature1", "feature2"}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mf := &metricsForwarder{
+				id: "foo",
+			}
+
+			mf.setEnabledFeatures(tt.enabledFeatures)
+			assert.Equal(t, tt.expected, mf.EnabledFeatures)
 		})
 	}
 }

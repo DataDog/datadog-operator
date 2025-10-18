@@ -139,7 +139,7 @@ func ValidateAnnotationsContent(annotations map[string]string, identifier string
 		if !found {
 			continue
 		}
-		var unmarshalled interface{}
+		var unmarshalled any
 		if err := json.Unmarshal([]byte(value), &unmarshalled); err != nil {
 			errors = append(errors, fmt.Sprintf("Annotation %s with value %s is not a valid JSON: %v", annotation, value, err))
 		}
@@ -152,7 +152,7 @@ func ValidateAnnotationsContent(annotations map[string]string, identifier string
 func ValidateAnnotationsMatching(annotations map[string]string, validIDs map[string]bool) []string {
 	errors := []string{}
 	for annotation := range annotations {
-		if matched, _ := regexp.MatchString(fmt.Sprintf(`%s.+\..+`, ADPrefix), annotation); matched {
+		if matched, _ := regexp.MatchString(fmt.Sprintf(`%s.+\..+`, ADPrefixRegex), annotation); matched {
 			id := strings.Split(annotation[len(ADPrefix):], ".")[0]
 			if found := validIDs[id]; !found {
 				errors = append(errors, fmt.Sprintf("Annotation %s is invalid: %s doesn't match a container name", annotation, id))

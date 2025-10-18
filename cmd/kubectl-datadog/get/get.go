@@ -11,15 +11,14 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/pkg/plugin/common"
-
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
 
 var getExample = `
@@ -90,38 +89,7 @@ func (o *options) validate() error {
 
 // run runs the get command.
 func (o *options) run() error {
-	if o.IsDatadogAgentV2Available() {
-		return o.runV2()
-	}
-	return o.runV1()
-}
-
-// run runs the get command.
-func (o *options) runV1() error {
-	ddList := &v1alpha1.DatadogAgentList{}
-	if o.userDatadogAgentName == "" {
-		if err := o.Client.List(context.TODO(), ddList, &client.ListOptions{Namespace: o.UserNamespace}); err != nil {
-			return fmt.Errorf("unable to list DatadogAgent: %w", err)
-		}
-	} else {
-		dd := &v1alpha1.DatadogAgent{}
-		err := o.Client.Get(context.TODO(), client.ObjectKey{Namespace: o.UserNamespace, Name: o.userDatadogAgentName}, dd)
-		if err != nil && apierrors.IsNotFound(err) {
-			return fmt.Errorf("DatadogAgent %s/%s not found", o.UserNamespace, o.userDatadogAgentName)
-		} else if err != nil {
-			return fmt.Errorf("unable to get DatadogAgent: %w", err)
-		}
-		ddList.Items = append(ddList.Items, *dd)
-	}
-
-	statuses := make([]common.StatusWrapper, 0, len(ddList.Items))
-	for id := range ddList.Items {
-		statuses = append(statuses, common.NewV1StatusWrapper(&ddList.Items[id]))
-	}
-
-	o.renderTable(statuses)
-
-	return nil
+	return o.runV2()
 }
 
 func (o *options) runV2() error {

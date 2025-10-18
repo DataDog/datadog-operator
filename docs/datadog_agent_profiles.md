@@ -53,7 +53,9 @@ datadog-agent-with-profile-default-datadogagentprofile-sample   1         1     
 
 ## Enabling DatadogAgentProfiles
 
-DAP is disabled by default. To enable DAP using the [datadog-operator helm chart](https://github.com/DataDog/helm-charts/tree/main/charts/datadog-operator), set `datadogAgentProfile.enabled=true` in your `values.yaml` file or as a flag in the command line arguments `--set datadogAgentProfile.enabled=true`.
+DAP is disabled by default. To enable DAP using the [datadog-operator helm chart](https://github.com/DataDog/helm-charts/tree/main/charts/datadog-operator), set in your `values.yaml` or as a flag in the command line arguments using `--set`:
+* `datadogAgentProfile.enabled=true`: this instructs the Operator deployment to start the `DatadogAgentProfile` controller.
+* `datadogCRDs.crds.datadogAgentProfiles=true`: this installs the `DatadogAgentProfile` CRD.
 
 > [!CAUTION]
 > Enabling DAP will increase the resource usage of the Operator. Please ensure the operator pod has enough resources allocated to it prior to enabling DAP.
@@ -64,3 +66,7 @@ DAP is disabled by default. To enable DAP using the [datadog-operator helm chart
 | -------- | :--------------: |
 | override.[nodeAgent].containers.[\*].resources.\* | v1.5.0 |
 | override.[nodeAgent].priorityClassName | v1.6.0 |
+| override.[nodeAgent].containers.[\*].env | v1.8.0 |
+| override.[nodeAgent].labels | v1.8.0 |
+| override.[nodeAgent].updateStrategy | v1.9.0 |
+| override.[nodeAgent].runtimeClassName | v1.12.0 |

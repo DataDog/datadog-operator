@@ -7,6 +7,7 @@ package common
 
 import (
 	"fmt"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -301,4 +302,13 @@ func TestValidateAnnotationsMatching(t *testing.T) {
 			assert.ElementsMatch(t, tt.want, got)
 		})
 	}
+}
+
+func TestRegExEscape(t *testing.T) {
+	matched, _ := regexp.MatchString(ADPrefixRegex, "adXdatadoghqXcom/")
+	assert.False(t, matched)
+
+	matched, _ = regexp.MatchString("ad.datadoghq.com/", "adXdatadoghqXcom/")
+	assert.True(t, matched)
+
 }

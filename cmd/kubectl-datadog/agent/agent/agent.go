@@ -6,12 +6,12 @@
 package agent
 
 import (
+	"github.com/spf13/cobra"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/agent/check"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/agent/find"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/agent/upgrade"
-
-	"github.com/spf13/cobra"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 // options provides information required by agent command

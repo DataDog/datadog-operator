@@ -1,61 +1,74 @@
 name: Build
-
+env:
+  GO_VERSION: 1.24.6
 on:
   push:
-
+# Permission forced by repo-level setting; only elevate on job-level
+permissions:
+  contents: read
+  # packages: read
 jobs:
   build-linux-binary:
     runs-on: ubuntu-latest
+    permissions:
+      # https://github.com/marketplace/actions/goreleaser-action
+      contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
       - name: gcc install
         run: sudo apt-get update; sudo apt install gcc-aarch64-linux-gnu
       - name: Get tag
-        uses: little-core-labs/get-git-tag@v3.0.2
+        uses: little-core-labs/get-git-tag@2c292ff564c1a61b989e29f0410d131317f89b03 # v3.0.2
         id: tag
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
         with:
-          go-version: 1.19
+          go-version: ${{ env.GO_VERSION }}
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v3
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
         with:
-          version: latest
-          args: build --skip-validate --config .goreleaser-for-linux.yaml
+          version: 2.4.1
+          args: build --skip=validate --config .goreleaser-for-linux.yaml
   build-darwin-binary:
     runs-on: macos-latest
+    permissions:
+      # https://github.com/marketplace/actions/goreleaser-action
+      contents: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
       - name: Get tag
-        uses: little-core-labs/get-git-tag@v3.0.2
+        uses: little-core-labs/get-git-tag@2c292ff564c1a61b989e29f0410d131317f89b03 # v3.0.2
         id: tag
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
         with:
-          go-version: 1.19
+          go-version: ${{ env.GO_VERSION }}
       - name: Build
-        uses: goreleaser/goreleaser-action@v3
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
         with:
-          args: build --skip-validate --config .goreleaser-for-darwin.yaml
+          args: build --skip=validate --config .goreleaser-for-darwin.yaml
   build-windows-binary:
     runs-on: ubuntu-latest
+    permissions:
+      # https://github.com/marketplace/actions/goreleaser-action
+      contents: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
       - name: Get tag
-        uses: little-core-labs/get-git-tag@v3.0.2
+        uses: little-core-labs/get-git-tag@2c292ff564c1a61b989e29f0410d131317f89b03 # v3.0.2
         id: tag
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
         with:
-          go-version: 1.19
+          go-version: ${{ env.GO_VERSION }}
       - name: Build
-        uses: goreleaser/goreleaser-action@v3
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
         with:
-          args: build --skip-validate --config .goreleaser-for-windows.yaml
+          args: build --skip=validate --config .goreleaser-for-windows.yaml
