@@ -1,4 +1,4 @@
-package otelcollector
+package otelagentgateway
 
 import (
 	"strconv"
@@ -25,14 +25,14 @@ import (
 )
 
 func init() {
-	err := feature.Register(feature.OtelAgentIDType, buildOtelCollectorFeature)
+	err := feature.Register(feature.OtelAgentGatewayIDType, buildotelAgentGatewayFeatures)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func buildOtelCollectorFeature(options *feature.Options) feature.Feature {
-	otelCollectorFeat := &otelCollectorFeature{}
+func buildotelAgentGatewayFeatures(options *feature.Options) feature.Feature {
+	otelCollectorFeat := &otelAgentGatewayFeatures{}
 
 	if options != nil {
 		otelCollectorFeat.logger = options.Logger
@@ -41,12 +41,11 @@ func buildOtelCollectorFeature(options *feature.Options) feature.Feature {
 	return otelCollectorFeat
 }
 
-type otelCollectorFeature struct {
+type otelAgentGatewayFeatures struct {
 	customConfig    *v2alpha1.CustomConfig
 	owner           metav1.Object
 	configMapName   string
 	ports           []*corev1.ContainerPort
-	coreAgentConfig coreAgentConfig
 
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
@@ -57,20 +56,14 @@ type otelCollectorFeature struct {
 	logger logr.Logger
 }
 
-type coreAgentConfig struct {
-	extension_timeout *int
-	extension_url     *string
-	enabled           *bool
-}
-
-func (o *otelCollectorFeature) ID() feature.IDType {
+func (o *otelAgentGatewayFeatures) ID() feature.IDType {
 	return feature.OtelAgentIDType
 }
 
-func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
+func (o *otelAgentGatewayFeatures) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	o.owner = dda
-	if ddaSpec.Features.OtelCollector.Conf != nil {
-		o.customConfig = ddaSpec.Features.OtelCollector.Conf
+	if ddaSpec.Features.OtelAgentGateway.Conf != nil {
+		o.customConfig = ddaSpec.Features.OtelAgentGateway.Conf
 	}
 	o.configMapName = constants.GetConfName(dda, o.customConfig, defaultOTelAgentConf)
 
@@ -79,13 +72,7 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 	}
 	o.localServiceName = constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec)
 
-	if ddaSpec.Features.OtelCollector.CoreConfig != nil {
-		o.coreAgentConfig.enabled = ddaSpec.Features.OtelCollector.CoreConfig.Enabled
-		o.coreAgentConfig.extension_timeout = ddaSpec.Features.OtelCollector.CoreConfig.ExtensionTimeout
-		o.coreAgentConfig.extension_url = ddaSpec.Features.OtelCollector.CoreConfig.ExtensionURL
-	}
-
-	if len(ddaSpec.Features.OtelCollector.Ports) == 0 {
+	if len(ddaSpec.Features.OtelAgentGateway.Ports) == 0 {
 		o.ports = []*corev1.ContainerPort{
 			{
 				Name:          "otel-http",
@@ -101,16 +88,15 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 			},
 		}
 	} else {
-		o.ports = ddaSpec.Features.OtelCollector.Ports
+		o.ports = ddaSpec.Features.OtelAgentGateway.Ports
 	}
 
 	var reqComp feature.RequiredComponents
-	if apiutils.BoolValue(ddaSpec.Features.OtelCollector.Enabled) {
+	if apiutils.BoolValue(ddaSpec.Features.OtelAgentGateway.Enabled) {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
 				Containers: []apicommon.AgentContainerName{
-					apicommon.CoreAgentContainerName,
 					apicommon.OtelAgent,
 				},
 			},
@@ -120,7 +106,7 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 	return reqComp
 }
 
-func (o *otelCollectorFeature) buildOTelAgentCoreConfigMap() (*corev1.ConfigMap, error) {
+func (o *otelAgentGatewayFeatures) buildOTelAgentCoreConfigMap() (*corev1.ConfigMap, error) {
 	if o.customConfig != nil && o.customConfig.ConfigData != nil {
 		cm, err := configmap.BuildConfigMapConfigData(o.owner.GetNamespace(), o.customConfig.ConfigData, o.configMapName, otelConfigFileName)
 		if err != nil {
@@ -144,7 +130,7 @@ func (o *otelCollectorFeature) buildOTelAgentCoreConfigMap() (*corev1.ConfigMap,
 	return nil, nil
 }
 
-func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (o *otelAgentGatewayFeatures) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	// check if an otel collector config was provided. If not, use default.
 	if o.customConfig == nil {
 		o.customConfig = &v2alpha1.CustomConfig{}
@@ -213,11 +199,23 @@ func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManag
 	return nil
 }
 
-func (o *otelCollectorFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (o *otelAgentGatewayFeatures) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 
-func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (o *otelAgentGatewayFeatures) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}
+
+func (o *otelAgentGatewayFeatures) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}
+
+func (o *otelAgentGatewayFeatures) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}
+
+func (o *otelAgentGatewayFeatures) ManageOTelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	// // Use -full image for all containers
 	image := &images.Image{}
 	for i, container := range managers.PodTemplateSpec().Spec.Containers {
@@ -294,66 +292,10 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 		managers.Port().AddPortToContainer(apicommon.OtelAgent, port)
 	}
 
-	// (todo: mackjmr): remove this once IPC port is enabled by default. Enabling this port is required to fetch the API key from
-	// core agent when secrets backend is used.
-	agentIpcPortEnvVar := &corev1.EnvVar{
-		Name:  DDAgentIpcPort,
-		Value: "5009",
-	}
-	agentIpcConfigRefreshIntervalEnvVar := &corev1.EnvVar{
-		Name:  DDAgentIpcConfigRefreshInterval,
-		Value: "60",
-	}
-	// don't set env var if it was already set by user.
-	mergeFunc := func(current, newEnv *corev1.EnvVar) (*corev1.EnvVar, error) {
-		return current, nil
-	}
-	for _, container := range []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.OtelAgent} {
-		managers.EnvVar().AddEnvVarToContainerWithMergeFunc(container, agentIpcPortEnvVar, mergeFunc)
-		managers.EnvVar().AddEnvVarToContainerWithMergeFunc(container, agentIpcConfigRefreshIntervalEnvVar, mergeFunc)
-	}
+	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.OtelAgent}, &corev1.EnvVar{
+		Name:  DDOtelCollectorCoreConfigEnabled,
+		Value: "true",
+	})
 
-	var enableEnvVar *corev1.EnvVar
-	if o.coreAgentConfig.enabled != nil {
-		if *o.coreAgentConfig.enabled {
-			// only need to set env var if true, as it will default to false.
-			enableEnvVar = &corev1.EnvVar{
-				Name:  DDOtelCollectorCoreConfigEnabled,
-				Value: apiutils.BoolToString(o.coreAgentConfig.enabled),
-			}
-			managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.OtelAgent}, enableEnvVar)
-		}
-	} else {
-		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.OtelAgent}, &corev1.EnvVar{
-			Name:  DDOtelCollectorCoreConfigEnabled,
-			Value: "true",
-		})
-	}
-
-	if o.coreAgentConfig.extension_timeout != nil {
-		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
-			Name:  DDOtelCollectorCoreConfigExtensionTimeout,
-			Value: strconv.Itoa(*o.coreAgentConfig.extension_timeout),
-		})
-	}
-	if o.coreAgentConfig.extension_url != nil {
-		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
-			Name:  DDOtelCollectorCoreConfigExtensionURL,
-			Value: *o.coreAgentConfig.extension_url,
-		})
-	}
-
-	return nil
-}
-
-func (o *otelCollectorFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	return nil
-}
-
-func (o *otelCollectorFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
-	return nil
-}
-
-func (o *otelCollectorFeature) ManageOTelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

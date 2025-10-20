@@ -44,6 +44,8 @@ type DatadogAgentSpec struct {
 type DatadogFeatures struct {
 	// Application-level features
 
+	// OtelAgentGateway configuration.
+	OtelAgentGateway *OtelAgentGatewayFeatureConfig `json:"otelAgentGateway,omitempty"`
 	// OtelCollector configuration.
 	OtelCollector *OtelCollectorFeatureConfig `json:"otelCollector,omitempty"`
 	// LogCollection configuration.
@@ -973,6 +975,34 @@ type MetricStateSet struct {
 	// ValueFrom is the subpath to compare the list to.
 	// +optional
 	ValueFrom []string `json:"valueFrom,omitempty" yaml:"valueFrom,omitempty"`
+}
+
+// OtelAgentGatewayFeatureConfig contains the configuration for the otel-agent.
+// +k8s:openapi-gen=true
+type OtelAgentGatewayFeatureConfig struct {
+	// Enabled enables the OTel Agent.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Conf overrides the configuration for the default Kubernetes State Metrics Core check.
+	// This must point to a ConfigMap containing a valid cluster check configuration.
+	// When passing a configmap, file name *must* be otel-config.yaml.
+	// +optional
+	Conf *CustomConfig `json:"conf,omitempty"`
+
+	// Ports contains the ports for the otel-agent.
+	// Defaults: otel-grpc:4317 / otel-http:4318. Note: setting 4317
+	// or 4318 manually is *only* supported if name match default names (otel-grpc, otel-http).
+	// If not, this will lead to a port conflict.
+	// This limitation will be lifted once annotations support is removed.
+	// +optional
+	// +listType=atomic
+	Ports []*corev1.ContainerPort `json:"ports,omitempty"`
+
+	// OTelCollector Config Relevant to the Core agent
+	// +optional
+	CoreConfig *CoreConfig `json:"coreConfig,omitempty"`
 }
 
 // OtelCollectorFeatureConfig contains the configuration for the otel-agent.

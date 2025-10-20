@@ -175,3 +175,7 @@ func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 func (f *usmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
+
+func (f *usmFeature) ManageOTelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}

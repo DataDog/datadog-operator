@@ -165,3 +165,7 @@ func (f *logCollectionFeature) manageNodeAgent(agentContainerName apicommon.Agen
 func (f *logCollectionFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
+
+func (f *logCollectionFeature) ManageOTelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}

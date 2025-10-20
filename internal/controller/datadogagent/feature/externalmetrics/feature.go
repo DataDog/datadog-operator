@@ -356,3 +356,7 @@ func (f *externalMetricsFeature) ManageNodeAgent(managers feature.PodTemplateMan
 func (f *externalMetricsFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
+
+func (f *externalMetricsFeature) ManageOTelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}

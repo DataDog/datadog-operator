@@ -113,3 +113,7 @@ func (f *defaultFeature) ManageNodeAgent(managers feature.PodTemplateManagers, p
 func (f *defaultFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
+
+func (f *defaultFeature) ManageOTelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}

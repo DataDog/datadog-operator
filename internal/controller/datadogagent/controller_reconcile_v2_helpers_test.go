@@ -24,6 +24,7 @@ type dummyFeature struct {
 	ManageNodeAgentError            error
 	ManageSingleContainerAgentError error
 	ManageClusterChecksRunnerError  error
+	ManageOTelAgentGatewayError     error
 }
 
 // ID returns the dummy feature's ID.
@@ -59,6 +60,11 @@ func (df *dummyFeature) ManageSingleContainerNodeAgent(managers feature.PodTempl
 // ManageClusterChecksRunner returns a predefined error (or nil for success).
 func (df *dummyFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return df.ManageClusterChecksRunnerError
+}
+
+// ManageOTelAgentGateway returns a predefined error (or nil for success).
+func (df *dummyFeature) ManageOTelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+	return df.ManageOTelAgentGatewayError
 }
 
 // Test_setupDependencies verifies that store and resource managers are initialized.

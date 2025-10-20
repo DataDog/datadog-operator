@@ -376,3 +376,7 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 func (f *cwsFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
+
+func (f *cwsFeature) ManageOTelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}

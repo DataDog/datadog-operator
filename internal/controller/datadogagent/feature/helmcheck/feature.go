@@ -173,3 +173,7 @@ func (f *helmCheckFeature) ManageNodeAgent(managers feature.PodTemplateManagers,
 func (f *helmCheckFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
+
+func (f *helmCheckFeature) ManageOTelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}

@@ -324,3 +324,7 @@ func (f *controlPlaneMonitoringFeature) ManageClusterChecksRunner(managers featu
 	}
 	return nil
 }
+
+func (f *controlPlaneMonitoringFeature) ManageOTelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}
