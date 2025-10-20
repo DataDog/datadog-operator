@@ -164,3 +164,7 @@ func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommon.AgentC
 func (f *liveProcessFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
+
+func (f *liveProcessFeature) ManageOTelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}

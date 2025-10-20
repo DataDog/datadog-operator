@@ -128,3 +128,7 @@ func (f *autoscalingFeature) ManageNodeAgent(managers feature.PodTemplateManager
 func (f *autoscalingFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
+
+func (f *autoscalingFeature) ManageOTelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}

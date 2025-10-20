@@ -142,6 +142,9 @@ type Feature interface {
 	// ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageClusterChecksRunner(managers PodTemplateManagers, provider string) error
+	// ManageOTelAgentGateway allows a feature to configure the OTel Agent Gateway's corev1.PodTemplateSpec
+	// It should do nothing if the feature doesn't need to configure it.
+	ManageOTelAgentGateway(managers PodTemplateManagers, provider string) error
 }
 
 // Options option that can be pass to the Interface.Configure function

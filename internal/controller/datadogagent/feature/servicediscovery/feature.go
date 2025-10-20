@@ -151,3 +151,7 @@ func (f *serviceDiscoveryFeature) ManageSingleContainerNodeAgent(feature.PodTemp
 func (f *serviceDiscoveryFeature) ManageClusterChecksRunner(feature.PodTemplateManagers, string) error {
 	return nil
 }
+
+func (f *serviceDiscoveryFeature) ManageOTelAgentGateway(feature.PodTemplateManagers, string) error {
+	return nil
+}

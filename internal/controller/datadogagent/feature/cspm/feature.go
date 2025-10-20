@@ -355,3 +355,7 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 func (f *cspmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
+
+func (f *cspmFeature) ManageOTelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}

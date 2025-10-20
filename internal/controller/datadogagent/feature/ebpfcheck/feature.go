@@ -113,3 +113,7 @@ func (f *ebpfCheckFeature) ManageSingleContainerNodeAgent(managers feature.PodTe
 func (f *ebpfCheckFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
+
+func (f *ebpfCheckFeature) ManageOTelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}

@@ -205,3 +205,7 @@ func (f *eventCollectionFeature) ManageNodeAgent(_ feature.PodTemplateManagers, 
 func (f *eventCollectionFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers, _ string) error {
 	return nil
 }
+
+func (f *eventCollectionFeature) ManageOTelAgentGateway(_ feature.PodTemplateManagers, _ string) error {
+	return nil
+}

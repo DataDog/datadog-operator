@@ -246,3 +246,8 @@ func (f *clusterChecksFeature) updateConfigHash(dda metav1.Object, ddaSpec *v2al
 	f.customConfigAnnotationValue = hash
 	f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.ClusterChecksIDType)
 }
+
+func (f *clusterChecksFeature) ManageOTelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+	f.manageNodeAgent(apicommon.CoreAgentContainerName, managers, provider)
+	return nil
+}

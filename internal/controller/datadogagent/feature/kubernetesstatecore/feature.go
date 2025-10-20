@@ -241,3 +241,7 @@ func (f *ksmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 func (f *ksmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
+
+func (f *ksmFeature) ManageOTelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}

@@ -279,3 +279,7 @@ func (f *gpuFeature) ManageSingleContainerNodeAgent(feature.PodTemplateManagers,
 func (f *gpuFeature) ManageClusterChecksRunner(feature.PodTemplateManagers, string) error {
 	return nil
 }
+
+func (f *gpuFeature) ManageOTelAgentGateway(feature.PodTemplateManagers, string) error {
+	return nil
+}
