@@ -123,7 +123,7 @@ func (cm *CredentialManager) getCredsFromCache() (Creds, bool) {
 	return Creds{}, false
 }
 
-func (cm *CredentialManager) refresh() error {
+func (cm *CredentialManager) refresh(logger logr.Logger) error {
 	// // invalidate cache
 	// cm.credsMutex.Lock()
 	// defer cm.credsMutex.Unlock()
@@ -138,6 +138,7 @@ func (cm *CredentialManager) refresh() error {
 	}
 
 	if oldCreds != newCreds {
+		logger.Info("Credentials have changed, updating creds")
 		// callbacks
 		cm.creds = newCreds
 		err = cm.notifyCallbacks(newCreds)
@@ -170,6 +171,6 @@ func (cm *CredentialManager) StartCredentialRefreshRoutine(interval time.Duratio
 
 	for {
 		<-ticker.C
-		cm.refresh()
+		cm.refresh(logger)
 	}
 }

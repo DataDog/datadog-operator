@@ -67,13 +67,15 @@ func NewReconciler(client client.Client, creds config.Creds, log logr.Logger, re
 }
 
 func (r *Reconciler) UpdateDatadogClient(newCreds config.Creds) error {
+	r.log.Info("Recreating Datadog client due to credential change", "reconciler", "DatadogSLO")
 	ddClient, err := datadogclient.InitDatadogSLOClient(r.log, newCreds)
 	if err != nil {
-		return fmt.Errorf("unable to create Datadog API Client in DatadogMonitor: %w", err)
+		return fmt.Errorf("unable to create Datadog API Client in DatadogSLO: %w", err)
 	}
 	r.datadogClient = ddClient.Client
 	r.datadogAuth = ddClient.Auth
 
+	r.log.Info("Successfully recreated datadog client due to credential change", "reconciler", "DatadogSLO")
 	return nil
 }
 
