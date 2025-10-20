@@ -7,7 +7,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -59,11 +58,5 @@ func (r *DatadogDashboardReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // Callback function for credential change from credential manager
 func (r *DatadogDashboardReconciler) onCredentialChange(newCreds config.Creds) error {
-	ddClient, err := datadogclient.InitDatadogDashboardClient(r.Log, newCreds)
-	if err != nil {
-		return fmt.Errorf("unable to create Datadog API Client: %w", err)
-	}
-
-	r.DDClient = ddClient
-	return nil
+	return r.internal.UpdateDatadogClient(newCreds)
 }

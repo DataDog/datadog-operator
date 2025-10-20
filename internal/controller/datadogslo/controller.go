@@ -7,6 +7,7 @@ package datadogslo
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
 	"github.com/DataDog/datadog-operator/internal/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/config"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
@@ -58,6 +60,17 @@ func NewReconciler(client client.Client, ddClient datadogclient.DatadogSLOClient
 		log:           log,
 		recorder:      recorder,
 	}
+}
+
+func (r *Reconciler) UpdateDatadogClient(newCreds config.Creds) error {
+	ddClient, err := datadogclient.InitDatadogSLOClient(r.log, newCreds)
+	if err != nil {
+		return fmt.Errorf("unable to create Datadog API Client in DatadogMonitor: %w", err)
+	}
+	r.datadogClient = ddClient.Client
+	r.datadogAuth = ddClient.Auth
+
+	return nil
 }
 
 var _ reconcile.Reconciler = (*Reconciler)(nil)

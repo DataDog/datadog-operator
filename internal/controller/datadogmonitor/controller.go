@@ -29,6 +29,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/pkg/config"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
@@ -85,6 +86,17 @@ func NewReconciler(client client.Client, ddClient datadogclient.DatadogMonitorCl
 		operatorMetricsEnabled: operatorMetricsEnabled,
 		forwarders:             metricForwardersMgr,
 	}, nil
+}
+
+func (r *Reconciler) UpdateDatadogClient(newCreds config.Creds) error {
+	ddClient, err := datadogclient.InitDatadogMonitorClient(r.log, newCreds)
+	if err != nil {
+		return fmt.Errorf("unable to create Datadog API Client in DatadogMonitor: %w", err)
+	}
+	r.datadogClient = ddClient.Client
+	r.datadogAuth = ddClient.Auth
+
+	return nil
 }
 
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context
