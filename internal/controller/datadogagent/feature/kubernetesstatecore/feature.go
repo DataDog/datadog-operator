@@ -93,12 +93,16 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		f.collectCrMetrics = ddaSpec.Features.KubeStateMetricsCore.CollectCrMetrics
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
-		// Get the CollectControllerRevisions value from spec (default to false if not set)
+		// Get the CollectControllerRevisions value from spec
+		// Default to false (opt-in), but can be auto-enabled by version check if agent >= 7.72.0
 		collectControllerRevisionsExplicitlySet := ddaSpec.Features.KubeStateMetricsCore.CollectControllerRevisions != nil
 		if collectControllerRevisionsExplicitlySet {
 			f.collectControllerRevisions = apiutils.BoolValue(ddaSpec.Features.KubeStateMetricsCore.CollectControllerRevisions)
+			f.logger.Info("CollectControllerRevisions set from spec", "value", f.collectControllerRevisions)
 		} else {
+			// Default to false (will be auto-enabled by version check if agent supports it)
 			f.collectControllerRevisions = false
+			f.logger.Info("CollectControllerRevisions not set in spec, defaulting to false (may be auto-enabled by version check)")
 		}
 
 		// This check will only run in the Cluster Checks Runners or Cluster Agent (not the Node Agent)
@@ -112,39 +116,50 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			if ccrOverride, ok := ddaSpec.Override[v2alpha1.ClusterChecksRunnerComponentName]; ok {
 				if ccrOverride.Image != nil {
 					agentVersion := common.GetAgentVersionFromImage(*ccrOverride.Image)
+					f.logger.Info("ClusterChecksRunner image override detected", "image", *ccrOverride.Image, "version", agentVersion)
 
 					if !utils.IsAboveMinVersion(agentVersion, crdAPIServiceCollectionMinVersion) {
+						f.logger.Info("Disabling CRD and APIService collection due to agent version", "version", agentVersion, "minVersion", crdAPIServiceCollectionMinVersion)
 						f.collectAPIServiceMetrics = false
 						f.collectCRDMetrics = false
 					}
 
-					// Only apply version check if CollectControllerRevisions was not explicitly set
-					if !collectControllerRevisionsExplicitlySet {
-						if utils.IsAboveMinVersion(agentVersion, controllerRevisionsCollectionMinVersion) {
-							f.collectControllerRevisions = true
-						} else {
-							f.collectControllerRevisions = false
+					// Always enforce version check for controllerrevisions (safety guard)
+					if !utils.IsAboveMinVersionWithFallback(agentVersion, controllerRevisionsCollectionMinVersion) {
+						if f.collectControllerRevisions {
+							f.logger.Info("Disabling ControllerRevisions collection due to agent version (was explicitly enabled but version too old)", "version", agentVersion, "minVersion", controllerRevisionsCollectionMinVersion)
 						}
+						f.collectControllerRevisions = false
+					} else if !collectControllerRevisionsExplicitlySet {
+						// Auto-enable for supported versions if not explicitly set
+						f.logger.Info("Auto-enabling ControllerRevisions collection based on agent version", "version", agentVersion, "minVersion", controllerRevisionsCollectionMinVersion)
+						f.collectControllerRevisions = true
 					}
 				}
 			}
 		} else {
+			f.logger.Info("Running in ClusterAgent mode")
 			if clusterAgentOverride, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok {
 				if clusterAgentOverride.Image != nil {
 					agentVersion := common.GetAgentVersionFromImage(*clusterAgentOverride.Image)
+					f.logger.Info("ClusterAgent image override detected", "image", *clusterAgentOverride.Image, "version", agentVersion)
 
 					if !utils.IsAboveMinVersion(agentVersion, crdAPIServiceCollectionMinVersion) {
+						f.logger.Info("Disabling CRD and APIService collection due to agent version", "version", agentVersion, "minVersion", crdAPIServiceCollectionMinVersion)
 						f.collectAPIServiceMetrics = false
 						f.collectCRDMetrics = false
 					}
 
-					// Only apply version check if CollectControllerRevisions was not explicitly set
-					if !collectControllerRevisionsExplicitlySet {
-						if utils.IsAboveMinVersion(agentVersion, controllerRevisionsCollectionMinVersion) {
-							f.collectControllerRevisions = true
-						} else {
-							f.collectControllerRevisions = false
+					// Always enforce version check for controllerrevisions (safety guard)
+					if !utils.IsAboveMinVersionWithFallback(agentVersion, controllerRevisionsCollectionMinVersion) {
+						if f.collectControllerRevisions {
+							f.logger.Info("Disabling ControllerRevisions collection due to agent version (was explicitly enabled but version too old)", "version", agentVersion, "minVersion", controllerRevisionsCollectionMinVersion)
 						}
+						f.collectControllerRevisions = false
+					} else if !collectControllerRevisionsExplicitlySet {
+						// Auto-enable for supported versions if not explicitly set
+						f.logger.Info("Auto-enabling ControllerRevisions collection based on agent version", "version", agentVersion, "minVersion", controllerRevisionsCollectionMinVersion)
+						f.collectControllerRevisions = true
 					}
 				}
 			}
