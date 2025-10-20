@@ -18,15 +18,6 @@ The DatadogDashboard controller supports the following environment variable:
 
 - `DD_DASHBOARD_FORCE_SYNC_PERIOD`: Configures the frequency at which the controller performs a force sync with the Datadog API to ensure dashboard parity. Defaults to 60 minutes if not set. Example: `DD_DASHBOARD_FORCE_SYNC_PERIOD=30m`
 
-## Configuration
-
-### Environment Variables
-
-The DatadogDashboard controller supports the following environment variable:
-
-- `DD_DASHBOARD_FORCE_SYNC_PERIOD`: Configures the frequency at which the controller performs a force sync with the Datadog API to ensure dashboard parity. Defaults to 60 minutes if not set. Example: `DD_DASHBOARD_FORCE_SYNC_PERIOD=30m`
-
-
 ## Adding a DatadogDashboard
 
 To deploy a `DatadogDashboard` with the Datadog Operator, use the [`datadog-operator` Helm chart][4].
@@ -131,7 +122,7 @@ To deploy a `DatadogDashboard` with the Datadog Operator, use the [`datadog-oper
 
     This automatically creates a new dashboard in Datadog. You can find it on the [Dashboards][8] page of your Datadog account.
     Datadog Operator occasionally reconciles and keeps dashboards in line with the given configuration. There is also a force 
-    sync every hour, so if a user deletes a dashboard in the Datadog UI, Datadog Operator restores it in under an hour.
+    sync every hour (configurable via `DD_DASHBOARD_FORCE_SYNC_PERIOD`), so if a user deletes a dashboard in the Datadog UI, Datadog Operator restores it in under an hour.
 
 
 ## Cleanup
