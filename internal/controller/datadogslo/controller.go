@@ -52,14 +52,18 @@ type Reconciler struct {
 	recorder      record.EventRecorder
 }
 
-func NewReconciler(client client.Client, ddClient datadogclient.DatadogSLOClient, log logr.Logger, recorder record.EventRecorder) *Reconciler {
+func NewReconciler(client client.Client, creds config.Creds, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
+	ddClient, err := datadogclient.InitDatadogSLOClient(log, creds)
+	if err != nil {
+		return &Reconciler{}, err
+	}
 	return &Reconciler{
 		client:        client,
 		datadogClient: ddClient.Client,
 		datadogAuth:   ddClient.Auth,
 		log:           log,
 		recorder:      recorder,
-	}
+	}, nil
 }
 
 func (r *Reconciler) UpdateDatadogClient(newCreds config.Creds) error {

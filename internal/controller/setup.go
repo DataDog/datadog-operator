@@ -25,7 +25,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
-	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
@@ -180,14 +179,9 @@ func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, pInfo kubernet
 		return nil
 	}
 
-	ddClient, err := datadogclient.InitDatadogMonitorClient(logger, options.Creds)
-	if err != nil {
-		return fmt.Errorf("unable to create Datadog API Client: %w", err)
-	}
-
 	monitorReconciler := &DatadogMonitorReconciler{
 		Client:                 mgr.GetClient(),
-		DDClient:               ddClient,
+		Creds:                  options.Creds,
 		Log:                    ctrl.Log.WithName("controllers").WithName(monitorControllerName),
 		Scheme:                 mgr.GetScheme(),
 		Recorder:               mgr.GetEventRecorderFor(monitorControllerName),
@@ -208,14 +202,9 @@ func startDatadogDashboard(logger logr.Logger, mgr manager.Manager, pInfo kubern
 		return nil
 	}
 
-	ddClient, err := datadogclient.InitDatadogDashboardClient(logger, options.Creds)
-	if err != nil {
-		return fmt.Errorf("unable to create Datadog API Client: %w", err)
-	}
-
 	dashboardReconciler := &DatadogDashboardReconciler{
 		Client:   mgr.GetClient(),
-		DDClient: ddClient,
+		Creds:    options.Creds,
 		Log:      ctrl.Log.WithName("controllers").WithName(dashboardControllerName),
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorderFor(dashboardControllerName),
@@ -234,14 +223,9 @@ func startDatadogGenericResource(logger logr.Logger, mgr manager.Manager, pInfo 
 		return nil
 	}
 
-	ddClient, err := datadogclient.InitDatadogGenericClient(logger, options.Creds)
-	if err != nil {
-		return fmt.Errorf("unable to create Datadog API Client: %w", err)
-	}
-
 	genericResourceReconciler := &DatadogGenericResourceReconciler{
 		Client:   mgr.GetClient(),
-		DDClient: ddClient,
+		Creds:    options.Creds,
 		Log:      ctrl.Log.WithName("controllers").WithName(genericResourceControllerName),
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorderFor(genericResourceControllerName),
@@ -260,14 +244,9 @@ func startDatadogSLO(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.P
 		return nil
 	}
 
-	ddClient, err := datadogclient.InitDatadogSLOClient(logger, options.Creds)
-	if err != nil {
-		return fmt.Errorf("unable to create Datadog API Client: %w", err)
-	}
-
 	sloReconciler := &DatadogSLOReconciler{
 		Client:   mgr.GetClient(),
-		DDClient: ddClient,
+		Creds:    options.Creds,
 		Log:      ctrl.Log.WithName("controllers").WithName(sloControllerName),
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorderFor(sloControllerName),

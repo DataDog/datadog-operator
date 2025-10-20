@@ -47,7 +47,12 @@ type Reconciler struct {
 	recorder                record.EventRecorder
 }
 
-func NewReconciler(client client.Client, ddClient datadogclient.DatadogGenericClient, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) *Reconciler {
+func NewReconciler(client client.Client, creds config.Creds, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
+	ddClient, err := datadogclient.InitDatadogGenericClient(log, creds)
+	if err != nil {
+		return &Reconciler{}, err
+	}
+
 	return &Reconciler{
 		client:                  client,
 		datadogSyntheticsClient: ddClient.SyntheticsClient,
@@ -57,7 +62,7 @@ func NewReconciler(client client.Client, ddClient datadogclient.DatadogGenericCl
 		scheme:                  scheme,
 		log:                     log,
 		recorder:                recorder,
-	}
+	}, nil
 }
 
 func (r *Reconciler) UpdateDatadogClient(newCreds config.Creds) error {

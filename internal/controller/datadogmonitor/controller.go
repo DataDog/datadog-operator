@@ -75,7 +75,12 @@ type Reconciler struct {
 }
 
 // NewReconciler returns a new Reconciler object
-func NewReconciler(client client.Client, ddClient datadogclient.DatadogMonitorClient, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, operatorMetricsEnabled bool, metricForwardersMgr pkgutils.MetricsForwardersManager) (*Reconciler, error) {
+func NewReconciler(client client.Client, creds config.Creds, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, operatorMetricsEnabled bool, metricForwardersMgr pkgutils.MetricsForwardersManager) (*Reconciler, error) {
+	ddClient, err := datadogclient.InitDatadogMonitorClient(log, creds)
+	if err != nil {
+		return &Reconciler{}, err
+	}
+
 	return &Reconciler{
 		client:                 client,
 		datadogClient:          ddClient.Client,
