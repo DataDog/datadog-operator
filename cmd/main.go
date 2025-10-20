@@ -164,7 +164,7 @@ func (opts *options) Parse() {
 	// Custom flags
 	flag.StringVar(&opts.secretBackendCommand, "secretBackendCommand", "", "Secret backend command")
 	flag.Var(&opts.secretBackendArgs, "secretBackendArgs", "Space separated arguments of the secret backend command")
-	flag.DurationVar(&opts.secretRefreshInterval, "secretRefreshInterval", 5*time.Minute, "Interval for refreshing secrets from secret backend")
+	flag.DurationVar(&opts.secretRefreshInterval, "secretRefreshInterval", 0, "Interval for refreshing secrets from secret backend")
 	flag.BoolVar(&opts.supportCilium, "supportCilium", false, "Support usage of Cilium network policies.")
 	flag.BoolVar(&opts.datadogAgentEnabled, "datadogAgentEnabled", true, "Enable the DatadogAgent controller")
 	flag.BoolVar(&opts.datadogMonitorEnabled, "datadogMonitorEnabled", false, "Enable the DatadogMonitor controller")
@@ -261,7 +261,7 @@ func run(opts *options) error {
 		return setupErrorf(setupLog, err, "Unable to get credentials for DatadogMonitor")
 	}
 
-	if opts.secretRefreshInterval > 0 {
+	if opts.secretBackendCommand != "" && opts.secretRefreshInterval > 0 {
 		go credsManager.StartCredentialRefreshRoutine(opts.secretRefreshInterval, setupLog)
 	}
 	renewDeadline := opts.leaderElectionLeaseDuration / 2
