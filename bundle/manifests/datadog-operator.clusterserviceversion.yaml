@@ -194,12 +194,12 @@ metadata:
       ]
     capabilities: Full Lifecycle
     categories: Monitoring, Logging & Tracing
-    createdAt: "2025-09-08 08:57:37"
+    createdAt: "2025-10-21 20:07:02"
     description: Datadog provides a modern monitoring and analytics platform. Gather metrics, logs and traces for full observability of your Kubernetes cluster with Datadog Operator.
     operators.operatorframework.io/builder: operator-sdk-v1.34.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/DataDog/datadog-operator
-    containerImage: gcr.io/datadoghq/operator:1.18.0
+    containerImage: gcr.io/datadoghq/operator:1.20.0-rc.1
     support: Datadog, Inc.
     features.operators.openshift.io/disconnected: "true"
     features.operators.openshift.io/fips-compliant: "false"
@@ -208,12 +208,12 @@ metadata:
     features.operators.openshift.io/token-auth-aws: "false"
     features.operators.openshift.io/token-auth-azure: "false"
     features.operators.openshift.io/token-auth-gcp: "false"
-    olm.skipRange: '>=1.7.0 <1.18.0'
+    olm.skipRange: '>=1.7.0 <1.20.0-rc.1'
   labels:
     operatorframework.io/arch.amd64: supported
     operatorframework.io/arch.arm64: supported
     operatorframework.io/os.linux: supported
-  name: datadog-operator.v1.18.0
+  name: datadog-operator.v1.20.0-rc.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -326,7 +326,11 @@ spec:
             - apiGroups:
                 - ""
               resources:
+                - nodes/configz
+                - nodes/healthz
+                - nodes/logs
                 - nodes/metrics
+                - nodes/pods
                 - nodes/proxy
                 - nodes/spec
                 - nodes/stats
@@ -390,6 +394,14 @@ spec:
               verbs:
                 - get
                 - list
+                - watch
+            - apiGroups:
+                - argoproj.io
+              resources:
+                - rollouts
+              verbs:
+                - list
+                - patch
                 - watch
             - apiGroups:
                 - authentication.k8s.io
@@ -541,6 +553,16 @@ spec:
                 - watermarkpodautoscalers
               verbs:
                 - get
+                - list
+                - watch
+            - apiGroups:
+                - datadoghq.com
+                - karpenter.azure.com
+                - karpenter.k8s.aws
+                - karpenter.sh
+              resources:
+                - '*'
+              verbs:
                 - list
                 - watch
             - apiGroups:
@@ -706,7 +728,7 @@ spec:
                             fieldPath: metadata.annotations['olm.targetNamespaces']
                       - name: DD_TOOL_VERSION
                         value: redhat
-                    image: gcr.io/datadoghq/operator:1.18.0
+                    image: gcr.io/datadoghq/operator:1.20.0-rc.1
                     imagePullPolicy: IfNotPresent
                     livenessProbe:
                       httpGet:
@@ -804,5 +826,5 @@ spec:
   minKubeVersion: 1.16.0
   provider:
     name: Datadog
-  version: 1.18.0
-  replaces: datadog-operator.v1.17.0
+  version: 1.20.0-rc.1
+  replaces: datadog-operator.v1.19.1
