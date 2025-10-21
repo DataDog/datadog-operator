@@ -124,10 +124,6 @@ func (cm *CredentialManager) getCredsFromCache() (Creds, bool) {
 }
 
 func (cm *CredentialManager) refresh(logger logr.Logger) error {
-	// // invalidate cache
-	// cm.credsMutex.Lock()
-	// defer cm.credsMutex.Unlock()
-
 	oldCreds := cm.creds
 	cm.creds = Creds{}
 
