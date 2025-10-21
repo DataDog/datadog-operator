@@ -98,10 +98,10 @@ var (
 )
 
 // NewMetadataForwarder creates a new instance of the metadata forwarder
-func NewMetadataForwarder(logger logr.Logger, k8sClient client.Reader) *MetadataForwarder {
+func NewMetadataForwarder(logger logr.Logger, k8sClient client.Reader, credsManager *config.CredentialManager) *MetadataForwarder {
 	mdf := &MetadataForwarder{
 		hostName:     os.Getenv(constants.DDHostName),
-		credsManager: config.NewCredentialManager(),
+		credsManager: credsManager,
 		requestURL:   getURL(),
 		k8sClient:    k8sClient,
 		client: &http.Client{

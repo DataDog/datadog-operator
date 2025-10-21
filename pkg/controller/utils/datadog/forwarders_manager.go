@@ -14,6 +14,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
@@ -36,14 +37,15 @@ type ForwardersManager struct {
 	metricsForwarders           map[string]*metricsForwarder
 	datadogAgentInternalEnabled bool
 	// TODO expand this to include a metadataForwarder
-	decryptor secrets.Decryptor
-	wg        sync.WaitGroup
+	decryptor    secrets.Decryptor
+	credsManager *config.CredentialManager
+	wg           sync.WaitGroup
 	sync.Mutex
 }
 
 // NewForwardersManager builds a new ForwardersManager object
 // ForwardersManager implements the controller-runtime Runnable interface
-func NewForwardersManager(k8sClient client.Client, platformInfo *kubernetes.PlatformInfo, datadogAgentInternalEnabled bool) *ForwardersManager {
+func NewForwardersManager(k8sClient client.Client, platformInfo *kubernetes.PlatformInfo, datadogAgentInternalEnabled bool, credsManager *config.CredentialManager) *ForwardersManager {
 	return &ForwardersManager{
 		k8sClient:                   k8sClient,
 		platformInfo:                platformInfo,
@@ -51,6 +53,7 @@ func NewForwardersManager(k8sClient client.Client, platformInfo *kubernetes.Plat
 		datadogAgentInternalEnabled: datadogAgentInternalEnabled,
 		decryptor:                   secrets.NewSecretBackend(),
 		wg:                          sync.WaitGroup{},
+		credsManager:                credsManager,
 	}
 }
 
@@ -69,7 +72,7 @@ func (f *ForwardersManager) Register(obj client.Object) {
 	id := getObjID(obj) // nolint: ifshort
 	if _, found := f.metricsForwarders[id]; !found {
 		log.Info("New Datadog metrics forwarder registered", "ID", id)
-		f.metricsForwarders[id] = newMetricsForwarder(f.k8sClient, f.decryptor, obj, f.platformInfo, f.datadogAgentInternalEnabled)
+		f.metricsForwarders[id] = newMetricsForwarder(f.k8sClient, f.decryptor, obj, f.platformInfo, f.datadogAgentInternalEnabled, f.credsManager)
 		f.wg.Add(1)
 		go f.metricsForwarders[id].start(&f.wg)
 	}

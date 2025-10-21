@@ -141,8 +141,9 @@ type options struct {
 	datadogGenericResourceEnabled          bool
 
 	// Secret Backend options
-	secretBackendCommand string
-	secretBackendArgs    stringSlice
+	secretBackendCommand  string
+	secretBackendArgs     stringSlice
+	secretRefreshInterval time.Duration
 }
 
 func (opts *options) Parse() {
@@ -163,6 +164,7 @@ func (opts *options) Parse() {
 	// Custom flags
 	flag.StringVar(&opts.secretBackendCommand, "secretBackendCommand", "", "Secret backend command")
 	flag.Var(&opts.secretBackendArgs, "secretBackendArgs", "Space separated arguments of the secret backend command")
+	flag.DurationVar(&opts.secretRefreshInterval, "secretRefreshInterval", 0, "Interval for refreshing secrets from secret backend")
 	flag.BoolVar(&opts.supportCilium, "supportCilium", false, "Support usage of Cilium network policies.")
 	flag.BoolVar(&opts.datadogAgentEnabled, "datadogAgentEnabled", true, "Enable the DatadogAgent controller")
 	flag.BoolVar(&opts.datadogMonitorEnabled, "datadogMonitorEnabled", false, "Enable the DatadogMonitor controller")
@@ -253,6 +255,17 @@ func run(opts *options) error {
 	secrets.SetSecretBackendCommand(opts.secretBackendCommand)
 	secrets.SetSecretBackendArgs(opts.secretBackendArgs)
 
+	credsManager := config.NewCredentialManager()
+	creds, err := credsManager.GetCredentials()
+	if err != nil && opts.datadogMonitorEnabled {
+		return setupErrorf(setupLog, err, "Unable to get credentials for DatadogMonitor")
+	}
+
+	if opts.secretRefreshInterval > 0 && opts.secretBackendCommand == "" {
+		setupLog.Error(nil, "secretRefreshInterval is set but secretBackendCommand is not configured")
+	} else if opts.secretBackendCommand != "" && opts.secretRefreshInterval > 0 {
+		go credsManager.StartCredentialRefreshRoutine(opts.secretRefreshInterval, setupLog)
+	}
 	renewDeadline := opts.leaderElectionLeaseDuration / 2
 	retryPeriod := opts.leaderElectionLeaseDuration / 4
 
@@ -297,11 +310,6 @@ func run(opts *options) error {
 
 	// Custom setup
 	customSetupHealthChecks(setupLog, mgr, &opts.maximumGoroutines)
-
-	creds, err := config.NewCredentialManager().GetCredentials()
-	if err != nil && opts.datadogMonitorEnabled {
-		return setupErrorf(setupLog, err, "Unable to get credentials for DatadogMonitor")
-	}
 
 	if opts.remoteConfigEnabled {
 		go func() {
@@ -348,7 +356,9 @@ func run(opts *options) error {
 			MaxPodSchedulerFailure:              opts.edsMaxPodSchedulerFailure,
 		},
 		SupportCilium:                 opts.supportCilium,
+		CredsManager:                  credsManager,
 		Creds:                         creds,
+		SecretRefreshInterval:         opts.secretRefreshInterval,
 		DatadogAgentEnabled:           opts.datadogAgentEnabled,
 		DatadogAgentInternalEnabled:   opts.datadogAgentInternalEnabled,
 		DatadogMonitorEnabled:         opts.datadogMonitorEnabled,
@@ -373,12 +383,12 @@ func run(opts *options) error {
 				"CRDs of this version were removed in v1.10.0.")
 		}
 	}
-
+	// START controllers setup
 	if err = controller.SetupControllers(setupLog, mgr, platformInfo, options); err != nil {
 		return setupErrorf(setupLog, err, "Unable to start controllers")
 	}
 
-	setupAndStartMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts)
+	setupAndStartMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
 
 	// +kubebuilder:scaffold:builder
 
@@ -486,8 +496,8 @@ func setupErrorf(logger logr.Logger, err error, msg string, keysAndValues ...any
 	return fmt.Errorf("%s, err:%w", msg, err)
 }
 
-func setupAndStartMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options) {
-	mdf := metadata.NewMetadataForwarder(logger, client)
+func setupAndStartMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options, credsManager *config.CredentialManager) {
+	mdf := metadata.NewMetadataForwarder(logger, client, credsManager)
 	mdf.OperatorMetadata = metadata.OperatorMetadata{
 		OperatorVersion:               version.GetVersion(),
 		KubernetesVersion:             kubernetesVersion,
