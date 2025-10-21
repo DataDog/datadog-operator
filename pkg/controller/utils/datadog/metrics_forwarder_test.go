@@ -714,9 +714,10 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			},
 		},
 		{
-			name: "last error not nil and not init value, new error equals last error => don't send metric",
+			name: "last error not nil and not init value, new error equals last error => send unsuccess metric",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
+				f.On("delegatedSendReconcileMetric", ctx, 0.0, []string{"kube_namespace:foo", "resource_name:bar", "reconcile_err:Unauthorized", "cr_preferred_version:null"}).Once()
 				mf.delegator = f
 				mf.lastReconcileErr = apierrors.NewUnauthorized("Auth error")
 				return mf, f
@@ -724,9 +725,6 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			err:     apierrors.NewUnauthorized("Auth error"),
 			wantErr: false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertNumberOfCalls(t, "delegatedSendReconcileMetric", 0) {
-					return errors.New("Wrong number of calls")
-				}
 				f.AssertExpectations(t)
 				return nil
 			},

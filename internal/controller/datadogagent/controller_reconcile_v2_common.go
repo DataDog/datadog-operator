@@ -10,12 +10,15 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -25,6 +28,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
@@ -678,4 +682,54 @@ func restartDaemonset(daemonset, currentDaemonset *appsv1.DaemonSet) bool {
 	}
 
 	return false
+}
+
+func IsEqualStatus(current *v2alpha1.DatadogAgentStatus, newStatus *v2alpha1.DatadogAgentStatus) bool {
+	if current == nil && newStatus == nil {
+		return true
+	}
+	if current == nil || newStatus == nil {
+		return false
+	}
+
+	if !condition.IsEqualDaemonSetStatus(current.Agent, newStatus.Agent) ||
+		!apiequality.Semantic.DeepEqual(current.RemoteConfigConfiguration, newStatus.RemoteConfigConfiguration) {
+		return false
+	}
+
+	// Compare AgentList order-insensitively to avoid spurious diffs and prevent panics
+	if len(current.AgentList) != len(newStatus.AgentList) {
+		return false
+	}
+	if len(current.AgentList) > 0 {
+		// Clone to avoid mutating the original slices
+		ac := slices.Clone(current.AgentList)
+		bc := slices.Clone(newStatus.AgentList)
+
+		sortByNameFunc := func(a, b *v2alpha1.DaemonSetStatus) int {
+			var an, bn string
+			if a != nil {
+				an = a.DaemonsetName
+			}
+			if b != nil {
+				bn = b.DaemonsetName
+			}
+			return strings.Compare(an, bn)
+		}
+
+		slices.SortFunc(ac, sortByNameFunc)
+		slices.SortFunc(bc, sortByNameFunc)
+		for i := range ac {
+			if !condition.IsEqualDaemonSetStatus(ac[i], bc[i]) {
+				return false
+			}
+		}
+	}
+
+	if !condition.IsEqualDeploymentStatus(current.ClusterAgent, newStatus.ClusterAgent) ||
+		!condition.IsEqualDeploymentStatus(current.ClusterChecksRunner, newStatus.ClusterChecksRunner) {
+		return false
+	}
+
+	return condition.IsEqualConditions(current.Conditions, newStatus.Conditions)
 }
