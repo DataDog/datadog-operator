@@ -261,7 +261,9 @@ func run(opts *options) error {
 		return setupErrorf(setupLog, err, "Unable to get credentials for DatadogMonitor")
 	}
 
-	if opts.secretBackendCommand != "" && opts.secretRefreshInterval > 0 {
+	if opts.secretRefreshInterval > 0 && opts.secretBackendCommand == "" {
+		setupLog.Error(nil, "secretRefreshInterval is set but secretBackendCommand is not configured")
+	} else if opts.secretBackendCommand != "" && opts.secretRefreshInterval > 0 {
 		go credsManager.StartCredentialRefreshRoutine(opts.secretRefreshInterval, setupLog)
 	}
 	renewDeadline := opts.leaderElectionLeaseDuration / 2
