@@ -7,6 +7,7 @@ package agent
 
 import (
 	"fmt"
+	"path/filepath"
 	"strconv"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -392,6 +393,8 @@ func agentOptimizedContainers(dda metav1.Object, requiredContainers []apicommon.
 			containers = append(containers, otelAgentContainer(dda))
 		case apicommon.AgentDataPlaneContainerName:
 			containers = append(containers, agentDataPlaneContainer(dda))
+		case apicommon.WorkloadCaptureProxyContainerName:
+			containers = append(containers, workloadCaptureProxyContainer(dda))
 		}
 	}
 
@@ -514,6 +517,46 @@ func agentDataPlaneContainer(dda metav1.Object) corev1.Container {
 		VolumeMounts:   volumeMountsForAgentDataPlane(),
 		LivenessProbe:  constants.GetDefaultAgentDataPlaneLivenessProbe(),
 		ReadinessProbe: constants.GetDefaultAgentDataPlaneReadinessProbe(),
+	}
+}
+
+func workloadCaptureProxyContainer(dda metav1.Object) corev1.Container {
+	// Build environment variables for the workload capture proxy.
+	// Socket paths use DSD (DogStatsD) namespace to differentiate from future APM traffic capture.
+	// DD_API_KEY and DD_SITE are injected by higher-level abstractions (cluster webhook, init container, etc).
+	envVars := []corev1.EnvVar{
+		// DogStatsD input socket - applications send metrics here
+		{
+			Name:  "WORKLOAD_CAPTURE_DSD_INPUT_SOCKET",
+			Value: filepath.Join(common.DogstatsdSocketLocalPath, common.DogstatsdSocketName),
+		},
+		// DogStatsD output socket - proxy forwards to agent/ADP
+		{
+			Name:  "WORKLOAD_CAPTURE_DSD_OUTPUT_SOCKET",
+			Value: filepath.Join(common.DogstatsdSocketLocalPath, common.DogstatsdAlternateSocketName),
+		},
+		// Flush interval for metric analysis (in seconds)
+		{
+			Name:  "WORKLOAD_CAPTURE_FLUSH_INTERVAL_SECS",
+			Value: "60",
+		},
+		// Maximum cardinality tracking limit
+		{
+			Name:  "WORKLOAD_CAPTURE_MAX_CONTEXTS",
+			Value: "10000",
+		},
+	}
+
+	return corev1.Container{
+		Name:         string(apicommon.WorkloadCaptureProxyContainerName),
+		Image:        agentImage(),
+		Env:          envVars,
+		VolumeMounts: []corev1.VolumeMount{
+			common.GetVolumeMountForDogstatsdSocket(false),
+		},
+		SecurityContext: &corev1.SecurityContext{
+			RunAsUser: apiutils.NewInt64Pointer(0),
+		},
 	}
 }
 

@@ -132,6 +132,10 @@ const (
 	DogstatsdAPMSocketHostPath = "/var/run/datadog"
 	DogstatsdSocketLocalPath   = "/var/run/datadog"
 	DogstatsdSocketName        = "dsd.socket"
+	// DogstatsdAlternateSocketName is an alternate socket path that can be used
+	// when an intermediate component needs to intercept dogstatsd traffic before
+	// forwarding it to the agent. This is a general-purpose alternate socket path.
+	DogstatsdAlternateSocketName = "dsd-agent-input.sock"
 
 	HostCriSocketPathPrefix = "/host"
 	CriSocketVolumeName     = "runtimesocketdir"
