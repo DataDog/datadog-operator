@@ -83,7 +83,6 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 	var output feature.RequiredComponents
 
 	if ddaSpec.Features != nil && ddaSpec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(ddaSpec.Features.KubeStateMetricsCore.Enabled) {
-		f.logger.Info("KubeStateMetricsCore feature enabled")
 		output.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
 		output.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
 		output.Agent.IsRequired = apiutils.NewBoolPointer(true)
@@ -102,11 +101,9 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		if collectControllerRevisionsExplicitlySet {
 			// Explicit setting in spec - use it (will be validated against version later if override present)
 			f.collectControllerRevisions = apiutils.BoolValue(ddaSpec.Features.KubeStateMetricsCore.CollectControllerRevisions)
-			f.logger.Info("CollectControllerRevisions explicitly set in spec", "value", f.collectControllerRevisions)
 		} else {
 			// Not explicitly set - will be determined by version checks below
 			f.collectControllerRevisions = false
-			f.logger.Info("CollectControllerRevisions not set in spec, will auto-enable if agent version supports it")
 		}
 
 		// This check will only run in the Cluster Checks Runners or Cluster Agent (not the Node Agent)
@@ -120,11 +117,9 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			if ccrOverride, ok := ddaSpec.Override[v2alpha1.ClusterChecksRunnerComponentName]; ok {
 				if ccrOverride.Image != nil {
 					agentVersion := common.GetAgentVersionFromImage(*ccrOverride.Image)
-					f.logger.Info("ClusterChecksRunner image override detected", "image", *ccrOverride.Image, "version", agentVersion)
 
-					// CRD and APIService version checks (existing logic - unchanged)
+					// CRD and APIService version checks
 					if !utils.IsAboveMinVersion(agentVersion, crdAPIServiceCollectionMinVersion) {
-						f.logger.Info("Disabling CRD and APIService collection due to agent version", "version", agentVersion, "minVersion", crdAPIServiceCollectionMinVersion)
 						f.collectAPIServiceMetrics = false
 						f.collectCRDMetrics = false
 					}
@@ -132,28 +127,21 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 					// ControllerRevisions version check with fallback parsing
 					if !utils.IsAboveMinVersionWithFallback(agentVersion, controllerRevisionsCollectionMinVersion) {
 						// Version too old - disable even if explicitly set
-						if f.collectControllerRevisions {
-							f.logger.Info("Disabling ControllerRevisions collection due to agent version (was explicitly enabled but version too old)", "version", agentVersion, "minVersion", controllerRevisionsCollectionMinVersion)
-						}
 						f.collectControllerRevisions = false
 					} else if !collectControllerRevisionsExplicitlySet {
 						// Version supports it and not explicitly set - auto-enable
-						f.logger.Info("Auto-enabling ControllerRevisions collection based on override agent version", "version", agentVersion, "minVersion", controllerRevisionsCollectionMinVersion)
 						f.collectControllerRevisions = true
 					}
 					controllerRevisionsSetByOverride = true
 				}
 			}
 		} else {
-			f.logger.Info("Running in ClusterAgent mode")
 			if clusterAgentOverride, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok {
 				if clusterAgentOverride.Image != nil {
 					agentVersion := common.GetAgentVersionFromImage(*clusterAgentOverride.Image)
-					f.logger.Info("ClusterAgent image override detected", "image", *clusterAgentOverride.Image, "version", agentVersion)
 
-					// CRD and APIService version checks (existing logic - unchanged)
+					// CRD and APIService version checks
 					if !utils.IsAboveMinVersion(agentVersion, crdAPIServiceCollectionMinVersion) {
-						f.logger.Info("Disabling CRD and APIService collection due to agent version", "version", agentVersion, "minVersion", crdAPIServiceCollectionMinVersion)
 						f.collectAPIServiceMetrics = false
 						f.collectCRDMetrics = false
 					}
@@ -161,13 +149,9 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 					// ControllerRevisions version check with fallback parsing
 					if !utils.IsAboveMinVersionWithFallback(agentVersion, controllerRevisionsCollectionMinVersion) {
 						// Version too old - disable even if explicitly set
-						if f.collectControllerRevisions {
-							f.logger.Info("Disabling ControllerRevisions collection due to cluster agent version (was explicitly enabled but version too old)", "version", agentVersion, "minVersion", controllerRevisionsCollectionMinVersion)
-						}
 						f.collectControllerRevisions = false
 					} else if !collectControllerRevisionsExplicitlySet {
 						// Version supports it and not explicitly set - auto-enable
-						f.logger.Info("Auto-enabling ControllerRevisions collection based on override cluster agent version", "version", agentVersion, "minVersion", controllerRevisionsCollectionMinVersion)
 						f.collectControllerRevisions = true
 					}
 					controllerRevisionsSetByOverride = true
@@ -181,18 +165,13 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			var defaultVersion string
 			if f.runInClusterChecksRunner {
 				defaultVersion = images.AgentLatestVersion
-				f.logger.Info("No image override present, checking default agent version for ControllerRevisions support", "version", defaultVersion)
 			} else {
 				defaultVersion = images.ClusterAgentLatestVersion
-				f.logger.Info("No image override present, checking default cluster agent version for ControllerRevisions support", "version", defaultVersion)
 			}
 
 			// Check if default version supports controllerrevisions
 			if utils.IsAboveMinVersionWithFallback(defaultVersion, controllerRevisionsCollectionMinVersion) {
-				f.logger.Info("Auto-enabling ControllerRevisions collection based on default version", "version", defaultVersion, "minVersion", controllerRevisionsCollectionMinVersion)
 				f.collectControllerRevisions = true
-			} else {
-				f.logger.Info("Default version does not support ControllerRevisions collection, keeping disabled", "version", defaultVersion, "minVersion", controllerRevisionsCollectionMinVersion)
 			}
 		}
 
