@@ -7730,29 +7730,6 @@ spec:
                   x-kubernetes-list-map-keys:
                     - type
                   x-kubernetes-list-type: map
-                createStrategy:
-                  description: CreateStrategy is the state of the create strategy feature.
-                  properties:
-                    lastTransition:
-                      description: LastTransition is the last time the status was updated.
-                      format: date-time
-                      type: string
-                    maxUnavailable:
-                      description: MaxUnavailable shows the number of pods that can be in an unready state.
-                      format: int32
-                      type: integer
-                    nodesLabeled:
-                      description: NodesLabeled shows the number of nodes currently labeled.
-                      format: int32
-                      type: integer
-                    podsReady:
-                      description: PodsReady shows the number of pods in the ready state.
-                      format: int32
-                      type: integer
-                    status:
-                      description: Status shows the current state of the feature.
-                      type: string
-                  type: object
                 currentHash:
                   description: CurrentHash is the stored hash of the DatadogAgentProfile.
                   type: string

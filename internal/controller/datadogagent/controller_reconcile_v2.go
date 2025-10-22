@@ -330,9 +330,8 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 
 	sortedProfiles := agentprofile.SortProfiles(profilesList.Items)
 	for _, profile := range sortedProfiles {
-		maxUnavailable := agentprofile.GetMaxUnavailable(logger, ddaSpec, &profile, len(nodeList), &r.options.ExtendedDaemonsetOptions)
 		oldStatus := profile.Status
-		profileAppliedByNode, err = agentprofile.ApplyProfile(logger, &profile, nodeList, profileAppliedByNode, now, maxUnavailable, r.options.DatadogAgentInternalEnabled)
+		profileAppliedByNode, err = agentprofile.ApplyProfile(logger, &profile, nodeList, profileAppliedByNode, now, r.options.DatadogAgentInternalEnabled)
 		if result, e := r.updateDAPStatus(ctx, logger, &profile, &oldStatus); utils.ShouldReturn(result, e) {
 			logger.Info("unable to update DatadogAgentProfile status", "error", e, "requeue", result.Requeue, "requeueAfter", result.RequeueAfter)
 		}

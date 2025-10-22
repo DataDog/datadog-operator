@@ -17,7 +17,6 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.CreateStrategy":                                                 schema_datadog_operator_api_datadoghq_v1alpha1_CreateStrategy(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DashboardTemplateVariable":                                      schema_datadog_operator_api_datadoghq_v1alpha1_DashboardTemplateVariable(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DashboardTemplateVariablePreset":                                schema_datadog_operator_api_datadoghq_v1alpha1_DashboardTemplateVariablePreset(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DashboardTemplateVariablePresetValue":                           schema_datadog_operator_api_datadoghq_v1alpha1_DashboardTemplateVariablePresetValue(ref),
@@ -52,58 +51,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOQuery":                                                schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOQuery(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOSpec":                                                 schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOStatus":                                               schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOStatus(ref),
-	}
-}
-
-func schema_datadog_operator_api_datadoghq_v1alpha1_CreateStrategy(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "CreateStrategy defines the observed state of the create strategy feature based on the agent deployment.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"status": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Status shows the current state of the feature.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"nodesLabeled": {
-						SchemaProps: spec.SchemaProps{
-							Description: "NodesLabeled shows the number of nodes currently labeled.",
-							Default:     0,
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-					"podsReady": {
-						SchemaProps: spec.SchemaProps{
-							Description: "PodsReady shows the number of pods in the ready state.",
-							Default:     0,
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-					"maxUnavailable": {
-						SchemaProps: spec.SchemaProps{
-							Description: "MaxUnavailable shows the number of pods that can be in an unready state.",
-							Default:     0,
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-					"lastTransition": {
-						SchemaProps: spec.SchemaProps{
-							Description: "LastTransition is the last time the status was updated.",
-							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
@@ -468,17 +415,11 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentProfileStatus(re
 							Format:      "",
 						},
 					},
-					"createStrategy": {
-						SchemaProps: spec.SchemaProps{
-							Description: "CreateStrategy is the state of the create strategy feature.",
-							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.CreateStrategy"),
-						},
-					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.CreateStrategy", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

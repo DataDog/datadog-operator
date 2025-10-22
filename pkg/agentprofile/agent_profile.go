@@ -8,7 +8,6 @@ package agentprofile
 import (
 	"fmt"
 	"maps"
-	"os"
 	"sort"
 
 	"github.com/go-logr/logr"
@@ -18,13 +17,10 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/intstr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -40,11 +36,8 @@ const (
 
 // ApplyProfile validates a profile spec and returns a map that maps each
 // node name to the profile that should be applied to it.
-// When create strategy is enabled, the profile is mapped to:
-// - existing nodes with the correct label
-// - nodes that need a new or corrected label up to maxUnavailable # of nodes
 func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nodes []v1.Node, profileAppliedByNode map[string]types.NamespacedName,
-	now metav1.Time, maxUnavailable int, datadogAgentInternalEnabled bool) (map[string]types.NamespacedName, error) {
+	now metav1.Time, datadogAgentInternalEnabled bool) (map[string]types.NamespacedName, error) {
 	matchingNodes := map[string]bool{}
 	profileStatus := v1alpha1.DatadogAgentProfileStatus{}
 
@@ -71,8 +64,6 @@ func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nod
 		return profileAppliedByNode, err
 	}
 
-	toLabelNodeCount := 0
-
 	for _, node := range nodes {
 		matchesNode, err := profileMatchesNode(profile, node.Labels)
 		if err != nil {
@@ -96,47 +87,14 @@ func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nod
 				UpdateProfileStatus(logger, profile, profileStatus, now)
 				return profileAppliedByNode, fmt.Errorf("conflict with existing profile")
 			} else {
-				profileLabelValue, labelExists := node.Labels[constants.ProfileLabelKey]
-				if labelExists && profileLabelValue == profile.Name {
-					matchingNodes[node.Name] = true
-				} else {
-					matchingNodes[node.Name] = false
-					toLabelNodeCount++
-				}
+				matchingNodes[node.Name] = true
 				profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(AppliedConditionType, metav1.ConditionTrue, now, AppliedConditionReason, "Profile applied"))
 				profileStatus.Applied = metav1.ConditionTrue
 			}
 		}
 	}
 
-	numNodesToLabel := 0
-	if CreateStrategyEnabled() {
-		profileStatus.CreateStrategy = &v1alpha1.CreateStrategy{}
-		if profile.Status.CreateStrategy != nil {
-			profileStatus.CreateStrategy.PodsReady = profile.Status.CreateStrategy.PodsReady
-			profileStatus.CreateStrategy.LastTransition = profile.Status.CreateStrategy.LastTransition
-		}
-		profileStatus.CreateStrategy.Status = getCreateStrategyStatus(profile.Status.CreateStrategy, toLabelNodeCount)
-		profileStatus.CreateStrategy.MaxUnavailable = int32(maxUnavailable)
-
-		if canLabel(logger, profileStatus.CreateStrategy) {
-			numNodesToLabel = getNumNodesToLabel(profile.Status.CreateStrategy, maxUnavailable, toLabelNodeCount)
-		}
-	}
-
-	for node, hasCorrectProfileLabel := range matchingNodes {
-		if CreateStrategyEnabled() {
-			if hasCorrectProfileLabel {
-				profileStatus.CreateStrategy.NodesLabeled++
-			} else {
-				if numNodesToLabel <= 0 {
-					continue
-				}
-				numNodesToLabel--
-				profileStatus.CreateStrategy.NodesLabeled++
-			}
-		}
-
+	for node := range matchingNodes {
 		profileAppliedByNode[node] = types.NamespacedName{
 			Namespace: profile.Namespace,
 			Name:      profile.Name,
@@ -422,101 +380,4 @@ func validateProfileName(profileName string) error {
 	}
 
 	return nil
-}
-
-func canLabel(logger logr.Logger, createStrategy *v1alpha1.CreateStrategy) bool {
-	if createStrategy == nil {
-		return false
-	}
-
-	switch createStrategy.Status {
-	case v1alpha1.CompletedStatus:
-		return true
-	case v1alpha1.InProgressStatus:
-		return true
-	case v1alpha1.WaitingStatus:
-		return false
-	default:
-		logger.Error(fmt.Errorf("received unexpected create strategy status condition"), string(createStrategy.Status))
-		return false
-	}
-}
-
-func getNumNodesToLabel(createStrategyStatus *v1alpha1.CreateStrategy, maxUnavailable, toLabelNodeCount int) int {
-	if createStrategyStatus == nil {
-		return 0
-	}
-
-	// once create strategy status is completed, label all necessary nodes
-	if createStrategyStatus.Status == v1alpha1.CompletedStatus {
-		return toLabelNodeCount
-	}
-
-	return maxUnavailable - (int(createStrategyStatus.NodesLabeled - createStrategyStatus.PodsReady))
-}
-
-func getCreateStrategyStatus(status *v1alpha1.CreateStrategy, toLabelNodeCount int) v1alpha1.CreateStrategyStatus {
-	// new profiles start in waiting to ensure profile daemonsets are created prior to node labeling
-	if status == nil {
-		return v1alpha1.WaitingStatus
-	}
-
-	// all necessary nodes have been labeled
-	if toLabelNodeCount == 0 {
-		return v1alpha1.CompletedStatus
-	}
-
-	return status.Status
-}
-
-// CreateStrategyEnabled returns true if the create strategy enabled env var is set to true
-func CreateStrategyEnabled() bool {
-	return os.Getenv(apicommon.CreateStrategyEnabled) == "true"
-}
-
-// GetMaxUnavailable gets the maxUnavailable value as in int.
-// Priority is DAP > DDA > Kubernetes default value
-func GetMaxUnavailable(logger logr.Logger, ddaSpec *v2alpha1.DatadogAgentSpec, profile *v1alpha1.DatadogAgentProfile, numNodes int, edsOptions *agent.ExtendedDaemonsetOptions) int {
-	// Kubernetes default for DaemonSet MaxUnavailable is 1
-	// https://github.com/kubernetes/kubernetes/blob/4aca09bc0c45acc69cfdb425d1eea8818eee04d9/pkg/apis/apps/v1/defaults.go#L87
-	defaultMaxUnavailable := 1
-
-	// maxUnavailable from profile
-	if profile.Spec.Config != nil {
-		if nodeAgentOverride, ok := profile.Spec.Config.Override[v2alpha1.NodeAgentComponentName]; ok {
-			if nodeAgentOverride.UpdateStrategy != nil && nodeAgentOverride.UpdateStrategy.RollingUpdate != nil {
-				numToScale, err := intstr.GetScaledValueFromIntOrPercent(nodeAgentOverride.UpdateStrategy.RollingUpdate.MaxUnavailable, numNodes, true)
-				if err != nil {
-					logger.Error(err, "unable to get max unavailable pods from DatadogAgentProfile, defaulting to 1")
-					return defaultMaxUnavailable
-				}
-				return numToScale
-			}
-		}
-	}
-
-	// maxUnavilable from DDA
-	if nodeAgentOverride, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
-		if nodeAgentOverride.UpdateStrategy != nil && nodeAgentOverride.UpdateStrategy.RollingUpdate != nil {
-			numToScale, err := intstr.GetScaledValueFromIntOrPercent(nodeAgentOverride.UpdateStrategy.RollingUpdate.MaxUnavailable, numNodes, true)
-			if err != nil {
-				logger.Error(err, "unable to get max unavailable pods from DatadogAgent, defaulting to 1")
-				return defaultMaxUnavailable
-			}
-			return numToScale
-		}
-	}
-
-	// maxUnavailable from EDS options
-	if edsOptions != nil && edsOptions.MaxPodUnavailable != "" {
-		numToScale, err := intstr.GetScaledValueFromIntOrPercent(apiutils.NewIntOrStringPointer(edsOptions.MaxPodUnavailable), numNodes, true)
-		if err != nil {
-			logger.Error(err, "unable to get max unavailable pods from EDS options, defaulting to 1")
-			return defaultMaxUnavailable
-		}
-		return numToScale
-	}
-
-	// k8s default
-	return defaultMaxUnavailable
 }
