@@ -2378,6 +2378,76 @@
                     }
                   },
                   "type": "object"
+                },
+                "workloadCapturer": {
+                  "additionalProperties": false,
+                  "description": "WorkloadCapturer configuration (experimental)",
+                  "properties": {
+                    "dogstatsdPort": {
+                      "description": "DogstatsdPort allows override of the UDP port for forwarded traffic.\nDefault: 18125",
+                      "format": "int32",
+                      "maximum": 65535,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "enabled": {
+                      "description": "Enabled enables the Workload Capturer.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "flushIntervalSeconds": {
+                      "description": "FlushIntervalSeconds controls how often to flush analysis metrics.\nDefault: 60 seconds",
+                      "format": "int32",
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "image": {
+                      "additionalProperties": false,
+                      "description": "Image specifies a custom image for the workload capturer container.\nDefaults to the agent image if not specified.",
+                      "properties": {
+                        "jmxEnabled": {
+                          "description": "Define whether the Agent image should support JMX.\nTo be used if the `Name` field does not correspond to a full image string.",
+                          "type": "boolean"
+                        },
+                        "name": {
+                          "description": "Defines the Agent image name for the pod. You can provide this as:\n* `\u003cNAME\u003e` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd`\nfor DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`.\n* `\u003cNAME\u003e:\u003cTAG\u003e` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag`\nand `[key].image.jmxEnabled` are ignored.\n* `\u003cREGISTRY\u003e/\u003cNAME\u003e:\u003cTAG\u003e` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified\n  like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored.",
+                          "type": "string"
+                        },
+                        "pullPolicy": {
+                          "description": "The Kubernetes pull policy:\nUse `Always`, `Never`, or `IfNotPresent`.",
+                          "type": "string"
+                        },
+                        "pullSecrets": {
+                          "description": "It is possible to specify Docker registry credentials.\nSee https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod",
+                          "items": {
+                            "additionalProperties": false,
+                            "description": "LocalObjectReference contains enough information to let you locate the\nreferenced object inside the same namespace.",
+                            "properties": {
+                              "name": {
+                                "default": "",
+                                "description": "Name of the referent.\nThis field is effectively required, but due to backwards compatibility is\nallowed to be empty. Instances of this type with an empty value here are\nalmost certainly wrong.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names",
+                                "type": "string"
+                              }
+                            },
+                            "type": "object",
+                            "x-kubernetes-map-type": "atomic"
+                          },
+                          "type": "array"
+                        },
+                        "tag": {
+                          "description": "Define the image tag to use.\nTo be used if the `Name` field does not correspond to a full image string.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "maxContexts": {
+                      "description": "MaxContexts limits the number of unique metric+tag combinations to track.\nDefault: 10000",
+                      "format": "int32",
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
                 }
               },
               "type": "object"

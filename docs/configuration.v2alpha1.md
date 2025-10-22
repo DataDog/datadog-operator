@@ -187,6 +187,15 @@ spec:
 | features.serviceDiscovery.networkStats.enabled | Enables the Service Discovery Network Stats feature. Default: true |
 | features.tcpQueueLength.enabled | Enables the TCP queue length eBPF-based check. Default: false |
 | features.usm.enabled | Enables Universal Service Monitoring. Default: false |
+| features.workloadCapturer.dogstatsdPort | DogstatsdPort allows override of the UDP port for forwarded traffic. Default: 18125 |
+| features.workloadCapturer.enabled | Enables the Workload Capturer. Default: false |
+| features.workloadCapturer.flushIntervalSeconds | FlushIntervalSeconds controls how often to flush analysis metrics. Default: 60 seconds |
+| features.workloadCapturer.image.jmxEnabled | Define whether the Agent image should support JMX. To be used if the `Name` field does not correspond to a full image string. |
+| features.workloadCapturer.image.name | Defines the Agent image name for the pod. You can provide this as: * `<NAME>` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd` for DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`. * `<NAME>:<TAG>` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag` and `[key].image.jmxEnabled` are ignored. * `<REGISTRY>/<NAME>:<TAG>` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified   like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored. |
+| features.workloadCapturer.image.pullPolicy | The Kubernetes pull policy: Use `Always`, `Never`, or `IfNotPresent`. |
+| features.workloadCapturer.image.pullSecrets | It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod |
+| features.workloadCapturer.image.tag | Define the image tag to use. To be used if the `Name` field does not correspond to a full image string. |
+| features.workloadCapturer.maxContexts | MaxContexts limits the number of unique metric+tag combinations to track. Default: 10000 |
 | global.checksTagCardinality | ChecksTagCardinality configures tag cardinality for the metrics collected by integrations (`low`, `orchestrator` or `high`). See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#tags-cardinality. Not set by default to avoid overriding existing DD_CHECKS_TAG_CARDINALITY configurations, the default value in the Agent is low. Ref: https://github.com/DataDog/datadog-agent/blob/856cf4a66142ce91fd4f8a278149436eb971184a/pkg/config/setup/config.go#L625. |
 | global.clusterAgentToken | ClusterAgentToken is the token for communication between the NodeAgent and ClusterAgent. |
 | global.clusterAgentTokenSecret.keyName | KeyName is the key of the secret to use. |

@@ -55,7 +55,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/servicediscovery"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/tcpqueuelength"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/usm"
-	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/workloadcaptureproxy"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/workloadcapturer"
 )
 
 const (
