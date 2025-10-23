@@ -11,8 +11,11 @@ The motivation for creating this tool was to provide a way to support Datadog us
 ## How to install
 
 ```bash
-go build -o yaml-mapper .
+make yaml-mapper
 ```
+
+> [!TIP]
+> Add the `/bin` directory to your `PATH` to easily access the `yaml-mapper` executable.
 
 ## How to use
 
@@ -29,24 +32,24 @@ Both the key and value are period-delimited instead of nested or indented, as in
 Pass the source file and mapping file to the command:
 
 ```bash
-./yaml-mapper -sourceFile=source.yaml -mappingFile=mapping.yaml
+yaml-mapper --sourceFile=source.yaml --mappingFile=mapping.yaml
 ```
 
-The resulting file is written to `destination.yaml`. To specify a destination file, use flag `-destFile=[<FILENAME>.yaml]`.
+The resulting file is written to `destination.yaml`. To specify a destination file, use flag `--destFile=[<FILENAME>.yaml]`.
 
-Content from a file can be optionally prepended to the output. To specify the prefix file, use flag `-prefixFile=[<FILENAME>.yaml]`.
+Content from a file can be optionally prepended to the output. To specify the prefix file, use flag `--prefixFile=[<FILENAME>.yaml]`.
 
-By default the output is also printed to STDOUT; to disable this use the flag `-printOutput=false`.
+By default the output is also printed to STDOUT; to disable this use the flag `--printOutput=false`.
 
 ## Example usage (using provided files)
 
 ```bash
-./yaml-mapper -sourceFile=<EXAMPLE_SOURCE>.yaml -mappingFile=mapping_datadog_helm_to_datadogagent_crd.yaml -prefixFile=<EXAMPLE_PREFIX>.yaml
+yaml-mapper --sourceFile=<EXAMPLE_SOURCE>.yaml --mappingFile=mapping_datadog_helm_to_datadogagent_crd.yaml --prefixFile=<EXAMPLE_PREFIX>.yaml
 ```
 
 The following command provides the example `destination.yaml` file in this directory. 
 ```bash
-./yaml-mapper -sourceFile=example_source.yaml -mappingFile=mapping_datadog_helm_to_datadogagent_crd.yaml -prefixFile=example_prefix.yaml
+yaml-mapper --sourceFile=example_source.yaml --mappingFile=mapping_datadog_helm_to_datadogagent_crd.yaml --prefixFile=example_prefix.yaml
 ```
 
 ### Updating Mapping File from a Source YAML
@@ -59,18 +62,18 @@ Below are different ways to update the mapping file based on your source:
 If you have run into a CI error when adding a new field to values.yaml, run this command:
 
 ```bash
-./yaml-mapper -updateMap -sourceFile=../../charts/datadog/values.yaml
+yaml-mapper --updateMap --sourceFile=<PATH_TO>helm-charts/charts/datadog/values.yaml
 ```
 2. **Latest published Datadog Helm chart values**
 This pulls the latest values.yaml from the [latest published Helm chart](https://github.com/DataDog/helm-charts/releases/latest) and updates the default mapping file.
 
 ``` bash
-./yaml-mapper -updateMap
+yaml-mapper --updateMap
 ```
 3. **Update a custom mapping file with a custom source YAML**
 
 ```bash
-./yaml-mapper -updateMap -sourceFile=<YOUR_SOURCE_FILE> -mappingFile=<YOUR_MAPPING_FILE>
+yaml-mapper --updateMap --sourceFile=<YOUR_SOURCE_FILE> --mappingFile=<YOUR_MAPPING_FILE>
 ```
 
 ### Updating Mapping Keys
