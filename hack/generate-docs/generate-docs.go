@@ -17,6 +17,9 @@ import (
 
 const (
 	crdFile                 = "config/crd/bases/v1/datadoghq.com_datadogagents.yaml"
+	publicHeaderFile        = "hack/generate-docs/public_header.markdown"
+	publicFooterFile        = "hack/generate-docs/public_footer.markdown"
+	publicDocsFile          = "docs/configuration_public.md"
 	headerFile              = "hack/generate-docs/header.markdown"
 	footerFile              = "hack/generate-docs/$VERSION_footer.markdown"
 	v2OverridesFile         = "hack/generate-docs/v2alpha1_overrides.markdown"
@@ -27,6 +30,29 @@ const (
 type parameterDoc struct {
 	name        string
 	description string
+}
+
+type OutputFormat string
+
+const (
+	FormatTable OutputFormat = "table" // current format
+	FormatHugo  OutputFormat = "hugo"  // new public format
+)
+
+// imported types, have a link. If it's there -->
+
+// NOTE: How do we point out the link? Do I say envVar/ResourceRequirements etc: link or link each one
+var k8sImportedTypes = map[string]string{
+	"corev1.EnvVar":               "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#envvar-v1-core",
+	"corev1.ResourceRequirements": "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#resourcerequirements-v1-core",
+	"corev1.SecurityContext":      "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#securitycontext-v1-core",
+	"corev1.PodSecurityContext":   "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#podsecuritycontext-v1-core",
+	"corev1.Affinity":             "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#affinity-v1-core",
+	"corev1.Toleration":           "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#toleration-v1-core",
+	"corev1.Volume":               "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#volume-v1-core",
+	"livenessProbe":               "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#probe-v1-core",
+	"readinessProbe":              "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#probe-v1-core",
+	"startupProbe":                "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#probe-v1-core",
 }
 
 func main() {
@@ -41,7 +67,9 @@ func main() {
 
 	for _, crdVersion := range crd.Spec.Versions {
 		generateDoc(header, crdVersion, crdVersion.Name)
+		generatePublicDoc(crdVersion, crdVersion.Name)
 	}
+
 }
 
 func generateDoc(header []byte, crd apiextensions.CustomResourceDefinitionVersion, version string) {
@@ -89,6 +117,60 @@ func generateContent_v2alpha1(f *os.File, crd apiextensions.CustomResourceDefini
 
 	overrideProps := crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties["override"]
 	writeOverridesRecursive(f, "[key]", overrideProps.AdditionalProperties.Schema.Properties, nameToDescMap)
+}
+
+func generatePublicDoc(crd apiextensions.CustomResourceDefinitionVersion, version string) {
+	// Honestly I dont need the header, version just need to CRD
+	publicHeader := mustReadFile(publicHeaderFile)
+	publicFooter := mustReadFile(publicFooterFile)
+
+	f, err := os.OpenFile(publicDocsFile, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0o644)
+	if err != nil {
+		panic(fmt.Sprintf("cannot write to public docs file: %s"))
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			panic(fmt.Sprintf("cannot close file: %s", err))
+		}
+	}()
+
+	// Write header
+	mustWrite(f, publicHeader)
+	mustWriteString(f, "\n")
+
+	generatePublicContent(f, crd)
+
+	mustWrite(f, publicFooter)
+}
+
+func generatePublicContent(f *os.File, crd apiextensions.CustomResourceDefinitionVersion) {
+	nameToDescMap := loadJSONToMap(updatedDescriptionsFile)
+
+	writePropsTablePublic(f, "global-options-list", crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties, nameToDescMap)
+}
+
+func writePropsTablePublic(f *os.File, sectionId string, props map[string]apiextensions.JSONSchemaProps, nameToDescMap map[string]string) {
+	docs := getParameterDocs([]string{}, props)
+	sort.Slice(docs, func(i, j int) bool {
+		return docs[i].name < docs[j].name
+	})
+
+	mustWriteString(f, fmt.Sprintf("{%% collapse-content title=\"Parameters\" level=\"h4\" expanded=true id=\"%s\" %%}}\n\n", sectionId))
+	for _, doc := range docs {
+		desc := doc.description
+		if newDesc, ok := nameToDescMap[doc.name]; ok {
+			desc = newDesc
+		} else {
+			// Clean up description (same logic as existing)
+			paramName := doc.name[strings.LastIndex(doc.name, ".")+1:]
+			prefix := cases.Title(language.English, cases.Compact).String(paramName) + " "
+			desc = strings.TrimPrefix(desc, prefix)
+			desc = strings.ToUpper(desc[:1]) + desc[1:]
+		}
+		mustWriteString(f, fmt.Sprintf("`%s`n", doc.name))
+		mustWriteString(f, fmt.Sprintf(": %s\n\n", desc))
+	}
+
 }
 
 func writePropsTable(f *os.File, props map[string]apiextensions.JSONSchemaProps, nameToDescMap map[string]string) {
