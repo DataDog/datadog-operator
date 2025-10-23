@@ -6,7 +6,6 @@ on:
   push:
     paths:
       - "cmd/yaml-mapper"
-
 # Permission forced by repo-level setting; only elevate on job-level
 permissions:
   contents: read
