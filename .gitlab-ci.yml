@@ -1,4 +1,4 @@
-image: registry.ddbuild.io/images/mirror/library/golang:1.24.6
+image: registry.ddbuild.io/images/mirror/library/golang:1.25.3
 variables:
   PROJECTNAME: "datadog-operator"
   PROJECTNAME_CHECK: "datadog-operator-check"
