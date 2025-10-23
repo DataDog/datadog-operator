@@ -19,6 +19,7 @@ const (
 	crdFile                 = "config/crd/bases/v1/datadoghq.com_datadogagents.yaml"
 	publicHeaderFile        = "hack/generate-docs/public_header.markdown"
 	publicFooterFile        = "hack/generate-docs/public_footer.markdown"
+	publicOverridesFile     = "hack/generate-docs/public_overrides.markdown"
 	publicDocsFile          = "docs/configuration_public.md"
 	headerFile              = "hack/generate-docs/header.markdown"
 	footerFile              = "hack/generate-docs/$VERSION_footer.markdown"
@@ -120,9 +121,9 @@ func generateContent_v2alpha1(f *os.File, crd apiextensions.CustomResourceDefini
 }
 
 func generatePublicDoc(crd apiextensions.CustomResourceDefinitionVersion, version string) {
-	// Honestly I dont need the header, version just need to CRD
 	publicHeader := mustReadFile(publicHeaderFile)
 	publicFooter := mustReadFile(publicFooterFile)
+	publicOverride := mustReadFile(publicOverridesFile)
 
 	f, err := os.OpenFile(publicDocsFile, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0o644)
 	if err != nil {
@@ -139,6 +140,7 @@ func generatePublicDoc(crd apiextensions.CustomResourceDefinitionVersion, versio
 	mustWriteString(f, "\n")
 
 	generatePublicContent(f, crd)
+	mustWrite(f, publicOverride)
 
 	mustWrite(f, publicFooter)
 }
@@ -170,11 +172,10 @@ func writePropsTablePublic(f *os.File, sectionId string, props map[string]apiext
 		mustWriteString(f, fmt.Sprintf("`%s`n", doc.name))
 		mustWriteString(f, fmt.Sprintf(": %s\n\n", desc))
 	}
-
+	mustWriteString(f, "{{% /collapse-content %}}\n\n")
 }
 
 func writePropsTable(f *os.File, props map[string]apiextensions.JSONSchemaProps, nameToDescMap map[string]string) {
-
 	docs := getParameterDocs([]string{}, props)
 
 	sort.Slice(docs, func(i, j int) bool {
