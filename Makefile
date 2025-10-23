@@ -361,7 +361,7 @@ bin/$(PLATFORM)/preflight: Makefile
 
 bin/$(PLATFORM)/openapi-gen:
 	mkdir -p $(ROOT)/bin/$(PLATFORM)
-	GOBIN=$(ROOT)/bin/$(PLATFORM) go install k8s.io/kube-openapi/cmd/openapi-gen@v0.0.0-20240228011516-70dd3763d340
+	GOBIN=$(ROOT)/bin/$(PLATFORM) go install k8s.io/kube-openapi/cmd/openapi-gen@v0.0.0-20250902184714-7fc278399c7f
 
 bin/$(PLATFORM)/kubebuilder:
 	./hack/install-kubebuilder.sh 4.1.1 ./bin/$(PLATFORM)
