@@ -72,8 +72,6 @@ RUN chmod 550 readsecret.sh && chmod 550 helpers
 
 COPY --from=builder /workspace/yaml-mapper .
 RUN chmod 550 yaml-mapper
-COPY ./cmd/yaml-mapper/mapping_datadog_helm_to_datadogagent_crd_v2.yaml /mapping_datadog_helm_to_datadogagent_crd_v2.yaml
-RUN chmod 644 /mapping_datadog_helm_to_datadogagent_crd_v2.yaml
 
 COPY ./LICENSE ./LICENSE-3rdparty.csv /licenses/
 RUN chmod -R 755 /licenses
