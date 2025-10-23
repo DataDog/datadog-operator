@@ -10,14 +10,6 @@ The `DatadogDashboard` Custom Resource Definition (CRD) allows users to create [
 - [Helm][2], to deploy the Datadog Operator
 - The [kubectl CLI][3], to install a `DatadogDashboard`
 
-## Configuration
-
-### Environment Variables
-
-The DatadogDashboard controller supports the following environment variable:
-
-- `DD_DASHBOARD_FORCE_SYNC_PERIOD`: Configures the frequency at which the controller performs a force sync with the Datadog API to ensure dashboard parity. Defaults to 60 minutes if not set. Example: `DD_DASHBOARD_FORCE_SYNC_PERIOD=30m`
-
 ## Adding a DatadogDashboard
 
 To deploy a `DatadogDashboard` with the Datadog Operator, use the [`datadog-operator` Helm chart][4].
@@ -121,8 +113,8 @@ To deploy a `DatadogDashboard` with the Datadog Operator, use the [`datadog-oper
     ```
 
     This automatically creates a new dashboard in Datadog. You can find it on the [Dashboards][8] page of your Datadog account.
-    Datadog Operator occasionally reconciles and keeps dashboards in line with the given configuration. There is also a force 
-    sync every hour (configurable via `DD_DASHBOARD_FORCE_SYNC_PERIOD`), so if a user deletes a dashboard in the Datadog UI, Datadog Operator restores it in under an hour.
+
+By default, the Operator ensures that the API dashboard definition stays in sync with the DatadogDashboard resource every **60** minutes (per dashboard). This interval can be adjusted using the environment variable `DD_DASHBOARD_FORCE_SYNC_PERIOD`, which specifies the number of minutes. For example, setting this variable to `"30"` changes the interval to 30 minutes.
 
 
 ## Cleanup
