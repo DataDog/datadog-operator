@@ -527,18 +527,18 @@ func workloadCapturerContainer(dda metav1.Object) corev1.Container {
 	envVars := []corev1.EnvVar{
 		// UDP port for receiving forwarded dogstatsd traffic
 		{
-			Name:  "WORKLOAD_CAPTURER_DOGSTATSD_PORT",
+			Name:  "DD_WORKLOAD_CAPTURER_DSD_PORT",
 			Value: "18125",
 		},
-		// WORKLOAD_CAPTURER_DOGSTATSD_ADDR omitted - defaults to :: with IPv4 fallback in capturer
+		// DD_WORKLOAD_CAPTURER_DSD_ADDR omitted - defaults to :: with IPv4 fallback in capturer
 		// Flush interval for metric analysis (in seconds)
 		{
-			Name:  "WORKLOAD_CAPTURER_FLUSH_INTERVAL_SECS",
+			Name:  "DD_WORKLOAD_CAPTURER_DSD_FLUSH_INTERVAL_SECS",
 			Value: "60",
 		},
 		// Maximum cardinality tracking limit
 		{
-			Name:  "WORKLOAD_CAPTURER_MAX_CONTEXTS",
+			Name:  "DD_WORKLOAD_CAPTURER_DSD_MAX_CONTEXTS",
 			Value: "10000",
 		},
 	}
