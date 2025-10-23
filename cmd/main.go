@@ -512,9 +512,5 @@ func setupAndStartOperatorMetadataForwarder(logger logr.Logger, client client.Re
 
 func setupAndStartHelmMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options) {
 	hmf := metadata.NewHelmMetadataForwarder(logger, client, kubernetesVersion, version.GetVersion())
-	hmf.HelmMetadata = metadata.HelmMetadata{
-		OperatorVersion:   version.GetVersion(),
-		KubernetesVersion: kubernetesVersion,
-	}
 	hmf.Start()
 }
