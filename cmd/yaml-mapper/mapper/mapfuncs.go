@@ -9,7 +9,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-var CustomMapFuncs = map[string]customMapFunc{
+var customMapFuncs = map[string]customMapFunc{
 	"mapApiSecretKey":        mapApiSecretKey,
 	"mapAppSecretKey":        mapAppSecretKey,
 	"mapTokenSecretKey":      mapTokenSecretKey,

@@ -209,7 +209,7 @@ func MapYaml(mappingFile string, sourceFile string, destFile string, prefixFile 
 	}
 
 	// Handle deprecated helm keys
-	sourceValues = FoldDeprecated(sourceValues)
+	sourceValues = foldDeprecated(sourceValues)
 
 	// Create an interim map that that has period-delimited destination key as the key, and the value from the source.yaml for the value
 	//var pathVal interface{}
@@ -348,7 +348,7 @@ func MapYaml(mappingFile string, sourceFile string, destFile string, prefixFile 
 				if args, ok := destKey.(map[string]interface{})["args"].([]interface{}); ok {
 					mapFuncArgs = args
 				}
-				CustomMapFuncs[mapFunc](interim, newPath, pathVal, mapFuncArgs)
+				customMapFuncs[mapFunc](interim, newPath, pathVal, mapFuncArgs)
 			}
 
 		} else if destKey.(string) == "metadata.name" {
@@ -382,7 +382,7 @@ func MapYaml(mappingFile string, sourceFile string, destFile string, prefixFile 
 	result := make(map[string]interface{})
 	for _, k := range interimKeys {
 		v := interim[k]
-		result = MakeTable(k, v, result)
+		result = makeTable(k, v, result)
 	}
 
 	// Pretty print to YAML format

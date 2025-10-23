@@ -18,7 +18,7 @@ const (
 	defaultDDAMappingPath = "mapping_datadog_helm_to_datadogagent_crd_v2.yaml"
 )
 
-func MakeTable(path string, val interface{}, destMap map[string]interface{}) map[string]interface{} {
+func makeTable(path string, val interface{}, destMap map[string]interface{}) map[string]interface{} {
 	parts := parsePath(path)
 	res := make(map[string]interface{})
 	if len(parts) > 0 {
@@ -35,15 +35,15 @@ func MakeTable(path string, val interface{}, destMap map[string]interface{}) map
 		}
 	}
 
-	MergeMaps(destMap, res)
+	mergeMaps(destMap, res)
 
 	return destMap
 }
 
-// MergeMaps recursively merges two maps, with values from map2 taking precedence over map1.
+// mergeMaps recursively merges two maps, with values from map2 taking precedence over map1.
 // It handles nil maps and type assertions safely.
 // Inspired by: https://stackoverflow.com/a/60420264
-func MergeMaps(map1, map2 map[string]interface{}) map[string]interface{} {
+func mergeMaps(map1, map2 map[string]interface{}) map[string]interface{} {
 	if map1 == nil {
 		map1 = make(map[string]interface{})
 	}
@@ -68,7 +68,7 @@ func MergeMaps(map1, map2 map[string]interface{}) map[string]interface{} {
 		rightMap, rightIsMap := rightVal.(map[string]interface{})
 
 		if leftIsMap && rightIsMap {
-			map1[key] = MergeMaps(leftMap, rightMap)
+			map1[key] = mergeMaps(leftMap, rightMap)
 		} else {
 			map1[key] = rightVal
 		}
@@ -86,7 +86,7 @@ func setInterim(interim map[string]interface{}, key string, val interface{}) {
 	if existing, exists := interim[key]; exists {
 		if left, lok := toMap(existing); lok {
 			if right, rok := toMap(val); rok {
-				interim[key] = MergeMaps(left, right)
+				interim[key] = mergeMaps(left, right)
 				return
 			}
 		}
@@ -271,10 +271,10 @@ var depRules = map[string]DepRule{
 	},
 }
 
-// FoldDeprecated maps “standard” key values by looking at their
+// foldDeprecated maps “standard” key values by looking at their
 // deprecated aliases according to depRules. It writes the effective
 // value to sourceValues under the standard key.
-func FoldDeprecated(sourceValues chartutil.Values) chartutil.Values {
+func foldDeprecated(sourceValues chartutil.Values) chartutil.Values {
 	// chartutil.Values is a map[string]interface{}
 	root := map[string]interface{}(sourceValues)
 
@@ -319,7 +319,7 @@ func FoldDeprecated(sourceValues chartutil.Values) chartutil.Values {
 			seen = true
 		}
 		if seen {
-			root = MakeTable(stdKey, val, root)
+			root = makeTable(stdKey, val, root)
 		}
 	}
 	return root
