@@ -24,7 +24,6 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.10.0
-	github.com/zorkian/go-datadog-api v2.30.0+incompatible
 	go.uber.org/zap v1.27.0
 	gopkg.in/DataDog/dd-trace-go.v1 v1.68.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -47,6 +46,7 @@ require (
 	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.59.0-rc.5
 	github.com/DataDog/datadog-operator/api v0.0.0-20250130131115-7f198adcc856
 	github.com/cenkalti/backoff v2.2.1+incompatible
+	github.com/gobuffalo/flect v1.0.3
 	github.com/google/go-containerregistry v0.6.0
 	github.com/prometheus/client_golang v1.20.5
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8

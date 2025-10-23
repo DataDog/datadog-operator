@@ -12,6 +12,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -66,17 +67,15 @@ func TestGetObjKind(t *testing.T) {
 			expected: datadogAgentInternalKind,
 		},
 		{
-			name: "DatadogAgent with last-applied-configuration annotation - no GVK set",
+			name: "Generic object with last-applied-configuration annotation - no GVK set",
 			obj: func() client.Object {
-				return &v2alpha1.DatadogAgent{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      testAgentName,
-						Namespace: fooNamespace,
-						Annotations: map[string]string{
-							"kubectl.kubernetes.io/last-applied-configuration": `{"kind":"` + datadogAgentKind + `"}`,
-						},
-					},
-				}
+				obj := &unstructured.Unstructured{}
+				obj.SetName(testAgentName)
+				obj.SetNamespace(fooNamespace)
+				obj.SetAnnotations(map[string]string{
+					"kubectl.kubernetes.io/last-applied-configuration": `{"kind":"` + datadogAgentKind + `"}`,
+				})
+				return obj
 			},
 			expected: datadogAgentKind,
 		},

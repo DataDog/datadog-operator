@@ -197,7 +197,7 @@ func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool) *te
 				{
 					Name:      common.SystemProbeSocketVolumeName,
 					MountPath: common.SystemProbeSocketVolumePath,
-					ReadOnly:  true,
+					ReadOnly:  false,
 				},
 			}
 			sysprobeWantVolumeMount := []corev1.VolumeMount{
