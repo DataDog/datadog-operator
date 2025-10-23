@@ -103,7 +103,7 @@ agents.image.repository: "" # TODO: add support
 agents.image.tag: spec.override.nodeAgent.image.tag
 agents.image.tagSuffix: ""
 agents.localService.forceLocalServiceEnabled: spec.global.localService.forceEnableLocalService
-agents.localService.overrideName: 
+agents.localService.overrideName:
   newPath: spec.global.localService.nameOverride
   mapFunc: mapLocalServiceName
 agents.networkPolicy.create: spec.global.networkPolicy.create

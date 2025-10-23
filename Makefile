@@ -211,7 +211,13 @@ e2e-tests: ## Run E2E tests and destroy environment stacks after tests complete.
 		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -v -run $(E2E_RUN_REGEX) -timeout 0s -coverprofile cover_e2e.out; \
 	fi
 
+.PHONY: yaml-mapper-tests
+yaml-mapper-tests:  fmt vet yaml-mapper-unit-tests
+# Run yaml-mapper tests
 
+.PHONY: yaml-mapper-unit-tests
+yaml-mapper-unit-tests: # Run yaml-mapper unit tests
+	go test -C cmd/yaml-mapper/mapper -count=1 -v
 
 .PHONY: bundle
 bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests ## Generate bundle manifests and metadata, then validate generated files.
