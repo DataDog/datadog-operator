@@ -1,4 +1,4 @@
-name: validation
+name: yaml-mapper
 on:
   pull_request:
     paths:
@@ -14,7 +14,7 @@ env:
   PROJECTNAME: "datadog-operator"
   GO_VERSION: 1.24.6
 jobs:
-  build:
+  yaml-mapper-test:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
