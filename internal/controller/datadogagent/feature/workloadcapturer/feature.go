@@ -20,7 +20,7 @@ import (
 
 const (
 	featureName              = "workloadcapturer"
-	containerName            = "workload-capturer"
+	containerName            = "workload-capture-proxy"
 	dogstatsdForwardPort     = 18125
 	dogstatsdForwardHost     = "localhost"  // Pod-local
 	featureConfigPath        = ".spec.features.workloadCapturer"
@@ -121,8 +121,23 @@ func (f *workloadCapturerFeature) ManageNodeAgent(managers feature.PodTemplateMa
 	if f.customImage != nil {
 		for i, container := range managers.PodTemplateSpec().Spec.Containers {
 			if container.Name == containerName {
-				customImagePath := images.AssembleImage(f.customImage, f.globalRegistry)
+				// For workload-capture-proxy, use the image name directly without registry prefix
+				// to support local images loaded into KIND
+				var customImagePath string
+				if f.customImage.Name != "" {
+					customImagePath = f.customImage.Name
+					if f.customImage.Tag != "" {
+						customImagePath += ":" + f.customImage.Tag
+					} else {
+						customImagePath += ":latest"
+					}
+				} else {
+					// Fallback to standard image assembly
+					customImagePath = images.AssembleImage(f.customImage, f.globalRegistry)
+				}
 				managers.PodTemplateSpec().Spec.Containers[i].Image = customImagePath
+				// Set imagePullPolicy to Never for local images to prevent pulling from registry
+				managers.PodTemplateSpec().Spec.Containers[i].ImagePullPolicy = corev1.PullNever
 			}
 		}
 	}

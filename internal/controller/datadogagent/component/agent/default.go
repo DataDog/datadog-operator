@@ -544,8 +544,9 @@ func workloadCapturerContainer(dda metav1.Object) corev1.Container {
 	}
 
 	return corev1.Container{
-		Name:  string(apicommon.WorkloadCapturerContainerName),
-		Image: agentImage(),
+		Name:    string(apicommon.WorkloadCapturerContainerName),
+		Image:   agentImage(),
+		// Command will be determined by the workload-capture-proxy image entrypoint
 		Ports: []corev1.ContainerPort{
 			{
 				Name:          "dsd-forward",
@@ -554,11 +555,25 @@ func workloadCapturerContainer(dda metav1.Object) corev1.Container {
 			},
 		},
 		Env: envVars,
+		VolumeMounts: []corev1.VolumeMount{
+			{
+				Name:      "runtimesocketdir",
+				MountPath: "/var/run",
+				ReadOnly:  false, // Need write access to create docker.real.sock
+			},
+		},
 		SecurityContext: &corev1.SecurityContext{
-			RunAsUser:                apiutils.NewInt64Pointer(1000),
-			RunAsGroup:               apiutils.NewInt64Pointer(1000),
-			AllowPrivilegeEscalation: apiutils.NewBoolPointer(false),
-			ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(true),
+			RunAsUser:                apiutils.NewInt64Pointer(0), // Run as root for Docker socket access
+			RunAsGroup:               apiutils.NewInt64Pointer(0),
+			AllowPrivilegeEscalation: apiutils.NewBoolPointer(true), // Allow privilege escalation for socket operations
+			ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(false), // Allow writes for socket creation
+			Capabilities: &corev1.Capabilities{
+				Add: []corev1.Capability{
+					"DAC_OVERRIDE", // Override file access permissions
+					"FOWNER",       // Change file ownership
+					"SYS_ADMIN",    // System administration operations for socket management
+				},
+			},
 		},
 		Resources: corev1.ResourceRequirements{
 			Limits: corev1.ResourceList{
@@ -654,6 +669,15 @@ func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 			// but in 7.50.0 it will be already defaulted in the agent process.
 			Name:  DDContainerImageEnabled,
 			Value: "true",
+		},
+		{
+			// Set hostname to pod name to ensure agent can start
+			Name: "DD_HOSTNAME",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.name",
+				},
+			},
 		},
 	}
 
