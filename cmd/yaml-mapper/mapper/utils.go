@@ -169,6 +169,55 @@ func parseValues(sourceValues chartutil.Values, valuesMap map[string]interface{}
 	return valuesMap
 }
 
+// getNestedValue safely traverses nested maps and retrieves the value at the given path.
+// It supports map[string]interface{} and chartutil.Values.
+// Returns (value, true) if found, otherwise (nil, false).
+func getNestedValue(obj interface{}, keys ...string) (interface{}, bool) {
+	if obj == nil {
+		return nil, false
+	}
+
+	current := obj
+	for _, key := range keys {
+		var m map[string]interface{}
+		switch typed := current.(type) {
+		case map[string]interface{}:
+			m = typed
+		case chartutil.Values: // alias of map[string]interface{}
+			m = map[string]interface{}(typed)
+		default:
+			return nil, false
+		}
+
+		next, exists := m[key]
+		if !exists {
+			return nil, false
+		}
+		current = next
+	}
+	return current, true
+}
+
+// getString returns the string value at the nested path, if present.
+func getString(obj interface{}, keys ...string) (string, bool) {
+	v, ok := getNestedValue(obj, keys...)
+	if !ok {
+		return "", false
+	}
+	s, ok := v.(string)
+	return s, ok
+}
+
+// getSlice returns the []interface{} value at the nested path, if present.
+func getSlice(obj interface{}, keys ...string) ([]interface{}, bool) {
+	v, ok := getNestedValue(obj, keys...)
+	if !ok {
+		return nil, false
+	}
+	s, ok := v.([]interface{})
+	return s, ok
+}
+
 func fetchUrl(ctx context.Context, url string) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {

@@ -312,12 +312,15 @@ func MapYaml(mappingFile string, sourceFile string, destFile string, prefixFile 
 			overrideType(interim, destKey, newPath, pathVal)
 
 			// Apply custom map funcs
-			if mapFunc, ok := destKey.(map[string]interface{})["mapFunc"].(string); ok {
+			if mapFuncName, ok := getString(destKey, "mapFunc"); ok {
 				var mapFuncArgs []interface{}
 				if args, ok := destKey.(map[string]interface{})["args"].([]interface{}); ok {
 					mapFuncArgs = args
 				}
-				customMapFuncs[mapFunc](interim, newPath, pathVal, mapFuncArgs)
+				mappingRunFunc := getMappingRunFunc(mapFuncName)
+				if mappingRunFunc != nil {
+					mappingRunFunc(interim, newPath, pathVal, mapFuncArgs)
+				}
 			}
 
 		} else if destKey.(string) == "metadata.name" {
