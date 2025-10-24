@@ -55,17 +55,18 @@ type HelmMetadataPayload struct {
 }
 
 type HelmMetadata struct {
-	OperatorVersion   string `json:"operator_version"`
-	KubernetesVersion string `json:"kubernetes_version"`
-	ClusterID         string `json:"cluster_id"`
-	ClusterName       string `json:"cluster_name"`
-	ChartName         string `json:"chart_name"`
-	ChartReleaseName  string `json:"chart_release_name"`
-	ChartAppVersion   string `json:"chart_app_version"`
-	ChartVersion      string `json:"chart_version"`
-	ChartNamespace    string `json:"chart_namespace"`
-	ChartConfigMapUID string `json:"chart_configmap_uid"`
-	HelmValues        string `json:"helm_values"`
+	OperatorVersion           string `json:"operator_version"`
+	KubernetesVersion         string `json:"kubernetes_version"`
+	ClusterID                 string `json:"cluster_id"`
+	ClusterName               string `json:"cluster_name"`
+	ChartName                 string `json:"chart_name"`
+	ChartReleaseName          string `json:"chart_release_name"`
+	ChartAppVersion           string `json:"chart_app_version"`
+	ChartVersion              string `json:"chart_version"`
+	ChartNamespace            string `json:"chart_namespace"`
+	ChartConfigMapUID         string `json:"chart_configmap_uid"`
+	HelmProvidedConfiguration string `json:"helm_provided_configuration"` // User-provided values only
+	HelmFullConfiguration     string `json:"helm_full_configuration"`     // Includes defaults
 }
 
 // allHelmReleasesCache holds cached Helm releases with timestamp
@@ -77,15 +78,16 @@ type allHelmReleasesCache struct {
 
 // HelmReleaseData contains all data for a single Helm release
 type HelmReleaseData struct {
-	ReleaseName  string
-	Namespace    string
-	ChartName    string
-	ChartVersion string
-	AppVersion   string
-	ConfigMapUID string
-	ValuesYAML   string
-	Revision     int
-	Status       string
+	ReleaseName        string
+	Namespace          string
+	ChartName          string
+	ChartVersion       string
+	AppVersion         string
+	ConfigMapUID       string
+	ProvidedValuesYAML string // User-provided values only
+	FullValuesYAML     string // Includes defaults
+	Revision           int
+	Status             string
 }
 
 // HelmReleaseMinimal represents the minimal structure we care about from Helm release
@@ -95,13 +97,14 @@ type HelmReleaseMinimal struct {
 	Info      struct {
 		Status string `json:"status"`
 	} `json:"info"`
-	Config map[string]interface{} `json:"config"` // User-supplied values
+	Config map[string]interface{} `json:"config"` // User-provided values only
 	Chart  struct {
 		Metadata struct {
 			Name       string `json:"name"`
 			Version    string `json:"version"`
 			AppVersion string `json:"appVersion"`
 		} `json:"metadata"`
+		Values map[string]interface{} `json:"values"` // Defaults
 	} `json:"chart"`
 	Version int `json:"version"` // Revision number
 }
@@ -236,17 +239,18 @@ func (hmf *HelmMetadataForwarder) buildPayload(release HelmReleaseData, clusterU
 	now := time.Now().Unix()
 
 	helmMetadata := HelmMetadata{
-		OperatorVersion:   hmf.operatorVersion,
-		KubernetesVersion: hmf.kubernetesVersion,
-		ClusterID:         clusterUID,
-		ClusterName:       hmf.clusterName,
-		ChartName:         release.ChartName,
-		ChartReleaseName:  release.ReleaseName,
-		ChartAppVersion:   release.AppVersion,
-		ChartVersion:      release.ChartVersion,
-		ChartNamespace:    release.Namespace,
-		ChartConfigMapUID: release.ConfigMapUID,
-		HelmValues:        release.ValuesYAML,
+		OperatorVersion:           hmf.operatorVersion,
+		KubernetesVersion:         hmf.kubernetesVersion,
+		ClusterID:                 clusterUID,
+		ClusterName:               hmf.clusterName,
+		ChartName:                 release.ChartName,
+		ChartReleaseName:          release.ReleaseName,
+		ChartAppVersion:           release.AppVersion,
+		ChartVersion:              release.ChartVersion,
+		ChartNamespace:            release.Namespace,
+		ChartConfigMapUID:         release.ConfigMapUID,
+		HelmProvidedConfiguration: release.ProvidedValuesYAML,
+		HelmFullConfiguration:     release.FullValuesYAML,
 	}
 
 	payload := HelmMetadataPayload{
@@ -385,22 +389,31 @@ func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) (
 
 	releases := make([]HelmReleaseData, 0, len(latestReleases))
 	for _, data := range latestReleases {
-		valuesYAML, err := yaml.Marshal(data.release.Config)
+		providedValuesYAML, err := yaml.Marshal(data.release.Config)
 		if err != nil {
-			hmf.logger.V(2).Info("Failed to marshal Helm values", "release", data.release.Name, "error", err)
+			hmf.logger.V(2).Info("Failed to marshal Helm provided values", "release", data.release.Name, "error", err)
 			continue
 		}
 
+		fullValues := hmf.mergeValues(data.release.Chart.Values, data.release.Config)
+		fullValuesYAML, err := yaml.Marshal(fullValues)
+		if err != nil {
+			hmf.logger.V(2).Info("Failed to marshal Helm full values", "release", data.release.Name, "error", err)
+			// Fall back
+			fullValuesYAML = providedValuesYAML
+		}
+
 		releaseData := HelmReleaseData{
-			ReleaseName:  data.release.Name,
-			Namespace:    data.release.Namespace,
-			ChartName:    data.release.Chart.Metadata.Name,
-			ChartVersion: data.release.Chart.Metadata.Version,
-			AppVersion:   data.release.Chart.Metadata.AppVersion,
-			ConfigMapUID: data.uid,
-			ValuesYAML:   string(valuesYAML),
-			Revision:     data.revision,
-			Status:       data.release.Info.Status,
+			ReleaseName:        data.release.Name,
+			Namespace:          data.release.Namespace,
+			ChartName:          data.release.Chart.Metadata.Name,
+			ChartVersion:       data.release.Chart.Metadata.Version,
+			AppVersion:         data.release.Chart.Metadata.AppVersion,
+			ConfigMapUID:       data.uid,
+			ProvidedValuesYAML: string(providedValuesYAML),
+			FullValuesYAML:     string(fullValuesYAML),
+			Revision:           data.revision,
+			Status:             data.release.Info.Status,
 		}
 		releases = append(releases, releaseData)
 	}
@@ -462,4 +475,28 @@ func (hmf *HelmMetadataForwarder) decodeHelmReleaseFromBytes(data []byte) (*Helm
 	}
 
 	return &release, nil
+}
+
+// mergeValues merges chart default values with user-provided config
+// User config takes precedence over defaults (similar to Helm's merge logic)
+func (hmf *HelmMetadataForwarder) mergeValues(defaults, overrides map[string]interface{}) map[string]interface{} {
+	result := make(map[string]interface{})
+
+	for k, v := range defaults {
+		result[k] = v
+	}
+
+	for k, v := range overrides {
+		if existingVal, exists := result[k]; exists {
+			if existingMap, ok := existingVal.(map[string]interface{}); ok {
+				if overrideMap, ok := v.(map[string]interface{}); ok {
+					result[k] = hmf.mergeValues(existingMap, overrideMap)
+					continue
+				}
+			}
+		}
+		result[k] = v
+	}
+
+	return result
 }
