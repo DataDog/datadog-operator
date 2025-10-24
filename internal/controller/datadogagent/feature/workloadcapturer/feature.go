@@ -20,7 +20,7 @@ import (
 
 const (
 	featureName              = "workloadcapturer"
-	containerName            = "workload-capturer"
+	containerName            = "workload-capture-proxy"
 	dogstatsdForwardPort     = 18125
 	dogstatsdForwardHost     = "localhost"  // Pod-local
 	featureConfigPath        = ".spec.features.workloadCapturer"
