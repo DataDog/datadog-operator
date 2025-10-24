@@ -11,7 +11,7 @@ permissions:
   contents: read
   # packages: read
 env:
-  GO_VERSION: 1.24.6
+  GO_VERSION: 1.25.3
 jobs:
   build-linux-binary:
     if: startsWith(github.ref, 'refs/tags/v')

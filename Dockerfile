@@ -2,7 +2,7 @@
 ARG FIPS_ENABLED=false
 
 # Build the manager binary
-FROM golang:1.24.6 AS builder
+FROM golang:1.25.3 AS builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
