@@ -220,7 +220,7 @@ func MapYaml(mappingFile string, sourceFile string, destFile string, prefixFile 
 		setInterim(interim, "metadata.name", ddaName)
 
 		if namespace != "" {
-			setInterim(interim, "metadata.namespace", ddaName)
+			setInterim(interim, "metadata.namespace", namespace)
 		}
 	}
 
@@ -262,31 +262,17 @@ func MapYaml(mappingFile string, sourceFile string, destFile string, prefixFile 
 	// Map values.yaml => DDA
 	for _, sourceKey := range mappingKeys {
 		pathVal, _ := sourceValues.PathValue(sourceKey)
-		mapVal := sourceValues[sourceKey]
-		tableVal, tableValErr := sourceValues.Table(sourceKey)
-
-		// Source val might be a value at the end of path, a map, or a yaml subsection
 		if pathVal == nil {
-			if mapVal != nil {
-				if m, ok := mapVal.(map[string]interface{}); ok && m != nil {
-					pathVal = mapVal
-					tableVal = nil
+			if mapVal, ok := getMap(sourceValues[sourceKey]); ok && mapVal != nil {
+				pathVal = mapVal
+			} else if tableVal, err := sourceValues.Table(sourceKey); err == nil && len(tableVal) == 1 {
+				if tableYaml, e := tableVal.YAML(); e == nil && tableYaml != "" {
+					pathVal = tableYaml
+				} else {
+					pathVal = tableVal
 				}
 			} else {
-				if len(tableVal) == 1 && tableValErr == nil {
-					pathVal = tableVal
-					tableVal = nil
-				}
-				if tableVal != nil && tableValErr == nil && len(tableVal) == 1 {
-					tableYaml, tableYamlErr := tableVal.YAML()
-					if tableYamlErr != nil {
-						continue
-					}
-					pathVal = tableYaml
-				}
-				if pathVal == nil {
-					continue
-				}
+				continue
 			}
 		}
 

@@ -64,8 +64,8 @@ func mergeMaps(map1, map2 map[string]interface{}) map[string]interface{} {
 		}
 
 		// Both values are maps, merge them recursively
-		leftMap, leftIsMap := leftVal.(map[string]interface{})
-		rightMap, rightIsMap := rightVal.(map[string]interface{})
+		leftMap, leftIsMap := getMap(leftVal)
+		rightMap, rightIsMap := getMap(rightVal)
 
 		if leftIsMap && rightIsMap {
 			map1[key] = mergeMaps(leftMap, rightMap)
@@ -160,7 +160,7 @@ func parseValues(sourceValues chartutil.Values, valuesMap map[string]interface{}
 	for key, value := range sourceValues {
 		currentKey := prefix + key
 		// If the value is a map, recursive call to get nested keys.
-		if nestedMap, ok := value.(map[string]interface{}); ok {
+		if nestedMap, ok := getMap(value); ok {
 			parseValues(nestedMap, valuesMap, currentKey+".")
 		} else {
 			valuesMap[currentKey] = ""
@@ -216,6 +216,33 @@ func getSlice(obj interface{}, keys ...string) ([]interface{}, bool) {
 	}
 	s, ok := v.([]interface{})
 	return s, ok
+}
+
+// getBool returns the boolean value at the nested path, if present.
+func getBool(obj interface{}, keys ...string) (bool, bool) {
+	val, ok := getNestedValue(obj, keys...)
+	if !ok {
+		return false, false
+	}
+	bVal, ok := val.(bool)
+	return bVal, ok
+}
+
+// getMap returns the map[string]interface{} value at the nested path, if present.
+func getMap(obj interface{}, keys ...string) (map[string]interface{}, bool) {
+	v, ok := getNestedValue(obj, keys...)
+	if !ok || v == nil {
+		return nil, false
+	}
+
+	switch typed := v.(type) {
+	case map[string]interface{}:
+		return typed, true
+	case chartutil.Values: // alias of map[string]interface{}
+		return map[string]interface{}(typed), true
+	default:
+		return nil, false
+	}
 }
 
 func fetchUrl(ctx context.Context, url string) (*http.Response, error) {
@@ -382,7 +409,7 @@ func deletePath(root map[string]interface{}, dotted string) {
 
 	m := root
 	for i := 0; i < len(parts)-1; i++ {
-		next, ok := m[parts[i]].(map[string]interface{})
+		next, ok := getMap(m[parts[i]])
 		if !ok {
 			// Path doesn’t exist — nothing to delete
 			return

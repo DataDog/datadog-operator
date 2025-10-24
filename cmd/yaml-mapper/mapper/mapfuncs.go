@@ -68,17 +68,15 @@ var mapSeccompProfile = MappingProcessor{
 			return
 		}
 
-		if strings.HasPrefix(seccompValue, "localhost/") {
+		switch {
+		case strings.HasPrefix(seccompValue, "localhost/"):
 			profileName := strings.TrimPrefix(seccompValue, "localhost/")
 			setInterim(interim, newPath+".type", "Localhost")
 			setInterim(interim, newPath+".localhostProfile", profileName)
-
-		} else if seccompValue == "runtime/default" {
+		case seccompValue == "runtime/default":
 			setInterim(interim, newPath+".type", "RuntimeDefault")
-
-		} else if seccompValue == "unconfined" {
+		case seccompValue == "unconfined":
 			setInterim(interim, newPath+".type", "Unconfined")
-
 		}
 	},
 }
@@ -102,23 +100,17 @@ var mapSystemProbeAppArmor = MappingProcessor{
 
 		hasSystemProbeFeature := false
 		for _, feature := range systemProbeFeatures {
-			if val, exists := interim[feature]; exists {
-				if enabled, ok := val.(bool); ok && enabled {
-					hasSystemProbeFeature = true
-					break
-				}
+			if val, enabled := getBool(interim, feature); enabled && val {
+				hasSystemProbeFeature = true
+				break
 			}
 		}
-
+		// Check if GPU is enabled
 		if !hasSystemProbeFeature {
-			gpuEnabled, gpuExists := interim["spec.features.gpu.enabled"]
-			gpuPrivileged, privExists := interim["spec.features.gpu.privilegedMode"]
-			if gpuExists && privExists {
-				if gpuEnabledBool, ok := gpuEnabled.(bool); ok && gpuEnabledBool {
-					if gpuPrivilegedBool, ok := gpuPrivileged.(bool); ok && gpuPrivilegedBool {
-						hasSystemProbeFeature = true
-					}
-				}
+			gpuEnabled, gpuExists := getBool(interim, "spec.features.gpu.enabled")
+			gpuPrivileged, privExists := getBool(interim, "spec.features.gpu.privilegedMode")
+			if gpuExists && privExists && gpuEnabled && gpuPrivileged {
+				hasSystemProbeFeature = true
 			}
 		}
 
@@ -155,7 +147,7 @@ var mapAppendEnvVar = MappingProcessor{
 			return
 		}
 
-		envMap, ok := args[0].(map[string]interface{})
+		envMap, ok := getMap(args[0])
 		if !ok {
 			log.Printf("expected map[string]interface{} for env var map definition, got %T", args[0])
 			return
@@ -222,7 +214,7 @@ var mapMergeEnvs = MappingProcessor{
 			return
 		}
 
-		//Initialize mergedEnvs with existing environments or an empty slice
+		// Initialize mergedEnvs with existing environments or an empty slice
 		var mergedEnvs []interface{}
 		if existingEnvs, exists := interim[newPath]; exists {
 			if existingEnvsSlice, ok := existingEnvs.([]interface{}); ok {
@@ -233,7 +225,7 @@ var mapMergeEnvs = MappingProcessor{
 
 		// Add new envs that don't already exist
 		for _, newEnv := range newEnvs {
-			newEnvMap, ok := newEnv.(map[string]interface{})
+			newEnvMap, ok := getMap(newEnv)
 			if !ok {
 				log.Printf("Warning: expected map[string]interface{} in newEnvs, got %T", newEnv)
 				continue
@@ -250,8 +242,8 @@ var mapMergeEnvs = MappingProcessor{
 			} else {
 				// Override existing env with new env
 				for i, existingEnv := range mergedEnvs {
-					if existingMap, ok := existingEnv.(map[string]interface{}); ok {
-						if existingName, ok := existingMap["name"].(string); ok && existingName == newName {
+					if existingMap, ok := getMap(existingEnv); ok {
+						if existingName, ok := getString(existingMap, "name"); ok && existingName == newName {
 							mergedEnvs[i] = newEnv
 						}
 					}
@@ -303,15 +295,13 @@ var mapOverrideType = MappingProcessor{
 	},
 }
 
-func hasDuplicateEnv(existingEnvs []interface{}, newEnvName interface{}) bool {
-	envExists := false
+func hasDuplicateEnv(existingEnvs []interface{}, newEnvName string) bool {
 	for _, existingEnv := range existingEnvs {
-		if existingMap, ok := existingEnv.(map[string]interface{}); ok {
-			if existingName, ok := existingMap["name"].(string); ok && existingName == newEnvName {
-				envExists = true
-				break
+		if existingMap, ok := getMap(existingEnv); ok {
+			if existingName, ok := getString(existingMap, "name"); ok && existingName == newEnvName {
+				return true
 			}
 		}
 	}
-	return envExists
+	return false
 }
