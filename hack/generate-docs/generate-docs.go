@@ -40,22 +40,6 @@ const (
 	FormatHugo  OutputFormat = "hugo"  // new public format
 )
 
-// imported types, have a link. If it's there -->
-
-// NOTE: How do we point out the link? Do I say envVar/ResourceRequirements etc: link or link each one
-var k8sImportedTypes = map[string]string{
-	"corev1.EnvVar":               "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#envvar-v1-core",
-	"corev1.ResourceRequirements": "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#resourcerequirements-v1-core",
-	"corev1.SecurityContext":      "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#securitycontext-v1-core",
-	"corev1.PodSecurityContext":   "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#podsecuritycontext-v1-core",
-	"corev1.Affinity":             "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#affinity-v1-core",
-	"corev1.Toleration":           "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#toleration-v1-core",
-	"corev1.Volume":               "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#volume-v1-core",
-	"livenessProbe":               "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#probe-v1-core",
-	"readinessProbe":              "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#probe-v1-core",
-	"startupProbe":                "https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#probe-v1-core",
-}
-
 func main() {
 	crdYaml := mustReadFile(crdFile)
 	header := mustReadFile(headerFile)
