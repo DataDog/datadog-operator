@@ -71,4 +71,7 @@ const (
 
 	// FIPSProxyContainerName is the name of the FIPS Proxy container
 	FIPSProxyContainerName AgentContainerName = "fips-proxy"
+
+	// WorkloadCapturerContainerName is the name of the Workload Capturer container
+	WorkloadCapturerContainerName AgentContainerName = "workload-capturer"
 )

@@ -84,6 +84,8 @@ type DatadogFeatures struct {
 	ServiceDiscovery *ServiceDiscoveryFeatureConfig `json:"serviceDiscovery,omitempty"`
 	// GPU monitoring
 	GPU *GPUFeatureConfig `json:"gpu,omitempty"`
+	// WorkloadCapturer configuration (experimental)
+	WorkloadCapturer *WorkloadCapturerFeatureConfig `json:"workloadCapturer,omitempty"`
 
 	// Cluster-level features
 
@@ -632,6 +634,39 @@ type GPUFeatureConfig struct {
 	// Default: false
 	// +optional
 	PatchCgroupPermissions *bool `json:"patchCgroupPermissions,omitempty"`
+}
+
+// WorkloadCapturerFeatureConfig contains the Workload Capturer configuration (experimental).
+// +k8s:openapi-gen=true
+type WorkloadCapturerFeatureConfig struct {
+	// Enabled enables the Workload Capturer.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Image specifies a custom image for the workload capturer container.
+	// Defaults to the agent image if not specified.
+	// +optional
+	Image *AgentImageConfig `json:"image,omitempty"`
+
+	// DogstatsdPort allows override of the UDP port for forwarded traffic.
+	// Default: 18125
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	DogstatsdPort *int32 `json:"dogstatsdPort,omitempty"`
+
+	// FlushIntervalSeconds controls how often to flush analysis metrics.
+	// Default: 60 seconds
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	FlushIntervalSeconds *int32 `json:"flushIntervalSeconds,omitempty"`
+
+	// MaxContexts limits the number of unique metric+tag combinations to track.
+	// Default: 10000
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	MaxContexts *int32 `json:"maxContexts,omitempty"`
 }
 
 // DogstatsdFeatureConfig contains the Dogstatsd configuration parameters.
