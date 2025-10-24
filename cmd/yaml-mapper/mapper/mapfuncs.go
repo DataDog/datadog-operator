@@ -25,17 +25,17 @@ type customMapFunc func(values map[string]interface{}, newPath string, pathVal i
 func mapApiSecretKey(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
 	//	if existing apikey secret, need to add key-name
 	setInterim(interim, newPath, pathVal)
-	interim["spec.global.credentials.apiSecret.keyName"] = "api-key"
+	setInterim(interim, "spec.global.credentials.apiSecret.keyName", "api-key")
 }
 
 func mapAppSecretKey(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
 	setInterim(interim, newPath, pathVal)
-	interim["spec.global.credentials.appSecret.keyName"] = "app-key"
+	setInterim(interim, "spec.global.credentials.appSecret.keyName", "app-key")
 }
 
 func mapTokenSecretKey(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
 	setInterim(interim, newPath, pathVal)
-	interim["spec.global.clusterAgentTokenSecret.keyName"] = "token"
+	setInterim(interim, "spec.global.clusterAgentTokenSecret.keyName", "token")
 }
 
 func mapSeccompProfile(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {

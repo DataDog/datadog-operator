@@ -217,15 +217,13 @@ func MapYaml(mappingFile string, sourceFile string, destFile string, prefixFile 
 
 	if prefixFile == "" {
 		interim = defaultFilePrefix
-		metadata := interim["metadata"].(map[string]interface{})
 		if ddaName == "" {
 			ddaName = "datadog"
 		}
-		metadata["name"] = ddaName
+		setInterim(interim, "metadata.name", ddaName)
 
 		if namespace != "" {
-			metadata := interim["metadata"].(map[string]interface{})
-			metadata["namespace"] = namespace
+			setInterim(interim, "metadata.namespace", ddaName)
 		}
 	}
 
@@ -234,11 +232,7 @@ func MapYaml(mappingFile string, sourceFile string, destFile string, prefixFile 
 		interim = parseValues(sourceValues, make(map[string]interface{}), "")
 		// Add back existing key values from mapping file
 		for sourceKey, sourceVal := range mappingValues {
-			if sourceVal == nil {
-				interim[sourceKey] = ""
-			} else {
-				interim[sourceKey] = sourceVal
-			}
+			setInterim(interim, sourceKey, sourceVal)
 		}
 		newMapYaml, e := chartutil.Values(interim).YAML()
 		if e != nil {
@@ -312,37 +306,12 @@ func MapYaml(mappingFile string, sourceFile string, destFile string, prefixFile 
 				setInterim(interim, v.(string), pathVal)
 			}
 		} else if destKeyType.Kind() == reflect.Map {
-			// Perform type remapping
 			newPath := destKey.(map[string]interface{})["newPath"].(string)
-			newType, newTypeOk := destKey.(map[string]interface{})["newType"].(string)
-			// if values type is different from new type, convert it
-			pathValType := reflect.TypeOf(pathVal).Kind().String()
-			var newPathVal []byte
-			if newTypeOk && newType != "" && pathValType != newType {
-				switch {
-				case newType == "string":
-					switch {
-					case pathValType == "slice":
-						newPathVal, err = yaml.Marshal(pathVal)
-						if err != nil {
-							log.Println(err)
-						}
-						setInterim(interim, newPath, string(newPathVal))
-					}
-				case newType == "integer":
-					switch {
-					case pathValType == "string":
-						convertedInt, convErr := strconv.Atoi(pathVal.(string))
-						if convErr != nil {
-							log.Println(convErr)
-						} else {
-							setInterim(interim, newPath, convertedInt)
-						}
-					}
-				}
-			}
 
-			//	Use custom map func
+			// Perform type remapping
+			overrideType(interim, destKey, newPath, pathVal)
+
+			// Apply custom map funcs
 			if mapFunc, ok := destKey.(map[string]interface{})["mapFunc"].(string); ok {
 				var mapFuncArgs []interface{}
 				if args, ok := destKey.(map[string]interface{})["args"].([]interface{}); ok {
@@ -353,17 +322,13 @@ func MapYaml(mappingFile string, sourceFile string, destFile string, prefixFile 
 
 		} else if destKey.(string) == "metadata.name" {
 			name := pathVal
+			if ddaName != "" {
+				log.Printf("Warning: found conflicting name for DDA. Mapper config provided: %s. Helm key %s provided: %v. Using Helm-provided value.", ddaName, sourceKey, name)
+			}
 			if len(name.(string)) > 63 {
 				name = name.(string)[:63]
 			}
-			metadata, ok := interim["metadata"].(map[string]interface{})
-			if !ok {
-				interim["metadata"] = map[string]interface{}{
-					"name": name,
-				}
-			} else {
-				metadata["name"] = name
-			}
+			setInterim(interim, "metadata.name", name)
 		} else {
 			if interim != nil {
 				setInterim(interim, destKey.(string), pathVal)
@@ -379,14 +344,50 @@ func MapYaml(mappingFile string, sourceFile string, destFile string, prefixFile 
 	sort.Strings(interimKeys)
 
 	// Create final mapping with properly nested map keys (converted from period-delimited keys)
-	result := make(map[string]interface{})
+	dda := make(map[string]interface{})
 	for _, k := range interimKeys {
 		v := interim[k]
-		result = makeTable(k, v, result)
+		dda = makeTable(k, v, dda)
 	}
 
+	// Write final DDA mapping
+	writeDDA(dda)
+}
+
+func overrideType(interim map[string]interface{}, destKey interface{}, newPath string, pathVal interface{}) {
+	newType, newTypeOk := destKey.(map[string]interface{})["newType"].(string)
+	// if values type is different from new type, convert it
+	pathValType := reflect.TypeOf(pathVal).Kind().String()
+	var newPathVal []byte
+	var err error
+	if newTypeOk && newType != "" && pathValType != newType {
+		switch {
+		case newType == "string":
+			switch {
+			case pathValType == "slice":
+				newPathVal, err = yaml.Marshal(pathVal)
+				if err != nil {
+					log.Println(err)
+				}
+				setInterim(interim, newPath, string(newPathVal))
+			}
+		case newType == "integer":
+			switch {
+			case pathValType == "string":
+				convertedInt, convErr := strconv.Atoi(pathVal.(string))
+				if convErr != nil {
+					log.Println(convErr)
+				} else {
+					setInterim(interim, newPath, convertedInt)
+				}
+			}
+		}
+	}
+}
+
+func writeDDA(dda map[string]interface{}) {
 	// Pretty print to YAML format
-	out, err := chartutil.Values(result).YAML()
+	out, err := chartutil.Values(dda).YAML()
 	if err != nil {
 		log.Println(err)
 	}

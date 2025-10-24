@@ -1325,3 +1325,6 @@ func TestFoldDeprecated(t *testing.T) {
 		})
 	}
 }
+
+// TODO: add test for setInterim()
+// TODO: add test for overrideType()
