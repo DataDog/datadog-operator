@@ -25,6 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/DataDog/datadog-agent/pkg/util/scrubber"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/version"
 )
@@ -403,6 +404,18 @@ func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) (
 			fullValuesYAML = providedValuesYAML
 		}
 
+		scrubbedProvidedYAML, err := scrubber.ScrubBytes(providedValuesYAML)
+		if err != nil {
+			hmf.logger.V(2).Info("Failed to scrub provided values, using unscrubbed", "release", data.release.Name, "error", err)
+			scrubbedProvidedYAML = providedValuesYAML
+		}
+
+		scrubbedFullYAML, err := scrubber.ScrubBytes(fullValuesYAML)
+		if err != nil {
+			hmf.logger.V(2).Info("Failed to scrub full values, using unscrubbed", "release", data.release.Name, "error", err)
+			scrubbedFullYAML = fullValuesYAML
+		}
+
 		releaseData := HelmReleaseData{
 			ReleaseName:        data.release.Name,
 			Namespace:          data.release.Namespace,
@@ -410,8 +423,8 @@ func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) (
 			ChartVersion:       data.release.Chart.Metadata.Version,
 			AppVersion:         data.release.Chart.Metadata.AppVersion,
 			ConfigMapUID:       data.uid,
-			ProvidedValuesYAML: string(providedValuesYAML),
-			FullValuesYAML:     string(fullValuesYAML),
+			ProvidedValuesYAML: string(scrubbedProvidedYAML),
+			FullValuesYAML:     string(scrubbedFullYAML),
 			Revision:           data.revision,
 			Status:             data.release.Info.Status,
 		}
