@@ -49,7 +49,7 @@ create_pr() {
     -H "Accept: application/vnd.github+json" \
     -H "Authorization: Bearer $GITHUB_TOKEN" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
-    -d "{\"title\":\"$message\",\"body\":\"$body\",\"head\":\"$(git rev-parse --abbrev-ref HEAD)\",\"base\":\"main\"}" \
+    -d "{\"title\":\"$message\",\"body\":\"$body\",\"head\":\"DataDog:$PR_BRANCH_NAME\",\"base\":\"main\"}" \
     "https://api.github.com/repos/$ORG/$repo/pulls"
 }
 
