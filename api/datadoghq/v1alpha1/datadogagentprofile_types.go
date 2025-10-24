@@ -13,15 +13,10 @@ import (
 )
 
 type ComponentName string
-type CreateStrategyStatus string
 
 const (
 	// NodeAgentComponentName is the name of the Datadog Node Agent
 	NodeAgentComponentName ComponentName = "nodeAgent"
-
-	CompletedStatus  CreateStrategyStatus = "Completed"
-	WaitingStatus    CreateStrategyStatus = "Waiting"
-	InProgressStatus CreateStrategyStatus = "In Progress"
 )
 
 // DatadogAgentProfileSpec defines the desired state of DatadogAgentProfile
@@ -58,35 +53,6 @@ type DatadogAgentProfileStatus struct {
 	// Applied shows whether the DatadogAgentProfile conflicts with an existing DatadogAgentProfile.
 	// +optional
 	Applied metav1.ConditionStatus `json:"applied,omitempty"`
-
-	// CreateStrategy is the state of the create strategy feature.
-	// +optional
-	CreateStrategy *CreateStrategy `json:"createStrategy,omitempty"`
-}
-
-// CreateStrategy defines the observed state of the create strategy feature based on the agent deployment.
-// +k8s:openapi-gen=true
-// +kubebuilder:object:generate=true
-type CreateStrategy struct {
-	// Status shows the current state of the feature.
-	// +optional
-	Status CreateStrategyStatus `json:"status,omitempty"`
-
-	// NodesLabeled shows the number of nodes currently labeled.
-	// +optional
-	NodesLabeled int32 `json:"nodesLabeled"`
-
-	// PodsReady shows the number of pods in the ready state.
-	// +optional
-	PodsReady int32 `json:"podsReady"`
-
-	// MaxUnavailable shows the number of pods that can be in an unready state.
-	// +optional
-	MaxUnavailable int32 `json:"maxUnavailable"`
-
-	// LastTransition is the last time the status was updated.
-	// +optional
-	LastTransition *metav1.Time `json:"lastTransition,omitempty"`
 }
 
 // DatadogAgentProfile is the Schema for the datadogagentprofiles API

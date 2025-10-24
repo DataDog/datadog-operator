@@ -4,8 +4,3 @@
 // Copyright 2016-present Datadog, Inc.
 
 package common
-
-// DatadogAgentProfile env var names
-const (
-	CreateStrategyEnabled = "DD_DAP_CREATE_STRATEGY_ENABLED"
-)
