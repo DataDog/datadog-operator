@@ -167,7 +167,7 @@ func TestMergeMaps(t *testing.T) {
 func TestCustomMapFuncs(t *testing.T) {
 	// Test that all custom map functions are properly registered
 	t.Run("customMapFuncs_dict", func(t *testing.T) {
-		expectedFuncs := []string{"mapApiSecretKey", "mapAppSecretKey", "mapTokenSecretKey", "mapSeccompProfile", "mapSystemProbeAppArmor", "mapLocalServiceName", "mapAppendEnvVar", "mapMergeEnvs"}
+		expectedFuncs := []string{"mapApiSecretKey", "mapAppSecretKey", "mapTokenSecretKey", "mapSeccompProfile", "mapSystemProbeAppArmor", "mapLocalServiceName", "mapAppendEnvVar", "mapMergeEnvs", "mapOverrideType"}
 
 		for _, funcName := range expectedFuncs {
 			t.Run(funcName+"_exists", func(t *testing.T) {
@@ -710,6 +710,46 @@ func TestCustomMapFuncs(t *testing.T) {
 						"value": "new_value",
 					},
 				},
+			},
+		},
+		{
+			name:     "mapOverrideType_slice_to_string",
+			funcName: "mapOverrideType",
+			interim:  map[string]interface{}{},
+			newPath:  "spec.features.foo.bar",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"newPath": "spec.features.foo.bar",
+					"newType": "string",
+				},
+			},
+			pathVal: []map[string]interface{}{
+				{
+					"someKey":    "someVal",
+					"anotherKey": map[string]interface{}{"foo": true},
+				},
+			},
+			expectedMap: map[string]interface{}{
+				"spec.features.foo.bar": `- anotherKey:
+    foo: true
+  someKey: someVal
+`,
+			},
+		},
+		{
+			name:     "mapOverrideType_string_to_int",
+			funcName: "mapOverrideType",
+			interim:  map[string]interface{}{},
+			newPath:  "spec.features.foo.bar",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"newPath": "spec.features.foo.bar",
+					"newType": "int",
+				},
+			},
+			pathVal: "8080",
+			expectedMap: map[string]interface{}{
+				"spec.features.foo.bar": 8080,
 			},
 		},
 	}
@@ -1327,4 +1367,3 @@ func TestFoldDeprecated(t *testing.T) {
 }
 
 // TODO: add test for setInterim()
-// TODO: add test for overrideType()

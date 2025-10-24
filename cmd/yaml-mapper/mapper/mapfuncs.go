@@ -3,9 +3,9 @@ package mapper
 import (
 	"log"
 	"reflect"
+	"strconv"
 	"strings"
 
-	"helm.sh/helm/v3/pkg/chartutil"
 	"sigs.k8s.io/yaml"
 )
 
@@ -18,6 +18,7 @@ var mappingProcessors = []MappingProcessor{
 	mapLocalServiceName,
 	mapAppendEnvVar,
 	mapMergeEnvs,
+	mapOverrideType,
 }
 
 func getMappingRunFunc(name string) MappingRunFunc {
@@ -159,46 +160,31 @@ var mapAppendEnvVar = MappingProcessor{
 			log.Printf("expected map[string]interface{} for env var map definition, got %T", args[0])
 			return
 		}
-		newEnvName := envMap["name"].(string)
+
+		// Build new env var
+		newEnvName, ok := getString(envMap, "name")
+		if !ok || newEnvName == "" {
+			log.Printf("expected 'name' in env var map, got: %v", envMap)
+			return
+		}
+		// Base env var
 		newEnvVar := map[string]interface{}{
 			"name":  newEnvName,
 			"value": pathVal,
 		}
 
 		// Handle valueFrom
-		pathValType := reflect.TypeOf(pathVal).Kind().String()
-
-		if pathValType == "map" || pathValType == "string" {
-			var valFrom interface{}
-			var valid bool
-			var strOk bool
-			var pathValStr string
-
-			_, valOk := pathVal.(chartutil.Values)
-			_, mapOk := pathVal.(map[string]interface{})
-
-			if pathValType == "string" {
-				pathValStr, _ = pathVal.(string)
-				strOk = strings.Contains(pathValStr, "valueFrom")
-			}
-
-			if valOk {
-				valFrom, valid = pathVal.(chartutil.Values)["valueFrom"]
-			} else if mapOk {
-				valFrom, valid = pathVal.(map[string]interface{})["valueFrom"]
-			} else if strOk {
+		// a) valFrom is a Map
+		if valFrom, vOk := getNestedValue(pathVal, "valueFrom"); vOk && valFrom != nil {
+			newEnvVar = map[string]interface{}{"name": newEnvName, "valueFrom": valFrom}
+		} else {
+			// b) valFrom is YAML string
+			if s, isStr := pathVal.(string); isStr && strings.Contains(s, "valueFrom") {
 				var data map[string]interface{}
-				err := yaml.Unmarshal([]byte(pathValStr), &data)
-				if err == nil {
-					valFrom = data["valueFrom"]
-					valid = true
-				}
-			}
-
-			if valid {
-				newEnvVar = map[string]interface{}{
-					"name":      envMap["name"],
-					"valueFrom": valFrom,
+				if err := yaml.Unmarshal([]byte(s), &data); err == nil {
+					if v, vStrOk := data["valueFrom"]; vStrOk {
+						newEnvVar = map[string]interface{}{"name": newEnvName, "valueFrom": v}
+					}
 				}
 			}
 		}
@@ -215,9 +201,7 @@ var mapAppendEnvVar = MappingProcessor{
 			return
 		}
 
-		envExists := hasDuplicateEnv(existingEnvs, newEnvName)
-
-		if !envExists {
+		if !hasDuplicateEnv(existingEnvs, newEnvName) {
 			setInterim(interim, newPath, append(existingEnvs, newEnvVar))
 		}
 	},
@@ -255,7 +239,7 @@ var mapMergeEnvs = MappingProcessor{
 				continue
 			}
 
-			newName, ok := newEnvMap["name"].(string)
+			newName, ok := getString(newEnvMap, "name")
 			if !ok || newName == "" {
 				log.Printf("Warning: missing or invalid 'name' field in environment variable: %v", newEnvMap)
 				continue
@@ -277,6 +261,44 @@ var mapMergeEnvs = MappingProcessor{
 
 		if len(mergedEnvs) > 0 {
 			setInterim(interim, newPath, mergedEnvs)
+		}
+	},
+}
+
+var mapOverrideType = MappingProcessor{
+	name: "mapOverrideType",
+	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
+		{
+			if len(args) != 1 {
+				return
+			}
+			newType, ok := getString(args[0], "newType")
+
+			// if values type is different from new type, convert it
+			pathValType := reflect.TypeOf(pathVal).Kind().String()
+			var newPathVal []byte
+			var err error
+			if ok && pathValType != newType {
+				switch {
+				case newType == "string" && pathValType == "slice":
+					newPathVal, err = yaml.Marshal(pathVal)
+					if err != nil {
+						log.Println(err)
+					}
+					setInterim(interim, newPath, string(newPathVal))
+
+				case newType == "int":
+					switch {
+					case pathValType == "string":
+						convertedInt, convErr := strconv.Atoi(pathVal.(string))
+						if convErr != nil {
+							log.Println(convErr)
+						} else {
+							setInterim(interim, newPath, convertedInt)
+						}
+					}
+				}
+			}
 		}
 	},
 }

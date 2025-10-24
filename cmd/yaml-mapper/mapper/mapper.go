@@ -10,13 +10,10 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"reflect"
 	"sort"
-	"strconv"
 	"time"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 	"helm.sh/helm/v3/pkg/chartutil"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
@@ -294,45 +291,48 @@ func MapYaml(mappingFile string, sourceFile string, destFile string, prefixFile 
 		}
 
 		destKey, ok := mappingValues[sourceKey]
-		destKeyType := reflect.TypeOf(destKey)
+		switch typedDestKey := destKey.(type) {
+		case string:
+			if destKey == "metadata.name" {
+				name := pathVal
+				if ddaName != "" {
+					log.Printf("Warning: found conflicting name for DDA. Mapper config provided: %s. Helm key %s provided: %v. Using Helm-provided value.", ddaName, sourceKey, name)
+				}
+				if s, sOk := name.(string); sOk && len(s) > 63 {
+					name = s[:63]
+				}
+				setInterim(interim, "metadata.name", name)
+				break
+			}
+			setInterim(interim, typedDestKey, pathVal)
 
-		if !ok || destKey == "" || destKey == nil {
-			log.Printf("Warning: DDA destination key not found: %s\n", sourceKey)
-			continue
-			// Continue through loop
-		} else if destKeyType.Kind() == reflect.Slice {
+		case []interface{}:
 			// Provide support for the case where one source key may map to multiple destination keys
-			for _, v := range destKey.([]interface{}) {
-				setInterim(interim, v.(string), pathVal)
-			}
-		} else if destKeyType.Kind() == reflect.Map {
-			newPath := destKey.(map[string]interface{})["newPath"].(string)
-
-			// Perform type remapping
-			overrideType(interim, destKey, newPath, pathVal)
-
-			// Apply custom map funcs
-			if mapFuncName, ok := getString(destKey, "mapFunc"); ok {
-				var mapFuncArgs []interface{}
-				if args, ok := destKey.(map[string]interface{})["args"].([]interface{}); ok {
-					mapFuncArgs = args
-				}
-				mappingRunFunc := getMappingRunFunc(mapFuncName)
-				if mappingRunFunc != nil {
-					mappingRunFunc(interim, newPath, pathVal, mapFuncArgs)
+			for _, val := range typedDestKey {
+				if s, sOk := val.(string); sOk {
+					setInterim(interim, s, pathVal)
+				} else {
+					log.Printf("Warning: expected string in dest slice for %q, got %T", sourceKey, val)
 				}
 			}
 
-		} else if destKey.(string) == "metadata.name" {
-			name := pathVal
-			if ddaName != "" {
-				log.Printf("Warning: found conflicting name for DDA. Mapper config provided: %s. Helm key %s provided: %v. Using Helm-provided value.", ddaName, sourceKey, name)
+		case map[string]interface{}:
+			// Perform further processing
+			newPath, _ := getString(typedDestKey, "newPath")
+
+			if mapFuncName, mOk := getString(typedDestKey, "mapFunc"); mOk {
+				args, _ := getSlice(typedDestKey, "args")
+				if run := getMappingRunFunc(mapFuncName); run != nil {
+					run(interim, newPath, pathVal, args)
+				} else {
+					log.Printf("Warning: unknown mapFunc %q for %q", mapFuncName, sourceKey)
+				}
 			}
-			if len(name.(string)) > 63 {
-				name = name.(string)[:63]
+		default:
+			if !ok || destKey == "" || destKey == nil {
+				log.Printf("Warning: DDA destination key not found: %s\n", sourceKey)
+				continue
 			}
-			setInterim(interim, "metadata.name", name)
-		} else {
 			if interim != nil {
 				setInterim(interim, destKey.(string), pathVal)
 			}
@@ -355,37 +355,6 @@ func MapYaml(mappingFile string, sourceFile string, destFile string, prefixFile 
 
 	// Write final DDA mapping
 	writeDDA(dda)
-}
-
-func overrideType(interim map[string]interface{}, destKey interface{}, newPath string, pathVal interface{}) {
-	newType, newTypeOk := destKey.(map[string]interface{})["newType"].(string)
-	// if values type is different from new type, convert it
-	pathValType := reflect.TypeOf(pathVal).Kind().String()
-	var newPathVal []byte
-	var err error
-	if newTypeOk && newType != "" && pathValType != newType {
-		switch {
-		case newType == "string":
-			switch {
-			case pathValType == "slice":
-				newPathVal, err = yaml.Marshal(pathVal)
-				if err != nil {
-					log.Println(err)
-				}
-				setInterim(interim, newPath, string(newPathVal))
-			}
-		case newType == "integer":
-			switch {
-			case pathValType == "string":
-				convertedInt, convErr := strconv.Atoi(pathVal.(string))
-				if convErr != nil {
-					log.Println(convErr)
-				} else {
-					setInterim(interim, newPath, convertedInt)
-				}
-			}
-		}
-	}
 }
 
 func writeDDA(dda map[string]interface{}) {
