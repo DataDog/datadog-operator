@@ -266,11 +266,7 @@ func MapYaml(mappingFile string, sourceFile string, destFile string, prefixFile 
 			if mapVal, ok := getMap(sourceValues[sourceKey]); ok && mapVal != nil {
 				pathVal = mapVal
 			} else if tableVal, err := sourceValues.Table(sourceKey); err == nil && len(tableVal) == 1 {
-				if tableYaml, e := tableVal.YAML(); e == nil && tableYaml != "" {
-					pathVal = tableYaml
-				} else {
-					pathVal = tableVal
-				}
+				pathVal = tableVal
 			} else {
 				continue
 			}
@@ -279,6 +275,9 @@ func MapYaml(mappingFile string, sourceFile string, destFile string, prefixFile 
 		destKey, ok := mappingValues[sourceKey]
 		switch typedDestKey := destKey.(type) {
 		case string:
+			if destKey == "" {
+				continue
+			}
 			if destKey == "metadata.name" {
 				name := pathVal
 				if ddaName != "" {
@@ -318,8 +317,7 @@ func MapYaml(mappingFile string, sourceFile string, destFile string, prefixFile 
 			if !ok || destKey == "" || destKey == nil {
 				log.Printf("Warning: DDA destination key not found: %s\n", sourceKey)
 				continue
-			}
-			if interim != nil {
+			} else if interim != nil {
 				setInterim(interim, destKey.(string), pathVal)
 			}
 		}
@@ -340,10 +338,10 @@ func MapYaml(mappingFile string, sourceFile string, destFile string, prefixFile 
 	}
 
 	// Write final DDA mapping
-	writeDDA(dda)
+	writeDDA(dda, destFile)
 }
 
-func writeDDA(dda map[string]interface{}) {
+func writeDDA(dda map[string]interface{}, destFile string) {
 	// Pretty print to YAML format
 	out, err := chartutil.Values(dda).YAML()
 	if err != nil {

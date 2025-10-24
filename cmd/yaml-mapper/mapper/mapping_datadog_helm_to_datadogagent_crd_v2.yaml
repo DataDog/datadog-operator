@@ -498,7 +498,7 @@ datadog.processAgent.stripProcessArguments: spec.features.liveProcessCollection.
 datadog.profiling.enabled: ""
 datadog.prometheusScrape.additionalConfigs:
   newPath: spec.features.prometheusScrape.additionalConfigs
-  mapFunc: overrideType
+  mapFunc: mapOverrideType
   args:
     - newType: string
 datadog.prometheusScrape.enabled: spec.features.prometheusScrape.enabled
