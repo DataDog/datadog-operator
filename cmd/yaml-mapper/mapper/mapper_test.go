@@ -1321,8 +1321,6 @@ func TestFoldDeprecated(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			actualMap := foldDeprecated(tt.sourceVals)
-			valStr, _ := actualMap.YAML()
-			t.Log(valStr)
 			assert.Equal(t, tt.wantVals, actualMap)
 		})
 	}

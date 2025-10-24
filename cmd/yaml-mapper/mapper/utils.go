@@ -364,7 +364,7 @@ func resolveFilePath(p string) (string, error) {
 		return "", fmt.Errorf("cannot resolve absolute path for %q: %w", p, err)
 	}
 
-	// Verify existence (optional)
+	// Verify existence
 	if _, err := os.Stat(abs); err != nil {
 		if os.IsNotExist(err) {
 			return "", fmt.Errorf("path does not exist: %s", abs)

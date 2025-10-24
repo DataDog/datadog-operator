@@ -204,14 +204,6 @@ func mapMergeEnvs(interim map[string]interface{}, newPath string, pathVal interf
 	}
 
 	//Initialize mergedEnvs with existing environments or an empty slice
-	//var mergedEnvs []interface{}
-	//if existingEnvs, exists := interim[newPath]; exists {
-	//	if existingEnvsSlice, ok := existingEnvs.([]interface{}); ok {
-	//		// Make a copy of existing environments
-	//		copy(mergedEnvs, existingEnvsSlice)
-	//	}
-	//}
-
 	var mergedEnvs []interface{}
 	if existingEnvs, exists := interim[newPath]; exists {
 		if existingEnvsSlice, ok := existingEnvs.([]interface{}); ok {
