@@ -639,8 +639,8 @@ publish_community_operators:
     - git config --global user.email $GITLAB_USER_EMAIL
     # Use dd-octo-sts to get GitHub token
     - dd-octo-sts version
-    - dd-octo-sts debug --disable-tracing --scope DataDog --policy datadog-operator.publish-community-bundles
-    - dd-octo-sts token --disable-tracing --scope DataDog --policy datadog-operator.publish-community-bundles > token.txt
+    - dd-octo-sts debug --scope DataDog --policy datadog-operator.publish-community-bundles
+    - dd-octo-sts token --scope DataDog --policy datadog-operator.publish-community-bundles > token.txt
     - export GITHUB_TOKEN=$(cat token.txt)
     - gh auth login --with-token < token.txt
     - gh auth setup-git
