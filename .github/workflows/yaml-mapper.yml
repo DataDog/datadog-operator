@@ -2,10 +2,10 @@ name: validation
 on:
   pull_request:
     paths:
-      - "cmd/yaml-mapper"
+      - "cmd/yaml-mapper/**"
   push:
     paths:
-      - "cmd/yaml-mapper"
+      - "cmd/yaml-mapper/**"
 # Permission forced by repo-level setting; only elevate on job-level
 permissions:
   contents: read
