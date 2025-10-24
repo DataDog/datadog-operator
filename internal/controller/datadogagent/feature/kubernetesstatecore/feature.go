@@ -22,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
@@ -46,10 +47,11 @@ func buildKSMFeature(options *feature.Options) feature.Feature {
 }
 
 type ksmFeature struct {
-	runInClusterChecksRunner bool
-	collectCRDMetrics        bool
-	collectCrMetrics         []v2alpha1.Resource
-	collectAPIServiceMetrics bool
+	runInClusterChecksRunner   bool
+	collectCRDMetrics          bool
+	collectCrMetrics           []v2alpha1.Resource
+	collectAPIServiceMetrics   bool
+	collectControllerRevisions bool
 
 	rbacSuffix         string
 	serviceAccountName string
@@ -67,6 +69,9 @@ type ksmFeature struct {
 // Add "-0" so that prerelase versions are considered sufficient. https://github.com/Masterminds/semver#working-with-prerelease-versions
 const crdAPIServiceCollectionMinVersion = "7.46.0-0"
 
+// Minimum agent version that supports collection of controllerrevisions
+const controllerRevisionsCollectionMinVersion = "7.72.0-0"
+
 // ID returns the ID of the Feature
 func (f *ksmFeature) ID() feature.IDType {
 	return feature.KubernetesStateCoreIDType
@@ -78,6 +83,7 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 	var output feature.RequiredComponents
 
 	if ddaSpec.Features != nil && ddaSpec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(ddaSpec.Features.KubeStateMetricsCore.Enabled) {
+		f.logger.Info("KubeStateMetricsCore feature enabled")
 		output.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
 		output.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
 		output.Agent.IsRequired = apiutils.NewBoolPointer(true)
@@ -88,6 +94,21 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		f.collectCrMetrics = ddaSpec.Features.KubeStateMetricsCore.CollectCrMetrics
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
+		// Determine CollectControllerRevisions setting
+		// Priority: 1) Explicit spec setting, 2) Image override version check, 3) Default image version check
+		collectControllerRevisionsExplicitlySet := ddaSpec.Features.KubeStateMetricsCore.CollectControllerRevisions != nil
+		controllerRevisionsSetByOverride := false // Track if we determined the value via override
+
+		if collectControllerRevisionsExplicitlySet {
+			// Explicit setting in spec - use it (will be validated against version later if override present)
+			f.collectControllerRevisions = apiutils.BoolValue(ddaSpec.Features.KubeStateMetricsCore.CollectControllerRevisions)
+			f.logger.Info("CollectControllerRevisions explicitly set in spec", "value", f.collectControllerRevisions)
+		} else {
+			// Not explicitly set - will be determined by version checks below
+			f.collectControllerRevisions = false
+			f.logger.Info("CollectControllerRevisions not set in spec, will auto-enable if agent version supports it")
+		}
+
 		// This check will only run in the Cluster Checks Runners or Cluster Agent (not the Node Agent)
 		if ddaSpec.Features.ClusterChecks != nil && apiutils.BoolValue(ddaSpec.Features.ClusterChecks.Enabled) && apiutils.BoolValue(ddaSpec.Features.ClusterChecks.UseClusterChecksRunners) {
 			f.runInClusterChecksRunner = true
@@ -97,17 +118,81 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			output.ClusterChecksRunner.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 
 			if ccrOverride, ok := ddaSpec.Override[v2alpha1.ClusterChecksRunnerComponentName]; ok {
-				if ccrOverride.Image != nil && !utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*ccrOverride.Image), crdAPIServiceCollectionMinVersion) {
-					// Disable if image is overridden to an unsupported version
-					f.collectAPIServiceMetrics = false
-					f.collectCRDMetrics = false
+				if ccrOverride.Image != nil {
+					agentVersion := common.GetAgentVersionFromImage(*ccrOverride.Image)
+					f.logger.Info("ClusterChecksRunner image override detected", "image", *ccrOverride.Image, "version", agentVersion)
+
+					// CRD and APIService version checks (existing logic - unchanged)
+					if !utils.IsAboveMinVersion(agentVersion, crdAPIServiceCollectionMinVersion) {
+						f.logger.Info("Disabling CRD and APIService collection due to agent version", "version", agentVersion, "minVersion", crdAPIServiceCollectionMinVersion)
+						f.collectAPIServiceMetrics = false
+						f.collectCRDMetrics = false
+					}
+
+					// ControllerRevisions version check with fallback parsing
+					if !utils.IsAboveMinVersionWithFallback(agentVersion, controllerRevisionsCollectionMinVersion) {
+						// Version too old - disable even if explicitly set
+						if f.collectControllerRevisions {
+							f.logger.Info("Disabling ControllerRevisions collection due to agent version (was explicitly enabled but version too old)", "version", agentVersion, "minVersion", controllerRevisionsCollectionMinVersion)
+						}
+						f.collectControllerRevisions = false
+					} else if !collectControllerRevisionsExplicitlySet {
+						// Version supports it and not explicitly set - auto-enable
+						f.logger.Info("Auto-enabling ControllerRevisions collection based on override agent version", "version", agentVersion, "minVersion", controllerRevisionsCollectionMinVersion)
+						f.collectControllerRevisions = true
+					}
+					controllerRevisionsSetByOverride = true
 				}
 			}
-		} else if clusterAgentOverride, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok {
-			if clusterAgentOverride.Image != nil && !utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*clusterAgentOverride.Image), crdAPIServiceCollectionMinVersion) {
-				// Disable if image is overridden to an unsupported version
-				f.collectAPIServiceMetrics = false
-				f.collectCRDMetrics = false
+		} else {
+			f.logger.Info("Running in ClusterAgent mode")
+			if clusterAgentOverride, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok {
+				if clusterAgentOverride.Image != nil {
+					agentVersion := common.GetAgentVersionFromImage(*clusterAgentOverride.Image)
+					f.logger.Info("ClusterAgent image override detected", "image", *clusterAgentOverride.Image, "version", agentVersion)
+
+					// CRD and APIService version checks (existing logic - unchanged)
+					if !utils.IsAboveMinVersion(agentVersion, crdAPIServiceCollectionMinVersion) {
+						f.logger.Info("Disabling CRD and APIService collection due to agent version", "version", agentVersion, "minVersion", crdAPIServiceCollectionMinVersion)
+						f.collectAPIServiceMetrics = false
+						f.collectCRDMetrics = false
+					}
+
+					// ControllerRevisions version check with fallback parsing
+					if !utils.IsAboveMinVersionWithFallback(agentVersion, controllerRevisionsCollectionMinVersion) {
+						// Version too old - disable even if explicitly set
+						if f.collectControllerRevisions {
+							f.logger.Info("Disabling ControllerRevisions collection due to cluster agent version (was explicitly enabled but version too old)", "version", agentVersion, "minVersion", controllerRevisionsCollectionMinVersion)
+						}
+						f.collectControllerRevisions = false
+					} else if !collectControllerRevisionsExplicitlySet {
+						// Version supports it and not explicitly set - auto-enable
+						f.logger.Info("Auto-enabling ControllerRevisions collection based on override cluster agent version", "version", agentVersion, "minVersion", controllerRevisionsCollectionMinVersion)
+						f.collectControllerRevisions = true
+					}
+					controllerRevisionsSetByOverride = true
+				}
+			}
+		}
+
+		// If not explicitly set and not determined by image override, check default versions
+		if !collectControllerRevisionsExplicitlySet && !controllerRevisionsSetByOverride {
+			// Determine which default version to check based on deployment mode
+			var defaultVersion string
+			if f.runInClusterChecksRunner {
+				defaultVersion = images.AgentLatestVersion
+				f.logger.Info("No image override present, checking default agent version for ControllerRevisions support", "version", defaultVersion)
+			} else {
+				defaultVersion = images.ClusterAgentLatestVersion
+				f.logger.Info("No image override present, checking default cluster agent version for ControllerRevisions support", "version", defaultVersion)
+			}
+
+			// Check if default version supports controllerrevisions
+			if utils.IsAboveMinVersionWithFallback(defaultVersion, controllerRevisionsCollectionMinVersion) {
+				f.logger.Info("Auto-enabling ControllerRevisions collection based on default version", "version", defaultVersion, "minVersion", controllerRevisionsCollectionMinVersion)
+				f.collectControllerRevisions = true
+			} else {
+				f.logger.Info("Default version does not support ControllerRevisions collection, keeping disabled", "version", defaultVersion, "minVersion", controllerRevisionsCollectionMinVersion)
 			}
 		}
 
@@ -124,16 +209,24 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		}
 
 		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, defaultKubeStateMetricsCoreConf)
+
+		// Log final configuration state
+		f.logger.Info("KubeStateMetricsCore configuration finalized",
+			"collectAPIServiceMetrics", f.collectAPIServiceMetrics,
+			"collectCRDMetrics", f.collectCRDMetrics,
+			"collectControllerRevisions", f.collectControllerRevisions,
+			"runInClusterChecksRunner", f.runInClusterChecksRunner)
 	}
 
 	return output
 }
 
 type collectorOptions struct {
-	enableVPA        bool
-	enableAPIService bool
-	enableCRD        bool
-	customResources  []v2alpha1.Resource
+	enableVPA                 bool
+	enableAPIService          bool
+	enableCRD                 bool
+	enableControllerRevisions bool
+	customResources           []v2alpha1.Resource
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
@@ -143,10 +236,11 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, provi
 	// OR if the default configMap is needed.
 	pInfo := managers.Store().GetPlatformInfo()
 	collectorOpts := collectorOptions{
-		enableVPA:        pInfo.IsResourceSupported("VerticalPodAutoscaler"),
-		enableAPIService: f.collectAPIServiceMetrics,
-		enableCRD:        f.collectCRDMetrics,
-		customResources:  f.collectCrMetrics,
+		enableVPA:                 pInfo.IsResourceSupported("VerticalPodAutoscaler"),
+		enableAPIService:          f.collectAPIServiceMetrics,
+		enableCRD:                 f.collectCRDMetrics,
+		enableControllerRevisions: f.collectControllerRevisions,
+		customResources:           f.collectCrMetrics,
 	}
 	configCM, err := f.buildKSMCoreConfigMap(collectorOpts)
 	if err != nil {
