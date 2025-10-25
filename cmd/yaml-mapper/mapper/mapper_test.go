@@ -168,15 +168,16 @@ func TestCustomMapFuncs(t *testing.T) {
 	// Test that all custom map functions are properly registered
 	t.Run("customMapFuncs_dict", func(t *testing.T) {
 		expectedFuncs := []string{"mapApiSecretKey", "mapAppSecretKey", "mapTokenSecretKey", "mapSeccompProfile", "mapSystemProbeAppArmor", "mapLocalServiceName", "mapAppendEnvVar", "mapMergeEnvs", "mapOverrideType"}
+		mapFuncs := registry()
 
 		for _, funcName := range expectedFuncs {
 			t.Run(funcName+"_exists", func(t *testing.T) {
-				runFunc := getMappingRunFunc(funcName)
+				runFunc := mapFuncs[funcName]
 				assert.NotNil(t, runFunc, "Custom map function %s should be registered", funcName)
 			})
 		}
 
-		assert.Equal(t, len(expectedFuncs), len(mappingProcessors), "Should have exactly %d custom map functions", len(expectedFuncs))
+		assert.Equal(t, len(expectedFuncs), len(mapFuncs), "Should have exactly %d custom map functions", len(expectedFuncs))
 	})
 
 	// Test individual functions through the dictionary
@@ -754,9 +755,10 @@ func TestCustomMapFuncs(t *testing.T) {
 		},
 	}
 
+	customFuncs := registry()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			customFunc := getMappingRunFunc(tt.funcName)
+			customFunc := customFuncs[tt.funcName]
 			require.NotNil(t, customFunc, "Custom function %s should exist in registry", tt.funcName)
 			customFunc(tt.interim, tt.newPath, tt.pathVal, tt.mapFuncArgs)
 
@@ -765,7 +767,7 @@ func TestCustomMapFuncs(t *testing.T) {
 	}
 
 	t.Run("non_existent_function", func(t *testing.T) {
-		runFunc := getMappingRunFunc("nonExistentFunc")
+		runFunc := registry()["nonExistentFunc"]
 		assert.Nil(t, runFunc, "Non-existent function should not be in registry")
 	})
 }

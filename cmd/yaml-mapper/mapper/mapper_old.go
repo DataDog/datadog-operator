@@ -11,100 +11,56 @@ import (
 	"log"
 	"os"
 	"sort"
-	"strings"
 	"time"
 
 	"helm.sh/helm/v3/pkg/chartutil"
 )
 
-var (
-	//go:embed mapping_datadog_helm_to_datadogagent_crd_v2.yaml
-	defaultDDAMap []byte
-)
-
-var defaultFilePrefix = map[string]interface{}{
-	"apiVersion": "datadoghq.com/v2alpha1",
-	"kind":       "DatadogAgent",
-	"metadata":   map[string]interface{}{},
-}
-
-type Config struct {
-	MappingPath string
-	SourcePath  string
-	DestPath    string
-	DDAName     string
-	Namespace   string
-	UpdateMap   bool
-	PrintOutput bool
-	PrefixPath  string
-}
-
-type Mapper struct {
-	Processors map[string]MappingRunFunc
-	Config
-}
-
-func NewMapper(config Config) *Mapper {
-	return &Mapper{
-		Processors: registry(),
-		Config:     config,
-	}
-}
-
-func (m *Mapper) Run() error {
-	config := m.Config
-	mappingValues, sourceValues, err := m.loadInputs()
-	if err != nil {
-		return err
-	}
-	if config.UpdateMap {
-		return m.updateMapping(sourceValues, mappingValues)
-	}
-
-	dda, err := m.mapValues(sourceValues, mappingValues)
-	if err != nil {
-		return err
-	}
-
-	return m.writeDDA(dda, config)
-}
-
-func (m *Mapper) loadInputs() (mappingValues chartutil.Values, sourceValues chartutil.Values, err error) {
-	config := m.Config
-	tmpSourceFile := ""
-	sourceFile := config.SourcePath
-	mappingFile := config.MappingPath
-
+func MapYaml(mappingFile string, sourceFile string, destFile string, prefixFile string, ddaName string, namespace string, updateMap bool, printPtr bool) {
 	// If updating mapping:
 	// Use latest datadog chart values.yaml as sourceFile if none provided
-	if config.UpdateMap && sourceFile == "" {
-		tmpSourceFile = getLatestValuesFile()
-		m.Config.SourcePath = tmpSourceFile
-
+	// Use default mappingFile if none provided
+	tmpSourceFile := ""
+	if updateMap {
+		if sourceFile == "" {
+			tmpSourceFile = getLatestValuesFile()
+			sourceFile = tmpSourceFile
+		}
 	}
 
-	// Use default mappingFile if none provided
 	if mappingFile == "" {
 		latestMapping, _ := getLatestDDAMapping()
-		// TODO: clean up fetched mapping
-		m.Config.MappingPath = latestMapping
+		mappingFile = latestMapping
 	}
 
+	log.Printf("Mapping values to DDA...")
+	log.Println("Mapper Config: ")
+	log.Println("mappingFile:", mappingFile)
+	log.Println("sourceFile:", sourceFile)
+	log.Println("destFile:", destFile)
+	log.Println("ddaName:", ddaName)
+	log.Println("namespace:", namespace)
+	log.Println("updateMap:", updateMap)
+	log.Println("printOutput:", printPtr)
+	log.Println("")
+
 	// Read mapping file
-	mapping, err := os.ReadFile(m.Config.MappingPath)
+	mapping, err := os.ReadFile(mappingFile)
 	if err != nil {
 		// Fall back on embedded default mapping
 		mapping = defaultDDAMap
 	}
-	mappingValues, err = chartutil.ReadValues(mapping)
+	mappingValues, err := chartutil.ReadValues(mapping)
 	if err != nil {
-		return nil, nil, err
+		log.Println(err)
+		return
 	}
 
 	// Read source yaml file
-	source, err := os.ReadFile(m.Config.SourcePath)
+	source, err := os.ReadFile(sourceFile)
 	if err != nil {
-		return nil, nil, err
+		log.Println(err)
+		return
 	}
 
 	// Cleanup tmpSourceFile after it's been read
@@ -112,32 +68,59 @@ func (m *Mapper) loadInputs() (mappingValues chartutil.Values, sourceValues char
 		defer os.Remove(tmpSourceFile)
 	}
 
-	sourceValues, err = chartutil.ReadValues(source)
+	sourceValues, err := chartutil.ReadValues(source)
 	if err != nil {
-		return nil, nil, err
+		log.Println(err)
+		return
 	}
 
 	// Handle deprecated helm keys
 	sourceValues = foldDeprecated(sourceValues)
-	return mappingValues, sourceValues, nil
-}
 
-func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartutil.Values) (map[string]interface{}, error) {
-	var ddaName = m.Config.DDAName
+	// Create an interim map that that has period-delimited destination key as the key, and the value from the source.yaml for the value
+	//var pathVal interface{}
 	var interim = map[string]interface{}{}
 
-	if m.Config.PrefixPath == "" {
+	if prefixFile == "" {
 		interim = defaultFilePrefix
 		if ddaName == "" {
 			ddaName = "datadog"
 		}
 		setInterim(interim, "metadata.name", ddaName)
 
-		if m.Config.Namespace != "" {
-			setInterim(interim, "metadata.namespace", m.Config.Namespace)
+		if namespace != "" {
+			setInterim(interim, "metadata.namespace", namespace)
 		}
 	}
 
+	if updateMap {
+		// Populate interim map with keys from latest chart's values.yaml
+		interim = parseValues(sourceValues, make(map[string]interface{}), "")
+		// Add back existing key values from mapping file
+		for sourceKey, sourceVal := range mappingValues {
+			setInterim(interim, sourceKey, sourceVal)
+		}
+		newMapYaml, e := chartutil.Values(interim).YAML()
+		if e != nil {
+			log.Println(e)
+		}
+		if mappingFile == defaultDDAMappingPath || tmpSourceFile != "" {
+			newMapYaml = `# This file maps keys from the Datadog Helm chart (YAML) to the DatadogAgent CustomResource spec (YAML).
+` + newMapYaml
+		}
+
+		if printPtr {
+			log.Println("")
+			log.Println(newMapYaml)
+		}
+
+		e = os.WriteFile(mappingFile, []byte(newMapYaml), 0660)
+		if e != nil {
+			log.Printf("Error updating mapping yaml. %v", e)
+		}
+
+		log.Printf("Mapping file, %s, successfully updated", mappingFile)
+	}
 	// Collect and sort mapping keys for deterministic processing order
 	mappingKeys := make([]string, 0, len(mappingValues))
 	for k := range mappingValues {
@@ -193,7 +176,7 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 
 			if mapFuncName, mOk := getString(typedDestKey, "mapFunc"); mOk {
 				args, _ := getSlice(typedDestKey, "args")
-				if run := m.Processors[mapFuncName]; run != nil {
+				if run := registry()[mapFuncName]; run != nil {
 					run(interim, newPath, pathVal, args)
 				} else {
 					log.Printf("Warning: unknown mapFunc %q for %q", mapFuncName, sourceKey)
@@ -222,13 +205,12 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 		v := interim[k]
 		dda = makeTable(k, v, dda)
 	}
-	return dda, nil
+
+	// Write final DDA mapping
+	writeDDA(dda, destFile, prefixFile, printPtr)
 }
 
-func (m *Mapper) writeDDA(dda map[string]interface{}, cfg Config) error {
-	destFile := cfg.DestPath
-	prefixFile := cfg.PrefixPath
-
+func writeDDA(dda map[string]interface{}, destFile string, prefixFile string, printOutput bool) {
 	// Pretty print to YAML format
 	out, err := chartutil.Values(dda).YAML()
 	if err != nil {
@@ -240,7 +222,8 @@ func (m *Mapper) writeDDA(dda map[string]interface{}, cfg Config) error {
 	if prefixFile != "" {
 		prefix, err = os.ReadFile(prefixFile)
 		if err != nil {
-			return err
+			log.Println(err)
+			return
 		}
 	}
 
@@ -248,7 +231,7 @@ func (m *Mapper) writeDDA(dda map[string]interface{}, cfg Config) error {
 		out = string(prefix) + out
 	}
 
-	if cfg.PrintOutput {
+	if printOutput {
 		log.Println("")
 		log.Println(out)
 	}
@@ -268,39 +251,5 @@ func (m *Mapper) writeDDA(dda map[string]interface{}, cfg Config) error {
 		log.Println(err)
 	}
 
-	log.Printf("YAML file successfully written to: %v", destFile)
-
-	return nil
-}
-
-func (m *Mapper) updateMapping(sourceValues chartutil.Values, mappingValues chartutil.Values) error {
-	// Populate interim map with keys from latest chart's values.yaml
-	interim := parseValues(sourceValues, make(map[string]interface{}), "")
-	// Add back existing key values from mapping file
-	for sourceKey, sourceVal := range mappingValues {
-		setInterim(interim, sourceKey, sourceVal)
-	}
-	newMapYaml, e := chartutil.Values(interim).YAML()
-	if e != nil {
-		return e
-	}
-	if strings.HasPrefix(m.Config.MappingPath, defaultDDAMappingPath) {
-		newMapYaml = `# This file maps keys from the Datadog Helm chart (YAML) to the DatadogAgent CustomResource spec (YAML).
-` + newMapYaml
-	}
-
-	if m.Config.PrintOutput {
-		log.Println("")
-		log.Println(newMapYaml)
-	}
-
-	e = os.WriteFile(m.Config.MappingPath, []byte(newMapYaml), 0660)
-	if e != nil {
-		log.Printf("Error updating mapping yaml. %v", e)
-		return e
-	}
-
-	log.Printf("Mapping file, %s, successfully updated", m.Config.MappingPath)
-
-	return nil
+	log.Println("YAML file successfully written to", destFile)
 }

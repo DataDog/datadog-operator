@@ -9,31 +9,28 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-var mappingProcessors = []MappingProcessor{
-	mapApiSecretKey,
-	mapAppSecretKey,
-	mapTokenSecretKey,
-	mapSeccompProfile,
-	mapSystemProbeAppArmor,
-	mapLocalServiceName,
-	mapAppendEnvVar,
-	mapMergeEnvs,
-	mapOverrideType,
-}
-
-func getMappingRunFunc(name string) MappingRunFunc {
-	for _, processor := range mappingProcessors {
-		if name == processor.name {
-			return processor.runFunc
-		}
-	}
-	return nil
-}
-
 type MappingRunFunc = func(values map[string]interface{}, newPath string, pathVal interface{}, args []interface{})
 type MappingProcessor struct {
 	name    string
 	runFunc MappingRunFunc
+}
+
+func registry() map[string]MappingRunFunc {
+	r := map[string]MappingRunFunc{}
+	for _, p := range []MappingProcessor{
+		mapApiSecretKey,
+		mapAppSecretKey,
+		mapTokenSecretKey,
+		mapSeccompProfile,
+		mapSystemProbeAppArmor,
+		mapLocalServiceName,
+		mapAppendEnvVar,
+		mapMergeEnvs,
+		mapOverrideType,
+	} {
+		r[p.name] = p.runFunc
+	}
+	return r
 }
 
 var mapApiSecretKey = MappingProcessor{
