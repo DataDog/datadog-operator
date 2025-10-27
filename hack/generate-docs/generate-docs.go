@@ -26,6 +26,7 @@ const (
 	v2OverridesFile         = "hack/generate-docs/v2alpha1_overrides.markdown"
 	docsFile                = "docs/configuration.$VERSION.md"
 	updatedDescriptionsFile = "hack/generate-docs/updated_descriptions.json"
+	typesFile               = "api/datadoghq/v2alpha1/datadogagent_types.go"
 )
 
 type parameterDoc struct {
@@ -132,11 +133,18 @@ func generatePublicDoc(crd apiextensions.CustomResourceDefinitionVersion, versio
 func generatePublicContent(f *os.File, crd apiextensions.CustomResourceDefinitionVersion) {
 	nameToDescMap := loadJSONToMap(updatedDescriptionsFile)
 
-	writePropsTablePublic(f, "global-options-list", crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties, nameToDescMap)
+	// Load doc-gen annotations from Go source
+	annotations, typeMap, err := ParseDocGenAnnotations(typesFile)
+	if err != nil {
+		panic(fmt.Sprintf("failed to parse doc-gen annotations: %s", err))
+	}
+
+	writePropsTablePublic(f, "global-options-list", crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties, nameToDescMap, annotations, typeMap)
 }
 
-func writePropsTablePublic(f *os.File, sectionId string, props map[string]apiextensions.JSONSchemaProps, nameToDescMap map[string]string) {
-	docs := getParameterDocs([]string{}, props)
+func writePropsTablePublic(f *os.File, sectionId string, props map[string]apiextensions.JSONSchemaProps, nameToDescMap map[string]string, annotations map[string]FieldAnnotation, typeMap map[string]TypeMapping) {
+	// Start with DatadogAgentSpec as the root type
+	docs := getParameterDocsPublic([]string{}, "DatadogAgentSpec", props, annotations, typeMap)
 	sort.Slice(docs, func(i, j int) bool {
 		return docs[i].name < docs[j].name
 	})
@@ -240,6 +248,74 @@ func getParameterDoc(path []string, name string, prop apiextensions.JSONSchemaPr
 	}
 
 	return getParameterDocs(path, prop.Properties)
+}
+
+// getParameterDocsPublic is like getParameterDocs but respects +doc-gen: annotations
+func getParameterDocsPublic(path []string, currentType string, props map[string]apiextensions.JSONSchemaProps, annotations map[string]FieldAnnotation, typeMap map[string]TypeMapping) []parameterDoc {
+	parameterDocs := []parameterDoc{}
+	for name, prop := range props {
+		parameterDocs = append(parameterDocs, getParameterDocPublic(path, currentType, name, prop, annotations, typeMap)...)
+	}
+
+	return parameterDocs
+}
+
+// getParameterDocPublic is like getParameterDoc but respects +doc-gen: annotations
+func getParameterDocPublic(path []string, currentType string, name string, prop apiextensions.JSONSchemaProps, annotations map[string]FieldAnnotation, typeMap map[string]TypeMapping) []parameterDoc {
+	path = append(path, name)
+
+	// Build the key for this field: "CurrentType.jsonFieldName"
+	annotationKey := fmt.Sprintf("%s.%s", currentType, name)
+
+	// Check for annotations on this field
+	annotation, hasAnnotation := annotations[annotationKey]
+
+	// Determine the Go type for this field by looking up in typeMap
+	nextType := ""
+	if mapping, ok := typeMap[annotationKey]; ok {
+		nextType = mapping.GoTypeName
+	}
+
+	// Handle +doc-gen:exclude - skip this field and all children
+	if hasAnnotation && annotation.Exclude {
+		return []parameterDoc{}
+	}
+
+	// Handle +doc-gen:truncate - show field but don't recurse
+	if hasAnnotation && annotation.Truncate {
+		desc := strings.ReplaceAll(prop.Description, "\n", " ")
+		return []parameterDoc{
+			{
+				name:        strings.Join(path, "."),
+				description: desc,
+			},
+		}
+	}
+
+	// Handle +doc-gen:link - show field with link, don't recurse
+	if hasAnnotation && annotation.Link != "" {
+		desc := strings.ReplaceAll(prop.Description, "\n", " ")
+		// Append link to description
+		desc = fmt.Sprintf("%s See [link](%s) for more information.", desc, annotation.Link)
+		return []parameterDoc{
+			{
+				name:        strings.Join(path, "."),
+				description: desc,
+			},
+		}
+	}
+
+	// No special annotations - proceed normally
+	if len(prop.Properties) == 0 {
+		return []parameterDoc{
+			{
+				name:        strings.Join(path, "."),
+				description: strings.ReplaceAll(prop.Description, "\n", " "),
+			},
+		}
+	}
+
+	return getParameterDocsPublic(path, nextType, prop.Properties, annotations, typeMap)
 }
 
 func exampleFile(version string) string {
