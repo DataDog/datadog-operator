@@ -134,9 +134,9 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 				f.logger.Error(err, "couldn't generate hash for default ksm core config")
 			} else {
 				f.logger.V(2).Info("generated default ksm core config hash", "hash", hash, "config", defaultConfigData)
-				f.customConfigAnnotationValue = hash
-				f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.KubernetesStateCoreIDType)
 			}
+			f.customConfigAnnotationValue = hash
+			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.KubernetesStateCoreIDType)
 		}
 
 		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, defaultKubeStateMetricsCoreConf)
