@@ -1,6 +1,7 @@
 // Unless explicitly stated otherwise all files in this repository are licensed
 // under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2025-present Datadog, Inc.
 
 package mapper
 
@@ -8,12 +9,13 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"helm.sh/helm/v3/pkg/chartutil"
 )
 
-func TestMergeMaps(t *testing.T) {
+func TestMergeMapDeep(t *testing.T) {
 	tests := []struct {
 		name     string
 		map1     map[string]interface{}
@@ -156,7 +158,7 @@ func TestMergeMaps(t *testing.T) {
 				map2Copy[k] = v
 			}
 
-			result := mergeMaps(map1Copy, map2Copy)
+			result := utils.MergeMapDeep(map1Copy, map2Copy)
 			assert.Equal(t, tt.expected, result)
 
 			assert.Equal(t, tt.expected, map1Copy)
@@ -167,8 +169,8 @@ func TestMergeMaps(t *testing.T) {
 func TestCustomMapFuncs(t *testing.T) {
 	// Test that all custom map functions are properly registered
 	t.Run("customMapFuncs_dict", func(t *testing.T) {
-		expectedFuncs := []string{"mapApiSecretKey", "mapAppSecretKey", "mapTokenSecretKey", "mapSeccompProfile", "mapSystemProbeAppArmor", "mapLocalServiceName", "mapAppendEnvVar", "mapMergeEnvs", "mapOverrideType"}
-		mapFuncs := registry()
+		expectedFuncs := []string{"mapSecretKeyName", "mapSeccompProfile", "mapSystemProbeAppArmor", "mapLocalServiceName", "mapAppendEnvVar", "mapMergeEnvs", "mapOverrideType"}
+		mapFuncs := mapFuncRegistry()
 
 		for _, funcName := range expectedFuncs {
 			t.Run(funcName+"_exists", func(t *testing.T) {
@@ -190,27 +192,39 @@ func TestCustomMapFuncs(t *testing.T) {
 		mapFuncArgs []interface{}
 		expectedMap map[string]interface{}
 	}{
-		// mapApiSecretKey tests
+		// mapSecretKeyName tests
 		{
-			name:     "mapApiSecretKey_empty_map",
-			funcName: "mapApiSecretKey",
+			name:     "mapSecretKeyName_apiSecret_empty_map",
+			funcName: "mapSecretKeyName",
 			interim:  map[string]interface{}{},
 			newPath:  "spec.global.credentials.apiSecret.secretName",
 			pathVal:  "my-api-secret",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"keyName":     "api-key",
+					"keyNamePath": "spec.global.credentials.apiSecret.keyName",
+				},
+			},
 			expectedMap: map[string]interface{}{
 				"spec.global.credentials.apiSecret.secretName": "my-api-secret",
 				"spec.global.credentials.apiSecret.keyName":    "api-key",
 			},
 		},
 		{
-			name:     "mapApiSecretKey_existing_map",
-			funcName: "mapApiSecretKey",
+			name:     "mapSecretKeyName_apiSecret_existing_map",
+			funcName: "mapSecretKeyName",
 			interim: map[string]interface{}{
 				"spec.global.site":      "datadoghq.com",
 				"spec.agent.image.name": "datadog/agent",
 			},
 			newPath: "spec.global.credentials.apiSecret.secretName",
 			pathVal: "datadog-api-secret",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"keyName":     "api-key",
+					"keyNamePath": "spec.global.credentials.apiSecret.keyName",
+				},
+			},
 			expectedMap: map[string]interface{}{
 				"spec.global.site":                             "datadoghq.com",
 				"spec.agent.image.name":                        "datadog/agent",
@@ -219,40 +233,57 @@ func TestCustomMapFuncs(t *testing.T) {
 			},
 		},
 		{
-			name:     "mapApiSecretKey_overwrite",
-			funcName: "mapApiSecretKey",
+			name:     "mapSecretKeyName_apiSecret_overwrite",
+			funcName: "mapSecretKeyName",
 			interim: map[string]interface{}{
 				"spec.global.credentials.apiSecret.secretName": "old-secret",
 				"spec.global.credentials.apiSecret.keyName":    "old-key",
 			},
 			newPath: "spec.global.credentials.apiSecret.secretName",
 			pathVal: "new-api-secret",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"keyName":     "api-key",
+					"keyNamePath": "spec.global.credentials.apiSecret.keyName",
+				},
+			},
 			expectedMap: map[string]interface{}{
 				"spec.global.credentials.apiSecret.secretName": "new-api-secret",
 				"spec.global.credentials.apiSecret.keyName":    "api-key",
 			},
 		},
-		// mapAppSecretKey tests
 		{
-			name:     "mapAppSecretKey_empty_map",
-			funcName: "mapAppSecretKey",
+			name:     "mapSecretKeyName_appSecret_empty_map",
+			funcName: "mapSecretKeyName",
 			interim:  map[string]interface{}{},
 			newPath:  "spec.global.credentials.appSecret.secretName",
 			pathVal:  "my-app-secret",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"keyName":     "app-key",
+					"keyNamePath": "spec.global.credentials.appSecret.keyName",
+				},
+			},
 			expectedMap: map[string]interface{}{
 				"spec.global.credentials.appSecret.secretName": "my-app-secret",
 				"spec.global.credentials.appSecret.keyName":    "app-key",
 			},
 		},
 		{
-			name:     "mapAppSecretKey_with_existing_api_secret",
-			funcName: "mapAppSecretKey",
+			name:     "mapSecretKeyName_app_secret_with_existing_api_secret",
+			funcName: "mapSecretKeyName",
 			interim: map[string]interface{}{
 				"spec.global.credentials.apiSecret.secretName": "api-secret",
 				"spec.global.credentials.apiSecret.keyName":    "api-key",
 			},
 			newPath: "spec.global.credentials.appSecret.secretName",
 			pathVal: "datadog-app-secret",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"keyName":     "app-key",
+					"keyNamePath": "spec.global.credentials.appSecret.keyName",
+				},
+			},
 			expectedMap: map[string]interface{}{
 				"spec.global.credentials.apiSecret.secretName": "api-secret",
 				"spec.global.credentials.apiSecret.keyName":    "api-key",
@@ -261,39 +292,56 @@ func TestCustomMapFuncs(t *testing.T) {
 			},
 		},
 		{
-			name:     "mapAppSecretKey_overwrite",
-			funcName: "mapAppSecretKey",
+			name:     "mapSecretKeyName_appSecret_overwrite",
+			funcName: "mapSecretKeyName",
 			interim: map[string]interface{}{
 				"spec.global.credentials.appSecret.secretName": "old-app-secret",
 				"spec.global.credentials.appSecret.keyName":    "old-app-key",
 			},
 			newPath: "spec.global.credentials.appSecret.secretName",
 			pathVal: "new-app-secret",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"keyName":     "app-key",
+					"keyNamePath": "spec.global.credentials.appSecret.keyName",
+				},
+			},
 			expectedMap: map[string]interface{}{
 				"spec.global.credentials.appSecret.secretName": "new-app-secret",
 				"spec.global.credentials.appSecret.keyName":    "app-key",
 			},
 		},
-		// mapTokenSecretKey tests
 		{
-			name:     "mapTokenSecretKey_empty_map",
-			funcName: "mapTokenSecretKey",
+			name:     "mapSecretKeyName_tokenSecret_empty_map",
+			funcName: "mapSecretKeyName",
 			interim:  map[string]interface{}{},
 			newPath:  "spec.global.clusterAgentTokenSecret.secretName",
 			pathVal:  "my-token-secret",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"keyName":     "token",
+					"keyNamePath": "spec.global.clusterAgentTokenSecret.keyName",
+				},
+			},
 			expectedMap: map[string]interface{}{
 				"spec.global.clusterAgentTokenSecret.secretName": "my-token-secret",
 				"spec.global.clusterAgentTokenSecret.keyName":    "token",
 			},
 		},
 		{
-			name:     "mapTokenSecretKey_with_existing_secrets",
-			funcName: "mapTokenSecretKey",
+			name:     "mapSecretKeyName_tokenSecret_with_existing_secrets",
+			funcName: "mapSecretKeyName",
 			interim: map[string]interface{}{
 				"spec.global.credentials.apiSecret.secretName": "api-secret",
 				"spec.global.credentials.appSecret.secretName": "app-secret",
 			},
 			newPath: "spec.global.clusterAgentTokenSecret.secretName",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"keyName":     "token",
+					"keyNamePath": "spec.global.clusterAgentTokenSecret.keyName",
+				},
+			},
 			pathVal: "cluster-agent-token",
 			expectedMap: map[string]interface{}{
 				"spec.global.credentials.apiSecret.secretName":   "api-secret",
@@ -303,14 +351,20 @@ func TestCustomMapFuncs(t *testing.T) {
 			},
 		},
 		{
-			name:     "mapTokenSecretKey_overwrite",
-			funcName: "mapTokenSecretKey",
+			name:     "mapSecretKeyName_tokenSecret_Key_overwrite",
+			funcName: "mapSecretKeyName",
 			interim: map[string]interface{}{
 				"spec.global.clusterAgentTokenSecret.secretName": "old-token-secret",
 				"spec.global.clusterAgentTokenSecret.keyName":    "old-token",
 			},
 			newPath: "spec.global.clusterAgentTokenSecret.secretName",
 			pathVal: "new-token-secret",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"keyName":     "token",
+					"keyNamePath": "spec.global.clusterAgentTokenSecret.keyName",
+				},
+			},
 			expectedMap: map[string]interface{}{
 				"spec.global.clusterAgentTokenSecret.secretName": "new-token-secret",
 				"spec.global.clusterAgentTokenSecret.keyName":    "token",
@@ -755,24 +809,24 @@ func TestCustomMapFuncs(t *testing.T) {
 		},
 	}
 
-	customFuncs := registry()
+	mapFuncs := mapFuncRegistry()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			customFunc := customFuncs[tt.funcName]
-			require.NotNil(t, customFunc, "Custom function %s should exist in registry", tt.funcName)
-			customFunc(tt.interim, tt.newPath, tt.pathVal, tt.mapFuncArgs)
+			mapFunc := mapFuncs[tt.funcName]
+			require.NotNil(t, mapFunc, "Custom function %s should exist in registry", tt.funcName)
+			mapFunc(tt.interim, tt.newPath, tt.pathVal, tt.mapFuncArgs)
 
 			assert.Equal(t, tt.expectedMap, tt.interim)
 		})
 	}
 
 	t.Run("non_existent_function", func(t *testing.T) {
-		runFunc := registry()["nonExistentFunc"]
+		runFunc := mapFuncRegistry()["nonExistentFunc"]
 		assert.Nil(t, runFunc, "Non-existent function should not be in registry")
 	})
 }
 
-func TestMakeTable(t *testing.T) {
+func TestInsertAtPath(t *testing.T) {
 	tests := []struct {
 		name     string
 		path     string
@@ -975,7 +1029,7 @@ func TestMakeTable(t *testing.T) {
 				mapNameCopy[k] = v
 			}
 
-			result := makeTable(tt.path, tt.val, mapNameCopy)
+			result := utils.InsertAtPath(tt.path, tt.val, mapNameCopy)
 
 			// Verify that the result matches expected
 			assert.Equal(t, tt.expected, result)
@@ -984,15 +1038,15 @@ func TestMakeTable(t *testing.T) {
 			assert.Equal(t, tt.expected, mapNameCopy)
 
 			// Verify that the returned map is the same object as the input map
-			assert.True(t, fmt.Sprintf("%p", result) == fmt.Sprintf("%p", mapNameCopy), "makeTable should return the same map object that was passed in")
+			assert.True(t, fmt.Sprintf("%p", result) == fmt.Sprintf("%p", mapNameCopy), "InsertAtPath should return the same map object that was passed in")
 		})
 	}
 }
 
-func TestMakeTableEdgeCases(t *testing.T) {
+func TestInsertAtPathEdgeCases(t *testing.T) {
 	t.Run("nil_value", func(t *testing.T) {
 		mapName := map[string]interface{}{}
-		result := makeTable("spec.global.site", nil, mapName)
+		result := utils.InsertAtPath("spec.global.site", nil, mapName)
 
 		expected := map[string]interface{}{
 			"spec": map[string]interface{}{
@@ -1006,7 +1060,7 @@ func TestMakeTableEdgeCases(t *testing.T) {
 
 	t.Run("path_with_multiple_dots", func(t *testing.T) {
 		mapName := map[string]interface{}{}
-		result := makeTable("a.b.c.d.e.f", "deep_value", mapName)
+		result := utils.InsertAtPath("a.b.c.d.e.f", "deep_value", mapName)
 
 		expected := map[string]interface{}{
 			"a": map[string]interface{}{
@@ -1026,7 +1080,7 @@ func TestMakeTableEdgeCases(t *testing.T) {
 
 	t.Run("path_with_numeric_keys", func(t *testing.T) {
 		mapName := map[string]interface{}{}
-		result := makeTable("spec.containers.0.name", "agent", mapName)
+		result := utils.InsertAtPath("spec.containers.0.name", "agent", mapName)
 
 		expected := map[string]interface{}{
 			"spec": map[string]interface{}{
@@ -1041,7 +1095,7 @@ func TestMakeTableEdgeCases(t *testing.T) {
 	})
 }
 
-func TestFoldDeprecated(t *testing.T) {
+func TestApplyDeprecationRules(t *testing.T) {
 	tests := []struct {
 		name       string
 		sourceVals chartutil.Values
@@ -1362,10 +1416,191 @@ func TestFoldDeprecated(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actualMap := foldDeprecated(tt.sourceVals)
+			actualMap := utils.ApplyDeprecationRules(tt.sourceVals)
 			assert.Equal(t, tt.wantVals, actualMap)
 		})
 	}
 }
 
-// TODO: add test for setInterim()
+func TestMergeOrSet(t *testing.T) {
+	tests := []struct {
+		name        string
+		interim     map[string]interface{}
+		key         string
+		val         interface{}
+		wantInterim map[string]interface{}
+	}{
+		{
+			name:    "simple set",
+			interim: map[string]interface{}{},
+			key:     "foo.bar",
+			val:     "true",
+			wantInterim: map[string]interface{}{
+				"foo.bar": "true",
+			},
+		},
+		{
+			name: "simple override",
+			interim: map[string]interface{}{
+				"foo.bar": "false",
+			},
+			key: "foo.bar",
+			val: "true",
+			wantInterim: map[string]interface{}{
+				"foo.bar": "true",
+			},
+		},
+		{
+			name: "simple merge",
+			interim: map[string]interface{}{
+				"foo.bar": "true",
+			},
+			key: "bar.foo",
+			val: "true",
+			wantInterim: map[string]interface{}{
+				"foo.bar": "true",
+				"bar.foo": "true",
+			},
+		},
+		{
+			name:    "set map",
+			interim: map[string]interface{}{},
+			key:     "bar.foo",
+			val: map[string]interface{}{
+				"foo": "bar",
+			},
+			wantInterim: map[string]interface{}{
+				"bar.foo": map[string]interface{}{
+					"foo": "bar",
+				},
+			},
+		},
+		{
+			name: "merge maps at same key (non-overlapping)",
+			interim: map[string]interface{}{
+				"spec.global": map[string]interface{}{"site": "datadoghq.com"},
+			},
+			key: "spec.global",
+			val: map[string]interface{}{"logLevel": "debug"},
+			wantInterim: map[string]interface{}{
+				"spec.global": map[string]interface{}{
+					"site":     "datadoghq.com",
+					"logLevel": "debug",
+				},
+			},
+		},
+		{
+			name: "deep-merge nested maps",
+			interim: map[string]interface{}{
+				"spec.features": map[string]interface{}{
+					"apm": map[string]interface{}{"enabled": true},
+				},
+			},
+			key: "spec.features",
+			val: map[string]interface{}{
+				"apm":  map[string]interface{}{"portEnabled": true},
+				"usm":  map[string]interface{}{"enabled": true},
+				"apm2": map[string]interface{}{"foo": "bar"},
+			},
+			wantInterim: map[string]interface{}{
+				"spec.features": map[string]interface{}{
+					"apm": map[string]interface{}{
+						"enabled":     true,
+						"portEnabled": true,
+					},
+					"usm":  map[string]interface{}{"enabled": true},
+					"apm2": map[string]interface{}{"foo": "bar"},
+				},
+			},
+		},
+		{
+			name: "overwrite map with scalar",
+			interim: map[string]interface{}{
+				"spec.global": map[string]interface{}{"site": "datadoghq.com"},
+			},
+			key: "spec.global",
+			val: "not-a-map-anymore",
+			wantInterim: map[string]interface{}{
+				"spec.global": "not-a-map-anymore",
+			},
+		},
+		{
+			name: "overwrite scalar with map",
+			interim: map[string]interface{}{
+				"spec.global": "string-value",
+			},
+			key: "spec.global",
+			val: map[string]interface{}{"site": "datadoghq.eu"},
+			wantInterim: map[string]interface{}{
+				"spec.global": map[string]interface{}{"site": "datadoghq.eu"},
+			},
+		},
+		{
+			name: "merge chartutil.Values into map",
+			interim: map[string]interface{}{
+				"spec.global": map[string]interface{}{"site": "datadoghq.com"},
+			},
+			key: "spec.global",
+			val: chartutil.Values{"logLevel": "info"},
+			wantInterim: map[string]interface{}{
+				"spec.global": map[string]interface{}{
+					"site":     "datadoghq.com",
+					"logLevel": "info",
+				},
+			},
+		},
+		{
+			name: "merge map into chartutil.Values",
+			interim: map[string]interface{}{
+				"spec.global": chartutil.Values{"site": "datadoghq.com"},
+			},
+			key: "spec.global",
+			val: map[string]interface{}{"logLevel": "warn"},
+			wantInterim: map[string]interface{}{
+				"spec.global": map[string]interface{}{
+					"site":     "datadoghq.com",
+					"logLevel": "warn",
+				},
+			},
+		},
+		{
+			name:        "nil value should be ignored (no set)",
+			interim:     map[string]interface{}{},
+			key:         "spec.global.site",
+			val:         nil,
+			wantInterim: map[string]interface{}{},
+		},
+		{
+			name: "nil value should not override existing",
+			interim: map[string]interface{}{
+				"spec.global.site": "datadoghq.com",
+			},
+			key: "spec.global.site",
+			val: nil,
+			wantInterim: map[string]interface{}{
+				"spec.global.site": "datadoghq.com",
+			},
+		},
+		{
+			name: "deep-merge overlapping nested keys",
+			interim: map[string]interface{}{
+				"a": map[string]interface{}{
+					"b": map[string]interface{}{"x": 1},
+				},
+			},
+			key: "a",
+			val: map[string]interface{}{
+				"b": map[string]interface{}{"y": 2},
+			},
+			wantInterim: map[string]interface{}{
+				"a": map[string]interface{}{
+					"b": map[string]interface{}{"x": 1, "y": 2},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		utils.MergeOrSet(tt.interim, tt.key, tt.val)
+		assert.Equal(t, tt.interim, tt.wantInterim)
+	}
+}

@@ -1,3 +1,8 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2025-present Datadog, Inc.
+
 package mapper
 
 import (
@@ -6,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/utils"
 	"sigs.k8s.io/yaml"
 )
 
@@ -15,12 +21,11 @@ type MappingProcessor struct {
 	runFunc MappingRunFunc
 }
 
-func registry() map[string]MappingRunFunc {
-	r := map[string]MappingRunFunc{}
+// mapFuncRegistry builds an indexable map object of the mapping functions.
+func mapFuncRegistry() map[string]MappingRunFunc {
+	registry := map[string]MappingRunFunc{}
 	for _, p := range []MappingProcessor{
-		mapApiSecretKey,
-		mapAppSecretKey,
-		mapTokenSecretKey,
+		mapSecretKeyName,
 		mapSeccompProfile,
 		mapSystemProbeAppArmor,
 		mapLocalServiceName,
@@ -28,35 +33,32 @@ func registry() map[string]MappingRunFunc {
 		mapMergeEnvs,
 		mapOverrideType,
 	} {
-		r[p.name] = p.runFunc
+		registry[p.name] = p.runFunc
 	}
-	return r
+	return registry
 }
 
-var mapApiSecretKey = MappingProcessor{
-	name: "mapApiSecretKey",
+// mapSecretKeyName adds the secret `keyName` field for mapping k8s secrets
+var mapSecretKeyName = MappingProcessor{
+	name: "mapSecretKeyName",
 	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
-		//	if existing apikey secret, need to add key-name
-		setInterim(interim, newPath, pathVal)
-		setInterim(interim, "spec.global.credentials.apiSecret.keyName", "api-key")
+		if len(args) != 1 {
+			return
+		}
+		keyName, ok := utils.GetPathString(args[0], "keyName")
+		if !ok {
+			return
+		}
+		keyNamePath, ok := utils.GetPathString(args[0], "keyNamePath")
+		if !ok {
+			return
+		}
+		utils.MergeOrSet(interim, newPath, pathVal)
+		utils.MergeOrSet(interim, keyNamePath, keyName)
 	},
 }
 
-var mapAppSecretKey = MappingProcessor{
-	name: "mapAppSecretKey",
-	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
-		setInterim(interim, newPath, pathVal)
-		setInterim(interim, "spec.global.credentials.appSecret.keyName", "app-key")
-	}}
-
-var mapTokenSecretKey = MappingProcessor{
-	name: "mapTokenSecretKey",
-	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
-		setInterim(interim, newPath, pathVal)
-		setInterim(interim, "spec.global.clusterAgentTokenSecret.keyName", "token")
-	},
-}
-
+// mapSeccompProfile Maps the seccompProfile
 var mapSeccompProfile = MappingProcessor{
 	name: "mapSeccompProfile",
 	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
@@ -68,16 +70,17 @@ var mapSeccompProfile = MappingProcessor{
 		switch {
 		case strings.HasPrefix(seccompValue, "localhost/"):
 			profileName := strings.TrimPrefix(seccompValue, "localhost/")
-			setInterim(interim, newPath+".type", "Localhost")
-			setInterim(interim, newPath+".localhostProfile", profileName)
+			utils.MergeOrSet(interim, newPath+".type", "Localhost")
+			utils.MergeOrSet(interim, newPath+".localhostProfile", profileName)
 		case seccompValue == "runtime/default":
-			setInterim(interim, newPath+".type", "RuntimeDefault")
+			utils.MergeOrSet(interim, newPath+".type", "RuntimeDefault")
 		case seccompValue == "unconfined":
-			setInterim(interim, newPath+".type", "Unconfined")
+			utils.MergeOrSet(interim, newPath+".type", "Unconfined")
 		}
 	},
 }
 
+// mapSystemProbeAppArmor Maps the systemProbe appArmor profile name
 var mapSystemProbeAppArmor = MappingProcessor{
 	name: "mapSystemProbeAppArmor",
 	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
@@ -97,15 +100,15 @@ var mapSystemProbeAppArmor = MappingProcessor{
 
 		hasSystemProbeFeature := false
 		for _, feature := range systemProbeFeatures {
-			if val, enabled := getBool(interim, feature); enabled && val {
+			if val, enabled := utils.GetPathBool(interim, feature); enabled && val {
 				hasSystemProbeFeature = true
 				break
 			}
 		}
 		// Check if GPU is enabled
 		if !hasSystemProbeFeature {
-			gpuEnabled, gpuExists := getBool(interim, "spec.features.gpu.enabled")
-			gpuPrivileged, privExists := getBool(interim, "spec.features.gpu.privilegedMode")
+			gpuEnabled, gpuExists := utils.GetPathBool(interim, "spec.features.gpu.enabled")
+			gpuPrivileged, privExists := utils.GetPathBool(interim, "spec.features.gpu.privilegedMode")
 			if gpuExists && privExists && gpuEnabled && gpuPrivileged {
 				hasSystemProbeFeature = true
 			}
@@ -113,11 +116,12 @@ var mapSystemProbeAppArmor = MappingProcessor{
 
 		if hasSystemProbeFeature {
 			// must be set to non-empty string
-			setInterim(interim, newPath, appArmorValue)
+			utils.MergeOrSet(interim, newPath, appArmorValue)
 		}
 	},
 }
 
+// mapLocalServiceName maps the localService name
 var mapLocalServiceName = MappingProcessor{
 	name: "mapLocalServiceName",
 	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
@@ -125,18 +129,14 @@ var mapLocalServiceName = MappingProcessor{
 		if !ok || nameOverride == "" {
 			return
 		}
-		setInterim(interim, newPath, nameOverride)
+		utils.MergeOrSet(interim, newPath, nameOverride)
 	},
 }
 
-// mapAppendEnvVar appends environment variables to a specified path in the interim configuration.
-// It takes a list of environment variable definitions in the format []map[string]interface{}{{"name": "VAR_NAME"}}
-// and creates new environment variable entries with the provided pathVal as the value.
-// The new variables are added to the interim map at the specified newPath.
-// Example:
-//   - mapFuncArgs: []interface{}{map[string]interface{}{"name": "DD_LOG_LEVEL"}}
-//   - pathVal: "debug"
-//   - Result: Appends {"name": "DD_LOG_LEVEL", "value": "debug"} to newPath in interim
+// mapAppendEnvVar appends a new environment variable to the specified key path.
+// The new environment variable name must be specified using `args`. For example:
+// args:
+//   - name: DD_ENV_VAR
 var mapAppendEnvVar = MappingProcessor{
 	name: "mapAppendEnvVar",
 	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
@@ -144,14 +144,14 @@ var mapAppendEnvVar = MappingProcessor{
 			return
 		}
 
-		envMap, ok := getMap(args[0])
+		envMap, ok := utils.GetPathMap(args[0])
 		if !ok {
 			log.Printf("expected map[string]interface{} for env var map definition, got %T", args[0])
 			return
 		}
 
 		// Build new env var
-		newEnvName, ok := getString(envMap, "name")
+		newEnvName, ok := utils.GetPathString(envMap, "name")
 		if !ok || newEnvName == "" {
 			log.Printf("expected 'name' in env var map, got: %v", envMap)
 			return
@@ -164,7 +164,7 @@ var mapAppendEnvVar = MappingProcessor{
 
 		// Handle valueFrom
 		// a) valFrom is a Map
-		if valFrom, vOk := getNestedValue(pathVal, "valueFrom"); vOk && valFrom != nil {
+		if valFrom, vOk := utils.GetPathVal(pathVal, "valueFrom"); vOk && valFrom != nil {
 			newEnvVar = map[string]interface{}{"name": newEnvName, "valueFrom": valFrom}
 		} else {
 			// b) valFrom is YAML string
@@ -180,7 +180,7 @@ var mapAppendEnvVar = MappingProcessor{
 
 		// Create the interim[newPath] if it doesn't exist yet
 		if _, exists := interim[newPath]; !exists {
-			setInterim(interim, newPath, []interface{}{newEnvVar})
+			utils.MergeOrSet(interim, newPath, []interface{}{newEnvVar})
 			return
 		}
 
@@ -191,17 +191,14 @@ var mapAppendEnvVar = MappingProcessor{
 		}
 
 		if !hasDuplicateEnv(existingEnvs, newEnvName) {
-			setInterim(interim, newPath, append(existingEnvs, newEnvVar))
+			utils.MergeOrSet(interim, newPath, append(existingEnvs, newEnvVar))
 		}
 	},
 }
 
-// mapMergeEnvs merges lists of environment variables at the specified path.
+// mapMergeEnvs merges lists of environment variables at the specified key path.
 // It takes a slice of environment variable maps and merges them with any existing
 // environment variables at the target path.
-// Example:
-//   - pathVal: []map[string]interface{}{{"name": "VAR1", "value": "val1"}}
-//   - Result: Merges the new env vars with any existing ones at newPath
 var mapMergeEnvs = MappingProcessor{
 	name: "mapMergeEnvs",
 	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
@@ -222,13 +219,13 @@ var mapMergeEnvs = MappingProcessor{
 
 		// Add new envs that don't already exist
 		for _, newEnv := range newEnvs {
-			newEnvMap, ok := getMap(newEnv)
+			newEnvMap, ok := utils.GetPathMap(newEnv)
 			if !ok {
 				log.Printf("Warning: expected map[string]interface{} in newEnvs, got %T", newEnv)
 				continue
 			}
 
-			newName, ok := getString(newEnvMap, "name")
+			newName, ok := utils.GetPathString(newEnvMap, "name")
 			if !ok || newName == "" {
 				log.Printf("Warning: missing or invalid 'name' field in environment variable: %v", newEnvMap)
 				continue
@@ -239,8 +236,8 @@ var mapMergeEnvs = MappingProcessor{
 			} else {
 				// Override existing env with new env
 				for i, existingEnv := range mergedEnvs {
-					if existingMap, ok := getMap(existingEnv); ok {
-						if existingName, ok := getString(existingMap, "name"); ok && existingName == newName {
+					if existingMap, ok := utils.GetPathMap(existingEnv); ok {
+						if existingName, ok := utils.GetPathString(existingMap, "name"); ok && existingName == newName {
 							mergedEnvs[i] = newEnv
 						}
 					}
@@ -249,11 +246,16 @@ var mapMergeEnvs = MappingProcessor{
 		}
 
 		if len(mergedEnvs) > 0 {
-			setInterim(interim, newPath, mergedEnvs)
+			utils.MergeOrSet(interim, newPath, mergedEnvs)
 		}
 	},
 }
 
+// mapOverrideType overrides the source value type to a new type specified in `args`:
+// args:
+//   - newType: string
+//
+// Supports mapping slice -> string and string -> int.
 var mapOverrideType = MappingProcessor{
 	name: "mapOverrideType",
 	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
@@ -261,7 +263,7 @@ var mapOverrideType = MappingProcessor{
 			if len(args) != 1 {
 				return
 			}
-			newType, ok := getString(args[0], "newType")
+			newType, ok := utils.GetPathString(args[0], "newType")
 
 			// if values type is different from new type, convert it
 			pathValType := reflect.TypeOf(pathVal).Kind().String()
@@ -274,7 +276,7 @@ var mapOverrideType = MappingProcessor{
 					if err != nil {
 						log.Println(err)
 					}
-					setInterim(interim, newPath, string(newPathVal))
+					utils.MergeOrSet(interim, newPath, string(newPathVal))
 
 				case newType == "int":
 					switch {
@@ -283,7 +285,7 @@ var mapOverrideType = MappingProcessor{
 						if convErr != nil {
 							log.Println(convErr)
 						} else {
-							setInterim(interim, newPath, convertedInt)
+							utils.MergeOrSet(interim, newPath, convertedInt)
 						}
 					}
 				}
@@ -292,10 +294,11 @@ var mapOverrideType = MappingProcessor{
 	},
 }
 
+// hasDuplicateEnv checks if a given env var name is already present in the given list of env vars.
 func hasDuplicateEnv(existingEnvs []interface{}, newEnvName string) bool {
 	for _, existingEnv := range existingEnvs {
-		if existingMap, ok := getMap(existingEnv); ok {
-			if existingName, ok := getString(existingMap, "name"); ok && existingName == newEnvName {
+		if existingMap, ok := utils.GetPathMap(existingEnv); ok {
+			if existingName, ok := utils.GetPathString(existingMap, "name"); ok && existingName == newEnvName {
 				return true
 			}
 		}

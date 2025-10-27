@@ -251,7 +251,10 @@ clusterAgent.strategy.type: spec.override.clusterAgent.updateStrategy.type
 clusterAgent.token: spec.global.clusterAgentToken
 clusterAgent.tokenExistingSecret:
   newPath: spec.global.clusterAgentTokenSecret.secretName
-  mapFunc: mapTokenSecretKey
+  mapFunc: mapSecretKeyName
+  args:
+    - keyName: "token"
+      keyNamePath: "spec.global.clusterAgentTokenSecret.keyName"
 clusterAgent.tolerations: spec.override.clusterAgent.tolerations
 clusterAgent.topologySpreadConstraints: spec.override.clusterAgent.topologySpreadConstraints
 clusterAgent.useHostNetwork: spec.override.clusterAgent.hostNetwork
@@ -328,7 +331,10 @@ datadog.agentDataPlane.image.tag: ""
 datadog.apiKey: spec.global.credentials.apiKey
 datadog.apiKeyExistingSecret:
   newPath: spec.global.credentials.apiSecret.secretName
-  mapFunc: mapApiSecretKey
+  mapFunc: mapSecretKeyName
+  args:
+    - keyName: "api-key"
+      keyNamePath: "spec.global.credentials.apiSecret.keyName"
 datadog.apm.enabled: spec.features.apm.hostPortConfig.enabled
 datadog.apm.errorTrackingStandalone.enabled: spec.features.apm.errorTrackingStandalone.enabled
 datadog.apm.hostSocketPath: spec.features.apm.unixDomainSocketConfig.path
@@ -349,7 +355,10 @@ datadog.apm.useSocketVolume: spec.features.apm.unixDomainSocketConfig.enabled
 datadog.appKey: spec.global.credentials.appKey
 datadog.appKeyExistingSecret:
   newPath: spec.global.credentials.appSecret.secretName
-  mapFunc: mapAppSecretKey
+  mapFunc: mapSecretKeyName
+  args:
+    keyName: "app-key"
+    keyNamePath: "spec.global.credentials.appSecret.keyName"
 datadog.asm.iast.enabled: spec.features.asm.iast.enabled
 datadog.asm.sca.enabled: spec.features.asm.sca.enabled
 datadog.asm.threats.enabled: spec.features.asm.threats.enabled

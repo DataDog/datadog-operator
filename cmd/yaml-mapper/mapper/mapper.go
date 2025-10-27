@@ -14,21 +14,26 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/constants"
+	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/utils"
 	"helm.sh/helm/v3/pkg/chartutil"
 )
 
 var (
-	//go:embed mapping_datadog_helm_to_datadogagent_crd_v2.yaml
+	// defaultDDAMap Embedded Helm-to-DDA mapping file
+	//go:embed mapping_datadog_helm_to_datadogagent_crd.yaml
 	defaultDDAMap []byte
 )
 
-var defaultFilePrefix = map[string]interface{}{
+// defaultFileHeader Default file header for the mapped DDA custom resource output
+var defaultFileHeader = map[string]interface{}{
 	"apiVersion": "datadoghq.com/v2alpha1",
 	"kind":       "DatadogAgent",
 	"metadata":   map[string]interface{}{},
 }
 
-type Config struct {
+// MapConfig Configuration for the yaml mapper.
+type MapConfig struct {
 	MappingPath string
 	SourcePath  string
 	DestPath    string
@@ -36,23 +41,28 @@ type Config struct {
 	Namespace   string
 	UpdateMap   bool
 	PrintOutput bool
-	PrefixPath  string
+	HeaderPath  string
 }
 
+// Mapper Yaml mapper contains the mapper config and collection of mapping functions.
 type Mapper struct {
-	Processors map[string]MappingRunFunc
-	Config
+	MapProcessors map[string]MappingRunFunc
+	MapConfig
 }
 
-func NewMapper(config Config) *Mapper {
+// NewMapper Returns a new Mapper instance.
+func NewMapper(config MapConfig) *Mapper {
 	return &Mapper{
-		Processors: registry(),
-		Config:     config,
+		MapProcessors: mapFuncRegistry(),
+		MapConfig:     config,
 	}
 }
 
+// Run executes the Yaml Mapper based on the provided MapperConfig.
+// If UpdateMap is enabled, the mapper updates the provided mapping using the provided Helm source yaml and exits.
+// Otherwise, the mapper maps the Helm source yaml to a DDA custom resource and writes it to the destination file.
 func (m *Mapper) Run() error {
-	config := m.Config
+	config := m.MapConfig
 	mappingValues, sourceValues, err := m.loadInputs()
 	if err != nil {
 		return err
@@ -69,29 +79,30 @@ func (m *Mapper) Run() error {
 	return m.writeDDA(dda, config)
 }
 
+// loadInputs builds the mapping and Helm source Values from the inputted mapping and Helm source filepaths, respectively.
 func (m *Mapper) loadInputs() (mappingValues chartutil.Values, sourceValues chartutil.Values, err error) {
-	config := m.Config
-	tmpSourceFile := ""
-	sourceFile := config.SourcePath
-	mappingFile := config.MappingPath
+	config := m.MapConfig
+	tmpSourcePath := ""
+	tmpMappingPath := ""
+	sourcePath := config.SourcePath
+	mappingPath := config.MappingPath
 
 	// If updating mapping:
-	// Use latest datadog chart values.yaml as sourceFile if none provided
-	if config.UpdateMap && sourceFile == "" {
-		tmpSourceFile = getLatestValuesFile()
-		m.Config.SourcePath = tmpSourceFile
+	// Use latest datadog chart values.yaml as sourcePath if none provided
+	if config.UpdateMap && sourcePath == "" {
+		tmpSourcePath = utils.FetchLatestValuesFile()
+		m.MapConfig.SourcePath = tmpSourcePath
 
 	}
 
-	// Use default mappingFile if none provided
-	if mappingFile == "" {
-		latestMapping, _ := getLatestDDAMapping()
-		// TODO: clean up fetched mapping
-		m.Config.MappingPath = latestMapping
+	// Use latest mappingPath if none provided
+	if mappingPath == "" {
+		tmpMappingPath, _ = utils.FetchLatestDDAMapping()
+		m.MapConfig.MappingPath = tmpMappingPath
 	}
 
 	// Read mapping file
-	mapping, err := os.ReadFile(m.Config.MappingPath)
+	mapping, err := os.ReadFile(m.MapConfig.MappingPath)
 	if err != nil {
 		// Fall back on embedded default mapping
 		mapping = defaultDDAMap
@@ -102,14 +113,17 @@ func (m *Mapper) loadInputs() (mappingValues chartutil.Values, sourceValues char
 	}
 
 	// Read source yaml file
-	source, err := os.ReadFile(m.Config.SourcePath)
+	source, err := os.ReadFile(m.MapConfig.SourcePath)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// Cleanup tmpSourceFile after it's been read
-	if tmpSourceFile != "" {
-		defer os.Remove(tmpSourceFile)
+	// Cleanup tmpSourcePath after it's been read
+	if tmpSourcePath != "" {
+		defer os.Remove(tmpSourcePath)
+	}
+	if tmpMappingPath != "" {
+		defer os.Remove(tmpMappingPath)
 	}
 
 	sourceValues, err = chartutil.ReadValues(source)
@@ -118,23 +132,24 @@ func (m *Mapper) loadInputs() (mappingValues chartutil.Values, sourceValues char
 	}
 
 	// Handle deprecated helm keys
-	sourceValues = foldDeprecated(sourceValues)
+	sourceValues = utils.ApplyDeprecationRules(sourceValues)
 	return mappingValues, sourceValues, nil
 }
 
+// mapValues maps the Helm source Values to a DDA custom resource based on the provided mapping Values.
 func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartutil.Values) (map[string]interface{}, error) {
-	var ddaName = m.Config.DDAName
+	var ddaName = m.MapConfig.DDAName
 	var interim = map[string]interface{}{}
 
-	if m.Config.PrefixPath == "" {
-		interim = defaultFilePrefix
+	if m.MapConfig.HeaderPath == "" {
+		interim = defaultFileHeader
 		if ddaName == "" {
 			ddaName = "datadog"
 		}
-		setInterim(interim, "metadata.name", ddaName)
+		utils.MergeOrSet(interim, "metadata.name", ddaName)
 
-		if m.Config.Namespace != "" {
-			setInterim(interim, "metadata.namespace", m.Config.Namespace)
+		if m.MapConfig.Namespace != "" {
+			utils.MergeOrSet(interim, "metadata.namespace", m.MapConfig.Namespace)
 		}
 	}
 
@@ -149,7 +164,7 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 	for _, sourceKey := range mappingKeys {
 		pathVal, _ := sourceValues.PathValue(sourceKey)
 		if pathVal == nil {
-			if mapVal, ok := getMap(sourceValues[sourceKey]); ok && mapVal != nil {
+			if mapVal, ok := utils.GetPathMap(sourceValues[sourceKey]); ok && mapVal != nil {
 				pathVal = mapVal
 			} else if tableVal, err := sourceValues.Table(sourceKey); err == nil && len(tableVal) == 1 {
 				pathVal = tableVal
@@ -172,16 +187,16 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 				if s, sOk := name.(string); sOk && len(s) > 63 {
 					name = s[:63]
 				}
-				setInterim(interim, "metadata.name", name)
+				utils.MergeOrSet(interim, "metadata.name", name)
 				break
 			}
-			setInterim(interim, typedDestKey, pathVal)
+			utils.MergeOrSet(interim, typedDestKey, pathVal)
 
 		case []interface{}:
 			// Provide support for the case where one source key may map to multiple destination keys
 			for _, val := range typedDestKey {
 				if s, sOk := val.(string); sOk {
-					setInterim(interim, s, pathVal)
+					utils.MergeOrSet(interim, s, pathVal)
 				} else {
 					log.Printf("Warning: expected string in dest slice for %q, got %T", sourceKey, val)
 				}
@@ -189,11 +204,11 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 
 		case map[string]interface{}:
 			// Perform further processing
-			newPath, _ := getString(typedDestKey, "newPath")
+			newPath, _ := utils.GetPathString(typedDestKey, "newPath")
 
-			if mapFuncName, mOk := getString(typedDestKey, "mapFunc"); mOk {
-				args, _ := getSlice(typedDestKey, "args")
-				if run := m.Processors[mapFuncName]; run != nil {
+			if mapFuncName, mOk := utils.GetPathString(typedDestKey, "mapFunc"); mOk {
+				args, _ := utils.GetPathSlice(typedDestKey, "args")
+				if run := m.MapProcessors[mapFuncName]; run != nil {
 					run(interim, newPath, pathVal, args)
 				} else {
 					log.Printf("Warning: unknown mapFunc %q for %q", mapFuncName, sourceKey)
@@ -204,7 +219,7 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 				log.Printf("Warning: DDA destination key not found: %s\n", sourceKey)
 				continue
 			} else if interim != nil {
-				setInterim(interim, destKey.(string), pathVal)
+				utils.MergeOrSet(interim, destKey.(string), pathVal)
 			}
 		}
 	}
@@ -220,14 +235,16 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 	dda := make(map[string]interface{})
 	for _, k := range interimKeys {
 		v := interim[k]
-		dda = makeTable(k, v, dda)
+		dda = utils.InsertAtPath(k, v, dda)
 	}
 	return dda, nil
 }
 
-func (m *Mapper) writeDDA(dda map[string]interface{}, cfg Config) error {
+// writeDDA writes a DDA map[string]interface{} object to a configured destination filepath.
+// If the destPath is not provided, a new file is created.
+func (m *Mapper) writeDDA(dda map[string]interface{}, cfg MapConfig) error {
 	destFile := cfg.DestPath
-	prefixFile := cfg.PrefixPath
+	headerFile := cfg.HeaderPath
 
 	// Pretty print to YAML format
 	out, err := chartutil.Values(dda).YAML()
@@ -235,17 +252,17 @@ func (m *Mapper) writeDDA(dda map[string]interface{}, cfg Config) error {
 		log.Println(err)
 	}
 
-	// Read prefix yaml file
-	var prefix []byte
-	if prefixFile != "" {
-		prefix, err = os.ReadFile(prefixFile)
+	// Read header yaml file
+	var header []byte
+	if headerFile != "" {
+		header, err = os.ReadFile(headerFile)
 		if err != nil {
 			return err
 		}
 	}
 
-	if len(prefix) > 0 {
-		out = string(prefix) + out
+	if len(header) > 0 {
+		out = string(header) + out
 	}
 
 	if cfg.PrintOutput {
@@ -273,34 +290,51 @@ func (m *Mapper) writeDDA(dda map[string]interface{}, cfg Config) error {
 	return nil
 }
 
+// updateMapping merges keys from the source YAML into the mapping YAML.
+// It adds any keys that exist in the source but are missing in the mapping file,
+// preserving existing mappings.
 func (m *Mapper) updateMapping(sourceValues chartutil.Values, mappingValues chartutil.Values) error {
 	// Populate interim map with keys from latest chart's values.yaml
-	interim := parseValues(sourceValues, make(map[string]interface{}), "")
+	interim := flattenValues(sourceValues, make(map[string]interface{}), "")
 	// Add back existing key values from mapping file
 	for sourceKey, sourceVal := range mappingValues {
-		setInterim(interim, sourceKey, sourceVal)
+		utils.MergeOrSet(interim, sourceKey, sourceVal)
 	}
 	newMapYaml, e := chartutil.Values(interim).YAML()
 	if e != nil {
 		return e
 	}
-	if strings.HasPrefix(m.Config.MappingPath, defaultDDAMappingPath) {
+	if strings.HasPrefix(m.MapConfig.MappingPath, constants.DefaultDDAMappingPath) {
 		newMapYaml = `# This file maps keys from the Datadog Helm chart (YAML) to the DatadogAgent CustomResource spec (YAML).
 ` + newMapYaml
 	}
 
-	if m.Config.PrintOutput {
+	if m.MapConfig.PrintOutput {
 		log.Println("")
 		log.Println(newMapYaml)
 	}
 
-	e = os.WriteFile(m.Config.MappingPath, []byte(newMapYaml), 0660)
+	e = os.WriteFile(m.MapConfig.MappingPath, []byte(newMapYaml), 0660)
 	if e != nil {
 		log.Printf("Error updating mapping yaml. %v", e)
 		return e
 	}
 
-	log.Printf("Mapping file, %s, successfully updated", m.Config.MappingPath)
+	log.Printf("Mapping file, %s, successfully updated", m.MapConfig.MappingPath)
 
 	return nil
+}
+
+// flattenValues builds a mapping of dotted-key paths from a provided Values source.
+func flattenValues(sourceValues chartutil.Values, valuesMap map[string]interface{}, prefix string) map[string]interface{} {
+	for key, value := range sourceValues {
+		currentKey := prefix + key
+		// If the value is a map, recursive call to get nested keys.
+		if nestedMap, ok := utils.GetPathMap(value); ok {
+			flattenValues(nestedMap, valuesMap, currentKey+".")
+		} else {
+			valuesMap[currentKey] = ""
+		}
+	}
+	return valuesMap
 }
