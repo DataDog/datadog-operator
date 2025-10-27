@@ -127,6 +127,15 @@ func (f *workloadCapturerFeature) ManageNodeAgent(managers feature.PodTemplateMa
 		}
 	}
 
+	// Mount the config volume to access IPC auth_token and ipc_cert.pem
+	// This is required for RemoteAgentClient to communicate with the core agent via gRPC
+	configVolumeMount := corev1.VolumeMount{
+		Name:      "config",
+		MountPath: "/etc/datadog-agent",
+		ReadOnly:  true,
+	}
+	managers.VolumeMount().AddVolumeMountToContainer(&configVolumeMount, apicommon.WorkloadCapturerContainerName)
+
 	// Inject DogStatsD forwarding configuration into agent container
 	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 		Name:  "DD_STATSD_FORWARD_HOST",
