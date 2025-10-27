@@ -15,6 +15,7 @@ This is a wrapper chart for installing EKS add-on. Charts required for the add-o
 | 0.1.15 | 2.11.0 | 2.9.0 | 1.16.0 | 7.67.0 | 7.67.0 |
 | 0.1.16 | 2.12.1 | 2.10.0 | 1.17.0 | 7.68.2 | 7.68.2 |
 | 0.1.18 | 2.13.1 | 2.11.0 | 1.18.0 | 7.70.0 | 7.70.0 |
+| 0.1.19 | 2.14.3 | 2.12.0 | 1.19.1 | 7.71.1 | 7.71.1 |
 
 * 0.1.8 failed validation and didn't go through.
 * 0.1.11 failed validation and didn't go through.
@@ -82,7 +83,7 @@ Push the artifact to EKS repo:
 
 * Validate the version by listing the repository:
     ```sh
-    aws ecr describe-images --registry-id 709825985650 --region us-east-1  --repository-name datadog/helm-charts/operator-eks-addon
+    aws ecr describe-images --registry-id 709825985650 --region us-east-1  --repository-name datadog/helm-chartsoperator-eks-addon
     {
         "imageDetails": [
             {
