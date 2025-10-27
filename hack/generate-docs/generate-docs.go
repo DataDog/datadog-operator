@@ -134,17 +134,16 @@ func generatePublicContent(f *os.File, crd apiextensions.CustomResourceDefinitio
 	nameToDescMap := loadJSONToMap(updatedDescriptionsFile)
 
 	// Load doc-gen annotations from Go source
-	annotations, typeMap, err := ParseDocGenAnnotations(typesFile)
+	annotations, err := ParseDocGenAnnotations(typesFile)
 	if err != nil {
 		panic(fmt.Sprintf("failed to parse doc-gen annotations: %s", err))
 	}
 
-	writePropsTablePublic(f, "global-options-list", crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties, nameToDescMap, annotations, typeMap)
+	writePropsTablePublic(f, "global-options-list", crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties, nameToDescMap, annotations)
 }
 
-func writePropsTablePublic(f *os.File, sectionId string, props map[string]apiextensions.JSONSchemaProps, nameToDescMap map[string]string, annotations map[string]FieldAnnotation, typeMap map[string]TypeMapping) {
-	// Start with DatadogAgentSpec as the root type
-	docs := getParameterDocsPublic([]string{}, "DatadogAgentSpec", props, annotations, typeMap)
+func writePropsTablePublic(f *os.File, sectionId string, props map[string]apiextensions.JSONSchemaProps, nameToDescMap map[string]string, annotations map[string]FieldAnnotation) {
+	docs := getParameterDocsPublic([]string{}, props, annotations)
 	sort.Slice(docs, func(i, j int) bool {
 		return docs[i].name < docs[j].name
 	})
@@ -251,30 +250,23 @@ func getParameterDoc(path []string, name string, prop apiextensions.JSONSchemaPr
 }
 
 // getParameterDocsPublic is like getParameterDocs but respects +doc-gen: annotations
-func getParameterDocsPublic(path []string, currentType string, props map[string]apiextensions.JSONSchemaProps, annotations map[string]FieldAnnotation, typeMap map[string]TypeMapping) []parameterDoc {
+func getParameterDocsPublic(path []string, props map[string]apiextensions.JSONSchemaProps, annotations map[string]FieldAnnotation) []parameterDoc {
 	parameterDocs := []parameterDoc{}
 	for name, prop := range props {
-		parameterDocs = append(parameterDocs, getParameterDocPublic(path, currentType, name, prop, annotations, typeMap)...)
+		parameterDocs = append(parameterDocs, getParameterDocPublic(path, name, prop, annotations)...)
 	}
 
 	return parameterDocs
 }
 
 // getParameterDocPublic is like getParameterDoc but respects +doc-gen: annotations
-func getParameterDocPublic(path []string, currentType string, name string, prop apiextensions.JSONSchemaProps, annotations map[string]FieldAnnotation, typeMap map[string]TypeMapping) []parameterDoc {
+// Uses path-based annotation lookup (e.g., "features.cspm.customBenchmarks")
+func getParameterDocPublic(path []string, name string, prop apiextensions.JSONSchemaProps, annotations map[string]FieldAnnotation) []parameterDoc {
 	path = append(path, name)
+	pathKey := strings.Join(path, ".")
 
-	// Build the key for this field: "CurrentType.jsonFieldName"
-	annotationKey := fmt.Sprintf("%s.%s", currentType, name)
-
-	// Check for annotations on this field
-	annotation, hasAnnotation := annotations[annotationKey]
-
-	// Determine the Go type for this field by looking up in typeMap
-	nextType := ""
-	if mapping, ok := typeMap[annotationKey]; ok {
-		nextType = mapping.GoTypeName
-	}
+	// Check for annotations on this field using the path
+	annotation, hasAnnotation := annotations[pathKey]
 
 	// Handle +doc-gen:exclude - skip this field and all children
 	if hasAnnotation && annotation.Exclude {
@@ -286,7 +278,7 @@ func getParameterDocPublic(path []string, currentType string, name string, prop 
 		desc := strings.ReplaceAll(prop.Description, "\n", " ")
 		return []parameterDoc{
 			{
-				name:        strings.Join(path, "."),
+				name:        pathKey,
 				description: desc,
 			},
 		}
@@ -299,7 +291,7 @@ func getParameterDocPublic(path []string, currentType string, name string, prop 
 		desc = fmt.Sprintf("%s See [link](%s) for more information.", desc, annotation.Link)
 		return []parameterDoc{
 			{
-				name:        strings.Join(path, "."),
+				name:        pathKey,
 				description: desc,
 			},
 		}
@@ -309,13 +301,14 @@ func getParameterDocPublic(path []string, currentType string, name string, prop 
 	if len(prop.Properties) == 0 {
 		return []parameterDoc{
 			{
-				name:        strings.Join(path, "."),
+				name:        pathKey,
 				description: strings.ReplaceAll(prop.Description, "\n", " "),
 			},
 		}
 	}
 
-	return getParameterDocsPublic(path, nextType, prop.Properties, annotations, typeMap)
+	// Recurse into nested properties
+	return getParameterDocsPublic(path, prop.Properties, annotations)
 }
 
 func exampleFile(version string) string {
