@@ -161,7 +161,7 @@ func writePropsTablePublic(f *os.File, sectionId string, props map[string]apiext
 			desc = strings.TrimPrefix(desc, prefix)
 			desc = strings.ToUpper(desc[:1]) + desc[1:]
 		}
-		mustWriteString(f, fmt.Sprintf("`%s`n", doc.name))
+		mustWriteString(f, fmt.Sprintf("`%s`", doc.name))
 		mustWriteString(f, fmt.Sprintf(": %s\n\n", desc))
 	}
 	mustWriteString(f, "{{% /collapse-content %}}\n\n")
