@@ -23,8 +23,7 @@ import (
 
 const (
 	userAgentHTTPHeaderKey = "User-Agent"
-
-	defaultInterval = 1 * time.Minute
+	defaultInterval        = 1 * time.Minute
 )
 
 type OperatorMetadataForwarder struct {
@@ -158,6 +157,9 @@ func (omf *OperatorMetadataForwarder) setupFromDDA(dda *v2alpha1.DatadogAgent) e
 	return omf.SharedMetadata.setupFromDDA(dda)
 }
 
+// setCredentials attempts to set up credentials and cluster name from the operator configuration first.
+// If cluster name is empty (even when credentials are successfully retrieved from operator),
+// it falls back to setting up from DatadogAgent to ensure we have a valid cluster name.
 func (omf *OperatorMetadataForwarder) setCredentials() error {
 	err := omf.setupFromOperator()
 	if err == nil && omf.clusterName != "" {
