@@ -554,12 +554,9 @@ func workloadCapturerContainer(dda metav1.Object) corev1.Container {
 			},
 		},
 		Env: envVars,
-		SecurityContext: &corev1.SecurityContext{
-			RunAsUser:                apiutils.NewInt64Pointer(1000),
-			RunAsGroup:               apiutils.NewInt64Pointer(1000),
-			AllowPrivilegeEscalation: apiutils.NewBoolPointer(false),
-			ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(true),
-		},
+		// SecurityContext removed to allow access to IPC files (auth_token, ipc_cert.pem)
+		// which are owned by root with 0600 permissions. Other sub-agents (trace-agent,
+		// process-agent, etc.) also run as root for IPC access.
 		Resources: corev1.ResourceRequirements{
 			Limits: corev1.ResourceList{
 				corev1.ResourceMemory: resource.MustParse("100Mi"),
