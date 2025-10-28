@@ -94,7 +94,7 @@ func generateDoc(header []byte, crd apiextensions.CustomResourceDefinitionVersio
 func generatePublicDoc(crd apiextensions.CustomResourceDefinitionVersion, version string) {
 	publicHeader := mustReadFile(publicHeaderFile)
 	publicFooter := mustReadFile(publicFooterFile)
-	publicOverride := mustReadFile(publicOverridesFile)
+	publicOverrides := mustReadFile(publicOverridesFile)
 
 	f, err := os.OpenFile(publicDocsFile, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0o644)
 	if err != nil {
@@ -108,7 +108,7 @@ func generatePublicDoc(crd apiextensions.CustomResourceDefinitionVersion, versio
 
 	// Write header
 	mustWrite(f, publicHeader)
-	mustWriteString(f, "\n")
+	mustWriteString(f, "\n\n")
 
 	// Load doc-gen annotations from Go source
 	annotations, err := ParseDocGenAnnotations(typesFile)
@@ -118,17 +118,17 @@ func generatePublicDoc(crd apiextensions.CustomResourceDefinitionVersion, versio
 
 	generatePublicContent(f, crd, annotations)
 
-	// Write override section header and opening collapse tag
-	mustWrite(f, publicOverride)
+	// Write overrides section
+	mustWrite(f, publicOverrides)
+	mustWriteString(f, "\n\n")
 
 	// Generate override parameters
+	mustWriteString(f, fmt.Sprintf("{{%% collapse-content title=\"Parameters\" level=\"h4\" expanded=true id=\"override-options-list\" %%}}\n"))
 	nameToDescMap := loadJSONToMap(updatedDescriptionsFile)
 	overrideProps := crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties["override"]
 	writeOverridesRecursivePublic(f, "[key]", []string{"override"}, overrideProps.AdditionalProperties.Schema.Properties, nameToDescMap, annotations)
 
-	// Close collapse tag
-	mustWriteString(f, "{{% /collapse-content %}}\n\n")
-	mustWriteString(f, "For a complete list of override parameters, see the [Operator configuration spec][9].\n\n")
+	mustWriteString(f, "{{% /collapse-content %}}\n\n\n")
 
 	mustWrite(f, publicFooter)
 }
@@ -151,7 +151,7 @@ func generatePublicContent(f *os.File, crd apiextensions.CustomResourceDefinitio
 	nameToDescMap := loadJSONToMap(updatedDescriptionsFile)
 
 	// Write global options section
-	writePropsTablePublic(f, "global-options-list", crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties, nameToDescMap, annotations)
+	writePropsTablePublic(f, crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties, nameToDescMap, annotations)
 
 	mustWriteString(f, "For a complete list of parameters, see the [Operator configuration spec][8].\n\n")
 }
@@ -170,13 +170,9 @@ func writePropsTable(f *os.File, props map[string]apiextensions.JSONSchemaProps,
 			// Replace imported description with manual edits
 			desc = newDesc
 		} else {
-			// If needed, remove the name of the parameter from the description itself. This is done for visual appeal in our public docs.
-			// Isolate parameter name from full period-delimited name
 			paramName := doc.name[strings.LastIndex(doc.name, ".")+1:]
 			prefix := cases.Title(language.English, cases.Compact).String(paramName) + " "
-			// Remove parameter name from description
 			desc = strings.TrimPrefix(desc, prefix)
-			// Capitalize new beginning word of description
 			desc = strings.ToUpper(desc[:1]) + desc[1:]
 		}
 
@@ -184,15 +180,16 @@ func writePropsTable(f *os.File, props map[string]apiextensions.JSONSchemaProps,
 	}
 }
 
-func writePropsTablePublic(f *os.File, sectionId string, props map[string]apiextensions.JSONSchemaProps, nameToDescMap map[string]string, annotations map[string]FieldAnnotation) {
+func writePropsTablePublic(f *os.File, props map[string]apiextensions.JSONSchemaProps, nameToDescMap map[string]string, annotations map[string]FieldAnnotation) {
 	// For global props, displayPath and annotationPath are the same (both start empty)
 	docs := getParameterDocsPublic([]string{}, []string{}, props, annotations)
 	sort.Slice(docs, func(i, j int) bool {
 		return docs[i].name < docs[j].name
 	})
 
-	mustWriteString(f, fmt.Sprintf("{%% collapse-content title=\"Parameters\" level=\"h4\" expanded=true id=\"%s\" %%}}\n\n", sectionId))
-	for _, doc := range docs {
+	mustWriteString(f, fmt.Sprintf("{{%% collapse-content title=\"Parameters\" level=\"h4\" expanded=true id=\"global-options-list\" %%}}\n"))
+	for i := 0; i < len(docs); i++ {
+		doc := docs[i]
 		desc := doc.description
 		if newDesc, ok := nameToDescMap[doc.name]; ok {
 			desc = newDesc
@@ -203,8 +200,12 @@ func writePropsTablePublic(f *os.File, sectionId string, props map[string]apiext
 			desc = strings.TrimPrefix(desc, prefix)
 			desc = strings.ToUpper(desc[:1]) + desc[1:]
 		}
-		mustWriteString(f, fmt.Sprintf("`%s`", doc.name))
-		mustWriteString(f, fmt.Sprintf(": %s\n\n", desc))
+		mustWriteString(f, fmt.Sprintf("`%s`\n", doc.name))
+		if i < len(docs)-1 {
+			mustWriteString(f, fmt.Sprintf(": %s\n\n", desc))
+		} else {
+			mustWriteString(f, fmt.Sprintf(": %s\n", desc))
+		}
 	}
 	mustWriteString(f, "{{% /collapse-content %}}\n\n")
 }
@@ -277,10 +278,6 @@ func getParameterDocsPublic(displayPath []string, annotationPath []string, props
 	return parameterDocs
 }
 
-// getParameterDocPublic is like getParameterDoc but respects +doc-gen: annotations
-// Uses two paths:
-// - displayPath: for building doc.name (display purposes)
-// - annotationPath: for looking up annotations (e.g., "containers.livenessProbe")
 func getParameterDocPublic(displayPath []string, annotationPath []string, name string, prop apiextensions.JSONSchemaProps, annotations map[string]FieldAnnotation) []parameterDoc {
 	displayPath = append(displayPath, name)
 	annotationPath = append(annotationPath, name)
@@ -369,7 +366,6 @@ func writeOverridesRecursive(f *os.File, prefix string, props map[string]apiexte
 	}
 }
 
-// writeOverridesRecursivePublic handles public documentation generation for override fields
 func writeOverridesRecursivePublic(f *os.File, prefix string, annotationPath []string, props map[string]apiextensions.JSONSchemaProps, nameToDescMap map[string]string, annotations map[string]FieldAnnotation) {
 	// displayPath always starts fresh (like internal), annotationPath accumulates path for annotation lookup in the map
 	docs := getParameterDocsPublic([]string{}, annotationPath, props, annotations)
