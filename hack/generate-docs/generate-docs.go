@@ -94,7 +94,6 @@ func generateDoc(header []byte, crd apiextensions.CustomResourceDefinitionVersio
 func generatePublicDoc(crd apiextensions.CustomResourceDefinitionVersion, version string) {
 	publicHeader := mustReadFile(publicHeaderFile)
 	publicFooter := mustReadFile(publicFooterFile)
-	publicOverride := mustReadFile(publicOverridesFile)
 
 	f, err := os.OpenFile(publicDocsFile, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0o644)
 	if err != nil {
@@ -117,8 +116,6 @@ func generatePublicDoc(crd apiextensions.CustomResourceDefinitionVersion, versio
 	}
 
 	generatePublicContent(f, crd, annotations)
-	mustWrite(f, publicOverride)
-
 	mustWrite(f, publicFooter)
 }
 
@@ -138,10 +135,9 @@ func generateContent_v2alpha1(f *os.File, crd apiextensions.CustomResourceDefini
 
 func generatePublicContent(f *os.File, crd apiextensions.CustomResourceDefinitionVersion, annotations map[string]FieldAnnotation) {
 	nameToDescMap := loadJSONToMap(updatedDescriptionsFile)
-
 	writePropsTablePublic(f, "global-options-list", crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties, nameToDescMap, annotations)
-
-	// Write overrides section content
+	publicOverride := mustReadFile(publicOverridesFile)
+	mustWrite(f, publicOverride)
 	mustWriteString(f, "{{% collapse-content title=\"Parameters\" level=\"h4\" expanded=true id=\"overrides-list\" %}}\n\n")
 	overrideProps := crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties["override"]
 	// Start annotation path with "override" to match annotation keys like "override.containers.livenessProbe"
