@@ -55,7 +55,7 @@ type HelmMetadataForwarder struct {
 type HelmMetadataPayload struct {
 	Hostname  string       `json:"hostname"`
 	Timestamp int64        `json:"timestamp"`
-	Metadata  HelmMetadata `json:"datadog_helm_metadata"`
+	Metadata  HelmMetadata `json:"datadog_operator_helm_metadata"`
 }
 
 type HelmMetadata struct {

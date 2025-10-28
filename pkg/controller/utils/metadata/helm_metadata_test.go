@@ -69,9 +69,9 @@ func Test_HelmMetadataForwarder_getPayload(t *testing.T) {
 	}
 
 	// Validate metadata object exists
-	metadata, ok := parsed["datadog_helm_metadata"].(map[string]interface{})
+	metadata, ok := parsed["datadog_operator_helm_metadata"].(map[string]interface{})
 	if !ok {
-		t.Fatal("buildPayload() missing or invalid datadog_helm_metadata")
+		t.Fatal("buildPayload() missing or invalid datadog_operator_helm_metadata")
 	}
 
 	// Validate specific metadata values
