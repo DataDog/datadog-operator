@@ -101,3 +101,23 @@ func asMap(v interface{}) (map[string]interface{}, bool) {
 		return nil, false
 	}
 }
+
+// removeAtPath deletes the value from the map object at the period-delimited path string
+func removeAtPath(root map[string]interface{}, dotted string) {
+	parts := strings.Split(dotted, ".")
+	if len(parts) == 0 {
+		return
+	}
+
+	m := root
+	for i := 0; i < len(parts)-1; i++ {
+		next, ok := GetPathMap(m[parts[i]])
+		if !ok {
+			// Path doesn’t exist — nothing to delete
+			return
+		}
+		m = next
+	}
+
+	delete(m, parts[len(parts)-1])
+}

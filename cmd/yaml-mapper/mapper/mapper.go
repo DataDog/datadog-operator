@@ -129,6 +129,9 @@ func (m *Mapper) loadInputs() (mappingValues chartutil.Values, sourceValues char
 		return nil, nil, err
 	}
 
+	// Handle deprecated helm keys
+	sourceValues = utils.ApplyDeprecationRules(sourceValues)
+
 	return mappingValues, sourceValues, nil
 }
 
