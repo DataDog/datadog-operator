@@ -31,7 +31,9 @@ import (
 )
 
 const (
-	// helmValuesCacheTTL is the time-to-live for the cached Helm values (~90 minutes)
+	// helmValuesCacheTTL is the time-to-live for the cached Helm values
+	// Set to ~90 minutes to balance between freshness and API load
+	// (slightly offset from default 1-hour intervals to prevent thundering herd)
 	helmValuesCacheTTL = 90 * time.Minute
 	// releasePrefix is the prefix for Helm release ConfigMaps and Secrets
 	releasePrefix = "sh.helm.release.v1."
@@ -274,7 +276,6 @@ func (hmf *HelmMetadataForwarder) setupFromOperator() error {
 	return hmf.SharedMetadata.setupFromOperator()
 }
 
-// setupFromDDA delegates to SharedMetadata setupFromDDA method
 func (hmf *HelmMetadataForwarder) setupFromDDA(dda *v2alpha1.DatadogAgent) error {
 	return hmf.SharedMetadata.setupFromDDA(dda)
 }
@@ -287,10 +288,7 @@ func (hmf *HelmMetadataForwarder) setCredentials() error {
 
 	dda, err := hmf.SharedMetadata.getDatadogAgent()
 	if err != nil {
-		return err
-	}
-
-	return hmf.setupFromDDA(dda)
+	return hmf.SharedMetadata.setCredentials()
 }
 
 func (hmf *HelmMetadataForwarder) getHeaders() http.Header {
@@ -321,10 +319,13 @@ func (c *allHelmReleasesCache) setCache(releases []HelmReleaseData) {
 
 // discoverAllHelmReleases finds all Helm releases across all namespaces in the cluster
 func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) ([]HelmReleaseData, error) {
+	// Check cache first
 	if cachedReleases, ok := hmf.allHelmReleasesCache.getFromCache(); ok {
 		hmf.logger.V(1).Info("Using cached Helm releases", "count", len(cachedReleases))
 		return cachedReleases, nil
 	}
+
+	hmf.logger.V(1).Info("Cache miss, discovering Helm releases from cluster")
 
 	latestReleases := make(map[string]struct {
 		release  HelmReleaseMinimal
@@ -334,8 +335,9 @@ func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) (
 
 	secretList := &corev1.SecretList{}
 	err := hmf.k8sClient.List(ctx, secretList)
-	if err != nil {
-		hmf.logger.Error(err, "Error listing Secrets for Helm releases")
+	secretListErr = hmf.k8sClient.List(ctx, secretList)
+	if secretListErr != nil {
+		hmf.logger.Error(secretListErr, "Error listing Secrets for Helm releases")
 	} else {
 		hmf.logger.V(1).Info("Scanning Secrets for Helm releases", "total_secrets", len(secretList.Items))
 		for _, secret := range secretList.Items {
@@ -362,8 +364,9 @@ func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) (
 
 	cmList := &corev1.ConfigMapList{}
 	err = hmf.k8sClient.List(ctx, cmList)
-	if err != nil {
-		hmf.logger.Error(err, "Error listing ConfigMaps for Helm releases")
+	cmListErr = hmf.k8sClient.List(ctx, cmList)
+	if cmListErr != nil {
+		hmf.logger.Error(cmListErr, "Error listing ConfigMaps for Helm releases")
 	} else {
 		hmf.logger.V(1).Info("Scanning ConfigMaps for Helm releases", "total_configmaps", len(cmList.Items))
 		for _, cm := range cmList.Items {
@@ -388,31 +391,36 @@ func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) (
 		}
 	}
 
+	// If both Secrets and ConfigMaps failed to list, return error
+	if secretListErr != nil && cmListErr != nil {
+		return nil, fmt.Errorf("failed to discover Helm releases: secrets error: %w, configmaps error: %v", secretListErr, cmListErr)
+	}
+
 	releases := make([]HelmReleaseData, 0, len(latestReleases))
 	for _, data := range latestReleases {
 		providedValuesYAML, err := yaml.Marshal(data.release.Config)
 		if err != nil {
-			hmf.logger.V(2).Info("Failed to marshal Helm provided values", "release", data.release.Name, "error", err)
+			hmf.logger.V(1).Info("Failed to marshal Helm provided values", "release", data.release.Name, "error", err)
 			continue
 		}
 
 		fullValues := hmf.mergeValues(data.release.Chart.Values, data.release.Config)
 		fullValuesYAML, err := yaml.Marshal(fullValues)
 		if err != nil {
-			hmf.logger.V(2).Info("Failed to marshal Helm full values", "release", data.release.Name, "error", err)
+			hmf.logger.V(1).Info("Failed to marshal Helm full values", "release", data.release.Name, "error", err)
 			// Fall back
 			fullValuesYAML = providedValuesYAML
 		}
 
 		scrubbedProvidedYAML, err := scrubber.ScrubBytes(providedValuesYAML)
 		if err != nil {
-			hmf.logger.V(2).Info("Failed to scrub provided values, using unscrubbed", "release", data.release.Name, "error", err)
+			hmf.logger.V(1).Info("Failed to scrub provided values, using unscrubbed", "release", data.release.Name, "error", err)
 			scrubbedProvidedYAML = providedValuesYAML
 		}
 
 		scrubbedFullYAML, err := scrubber.ScrubBytes(fullValuesYAML)
 		if err != nil {
-			hmf.logger.V(2).Info("Failed to scrub full values, using unscrubbed", "release", data.release.Name, "error", err)
+			hmf.logger.V(1).Info("Failed to scrub full values, using unscrubbed", "release", data.release.Name, "error", err)
 			scrubbedFullYAML = fullValuesYAML
 		}
 
@@ -456,7 +464,7 @@ func (hmf *HelmMetadataForwarder) parseHelmResource(name string, data []byte) (*
 
 	release, err := hmf.decodeHelmReleaseFromBytes(data)
 	if err != nil {
-		hmf.logger.V(2).Info("Failed to decode Helm release", "resource", name, "error", err)
+		hmf.logger.V(1).Info("Failed to decode Helm release", "resource", name, "error", err)
 		return nil, "", 0, false
 	}
 
