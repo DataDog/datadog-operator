@@ -142,30 +142,6 @@ func generatePublicContent(f *os.File, crd apiextensions.CustomResourceDefinitio
 	writePropsTablePublic(f, "global-options-list", crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties, nameToDescMap, annotations)
 }
 
-func writePropsTablePublic(f *os.File, sectionId string, props map[string]apiextensions.JSONSchemaProps, nameToDescMap map[string]string, annotations map[string]FieldAnnotation) {
-	docs := getParameterDocsPublic([]string{}, props, annotations)
-	sort.Slice(docs, func(i, j int) bool {
-		return docs[i].name < docs[j].name
-	})
-
-	mustWriteString(f, fmt.Sprintf("{%% collapse-content title=\"Parameters\" level=\"h4\" expanded=true id=\"%s\" %%}}\n\n", sectionId))
-	for _, doc := range docs {
-		desc := doc.description
-		if newDesc, ok := nameToDescMap[doc.name]; ok {
-			desc = newDesc
-		} else {
-			// Clean up description (same logic as existing)
-			paramName := doc.name[strings.LastIndex(doc.name, ".")+1:]
-			prefix := cases.Title(language.English, cases.Compact).String(paramName) + " "
-			desc = strings.TrimPrefix(desc, prefix)
-			desc = strings.ToUpper(desc[:1]) + desc[1:]
-		}
-		mustWriteString(f, fmt.Sprintf("`%s`", doc.name))
-		mustWriteString(f, fmt.Sprintf(": %s\n\n", desc))
-	}
-	mustWriteString(f, "{{% /collapse-content %}}\n\n")
-}
-
 func writePropsTable(f *os.File, props map[string]apiextensions.JSONSchemaProps, nameToDescMap map[string]string) {
 	docs := getParameterDocs([]string{}, props)
 
@@ -192,6 +168,30 @@ func writePropsTable(f *os.File, props map[string]apiextensions.JSONSchemaProps,
 
 		mustWriteString(f, fmt.Sprintf("| %s | %s |\n", doc.name, desc))
 	}
+}
+
+func writePropsTablePublic(f *os.File, sectionId string, props map[string]apiextensions.JSONSchemaProps, nameToDescMap map[string]string, annotations map[string]FieldAnnotation) {
+	docs := getParameterDocsPublic([]string{}, props, annotations)
+	sort.Slice(docs, func(i, j int) bool {
+		return docs[i].name < docs[j].name
+	})
+
+	mustWriteString(f, fmt.Sprintf("{%% collapse-content title=\"Parameters\" level=\"h4\" expanded=true id=\"%s\" %%}}\n\n", sectionId))
+	for _, doc := range docs {
+		desc := doc.description
+		if newDesc, ok := nameToDescMap[doc.name]; ok {
+			desc = newDesc
+		} else {
+			// Clean up description (same logic as existing)
+			paramName := doc.name[strings.LastIndex(doc.name, ".")+1:]
+			prefix := cases.Title(language.English, cases.Compact).String(paramName) + " "
+			desc = strings.TrimPrefix(desc, prefix)
+			desc = strings.ToUpper(desc[:1]) + desc[1:]
+		}
+		mustWriteString(f, fmt.Sprintf("`%s`", doc.name))
+		mustWriteString(f, fmt.Sprintf(": %s\n\n", desc))
+	}
+	mustWriteString(f, "{{% /collapse-content %}}\n\n")
 }
 
 func mustReadFile(path string) []byte {
