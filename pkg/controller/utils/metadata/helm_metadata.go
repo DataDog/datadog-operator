@@ -38,6 +38,10 @@ const (
 
 var (
 	versionRegexp = regexp.MustCompile(`\.v(\d+)$`)
+	allowedCharts = map[string]bool{
+		"datadog":          true,
+		"datadog-operator": true,
+	}
 )
 
 type HelmMetadataForwarder struct {
@@ -328,6 +332,9 @@ func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) (
 			}
 
 			if release, releaseName, revision, ok := hmf.parseHelmResource(secret.Name, secret.Data["release"]); ok {
+				if !allowedCharts[release.Chart.Metadata.Name] {
+					continue
+				}
 				key := fmt.Sprintf("%s/%s", secret.Namespace, releaseName)
 				if existing, exists := latestReleases[key]; !exists || revision > existing.revision {
 					latestReleases[key] = struct {
@@ -356,6 +363,9 @@ func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) (
 			}
 
 			if release, releaseName, revision, ok := hmf.parseHelmResource(cm.Name, []byte(cm.Data["release"])); ok {
+				if !allowedCharts[release.Chart.Metadata.Name] {
+					continue
+				}
 				key := fmt.Sprintf("%s/%s", cm.Namespace, releaseName)
 				if existing, exists := latestReleases[key]; !exists || revision > existing.revision {
 					latestReleases[key] = struct {
@@ -421,8 +431,6 @@ func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) (
 	}
 
 	hmf.allHelmReleasesCache.setCache(releases)
-
-	hmf.logger.Info("Discovered Helm releases in cluster", "count", len(releases))
 
 	return releases, nil
 }
