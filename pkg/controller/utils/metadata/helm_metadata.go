@@ -314,8 +314,9 @@ func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) (
 		revision int
 	})
 
+	var secretListErr, cmListErr error
+
 	secretList := &corev1.SecretList{}
-	err := hmf.k8sClient.List(ctx, secretList)
 	secretListErr = hmf.k8sClient.List(ctx, secretList)
 	if secretListErr != nil {
 		hmf.logger.Error(secretListErr, "Error listing Secrets for Helm releases")
@@ -344,7 +345,6 @@ func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) (
 	}
 
 	cmList := &corev1.ConfigMapList{}
-	err = hmf.k8sClient.List(ctx, cmList)
 	cmListErr = hmf.k8sClient.List(ctx, cmList)
 	if cmListErr != nil {
 		hmf.logger.Error(cmListErr, "Error listing ConfigMaps for Helm releases")
