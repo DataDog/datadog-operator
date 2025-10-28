@@ -101,8 +101,8 @@ func generatePublicDoc(crd apiextensions.CustomResourceDefinitionVersion, versio
 		panic(fmt.Sprintf("cannot write to public docs file: %s", err))
 	}
 	defer func() {
-		if err := f.Close(); err != nil {
-			panic(fmt.Sprintf("cannot close file: %s", err))
+		if closeErr := f.Close(); closeErr != nil {
+			panic(fmt.Sprintf("cannot close file: %s", closeErr))
 		}
 	}()
 
@@ -110,7 +110,13 @@ func generatePublicDoc(crd apiextensions.CustomResourceDefinitionVersion, versio
 	mustWrite(f, publicHeader)
 	mustWriteString(f, "\n")
 
-	generatePublicContent(f, crd)
+	// Load doc-gen annotations from Go source
+	annotations, err := ParseDocGenAnnotations(typesFile)
+	if err != nil {
+		panic(fmt.Sprintf("failed to parse doc-gen annotations: %s", err))
+	}
+
+	generatePublicContent(f, crd, annotations)
 	mustWrite(f, publicOverride)
 
 	mustWrite(f, publicFooter)
@@ -130,16 +136,17 @@ func generateContent_v2alpha1(f *os.File, crd apiextensions.CustomResourceDefini
 	writeOverridesRecursive(f, "[key]", overrideProps.AdditionalProperties.Schema.Properties, nameToDescMap)
 }
 
-func generatePublicContent(f *os.File, crd apiextensions.CustomResourceDefinitionVersion) {
+func generatePublicContent(f *os.File, crd apiextensions.CustomResourceDefinitionVersion, annotations map[string]FieldAnnotation) {
 	nameToDescMap := loadJSONToMap(updatedDescriptionsFile)
 
-	// Load doc-gen annotations from Go source
-	annotations, err := ParseDocGenAnnotations(typesFile)
-	if err != nil {
-		panic(fmt.Sprintf("failed to parse doc-gen annotations: %s", err))
-	}
-
 	writePropsTablePublic(f, "global-options-list", crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties, nameToDescMap, annotations)
+
+	// Write overrides section content
+	mustWriteString(f, "{{% collapse-content title=\"Parameters\" level=\"h4\" expanded=true id=\"overrides-list\" %}}\n\n")
+	overrideProps := crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties["override"]
+	// Start annotation path with "override" to match annotation keys like "override.containers.livenessProbe"
+	writeOverridesRecursivePublic(f, "[key]", []string{"override"}, overrideProps.AdditionalProperties.Schema.Properties, nameToDescMap, annotations)
+	mustWriteString(f, "{{% /collapse-content %}}\n\n")
 }
 
 func writePropsTable(f *os.File, props map[string]apiextensions.JSONSchemaProps, nameToDescMap map[string]string) {
@@ -171,7 +178,8 @@ func writePropsTable(f *os.File, props map[string]apiextensions.JSONSchemaProps,
 }
 
 func writePropsTablePublic(f *os.File, sectionId string, props map[string]apiextensions.JSONSchemaProps, nameToDescMap map[string]string, annotations map[string]FieldAnnotation) {
-	docs := getParameterDocsPublic([]string{}, props, annotations)
+	// For global props, displayPath and annotationPath are the same (both start empty)
+	docs := getParameterDocsPublic([]string{}, []string{}, props, annotations)
 	sort.Slice(docs, func(i, j int) bool {
 		return docs[i].name < docs[j].name
 	})
@@ -250,23 +258,31 @@ func getParameterDoc(path []string, name string, prop apiextensions.JSONSchemaPr
 }
 
 // getParameterDocsPublic is like getParameterDocs but respects +doc-gen: annotations
-func getParameterDocsPublic(path []string, props map[string]apiextensions.JSONSchemaProps, annotations map[string]FieldAnnotation) []parameterDoc {
+// Takes two path parameters:
+// - displayPath: used for building the display name (e.g., "livenessProbe.exec.command")
+// - annotationPath: used for looking up annotations (e.g., "containers.livenessProbe")
+func getParameterDocsPublic(displayPath []string, annotationPath []string, props map[string]apiextensions.JSONSchemaProps, annotations map[string]FieldAnnotation) []parameterDoc {
 	parameterDocs := []parameterDoc{}
 	for name, prop := range props {
-		parameterDocs = append(parameterDocs, getParameterDocPublic(path, name, prop, annotations)...)
+		parameterDocs = append(parameterDocs, getParameterDocPublic(displayPath, annotationPath, name, prop, annotations)...)
 	}
 
 	return parameterDocs
 }
 
 // getParameterDocPublic is like getParameterDoc but respects +doc-gen: annotations
-// Uses path-based annotation lookup (e.g., "features.cspm.customBenchmarks")
-func getParameterDocPublic(path []string, name string, prop apiextensions.JSONSchemaProps, annotations map[string]FieldAnnotation) []parameterDoc {
-	path = append(path, name)
-	pathKey := strings.Join(path, ".")
+// Uses two paths:
+// - displayPath: for building doc.name (display purposes)
+// - annotationPath: for looking up annotations (e.g., "containers.livenessProbe")
+func getParameterDocPublic(displayPath []string, annotationPath []string, name string, prop apiextensions.JSONSchemaProps, annotations map[string]FieldAnnotation) []parameterDoc {
+	displayPath = append(displayPath, name)
+	annotationPath = append(annotationPath, name)
 
-	// Check for annotations on this field using the path
-	annotation, hasAnnotation := annotations[pathKey]
+	displayName := strings.Join(displayPath, ".")
+	annotationKey := strings.Join(annotationPath, ".")
+
+	// Check for annotations on this field using the annotation path
+	annotation, hasAnnotation := annotations[annotationKey]
 
 	// Handle +doc-gen:exclude - skip this field and all children
 	if hasAnnotation && annotation.Exclude {
@@ -278,7 +294,7 @@ func getParameterDocPublic(path []string, name string, prop apiextensions.JSONSc
 		desc := strings.ReplaceAll(prop.Description, "\n", " ")
 		return []parameterDoc{
 			{
-				name:        pathKey,
+				name:        displayName,
 				description: desc,
 			},
 		}
@@ -291,7 +307,7 @@ func getParameterDocPublic(path []string, name string, prop apiextensions.JSONSc
 		desc = fmt.Sprintf("%s See [link](%s) for more information.", desc, annotation.Link)
 		return []parameterDoc{
 			{
-				name:        pathKey,
+				name:        displayName,
 				description: desc,
 			},
 		}
@@ -301,14 +317,14 @@ func getParameterDocPublic(path []string, name string, prop apiextensions.JSONSc
 	if len(prop.Properties) == 0 {
 		return []parameterDoc{
 			{
-				name:        pathKey,
+				name:        displayName,
 				description: strings.ReplaceAll(prop.Description, "\n", " "),
 			},
 		}
 	}
 
 	// Recurse into nested properties
-	return getParameterDocsPublic(path, prop.Properties, annotations)
+	return getParameterDocsPublic(displayPath, annotationPath, prop.Properties, annotations)
 }
 
 func exampleFile(version string) string {
@@ -342,6 +358,42 @@ func writeOverridesRecursive(f *os.File, prefix string, props map[string]apiexte
 				desc = newDesc
 			}
 			mustWriteString(f, fmt.Sprintf("| %s | %s |\n", name, desc))
+		}
+	}
+}
+
+// writeOverridesRecursivePublic handles public documentation generation for override fields
+func writeOverridesRecursivePublic(f *os.File, prefix string, annotationPath []string, props map[string]apiextensions.JSONSchemaProps, nameToDescMap map[string]string, annotations map[string]FieldAnnotation) {
+	// displayPath always starts fresh (like internal), annotationPath accumulates path for annotation lookup in the map
+	docs := getParameterDocsPublic([]string{}, annotationPath, props, annotations)
+
+	sort.Slice(docs, func(i, j int) bool {
+		return docs[i].name < docs[j].name
+	})
+
+	for _, doc := range docs {
+		if props[doc.name].Type == "array" {
+			arrayType := props[doc.name].Items.Schema.Type
+			propName := prefix + "." + doc.name
+			mustWriteString(f, fmt.Sprintf("`%s` `[]%s`: %s\n\n", propName, arrayType, doc.description))
+		} else if props[doc.name].AdditionalProperties != nil {
+			mapKeyType := "string"
+			mapValueType := props[doc.name].AdditionalProperties.Schema.Type
+			propName := prefix + "." + doc.name
+			mustWriteString(f, fmt.Sprintf("`%s` `map[%s]%s`: %s\n\n", propName, mapKeyType, mapValueType, doc.description))
+
+			valueTypeProps := props[doc.name].AdditionalProperties.Schema.Properties
+			// Accumulate annotation path with field name (NOT [key])
+			newAnnotationPath := append(annotationPath, doc.name)
+			// Recurse: displayPath resets to []string{}, annotationPath accumulates
+			writeOverridesRecursivePublic(f, prefix+"."+doc.name+".[key]", newAnnotationPath, valueTypeProps, nameToDescMap, annotations)
+		} else {
+			name := prefix + "." + doc.name
+			desc := doc.description
+			if newDesc, ok := nameToDescMap[name]; ok {
+				desc = newDesc
+			}
+			mustWriteString(f, fmt.Sprintf("`%s`: %s\n\n", name, desc))
 		}
 	}
 }
