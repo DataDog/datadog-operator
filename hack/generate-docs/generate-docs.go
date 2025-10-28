@@ -94,6 +94,7 @@ func generateDoc(header []byte, crd apiextensions.CustomResourceDefinitionVersio
 func generatePublicDoc(crd apiextensions.CustomResourceDefinitionVersion, version string) {
 	publicHeader := mustReadFile(publicHeaderFile)
 	publicFooter := mustReadFile(publicFooterFile)
+	publicOverride := mustReadFile(publicOverridesFile)
 
 	f, err := os.OpenFile(publicDocsFile, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0o644)
 	if err != nil {
@@ -116,6 +117,19 @@ func generatePublicDoc(crd apiextensions.CustomResourceDefinitionVersion, versio
 	}
 
 	generatePublicContent(f, crd, annotations)
+
+	// Write override section header and opening collapse tag
+	mustWrite(f, publicOverride)
+
+	// Generate override parameters
+	nameToDescMap := loadJSONToMap(updatedDescriptionsFile)
+	overrideProps := crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties["override"]
+	writeOverridesRecursivePublic(f, "[key]", []string{"override"}, overrideProps.AdditionalProperties.Schema.Properties, nameToDescMap, annotations)
+
+	// Close collapse tag
+	mustWriteString(f, "{{% /collapse-content %}}\n\n")
+	mustWriteString(f, "For a complete list of override parameters, see the [Operator configuration spec][9].\n\n")
+
 	mustWrite(f, publicFooter)
 }
 
@@ -135,14 +149,11 @@ func generateContent_v2alpha1(f *os.File, crd apiextensions.CustomResourceDefini
 
 func generatePublicContent(f *os.File, crd apiextensions.CustomResourceDefinitionVersion, annotations map[string]FieldAnnotation) {
 	nameToDescMap := loadJSONToMap(updatedDescriptionsFile)
+
+	// Write global options section
 	writePropsTablePublic(f, "global-options-list", crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties, nameToDescMap, annotations)
-	publicOverride := mustReadFile(publicOverridesFile)
-	mustWrite(f, publicOverride)
-	mustWriteString(f, "{{% collapse-content title=\"Parameters\" level=\"h4\" expanded=true id=\"overrides-list\" %}}\n\n")
-	overrideProps := crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties["override"]
-	// Start annotation path with "override" to match annotation keys like "override.containers.livenessProbe"
-	writeOverridesRecursivePublic(f, "[key]", []string{"override"}, overrideProps.AdditionalProperties.Schema.Properties, nameToDescMap, annotations)
-	mustWriteString(f, "{{% /collapse-content %}}\n\n")
+
+	mustWriteString(f, "For a complete list of parameters, see the [Operator configuration spec][8].\n\n")
 }
 
 func writePropsTable(f *os.File, props map[string]apiextensions.JSONSchemaProps, nameToDescMap map[string]string) {
@@ -371,12 +382,12 @@ func writeOverridesRecursivePublic(f *os.File, prefix string, annotationPath []s
 		if props[doc.name].Type == "array" {
 			arrayType := props[doc.name].Items.Schema.Type
 			propName := prefix + "." + doc.name
-			mustWriteString(f, fmt.Sprintf("`%s` `[]%s`: %s\n\n", propName, arrayType, doc.description))
+			mustWriteString(f, fmt.Sprintf("`%s`\n: _type_: `[]%s`\n<br /> %s\n\n", propName, arrayType, doc.description))
 		} else if props[doc.name].AdditionalProperties != nil {
 			mapKeyType := "string"
 			mapValueType := props[doc.name].AdditionalProperties.Schema.Type
 			propName := prefix + "." + doc.name
-			mustWriteString(f, fmt.Sprintf("`%s` `map[%s]%s`: %s\n\n", propName, mapKeyType, mapValueType, doc.description))
+			mustWriteString(f, fmt.Sprintf("`%s`\n: _type_: `map[%s]%s`\n<br /> %s\n\n", propName, mapKeyType, mapValueType, doc.description))
 
 			valueTypeProps := props[doc.name].AdditionalProperties.Schema.Properties
 			// Accumulate annotation path with field name (NOT [key])
@@ -389,7 +400,7 @@ func writeOverridesRecursivePublic(f *os.File, prefix string, annotationPath []s
 			if newDesc, ok := nameToDescMap[name]; ok {
 				desc = newDesc
 			}
-			mustWriteString(f, fmt.Sprintf("`%s`: %s\n\n", name, desc))
+			mustWriteString(f, fmt.Sprintf("`%s`\n: %s\n\n", name, desc))
 		}
 	}
 }

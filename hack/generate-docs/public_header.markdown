@@ -15,3 +15,18 @@ The table in this section lists configurable parameters for the `DatadogAgent` r
 For example: the following manifest uses the `global.clusterName` parameter to set a custom cluster name:
 
 {{< highlight yaml "hl_lines=7" >}}
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  global:
+    clusterName: my-test-cluster
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+      appSecret:
+        secretName: datadog-secret
+        keyName: app-key
+{{< /highlight >}}

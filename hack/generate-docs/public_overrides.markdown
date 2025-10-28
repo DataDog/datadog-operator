@@ -24,17 +24,4 @@ spec:
 {{< /highlight >}}
 In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.containers.system-probe.resources.limits` appear as `[key].image.name` and `[key].containers.[key].resources.limits`, respectively.
 
-{{% collapse-content title="Parameters" level="h4" expanded=true id="override-options-list" %}}
-`[key].annotations`
-: _type_: `map[string]string`
-<br /> Annotations provide annotations that are added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods.
-
-`[key].containers.[key].healthPort`
-: HealthPort of the container for the internal liveness probe. Must be the same as the Liveness/Readiness probes.
-
-`[key].tolerations`
-: _type_: `[]object`
-<br /> Configure the component tolerations.
-{{% /collapse-content %}}
-
-For a complete list of override parameters, see the [Operator configuration spec][9].
+{{% collapse-content title="Parameters" level="h4" expanded=true id="overrides-list" %}}

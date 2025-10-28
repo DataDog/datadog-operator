@@ -15,6 +15,21 @@ The table in this section lists configurable parameters for the `DatadogAgent` r
 For example: the following manifest uses the `global.clusterName` parameter to set a custom cluster name:
 
 {{< highlight yaml "hl_lines=7" >}}
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  global:
+    clusterName: my-test-cluster
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+      appSecret:
+        secretName: datadog-secret
+        keyName: app-key
+{{< /highlight >}}
 {% collapse-content title="Parameters" level="h4" expanded=true id="global-options-list" %}}
 
 `features.admissionController.agentCommunicationMode`: AgentCommunicationMode corresponds to the mode used by the Datadog application libraries to communicate with the Agent. It can be "hostip", "service", or "socket".
@@ -485,6 +500,8 @@ For example: the following manifest uses the `global.clusterName` parameter to s
 
 {{% /collapse-content %}}
 
+For a complete list of parameters, see the [Operator configuration spec][8].
+
 ## Override options
 
 The following table lists parameters that can be used to override default or global settings. Maps and arrays have a type annotation in the table; properties that are configured as map values contain a `[key]` element, to be replaced with an actual map key. `override` itself is a map with the following possible keys: `nodeAgent`, `clusterAgent`, or `clusterChecksRunner`. 
@@ -511,230 +528,337 @@ spec:
 {{< /highlight >}}
 In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.containers.system-probe.resources.limits` appear as `[key].image.name` and `[key].containers.[key].resources.limits`, respectively.
 
-{{% collapse-content title="Parameters" level="h4" expanded=true id="override-options-list" %}}
+{{% collapse-content title="Parameters" level="h4" expanded=true id="overrides-list" %}}`[key].affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution`
+: The scheduler will prefer to schedule pods to nodes that satisfy the affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node matches the corresponding matchExpressions; the node(s) with the highest sum are the most preferred.
+
+`[key].affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms`
+: Required. A list of node selector terms. The terms are ORed.
+
+`[key].affinity.podAffinity.preferredDuringSchedulingIgnoredDuringExecution`
+: The scheduler will prefer to schedule pods to nodes that satisfy the affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the node(s) with the highest sum are the most preferred.
+
+`[key].affinity.podAffinity.requiredDuringSchedulingIgnoredDuringExecution`
+: If the affinity requirements specified by this field are not met at scheduling time, the pod will not be scheduled onto the node. If the affinity requirements specified by this field cease to be met at some point during pod execution (e.g. due to a pod label update), the system may or may not try to eventually evict the pod from its node. When there are multiple elements, the lists of nodes corresponding to each podAffinityTerm are intersected, i.e. all terms must be satisfied.
+
+`[key].affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution`
+: The scheduler will prefer to schedule pods to nodes that satisfy the anti-affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling anti-affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the node(s) with the highest sum are the most preferred.
+
+`[key].affinity.podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution`
+: If the anti-affinity requirements specified by this field are not met at scheduling time, the pod will not be scheduled onto the node. If the anti-affinity requirements specified by this field cease to be met at some point during pod execution (e.g. due to a pod label update), the system may or may not try to eventually evict the pod from its node. When there are multiple elements, the lists of nodes corresponding to each podAffinityTerm are intersected, i.e. all terms must be satisfied.
+
 `[key].annotations`
 : _type_: `map[string]string`
 <br /> Annotations provide annotations that are added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods.
 
+`[key].containers`
+: _type_: `map[string]object`
+<br /> Configure the basic configurations for each Agent container. Valid Agent container names are: `agent`, `cluster-agent`, `init-config`, `init-volume`, `process-agent`, `seccomp-setup`, `security-agent`, `system-probe`, and `trace-agent`.
+
+`[key].containers.[key].appArmorProfileName`
+: AppArmorProfileName specifies an apparmor profile.
+
+`[key].containers.[key].args`
+: _type_: `[]string`
+<br /> Args allows the specification of extra args to the `Command` parameter
+
+`[key].containers.[key].command`
+: _type_: `[]string`
+<br /> Command allows the specification of a custom entrypoint for container
+
+`[key].containers.[key].env`
+: _type_: `[]object`
+<br /> Specify additional environment variables in the container. See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables
+
 `[key].containers.[key].healthPort`
 : HealthPort of the container for the internal liveness probe. Must be the same as the Liveness/Readiness probes.
+
+`[key].containers.[key].livenessProbe`
+: Configure the Liveness Probe of the container See [link](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) for more information.
+
+`[key].containers.[key].logLevel`
+: LogLevel sets logging verbosity (overrides global setting). Valid log levels are: trace, debug, info, warn, error, critical, and off. Default: 'info'
+
+`[key].containers.[key].name`
+: Name of the container that is overridden
+
+`[key].containers.[key].ports`
+: _type_: `[]object`
+<br /> Specify additional ports to be exposed by the container. Not specifying a port here DOES NOT prevent that port from being exposed. See https://pkg.go.dev/k8s.io/api/core/v1#Container documentation for more details.
+
+`[key].containers.[key].readinessProbe`
+: Configure the Readiness Probe of the container See [link](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) for more information.
+
+`[key].containers.[key].resources.claims`
+: Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container.  This is an alpha field and requires enabling the DynamicResourceAllocation feature gate.  This field is immutable. It can only be set for containers.
+
+`[key].containers.[key].resources.limits`
+: Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+
+`[key].containers.[key].resources.requests`
+: Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. Requests cannot exceed Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+
+`[key].containers.[key].seccompConfig.customProfile.configData`
+: ConfigData corresponds to the configuration file content.
+
+`[key].containers.[key].seccompConfig.customProfile.configMap.items`
+: Items maps a ConfigMap data `key` to a file `path` mount.
+
+`[key].containers.[key].seccompConfig.customProfile.configMap.name`
+: Name is the name of the ConfigMap.
+
+`[key].containers.[key].seccompConfig.customRootPath`
+: CustomRootPath specifies a custom Seccomp Profile root location.
+
+`[key].containers.[key].securityContext`
+: Container-level SecurityContext. See [link](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/) for more information.
+
+`[key].containers.[key].startupProbe.exec.command`
+: Command is the command line to execute inside the container, the working directory for the command  is root ('/') in the container's filesystem. The command is simply exec'd, it is not run inside a shell, so traditional shell instructions ('|', etc) won't work. To use a shell, you need to explicitly call out to that shell. Exit status of 0 is treated as live/healthy and non-zero is unhealthy.
+
+`[key].containers.[key].startupProbe.failureThreshold`
+: Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1.
+
+`[key].containers.[key].startupProbe.grpc.port`
+: Port number of the gRPC service. Number must be in the range 1 to 65535.
+
+`[key].containers.[key].startupProbe.grpc.service`
+: Service is the name of the service to place in the gRPC HealthCheckRequest (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).  If this is not specified, the default behavior is defined by gRPC.
+
+`[key].containers.[key].startupProbe.httpGet.host`
+: Host name to connect to, defaults to the pod IP. You probably want to set "Host" in httpHeaders instead.
+
+`[key].containers.[key].startupProbe.httpGet.httpHeaders`
+: Custom headers to set in the request. HTTP allows repeated headers.
+
+`[key].containers.[key].startupProbe.httpGet.path`
+: Path to access on the HTTP server.
+
+`[key].containers.[key].startupProbe.httpGet.port`
+: Name or number of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME.
+
+`[key].containers.[key].startupProbe.httpGet.scheme`
+: Scheme to use for connecting to the host. Defaults to HTTP.
+
+`[key].containers.[key].startupProbe.initialDelaySeconds`
+: Number of seconds after the container has started before liveness probes are initiated. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
+
+`[key].containers.[key].startupProbe.periodSeconds`
+: How often (in seconds) to perform the probe. Default to 10 seconds. Minimum value is 1.
+
+`[key].containers.[key].startupProbe.successThreshold`
+: Minimum consecutive successes for the probe to be considered successful after having failed. Defaults to 1. Must be 1 for liveness and startup. Minimum value is 1.
+
+`[key].containers.[key].startupProbe.tcpSocket.host`
+: Optional: Host name to connect to, defaults to the pod IP.
+
+`[key].containers.[key].startupProbe.tcpSocket.port`
+: Number or name of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME.
+
+`[key].containers.[key].startupProbe.terminationGracePeriodSeconds`
+: Optional duration in seconds the pod needs to terminate gracefully upon probe failure. The grace period is the duration in seconds after the processes running in the pod are sent a termination signal and the time when the processes are forcibly halted with a kill signal. Set this value longer than the expected cleanup time for your process. If this value is nil, the pod's terminationGracePeriodSeconds will be used. Otherwise, this value overrides the value provided by the pod spec. Value must be non-negative integer. The value zero indicates stop immediately via the kill signal (no opportunity to shut down). This is a beta field and requires enabling ProbeTerminationGracePeriod feature gate. Minimum value is 1. spec.terminationGracePeriodSeconds is used if unset.
+
+`[key].containers.[key].startupProbe.timeoutSeconds`
+: Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
+
+`[key].containers.[key].volumeMounts`
+: _type_: `[]object`
+<br /> Specify additional volume mounts in the container.
+
+`[key].createPodDisruptionBudget`
+: Set CreatePodDisruptionBudget to true to create a PodDisruptionBudget for this component. Not applicable for the Node Agent. A Cluster Agent PDB is set with 1 minimum available pod, and a Cluster Checks Runner PDB is set with 1 maximum unavailable pod.
+
+`[key].createRbac`
+: Set CreateRbac to false to prevent automatic creation of Role/ClusterRole for this component
+
+`[key].customConfigurations`
+: _type_: `map[string]object`
+<br /> CustomConfiguration allows to specify custom configuration files for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`. The content is merged with configuration generated by the Datadog Operator, with priority given to custom configuration. WARNING: It is possible to override values set in the `DatadogAgent`.
+
+`[key].customConfigurations.[key].configData`
+: ConfigData corresponds to the configuration file content.
+
+`[key].customConfigurations.[key].configMap.items`
+: Items maps a ConfigMap data `key` to a file `path` mount.
+
+`[key].customConfigurations.[key].configMap.name`
+: Name is the name of the ConfigMap.
+
+`[key].disabled`
+: Disabled force disables a component.
+
+`[key].dnsConfig.nameservers`
+: A list of DNS name server IP addresses. This will be appended to the base nameservers generated from DNSPolicy. Duplicated nameservers will be removed.
+
+`[key].dnsConfig.options`
+: A list of DNS resolver options. This will be merged with the base options generated from DNSPolicy. Duplicated entries will be removed. Resolution options given in Options will override those that appear in the base DNSPolicy.
+
+`[key].dnsConfig.searches`
+: A list of DNS search domains for host-name lookup. This will be appended to the base search paths generated from DNSPolicy. Duplicated search paths will be removed.
+
+`[key].dnsPolicy`
+: Set DNS policy for the pod. Defaults to "ClusterFirst". Valid values are 'ClusterFirstWithHostNet', 'ClusterFirst', 'Default' or 'None'. DNS parameters given in DNSConfig will be merged with the policy selected with DNSPolicy. To have DNS options set along with hostNetwork, you have to specify DNS policy explicitly to 'ClusterFirstWithHostNet'.
+
+`[key].env`
+: _type_: `[]object`
+<br /> Specify additional environment variables for all containers in this component Priority is Container > Component. See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables
+
+`[key].envFrom`
+: _type_: `[]object`
+<br /> EnvFrom specifies the ConfigMaps and Secrets to expose as environment variables. Priority is env > envFrom.
+
+`[key].extraChecksd.configDataMap`
+: ConfigDataMap corresponds to the content of the configuration files. The key should be the filename the contents get mounted to; for instance check.py or check.yaml.
+
+`[key].extraChecksd.configMap.items`
+: Items maps a ConfigMap data `key` to a file `path` mount.
+
+`[key].extraChecksd.configMap.name`
+: Name is the name of the ConfigMap.
+
+`[key].extraConfd.configDataMap`
+: ConfigDataMap corresponds to the content of the configuration files. The key should be the filename the contents get mounted to; for instance check.py or check.yaml.
+
+`[key].extraConfd.configMap.items`
+: Items maps a ConfigMap data `key` to a file `path` mount.
+
+`[key].extraConfd.configMap.name`
+: Name is the name of the ConfigMap.
+
+`[key].hostNetwork`
+: Host networking requested for this pod. Use the host's network namespace.
+
+`[key].hostPID`
+: Use the host's PID namespace.
+
+`[key].image.jmxEnabled`
+: Define whether the Agent image should support JMX. To be used if the `Name` field does not correspond to a full image string.
+
+`[key].image.name`
+: Defines the Agent image name for the pod. You can provide this as: * `<NAME>` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd` for DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`. * `<NAME>:<TAG>` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag` and `[key].image.jmxEnabled` are ignored. * `<REGISTRY>/<NAME>:<TAG>` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified   like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored.
+
+`[key].image.pullPolicy`
+: The Kubernetes pull policy: Use `Always`, `Never`, or `IfNotPresent`.
+
+`[key].image.pullSecrets`
+: It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+
+`[key].image.tag`
+: Define the image tag to use. To be used if the `Name` field does not correspond to a full image string.
+
+`[key].labels`
+: _type_: `map[string]string`
+<br /> AdditionalLabels provide labels that are added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods.
+
+`[key].name`
+: Name overrides the default name for the resource
+
+`[key].nodeSelector`
+: _type_: `map[string]string`
+<br /> A map of key-value pairs. For this pod to run on a specific node, the node must have these key-value pairs as labels. See https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
+
+`[key].priorityClassName`
+: If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority is default, or zero if there is no default.
+
+`[key].replicas`
+: Number of the replicas. Not applicable for a DaemonSet/ExtendedDaemonSet deployment
+
+`[key].runtimeClassName`
+: If specified, indicates the pod's RuntimeClass kubelet should use to run the pod. If the named RuntimeClass does not exist, or the CRI cannot run the corresponding handler, the pod enters the Failed terminal phase. If no runtimeClassName is specified, the default RuntimeHandler is used, which is equivalent to the behavior when the RuntimeClass feature is disabled.
+
+`[key].securityContext.appArmorProfile.localhostProfile`
+: localhostProfile indicates a profile loaded on the node that should be used. The profile must be preconfigured on the node to work. Must match the loaded name of the profile. Must be set if and only if type is "Localhost".
+
+`[key].securityContext.appArmorProfile.type`
+: type indicates which kind of AppArmor profile will be applied. Valid options are:   Localhost - a profile pre-loaded on the node.   RuntimeDefault - the container runtime's default profile.   Unconfined - no AppArmor enforcement.
+
+`[key].securityContext.fsGroup`
+: A special supplemental group that applies to all containers in a pod. Some volume types allow the Kubelet to change the ownership of that volume to be owned by the pod:  1. The owning GID will be the FSGroup 2. The setgid bit is set (new files created in the volume will be owned by FSGroup) 3. The permission bits are OR'd with rw-rw----  If unset, the Kubelet will not modify the ownership and permissions of any volume. Note that this field cannot be set when spec.os.name is windows.
+
+`[key].securityContext.fsGroupChangePolicy`
+: fsGroupChangePolicy defines behavior of changing ownership and permission of the volume before being exposed inside Pod. This field will only apply to volume types which support fsGroup based ownership(and permissions). It will have no effect on ephemeral volume types such as: secret, configmaps and emptydir. Valid values are "OnRootMismatch" and "Always". If not specified, "Always" is used. Note that this field cannot be set when spec.os.name is windows.
+
+`[key].securityContext.runAsGroup`
+: The GID to run the entrypoint of the container process. Uses runtime default if unset. May also be set in SecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence for that container. Note that this field cannot be set when spec.os.name is windows.
+
+`[key].securityContext.runAsNonRoot`
+: Indicates that the container must run as a non-root user. If true, the Kubelet will validate the image at runtime to ensure that it does not run as UID 0 (root) and fail to start the container if it does. If unset or false, no such validation will be performed. May also be set in SecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.
+
+`[key].securityContext.runAsUser`
+: The UID to run the entrypoint of the container process. Defaults to user specified in image metadata if unspecified. May also be set in SecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence for that container. Note that this field cannot be set when spec.os.name is windows.
+
+`[key].securityContext.seLinuxChangePolicy`
+: seLinuxChangePolicy defines how the container's SELinux label is applied to all volumes used by the Pod. It has no effect on nodes that do not support SELinux or to volumes does not support SELinux. Valid values are "MountOption" and "Recursive".  "Recursive" means relabeling of all files on all Pod volumes by the container runtime. This may be slow for large volumes, but allows mixing privileged and unprivileged Pods sharing the same volume on the same node.  "MountOption" mounts all eligible Pod volumes with `-o context` mount option. This requires all Pods that share the same volume to use the same SELinux label. It is not possible to share the same volume among privileged and unprivileged Pods. Eligible volumes are in-tree FibreChannel and iSCSI volumes, and all CSI volumes whose CSI driver announces SELinux support by setting spec.seLinuxMount: true in their CSIDriver instance. Other volumes are always re-labelled recursively. "MountOption" value is allowed only when SELinuxMount feature gate is enabled.  If not specified and SELinuxMount feature gate is enabled, "MountOption" is used. If not specified and SELinuxMount feature gate is disabled, "MountOption" is used for ReadWriteOncePod volumes and "Recursive" for all other volumes.  This field affects only Pods that have SELinux label set, either in PodSecurityContext or in SecurityContext of all containers.  All Pods that use the same volume should use the same seLinuxChangePolicy, otherwise some pods can get stuck in ContainerCreating state. Note that this field cannot be set when spec.os.name is windows.
+
+`[key].securityContext.seLinuxOptions.level`
+: Level is SELinux level label that applies to the container.
+
+`[key].securityContext.seLinuxOptions.role`
+: Role is a SELinux role label that applies to the container.
+
+`[key].securityContext.seLinuxOptions.type`
+: Type is a SELinux type label that applies to the container.
+
+`[key].securityContext.seLinuxOptions.user`
+: User is a SELinux user label that applies to the container.
+
+`[key].securityContext.seccompProfile.localhostProfile`
+: localhostProfile indicates a profile defined in a file on the node should be used. The profile must be preconfigured on the node to work. Must be a descending path, relative to the kubelet's configured seccomp profile location. Must be set if type is "Localhost". Must NOT be set for any other type.
+
+`[key].securityContext.seccompProfile.type`
+: type indicates which kind of seccomp profile will be applied. Valid options are:  Localhost - a profile defined in a file on the node should be used. RuntimeDefault - the container runtime default profile should be used. Unconfined - no profile should be applied.
+
+`[key].securityContext.supplementalGroups`
+: A list of groups applied to the first process run in each container, in addition to the container's primary GID and fsGroup (if specified).  If the SupplementalGroupsPolicy feature is enabled, the supplementalGroupsPolicy field determines whether these are in addition to or instead of any group memberships defined in the container image. If unspecified, no additional groups are added, though group memberships defined in the container image may still be used, depending on the supplementalGroupsPolicy field. Note that this field cannot be set when spec.os.name is windows.
+
+`[key].securityContext.supplementalGroupsPolicy`
+: Defines how supplemental groups of the first container processes are calculated. Valid values are "Merge" and "Strict". If not specified, "Merge" is used. (Alpha) Using the field requires the SupplementalGroupsPolicy feature gate to be enabled and the container runtime must implement support for this feature. Note that this field cannot be set when spec.os.name is windows.
+
+`[key].securityContext.sysctls`
+: Sysctls hold a list of namespaced sysctls used for the pod. Pods with unsupported sysctls (by the container runtime) might fail to launch. Note that this field cannot be set when spec.os.name is windows.
+
+`[key].securityContext.windowsOptions.gmsaCredentialSpec`
+: GMSACredentialSpec is where the GMSA admission webhook (https://github.com/kubernetes-sigs/windows-gmsa) inlines the contents of the GMSA credential spec named by the GMSACredentialSpecName field.
+
+`[key].securityContext.windowsOptions.gmsaCredentialSpecName`
+: GMSACredentialSpecName is the name of the GMSA credential spec to use.
+
+`[key].securityContext.windowsOptions.hostProcess`
+: HostProcess determines if a container should be run as a 'Host Process' container. All of a Pod's containers must have the same effective HostProcess value (it is not allowed to have a mix of HostProcess containers and non-HostProcess containers). In addition, if HostProcess is true then HostNetwork must also be set to true.
+
+`[key].securityContext.windowsOptions.runAsUserName`
+: The UserName in Windows to run the entrypoint of the container process. Defaults to the user specified in image metadata if unspecified. May also be set in PodSecurityContext. If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.
+
+`[key].serviceAccountAnnotations`
+: _type_: `map[string]string`
+<br /> Sets the ServiceAccountAnnotations used by this component.
+
+`[key].serviceAccountName`
+: Sets the ServiceAccount used by this component. Ignored if the field CreateRbac is true.
 
 `[key].tolerations`
 : _type_: `[]object`
 <br /> Configure the component tolerations.
+
+`[key].topologySpreadConstraints`
+: _type_: `[]object`
+<br /> TopologySpreadConstraints describes how a group of pods ought to spread across topology domains. Scheduler will schedule pods in a way which abides by the constraints. All topologySpreadConstraints are ANDed.
+
+`[key].updateStrategy.rollingUpdate.maxSurge`
+: MaxSurge behaves differently based on the Kubernetes resource. Refer to the Kubernetes API documentation for additional details.
+
+`[key].updateStrategy.rollingUpdate.maxUnavailable`
+: The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). Refer to the Kubernetes API documentation for additional details..
+
+`[key].updateStrategy.type`
+: Type can be "RollingUpdate" or "OnDelete" for DaemonSets and "RollingUpdate" or "Recreate" for Deployments
+
+`[key].volumes`
+: _type_: `[]object`
+<br /> Specify additional volumes in the different components (Datadog Agent, Cluster Agent, Cluster Check Runner).
+
 {{% /collapse-content %}}
 
-For a complete list of override parameters, see the [Operator configuration spec][9].{{% collapse-content title="Parameters" level="h4" expanded=true id="overrides-list" %}}
-
-`[key].affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution`: The scheduler will prefer to schedule pods to nodes that satisfy the affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node matches the corresponding matchExpressions; the node(s) with the highest sum are the most preferred.
-
-`[key].affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms`: Required. A list of node selector terms. The terms are ORed.
-
-`[key].affinity.podAffinity.preferredDuringSchedulingIgnoredDuringExecution`: The scheduler will prefer to schedule pods to nodes that satisfy the affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the node(s) with the highest sum are the most preferred.
-
-`[key].affinity.podAffinity.requiredDuringSchedulingIgnoredDuringExecution`: If the affinity requirements specified by this field are not met at scheduling time, the pod will not be scheduled onto the node. If the affinity requirements specified by this field cease to be met at some point during pod execution (e.g. due to a pod label update), the system may or may not try to eventually evict the pod from its node. When there are multiple elements, the lists of nodes corresponding to each podAffinityTerm are intersected, i.e. all terms must be satisfied.
-
-`[key].affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution`: The scheduler will prefer to schedule pods to nodes that satisfy the anti-affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling anti-affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the node(s) with the highest sum are the most preferred.
-
-`[key].affinity.podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution`: If the anti-affinity requirements specified by this field are not met at scheduling time, the pod will not be scheduled onto the node. If the anti-affinity requirements specified by this field cease to be met at some point during pod execution (e.g. due to a pod label update), the system may or may not try to eventually evict the pod from its node. When there are multiple elements, the lists of nodes corresponding to each podAffinityTerm are intersected, i.e. all terms must be satisfied.
-
-`[key].annotations` `map[string]string`: Annotations provide annotations that are added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods.
-
-`[key].containers` `map[string]object`: Configure the basic configurations for each Agent container. Valid Agent container names are: `agent`, `cluster-agent`, `init-config`, `init-volume`, `process-agent`, `seccomp-setup`, `security-agent`, `system-probe`, and `trace-agent`.
-
-`[key].containers.[key].appArmorProfileName`: AppArmorProfileName specifies an apparmor profile.
-
-`[key].containers.[key].args` `[]string`: Args allows the specification of extra args to the `Command` parameter
-
-`[key].containers.[key].command` `[]string`: Command allows the specification of a custom entrypoint for container
-
-`[key].containers.[key].env` `[]object`: Specify additional environment variables in the container. See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables
-
-`[key].containers.[key].healthPort`: HealthPort of the container for the internal liveness probe. Must be the same as the Liveness/Readiness probes.
-
-`[key].containers.[key].livenessProbe`: Configure the Liveness Probe of the container See [link](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) for more information.
-
-`[key].containers.[key].logLevel`: LogLevel sets logging verbosity (overrides global setting). Valid log levels are: trace, debug, info, warn, error, critical, and off. Default: 'info'
-
-`[key].containers.[key].name`: Name of the container that is overridden
-
-`[key].containers.[key].ports` `[]object`: Specify additional ports to be exposed by the container. Not specifying a port here DOES NOT prevent that port from being exposed. See https://pkg.go.dev/k8s.io/api/core/v1#Container documentation for more details.
-
-`[key].containers.[key].readinessProbe`: Configure the Readiness Probe of the container See [link](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) for more information.
-
-`[key].containers.[key].resources.claims`: Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container.  This is an alpha field and requires enabling the DynamicResourceAllocation feature gate.  This field is immutable. It can only be set for containers.
-
-`[key].containers.[key].resources.limits`: Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
-
-`[key].containers.[key].resources.requests`: Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. Requests cannot exceed Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
-
-`[key].containers.[key].seccompConfig.customProfile.configData`: ConfigData corresponds to the configuration file content.
-
-`[key].containers.[key].seccompConfig.customProfile.configMap.items`: Items maps a ConfigMap data `key` to a file `path` mount.
-
-`[key].containers.[key].seccompConfig.customProfile.configMap.name`: Name is the name of the ConfigMap.
-
-`[key].containers.[key].seccompConfig.customRootPath`: CustomRootPath specifies a custom Seccomp Profile root location.
-
-`[key].containers.[key].securityContext`: Container-level SecurityContext. See [link](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/) for more information.
-
-`[key].containers.[key].startupProbe.exec.command`: Command is the command line to execute inside the container, the working directory for the command  is root ('/') in the container's filesystem. The command is simply exec'd, it is not run inside a shell, so traditional shell instructions ('|', etc) won't work. To use a shell, you need to explicitly call out to that shell. Exit status of 0 is treated as live/healthy and non-zero is unhealthy.
-
-`[key].containers.[key].startupProbe.failureThreshold`: Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1.
-
-`[key].containers.[key].startupProbe.grpc.port`: Port number of the gRPC service. Number must be in the range 1 to 65535.
-
-`[key].containers.[key].startupProbe.grpc.service`: Service is the name of the service to place in the gRPC HealthCheckRequest (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).  If this is not specified, the default behavior is defined by gRPC.
-
-`[key].containers.[key].startupProbe.httpGet.host`: Host name to connect to, defaults to the pod IP. You probably want to set "Host" in httpHeaders instead.
-
-`[key].containers.[key].startupProbe.httpGet.httpHeaders`: Custom headers to set in the request. HTTP allows repeated headers.
-
-`[key].containers.[key].startupProbe.httpGet.path`: Path to access on the HTTP server.
-
-`[key].containers.[key].startupProbe.httpGet.port`: Name or number of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME.
-
-`[key].containers.[key].startupProbe.httpGet.scheme`: Scheme to use for connecting to the host. Defaults to HTTP.
-
-`[key].containers.[key].startupProbe.initialDelaySeconds`: Number of seconds after the container has started before liveness probes are initiated. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
-
-`[key].containers.[key].startupProbe.periodSeconds`: How often (in seconds) to perform the probe. Default to 10 seconds. Minimum value is 1.
-
-`[key].containers.[key].startupProbe.successThreshold`: Minimum consecutive successes for the probe to be considered successful after having failed. Defaults to 1. Must be 1 for liveness and startup. Minimum value is 1.
-
-`[key].containers.[key].startupProbe.tcpSocket.host`: Optional: Host name to connect to, defaults to the pod IP.
-
-`[key].containers.[key].startupProbe.tcpSocket.port`: Number or name of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME.
-
-`[key].containers.[key].startupProbe.terminationGracePeriodSeconds`: Optional duration in seconds the pod needs to terminate gracefully upon probe failure. The grace period is the duration in seconds after the processes running in the pod are sent a termination signal and the time when the processes are forcibly halted with a kill signal. Set this value longer than the expected cleanup time for your process. If this value is nil, the pod's terminationGracePeriodSeconds will be used. Otherwise, this value overrides the value provided by the pod spec. Value must be non-negative integer. The value zero indicates stop immediately via the kill signal (no opportunity to shut down). This is a beta field and requires enabling ProbeTerminationGracePeriod feature gate. Minimum value is 1. spec.terminationGracePeriodSeconds is used if unset.
-
-`[key].containers.[key].startupProbe.timeoutSeconds`: Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
-
-`[key].containers.[key].volumeMounts` `[]object`: Specify additional volume mounts in the container.
-
-`[key].createPodDisruptionBudget`: Set CreatePodDisruptionBudget to true to create a PodDisruptionBudget for this component. Not applicable for the Node Agent. A Cluster Agent PDB is set with 1 minimum available pod, and a Cluster Checks Runner PDB is set with 1 maximum unavailable pod.
-
-`[key].createRbac`: Set CreateRbac to false to prevent automatic creation of Role/ClusterRole for this component
-
-`[key].customConfigurations` `map[string]object`: CustomConfiguration allows to specify custom configuration files for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`. The content is merged with configuration generated by the Datadog Operator, with priority given to custom configuration. WARNING: It is possible to override values set in the `DatadogAgent`.
-
-`[key].customConfigurations.[key].configData`: ConfigData corresponds to the configuration file content.
-
-`[key].customConfigurations.[key].configMap.items`: Items maps a ConfigMap data `key` to a file `path` mount.
-
-`[key].customConfigurations.[key].configMap.name`: Name is the name of the ConfigMap.
-
-`[key].disabled`: Disabled force disables a component.
-
-`[key].dnsConfig.nameservers`: A list of DNS name server IP addresses. This will be appended to the base nameservers generated from DNSPolicy. Duplicated nameservers will be removed.
-
-`[key].dnsConfig.options`: A list of DNS resolver options. This will be merged with the base options generated from DNSPolicy. Duplicated entries will be removed. Resolution options given in Options will override those that appear in the base DNSPolicy.
-
-`[key].dnsConfig.searches`: A list of DNS search domains for host-name lookup. This will be appended to the base search paths generated from DNSPolicy. Duplicated search paths will be removed.
-
-`[key].dnsPolicy`: Set DNS policy for the pod. Defaults to "ClusterFirst". Valid values are 'ClusterFirstWithHostNet', 'ClusterFirst', 'Default' or 'None'. DNS parameters given in DNSConfig will be merged with the policy selected with DNSPolicy. To have DNS options set along with hostNetwork, you have to specify DNS policy explicitly to 'ClusterFirstWithHostNet'.
-
-`[key].env` `[]object`: Specify additional environment variables for all containers in this component Priority is Container > Component. See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables
-
-`[key].envFrom` `[]object`: EnvFrom specifies the ConfigMaps and Secrets to expose as environment variables. Priority is env > envFrom.
-
-`[key].extraChecksd.configDataMap`: ConfigDataMap corresponds to the content of the configuration files. The key should be the filename the contents get mounted to; for instance check.py or check.yaml.
-
-`[key].extraChecksd.configMap.items`: Items maps a ConfigMap data `key` to a file `path` mount.
-
-`[key].extraChecksd.configMap.name`: Name is the name of the ConfigMap.
-
-`[key].extraConfd.configDataMap`: ConfigDataMap corresponds to the content of the configuration files. The key should be the filename the contents get mounted to; for instance check.py or check.yaml.
-
-`[key].extraConfd.configMap.items`: Items maps a ConfigMap data `key` to a file `path` mount.
-
-`[key].extraConfd.configMap.name`: Name is the name of the ConfigMap.
-
-`[key].hostNetwork`: Host networking requested for this pod. Use the host's network namespace.
-
-`[key].hostPID`: Use the host's PID namespace.
-
-`[key].image.jmxEnabled`: Define whether the Agent image should support JMX. To be used if the `Name` field does not correspond to a full image string.
-
-`[key].image.name`: Defines the Agent image name for the pod. You can provide this as: * `<NAME>` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd` for DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`. * `<NAME>:<TAG>` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag` and `[key].image.jmxEnabled` are ignored. * `<REGISTRY>/<NAME>:<TAG>` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified   like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored.
-
-`[key].image.pullPolicy`: The Kubernetes pull policy: Use `Always`, `Never`, or `IfNotPresent`.
-
-`[key].image.pullSecrets`: It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
-
-`[key].image.tag`: Define the image tag to use. To be used if the `Name` field does not correspond to a full image string.
-
-`[key].labels` `map[string]string`: AdditionalLabels provide labels that are added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods.
-
-`[key].name`: Name overrides the default name for the resource
-
-`[key].nodeSelector` `map[string]string`: A map of key-value pairs. For this pod to run on a specific node, the node must have these key-value pairs as labels. See https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
-
-`[key].priorityClassName`: If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority is default, or zero if there is no default.
-
-`[key].replicas`: Number of the replicas. Not applicable for a DaemonSet/ExtendedDaemonSet deployment
-
-`[key].runtimeClassName`: If specified, indicates the pod's RuntimeClass kubelet should use to run the pod. If the named RuntimeClass does not exist, or the CRI cannot run the corresponding handler, the pod enters the Failed terminal phase. If no runtimeClassName is specified, the default RuntimeHandler is used, which is equivalent to the behavior when the RuntimeClass feature is disabled.
-
-`[key].securityContext.appArmorProfile.localhostProfile`: localhostProfile indicates a profile loaded on the node that should be used. The profile must be preconfigured on the node to work. Must match the loaded name of the profile. Must be set if and only if type is "Localhost".
-
-`[key].securityContext.appArmorProfile.type`: type indicates which kind of AppArmor profile will be applied. Valid options are:   Localhost - a profile pre-loaded on the node.   RuntimeDefault - the container runtime's default profile.   Unconfined - no AppArmor enforcement.
-
-`[key].securityContext.fsGroup`: A special supplemental group that applies to all containers in a pod. Some volume types allow the Kubelet to change the ownership of that volume to be owned by the pod:  1. The owning GID will be the FSGroup 2. The setgid bit is set (new files created in the volume will be owned by FSGroup) 3. The permission bits are OR'd with rw-rw----  If unset, the Kubelet will not modify the ownership and permissions of any volume. Note that this field cannot be set when spec.os.name is windows.
-
-`[key].securityContext.fsGroupChangePolicy`: fsGroupChangePolicy defines behavior of changing ownership and permission of the volume before being exposed inside Pod. This field will only apply to volume types which support fsGroup based ownership(and permissions). It will have no effect on ephemeral volume types such as: secret, configmaps and emptydir. Valid values are "OnRootMismatch" and "Always". If not specified, "Always" is used. Note that this field cannot be set when spec.os.name is windows.
-
-`[key].securityContext.runAsGroup`: The GID to run the entrypoint of the container process. Uses runtime default if unset. May also be set in SecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence for that container. Note that this field cannot be set when spec.os.name is windows.
-
-`[key].securityContext.runAsNonRoot`: Indicates that the container must run as a non-root user. If true, the Kubelet will validate the image at runtime to ensure that it does not run as UID 0 (root) and fail to start the container if it does. If unset or false, no such validation will be performed. May also be set in SecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.
-
-`[key].securityContext.runAsUser`: The UID to run the entrypoint of the container process. Defaults to user specified in image metadata if unspecified. May also be set in SecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence for that container. Note that this field cannot be set when spec.os.name is windows.
-
-`[key].securityContext.seLinuxChangePolicy`: seLinuxChangePolicy defines how the container's SELinux label is applied to all volumes used by the Pod. It has no effect on nodes that do not support SELinux or to volumes does not support SELinux. Valid values are "MountOption" and "Recursive".  "Recursive" means relabeling of all files on all Pod volumes by the container runtime. This may be slow for large volumes, but allows mixing privileged and unprivileged Pods sharing the same volume on the same node.  "MountOption" mounts all eligible Pod volumes with `-o context` mount option. This requires all Pods that share the same volume to use the same SELinux label. It is not possible to share the same volume among privileged and unprivileged Pods. Eligible volumes are in-tree FibreChannel and iSCSI volumes, and all CSI volumes whose CSI driver announces SELinux support by setting spec.seLinuxMount: true in their CSIDriver instance. Other volumes are always re-labelled recursively. "MountOption" value is allowed only when SELinuxMount feature gate is enabled.  If not specified and SELinuxMount feature gate is enabled, "MountOption" is used. If not specified and SELinuxMount feature gate is disabled, "MountOption" is used for ReadWriteOncePod volumes and "Recursive" for all other volumes.  This field affects only Pods that have SELinux label set, either in PodSecurityContext or in SecurityContext of all containers.  All Pods that use the same volume should use the same seLinuxChangePolicy, otherwise some pods can get stuck in ContainerCreating state. Note that this field cannot be set when spec.os.name is windows.
-
-`[key].securityContext.seLinuxOptions.level`: Level is SELinux level label that applies to the container.
-
-`[key].securityContext.seLinuxOptions.role`: Role is a SELinux role label that applies to the container.
-
-`[key].securityContext.seLinuxOptions.type`: Type is a SELinux type label that applies to the container.
-
-`[key].securityContext.seLinuxOptions.user`: User is a SELinux user label that applies to the container.
-
-`[key].securityContext.seccompProfile.localhostProfile`: localhostProfile indicates a profile defined in a file on the node should be used. The profile must be preconfigured on the node to work. Must be a descending path, relative to the kubelet's configured seccomp profile location. Must be set if type is "Localhost". Must NOT be set for any other type.
-
-`[key].securityContext.seccompProfile.type`: type indicates which kind of seccomp profile will be applied. Valid options are:  Localhost - a profile defined in a file on the node should be used. RuntimeDefault - the container runtime default profile should be used. Unconfined - no profile should be applied.
-
-`[key].securityContext.supplementalGroups`: A list of groups applied to the first process run in each container, in addition to the container's primary GID and fsGroup (if specified).  If the SupplementalGroupsPolicy feature is enabled, the supplementalGroupsPolicy field determines whether these are in addition to or instead of any group memberships defined in the container image. If unspecified, no additional groups are added, though group memberships defined in the container image may still be used, depending on the supplementalGroupsPolicy field. Note that this field cannot be set when spec.os.name is windows.
-
-`[key].securityContext.supplementalGroupsPolicy`: Defines how supplemental groups of the first container processes are calculated. Valid values are "Merge" and "Strict". If not specified, "Merge" is used. (Alpha) Using the field requires the SupplementalGroupsPolicy feature gate to be enabled and the container runtime must implement support for this feature. Note that this field cannot be set when spec.os.name is windows.
-
-`[key].securityContext.sysctls`: Sysctls hold a list of namespaced sysctls used for the pod. Pods with unsupported sysctls (by the container runtime) might fail to launch. Note that this field cannot be set when spec.os.name is windows.
-
-`[key].securityContext.windowsOptions.gmsaCredentialSpec`: GMSACredentialSpec is where the GMSA admission webhook (https://github.com/kubernetes-sigs/windows-gmsa) inlines the contents of the GMSA credential spec named by the GMSACredentialSpecName field.
-
-`[key].securityContext.windowsOptions.gmsaCredentialSpecName`: GMSACredentialSpecName is the name of the GMSA credential spec to use.
-
-`[key].securityContext.windowsOptions.hostProcess`: HostProcess determines if a container should be run as a 'Host Process' container. All of a Pod's containers must have the same effective HostProcess value (it is not allowed to have a mix of HostProcess containers and non-HostProcess containers). In addition, if HostProcess is true then HostNetwork must also be set to true.
-
-`[key].securityContext.windowsOptions.runAsUserName`: The UserName in Windows to run the entrypoint of the container process. Defaults to the user specified in image metadata if unspecified. May also be set in PodSecurityContext. If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.
-
-`[key].serviceAccountAnnotations` `map[string]string`: Sets the ServiceAccountAnnotations used by this component.
-
-`[key].serviceAccountName`: Sets the ServiceAccount used by this component. Ignored if the field CreateRbac is true.
-
-`[key].tolerations` `[]object`: Configure the component tolerations.
-
-`[key].topologySpreadConstraints` `[]object`: TopologySpreadConstraints describes how a group of pods ought to spread across topology domains. Scheduler will schedule pods in a way which abides by the constraints. All topologySpreadConstraints are ANDed.
-
-`[key].updateStrategy.rollingUpdate.maxSurge`: MaxSurge behaves differently based on the Kubernetes resource. Refer to the Kubernetes API documentation for additional details.
-
-`[key].updateStrategy.rollingUpdate.maxUnavailable`: The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). Refer to the Kubernetes API documentation for additional details..
-
-`[key].updateStrategy.type`: Type can be "RollingUpdate" or "OnDelete" for DaemonSets and "RollingUpdate" or "Recreate" for Deployments
-
-`[key].volumes` `[]object`: Specify additional volumes in the different components (Datadog Agent, Cluster Agent, Cluster Check Runner).
-
-{{% /collapse-content %}}
+For a complete list of override parameters, see the [Operator configuration spec][9].
 
 For a complete list of parameters, see the [Operator configuration spec][9].
 
