@@ -18,7 +18,7 @@ These changes may affect other Kubernetes resources that rely on matching these 
 ### Default setup (DAPs disabled):
 | Operator Version | DaemonSet Name Change | Pod Label Change | Selector Change |
 |------------------|-----------------------|------------------|-----------------|
-| **v1.21**        | _No change_           | _No change_      | `agent.datadoghq.com/name: <dda-name>` → `agent.datadoghq.com/instance: <dda-name>-agent` |
+| **v1.21**        | _No change_           | _No change_      | `agent.datadoghq.com/name: <dda-name>` → `app.kubernetes.io/instance: <dda-name>-agent` |
 
 
 ### DAPs enabled:
@@ -26,8 +26,8 @@ These changes may affect other Kubernetes resources that rely on matching these 
 |------------------|----------------|-----------------------|------------------|-----------------|
 | **v1.18**        | Default DS     | _No change_           | _No change_      | _No change_     |
 |                  | DAP DS         | _No change_           | `app.kubernetes.io/instance: <dda-name>-agent` → `<dap-name>-agent` | _No change_ |
-| **v1.21**        | Default DS     | _No change_           | _No change_      | `agent.datadoghq.com/name: <dda-name>` → `agent.datadoghq.com/instance: <dda-name>-agent` |
-|                  | DAP DS         | `datadog-agent-with-profile-<dda-name>-<dap-name>` → `<dap-name>-agent` | _No change_       | `agent.datadoghq.com/name: <dda-name>` → `agent.datadoghq.com/instance: <dap-name>-agent` |
+| **v1.21**        | Default DS     | _No change_           | _No change_      | `agent.datadoghq.com/name: <dda-name>` → `app.kubernetes.io/instance: <dda-name>-agent` |
+|                  | DAP DS         | `datadog-agent-with-profile-<dda-name>-<dap-name>` → `<dap-name>-agent` | _No change_       | `agent.datadoghq.com/name: <dda-name>` → `app.kubernetes.io/instance: <dap-name>-agent` |
 
 ---
 
