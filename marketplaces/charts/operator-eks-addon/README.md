@@ -83,7 +83,7 @@ Push the artifact to EKS repo:
 
 * Validate the version by listing the repository:
     ```sh
-    aws ecr describe-images --registry-id 709825985650 --region us-east-1  --repository-name datadog/helm-chartsoperator-eks-addon
+    aws ecr describe-images --registry-id 709825985650 --region us-east-1  --repository-name datadog/helm-charts/operator-eks-addon
     {
         "imageDetails": [
             {
