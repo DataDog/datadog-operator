@@ -412,7 +412,6 @@ func (mf *metricsForwarder) forwardMetrics() error {
 		mf.logger.Error(err, "cannot update Datadog credentials")
 		return err
 	}
-	// NOTE: in generateDatadogContext
 	ctx := mf.generateDatadogContext()
 
 	mf.logger.V(1).Info("Collecting metrics")

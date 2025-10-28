@@ -124,7 +124,9 @@ func (cm *CredentialManager) getCredsFromCache() (Creds, bool) {
 }
 
 func (cm *CredentialManager) refresh(logger logr.Logger) error {
+	cm.credsMutex.Lock()
 	oldCreds := cm.creds
+	cm.credsMutex.Unlock()
 	cm.creds = Creds{}
 
 	newCreds, err := cm.GetCredentials()
@@ -136,7 +138,6 @@ func (cm *CredentialManager) refresh(logger logr.Logger) error {
 	if oldCreds != newCreds {
 		logger.Info("Credentials have changed, updating creds")
 		// callbacks
-		cm.creds = newCreds
 		err = cm.notifyCallbacks(newCreds)
 
 		if err != nil {
@@ -151,10 +152,16 @@ func (cm *CredentialManager) notifyCallbacks(newCreds Creds) error {
 	cm.callbackMutex.RLock()
 	defer cm.callbackMutex.RUnlock()
 
+	var errs []error
 	for _, cb := range cm.callbacks {
 		if err := cb(newCreds); err != nil {
-			return err
+			errs = append(errs, err)
 		}
+	}
+
+	if len(errs) > 0 {
+		// combine multiple errors
+		return errors.Join(errs...)
 	}
 	return nil
 }
@@ -167,6 +174,8 @@ func (cm *CredentialManager) StartCredentialRefreshRoutine(interval time.Duratio
 
 	for {
 		<-ticker.C
-		cm.refresh(logger)
+		if err := cm.refresh(logger); err != nil {
+			logger.Error(err, "Failed to refresh credentials")
+		}
 	}
 }
