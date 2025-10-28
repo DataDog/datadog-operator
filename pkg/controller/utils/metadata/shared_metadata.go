@@ -147,6 +147,23 @@ func (sm *SharedMetadata) setupFromDDA(dda *v2alpha1.DatadogAgent) error {
 	return nil
 }
 
+// setCredentials attempts to set up credentials and cluster name from the operator configuration first.
+// If cluster name is empty (even when credentials are successfully retrieved from operator),
+// it falls back to setting up from DatadogAgent to ensure we have a valid cluster name.
+func (sm *SharedMetadata) setCredentials() error {
+	err := sm.setupFromOperator()
+	if err == nil && sm.clusterName != "" {
+		return nil
+	}
+
+	dda, err := sm.getDatadogAgent()
+	if err != nil {
+		return err
+	}
+
+	return sm.setupFromDDA(dda)
+}
+
 // getDatadogAgent retrieves the DatadogAgent using Get client method
 func (sm *SharedMetadata) getDatadogAgent() (*v2alpha1.DatadogAgent, error) {
 	// Note: If there are no DDAs present when the Operator starts, the metadata forwarder does not re-try to get credentials from a future DDA

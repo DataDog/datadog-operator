@@ -26,14 +26,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-agent/pkg/util/scrubber"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 const (
-	// helmValuesCacheTTL is the time-to-live for the cached Helm values
-	// Set to ~90 minutes to balance between freshness and API load
-	// (slightly offset from default 1-hour intervals to prevent thundering herd)
+	// helmValuesCacheTTL is the time-to-live for the cached Helm values (~90 minutes)
 	helmValuesCacheTTL = 90 * time.Minute
 	// releasePrefix is the prefix for Helm release ConfigMaps and Secrets
 	releasePrefix = "sh.helm.release.v1."
@@ -271,23 +268,7 @@ func (hmf *HelmMetadataForwarder) buildPayload(release HelmReleaseData, clusterU
 	return jsonPayload
 }
 
-// setupFromOperator delegates to SharedMetadata setupFromOperator method
-func (hmf *HelmMetadataForwarder) setupFromOperator() error {
-	return hmf.SharedMetadata.setupFromOperator()
-}
-
-func (hmf *HelmMetadataForwarder) setupFromDDA(dda *v2alpha1.DatadogAgent) error {
-	return hmf.SharedMetadata.setupFromDDA(dda)
-}
-
 func (hmf *HelmMetadataForwarder) setCredentials() error {
-	err := hmf.setupFromOperator()
-	if err == nil && hmf.clusterName != "" {
-		return nil
-	}
-
-	dda, err := hmf.SharedMetadata.getDatadogAgent()
-	if err != nil {
 	return hmf.SharedMetadata.setCredentials()
 }
 
