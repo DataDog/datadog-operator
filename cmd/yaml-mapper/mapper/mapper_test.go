@@ -11,6 +11,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"helm.sh/helm/v3/pkg/chartutil"
 )
 
@@ -942,4 +943,664 @@ func TestApplyDeprecationRules(t *testing.T) {
 			assert.Equal(t, tt.wantVals, actualMap)
 		})
 	}
+}
+
+func TestMappingProcessors(t *testing.T) {
+	// Test that all mapping processors are properly registered
+	t.Run("mapFuncRegistry_dict", func(t *testing.T) {
+		expectedFuncs := []string{"mapSecretKeyName", "mapSeccompProfile", "mapSystemProbeAppArmor", "mapLocalServiceName", "mapAppendEnvVar", "mapMergeEnvs", "mapOverrideType"}
+		mapFuncs := mapFuncRegistry()
+
+		for _, funcName := range expectedFuncs {
+			t.Run(funcName+"_exists", func(t *testing.T) {
+				runFunc := mapFuncs[funcName]
+				assert.NotNil(t, runFunc, "Mapping function %s should be registered", funcName)
+			})
+		}
+
+		assert.Equal(t, len(expectedFuncs), len(mapFuncs), "Should have exactly %d mapping functions", len(expectedFuncs))
+	})
+
+	// Test individual functions through the dictionary
+	tests := []struct {
+		name        string
+		funcName    string
+		interim     map[string]interface{}
+		newPath     string
+		pathVal     interface{}
+		mapFuncArgs []interface{}
+		expectedMap map[string]interface{}
+	}{
+		// mapSecretKeyName tests
+		{
+			name:     "mapSecretKeyName_apiSecret_empty_map",
+			funcName: "mapSecretKeyName",
+			interim:  map[string]interface{}{},
+			newPath:  "spec.global.credentials.apiSecret.secretName",
+			pathVal:  "my-api-secret",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"keyName":     "api-key",
+					"keyNamePath": "spec.global.credentials.apiSecret.keyName",
+				},
+			},
+			expectedMap: map[string]interface{}{
+				"spec.global.credentials.apiSecret.secretName": "my-api-secret",
+				"spec.global.credentials.apiSecret.keyName":    "api-key",
+			},
+		},
+		{
+			name:     "mapSecretKeyName_apiSecret_existing_map",
+			funcName: "mapSecretKeyName",
+			interim: map[string]interface{}{
+				"spec.global.site":      "datadoghq.com",
+				"spec.agent.image.name": "datadog/agent",
+			},
+			newPath: "spec.global.credentials.apiSecret.secretName",
+			pathVal: "datadog-api-secret",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"keyName":     "api-key",
+					"keyNamePath": "spec.global.credentials.apiSecret.keyName",
+				},
+			},
+			expectedMap: map[string]interface{}{
+				"spec.global.site":                             "datadoghq.com",
+				"spec.agent.image.name":                        "datadog/agent",
+				"spec.global.credentials.apiSecret.secretName": "datadog-api-secret",
+				"spec.global.credentials.apiSecret.keyName":    "api-key",
+			},
+		},
+		{
+			name:     "mapSecretKeyName_apiSecret_overwrite",
+			funcName: "mapSecretKeyName",
+			interim: map[string]interface{}{
+				"spec.global.credentials.apiSecret.secretName": "old-secret",
+				"spec.global.credentials.apiSecret.keyName":    "old-key",
+			},
+			newPath: "spec.global.credentials.apiSecret.secretName",
+			pathVal: "new-api-secret",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"keyName":     "api-key",
+					"keyNamePath": "spec.global.credentials.apiSecret.keyName",
+				},
+			},
+			expectedMap: map[string]interface{}{
+				"spec.global.credentials.apiSecret.secretName": "new-api-secret",
+				"spec.global.credentials.apiSecret.keyName":    "api-key",
+			},
+		},
+		{
+			name:     "mapSecretKeyName_appSecret_empty_map",
+			funcName: "mapSecretKeyName",
+			interim:  map[string]interface{}{},
+			newPath:  "spec.global.credentials.appSecret.secretName",
+			pathVal:  "my-app-secret",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"keyName":     "app-key",
+					"keyNamePath": "spec.global.credentials.appSecret.keyName",
+				},
+			},
+			expectedMap: map[string]interface{}{
+				"spec.global.credentials.appSecret.secretName": "my-app-secret",
+				"spec.global.credentials.appSecret.keyName":    "app-key",
+			},
+		},
+		{
+			name:     "mapSecretKeyName_app_secret_with_existing_api_secret",
+			funcName: "mapSecretKeyName",
+			interim: map[string]interface{}{
+				"spec.global.credentials.apiSecret.secretName": "api-secret",
+				"spec.global.credentials.apiSecret.keyName":    "api-key",
+			},
+			newPath: "spec.global.credentials.appSecret.secretName",
+			pathVal: "datadog-app-secret",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"keyName":     "app-key",
+					"keyNamePath": "spec.global.credentials.appSecret.keyName",
+				},
+			},
+			expectedMap: map[string]interface{}{
+				"spec.global.credentials.apiSecret.secretName": "api-secret",
+				"spec.global.credentials.apiSecret.keyName":    "api-key",
+				"spec.global.credentials.appSecret.secretName": "datadog-app-secret",
+				"spec.global.credentials.appSecret.keyName":    "app-key",
+			},
+		},
+		{
+			name:     "mapSecretKeyName_appSecret_overwrite",
+			funcName: "mapSecretKeyName",
+			interim: map[string]interface{}{
+				"spec.global.credentials.appSecret.secretName": "old-app-secret",
+				"spec.global.credentials.appSecret.keyName":    "old-app-key",
+			},
+			newPath: "spec.global.credentials.appSecret.secretName",
+			pathVal: "new-app-secret",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"keyName":     "app-key",
+					"keyNamePath": "spec.global.credentials.appSecret.keyName",
+				},
+			},
+			expectedMap: map[string]interface{}{
+				"spec.global.credentials.appSecret.secretName": "new-app-secret",
+				"spec.global.credentials.appSecret.keyName":    "app-key",
+			},
+		},
+		{
+			name:     "mapSecretKeyName_tokenSecret_empty_map",
+			funcName: "mapSecretKeyName",
+			interim:  map[string]interface{}{},
+			newPath:  "spec.global.clusterAgentTokenSecret.secretName",
+			pathVal:  "my-token-secret",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"keyName":     "token",
+					"keyNamePath": "spec.global.clusterAgentTokenSecret.keyName",
+				},
+			},
+			expectedMap: map[string]interface{}{
+				"spec.global.clusterAgentTokenSecret.secretName": "my-token-secret",
+				"spec.global.clusterAgentTokenSecret.keyName":    "token",
+			},
+		},
+		{
+			name:     "mapSecretKeyName_tokenSecret_with_existing_secrets",
+			funcName: "mapSecretKeyName",
+			interim: map[string]interface{}{
+				"spec.global.credentials.apiSecret.secretName": "api-secret",
+				"spec.global.credentials.appSecret.secretName": "app-secret",
+			},
+			newPath: "spec.global.clusterAgentTokenSecret.secretName",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"keyName":     "token",
+					"keyNamePath": "spec.global.clusterAgentTokenSecret.keyName",
+				},
+			},
+			pathVal: "cluster-agent-token",
+			expectedMap: map[string]interface{}{
+				"spec.global.credentials.apiSecret.secretName":   "api-secret",
+				"spec.global.credentials.appSecret.secretName":   "app-secret",
+				"spec.global.clusterAgentTokenSecret.secretName": "cluster-agent-token",
+				"spec.global.clusterAgentTokenSecret.keyName":    "token",
+			},
+		},
+		{
+			name:     "mapSecretKeyName_tokenSecret_Key_overwrite",
+			funcName: "mapSecretKeyName",
+			interim: map[string]interface{}{
+				"spec.global.clusterAgentTokenSecret.secretName": "old-token-secret",
+				"spec.global.clusterAgentTokenSecret.keyName":    "old-token",
+			},
+			newPath: "spec.global.clusterAgentTokenSecret.secretName",
+			pathVal: "new-token-secret",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"keyName":     "token",
+					"keyNamePath": "spec.global.clusterAgentTokenSecret.keyName",
+				},
+			},
+			expectedMap: map[string]interface{}{
+				"spec.global.clusterAgentTokenSecret.secretName": "new-token-secret",
+				"spec.global.clusterAgentTokenSecret.keyName":    "token",
+			},
+		},
+		// mapSeccompProfile tests
+		{
+			name:     "mapSeccompProfile_localhost",
+			funcName: "mapSeccompProfile",
+			interim:  map[string]interface{}{},
+			newPath:  "spec.override.nodeAgent.containers.system-probe.securityContext.seccompProfile",
+			pathVal:  "localhost/system-probe",
+			expectedMap: map[string]interface{}{
+				"spec.override.nodeAgent.containers.system-probe.securityContext.seccompProfile.type":             "Localhost",
+				"spec.override.nodeAgent.containers.system-probe.securityContext.seccompProfile.localhostProfile": "system-probe",
+			},
+		},
+		{
+			name:     "mapSeccompProfile_runtime_default",
+			funcName: "mapSeccompProfile",
+			interim:  map[string]interface{}{},
+			newPath:  "spec.override.nodeAgent.containers.system-probe.securityContext.seccompProfile",
+			pathVal:  "runtime/default",
+			expectedMap: map[string]interface{}{
+				"spec.override.nodeAgent.containers.system-probe.securityContext.seccompProfile.type": "RuntimeDefault",
+			},
+		},
+		{
+			name:     "mapSeccompProfile_unconfined",
+			funcName: "mapSeccompProfile",
+			interim:  map[string]interface{}{},
+			newPath:  "spec.override.nodeAgent.containers.system-probe.securityContext.seccompProfile",
+			pathVal:  "unconfined",
+			expectedMap: map[string]interface{}{
+				"spec.override.nodeAgent.containers.system-probe.securityContext.seccompProfile.type": "Unconfined",
+			},
+		},
+		// mapSystemProbeAppArmor tests
+		{
+			name:     "mapSystemProbeAppArmor_no_features_enabled",
+			funcName: "mapSystemProbeAppArmor",
+			interim: map[string]interface{}{
+				"spec.features.cws.enabled": false,
+				"spec.features.npm.enabled": false,
+			},
+			newPath: "spec.override.nodeAgent.containers.system-probe.appArmorProfile",
+			pathVal: "unconfined",
+			expectedMap: map[string]interface{}{
+				"spec.features.cws.enabled": false,
+				"spec.features.npm.enabled": false,
+			},
+		},
+		{
+			name:     "mapSystemProbeAppArmor_multiple_features_enabled",
+			funcName: "mapSystemProbeAppArmor",
+			interim: map[string]interface{}{
+				"spec.features.cws.enabled":            true,
+				"spec.features.npm.enabled":            false,
+				"spec.features.tcpQueueLength.enabled": true,
+			},
+			newPath: "spec.override.nodeAgent.containers.system-probe.appArmorProfile",
+			pathVal: "unconfined",
+			expectedMap: map[string]interface{}{
+				"spec.features.cws.enabled":                                       true,
+				"spec.features.npm.enabled":                                       false,
+				"spec.features.tcpQueueLength.enabled":                            true,
+				"spec.override.nodeAgent.containers.system-probe.appArmorProfile": "unconfined",
+			},
+		},
+		{
+			name:     "mapSystemProbeAppArmor_gpu_enabled_privileged",
+			funcName: "mapSystemProbeAppArmor",
+			interim: map[string]interface{}{
+				"spec.features.gpu.enabled":        true,
+				"spec.features.gpu.privilegedMode": true,
+			},
+			newPath: "spec.override.nodeAgent.containers.system-probe.appArmorProfile",
+			pathVal: "unconfined",
+			expectedMap: map[string]interface{}{
+				"spec.features.gpu.enabled":                                       true,
+				"spec.features.gpu.privilegedMode":                                true,
+				"spec.override.nodeAgent.containers.system-probe.appArmorProfile": "unconfined",
+			},
+		},
+		{
+			name:     "mapSystemProbeAppArmor_gpu_enabled_not_privileged",
+			funcName: "mapSystemProbeAppArmor",
+			interim: map[string]interface{}{
+				"spec.features.gpu.enabled":        true,
+				"spec.features.gpu.privilegedMode": false,
+			},
+			newPath: "spec.override.nodeAgent.containers.system-probe.appArmorProfile",
+			pathVal: "unconfined",
+			expectedMap: map[string]interface{}{
+				"spec.features.gpu.enabled":        true,
+				"spec.features.gpu.privilegedMode": false,
+			},
+		},
+		{
+			name:     "mapSystemProbeAppArmor_empty_apparmor_value",
+			funcName: "mapSystemProbeAppArmor",
+			interim: map[string]interface{}{
+				"spec.features.cws.enabled": true,
+			},
+			newPath: "spec.override.nodeAgent.containers.system-probe.appArmorProfile",
+			pathVal: "",
+			expectedMap: map[string]interface{}{
+				"spec.features.cws.enabled": true,
+			},
+		},
+		{
+			name:     "mapSystemProbeAppArmor_invalid_apparmor_type",
+			funcName: "mapSystemProbeAppArmor",
+			interim: map[string]interface{}{
+				"spec.features.cws.enabled": true,
+			},
+			newPath: "spec.override.nodeAgent.containers.system-probe.appArmorProfile",
+			pathVal: 123,
+			expectedMap: map[string]interface{}{
+				"spec.features.cws.enabled": true,
+			},
+		},
+		// mapLocalServiceName tests
+		{
+			name:        "mapLocalServiceName_empty_name",
+			funcName:    "mapLocalServiceName",
+			interim:     map[string]interface{}{},
+			newPath:     "spec.override.clusterAgent.config.external_metrics.local_service_name",
+			pathVal:     "",
+			expectedMap: map[string]interface{}{},
+		},
+		{
+			name:        "mapLocalServiceName_invalid_type",
+			funcName:    "mapLocalServiceName",
+			interim:     map[string]interface{}{},
+			newPath:     "spec.override.clusterAgent.config.external_metrics.local_service_name",
+			pathVal:     123,
+			expectedMap: map[string]interface{}{},
+		},
+		{
+			name:     "mapLocalServiceName_overwrite_existing",
+			funcName: "mapLocalServiceName",
+			interim: map[string]interface{}{
+				"spec.override.clusterAgent.config.external_metrics.local_service_name": "old-service",
+			},
+			newPath: "spec.override.clusterAgent.config.external_metrics.local_service_name",
+			pathVal: "new-service",
+			expectedMap: map[string]interface{}{
+				"spec.override.clusterAgent.config.external_metrics.local_service_name": "new-service",
+			},
+		},
+		{
+			name:     "mapAppendEnvVar_add_env_var",
+			funcName: "mapAppendEnvVar",
+			interim:  map[string]interface{}{},
+			newPath:  "spec.override.nodeAgent.containers.agent.env",
+			pathVal:  "debug",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"name": "DD_LOG_LEVEL",
+				},
+			},
+			expectedMap: map[string]interface{}{
+				"spec.override.nodeAgent.containers.agent.env": []interface{}{
+					map[string]interface{}{
+						"name":  "DD_LOG_LEVEL",
+						"value": "debug",
+					},
+				},
+			},
+		},
+		{
+			name:     "mapAppendEnvVar_add_to_existing_env_vars",
+			funcName: "mapAppendEnvVar",
+			interim: map[string]interface{}{
+				"spec.override.nodeAgent.containers.agent.env": []interface{}{
+					map[string]interface{}{
+						"name":  "EXISTING_VAR",
+						"value": "existing_value",
+					},
+				},
+			},
+			newPath: "spec.override.nodeAgent.containers.agent.env",
+			pathVal: "new_value",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"name": "NEW_VAR",
+				},
+			},
+			expectedMap: map[string]interface{}{
+				"spec.override.nodeAgent.containers.agent.env": []interface{}{
+					map[string]interface{}{
+						"name":  "EXISTING_VAR",
+						"value": "existing_value",
+					},
+					map[string]interface{}{
+						"name":  "NEW_VAR",
+						"value": "new_value",
+					},
+				},
+			},
+		},
+		{
+			name:     "mapAppendEnvVar_valueFrom",
+			funcName: "mapAppendEnvVar",
+			interim:  map[string]interface{}{},
+			newPath:  "spec.override.nodeAgent.env",
+			pathVal: map[string]interface{}{
+				"valueFrom": map[string]interface{}{
+					"fieldRef": map[string]interface{}{
+						"fieldPath": "status.hostIP",
+					},
+				},
+			},
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"name": "DD_KUBERNETES_KUBELET_HOST",
+				},
+			},
+			expectedMap: map[string]interface{}{
+				"spec.override.nodeAgent.env": []interface{}{
+					map[string]interface{}{
+						"name": "DD_KUBERNETES_KUBELET_HOST",
+						"valueFrom": map[string]interface{}{
+							"fieldRef": map[string]interface{}{
+								"fieldPath": "status.hostIP",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:     "mapAppendEnvVar_valueFrom_existing_envVars",
+			funcName: "mapAppendEnvVar",
+			interim: map[string]interface{}{
+				"spec.override.nodeAgent.env": []interface{}{
+					map[string]interface{}{
+						"name":  "EXISTING_VAR",
+						"value": "existing_value",
+					},
+					map[string]interface{}{
+						"name":  "EXISTING_VAR_2",
+						"value": "existing_value_2",
+					},
+				},
+			},
+			newPath: "spec.override.nodeAgent.env",
+			pathVal: map[string]interface{}{
+				"valueFrom": map[string]interface{}{
+					"fieldRef": map[string]interface{}{
+						"fieldPath": "status.hostIP",
+					},
+				},
+			},
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"name": "DD_KUBERNETES_KUBELET_HOST",
+				},
+			},
+			expectedMap: map[string]interface{}{
+				"spec.override.nodeAgent.env": []interface{}{
+					map[string]interface{}{
+						"name":  "EXISTING_VAR",
+						"value": "existing_value",
+					},
+					map[string]interface{}{
+						"name":  "EXISTING_VAR_2",
+						"value": "existing_value_2",
+					},
+					map[string]interface{}{
+						"name": "DD_KUBERNETES_KUBELET_HOST",
+						"valueFrom": map[string]interface{}{
+							"fieldRef": map[string]interface{}{
+								"fieldPath": "status.hostIP",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:     "mapMergeEnvs_add_new_envs",
+			funcName: "mapMergeEnvs",
+			interim:  map[string]interface{}{},
+			newPath:  "spec.override.nodeAgent.containers.agent.env",
+			pathVal: []interface{}{
+				map[string]interface{}{
+					"name":  "VAR1",
+					"value": "value1",
+				},
+			},
+			expectedMap: map[string]interface{}{
+				"spec.override.nodeAgent.containers.agent.env": []interface{}{
+					map[string]interface{}{
+						"name":  "VAR1",
+						"value": "value1",
+					},
+				},
+			},
+		},
+		{
+			name:     "mapMergeEnvs_add_to_existing_envs",
+			funcName: "mapMergeEnvs",
+			interim: map[string]interface{}{
+				"spec.override.nodeAgent.containers.agent.env": []interface{}{
+					map[string]interface{}{
+						"name":  "EXISTING_VAR",
+						"value": "existing_value",
+					},
+				},
+			},
+			newPath: "spec.override.nodeAgent.containers.agent.env",
+			pathVal: []interface{}{
+				map[string]interface{}{
+					"name":  "NEW_VAR",
+					"value": "new_value",
+				},
+			},
+			expectedMap: map[string]interface{}{
+				"spec.override.nodeAgent.containers.agent.env": []interface{}{
+					map[string]interface{}{
+						"name":  "EXISTING_VAR",
+						"value": "existing_value",
+					},
+					map[string]interface{}{
+						"name":  "NEW_VAR",
+						"value": "new_value",
+					},
+				},
+			},
+		},
+		{
+			name:     "mapMergeEnvs_avoid_duplicates",
+			funcName: "mapMergeEnvs",
+			interim: map[string]interface{}{
+				"spec.override.nodeAgent.containers.agent.env": []interface{}{
+					map[string]interface{}{
+						"name":  "EXISTING_VAR",
+						"value": "existing_value",
+					},
+				},
+			},
+			newPath: "spec.override.nodeAgent.containers.agent.env",
+			pathVal: []interface{}{
+				map[string]interface{}{
+					"name":  "EXISTING_VAR", // This should not be added again
+					"value": "existing_value",
+				},
+				map[string]interface{}{
+					"name":  "NEW_VAR",
+					"value": "new_value",
+				},
+			},
+			expectedMap: map[string]interface{}{
+				"spec.override.nodeAgent.containers.agent.env": []interface{}{
+					map[string]interface{}{
+						"name":  "EXISTING_VAR",
+						"value": "existing_value", // Keeps the original value
+					},
+					map[string]interface{}{
+						"name":  "NEW_VAR",
+						"value": "new_value",
+					},
+				},
+			},
+		},
+		{
+			name:     "mapMergeEnvs_override_duplicates",
+			funcName: "mapMergeEnvs",
+			interim: map[string]interface{}{
+				"spec.override.nodeAgent.containers.agent.env": []interface{}{
+					map[string]interface{}{
+						"name":  "EXISTING_VAR",
+						"value": "existing_value",
+					},
+				},
+			},
+			newPath: "spec.override.nodeAgent.containers.agent.env",
+			pathVal: []interface{}{
+				map[string]interface{}{
+					"name":  "EXISTING_VAR", // This should override existing value
+					"value": "new_value",
+				},
+				map[string]interface{}{
+					"name":  "NEW_VAR",
+					"value": "new_value",
+				},
+			},
+			expectedMap: map[string]interface{}{
+				"spec.override.nodeAgent.containers.agent.env": []interface{}{
+					map[string]interface{}{
+						"name":  "EXISTING_VAR",
+						"value": "new_value", // New value overrides previous value
+					},
+					map[string]interface{}{
+						"name":  "NEW_VAR",
+						"value": "new_value",
+					},
+				},
+			},
+		},
+		{
+			name:     "mapOverrideType_slice_to_string",
+			funcName: "mapOverrideType",
+			interim:  map[string]interface{}{},
+			newPath:  "spec.features.foo.bar",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"newPath": "spec.features.foo.bar",
+					"newType": "string",
+				},
+			},
+			pathVal: []map[string]interface{}{
+				{
+					"someKey":    "someVal",
+					"anotherKey": map[string]interface{}{"foo": true},
+				},
+			},
+			expectedMap: map[string]interface{}{
+				"spec.features.foo.bar": `- anotherKey:
+    foo: true
+  someKey: someVal
+`,
+			},
+		},
+		{
+			name:     "mapOverrideType_string_to_int",
+			funcName: "mapOverrideType",
+			interim:  map[string]interface{}{},
+			newPath:  "spec.features.foo.bar",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"newPath": "spec.features.foo.bar",
+					"newType": "int",
+				},
+			},
+			pathVal: "8080",
+			expectedMap: map[string]interface{}{
+				"spec.features.foo.bar": 8080,
+			},
+		},
+	}
+
+	mapFuncs := mapFuncRegistry()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mapFunc := mapFuncs[tt.funcName]
+			require.NotNil(t, mapFunc, "Mapping function %s should exist in registry", tt.funcName)
+			mapFunc(tt.interim, tt.newPath, tt.pathVal, tt.mapFuncArgs)
+
+			assert.Equal(t, tt.expectedMap, tt.interim)
+		})
+	}
+
+	t.Run("non_existent_function", func(t *testing.T) {
+		runFunc := mapFuncRegistry()["nonExistentFunc"]
+		assert.Nil(t, runFunc, "Non-existent function should not be in registry")
+	})
 }

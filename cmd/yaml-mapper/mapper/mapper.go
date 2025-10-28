@@ -46,13 +46,15 @@ type MapConfig struct {
 
 // Mapper Yaml mapper contains the mapper config and collection of mapping functions.
 type Mapper struct {
+	MapProcessors map[string]MappingRunFunc
 	MapConfig
 }
 
 // NewMapper Returns a new Mapper instance.
 func NewMapper(config MapConfig) *Mapper {
 	return &Mapper{
-		MapConfig: config,
+		MapProcessors: mapFuncRegistry(),
+		MapConfig:     config,
 	}
 }
 
@@ -203,6 +205,19 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 					utils.MergeOrSet(interim, s, pathVal)
 				} else {
 					log.Printf("Warning: expected string in dest slice for %q, got %T", sourceKey, val)
+				}
+			}
+
+		case map[string]interface{}:
+			// Perform further processing
+			newPath, _ := utils.GetPathString(typedDestKey, "newPath")
+
+			if mapFuncName, mOk := utils.GetPathString(typedDestKey, "mapFunc"); mOk {
+				args, _ := utils.GetPathSlice(typedDestKey, "args")
+				if run := m.MapProcessors[mapFuncName]; run != nil {
+					run(interim, newPath, pathVal, args)
+				} else {
+					log.Printf("Warning: unknown mapFunc %q for %q", mapFuncName, sourceKey)
 				}
 			}
 		default:
