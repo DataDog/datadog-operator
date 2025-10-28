@@ -91,20 +91,6 @@ func generateDoc(header []byte, crd apiextensions.CustomResourceDefinitionVersio
 	mustWrite(f, footer)
 }
 
-func generateContent_v2alpha1(f *os.File, crd apiextensions.CustomResourceDefinitionVersion) {
-	nameToDescMap := loadJSONToMap(updatedDescriptionsFile)
-	writePropsTable(f, crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties, nameToDescMap)
-
-	overridesMarkdown := mustReadFile(v2OverridesFile)
-	mustWrite(f, overridesMarkdown)
-	mustWriteString(f, "\n")
-	mustWriteString(f, "| Parameter | Description |\n")
-	mustWriteString(f, "| --------- | ----------- |\n")
-
-	overrideProps := crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties["override"]
-	writeOverridesRecursive(f, "[key]", overrideProps.AdditionalProperties.Schema.Properties, nameToDescMap)
-}
-
 func generatePublicDoc(crd apiextensions.CustomResourceDefinitionVersion, version string) {
 	publicHeader := mustReadFile(publicHeaderFile)
 	publicFooter := mustReadFile(publicFooterFile)
@@ -112,7 +98,7 @@ func generatePublicDoc(crd apiextensions.CustomResourceDefinitionVersion, versio
 
 	f, err := os.OpenFile(publicDocsFile, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0o644)
 	if err != nil {
-		panic(fmt.Sprintf("cannot write to public docs file: %s"))
+		panic(fmt.Sprintf("cannot write to public docs file: %s", err))
 	}
 	defer func() {
 		if err := f.Close(); err != nil {
@@ -128,6 +114,20 @@ func generatePublicDoc(crd apiextensions.CustomResourceDefinitionVersion, versio
 	mustWrite(f, publicOverride)
 
 	mustWrite(f, publicFooter)
+}
+
+func generateContent_v2alpha1(f *os.File, crd apiextensions.CustomResourceDefinitionVersion) {
+	nameToDescMap := loadJSONToMap(updatedDescriptionsFile)
+	writePropsTable(f, crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties, nameToDescMap)
+
+	overridesMarkdown := mustReadFile(v2OverridesFile)
+	mustWrite(f, overridesMarkdown)
+	mustWriteString(f, "\n")
+	mustWriteString(f, "| Parameter | Description |\n")
+	mustWriteString(f, "| --------- | ----------- |\n")
+
+	overrideProps := crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties["override"]
+	writeOverridesRecursive(f, "[key]", overrideProps.AdditionalProperties.Schema.Properties, nameToDescMap)
 }
 
 func generatePublicContent(f *os.File, crd apiextensions.CustomResourceDefinitionVersion) {
