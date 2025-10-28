@@ -433,6 +433,7 @@ type CSPMFeatureConfig struct {
 	// CustomBenchmarks contains CSPM benchmarks.
 	// The content of the ConfigMap will be merged with the benchmarks bundled with the agent.
 	// Any benchmarks with the same name as those existing in the agent will take precedence.
+	// +doc-gen:truncate
 	// +optional
 	CustomBenchmarks *CustomConfig `json:"customBenchmarks,omitempty"`
 
@@ -2044,10 +2045,12 @@ type DatadogAgentGenericContainer struct {
 	HealthPort *int32 `json:"healthPort,omitempty"`
 
 	// Configure the Readiness Probe of the container
+	// +doc-gen:link=https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 	// +optional
 	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
 
 	// Configure the Liveness Probe of the container
+	// +doc-gen:link=https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 	// +optional
 	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
 
@@ -2056,6 +2059,7 @@ type DatadogAgentGenericContainer struct {
 	StartupProbe *corev1.Probe `json:"startupProbe,omitempty"`
 
 	// Container-level SecurityContext.
+	// +doc-gen:link=https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
 	// +optional
 	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 
