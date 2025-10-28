@@ -374,7 +374,7 @@ func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) (
 
 	// If both Secrets and ConfigMaps failed to list, return error
 	if secretListErr != nil && cmListErr != nil {
-		return nil, fmt.Errorf("failed to discover Helm releases: secrets error: %w, configmaps error: %v", secretListErr, cmListErr)
+		return nil, fmt.Errorf("failed to discover Helm releases: secrets error: %w, configmaps error: %w", secretListErr, cmListErr)
 	}
 
 	releases := make([]HelmReleaseData, 0, len(latestReleases))
@@ -430,6 +430,10 @@ func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) (
 // parseHelmResource extracts release information from a Helm Secret or ConfigMap
 func (hmf *HelmMetadataForwarder) parseHelmResource(name string, data []byte) (*HelmReleaseMinimal, string, int, bool) {
 	// Format: sh.helm.release.v1.{release-name}.v{revision}
+	if !strings.HasPrefix(name, releasePrefix) {
+		return nil, "", 0, false
+	}
+
 	parts := strings.TrimPrefix(name, releasePrefix)
 	match := versionRegexp.FindStringSubmatch(parts)
 	if len(match) != 2 {
