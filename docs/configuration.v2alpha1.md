@@ -133,7 +133,6 @@ spec:
 | features.liveProcessCollection.enabled | Enables Process monitoring. Default: false |
 | features.liveProcessCollection.scrubProcessArguments | ScrubProcessArguments enables scrubbing of sensitive data in process command-lines (passwords, tokens, etc. ). Default: true |
 | features.liveProcessCollection.stripProcessArguments | StripProcessArguments enables stripping of all process arguments. Default: false |
-| features.logCollection.autoMultiLineDetection | AutoMultiLineDetection allows the Agent to detect and aggregate common multi-line logs automatically. See also: https://docs.datadoghq.com/agent/logs/auto_multiline_detection/ |
 | features.logCollection.containerCollectAll | ContainerCollectAll enables Log collection from all containers. Default: false |
 | features.logCollection.containerCollectUsingFiles | ContainerCollectUsingFiles enables log collection from files in `/var/log/pods instead` of using the container runtime API. Collecting logs from files is usually the most efficient way of collecting logs. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup Default: true |
 | features.logCollection.containerLogsPath | ContainerLogsPath allows log collection from the container log path. Set to a different path if you are not using the Docker runtime. See also: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest Default: `/var/lib/docker/containers` |
