@@ -357,8 +357,8 @@ datadog.appKeyExistingSecret:
   newPath: spec.global.credentials.appSecret.secretName
   mapFunc: mapSecretKeyName
   args:
-    keyName: "app-key"
-    keyNamePath: "spec.global.credentials.appSecret.keyName"
+    - keyName: "app-key"
+      keyNamePath: "spec.global.credentials.appSecret.keyName"
 datadog.asm.iast.enabled: spec.features.asm.iast.enabled
 datadog.asm.sca.enabled: spec.features.asm.sca.enabled
 datadog.asm.threats.enabled: spec.features.asm.threats.enabled

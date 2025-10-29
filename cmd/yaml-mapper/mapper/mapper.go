@@ -174,8 +174,8 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 			}
 		}
 
-		destKey, ok := mappingValues[sourceKey]
-		if !ok || destKey == "" || destKey == nil {
+		destKey, _ := mappingValues[sourceKey]
+		if (destKey == "" || destKey == nil) && pathVal != nil {
 			log.Printf("Warning: DDA destination key not found: %s\n", sourceKey)
 			continue
 		}
@@ -279,11 +279,11 @@ func (m *Mapper) writeDDA(dda map[string]interface{}, cfg MapConfig) error {
 		if destPath != "" {
 			file, e := os.Create(destPath)
 			if e != nil {
-				return fmt.Errorf("error ccreating destination file: %v; %w", destPath, e)
+				return fmt.Errorf("error creating destination file: %v; %w", destPath, e)
 			}
 			destPath = file.Name()
 		} else {
-			newDestPath := time.Now().Format("20060102-150405")
+			newDestPath := fmt.Sprintf("dda.yaml.%v", time.Now().Format("20060102-150405"))
 			file, e := os.Create(newDestPath)
 			if e != nil {
 				return fmt.Errorf("error creating new destination file: %v; %w", newDestPath, e)
