@@ -1527,12 +1527,6 @@ spec:
                     kubeStateMetricsCore:
                       description: KubeStateMetricsCore check configuration.
                       properties:
-                        collectControllerRevisions:
-                          description: |-
-                            CollectControllerRevisions enables collection of ControllerRevision metrics.
-                            This requires agent version 7.72.0 or later.
-                            Default: false
-                          type: boolean
                         collectCrMetrics:
                           description: |-
                             `CollectCrMetrics` defines custom resources for the kube-state-metrics core check to collect.
@@ -9317,12 +9311,6 @@ spec:
                         kubeStateMetricsCore:
                           description: KubeStateMetricsCore check configuration.
                           properties:
-                            collectControllerRevisions:
-                              description: |-
-                                CollectControllerRevisions enables collection of ControllerRevision metrics.
-                                This requires agent version 7.72.0 or later.
-                                Default: false
-                              type: boolean
                             collectCrMetrics:
                               description: |-
                                 `CollectCrMetrics` defines custom resources for the kube-state-metrics core check to collect.

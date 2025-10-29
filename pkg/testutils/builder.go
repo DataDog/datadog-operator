@@ -580,12 +580,6 @@ func (builder *DatadogAgentBuilder) WithKSMCustomConf(customData string) *Datado
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithKSMCollectControllerRevisions(enabled bool) *DatadogAgentBuilder {
-	builder.initKSM()
-	builder.datadogAgent.Spec.Features.KubeStateMetricsCore.CollectControllerRevisions = apiutils.NewBoolPointer(enabled)
-	return builder
-}
-
 // Orchestrator Explorer
 
 func (builder *DatadogAgentBuilder) initOE() {

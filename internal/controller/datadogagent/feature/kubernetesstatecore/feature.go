@@ -65,12 +65,14 @@ type ksmFeature struct {
 	logger logr.Logger
 }
 
-// Minimum agent version that supports collection of CRD and APIService data
-// Add "-0" so that prerelase versions are considered sufficient. https://github.com/Masterminds/semver#working-with-prerelease-versions
-const crdAPIServiceCollectionMinVersion = "7.46.0-0"
+const (
+	// Minimum agent version that supports collection of CRD and APIService data
+	// Add "-0" so that prerelase versions are considered sufficient. https://github.com/Masterminds/semver#working-with-prerelease-versions
+	crdAPIServiceCollectionMinVersion = "7.46.0-0"
 
-// Minimum agent version that supports collection of controllerrevisions
-const controllerRevisionsCollectionMinVersion = "7.72.0-0"
+	// Minimum agent version that supports collection of controllerrevisions
+	controllerRevisionsCollectionMinVersion = "7.72.0-0"
+)
 
 // ID returns the ID of the Feature
 func (f *ksmFeature) ID() feature.IDType {
@@ -94,17 +96,8 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 		// Determine CollectControllerRevisions setting
-		// Priority: 1) Explicit spec setting, 2) Image override version check, 3) Default image version check
-		collectControllerRevisionsExplicitlySet := ddaSpec.Features.KubeStateMetricsCore.CollectControllerRevisions != nil
-		controllerRevisionsSetByOverride := false // Track if we determined the value via override
-
-		if collectControllerRevisionsExplicitlySet {
-			// Explicit setting in spec - use it (will be validated against version later if override present)
-			f.collectControllerRevisions = apiutils.BoolValue(ddaSpec.Features.KubeStateMetricsCore.CollectControllerRevisions)
-		} else {
-			// Not explicitly set - will be determined by version checks below
-			f.collectControllerRevisions = false
-		}
+		// Default to false, then check version requirements
+		f.collectControllerRevisions = false
 
 		// This check will only run in the Cluster Checks Runners or Cluster Agent (not the Node Agent)
 		if ddaSpec.Features.ClusterChecks != nil && apiutils.BoolValue(ddaSpec.Features.ClusterChecks.Enabled) && apiutils.BoolValue(ddaSpec.Features.ClusterChecks.UseClusterChecksRunners) {
@@ -124,15 +117,10 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 						f.collectCRDMetrics = false
 					}
 
-					// ControllerRevisions version check with fallback parsing
-					if !utils.IsAboveMinVersionWithFallback(agentVersion, controllerRevisionsCollectionMinVersion) {
-						// Version too old - disable even if explicitly set
-						f.collectControllerRevisions = false
-					} else if !collectControllerRevisionsExplicitlySet {
-						// Version supports it and not explicitly set - auto-enable
+					// ControllerRevisions version check - enable if version supports it
+					if utils.IsAboveMinVersionWithFallback(agentVersion, controllerRevisionsCollectionMinVersion) {
 						f.collectControllerRevisions = true
 					}
-					controllerRevisionsSetByOverride = true
 				}
 			}
 		} else {
@@ -146,21 +134,16 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 						f.collectCRDMetrics = false
 					}
 
-					// ControllerRevisions version check with fallback parsing
-					if !utils.IsAboveMinVersionWithFallback(agentVersion, controllerRevisionsCollectionMinVersion) {
-						// Version too old - disable even if explicitly set
-						f.collectControllerRevisions = false
-					} else if !collectControllerRevisionsExplicitlySet {
-						// Version supports it and not explicitly set - auto-enable
+					// ControllerRevisions version check - enable if version supports it
+					if utils.IsAboveMinVersionWithFallback(agentVersion, controllerRevisionsCollectionMinVersion) {
 						f.collectControllerRevisions = true
 					}
-					controllerRevisionsSetByOverride = true
 				}
 			}
 		}
 
-		// If not explicitly set and not determined by image override, check default versions
-		if !collectControllerRevisionsExplicitlySet && !controllerRevisionsSetByOverride {
+		// If no override was found, check default version based on deployment mode
+		if !f.collectControllerRevisions {
 			// Determine which default version to check based on deployment mode
 			var defaultVersion string
 			if f.runInClusterChecksRunner {

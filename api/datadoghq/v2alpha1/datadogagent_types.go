@@ -833,12 +833,6 @@ type KubeStateMetricsCoreFeatureConfig struct {
 	// +optional
 	// +listType=atomic
 	CollectCrMetrics []Resource `json:"collectCrMetrics,omitempty"`
-
-	// CollectControllerRevisions enables collection of ControllerRevision metrics.
-	// This requires agent version 7.72.0 or later.
-	// Default: false
-	// +optional
-	CollectControllerRevisions *bool `json:"collectControllerRevisions,omitempty"`
 }
 
 // Resource configures a custom resource for metric generation.
