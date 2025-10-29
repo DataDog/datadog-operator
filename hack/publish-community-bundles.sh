@@ -10,7 +10,7 @@ BUNDLE_NAME="bundle"
 WORKING_DIR=$PWD
 PR_BRANCH_NAME="datadog-operator-$VERSION"
 # REPOS=("community-operators" "community-operators-prod" "certified-operators" "redhat-marketplace-operators")
-REPOS=("community-operators")
+REPOS=("community-operators-prod")
 
 mkdir tmp
 
