@@ -30,11 +30,11 @@ import (
 )
 
 const (
-	defaultRequeuePeriod                = 60 * time.Second
-	defaultErrRequeuePeriod             = 5 * time.Second
-	defaultForceSyncPeriod              = 60 * time.Minute
-	datadogDashboardKind                = "DatadogDashboard"
-	DDDashboardForceSyncPeriodEnvVar    = "DD_DASHBOARD_FORCE_SYNC_PERIOD"
+	defaultRequeuePeriod             = 60 * time.Second
+	defaultErrRequeuePeriod          = 5 * time.Second
+	defaultForceSyncPeriod           = 60 * time.Minute
+	datadogDashboardKind             = "DatadogDashboard"
+	DDDashboardForceSyncPeriodEnvVar = "DD_DASHBOARD_FORCE_SYNC_PERIOD"
 )
 
 type Reconciler struct {
