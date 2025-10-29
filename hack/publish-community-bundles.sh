@@ -33,18 +33,26 @@ clone_and_sync_fork() {
 
 update_bundle() {
   dest_path=operators/$OPERATOR_SUBPATH/"$VERSION"
+  source_path="$CI_PROJECT_DIR/$BUNDLE_NAME"
+
   echo "Updating bundle at \`$dest_path\` with source: \`$BUNDLE_NAME\`"
+  echo "Updating bundle at \`$dest_path\` with source: \`$source_path\`; working dir: \`$WORKING_DIR\`"
+  if [ ! -d "$source_path" ]; then
+    echo "Error: Source bundle directory does not exist: $source_path"
+    exit 1
+  fi
+
   mkdir "$dest_path"
-  cp -R "$CI_PROJECT_DIR"/$BUNDLE_NAME/* "$dest_path"
+  cp -R "$source_path"/* "$dest_path"
 }
 
 create_pr() {
   echo "Creating pull request for repo: $ORG/$repo"
-  echo "GITHUB_TOKEN: $GITHUB_TOKEN"
   message="operator $OPERATOR_SUBPATH ($VERSION)"
   body="Update operator $OPERATOR_SUBPATH ($VERSION).<br><br>Pull request triggered by $GITLAB_USER_EMAIL."
   git add -A
   git commit -s -m "$message"
+  git push -f --set-upstream origin "$PR_BRANCH_NAME"
   curl -L \
     -X POST \
     -H "Accept: application/vnd.github+json" \
