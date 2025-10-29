@@ -9,7 +9,8 @@ OPERATOR_SUBPATH="datadog-operator"
 BUNDLE_NAME="bundle"
 WORKING_DIR=$PWD
 PR_BRANCH_NAME="datadog-operator-$VERSION"
-REPOS=("community-operators" "community-operators-prod" "certified-operators" "redhat-marketplace-operators")
+# REPOS=("community-operators" "community-operators-prod" "certified-operators" "redhat-marketplace-operators")
+REPOS=("community-operators")
 
 mkdir tmp
 
@@ -39,11 +40,11 @@ update_bundle() {
 
 create_pr() {
   echo "Creating pull request for repo: $ORG/$repo"
+  echo "GITHUB_TOKEN: $GITHUB_TOKEN"
   message="operator $OPERATOR_SUBPATH ($VERSION)"
   body="Update operator $OPERATOR_SUBPATH ($VERSION).<br><br>Pull request triggered by $GITLAB_USER_EMAIL."
   git add -A
   git commit -s -m "$message"
-  git push -f --set-upstream origin "$PR_BRANCH_NAME"
   curl -L \
     -X POST \
     -H "Accept: application/vnd.github+json" \
