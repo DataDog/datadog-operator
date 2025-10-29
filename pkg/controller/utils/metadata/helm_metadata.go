@@ -41,6 +41,7 @@ var (
 	allowedCharts = map[string]bool{
 		"datadog":          true,
 		"datadog-operator": true,
+		"datadog-agent":    true, // internal agent chart
 	}
 )
 
