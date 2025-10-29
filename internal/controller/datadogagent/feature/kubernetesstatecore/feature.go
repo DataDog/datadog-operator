@@ -172,12 +172,6 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 
 		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, defaultKubeStateMetricsCoreConf)
 
-		// Log final configuration state
-		f.logger.Info("KubeStateMetricsCore configuration finalized",
-			"collectAPIServiceMetrics", f.collectAPIServiceMetrics,
-			"collectCRDMetrics", f.collectCRDMetrics,
-			"collectControllerRevisions", f.collectControllerRevisions,
-			"runInClusterChecksRunner", f.runInClusterChecksRunner)
 	}
 
 	return output
