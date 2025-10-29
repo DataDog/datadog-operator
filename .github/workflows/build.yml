@@ -1,6 +1,6 @@
 name: Build
 env:
-  GO_VERSION: 1.24.6
+  GO_VERSION: 1.25.3
 on:
   push:
 # Permission forced by repo-level setting; only elevate on job-level

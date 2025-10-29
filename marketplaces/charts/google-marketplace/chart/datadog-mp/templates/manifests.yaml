@@ -1198,6 +1198,12 @@ spec:
                                   type: string
                               type: object
                           type: object
+                        directSendFromSystemProbe:
+                          description: |-
+                            DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.
+                            This is an experimental feature. Contact support before using.
+                            Default: false
+                          type: boolean
                         enabled:
                           description: |-
                             Enabled enables Cloud Workload Security.
@@ -1477,6 +1483,12 @@ spec:
                             Enabled enables GPU monitoring core check.
                             Default: false
                           type: boolean
+                        patchCgroupPermissions:
+                          description: |-
+                            PatchCgroupPermissions enables the patch of cgroup permissions for GPU monitoring, in case
+                            the container runtime is not properly configured and the Agent containers lose access to GPU devices.
+                            Default: false
+                          type: boolean
                         privilegedMode:
                           description: |-
                             PrivilegedMode enables GPU Probe module in System Probe.
@@ -1601,6 +1613,11 @@ spec:
                     logCollection:
                       description: LogCollection configuration.
                       properties:
+                        autoMultiLineDetection:
+                          description: |-
+                            AutoMultiLineDetection allows the Agent to detect and aggregate common multi-line logs automatically.
+                            See also: https://docs.datadoghq.com/agent/logs/auto_multiline_detection/
+                          type: boolean
                         containerCollectAll:
                           description: |-
                             ContainerCollectAll enables Log collection from all containers.
@@ -2801,6 +2818,7 @@ spec:
                         If no other checks are running, the Process Agent container will not initialize.
                         (Requires Agent 7.60.0+)
                         Default: 'true'
+                        Deprecated: Functionality now handled automatically. Use env var `DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED` to override.
                       type: boolean
                     secretBackend:
                       description: |-
@@ -8807,6 +8825,12 @@ spec:
                                       type: string
                                   type: object
                               type: object
+                            directSendFromSystemProbe:
+                              description: |-
+                                DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.
+                                This is an experimental feature. Contact support before using.
+                                Default: false
+                              type: boolean
                             enabled:
                               description: |-
                                 Enabled enables Cloud Workload Security.
@@ -9086,6 +9110,12 @@ spec:
                                 Enabled enables GPU monitoring core check.
                                 Default: false
                               type: boolean
+                            patchCgroupPermissions:
+                              description: |-
+                                PatchCgroupPermissions enables the patch of cgroup permissions for GPU monitoring, in case
+                                the container runtime is not properly configured and the Agent containers lose access to GPU devices.
+                                Default: false
+                              type: boolean
                             privilegedMode:
                               description: |-
                                 PrivilegedMode enables GPU Probe module in System Probe.
@@ -9210,6 +9240,11 @@ spec:
                         logCollection:
                           description: LogCollection configuration.
                           properties:
+                            autoMultiLineDetection:
+                              description: |-
+                                AutoMultiLineDetection allows the Agent to detect and aggregate common multi-line logs automatically.
+                                See also: https://docs.datadoghq.com/agent/logs/auto_multiline_detection/
+                              type: boolean
                             containerCollectAll:
                               description: |-
                                 ContainerCollectAll enables Log collection from all containers.
@@ -10895,6 +10930,12 @@ spec:
                                       type: string
                                   type: object
                               type: object
+                            directSendFromSystemProbe:
+                              description: |-
+                                DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.
+                                This is an experimental feature. Contact support before using.
+                                Default: false
+                              type: boolean
                             enabled:
                               description: |-
                                 Enabled enables Cloud Workload Security.
@@ -11174,6 +11215,12 @@ spec:
                                 Enabled enables GPU monitoring core check.
                                 Default: false
                               type: boolean
+                            patchCgroupPermissions:
+                              description: |-
+                                PatchCgroupPermissions enables the patch of cgroup permissions for GPU monitoring, in case
+                                the container runtime is not properly configured and the Agent containers lose access to GPU devices.
+                                Default: false
+                              type: boolean
                             privilegedMode:
                               description: |-
                                 PrivilegedMode enables GPU Probe module in System Probe.
@@ -11298,6 +11345,11 @@ spec:
                         logCollection:
                           description: LogCollection configuration.
                           properties:
+                            autoMultiLineDetection:
+                              description: |-
+                                AutoMultiLineDetection allows the Agent to detect and aggregate common multi-line logs automatically.
+                                See also: https://docs.datadoghq.com/agent/logs/auto_multiline_detection/
+                              type: boolean
                             containerCollectAll:
                               description: |-
                                 ContainerCollectAll enables Log collection from all containers.
@@ -12498,6 +12550,7 @@ spec:
                             If no other checks are running, the Process Agent container will not initialize.
                             (Requires Agent 7.60.0+)
                             Default: 'true'
+                            Deprecated: Functionality now handled automatically. Use env var `DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED` to override.
                           type: boolean
                         secretBackend:
                           description: |-
@@ -18491,6 +18544,12 @@ spec:
                                   type: string
                               type: object
                           type: object
+                        directSendFromSystemProbe:
+                          description: |-
+                            DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.
+                            This is an experimental feature. Contact support before using.
+                            Default: false
+                          type: boolean
                         enabled:
                           description: |-
                             Enabled enables Cloud Workload Security.
@@ -18770,6 +18829,12 @@ spec:
                             Enabled enables GPU monitoring core check.
                             Default: false
                           type: boolean
+                        patchCgroupPermissions:
+                          description: |-
+                            PatchCgroupPermissions enables the patch of cgroup permissions for GPU monitoring, in case
+                            the container runtime is not properly configured and the Agent containers lose access to GPU devices.
+                            Default: false
+                          type: boolean
                         privilegedMode:
                           description: |-
                             PrivilegedMode enables GPU Probe module in System Probe.
@@ -18894,6 +18959,11 @@ spec:
                     logCollection:
                       description: LogCollection configuration.
                       properties:
+                        autoMultiLineDetection:
+                          description: |-
+                            AutoMultiLineDetection allows the Agent to detect and aggregate common multi-line logs automatically.
+                            See also: https://docs.datadoghq.com/agent/logs/auto_multiline_detection/
+                          type: boolean
                         containerCollectAll:
                           description: |-
                             ContainerCollectAll enables Log collection from all containers.
@@ -20094,6 +20164,7 @@ spec:
                         If no other checks are running, the Process Agent container will not initialize.
                         (Requires Agent 7.60.0+)
                         Default: 'true'
+                        Deprecated: Functionality now handled automatically. Use env var `DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED` to override.
                       type: boolean
                     secretBackend:
                       description: |-
@@ -26150,6 +26221,12 @@ spec:
                                       type: string
                                   type: object
                               type: object
+                            directSendFromSystemProbe:
+                              description: |-
+                                DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.
+                                This is an experimental feature. Contact support before using.
+                                Default: false
+                              type: boolean
                             enabled:
                               description: |-
                                 Enabled enables Cloud Workload Security.
@@ -26429,6 +26506,12 @@ spec:
                                 Enabled enables GPU monitoring core check.
                                 Default: false
                               type: boolean
+                            patchCgroupPermissions:
+                              description: |-
+                                PatchCgroupPermissions enables the patch of cgroup permissions for GPU monitoring, in case
+                                the container runtime is not properly configured and the Agent containers lose access to GPU devices.
+                                Default: false
+                              type: boolean
                             privilegedMode:
                               description: |-
                                 PrivilegedMode enables GPU Probe module in System Probe.
@@ -26553,6 +26636,11 @@ spec:
                         logCollection:
                           description: LogCollection configuration.
                           properties:
+                            autoMultiLineDetection:
+                              description: |-
+                                AutoMultiLineDetection allows the Agent to detect and aggregate common multi-line logs automatically.
+                                See also: https://docs.datadoghq.com/agent/logs/auto_multiline_detection/
+                              type: boolean
                             containerCollectAll:
                               description: |-
                                 ContainerCollectAll enables Log collection from all containers.
@@ -27656,6 +27744,13 @@ spec:
                         This is useful for AWS CloudWatch and other backfilled metrics to ensure the monitor always has data during evaluation.
                       format: int64
                       type: integer
+                    groupRetentionDuration:
+                      description: |-
+                        The time span after which groups with missing data are dropped from the monitor state.
+                        The minimum value is one hour, and the maximum value is 72 hours.
+                        Example values are: "60m", "1h", and "2d".
+                        This option is only available for APM Trace Analytics, Audit Trail, CI, Error Tracking, Event, Logs, and RUM monitors.
+                      type: string
                     groupbySimpleMonitor:
                       description: A Boolean indicating whether the log alert monitor triggers a single alert or multiple alerts when any group breaches a threshold.
                       type: boolean
@@ -28420,11 +28515,31 @@ spec:
                           - toReplicas
                         type: object
                       type: array
+                    lastRecommendations:
+                      description: LastRecommendations stores the most recent recommendations
+                      items:
+                        description: DatadogPodAutoscalerHorizontalRecommendation defines a horizontal scaling recommendation
+                        properties:
+                          desiredReplicas:
+                            description: Replicas is the recommended number of replicas for the workload
+                            format: int32
+                            type: integer
+                          generatedAt:
+                            description: GeneratedAt is the timestamp at which the recommendation was generated
+                            format: date-time
+                            type: string
+                          source:
+                            description: Source is the source of the value used to scale the target workload
+                            type: string
+                        required:
+                          - desiredReplicas
+                        type: object
+                      type: array
                     target:
                       description: Target is the current target of the horizontal scaling
                       properties:
                         desiredReplicas:
-                          description: Replicas is the desired number of replicas for the workload
+                          description: Replicas is the recommended number of replicas for the workload
                           format: int32
                           type: integer
                         generatedAt:
@@ -28436,7 +28551,6 @@ spec:
                           type: string
                       required:
                         - desiredReplicas
-                        - source
                       type: object
                   type: object
                 vertical:
@@ -28796,6 +28910,14 @@ spec:
                       default: {}
                       description: Horizontal configures the behavior during horizontal fallback mode.
                       properties:
+                        direction:
+                          default: ScaleUp
+                          description: Direction determines the direction that recommendations should be applied.
+                          enum:
+                            - ScaleUp
+                            - ScaleDown
+                            - All
+                          type: string
                         enabled:
                           default: true
                           description: 'Enabled determines whether recommendations should be applied by the controller:'
@@ -28805,7 +28927,7 @@ spec:
                           description: Triggers defines the triggers that will generate recommendations.
                           properties:
                             staleRecommendationThresholdSeconds:
-                              default: 1800
+                              default: 600
                               description: StaleRecommendationThresholdSeconds defines the time window the controller will wait after detecting an error before applying recommendations.
                               format: int32
                               maximum: 3600
@@ -28998,11 +29120,31 @@ spec:
                           - toReplicas
                         type: object
                       type: array
+                    lastRecommendations:
+                      description: LastRecommendations stores the most recent recommendations
+                      items:
+                        description: DatadogPodAutoscalerHorizontalRecommendation defines a horizontal scaling recommendation
+                        properties:
+                          desiredReplicas:
+                            description: Replicas is the recommended number of replicas for the workload
+                            format: int32
+                            type: integer
+                          generatedAt:
+                            description: GeneratedAt is the timestamp at which the recommendation was generated
+                            format: date-time
+                            type: string
+                          source:
+                            description: Source is the source of the value used to scale the target workload
+                            type: string
+                        required:
+                          - desiredReplicas
+                        type: object
+                      type: array
                     target:
                       description: Target is the current target of the horizontal scaling
                       properties:
                         desiredReplicas:
-                          description: Replicas is the desired number of replicas for the workload
+                          description: Replicas is the recommended number of replicas for the workload
                           format: int32
                           type: integer
                         generatedAt:
@@ -29014,7 +29156,6 @@ spec:
                           type: string
                       required:
                         - desiredReplicas
-                        - source
                       type: object
                   type: object
                 vertical:

@@ -224,9 +224,9 @@ func run(opts *options) error {
 	version.PrintVersionLogs(setupLog)
 
 	if opts.datadogAgentEnabled {
-		setupLog.Error(nil, "[WARNING] Upcoming Agent DaemonSet selector changes in Operator v1.20. If you rely on Datadog Agent pod labels e.g. in NetworkPolicies, verify if you may be impacted. See README for details.")
+		setupLog.Error(nil, "[WARNING] Upcoming Agent DaemonSet selector changes in Operator v1.21. If you rely on Datadog Agent pod labels e.g. in NetworkPolicies, verify if you may be impacted. See README for details.")
 		if opts.datadogAgentProfileEnabled {
-			setupLog.Error(nil, "[WARNING] Upcoming selector changes in Agent DaemonSets managed by DAPs in Operator v1.18 and v1.20. If you rely on Datadog Agent pod labels, e.g. in NetworkPolicies, verify if you may be impacted. See README for details.")
+			setupLog.Error(nil, "[WARNING] Upcoming selector changes in Agent DaemonSets managed by DAPs in Operator v1.18 and v1.21. If you rely on Datadog Agent pod labels, e.g. in NetworkPolicies, verify if you may be impacted. See README for details.")
 		}
 	}
 
@@ -388,7 +388,7 @@ func run(opts *options) error {
 		return setupErrorf(setupLog, err, "Unable to start controllers")
 	}
 
-	setupAndStartMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
+	setupAndStartOperatorMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
 
 	// +kubebuilder:scaffold:builder
 
@@ -496,9 +496,9 @@ func setupErrorf(logger logr.Logger, err error, msg string, keysAndValues ...any
 	return fmt.Errorf("%s, err:%w", msg, err)
 }
 
-func setupAndStartMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options, credsManager *config.CredentialManager) {
-	mdf := metadata.NewMetadataForwarder(logger, client, credsManager)
-	mdf.OperatorMetadata = metadata.OperatorMetadata{
+func setupAndStartOperatorMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options, credsManager *config.CredentialManager) {
+	omf := metadata.NewOperatorMetadataForwarder(logger, client, kubernetesVersion, version.GetVersion(), credsManager)
+	omf.OperatorMetadata = metadata.OperatorMetadata{
 		OperatorVersion:               version.GetVersion(),
 		KubernetesVersion:             kubernetesVersion,
 		InstallMethodTool:             "datadog-operator",
@@ -518,5 +518,5 @@ func setupAndStartMetadataForwarder(logger logr.Logger, client client.Reader, ku
 		ConfigDDSite:                  os.Getenv(constants.DDSite),
 	}
 
-	mdf.Start()
+	omf.Start()
 }

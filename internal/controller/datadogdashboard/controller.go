@@ -3,6 +3,8 @@ package datadogdashboard
 import (
 	"context"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -30,10 +32,11 @@ import (
 )
 
 const (
-	defaultRequeuePeriod    = 60 * time.Second
-	defaultErrRequeuePeriod = 5 * time.Second
-	defaultForceSyncPeriod  = 60 * time.Minute
-	datadogDashboardKind    = "DatadogDashboard"
+	defaultRequeuePeriod             = 60 * time.Second
+	defaultErrRequeuePeriod          = 5 * time.Second
+	defaultForceSyncPeriod           = 60 * time.Minute
+	datadogDashboardKind             = "DatadogDashboard"
+	DDDashboardForceSyncPeriodEnvVar = "DD_DASHBOARD_FORCE_SYNC_PERIOD"
 )
 
 type Reconciler struct {
@@ -84,6 +87,18 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	logger.Info("Reconciling Datadog Dashboard")
 	now := metav1.NewTime(time.Now())
 
+	forceSyncPeriod := defaultForceSyncPeriod
+
+	if userForceSyncPeriod, ok := os.LookupEnv(DDDashboardForceSyncPeriodEnvVar); ok {
+		forceSyncPeriodInt, err := strconv.Atoi(userForceSyncPeriod)
+		if err != nil {
+			logger.Error(err, "Invalid value for dashboard force sync period. Defaulting to 60 minutes.")
+		} else {
+			logger.V(1).Info("Setting dashboard force sync period", "minutes", forceSyncPeriodInt)
+			forceSyncPeriod = time.Duration(forceSyncPeriodInt) * time.Minute
+		}
+	}
+
 	instance := &v1alpha1.DatadogDashboard{}
 	var result ctrl.Result
 	var err error
@@ -127,7 +142,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		if instanceSpecHash != statusSpecHash {
 			logger.Info("DatadogDashboard manifest has changed")
 			shouldUpdate = true
-		} else if instance.Status.LastForceSyncTime == nil || ((defaultForceSyncPeriod - now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0) {
+		} else if instance.Status.LastForceSyncTime == nil || ((forceSyncPeriod - now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0) {
 			// Periodically force a sync with the API to ensure parity
 			// Get Dashboard to make sure it exists before trying any updates. If it doesn't, set shouldCreate
 			_, err = r.get(instance)
