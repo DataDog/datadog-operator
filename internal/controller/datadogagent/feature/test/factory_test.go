@@ -44,22 +44,6 @@ func TestBuilder(t *testing.T) {
 			},
 		},
 		{
-			name: "Container monitoring on Process agent",
-			dda: testutils.NewDatadogAgentBuilder().
-				WithProcessChecksInCoreAgent(false).
-				BuildWithDefaults(),
-			wantAgentContainer: map[common.AgentContainerName]bool{
-				common.UnprivilegedSingleAgentContainerName: false,
-				common.CoreAgentContainerName:               true,
-				common.ProcessAgentContainerName:            true,
-				common.TraceAgentContainerName:              true,
-				common.SystemProbeContainerName:             false,
-				common.SecurityAgentContainerName:           false,
-				common.OtelAgent:                            false,
-				common.AgentDataPlaneContainerName:          false,
-			},
-		},
-		{
 			name: "Default DDA with single container strategy, 1 single container",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithSingleContainerStrategy(true).

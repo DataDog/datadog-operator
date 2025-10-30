@@ -38,11 +38,6 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 		return result, err
 	}
 
-	// Check for deprecated configurations and log warnings
-	if instance.Spec.Global != nil && instance.Spec.Global.RunProcessChecksInCoreAgent != nil {
-		reqLogger.Error(nil, "DEPRECATION WARNING: The 'runProcessChecksInCoreAgent' configuration is deprecated in 1.19, and will be removed in v1.21. See github.com/DataDog/datadog-operator/blob/main/docs/deprecated_configs.md for details.")
-	}
-
 	// 2. Handle finalizer logic.
 	if result, err := r.handleFinalizer(reqLogger, instance, r.finalizeDadV2); utils.ShouldReturn(result, err) {
 		return result, err

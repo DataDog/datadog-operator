@@ -34,9 +34,11 @@ func agentSupportsRunInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	return utils.IsAboveMinVersion(images.AgentLatestVersion, ProcessConfigRunInCoreAgentMinVersion)
 }
 
-// OverrideProcessConfigRunInCoreAgent determines whether to respect the currentVal based on
+// ShouldRunProcessChecksInCoreAgent determines whether allow process checks to run in core agent based on
 // environment variables and the agent version.
-func OverrideProcessConfigRunInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec, currentVal bool) bool {
+func ShouldRunProcessChecksInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+
+	// Prioritize env var override
 	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
 		for _, env := range nodeAgent.Env {
 			if env.Name == common.DDProcessConfigRunInCoreAgent {
@@ -48,11 +50,12 @@ func OverrideProcessConfigRunInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec, cur
 		}
 	}
 
+	// Check if agent version supports process checks running in core agent
 	if !agentSupportsRunInCoreAgent(ddaSpec) {
 		return false
 	}
 
-	return currentVal
+	return true
 }
 
 func hasFeatureEnableAnnotation(dda metav1.Object, annotation string) bool {

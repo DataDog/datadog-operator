@@ -171,15 +171,6 @@ func (builder *DatadogAgentInternalBuilder) WithLiveProcessScrubStrip(scrubEnabl
 	return builder
 }
 
-func (builder *DatadogAgentInternalBuilder) WithProcessChecksInCoreAgent(enabled bool) *DatadogAgentInternalBuilder {
-	if builder.datadogAgentInternal.Spec.Global == nil {
-		builder.datadogAgentInternal.Spec.Global = &v2alpha1.GlobalConfig{}
-	}
-
-	builder.datadogAgentInternal.Spec.Global.RunProcessChecksInCoreAgent = apiutils.NewBoolPointer(enabled)
-	return builder
-}
-
 func (builder *DatadogAgentInternalBuilder) WithWorkloadAutoscalerEnabled(enabled bool) *DatadogAgentInternalBuilder {
 	builder.datadogAgentInternal.Spec.Features.Autoscaling = &v2alpha1.AutoscalingFeatureConfig{
 		Workload: &v2alpha1.WorkloadAutoscalingFeatureConfig{
