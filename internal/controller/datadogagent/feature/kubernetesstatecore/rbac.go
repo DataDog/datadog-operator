@@ -44,6 +44,7 @@ func getRBACPolicyRules(collectorOpts collectorOptions) []rbacv1.PolicyRule {
 				rbac.DeploymentsResource,
 				rbac.ReplicasetsResource,
 				rbac.StatefulsetsResource,
+				rbac.ControllerRevisionsResource,
 			},
 		},
 		{
