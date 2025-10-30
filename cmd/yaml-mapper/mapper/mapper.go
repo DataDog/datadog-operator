@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/constants"
 	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/utils"
 	"helm.sh/helm/v3/pkg/chartutil"
@@ -141,6 +142,7 @@ func (m *Mapper) loadInputs() (mappingValues chartutil.Values, sourceValues char
 func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartutil.Values) (map[string]interface{}, error) {
 	var ddaName = m.MapConfig.DDAName
 	var interim = map[string]interface{}{}
+	defaultValues, _ := getDefaultValues()
 
 	if m.MapConfig.HeaderPath == "" {
 		interim = defaultFileHeader
@@ -164,19 +166,23 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 	// Map values.yaml => DDA
 	for _, sourceKey := range mappingKeys {
 		pathVal, _ := sourceValues.PathValue(sourceKey)
+		defaultVal, _ := defaultValues.PathValue(sourceKey)
 		if pathVal == nil {
 			if mapVal, ok := utils.GetPathMap(sourceValues[sourceKey]); ok && mapVal != nil {
 				pathVal = mapVal
+				defaultVal, _ = utils.GetPathMap(defaultValues[sourceKey])
+
 			} else if tableVal, err := sourceValues.Table(sourceKey); err == nil && len(tableVal) == 1 {
 				pathVal = tableVal
+				defaultVal, _ = defaultValues.Table(sourceKey)
 			} else {
 				continue
 			}
 		}
 
 		destKey, _ := mappingValues[sourceKey]
-		if (destKey == "" || destKey == nil) && pathVal != nil {
-			log.Printf("Warning: DDA destination key not found: %s\n", sourceKey)
+		if (destKey == "" || destKey == nil) && !apiutils.IsEqualStruct(pathVal, defaultVal) {
+			log.Printf("Warning: DDA destination key not found. Could not map: %s\n", sourceKey)
 			continue
 		}
 
@@ -349,4 +355,18 @@ func flattenValues(sourceValues chartutil.Values, valuesMap map[string]interface
 		}
 	}
 	return valuesMap
+}
+
+func getDefaultValues() (chartutil.Values, error) {
+	defaultValsPath := utils.FetchLatestValuesFile()
+	defaultValsFile, err := os.ReadFile(defaultValsPath)
+	if err != nil {
+		return nil, err
+	}
+	defaultValues, err := chartutil.ReadValues(defaultValsFile)
+	if err != nil {
+		return nil, err
+	}
+
+	return defaultValues, nil
 }

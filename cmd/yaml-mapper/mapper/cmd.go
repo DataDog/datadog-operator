@@ -75,6 +75,7 @@ func NewCmdMap(streams genericiooptions.IOStreams) *cobra.Command {
 	cmd.Flags().StringVarP(&o.sourcePath, "sourcePath", "f", "", "Path to source YAML file. Required. Example: source.yaml")
 	cmd.Flags().StringVarP(&o.mappingPath, "mappingPath", "m", "", "Path to mapping YAML file.")
 	cmd.Flags().StringVarP(&o.destPath, "destPath", "d", "", "Path to destination YAML file.")
+	cmd.Flags().StringVarP(&o.ddaName, "ddaName", "", "", "DatadogAgent custom resource name.")
 	cmd.Flags().StringVarP(&o.headerPath, "headerPath", "p", "", "Path to header YAML file. The content in this file will be prepended to the output.")
 	cmd.Flags().BoolVarP(&o.updateMap, "updateMap", "u", false, fmt.Sprintf("Update 'mappingPath' with provided 'sourcePath'. If set to 'true', default mappingPath is %s and default sourcePath is latest published Datadog chart values.yaml.", constants.DefaultDDAMappingPath))
 	cmd.Flags().BoolVarP(&o.printOutput, "printOutput", "o", true, "print mapped DDA output to stdout")
