@@ -22,8 +22,8 @@ eval $SED -e \'s/operators.operatorframework.io.bundle.package.v1: datadog-opera
 eval $SED \'s#image: gcr.io/datadoghq/operator:#image: registry.connect.redhat.com/datadog/operator:#g\' "$RH_BUNDLE_PATH/manifests/datadog-operator.clusterserviceversion.yaml"
 eval $SED \'s#containerImage: gcr.io/datadoghq/operator:#containerImage: registry.connect.redhat.com/datadog/operator:#g\' "$RH_BUNDLE_PATH/manifests/datadog-operator.clusterserviceversion.yaml"
 
-# set `DD_TOOL_VERSION` to `redhat`
-$YQ -i "(.spec.install.spec.deployments[] | select(.name == \"datadog-operator-manager\") | .spec.template.spec.containers[] | select(.name == \"manager\") | .env[] | select(.name == \"DD_TOOL_VERSION\") | .value) = \"redhat\"" $RH_BUNDLE_PATH/manifests/datadog-operator.clusterserviceversion.yaml
+# set `DD_TOOL_VERSION` to `redhat-certified`
+$YQ -i "(.spec.install.spec.deployments[] | select(.name == \"datadog-operator-manager\") | .spec.template.spec.containers[] | select(.name == \"manager\") | .env[] | select(.name == \"DD_TOOL_VERSION\") | .value) = \"redhat-certified\"" $RH_BUNDLE_PATH/manifests/datadog-operator.clusterserviceversion.yaml
 
 # Pin images
 $ROOT/bin/$PLATFORM/operator-manifest-tools pinning pin "$RH_BUNDLE_PATH/manifests" -a ~/.redhat/auths.json -r skopeo
@@ -43,5 +43,5 @@ eval $SED \'s/datadog-operator-certified/datadog-operator-certified-rhmp/g\' "$R
 $YQ -i '.metadata.annotations."marketplace.openshift.io/remote-workflow" = "https://marketplace.redhat.com/en-us/operators/datadog-operator-certified-rhmp/pricing?utm_source=openshift_console"' $RHMP_BUNDLE_PATH/manifests/datadog-operator-certified-rhmp.clusterserviceversion.yaml
 $YQ -i '.metadata.annotations."marketplace.openshift.io/support-workflow" = "https://marketplace.redhat.com/en-us/operators/datadog-operator-certified-rhmp/support?utm_source=openshift_console"' $RHMP_BUNDLE_PATH/manifests/datadog-operator-certified-rhmp.clusterserviceversion.yaml
 
-# set `DD_TOOL_VERSION` to `redhat`
-$YQ -i "(.spec.install.spec.deployments[] | select(.name == \"datadog-operator-manager\") | .spec.template.spec.containers[] | select(.name == \"manager\") | .env[] | select(.name == \"DD_TOOL_VERSION\") | .value) = \"redhat\"" $RHMP_BUNDLE_PATH/manifests/datadog-operator-certified-rhmp.clusterserviceversion.yaml
+# set `DD_TOOL_VERSION` to `redhat-marketplace`
+$YQ -i "(.spec.install.spec.deployments[] | select(.name == \"datadog-operator-manager\") | .spec.template.spec.containers[] | select(.name == \"manager\") | .env[] | select(.name == \"DD_TOOL_VERSION\") | .value) = \"redhat-marketplace\"" $RHMP_BUNDLE_PATH/manifests/datadog-operator-certified-rhmp.clusterserviceversion.yaml
