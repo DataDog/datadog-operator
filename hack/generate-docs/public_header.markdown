@@ -1,3 +1,7 @@
+---
+title: Configure the Datadog Operator
+---
+
 This page lists commonly-used configuration parameters for the Datadog Operator. For all configuration parameters, see the [configuration spec][1] in the [`DataDog/datadog-operator`][2] repo.
 
 ### Example manifests

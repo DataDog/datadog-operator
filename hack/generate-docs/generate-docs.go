@@ -188,8 +188,7 @@ func writePropsTablePublic(f *os.File, props map[string]apiextensions.JSONSchema
 	})
 
 	mustWriteString(f, fmt.Sprintf("{{%% collapse-content title=\"Parameters\" level=\"h4\" expanded=true id=\"global-options-list\" %%}}\n"))
-	for i := 0; i < len(docs); i++ {
-		doc := docs[i]
+	for _, doc := range docs {
 		desc := doc.description
 		if newDesc, ok := nameToDescMap[doc.name]; ok {
 			desc = newDesc
@@ -201,11 +200,7 @@ func writePropsTablePublic(f *os.File, props map[string]apiextensions.JSONSchema
 			desc = strings.ToUpper(desc[:1]) + desc[1:]
 		}
 		mustWriteString(f, fmt.Sprintf("`%s`\n", doc.name))
-		if i < len(docs)-1 {
-			mustWriteString(f, fmt.Sprintf(": %s\n\n", desc))
-		} else {
-			mustWriteString(f, fmt.Sprintf(": %s\n", desc))
-		}
+		mustWriteString(f, fmt.Sprintf(": %s\n\n", desc))
 	}
 	mustWriteString(f, "{{% /collapse-content %}}\n\n")
 }
