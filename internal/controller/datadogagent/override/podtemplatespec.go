@@ -34,6 +34,7 @@ func getAgentContainersMap() map[apicommon.AgentContainerName]string {
 		apicommon.OtelAgent:                            "",
 		apicommon.AgentDataPlaneContainerName:          "",
 		apicommon.ClusterAgentContainerName:            "",
+		apicommon.OtelCollectorGatewayContainerName:    "",
 		// apicommon.ClusterChecksRunnersContainerName:    "", // Is the same value as CoreAgentContainerName
 	}
 }

@@ -49,6 +49,8 @@ const (
 	AgentReconcileConditionType = "AgentReconcile"
 	// ClusterChecksRunnerReconcileConditionType ReconcileConditionType for Cluster Checks Runner component
 	ClusterChecksRunnerReconcileConditionType = "ClusterChecksRunnerReconcile"
+	// OtelCollectorGatewayReconcileConditionType ReconcileConditionType for OTel Collector Gateway component
+	OtelCollectorGatewayReconcileConditionType = "OtelCollectorGatewayReconcile"
 	// OverrideReconcileConflictConditionType ReconcileConditionType for override conflict
 	OverrideReconcileConflictConditionType = "OverrideReconcileConflict"
 	// DatadogAgentReconcileErrorConditionType ReconcileConditionType for DatadogAgent reconcile error
