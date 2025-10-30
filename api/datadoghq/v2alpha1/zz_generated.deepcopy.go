@@ -1144,6 +1144,11 @@ func (in *DatadogAgentStatus) DeepCopyInto(out *DatadogAgentStatus) {
 		*out = new(DeploymentStatus)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.OtelCollectorGateway != nil {
+		in, out := &in.OtelCollectorGateway, &out.OtelCollectorGateway
+		*out = new(DeploymentStatus)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.RemoteConfigConfiguration != nil {
 		in, out := &in.RemoteConfigConfiguration, &out.RemoteConfigConfiguration
 		*out = new(RemoteConfigConfiguration)

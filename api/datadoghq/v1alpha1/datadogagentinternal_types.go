@@ -28,6 +28,9 @@ type DatadogAgentInternalStatus struct {
 	// The actual state of the Cluster Checks Runner as a deployment.
 	// +optional
 	ClusterChecksRunner *v2alpha1.DeploymentStatus `json:"clusterChecksRunner,omitempty"`
+	// The actual state of the OTel Collector Gateway as a deployment.
+	// +optional
+	OtelCollectorGateway *v2alpha1.DeploymentStatus `json:"otelCollectorGateway,omitempty"`
 	// RemoteConfigConfiguration stores the configuration received from RemoteConfig.
 	// +optional
 	RemoteConfigConfiguration *v2alpha1.RemoteConfigConfiguration `json:"remoteConfigConfiguration,omitempty"`
