@@ -36,6 +36,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/helm"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -142,7 +143,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 
 	// Check if this operator daemonset should have migration label (after Helm migration completed)
-	if val, ok := dda.GetAnnotations()[apicommon.HelmMigrationAnnotationKey]; ok && val == "true" {
+	if helm.IsHelmMigration(dda) {
 		dsList := appsv1.DaemonSetList{}
 		if err := r.client.List(context.TODO(), &dsList, client.MatchingLabels{
 			apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,

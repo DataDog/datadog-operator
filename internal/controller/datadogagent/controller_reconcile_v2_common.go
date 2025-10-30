@@ -35,6 +35,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/helm"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -102,7 +103,7 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 		}
 		if restartDeployment(deployment, currentDeployment) {
 			// if its a helm cluster checks runner deployment, delete the workload and dependents
-			helmCCRDeployment := currentDeployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey] == "clusterchecks-agent" && dda.GetAnnotations()[apicommon.HelmMigrationAnnotationKey] == "true"
+			helmCCRDeployment := currentDeployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey] == "clusterchecks-agent" && helm.IsHelmMigration(dda)
 			if helmCCRDeployment {
 				if err = deleteAllWorkloadsAndDependentsBackground(context.TODO(), logger, r.client, currentDeployment, currentDeployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
 					return result, err
@@ -634,7 +635,7 @@ func (r *Reconciler) addDDAIStatusToDDAStatus(status *datadoghqv2alpha1.DatadogA
 // getCurrentDeployment returns the current deployment for a given DDA
 func (r *Reconciler) getCurrentDeployment(dda, deployment metav1.Object) (*appsv1.Deployment, error) {
 	// Helm-migrated deployment
-	if val, ok := dda.GetAnnotations()[apicommon.HelmMigrationAnnotationKey]; ok && val == "true" {
+	if helm.IsHelmMigration(dda) {
 		componentType := deployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]
 		if componentType == "" {
 			r.log.Info("No component label found in deployment, using default")
@@ -727,7 +728,7 @@ func (r *Reconciler) getCurrentDaemonset(dda, daemonset metav1.Object) (*appsv1.
 	}
 
 	// Helm-migrated daemonset
-	if val, ok := dda.GetAnnotations()[apicommon.HelmMigrationAnnotationKey]; ok && val == "true" {
+	if helm.IsHelmMigration(dda) {
 		dsList := appsv1.DaemonSetList{}
 		if err := r.client.List(context.TODO(), &dsList, client.MatchingLabels{
 			apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,

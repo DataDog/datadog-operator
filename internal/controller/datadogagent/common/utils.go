@@ -67,8 +67,8 @@ func GetDefaultMetadata(logger logr.Logger, owner metav1.Object, componentKind, 
 		}
 	}
 
-	if val, ok := owner.GetAnnotations()[apicommon.HelmMigrationAnnotationKey]; ok && val == "true" {
-		annotations = object.MergeAnnotationsLabels(logger, annotations, map[string]string{helm.ResourcePolicyAnnotationKey: "keep"}, "*")
+	if helm.IsHelmMigration(owner) {
+		annotations = object.MergeAnnotationsLabels(logger, annotations, map[string]string{helm.ResourcePolicyAnnotationKey: helm.ResourcePolicyKeep}, "*")
 	}
 	return labels, annotations, selector
 }

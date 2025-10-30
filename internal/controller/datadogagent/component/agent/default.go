@@ -55,8 +55,8 @@ func NewDefaultAgentPodTemplateSpec(logger logr.Logger, dda metav1.Object, agent
 		agentContainers = agentOptimizedContainers(dda, requiredContainers)
 	}
 	annotations := make(map[string]string)
-	if val, ok := dda.GetAnnotations()[apicommon.HelmMigrationAnnotationKey]; ok && val == "true" {
-		annotations = object.MergeAnnotationsLabels(logger, annotations, map[string]string{helm.ResourcePolicyAnnotationKey: "keep"}, "*")
+	if helm.IsHelmMigration(dda) {
+		annotations = object.MergeAnnotationsLabels(logger, annotations, map[string]string{helm.ResourcePolicyAnnotationKey: helm.ResourcePolicyKeep}, "*")
 	}
 
 	return &corev1.PodTemplateSpec{
