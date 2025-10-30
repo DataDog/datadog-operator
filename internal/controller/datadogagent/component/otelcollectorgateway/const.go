@@ -6,7 +6,7 @@
 package otelcollectorgateway
 
 const (
-	pdbMaxUnavailableInstances = 1
+	// pdbMaxUnavailableInstances = 1
 	// DefaultOtelCollectorGatewayReplicas default otel collector gateway deployment replicas
 	defaultOtelCollectorGatewayReplicas = 1
 )
