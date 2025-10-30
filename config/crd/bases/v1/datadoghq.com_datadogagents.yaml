@@ -2057,6 +2057,15 @@ spec:
                           type: array
                           x-kubernetes-list-type: atomic
                       type: object
+                    otelCollectorGateway:
+                      description: OtelCollector Gateway configuration.
+                      properties:
+                        enabled:
+                          description: |-
+                            Enabled enables the OTel Collector Gateway.
+                            Default: false
+                          type: boolean
+                      type: object
                     otlp:
                       description: OTLP ingest configuration
                       properties:
@@ -9890,6 +9899,15 @@ spec:
                                 type: object
                               type: array
                               x-kubernetes-list-type: atomic
+                          type: object
+                        otelCollectorGateway:
+                          description: OtelCollector Gateway configuration.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables the OTel Collector Gateway.
+                                Default: false
+                              type: boolean
                           type: object
                         otlp:
                           description: OTLP ingest configuration

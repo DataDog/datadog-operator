@@ -2146,6 +2146,17 @@
               },
               "type": "object"
             },
+            "otelCollectorGateway": {
+              "additionalProperties": false,
+              "description": "OtelCollector Gateway configuration.",
+              "properties": {
+                "enabled": {
+                  "description": "Enabled enables the OTel Collector Gateway.\nDefault: false",
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            },
             "otlp": {
               "additionalProperties": false,
               "description": "OTLP ingest configuration",
@@ -9747,6 +9758,17 @@
                       },
                       "type": "array",
                       "x-kubernetes-list-type": "atomic"
+                    }
+                  },
+                  "type": "object"
+                },
+                "otelCollectorGateway": {
+                  "additionalProperties": false,
+                  "description": "OtelCollector Gateway configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables the OTel Collector Gateway.\nDefault: false",
+                      "type": "boolean"
                     }
                   },
                   "type": "object"

@@ -22,6 +22,8 @@ const (
 	ClusterAgentComponentName ComponentName = "clusterAgent"
 	// ClusterChecksRunnerComponentName is the name of the Cluster Check Runner
 	ClusterChecksRunnerComponentName ComponentName = "clusterChecksRunner"
+	// OtelCollectorGatewayComponentName is the name of the Otel Collector Gateway
+	OtelCollectorGatewayComponentName ComponentName = "otelCollectorGateway"
 )
 
 // DatadogAgentSpec defines the desired state of DatadogAgent
@@ -46,6 +48,8 @@ type DatadogFeatures struct {
 
 	// OtelCollector configuration.
 	OtelCollector *OtelCollectorFeatureConfig `json:"otelCollector,omitempty"`
+	// OtelCollector Gateway configuration.
+	OtelCollectorGateway *OtelCollectorGatewayFeatureConfig `json:"otelCollectorGateway,omitempty"`
 	// LogCollection configuration.
 	LogCollection *LogCollectionFeatureConfig `json:"logCollection,omitempty"`
 	// LiveProcessCollection configuration.
@@ -1001,6 +1005,15 @@ type OtelCollectorFeatureConfig struct {
 	// OTelCollector Config Relevant to the Core agent
 	// +optional
 	CoreConfig *CoreConfig `json:"coreConfig,omitempty"`
+}
+
+// OtelCollectorGatewayFeatureConfig contains the configuration for the OTel Collector Gateway.
+// +k8s:openapi-gen=true
+type OtelCollectorGatewayFeatureConfig struct {
+	// Enabled enables the OTel Collector Gateway.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // ControlPlaneMonitoringFeatureConfig contains the configuration for the control plane monitoring.
