@@ -106,7 +106,7 @@ func (o *Options) Complete(cmd *cobra.Command, args []string) error {
 
 // Validate ensures that all required arguments and flag values are provided.
 func (o *Options) Validate() error {
-	if o.sourcePath == "" {
+	if o.sourcePath == "" && !o.updateMap {
 		return fmt.Errorf("`--sourcePath` flag is required")
 	}
 
