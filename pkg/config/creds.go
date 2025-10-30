@@ -16,6 +16,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
+	"github.com/go-logr/logr"
 )
 
 // Creds holds the api and app keys.
@@ -30,6 +31,16 @@ type CredentialManager struct {
 	creds            Creds
 	credsMutex       sync.Mutex
 	decryptorBackoff wait.Backoff
+	callbacks        []CredentialChangeCallback
+	callbackMutex    sync.RWMutex
+}
+
+type CredentialChangeCallback func(newCreds Creds) error
+
+func (cm *CredentialManager) RegisterCallback(cb CredentialChangeCallback) {
+	cm.callbackMutex.Lock()
+	defer cm.callbackMutex.Unlock()
+	cm.callbacks = append(cm.callbacks, cb)
 }
 
 // NewCredentialManager returns a CredentialManager.
@@ -110,4 +121,61 @@ func (cm *CredentialManager) getCredsFromCache() (Creds, bool) {
 	}
 
 	return Creds{}, false
+}
+
+func (cm *CredentialManager) refresh(logger logr.Logger) error {
+	cm.credsMutex.Lock()
+	oldCreds := cm.creds
+	cm.credsMutex.Unlock()
+	cm.creds = Creds{}
+
+	newCreds, err := cm.GetCredentials()
+
+	if err != nil {
+		return err
+	}
+
+	if oldCreds != newCreds {
+		logger.Info("Credentials have changed, updating creds")
+		// callbacks
+		err = cm.notifyCallbacks(newCreds)
+
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Recreate custom resource clients
+func (cm *CredentialManager) notifyCallbacks(newCreds Creds) error {
+	cm.callbackMutex.RLock()
+	defer cm.callbackMutex.RUnlock()
+
+	var errs []error
+	for _, cb := range cm.callbacks {
+		if err := cb(newCreds); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if len(errs) > 0 {
+		// combine multiple errors
+		return errors.Join(errs...)
+	}
+	return nil
+}
+
+func (cm *CredentialManager) StartCredentialRefreshRoutine(interval time.Duration, logger logr.Logger) {
+	logger.Info("Starting secret refresh routine", "interval", interval)
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		<-ticker.C
+		if err := cm.refresh(logger); err != nil {
+			logger.Error(err, "Failed to refresh credentials")
+		}
+	}
 }

@@ -145,7 +145,7 @@ type metricsForwarder struct {
 }
 
 // newMetricsForwarder returns a new Datadog MetricsForwarder instance
-func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj client.Object, platforminfo *kubernetes.PlatformInfo, datadogAgentInternalEnabled bool) *metricsForwarder {
+func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj client.Object, platforminfo *kubernetes.PlatformInfo, datadogAgentInternalEnabled bool, credsManager *config.CredentialManager) *metricsForwarder {
 
 	logger := log.WithValues("CustomResource.Namespace", obj.GetNamespace(), "CustomResource.Name", obj.GetName())
 	objKind := getObjKind(obj)
@@ -167,7 +167,7 @@ func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, o
 		creds:                       sync.Map{},
 		baseURL:                     defaultbaseURL,
 		logger:                      logger,
-		credsManager:                config.NewCredentialManager(),
+		credsManager:                credsManager,
 		EnabledFeatures:             make(map[string][]string),
 		datadogAgentInternalEnabled: datadogAgentInternalEnabled,
 	}
@@ -293,7 +293,6 @@ func (mf *metricsForwarder) setupFromOperator() bool {
 	if mf.credsManager == nil {
 		return false
 	}
-
 	creds, err := mf.credsManager.GetCredentials()
 	if err != nil {
 		return false
@@ -919,6 +918,7 @@ func (mf *metricsForwarder) setUpDatadogAPIClient() {
 	mf.datadogEventsApi = datadogV1.NewEventsApi(apiClient) // Initialize events API
 }
 
+// API key set here. This and Get API from etc. etc.
 func (mf *metricsForwarder) generateDatadogContext() context.Context {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, datadogapi.ContextAPIKeys,

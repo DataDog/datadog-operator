@@ -69,7 +69,7 @@ type SharedMetadata struct {
 }
 
 // NewSharedMetadata creates a new instance of shared metadata
-func NewSharedMetadata(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string) *SharedMetadata {
+func NewSharedMetadata(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string, credsManager *config.CredentialManager) *SharedMetadata {
 	return &SharedMetadata{
 		k8sClient:         k8sClient,
 		logger:            logger,
@@ -80,7 +80,7 @@ func NewSharedMetadata(logger logr.Logger, k8sClient client.Reader, kubernetesVe
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
-		credsManager: config.NewCredentialManager(),
+		credsManager: credsManager,
 		decryptor:    secrets.NewSecretBackend(),
 	}
 }
