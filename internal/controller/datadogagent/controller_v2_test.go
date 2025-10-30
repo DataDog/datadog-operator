@@ -1565,7 +1565,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 			wantFunc: func(t *testing.T, c client.Client) error {
 				expectedDDAI := getBaseDDAI(dda)
 				expectedDDAI.Annotations = map[string]string{
-					constants.MD5DDAIDeploymentAnnotationKey: "db25da8b5c8cd681d92f0049101605d6",
+					constants.MD5DDAIDeploymentAnnotationKey: "c7280f85b8590dcaa3668ea3b789053e",
 				}
 
 				return verifyDDAI(t, c, []v1alpha1.DatadogAgentInternal{expectedDDAI})
@@ -1594,7 +1594,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 				baseDDAI := getBaseDDAI(dda)
 				expectedDDAI := baseDDAI.DeepCopy()
 				expectedDDAI.Annotations = map[string]string{
-					constants.MD5DDAIDeploymentAnnotationKey: "ecf20e786d34265b5ad2a2e841837b55",
+					constants.MD5DDAIDeploymentAnnotationKey: "5c83da6fcf791a4865951949af039537",
 				}
 				expectedDDAI.Spec.Features.ClusterChecks.UseClusterChecksRunners = apiutils.NewBoolPointer(true)
 				expectedDDAI.Spec.Global.Credentials = &v2alpha1.DatadogCredentials{
@@ -1688,7 +1688,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 				profileDDAI := getBaseDDAI(dda)
 				profileDDAI.Name = "foo-profile"
 				profileDDAI.Annotations = map[string]string{
-					constants.MD5DDAIDeploymentAnnotationKey: "170a45bb48198417dcc38bf60595ab70",
+					constants.MD5DDAIDeploymentAnnotationKey: "cc45afac2d101aad1984d1e05c2fc592",
 				}
 				profileDDAI.Labels[constants.ProfileLabelKey] = "foo-profile"
 				profileDDAI.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -1861,7 +1861,7 @@ func getBaseDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 func getDefaultDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 	expectedDDAI := getBaseDDAI(dda)
 	expectedDDAI.Annotations = map[string]string{
-		constants.MD5DDAIDeploymentAnnotationKey: "8b985778b07536be633b3f49cb113e02",
+		constants.MD5DDAIDeploymentAnnotationKey: "a79dfe841c72f0e71dea9cb26f3eb2a7",
 	}
 	expectedDDAI.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 		v2alpha1.NodeAgentComponentName: {
