@@ -88,6 +88,8 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogpodautoscalers,verbs=*
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogpodautoscalers/status,verbs=*
 // +kubebuilder:rbac:groups=*,resources=*/scale,verbs=get;update
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=patch
+// +kubebuilder:rbac:groups=argoproj.io,resources=rollouts,verbs=patch
 
 // Use ExtendedDaemonSet
 // +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsets,verbs=get;list;watch;create;update;patch;delete
@@ -108,6 +110,10 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups="",resources=nodes/proxy,verbs=get
 // +kubebuilder:rbac:groups="",resources=nodes/spec,verbs=get
 // +kubebuilder:rbac:groups="",resources=nodes/stats,verbs=get
+// +kubebuilder:rbac:groups="",resources=nodes/pods,verbs=get
+// +kubebuilder:rbac:groups="",resources=nodes/healthz,verbs=get
+// +kubebuilder:rbac:groups="",resources=nodes/configz,verbs=get
+// +kubebuilder:rbac:groups="",resources=nodes/logs,verbs=get
 // +kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete

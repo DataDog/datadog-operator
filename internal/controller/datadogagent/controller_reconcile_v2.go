@@ -11,7 +11,6 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -37,6 +36,11 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 	// 1. Validate the resource.
 	if err := datadoghqv2alpha1.ValidateDatadogAgent(instance); err != nil {
 		return result, err
+	}
+
+	// Check for deprecated configurations and log warnings
+	if instance.Spec.Global != nil && instance.Spec.Global.RunProcessChecksInCoreAgent != nil {
+		reqLogger.Error(nil, "DEPRECATION WARNING: The 'runProcessChecksInCoreAgent' configuration is deprecated in 1.19, and will be removed in v1.21. See github.com/DataDog/datadog-operator/blob/main/docs/deprecated_configs.md for details.")
 	}
 
 	// 2. Handle finalizer logic.
@@ -106,7 +110,7 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 		}
 
 		// Add DDA remote config status to DDAI status
-		if e := r.addRemoteConfigStatusToDDAIStatus(newDDAStatus, ddai); e != nil {
+		if res, e := r.addRemoteConfigStatusToDDAIStatus(ctx, newDDAStatus, ddai.ObjectMeta); utils.ShouldReturn(res, e) {
 			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
 		}
 	}
@@ -124,7 +128,7 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
 	var result reconcile.Result
 	newStatus := instance.Status.DeepCopy()
-	now := metav1.NewTime(time.Now())
+	now := metav1.Now()
 
 	configuredFeatures, enabledFeatures, requiredComponents := feature.BuildFeatures(instance, &instance.Spec, instance.Status.RemoteConfigConfiguration, reconcilerOptionsToFeatureOptions(&r.options, r.log))
 	// update list of enabled features for metrics forwarder
@@ -234,7 +238,7 @@ func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment 
 
 	r.setMetricsForwarderStatusV2(logger, agentdeployment, newStatus)
 
-	if !apiequality.Semantic.DeepEqual(&agentdeployment.Status, newStatus) {
+	if !IsEqualStatus(&agentdeployment.Status, newStatus) {
 		updateAgentDeployment := agentdeployment.DeepCopy()
 		updateAgentDeployment.Status = *newStatus
 		if err := r.client.Status().Update(context.TODO(), updateAgentDeployment); err != nil {
@@ -250,16 +254,27 @@ func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment 
 	return result, currentError
 }
 
-func (r *Reconciler) updateDAPStatus(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentProfile) {
+func (r *Reconciler) updateDAPStatus(ctx context.Context, logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentProfile, oldStatus *datadoghqv1alpha1.DatadogAgentProfileStatus) (reconcile.Result, error) {
 	// update dap status for non-default profiles only
 	if !agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
-		if err := r.client.Status().Update(context.TODO(), profile); err != nil {
-			if apierrors.IsConflict(err) {
-				logger.V(1).Info("unable to update DatadogAgentProfile status due to update conflict")
+		if !agentprofile.IsEqualStatus(oldStatus, &profile.Status) {
+			// Update a deep copy to avoid mutating the in-memory object used later
+			toUpdate := profile.DeepCopy()
+			if err := r.client.Status().Update(ctx, toUpdate); err != nil {
+				if apierrors.IsConflict(err) {
+					logger.V(1).Info("unable to update DatadogAgentProfile status due to update conflict")
+					return reconcile.Result{RequeueAfter: time.Second}, nil
+				}
+				if apierrors.IsNotFound(err) {
+					// Profile deleted between list and update; no action needed
+					return reconcile.Result{}, nil
+				}
+				logger.Error(err, "unable to update DatadogAgentProfile status")
+				return reconcile.Result{}, err
 			}
-			logger.Error(err, "unable to update DatadogAgentProfile status")
 		}
 	}
+	return reconcile.Result{}, nil
 }
 
 // setMetricsForwarderStatus sets the metrics forwarder status condition if enabled
@@ -307,7 +322,7 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 	profilesList := datadoghqv1alpha1.DatadogAgentProfileList{}
 	err := r.client.List(ctx, &profilesList)
 	if err != nil {
-		return nil, nil, err
+		logger.Info("unable to list DatadogAgentProfiles", "error", err)
 	}
 
 	var profileListToApply []datadoghqv1alpha1.DatadogAgentProfile
@@ -316,8 +331,11 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 	sortedProfiles := agentprofile.SortProfiles(profilesList.Items)
 	for _, profile := range sortedProfiles {
 		maxUnavailable := agentprofile.GetMaxUnavailable(logger, ddaSpec, &profile, len(nodeList), &r.options.ExtendedDaemonsetOptions)
-		profileAppliedByNode, err = agentprofile.ApplyProfile(logger, &profile, nodeList, profileAppliedByNode, now, maxUnavailable)
-		r.updateDAPStatus(logger, &profile)
+		oldStatus := profile.Status
+		profileAppliedByNode, err = agentprofile.ApplyProfile(logger, &profile, nodeList, profileAppliedByNode, now, maxUnavailable, r.options.DatadogAgentInternalEnabled)
+		if result, e := r.updateDAPStatus(ctx, logger, &profile, &oldStatus); utils.ShouldReturn(result, e) {
+			logger.Info("unable to update DatadogAgentProfile status", "error", e, "requeue", result.Requeue, "requeueAfter", result.RequeueAfter)
+		}
 		if err != nil {
 			// profile is invalid or conflicts
 			logger.Error(err, "profile cannot be applied", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)

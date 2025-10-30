@@ -7,6 +7,7 @@ package clusterchecksrunner
 
 import (
 	"fmt"
+	"maps"
 	"strconv"
 
 	"github.com/go-logr/logr"
@@ -41,13 +42,9 @@ func NewDefaultClusterChecksRunnerDeployment(logger logr.Logger, dda metav1.Obje
 	deployment := common.NewDeployment(logger, dda, constants.DefaultClusterChecksRunnerResourceSuffix, GetClusterChecksRunnerName(dda), common.GetAgentVersion(dda), nil)
 
 	podTemplate := NewDefaultClusterChecksRunnerPodTemplateSpec(dda)
-	for key, val := range deployment.GetLabels() {
-		podTemplate.Labels[key] = val
-	}
+	maps.Copy(podTemplate.Labels, deployment.GetLabels())
 
-	for key, val := range deployment.GetAnnotations() {
-		podTemplate.Annotations[key] = val
-	}
+	maps.Copy(podTemplate.Annotations, deployment.GetAnnotations())
 
 	deployment.Spec.Template = *podTemplate
 	deployment.Spec.Replicas = apiutils.NewInt32Pointer(defaultClusterChecksRunnerReplicas)

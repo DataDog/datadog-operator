@@ -10,7 +10,6 @@ The `DatadogDashboard` Custom Resource Definition (CRD) allows users to create [
 - [Helm][2], to deploy the Datadog Operator
 - The [kubectl CLI][3], to install a `DatadogDashboard`
 
-
 ## Adding a DatadogDashboard
 
 To deploy a `DatadogDashboard` with the Datadog Operator, use the [`datadog-operator` Helm chart][4].
@@ -114,6 +113,8 @@ To deploy a `DatadogDashboard` with the Datadog Operator, use the [`datadog-oper
     ```
 
     This automatically creates a new dashboard in Datadog. You can find it on the [Dashboards][8] page of your Datadog account.
+
+By default, the Operator ensures that the API dashboard definition stays in sync with the DatadogDashboard resource every **60** minutes (per dashboard). This interval can be adjusted using the environment variable `DD_DASHBOARD_FORCE_SYNC_PERIOD`, which specifies the number of minutes. For example, setting this variable to `"30"` changes the interval to 30 minutes.
 
 
 ## Cleanup

@@ -194,6 +194,13 @@ properties:
             - list
             - watch
           - apiGroups:
+            - argoproj.io
+            resources:
+            - rollouts
+            verbs:
+            - list
+            - watch
+          - apiGroups:
             - authentication.k8s.io
             resources:
             - tokenreviews
@@ -209,6 +216,15 @@ properties:
             verbs:
             - create
             - get
+          - apiGroups:
+            - auto.gke.io
+            resources:
+            - allowlistsynchronizers
+            verbs:
+            - create
+            - get
+            - list
+            - watch
           - apiGroups:
             - autoscaling
             resources:
@@ -334,6 +350,16 @@ properties:
             - watermarkpodautoscalers
             verbs:
             - get
+            - list
+            - watch
+          - apiGroups:
+            - datadoghq.com
+            - karpenter.azure.com
+            - karpenter.k8s.aws
+            - karpenter.sh
+            resources:
+            - '*'
+            verbs:
             - list
             - watch
           - apiGroups:

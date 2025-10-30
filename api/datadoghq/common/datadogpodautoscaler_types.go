@@ -116,7 +116,7 @@ type DatadogPodAutoscalerScalingRule struct {
 }
 
 // DatadogPodAutoscalerObjectiveType defines the type of the objective.
-// +kubebuilder:validation:Enum:=PodResource;ContainerResource
+// +kubebuilder:validation:Enum:=PodResource;ContainerResource;CustomQuery
 type DatadogPodAutoscalerObjectiveType string
 
 const (
@@ -125,6 +125,9 @@ const (
 
 	// DatadogPodAutoscalerContainerResourceObjectiveType allows to set container-level resource objectives.
 	DatadogPodAutoscalerContainerResourceObjectiveType DatadogPodAutoscalerObjectiveType = "ContainerResource"
+
+	// DatadogPodAutoscalerCustomQueryObjectiveType allows to set controller-level objectives.
+	DatadogPodAutoscalerCustomQueryObjectiveType DatadogPodAutoscalerObjectiveType = "CustomQuery"
 )
 
 // DatadogPodAutoscalerObjective defines the objectives to reach and maintain for the target workload.
@@ -138,6 +141,9 @@ type DatadogPodAutoscalerObjective struct {
 
 	// ContainerResource allows to set a container-level resource objective.
 	ContainerResource *DatadogPodAutoscalerContainerResourceObjective `json:"containerResource,omitempty"`
+
+	// CustomQueryObjective allows to set a controller-level objective.
+	CustomQueryObjective *DatadogPodAutoscalerCustomQueryObjective `json:"customQueryObjective,omitempty"`
 }
 
 // DatadogPodAutoscalerPodResourceObjective defines a pod-level resource objective (for instance, CPU Utilization at 80%)
@@ -167,26 +173,132 @@ type DatadogPodAutoscalerContainerResourceObjective struct {
 	Container string `json:"container"`
 }
 
+// DatadogPodAutoscalerCustomQueryObjective defines a controller-level objective
+// +kubebuilder:object:generate=true
+type DatadogPodAutoscalerCustomQueryObjective struct {
+	// Query is the timeseries query to use for the objective.
+	// +kubebuilder:validation:Required
+	Query DatadogPodAutoscalerTimeseriesFormulaRequest `json:"query"`
+
+	// Value is the value of the objective
+	// +kubebuilder:validation:Required
+	Value DatadogPodAutoscalerObjectiveValue `json:"value"`
+
+	// Window is the time duration over which the query is computed. It should contain at least one full sample.
+	// +kubebuilder:validation:Required
+	Window metav1.Duration `json:"window"`
+}
+
+// DatadogPodAutoscalerTimeseriesFormulaRequest is a subset of the v2 timeseries query API (metrics only).
+// It mirrors the OpenAPI "DatadogPodAutoscalerTimeseriesFormulaRequestAttributes" fields relevant to autoscaling.
+// Reference: https://github.com/DataDog/datadog-api-spec/blob/94d1542b31ad0df1da915bae84686b13ba1a65ae/spec/v2/query.yaml#L124
+// +kubebuilder:object:generate=true
+type DatadogPodAutoscalerTimeseriesFormulaRequest struct {
+	// Formulas to compute (optional).
+	// +optional
+	Formulas []DatadogPodAutoscalerQueryFormula `json:"formulas,omitempty"`
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:vallidation:Required
+	Queries []DatadogPodAutoscalerTimeseriesQuery `json:"queries"`
+}
+
+// +kubebuilder:object:generate=true
+type DatadogPodAutoscalerQueryFormula struct {
+	// +kubebuilder:validation:MinLength=1
+	Formula string `json:"formula"`
+}
+
+// +kubebuilder:validation:Enum:=metrics;apm_metrics
+type DatadogPodAutoscalerMetricsDataSource string
+
+const (
+	DatadogPodAutoscalerMetricsDataSourceMetrics    DatadogPodAutoscalerMetricsDataSource = "metrics"
+	DatadogPodAutoscalerMetricsDataSourceApmMetrics DatadogPodAutoscalerMetricsDataSource = "apm_metrics"
+)
+
+// TimeseriesQuery is a discriminated union. Only Metrics and APMMetrics are supported for autoscaling.
+// +kubebuilder:object:generate=true
+type DatadogPodAutoscalerTimeseriesQuery struct {
+	// Optional variable name ("a", "b", etc.) to reference in formulas.
+	// +optional
+	Name string `json:"name"`
+	// +required
+	Source DatadogPodAutoscalerMetricsDataSource `json:"source"`
+	// +optional
+	Metrics *DatadogPodAutoscalerMetricsTimeseriesQuery `json:"metrics,omitempty"`
+	// +optional
+	ApmMetrics *DatadogPodAutoscalerApmMetricsTimeseriesQuery `json:"apm_metrics,omitempty"`
+}
+
+// +kubebuilder:object:generate=true
+type DatadogPodAutoscalerMetricsTimeseriesQuery struct {
+	// Classic Datadog metrics query, e.g. "avg:system.cpu.user{*} by {env}".
+	// +kubebuilder:validation:MinLength=1
+	Query string `json:"query"`
+}
+
+// +kubebuilder:object:generate=true
+type DatadogPodAutoscalerApmMetricsTimeseriesQuery struct {
+	Stat         DatadogPodAutoscalerApmMetricsStat `json:"stat"`
+	Service      *string                            `json:"service,omitempty"`
+	ResourceName *string                            `json:"resource_name,omitempty"`
+	// ResourceHash is a fingerprint of the resource name that can be used to identify the resource instead of the resource name.
+	ResourceHash  *string  `json:"resource_hash,omitempty"`
+	OperationName *string  `json:"operation_name,omitempty"`
+	GroupBy       []string `json:"group_by,omitempty"`
+	QueryFilter   *string  `json:"query_filter,omitempty"`
+	SpanKind      *string  `json:"span_kind,omitempty"`
+}
+
+// DatadogPodAutoscalerApmMetricsStat represents the statistic to compute for an APM metrics query.
+// +kubebuilder:validation:Enum:=error_rate;errors;errors_per_second;hits;hits_per_second;apdex;latency_avg;latency_max;latency_p50;latency_p75;latency_p90;latency_p95;latency_p99;latency_p999;latency_distribution;total_time
+type DatadogPodAutoscalerApmMetricsStat string
+
+const (
+	APM_METRIC_STAT_ERROR_RATE           DatadogPodAutoscalerApmMetricsStat = "error_rate"
+	APM_METRIC_STAT_ERRORS               DatadogPodAutoscalerApmMetricsStat = "errors"
+	APM_METRIC_STAT_ERRORS_PER_SECOND    DatadogPodAutoscalerApmMetricsStat = "errors_per_second"
+	APM_METRIC_STAT_HITS                 DatadogPodAutoscalerApmMetricsStat = "hits"
+	APM_METRIC_STAT_HITS_PER_SECOND      DatadogPodAutoscalerApmMetricsStat = "hits_per_second"
+	APM_METRIC_STAT_APDEX                DatadogPodAutoscalerApmMetricsStat = "apdex"
+	APM_METRIC_STAT_LATENCY_AVG          DatadogPodAutoscalerApmMetricsStat = "latency_avg"
+	APM_METRIC_STAT_LATENCY_MAX          DatadogPodAutoscalerApmMetricsStat = "latency_max"
+	APM_METRIC_STAT_LATENCY_P50          DatadogPodAutoscalerApmMetricsStat = "latency_p50"
+	APM_METRIC_STAT_LATENCY_P75          DatadogPodAutoscalerApmMetricsStat = "latency_p75"
+	APM_METRIC_STAT_LATENCY_P90          DatadogPodAutoscalerApmMetricsStat = "latency_p90"
+	APM_METRIC_STAT_LATENCY_P95          DatadogPodAutoscalerApmMetricsStat = "latency_p95"
+	APM_METRIC_STAT_LATENCY_P99          DatadogPodAutoscalerApmMetricsStat = "latency_p99"
+	APM_METRIC_STAT_LATENCY_P999         DatadogPodAutoscalerApmMetricsStat = "latency_p999"
+	APM_METRIC_STAT_LATENCY_DISTRIBUTION DatadogPodAutoscalerApmMetricsStat = "latency_distribution"
+	APM_METRIC_STAT_TOTAL_TIME           DatadogPodAutoscalerApmMetricsStat = "total_time"
+)
+
 // DatadogPodAutoscalerObjectiveValueType specifies the type of objective value.
-// kubebuilder:validation:Enum:=Utilization
+// +kubebuilder:validation:Enum:=Utilization;AbsoluteValue
 type DatadogPodAutoscalerObjectiveValueType string
 
 const (
 	// DatadogPodAutoscalerUtilizationObjectiveValueType declares an objective based on a Utilization (percentage, 0-100).
 	DatadogPodAutoscalerUtilizationObjectiveValueType DatadogPodAutoscalerObjectiveValueType = "Utilization"
+	// DatadogPodAutoscalerAbsoluteValueObjectiveValueType declares an objective based on an AbsoluteValue.
+	DatadogPodAutoscalerAbsoluteValueObjectiveValueType DatadogPodAutoscalerObjectiveValueType = "AbsoluteValue"
 )
 
 // DatadogPodAutoscalerObjectiveValue defines the target value of the objective.
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerObjectiveValue struct {
-	// Type specifies how the value is expressed (possible values: Utilization).
-	// +kubebuilder:validation:Enum:=Utilization
+	// Type specifies how the value is expressed (possible values: Utilization, AbsoluteValue).
 	Type DatadogPodAutoscalerObjectiveValueType `json:"type"`
 
 	// Utilization defines a percentage of the target compared to requested workload
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100
 	Utilization *int32 `json:"utilization,omitempty"`
+
+	// AbsoluteValue defines a target as an absolute value divided by the number of running pods.
+	// Use a plain number (e.g., "11" or "11.5").
+	// Represented as a resource.Quantity to avoid floating point in CRDs.
+	AbsoluteValue *resource.Quantity `json:"absoluteValue,omitempty"`
 }
 
 // DatadogPodAutoscalerConstraints defines constraints that should always be respected.

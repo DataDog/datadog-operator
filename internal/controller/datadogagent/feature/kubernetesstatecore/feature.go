@@ -48,6 +48,7 @@ func buildKSMFeature(options *feature.Options) feature.Feature {
 type ksmFeature struct {
 	runInClusterChecksRunner bool
 	collectCRDMetrics        bool
+	collectCrMetrics         []v2alpha1.Resource
 	collectAPIServiceMetrics bool
 
 	rbacSuffix         string
@@ -84,6 +85,7 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 
 		f.collectAPIServiceMetrics = true
 		f.collectCRDMetrics = true
+		f.collectCrMetrics = ddaSpec.Features.KubeStateMetricsCore.CollectCrMetrics
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 		// This check will only run in the Cluster Checks Runners or Cluster Agent (not the Node Agent)
@@ -119,6 +121,22 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			}
 			f.customConfigAnnotationValue = hash
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.KubernetesStateCoreIDType)
+		} else {
+			// Generate dynamic checksum for default configuration (based on user provided collectCrMetrics field and whether or not APIServices/CRD metrics are collected)
+			defaultConfigData := map[string]any{
+				"collect_crds":        f.collectCRDMetrics,
+				"collect_apiservices": f.collectAPIServiceMetrics,
+				"collect_cr_metrics":  f.collectCrMetrics,
+			}
+
+			hash, err := comparison.GenerateMD5ForSpec(defaultConfigData)
+			if err != nil {
+				f.logger.Error(err, "couldn't generate hash for default ksm core config")
+			} else {
+				f.logger.V(2).Info("generated default ksm core config hash", "hash", hash, "config", defaultConfigData)
+			}
+			f.customConfigAnnotationValue = hash
+			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.KubernetesStateCoreIDType)
 		}
 
 		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, defaultKubeStateMetricsCoreConf)
@@ -131,6 +149,7 @@ type collectorOptions struct {
 	enableVPA        bool
 	enableAPIService bool
 	enableCRD        bool
+	customResources  []v2alpha1.Resource
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
@@ -143,6 +162,7 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, provi
 		enableVPA:        pInfo.IsResourceSupported("VerticalPodAutoscaler"),
 		enableAPIService: f.collectAPIServiceMetrics,
 		enableCRD:        f.collectCRDMetrics,
+		customResources:  f.collectCrMetrics,
 	}
 	configCM, err := f.buildKSMCoreConfigMap(collectorOpts)
 	if err != nil {

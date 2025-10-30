@@ -6,8 +6,12 @@
 package kubernetesstatecore
 
 import (
+	"strings"
+
+	"github.com/gobuffalo/flect"
 	rbacv1 "k8s.io/api/rbac/v1"
 
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
@@ -127,6 +131,20 @@ func getRBACPolicyRules(collectorOpts collectorOptions) []rbacv1.PolicyRule {
 
 	for i := range rbacRules {
 		rbacRules[i].Verbs = commonVerbs
+	}
+
+	// Add permissions for custom resources
+	if len(collectorOpts.customResources) > 0 {
+		rbacBuilder := utils.NewRBACBuilder(commonVerbs...)
+		for _, cr := range collectorOpts.customResources {
+			// Use the resource plural if specified, otherwise derive it from the Kind
+			resourceName := cr.ResourcePlural
+			if resourceName == "" {
+				resourceName = strings.ToLower(flect.Pluralize(cr.GroupVersionKind.Kind))
+			}
+			rbacBuilder.AddGroupKind(cr.GroupVersionKind.Group, resourceName)
+		}
+		rbacRules = append(rbacRules, rbacBuilder.Build()...)
 	}
 
 	return rbacRules

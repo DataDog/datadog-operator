@@ -54,7 +54,11 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - nodes/configz
+  - nodes/healthz
+  - nodes/logs
   - nodes/metrics
+  - nodes/pods
   - nodes/proxy
   - nodes/spec
   - nodes/stats
@@ -93,9 +97,6 @@ rules:
   - apiservices
   verbs:
   - '*'
-  - deletecollection
-  - list
-  - watch
 - apiGroups:
   - apps
   resources:
@@ -125,6 +126,7 @@ rules:
   - rollouts
   verbs:
   - list
+  - patch
   - watch
 - apiGroups:
   - authentication.k8s.io

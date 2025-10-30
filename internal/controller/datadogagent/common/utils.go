@@ -7,6 +7,7 @@ package common
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -48,9 +49,7 @@ func GetDefaultMetadata(logger logr.Logger, owner metav1.Object, componentKind, 
 	annotations := object.GetDefaultAnnotations(owner)
 
 	if selector != nil {
-		for key, val := range selector.MatchLabels {
-			labels[key] = val
-		}
+		maps.Copy(labels, selector.MatchLabels)
 		// if update metadata is present, use k8s instance and component as the selector
 	} else if val, ok := owner.GetAnnotations()[apicommon.UpdateMetadataAnnotationKey]; ok && val == "true" {
 		selector = &metav1.LabelSelector{
@@ -93,7 +92,7 @@ func GetAgentVersion(dda metav1.Object) string {
 
 // GetDefaultSeccompConfigMapName returns the default seccomp configmap name based on the DatadogAgent name
 func GetDefaultSeccompConfigMapName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), SystemProbeAgentSecurityConfigMapSuffixName)
+	return fmt.Sprintf("%s-%s", constants.GetDDAName(dda), SystemProbeAgentSecurityConfigMapSuffixName)
 }
 
 // GetAgentVersionFromImage returns the Agent version based on the AgentImageConfig

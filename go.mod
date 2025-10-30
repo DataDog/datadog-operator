@@ -1,8 +1,8 @@
 module github.com/DataDog/datadog-operator
 
-go 1.24
+go 1.25
 
-toolchain go1.24.6
+toolchain go1.25.3
 
 replace github.com/DataDog/extendeddaemonset v0.10.0-rc.4 => github.com/DataDog/extendeddaemonset/api v0.0.0-20250108205105-6c4d337b78a1
 
@@ -24,7 +24,6 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.10.0
-	github.com/zorkian/go-datadog-api v2.30.0+incompatible
 	go.uber.org/zap v1.27.0
 	gopkg.in/DataDog/dd-trace-go.v1 v1.68.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -47,6 +46,7 @@ require (
 	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.59.0-rc.5
 	github.com/DataDog/datadog-operator/api v0.0.0-20250130131115-7f198adcc856
 	github.com/cenkalti/backoff v2.2.1+incompatible
+	github.com/gobuffalo/flect v1.0.3
 	github.com/google/go-containerregistry v0.6.0
 	github.com/prometheus/client_golang v1.20.5
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8
@@ -177,7 +177,7 @@ require (
 	github.com/tinylib/msgp v1.2.5 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
-	github.com/ulikunitz/xz v0.5.10 // indirect
+	github.com/ulikunitz/xz v0.5.14 // indirect
 	github.com/vbatts/tar-split v0.12.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect

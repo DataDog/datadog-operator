@@ -463,6 +463,12 @@ type CWSFeatureConfig struct {
 	// +optional
 	SyscallMonitorEnabled *bool `json:"syscallMonitorEnabled,omitempty"`
 
+	// DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.
+	// This is an experimental feature. Contact support before using.
+	// Default: false
+	// +optional
+	DirectSendFromSystemProbe *bool `json:"directSendFromSystemProbe,omitempty"`
+
 	Network             *CWSNetworkConfig             `json:"network,omitempty"`
 	SecurityProfiles    *CWSSecurityProfilesConfig    `json:"securityProfiles,omitempty"`
 	RemoteConfiguration *CWSRemoteConfigurationConfig `json:"remoteConfiguration,omitempty"`
@@ -817,6 +823,156 @@ type KubeStateMetricsCoreFeatureConfig struct {
 	// This must point to a ConfigMap containing a valid cluster check configuration.
 	// +optional
 	Conf *CustomConfig `json:"conf,omitempty"`
+
+	// `CollectCrMetrics` defines custom resources for the kube-state-metrics core check to collect.
+	//
+	// The datadog agent uses the same logic as upstream `kube-state-metrics`. So is its configuration.
+	// The exact structure and existing fields of each item in this list can be found in:
+	// https://github.com/kubernetes/kube-state-metrics/blob/main/docs/metrics/extend/customresourcestate-metrics.md
+	//
+	// +optional
+	// +listType=atomic
+	CollectCrMetrics []Resource `json:"collectCrMetrics,omitempty"`
+}
+
+// Resource configures a custom resource for metric generation.
+type Resource struct {
+	// MetricNamePrefix defines a prefix for all metrics of the resource.
+	// If set to "", no prefix will be added.
+	// Example: If set to "foo", MetricNamePrefix will be "foo_<metric>".
+	// +optional
+	MetricNamePrefix *string `json:"metricNamePrefix,omitempty" yaml:"metricNamePrefix,omitempty"`
+
+	// GroupVersionKind of the custom resource to be monitored.
+	GroupVersionKind GroupVersionKind `json:"groupVersionKind,omitempty" yaml:"groupVersionKind,omitempty"`
+
+	// Labels are added to all metrics. If the same key is used in a metric, the value from the metric will overwrite the value here.
+	Labels `json:",inline" yaml:",inline"`
+
+	// Metrics are the custom resource fields to be collected.
+	Metrics []Generator `json:"metrics,omitempty" yaml:"metrics,omitempty"`
+
+	// ResourcePlural sets the plural name of the resource. Defaults to the plural version of the Kind according to flect.Pluralize.
+	// +optional
+	ResourcePlural string `json:"resourcePlural,omitempty" yaml:"resourcePlural,omitempty"`
+}
+
+// GroupVersionKind is the Kubernetes group, version, and kind of a resource.
+type GroupVersionKind struct {
+	Group   string `json:"group,omitempty"   yaml:"group,omitempty"`
+	Version string `json:"version,omitempty" yaml:"version,omitempty"`
+	Kind    string `json:"kind,omitempty"    yaml:"kind,omitempty"`
+}
+
+// Labels is common configuration of labels to add to metrics.
+type Labels struct {
+	// CommonLabels are added to all metrics.
+	// +optional
+	CommonLabels map[string]string `json:"commonLabels,omitempty" yaml:"commonLabels,omitempty"`
+	// LabelsFromPath adds additional labels where the value is taken from a field in the resource.
+	// +optional
+	LabelsFromPath map[string][]string `json:"labelsFromPath,omitempty" yaml:"labelsFromPath,omitempty"`
+}
+
+// Generator describes a unique metric name.
+type Generator struct {
+	// Name of the metric. Subject to prefixing based on the configuration of the Resource.
+	Name string `json:"name,omitempty" yaml:"name,omitempty"`
+	// Help text for the metric.
+	// +optional
+	Help string `json:"help,omitempty" yaml:"help,omitempty"`
+	// Each targets a value or values from the resource.
+	Each Metric `json:"each,omitempty" yaml:"each,omitempty"`
+
+	// Labels are added to all metrics. Labels from Each will overwrite these if using the same key.
+	Labels `json:",inline" yaml:",inline"` // json will inline because it is already tagged
+}
+
+// Metric defines a metric to expose.
+// +union
+type Metric struct {
+	// Type defines the type of the metric.
+	// +unionDiscriminator
+	Type MetricType `json:"type,omitempty" yaml:"type,omitempty"`
+
+	// Gauge defines a gauge metric.
+	// +optional
+	Gauge *MetricGauge `json:"gauge,omitempty" yaml:"gauge,omitempty"`
+	// StateSet defines a state set metric.
+	// +optional
+	StateSet *MetricStateSet `json:"stateSet,omitempty" yaml:"stateSet,omitempty"`
+	// Info defines an info metric.
+	// +optional
+	Info *MetricInfo `json:"info,omitempty" yaml:"info,omitempty"`
+}
+
+// Type represents the type of the metric. See https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#metric-types.
+type MetricType string
+
+// Supported metric types.
+var (
+
+	// Gauge defines an OpenMetrics gauge.
+	Gauge MetricType = "gauge"
+
+	// Info defines an OpenMetrics info.
+	Info MetricType = "info"
+
+	// StateSet defines an OpenMetrics stateset.
+	StateSet MetricType = "stateset"
+
+	// Counter defines an OpenMetrics counter.
+	Counter MetricType = "counter"
+)
+
+// MetricMeta are variables which may used for any metric type.
+type MetricMeta struct {
+	// LabelsFromPath adds additional labels where the value of the label is taken from a field under Path.
+	// +optional
+	LabelsFromPath map[string][]string `json:"labelsFromPath,omitempty" yaml:"labelsFromPath,omitempty"`
+	// Path is the path to to generate metric(s) for.
+	Path []string `json:"path" yaml:"path"`
+}
+
+// MetricGauge targets a Path that may be a single value, array, or object. Arrays and objects will generate a metric per element.
+// Ref: https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#gauge
+type MetricGauge struct {
+	MetricMeta `json:",inline" yaml:",inline"`
+
+	// ValueFrom is the path to a numeric field under Path that will be the metric value.
+	// +optional
+	ValueFrom []string `json:"valueFrom,omitempty" yaml:"valueFrom,omitempty"`
+	// LabelFromKey adds a label with the given name if Path is an object. The label value will be the object key.
+	// +optional
+	LabelFromKey string `json:"labelFromKey,omitempty" yaml:"labelFromKey,omitempty"`
+	// NilIsZero indicates that if a value is nil it will be treated as zero value.
+	// +optional
+	NilIsZero bool `json:"nilIsZero,omitempty" yaml:"nilIsZero,omitempty"`
+}
+
+// MetricInfo is a metric which is used to expose textual information.
+// Ref: https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#info
+type MetricInfo struct {
+	MetricMeta `json:",inline" yaml:",inline"`
+	// LabelFromKey adds a label with the given name if Path is an object. The label value will be the object key.
+	// +optional
+	LabelFromKey string `json:"labelFromKey,omitempty" yaml:"labelFromKey,omitempty"`
+}
+
+// MetricStateSet is a metric which represent a series of related boolean values, also called a bitset.
+// Ref: https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#stateset
+type MetricStateSet struct {
+	MetricMeta `json:",inline" yaml:",inline"`
+
+	// List is the list of values to expose a value for.
+	// +optional
+	List []string `json:"list,omitempty" yaml:"list,omitempty"`
+	// LabelName is the key of the label which is used for each entry in List to expose the value.
+	// +optional
+	LabelName string `json:"labelName,omitempty" yaml:"labelName,omitempty"`
+	// ValueFrom is the subpath to compare the list to.
+	// +optional
+	ValueFrom []string `json:"valueFrom,omitempty" yaml:"valueFrom,omitempty"`
 }
 
 // OtelCollectorFeatureConfig contains the configuration for the otel-agent.
@@ -1534,6 +1690,7 @@ type GlobalConfig struct {
 	// (Requires Agent 7.60.0+)
 	// Default: 'true'
 	// +optional
+	// Deprecated: Functionality now handled automatically. Use env var `DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED` to override.
 	RunProcessChecksInCoreAgent *bool `json:"runProcessChecksInCoreAgent,omitempty"`
 }
 

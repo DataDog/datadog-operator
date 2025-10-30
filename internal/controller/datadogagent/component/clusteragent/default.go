@@ -7,6 +7,7 @@ package clusteragent
 
 import (
 	"fmt"
+	"maps"
 	"path/filepath"
 	"strconv"
 
@@ -55,13 +56,9 @@ func getDefaultServiceAccountName(dda metav1.Object) string {
 func NewDefaultClusterAgentDeployment(logger logr.Logger, ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) *appsv1.Deployment {
 	deployment := common.NewDeployment(logger, ddaMeta, constants.DefaultClusterAgentResourceSuffix, component.GetClusterAgentName(ddaMeta), GetClusterAgentVersion(ddaMeta), nil)
 	podTemplate := NewDefaultClusterAgentPodTemplateSpec(ddaMeta, ddaSpec)
-	for key, val := range deployment.GetLabels() {
-		podTemplate.Labels[key] = val
-	}
+	maps.Copy(podTemplate.Labels, deployment.GetLabels())
 
-	for key, val := range deployment.GetAnnotations() {
-		podTemplate.Annotations[key] = val
-	}
+	maps.Copy(podTemplate.Annotations, deployment.GetAnnotations())
 	deployment.Spec.Template = *podTemplate
 	deployment.Spec.Replicas = apiutils.NewInt32Pointer(defaultClusterAgentReplicas)
 

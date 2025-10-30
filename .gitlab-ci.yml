@@ -1,4 +1,4 @@
-image: registry.ddbuild.io/images/mirror/library/golang:1.24.6
+image: registry.ddbuild.io/images/mirror/library/golang:1.25.3
 variables:
   PROJECTNAME: "datadog-operator"
   PROJECTNAME_CHECK: "datadog-operator-check"
@@ -36,7 +36,7 @@ stages:
   - deploy
 
 .on_build_images:
-  - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+  - if: "$CI_COMMIT_BRANCH =~ /^mq-working-branch-/"
     when: never
   - when: always
 
@@ -178,7 +178,6 @@ build_operator_check_image_arm64:
     - IMG_CHECK=$TARGET_IMAGE make docker-build-push-check-ci
     - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
 
-
 build_bundle_image:
   stage: image
   tags:
@@ -200,7 +199,7 @@ build_bundle_image:
       compare_to: "refs/heads/main"
     when: never
   # Allow mergequeue branches to merge even if tests fail
-  - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+  - if: "$CI_COMMIT_BRANCH =~ /^mq-working-branch-/"
     allow_failure: true
   - if: $CI_COMMIT_TAG
     allow_failure: true
@@ -250,6 +249,8 @@ e2e:
     KUBERNETES_MEMORY_REQUEST: 12Gi
     KUBERNETES_MEMORY_LIMIT: 16Gi
     TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    # Temporary workaround from https://github.com/golang/go/issues/75031
+    GOTOOLCHAIN: go1.25.0+auto
   image: $BUILD_DOCKER_REGISTRY/test-infra-definitions/runner:$TEST_INFRA_DEFINITIONS_BUILDIMAGES
   before_script:
     # Setup AWS Credentials
@@ -304,8 +305,8 @@ publish_public_tag:
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
     IMG_DESTINATIONS: operator:$CI_COMMIT_TAG
-    IMG_DESTINATIONS_REGEX: ':v'
-    IMG_DESTINATIONS_REGEX_REPL: ':'
+    IMG_DESTINATIONS_REGEX: ":v"
+    IMG_DESTINATIONS_REGEX_REPL: ":"
     IMG_SIGNING: "false"
     IMG_MERGE_STRATEGY: "index_oci"
 
@@ -328,8 +329,8 @@ publish_redhat_public_tag:
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
     IMG_DESTINATIONS: $RH_PARTNER_PROJECT_ID:$CI_COMMIT_TAG
-    IMG_DESTINATIONS_REGEX: ':v'
-    IMG_DESTINATIONS_REGEX_REPL: ':'
+    IMG_DESTINATIONS_REGEX: ":v"
+    IMG_DESTINATIONS_REGEX_REPL: ":"
     IMG_REGISTRIES: redhat-operator
     IMG_SIGNING: "false"
     IMG_MERGE_STRATEGY: "index_oci"
@@ -537,7 +538,7 @@ trigger_custom_operator_check_image_staging:
 # Runs preflight checks without submitting the image
 check_preflight_redhat_image:
   stage: release
-  rules: 
+  rules:
     - if: $CI_COMMIT_TAG
       when: manual
     - when: never
@@ -545,13 +546,12 @@ check_preflight_redhat_image:
     - "publish_redhat_public_tag"
   tags: ["runner:docker", "size:large"]
   image: $JOB_DOCKER_IMAGE
-  script: 
+  script:
     - apt-get update && apt-get -y install --no-install-recommends build-essential git awscli && apt-get -y clean && rm -rf /var/lib/apt/lists/*
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_REGISTRY_KEY_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$RH_PARTNER_REGISTRY_USER" --password-stdin "$RH_PARTNER_REGISTRY"
     - export RH_PARTNER_API_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_API_KEY_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
     - export IMG=$RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:${CI_COMMIT_TAG:1}
     - make preflight-redhat-container
-  
 
 # Preflight now supports multiarch image checks
 submit_preflight_redhat_image:
@@ -575,14 +575,14 @@ submit_preflight_redhat_image:
 publish_community_operators:
   stage: post-release
   rules:
-      - if: $CI_COMMIT_TAG
-        when: manual
-      - when: never
+    - if: $CI_COMMIT_TAG
+      when: manual
+    - when: never
   # Allow the job to be run manually even if submit_preflight_redhat_image fails, so that
   # preflight submission can be retried locally followed by this manual job trigger in the pipeline
   # needs:
   #   - "submit_preflight_redhat_image"
-  tags: [ "runner:docker", "size:large" ]
+  tags: ["runner:docker", "size:large"]
   image: $OCTO_JOB_DOCKER_IMAGE
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
@@ -619,6 +619,7 @@ publish_community_operators:
     - dd-octo-sts version
     - dd-octo-sts debug --scope DataDog --policy datadog-operator.publish-community-bundles
     - dd-octo-sts token --scope DataDog --policy datadog-operator.publish-community-bundles > token.txt
+    - export GITHUB_TOKEN=$(cat token.txt)
     - gh auth login --with-token < token.txt
     - gh auth setup-git
     # create pull request for each marketplace repo
