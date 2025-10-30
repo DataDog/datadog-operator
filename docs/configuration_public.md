@@ -631,6 +631,10 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 `[key].containers.[key].name`
 : Name of the container that is overridden
 
+`[key].containers.[key].ports`
+: _type_: `[]object`
+<br /> Specify additional ports to be exposed by the container. Not specifying a port here DOES NOT prevent that port from being exposed. See https://pkg.go.dev/k8s.io/api/core/v1#Container documentation for more details.
+
 `[key].containers.[key].readinessProbe`
 : Configure the Readiness Probe of the container See [link](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) for more information.
 

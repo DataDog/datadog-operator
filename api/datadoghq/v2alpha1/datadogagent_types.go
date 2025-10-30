@@ -2020,7 +2020,7 @@ type DatadogAgentGenericContainer struct {
 	// Specify additional ports to be exposed by the container. Not specifying a port here
 	// DOES NOT prevent that port from being exposed.
 	// See https://pkg.go.dev/k8s.io/api/core/v1#Container documentation for more details.
-	// +doc-gen:exclude
+	// +doc-gen:truncate
 	// +optional
 	// +listType=atomic
 	Ports []corev1.ContainerPort `json:"ports,omitempty"`
