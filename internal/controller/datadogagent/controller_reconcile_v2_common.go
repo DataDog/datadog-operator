@@ -216,25 +216,6 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		}
 
 		now := metav1.Now()
-		if agentprofile.CreateStrategyEnabled() {
-			if profile.Status.CreateStrategy != nil {
-				profile.Status.CreateStrategy.PodsReady = currentDaemonset.Status.NumberReady
-			}
-			if shouldCheckCreateStrategyStatus(profile) {
-				newStatus := v1alpha1.WaitingStatus
-
-				if int(profile.Status.CreateStrategy.NodesLabeled-currentDaemonset.Status.NumberReady) < int(profile.Status.CreateStrategy.MaxUnavailable) {
-					newStatus = v1alpha1.InProgressStatus
-				}
-
-				if profile.Status.CreateStrategy.Status != newStatus {
-					profile.Status.CreateStrategy.LastTransition = &now
-				}
-				profile.Status.CreateStrategy.Status = newStatus
-			}
-			oldStatus := profile.Status
-			r.updateDAPStatus(context.TODO(), logger, profile, &oldStatus)
-		}
 
 		// When overriding node labels in <1.7.0, the hash could be updated
 		// without updating the pod template spec in <1.7.0 since pod template
@@ -444,22 +425,6 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, d
 	logger.Info("Creating ExtendedDaemonSet")
 
 	return result, err
-}
-
-func shouldCheckCreateStrategyStatus(profile *v1alpha1.DatadogAgentProfile) bool {
-	if profile == nil {
-		return false
-	}
-
-	if profile.Name == "" || profile.Name == "default" {
-		return false
-	}
-
-	if profile.Status.CreateStrategy == nil {
-		return false
-	}
-
-	return profile.Status.CreateStrategy.Status != v1alpha1.CompletedStatus
 }
 
 // shouldUpdateProfileDaemonSet determines if we should update a daemonset

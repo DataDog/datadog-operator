@@ -7,12 +7,10 @@ package agentprofile
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/condition"
@@ -46,21 +44,6 @@ func UpdateProfileStatus(logger logr.Logger, profile *datadoghqv1alpha1.DatadogA
 	}
 	if newStatus.Applied == "" {
 		newStatus.Applied = metav1.ConditionUnknown
-	}
-
-	if os.Getenv(common.CreateStrategyEnabled) == "true" {
-		if newStatus.CreateStrategy == nil {
-			logger.Error(fmt.Errorf("new create strategy status empty"), "Unable to update profile status")
-			return
-		}
-		if newStatus.CreateStrategy.Status == datadoghqv1alpha1.InProgressStatus {
-			newStatus.CreateStrategy.Status = datadoghqv1alpha1.WaitingStatus
-		}
-		if profile.Status.CreateStrategy == nil || profile.Status.CreateStrategy.Status == "" || profile.Status.CreateStrategy.Status != newStatus.CreateStrategy.Status {
-			newStatus.CreateStrategy.LastTransition = &now
-		}
-	} else {
-		newStatus.CreateStrategy = nil
 	}
 
 	profile.Status = newStatus
@@ -111,21 +94,5 @@ func IsEqualStatus(current *v1alpha1.DatadogAgentProfileStatus, newStatus *v1alp
 		current.Applied != newStatus.Applied {
 		return false
 	}
-	if !isEqualCreateStrategy(current.CreateStrategy, newStatus.CreateStrategy) {
-		return false
-	}
 	return condition.IsEqualConditions(current.Conditions, newStatus.Conditions)
-}
-
-func isEqualCreateStrategy(current *v1alpha1.CreateStrategy, newStrategy *v1alpha1.CreateStrategy) bool {
-	if current == nil && newStrategy == nil {
-		return true
-	}
-	if current == nil || newStrategy == nil {
-		return false
-	}
-	return current.Status == newStrategy.Status &&
-		current.NodesLabeled == newStrategy.NodesLabeled &&
-		current.PodsReady == newStrategy.PodsReady &&
-		current.MaxUnavailable == newStrategy.MaxUnavailable
 }
