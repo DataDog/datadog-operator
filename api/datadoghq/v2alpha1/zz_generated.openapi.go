@@ -1575,9 +1575,29 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_OtelCollectorGatewayFeatureC
 							Format:      "",
 						},
 					},
+					"ports": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Ports contains the ports that the OTel Collector is listening on. Defaults: otel-grpc:4317 / otel-http:4318.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("k8s.io/api/core/v1.ContainerPort"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.ContainerPort"},
 	}
 }
 

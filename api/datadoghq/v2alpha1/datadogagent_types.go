@@ -1014,6 +1014,12 @@ type OtelCollectorGatewayFeatureConfig struct {
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// Ports contains the ports that the OTel Collector is listening on.
+	// Defaults: otel-grpc:4317 / otel-http:4318.
+	// +optional
+	// +listType=atomic
+	Ports []*corev1.ContainerPort `json:"ports,omitempty"`
 }
 
 // ControlPlaneMonitoringFeatureConfig contains the configuration for the control plane monitoring.
