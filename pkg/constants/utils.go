@@ -105,6 +105,11 @@ func GetLocalAgentServiceName(objName string, ddaSpec *v2alpha1.DatadogAgentSpec
 	return fmt.Sprintf("%s-%s", objName, DefaultAgentResourceSuffix)
 }
 
+// GetOTelCollectorGatewayServiceName returns the name used for the OTel Collector Gateway service
+func GetOTelCollectorGatewayServiceName(objName string) string {
+	return fmt.Sprintf("%s-%s", objName, DefaultOtelCollectorGatewayResourceSuffix)
+}
+
 // IsNetworkPolicyEnabled returns whether a network policy should be created and which flavor to use
 func IsNetworkPolicyEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) (bool, v2alpha1.NetworkPolicyFlavor) {
 	if ddaSpec.Global != nil && ddaSpec.Global.NetworkPolicy != nil && apiutils.BoolValue(ddaSpec.Global.NetworkPolicy.Create) {

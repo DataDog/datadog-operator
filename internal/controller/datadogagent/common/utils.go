@@ -134,6 +134,13 @@ func GetAgentLocalServiceSelector(dda metav1.Object) map[string]string {
 	}
 }
 
+func GetOtelCollectorGatewayServiceSelector(dda metav1.Object) map[string]string {
+	return map[string]string{
+		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
+		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultOtelCollectorGatewayResourceSuffix,
+	}
+}
+
 // ShouldCreateAgentLocalService returns whether the node agent local service should be created based on the Kubernetes version
 func ShouldCreateAgentLocalService(versionInfo *version.Info, forceEnableLocalService bool) bool {
 	if versionInfo == nil || versionInfo.GitVersion == "" {
