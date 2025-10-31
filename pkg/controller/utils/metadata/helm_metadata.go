@@ -54,9 +54,11 @@ type HelmMetadataForwarder struct {
 }
 
 type HelmMetadataPayload struct {
-	Hostname  string       `json:"hostname"`
-	Timestamp int64        `json:"timestamp"`
-	Metadata  HelmMetadata `json:"datadog_operator_helm_metadata"`
+	Hostname    string       `json:"hostname"`
+	Timestamp   int64        `json:"timestamp"`
+	ClusterID   string       `json:"cluster_id"`
+	ClusterName string       `json:"clustername"`
+	Metadata    HelmMetadata `json:"datadog_operator_helm_metadata"`
 }
 
 type HelmMetadata struct {
@@ -259,9 +261,11 @@ func (hmf *HelmMetadataForwarder) buildPayload(release HelmReleaseData, clusterU
 	}
 
 	payload := HelmMetadataPayload{
-		Hostname:  hmf.hostName,
-		Timestamp: now,
-		Metadata:  helmMetadata,
+		Hostname:    hmf.hostName,
+		Timestamp:   now,
+		ClusterID:   clusterUID,
+		ClusterName: hmf.clusterName,
+		Metadata:    helmMetadata,
 	}
 
 	jsonPayload, err := json.Marshal(payload)
