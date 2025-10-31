@@ -7,9 +7,9 @@ metadata:
   namespace: datadog-agent
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.13.1
+    helm.sh/chart: datadog-operator-2.14.3
     app.kubernetes.io/instance: operator-eks-addon
-    app.kubernetes.io/version: "1.18.0"
+    app.kubernetes.io/version: "1.19.1"
     app.kubernetes.io/managed-by: eks-addon
 ---
 # Source: operator-eks-addon/charts/datadog-operator/charts/datadogCRDs/templates/datadoghq.com_datadogagents_v1.yaml
@@ -20,7 +20,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.16.3
   name: datadogagents.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.11.0'
+    helm.sh/chart: 'datadogCRDs-2.12.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -666,6 +666,8 @@ spec:
                                   type: string
                               type: object
                           type: object
+                        directSendFromSystemProbe:
+                          type: boolean
                         enabled:
                           type: boolean
                         network:
@@ -814,6 +816,8 @@ spec:
                       properties:
                         enabled:
                           type: boolean
+                        patchCgroupPermissions:
+                          type: boolean
                         privilegedMode:
                           type: boolean
                         requiredRuntimeClassName:
@@ -879,6 +883,8 @@ spec:
                       type: object
                     logCollection:
                       properties:
+                        autoMultiLineDetection:
+                          type: boolean
                         containerCollectAll:
                           type: boolean
                         containerCollectUsingFiles:
@@ -4547,6 +4553,8 @@ spec:
                                       type: string
                                   type: object
                               type: object
+                            directSendFromSystemProbe:
+                              type: boolean
                             enabled:
                               type: boolean
                             network:
@@ -4695,6 +4703,8 @@ spec:
                           properties:
                             enabled:
                               type: boolean
+                            patchCgroupPermissions:
+                              type: boolean
                             privilegedMode:
                               type: boolean
                             requiredRuntimeClassName:
@@ -4760,6 +4770,8 @@ spec:
                           type: object
                         logCollection:
                           properties:
+                            autoMultiLineDetection:
+                              type: boolean
                             containerCollectAll:
                               type: boolean
                             containerCollectUsingFiles:
@@ -5028,7 +5040,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.16.3
   name: datadogmetrics.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.11.0'
+    helm.sh/chart: 'datadogCRDs-2.12.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -5156,7 +5168,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.16.3
   name: datadogpodautoscalers.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.11.0'
+    helm.sh/chart: 'datadogCRDs-2.12.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -5610,11 +5622,31 @@ spec:
                           - toReplicas
                         type: object
                       type: array
+                    lastRecommendations:
+                      description: LastRecommendations stores the most recent recommendations
+                      items:
+                        description: DatadogPodAutoscalerHorizontalRecommendation defines a horizontal scaling recommendation
+                        properties:
+                          desiredReplicas:
+                            description: Replicas is the recommended number of replicas for the workload
+                            format: int32
+                            type: integer
+                          generatedAt:
+                            description: GeneratedAt is the timestamp at which the recommendation was generated
+                            format: date-time
+                            type: string
+                          source:
+                            description: Source is the source of the value used to scale the target workload
+                            type: string
+                        required:
+                          - desiredReplicas
+                        type: object
+                      type: array
                     target:
                       description: Target is the current target of the horizontal scaling
                       properties:
                         desiredReplicas:
-                          description: Replicas is the desired number of replicas for the workload
+                          description: Replicas is the recommended number of replicas for the workload
                           format: int32
                           type: integer
                         generatedAt:
@@ -5626,7 +5658,6 @@ spec:
                           type: string
                       required:
                         - desiredReplicas
-                        - source
                       type: object
                   type: object
                 vertical:
@@ -5986,6 +6017,14 @@ spec:
                       default: {}
                       description: Horizontal configures the behavior during horizontal fallback mode.
                       properties:
+                        direction:
+                          default: ScaleUp
+                          description: Direction determines the direction that recommendations should be applied.
+                          enum:
+                            - ScaleUp
+                            - ScaleDown
+                            - All
+                          type: string
                         enabled:
                           default: true
                           description: 'Enabled determines whether recommendations should be applied by the controller:'
@@ -5995,7 +6034,7 @@ spec:
                           description: Triggers defines the triggers that will generate recommendations.
                           properties:
                             staleRecommendationThresholdSeconds:
-                              default: 1800
+                              default: 600
                               description: StaleRecommendationThresholdSeconds defines the time window the controller will wait after detecting an error before applying recommendations.
                               format: int32
                               maximum: 3600
@@ -6188,11 +6227,31 @@ spec:
                           - toReplicas
                         type: object
                       type: array
+                    lastRecommendations:
+                      description: LastRecommendations stores the most recent recommendations
+                      items:
+                        description: DatadogPodAutoscalerHorizontalRecommendation defines a horizontal scaling recommendation
+                        properties:
+                          desiredReplicas:
+                            description: Replicas is the recommended number of replicas for the workload
+                            format: int32
+                            type: integer
+                          generatedAt:
+                            description: GeneratedAt is the timestamp at which the recommendation was generated
+                            format: date-time
+                            type: string
+                          source:
+                            description: Source is the source of the value used to scale the target workload
+                            type: string
+                        required:
+                          - desiredReplicas
+                        type: object
+                      type: array
                     target:
                       description: Target is the current target of the horizontal scaling
                       properties:
                         desiredReplicas:
-                          description: Replicas is the desired number of replicas for the workload
+                          description: Replicas is the recommended number of replicas for the workload
                           format: int32
                           type: integer
                         generatedAt:
@@ -6204,7 +6263,6 @@ spec:
                           type: string
                       required:
                         - desiredReplicas
-                        - source
                       type: object
                   type: object
                 vertical:
@@ -6310,9 +6368,9 @@ metadata:
   name: operator-eks-addon-datadog-operator
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.13.1
+    helm.sh/chart: datadog-operator-2.14.3
     app.kubernetes.io/instance: operator-eks-addon
-    app.kubernetes.io/version: "1.18.0"
+    app.kubernetes.io/version: "1.19.1"
     app.kubernetes.io/managed-by: eks-addon
 rules:
 - nonResourceURLs:
@@ -6423,6 +6481,14 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - rollouts
+  verbs:
+  - list
+  - watch
+  - patch
 - apiGroups:
   - authentication.k8s.io
   resources:
@@ -6567,6 +6633,16 @@ rules:
   - list
   - watch
 - apiGroups:
+  - datadoghq.com
+  - karpenter.azure.com
+  - karpenter.k8s.aws
+  - karpenter.sh
+  resources:
+  - '*'
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - discovery.k8s.io
   resources:
   - endpointslices
@@ -6700,9 +6776,9 @@ metadata:
   namespace: datadog-agent
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.13.1
+    helm.sh/chart: datadog-operator-2.14.3
     app.kubernetes.io/instance: operator-eks-addon
-    app.kubernetes.io/version: "1.18.0"
+    app.kubernetes.io/version: "1.19.1"
     app.kubernetes.io/managed-by: eks-addon
 spec:
   replicas: 1
@@ -6728,7 +6804,7 @@ spec:
       serviceAccountName: operator-eks-addon-datadog-operator
       containers:
         - name: datadog-operator
-          image: "709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator:1.18.0"
+          image: "709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator:1.19.1"
           imagePullPolicy: IfNotPresent
           env:
             - name: WATCH_NAMESPACE
