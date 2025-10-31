@@ -150,7 +150,7 @@ generate: $(CONTROLLER_GEN) generate-openapi generate-docs ## Generate code
 
 .PHONY: generate-docs
 generate-docs: manifests
-	go run ./hack/generate-docs/generate-docs.go
+	go run ./hack/generate-docs/*.go
 
 # Build the docker images, for local use
 .PHONY: docker-build
