@@ -2,7 +2,7 @@ resources:
 - manager.yaml
 images:
 - name: controller
-  newName: operator
-  newTag: metadata-19
+  newName: gcr.io/datadoghq/operator
+  newTag: 1.18.0
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
