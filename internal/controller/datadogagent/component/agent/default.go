@@ -12,6 +12,7 @@ import (
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -392,6 +393,8 @@ func agentOptimizedContainers(dda metav1.Object, requiredContainers []apicommon.
 			containers = append(containers, otelAgentContainer(dda))
 		case apicommon.AgentDataPlaneContainerName:
 			containers = append(containers, agentDataPlaneContainer(dda))
+		case apicommon.WorkloadCapturerContainerName:
+			containers = append(containers, workloadCapturerContainer(dda))
 		}
 	}
 
@@ -517,6 +520,74 @@ func agentDataPlaneContainer(dda metav1.Object) corev1.Container {
 	}
 }
 
+func workloadCapturerContainer(dda metav1.Object) corev1.Container {
+	// Build environment variables for the workload capturer.
+	// The capturer listens on UDP for forwarded DogStatsD traffic from the agent.
+	// DD_API_KEY and DD_SITE are injected by higher-level abstractions (cluster webhook, init container, etc).
+	envVars := []corev1.EnvVar{
+		// UDP port for receiving forwarded dogstatsd traffic
+		{
+			Name:  "WORKLOAD_CAPTURER_DOGSTATSD_PORT",
+			Value: "18125",
+		},
+		// WORKLOAD_CAPTURER_DOGSTATSD_ADDR omitted - defaults to :: with IPv4 fallback in capturer
+		// Flush interval for metric analysis (in seconds)
+		{
+			Name:  "WORKLOAD_CAPTURER_FLUSH_INTERVAL_SECS",
+			Value: "60",
+		},
+		// Maximum cardinality tracking limit
+		{
+			Name:  "WORKLOAD_CAPTURER_MAX_CONTEXTS",
+			Value: "10000",
+		},
+	}
+
+	return corev1.Container{
+		Name:    string(apicommon.WorkloadCapturerContainerName),
+		Image:   agentImage(),
+		// Command will be determined by the workload-capture-proxy image entrypoint
+		Ports: []corev1.ContainerPort{
+			{
+				Name:          "dsd-forward",
+				ContainerPort: 18125,
+				Protocol:      corev1.ProtocolUDP,
+			},
+		},
+		Env: envVars,
+		VolumeMounts: []corev1.VolumeMount{
+			{
+				Name:      "runtimesocketdir",
+				MountPath: "/var/run",
+				ReadOnly:  false, // Need write access to create docker.real.sock
+			},
+		},
+		SecurityContext: &corev1.SecurityContext{
+			RunAsUser:                apiutils.NewInt64Pointer(0), // Run as root for Docker socket access
+			RunAsGroup:               apiutils.NewInt64Pointer(0),
+			AllowPrivilegeEscalation: apiutils.NewBoolPointer(true), // Allow privilege escalation for socket operations
+			ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(false), // Allow writes for socket creation
+			Capabilities: &corev1.Capabilities{
+				Add: []corev1.Capability{
+					"DAC_OVERRIDE", // Override file access permissions
+					"FOWNER",       // Change file ownership
+					"SYS_ADMIN",    // System administration operations for socket management
+				},
+			},
+		},
+		Resources: corev1.ResourceRequirements{
+			Limits: corev1.ResourceList{
+				corev1.ResourceMemory: resource.MustParse("100Mi"),
+				corev1.ResourceCPU:    resource.MustParse("100m"),
+			},
+			Requests: corev1.ResourceList{
+				corev1.ResourceMemory: resource.MustParse("50Mi"),
+				corev1.ResourceCPU:    resource.MustParse("50m"),
+			},
+		},
+	}
+}
+
 func initVolumeContainer() corev1.Container {
 	return corev1.Container{
 		Name:    "init-volume",
@@ -598,6 +669,15 @@ func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 			// but in 7.50.0 it will be already defaulted in the agent process.
 			Name:  DDContainerImageEnabled,
 			Value: "true",
+		},
+		{
+			// Set hostname to pod name to ensure agent can start
+			Name: "DD_HOSTNAME",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.name",
+				},
+			},
 		},
 	}
 

@@ -75,4 +75,6 @@ const (
 	GPUIDType = "gpu"
 	// ControlPlaneMonitoringIDType Control Plane Monitoring feature.
 	ControlPlaneMonitoringIDType = "control_plane_monitoring"
+	// WorkloadCapturerIDType Workload Capturer feature (experimental).
+	WorkloadCapturerIDType = "workload_capturer"
 )
