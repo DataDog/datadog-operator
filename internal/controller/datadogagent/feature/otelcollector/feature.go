@@ -54,6 +54,8 @@ type otelCollectorFeature struct {
 	forceEnableLocalService bool
 	localServiceName        string
 
+	otelGatewayEnabled bool
+
 	logger logr.Logger
 }
 
@@ -117,6 +119,11 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 		}
 
 	}
+
+	if ddaSpec.Features.OtelCollectorGateway != nil {
+		o.otelGatewayEnabled = apiutils.BoolValue(ddaSpec.Features.OtelCollectorGateway.Enabled)
+	}
+
 	return reqComp
 }
 
@@ -340,6 +347,14 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
 			Name:  DDOtelCollectorCoreConfigExtensionURL,
 			Value: *o.coreAgentConfig.extension_url,
+		})
+	}
+
+	// TODO: do the proper changes to nodeAgent when gateway is enabled
+	if o.otelGatewayEnabled {
+		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.OtelAgent}, &corev1.EnvVar{
+			Name:  "IS_OTEL_GATEWAY_ENABLED",
+			Value: "true",
 		})
 	}
 
