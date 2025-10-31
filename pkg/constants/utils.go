@@ -68,6 +68,15 @@ func GetClusterChecksRunnerServiceAccount(objName string, ddaSpec *v2alpha1.Data
 	return saDefault
 }
 
+// GetOtelCollectorGatewayServiceAccount return the otel-collector-gateway service account name
+func GetOtelCollectorGatewayServiceAccount(objName string, ddaSpec *v2alpha1.DatadogAgentSpec) string {
+	saDefault := fmt.Sprintf("%s-%s", objName, DefaultOtelCollectorGatewayResourceSuffix)
+	if ddaSpec.Override[v2alpha1.OtelCollectorGatewayComponentName] != nil && ddaSpec.Override[v2alpha1.OtelCollectorGatewayComponentName].ServiceAccountName != nil {
+		return *ddaSpec.Override[v2alpha1.OtelCollectorGatewayComponentName].ServiceAccountName
+	}
+	return saDefault
+}
+
 // IsHostNetworkEnabled returns whether the pod should use the host's network namespace
 func IsHostNetworkEnabled(ddaSpec *v2alpha1.DatadogAgentSpec, component v2alpha1.ComponentName) bool {
 	if ddaSpec.Override != nil {
@@ -94,6 +103,11 @@ func GetLocalAgentServiceName(objName string, ddaSpec *v2alpha1.DatadogAgentSpec
 		return *ddaSpec.Global.LocalService.NameOverride
 	}
 	return fmt.Sprintf("%s-%s", objName, DefaultAgentResourceSuffix)
+}
+
+// GetOTelCollectorGatewayServiceName returns the name used for the OTel Collector Gateway service
+func GetOTelCollectorGatewayServiceName(objName string) string {
+	return fmt.Sprintf("%s-%s", objName, DefaultOtelCollectorGatewayResourceSuffix)
 }
 
 // IsNetworkPolicyEnabled returns whether a network policy should be created and which flavor to use

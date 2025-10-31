@@ -2057,6 +2057,56 @@ spec:
                           type: array
                           x-kubernetes-list-type: atomic
                       type: object
+                    otelCollectorGateway:
+                      description: OtelCollector Gateway configuration.
+                      properties:
+                        enabled:
+                          description: |-
+                            Enabled enables the OTel Collector Gateway.
+                            Default: false
+                          type: boolean
+                        ports:
+                          description: |-
+                            Ports contains the ports that the OTel Collector is listening on.
+                            Defaults: otel-grpc:4317 / otel-http:4318.
+                          items:
+                            description: ContainerPort represents a network port in a single container.
+                            properties:
+                              containerPort:
+                                description: |-
+                                  Number of port to expose on the pod's IP address.
+                                  This must be a valid port number, 0 < x < 65536.
+                                format: int32
+                                type: integer
+                              hostIP:
+                                description: What host IP to bind the external port to.
+                                type: string
+                              hostPort:
+                                description: |-
+                                  Number of port to expose on the host.
+                                  If specified, this must be a valid port number, 0 < x < 65536.
+                                  If HostNetwork is specified, this must match ContainerPort.
+                                  Most containers do not need this.
+                                format: int32
+                                type: integer
+                              name:
+                                description: |-
+                                  If specified, this must be an IANA_SVC_NAME and unique within the pod. Each
+                                  named port in a pod must have a unique name. Name for the port that can be
+                                  referred to by services.
+                                type: string
+                              protocol:
+                                default: TCP
+                                description: |-
+                                  Protocol for port. Must be UDP, TCP, or SCTP.
+                                  Defaults to "TCP".
+                                type: string
+                            required:
+                              - containerPort
+                            type: object
+                          type: array
+                          x-kubernetes-list-type: atomic
+                      type: object
                     otlp:
                       description: OTLP ingest configuration
                       properties:
@@ -7835,6 +7885,54 @@ spec:
                   x-kubernetes-list-map-keys:
                     - type
                   x-kubernetes-list-type: map
+                otelCollectorGateway:
+                  description: The actual state of the OTel Collector Gateway as a deployment.
+                  properties:
+                    availableReplicas:
+                      description: Total number of available pods (ready for at least minReadySeconds) targeted by this Deployment.
+                      format: int32
+                      type: integer
+                    currentHash:
+                      description: CurrentHash is the stored hash of the Deployment.
+                      type: string
+                    deploymentName:
+                      description: DeploymentName corresponds to the name of the Deployment.
+                      type: string
+                    generatedToken:
+                      description: |-
+                        GeneratedToken corresponds to the generated token if any token was provided in the Credential configuration when ClusterAgent is
+                        enabled.
+                      type: string
+                    lastUpdate:
+                      description: LastUpdate is the last time the status was updated.
+                      format: date-time
+                      type: string
+                    readyReplicas:
+                      description: Total number of ready pods targeted by this Deployment.
+                      format: int32
+                      type: integer
+                    replicas:
+                      description: Total number of non-terminated pods targeted by this Deployment (their labels match the selector).
+                      format: int32
+                      type: integer
+                    state:
+                      description: State corresponds to the Deployment state.
+                      type: string
+                    status:
+                      description: Status corresponds to the Deployment computed status.
+                      type: string
+                    unavailableReplicas:
+                      description: |-
+                        Total number of unavailable pods targeted by this Deployment. This is the total number of
+                        pods that are still required for the Deployment to have 100% available capacity. They may
+                        either be pods that are running but not yet available or pods that still have not been created.
+                      format: int32
+                      type: integer
+                    updatedReplicas:
+                      description: Total number of non-terminated pods targeted by this Deployment that have the desired template spec.
+                      format: int32
+                      type: integer
+                  type: object
                 remoteConfigConfiguration:
                   description: RemoteConfigConfiguration stores the configuration received from RemoteConfig.
                   properties:
@@ -9803,6 +9901,56 @@ spec:
                                 or 4318 manually is *only* supported if name match default names (otel-grpc, otel-http).
                                 If not, this will lead to a port conflict.
                                 This limitation will be lifted once annotations support is removed.
+                              items:
+                                description: ContainerPort represents a network port in a single container.
+                                properties:
+                                  containerPort:
+                                    description: |-
+                                      Number of port to expose on the pod's IP address.
+                                      This must be a valid port number, 0 < x < 65536.
+                                    format: int32
+                                    type: integer
+                                  hostIP:
+                                    description: What host IP to bind the external port to.
+                                    type: string
+                                  hostPort:
+                                    description: |-
+                                      Number of port to expose on the host.
+                                      If specified, this must be a valid port number, 0 < x < 65536.
+                                      If HostNetwork is specified, this must match ContainerPort.
+                                      Most containers do not need this.
+                                    format: int32
+                                    type: integer
+                                  name:
+                                    description: |-
+                                      If specified, this must be an IANA_SVC_NAME and unique within the pod. Each
+                                      named port in a pod must have a unique name. Name for the port that can be
+                                      referred to by services.
+                                    type: string
+                                  protocol:
+                                    default: TCP
+                                    description: |-
+                                      Protocol for port. Must be UDP, TCP, or SCTP.
+                                      Defaults to "TCP".
+                                    type: string
+                                required:
+                                  - containerPort
+                                type: object
+                              type: array
+                              x-kubernetes-list-type: atomic
+                          type: object
+                        otelCollectorGateway:
+                          description: OtelCollector Gateway configuration.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables the OTel Collector Gateway.
+                                Default: false
+                              type: boolean
+                            ports:
+                              description: |-
+                                Ports contains the ports that the OTel Collector is listening on.
+                                Defaults: otel-grpc:4317 / otel-http:4318.
                               items:
                                 description: ContainerPort represents a network port in a single container.
                                 properties:

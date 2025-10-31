@@ -68,6 +68,8 @@ const (
 	ClusterAgentContainerName AgentContainerName = "cluster-agent"
 	// ClusterChecksRunnersContainerName is the name of the Agent container in Cluster Checks Runners
 	ClusterChecksRunnersContainerName AgentContainerName = "agent"
+	// OtelCollectorGatewayContainerName is the name of the OTel Collector Gateway container
+	OtelCollectorGatewayContainerName AgentContainerName = "otel-collector-gateway"
 
 	// FIPSProxyContainerName is the name of the FIPS Proxy container
 	FIPSProxyContainerName AgentContainerName = "fips-proxy"

@@ -47,6 +47,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/oomkill"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/orchestratorexplorer"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollectorgateway"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otlp"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/processdiscovery"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/prometheusscrape"
@@ -89,6 +90,7 @@ func (r *Reconciler) initializeComponentRegistry() {
 	// Register all components
 	r.componentRegistry.Register(NewClusterAgentComponent(r))
 	r.componentRegistry.Register(NewClusterChecksRunnerComponent(r))
+	r.componentRegistry.Register(NewOtelCollectorGatewayComponent(r))
 }
 
 // NewReconciler returns a reconciler for DatadogAgent

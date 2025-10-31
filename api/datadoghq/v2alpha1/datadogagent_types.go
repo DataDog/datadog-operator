@@ -22,6 +22,8 @@ const (
 	ClusterAgentComponentName ComponentName = "clusterAgent"
 	// ClusterChecksRunnerComponentName is the name of the Cluster Check Runner
 	ClusterChecksRunnerComponentName ComponentName = "clusterChecksRunner"
+	// OtelCollectorGatewayComponentName is the name of the Otel Collector Gateway
+	OtelCollectorGatewayComponentName ComponentName = "otelCollectorGateway"
 )
 
 // DatadogAgentSpec defines the desired state of DatadogAgent
@@ -46,6 +48,8 @@ type DatadogFeatures struct {
 
 	// OtelCollector configuration.
 	OtelCollector *OtelCollectorFeatureConfig `json:"otelCollector,omitempty"`
+	// OtelCollector Gateway configuration.
+	OtelCollectorGateway *OtelCollectorGatewayFeatureConfig `json:"otelCollectorGateway,omitempty"`
 	// LogCollection configuration.
 	LogCollection *LogCollectionFeatureConfig `json:"logCollection,omitempty"`
 	// LiveProcessCollection configuration.
@@ -1001,6 +1005,21 @@ type OtelCollectorFeatureConfig struct {
 	// OTelCollector Config Relevant to the Core agent
 	// +optional
 	CoreConfig *CoreConfig `json:"coreConfig,omitempty"`
+}
+
+// OtelCollectorGatewayFeatureConfig contains the configuration for the OTel Collector Gateway.
+// +k8s:openapi-gen=true
+type OtelCollectorGatewayFeatureConfig struct {
+	// Enabled enables the OTel Collector Gateway.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Ports contains the ports that the OTel Collector is listening on.
+	// Defaults: otel-grpc:4317 / otel-http:4318.
+	// +optional
+	// +listType=atomic
+	Ports []*corev1.ContainerPort `json:"ports,omitempty"`
 }
 
 // ControlPlaneMonitoringFeatureConfig contains the configuration for the control plane monitoring.
@@ -2144,6 +2163,9 @@ type DatadogAgentStatus struct {
 	// The actual state of the Cluster Checks Runner as a deployment.
 	// +optional
 	ClusterChecksRunner *DeploymentStatus `json:"clusterChecksRunner,omitempty"`
+	// The actual state of the OTel Collector Gateway as a deployment.
+	// +optional
+	OtelCollectorGateway *DeploymentStatus `json:"otelCollectorGateway,omitempty"`
 	// RemoteConfigConfiguration stores the configuration received from RemoteConfig.
 	// +optional
 	RemoteConfigConfiguration *RemoteConfigConfiguration `json:"remoteConfigConfiguration,omitempty"`
