@@ -5,10 +5,8 @@ import (
 	_ "embed"
 	"flag"
 	"log"
-	"maps"
 	"os"
 	"os/signal"
-	"slices"
 	"strconv"
 	"syscall"
 
@@ -17,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/davecgh/go-spew/spew"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -49,6 +48,18 @@ var (
 	KarpenterHelmChart []byte
 )
 
+// InferenceMethod defines how to infer EC2NodeClass and NodePool properties
+type InferenceMethod string
+
+const (
+	// InferenceMethodNone does not infer any properties, creates empty resources
+	InferenceMethodNone InferenceMethod = "none"
+	// InferenceMethodNodes infers properties from existing Kubernetes nodes
+	InferenceMethodNodes InferenceMethod = "nodes"
+	// InferenceMethodNodeGroups infers properties from EKS node groups
+	InferenceMethodNodeGroups InferenceMethod = "nodegroups"
+)
+
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -72,6 +83,7 @@ func main() {
 		karpenterNamespace = flag.String("karpenter-namespace", "dd-karpenter", "Name of the Kubernetes namespace in which deploying Karpenter")
 		kubeConfig         = flag.String("kube-config", clientcmd.RecommendedHomeFile, "Path to the kubeconfig file")
 		kubeContext        = flag.String("kube-context", "", "Name of the kubeconfig context to use")
+		inferenceMethod    = flag.String("inference-method", string(InferenceMethodNone), "Method to infer EC2NodeClass and NodePool properties: none, nodes, nodegroups")
 	)
 	flag.Parse()
 
@@ -195,12 +207,31 @@ func main() {
 	}
 
 	// Create EC2NodeClass and NodePool
-	ec2Client := ec2.NewFromConfig(awsConfig)
+	nodeGroupProperties := []guess.NodeGroupProperties{}
+	switch InferenceMethod(*inferenceMethod) {
+	case InferenceMethodNone:
+		log.Printf("Karpenter has been successfully installed, but no EC2NodeClass nor NodePool have been created yet. " +
+			"Those objects are mandatory for Karpenter to be able to auto-scale the cluster. " +
+			"Use --inference-method=nodes or --inference-method=nodegroups to create some " +
+			"with reasonable defaults based on the existing nodes of the cluster.")
+		return
 
-	nodeProperties, err := guess.GetNodesProperties(ctx, kubeClientSet, ec2Client)
-	if err != nil {
-		log.Fatal(err)
+	case InferenceMethodNodes:
+		ec2Client := ec2.NewFromConfig(awsConfig)
+
+		nodeGroupProperties, err = guess.GetNodesProperties(ctx, kubeClientSet, ec2Client)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+	case InferenceMethodNodeGroups:
+		nodeGroupProperties, err = guess.GetNodeGroupsProperties(ctx, eksClient, *clusterName)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
+
+	log.Printf("Creating the following node groups:\n %s", spew.Sdump(nodeGroupProperties))
 
 	sch := runtime.NewScheme()
 	if err := scheme.AddToScheme(sch); err != nil {
@@ -224,18 +255,21 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := k8s.CreateOrUpdateEC2NodeClass(
-		ctx,
-		k8sClient,
-		*clusterName,
-		slices.Collect(maps.Keys(nodeProperties.AMIs)),
-		slices.Collect(maps.Keys(nodeProperties.Subnets)),
-		slices.Collect(maps.Keys(nodeProperties.SecurityGroups)),
-	); err != nil {
-		log.Fatal(err)
-	}
+	for _, ng := range nodeGroupProperties {
 
-	if err := k8s.CreateOrUpdateNodePool(ctx, k8sClient); err != nil {
-		log.Fatal(err)
+		if err := k8s.CreateOrUpdateEC2NodeClass(
+			ctx,
+			k8sClient,
+			*clusterName,
+			[]string{ng.AMIID},
+			ng.Subnets,
+			ng.SecurityGroups,
+		); err != nil {
+			log.Fatal(err)
+		}
+
+		if err := k8s.CreateOrUpdateNodePool(ctx, k8sClient); err != nil {
+			log.Fatal(err)
+		}
 	}
 }
