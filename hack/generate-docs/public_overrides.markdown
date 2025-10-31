@@ -22,4 +22,4 @@ spec:
               cpu: "2"
               memory: 1Gi
 {{< /highlight >}}
-In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.containers.system-probe.resources.limits` appear as `[key].image.name` and `[key].containers.[key].resources.limits`, respectively.
+In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.containers.system-probe.resources.limits` appear as `[component].image.name` and `[component].containers.[container].resources.limits`, respectively.

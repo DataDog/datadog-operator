@@ -126,7 +126,7 @@ func generatePublicDoc(crd apiextensions.CustomResourceDefinitionVersion, versio
 	mustWriteString(f, fmt.Sprintf("{{%% collapse-content title=\"Parameters\" level=\"h4\" expanded=true id=\"override-options-list\" %%}}\n"))
 	nameToDescMap := loadJSONToMap(updatedDescriptionsFile)
 	overrideProps := crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties["override"]
-	writeOverridesRecursivePublic(f, "[key]", []string{"override"}, overrideProps.AdditionalProperties.Schema.Properties, nameToDescMap, annotations)
+	writeOverridesRecursivePublic(f, "[component]", []string{"override"}, overrideProps.AdditionalProperties.Schema.Properties, nameToDescMap, annotations)
 
 	mustWriteString(f, "{{% /collapse-content %}}\n\n\n")
 
@@ -381,10 +381,10 @@ func writeOverridesRecursivePublic(f *os.File, prefix string, annotationPath []s
 			mustWriteString(f, fmt.Sprintf("`%s`\n: _type_: `map[%s]%s`\n<br /> %s\n\n", propName, mapKeyType, mapValueType, doc.description))
 
 			valueTypeProps := props[doc.name].AdditionalProperties.Schema.Properties
-			// Accumulate annotation path with field name (NOT [key])
+			// Accumulate annotation path with field name
 			newAnnotationPath := append(annotationPath, doc.name)
 			// Recurse: displayPath resets to []string{}, annotationPath accumulates
-			writeOverridesRecursivePublic(f, prefix+"."+doc.name+".[key]", newAnnotationPath, valueTypeProps, nameToDescMap, annotations)
+			writeOverridesRecursivePublic(f, prefix+"."+doc.name+".[container]", newAnnotationPath, valueTypeProps, nameToDescMap, annotations)
 		} else {
 			name := prefix + "." + doc.name
 			desc := doc.description
