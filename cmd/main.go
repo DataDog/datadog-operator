@@ -255,11 +255,18 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for _, ng := range nodeGroupProperties {
+	for i, ng := range nodeGroupProperties {
+		var name string
+		if ng.Name != "" {
+			name = "dd-karpenter-" + ng.Name
+		} else {
+			name = "dd-karpenter-" + strconv.Itoa(i)
+		}
 
 		if err := k8s.CreateOrUpdateEC2NodeClass(
 			ctx,
 			k8sClient,
+			name,
 			*clusterName,
 			[]string{ng.AMIID},
 			ng.Subnets,
@@ -268,7 +275,7 @@ func main() {
 			log.Fatal(err)
 		}
 
-		if err := k8s.CreateOrUpdateNodePool(ctx, k8sClient); err != nil {
+		if err := k8s.CreateOrUpdateNodePool(ctx, k8sClient, name, ng.Labels, ng.Taints); err != nil {
 			log.Fatal(err)
 		}
 	}

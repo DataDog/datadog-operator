@@ -9,14 +9,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func CreateOrUpdateEC2NodeClass(ctx context.Context, client client.Client, clusterName string, AMIs, subnets, sgs []string) error {
+func CreateOrUpdateEC2NodeClass(ctx context.Context, client client.Client, name, clusterName string, AMIs, subnets, sgs []string) error {
 	ec2NodeClass := &karpawsv1.EC2NodeClass{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "karpenter.k8s.aws/v1",
 			Kind:       "EC2NodeClass",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "dd-karpenter",
+			Name: name,
 		},
 		Spec: karpawsv1.EC2NodeClassSpec{
 			Role: "KarpenterNodeRole-" + clusterName,
