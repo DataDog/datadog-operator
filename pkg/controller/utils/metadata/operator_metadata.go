@@ -17,6 +17,7 @@ import (
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/version"
 )
@@ -35,9 +36,11 @@ type OperatorMetadataForwarder struct {
 }
 
 type OperatorMetadataPayload struct {
-	Hostname  string           `json:"hostname"`
-	Timestamp int64            `json:"timestamp"`
-	Metadata  OperatorMetadata `json:"datadog_operator_metadata"`
+	Hostname    string           `json:"hostname"`
+	Timestamp   int64            `json:"timestamp"`
+	ClusterID   string           `json:"cluster_id"`
+	ClusterName string           `json:"clustername"`
+	Metadata    OperatorMetadata `json:"datadog_operator_metadata"`
 }
 
 type OperatorMetadata struct {
@@ -52,13 +55,16 @@ type OperatorMetadata struct {
 	DatadogSLOEnabled             bool   `json:"datadogslo_enabled"`
 	DatadogGenericResourceEnabled bool   `json:"datadoggenericresource_enabled"`
 	DatadogAgentProfileEnabled    bool   `json:"datadogagentprofile_enabled"`
+	DatadogAgentInternalEnabled   bool   `json:"datadogagentinternal_enabled"`
 	LeaderElectionEnabled         bool   `json:"leader_election_enabled"`
 	ExtendedDaemonSetEnabled      bool   `json:"extendeddaemonset_enabled"`
 	RemoteConfigEnabled           bool   `json:"remote_config_enabled"`
 	IntrospectionEnabled          bool   `json:"introspection_enabled"`
+	ClusterID                     string `json:"cluster_id"`
 	ClusterName                   string `json:"cluster_name"`
 	ConfigDDURL                   string `json:"config_dd_url"`
 	ConfigDDSite                  string `json:"config_site"`
+	ResourceCounts                string `json:"resource_count"`
 }
 
 // NewOperatorMetadataForwarder creates a new instance of the operator metadata forwarder
@@ -97,7 +103,12 @@ func (omf *OperatorMetadataForwarder) Start() {
 }
 
 func (omf *OperatorMetadataForwarder) sendMetadata() error {
-	payload := omf.GetPayload()
+	clusterUID, err := omf.GetOrCreateClusterUID()
+	if err != nil {
+		omf.logger.Error(err, "Failed to get cluster UID")
+		return err
+	}
+	payload := omf.GetPayload(clusterUID)
 
 	omf.logger.Info("Operator metadata payload", "payload", string(payload))
 
@@ -126,17 +137,21 @@ func (omf *OperatorMetadataForwarder) sendMetadata() error {
 	return nil
 }
 
-func (omf *OperatorMetadataForwarder) GetPayload() []byte {
+func (omf *OperatorMetadataForwarder) GetPayload(clusterUID string) []byte {
 	now := time.Now().Unix()
 
+	omf.OperatorMetadata.ClusterID = clusterUID
 	omf.OperatorMetadata.ClusterName = omf.clusterName
 	omf.OperatorMetadata.OperatorVersion = omf.operatorVersion
 	omf.OperatorMetadata.KubernetesVersion = omf.kubernetesVersion
+	omf.OperatorMetadata.ResourceCounts = omf.getResourceCounts()
 
 	payload := OperatorMetadataPayload{
-		Hostname:  omf.hostName,
-		Timestamp: now,
-		Metadata:  omf.OperatorMetadata,
+		Hostname:    omf.hostName,
+		Timestamp:   now,
+		ClusterID:   clusterUID,
+		ClusterName: omf.clusterName,
+		Metadata:    omf.OperatorMetadata,
 	}
 
 	jsonPayload, err := json.Marshal(payload)
@@ -178,4 +193,58 @@ func (omf *OperatorMetadataForwarder) getHeaders() http.Header {
 	headers := omf.GetBaseHeaders()
 	headers.Set(userAgentHTTPHeaderKey, fmt.Sprintf("Datadog Operator/%s", version.GetVersion()))
 	return headers
+}
+
+// getResourceCounts counts all Datadog custom resources in the cluster and returns as JSON string
+func (omf *OperatorMetadataForwarder) getResourceCounts() string {
+	counts := make(map[string]int)
+
+	// If k8sClient is nil (e.g., in tests), return empty JSON
+	if omf.k8sClient == nil {
+		return "{}"
+	}
+
+	ddaList := &v2alpha1.DatadogAgentList{}
+	if err := omf.k8sClient.List(context.TODO(), ddaList); err == nil {
+		counts["datadogagent"] = len(ddaList.Items)
+	}
+
+	ddaiList := &v1alpha1.DatadogAgentInternalList{}
+	if err := omf.k8sClient.List(context.TODO(), ddaiList); err == nil {
+		counts["datadogagentinternal"] = len(ddaiList.Items)
+	}
+
+	monitorList := &v1alpha1.DatadogMonitorList{}
+	if err := omf.k8sClient.List(context.TODO(), monitorList); err == nil {
+		counts["datadogmonitor"] = len(monitorList.Items)
+	}
+
+	dashboardList := &v1alpha1.DatadogDashboardList{}
+	if err := omf.k8sClient.List(context.TODO(), dashboardList); err == nil {
+		counts["datadogdashboard"] = len(dashboardList.Items)
+	}
+
+	sloList := &v1alpha1.DatadogSLOList{}
+	if err := omf.k8sClient.List(context.TODO(), sloList); err == nil {
+		counts["datadogslo"] = len(sloList.Items)
+	}
+
+	genericList := &v1alpha1.DatadogGenericResourceList{}
+	if err := omf.k8sClient.List(context.TODO(), genericList); err == nil {
+		counts["datadoggenericresource"] = len(genericList.Items)
+	}
+
+	profileList := &v1alpha1.DatadogAgentProfileList{}
+	if err := omf.k8sClient.List(context.TODO(), profileList); err == nil {
+		counts["datadogagentprofile"] = len(profileList.Items)
+	}
+
+	// Serialize to JSON string
+	countsJSON, err := json.Marshal(counts)
+	if err != nil {
+		omf.logger.Error(err, "Error marshaling resource counts to JSON")
+		return "{}"
+	}
+
+	return string(countsJSON)
 }
