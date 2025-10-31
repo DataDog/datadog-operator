@@ -64,7 +64,7 @@ type OperatorMetadata struct {
 	ClusterName                   string `json:"cluster_name"`
 	ConfigDDURL                   string `json:"config_dd_url"`
 	ConfigDDSite                  string `json:"config_site"`
-	ResourceCounts                string `json:"resource_counts"`
+	ResourceCounts                string `json:"resource_count"`
 }
 
 // NewOperatorMetadataForwarder creates a new instance of the operator metadata forwarder
