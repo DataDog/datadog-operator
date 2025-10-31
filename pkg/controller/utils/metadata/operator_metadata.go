@@ -103,7 +103,12 @@ func (omf *OperatorMetadataForwarder) Start() {
 }
 
 func (omf *OperatorMetadataForwarder) sendMetadata() error {
-	payload := omf.GetPayload()
+	clusterUID, err := omf.GetOrCreateClusterUID()
+	if err != nil {
+		omf.logger.Error(err, "Failed to get cluster UID")
+		return err
+	}
+	payload := omf.GetPayload(clusterUID)
 
 	omf.logger.Info("Operator metadata payload", "payload", string(payload))
 
@@ -132,14 +137,8 @@ func (omf *OperatorMetadataForwarder) sendMetadata() error {
 	return nil
 }
 
-func (omf *OperatorMetadataForwarder) GetPayload() []byte {
+func (omf *OperatorMetadataForwarder) GetPayload(clusterUID string) []byte {
 	now := time.Now().Unix()
-
-	clusterUID, err := omf.GetOrCreateClusterUID()
-	if err != nil {
-		omf.logger.Error(err, "Failed to get cluster UID")
-		clusterUID = ""
-	}
 
 	omf.OperatorMetadata.ClusterID = clusterUID
 	omf.OperatorMetadata.ClusterName = omf.clusterName
@@ -199,6 +198,11 @@ func (omf *OperatorMetadataForwarder) getHeaders() http.Header {
 // getResourceCounts counts all Datadog custom resources in the cluster and returns as JSON string
 func (omf *OperatorMetadataForwarder) getResourceCounts() string {
 	counts := make(map[string]int)
+
+	// If k8sClient is nil (e.g., in tests), return empty JSON
+	if omf.k8sClient == nil {
+		return "{}"
+	}
 
 	ddaList := &v2alpha1.DatadogAgentList{}
 	if err := omf.k8sClient.List(context.TODO(), ddaList); err == nil {
