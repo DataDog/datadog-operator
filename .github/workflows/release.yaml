@@ -51,7 +51,7 @@ jobs:
         env:
           GORELEASER_PREVIOUS_TAG: ${{steps.latest_version.outputs.release}}
       - name: Upload
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: kubectl-datadog-linux
           path: |
@@ -92,7 +92,7 @@ jobs:
         env:
           GORELEASER_PREVIOUS_TAG: ${{steps.latest_version.outputs.release}}
       - name: Upload
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: kubectl-datadog-darwin
           path: |
@@ -132,7 +132,7 @@ jobs:
         env:
           GORELEASER_PREVIOUS_TAG: ${{steps.latest_version.outputs.release}}
       - name: Upload
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: kubectl-datadog-windows
           path: |
@@ -166,17 +166,17 @@ jobs:
           mkdir -p ./dist/darwin
           mkdir -p ./dist/windows
       - name: Download linux binaries
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: kubectl-datadog-linux
           path: ./tmp-build/linux
       - name: Download darwin binaries
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: kubectl-datadog-darwin
           path: ./tmp-build/darwin
       - name: Download windows binaries
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: kubectl-datadog-windows
           path: ./tmp-build/windows
@@ -196,7 +196,7 @@ jobs:
       - name: Generate Plugin manifest
         run: ./hack/release/generate-plugin-manifest.sh ${{steps.tag.outputs.tag}}
       - name: Release
-        uses: softprops/action-gh-release@6cbd405e2c4e67a21c47fa9e383d020e4e28b836 # v2.3.3
+        uses: softprops/action-gh-release@6da8fa9354ddfdc4aeace5fc48d7f679b5214090 # v2.4.1
         with:
           body_path: dist/CHANGELOG.md
           prerelease: ${{ contains(github.ref, '-rc.') }}
