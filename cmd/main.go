@@ -44,7 +44,7 @@ var (
 	//go:embed assets/cfn/karpenter.yaml
 	KarpenterCfn string
 
-	//go:embed assets/charts/karpenter-1.6.3.tgz
+	//go:embed assets/charts/karpenter-1.8.2.tgz
 	KarpenterHelmChart []byte
 )
 
