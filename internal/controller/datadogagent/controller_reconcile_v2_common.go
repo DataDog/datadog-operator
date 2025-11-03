@@ -642,20 +642,10 @@ func (r *Reconciler) getCurrentDeployment(dda, deployment metav1.Object) (*appsv
 			componentType = constants.DefaultAgentResourceSuffix
 		}
 		dsList := appsv1.DeploymentList{}
-		matchLabels := client.MatchingLabels{}
-		// Special handling for cluster checks runner - helm has different component name
-		if componentType == constants.DefaultClusterChecksRunnerResourceSuffix {
-			matchLabels = client.MatchingLabels{
-				kubernetes.AppKubernetesManageByLabelKey:  "Helm",
-				kubernetes.AppKubernetesInstanceLabelKey:  dda.GetName(),
-				kubernetes.AppKubernetesComponentLabelKey: "clusterchecks-agent",
-			}
-		} else {
-			matchLabels = client.MatchingLabels{
-				kubernetes.AppKubernetesManageByLabelKey:   "Helm",
-				apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
-				apicommon.AgentDeploymentComponentLabelKey: componentType,
-			}
+		matchLabels := client.MatchingLabels{
+			kubernetes.AppKubernetesManageByLabelKey:   "Helm",
+			kubernetes.AppKubernetesNameLabelKey:       dda.GetName(),
+			apicommon.AgentDeploymentComponentLabelKey: componentType,
 		}
 
 		if err := r.client.List(context.TODO(), &dsList, matchLabels); err != nil {
