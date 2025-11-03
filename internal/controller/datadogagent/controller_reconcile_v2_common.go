@@ -103,7 +103,7 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 		}
 		if restartDeployment(deployment, currentDeployment) {
 			// if its a helm cluster checks runner deployment, delete the workload and dependents
-			helmCCRDeployment := currentDeployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey] == "clusterchecks-agent" && helm.IsHelmMigration(dda)
+			helmCCRDeployment := currentDeployment.GetLabels()[kubernetes.AppKubernetesComponentLabelKey] == "clusterchecks-agent" && helm.IsHelmMigration(dda)
 			if helmCCRDeployment {
 				if err = deleteAllWorkloadsAndDependentsBackground(context.TODO(), logger, r.client, currentDeployment, currentDeployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
 					return result, err
@@ -723,7 +723,6 @@ func (r *Reconciler) getCurrentDaemonset(dda, daemonset metav1.Object) (*appsv1.
 		if err := r.client.List(context.TODO(), &dsList, client.MatchingLabels{
 			apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 			kubernetes.AppKubernetesManageByLabelKey:   "Helm",
-			apicommon.AgentDeploymentNameLabelKey:      "datadog",
 		}); err != nil {
 			return nil, err
 		}
