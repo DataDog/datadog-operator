@@ -9,10 +9,10 @@ import (
 	"maps"
 	"regexp"
 	"slices"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,43 +25,30 @@ type NodeGroupKey struct {
 	AMIID          string
 	SecurityGroups []string
 	Labels         map[string]string
-	Taints         []ekstypes.Taint
+	Taints         []corev1.Taint
 }
 
 func (key NodeGroupKey) Sum64() uint64 {
 	h := fnv.New64()
 	h.Write([]byte(key.AMIID))
+	for _, x := range slices.Sorted(slices.Values(key.SecurityGroups)) {
+		h.Write([]byte(x))
+	}
 	for _, k := range slices.Sorted(maps.Keys(key.Labels)) {
 		h.Write([]byte(k))
 		h.Write([]byte(key.Labels[k]))
 	}
-	for _, x := range slices.SortedFunc(slices.Values(key.Taints), func(a, b ekstypes.Taint) int {
-		if a.Key != nil && b.Key != nil {
-			if c := cmp.Compare(*a.Key, *b.Key); c != 0 {
-				return c
-			}
-		} else if a.Key != nil {
-			return 1
-		} else if b.Key != nil {
-			return -1
+	for _, x := range slices.SortedFunc(slices.Values(key.Taints), func(a, b corev1.Taint) int {
+		if c := cmp.Compare(a.Key, b.Key); c != 0 {
+			return c
 		}
-		if a.Value != nil && b.Value != nil {
-			if c := cmp.Compare(*a.Value, *b.Value); c != 0 {
-				return c
-			}
-		} else if a.Value != nil {
-			return 1
-		} else if b.Value != nil {
-			return -1
+		if c := cmp.Compare(a.Value, b.Value); c != 0 {
+			return c
 		}
 		return cmp.Compare(a.Effect, b.Effect)
 	}) {
-		if x.Key != nil {
-			h.Write([]byte(*x.Key))
-		}
-		if x.Value != nil {
-			h.Write([]byte(*x.Value))
-		}
+		h.Write([]byte(x.Key))
+		h.Write([]byte(x.Value))
 		h.Write([]byte(x.Effect))
 	}
 	return h.Sum64()
@@ -104,15 +91,38 @@ func GetNodesProperties(ctx context.Context, clientset *kubernetes.Clientset, cl
 		for _, reservation := range instances.Reservations {
 			for _, instance := range reservation.Instances {
 				sg := lo.Map(instance.SecurityGroups, func(sg ec2types.GroupIdentifier, _ int) string { return *sg.GroupId })
+				var labels map[string]string
+				var taints []corev1.Taint
+
+				if node, found := lo.Find(nodes, func(node corev1.Node) bool {
+					return strings.HasSuffix(node.Spec.ProviderID, "/"+*instance.InstanceId)
+				}); found {
+					labels = node.Labels
+					taints = node.Spec.Taints
+				}
+
+				for k := range labels {
+					if strings.Contains(k, "kubernetes.io") ||
+						strings.Contains(k, "eks.amazonaws.com") ||
+						strings.Contains(k, "k8s.io") ||
+						strings.Contains(k, "k8s.aws") ||
+						strings.Contains(k, "eksctl.io") {
+						delete(labels, k)
+					}
+				}
 
 				h := NodeGroupKey{
 					AMIID:          *instance.ImageId,
 					SecurityGroups: sg,
+					Labels:         labels,
+					Taints:         taints,
 				}.Sum64()
 				ng := nodeGroupProperties[h]
 
 				ng.AMIID = *instance.ImageId
 				ng.SecurityGroups = sg
+				ng.Labels = labels
+				ng.Taints = taints
 
 				if instance.SubnetId != nil {
 					ng.Subnets = slices.Compact(slices.Sorted(slices.Values(append(ng.Subnets, *instance.SubnetId))))

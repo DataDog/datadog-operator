@@ -3,9 +3,12 @@ package guess
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
+	"github.com/samber/lo"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // NodeGroupProperties contains the characteristics of a specific EKS node group
@@ -19,7 +22,7 @@ type NodeGroupProperties struct {
 	InstanceTypes             []string
 	CapacityType              string
 	Labels                    map[string]string
-	Taints                    []ekstypes.Taint
+	Taints                    []corev1.Taint
 	NodeRoleARN               string
 	RemoteAccessSecurityGroup string
 	LaunchTemplate            *LaunchTemplateInfo
@@ -101,8 +104,14 @@ func extractNodeGroupProperties(ctx context.Context, client *eks.Client, cluster
 		Subnets:        ng.Subnets,
 		InstanceTypes:  ng.InstanceTypes,
 		Labels:         ng.Labels,
-		Taints:         ng.Taints,
+		Taints:         lo.Map(ng.Taints, func(t ekstypes.Taint, _ int) corev1.Taint { return convertTaint(t) }),
 		SecurityGroups: []string{},
+	}
+
+	for l := range properties.Labels {
+		if strings.Contains(l, "eksctl.io") {
+			delete(properties.Labels, l)
+		}
 	}
 
 	if ng.ReleaseVersion != nil {
@@ -155,4 +164,25 @@ func extractNodeGroupProperties(ctx context.Context, client *eks.Client, cluster
 	}
 
 	return properties, nil
+}
+
+func convertTaint(in ekstypes.Taint) (out corev1.Taint) {
+	switch in.Effect {
+	case ekstypes.TaintEffectNoExecute:
+		out.Effect = corev1.TaintEffectNoExecute
+	case ekstypes.TaintEffectNoSchedule:
+		out.Effect = corev1.TaintEffectNoSchedule
+	case ekstypes.TaintEffectPreferNoSchedule:
+		out.Effect = corev1.TaintEffectPreferNoSchedule
+	}
+
+	if in.Key != nil {
+		out.Key = *in.Key
+	}
+
+	if in.Value != nil {
+		out.Value = *in.Value
+	}
+
+	return
 }

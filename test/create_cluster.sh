@@ -31,7 +31,7 @@ yq -i "
    .metadata.name = \"${CLUSTER_NAME}\" |
    .metadata.region = \"${AWS_REGION}\" |
    .metadata.tags.Creator = \"${USER}\" |
-   .managedNodeGroups[0].tags.Creator = \"${USER}\" |
+   (.managedNodeGroups[].tags.Creator) = \"${USER}\" |
    .vpc.id = \"${VPC}\" |
    ${SET_PRIVATE_SUBNETS}
    .vpc.securityGroup = \"${SG}\"
