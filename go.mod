@@ -11,7 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.254.1
 	github.com/aws/aws-sdk-go-v2/service/eks v1.74.2
 	github.com/aws/aws-sdk-go-v2/service/sts v1.38.6
-	github.com/aws/karpenter-provider-aws v1.7.1
+	github.com/aws/karpenter-provider-aws v1.8.2
 	github.com/aws/smithy-go v1.23.1
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/samber/lo v1.52.0
@@ -22,7 +22,7 @@ require (
 	k8s.io/apimachinery v0.35.0-alpha.0
 	k8s.io/client-go v0.35.0-alpha.0
 	sigs.k8s.io/controller-runtime v0.22.3
-	sigs.k8s.io/karpenter v1.7.1
+	sigs.k8s.io/karpenter v1.8.0
 )
 
 require (
@@ -122,18 +122,18 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/spf13/cast v1.7.0 // indirect
 	github.com/spf13/cobra v1.10.1 // indirect
-	github.com/spf13/pflag v1.0.9 // indirect
+	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xlab/treeprint v1.2.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/crypto v0.41.0 // indirect
-	golang.org/x/net v0.43.0 // indirect
+	golang.org/x/crypto v0.42.0 // indirect
+	golang.org/x/net v0.44.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/sync v0.17.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
-	golang.org/x/term v0.34.0 // indirect
+	golang.org/x/sys v0.36.0 // indirect
+	golang.org/x/term v0.35.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
 	golang.org/x/time v0.13.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
@@ -145,9 +145,10 @@ require (
 	k8s.io/apiextensions-apiserver v0.35.0-alpha.0 // indirect
 	k8s.io/apiserver v0.35.0-alpha.0 // indirect
 	k8s.io/cli-runtime v0.34.0 // indirect
-	k8s.io/cloud-provider v0.34.0 // indirect
+	k8s.io/cloud-provider v0.34.1 // indirect
 	k8s.io/component-base v0.35.0-alpha.0 // indirect
-	k8s.io/csi-translation-lib v0.34.0 // indirect
+	k8s.io/component-helpers v0.34.1 // indirect
+	k8s.io/csi-translation-lib v0.34.1 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250710124328-f3f2b991d03b // indirect
 	k8s.io/kubectl v0.34.0 // indirect
