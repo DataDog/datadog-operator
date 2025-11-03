@@ -10,7 +10,6 @@ import (
 	"maps"
 	"strings"
 
-	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,14 +19,13 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/helm"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 // NewDeployment use to generate the skeleton of a new deployment based on few information
-func NewDeployment(logger logr.Logger, owner metav1.Object, componentKind, componentName, version string, inputSelector *metav1.LabelSelector) *appsv1.Deployment {
-	labels, annotations, selector := GetDefaultMetadata(logger, owner, componentKind, componentName, version, inputSelector)
+func NewDeployment(owner metav1.Object, componentKind, componentName, version string, inputSelector *metav1.LabelSelector) *appsv1.Deployment {
+	labels, annotations, selector := GetDefaultMetadata(owner, componentKind, componentName, version, inputSelector)
 
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -44,7 +42,7 @@ func NewDeployment(logger logr.Logger, owner metav1.Object, componentKind, compo
 	return deployment
 }
 
-func GetDefaultMetadata(logger logr.Logger, owner metav1.Object, componentKind, instanceName, version string, selector *metav1.LabelSelector) (map[string]string, map[string]string, *metav1.LabelSelector) {
+func GetDefaultMetadata(owner metav1.Object, componentKind, instanceName, version string, selector *metav1.LabelSelector) (map[string]string, map[string]string, *metav1.LabelSelector) {
 	labels := GetDefaultLabels(owner, componentKind, instanceName, version)
 	annotations := object.GetDefaultAnnotations(owner)
 
@@ -67,9 +65,6 @@ func GetDefaultMetadata(logger logr.Logger, owner metav1.Object, componentKind, 
 		}
 	}
 
-	if helm.IsHelmMigration(owner) {
-		annotations = object.MergeAnnotationsLabels(logger, annotations, map[string]string{helm.ResourcePolicyAnnotationKey: helm.ResourcePolicyKeep}, "*")
-	}
 	return labels, annotations, selector
 }
 

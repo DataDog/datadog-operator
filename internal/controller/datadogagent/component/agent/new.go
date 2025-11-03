@@ -9,7 +9,6 @@ import (
 	"time"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
-	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -18,8 +17,8 @@ import (
 )
 
 // NewDaemonset use to generate the skeleton of a new daemonset based on few information
-func NewDaemonset(logger logr.Logger, owner metav1.Object, edsOptions *ExtendedDaemonsetOptions, componentKind, componentName, version string, selector *metav1.LabelSelector, instanceName string) *appsv1.DaemonSet {
-	labels, annotations, selector := common.GetDefaultMetadata(logger, owner, componentKind, instanceName, version, selector)
+func NewDaemonset(owner metav1.Object, edsOptions *ExtendedDaemonsetOptions, componentKind, componentName, version string, selector *metav1.LabelSelector, instanceName string) *appsv1.DaemonSet {
+	labels, annotations, selector := common.GetDefaultMetadata(owner, componentKind, instanceName, version, selector)
 
 	daemonset := &appsv1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -43,12 +42,12 @@ func NewDaemonset(logger logr.Logger, owner metav1.Object, edsOptions *ExtendedD
 }
 
 // NewExtendedDaemonset use to generate the skeleton of a new extended daemonset based on few information
-func NewExtendedDaemonset(logger logr.Logger, owner metav1.Object, edsOptions *ExtendedDaemonsetOptions, componentKind, componentName, version string, selector *metav1.LabelSelector) *edsv1alpha1.ExtendedDaemonSet {
+func NewExtendedDaemonset(owner metav1.Object, edsOptions *ExtendedDaemonsetOptions, componentKind, componentName, version string, selector *metav1.LabelSelector) *edsv1alpha1.ExtendedDaemonSet {
 	// FIXME (@CharlyF): The EDS controller uses the Spec.Selector as a node selector to get the NodeList to rollout the agent.
 	// Per https://github.com/DataDog/extendeddaemonset/blob/28a8e082cee9890ae6d925a7d6247a36c6f6ba5d/controllers/extendeddaemonsetreplicaset/controller.go#L344-L360
 	// Up until v0.8.2, the Datadog Operator set the selector to nil, which circumvented this case.
 	// Until the EDS controller uses the Affinity field to get the NodeList instead of Spec.Selector, let's keep the previous behavior.
-	labels, annotations, _ := common.GetDefaultMetadata(logger, owner, componentKind, componentName, version, selector)
+	labels, annotations, _ := common.GetDefaultMetadata(owner, componentKind, componentName, version, selector)
 
 	daemonset := &edsv1alpha1.ExtendedDaemonSet{
 		ObjectMeta: metav1.ObjectMeta{

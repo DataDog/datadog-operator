@@ -12,7 +12,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 	"github.com/stretchr/testify/assert"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
@@ -36,8 +35,7 @@ func defaultDatadogAgent() *datadoghqv2alpha1.DatadogAgent {
 
 func Test_defaultClusterAgentDeployment(t *testing.T) {
 	dda := defaultDatadogAgent()
-	logger := logf.Log.WithName(t.Name())
-	deployment := NewDefaultClusterAgentDeployment(logger, dda.GetObjectMeta(), &dda.Spec)
+	deployment := NewDefaultClusterAgentDeployment(dda.GetObjectMeta(), &dda.Spec)
 	expectedDeployment := clusterAgentExpectedPodTemplate(dda)
 
 	assert.Empty(t, testutils.CompareKubeResource(&deployment.Spec.Template, expectedDeployment))

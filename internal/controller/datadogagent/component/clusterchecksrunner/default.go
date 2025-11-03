@@ -10,7 +10,6 @@ import (
 	"maps"
 	"strconv"
 
-	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
@@ -38,8 +37,8 @@ func GetCCRRbacResourcesName(dda metav1.Object) string {
 }
 
 // NewDefaultClusterChecksRunnerDeployment return a new default cluster-checks-runner deployment
-func NewDefaultClusterChecksRunnerDeployment(logger logr.Logger, dda metav1.Object) *appsv1.Deployment {
-	deployment := common.NewDeployment(logger, dda, constants.DefaultClusterChecksRunnerResourceSuffix, GetClusterChecksRunnerName(dda), common.GetAgentVersion(dda), nil)
+func NewDefaultClusterChecksRunnerDeployment(dda metav1.Object) *appsv1.Deployment {
+	deployment := common.NewDeployment(dda, constants.DefaultClusterChecksRunnerResourceSuffix, GetClusterChecksRunnerName(dda), common.GetAgentVersion(dda), nil)
 
 	podTemplate := NewDefaultClusterChecksRunnerPodTemplateSpec(dda)
 	maps.Copy(podTemplate.Labels, deployment.GetLabels())

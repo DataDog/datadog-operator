@@ -36,7 +36,7 @@ func (r *Reconciler) reconcileV2ClusterChecksRunner(logger logr.Logger, required
 	var result reconcile.Result
 
 	// Start by creating the Default Cluster-Agent deployment
-	deployment := componentccr.NewDefaultClusterChecksRunnerDeployment(logger, dda)
+	deployment := componentccr.NewDefaultClusterChecksRunnerDeployment(dda)
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
