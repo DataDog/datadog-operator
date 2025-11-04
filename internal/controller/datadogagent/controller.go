@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/pkg/certificates"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
@@ -81,6 +82,7 @@ type Reconciler struct {
 	recorder     record.EventRecorder
 	forwarders   datadog.MetricsForwardersManager
 	fieldManager *managedfields.FieldManager
+	certManager  *certificates.Manager
 }
 
 // NewReconciler returns a reconciler for DatadogAgent
@@ -95,6 +97,7 @@ func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo
 		log:          log,
 		recorder:     recorder,
 		forwarders:   metricForwardersMgr,
+		certManager:  certificates.NewManager(client),
 	}, nil
 }
 

@@ -20,6 +20,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/pkg/certificates"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
@@ -668,6 +669,9 @@ func volumeMountsForInitConfig() []corev1.VolumeMount {
 }
 
 func volumesForAgent(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Volume {
+	// Get service certificate secret name for NodeAgent
+	agentSecretName := certificates.GetServiceCertSecretName("datadog-agent")
+
 	volumes := []corev1.Volume{
 		common.GetVolumeForLogs(),
 		common.GetVolumeForAuth(),
@@ -679,6 +683,7 @@ func volumesForAgent(dda metav1.Object, requiredContainers []apicommon.AgentCont
 		common.GetVolumeForCgroups(),
 		common.GetVolumeForDogstatsd(),
 		common.GetVolumeForRuntimeSocket(),
+		common.GetVolumeForCertificates(agentSecretName),
 	}
 
 	for _, containerName := range requiredContainers {
@@ -704,6 +709,7 @@ func volumeMountsForCoreAgent() []corev1.VolumeMount {
 		common.GetVolumeMountForCgroups(),
 		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForRuntimeSocket(true),
+		common.GetVolumeMountForCertificates(),
 	}
 }
 

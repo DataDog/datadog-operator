@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	"context"
+	"fmt"
 	"maps"
 	"time"
 
@@ -33,6 +34,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
+	"github.com/DataDog/datadog-operator/pkg/certificates"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -46,6 +48,31 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	var eds *edsv1alpha1.ExtendedDaemonSet
 	var daemonset *appsv1.DaemonSet
 	var podManagers feature.PodTemplateManagers
+
+	// Get or create CA certificate
+	ctx := context.TODO()
+	caCert, caKey, err := r.certManager.GetOrCreateCA(ctx, dda.Namespace)
+	if err != nil {
+		logger.Error(err, "Failed to get or create CA certificate")
+		return result, err
+	}
+
+	// Generate service certificate for NodeAgent
+	certConfig := certificates.ServiceCertConfig{
+		SecretName: certificates.GetServiceCertSecretName("datadog-agent"),
+		CommonName: "datadog-agent",
+		DNSNames: []string{
+			"datadog-agent",
+			fmt.Sprintf("datadog-agent.%s.svc.cluster.local", dda.Namespace),
+		},
+		Organizations: []string{"Datadog"},
+		Namespace:     dda.Namespace,
+	}
+
+	_, err = r.certManager.GenerateServiceCertificate(ctx, certConfig, caCert, caKey)
+	if err != nil {
+		logger.Error(err, "Failed to generate NodeAgent service certificate")
+	}
 
 	daemonsetLogger := logger.WithValues("component", datadoghqv2alpha1.NodeAgentComponentName)
 

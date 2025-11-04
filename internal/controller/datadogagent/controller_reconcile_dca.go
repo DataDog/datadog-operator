@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -28,6 +29,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
+	"github.com/DataDog/datadog-operator/pkg/certificates"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -37,6 +39,31 @@ import (
 func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus, dcaProvider string) (reconcile.Result, error) {
 	var result reconcile.Result
 	now := metav1.NewTime(time.Now())
+
+	// Get or create CA certificate
+	caCert, caKey, err := r.certManager.GetOrCreateCA(ctx, dda.Namespace)
+	if err != nil {
+		logger.Error(err, "Failed to get or create CA certificate")
+		return result, err
+	}
+
+	// Generate service certificate for ClusterAgent
+	certConfig := certificates.ServiceCertConfig{
+		SecretName: certificates.GetServiceCertSecretName("datadog-cluster-agent"),
+		CommonName: "datadog-cluster-agent",
+		DNSNames: []string{
+			"datadog-cluster-agent",
+			fmt.Sprintf("datadog-cluster-agent.%s.svc.cluster.local", dda.Namespace),
+		},
+		Organizations: []string{"Datadog"},
+		Namespace:     dda.Namespace,
+	}
+
+	_, err = r.certManager.GenerateServiceCertificate(ctx, certConfig, caCert, caKey)
+	if err != nil {
+		logger.Error(err, "Failed to generate ClusterAgent service certificate, falling back to InsecureSkipVerify")
+		// TODO: Set InsecureSkipVerify in the component configuration
+	}
 
 	// Start by creating the Default Cluster-Agent deployment
 	deployment := componentdca.NewDefaultClusterAgentDeployment(dda.GetObjectMeta(), &dda.Spec)

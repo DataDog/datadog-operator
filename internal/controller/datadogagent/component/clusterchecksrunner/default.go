@@ -22,6 +22,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
+	"github.com/DataDog/datadog-operator/pkg/certificates"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
 )
@@ -53,12 +54,16 @@ func NewDefaultClusterChecksRunnerDeployment(dda metav1.Object) *appsv1.Deployme
 
 // NewDefaultClusterChecksRunnerPodTemplateSpec returns a default cluster-checks-runner for the cluster-agent deployment
 func NewDefaultClusterChecksRunnerPodTemplateSpec(dda metav1.Object) *corev1.PodTemplateSpec {
+	// Get service certificate secret name for ClusterCheckRunner
+	ccrSecretName := certificates.GetServiceCertSecretName("datadog-cluster-checks-runner")
+
 	volumes := []corev1.Volume{
 		common.GetVolumeInstallInfo(dda),
 		common.GetVolumeForConfig(),
 		common.GetVolumeForRmCorechecks(),
 		common.GetVolumeForLogs(),
 		common.GetVolumeForChecksd(),
+		common.GetVolumeForCertificates(ccrSecretName),
 
 		// /tmp is needed because some versions of the DCA (at least until
 		// 1.19.0) write to it.
@@ -76,6 +81,7 @@ func NewDefaultClusterChecksRunnerPodTemplateSpec(dda metav1.Object) *corev1.Pod
 		common.GetVolumeMountForLogs(),
 		common.GetVolumeMountForTmp(),
 		common.GetVolumeMountForRmCorechecks(),
+		common.GetVolumeMountForCertificates(),
 	}
 
 	template := &corev1.PodTemplateSpec{
@@ -97,6 +103,7 @@ func volumeMountsForInitConfig() []corev1.VolumeMount {
 		common.GetVolumeMountForTmp(),
 		common.GetVolumeMountForRmCorechecks(),
 		common.GetVolumeMountForChecksd(),
+		common.GetVolumeMountForCertificates(),
 	}
 }
 

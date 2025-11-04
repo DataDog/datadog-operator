@@ -201,11 +201,26 @@ func GetVolumeMountForTmp() corev1.VolumeMount {
 }
 
 // GetVolumeForCertificates return the Volume use to store certificates
-func GetVolumeForCertificates() corev1.Volume {
+// If secretName is empty, it returns an EmptyDir volume
+// If secretName is provided, it returns a Secret volume containing the service certificate
+func GetVolumeForCertificates(secretName string) corev1.Volume {
+	if secretName == "" {
+		// use EmptyDir if no secret name provided
+		return corev1.Volume{
+			Name: CertificatesVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		}
+	}
+
+	// Use Secret volume for operator-generated certificates
 	return corev1.Volume{
 		Name: CertificatesVolumeName,
 		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{},
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: secretName,
+			},
 		},
 	}
 }

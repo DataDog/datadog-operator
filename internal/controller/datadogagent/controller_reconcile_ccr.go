@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -26,6 +27,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
+	"github.com/DataDog/datadog-operator/pkg/certificates"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -34,6 +36,31 @@ import (
 
 func (r *Reconciler) reconcileV2ClusterChecksRunner(logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	var result reconcile.Result
+
+	// Get or create CA certificate
+	ctx := context.TODO()
+	caCert, caKey, err := r.certManager.GetOrCreateCA(ctx, dda.Namespace)
+	if err != nil {
+		logger.Error(err, "Failed to get or create CA certificate")
+		return result, err
+	}
+
+	// Generate service certificate for ClusterChecksRunner
+	certConfig := certificates.ServiceCertConfig{
+		SecretName: certificates.GetServiceCertSecretName("datadog-cluster-checks-runner"),
+		CommonName: "datadog-cluster-checks-runner",
+		DNSNames: []string{
+			"datadog-cluster-checks-runner",
+			fmt.Sprintf("datadog-cluster-checks-runner.%s.svc.cluster.local", dda.Namespace),
+		},
+		Organizations: []string{"Datadog"},
+		Namespace:     dda.Namespace,
+	}
+
+	_, err = r.certManager.GenerateServiceCertificate(ctx, certConfig, caCert, caKey)
+	if err != nil {
+		logger.Error(err, "Failed to generate ClusterChecksRunner service certificate")
+	}
 
 	// Start by creating the Default Cluster-Agent deployment
 	deployment := componentccr.NewDefaultClusterChecksRunnerDeployment(dda)

@@ -20,6 +20,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
+	"github.com/DataDog/datadog-operator/pkg/certificates"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/images"
@@ -66,11 +67,14 @@ func NewDefaultClusterAgentDeployment(ddaMeta metav1.Object, ddaSpec *v2alpha1.D
 
 // NewDefaultClusterAgentPodTemplateSpec return a default PodTemplateSpec for the cluster-agent deployment
 func NewDefaultClusterAgentPodTemplateSpec(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) *corev1.PodTemplateSpec {
+	// Get service certificate secret name for ClusterAgent
+	clusterAgentSecretName := certificates.GetServiceCertSecretName("datadog-cluster-agent")
+
 	volumes := []corev1.Volume{
 		common.GetVolumeInstallInfo(ddaMeta),
 		common.GetVolumeForConfd(),
 		common.GetVolumeForLogs(),
-		common.GetVolumeForCertificates(),
+		common.GetVolumeForCertificates(clusterAgentSecretName),
 		common.GetVolumeForAuth(),
 
 		// /tmp is needed because some versions of the DCA (at least until
