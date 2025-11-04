@@ -2,6 +2,7 @@ package datadogdashboard
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/config"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
@@ -46,7 +48,12 @@ type Reconciler struct {
 	recorder      record.EventRecorder
 }
 
-func NewReconciler(client client.Client, ddClient datadogclient.DatadogDashboardClient, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) *Reconciler {
+func NewReconciler(client client.Client, creds config.Creds, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
+	ddClient, err := datadogclient.InitDatadogDashboardClient(log, creds)
+	if err != nil {
+		return &Reconciler{}, err
+	}
+
 	return &Reconciler{
 		client:        client,
 		datadogClient: ddClient.Client,
@@ -54,7 +61,21 @@ func NewReconciler(client client.Client, ddClient datadogclient.DatadogDashboard
 		scheme:        scheme,
 		log:           log,
 		recorder:      recorder,
+	}, nil
+}
+
+func (r *Reconciler) UpdateDatadogClient(newCreds config.Creds) error {
+	r.log.Info("Recreating Datadog client due to credential change", "reconciler", "DatadogDashboard")
+	ddClient, err := datadogclient.InitDatadogDashboardClient(r.log, newCreds)
+	if err != nil {
+		return fmt.Errorf("unable to create Datadog API Client in DatadogDashboard: %w", err)
 	}
+	r.datadogClient = ddClient.Client
+	r.datadogAuth = ddClient.Auth
+
+	r.log.Info("Successfully recreated datadog client due to credential change", "reconciler", "DatadogDashboard")
+
+	return nil
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
