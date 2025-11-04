@@ -288,4 +288,3 @@ func TestGetRBACPolicyRules(t *testing.T) {
 		})
 	}
 }
-

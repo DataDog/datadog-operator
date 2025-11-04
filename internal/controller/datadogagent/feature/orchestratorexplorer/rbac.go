@@ -14,6 +14,7 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
@@ -125,12 +126,17 @@ func getRBACPolicyRules(logger logr.Logger, crs []string) []rbacv1.PolicyRule {
 		},
 	}
 
-	groupResources := mapAPIGroupsResources(logger, crs)
-	for group, resources := range groupResources {
-		rbacRules = append(rbacRules, rbacv1.PolicyRule{
-			APIGroups: []string{group},
-			Resources: append([]string{}, resources...),
-		})
+	if len(crs) > 0 {
+		rbacBuilder := utils.NewRBACBuilder()
+		for _, cr := range crs {
+			crSplit := strings.Split(cr, "/")
+			if len(crSplit) == 3 {
+				rbacBuilder.AddGroupKind(crSplit[0], crSplit[2])
+			} else {
+				logger.Error(fmt.Errorf("unable to create cluster role for %s, skipping", cr), "correct format should be group/version/kind")
+			}
+		}
+		rbacRules = append(rbacRules, rbacBuilder.Build()...)
 	}
 
 	defaultVerbs := []string{
@@ -146,20 +152,4 @@ func getRBACPolicyRules(logger logr.Logger, crs []string) []rbacv1.PolicyRule {
 	}
 
 	return rbacRules
-}
-
-func mapAPIGroupsResources(logger logr.Logger, customResources []string) map[string][]string {
-	groupResources := make(map[string][]string, len(customResources))
-	for _, cr := range customResources {
-		crSplit := strings.Split(cr, "/")
-		if len(crSplit) == 3 {
-			if _, ok := groupResources[crSplit[0]]; !ok {
-				groupResources[crSplit[0]] = make([]string, 0, len(customResources))
-			}
-			groupResources[crSplit[0]] = append(groupResources[crSplit[0]], crSplit[2])
-		} else {
-			logger.Error(fmt.Errorf("unable to create cluster role for %s, skipping", cr), "correct format should be group/version/kind")
-		}
-	}
-	return groupResources
 }
