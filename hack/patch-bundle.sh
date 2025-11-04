@@ -40,8 +40,8 @@ $YQ -i ".spec.\"replaces\" = \"datadog-operator.v$LATEST_VERSION\"" bundle/manif
 # Add OpenShift version annotation (adding in main bundle as it's used for OpenShift Community)
 $YQ -i ".annotations.\"com.redhat.openshift.versions\" = \"v4.6\"" bundle/metadata/annotations.yaml
 
-# set `DD_TOOL_VERSION` to `redhat`
-$YQ -i "(.spec.install.spec.deployments[] | select(.name == \"datadog-operator-manager\") | .spec.template.spec.containers[] | select(.name == \"manager\") | .env[] | select(.name == \"DD_TOOL_VERSION\") | .value) = \"redhat\"" bundle/manifests/datadog-operator.clusterserviceversion.yaml
+# set `DD_TOOL_VERSION` to `redhat-community-operators`
+$YQ -i "(.spec.install.spec.deployments[] | select(.name == \"datadog-operator-manager\") | .spec.template.spec.containers[] | select(.name == \"manager\") | .env[] | select(.name == \"DD_TOOL_VERSION\") | .value) = \"redhat-community-operators\"" bundle/manifests/datadog-operator.clusterserviceversion.yaml
 
 # Patch deploymentName, as `operator-sdk generate bundle` sets it to something that doesn't exist
 eval $SED 's/datadog-operator-webhook/datadog-operator-manager/g' bundle/manifests/datadog-operator.clusterserviceversion.yaml
