@@ -134,10 +134,10 @@ func GetAgentLocalServiceSelector(dda metav1.Object) map[string]string {
 	}
 }
 
-func GetOtelCollectorGatewayServiceSelector(dda metav1.Object) map[string]string {
+func GetOtelAgentGatewayServiceSelector(dda metav1.Object) map[string]string {
 	return map[string]string{
 		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
-		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultOtelCollectorGatewayResourceSuffix,
+		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultOtelAgentGatewayResourceSuffix,
 	}
 }
 

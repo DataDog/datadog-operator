@@ -17,7 +17,7 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	componentotelcollectorgateway "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/otelcollectorgateway"
+	componentotelagentgateway "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/otelagentgateway"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
@@ -27,52 +27,52 @@ import (
 	"github.com/go-logr/logr"
 )
 
-// OtelCollectorGatewayComponent implements ComponentReconciler for the OTel Collector Gateway deployment
-type OtelCollectorGatewayComponent struct {
+// OtelAgentGatewayComponent implements ComponentReconciler for the OTel Agent Gateway deployment
+type OtelAgentGatewayComponent struct {
 	reconciler *Reconciler
 }
 
-// NewOtelCollectorGatewayComponent creates a new OtelCollectorGateway component
-func NewOtelCollectorGatewayComponent(reconciler *Reconciler) *OtelCollectorGatewayComponent {
-	return &OtelCollectorGatewayComponent{
+// NewOtelAgentGatewayComponent creates a new OtelAgentGateway component
+func NewOtelAgentGatewayComponent(reconciler *Reconciler) *OtelAgentGatewayComponent {
+	return &OtelAgentGatewayComponent{
 		reconciler: reconciler,
 	}
 }
 
 // Name returns the component name
-func (c *OtelCollectorGatewayComponent) Name() datadoghqv2alpha1.ComponentName {
-	return datadoghqv2alpha1.OtelCollectorGatewayComponentName
+func (c *OtelAgentGatewayComponent) Name() datadoghqv2alpha1.ComponentName {
+	return datadoghqv2alpha1.OtelAgentGatewayComponentName
 }
 
-// IsEnabled checks if the OtelCollectorGateway component should be reconciled
-func (c *OtelCollectorGatewayComponent) IsEnabled(requiredComponents feature.RequiredComponents) bool {
-	return requiredComponents.OtelCollectorGateway.IsEnabled()
+// IsEnabled checks if the OtelAgentGateway component should be reconciled
+func (c *OtelAgentGatewayComponent) IsEnabled(requiredComponents feature.RequiredComponents) bool {
+	return requiredComponents.OtelAgentGateway.IsEnabled()
 }
 
 // GetConditionType returns the condition type for status updates
-func (c *OtelCollectorGatewayComponent) GetConditionType() string {
-	return common.OtelCollectorGatewayReconcileConditionType
+func (c *OtelAgentGatewayComponent) GetConditionType() string {
+	return common.OtelAgentGatewayReconcileConditionType
 }
 
-// Reconcile reconciles the OtelCollectorGateway component
-func (c *OtelCollectorGatewayComponent) Reconcile(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error) {
+// Reconcile reconciles the OtelAgentGateway component
+func (c *OtelAgentGatewayComponent) Reconcile(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error) {
 	var result reconcile.Result
 
-	// Start by creating the Default OtelCollectorGateway deployment
-	deployment := componentotelcollectorgateway.NewDefaultOtelCollectorGatewayDeployment(params.DDA)
+	// Start by creating the Default OtelAgentGateway deployment
+	deployment := componentotelagentgateway.NewDefaultOtelAgentGatewayDeployment(params.DDA)
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
-	global.ApplyGlobalSettingsOtelCollectorGateway(params.Logger, podManagers, params.DDA.GetObjectMeta(), &params.DDA.Spec, params.ResourceManagers, params.RequiredComponents)
+	global.ApplyGlobalSettingsOtelAgentGateway(params.Logger, podManagers, params.DDA.GetObjectMeta(), &params.DDA.Spec, params.ResourceManagers, params.RequiredComponents)
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range params.Features {
-		if errFeat := feat.ManageOtelCollectorGateway(podManagers, ""); errFeat != nil {
+		if errFeat := feat.ManageOtelAgentGateway(podManagers, ""); errFeat != nil {
 			return result, errFeat
 		}
 	}
 
-	// If Override is defined for the OtelCollectorGateway component, apply the override on the PodTemplateSpec
+	// If Override is defined for the OtelAgentGateway component, apply the override on the PodTemplateSpec
 	if componentOverride, ok := params.DDA.Spec.Override[c.Name()]; ok {
 		if apiutils.BoolValue(componentOverride.Disabled) {
 			// This case is handled by the registry, but we double-check here
@@ -82,47 +82,47 @@ func (c *OtelCollectorGatewayComponent) Reconcile(ctx context.Context, params *R
 		override.Deployment(deployment, componentOverride)
 	}
 
-	return c.reconciler.createOrUpdateDeployment(params.Logger, params.DDA, deployment, params.Status, updateStatusV2WithOtelCollectorGateway)
+	return c.reconciler.createOrUpdateDeployment(params.Logger, params.DDA, deployment, params.Status, updateStatusV2WithOtelAgentGateway)
 }
 
-// Cleanup removes the OtelCollectorGateway deployment
-func (c *OtelCollectorGatewayComponent) Cleanup(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error) {
-	deployment := componentotelcollectorgateway.NewDefaultOtelCollectorGatewayDeployment(params.DDA)
-	return c.reconciler.cleanupV2OtelCollectorGateway(params.Logger, params.DDA, deployment, params.Status)
+// Cleanup removes the OtelAgentGateway deployment
+func (c *OtelAgentGatewayComponent) Cleanup(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error) {
+	deployment := componentotelagentgateway.NewDefaultOtelAgentGatewayDeployment(params.DDA)
+	return c.reconciler.cleanupV2OtelAgentGateway(params.Logger, params.DDA, deployment, params.Status)
 }
 
-func (r *Reconciler) cleanupV2OtelCollectorGateway(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *Reconciler) cleanupV2OtelAgentGateway(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	nsName := types.NamespacedName{
 		Name:      deployment.GetName(),
 		Namespace: deployment.GetNamespace(),
 	}
 
-	// OtelCollectorGateway deployment attached to this instance
-	otelCollectorGatewayDeployment := &appsv1.Deployment{}
-	if err := r.client.Get(context.TODO(), nsName, otelCollectorGatewayDeployment); err != nil {
+	// OtelAgentGateway deployment attached to this instance
+	otelAgentGatewayDeployment := &appsv1.Deployment{}
+	if err := r.client.Get(context.TODO(), nsName, otelAgentGatewayDeployment); err != nil {
 		if !errors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
 	} else {
-		logger.Info("Deleting OTel Collector Gateway Deployment", "deployment.Namespace", otelCollectorGatewayDeployment.Namespace, "deployment.Name", otelCollectorGatewayDeployment.Name)
-		event := buildEventInfo(otelCollectorGatewayDeployment.Name, otelCollectorGatewayDeployment.Namespace, kubernetes.DeploymentKind, datadog.DeletionEvent)
+		logger.Info("Deleting OTel Agent Gateway Deployment", "deployment.Namespace", otelAgentGatewayDeployment.Namespace, "deployment.Name", otelAgentGatewayDeployment.Name)
+		event := buildEventInfo(otelAgentGatewayDeployment.Name, otelAgentGatewayDeployment.Namespace, kubernetes.DeploymentKind, datadog.DeletionEvent)
 		r.recordEvent(dda, event)
-		if err := r.client.Delete(context.TODO(), otelCollectorGatewayDeployment); err != nil {
+		if err := r.client.Delete(context.TODO(), otelAgentGatewayDeployment); err != nil {
 			return reconcile.Result{}, err
 		}
 	}
 
-	deleteStatusWithOtelCollectorGateway(newStatus)
+	deleteStatusWithOtelAgentGateway(newStatus)
 
 	return reconcile.Result{}, nil
 }
 
-func updateStatusV2WithOtelCollectorGateway(deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
-	newStatus.OtelCollectorGateway = condition.UpdateDeploymentStatus(deployment, newStatus.OtelCollectorGateway, &updateTime)
-	condition.UpdateDatadogAgentStatusConditions(newStatus, updateTime, common.OtelCollectorGatewayReconcileConditionType, status, reason, message, true)
+func updateStatusV2WithOtelAgentGateway(deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
+	newStatus.OtelAgentGateway = condition.UpdateDeploymentStatus(deployment, newStatus.OtelAgentGateway, &updateTime)
+	condition.UpdateDatadogAgentStatusConditions(newStatus, updateTime, common.OtelAgentGatewayReconcileConditionType, status, reason, message, true)
 }
 
-func deleteStatusWithOtelCollectorGateway(newStatus *datadoghqv2alpha1.DatadogAgentStatus) {
-	newStatus.OtelCollectorGateway = nil
-	condition.DeleteDatadogAgentStatusCondition(newStatus, common.OtelCollectorGatewayReconcileConditionType)
+func deleteStatusWithOtelAgentGateway(newStatus *datadoghqv2alpha1.DatadogAgentStatus) {
+	newStatus.OtelAgentGateway = nil
+	condition.DeleteDatadogAgentStatusCondition(newStatus, common.OtelAgentGatewayReconcileConditionType)
 }

@@ -206,6 +206,6 @@ func (f *eventCollectionFeature) ManageClusterChecksRunner(_ feature.PodTemplate
 	return nil
 }
 
-func (f *eventCollectionFeature) ManageOtelCollectorGateway(_ feature.PodTemplateManagers, _ string) error {
+func (f *eventCollectionFeature) ManageOtelAgentGateway(_ feature.PodTemplateManagers, _ string) error {
 	return nil
 }

@@ -68,11 +68,11 @@ func GetClusterChecksRunnerServiceAccount(objName string, ddaSpec *v2alpha1.Data
 	return saDefault
 }
 
-// GetOtelCollectorGatewayServiceAccount return the otel-collector-gateway service account name
-func GetOtelCollectorGatewayServiceAccount(objName string, ddaSpec *v2alpha1.DatadogAgentSpec) string {
-	saDefault := fmt.Sprintf("%s-%s", objName, DefaultOtelCollectorGatewayResourceSuffix)
-	if ddaSpec.Override[v2alpha1.OtelCollectorGatewayComponentName] != nil && ddaSpec.Override[v2alpha1.OtelCollectorGatewayComponentName].ServiceAccountName != nil {
-		return *ddaSpec.Override[v2alpha1.OtelCollectorGatewayComponentName].ServiceAccountName
+// GetOtelAgentGatewayServiceAccount return the otel-collector-gateway service account name
+func GetOtelAgentGatewayServiceAccount(objName string, ddaSpec *v2alpha1.DatadogAgentSpec) string {
+	saDefault := fmt.Sprintf("%s-%s", objName, DefaultOtelAgentGatewayResourceSuffix)
+	if ddaSpec.Override[v2alpha1.OtelAgentGatewayComponentName] != nil && ddaSpec.Override[v2alpha1.OtelAgentGatewayComponentName].ServiceAccountName != nil {
+		return *ddaSpec.Override[v2alpha1.OtelAgentGatewayComponentName].ServiceAccountName
 	}
 	return saDefault
 }
@@ -105,9 +105,9 @@ func GetLocalAgentServiceName(objName string, ddaSpec *v2alpha1.DatadogAgentSpec
 	return fmt.Sprintf("%s-%s", objName, DefaultAgentResourceSuffix)
 }
 
-// GetOTelCollectorGatewayServiceName returns the name used for the OTel Collector Gateway service
-func GetOTelCollectorGatewayServiceName(objName string) string {
-	return fmt.Sprintf("%s-%s", objName, DefaultOtelCollectorGatewayResourceSuffix)
+// GetOTelAgentGatewayServiceName returns the name used for the OTel Agent Gateway service
+func GetOTelAgentGatewayServiceName(objName string) string {
+	return fmt.Sprintf("%s-%s", objName, DefaultOtelAgentGatewayResourceSuffix)
 }
 
 // IsNetworkPolicyEnabled returns whether a network policy should be created and which flavor to use

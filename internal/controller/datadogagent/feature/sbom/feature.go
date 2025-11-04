@@ -221,6 +221,6 @@ func (f *sbomFeature) ManageClusterChecksRunner(managers feature.PodTemplateMana
 	return nil
 }
 
-func (f *sbomFeature) ManageOtelCollectorGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *sbomFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

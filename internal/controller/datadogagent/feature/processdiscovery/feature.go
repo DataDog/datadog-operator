@@ -125,6 +125,6 @@ func (p *processDiscoveryFeature) ManageClusterChecksRunner(managers feature.Pod
 	return nil
 }
 
-func (p *processDiscoveryFeature) ManageOtelCollectorGateway(managers feature.PodTemplateManagers, provider string) error {
+func (p *processDiscoveryFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

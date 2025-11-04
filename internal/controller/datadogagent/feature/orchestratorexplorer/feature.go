@@ -313,6 +313,6 @@ func (f *orchestratorExplorerFeature) ManageClusterChecksRunner(managers feature
 	return nil
 }
 
-func (f *orchestratorExplorerFeature) ManageOtelCollectorGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *orchestratorExplorerFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

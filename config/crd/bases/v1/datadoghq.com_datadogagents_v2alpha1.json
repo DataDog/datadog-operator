@@ -2146,12 +2146,12 @@
               },
               "type": "object"
             },
-            "otelCollectorGateway": {
+            "otelAgentGateway": {
               "additionalProperties": false,
-              "description": "OtelCollector Gateway configuration.",
+              "description": "OTel Agent Gateway configuration.",
               "properties": {
                 "enabled": {
-                  "description": "Enabled enables the OTel Collector Gateway.\nDefault: false",
+                  "description": "Enabled enables the OTel Agent Gateway.\nDefault: false",
                   "type": "boolean"
                 },
                 "ports": {
@@ -7732,9 +7732,9 @@
           ],
           "x-kubernetes-list-type": "map"
         },
-        "otelCollectorGateway": {
+        "otelAgentGateway": {
           "additionalProperties": false,
-          "description": "The actual state of the OTel Collector Gateway as a deployment.",
+          "description": "The actual state of the OTel Agent Gateway as a deployment.",
           "properties": {
             "availableReplicas": {
               "description": "Total number of available pods (ready for at least minReadySeconds) targeted by this Deployment.",
@@ -9922,12 +9922,12 @@
                   },
                   "type": "object"
                 },
-                "otelCollectorGateway": {
+                "otelAgentGateway": {
                   "additionalProperties": false,
-                  "description": "OtelCollector Gateway configuration.",
+                  "description": "OTel Agent Gateway configuration.",
                   "properties": {
                     "enabled": {
-                      "description": "Enabled enables the OTel Collector Gateway.\nDefault: false",
+                      "description": "Enabled enables the OTel Agent Gateway.\nDefault: false",
                       "type": "boolean"
                     },
                     "ports": {

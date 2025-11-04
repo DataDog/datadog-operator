@@ -258,6 +258,6 @@ func (f *ksmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManag
 	return nil
 }
 
-func (f *ksmFeature) ManageOtelCollectorGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *ksmFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

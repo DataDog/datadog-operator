@@ -3,17 +3,17 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2025-present Datadog, Inc.
 
-package otelcollectorgateway
+package otelagentgateway
 
 import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// RBAC for OTel Collector Gateway
+// RBAC for OTel Agent Gateway
 
-// GetDefaultOtelCollectorGatewayClusterRolePolicyRules returns the default Cluster Role Policy Rules for the OTel Collector Gateway
-func GetDefaultOtelCollectorGatewayClusterRolePolicyRules(dda metav1.Object, excludeNonResourceRules bool) []rbacv1.PolicyRule {
+// GetDefaultOtelAgentGatewayClusterRolePolicyRules returns the default Cluster Role Policy Rules for the OTel Agent Gateway
+func GetDefaultOtelAgentGatewayClusterRolePolicyRules(dda metav1.Object, excludeNonResourceRules bool) []rbacv1.PolicyRule {
 	policyRule := []rbacv1.PolicyRule{}
 	// 	{
 	// 		APIGroups: []string{rbac.CoreAPIGroup},

@@ -75,6 +75,6 @@ func (f *dummyFeature) ManageClusterChecksRunner(managers feature.PodTemplateMan
 	return nil
 }
 
-func (f *dummyFeature) ManageOtelCollectorGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *dummyFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

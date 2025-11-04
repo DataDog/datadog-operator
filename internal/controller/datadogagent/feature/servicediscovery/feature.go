@@ -152,6 +152,6 @@ func (f *serviceDiscoveryFeature) ManageClusterChecksRunner(feature.PodTemplateM
 	return nil
 }
 
-func (f *serviceDiscoveryFeature) ManageOtelCollectorGateway(feature.PodTemplateManagers, string) error {
+func (f *serviceDiscoveryFeature) ManageOtelAgentGateway(feature.PodTemplateManagers, string) error {
 	return nil
 }

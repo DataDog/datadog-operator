@@ -477,6 +477,6 @@ func (f *otlpFeature) ManageClusterChecksRunner(managers feature.PodTemplateMana
 	return nil
 }
 
-func (f *otlpFeature) ManageOtelCollectorGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *otlpFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

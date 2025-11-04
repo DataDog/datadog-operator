@@ -155,6 +155,6 @@ func (f *prometheusScrapeFeature) ManageClusterChecksRunner(managers feature.Pod
 	return nil
 }
 
-func (f *prometheusScrapeFeature) ManageOtelCollectorGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *prometheusScrapeFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

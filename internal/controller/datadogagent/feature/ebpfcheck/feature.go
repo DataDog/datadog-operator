@@ -114,6 +114,6 @@ func (f *ebpfCheckFeature) ManageClusterChecksRunner(managers feature.PodTemplat
 	return nil
 }
 
-func (f *ebpfCheckFeature) ManageOtelCollectorGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *ebpfCheckFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

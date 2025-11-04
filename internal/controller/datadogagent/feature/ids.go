@@ -27,8 +27,8 @@ const (
 	LiveProcessIDType = "live_process"
 	// OtelAgentIDType Otel Agent feature.
 	OtelAgentIDType = "otel_agent"
-	// OtelCollectorGatewayIDType Otel Collector Gateway feature.
-	OtelCollectorGatewayIDType = "otel_collector_gateway"
+	// OtelAgentGatewayIDType OTel Agent Gateway feature.
+	OtelAgentGatewayIDType = "otel_collector_gateway"
 	// ProcessDiscoveryIDType Process Discovery feature.
 	ProcessDiscoveryIDType = "process_discovery"
 	// KubernetesAPIServerIDType Kube APIServer feature.

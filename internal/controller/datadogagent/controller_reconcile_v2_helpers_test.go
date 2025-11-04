@@ -24,7 +24,7 @@ type dummyFeature struct {
 	ManageNodeAgentError            error
 	ManageSingleContainerAgentError error
 	ManageClusterChecksRunnerError  error
-	ManageOtelCollectorGatewayError error
+	ManageOtelAgentGatewayError     error
 }
 
 // ID returns the dummy feature's ID.
@@ -62,9 +62,9 @@ func (df *dummyFeature) ManageClusterChecksRunner(managers feature.PodTemplateMa
 	return df.ManageClusterChecksRunnerError
 }
 
-// ManageOtelCollectorGateway returns a predefined error (or nil for success).
-func (df *dummyFeature) ManageOtelCollectorGateway(managers feature.PodTemplateManagers, provider string) error {
-	return df.ManageOtelCollectorGatewayError
+// ManageOtelAgentGateway returns a predefined error (or nil for success).
+func (df *dummyFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+	return df.ManageOtelAgentGatewayError
 }
 
 // Test_setupDependencies verifies that store and resource managers are initialized.

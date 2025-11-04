@@ -134,6 +134,6 @@ func (f *liveContainerFeature) ManageClusterChecksRunner(managers feature.PodTem
 	return nil
 }
 
-func (f *liveContainerFeature) ManageOtelCollectorGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *liveContainerFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

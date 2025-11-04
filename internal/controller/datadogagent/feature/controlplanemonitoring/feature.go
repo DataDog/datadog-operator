@@ -325,6 +325,6 @@ func (f *controlPlaneMonitoringFeature) ManageClusterChecksRunner(managers featu
 	return nil
 }
 
-func (f *controlPlaneMonitoringFeature) ManageOtelCollectorGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *controlPlaneMonitoringFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

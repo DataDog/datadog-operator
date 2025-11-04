@@ -2150,12 +2150,12 @@
                   },
                   "type": "object"
                 },
-                "otelCollectorGateway": {
+                "otelAgentGateway": {
                   "additionalProperties": false,
-                  "description": "OtelCollector Gateway configuration.",
+                  "description": "OTel Agent Gateway configuration.",
                   "properties": {
                     "enabled": {
-                      "description": "Enabled enables the OTel Collector Gateway.\nDefault: false",
+                      "description": "Enabled enables the OTel Agent Gateway.\nDefault: false",
                       "type": "boolean"
                     },
                     "ports": {

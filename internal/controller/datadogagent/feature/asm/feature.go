@@ -122,6 +122,6 @@ func (f *asmFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers, _ 
 	return nil
 }
 
-func (f *asmFeature) ManageOtelCollectorGateway(_ feature.PodTemplateManagers, _ string) error {
+func (f *asmFeature) ManageOtelAgentGateway(_ feature.PodTemplateManagers, _ string) error {
 	return nil
 }

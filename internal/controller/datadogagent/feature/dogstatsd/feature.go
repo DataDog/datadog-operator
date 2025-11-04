@@ -297,6 +297,6 @@ func (f *dogstatsdFeature) ManageClusterChecksRunner(managers feature.PodTemplat
 	return nil
 }
 
-func (f *dogstatsdFeature) ManageOtelCollectorGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *dogstatsdFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

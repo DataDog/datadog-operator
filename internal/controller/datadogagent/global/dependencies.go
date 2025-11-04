@@ -21,7 +21,7 @@ import (
 	clusteragent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	clusterchecksrunner "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
-	otelcollectorgateway "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/otelcollectorgateway"
+	otelagentgateway "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/otelagentgateway"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
@@ -263,8 +263,8 @@ func rbacDependencies(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec,
 		return nodeAgentDependencies(ddaMeta, ddaSpec, manager)
 	case v2alpha1.ClusterChecksRunnerComponentName:
 		return clusterChecksRunnerDependencies(ddaMeta, ddaSpec, manager)
-	case v2alpha1.OtelCollectorGatewayComponentName:
-		return otelCollectorGatewayDependencies(ddaMeta, ddaSpec, manager)
+	case v2alpha1.OtelAgentGatewayComponentName:
+		return otelAgentGatewayDependencies(ddaMeta, ddaSpec, manager)
 	}
 
 	return nil
@@ -339,18 +339,18 @@ func clusterChecksRunnerDependencies(ddaMeta metav1.Object, ddaSpec *v2alpha1.Da
 	return nil
 }
 
-func otelCollectorGatewayDependencies(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, manager feature.ResourceManagers) error {
+func otelAgentGatewayDependencies(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, manager feature.ResourceManagers) error {
 	var errs []error
-	serviceAccountName := constants.GetOtelCollectorGatewayServiceAccount(ddaMeta.GetName(), ddaSpec)
-	rbacResourcesName := otelcollectorgateway.GetOtelCollectorGatewayRbacResourcesName(ddaMeta)
+	serviceAccountName := constants.GetOtelAgentGatewayServiceAccount(ddaMeta.GetName(), ddaSpec)
+	rbacResourcesName := otelagentgateway.GetOtelAgentGatewayRbacResourcesName(ddaMeta)
 
 	// Service account
-	if err := manager.RBACManager().AddServiceAccountByComponent(ddaMeta.GetNamespace(), serviceAccountName, string(v2alpha1.OtelCollectorGatewayComponentName)); err != nil {
+	if err := manager.RBACManager().AddServiceAccountByComponent(ddaMeta.GetNamespace(), serviceAccountName, string(v2alpha1.OtelAgentGatewayComponentName)); err != nil {
 		errs = append(errs, err)
 	}
 
 	// ClusterRole creation
-	if err := manager.RBACManager().AddClusterPolicyRulesByComponent(ddaMeta.GetNamespace(), rbacResourcesName, serviceAccountName, otelcollectorgateway.GetDefaultOtelCollectorGatewayClusterRolePolicyRules(ddaMeta, disableNonResourceRules(ddaSpec)), string(v2alpha1.OtelCollectorGatewayComponentName)); err != nil {
+	if err := manager.RBACManager().AddClusterPolicyRulesByComponent(ddaMeta.GetNamespace(), rbacResourcesName, serviceAccountName, otelagentgateway.GetDefaultOtelAgentGatewayClusterRolePolicyRules(ddaMeta, disableNonResourceRules(ddaSpec)), string(v2alpha1.OtelAgentGatewayComponentName)); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -395,8 +395,8 @@ func addSecretBackendDependencies(logger logr.Logger, ddaMeta metav1.Object, dda
 			componentSaName = constants.GetAgentServiceAccount(ddaMeta.GetName(), ddaSpec)
 		case v2alpha1.ClusterChecksRunnerComponentName:
 			componentSaName = constants.GetClusterChecksRunnerServiceAccount(ddaMeta.GetName(), ddaSpec)
-		// Do not use secretBackend global setting for OTel collector gateway
-		case v2alpha1.OtelCollectorGatewayComponentName:
+		// Do not use secretBackend global setting for OTel Agent Gateway
+		case v2alpha1.OtelAgentGatewayComponentName:
 			return nil
 		}
 

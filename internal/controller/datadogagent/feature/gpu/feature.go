@@ -280,6 +280,6 @@ func (f *gpuFeature) ManageClusterChecksRunner(feature.PodTemplateManagers, stri
 	return nil
 }
 
-func (f *gpuFeature) ManageOtelCollectorGateway(feature.PodTemplateManagers, string) error {
+func (f *gpuFeature) ManageOtelAgentGateway(feature.PodTemplateManagers, string) error {
 	return nil
 }

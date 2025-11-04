@@ -2057,12 +2057,12 @@ spec:
                               type: array
                               x-kubernetes-list-type: atomic
                           type: object
-                        otelCollectorGateway:
-                          description: OtelCollector Gateway configuration.
+                        otelAgentGateway:
+                          description: OTel Agent Gateway configuration.
                           properties:
                             enabled:
                               description: |-
-                                Enabled enables the OTel Collector Gateway.
+                                Enabled enables the OTel Agent Gateway.
                                 Default: false
                               type: boolean
                             ports:

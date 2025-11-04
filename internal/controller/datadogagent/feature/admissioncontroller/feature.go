@@ -488,6 +488,6 @@ func (f *admissionControllerFeature) ManageClusterChecksRunner(managers feature.
 	return nil
 }
 
-func (f *admissionControllerFeature) ManageOtelCollectorGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *admissionControllerFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

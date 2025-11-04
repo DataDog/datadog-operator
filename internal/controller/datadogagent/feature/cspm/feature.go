@@ -356,6 +356,6 @@ func (f *cspmFeature) ManageClusterChecksRunner(managers feature.PodTemplateMana
 	return nil
 }
 
-func (f *cspmFeature) ManageOtelCollectorGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *cspmFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

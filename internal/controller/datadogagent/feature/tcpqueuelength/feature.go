@@ -143,6 +143,6 @@ func (f *tcpQueueLengthFeature) ManageClusterChecksRunner(managers feature.PodTe
 	return nil
 }
 
-func (f *tcpQueueLengthFeature) ManageOtelCollectorGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *tcpQueueLengthFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

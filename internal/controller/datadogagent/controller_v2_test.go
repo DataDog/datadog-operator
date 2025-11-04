@@ -1729,7 +1729,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 					v2alpha1.ClusterChecksRunnerComponentName: {
 						Disabled: apiutils.NewBoolPointer(true),
 					},
-					v2alpha1.OtelCollectorGatewayComponentName: {
+					v2alpha1.OtelAgentGatewayComponentName: {
 						Disabled: apiutils.NewBoolPointer(true),
 					},
 					v2alpha1.NodeAgentComponentName: {

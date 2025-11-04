@@ -120,8 +120,8 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 
 	}
 
-	if ddaSpec.Features.OtelCollectorGateway != nil {
-		o.otelGatewayEnabled = apiutils.BoolValue(ddaSpec.Features.OtelCollectorGateway.Enabled)
+	if ddaSpec.Features.OtelAgentGateway != nil {
+		o.otelGatewayEnabled = apiutils.BoolValue(ddaSpec.Features.OtelAgentGateway.Enabled)
 	}
 
 	return reqComp
@@ -369,6 +369,6 @@ func (o *otelCollectorFeature) ManageClusterChecksRunner(managers feature.PodTem
 	return nil
 }
 
-func (o *otelCollectorFeature) ManageOtelCollectorGateway(managers feature.PodTemplateManagers, provider string) error {
+func (o *otelCollectorFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

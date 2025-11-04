@@ -21,22 +21,22 @@ import (
 
 // RequiredComponents use to know which component need to be enabled for the feature
 type RequiredComponents struct {
-	ClusterAgent         RequiredComponent
-	Agent                RequiredComponent
-	ClusterChecksRunner  RequiredComponent
-	OtelCollectorGateway RequiredComponent
+	ClusterAgent        RequiredComponent
+	Agent               RequiredComponent
+	ClusterChecksRunner RequiredComponent
+	OtelAgentGateway    RequiredComponent
 }
 
 // IsEnabled returns true if any of the components need to be enabled
 func (rc *RequiredComponents) IsEnabled() bool {
-	return rc.ClusterAgent.IsEnabled() || rc.Agent.IsEnabled() || rc.ClusterChecksRunner.IsEnabled() || rc.OtelCollectorGateway.IsEnabled()
+	return rc.ClusterAgent.IsEnabled() || rc.Agent.IsEnabled() || rc.ClusterChecksRunner.IsEnabled() || rc.OtelAgentGateway.IsEnabled()
 }
 
 // IsConfigured returns true if any of the components need to be configured even if not enabled
 // Can be used for features that may require configuration even when disabled
 // Example: setting an env var to false to disable the feature
 func (rc *RequiredComponents) IsConfigured() bool {
-	return rc.ClusterAgent.IsConfigured() || rc.Agent.IsConfigured() || rc.ClusterChecksRunner.IsConfigured() || rc.OtelCollectorGateway.IsConfigured()
+	return rc.ClusterAgent.IsConfigured() || rc.Agent.IsConfigured() || rc.ClusterChecksRunner.IsConfigured() || rc.OtelAgentGateway.IsConfigured()
 }
 
 // Merge use to merge 2 RequiredComponents
@@ -46,7 +46,7 @@ func (rc *RequiredComponents) Merge(in *RequiredComponents) *RequiredComponents 
 	rc.ClusterAgent.Merge(&in.ClusterAgent)
 	rc.Agent.Merge(&in.Agent)
 	rc.ClusterChecksRunner.Merge(&in.ClusterChecksRunner)
-	rc.OtelCollectorGateway.Merge(&in.OtelCollectorGateway)
+	rc.OtelAgentGateway.Merge(&in.OtelAgentGateway)
 	return rc
 }
 
@@ -145,9 +145,9 @@ type Feature interface {
 	// ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageClusterChecksRunner(managers PodTemplateManagers, provider string) error
-	// ManageOtelCollectorGateway allows a feature to configure the OtelCollectorGateway's corev1.PodTemplateSpec
+	// ManageOtelAgentGateway allows a feature to configure the OtelAgentGateway's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
-	ManageOtelCollectorGateway(managers PodTemplateManagers, provider string) error
+	ManageOtelAgentGateway(managers PodTemplateManagers, provider string) error
 }
 
 // Options option that can be pass to the Interface.Configure function

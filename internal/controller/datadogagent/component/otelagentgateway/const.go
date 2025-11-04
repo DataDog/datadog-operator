@@ -3,10 +3,10 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2025-present Datadog, Inc.
 
-package otelcollectorgateway
+package otelagentgateway
 
 const (
 	// pdbMaxUnavailableInstances = 1
-	// DefaultOtelCollectorGatewayReplicas default otel collector gateway deployment replicas
-	defaultOtelCollectorGatewayReplicas = 1
+	// DefaultOtelAgentGatewayReplicas default OTel Agent Gateway deployment replicas
+	defaultOtelAgentGatewayReplicas = 1
 )

@@ -134,6 +134,6 @@ func (f *oomKillFeature) ManageClusterChecksRunner(managers feature.PodTemplateM
 	return nil
 }
 
-func (f *oomKillFeature) ManageOtelCollectorGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *oomKillFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

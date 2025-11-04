@@ -357,6 +357,6 @@ func (f *externalMetricsFeature) ManageClusterChecksRunner(managers feature.PodT
 	return nil
 }
 
-func (f *externalMetricsFeature) ManageOtelCollectorGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *externalMetricsFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

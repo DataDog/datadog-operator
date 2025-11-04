@@ -1,6 +1,6 @@
-# datadog-agent-with-otelcollectorgateway.yaml
-# This example shows how to enable the OTel Collector Gateway component
-# The OTel Collector Gateway runs as a separate deployment and can be used
+# datadog-agent-with-otelagentgateway.yaml
+# This example shows how to enable the OTel Agent Gateway component
+# The OTel Agent Gateway runs as a separate deployment and can be used
 # to collect and forward OpenTelemetry data.
 
 apiVersion: datadoghq.com/v2alpha1
@@ -15,12 +15,12 @@ spec:
         keyName: api-key
 
   features:
-    # Enable OTel Collector Gateway
-    otelCollectorGateway:
+    # Enable OTel Agent Gateway
+    otelAgentGateway:
       enabled: true
 
   override:
-    # Optional: Configure the OTel Collector Gateway deployment
-    otelCollectorGateway:
+    # Optional: Configure the OTel Agent Gateway deployment
+    otelAgentGateway:
       # Number of replicas for the gateway
       replicas: 2

@@ -13,8 +13,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 )
 
-// ApplyGlobalSettingsOtelCollectorGateway applies global settings to the OtelCollectorGateway deployment
-func ApplyGlobalSettingsOtelCollectorGateway(
+// ApplyGlobalSettingsOtelAgentGateway applies global settings to the OtelAgentGateway deployment
+func ApplyGlobalSettingsOtelAgentGateway(
 	logger logr.Logger,
 	manager feature.PodTemplateManagers,
 	ddaMeta metav1.Object,
@@ -23,9 +23,9 @@ func ApplyGlobalSettingsOtelCollectorGateway(
 	requiredComponents feature.RequiredComponents,
 ) {
 	applyGlobalSettings(logger, manager, ddaMeta, ddaSpec, resourcesManager, requiredComponents)
-	applyOtelCollectorGatewayResources(manager, ddaSpec)
+	applyOtelAgentGatewayResources(manager, ddaSpec)
 }
 
-func applyOtelCollectorGatewayResources(manager feature.PodTemplateManagers, ddaSpec *v2alpha1.DatadogAgentSpec) {
-	// Add any OtelCollectorGateway-specific resource configuration here
+func applyOtelAgentGatewayResources(manager feature.PodTemplateManagers, ddaSpec *v2alpha1.DatadogAgentSpec) {
+	// Add any OtelAgentGateway-specific resource configuration here
 }

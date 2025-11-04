@@ -129,6 +129,6 @@ func (f *autoscalingFeature) ManageClusterChecksRunner(managers feature.PodTempl
 	return nil
 }
 
-func (f *autoscalingFeature) ManageOtelCollectorGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *autoscalingFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

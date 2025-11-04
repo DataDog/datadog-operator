@@ -2057,12 +2057,12 @@ spec:
                           type: array
                           x-kubernetes-list-type: atomic
                       type: object
-                    otelCollectorGateway:
-                      description: OtelCollector Gateway configuration.
+                    otelAgentGateway:
+                      description: OTel Agent Gateway configuration.
                       properties:
                         enabled:
                           description: |-
-                            Enabled enables the OTel Collector Gateway.
+                            Enabled enables the OTel Agent Gateway.
                             Default: false
                           type: boolean
                         ports:
@@ -7935,8 +7935,8 @@ spec:
                   x-kubernetes-list-map-keys:
                     - type
                   x-kubernetes-list-type: map
-                otelCollectorGateway:
-                  description: The actual state of the OTel Collector Gateway as a deployment.
+                otelAgentGateway:
+                  description: The actual state of the OTel Agent Gateway as a deployment.
                   properties:
                     availableReplicas:
                       description: Total number of available pods (ready for at least minReadySeconds) targeted by this Deployment.
@@ -9989,12 +9989,12 @@ spec:
                               type: array
                               x-kubernetes-list-type: atomic
                           type: object
-                        otelCollectorGateway:
-                          description: OtelCollector Gateway configuration.
+                        otelAgentGateway:
+                          description: OTel Agent Gateway configuration.
                           properties:
                             enabled:
                               description: |-
-                                Enabled enables the OTel Collector Gateway.
+                                Enabled enables the OTel Agent Gateway.
                                 Default: false
                               type: boolean
                             ports:

@@ -14,7 +14,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -207,8 +207,8 @@ func (in *DatadogAgentInternalStatus) DeepCopyInto(out *DatadogAgentInternalStat
 		*out = new(v2alpha1.DeploymentStatus)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.OtelCollectorGateway != nil {
-		in, out := &in.OtelCollectorGateway, &out.OtelCollectorGateway
+	if in.OtelAgentGateway != nil {
+		in, out := &in.OtelAgentGateway, &out.OtelAgentGateway
 		*out = new(v2alpha1.DeploymentStatus)
 		(*in).DeepCopyInto(*out)
 	}
