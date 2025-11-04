@@ -415,10 +415,6 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 		Name:  common.DDAPMEnabled,
 		Value: "true",
 	})
-	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{agentContainerName, apicommon.CoreAgentContainerName}, &corev1.EnvVar{
-		Name:  DDAPMNonLocalTraffic,
-		Value: "true",
-	})
 
 	// udp
 	apmPort := &corev1.ContainerPort{
@@ -434,6 +430,10 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 			apmPort.ContainerPort = f.hostPortHostPort
 			receiverPortEnvVarValue = int(f.hostPortHostPort)
 		}
+		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{agentContainerName, apicommon.CoreAgentContainerName}, &corev1.EnvVar{
+			Name:  DDAPMNonLocalTraffic,
+			Value: "true",
+		})
 		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 			Name:  DDAPMReceiverPort,
 			Value: strconv.Itoa(receiverPortEnvVarValue),
@@ -471,6 +471,12 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, runInCoreAgentEnvVar)
 		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, runInCoreAgentEnvVar)
+	} else {
+		// Language Detection reporting is enabled by default in the Agent
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+			Name:  DDLanguageDetectionReportingEnabled,
+			Value: "false",
+		})
 	}
 
 	// uds
