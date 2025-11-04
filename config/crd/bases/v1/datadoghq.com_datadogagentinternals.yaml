@@ -1937,6 +1937,56 @@ spec:
                             Default: true
                           type: boolean
                       type: object
+                    otelAgentGateway:
+                      description: OTel Agent Gateway configuration.
+                      properties:
+                        enabled:
+                          description: |-
+                            Enabled enables the OTel Agent Gateway.
+                            Default: false
+                          type: boolean
+                        ports:
+                          description: |-
+                            Ports contains the ports that the OTel Collector is listening on.
+                            Defaults: otel-grpc:4317 / otel-http:4318.
+                          items:
+                            description: ContainerPort represents a network port in a single container.
+                            properties:
+                              containerPort:
+                                description: |-
+                                  Number of port to expose on the pod's IP address.
+                                  This must be a valid port number, 0 < x < 65536.
+                                format: int32
+                                type: integer
+                              hostIP:
+                                description: What host IP to bind the external port to.
+                                type: string
+                              hostPort:
+                                description: |-
+                                  Number of port to expose on the host.
+                                  If specified, this must be a valid port number, 0 < x < 65536.
+                                  If HostNetwork is specified, this must match ContainerPort.
+                                  Most containers do not need this.
+                                format: int32
+                                type: integer
+                              name:
+                                description: |-
+                                  If specified, this must be an IANA_SVC_NAME and unique within the pod. Each
+                                  named port in a pod must have a unique name. Name for the port that can be
+                                  referred to by services.
+                                type: string
+                              protocol:
+                                default: TCP
+                                description: |-
+                                  Protocol for port. Must be UDP, TCP, or SCTP.
+                                  Defaults to "TCP".
+                                type: string
+                            required:
+                              - containerPort
+                            type: object
+                          type: array
+                          x-kubernetes-list-type: atomic
+                      type: object
                     otelCollector:
                       description: OtelCollector configuration.
                       properties:
@@ -2019,56 +2069,6 @@ spec:
                             or 4318 manually is *only* supported if name match default names (otel-grpc, otel-http).
                             If not, this will lead to a port conflict.
                             This limitation will be lifted once annotations support is removed.
-                          items:
-                            description: ContainerPort represents a network port in a single container.
-                            properties:
-                              containerPort:
-                                description: |-
-                                  Number of port to expose on the pod's IP address.
-                                  This must be a valid port number, 0 < x < 65536.
-                                format: int32
-                                type: integer
-                              hostIP:
-                                description: What host IP to bind the external port to.
-                                type: string
-                              hostPort:
-                                description: |-
-                                  Number of port to expose on the host.
-                                  If specified, this must be a valid port number, 0 < x < 65536.
-                                  If HostNetwork is specified, this must match ContainerPort.
-                                  Most containers do not need this.
-                                format: int32
-                                type: integer
-                              name:
-                                description: |-
-                                  If specified, this must be an IANA_SVC_NAME and unique within the pod. Each
-                                  named port in a pod must have a unique name. Name for the port that can be
-                                  referred to by services.
-                                type: string
-                              protocol:
-                                default: TCP
-                                description: |-
-                                  Protocol for port. Must be UDP, TCP, or SCTP.
-                                  Defaults to "TCP".
-                                type: string
-                            required:
-                              - containerPort
-                            type: object
-                          type: array
-                          x-kubernetes-list-type: atomic
-                      type: object
-                    otelAgentGateway:
-                      description: OTel Agent Gateway configuration.
-                      properties:
-                        enabled:
-                          description: |-
-                            Enabled enables the OTel Agent Gateway.
-                            Default: false
-                          type: boolean
-                        ports:
-                          description: |-
-                            Ports contains the ports that the OTel Collector is listening on.
-                            Defaults: otel-grpc:4317 / otel-http:4318.
                           items:
                             description: ContainerPort represents a network port in a single container.
                             properties:
@@ -9819,6 +9819,56 @@ spec:
                                 Default: true
                               type: boolean
                           type: object
+                        otelAgentGateway:
+                          description: OTel Agent Gateway configuration.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables the OTel Agent Gateway.
+                                Default: false
+                              type: boolean
+                            ports:
+                              description: |-
+                                Ports contains the ports that the OTel Collector is listening on.
+                                Defaults: otel-grpc:4317 / otel-http:4318.
+                              items:
+                                description: ContainerPort represents a network port in a single container.
+                                properties:
+                                  containerPort:
+                                    description: |-
+                                      Number of port to expose on the pod's IP address.
+                                      This must be a valid port number, 0 < x < 65536.
+                                    format: int32
+                                    type: integer
+                                  hostIP:
+                                    description: What host IP to bind the external port to.
+                                    type: string
+                                  hostPort:
+                                    description: |-
+                                      Number of port to expose on the host.
+                                      If specified, this must be a valid port number, 0 < x < 65536.
+                                      If HostNetwork is specified, this must match ContainerPort.
+                                      Most containers do not need this.
+                                    format: int32
+                                    type: integer
+                                  name:
+                                    description: |-
+                                      If specified, this must be an IANA_SVC_NAME and unique within the pod. Each
+                                      named port in a pod must have a unique name. Name for the port that can be
+                                      referred to by services.
+                                    type: string
+                                  protocol:
+                                    default: TCP
+                                    description: |-
+                                      Protocol for port. Must be UDP, TCP, or SCTP.
+                                      Defaults to "TCP".
+                                    type: string
+                                required:
+                                  - containerPort
+                                type: object
+                              type: array
+                              x-kubernetes-list-type: atomic
+                          type: object
                         otelCollector:
                           description: OtelCollector configuration.
                           properties:
@@ -9901,56 +9951,6 @@ spec:
                                 or 4318 manually is *only* supported if name match default names (otel-grpc, otel-http).
                                 If not, this will lead to a port conflict.
                                 This limitation will be lifted once annotations support is removed.
-                              items:
-                                description: ContainerPort represents a network port in a single container.
-                                properties:
-                                  containerPort:
-                                    description: |-
-                                      Number of port to expose on the pod's IP address.
-                                      This must be a valid port number, 0 < x < 65536.
-                                    format: int32
-                                    type: integer
-                                  hostIP:
-                                    description: What host IP to bind the external port to.
-                                    type: string
-                                  hostPort:
-                                    description: |-
-                                      Number of port to expose on the host.
-                                      If specified, this must be a valid port number, 0 < x < 65536.
-                                      If HostNetwork is specified, this must match ContainerPort.
-                                      Most containers do not need this.
-                                    format: int32
-                                    type: integer
-                                  name:
-                                    description: |-
-                                      If specified, this must be an IANA_SVC_NAME and unique within the pod. Each
-                                      named port in a pod must have a unique name. Name for the port that can be
-                                      referred to by services.
-                                    type: string
-                                  protocol:
-                                    default: TCP
-                                    description: |-
-                                      Protocol for port. Must be UDP, TCP, or SCTP.
-                                      Defaults to "TCP".
-                                    type: string
-                                required:
-                                  - containerPort
-                                type: object
-                              type: array
-                              x-kubernetes-list-type: atomic
-                          type: object
-                        otelAgentGateway:
-                          description: OTel Agent Gateway configuration.
-                          properties:
-                            enabled:
-                              description: |-
-                                Enabled enables the OTel Agent Gateway.
-                                Default: false
-                              type: boolean
-                            ports:
-                              description: |-
-                                Ports contains the ports that the OTel Collector is listening on.
-                                Defaults: otel-grpc:4317 / otel-http:4318.
                               items:
                                 description: ContainerPort represents a network port in a single container.
                                 properties:

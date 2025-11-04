@@ -154,6 +154,8 @@ spec:
 | features.orchestratorExplorer.enabled | Enables the Orchestrator Explorer. Default: true |
 | features.orchestratorExplorer.extraTags | Additional tags to associate with the collected data in the form of `a b c`. This is a Cluster Agent option distinct from DD_TAGS that is used in the Orchestrator Explorer. |
 | features.orchestratorExplorer.scrubContainers | ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ). Default: true |
+| features.otelAgentGateway.enabled | Enables the OTel Agent Gateway. Default: false |
+| features.otelAgentGateway.ports | Contains the ports that the OTel Collector is listening on. Defaults: otel-grpc:4317 / otel-http:4318. |
 | features.otelCollector.conf.configData | ConfigData corresponds to the configuration file content. |
 | features.otelCollector.conf.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | features.otelCollector.conf.configMap.name | Is the name of the ConfigMap. |
@@ -162,8 +164,6 @@ spec:
 | features.otelCollector.coreConfig.extensionURL | Extension URL provides the URL of the ddflareextension to the core agent. |
 | features.otelCollector.enabled | Enables the OTel Agent. Default: false |
 | features.otelCollector.ports | Contains the ports for the otel-agent. Defaults: otel-grpc:4317 / otel-http:4318. Note: setting 4317 or 4318 manually is *only* supported if name match default names (otel-grpc, otel-http). If not, this will lead to a port conflict. This limitation will be lifted once annotations support is removed. |
-| features.otelAgentGateway.enabled | Enables the OTel Agent Gateway. Default: false |
-| features.otelAgentGateway.ports | Contains the ports that the OTel Collector is listening on. Defaults: otel-grpc:4317 / otel-http:4318. |
 | features.otlp.receiver.protocols.grpc.enabled | Enable the OTLP/gRPC endpoint. Host port is enabled by default and can be disabled. |
 | features.otlp.receiver.protocols.grpc.endpoint | For OTLP/gRPC. gRPC supports several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md The Datadog Operator supports only 'host:port' (usually `0.0.0.0:port`). Default: `0.0.0.0:4317`. |
 | features.otlp.receiver.protocols.grpc.hostPortConfig.enabled | Enables host port configuration |

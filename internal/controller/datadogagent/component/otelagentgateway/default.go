@@ -62,7 +62,7 @@ func defaultPodSpec(dda metav1.Object) corev1.PodSpec {
 		Containers: []corev1.Container{
 			{
 				Name:    string(apicommon.OtelAgent),
-				Image:   "docker.io/library/busybox:latest",
+				Image:   "docker.io/ddot-collector:latest",
 				Command: []string{"/bin/sh"},
 				Args:    []string{"-c", "while true; do date; sleep 10; done"},
 			},
