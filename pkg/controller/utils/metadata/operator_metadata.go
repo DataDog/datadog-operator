@@ -205,39 +205,68 @@ func (omf *OperatorMetadataForwarder) getResourceCounts() string {
 		return "{}"
 	}
 
-	ddaList := &v2alpha1.DatadogAgentList{}
-	if err := omf.k8sClient.List(context.TODO(), ddaList); err == nil {
-		counts["datadogagent"] = len(ddaList.Items)
+	// Only list resources that are enabled
+	if omf.OperatorMetadata.DatadogAgentEnabled {
+		ddaList := &v2alpha1.DatadogAgentList{}
+		if err := omf.k8sClient.List(context.TODO(), ddaList); err == nil {
+			counts["datadogagent"] = len(ddaList.Items)
+		} else {
+			omf.logger.V(1).Info("Failed to list DatadogAgents", "error", err)
+		}
 	}
 
-	ddaiList := &v1alpha1.DatadogAgentInternalList{}
-	if err := omf.k8sClient.List(context.TODO(), ddaiList); err == nil {
-		counts["datadogagentinternal"] = len(ddaiList.Items)
+	if omf.OperatorMetadata.DatadogAgentInternalEnabled {
+		ddaiList := &v1alpha1.DatadogAgentInternalList{}
+		if err := omf.k8sClient.List(context.TODO(), ddaiList); err == nil {
+			counts["datadogagentinternal"] = len(ddaiList.Items)
+		} else {
+			omf.logger.V(1).Info("Failed to list DatadogAgentInternals", "error", err)
+		}
 	}
 
-	monitorList := &v1alpha1.DatadogMonitorList{}
-	if err := omf.k8sClient.List(context.TODO(), monitorList); err == nil {
-		counts["datadogmonitor"] = len(monitorList.Items)
+	if omf.OperatorMetadata.DatadogMonitorEnabled {
+		monitorList := &v1alpha1.DatadogMonitorList{}
+		if err := omf.k8sClient.List(context.TODO(), monitorList); err == nil {
+			counts["datadogmonitor"] = len(monitorList.Items)
+		} else {
+			omf.logger.V(1).Info("Failed to list DatadogMonitors", "error", err)
+		}
 	}
 
-	dashboardList := &v1alpha1.DatadogDashboardList{}
-	if err := omf.k8sClient.List(context.TODO(), dashboardList); err == nil {
-		counts["datadogdashboard"] = len(dashboardList.Items)
+	if omf.OperatorMetadata.DatadogDashboardEnabled {
+		dashboardList := &v1alpha1.DatadogDashboardList{}
+		if err := omf.k8sClient.List(context.TODO(), dashboardList); err == nil {
+			counts["datadogdashboard"] = len(dashboardList.Items)
+		} else {
+			omf.logger.V(1).Info("Failed to list DatadogDashboards", "error", err)
+		}
 	}
 
-	sloList := &v1alpha1.DatadogSLOList{}
-	if err := omf.k8sClient.List(context.TODO(), sloList); err == nil {
-		counts["datadogslo"] = len(sloList.Items)
+	if omf.OperatorMetadata.DatadogSLOEnabled {
+		sloList := &v1alpha1.DatadogSLOList{}
+		if err := omf.k8sClient.List(context.TODO(), sloList); err == nil {
+			counts["datadogslo"] = len(sloList.Items)
+		} else {
+			omf.logger.V(1).Info("Failed to list DatadogSLOs", "error", err)
+		}
 	}
 
-	genericList := &v1alpha1.DatadogGenericResourceList{}
-	if err := omf.k8sClient.List(context.TODO(), genericList); err == nil {
-		counts["datadoggenericresource"] = len(genericList.Items)
+	if omf.OperatorMetadata.DatadogGenericResourceEnabled {
+		genericList := &v1alpha1.DatadogGenericResourceList{}
+		if err := omf.k8sClient.List(context.TODO(), genericList); err == nil {
+			counts["datadoggenericresource"] = len(genericList.Items)
+		} else {
+			omf.logger.V(1).Info("Failed to list DatadogGenericResources", "error", err)
+		}
 	}
 
-	profileList := &v1alpha1.DatadogAgentProfileList{}
-	if err := omf.k8sClient.List(context.TODO(), profileList); err == nil {
-		counts["datadogagentprofile"] = len(profileList.Items)
+	if omf.OperatorMetadata.DatadogAgentProfileEnabled {
+		profileList := &v1alpha1.DatadogAgentProfileList{}
+		if err := omf.k8sClient.List(context.TODO(), profileList); err == nil {
+			counts["datadogagentprofile"] = len(profileList.Items)
+		} else {
+			omf.logger.V(1).Info("Failed to list DatadogAgentProfiles", "error", err)
+		}
 	}
 
 	// Serialize to JSON string
