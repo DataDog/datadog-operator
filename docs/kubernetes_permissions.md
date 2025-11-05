@@ -11,13 +11,13 @@ This document explains how and why the Operator requires RBAC permissions for Ku
 
 ## Generation of Datadog Operator role
 
-The [Datadog Operator ClusterRole](../config/rbac/role.yaml) is automatically generated using [kubebuilder markers](https://book.kubebuilder.io/reference/markers/rbac) listed in `_controller` files: [datadogagent_controller.go](../internal/controller/datadogagent_controller.go) for instance. For a given controller, it can only grant a RBAC permission if itself is granted it. This means that in order for the `DatadogAgent` controller to create the Agent DaemonSet, the Operator itself needs this permission granted.
+The [Datadog Operator ClusterRole](../config/rbac/role.yaml) is automatically generated using [kubebuilder markers](https://book.kubebuilder.io/reference/markers/rbac) listed in `_controller` files: [datadogagent_controller.go](../internal/controller/datadogagent_controller.go) for instance. For a given controller, it can only grant a RBAC permission if itself is granted it. This means that in order for the `DatadogAgent` controller to create the Agent DaemonSet, the Operator itself needs to be granted this permission.
 
 ## Minimal set of permissions needed by the Datadog Operator
 
 The Datadog Operator requires a very minimal set of permissions to run without errors:
 * Manage `leases` in the API group `coordination.k8s.io`: this is needed to run leader election. Only a single Operator replica will take actions when running multiple replicas for availability.
-* Manage (`create`, `get`, `list`, `watch`, `update`, `delete`, `patch`) Datadog-custom resources (`datadoghq.com` API group) depending on which controller is enabled: e.g. if the `DatadogDashboard` controller is enabled, it needs these permissions for `datadogdashboards` resource. This is needed to manage the lifecycle on these resources: if a `DatadogDashboard` is created, the Operator needs to know and reconcile accordingly.
+* Manage (`create`, `get`, `list`, `watch`, `update`, `delete`, `patch`) Datadog custom resources (`datadoghq.com` API group) depending on which controller is enabled. For example,  if the `DatadogDashboard` controller is enabled, it needs these permissions to manage the lifecycle of `DatadogDashboard` resources, such as when a `DatadogDashboard` is created, the Operator needs to know and reconcile accordingly.
     * The exact set of resources is listed in `_controller` files within [controller](../internal/controller).
     * If the custom resource manages native Kubernetes resources (e.g. a `DaemonSet` is created by the `DatadogAgent` controller), managing it is also needed.
 
@@ -56,27 +56,11 @@ The Operator uses a `ClusterRole` instead of a `Role` for its permissions as it 
 
 Understanding which permissions are used in different configurations can help clarify why the Operator requires its broad ClusterRole.
 
-### Basic Agent deployment (default configuration)
-- `daemonsets`, `deployments`: Create and manage Agent components
-- `configmaps`, `secrets`: Store Agent configuration (namespace-scoped by default)
-- `services`: Expose Agent components endpoints
-- `serviceaccounts`, `roles`, `rolebindings`: Create Agent ServiceAccounts with appropriate permissions
-- `nodes`, `pods`: Gather cluster metrics and metadata
-
-### APM with Admission Controller enabled
-- All basic permissions, plus:
-- `mutatingwebhookconfigurations`: Create a webhook to mutate pods to inject Datadog-related configurations
-- `certificatesigningrequests`: Generate certificates for webhook server
-
-### Kubernetes State Metrics Core
-- All basic permissions, plus:
-- `clusterroles`, `clusterrolebindings`: Create cluster-wide permissions for metrics collection
-- Extended permissions on various resource types for comprehensive metrics gathering
-
-### Orchestrator Explorer
-- All basic permissions, plus:
-- Extended `get`, `list`, `watch` on workload resources (deployments, replicasets, statefulsets, etc.)
-- `events` access for change tracking
+| Scenario | Required permissions (not exhaustive) | Notes |
+|---|---|---|
+| Basic Agent deployment (default configuration) | `daemonsets`, `deployments`; `configmaps`, `secrets`; `services`; `serviceaccounts`, `roles`, `rolebindings`; `nodes`, `pods` | Create/manage Agent components; store Agent configuration (namespace-scoped by default); expose Agent endpoints; create ServiceAccounts with appropriate permissions; gather cluster metrics and metadata |
+| APM with Admission Controller enabled | All Basic, plus: `mutatingwebhookconfigurations`; `certificatesigningrequests` | Create a mutating webhook to inject Datadog config into pods; generate certificates for the webhook server |
+| Kubernetes State Metrics Core | All Basic, plus: `clusterroles`, `clusterrolebindings`; extended permissions on various resources | Create cluster-wide permissions for metrics collection; broader read access for comprehensive metrics gathering |
 
 ## Security considerations
 
