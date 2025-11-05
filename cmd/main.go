@@ -207,7 +207,7 @@ func main() {
 	}
 
 	// Create EC2NodeClass and NodePool
-	nodeGroupProperties := []guess.NodeGroupProperties{}
+	var nodePoolsSet *guess.NodePoolsSet
 	switch InferenceMethod(*inferenceMethod) {
 	case InferenceMethodNone:
 		log.Printf("Karpenter has been successfully installed, but no EC2NodeClass nor NodePool have been created yet. " +
@@ -219,19 +219,19 @@ func main() {
 	case InferenceMethodNodes:
 		ec2Client := ec2.NewFromConfig(awsConfig)
 
-		nodeGroupProperties, err = guess.GetNodesProperties(ctx, kubeClientSet, ec2Client)
+		nodePoolsSet, err = guess.GetNodesProperties(ctx, kubeClientSet, ec2Client)
 		if err != nil {
 			log.Fatal(err)
 		}
 
 	case InferenceMethodNodeGroups:
-		nodeGroupProperties, err = guess.GetNodeGroupsProperties(ctx, eksClient, *clusterName)
+		nodePoolsSet, err = guess.GetNodeGroupsProperties(ctx, eksClient, *clusterName)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
 
-	log.Printf("Creating the following node groups:\n %s", spew.Sdump(nodeGroupProperties))
+	log.Printf("Creating the following node pools:\n %s", spew.Sdump(nodePoolsSet))
 
 	sch := runtime.NewScheme()
 	if err := scheme.AddToScheme(sch); err != nil {
@@ -255,28 +255,18 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for i, ng := range nodeGroupProperties {
-		var name string
-		if ng.Name != "" {
-			name = "dd-karpenter-" + ng.Name
-		} else {
-			name = "dd-karpenter-" + strconv.Itoa(i)
-		}
-
-		if err := k8s.CreateOrUpdateEC2NodeClass(
-			ctx,
-			k8sClient,
-			name,
-			*clusterName,
-			[]string{ng.AMIID},
-			ng.Subnets,
-			ng.SecurityGroups,
-		); err != nil {
-			log.Fatal(err)
-		}
-
-		if err := k8s.CreateOrUpdateNodePool(ctx, k8sClient, name, ng.Labels, ng.Taints); err != nil {
+	for _, nc := range nodePoolsSet.GetEC2NodeClasses() {
+		if err := k8s.CreateOrUpdateEC2NodeClass(ctx, k8sClient, *clusterName, nc); err != nil {
 			log.Fatal(err)
 		}
 	}
+
+	for _, np := range nodePoolsSet.GetNodePools() {
+		if err := k8s.CreateOrUpdateNodePool(ctx, k8sClient, np); err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	log.Println("Karpenter is now fully up and running.")
+	log.Println("You can now go to https://app.datadoghq.com/orchestration/scaling/cluster to enable Datadog managed cluster autoscaling.")
 }
