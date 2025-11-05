@@ -21,7 +21,7 @@ const NodeListChunkSize = 100
 
 var awsProviderIDRegexp = regexp.MustCompile(`^aws:///[^/]+/(i-[0-9a-f]+)$`)
 
-func GetNodesProperties(ctx context.Context, clientset *kubernetes.Clientset, client *ec2.Client) (*NodePoolsSet, error) {
+func GetNodesProperties(ctx context.Context, clientset *kubernetes.Clientset, ec2Client *ec2.Client) (*NodePoolsSet, error) {
 	nps := NewNodePoolsSet()
 
 	var cont string
@@ -52,7 +52,7 @@ func GetNodesProperties(ctx context.Context, clientset *kubernetes.Clientset, cl
 			return nil, errors.New("No node not managed by Karpenter found in the cluster")
 		}
 
-		instances, err := client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
+		instances, err := ec2Client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
 			InstanceIds: slices.Collect(maps.Keys(instanceToNode)),
 		})
 		if err != nil {

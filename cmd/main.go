@@ -206,6 +206,8 @@ func main() {
 		log.Fatal(err)
 	}
 
+	ec2Client := ec2.NewFromConfig(awsConfig)
+
 	// Create EC2NodeClass and NodePool
 	var nodePoolsSet *guess.NodePoolsSet
 	switch InferenceMethod(*inferenceMethod) {
@@ -217,15 +219,13 @@ func main() {
 		return
 
 	case InferenceMethodNodes:
-		ec2Client := ec2.NewFromConfig(awsConfig)
-
 		nodePoolsSet, err = guess.GetNodesProperties(ctx, kubeClientSet, ec2Client)
 		if err != nil {
 			log.Fatal(err)
 		}
 
 	case InferenceMethodNodeGroups:
-		nodePoolsSet, err = guess.GetNodeGroupsProperties(ctx, eksClient, *clusterName)
+		nodePoolsSet, err = guess.GetNodeGroupsProperties(ctx, eksClient, ec2Client, *clusterName)
 		if err != nil {
 			log.Fatal(err)
 		}
