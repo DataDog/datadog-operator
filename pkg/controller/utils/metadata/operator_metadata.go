@@ -78,12 +78,6 @@ func NewOperatorMetadataForwarder(logger logr.Logger, k8sClient client.Reader, k
 
 // Start starts the operator metadata forwarder
 func (omf *OperatorMetadataForwarder) Start() {
-	err := omf.setCredentials()
-	if err != nil {
-		omf.logger.Error(err, "Could not set credentials; not starting operator metadata forwarder")
-		return
-	}
-
 	if omf.hostName == "" {
 		omf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting operator metadata forwarder")
 		return
@@ -104,6 +98,13 @@ func (omf *OperatorMetadataForwarder) Start() {
 }
 
 func (omf *OperatorMetadataForwarder) sendMetadata() error {
+	// Set credentials on every send to refresh credentials
+	err := omf.setCredentials()
+	if err != nil {
+		omf.logger.Error(err, "Could not set credentials; not starting operator metadata forwarder")
+		return err
+	}
+
 	clusterUID, err := omf.GetOrCreateClusterUID()
 	if err != nil {
 		omf.logger.Error(err, "Failed to get cluster UID")
