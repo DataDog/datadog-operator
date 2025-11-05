@@ -140,7 +140,8 @@ func Test_setup(t *testing.T) {
 
 			// Create OperatorMetadataForwarder with the new structure
 			omf := &OperatorMetadataForwarder{
-				SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0", config.NewCredentialManager()),
+				SharedMetadata:      NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0", config.NewCredentialManager()),
+				resourceCountsCache: make(map[string]int),
 			}
 
 			tt.loadFunc()
@@ -175,9 +176,11 @@ func Test_GetPayload(t *testing.T) {
 	omf := &OperatorMetadataForwarder{
 		SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, expectedKubernetesVersion, expectedOperatorVersion, config.NewCredentialManager()),
 		OperatorMetadata: OperatorMetadata{
-			ClusterName: expectedClusterName,
-			IsLeader:    true,
+			ClusterName:    expectedClusterName,
+			IsLeader:       true,
+			ResourceCounts: "{}",
 		},
+		resourceCountsCache: make(map[string]int),
 	}
 
 	// Set hostname in SharedMetadata to simulate it being populated
