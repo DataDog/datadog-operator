@@ -7,7 +7,7 @@ toolchain go1.24.7
 require (
 	github.com/aws/aws-sdk-go-v2 v1.39.6
 	github.com/aws/aws-sdk-go-v2/config v1.31.12
-	github.com/aws/aws-sdk-go-v2/service/cloudformation v1.67.0
+	github.com/aws/aws-sdk-go-v2/service/cloudformation v1.68.3
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.254.1
 	github.com/aws/aws-sdk-go-v2/service/eks v1.74.7
 	github.com/aws/aws-sdk-go-v2/service/sts v1.39.0
