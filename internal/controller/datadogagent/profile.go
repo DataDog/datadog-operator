@@ -9,7 +9,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -32,31 +32,89 @@ func sendProfileEnabledMetric(enabled bool) {
 	}
 }
 
-func (r *Reconciler) applyProfilesToDDAISpec(ctx context.Context, logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, now metav1.Time) ([]*v1alpha1.DatadogAgentInternal, error) {
+func (r *Reconciler) reconcileProfiles(ctx context.Context) ([]*v1alpha1.DatadogAgentProfile, error) {
+	now := metav1.Now()
+	// start with the default profile so that on error, at minimum the default profile is applied
+	appliedProfiles := []*v1alpha1.DatadogAgentProfile{
+		&v1alpha1.DatadogAgentProfile{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "",
+				Name:      "default",
+			},
+		},
+	}
+	// get and sort all profiles
+	profilesList := v1alpha1.DatadogAgentProfileList{}
+	if err := r.client.List(ctx, &profilesList); err != nil {
+		return appliedProfiles, fmt.Errorf("unable to list DatadogAgentProfiles: %w", err)
+	}
+	sortedProfiles := agentprofile.SortProfiles(profilesList.Items)
+
+	nodeList, err := r.getNodeList(ctx)
+	if err != nil {
+		return appliedProfiles, fmt.Errorf("unable to get node list: %w", err)
+	}
+
+	profilesByNode := make(map[string]types.NamespacedName)
+	for _, profile := range sortedProfiles {
+		profileCopy := profile.DeepCopy() // deep copy to avoid modifying status of original profile
+		if err := r.reconcileProfile(ctx, profileCopy, nodeList, profilesByNode, now); err != nil {
+			// errors will be validation or conflict errors
+			r.log.Error(err, "unable to reconcile profile", "datadogagentprofile", profileCopy.Name, "datadogagentprofile_namespace", profileCopy.Namespace)
+		}
+		agentprofile.GenerateProfileStatusFromConditions(r.log, profileCopy, now)
+		if !agentprofile.IsEqualStatus(&profile.Status, &profileCopy.Status) {
+			if err := r.client.Status().Update(ctx, profileCopy); err != nil {
+				r.log.Error(err, "unable to update profile status", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+			}
+		}
+		// add profile to list of applied profiles only if it was applied successfully
+		if profileCopy.Status.Applied == metav1.ConditionTrue {
+			// copy or og?
+			appliedProfiles = append(appliedProfiles, profileCopy)
+			r.log.Info("waffles adding to applied profiles", "profile", profileCopy.Name)
+		}
+	}
+
+	r.log.Info("waffles profilesByNode", "profilesByNode", profilesByNode)
+
+	// label nodes
+	if err := r.labelNodesWithProfiles(ctx, profilesByNode); err != nil {
+		return appliedProfiles, fmt.Errorf("unable to label nodes with profiles: %w", err)
+	}
+	return appliedProfiles, nil
+}
+
+func (r *Reconciler) reconcileProfile(ctx context.Context, profile *v1alpha1.DatadogAgentProfile, nodeList []corev1.Node, profilesByNode map[string]types.NamespacedName, now metav1.Time) error {
+	r.log.Info("reconciling profile", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+	// validate profile name, spec, and selectors
+	requirements, err := agentprofile.ValidateProfileAndReturnRequirements(profile, r.options.DatadogAgentInternalEnabled)
+	if err != nil {
+		metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.FalseValue)
+		profile.Status.Conditions = agentprofile.SetDatadogAgentProfileCondition(profile.Status.Conditions, agentprofile.NewDatadogAgentProfileCondition(agentprofile.ValidConditionType, metav1.ConditionFalse, now, agentprofile.InvalidConditionReason, err.Error()))
+		profile.Status.Conditions = agentprofile.SetDatadogAgentProfileCondition(profile.Status.Conditions, agentprofile.NewDatadogAgentProfileCondition(agentprofile.AppliedConditionType, metav1.ConditionUnknown, now, "", ""))
+		return err
+	}
+	metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.TrueValue)
+	profile.Status.Conditions = agentprofile.SetDatadogAgentProfileCondition(profile.Status.Conditions, agentprofile.NewDatadogAgentProfileCondition(agentprofile.ValidConditionType, metav1.ConditionTrue, now, agentprofile.ValidConditionReason, "Valid manifest"))
+
+	// err can only be conflict
+	if err := agentprofile.ApplyProfileToNodes(profile.ObjectMeta, requirements, nodeList, profilesByNode); err != nil {
+		profile.Status.Conditions = agentprofile.SetDatadogAgentProfileCondition(profile.Status.Conditions, agentprofile.NewDatadogAgentProfileCondition(agentprofile.AppliedConditionType, metav1.ConditionFalse, now, agentprofile.ConflictConditionReason, "Conflict with existing profile"))
+		return err
+	}
+	profile.Status.Conditions = agentprofile.SetDatadogAgentProfileCondition(profile.Status.Conditions, agentprofile.NewDatadogAgentProfileCondition(agentprofile.AppliedConditionType, metav1.ConditionTrue, now, agentprofile.AppliedConditionReason, "Profile applied"))
+
+	return nil
+}
+
+func (r *Reconciler) applyProfilesToDDAISpec(ddai *v1alpha1.DatadogAgentInternal, profiles []*v1alpha1.DatadogAgentProfile) ([]*v1alpha1.DatadogAgentInternal, error) {
 	ddais := []*v1alpha1.DatadogAgentInternal{}
-	var err error
-
-	var nodeList []corev1.Node
-	nodeList, err = r.getNodeList(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var profiles []v1alpha1.DatadogAgentProfile
-	var profilesByNode map[string]types.NamespacedName
-	profiles, profilesByNode, err = r.profilesToApply(ctx, logger, nodeList, now, &ddai.Spec)
-	if err != nil {
-		return nil, err
-	}
-
-	if err = r.handleProfiles(ctx, profilesByNode, ddai.Namespace); err != nil {
-		return nil, err
-	}
 
 	// For all profiles, create DDAI objects
 	// Note: profiles includes the default profile to allow the default affinity to be set
 	for _, profile := range profiles {
-		mergedDDAI, err := r.computeProfileMerge(ddai, &profile)
+		mergedDDAI, err := r.computeProfileMerge(ddai, profile)
 		if err != nil {
 			return nil, err
 		}

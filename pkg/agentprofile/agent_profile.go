@@ -39,6 +39,100 @@ const (
 	labelValueMaxLength = 63
 )
 
+// ApplyProfileToNodes applies a profile to nodes based on its label requirements
+// If there is a conflict with an existing profile, it returns an error
+func ApplyProfileToNodes(profile metav1.ObjectMeta, profileRequirements []*labels.Requirement, nodes []v1.Node, profileAppliedByNode map[string]types.NamespacedName) error {
+	// matchingNodes := map[string]bool{}
+	// toLabelNodeCount := 0
+	for _, node := range nodes {
+		matchesNode := profileMatchesNodeWithRequirements(profileRequirements, node.Labels)
+		// metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.TrueValue)
+		// profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionTrue, now, ValidConditionReason, "Valid manifest"))
+
+		if matchesNode {
+			if existingProfile, found := profileAppliedByNode[node.Name]; found {
+				// Conflict. This profile should not be applied.
+				// logger.Info("conflict with existing profile, skipping", "conflicting profile", profile.Namespace+"/"+profile.Name, "existing profile", existingProfile.String())
+				// profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(AppliedConditionType, metav1.ConditionFalse, now, ConflictConditionReason, "Conflict with existing profile"))
+				// profileStatus.Applied = metav1.ConditionFalse
+				// UpdateProfileStatus(logger, profile, profileStatus, now)
+				return fmt.Errorf("profile %s conflicts with existing profile: %s", profile.Name, existingProfile.String())
+				// } else {
+				// 	profileLabelValue, labelExists := node.Labels[constants.ProfileLabelKey]
+				// 	if labelExists && profileLabelValue == profile.Name {
+				// 		matchingNodes[node.Name] = true
+				// 	} else {
+				// 		matchingNodes[node.Name] = false
+				// 		toLabelNodeCount++
+				// 	}
+				// 	profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(AppliedConditionType, metav1.ConditionTrue, now, AppliedConditionReason, "Profile applied"))
+				// 	profileStatus.Applied = metav1.ConditionTrue
+			}
+
+			profileAppliedByNode[node.Name] = types.NamespacedName{
+				Namespace: profile.Namespace,
+				Name:      profile.Name,
+			}
+		}
+	}
+
+	// numNodesToLabel := 0
+	// if CreateStrategyEnabled() {
+	// 	profileStatus.CreateStrategy = &v1alpha1.CreateStrategy{}
+	// 	if profile.Status.CreateStrategy != nil {
+	// 		profileStatus.CreateStrategy.PodsReady = profile.Status.CreateStrategy.PodsReady
+	// 		profileStatus.CreateStrategy.LastTransition = profile.Status.CreateStrategy.LastTransition
+	// 	}
+	// 	profileStatus.CreateStrategy.Status = getCreateStrategyStatus(profile.Status.CreateStrategy, toLabelNodeCount)
+	// 	profileStatus.CreateStrategy.MaxUnavailable = int32(maxUnavailable)
+
+	// 	if canLabel(logger, profileStatus.CreateStrategy) {
+	// 		numNodesToLabel = getNumNodesToLabel(profile.Status.CreateStrategy, maxUnavailable, toLabelNodeCount)
+	// 	}
+	// }
+
+	// for node, hasCorrectProfileLabel := range matchingNodes {
+	// 	if CreateStrategyEnabled() {
+	// 		if hasCorrectProfileLabel {
+	// 			profileStatus.CreateStrategy.NodesLabeled++
+	// 		} else {
+	// 			if numNodesToLabel <= 0 {
+	// 				continue
+	// 			}
+	// 			numNodesToLabel--
+	// 			profileStatus.CreateStrategy.NodesLabeled++
+	// 		}
+	// 	}
+
+	// 	profileAppliedByNode[node] = types.NamespacedName{
+	// 		Namespace: profile.Namespace,
+	// 		Name:      profile.Name,
+	// 	}
+	// }
+
+	// UpdateProfileStatus(logger, profile, profileStatus, now)
+	return nil
+
+}
+
+func ValidateProfileAndReturnRequirements(profile *v1alpha1.DatadogAgentProfile, ddaiEnabled bool) ([]*labels.Requirement, error) {
+	if err := validateProfile(profile, ddaiEnabled); err != nil {
+		return nil, err
+	}
+	return ParseProfileRequirements(profile)
+}
+
+// names, spec, selectors
+func validateProfile(profile *v1alpha1.DatadogAgentProfile, ddaiEnabled bool) error {
+	if err := validateProfileName(profile.Name); err != nil {
+		return fmt.Errorf("profile name is invalid: %w", err)
+	}
+	if err := v1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec, ddaiEnabled); err != nil {
+		return fmt.Errorf("profile spec is invalid: %w", err)
+	}
+	return nil
+}
+
 // ApplyProfile validates a profile spec and returns a map that maps each
 // node name to the profile that should be applied to it.
 // When create strategy is enabled, the profile is mapped to:

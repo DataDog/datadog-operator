@@ -108,6 +108,42 @@ func (r *Reconciler) reconcileAgentProfiles(ctx context.Context, logger logr.Log
 		if r.options.DatadogAgentProfileEnabled {
 			metrics.DAPEnabled.Set(metrics.TrueValue)
 			var profilesByNode map[string]types.NamespacedName
+			// get profiles
+			// sort profiles
+			// for each profile
+			// validate profiles -> status update
+			// mock apply to nodes -> status update
+			// apply status update -> k8s api
+			// for all nodes, check for label correctness -> k8s api
+			//
+			// profilesList := datadoghqv1alpha1.DatadogAgentProfileList{}
+			// err := r.client.List(ctx, &profilesList)
+			// if err != nil {
+			// 	logger.Info("unable to list DatadogAgentProfiles", "error", err)
+			// }
+			// // sort profiles
+			// sortedProfiles := agentprofile.SortProfiles(profilesList.Items)
+			// for _, profile := range sortedProfiles {
+			// 	profileCopy := profile.DeepCopy()
+			// 	// add another function to validate profile name + spec
+			// 	if err := datadoghqv1alpha1.ValidateDatadogAgentProfileSpec(&profileCopy.Spec, r.options.DatadogAgentInternalEnabled); err != nil {
+			// 		logger.Error(err, "profile spec is invalid, not applying", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+			// 		profileCopy.Status.Valid = metav1.ConditionFalse
+			// 		continue
+			// 	}
+			// 	// change status based on validation result
+			// 	profileCopy.Status.Valid = metav1.ConditionTrue
+
+			// 	// apply profile to nodes
+			// 	profileAppliedByNode, err = agentprofile.ApplyProfile(logger, &profile, nodeList, profileAppliedByNode, now, maxUnavailable, r.options.DatadogAgentInternalEnabled)
+
+			// 	// update profile status
+			// 	err = r.client.Status().Update(ctx, profileCopy)
+			// 	if err != nil {
+			// 		logger.Info("unable to update DatadogAgentProfile status", "error", err)
+			// 	}
+			// }
+
 			profiles, profilesByNode, err = r.profilesToApply(ctx, logger, nodeList, now, &instance.Spec)
 			// TODO: in main, we error on err instead of e here
 			// https://github.com/DataDog/datadog-operator/blob/8ba3647fbad340015d835b6fc1cb48639502c33d/internal/controller/datadogagent/controller_reconcile_v2.go#L179-L182
