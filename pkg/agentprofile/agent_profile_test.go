@@ -23,6 +23,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -1302,6 +1304,149 @@ func TestSortProfiles(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			actual := SortProfiles(tt.profiles)
 			assert.Equal(t, tt.expected, actual)
+		})
+	}
+}
+
+// Helper function to create a labels.Requirement for testing
+func newRequirement(key string, op selection.Operator, values []string) *labels.Requirement {
+	req, err := labels.NewRequirement(key, op, values)
+	if err != nil {
+		panic(fmt.Sprintf("failed to create requirement: %v", err))
+	}
+	return req
+}
+
+func TestParseProfileRequirements(t *testing.T) {
+	tests := []struct {
+		name                 string
+		profile              *v1alpha1.DatadogAgentProfile
+		expectedRequirements []*labels.Requirement
+		expectedError        error
+	}{
+		{
+			name:                 "nil profile",
+			profile:              nil,
+			expectedRequirements: nil,
+			expectedError:        nil,
+		},
+		{
+			name:                 "empty profile",
+			profile:              &v1alpha1.DatadogAgentProfile{},
+			expectedRequirements: nil,
+			expectedError:        nil,
+		},
+		{
+			name: "profile with node affinity",
+			profile: &v1alpha1.DatadogAgentProfile{
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					ProfileAffinity: &v1alpha1.ProfileAffinity{
+						ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
+							{
+								Key:      "foo",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{"bar"},
+							},
+						},
+					},
+				},
+			},
+			expectedRequirements: []*labels.Requirement{
+				newRequirement("foo", selection.In, []string{"bar"}),
+			},
+			expectedError: nil,
+		},
+		{
+			name: "profile with invalid node affinity",
+			profile: &v1alpha1.DatadogAgentProfile{
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					ProfileAffinity: &v1alpha1.ProfileAffinity{
+						ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
+							{
+								Key:      "foo",
+								Operator: corev1.NodeSelectorOpExists,
+								Values:   []string{"bar"},
+							},
+						},
+					},
+				},
+			},
+			expectedRequirements: nil,
+			expectedError:        fmt.Errorf("values set must be empty for exists and does not exist"),
+		},
+		{
+			name: "profile with multiple invalid node affinity requirements (only first error is returned)",
+			profile: &v1alpha1.DatadogAgentProfile{
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					ProfileAffinity: &v1alpha1.ProfileAffinity{
+						ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
+							{
+								Key:      "foo",
+								Operator: corev1.NodeSelectorOpExists,
+								Values:   []string{"bar"}, // values set must be empty for exists and does not exist
+							},
+							{
+								Key:      "", // name part must be non-empty
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{"value"},
+							},
+						},
+					},
+				},
+			},
+			expectedRequirements: nil,
+			expectedError:        fmt.Errorf("values set must be empty for exists and does not exist"),
+		},
+		{
+			name: "profile with empty node affinity slice",
+			profile: &v1alpha1.DatadogAgentProfile{
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					ProfileAffinity: &v1alpha1.ProfileAffinity{
+						ProfileNodeAffinity: []corev1.NodeSelectorRequirement{},
+					},
+				},
+			},
+			expectedRequirements: []*labels.Requirement{},
+			expectedError:        nil,
+		},
+		{
+			name: "profile with multiple node affinity",
+			profile: &v1alpha1.DatadogAgentProfile{
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					ProfileAffinity: &v1alpha1.ProfileAffinity{
+						ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
+							{
+								Key:      "foo",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{"bar"},
+							},
+							{
+								Key:      "foo2",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{"bar2"},
+							},
+						},
+					},
+				},
+			},
+			expectedRequirements: []*labels.Requirement{
+				newRequirement("foo", selection.In, []string{"bar"}),
+				newRequirement("foo2", selection.In, []string{"bar2"}),
+			},
+			expectedError: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			requirements, err := ParseProfileRequirements(tt.profile)
+			assert.Equal(t, tt.expectedRequirements, requirements)
+			if tt.expectedError != nil {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError.Error())
+			} else {
+				assert.NoError(t, err)
+			}
 		})
 	}
 }
