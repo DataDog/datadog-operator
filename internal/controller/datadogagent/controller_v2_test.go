@@ -369,32 +369,6 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "DatadogAgent with container monitoring in process agent",
-			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
-				scheme:   s,
-				recorder: recorder,
-			},
-			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-					WithProcessChecksInCoreAgent(false).
-					Build()
-				_ = c.Create(context.TODO(), dda)
-				return dda
-			},
-			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
-			wantErr: false,
-			wantFunc: func(c client.Client) error {
-				expectedContainers := []string{
-					string(apicommon.CoreAgentContainerName),
-					string(apicommon.ProcessAgentContainerName),
-					string(apicommon.TraceAgentContainerName),
-				}
-
-				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
-			},
-		},
-		{
 			name: "DatadogAgent with override.nodeAgent.disabled true",
 			fields: fields{
 				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
@@ -935,144 +909,6 @@ func Test_AutopilotOverrides(t *testing.T) {
 				return nil
 			},
 		},
-		{
-			name: "autopilot enabled with core-agent and process-agent",
-			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				autopilotKey := experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotSubkey
-				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-					WithAPMEnabled(false).
-					WithLiveProcessEnabled(true).
-					WithProcessChecksInCoreAgent(false).
-					WithClusterChecksEnabled(false).
-					WithAdmissionControllerEnabled(false).
-					WithOrchestratorExplorerEnabled(false).
-					WithKSMEnabled(false).
-					WithDogstatsdUnixDomainSocketConfigEnabled(false).
-					WithAnnotations(map[string]string{
-						autopilotKey: "true",
-					}).
-					Build()
-
-				_ = c.Create(context.TODO(), dda)
-				return dda
-			},
-			wantFunc: func(t *testing.T, c client.Client) error {
-				expectedContainers := []string{
-					string(apicommon.CoreAgentContainerName),
-					string(apicommon.ProcessAgentContainerName),
-				}
-				if err := verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers); err != nil {
-					return err
-				}
-
-				ds := &appsv1.DaemonSet{}
-				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds); err != nil {
-					return err
-				}
-
-				processAgentFound := false
-				for _, ctn := range ds.Spec.Template.Spec.Containers {
-					if ctn.Name == string(apicommon.ProcessAgentContainerName) {
-						expectedCommand := []string{
-							"process-agent",
-							"-config=/etc/datadog-agent/datadog.yaml",
-						}
-						if !reflect.DeepEqual(ctn.Command, expectedCommand) {
-							return fmt.Errorf("process-agent command incorrect, expected: %v, got: %v", expectedCommand, ctn.Command)
-						}
-
-						forbiddenMounts := map[string]struct{}{
-							common.AuthVolumeName:            {},
-							common.CriSocketVolumeName:       {},
-							common.DogstatsdSocketVolumeName: {},
-						}
-						for _, m := range ctn.VolumeMounts {
-							if _, found := forbiddenMounts[m.Name]; found {
-								return fmt.Errorf("forbidden mount %s found in process-agent is not allowed in GKE Autopilot", m.Name)
-							}
-						}
-						processAgentFound = true
-					}
-				}
-				if !processAgentFound {
-					return fmt.Errorf("process-agent container not found")
-				}
-
-				return nil
-			},
-		},
-		{
-			name: "autopilot enabled with all containers (core, trace, process)",
-			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				autopilotKey := experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotSubkey
-				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-					WithAPMEnabled(true).
-					WithLiveProcessEnabled(true).
-					WithProcessChecksInCoreAgent(false).
-					WithClusterChecksEnabled(false).
-					WithAdmissionControllerEnabled(false).
-					WithOrchestratorExplorerEnabled(false).
-					WithKSMEnabled(false).
-					WithDogstatsdUnixDomainSocketConfigEnabled(false).
-					WithAnnotations(map[string]string{
-						autopilotKey: "true",
-					}).
-					Build()
-
-				_ = c.Create(context.TODO(), dda)
-				return dda
-			},
-			wantFunc: func(t *testing.T, c client.Client) error {
-				expectedContainers := []string{
-					string(apicommon.CoreAgentContainerName),
-					string(apicommon.TraceAgentContainerName),
-					string(apicommon.ProcessAgentContainerName),
-				}
-				if err := verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers); err != nil {
-					return err
-				}
-
-				ds := &appsv1.DaemonSet{}
-				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds); err != nil {
-					return err
-				}
-
-				traceAgentFound := false
-				processAgentFound := false
-				for _, ctn := range ds.Spec.Template.Spec.Containers {
-					switch ctn.Name {
-					case string(apicommon.TraceAgentContainerName):
-						expectedCommand := []string{
-							"trace-agent",
-							"-config=/etc/datadog-agent/datadog.yaml",
-						}
-						if !reflect.DeepEqual(ctn.Command, expectedCommand) {
-							return fmt.Errorf("trace-agent command incorrect, expected: %v, got: %v", expectedCommand, ctn.Command)
-						}
-						traceAgentFound = true
-
-					case string(apicommon.ProcessAgentContainerName):
-						expectedCommand := []string{
-							"process-agent",
-							"-config=/etc/datadog-agent/datadog.yaml",
-						}
-						if !reflect.DeepEqual(ctn.Command, expectedCommand) {
-							return fmt.Errorf("process-agent command incorrect, expected: %v, got: %v", expectedCommand, ctn.Command)
-						}
-						processAgentFound = true
-					}
-				}
-
-				if !traceAgentFound {
-					return fmt.Errorf("trace-agent container not found")
-				}
-				if !processAgentFound {
-					return fmt.Errorf("process-agent container not found")
-				}
-
-				return nil
-			},
-		},
 	}
 
 	for _, tt := range tests {
@@ -1591,7 +1427,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 			wantFunc: func(t *testing.T, c client.Client) error {
 				expectedDDAI := getBaseDDAI(dda)
 				expectedDDAI.Annotations = map[string]string{
-					constants.MD5DDAIDeploymentAnnotationKey: "db25da8b5c8cd681d92f0049101605d6",
+					constants.MD5DDAIDeploymentAnnotationKey: "c7280f85b8590dcaa3668ea3b789053e",
 				}
 
 				return verifyDDAI(t, c, []v1alpha1.DatadogAgentInternal{expectedDDAI})
@@ -1620,7 +1456,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 				baseDDAI := getBaseDDAI(dda)
 				expectedDDAI := baseDDAI.DeepCopy()
 				expectedDDAI.Annotations = map[string]string{
-					constants.MD5DDAIDeploymentAnnotationKey: "ecf20e786d34265b5ad2a2e841837b55",
+					constants.MD5DDAIDeploymentAnnotationKey: "5c83da6fcf791a4865951949af039537",
 				}
 				expectedDDAI.Spec.Features.ClusterChecks.UseClusterChecksRunners = apiutils.NewBoolPointer(true)
 				expectedDDAI.Spec.Global.Credentials = &v2alpha1.DatadogCredentials{
@@ -1714,7 +1550,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 				profileDDAI := getBaseDDAI(dda)
 				profileDDAI.Name = "foo-profile"
 				profileDDAI.Annotations = map[string]string{
-					constants.MD5DDAIDeploymentAnnotationKey: "170a45bb48198417dcc38bf60595ab70",
+					constants.MD5DDAIDeploymentAnnotationKey: "cc45afac2d101aad1984d1e05c2fc592",
 				}
 				profileDDAI.Labels[constants.ProfileLabelKey] = "foo-profile"
 				profileDDAI.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -1887,7 +1723,7 @@ func getBaseDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 func getDefaultDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 	expectedDDAI := getBaseDDAI(dda)
 	expectedDDAI.Annotations = map[string]string{
-		constants.MD5DDAIDeploymentAnnotationKey: "8b985778b07536be633b3f49cb113e02",
+		constants.MD5DDAIDeploymentAnnotationKey: "a79dfe841c72f0e71dea9cb26f3eb2a7",
 	}
 	expectedDDAI.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 		v2alpha1.NodeAgentComponentName: {

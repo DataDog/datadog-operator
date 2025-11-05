@@ -19,6 +19,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
@@ -68,9 +69,9 @@ type OperatorMetadata struct {
 }
 
 // NewOperatorMetadataForwarder creates a new instance of the operator metadata forwarder
-func NewOperatorMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string) *OperatorMetadataForwarder {
+func NewOperatorMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string, credsManager *config.CredentialManager) *OperatorMetadataForwarder {
 	return &OperatorMetadataForwarder{
-		SharedMetadata:   NewSharedMetadata(logger, k8sClient, kubernetesVersion, operatorVersion),
+		SharedMetadata:   NewSharedMetadata(logger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
 		OperatorMetadata: OperatorMetadata{},
 	}
 }
