@@ -33,7 +33,6 @@ type CRDMetadataForwarder struct {
 }
 
 type CRDMetadataPayload struct {
-	Hostname    string      `json:"hostname"`
 	Timestamp   int64       `json:"timestamp"`
 	ClusterID   string      `json:"cluster_id"`
 	ClusterName string      `json:"clustername"`
@@ -56,11 +55,6 @@ func (cmf *CRDMetadataForwarder) Start() {
 	err := cmf.setCredentials()
 	if err != nil {
 		cmf.logger.Error(err, "Could not set credentials; not starting CRD metadata forwarder")
-		return
-	}
-
-	if cmf.hostName == "" {
-		cmf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting CRD metadata forwarder")
 		return
 	}
 
@@ -121,7 +115,6 @@ func (cmf *CRDMetadataForwarder) buildPayload(clusterUID string) []byte {
 	}
 
 	payload := CRDMetadataPayload{
-		Hostname:    cmf.hostName,
 		Timestamp:   now,
 		ClusterID:   clusterUID,
 		ClusterName: cmf.clusterName,
