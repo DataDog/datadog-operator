@@ -2,7 +2,8 @@ package guess
 
 import (
 	"cmp"
-	"fmt"
+	"encoding/base32"
+	"encoding/binary"
 	"hash/fnv"
 	"maps"
 	"slices"
@@ -88,7 +89,7 @@ func (nps *NodePoolsSet) Add(p NodePoolsSetAddParams) {
 
 	h := nc.sum64()
 
-	nc.Name = fmt.Sprintf("dd-karpenter-%06x", h)
+	nc.Name = "dd-karpenter-" + encodeUint64Base32(h)[8:]
 
 	if n, found := nps.ec2NodeClasses[h]; found {
 		n.SubnetIDs = slices.Compact(slices.Sorted(slices.Values(append(n.SubnetIDs, p.SubnetIDs...))))
@@ -105,7 +106,7 @@ func (nps *NodePoolsSet) Add(p NodePoolsSetAddParams) {
 
 	h = np.sum64()
 
-	np.Name = fmt.Sprintf("dd-karpenter-%06x", h)
+	np.Name = "dd-karpenter-" + encodeUint64Base32(h)[8:]
 
 	nps.nodePools[h] = np
 }
@@ -143,4 +144,10 @@ func compareTaints(x, y corev1.Taint) int {
 		return c
 	}
 	return 0
+}
+
+func encodeUint64Base32(n uint64) string {
+	buf := make([]byte, 8)
+	binary.BigEndian.PutUint64(buf, n)
+	return strings.ToLower(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(buf))
 }
