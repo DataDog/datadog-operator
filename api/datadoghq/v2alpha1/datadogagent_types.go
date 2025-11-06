@@ -1691,6 +1691,20 @@ type GlobalConfig struct {
 	// Configure the secret backend feature https://docs.datadoghq.com/agent/guide/secrets-management
 	// See also: https://github.com/DataDog/datadog-operator/blob/main/docs/secret_management.md
 	SecretBackend *SecretBackendConfig `json:"secretBackend,omitempty"`
+
+	// Autodiscovery contains options related to the Agent Autodiscovery.
+	// +optional
+	Autodiscovery *AutodiscoveryConfig `json:"autodiscovery,omitempty"`
+}
+
+// AutodiscoveryConfig contains options related to Agent Autodiscovery behavior.
+// +k8s:openapi-gen=true
+type AutodiscoveryConfig struct {
+	// ExtraIgnoreAutoConfig provides a list of integrations to add to the Agent's ignore_autoconf list.
+	// Entries provided here are appended to defaults set by the Operator rather than overriding them.
+	// +optional
+	// +listType=set
+	ExtraIgnoreAutoConfig []string `json:"extraIgnoreAutoConfig,omitempty"`
 }
 
 // DatadogCredentials is a generic structure that holds credentials to access Datadog.

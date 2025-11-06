@@ -441,6 +441,9 @@ spec:
 `global.env`
 : Contains a list of environment variables that are set for all Agents.
 
+`global.autodiscovery.extraIgnoreAutoConfig`
+: Adds integrations to the Agent's ignored Autodiscovery list; values are appended to Operator defaults and not overridden.
+
 `global.fips`
 : FIPS contains configuration used to customize the FIPS proxy sidecar. See [link](https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md) for more information.
 

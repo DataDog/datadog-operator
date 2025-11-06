@@ -211,6 +211,7 @@ spec:
 | global.endpoint.credentials.appSecret.secretName | SecretName is the name of the secret. |
 | global.endpoint.url | URL defines the endpoint URL. |
 | global.env | Contains a list of environment variables that are set for all Agents. |
+| global.autodiscovery.extraIgnoreAutoConfig | Adds integrations to the Agent's ignored Autodiscovery list; values are appended to Operator defaults and not overridden. |
 | global.fips.customFIPSConfig.configData | ConfigData corresponds to the configuration file content. |
 | global.fips.customFIPSConfig.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | global.fips.customFIPSConfig.configMap.name | Is the name of the ConfigMap. |
