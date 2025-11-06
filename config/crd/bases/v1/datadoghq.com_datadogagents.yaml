@@ -2515,6 +2515,18 @@ spec:
                       x-kubernetes-list-map-keys:
                         - name
                       x-kubernetes-list-type: map
+                    autodiscovery:
+                      description: Autodiscovery contains options related to the Agent Autodiscovery.
+                      properties:
+                        extraIgnoreAutoConfig:
+                          description: |-
+                            ExtraIgnoreAutoConfig provides a list of integrations to add to the Agent's ignore_autoconf list.
+                            Entries provided here are appended to defaults set by the Operator rather than overriding them.
+                          items:
+                            type: string
+                          type: array
+                          x-kubernetes-list-type: set
+                      type: object
                     fips:
                       description: FIPS contains configuration used to customize the FIPS proxy sidecar.
                       properties:

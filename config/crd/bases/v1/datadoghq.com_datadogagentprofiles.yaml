@@ -2256,6 +2256,18 @@ spec:
                     global:
                       description: Global settings to configure the agents
                       properties:
+                        autodiscovery:
+                          description: Autodiscovery contains options related to the Agent Autodiscovery.
+                          properties:
+                            extraIgnoreAutoConfig:
+                              description: |-
+                                ExtraIgnoreAutoConfig provides a list of integrations to add to the Agent's ignore_autoconf list.
+                                Entries provided here are appended to defaults set by the Operator rather than overriding them.
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: set
+                          type: object
                         checksTagCardinality:
                           description: |-
                             ChecksTagCardinality configures tag cardinality for the metrics collected by integrations (`low`, `orchestrator` or `high`).

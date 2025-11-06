@@ -7679,6 +7679,21 @@
           ],
           "x-kubernetes-list-type": "map"
         },
+        "autodiscovery": {
+          "additionalProperties": false,
+          "description": "Autodiscovery contains options related to the Agent Autodiscovery.",
+          "properties": {
+            "extraIgnoreAutoConfig": {
+              "description": "ExtraIgnoreAutoConfig provides a list of integrations to add to the Agent's ignore_autoconf list.\nEntries provided here are appended to defaults set by the Operator rather than overriding them.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array",
+              "x-kubernetes-list-type": "set"
+            }
+          },
+          "type": "object"
+        },
         "remoteConfigConfiguration": {
           "additionalProperties": false,
           "description": "RemoteConfigConfiguration stores the configuration received from RemoteConfig.",
