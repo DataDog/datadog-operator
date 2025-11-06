@@ -389,6 +389,7 @@ func run(opts *options) error {
 	}
 
 	setupAndStartOperatorMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
+	setupAndStartCRDMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
 
 	// +kubebuilder:scaffold:builder
 
@@ -520,4 +521,9 @@ func setupAndStartOperatorMetadataForwarder(logger logr.Logger, client client.Re
 	}
 
 	omf.Start()
+}
+
+func setupAndStartCRDMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options, credsManager *config.CredentialManager) {
+	cmf := metadata.NewCRDMetadataForwarder(logger, client, kubernetesVersion, version.GetVersion(), credsManager)
+	cmf.Start()
 }
