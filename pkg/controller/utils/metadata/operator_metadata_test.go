@@ -14,6 +14,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/pkg/config"
 )
 
 func Test_getURL(t *testing.T) {
@@ -51,7 +52,7 @@ func Test_getURL(t *testing.T) {
 			tt.loadFunc()
 
 			// Create SharedMetadata to test URL generation
-			sm := NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0")
+			sm := NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0", config.NewCredentialManager())
 
 			if sm.requestURL != tt.wantURL {
 				t.Errorf("getURL() url = %v, want %v", sm.requestURL, tt.wantURL)
@@ -139,7 +140,7 @@ func Test_setup(t *testing.T) {
 
 			// Create OperatorMetadataForwarder with the new structure
 			omf := &OperatorMetadataForwarder{
-				SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0"),
+				SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0", config.NewCredentialManager()),
 			}
 
 			tt.loadFunc()
@@ -168,10 +169,11 @@ func Test_GetPayload(t *testing.T) {
 	expectedKubernetesVersion := "v1.28.0"
 	expectedOperatorVersion := "v1.19.0"
 	expectedClusterName := "test-cluster"
+	expectedClusterUID := "test-cluster-uid-12345"
 	expectedHostname := "test-host"
 
 	omf := &OperatorMetadataForwarder{
-		SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, expectedKubernetesVersion, expectedOperatorVersion),
+		SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, expectedKubernetesVersion, expectedOperatorVersion, config.NewCredentialManager()),
 		OperatorMetadata: OperatorMetadata{
 			ClusterName: expectedClusterName,
 			IsLeader:    true,
@@ -184,7 +186,10 @@ func Test_GetPayload(t *testing.T) {
 	// Set cluster name in SharedMetadata to simulate it being populated
 	omf.clusterName = expectedClusterName
 
-	payload := omf.GetPayload()
+	// Set cluster UID in SharedMetadata to simulate it being populated
+	omf.clusterUID = expectedClusterUID
+
+	payload := omf.GetPayload(expectedClusterUID)
 
 	// Verify payload is valid JSON
 	if len(payload) == 0 {
@@ -206,6 +211,14 @@ func Test_GetPayload(t *testing.T) {
 		t.Errorf("GetPayload() timestamp = %v, want positive number", timestamp)
 	}
 
+	if clusterID, ok := parsed["cluster_id"].(string); !ok || clusterID != expectedClusterUID {
+		t.Errorf("GetPayload() cluster_id = %v, want %v", clusterID, expectedClusterUID)
+	}
+
+	if clusterName, ok := parsed["clustername"].(string); !ok || clusterName != expectedClusterName {
+		t.Errorf("GetPayload() cluster_name = %v, want %v", clusterName, expectedClusterName)
+	}
+
 	// Validate metadata object exists
 	metadata, ok := parsed["datadog_operator_metadata"].(map[string]interface{})
 	if !ok {
@@ -225,6 +238,10 @@ func Test_GetPayload(t *testing.T) {
 		t.Errorf("GetPayload() cluster_name = %v, want %v", clusterName, expectedClusterName)
 	}
 
+	if clusterID, ok := metadata["cluster_id"].(string); !ok || clusterID != expectedClusterUID {
+		t.Errorf("GetPayload() cluster_id in metadata = %v, want %v", clusterID, expectedClusterUID)
+	}
+
 	if isLeader, ok := metadata["is_leader"].(bool); !ok || !isLeader {
 		t.Errorf("GetPayload() is_leader = %v, want true", isLeader)
 	}
@@ -242,18 +259,31 @@ func Test_GetPayload(t *testing.T) {
 		"datadogslo_enabled",
 		"datadoggenericresource_enabled",
 		"datadogagentprofile_enabled",
+		"datadogagentinternal_enabled",
 		"leader_election_enabled",
 		"extendeddaemonset_enabled",
 		"remote_config_enabled",
 		"introspection_enabled",
+		"cluster_id",
 		"cluster_name",
 		"config_dd_url",
 		"config_site",
+		"resource_count",
 	}
 
 	for _, field := range expectedFields {
 		if _, exists := metadata[field]; !exists {
 			t.Errorf("GetPayload() missing expected field: %s", field)
 		}
+	}
+
+	// Verify resource_count is a valid JSON string
+	if resourceCount, ok := metadata["resource_count"].(string); ok {
+		var counts map[string]interface{}
+		if err := json.Unmarshal([]byte(resourceCount), &counts); err != nil {
+			t.Errorf("GetPayload() resource_count is not valid JSON: %v", err)
+		}
+	} else {
+		t.Error("GetPayload() resource_count is not a string")
 	}
 }
