@@ -30,8 +30,8 @@ import (
 )
 
 const (
-	// helmValuesCacheTTL is the time-to-live for the cached Helm values (~90 minutes)
-	helmValuesCacheTTL = 90 * time.Minute
+	// helmValuesCacheTTL is the time-to-live for the cached Helm values (~5 minutes)
+	helmValuesCacheTTL = 5 * time.Minute
 	// releasePrefix is the prefix for Helm release ConfigMaps and Secrets
 	releasePrefix = "sh.helm.release.v1."
 )
