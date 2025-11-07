@@ -46,8 +46,7 @@ func (f *autodiscoveryFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.Data
 
 	f.extraIgnore = ddaSpec.Global.Autodiscovery.ExtraIgnoreAutoConfig
 
-	// We only need to configure containers; do not mark components required.
-	// Mark Agent as required so single-container strategy switches to the unprivileged container.
+    // Mark Agent as required so single-container strategy switches to the unprivileged container.
 	reqComp.Agent.IsRequired = apiutils.NewBoolPointer(true)
 	reqComp.Agent.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 	reqComp.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
