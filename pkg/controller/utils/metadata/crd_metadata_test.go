@@ -140,3 +140,221 @@ func Test_CRDBuildPayload(t *testing.T) {
 		}
 	}
 }
+
+// Test that hash-based change detection works correctly
+func Test_CRDCacheDetection(t *testing.T) {
+	cmf := NewCRDMetadataForwarder(
+		zap.New(zap.UseDevMode(true)),
+		nil,
+		"v1.28.0",
+		"v1.19.0",
+		nil,
+		EnabledCRDKindsConfig{
+			DatadogAgentEnabled:         true,
+			DatadogAgentInternalEnabled: true,
+			DatadogAgentProfileEnabled:  true,
+		},
+	)
+
+	crd1 := CRDInstance{
+		Kind:      "DatadogAgent",
+		Name:      "test-agent",
+		Namespace: "default",
+		Spec:      map[string]interface{}{"version": "7.50.0"},
+	}
+
+	crd2 := CRDInstance{
+		Kind:      "DatadogAgent",
+		Name:      "test-agent-2",
+		Namespace: "default",
+		Spec:      map[string]interface{}{"version": "7.51.0"},
+	}
+	// First call - both CRDs should be new (changed)
+	changed := cmf.getChangedCRDs([]CRDInstance{crd1, crd2})
+	if len(changed) != 2 {
+		t.Errorf("Expected 2 changed CRDs on first run, got %d", len(changed))
+	}
+
+	// Second call with same specs - no changes expected
+	changed = cmf.getChangedCRDs([]CRDInstance{crd1, crd2})
+	if len(changed) != 0 {
+		t.Errorf("Expected 0 changed CRDs on second run, got %d", len(changed))
+	}
+
+	// Modify crd1 spec
+	crd1Modified := crd1
+	crd1Modified.Spec = map[string]interface{}{"version": "7.52.0"}
+
+	// Third call with modified crd1 - only 1 change expected
+	changed = cmf.getChangedCRDs([]CRDInstance{crd1Modified, crd2})
+	if len(changed) != 1 {
+		t.Errorf("Expected 1 changed CRD after modification, got %d", len(changed))
+	}
+	if len(changed) > 0 && changed[0].Name != "test-agent" {
+		t.Errorf("Expected changed CRD to be 'test-agent', got '%s'", changed[0].Name)
+	}
+}
+
+// Test that cache cleanup works correctly
+func Test_CRDCacheCleanup(t *testing.T) {
+	cmf := NewCRDMetadataForwarder(
+		zap.New(zap.UseDevMode(true)),
+		nil,
+		"v1.28.0",
+		"v1.19.0",
+		nil,
+		EnabledCRDKindsConfig{DatadogAgentEnabled: true},
+	)
+
+	crd1 := CRDInstance{
+		Kind:      "DatadogAgent",
+		Name:      "test-agent",
+		Namespace: "default",
+		Spec:      map[string]interface{}{"version": "7.50.0"},
+	}
+
+	crd2 := CRDInstance{
+		Kind:      "DatadogAgent",
+		Name:      "test-agent-2",
+		Namespace: "default",
+		Spec:      map[string]interface{}{"version": "7.51.0"},
+	}
+
+	successfulKinds := map[string]bool{"DatadogAgent": true}
+
+	// Add both CRDs to cache
+	cmf.getChangedCRDs([]CRDInstance{crd1, crd2})
+
+	cmf.cacheMutex.RLock()
+	initialCacheSize := len(cmf.crdCache)
+	cmf.cacheMutex.RUnlock()
+	if initialCacheSize != 2 {
+		t.Errorf("Expected cache size 2, got %d", initialCacheSize)
+	}
+
+	// Remove crd2 and cleanup
+	cmf.cleanupDeletedCRDs([]CRDInstance{crd1}, successfulKinds)
+
+	cmf.cacheMutex.RLock()
+	finalCacheSize := len(cmf.crdCache)
+	cmf.cacheMutex.RUnlock()
+	if finalCacheSize != 1 {
+		t.Errorf("Expected cache size 1 after cleanup, got %d", finalCacheSize)
+	}
+}
+
+// Test that per-kind error handling preserves cache correctly
+func Test_CRDPerKindErrorHandling(t *testing.T) {
+	cmf := NewCRDMetadataForwarder(
+		zap.New(zap.UseDevMode(true)),
+		nil,
+		"v1.28.0",
+		"v1.19.0",
+		nil,
+		EnabledCRDKindsConfig{
+			DatadogAgentEnabled:         true,
+			DatadogAgentInternalEnabled: true,
+		},
+	)
+
+	ddaCRD := CRDInstance{
+		Kind:      "DatadogAgent",
+		Name:      "test-dda",
+		Namespace: "default",
+		Spec:      map[string]interface{}{"version": "7.50.0"},
+	}
+
+	ddaiCRD := CRDInstance{
+		Kind:      "DatadogAgentInternal",
+		Name:      "test-ddai",
+		Namespace: "default",
+		Spec:      map[string]interface{}{"version": "7.50.0"},
+	}
+
+	cmf.getChangedCRDs([]CRDInstance{ddaCRD, ddaiCRD})
+
+	cmf.cacheMutex.RLock()
+	cacheSize := len(cmf.crdCache)
+	cmf.cacheMutex.RUnlock()
+	if cacheSize != 2 {
+		t.Errorf("Expected cache size 2, got %d", cacheSize)
+	}
+
+	// Second run: DatadogAgent successful, DatadogAgentInternal failed
+	onlyDDASuccessful := map[string]bool{"DatadogAgent": true}
+
+	// Filter should only process DDA (no changes since spec is same)
+	changed := cmf.getChangedCRDs([]CRDInstance{ddaCRD})
+	if len(changed) != 0 {
+		t.Errorf("Expected 0 changed CRDs for DDA (unchanged spec), got %d", len(changed))
+	}
+
+	// Cleanup should only process DDA (DDAI cache should be preserved)
+	cmf.cleanupDeletedCRDs([]CRDInstance{ddaCRD}, onlyDDASuccessful)
+
+	// Verify cache still has 2 entries (DDAI not cleaned up because it failed to list)
+	cmf.cacheMutex.RLock()
+	finalCacheSize := len(cmf.crdCache)
+	cmf.cacheMutex.RUnlock()
+	if finalCacheSize != 2 {
+		t.Errorf("Expected cache size 2 (DDAI preserved), got %d", finalCacheSize)
+	}
+}
+
+// Test getCRDKey function
+func Test_GetCRDKey(t *testing.T) {
+	crd := CRDInstance{
+		Kind:      "DatadogAgent",
+		Name:      "my-agent",
+		Namespace: "datadog",
+	}
+
+	key := getCacheKey(crd)
+	expected := "DatadogAgent/datadog/my-agent"
+	if key != expected {
+		t.Errorf("getCRDKey() = %s, want %s", key, expected)
+	}
+}
+
+// Test hashCRDSpec function
+func Test_HashCRDSpec(t *testing.T) {
+	spec1 := map[string]interface{}{
+		"version": "7.50.0",
+		"image":   "datadog/agent:7.50.0",
+	}
+
+	spec2 := map[string]interface{}{
+		"version": "7.50.0",
+		"image":   "datadog/agent:7.50.0",
+	}
+
+	spec3 := map[string]interface{}{
+		"version": "7.51.0",
+		"image":   "datadog/agent:7.51.0",
+	}
+
+	hash1, err := hashCRDSpec(spec1)
+	if err != nil {
+		t.Fatalf("hashCRDSpec failed: %v", err)
+	}
+
+	hash2, err := hashCRDSpec(spec2)
+	if err != nil {
+		t.Fatalf("hashCRDSpec failed: %v", err)
+	}
+
+	hash3, err := hashCRDSpec(spec3)
+	if err != nil {
+		t.Fatalf("hashCRDSpec failed: %v", err)
+	}
+
+	// Same specs should produce same hash
+	if hash1 != hash2 {
+		t.Errorf("Expected same hash for identical specs, got %s and %s", hash1, hash2)
+	}
+
+	// Different specs should produce different hash
+	if hash1 == hash3 {
+		t.Errorf("Expected different hash for different specs, both got %s", hash1)
+	}
+}

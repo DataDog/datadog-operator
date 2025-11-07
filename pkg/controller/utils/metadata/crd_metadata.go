@@ -8,10 +8,13 @@ package metadata
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -32,6 +35,9 @@ type CRDMetadataForwarder struct {
 
 	payloadHeader http.Header
 	enabledCRDs   EnabledCRDKindsConfig
+
+	crdCache   map[string]string // key: "kind/namespace/name", value: hash of spec
+	cacheMutex sync.RWMutex
 }
 
 type CRDMetadataPayload struct {
@@ -77,6 +83,7 @@ func NewCRDMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubern
 	return &CRDMetadataForwarder{
 		SharedMetadata: NewSharedMetadata(logger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
 		enabledCRDs:    config,
+		crdCache:       make(map[string]string),
 	}
 }
 
@@ -109,26 +116,25 @@ func (cmf *CRDMetadataForwarder) sendMetadata() error {
 		return err
 	}
 
-	allCRDs := cmf.getAllActiveCRDs()
+	allCRDs, listSuccess := cmf.getAllActiveCRDs()
+	changedCRDs := cmf.getChangedCRDs(allCRDs)
 
-	if len(allCRDs) == 0 {
-		cmf.logger.V(1).Info("No CRD instances found to send metadata for")
+	if len(changedCRDs) == 0 {
+		cmf.logger.V(1).Info("No CRD changes detected")
 		return nil
 	}
 
-	cmf.logger.Info("Detected CRD changes",
-		"total_count", len(allCRDs))
+	cmf.logger.Info("Detected CRD changes", "count", len(changedCRDs))
 
 	// Send individual payloads for each changed CRD
-	for _, crdInstance := range allCRDs {
-		if err := cmf.sendCRDMetadata(clusterUID, crdInstance); err != nil {
-			cmf.logger.Error(err, "Failed to send metadata for CRD",
-				"kind", crdInstance.Kind,
-				"name", crdInstance.Name,
-				"namespace", crdInstance.Namespace)
+	for _, crd := range changedCRDs {
+		if err := cmf.sendCRDMetadata(clusterUID, crd); err != nil {
+			cmf.logger.Error(err, "Failed to send CRD metadata",
+				"kind", crd.Kind, "name", crd.Name, "namespace", crd.Namespace)
 		}
 	}
 
+	cmf.cleanupDeletedCRDs(allCRDs, listSuccess)
 	return nil
 }
 
@@ -206,17 +212,22 @@ func (cmf *CRDMetadataForwarder) buildPayload(clusterUID string, crdInstance CRD
 	return jsonPayload
 }
 
-func (cmf *CRDMetadataForwarder) getAllActiveCRDs() []CRDInstance {
-	var allCRDs []CRDInstance // only collecting DDA, DDAI, and DAP
+// getAllActiveCRDs returns all active CRDs and a map of list successes for each CRD type
+// Currently only DatadogAgent, DatadogAgentInternal, and DatadogAgentProfile are collected
+func (cmf *CRDMetadataForwarder) getAllActiveCRDs() ([]CRDInstance, map[string]bool) {
+	var crds []CRDInstance
+	listSuccess := make(map[string]bool)
+
 	if cmf.k8sClient == nil {
-		return allCRDs
+		return crds, listSuccess
 	}
 	// DDA
 	if cmf.enabledCRDs.DatadogAgentEnabled {
 		ddaList := &v2alpha1.DatadogAgentList{}
 		if err := cmf.k8sClient.List(context.TODO(), ddaList); err == nil {
+			listSuccess["DatadogAgent"] = true
 			for _, dda := range ddaList.Items {
-				allCRDs = append(allCRDs, CRDInstance{
+				crds = append(crds, CRDInstance{
 					Kind:       "DatadogAgent",
 					Name:       dda.Name,
 					Namespace:  dda.Namespace,
@@ -234,8 +245,9 @@ func (cmf *CRDMetadataForwarder) getAllActiveCRDs() []CRDInstance {
 	if cmf.enabledCRDs.DatadogAgentInternalEnabled {
 		ddaiList := &v1alpha1.DatadogAgentInternalList{}
 		if err := cmf.k8sClient.List(context.TODO(), ddaiList); err == nil {
+			listSuccess["DatadogAgentInternal"] = true
 			for _, ddai := range ddaiList.Items {
-				allCRDs = append(allCRDs, CRDInstance{
+				crds = append(crds, CRDInstance{
 					Kind:       "DatadogAgentInternal",
 					Name:       ddai.Name,
 					Namespace:  ddai.Namespace,
@@ -253,8 +265,9 @@ func (cmf *CRDMetadataForwarder) getAllActiveCRDs() []CRDInstance {
 	if cmf.enabledCRDs.DatadogAgentProfileEnabled {
 		dapList := &v1alpha1.DatadogAgentProfileList{}
 		if err := cmf.k8sClient.List(context.TODO(), dapList); err == nil {
+			listSuccess["DatadogAgentProfile"] = true
 			for _, dap := range dapList.Items {
-				allCRDs = append(allCRDs, CRDInstance{
+				crds = append(crds, CRDInstance{
 					Kind:       "DatadogAgentProfile",
 					Name:       dap.Name,
 					Namespace:  dap.Namespace,
@@ -268,7 +281,7 @@ func (cmf *CRDMetadataForwarder) getAllActiveCRDs() []CRDInstance {
 		}
 	}
 
-	return allCRDs
+	return crds, listSuccess
 }
 
 func (cmf *CRDMetadataForwarder) setCredentials() error {
@@ -279,4 +292,69 @@ func (cmf *CRDMetadataForwarder) getHeaders() http.Header {
 	headers := cmf.GetBaseHeaders()
 	headers.Set(userAgentHTTPHeaderKey, fmt.Sprintf("Datadog Operator/%s", version.GetVersion()))
 	return headers
+}
+
+// getChangedCRDs returns only CRDs whose specs have changed and updates the cache
+func (cmf *CRDMetadataForwarder) getChangedCRDs(crds []CRDInstance) []CRDInstance {
+	cmf.cacheMutex.Lock()
+	defer cmf.cacheMutex.Unlock()
+
+	var changed []CRDInstance
+	for _, crd := range crds {
+		key := getCacheKey(crd)
+		newHash, err := hashCRDSpec(crd.Spec)
+		if err != nil {
+			cmf.logger.Error(err, "Failed to hash CRD spec", "key", key)
+			continue
+		}
+
+		if oldHash, exists := cmf.crdCache[key]; !exists || oldHash != newHash {
+			changed = append(changed, crd)
+			cmf.crdCache[key] = newHash
+		}
+	}
+
+	return changed
+}
+
+// cleanupDeletedCRDs removes cache entries for CRDs that got deleted
+func (cmf *CRDMetadataForwarder) cleanupDeletedCRDs(currentCRDs []CRDInstance, successfulKinds map[string]bool) {
+	cmf.cacheMutex.Lock()
+	defer cmf.cacheMutex.Unlock()
+
+	currentKeys := make(map[string]bool)
+	for _, crd := range currentCRDs {
+		currentKeys[getCacheKey(crd)] = true
+	}
+
+	for key := range cmf.crdCache {
+		cachedKind, _, found := strings.Cut(key, "/")
+		if !found {
+			continue
+		}
+
+		// Only clean up cache for kinds that were successfully listed
+		if successfulKinds[cachedKind] {
+			if !currentKeys[key] {
+				delete(cmf.crdCache, key)
+				cmf.logger.V(1).Info("Removed deleted CRD from cache", "key", key)
+			}
+		}
+	}
+}
+
+// Cache helper functions
+// getCacheKey returns a unique key for a CRD instance, with format "kind/namespace/name"
+func getCacheKey(crd CRDInstance) string {
+	return fmt.Sprintf("%s/%s/%s", crd.Kind, crd.Namespace, crd.Name)
+}
+
+// hashCRDSpec computes a SHA256 hash of the CRD spec
+func hashCRDSpec(spec interface{}) (string, error) {
+	specJSON, err := json.Marshal(spec)
+	if err != nil {
+		return "", err
+	}
+	hash := sha256.Sum256(specJSON)
+	return fmt.Sprintf("%x", hash), nil
 }
