@@ -430,7 +430,7 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 			apmPort.ContainerPort = f.hostPortHostPort
 			receiverPortEnvVarValue = int(f.hostPortHostPort)
 		}
-		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{agentContainerName, apicommon.CoreAgentContainerName}, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 			Name:  DDAPMNonLocalTraffic,
 			Value: "true",
 		})
@@ -483,7 +483,7 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 	if f.udsEnabled {
 		udsHostFolder := filepath.Dir(f.udsHostFilepath)
 		sockName := filepath.Base(f.udsHostFilepath)
-		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{agentContainerName, apicommon.CoreAgentContainerName}, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 			Name:  DDAPMReceiverSocket,
 			Value: filepath.Join(apmSocketVolumeLocalPath, sockName),
 		})
