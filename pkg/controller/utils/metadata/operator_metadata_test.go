@@ -141,6 +141,9 @@ func Test_setup(t *testing.T) {
 			// Create OperatorMetadataForwarder with the new structure
 			omf := &OperatorMetadataForwarder{
 				SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0", config.NewCredentialManager()),
+				OperatorMetadata: OperatorMetadata{
+					ResourceCounts: make(map[string]int),
+				},
 			}
 
 			tt.loadFunc()
@@ -175,8 +178,9 @@ func Test_GetPayload(t *testing.T) {
 	omf := &OperatorMetadataForwarder{
 		SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, expectedKubernetesVersion, expectedOperatorVersion, config.NewCredentialManager()),
 		OperatorMetadata: OperatorMetadata{
-			ClusterName: expectedClusterName,
-			IsLeader:    true,
+			ClusterName:    expectedClusterName,
+			IsLeader:       true,
+			ResourceCounts: make(map[string]int),
 		},
 	}
 
@@ -277,13 +281,15 @@ func Test_GetPayload(t *testing.T) {
 		}
 	}
 
-	// Verify resource_count is a valid JSON string
-	if resourceCount, ok := metadata["resource_count"].(string); ok {
-		var counts map[string]interface{}
-		if err := json.Unmarshal([]byte(resourceCount), &counts); err != nil {
-			t.Errorf("GetPayload() resource_count is not valid JSON: %v", err)
+	// Verify resource_count is a valid map
+	if resourceCount, ok := metadata["resource_count"].(map[string]interface{}); ok {
+		// Valid map - verify it's structured correctly (values are numbers)
+		for _, value := range resourceCount {
+			if _, ok := value.(float64); !ok {
+				t.Errorf("GetPayload() resource_count value is not a number: %v", value)
+			}
 		}
 	} else {
-		t.Error("GetPayload() resource_count is not a string")
+		t.Errorf("GetPayload() resource_count is not a map, got: %T", metadata["resource_count"])
 	}
 }
