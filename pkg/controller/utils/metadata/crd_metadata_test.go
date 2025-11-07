@@ -51,14 +51,26 @@ func Test_CRDBuildPayload(t *testing.T) {
 			},
 		},
 	}
+	testLabels := map[string]string{
+		"app": "datadog-agent",
+		"env": "test",
+	}
+	testAnnotations := map[string]string{
+		"owner":   "sre-team",
+		"version": "1.0",
+	}
+	testCreationTimestamp := "2024-01-15T10:00:00Z"
 
 	crdInstance := CRDInstance{
-		Kind:       expectedCRDKind,
-		Name:       expectedCRDName,
-		Namespace:  expectedCRDNamespace,
-		APIVersion: expectedCRDAPIVersion,
-		UID:        expectedCRDUID,
-		Spec:       testSpec,
+		Kind:              expectedCRDKind,
+		Name:              expectedCRDName,
+		Namespace:         expectedCRDNamespace,
+		APIVersion:        expectedCRDAPIVersion,
+		UID:               expectedCRDUID,
+		CreationTimestamp: testCreationTimestamp,
+		Spec:              testSpec,
+		Labels:            testLabels,
+		Annotations:       testAnnotations,
 	}
 
 	payload := cmf.buildPayload(expectedClusterUID, crdInstance)
@@ -129,6 +141,11 @@ func Test_CRDBuildPayload(t *testing.T) {
 		t.Errorf("buildPayload() metadata.crd_uid = %v, want %v", crdUID, expectedCRDUID)
 	}
 
+	// Validate crd_creation_timestamp
+	if crdCreationTimestamp, ok := metadata["crd_creation_timestamp"].(string); !ok || crdCreationTimestamp != testCreationTimestamp {
+		t.Errorf("buildPayload() metadata.crd_creation_timestamp = %v, want %v", crdCreationTimestamp, testCreationTimestamp)
+	}
+
 	// Validate crd_spec_full exists and is valid JSON
 	if crdSpecFull, ok := metadata["crd_spec_full"].(string); !ok || crdSpecFull == "" {
 		t.Errorf("buildPayload() metadata.crd_spec_full = %v, want non-empty JSON string", crdSpecFull)
@@ -137,6 +154,32 @@ func Test_CRDBuildPayload(t *testing.T) {
 		var specParsed map[string]interface{}
 		if err := json.Unmarshal([]byte(crdSpecFull), &specParsed); err != nil {
 			t.Errorf("buildPayload() metadata.crd_spec_full is not valid JSON: %v", err)
+		}
+	}
+
+	// Validate crd_labels (stored as JSON string in the payload)
+	if crdLabelsJSON, ok := metadata["crd_labels"].(string); !ok {
+		t.Errorf("buildPayload() metadata.crd_labels type = %T, want string", metadata["crd_labels"])
+	} else {
+		// Parse the JSON string to validate contents
+		var labels map[string]string
+		if err := json.Unmarshal([]byte(crdLabelsJSON), &labels); err != nil {
+			t.Errorf("buildPayload() metadata.crd_labels invalid JSON: %v", err)
+		} else if labels["app"] != "datadog-agent" || labels["env"] != "test" {
+			t.Errorf("buildPayload() metadata.crd_labels = %v, want app=datadog-agent, env=test", labels)
+		}
+	}
+
+	// Validate crd_annotations (stored as JSON string in the payload)
+	if crdAnnotationsJSON, ok := metadata["crd_annotations"].(string); !ok {
+		t.Errorf("buildPayload() metadata.crd_annotations type = %T, want string", metadata["crd_annotations"])
+	} else {
+		// Parse the JSON string to validate contents
+		var annotations map[string]string
+		if err := json.Unmarshal([]byte(crdAnnotationsJSON), &annotations); err != nil {
+			t.Errorf("buildPayload() metadata.crd_annotations invalid JSON: %v", err)
+		} else if annotations["owner"] != "sre-team" || annotations["version"] != "1.0" {
+			t.Errorf("buildPayload() metadata.crd_annotations = %v, want owner=sre-team, version=1.0", annotations)
 		}
 	}
 }
@@ -157,17 +200,21 @@ func Test_CRDCacheDetection(t *testing.T) {
 	)
 
 	crd1 := CRDInstance{
-		Kind:      "DatadogAgent",
-		Name:      "test-agent",
-		Namespace: "default",
-		Spec:      map[string]interface{}{"version": "7.50.0"},
+		Kind:        "DatadogAgent",
+		Name:        "test-agent",
+		Namespace:   "default",
+		Spec:        map[string]interface{}{"version": "7.50.0"},
+		Labels:      map[string]string{"app": "agent"},
+		Annotations: map[string]string{"owner": "team-a"},
 	}
 
 	crd2 := CRDInstance{
-		Kind:      "DatadogAgent",
-		Name:      "test-agent-2",
-		Namespace: "default",
-		Spec:      map[string]interface{}{"version": "7.51.0"},
+		Kind:        "DatadogAgent",
+		Name:        "test-agent-2",
+		Namespace:   "default",
+		Spec:        map[string]interface{}{"version": "7.51.0"},
+		Labels:      map[string]string{"app": "agent"},
+		Annotations: map[string]string{"owner": "team-b"},
 	}
 	// First call - both CRDs should be new (changed)
 	changed := cmf.getChangedCRDs([]CRDInstance{crd1, crd2})
@@ -185,13 +232,31 @@ func Test_CRDCacheDetection(t *testing.T) {
 	crd1Modified := crd1
 	crd1Modified.Spec = map[string]interface{}{"version": "7.52.0"}
 
-	// Third call with modified crd1 - only 1 change expected
+	// Third call with modified crd1 spec - only 1 change expected
 	changed = cmf.getChangedCRDs([]CRDInstance{crd1Modified, crd2})
 	if len(changed) != 1 {
-		t.Errorf("Expected 1 changed CRD after modification, got %d", len(changed))
+		t.Errorf("Expected 1 changed CRD after spec modification, got %d", len(changed))
 	}
 	if len(changed) > 0 && changed[0].Name != "test-agent" {
 		t.Errorf("Expected changed CRD to be 'test-agent', got '%s'", changed[0].Name)
+	}
+
+	// Modify crd1 labels - should detect change
+	crd1ModifiedLabels := crd1
+	crd1ModifiedLabels.Labels = map[string]string{"app": "agent", "env": "prod"}
+
+	changed = cmf.getChangedCRDs([]CRDInstance{crd1ModifiedLabels, crd2})
+	if len(changed) != 1 {
+		t.Errorf("Expected 1 changed CRD after label modification, got %d", len(changed))
+	}
+
+	// Modify crd1 annotations - should detect change
+	crd1ModifiedAnnotations := crd1ModifiedLabels
+	crd1ModifiedAnnotations.Annotations = map[string]string{"owner": "team-c"}
+
+	changed = cmf.getChangedCRDs([]CRDInstance{crd1ModifiedAnnotations, crd2})
+	if len(changed) != 1 {
+		t.Errorf("Expected 1 changed CRD after annotation modification, got %d", len(changed))
 	}
 }
 
@@ -301,8 +366,8 @@ func Test_CRDPerKindErrorHandling(t *testing.T) {
 	}
 }
 
-// Test getCRDKey function
-func Test_GetCRDKey(t *testing.T) {
+// Test getCacheKey function
+func Test_GetCacheKey(t *testing.T) {
 	crd := CRDInstance{
 		Kind:      "DatadogAgent",
 		Name:      "my-agent",
@@ -312,49 +377,92 @@ func Test_GetCRDKey(t *testing.T) {
 	key := getCacheKey(crd)
 	expected := "DatadogAgent/datadog/my-agent"
 	if key != expected {
-		t.Errorf("getCRDKey() = %s, want %s", key, expected)
+		t.Errorf("getCacheKey() = %s, want %s", key, expected)
 	}
 }
 
-// Test hashCRDSpec function
-func Test_HashCRDSpec(t *testing.T) {
-	spec1 := map[string]interface{}{
-		"version": "7.50.0",
-		"image":   "datadog/agent:7.50.0",
+// Test hashCRD function
+func Test_HashCRD(t *testing.T) {
+	crd1 := CRDInstance{
+		Kind:      "DatadogAgent",
+		Name:      "test",
+		Namespace: "default",
+		Spec: map[string]interface{}{
+			"version": "7.50.0",
+			"image":   "datadog/agent:7.50.0",
+		},
+		Labels:      map[string]string{"app": "agent"},
+		Annotations: map[string]string{"owner": "team"},
 	}
 
-	spec2 := map[string]interface{}{
-		"version": "7.50.0",
-		"image":   "datadog/agent:7.50.0",
+	crd2 := CRDInstance{
+		Kind:      "DatadogAgent",
+		Name:      "test",
+		Namespace: "default",
+		Spec: map[string]interface{}{
+			"version": "7.50.0",
+			"image":   "datadog/agent:7.50.0",
+		},
+		Labels:      map[string]string{"app": "agent"},
+		Annotations: map[string]string{"owner": "team"},
 	}
 
-	spec3 := map[string]interface{}{
-		"version": "7.51.0",
-		"image":   "datadog/agent:7.51.0",
+	crd3 := CRDInstance{
+		Kind:      "DatadogAgent",
+		Name:      "test",
+		Namespace: "default",
+		Spec: map[string]interface{}{
+			"version": "7.51.0",
+			"image":   "datadog/agent:7.51.0",
+		},
+		Labels:      map[string]string{"app": "agent"},
+		Annotations: map[string]string{"owner": "team"},
 	}
 
-	hash1, err := hashCRDSpec(spec1)
+	crd4 := CRDInstance{
+		Kind:      "DatadogAgent",
+		Name:      "test",
+		Namespace: "default",
+		Spec: map[string]interface{}{
+			"version": "7.50.0",
+			"image":   "datadog/agent:7.50.0",
+		},
+		Labels:      map[string]string{"app": "agent", "env": "prod"}, // Different labels
+		Annotations: map[string]string{"owner": "team"},
+	}
+
+	hash1, err := hashCRD(crd1)
 	if err != nil {
-		t.Fatalf("hashCRDSpec failed: %v", err)
+		t.Fatalf("hashCRD failed: %v", err)
 	}
 
-	hash2, err := hashCRDSpec(spec2)
+	hash2, err := hashCRD(crd2)
 	if err != nil {
-		t.Fatalf("hashCRDSpec failed: %v", err)
+		t.Fatalf("hashCRD failed: %v", err)
 	}
 
-	hash3, err := hashCRDSpec(spec3)
+	hash3, err := hashCRD(crd3)
 	if err != nil {
-		t.Fatalf("hashCRDSpec failed: %v", err)
+		t.Fatalf("hashCRD failed: %v", err)
 	}
 
-	// Same specs should produce same hash
+	hash4, err := hashCRD(crd4)
+	if err != nil {
+		t.Fatalf("hashCRD failed: %v", err)
+	}
+
+	// Same CRDs (spec, labels, annotations) should produce same hash
 	if hash1 != hash2 {
-		t.Errorf("Expected same hash for identical specs, got %s and %s", hash1, hash2)
+		t.Errorf("Expected same hash for identical CRDs, got %s and %s", hash1, hash2)
 	}
 
 	// Different specs should produce different hash
 	if hash1 == hash3 {
 		t.Errorf("Expected different hash for different specs, both got %s", hash1)
+	}
+
+	// Different labels should produce different hash
+	if hash1 == hash4 {
+		t.Errorf("Expected different hash for different labels, both got %s", hash1)
 	}
 }

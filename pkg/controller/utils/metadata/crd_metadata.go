@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"strings"
 	"sync"
@@ -54,21 +55,27 @@ type CRDMetadata struct {
 	ClusterID         string `json:"cluster_id"`
 	ClusterName       string `json:"cluster_name"`
 
-	CRDKind       string `json:"crd_kind"`
-	CRDName       string `json:"crd_name"`
-	CRDNamespace  string `json:"crd_namespace"`
-	CRDAPIVersion string `json:"crd_api_version"`
-	CRDUID        string `json:"crd_uid"`
-	CRDSpecFull   string `json:"crd_spec_full"`
+	CRDKind              string `json:"crd_kind"`
+	CRDName              string `json:"crd_name"`
+	CRDNamespace         string `json:"crd_namespace"`
+	CRDAPIVersion        string `json:"crd_api_version"`
+	CRDUID               string `json:"crd_uid"`
+	CRDCreationTimestamp string `json:"crd_creation_timestamp"`
+	CRDSpecFull          string `json:"crd_spec_full"`
+	CRDLabelsJSON        string `json:"crd_labels,omitempty"`
+	CRDAnnotationsJSON   string `json:"crd_annotations,omitempty"`
 }
 
 type CRDInstance struct {
-	Kind       string      `json:"kind"`
-	Name       string      `json:"name"`
-	Namespace  string      `json:"namespace"`
-	APIVersion string      `json:"api_version"`
-	UID        string      `json:"uid"`
-	Spec       interface{} `json:"spec"`
+	Kind              string            `json:"kind"`
+	Name              string            `json:"name"`
+	Namespace         string            `json:"namespace"`
+	APIVersion        string            `json:"api_version"`
+	UID               string            `json:"uid"`
+	CreationTimestamp string            `json:"creation_timestamp"`
+	Spec              interface{}       `json:"spec"`
+	Labels            map[string]string `json:"labels,omitempty"`
+	Annotations       map[string]string `json:"annotations,omitempty"`
 }
 
 // EnabledCRDsConfig specifies which CRD kinds are enabled for metadata collection
@@ -171,17 +178,29 @@ func (cmf *CRDMetadataForwarder) sendCRDMetadata(clusterUID string, crdInstance 
 	return nil
 }
 
+// marshalToJSON marshals data to JSON, returning empty object on error
+func (cmf *CRDMetadataForwarder) marshalToJSON(data interface{}, fieldName string, crdInstance CRDInstance) []byte {
+	if data == nil {
+		return nil
+	}
+
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		cmf.logger.Error(err, "Error marshaling CRD field to JSON",
+			"field", fieldName,
+			"kind", crdInstance.Kind,
+			"name", crdInstance.Name)
+		return []byte("{}")
+	}
+	return jsonBytes
+}
+
 func (cmf *CRDMetadataForwarder) buildPayload(clusterUID string, crdInstance CRDInstance) []byte {
 	now := time.Now().Unix()
 
-	// Marshal the CRD spec to JSON string
-	specJSON, err := json.Marshal(crdInstance.Spec)
-	if err != nil {
-		cmf.logger.Error(err, "Error marshaling CRD spec to JSON",
-			"kind", crdInstance.Kind,
-			"name", crdInstance.Name)
-		specJSON = []byte("{}")
-	}
+	specJSON := cmf.marshalToJSON(crdInstance.Spec, "spec", crdInstance)
+	labelsJSON := cmf.marshalToJSON(crdInstance.Labels, "labels", crdInstance)
+	annotationsJSON := cmf.marshalToJSON(crdInstance.Annotations, "annotations", crdInstance)
 
 	crdMetadata := CRDMetadata{
 		OperatorVersion:   cmf.operatorVersion,
@@ -189,12 +208,15 @@ func (cmf *CRDMetadataForwarder) buildPayload(clusterUID string, crdInstance CRD
 		ClusterID:         clusterUID,
 		ClusterName:       cmf.clusterName,
 
-		CRDKind:       crdInstance.Kind,
-		CRDName:       crdInstance.Name,
-		CRDNamespace:  crdInstance.Namespace,
-		CRDAPIVersion: crdInstance.APIVersion,
-		CRDUID:        crdInstance.UID,
-		CRDSpecFull:   string(specJSON),
+		CRDKind:              crdInstance.Kind,
+		CRDName:              crdInstance.Name,
+		CRDNamespace:         crdInstance.Namespace,
+		CRDAPIVersion:        crdInstance.APIVersion,
+		CRDUID:               crdInstance.UID,
+		CRDCreationTimestamp: crdInstance.CreationTimestamp,
+		CRDSpecFull:          string(specJSON),
+		CRDLabelsJSON:        string(labelsJSON),
+		CRDAnnotationsJSON:   string(annotationsJSON),
 	}
 
 	payload := CRDMetadataPayload{
@@ -227,13 +249,19 @@ func (cmf *CRDMetadataForwarder) getAllActiveCRDs() ([]CRDInstance, map[string]b
 		if err := cmf.k8sClient.List(context.TODO(), ddaList); err == nil {
 			listSuccess["DatadogAgent"] = true
 			for _, dda := range ddaList.Items {
+				annotations := maps.Clone(dda.Annotations)
+				delete(annotations, "kubectl.kubernetes.io/last-applied-configuration")
+
 				crds = append(crds, CRDInstance{
-					Kind:       "DatadogAgent",
-					Name:       dda.Name,
-					Namespace:  dda.Namespace,
-					APIVersion: dda.APIVersion,
-					UID:        string(dda.UID),
-					Spec:       dda.Spec,
+					Kind:              "DatadogAgent",
+					Name:              dda.Name,
+					Namespace:         dda.Namespace,
+					APIVersion:        dda.APIVersion,
+					UID:               string(dda.UID),
+					CreationTimestamp: dda.CreationTimestamp.Format(time.RFC3339),
+					Spec:              dda.Spec,
+					Labels:            dda.Labels,
+					Annotations:       annotations,
 				})
 			}
 		} else {
@@ -247,13 +275,19 @@ func (cmf *CRDMetadataForwarder) getAllActiveCRDs() ([]CRDInstance, map[string]b
 		if err := cmf.k8sClient.List(context.TODO(), ddaiList); err == nil {
 			listSuccess["DatadogAgentInternal"] = true
 			for _, ddai := range ddaiList.Items {
+				annotations := maps.Clone(ddai.Annotations)
+				delete(annotations, "kubectl.kubernetes.io/last-applied-configuration")
+
 				crds = append(crds, CRDInstance{
-					Kind:       "DatadogAgentInternal",
-					Name:       ddai.Name,
-					Namespace:  ddai.Namespace,
-					APIVersion: ddai.APIVersion,
-					UID:        string(ddai.UID),
-					Spec:       ddai.Spec,
+					Kind:              "DatadogAgentInternal",
+					Name:              ddai.Name,
+					Namespace:         ddai.Namespace,
+					APIVersion:        ddai.APIVersion,
+					UID:               string(ddai.UID),
+					CreationTimestamp: ddai.CreationTimestamp.Format(time.RFC3339),
+					Spec:              ddai.Spec,
+					Labels:            ddai.Labels,
+					Annotations:       annotations,
 				})
 			}
 		} else {
@@ -267,13 +301,19 @@ func (cmf *CRDMetadataForwarder) getAllActiveCRDs() ([]CRDInstance, map[string]b
 		if err := cmf.k8sClient.List(context.TODO(), dapList); err == nil {
 			listSuccess["DatadogAgentProfile"] = true
 			for _, dap := range dapList.Items {
+				annotations := maps.Clone(dap.Annotations)
+				delete(annotations, "kubectl.kubernetes.io/last-applied-configuration")
+
 				crds = append(crds, CRDInstance{
-					Kind:       "DatadogAgentProfile",
-					Name:       dap.Name,
-					Namespace:  dap.Namespace,
-					APIVersion: dap.APIVersion,
-					UID:        string(dap.UID),
-					Spec:       dap.Spec,
+					Kind:              "DatadogAgentProfile",
+					Name:              dap.Name,
+					Namespace:         dap.Namespace,
+					APIVersion:        dap.APIVersion,
+					UID:               string(dap.UID),
+					CreationTimestamp: dap.CreationTimestamp.Format(time.RFC3339),
+					Spec:              dap.Spec,
+					Labels:            dap.Labels,
+					Annotations:       annotations,
 				})
 			}
 		} else {
@@ -302,9 +342,9 @@ func (cmf *CRDMetadataForwarder) getChangedCRDs(crds []CRDInstance) []CRDInstanc
 	var changed []CRDInstance
 	for _, crd := range crds {
 		key := getCacheKey(crd)
-		newHash, err := hashCRDSpec(crd.Spec)
+		newHash, err := hashCRD(crd)
 		if err != nil {
-			cmf.logger.Error(err, "Failed to hash CRD spec", "key", key)
+			cmf.logger.Error(err, "Failed to hash CRD", "key", key)
 			continue
 		}
 
@@ -349,12 +389,23 @@ func getCacheKey(crd CRDInstance) string {
 	return fmt.Sprintf("%s/%s/%s", crd.Kind, crd.Namespace, crd.Name)
 }
 
-// hashCRDSpec computes a SHA256 hash of the CRD spec
-func hashCRDSpec(spec interface{}) (string, error) {
-	specJSON, err := json.Marshal(spec)
+// hashCRD computes a SHA256 hash of the CRD spec, labels, and annotations for change detection
+func hashCRD(crd CRDInstance) (string, error) {
+	// Hash spec, labels, and annotations together
+	hashable := struct {
+		Spec        interface{}       `json:"spec"`
+		Labels      map[string]string `json:"labels,omitempty"`
+		Annotations map[string]string `json:"annotations,omitempty"`
+	}{
+		Spec:        crd.Spec,
+		Labels:      crd.Labels,
+		Annotations: crd.Annotations,
+	}
+
+	hashableJSON, err := json.Marshal(hashable)
 	if err != nil {
 		return "", err
 	}
-	hash := sha256.Sum256(specJSON)
+	hash := sha256.Sum256(hashableJSON)
 	return fmt.Sprintf("%x", hash), nil
 }
