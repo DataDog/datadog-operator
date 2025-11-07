@@ -15,9 +15,9 @@ import (
 
 const (
 	// AgentLatestVersion corresponds to the latest stable agent release
-	AgentLatestVersion = "7.72.0"
+	AgentLatestVersion = "7.72.1"
 	// ClusterAgentLatestVersion corresponds to the latest stable cluster-agent release
-	ClusterAgentLatestVersion = "7.72.0"
+	ClusterAgentLatestVersion = "7.72.1"
 	// FIPSProxyLatestVersion corresponds to the latest stable fips-proxy release
 	FIPSProxyLatestVersion = "1.1.17"
 	// GCRContainerRegistry corresponds to the datadoghq GCR registry

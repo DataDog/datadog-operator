@@ -26,6 +26,7 @@ import (
 const (
 	userAgentHTTPHeaderKey = "User-Agent"
 	defaultInterval        = 1 * time.Minute
+	resourceCountsTTL      = 5 * time.Minute // Refresh resource counts every 5 minutes
 )
 
 type OperatorMetadataForwarder struct {
@@ -45,27 +46,27 @@ type OperatorMetadataPayload struct {
 }
 
 type OperatorMetadata struct {
-	OperatorVersion               string `json:"operator_version"`
-	KubernetesVersion             string `json:"kubernetes_version"`
-	InstallMethodTool             string `json:"install_method_tool"`
-	InstallMethodToolVersion      string `json:"install_method_tool_version"`
-	IsLeader                      bool   `json:"is_leader"`
-	DatadogAgentEnabled           bool   `json:"datadogagent_enabled"`
-	DatadogMonitorEnabled         bool   `json:"datadogmonitor_enabled"`
-	DatadogDashboardEnabled       bool   `json:"datadogdashboard_enabled"`
-	DatadogSLOEnabled             bool   `json:"datadogslo_enabled"`
-	DatadogGenericResourceEnabled bool   `json:"datadoggenericresource_enabled"`
-	DatadogAgentProfileEnabled    bool   `json:"datadogagentprofile_enabled"`
-	DatadogAgentInternalEnabled   bool   `json:"datadogagentinternal_enabled"`
-	LeaderElectionEnabled         bool   `json:"leader_election_enabled"`
-	ExtendedDaemonSetEnabled      bool   `json:"extendeddaemonset_enabled"`
-	RemoteConfigEnabled           bool   `json:"remote_config_enabled"`
-	IntrospectionEnabled          bool   `json:"introspection_enabled"`
-	ClusterID                     string `json:"cluster_id"`
-	ClusterName                   string `json:"cluster_name"`
-	ConfigDDURL                   string `json:"config_dd_url"`
-	ConfigDDSite                  string `json:"config_site"`
-	ResourceCounts                string `json:"resource_count"`
+	OperatorVersion               string         `json:"operator_version"`
+	KubernetesVersion             string         `json:"kubernetes_version"`
+	InstallMethodTool             string         `json:"install_method_tool"`
+	InstallMethodToolVersion      string         `json:"install_method_tool_version"`
+	IsLeader                      bool           `json:"is_leader"`
+	DatadogAgentEnabled           bool           `json:"datadogagent_enabled"`
+	DatadogMonitorEnabled         bool           `json:"datadogmonitor_enabled"`
+	DatadogDashboardEnabled       bool           `json:"datadogdashboard_enabled"`
+	DatadogSLOEnabled             bool           `json:"datadogslo_enabled"`
+	DatadogGenericResourceEnabled bool           `json:"datadoggenericresource_enabled"`
+	DatadogAgentProfileEnabled    bool           `json:"datadogagentprofile_enabled"`
+	DatadogAgentInternalEnabled   bool           `json:"datadogagentinternal_enabled"`
+	LeaderElectionEnabled         bool           `json:"leader_election_enabled"`
+	ExtendedDaemonSetEnabled      bool           `json:"extendeddaemonset_enabled"`
+	RemoteConfigEnabled           bool           `json:"remote_config_enabled"`
+	IntrospectionEnabled          bool           `json:"introspection_enabled"`
+	ClusterID                     string         `json:"cluster_id"`
+	ClusterName                   string         `json:"cluster_name"`
+	ConfigDDURL                   string         `json:"config_dd_url"`
+	ConfigDDSite                  string         `json:"config_site"`
+	ResourceCounts                map[string]int `json:"resource_count"`
 }
 
 // NewOperatorMetadataForwarder creates a new instance of the operator metadata forwarder
@@ -85,6 +86,8 @@ func (omf *OperatorMetadataForwarder) Start() {
 
 	omf.payloadHeader = omf.getHeaders()
 
+	omf.updateResourceCounts()
+
 	omf.logger.Info("Starting operator metadata forwarder")
 
 	ticker := time.NewTicker(defaultInterval)
@@ -93,6 +96,13 @@ func (omf *OperatorMetadataForwarder) Start() {
 			if err := omf.sendMetadata(); err != nil {
 				omf.logger.Error(err, "Error while sending operator metadata")
 			}
+		}
+	}()
+
+	countsTicker := time.NewTicker(resourceCountsTTL)
+	go func() {
+		for range countsTicker.C {
+			omf.updateResourceCounts()
 		}
 	}()
 }
@@ -146,7 +156,6 @@ func (omf *OperatorMetadataForwarder) GetPayload(clusterUID string) []byte {
 	omf.OperatorMetadata.ClusterName = omf.clusterName
 	omf.OperatorMetadata.OperatorVersion = omf.operatorVersion
 	omf.OperatorMetadata.KubernetesVersion = omf.kubernetesVersion
-	omf.OperatorMetadata.ResourceCounts = omf.getResourceCounts()
 
 	payload := OperatorMetadataPayload{
 		Hostname:    omf.hostName,
@@ -197,56 +206,77 @@ func (omf *OperatorMetadataForwarder) getHeaders() http.Header {
 	return headers
 }
 
-// getResourceCounts counts all Datadog custom resources in the cluster and returns as JSON string
-func (omf *OperatorMetadataForwarder) getResourceCounts() string {
-	counts := make(map[string]int)
-
-	// If k8sClient is nil (e.g., in tests), return empty JSON
+// updateResourceCounts refreshes resource counts and stores them in OperatorMetadata.ResourceCounts
+// falls back to the old value if the fetch fails
+func (omf *OperatorMetadataForwarder) updateResourceCounts() {
+	// If k8sClient is nil (e.g., in tests), return early
 	if omf.k8sClient == nil {
-		return "{}"
+		return
 	}
 
-	ddaList := &v2alpha1.DatadogAgentList{}
-	if err := omf.k8sClient.List(context.TODO(), ddaList); err == nil {
-		counts["datadogagent"] = len(ddaList.Items)
+	// Only list resources that are enabled
+	// For each resource type: if fetch succeeds, update count; if fails, keep old value
+	if omf.OperatorMetadata.DatadogAgentEnabled {
+		ddaList := &v2alpha1.DatadogAgentList{}
+		if err := omf.k8sClient.List(context.TODO(), ddaList); err == nil {
+			omf.OperatorMetadata.ResourceCounts["datadogagent"] = len(ddaList.Items)
+		} else {
+			omf.logger.V(1).Info("Failed to list DatadogAgents, keeping old value", "error", err, "old_count", omf.OperatorMetadata.ResourceCounts["datadogagent"])
+		}
 	}
 
-	ddaiList := &v1alpha1.DatadogAgentInternalList{}
-	if err := omf.k8sClient.List(context.TODO(), ddaiList); err == nil {
-		counts["datadogagentinternal"] = len(ddaiList.Items)
+	if omf.OperatorMetadata.DatadogAgentInternalEnabled {
+		ddaiList := &v1alpha1.DatadogAgentInternalList{}
+		if err := omf.k8sClient.List(context.TODO(), ddaiList); err == nil {
+			omf.OperatorMetadata.ResourceCounts["datadogagentinternal"] = len(ddaiList.Items)
+		} else {
+			omf.logger.V(1).Info("Failed to list DatadogAgentInternals, keeping old value", "error", err, "old_count", omf.OperatorMetadata.ResourceCounts["datadogagentinternal"])
+		}
 	}
 
-	monitorList := &v1alpha1.DatadogMonitorList{}
-	if err := omf.k8sClient.List(context.TODO(), monitorList); err == nil {
-		counts["datadogmonitor"] = len(monitorList.Items)
+	if omf.OperatorMetadata.DatadogMonitorEnabled {
+		monitorList := &v1alpha1.DatadogMonitorList{}
+		if err := omf.k8sClient.List(context.TODO(), monitorList); err == nil {
+			omf.OperatorMetadata.ResourceCounts["datadogmonitor"] = len(monitorList.Items)
+		} else {
+			omf.logger.V(1).Info("Failed to list DatadogMonitors, keeping old value", "error", err, "old_count", omf.OperatorMetadata.ResourceCounts["datadogmonitor"])
+		}
 	}
 
-	dashboardList := &v1alpha1.DatadogDashboardList{}
-	if err := omf.k8sClient.List(context.TODO(), dashboardList); err == nil {
-		counts["datadogdashboard"] = len(dashboardList.Items)
+	if omf.OperatorMetadata.DatadogDashboardEnabled {
+		dashboardList := &v1alpha1.DatadogDashboardList{}
+		if err := omf.k8sClient.List(context.TODO(), dashboardList); err == nil {
+			omf.OperatorMetadata.ResourceCounts["datadogdashboard"] = len(dashboardList.Items)
+		} else {
+			omf.logger.V(1).Info("Failed to list DatadogDashboards, keeping old value", "error", err, "old_count", omf.OperatorMetadata.ResourceCounts["datadogdashboard"])
+		}
 	}
 
-	sloList := &v1alpha1.DatadogSLOList{}
-	if err := omf.k8sClient.List(context.TODO(), sloList); err == nil {
-		counts["datadogslo"] = len(sloList.Items)
+	if omf.OperatorMetadata.DatadogSLOEnabled {
+		sloList := &v1alpha1.DatadogSLOList{}
+		if err := omf.k8sClient.List(context.TODO(), sloList); err == nil {
+			omf.OperatorMetadata.ResourceCounts["datadogslo"] = len(sloList.Items)
+		} else {
+			omf.logger.V(1).Info("Failed to list DatadogSLOs, keeping old value", "error", err, "old_count", omf.OperatorMetadata.ResourceCounts["datadogslo"])
+		}
 	}
 
-	genericList := &v1alpha1.DatadogGenericResourceList{}
-	if err := omf.k8sClient.List(context.TODO(), genericList); err == nil {
-		counts["datadoggenericresource"] = len(genericList.Items)
+	if omf.OperatorMetadata.DatadogGenericResourceEnabled {
+		genericList := &v1alpha1.DatadogGenericResourceList{}
+		if err := omf.k8sClient.List(context.TODO(), genericList); err == nil {
+			omf.OperatorMetadata.ResourceCounts["datadoggenericresource"] = len(genericList.Items)
+		} else {
+			omf.logger.V(1).Info("Failed to list DatadogGenericResources, keeping old value", "error", err, "old_count", omf.OperatorMetadata.ResourceCounts["datadoggenericresource"])
+		}
 	}
 
-	profileList := &v1alpha1.DatadogAgentProfileList{}
-	if err := omf.k8sClient.List(context.TODO(), profileList); err == nil {
-		counts["datadogagentprofile"] = len(profileList.Items)
+	if omf.OperatorMetadata.DatadogAgentProfileEnabled {
+		profileList := &v1alpha1.DatadogAgentProfileList{}
+		if err := omf.k8sClient.List(context.TODO(), profileList); err == nil {
+			omf.OperatorMetadata.ResourceCounts["datadogagentprofile"] = len(profileList.Items)
+		} else {
+			omf.logger.V(1).Info("Failed to list DatadogAgentProfiles, keeping old value", "error", err, "old_count", omf.OperatorMetadata.ResourceCounts["datadogagentprofile"])
+		}
 	}
-
-	// Serialize to JSON string
-	countsJSON, err := json.Marshal(counts)
-	if err != nil {
-		omf.logger.Error(err, "Error marshaling resource counts to JSON")
-		return "{}"
-	}
-
-	return string(countsJSON)
+	omf.logger.V(1).Info("Updated resource counts", "counts", omf.OperatorMetadata.ResourceCounts)
 }
