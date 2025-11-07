@@ -518,6 +518,7 @@ func setupAndStartOperatorMetadataForwarder(logger logr.Logger, client client.Re
 		IntrospectionEnabled:          options.introspectionEnabled,
 		ConfigDDURL:                   os.Getenv(constants.DDURL),
 		ConfigDDSite:                  os.Getenv(constants.DDSite),
+		ResourceCounts:                make(map[string]int),
 	}
 
 	omf.Start()
