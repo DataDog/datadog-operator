@@ -808,9 +808,6 @@ func testAPMInstrumentationWithLanguageDetectionForNodeAgent(languageDetectionEn
 				expectedCoreAgentEnvVars = append(expectedCoreAgentEnvVars, &corev1.EnvVar{Name: DDLanguageDetectionReportingEnabled, Value: "false"})
 			}
 
-			//sort.SliceStable(coreAgentEnvVars, func(i, j int) bool { return coreAgentEnvVars[i].Name < coreAgentEnvVars[j].Name })
-			//sort.SliceStable(expectedCoreAgentEnvVars, func(i, j int) bool { return coreAgentEnvVars[i].Name < coreAgentEnvVars[j].Name })
-
 			// Assert Env Vars Added to Core Agent Container
 			assert.True(
 				t,
