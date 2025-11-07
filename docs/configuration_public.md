@@ -369,6 +369,9 @@ spec:
 `features.usm.enabled`
 : Enables Universal Service Monitoring. Default: false
 
+`global.autodiscovery.extraIgnoreAutoConfig`
+: ExtraIgnoreAutoConfig provides a list of integrations to add to the Agent's ignore_autoconf list. Entries provided here are appended to defaults set by the Operator rather than overriding them.
+
 `global.checksTagCardinality`
 : ChecksTagCardinality configures tag cardinality for the metrics collected by integrations (`low`, `orchestrator` or `high`). See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#tags-cardinality. Not set by default to avoid overriding existing DD_CHECKS_TAG_CARDINALITY configurations, the default value in the Agent is low. Ref: https://github.com/DataDog/datadog-agent/blob/856cf4a66142ce91fd4f8a278149436eb971184a/pkg/config/setup/config.go#L625.
 
@@ -440,9 +443,6 @@ spec:
 
 `global.env`
 : Contains a list of environment variables that are set for all Agents.
-
-`global.autodiscovery.extraIgnoreAutoConfig`
-: Adds integrations to the Agent's ignored Autodiscovery list; values are appended to Operator defaults and not overridden.
 
 `global.fips`
 : FIPS contains configuration used to customize the FIPS proxy sidecar. See [link](https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md) for more information.
