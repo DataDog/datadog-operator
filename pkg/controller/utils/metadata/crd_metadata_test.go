@@ -18,14 +18,24 @@ func Test_CRDBuildPayload(t *testing.T) {
 	expectedOperatorVersion := "v1.19.0"
 	expectedClusterName := "test-cluster"
 	expectedClusterUID := "test-cluster-uid-12345"
-	expectedHostname := "test-host"
+	expectedCRDKind := "DatadogAgent"
+	expectedCRDName := "my-datadog-agent"
+	expectedCRDNamespace := "datadog"
+	expectedCRDAPIVersion := "datadoghq.com/v2alpha1"
+	expectedCRDUID := "crd-uid-67890"
 
-	cmf := &CRDMetadataForwarder{
-		SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, expectedKubernetesVersion, expectedOperatorVersion, nil),
-	}
-
-	// Set hostname in SharedMetadata to simulate it being populated
-	cmf.hostName = expectedHostname
+	cmf := NewCRDMetadataForwarder(
+		zap.New(zap.UseDevMode(true)),
+		nil,
+		expectedKubernetesVersion,
+		expectedOperatorVersion,
+		nil,
+		EnabledCRDKindsConfig{
+			DatadogAgentEnabled:         true,
+			DatadogAgentInternalEnabled: true,
+			DatadogAgentProfileEnabled:  true,
+		},
+	)
 
 	// Set cluster name in SharedMetadata to simulate it being populated
 	cmf.clusterName = expectedClusterName
@@ -33,7 +43,25 @@ func Test_CRDBuildPayload(t *testing.T) {
 	// Set cluster UID in SharedMetadata to simulate it being populated
 	cmf.clusterUID = expectedClusterUID
 
-	payload := cmf.buildPayload(expectedClusterUID)
+	// Create a test CRD instance
+	testSpec := map[string]interface{}{
+		"global": map[string]interface{}{
+			"credentials": map[string]interface{}{
+				"apiKey": "secret-key",
+			},
+		},
+	}
+
+	crdInstance := CRDInstance{
+		Kind:       expectedCRDKind,
+		Name:       expectedCRDName,
+		Namespace:  expectedCRDNamespace,
+		APIVersion: expectedCRDAPIVersion,
+		UID:        expectedCRDUID,
+		Spec:       testSpec,
+	}
+
+	payload := cmf.buildPayload(expectedClusterUID, crdInstance)
 
 	// Verify payload is valid JSON
 	if len(payload) == 0 {
@@ -44,11 +72,6 @@ func Test_CRDBuildPayload(t *testing.T) {
 	var parsed map[string]interface{}
 	if err := json.Unmarshal(payload, &parsed); err != nil {
 		t.Fatalf("buildPayload() returned invalid JSON: %v", err)
-	}
-
-	// Validate top-level fields
-	if hostname, ok := parsed["hostname"].(string); !ok || hostname != expectedHostname {
-		t.Errorf("buildPayload() hostname = %v, want %v", hostname, expectedHostname)
 	}
 
 	if timestamp, ok := parsed["timestamp"].(float64); !ok || timestamp <= 0 {
@@ -69,6 +92,51 @@ func Test_CRDBuildPayload(t *testing.T) {
 		t.Fatal("buildPayload() missing or invalid datadog_crd_metadata")
 	}
 
-	// TODO: Add validation for specific CRD metadata fields once they are populated
-	_ = metadata
+	// Validate CRD-specific fields in metadata
+	if operatorVersion, ok := metadata["operator_version"].(string); !ok || operatorVersion != expectedOperatorVersion {
+		t.Errorf("buildPayload() metadata.operator_version = %v, want %v", operatorVersion, expectedOperatorVersion)
+	}
+
+	if kubernetesVersion, ok := metadata["kubernetes_version"].(string); !ok || kubernetesVersion != expectedKubernetesVersion {
+		t.Errorf("buildPayload() metadata.kubernetes_version = %v, want %v", kubernetesVersion, expectedKubernetesVersion)
+	}
+
+	if clusterID, ok := metadata["cluster_id"].(string); !ok || clusterID != expectedClusterUID {
+		t.Errorf("buildPayload() metadata.cluster_id = %v, want %v", clusterID, expectedClusterUID)
+	}
+
+	if clusterName, ok := metadata["cluster_name"].(string); !ok || clusterName != expectedClusterName {
+		t.Errorf("buildPayload() metadata.cluster_name = %v, want %v", clusterName, expectedClusterName)
+	}
+
+	if crdKind, ok := metadata["crd_kind"].(string); !ok || crdKind != expectedCRDKind {
+		t.Errorf("buildPayload() metadata.crd_kind = %v, want %v", crdKind, expectedCRDKind)
+	}
+
+	if crdName, ok := metadata["crd_name"].(string); !ok || crdName != expectedCRDName {
+		t.Errorf("buildPayload() metadata.crd_name = %v, want %v", crdName, expectedCRDName)
+	}
+
+	if crdNamespace, ok := metadata["crd_namespace"].(string); !ok || crdNamespace != expectedCRDNamespace {
+		t.Errorf("buildPayload() metadata.crd_namespace = %v, want %v", crdNamespace, expectedCRDNamespace)
+	}
+
+	if crdAPIVersion, ok := metadata["crd_api_version"].(string); !ok || crdAPIVersion != expectedCRDAPIVersion {
+		t.Errorf("buildPayload() metadata.crd_api_version = %v, want %v", crdAPIVersion, expectedCRDAPIVersion)
+	}
+
+	if crdUID, ok := metadata["crd_uid"].(string); !ok || crdUID != expectedCRDUID {
+		t.Errorf("buildPayload() metadata.crd_uid = %v, want %v", crdUID, expectedCRDUID)
+	}
+
+	// Validate crd_spec_full exists and is valid JSON
+	if crdSpecFull, ok := metadata["crd_spec_full"].(string); !ok || crdSpecFull == "" {
+		t.Errorf("buildPayload() metadata.crd_spec_full = %v, want non-empty JSON string", crdSpecFull)
+	} else {
+		// Verify it's valid JSON
+		var specParsed map[string]interface{}
+		if err := json.Unmarshal([]byte(crdSpecFull), &specParsed); err != nil {
+			t.Errorf("buildPayload() metadata.crd_spec_full is not valid JSON: %v", err)
+		}
+	}
 }
