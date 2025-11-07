@@ -30,8 +30,8 @@ const (
 type CRDMetadataForwarder struct {
 	*SharedMetadata
 
-	// CRD-specific fields
 	payloadHeader http.Header
+	enabledCRDs   EnabledCRDKindsConfig
 }
 
 type CRDMetadataPayload struct {
@@ -65,10 +65,18 @@ type CRDInstance struct {
 	Spec       interface{} `json:"spec"`
 }
 
+// EnabledCRDsConfig specifies which CRD kinds are enabled for metadata collection
+type EnabledCRDKindsConfig struct {
+	DatadogAgentEnabled         bool
+	DatadogAgentInternalEnabled bool
+	DatadogAgentProfileEnabled  bool
+}
+
 // NewCRDMetadataForwarder creates a new instance of the CRD metadata forwarder
-func NewCRDMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string, credsManager *config.CredentialManager) *CRDMetadataForwarder {
+func NewCRDMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string, credsManager *config.CredentialManager, config EnabledCRDKindsConfig) *CRDMetadataForwarder {
 	return &CRDMetadataForwarder{
 		SharedMetadata: NewSharedMetadata(logger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
+		enabledCRDs:    config,
 	}
 }
 
@@ -204,54 +212,60 @@ func (cmf *CRDMetadataForwarder) getAllActiveCRDs() []CRDInstance {
 		return allCRDs
 	}
 	// DDA
-	ddaList := &v2alpha1.DatadogAgentList{}
-	if err := cmf.k8sClient.List(context.TODO(), ddaList); err == nil {
-		for _, dda := range ddaList.Items {
-			allCRDs = append(allCRDs, CRDInstance{
-				Kind:       "DatadogAgent",
-				Name:       dda.Name,
-				Namespace:  dda.Namespace,
-				APIVersion: dda.APIVersion,
-				UID:        string(dda.UID),
-				Spec:       dda.Spec,
-			})
+	if cmf.enabledCRDs.DatadogAgentEnabled {
+		ddaList := &v2alpha1.DatadogAgentList{}
+		if err := cmf.k8sClient.List(context.TODO(), ddaList); err == nil {
+			for _, dda := range ddaList.Items {
+				allCRDs = append(allCRDs, CRDInstance{
+					Kind:       "DatadogAgent",
+					Name:       dda.Name,
+					Namespace:  dda.Namespace,
+					APIVersion: dda.APIVersion,
+					UID:        string(dda.UID),
+					Spec:       dda.Spec,
+				})
+			}
+		} else {
+			cmf.logger.Error(err, "Error listing DatadogAgents")
 		}
-	} else {
-		cmf.logger.Error(err, "Error listing DatadogAgents")
 	}
 
 	// DDAI
-	ddaiList := &v1alpha1.DatadogAgentInternalList{}
-	if err := cmf.k8sClient.List(context.TODO(), ddaiList); err == nil {
-		for _, ddai := range ddaiList.Items {
-			allCRDs = append(allCRDs, CRDInstance{
-				Kind:       "DatadogAgentInternal",
-				Name:       ddai.Name,
-				Namespace:  ddai.Namespace,
-				APIVersion: ddai.APIVersion,
-				UID:        string(ddai.UID),
-				Spec:       ddai.Spec,
-			})
+	if cmf.enabledCRDs.DatadogAgentInternalEnabled {
+		ddaiList := &v1alpha1.DatadogAgentInternalList{}
+		if err := cmf.k8sClient.List(context.TODO(), ddaiList); err == nil {
+			for _, ddai := range ddaiList.Items {
+				allCRDs = append(allCRDs, CRDInstance{
+					Kind:       "DatadogAgentInternal",
+					Name:       ddai.Name,
+					Namespace:  ddai.Namespace,
+					APIVersion: ddai.APIVersion,
+					UID:        string(ddai.UID),
+					Spec:       ddai.Spec,
+				})
+			}
+		} else {
+			cmf.logger.Error(err, "Error listing DatadogAgentInternals")
 		}
-	} else {
-		cmf.logger.Error(err, "Error listing DatadogAgentInstances")
 	}
 
 	// DAP
-	dapList := &v1alpha1.DatadogAgentProfileList{}
-	if err := cmf.k8sClient.List(context.TODO(), dapList); err == nil {
-		for _, dap := range dapList.Items {
-			allCRDs = append(allCRDs, CRDInstance{
-				Kind:       "DatadogAgentProfile",
-				Name:       dap.Name,
-				Namespace:  dap.Namespace,
-				APIVersion: dap.APIVersion,
-				UID:        string(dap.UID),
-				Spec:       dap.Spec,
-			})
+	if cmf.enabledCRDs.DatadogAgentProfileEnabled {
+		dapList := &v1alpha1.DatadogAgentProfileList{}
+		if err := cmf.k8sClient.List(context.TODO(), dapList); err == nil {
+			for _, dap := range dapList.Items {
+				allCRDs = append(allCRDs, CRDInstance{
+					Kind:       "DatadogAgentProfile",
+					Name:       dap.Name,
+					Namespace:  dap.Namespace,
+					APIVersion: dap.APIVersion,
+					UID:        string(dap.UID),
+					Spec:       dap.Spec,
+				})
+			}
+		} else {
+			cmf.logger.Error(err, "Error listing DatadogAgentProfiles")
 		}
-	} else {
-		cmf.logger.Error(err, "Error listing DatadogAgentProfiles")
 	}
 
 	return allCRDs

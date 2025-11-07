@@ -524,6 +524,17 @@ func setupAndStartOperatorMetadataForwarder(logger logr.Logger, client client.Re
 }
 
 func setupAndStartCRDMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options, credsManager *config.CredentialManager) {
-	cmf := metadata.NewCRDMetadataForwarder(logger, client, kubernetesVersion, version.GetVersion(), credsManager)
+	cmf := metadata.NewCRDMetadataForwarder(
+		logger,
+		client,
+		kubernetesVersion,
+		version.GetVersion(),
+		credsManager,
+		metadata.EnabledCRDKindsConfig{
+			DatadogAgentEnabled:         options.datadogAgentEnabled,
+			DatadogAgentInternalEnabled: options.datadogAgentInternalEnabled,
+			DatadogAgentProfileEnabled:  options.datadogAgentProfileEnabled,
+		},
+	)
 	cmf.Start()
 }
