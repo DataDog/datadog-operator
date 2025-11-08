@@ -19,9 +19,9 @@ func CreateOrUpdateEKSAddon(ctx context.Context, client *eks.Client, clusterName
 	}
 
 	if exist {
-		return createAddon(ctx, client, clusterName, addonName)
-	} else {
 		return updateAddon(ctx, client, clusterName, addonName)
+	} else {
+		return createAddon(ctx, client, clusterName, addonName)
 	}
 }
 
