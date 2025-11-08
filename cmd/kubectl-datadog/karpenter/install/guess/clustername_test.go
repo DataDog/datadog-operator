@@ -1,7 +1,6 @@
 package guess
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -38,7 +37,7 @@ func TestGetClusterNameFromKubeConfig(t *testing.T) {
 			)
 			rawConfig, err := clientConfig.RawConfig()
 			require.NoError(t, err)
-			assert.Equal(t, tc.clusterName, GetClusterNameFromKubeconfig(context.Background(), rawConfig, tc.kubeContext))
+			assert.Equal(t, tc.clusterName, GetClusterNameFromKubeconfig(t.Context(), rawConfig, tc.kubeContext))
 		})
 	}
 }

@@ -16,7 +16,7 @@ type RoleMapping struct {
 	Groups   []string `yaml:"groups"`
 }
 
-func EnsureAwsAuthRole(ctx context.Context, clientset *kubernetes.Clientset, roleMapping RoleMapping) error {
+func EnsureAwsAuthRole(ctx context.Context, clientset kubernetes.Interface, roleMapping RoleMapping) error {
 	cm, err := clientset.CoreV1().ConfigMaps("kube-system").Get(ctx, "aws-auth", metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get aws-auth ConfigMap: %w", err)
