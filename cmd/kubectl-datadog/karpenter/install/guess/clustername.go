@@ -26,7 +26,8 @@ func GetClusterNameFromKubeconfig(ctx context.Context, rawConfig api.Config, kub
 	// For EKS, the cluster name in kubeconfig is often an ARN
 	// Format: arn:aws:eks:region:account:cluster/cluster-name
 	if strings.HasPrefix(clusterName, "arn:aws:eks:") {
-		if _, clusterName, found := strings.Cut(clusterName, "/"); found {
+		var found bool
+		if _, clusterName, found = strings.Cut(clusterName, "/"); found {
 			return clusterName
 		}
 	}
@@ -34,7 +35,8 @@ func GetClusterNameFromKubeconfig(ctx context.Context, rawConfig api.Config, kub
 	// For eksctl, the cluster name in kubeconfig is an eksctl.io suffixed FQDN
 	// Format: cluster-name.region.eksctl.io
 	if strings.HasSuffix(clusterName, ".eksctl.io") {
-		if clusterName, _, found := strings.Cut(clusterName, "."); found {
+		var found bool
+		if clusterName, _, found = strings.Cut(clusterName, "."); found {
 			return clusterName
 		}
 	}

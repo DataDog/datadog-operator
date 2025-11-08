@@ -3,6 +3,7 @@ package helm
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"log"
 
@@ -31,7 +32,7 @@ func doesExist(_ context.Context, ac *action.Configuration, releaseName string) 
 	versions, err := historyAction.Run(releaseName)
 
 	if err != nil {
-		if err == driver.ErrReleaseNotFound || (len(versions) > 0 && versions[len(versions)-1].Info.Status == release.StatusUninstalled) {
+		if errors.Is(err, driver.ErrReleaseNotFound) || (len(versions) > 0 && versions[len(versions)-1].Info.Status == release.StatusUninstalled) {
 			return false, nil
 		}
 		return false, fmt.Errorf("failed to get Helm release %s history: %w", releaseName, err)

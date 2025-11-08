@@ -24,7 +24,7 @@ func EnsureAwsAuthRole(ctx context.Context, clientset *kubernetes.Clientset, rol
 
 	var roles []RoleMapping
 	if mapRoles, ok := cm.Data["mapRoles"]; ok {
-		if err := yaml.Unmarshal([]byte(mapRoles), &roles); err != nil {
+		if err = yaml.Unmarshal([]byte(mapRoles), &roles); err != nil {
 			return fmt.Errorf("failed to parse mapRoles: %w", err)
 		}
 	} else {

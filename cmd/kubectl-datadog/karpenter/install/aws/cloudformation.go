@@ -167,7 +167,7 @@ func describeStack(ctx context.Context, client *cloudformation.Client, stackName
 		StackName: aws.String(stackName),
 	})
 	if err != nil {
-		return nil
+		return err
 	}
 	for _, event := range out2.StackEvents {
 		log.Printf("  %s: %s — %s", event.Timestamp.Format(time.RFC3339), event.ResourceStatus, aws.ToString(event.ResourceStatusReason))

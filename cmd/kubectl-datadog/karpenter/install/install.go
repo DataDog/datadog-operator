@@ -195,13 +195,13 @@ func (o *options) run(cmd *cobra.Command) error {
 	// Create CloudFormation stacks
 	cloudformationClient := cloudformation.NewFromConfig(awsConfig)
 
-	if err := aws.CreateOrUpdateStack(ctx, cloudformationClient, "dd-karpenter-"+clusterName+"-karpenter", KarpenterCfn, map[string]string{
+	if err = aws.CreateOrUpdateStack(ctx, cloudformationClient, "dd-karpenter-"+clusterName+"-karpenter", KarpenterCfn, map[string]string{
 		"ClusterName": clusterName,
 	}); err != nil {
 		return fmt.Errorf("failed to create or update Cloud Formation stack: %w", err)
 	}
 
-	if err := aws.CreateOrUpdateStack(ctx, cloudformationClient, "dd-karpenter-"+clusterName+"-dd-karpenter", DdKarpenterCfn, map[string]string{
+	if err = aws.CreateOrUpdateStack(ctx, cloudformationClient, "dd-karpenter-"+clusterName+"-dd-karpenter", DdKarpenterCfn, map[string]string{
 		"ClusterName":            clusterName,
 		"KarpenterNamespace":     karpenterNamespace,
 		"DeployPodIdentityAddon": strconv.FormatBool(!isUnmanagedEKSPIAInstalled),
@@ -217,7 +217,8 @@ func (o *options) run(cmd *cobra.Command) error {
 	if awsAuthConfigMapPresent {
 		// Get AWS account ID
 		stsClient := sts.NewFromConfig(awsConfig)
-		callerIdentity, err := stsClient.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
+		var callerIdentity *sts.GetCallerIdentityOutput
+		callerIdentity, err = stsClient.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
 		if err != nil {
 			return fmt.Errorf("failed to get identity caller: %w", err)
 		}
@@ -227,7 +228,7 @@ func (o *options) run(cmd *cobra.Command) error {
 		accountID := *callerIdentity.Account
 
 		// Add role mapping in the `aws-auth` ConfigMap
-		if err := aws.EnsureAwsAuthRole(ctx, o.Clientset, aws.RoleMapping{
+		if err = aws.EnsureAwsAuthRole(ctx, o.Clientset, aws.RoleMapping{
 			RoleArn:  "arn:aws:iam::" + accountID + ":role/KarpenterNodeRole-" + clusterName,
 			Username: "system:node:{{EC2PrivateDNSName}}",
 			Groups:   []string{"system:bootstrappers", "system:nodes"},
@@ -248,7 +249,7 @@ func (o *options) run(cmd *cobra.Command) error {
 	restClientGetter := kube.GetConfig(kubeConfig, kubeContext, karpenterNamespace)
 	actionConfig := new(action.Configuration)
 
-	if err := actionConfig.Init(restClientGetter, karpenterNamespace, os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
+	if err = actionConfig.Init(restClientGetter, karpenterNamespace, os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
 		return fmt.Errorf("failed to initialize Helm configuration: %w", err)
 	}
 
@@ -271,7 +272,7 @@ func (o *options) run(cmd *cobra.Command) error {
 		},
 	}
 
-	if err := helm.CreateOrUpgrade(ctx, actionConfig, "karpenter", karpenterNamespace, KarpenterHelmChart, values); err != nil {
+	if err = helm.CreateOrUpgrade(ctx, actionConfig, "karpenter", karpenterNamespace, KarpenterHelmChart, values); err != nil {
 		return fmt.Errorf("failed to create or update Helm release: %w", err)
 	}
 
