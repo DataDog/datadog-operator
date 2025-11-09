@@ -59,7 +59,7 @@ func install(ctx context.Context, ac *action.Configuration, releaseName, namespa
 		return fmt.Errorf("failed to install Helm release %s: %w", releaseName, err)
 	}
 
-	log.Printf("Installed Helm release %s", releaseName)
+	log.Printf("Installed Helm release %s.", releaseName)
 
 	return nil
 }

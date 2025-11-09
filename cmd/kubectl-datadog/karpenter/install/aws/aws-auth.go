@@ -33,7 +33,7 @@ func EnsureAwsAuthRole(ctx context.Context, clientset kubernetes.Interface, role
 
 	for _, role := range roles {
 		if role.RoleArn == roleMapping.RoleArn {
-			log.Printf("Role %s already exists in aws-auth ConfigMap", roleMapping.RoleArn)
+			log.Printf("Role %s already exists in aws-auth ConfigMap.", roleMapping.RoleArn)
 			return nil
 		}
 	}
@@ -51,7 +51,7 @@ func EnsureAwsAuthRole(ctx context.Context, clientset kubernetes.Interface, role
 		return fmt.Errorf("failed to update aws-auth ConfigMap: %w", err)
 	}
 
-	log.Printf("Added role %s to aws-auth ConfigMap", roleMapping.RoleArn)
+	log.Printf("Added role %s to aws-auth ConfigMap.", roleMapping.RoleArn)
 
 	return nil
 }

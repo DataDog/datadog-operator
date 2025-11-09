@@ -90,7 +90,7 @@ var (
 	inferenceMethod    = InferenceMethodNone
 	installExample     = `
   # install Karpenter
-  %[1]s karpenter install
+  %[1]s install
 `
 )
 
@@ -177,12 +177,12 @@ func (o *options) run(cmd *cobra.Command) error {
 		return errors.New("cluster name must be specified either via --cluster-name or in the current kubeconfig context")
 	}
 
-	cmd.Printf("Installing Karpenter on cluster %s.", clusterName)
+	cmd.Printf("Installing Karpenter on cluster %s.\n", clusterName)
 
 	// Get AWS config
 	awsConfig, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("failed to load AWS config: %w", err)
 	}
 
 	// Check if the EKS Pod Identity Agent is already installed and unmanaged
@@ -282,10 +282,10 @@ func (o *options) run(cmd *cobra.Command) error {
 	var nodePoolsSet *guess.NodePoolsSet
 	switch inferenceMethod {
 	case InferenceMethodNone:
-		log.Printf("Karpenter has been successfully installed, but no EC2NodeClass nor NodePool have been created yet. " +
+		cmd.Printf("Karpenter has been successfully installed, but no EC2NodeClass nor NodePool have been created yet. " +
 			"Those objects are mandatory for Karpenter to be able to auto-scale the cluster. " +
 			"Use --inference-method=nodes or --inference-method=nodegroups to create some " +
-			"with reasonable defaults based on the existing nodes of the cluster.")
+			"with reasonable defaults based on the existing nodes of the cluster.\n")
 		return nil
 
 	case InferenceMethodNodes:
@@ -301,7 +301,7 @@ func (o *options) run(cmd *cobra.Command) error {
 		}
 	}
 
-	log.Printf("Creating the following node pools:\n %s", spew.Sdump(nodePoolsSet))
+	cmd.Printf("Creating the following node pools:\n %s\n", spew.Sdump(nodePoolsSet))
 
 	sch := runtime.NewScheme()
 	if err := scheme.AddToScheme(sch); err != nil {

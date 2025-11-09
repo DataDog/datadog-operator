@@ -42,7 +42,7 @@ func create(ctx context.Context, cli client.Client, object client.Object) error 
 		return fmt.Errorf("failed to create %s %s: %w", object.GetObjectKind().GroupVersionKind().Kind, object.GetName(), err)
 	}
 
-	log.Printf("Created %s %s", object.GetObjectKind().GroupVersionKind().Kind, object.GetName())
+	log.Printf("Created %s %s.", object.GetObjectKind().GroupVersionKind().Kind, object.GetName())
 
 	return nil
 }
@@ -54,7 +54,7 @@ func update(ctx context.Context, cli client.Client, object client.Object) error 
 		return fmt.Errorf("failed to update %s %s: %w", object.GetObjectKind().GroupVersionKind().Kind, object.GetName(), err)
 	}
 
-	log.Printf("Updated %s %s", object.GetObjectKind().GroupVersionKind().Kind, object.GetName())
+	log.Printf("Updated %s %s.", object.GetObjectKind().GroupVersionKind().Kind, object.GetName())
 
 	return nil
 }

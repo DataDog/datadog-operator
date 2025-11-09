@@ -48,7 +48,7 @@ func doesAddonExist(ctx context.Context, client *eks.Client, clusterName string,
 }
 
 func createAddon(ctx context.Context, client *eks.Client, clusterName string, addonName string) error {
-	log.Printf("Creating EKS Addon %s for cluster %s", addonName, clusterName)
+	log.Printf("Creating EKS Addon %s for cluster %s…", addonName, clusterName)
 
 	_, err := client.CreateAddon(
 		ctx,
@@ -58,13 +58,13 @@ func createAddon(ctx context.Context, client *eks.Client, clusterName string, ad
 		},
 	)
 
-	log.Printf("EKS Addon %s for cluster %s created", addonName, clusterName)
+	log.Printf("EKS Addon %s for cluster %s created.", addonName, clusterName)
 
 	return err
 }
 
 func updateAddon(ctx context.Context, client *eks.Client, clusterName string, addonName string) error {
-	log.Printf("Updating EKS Addon %s for cluster %s", addonName, clusterName)
+	log.Printf("Updating EKS Addon %s for cluster %s…", addonName, clusterName)
 
 	_, err := client.UpdateAddon(
 		ctx,
@@ -74,7 +74,7 @@ func updateAddon(ctx context.Context, client *eks.Client, clusterName string, ad
 		},
 	)
 
-	log.Printf("EKS Addon %s for cluster %s updated", addonName, clusterName)
+	log.Printf("EKS Addon %s for cluster %s updated.", addonName, clusterName)
 
 	return err
 }

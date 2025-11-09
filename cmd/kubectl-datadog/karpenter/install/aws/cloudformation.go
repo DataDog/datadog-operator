@@ -86,7 +86,7 @@ func createStack(ctx context.Context, client *cloudformation.Client, stackName s
 		},
 		maxWaitDuration,
 	); err != nil {
-		log.Printf("Failed to create stack %s", stackName)
+		log.Printf("Failed to create stack %s.", stackName)
 		describeStack(ctx, client, stackName)
 
 		return fmt.Errorf("failed to wait for stack %s creation: %w", stackName, err)
@@ -116,7 +116,7 @@ func updateStack(ctx context.Context, client *cloudformation.Client, stackName s
 		if errors.As(err, &apiErr) &&
 			apiErr.ErrorCode() == "ValidationError" &&
 			strings.Contains(apiErr.ErrorMessage(), "No updates are to be performed") {
-			log.Printf("Stack %s is already up-to-date", stackName)
+			log.Printf("Stack %s is already up-to-date.", stackName)
 			return nil
 		}
 		return fmt.Errorf("failed to update stack %s: %w", stackName, err)
@@ -130,7 +130,7 @@ func updateStack(ctx context.Context, client *cloudformation.Client, stackName s
 		},
 		maxWaitDuration,
 	); err != nil {
-		log.Printf("Failed to update stack %s", stackName)
+		log.Printf("Failed to update stack %s.", stackName)
 		describeStack(ctx, client, stackName)
 
 		return fmt.Errorf("failed to wait for stack %s update: %w", stackName, err)
