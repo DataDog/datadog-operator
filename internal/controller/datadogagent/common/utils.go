@@ -64,6 +64,7 @@ func GetDefaultMetadata(owner metav1.Object, componentKind, instanceName, versio
 			},
 		}
 	}
+
 	return labels, annotations, selector
 }
 

@@ -17,4 +17,6 @@ const (
 	DatadogAgentNameLabelKey = "agent.datadoghq.com/datadogagent"
 	// UpdateMetadataAnnotationKey is used when the workload metadata should be updated
 	UpdateMetadataAnnotationKey = "agent.datadoghq.com/update-metadata"
+	// HelmMigrationAnnotationKey is used when a Helm-managed workload should be migrated
+	HelmMigrationAnnotationKey = "agent.datadoghq.com/helm-migration"
 )

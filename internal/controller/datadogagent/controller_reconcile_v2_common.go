@@ -35,6 +35,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/helm"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -69,22 +70,15 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 	}
 
 	// Get the current deployment and compare
-	nsName := types.NamespacedName{
-		Name:      deployment.GetName(),
-		Namespace: deployment.GetNamespace(),
+	currentDeployment, err := r.getCurrentDeployment(dda, deployment)
+	if err != nil {
+		return reconcile.Result{}, err
 	}
 
-	currentDeployment := &appsv1.Deployment{}
 	alreadyExists := true
-	err = r.client.Get(context.TODO(), nsName, currentDeployment)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			logger.Info("deployment is not found")
-			alreadyExists = false
-		} else {
-			logger.Error(err, "unexpected error during deployment get")
-			return reconcile.Result{}, err
-		}
+	if currentDeployment == nil {
+		logger.Info("deployment is not found")
+		alreadyExists = false
 	}
 
 	if alreadyExists {
@@ -107,9 +101,18 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 			}
 			logger.Info("Deployment owner reference patched")
 		}
-		if !maps.Equal(deployment.Spec.Selector.MatchLabels, currentDeployment.Spec.Selector.MatchLabels) {
-			if err = deleteObjectAndOrphanDependents(context.TODO(), logger, r.client, deployment, deployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
-				return result, err
+		if restartDeployment(deployment, currentDeployment) {
+			// if its a helm cluster checks runner deployment, delete the workload and dependents
+			helmCCRDeployment := currentDeployment.GetLabels()[kubernetes.AppKubernetesComponentLabelKey] == "clusterchecks-agent" && helm.IsHelmMigration(dda)
+			if helmCCRDeployment {
+				if err = deleteAllWorkloadsAndDependentsBackground(context.TODO(), logger, r.client, currentDeployment, currentDeployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
+					return result, err
+				}
+				return result, nil
+			} else {
+				if err = deleteObjectAndOrphanDependents(context.TODO(), logger, r.client, deployment, deployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
+					return result, err
+				}
 			}
 			return result, nil
 		}
@@ -629,6 +632,67 @@ func (r *Reconciler) addDDAIStatusToDDAStatus(status *datadoghqv2alpha1.DatadogA
 	return nil
 }
 
+// getCurrentDeployment returns the current deployment for a given DDA
+func (r *Reconciler) getCurrentDeployment(dda, deployment metav1.Object) (*appsv1.Deployment, error) {
+	// Helm-migrated deployment
+	if helm.IsHelmMigration(dda) {
+		componentType := deployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]
+		if componentType == "" {
+			r.log.Info("No component label found in deployment, using default")
+			componentType = constants.DefaultAgentResourceSuffix
+		}
+		dsList := appsv1.DeploymentList{}
+		matchLabels := client.MatchingLabels{
+			kubernetes.AppKubernetesManageByLabelKey:   "Helm",
+			kubernetes.AppKubernetesNameLabelKey:       dda.GetName(),
+			apicommon.AgentDeploymentComponentLabelKey: componentType,
+		}
+
+		if err := r.client.List(context.TODO(), &dsList, matchLabels); err != nil {
+			return nil, err
+		}
+
+		switch len(dsList.Items) {
+		case 0: // Migration has completed; check for default deployment
+			r.log.Info("Helm-managed deployment has been migrated, checking for default deployment", "component", componentType)
+		case 1:
+			r.log.Info("Found Helm-managed deployment", "name", dsList.Items[0].Name)
+			return &dsList.Items[0], nil
+		default:
+			return nil, fmt.Errorf("expected 1 deployment for datadog helm release: %s, got %d", dda.GetName(), len(dsList.Items))
+		}
+	}
+
+	// Default deployment
+	nsName := types.NamespacedName{
+		Name:      deployment.GetName(),
+		Namespace: deployment.GetNamespace(),
+	}
+	currentDeployment := &appsv1.Deployment{}
+	if err := r.client.Get(context.TODO(), nsName, currentDeployment); err != nil {
+		if apierrors.IsNotFound(err) {
+			r.log.Info("deployment is not found")
+			return nil, nil
+		}
+		return nil, err
+	}
+	return currentDeployment, nil
+}
+
+func restartDeployment(deployment, currentDeployment *appsv1.Deployment) bool {
+	// name change
+	if deployment.Name != currentDeployment.Name {
+		return true
+	}
+
+	// selectors are immutable
+	if !maps.Equal(deployment.Spec.Selector.MatchLabels, currentDeployment.Spec.Selector.MatchLabels) {
+		return true
+	}
+
+	return false
+}
+
 // getCurrentDaemonset returns the current daemonset for a given DDA
 // The Daemonset may use the old naming format so we retrieve it via labels
 func (r *Reconciler) getCurrentDaemonset(dda, daemonset metav1.Object) (*appsv1.DaemonSet, error) {
@@ -650,6 +714,36 @@ func (r *Reconciler) getCurrentDaemonset(dda, daemonset metav1.Object) (*appsv1.
 			return &dsList.Items[0], nil
 		default:
 			return nil, fmt.Errorf("expected 1 daemonset for profile: %s, got %d", profileName, len(dsList.Items))
+		}
+	}
+
+	// Helm-migrated daemonset
+	if helm.IsHelmMigration(dda) {
+		dsList := appsv1.DaemonSetList{}
+		if err := r.client.List(context.TODO(), &dsList, client.MatchingLabels{
+			apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+			kubernetes.AppKubernetesManageByLabelKey:   "Helm",
+		}); err != nil {
+			return nil, err
+		}
+		switch len(dsList.Items) {
+		case 0: // No Helm-managed daemonsets found; check for operator-managed daemonset
+			nsName := types.NamespacedName{
+				Name:      daemonset.GetName(),
+				Namespace: daemonset.GetNamespace(),
+			}
+			existingDaemonset := &appsv1.DaemonSet{}
+			if err := r.client.Get(context.TODO(), nsName, existingDaemonset); err != nil {
+				r.log.V(1).Info("Helm migration in progress: operator-managed daemonset not found")
+			} else {
+				if _, exists := existingDaemonset.Labels[constants.MD5AgentDeploymentMigratedLabelKey]; !exists {
+					r.log.V(1).Info("Helm migration in progress: operator-managed daemonset exists and migration label not found")
+				}
+			}
+		case 1:
+			return &dsList.Items[0], nil
+		default:
+			return nil, fmt.Errorf("expected 1 daemonset for datadog helm release: %s, got %d", dda.GetName(), len(dsList.Items))
 		}
 	}
 

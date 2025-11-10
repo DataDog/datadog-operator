@@ -36,6 +36,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/helm"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -140,6 +141,29 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	// Start by creating the Default Agent daemonset
 	daemonset = componentagent.NewDefaultAgentDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent, instanceName)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
+
+	// Check if this operator daemonset should have migration label (after Helm migration completed)
+	if helm.IsHelmMigration(dda) {
+		dsList := appsv1.DaemonSetList{}
+		if err := r.client.List(context.TODO(), &dsList, client.MatchingLabels{
+			apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+			kubernetes.AppKubernetesManageByLabelKey:   "Helm",
+			apicommon.AgentDeploymentNameLabelKey:      "datadog",
+		}); err == nil && len(dsList.Items) == 0 {
+			nsName := types.NamespacedName{
+				Name:      daemonset.GetName(),
+				Namespace: daemonset.GetNamespace(),
+			}
+			existingDaemonset := &appsv1.DaemonSet{}
+			if err := r.client.Get(context.TODO(), nsName, existingDaemonset); err != nil {
+				if daemonset.Labels == nil {
+					daemonset.Labels = make(map[string]string)
+				}
+				daemonset.Labels[constants.MD5AgentDeploymentMigratedLabelKey] = "true"
+				logger.Info("Adding migration label to new operator daemonset as Helm migration has completed")
+			}
+		}
+	}
 	// Set Global setting on the default daemonset
 	global.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda.GetObjectMeta(), &dda.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
 

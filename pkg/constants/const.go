@@ -63,6 +63,8 @@ const (
 
 // Labels
 const (
+	//MD5AgentDeploymentMigratedLabelKey label key is used to identify if a Helm-managed daemonset has been migrated
+	MD5AgentDeploymentMigratedLabelKey = "agent.datadoghq.com/migrated"
 	// MD5AgentDeploymentProviderLabelKey label key is used to identify which provider is being used
 	MD5AgentDeploymentProviderLabelKey = "agent.datadoghq.com/provider"
 	// MD5AgentDeploymentAnnotationKey annotation key used on a Resource in order to identify which AgentDeployment have been used to generate it.
