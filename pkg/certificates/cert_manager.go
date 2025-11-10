@@ -7,8 +7,9 @@ package certificates
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -77,9 +78,9 @@ func (m *Manager) GetOrCreateCA(ctx context.Context, namespace string) error {
 }
 
 // generateCA generates a new self-signed CA certificate with a 50-year validity period
-func (m *Manager) generateCA() (*x509.Certificate, *rsa.PrivateKey, error) {
-	// Generate RSA private key (4096-bit for CA)
-	caKey, err := rsa.GenerateKey(rand.Reader, 4096)
+func (m *Manager) generateCA() (*x509.Certificate, *ecdsa.PrivateKey, error) {
+	// Generate ecdsa key, much shorter and more secure than RSA (saves time)
+	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate CA private key: %w", err)
 	}
@@ -124,17 +125,22 @@ func (m *Manager) generateCA() (*x509.Certificate, *rsa.PrivateKey, error) {
 }
 
 // storeCA stores the CA certificate and private key in a Kubernetes Secret
-func (m *Manager) storeCA(ctx context.Context, namespace string, caCert *x509.Certificate, caKey *rsa.PrivateKey) error {
+func (m *Manager) storeCA(ctx context.Context, namespace string, caCert *x509.Certificate, caKey *ecdsa.PrivateKey) error {
 	// Encode certificate to PEM
 	certPEM := pem.EncodeToMemory(&pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: caCert.Raw,
 	})
 
-	// Encode private key to PEM (PKCS1 format)
+	// Encode private key to PEM (
+	keyBytes, err := x509.MarshalECPrivateKey(caKey)
+	if err != nil {
+		return fmt.Errorf("failed to marshal EC private key: %w", err)
+	}
+
 	keyPEM := pem.EncodeToMemory(&pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(caKey),
+		Type:  "EC PRIVATE KEY",
+		Bytes: keyBytes,
 	})
 
 	// Create Secret
@@ -151,7 +157,7 @@ func (m *Manager) storeCA(ctx context.Context, namespace string, caCert *x509.Ce
 	}
 
 	// Create or update the Secret
-	err := m.client.Create(ctx, secret)
+	err = m.client.Create(ctx, secret)
 	if err != nil {
 		if errors.IsAlreadyExists(err) {
 			// Update existing secret
