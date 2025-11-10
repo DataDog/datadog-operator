@@ -68,6 +68,9 @@ func UpdateProfileStatus(logger logr.Logger, profile *datadoghqv1alpha1.DatadogA
 }
 
 func GenerateProfileStatusFromConditions(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, now metav1.Time) {
+	if profile == nil {
+		return
+	}
 	newStatus := v1alpha1.DatadogAgentProfileStatus{}
 
 	newStatus.LastUpdate = &now

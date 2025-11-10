@@ -35,14 +35,8 @@ func sendProfileEnabledMetric(enabled bool) {
 func (r *Reconciler) reconcileProfiles(ctx context.Context) ([]*v1alpha1.DatadogAgentProfile, error) {
 	now := metav1.Now()
 	// start with the default profile so that on error, at minimum the default profile is applied
-	appliedProfiles := []*v1alpha1.DatadogAgentProfile{
-		&v1alpha1.DatadogAgentProfile{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "",
-				Name:      "default",
-			},
-		},
-	}
+	defaultProfile := agentprofile.DefaultProfile()
+	appliedProfiles := []*v1alpha1.DatadogAgentProfile{&defaultProfile}
 	// get and sort all profiles
 	profilesList := v1alpha1.DatadogAgentProfileList{}
 	if err := r.client.List(ctx, &profilesList); err != nil {
@@ -55,6 +49,7 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context) ([]*v1alpha1.Datadog
 		return appliedProfiles, fmt.Errorf("unable to get node list: %w", err)
 	}
 
+	// profilesByNode is a map of node name to profile
 	profilesByNode := make(map[string]types.NamespacedName)
 	for _, profile := range sortedProfiles {
 		profileCopy := profile.DeepCopy() // deep copy to avoid modifying status of original profile
@@ -70,9 +65,7 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context) ([]*v1alpha1.Datadog
 		}
 		// add profile to list of applied profiles only if it was applied successfully
 		if profileCopy.Status.Applied == metav1.ConditionTrue {
-			// copy or og?
 			appliedProfiles = append(appliedProfiles, profileCopy)
-			r.log.Info("waffles adding to applied profiles", "profile", profileCopy.Name)
 		}
 	}
 
