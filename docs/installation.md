@@ -25,7 +25,7 @@ For instance:
 ```yaml
 image:
   tag: 1.2.0
-clusterName: my-cluster  # Optional: Set a meaningful cluster name for better identification in Datadog
+clusterName: my-cluster
 datadogMonitor:
   enabled: true
 ```
