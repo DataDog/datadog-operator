@@ -1319,6 +1319,11 @@ func (in *DatadogFeatures) DeepCopyInto(out *DatadogFeatures) {
 		*out = new(GPUFeatureConfig)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Autodiscovery != nil {
+		in, out := &in.Autodiscovery, &out.Autodiscovery
+		*out = new(AutodiscoveryConfig)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.EventCollection != nil {
 		in, out := &in.EventCollection, &out.EventCollection
 		*out = new(EventCollectionFeatureConfig)
@@ -1903,11 +1908,6 @@ func (in *GlobalConfig) DeepCopyInto(out *GlobalConfig) {
 	if in.SecretBackend != nil {
 		in, out := &in.SecretBackend, &out.SecretBackend
 		*out = new(SecretBackendConfig)
-		(*in).DeepCopyInto(*out)
-	}
-	if in.Autodiscovery != nil {
-		in, out := &in.Autodiscovery, &out.Autodiscovery
-		*out = new(AutodiscoveryConfig)
 		(*in).DeepCopyInto(*out)
 	}
 }

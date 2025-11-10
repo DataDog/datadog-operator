@@ -38,7 +38,7 @@ func Test_autodiscoveryFeature_Configure_NoExtras(t *testing.T) {
 func Test_autodiscoveryFeature_EnvVars_Set(t *testing.T) {
 	b := testutils.NewDatadogAgentBuilder()
 	dda := b.Build()
-	dda.Spec.Global.Autodiscovery = &v2alpha1.AutodiscoveryConfig{ExtraIgnoreAutoConfig: []string{"redis", "postgres"}}
+	dda.Spec.Features.Autodiscovery = &v2alpha1.AutodiscoveryConfig{ExtraIgnoreAutoConfig: []string{"redis", "postgres"}}
 
 	wantEnv := []*corev1.EnvVar{
 		{Name: DDIgnoreAutoConf, Value: "redis postgres"},
@@ -80,7 +80,7 @@ func Test_autodiscoveryFeature_EnvVars_Set(t *testing.T) {
 	}
 
 	// Inject extras into the second test's DDA (the suite creates its own DDA per test)
-	tests[1].DDA.Spec.Global.Autodiscovery = &v2alpha1.AutodiscoveryConfig{ExtraIgnoreAutoConfig: []string{"redis", "postgres"}}
+	tests[1].DDA.Spec.Features.Autodiscovery = &v2alpha1.AutodiscoveryConfig{ExtraIgnoreAutoConfig: []string{"redis", "postgres"}}
 
 	tests.Run(t, buildAutodiscoveryFeature)
 }
@@ -88,7 +88,7 @@ func Test_autodiscoveryFeature_EnvVars_Set(t *testing.T) {
 func Test_autodiscoveryFeature_EnvVars_MergeExisting(t *testing.T) {
 	b := testutils.NewDatadogAgentBuilder()
 	dda := b.Build()
-	dda.Spec.Global.Autodiscovery = &v2alpha1.AutodiscoveryConfig{ExtraIgnoreAutoConfig: []string{"redis", "postgres"}}
+	dda.Spec.Features.Autodiscovery = &v2alpha1.AutodiscoveryConfig{ExtraIgnoreAutoConfig: []string{"redis", "postgres"}}
 
 	tests := test.FeatureTestSuite{
 		{
@@ -147,7 +147,7 @@ func Test_autodiscoveryFeature_EnvVars_MergeExisting(t *testing.T) {
 	}
 
 	// Inject extras into tests that build their own DDA
-	tests[2].DDA.Spec.Global.Autodiscovery = &v2alpha1.AutodiscoveryConfig{ExtraIgnoreAutoConfig: []string{"redis", "postgres"}}
+	tests[2].DDA.Spec.Features.Autodiscovery = &v2alpha1.AutodiscoveryConfig{ExtraIgnoreAutoConfig: []string{"redis", "postgres"}}
 
 	tests.Run(t, buildAutodiscoveryFeature)
 }

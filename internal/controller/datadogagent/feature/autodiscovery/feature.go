@@ -37,16 +37,16 @@ func (f *autodiscoveryFeature) ID() feature.IDType { return feature.Autodiscover
 
 // Configure configures the feature from a DatadogAgent instance.
 func (f *autodiscoveryFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
-	if ddaSpec.Global == nil || ddaSpec.Global.Autodiscovery == nil {
+	if ddaSpec.Features == nil || ddaSpec.Features.Autodiscovery == nil {
 		return reqComp
 	}
-	if len(ddaSpec.Global.Autodiscovery.ExtraIgnoreAutoConfig) == 0 {
+	if len(ddaSpec.Features.Autodiscovery.ExtraIgnoreAutoConfig) == 0 {
 		return reqComp
 	}
 
-	f.extraIgnore = ddaSpec.Global.Autodiscovery.ExtraIgnoreAutoConfig
+	f.extraIgnore = ddaSpec.Features.Autodiscovery.ExtraIgnoreAutoConfig
 
-    // Mark Agent as required so single-container strategy switches to the unprivileged container.
+	// Mark Agent as required so single-container strategy switches to the unprivileged container.
 	reqComp.Agent.IsRequired = apiutils.NewBoolPointer(true)
 	reqComp.Agent.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 	reqComp.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
