@@ -59,18 +59,16 @@ func Test_CRDBuildPayload(t *testing.T) {
 		"owner":   "sre-team",
 		"version": "1.0",
 	}
-	testCreationTimestamp := "2024-01-15T10:00:00Z"
 
 	crdInstance := CRDInstance{
-		Kind:              expectedCRDKind,
-		Name:              expectedCRDName,
-		Namespace:         expectedCRDNamespace,
-		APIVersion:        expectedCRDAPIVersion,
-		UID:               expectedCRDUID,
-		CreationTimestamp: testCreationTimestamp,
-		Spec:              testSpec,
-		Labels:            testLabels,
-		Annotations:       testAnnotations,
+		Kind:        expectedCRDKind,
+		Name:        expectedCRDName,
+		Namespace:   expectedCRDNamespace,
+		APIVersion:  expectedCRDAPIVersion,
+		UID:         expectedCRDUID,
+		Spec:        testSpec,
+		Labels:      testLabels,
+		Annotations: testAnnotations,
 	}
 
 	payload := cmf.buildPayload(expectedClusterUID, crdInstance)
@@ -139,11 +137,6 @@ func Test_CRDBuildPayload(t *testing.T) {
 
 	if crdUID, ok := metadata["crd_uid"].(string); !ok || crdUID != expectedCRDUID {
 		t.Errorf("buildPayload() metadata.crd_uid = %v, want %v", crdUID, expectedCRDUID)
-	}
-
-	// Validate crd_creation_timestamp
-	if crdCreationTimestamp, ok := metadata["crd_creation_timestamp"].(string); !ok || crdCreationTimestamp != testCreationTimestamp {
-		t.Errorf("buildPayload() metadata.crd_creation_timestamp = %v, want %v", crdCreationTimestamp, testCreationTimestamp)
 	}
 
 	// Validate crd_spec_full exists and is valid JSON

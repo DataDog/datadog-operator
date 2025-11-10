@@ -55,27 +55,25 @@ type CRDMetadata struct {
 	ClusterID         string `json:"cluster_id"`
 	ClusterName       string `json:"cluster_name"`
 
-	CRDKind              string `json:"crd_kind"`
-	CRDName              string `json:"crd_name"`
-	CRDNamespace         string `json:"crd_namespace"`
-	CRDAPIVersion        string `json:"crd_api_version"`
-	CRDUID               string `json:"crd_uid"`
-	CRDCreationTimestamp string `json:"crd_creation_timestamp"`
-	CRDSpecFull          string `json:"crd_spec_full"`
-	CRDLabelsJSON        string `json:"crd_labels,omitempty"`
-	CRDAnnotationsJSON   string `json:"crd_annotations,omitempty"`
+	CRDKind            string `json:"crd_kind"`
+	CRDName            string `json:"crd_name"`
+	CRDNamespace       string `json:"crd_namespace"`
+	CRDAPIVersion      string `json:"crd_api_version"`
+	CRDUID             string `json:"crd_uid"`
+	CRDSpecFull        string `json:"crd_spec_full"`
+	CRDLabelsJSON      string `json:"crd_labels,omitempty"`
+	CRDAnnotationsJSON string `json:"crd_annotations,omitempty"`
 }
 
 type CRDInstance struct {
-	Kind              string            `json:"kind"`
-	Name              string            `json:"name"`
-	Namespace         string            `json:"namespace"`
-	APIVersion        string            `json:"api_version"`
-	UID               string            `json:"uid"`
-	CreationTimestamp string            `json:"creation_timestamp"`
-	Spec              interface{}       `json:"spec"`
-	Labels            map[string]string `json:"labels,omitempty"`
-	Annotations       map[string]string `json:"annotations,omitempty"`
+	Kind        string            `json:"kind"`
+	Name        string            `json:"name"`
+	Namespace   string            `json:"namespace"`
+	APIVersion  string            `json:"api_version"`
+	UID         string            `json:"uid"`
+	Spec        interface{}       `json:"spec"`
+	Labels      map[string]string `json:"labels,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 // EnabledCRDsConfig specifies which CRD kinds are enabled for metadata collection
@@ -208,15 +206,14 @@ func (cmf *CRDMetadataForwarder) buildPayload(clusterUID string, crdInstance CRD
 		ClusterID:         clusterUID,
 		ClusterName:       cmf.clusterName,
 
-		CRDKind:              crdInstance.Kind,
-		CRDName:              crdInstance.Name,
-		CRDNamespace:         crdInstance.Namespace,
-		CRDAPIVersion:        crdInstance.APIVersion,
-		CRDUID:               crdInstance.UID,
-		CRDCreationTimestamp: crdInstance.CreationTimestamp,
-		CRDSpecFull:          string(specJSON),
-		CRDLabelsJSON:        string(labelsJSON),
-		CRDAnnotationsJSON:   string(annotationsJSON),
+		CRDKind:            crdInstance.Kind,
+		CRDName:            crdInstance.Name,
+		CRDNamespace:       crdInstance.Namespace,
+		CRDAPIVersion:      crdInstance.APIVersion,
+		CRDUID:             crdInstance.UID,
+		CRDSpecFull:        string(specJSON),
+		CRDLabelsJSON:      string(labelsJSON),
+		CRDAnnotationsJSON: string(annotationsJSON),
 	}
 
 	payload := CRDMetadataPayload{
@@ -253,15 +250,14 @@ func (cmf *CRDMetadataForwarder) getAllActiveCRDs() ([]CRDInstance, map[string]b
 				delete(annotations, "kubectl.kubernetes.io/last-applied-configuration")
 
 				crds = append(crds, CRDInstance{
-					Kind:              "DatadogAgent",
-					Name:              dda.Name,
-					Namespace:         dda.Namespace,
-					APIVersion:        dda.APIVersion,
-					UID:               string(dda.UID),
-					CreationTimestamp: dda.CreationTimestamp.Format(time.RFC3339),
-					Spec:              dda.Spec,
-					Labels:            dda.Labels,
-					Annotations:       annotations,
+					Kind:        "DatadogAgent",
+					Name:        dda.Name,
+					Namespace:   dda.Namespace,
+					APIVersion:  dda.APIVersion,
+					UID:         string(dda.UID),
+					Spec:        dda.Spec,
+					Labels:      dda.Labels,
+					Annotations: annotations,
 				})
 			}
 		} else {
@@ -279,15 +275,14 @@ func (cmf *CRDMetadataForwarder) getAllActiveCRDs() ([]CRDInstance, map[string]b
 				delete(annotations, "kubectl.kubernetes.io/last-applied-configuration")
 
 				crds = append(crds, CRDInstance{
-					Kind:              "DatadogAgentInternal",
-					Name:              ddai.Name,
-					Namespace:         ddai.Namespace,
-					APIVersion:        ddai.APIVersion,
-					UID:               string(ddai.UID),
-					CreationTimestamp: ddai.CreationTimestamp.Format(time.RFC3339),
-					Spec:              ddai.Spec,
-					Labels:            ddai.Labels,
-					Annotations:       annotations,
+					Kind:        "DatadogAgentInternal",
+					Name:        ddai.Name,
+					Namespace:   ddai.Namespace,
+					APIVersion:  ddai.APIVersion,
+					UID:         string(ddai.UID),
+					Spec:        ddai.Spec,
+					Labels:      ddai.Labels,
+					Annotations: annotations,
 				})
 			}
 		} else {
@@ -305,15 +300,14 @@ func (cmf *CRDMetadataForwarder) getAllActiveCRDs() ([]CRDInstance, map[string]b
 				delete(annotations, "kubectl.kubernetes.io/last-applied-configuration")
 
 				crds = append(crds, CRDInstance{
-					Kind:              "DatadogAgentProfile",
-					Name:              dap.Name,
-					Namespace:         dap.Namespace,
-					APIVersion:        dap.APIVersion,
-					UID:               string(dap.UID),
-					CreationTimestamp: dap.CreationTimestamp.Format(time.RFC3339),
-					Spec:              dap.Spec,
-					Labels:            dap.Labels,
-					Annotations:       annotations,
+					Kind:        "DatadogAgentProfile",
+					Name:        dap.Name,
+					Namespace:   dap.Namespace,
+					APIVersion:  dap.APIVersion,
+					UID:         string(dap.UID),
+					Spec:        dap.Spec,
+					Labels:      dap.Labels,
+					Annotations: annotations,
 				})
 			}
 		} else {
