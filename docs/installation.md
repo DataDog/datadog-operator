@@ -68,12 +68,12 @@ helm upgrade my-datadog-operator datadog/datadog-operator -f values.yaml
 
 Setting a cluster name is optional but recommended. The cluster name can be configured in the following ways:
 
-1. **Helm chart `clusterName` value** (sets `DD_CLUSTER_NAME` environment variable on the Operator):
+- **Helm chart `clusterName` value** (sets `DD_CLUSTER_NAME` environment variable on the Operator):
    ```yaml
    clusterName: my-cluster
    ```
 
-2. **DatadogAgent CRD `spec.global.clusterName`**:
+- **DatadogAgent CRD `spec.global.clusterName`**:
    ```yaml
    apiVersion: datadoghq.com/v2alpha1
    kind: DatadogAgent
