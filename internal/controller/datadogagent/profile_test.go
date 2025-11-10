@@ -194,7 +194,7 @@ func Test_computeProfileMerge(t *testing.T) {
 					Name:      "foo-profile",
 					Namespace: "bar",
 					Annotations: map[string]string{
-						constants.MD5DDAIDeploymentAnnotationKey: "d91470179d6dd0c81ab6cafbba103b53",
+						constants.MD5DDAIDeploymentAnnotationKey: "e160cdf078da13507876397e80bbe4e0",
 					},
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
