@@ -35,10 +35,11 @@ func (nc *EC2NodeClass) sum64() uint64 {
 }
 
 type NodePool struct {
-	Name         string
-	EC2NodeClass string
-	Labels       map[string]string
-	Taints       []corev1.Taint
+	Name          string
+	EC2NodeClass  string
+	Labels        map[string]string
+	Taints        []corev1.Taint
+	CapacityTypes []string
 }
 
 func (np *NodePool) sum64() uint64 {
@@ -78,6 +79,7 @@ type NodePoolsSetAddParams struct {
 	SubnetIDs        []string
 	Labels           map[string]string
 	Taints           []corev1.Taint
+	CapacityType     string
 }
 
 func (nps *NodePoolsSet) Add(p NodePoolsSetAddParams) {
@@ -99,16 +101,22 @@ func (nps *NodePoolsSet) Add(p NodePoolsSetAddParams) {
 	}
 
 	np := NodePool{
-		EC2NodeClass: nc.Name,
-		Labels:       sanitizeLabels(p.Labels),
-		Taints:       slices.SortedFunc(slices.Values(p.Taints), compareTaints),
+		EC2NodeClass:  nc.Name,
+		Labels:        sanitizeLabels(p.Labels),
+		Taints:        slices.SortedFunc(slices.Values(p.Taints), compareTaints),
+		CapacityTypes: []string{p.CapacityType},
 	}
 
 	h = np.sum64()
 
 	np.Name = "dd-karpenter-" + encodeUint64Base32(h)[8:]
 
-	nps.nodePools[h] = np
+	if n, found := nps.nodePools[h]; found {
+		n.CapacityTypes = slices.Compact(slices.Sorted(slices.Values(append(n.CapacityTypes, p.CapacityType))))
+		nps.nodePools[h] = n
+	} else {
+		nps.nodePools[h] = np
+	}
 }
 
 func (nps *NodePoolsSet) GetEC2NodeClasses() []EC2NodeClass {

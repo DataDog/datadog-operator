@@ -46,9 +46,10 @@ func GetNodeGroupsProperties(ctx context.Context, eksClient *eks.Client, ec2Clie
 			}
 
 			params := NodePoolsSetAddParams{
-				SubnetIDs: ng.Subnets,
-				Labels:    ng.Labels,
-				Taints:    lo.Map(ng.Taints, func(t ekstypes.Taint, _ int) corev1.Taint { return convertTaint(t) }),
+				SubnetIDs:    ng.Subnets,
+				Labels:       ng.Labels,
+				Taints:       lo.Map(ng.Taints, func(t ekstypes.Taint, _ int) corev1.Taint { return convertTaint(t) }),
+				CapacityType: convertCapacityType(ng.CapacityType),
 			}
 
 			if ng.LaunchTemplate != nil && ng.LaunchTemplate.Id != nil && ng.LaunchTemplate.Version != nil {
@@ -108,4 +109,17 @@ func convertTaint(in ekstypes.Taint) (out corev1.Taint) {
 	}
 
 	return
+}
+
+func convertCapacityType(ct ekstypes.CapacityTypes) string {
+	switch ct {
+	case ekstypes.CapacityTypesOnDemand:
+		return "on-demand"
+	case ekstypes.CapacityTypesSpot:
+		return "spot"
+	case ekstypes.CapacityTypesCapacityBlock:
+		return "reserved"
+	default:
+		return "on-demand"
+	}
 }

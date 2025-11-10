@@ -69,6 +69,7 @@ func GetNodesProperties(ctx context.Context, clientset *kubernetes.Clientset, ec
 					SubnetIDs:        []string{*instance.SubnetId},
 					Labels:           node.Labels,
 					Taints:           node.Spec.Taints,
+					CapacityType:     convertInstanceLifecycleType(instance.InstanceLifecycle),
 				})
 			}
 		}
@@ -77,5 +78,18 @@ func GetNodesProperties(ctx context.Context, clientset *kubernetes.Clientset, ec
 		if cont == "" {
 			return nps, nil
 		}
+	}
+}
+
+func convertInstanceLifecycleType(ilt ec2types.InstanceLifecycleType) string {
+	switch ilt {
+	case ec2types.InstanceLifecycleTypeScheduled:
+		return "on-demand"
+	case ec2types.InstanceLifecycleTypeSpot:
+		return "spot"
+	case ec2types.InstanceLifecycleTypeCapacityBlock:
+		return "reserved"
+	default:
+		return "on-demand"
 	}
 }
