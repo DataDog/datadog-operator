@@ -172,31 +172,8 @@ func (omf *OperatorMetadataForwarder) GetPayload(clusterUID string) []byte {
 	return jsonPayload
 }
 
-// setupFromOperator delegates to SharedMetadata setupFromOperator method
-func (omf *OperatorMetadataForwarder) setupFromOperator() error {
-	return omf.SharedMetadata.setupFromOperator()
-}
-
-// setupFromDDA delegates to SharedMetadata setupFromDDA method
-func (omf *OperatorMetadataForwarder) setupFromDDA(dda *v2alpha1.DatadogAgent) error {
-	return omf.SharedMetadata.setupFromDDA(dda)
-}
-
-// setCredentials attempts to set up credentials and cluster name from the operator configuration first.
-// If cluster name is empty (even when credentials are successfully retrieved from operator),
-// it falls back to setting up from DatadogAgent to ensure we have a valid cluster name.
 func (omf *OperatorMetadataForwarder) setCredentials() error {
-	err := omf.setupFromOperator()
-	if err == nil && omf.clusterName != "" {
-		return nil
-	}
-
-	dda, err := omf.SharedMetadata.getDatadogAgent()
-	if err != nil {
-		return err
-	}
-
-	return omf.setupFromDDA(dda)
+	return omf.SharedMetadata.setCredentials()
 }
 
 func (omf *OperatorMetadataForwarder) getHeaders() http.Header {
