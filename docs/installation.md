@@ -66,9 +66,7 @@ helm upgrade my-datadog-operator datadog/datadog-operator -f values.yaml
 
 ### Configure cluster name (optional)
 
-Setting a cluster name is optional but recommended for better cluster identification in Datadog's metadata and telemetry.
-
-The cluster name can be configured in the following ways:
+Setting a cluster name is optional but recommended. The cluster name can be configured in the following ways:
 
 1. **Helm chart `clusterName` value** (sets `DD_CLUSTER_NAME` environment variable on the Operator):
    ```yaml
@@ -85,8 +83,6 @@ The cluster name can be configured in the following ways:
      global:
        clusterName: my-cluster
    ```
-
-The Operator checks these sources the above order.
 
 ## Install the Datadog Operator with Operator Lifecycle Manager
 
