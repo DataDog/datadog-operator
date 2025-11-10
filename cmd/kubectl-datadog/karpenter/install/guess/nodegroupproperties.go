@@ -50,6 +50,7 @@ func GetNodeGroupsProperties(ctx context.Context, eksClient *eks.Client, ec2Clie
 				Labels:       ng.Labels,
 				Taints:       lo.Map(ng.Taints, func(t ekstypes.Taint, _ int) corev1.Taint { return convertTaint(t) }),
 				CapacityType: convertCapacityType(ng.CapacityType),
+				Architecture: extractArchitectureFromAMIType(ng.AmiType),
 			}
 
 			if ng.LaunchTemplate != nil && ng.LaunchTemplate.Id != nil && ng.LaunchTemplate.Version != nil {
@@ -121,5 +122,36 @@ func convertCapacityType(ct ekstypes.CapacityTypes) string {
 		return "reserved"
 	default:
 		return "on-demand"
+	}
+}
+
+const ()
+
+func extractArchitectureFromAMIType(amiType ekstypes.AMITypes) string {
+	switch amiType {
+	case ekstypes.AMITypesAl2X8664,
+		ekstypes.AMITypesAl2X8664Gpu,
+		ekstypes.AMITypesBottlerocketX8664,
+		ekstypes.AMITypesBottlerocketX8664Nvidia,
+		ekstypes.AMITypesWindowsCore2019X8664,
+		ekstypes.AMITypesWindowsFull2019X8664,
+		ekstypes.AMITypesWindowsCore2022X8664,
+		ekstypes.AMITypesWindowsFull2022X8664,
+		ekstypes.AMITypesAl2023X8664Standard,
+		ekstypes.AMITypesAl2023X8664Neuron,
+		ekstypes.AMITypesAl2023X8664Nvidia:
+		return "amd64"
+
+	case ekstypes.AMITypesAl2Arm64,
+		ekstypes.AMITypesBottlerocketArm64,
+		ekstypes.AMITypesBottlerocketArm64Nvidia,
+		ekstypes.AMITypesAl2023Arm64Standard:
+		return "arm64"
+
+	case ekstypes.AMITypesCustom:
+		return "" // Cannot determine architecture from custom AMI
+
+	default:
+		return "" // Unknown AMI type
 	}
 }

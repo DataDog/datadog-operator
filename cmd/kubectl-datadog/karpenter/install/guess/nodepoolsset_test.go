@@ -55,6 +55,7 @@ func TestNodePoolsSet(t *testing.T) {
 						},
 					},
 					CapacityTypes: []string{"on-demand"},
+					Architectures: []string{},
 				},
 			},
 		},
@@ -111,6 +112,7 @@ func TestNodePoolsSet(t *testing.T) {
 						},
 					},
 					CapacityTypes: []string{"on-demand"},
+					Architectures: []string{},
 				},
 			},
 		},
@@ -166,6 +168,7 @@ func TestNodePoolsSet(t *testing.T) {
 					EC2NodeClass:  "dd-karpenter-bufp4",
 					Labels:        map[string]string{},
 					CapacityTypes: []string{"on-demand"},
+					Architectures: []string{},
 				},
 				{
 					Name:         "dd-karpenter-zq7bq",
@@ -179,6 +182,7 @@ func TestNodePoolsSet(t *testing.T) {
 						},
 					},
 					CapacityTypes: []string{"on-demand"},
+					Architectures: []string{},
 				},
 				{
 					Name:         "dd-karpenter-iohjq",
@@ -192,6 +196,7 @@ func TestNodePoolsSet(t *testing.T) {
 						},
 					},
 					CapacityTypes: []string{"on-demand"},
+					Architectures: []string{},
 				},
 			},
 		},
@@ -254,6 +259,7 @@ func TestNodePoolsSet(t *testing.T) {
 						},
 					},
 					CapacityTypes: []string{"on-demand"},
+					Architectures: []string{},
 				},
 				{
 					Name:         "dd-karpenter-7l4b6",
@@ -267,6 +273,7 @@ func TestNodePoolsSet(t *testing.T) {
 						},
 					},
 					CapacityTypes: []string{"on-demand"},
+					Architectures: []string{},
 				},
 			},
 		},
@@ -306,6 +313,7 @@ func TestNodePoolsSet(t *testing.T) {
 					EC2NodeClass:  "dd-karpenter-bufp4",
 					Labels:        map[string]string{},
 					CapacityTypes: []string{"on-demand"},
+					Architectures: []string{},
 				},
 			},
 		},
@@ -348,6 +356,98 @@ func TestNodePoolsSet(t *testing.T) {
 					EC2NodeClass:  "dd-karpenter-bufp4",
 					Labels:        map[string]string{"app": "web"},
 					CapacityTypes: []string{"on-demand", "spot"},
+					Architectures: []string{},
+				},
+			},
+		},
+		{
+			name: "Architectures are merged",
+			add: []NodePoolsSetAddParams{
+				{
+					AMIID:            "ami-0bd48499820cf0df6",
+					SecurityGroupIDs: []string{"sg-01dfd3789be8c5315", "sg-0d4942a5188f41a42"},
+					SubnetIDs:        []string{"subnet-05e10de88ea36557b"},
+					Labels:           map[string]string{"app": "backend"},
+					CapacityType:     "on-demand",
+					Architecture:     "amd64",
+				},
+				{
+					AMIID:            "ami-0bd48499820cf0df6",
+					SecurityGroupIDs: []string{"sg-01dfd3789be8c5315", "sg-0d4942a5188f41a42"},
+					SubnetIDs:        []string{"subnet-07aaca522252301b0"},
+					Labels:           map[string]string{"app": "backend"},
+					CapacityType:     "on-demand",
+					Architecture:     "arm64",
+				},
+				{
+					AMIID:            "ami-0bd48499820cf0df6",
+					SecurityGroupIDs: []string{"sg-01dfd3789be8c5315", "sg-0d4942a5188f41a42"},
+					SubnetIDs:        []string{"subnet-0e08d6ea64a70ad35"},
+					Labels:           map[string]string{"app": "backend"},
+					CapacityType:     "on-demand",
+					Architecture:     "amd64",
+				},
+			},
+			expectedEC2NodeClasses: []EC2NodeClass{
+				{
+					Name:             "dd-karpenter-bufp4",
+					AMIIDs:           []string{"ami-0bd48499820cf0df6"},
+					SecurityGroupIDs: []string{"sg-01dfd3789be8c5315", "sg-0d4942a5188f41a42"},
+					SubnetIDs:        []string{"subnet-05e10de88ea36557b", "subnet-07aaca522252301b0", "subnet-0e08d6ea64a70ad35"},
+				},
+			},
+			expectedNodePools: []NodePool{
+				{
+					Name:          "dd-karpenter-aagos",
+					EC2NodeClass:  "dd-karpenter-bufp4",
+					Labels:        map[string]string{"app": "backend"},
+					CapacityTypes: []string{"on-demand"},
+					Architectures: []string{"amd64", "arm64"},
+				},
+			},
+		},
+		{
+			name: "Different architectures with different labels create separate pools",
+			add: []NodePoolsSetAddParams{
+				{
+					AMIID:            "ami-0bd48499820cf0df6",
+					SecurityGroupIDs: []string{"sg-01dfd3789be8c5315"},
+					SubnetIDs:        []string{"subnet-05e10de88ea36557b"},
+					Labels:           map[string]string{"app": "frontend"},
+					CapacityType:     "on-demand",
+					Architecture:     "amd64",
+				},
+				{
+					AMIID:            "ami-0bd48499820cf0df6",
+					SecurityGroupIDs: []string{"sg-01dfd3789be8c5315"},
+					SubnetIDs:        []string{"subnet-05e10de88ea36557b"},
+					Labels:           map[string]string{"app": "ml"},
+					CapacityType:     "on-demand",
+					Architecture:     "arm64",
+				},
+			},
+			expectedEC2NodeClasses: []EC2NodeClass{
+				{
+					Name:             "dd-karpenter-ko4kw",
+					AMIIDs:           []string{"ami-0bd48499820cf0df6"},
+					SecurityGroupIDs: []string{"sg-01dfd3789be8c5315"},
+					SubnetIDs:        []string{"subnet-05e10de88ea36557b"},
+				},
+			},
+			expectedNodePools: []NodePool{
+				{
+					Name:          "dd-karpenter-mx734",
+					EC2NodeClass:  "dd-karpenter-ko4kw",
+					Labels:        map[string]string{"app": "frontend"},
+					CapacityTypes: []string{"on-demand"},
+					Architectures: []string{"amd64"},
+				},
+				{
+					Name:          "dd-karpenter-rjbsc",
+					EC2NodeClass:  "dd-karpenter-ko4kw",
+					Labels:        map[string]string{"app": "ml"},
+					CapacityTypes: []string{"on-demand"},
+					Architectures: []string{"arm64"},
 				},
 			},
 		},
@@ -374,6 +474,7 @@ func TestNodePoolsSet(t *testing.T) {
 			for _, nodePool := range nodePools {
 				assert.True(t, slices.IsSortedFunc(nodePool.Taints, compareTaints))
 				assert.True(t, slices.IsSorted(nodePool.CapacityTypes))
+				assert.True(t, slices.IsSorted(nodePool.Architectures))
 			}
 
 			assert.ElementsMatch(t, tc.expectedEC2NodeClasses, ec2NodeClasses)

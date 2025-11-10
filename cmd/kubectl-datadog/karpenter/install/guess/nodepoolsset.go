@@ -40,6 +40,7 @@ type NodePool struct {
 	Labels        map[string]string
 	Taints        []corev1.Taint
 	CapacityTypes []string
+	Architectures []string
 }
 
 func (np *NodePool) sum64() uint64 {
@@ -80,6 +81,7 @@ type NodePoolsSetAddParams struct {
 	Labels           map[string]string
 	Taints           []corev1.Taint
 	CapacityType     string
+	Architecture     string
 }
 
 func (nps *NodePoolsSet) Add(p NodePoolsSetAddParams) {
@@ -105,6 +107,11 @@ func (nps *NodePoolsSet) Add(p NodePoolsSetAddParams) {
 		Labels:        sanitizeLabels(p.Labels),
 		Taints:        slices.SortedFunc(slices.Values(p.Taints), compareTaints),
 		CapacityTypes: []string{p.CapacityType},
+		Architectures: []string{},
+	}
+
+	if p.Architecture != "" {
+		np.Architectures = []string{p.Architecture}
 	}
 
 	h = np.sum64()
@@ -113,6 +120,9 @@ func (nps *NodePoolsSet) Add(p NodePoolsSetAddParams) {
 
 	if n, found := nps.nodePools[h]; found {
 		n.CapacityTypes = slices.Compact(slices.Sorted(slices.Values(append(n.CapacityTypes, p.CapacityType))))
+		if p.Architecture != "" {
+			n.Architectures = slices.Compact(slices.Sorted(slices.Values(append(n.Architectures, p.Architecture))))
+		}
 		nps.nodePools[h] = n
 	} else {
 		nps.nodePools[h] = np

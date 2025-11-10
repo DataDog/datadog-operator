@@ -70,6 +70,7 @@ func GetNodesProperties(ctx context.Context, clientset *kubernetes.Clientset, ec
 					Labels:           node.Labels,
 					Taints:           node.Spec.Taints,
 					CapacityType:     convertInstanceLifecycleType(instance.InstanceLifecycle),
+					Architecture:     convertArchitecture(instance.Architecture),
 				})
 			}
 		}
@@ -91,5 +92,18 @@ func convertInstanceLifecycleType(ilt ec2types.InstanceLifecycleType) string {
 		return "reserved"
 	default:
 		return "on-demand"
+	}
+}
+
+func convertArchitecture(arch ec2types.ArchitectureValues) string {
+	switch arch {
+	case ec2types.ArchitectureValuesX8664:
+		return "amd64"
+	case ec2types.ArchitectureValuesArm64:
+		return "arm64"
+	case ec2types.ArchitectureValuesI386:
+		return "386"
+	default:
+		return ""
 	}
 }
