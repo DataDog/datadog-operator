@@ -1032,6 +1032,21 @@
                   },
                   "type": "object"
                 },
+                "autodiscovery": {
+                  "additionalProperties": false,
+                  "description": "Autodiscovery contains options related to the Agent Autodiscovery.",
+                  "properties": {
+                    "extraIgnoreAutoConfig": {
+                      "description": "ExtraIgnoreAutoConfig provides a list of integrations to add to the Agent's ignore_autoconf list.\nEntries provided here are appended to defaults set by the Operator rather than overriding them.",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array",
+                      "x-kubernetes-list-type": "set"
+                    }
+                  },
+                  "type": "object"
+                },
                 "autoscaling": {
                   "additionalProperties": false,
                   "description": "Autoscaling configuration.",
@@ -1526,21 +1541,6 @@
                     "requiredRuntimeClassName": {
                       "description": "PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.\nIf the value is an empty string, the runtime class is not set.\nDefault: nvidia",
                       "type": "string"
-                    }
-                  },
-                  "type": "object"
-                },
-                "autodiscovery": {
-                  "additionalProperties": false,
-                  "description": "Autodiscovery contains options related to the Agent Autodiscovery.",
-                  "properties": {
-                    "extraIgnoreAutoConfig": {
-                      "description": "ExtraIgnoreAutoConfig provides a list of integrations to add to the Agent's ignore_autoconf list.\nEntries provided here are appended to defaults set by the Operator rather than overriding them.",
-                      "items": {
-                        "type": "string"
-                      },
-                      "type": "array",
-                      "x-kubernetes-list-type": "set"
                     }
                   },
                   "type": "object"
@@ -2401,7 +2401,6 @@
               "additionalProperties": false,
               "description": "Global settings to configure the agents",
               "properties": {
-
                 "checksTagCardinality": {
                   "description": "ChecksTagCardinality configures tag cardinality for the metrics collected by integrations (`low`, `orchestrator` or `high`).\nSee also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#tags-cardinality.\nNot set by default to avoid overriding existing DD_CHECKS_TAG_CARDINALITY configurations, the default value in the Agent is low.\nRef: https://github.com/DataDog/datadog-agent/blob/856cf4a66142ce91fd4f8a278149436eb971184a/pkg/config/setup/config.go#L625.",
                   "type": "string"
@@ -7395,7 +7394,7 @@
             }
           },
           "type": "object"
-        ,
+        },
         "profileAffinity": {
           "additionalProperties": false,
           "properties": {
