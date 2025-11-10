@@ -97,9 +97,9 @@ func Test_CRDBuildPayload(t *testing.T) {
 	}
 
 	// Validate metadata object exists
-	metadata, ok := parsed["datadog_crd_metadata"].(map[string]interface{})
+	metadata, ok := parsed["datadog_operator_crd_metadata"].(map[string]interface{})
 	if !ok {
-		t.Fatal("buildPayload() missing or invalid datadog_crd_metadata")
+		t.Fatal("buildPayload() missing or invalid datadog_operator_crd_metadata")
 	}
 
 	// Validate CRD-specific fields in metadata

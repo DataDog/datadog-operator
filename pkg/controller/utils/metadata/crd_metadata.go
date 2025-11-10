@@ -45,7 +45,7 @@ type CRDMetadataPayload struct {
 	Timestamp   int64       `json:"timestamp"`
 	ClusterID   string      `json:"cluster_id"`
 	ClusterName string      `json:"clustername"`
-	Metadata    CRDMetadata `json:"datadog_crd_metadata"`
+	Metadata    CRDMetadata `json:"datadog_operator_crd_metadata"`
 }
 
 type CRDMetadata struct {
