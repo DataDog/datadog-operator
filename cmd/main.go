@@ -389,6 +389,7 @@ func run(opts *options) error {
 	}
 
 	setupAndStartOperatorMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
+	setupAndStartHelmMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
 
 	// +kubebuilder:scaffold:builder
 
@@ -521,4 +522,9 @@ func setupAndStartOperatorMetadataForwarder(logger logr.Logger, client client.Re
 	}
 
 	omf.Start()
+}
+
+func setupAndStartHelmMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options, credsManager *config.CredentialManager) {
+	hmf := metadata.NewHelmMetadataForwarder(logger, client, kubernetesVersion, version.GetVersion(), credsManager)
+	hmf.Start()
 }
