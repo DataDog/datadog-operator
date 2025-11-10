@@ -84,8 +84,6 @@ func (omf *OperatorMetadataForwarder) Start() {
 		return
 	}
 
-	omf.payloadHeader = omf.getHeaders()
-
 	omf.updateResourceCounts()
 
 	omf.logger.Info("Starting operator metadata forwarder")
@@ -114,6 +112,7 @@ func (omf *OperatorMetadataForwarder) sendMetadata() error {
 		omf.logger.Error(err, "Could not set credentials; not starting operator metadata forwarder")
 		return err
 	}
+	omf.payloadHeader = omf.getHeaders()
 
 	clusterUID, err := omf.GetOrCreateClusterUID()
 	if err != nil {
