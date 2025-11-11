@@ -35,13 +35,14 @@ func (nc *EC2NodeClass) sum64() uint64 {
 }
 
 type NodePool struct {
-	Name          string
-	EC2NodeClass  string
-	Labels        map[string]string
-	Taints        []corev1.Taint
-	CapacityTypes []string
-	Architectures []string
-	Zones         []string
+	Name             string
+	EC2NodeClass     string
+	Labels           map[string]string
+	Taints           []corev1.Taint
+	CapacityTypes    []string
+	Architectures    []string
+	Zones            []string
+	InstanceFamilies []string
 }
 
 func (np *NodePool) sum64() uint64 {
@@ -84,6 +85,7 @@ type NodePoolsSetAddParams struct {
 	CapacityType     string
 	Architecture     string
 	Zones            []string
+	InstanceTypes    []string
 }
 
 func (nps *NodePoolsSet) Add(p NodePoolsSetAddParams) {
@@ -105,12 +107,13 @@ func (nps *NodePoolsSet) Add(p NodePoolsSetAddParams) {
 	}
 
 	np := NodePool{
-		EC2NodeClass:  nc.Name,
-		Labels:        sanitizeLabels(p.Labels),
-		Taints:        slices.SortedFunc(slices.Values(p.Taints), compareTaints),
-		CapacityTypes: []string{p.CapacityType},
-		Architectures: []string{},
-		Zones:         slices.Sorted(slices.Values(p.Zones)),
+		EC2NodeClass:     nc.Name,
+		Labels:           sanitizeLabels(p.Labels),
+		Taints:           slices.SortedFunc(slices.Values(p.Taints), compareTaints),
+		CapacityTypes:    []string{p.CapacityType},
+		Architectures:    []string{},
+		Zones:            slices.Sorted(slices.Values(p.Zones)),
+		InstanceFamilies: extractInstanceFamilies(p.InstanceTypes),
 	}
 
 	if p.Architecture != "" {
@@ -127,6 +130,7 @@ func (nps *NodePoolsSet) Add(p NodePoolsSetAddParams) {
 			n.Architectures = slices.Compact(slices.Sorted(slices.Values(append(n.Architectures, p.Architecture))))
 		}
 		n.Zones = slices.Compact(slices.Sorted(slices.Values(append(n.Zones, p.Zones...))))
+		n.InstanceFamilies = slices.Compact(slices.Sorted(slices.Values(append(n.InstanceFamilies, extractInstanceFamilies(p.InstanceTypes)...))))
 		nps.nodePools[h] = n
 	} else {
 		nps.nodePools[h] = np
@@ -172,4 +176,23 @@ func encodeUint64Base32(n uint64) string {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, n)
 	return strings.ToLower(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(buf))
+}
+
+func extractInstanceFamilies(instanceTypes []string) []string {
+	families := make(map[string]bool)
+	for _, instanceType := range instanceTypes {
+		// Extract family: "m5.large" -> "m5", "t3.medium" -> "t3"
+		if family, _, _ := strings.Cut(instanceType, "."); family != "" {
+			families[family] = true
+		}
+	}
+	if len(families) == 0 {
+		return nil
+	}
+	result := make([]string, 0, len(families))
+	for family := range families {
+		result = append(result, family)
+	}
+	slices.Sort(result)
+	return result
 }

@@ -53,12 +53,13 @@ func GetNodeGroupsProperties(ctx context.Context, eksClient *eks.Client, ec2Clie
 			}
 
 			params := NodePoolsSetAddParams{
-				SubnetIDs:    ng.Subnets,
-				Labels:       ng.Labels,
-				Taints:       lo.Map(ng.Taints, func(t ekstypes.Taint, _ int) corev1.Taint { return convertTaint(t) }),
-				CapacityType: convertCapacityType(ng.CapacityType),
-				Architecture: extractArchitectureFromAMIType(ng.AmiType),
-				Zones:        zones,
+				SubnetIDs:     ng.Subnets,
+				Labels:        ng.Labels,
+				Taints:        lo.Map(ng.Taints, func(t ekstypes.Taint, _ int) corev1.Taint { return convertTaint(t) }),
+				CapacityType:  convertCapacityType(ng.CapacityType),
+				Architecture:  extractArchitectureFromAMIType(ng.AmiType),
+				Zones:         zones,
+				InstanceTypes: ng.InstanceTypes,
 			}
 
 			if ng.LaunchTemplate != nil && ng.LaunchTemplate.Id != nil && ng.LaunchTemplate.Version != nil {
@@ -83,6 +84,7 @@ func GetNodeGroupsProperties(ctx context.Context, eksClient *eks.Client, ec2Clie
 					params.AMIID = *imageId
 				}
 				params.SecurityGroupIDs = launchTemplate.LaunchTemplateVersions[0].LaunchTemplateData.SecurityGroupIds
+				params.InstanceTypes = append(params.InstanceTypes, string(launchTemplate.LaunchTemplateVersions[0].LaunchTemplateData.InstanceType))
 			}
 
 			if len(params.SecurityGroupIDs) == 0 && cluster.Cluster != nil && cluster.Cluster.ResourcesVpcConfig != nil && cluster.Cluster.ResourcesVpcConfig.VpcId != nil {

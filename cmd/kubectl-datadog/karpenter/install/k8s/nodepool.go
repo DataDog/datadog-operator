@@ -44,6 +44,16 @@ func CreateOrUpdateNodePool(ctx context.Context, client client.Client, np guess.
 		})
 	}
 
+	if len(np.InstanceFamilies) > 0 {
+		requirements = append(requirements, karpv1.NodeSelectorRequirementWithMinValues{
+			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+				Key:      "karpenter.k8s.aws/instance-family",
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   np.InstanceFamilies,
+			},
+		})
+	}
+
 	return createOrUpdate(ctx, client, &karpv1.NodePool{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "karpenter.sh/v1",

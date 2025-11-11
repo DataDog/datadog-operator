@@ -72,6 +72,7 @@ func GetNodesProperties(ctx context.Context, clientset *kubernetes.Clientset, ec
 					CapacityType:     convertInstanceLifecycleType(instance.InstanceLifecycle),
 					Architecture:     convertArchitecture(instance.Architecture),
 					Zones:            extractZones(instance.Placement),
+					InstanceTypes:    []string{string(instance.InstanceType)},
 				})
 			}
 		}

@@ -501,6 +501,56 @@ func TestNodePoolsSet(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Instance families are extracted and merged",
+			add: []NodePoolsSetAddParams{
+				{
+					AMIID:            "ami-0bd48499820cf0df6",
+					SecurityGroupIDs: []string{"sg-01dfd3789be8c5315", "sg-0d4942a5188f41a42"},
+					SubnetIDs:        []string{"subnet-05e10de88ea36557b"},
+					Labels:           map[string]string{"app": "mixed-instances"},
+					CapacityType:     "on-demand",
+					Architecture:     "amd64",
+					InstanceTypes:    []string{"m5.large", "m5.xlarge"},
+				},
+				{
+					AMIID:            "ami-0bd48499820cf0df6",
+					SecurityGroupIDs: []string{"sg-01dfd3789be8c5315", "sg-0d4942a5188f41a42"},
+					SubnetIDs:        []string{"subnet-07aaca522252301b0"},
+					Labels:           map[string]string{"app": "mixed-instances"},
+					CapacityType:     "on-demand",
+					Architecture:     "amd64",
+					InstanceTypes:    []string{"m5.2xlarge", "t3.medium"},
+				},
+				{
+					AMIID:            "ami-0bd48499820cf0df6",
+					SecurityGroupIDs: []string{"sg-01dfd3789be8c5315", "sg-0d4942a5188f41a42"},
+					SubnetIDs:        []string{"subnet-0e08d6ea64a70ad35"},
+					Labels:           map[string]string{"app": "mixed-instances"},
+					CapacityType:     "on-demand",
+					Architecture:     "amd64",
+					InstanceTypes:    []string{"t3.large", "c5.xlarge"},
+				},
+			},
+			expectedEC2NodeClasses: []EC2NodeClass{
+				{
+					Name:             "dd-karpenter-bufp4",
+					AMIIDs:           []string{"ami-0bd48499820cf0df6"},
+					SecurityGroupIDs: []string{"sg-01dfd3789be8c5315", "sg-0d4942a5188f41a42"},
+					SubnetIDs:        []string{"subnet-05e10de88ea36557b", "subnet-07aaca522252301b0", "subnet-0e08d6ea64a70ad35"},
+				},
+			},
+			expectedNodePools: []NodePool{
+				{
+					Name:             "dd-karpenter-ieiqw",
+					EC2NodeClass:     "dd-karpenter-bufp4",
+					Labels:           map[string]string{"app": "mixed-instances"},
+					CapacityTypes:    []string{"on-demand"},
+					Architectures:    []string{"amd64"},
+					InstanceFamilies: []string{"c5", "m5", "t3"},
+				},
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			rand.Shuffle(len(tc.add), func(i, j int) {
@@ -526,10 +576,60 @@ func TestNodePoolsSet(t *testing.T) {
 				assert.True(t, slices.IsSorted(nodePool.CapacityTypes))
 				assert.True(t, slices.IsSorted(nodePool.Architectures))
 				assert.True(t, slices.IsSorted(nodePool.Zones))
+				assert.True(t, slices.IsSorted(nodePool.InstanceFamilies))
 			}
 
 			assert.ElementsMatch(t, tc.expectedEC2NodeClasses, ec2NodeClasses)
 			assert.ElementsMatch(t, tc.expectedNodePools, nodePools)
+		})
+	}
+}
+
+func TestExtractInstanceFamilies(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		instanceTypes []string
+		expected      []string
+	}{
+		{
+			name:          "empty list",
+			instanceTypes: []string{},
+			expected:      nil,
+		},
+		{
+			name:          "single instance type",
+			instanceTypes: []string{"m5.large"},
+			expected:      []string{"m5"},
+		},
+		{
+			name:          "multiple instances of same family",
+			instanceTypes: []string{"m5.large", "m5.xlarge", "m5.2xlarge"},
+			expected:      []string{"m5"},
+		},
+		{
+			name:          "mixed families",
+			instanceTypes: []string{"m5.large", "t3.medium", "c5.xlarge", "t3.large"},
+			expected:      []string{"c5", "m5", "t3"},
+		},
+		{
+			name:          "with duplicates",
+			instanceTypes: []string{"m5.large", "m5.large", "t3.medium", "t3.medium"},
+			expected:      []string{"m5", "t3"},
+		},
+		{
+			name:          "GPU and Graviton instances",
+			instanceTypes: []string{"p3.2xlarge", "g4dn.xlarge", "t4g.micro", "m6g.medium"},
+			expected:      []string{"g4dn", "m6g", "p3", "t4g"},
+		},
+		{
+			name:          "with empty strings",
+			instanceTypes: []string{"", "m5.large", "", "t3.medium"},
+			expected:      []string{"m5", "t3"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result := extractInstanceFamilies(tc.instanceTypes)
+			assert.Equal(t, tc.expected, result)
 		})
 	}
 }
