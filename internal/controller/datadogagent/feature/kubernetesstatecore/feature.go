@@ -112,13 +112,14 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 					agentVersion := common.GetAgentVersionFromImage(*ccrOverride.Image)
 
 					// CRD and APIService version checks
-					if !utils.IsAboveMinVersion(agentVersion, crdAPIServiceCollectionMinVersion) {
+					if !utils.IsAboveMinVersion(agentVersion, crdAPIServiceCollectionMinVersion, nil) {
 						f.collectAPIServiceMetrics = false
 						f.collectCRDMetrics = false
 					}
 
 					// ControllerRevisions version check - enable if version supports it
-					if utils.IsAboveMinVersionWithFallback(agentVersion, controllerRevisionsCollectionMinVersion) {
+					fallback := false
+					if utils.IsAboveMinVersion(agentVersion, controllerRevisionsCollectionMinVersion, &fallback) {
 						f.collectControllerRevisions = true
 					}
 				}
@@ -129,13 +130,14 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 					agentVersion := common.GetAgentVersionFromImage(*clusterAgentOverride.Image)
 
 					// CRD and APIService version checks
-					if !utils.IsAboveMinVersion(agentVersion, crdAPIServiceCollectionMinVersion) {
+					if !utils.IsAboveMinVersion(agentVersion, crdAPIServiceCollectionMinVersion, nil) {
 						f.collectAPIServiceMetrics = false
 						f.collectCRDMetrics = false
 					}
 
 					// ControllerRevisions version check - enable if version supports it
-					if utils.IsAboveMinVersionWithFallback(agentVersion, controllerRevisionsCollectionMinVersion) {
+					fallback := false
+					if utils.IsAboveMinVersion(agentVersion, controllerRevisionsCollectionMinVersion, &fallback) {
 						f.collectControllerRevisions = true
 					}
 				}
@@ -153,7 +155,8 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			}
 
 			// Check if default version supports controllerrevisions
-			if utils.IsAboveMinVersionWithFallback(defaultVersion, controllerRevisionsCollectionMinVersion) {
+			fallback := false
+			if utils.IsAboveMinVersion(defaultVersion, controllerRevisionsCollectionMinVersion, &fallback) {
 				f.collectControllerRevisions = true
 			}
 		}
@@ -171,7 +174,6 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		}
 
 		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, defaultKubeStateMetricsCoreConf)
-
 	}
 
 	return output

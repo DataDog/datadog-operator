@@ -368,7 +368,7 @@ func run(opts *options) error {
 
 	if versionInfo != nil {
 		gitVersion := versionInfo.GitVersion
-		if !utils.IsAboveMinVersion(gitVersion, "1.16-0") {
+		if !utils.IsAboveMinVersion(gitVersion, "1.16-0", nil) {
 			setupLog.Error(nil, "Detected Kubernetes version <1.16 which requires CRD version apiextensions.k8s.io/v1beta1. "+
 				"CRDs of this version were removed in v1.10.0.")
 		}
