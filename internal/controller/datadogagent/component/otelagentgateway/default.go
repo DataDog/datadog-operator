@@ -17,6 +17,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/images"
 )
 
 // GetOtelAgentGatewayName return the OtelAgentGateway name based on the DatadogAgent name
@@ -62,9 +63,23 @@ func defaultPodSpec(dda metav1.Object) corev1.PodSpec {
 		Containers: []corev1.Container{
 			{
 				Name:    string(apicommon.OtelAgent),
-				Image:   "docker.io/ddot-collector:latest",
-				Command: []string{"/bin/sh"},
-				Args:    []string{"-c", "while true; do date; sleep 10; done"},
+				Image:   images.GetLatestDDOTCollectorImage(),
+				Command: []string{"otel-agent", "--sync-delay=30s"},
+				VolumeMounts: []corev1.VolumeMount{
+					common.GetVolumeMountForLogs(),
+				},
+				Ports: []corev1.ContainerPort{
+					{
+						Name:          "otel-grpc",
+						ContainerPort: 4317,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          "otel-http",
+						ContainerPort: 4318,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				},
 			},
 		},
 	}

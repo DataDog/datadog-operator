@@ -1015,6 +1015,12 @@ type OtelAgentGatewayFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
+	// Conf overrides the configuration for the default OTel Agent Gateway.
+	// This must point to a ConfigMap containing a valid OTel collector configuration.
+	// When passing a configmap, file name *must* be otel-config.yaml.
+	// +optional
+	Conf *CustomConfig `json:"conf,omitempty"`
+
 	// Ports contains the ports that the OTel Collector is listening on.
 	// Defaults: otel-grpc:4317 / otel-http:4318.
 	// +optional

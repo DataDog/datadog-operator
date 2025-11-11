@@ -169,7 +169,12 @@ func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManag
 	}
 
 	if o.customConfig.ConfigData == nil && o.customConfig.ConfigMap == nil {
-		var defaultConfig = defaultconfig.DefaultOtelCollectorConfig
+		var defaultConfig string
+		if o.otelGatewayEnabled {
+			defaultConfig = defaultconfig.DefaultOtelCollectorConfigInGateway(o.owner.GetName())
+		} else {
+			defaultConfig = defaultconfig.DefaultOtelCollectorConfig
+		}
 		if grpcPort != 4317 {
 			defaultConfig = strings.Replace(defaultConfig, "4317", strconv.Itoa(grpcPort), 1)
 		}
@@ -347,14 +352,6 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
 			Name:  DDOtelCollectorCoreConfigExtensionURL,
 			Value: *o.coreAgentConfig.extension_url,
-		})
-	}
-
-	// TODO: do the proper changes to nodeAgent when gateway is enabled
-	if o.otelGatewayEnabled {
-		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.OtelAgent}, &corev1.EnvVar{
-			Name:  "IS_OTEL_GATEWAY_ENABLED",
-			Value: "true",
 		})
 	}
 
