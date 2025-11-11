@@ -42,10 +42,11 @@ type CRDMetadataForwarder struct {
 }
 
 type CRDMetadataPayload struct {
-	Timestamp   int64       `json:"timestamp"`
-	ClusterID   string      `json:"cluster_id"`
-	ClusterName string      `json:"clustername"`
-	Metadata    CRDMetadata `json:"datadog_operator_crd_metadata"`
+	Timestamp            int64       `json:"timestamp"`
+	ClusterID            string      `json:"cluster_id"`
+	ClusterName          string      `json:"clustername"`
+	Metadata             CRDMetadata `json:"datadog_operator_crd_metadata"`
+	ClusterAgentMetadata struct{}    `json:"datadog_cluster_agent_metadata"`
 }
 
 type CRDMetadata struct {
