@@ -2726,6 +2726,11 @@ func (in *OtelAgentGatewayFeatureConfig) DeepCopyInto(out *OtelAgentGatewayFeatu
 		*out = new(bool)
 		**out = **in
 	}
+	if in.Conf != nil {
+		in, out := &in.Conf, &out.Conf
+		*out = new(CustomConfig)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Ports != nil {
 		in, out := &in.Ports, &out.Ports
 		*out = make([]*corev1.ContainerPort, len(*in))

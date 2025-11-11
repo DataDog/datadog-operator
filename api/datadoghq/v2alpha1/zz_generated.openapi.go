@@ -1523,6 +1523,12 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_OtelAgentGatewayFeatureConfi
 							Format:      "",
 						},
 					},
+					"conf": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Conf overrides the configuration for the default OTel Agent Gateway. This must point to a ConfigMap containing a valid OTel collector configuration. When passing a configmap, file name *must* be otel-config.yaml.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig"),
+						},
+					},
 					"ports": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
@@ -1545,7 +1551,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_OtelAgentGatewayFeatureConfi
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/api/core/v1.ContainerPort"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig", "k8s.io/api/core/v1.ContainerPort"},
 	}
 }
 
