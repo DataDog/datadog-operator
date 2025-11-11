@@ -16,8 +16,8 @@ import (
 type EC2NodeClass struct {
 	Name             string
 	AMIIDs           []string
-	SecurityGroupIDs []string
 	SubnetIDs        []string
+	SecurityGroupIDs []string
 }
 
 func (nc *EC2NodeClass) sum64() uint64 {
@@ -39,10 +39,10 @@ type NodePool struct {
 	EC2NodeClass     string
 	Labels           map[string]string
 	Taints           []corev1.Taint
-	CapacityTypes    []string
 	Architectures    []string
 	Zones            []string
 	InstanceFamilies []string
+	CapacityTypes    []string
 }
 
 func (np *NodePool) sum64() uint64 {
@@ -78,21 +78,21 @@ func NewNodePoolsSet() *NodePoolsSet {
 
 type NodePoolsSetAddParams struct {
 	AMIID            string
-	SecurityGroupIDs []string
 	SubnetIDs        []string
+	SecurityGroupIDs []string
 	Labels           map[string]string
 	Taints           []corev1.Taint
-	CapacityType     string
 	Architecture     string
 	Zones            []string
 	InstanceTypes    []string
+	CapacityType     string
 }
 
 func (nps *NodePoolsSet) Add(p NodePoolsSetAddParams) {
 	nc := EC2NodeClass{
 		AMIIDs:           []string{p.AMIID},
-		SecurityGroupIDs: slices.Sorted(slices.Values(p.SecurityGroupIDs)),
 		SubnetIDs:        slices.Sorted(slices.Values(p.SubnetIDs)),
+		SecurityGroupIDs: slices.Sorted(slices.Values(p.SecurityGroupIDs)),
 	}
 
 	h := nc.sum64()
@@ -110,10 +110,10 @@ func (nps *NodePoolsSet) Add(p NodePoolsSetAddParams) {
 		EC2NodeClass:     nc.Name,
 		Labels:           sanitizeLabels(p.Labels),
 		Taints:           slices.SortedFunc(slices.Values(p.Taints), compareTaints),
-		CapacityTypes:    []string{p.CapacityType},
 		Architectures:    []string{},
 		Zones:            slices.Sorted(slices.Values(p.Zones)),
 		InstanceFamilies: extractInstanceFamilies(p.InstanceTypes),
+		CapacityTypes:    []string{p.CapacityType},
 	}
 
 	if p.Architecture != "" {
@@ -125,12 +125,12 @@ func (nps *NodePoolsSet) Add(p NodePoolsSetAddParams) {
 	np.Name = "dd-karpenter-" + encodeUint64Base32(h)[8:]
 
 	if n, found := nps.nodePools[h]; found {
-		n.CapacityTypes = slices.Compact(slices.Sorted(slices.Values(append(n.CapacityTypes, p.CapacityType))))
 		if p.Architecture != "" {
 			n.Architectures = slices.Compact(slices.Sorted(slices.Values(append(n.Architectures, p.Architecture))))
 		}
 		n.Zones = slices.Compact(slices.Sorted(slices.Values(append(n.Zones, p.Zones...))))
 		n.InstanceFamilies = slices.Compact(slices.Sorted(slices.Values(append(n.InstanceFamilies, extractInstanceFamilies(p.InstanceTypes)...))))
+		n.CapacityTypes = slices.Compact(slices.Sorted(slices.Values(append(n.CapacityTypes, p.CapacityType))))
 		nps.nodePools[h] = n
 	} else {
 		nps.nodePools[h] = np

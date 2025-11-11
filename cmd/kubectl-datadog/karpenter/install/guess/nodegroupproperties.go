@@ -56,10 +56,10 @@ func GetNodeGroupsProperties(ctx context.Context, eksClient *eks.Client, ec2Clie
 				SubnetIDs:     ng.Subnets,
 				Labels:        ng.Labels,
 				Taints:        lo.Map(ng.Taints, func(t ekstypes.Taint, _ int) corev1.Taint { return convertTaint(t) }),
-				CapacityType:  convertCapacityType(ng.CapacityType),
 				Architecture:  extractArchitectureFromAMIType(ng.AmiType),
 				Zones:         zones,
 				InstanceTypes: ng.InstanceTypes,
+				CapacityType:  convertCapacityType(ng.CapacityType),
 			}
 
 			if ng.LaunchTemplate != nil && ng.LaunchTemplate.Id != nil && ng.LaunchTemplate.Version != nil {
@@ -122,21 +122,6 @@ func convertTaint(in ekstypes.Taint) (out corev1.Taint) {
 	return
 }
 
-func convertCapacityType(ct ekstypes.CapacityTypes) string {
-	switch ct {
-	case ekstypes.CapacityTypesOnDemand:
-		return "on-demand"
-	case ekstypes.CapacityTypesSpot:
-		return "spot"
-	case ekstypes.CapacityTypesCapacityBlock:
-		return "reserved"
-	default:
-		return "on-demand"
-	}
-}
-
-const ()
-
 func extractArchitectureFromAMIType(amiType ekstypes.AMITypes) string {
 	switch amiType {
 	case ekstypes.AMITypesAl2X8664,
@@ -185,4 +170,17 @@ func extractZonesFromSubnets(ctx context.Context, ec2Client *ec2.Client, subnetI
 			return "", false
 		}
 	})))), nil
+}
+
+func convertCapacityType(ct ekstypes.CapacityTypes) string {
+	switch ct {
+	case ekstypes.CapacityTypesOnDemand:
+		return "on-demand"
+	case ekstypes.CapacityTypesSpot:
+		return "spot"
+	case ekstypes.CapacityTypesCapacityBlock:
+		return "reserved"
+	default:
+		return "on-demand"
+	}
 }

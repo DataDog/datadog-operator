@@ -65,14 +65,14 @@ func GetNodesProperties(ctx context.Context, clientset *kubernetes.Clientset, ec
 
 				nps.Add(NodePoolsSetAddParams{
 					AMIID:            *instance.ImageId,
-					SecurityGroupIDs: lo.Map(instance.SecurityGroups, func(sg ec2types.GroupIdentifier, _ int) string { return *sg.GroupId }),
 					SubnetIDs:        []string{*instance.SubnetId},
+					SecurityGroupIDs: lo.Map(instance.SecurityGroups, func(sg ec2types.GroupIdentifier, _ int) string { return *sg.GroupId }),
 					Labels:           node.Labels,
 					Taints:           node.Spec.Taints,
-					CapacityType:     convertInstanceLifecycleType(instance.InstanceLifecycle),
 					Architecture:     convertArchitecture(instance.Architecture),
 					Zones:            extractZones(instance.Placement),
 					InstanceTypes:    []string{string(instance.InstanceType)},
+					CapacityType:     convertInstanceLifecycleType(instance.InstanceLifecycle),
 				})
 			}
 		}
@@ -81,19 +81,6 @@ func GetNodesProperties(ctx context.Context, clientset *kubernetes.Clientset, ec
 		if cont == "" {
 			return nps, nil
 		}
-	}
-}
-
-func convertInstanceLifecycleType(ilt ec2types.InstanceLifecycleType) string {
-	switch ilt {
-	case ec2types.InstanceLifecycleTypeScheduled:
-		return "on-demand"
-	case ec2types.InstanceLifecycleTypeSpot:
-		return "spot"
-	case ec2types.InstanceLifecycleTypeCapacityBlock:
-		return "reserved"
-	default:
-		return "on-demand"
 	}
 }
 
@@ -115,4 +102,17 @@ func extractZones(placement *ec2types.Placement) []string {
 		return []string{*placement.AvailabilityZone}
 	}
 	return []string{}
+}
+
+func convertInstanceLifecycleType(ilt ec2types.InstanceLifecycleType) string {
+	switch ilt {
+	case ec2types.InstanceLifecycleTypeScheduled:
+		return "on-demand"
+	case ec2types.InstanceLifecycleTypeSpot:
+		return "spot"
+	case ec2types.InstanceLifecycleTypeCapacityBlock:
+		return "reserved"
+	default:
+		return "on-demand"
+	}
 }

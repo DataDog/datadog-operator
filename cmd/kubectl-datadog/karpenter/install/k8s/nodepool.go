@@ -14,16 +14,6 @@ import (
 func CreateOrUpdateNodePool(ctx context.Context, client client.Client, np guess.NodePool) error {
 	requirements := []karpv1.NodeSelectorRequirementWithMinValues{}
 
-	if len(np.CapacityTypes) > 0 {
-		requirements = append(requirements, karpv1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      "karpenter.sh/capacity-type",
-				Operator: corev1.NodeSelectorOpIn,
-				Values:   np.CapacityTypes,
-			},
-		})
-	}
-
 	if len(np.Architectures) > 0 {
 		requirements = append(requirements, karpv1.NodeSelectorRequirementWithMinValues{
 			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
@@ -50,6 +40,16 @@ func CreateOrUpdateNodePool(ctx context.Context, client client.Client, np guess.
 				Key:      "karpenter.k8s.aws/instance-family",
 				Operator: corev1.NodeSelectorOpIn,
 				Values:   np.InstanceFamilies,
+			},
+		})
+	}
+
+	if len(np.CapacityTypes) > 0 {
+		requirements = append(requirements, karpv1.NodeSelectorRequirementWithMinValues{
+			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+				Key:      "karpenter.sh/capacity-type",
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   np.CapacityTypes,
 			},
 		})
 	}
