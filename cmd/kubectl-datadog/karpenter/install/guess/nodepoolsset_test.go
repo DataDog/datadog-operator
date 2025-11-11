@@ -407,6 +407,56 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 		},
 		{
+			name: "Zones are merged",
+			add: []NodePoolsSetAddParams{
+				{
+					AMIID:            "ami-0bd48499820cf0df6",
+					SecurityGroupIDs: []string{"sg-01dfd3789be8c5315", "sg-0d4942a5188f41a42"},
+					SubnetIDs:        []string{"subnet-05e10de88ea36557b"},
+					Labels:           map[string]string{"app": "multi-zone"},
+					CapacityType:     "on-demand",
+					Architecture:     "amd64",
+					Zones:            []string{"us-east-1a"},
+				},
+				{
+					AMIID:            "ami-0bd48499820cf0df6",
+					SecurityGroupIDs: []string{"sg-01dfd3789be8c5315", "sg-0d4942a5188f41a42"},
+					SubnetIDs:        []string{"subnet-07aaca522252301b0"},
+					Labels:           map[string]string{"app": "multi-zone"},
+					CapacityType:     "on-demand",
+					Architecture:     "amd64",
+					Zones:            []string{"us-east-1b"},
+				},
+				{
+					AMIID:            "ami-0bd48499820cf0df6",
+					SecurityGroupIDs: []string{"sg-01dfd3789be8c5315", "sg-0d4942a5188f41a42"},
+					SubnetIDs:        []string{"subnet-0e08d6ea64a70ad35"},
+					Labels:           map[string]string{"app": "multi-zone"},
+					CapacityType:     "on-demand",
+					Architecture:     "amd64",
+					Zones:            []string{"us-east-1c"},
+				},
+			},
+			expectedEC2NodeClasses: []EC2NodeClass{
+				{
+					Name:             "dd-karpenter-bufp4",
+					AMIIDs:           []string{"ami-0bd48499820cf0df6"},
+					SecurityGroupIDs: []string{"sg-01dfd3789be8c5315", "sg-0d4942a5188f41a42"},
+					SubnetIDs:        []string{"subnet-05e10de88ea36557b", "subnet-07aaca522252301b0", "subnet-0e08d6ea64a70ad35"},
+				},
+			},
+			expectedNodePools: []NodePool{
+				{
+					Name:          "dd-karpenter-y5hvs",
+					EC2NodeClass:  "dd-karpenter-bufp4",
+					Labels:        map[string]string{"app": "multi-zone"},
+					CapacityTypes: []string{"on-demand"},
+					Architectures: []string{"amd64"},
+					Zones:         []string{"us-east-1a", "us-east-1b", "us-east-1c"},
+				},
+			},
+		},
+		{
 			name: "Different architectures with different labels create separate pools",
 			add: []NodePoolsSetAddParams{
 				{
@@ -475,6 +525,7 @@ func TestNodePoolsSet(t *testing.T) {
 				assert.True(t, slices.IsSortedFunc(nodePool.Taints, compareTaints))
 				assert.True(t, slices.IsSorted(nodePool.CapacityTypes))
 				assert.True(t, slices.IsSorted(nodePool.Architectures))
+				assert.True(t, slices.IsSorted(nodePool.Zones))
 			}
 
 			assert.ElementsMatch(t, tc.expectedEC2NodeClasses, ec2NodeClasses)

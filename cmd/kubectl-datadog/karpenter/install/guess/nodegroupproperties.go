@@ -3,8 +3,10 @@ package guess
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
 	"github.com/samber/lo"
@@ -45,12 +47,18 @@ func GetNodeGroupsProperties(ctx context.Context, eksClient *eks.Client, ec2Clie
 				return nil, fmt.Errorf("node group %s not found", ngName)
 			}
 
+			zones, err := extractZonesFromSubnets(ctx, ec2Client, ng.Subnets)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get zones for node group %s: %w", ngName, err)
+			}
+
 			params := NodePoolsSetAddParams{
 				SubnetIDs:    ng.Subnets,
 				Labels:       ng.Labels,
 				Taints:       lo.Map(ng.Taints, func(t ekstypes.Taint, _ int) corev1.Taint { return convertTaint(t) }),
 				CapacityType: convertCapacityType(ng.CapacityType),
 				Architecture: extractArchitectureFromAMIType(ng.AmiType),
+				Zones:        zones,
 			}
 
 			if ng.LaunchTemplate != nil && ng.LaunchTemplate.Id != nil && ng.LaunchTemplate.Version != nil {
@@ -154,4 +162,25 @@ func extractArchitectureFromAMIType(amiType ekstypes.AMITypes) string {
 	default:
 		return "" // Unknown AMI type
 	}
+}
+
+func extractZonesFromSubnets(ctx context.Context, ec2Client *ec2.Client, subnetIDs []string) ([]string, error) {
+	if len(subnetIDs) == 0 {
+		return []string{}, nil
+	}
+
+	subnets, err := ec2Client.DescribeSubnets(ctx, &ec2.DescribeSubnetsInput{
+		SubnetIds: subnetIDs,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to describe subnets: %w", err)
+	}
+
+	return slices.Compact(slices.Sorted(slices.Values(lo.FilterMap(subnets.Subnets, func(subnet ec2types.Subnet, _ int) (string, bool) {
+		if az := subnet.AvailabilityZone; az != nil {
+			return *az, true
+		} else {
+			return "", false
+		}
+	})))), nil
 }

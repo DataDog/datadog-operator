@@ -71,6 +71,7 @@ func GetNodesProperties(ctx context.Context, clientset *kubernetes.Clientset, ec
 					Taints:           node.Spec.Taints,
 					CapacityType:     convertInstanceLifecycleType(instance.InstanceLifecycle),
 					Architecture:     convertArchitecture(instance.Architecture),
+					Zones:            extractZones(instance.Placement),
 				})
 			}
 		}
@@ -106,4 +107,11 @@ func convertArchitecture(arch ec2types.ArchitectureValues) string {
 	default:
 		return ""
 	}
+}
+
+func extractZones(placement *ec2types.Placement) []string {
+	if placement != nil && placement.AvailabilityZone != nil {
+		return []string{*placement.AvailabilityZone}
+	}
+	return []string{}
 }

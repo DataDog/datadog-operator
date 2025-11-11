@@ -34,6 +34,16 @@ func CreateOrUpdateNodePool(ctx context.Context, client client.Client, np guess.
 		})
 	}
 
+	if len(np.Zones) > 0 {
+		requirements = append(requirements, karpv1.NodeSelectorRequirementWithMinValues{
+			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+				Key:      "topology.kubernetes.io/zone",
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   np.Zones,
+			},
+		})
+	}
+
 	return createOrUpdate(ctx, client, &karpv1.NodePool{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "karpenter.sh/v1",
