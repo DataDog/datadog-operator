@@ -79,21 +79,6 @@ func NewOperatorMetadataForwarder(logger logr.Logger, k8sClient client.Reader, k
 
 // Start starts the operator metadata forwarder
 func (omf *OperatorMetadataForwarder) Start() {
-	err := omf.setCredentials()
-	if err != nil {
-		omf.logger.Error(err, "Could not set credentials; not starting operator metadata forwarder")
-		return
-	}
-
-	if omf.hostName == "" {
-		omf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting operator metadata forwarder")
-		return
-	}
-
-	omf.payloadHeader = omf.getHeaders()
-
-	omf.updateResourceCounts()
-
 	omf.logger.Info("Starting operator metadata forwarder")
 
 	ticker := time.NewTicker(defaultInterval)
@@ -113,13 +98,34 @@ func (omf *OperatorMetadataForwarder) Start() {
 	}()
 }
 
-func (omf *OperatorMetadataForwarder) sendMetadata() error {
+func (omf *OperatorMetadataForwarder) setupRequestPrerequisites() error {
+	err := omf.setCredentials()
+	if err != nil {
+		omf.logger.Error(err, "Could not get credentials")
+		return err
+	}
+	if omf.hostName == "" {
+		omf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting operator metadata forwarder")
+		return ErrEmptyHostName
+	}
+	omf.payloadHeader = omf.getHeaders()
+
 	clusterUID, err := omf.GetOrCreateClusterUID()
 	if err != nil {
 		omf.logger.Error(err, "Failed to get cluster UID")
 		return err
 	}
-	payload := omf.GetPayload(clusterUID)
+	omf.SharedMetadata.clusterUID = clusterUID
+	return nil
+}
+
+func (omf *OperatorMetadataForwarder) sendMetadata() error {
+	err := omf.setupRequestPrerequisites()
+	if err != nil {
+		return err
+	}
+
+	payload := omf.GetPayload(omf.SharedMetadata.clusterUID)
 
 	omf.logger.Info("Operator metadata payload", "payload", string(payload))
 

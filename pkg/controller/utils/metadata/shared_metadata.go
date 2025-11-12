@@ -17,9 +17,7 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -164,21 +162,13 @@ func (sm *SharedMetadata) setCredentials() error {
 	return sm.setupFromDDA(dda)
 }
 
-// getDatadogAgent retrieves the DatadogAgent using Get client method
+// getDatadogAgent retrieves the DatadogAgent using the provided k8s client
 func (sm *SharedMetadata) getDatadogAgent() (*v2alpha1.DatadogAgent, error) {
 	// Note: If there are no DDAs present when the Operator starts, the metadata forwarder does not re-try to get credentials from a future DDA
 	ddaList := v2alpha1.DatadogAgentList{}
 
-	// Create new client because manager client requires manager to start first
-	cfg := ctrl.GetConfigOrDie()
-	s := runtime.NewScheme()
-	newclient, err := client.New(cfg, client.Options{Scheme: s})
-	if err != nil {
-		return nil, err
-	}
-	_ = v2alpha1.AddToScheme(s)
-
-	if err := newclient.List(context.TODO(), &ddaList); err != nil {
+	// Use the k8sClient provided to SharedMetadata (supports both real and fake clients)
+	if err := sm.k8sClient.List(context.TODO(), &ddaList); err != nil {
 		return nil, err
 	}
 
