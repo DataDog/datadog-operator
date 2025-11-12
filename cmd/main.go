@@ -298,7 +298,7 @@ func run(opts *options) error {
 	}
 
 	// Client is needed when Creds should be resolved from DDA so cached client is fine
-	credsManager := config.NewCredentialManager(mgr.GetClient())
+	credsManager := config.NewCredentialManagerWithDecryptor(mgr.GetClient(), secrets.NewSecretBackend())
 	creds, err := credsManager.GetCredentials()
 	if err != nil && opts.datadogMonitorEnabled {
 		return setupErrorf(setupLog, err, "Unable to get credentials for DatadogMonitor")

@@ -49,8 +49,8 @@ type CredentialManager struct {
 	callbacks        []CredentialChangeCallback
 	callbackMutex    sync.RWMutex
 
-	decryptor secrets.Decryptor
-	credsMap  sync.Map
+	ddaDecryptor secrets.Decryptor
+	ddaCredsMap  sync.Map
 }
 
 type CredentialChangeCallback func(newCreds Creds) error
@@ -61,6 +61,24 @@ func (cm *CredentialManager) RegisterCallback(cb CredentialChangeCallback) {
 	cm.callbacks = append(cm.callbacks, cb)
 }
 
+// NewCredentialManager returns a CredentialManager.
+func NewCredentialManagerWithDecryptor(client client.Client, decryptor secrets.Decryptor) *CredentialManager {
+	return &CredentialManager{
+		client:        client,
+		secretBackend: decryptor,
+		creds:         Creds{},
+		decryptorBackoff: wait.Backoff{
+			Steps:    5,
+			Duration: 10 * time.Millisecond,
+			Factor:   5.0,
+			Cap:      20 * time.Second,
+		},
+		ddaDecryptor: decryptor,
+		ddaCredsMap:  sync.Map{},
+	}
+}
+
+// TODO deprecate in favor of NewCredentialManagerWithDecryptor
 // NewCredentialManager returns a CredentialManager.
 func NewCredentialManager(client client.Client) *CredentialManager {
 	return &CredentialManager{
@@ -302,7 +320,7 @@ func (cm *CredentialManager) resolveSecretsIfNeeded(apiKey string) (string, erro
 	}
 
 	// Cache miss, call the secret decryptor
-	decrypted, err := cm.decryptor.Decrypt([]string{apiKey})
+	decrypted, err := cm.ddaDecryptor.Decrypt([]string{apiKey})
 	if err != nil {
 		// TODO cm.logger.Error(err, "cannot decrypt secrets")
 		return "", err
@@ -316,7 +334,7 @@ func (cm *CredentialManager) resolveSecretsIfNeeded(apiKey string) (string, erro
 
 // getSecretsFromCache returns the cached and decrypted values of encrypted creds
 func (cm *CredentialManager) getSecretsFromCache(encAPIKey string) (string, bool) {
-	decAPIKey, found := cm.credsMap.Load(encAPIKey)
+	decAPIKey, found := cm.ddaCredsMap.Load(encAPIKey)
 	if !found {
 		return "", false
 	}
@@ -328,14 +346,14 @@ func (cm *CredentialManager) getSecretsFromCache(encAPIKey string) (string, bool
 func (cm *CredentialManager) resetSecretsCache(newSecrets map[string]string) {
 	cm.cleanSecretsCache()
 	for k, v := range newSecrets {
-		cm.credsMap.Store(k, v)
+		cm.ddaCredsMap.Store(k, v)
 	}
 }
 
 // cleanSecretsCache deletes all cached secrets
 func (cm *CredentialManager) cleanSecretsCache() {
-	cm.credsMap.Range(func(k, v any) bool {
-		cm.credsMap.Delete(k)
+	cm.ddaCredsMap.Range(func(k, v any) bool {
+		cm.ddaCredsMap.Delete(k)
 		return true
 	})
 }

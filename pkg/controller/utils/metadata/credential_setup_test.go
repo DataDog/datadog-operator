@@ -7,6 +7,7 @@ package metadata
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -23,6 +24,23 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 )
+
+// mockDecryptor implements secrets.Decryptor interface for testing
+type mockDecryptor struct{}
+
+func (m *mockDecryptor) Decrypt(encrypted []string) (map[string]string, error) {
+	decrypted := make(map[string]string)
+	for _, enc := range encrypted {
+		if strings.HasPrefix(enc, "ENC[") && strings.HasSuffix(enc, "]") {
+			// Extract content between ENC[ and ]
+			content := enc[4 : len(enc)-1]
+			decrypted[enc] = content + "-decrypted"
+		} else {
+			decrypted[enc] = enc // Pass through if not encrypted
+		}
+	}
+	return decrypted, nil
+}
 
 // Current coverage
 // | Credential Source | Site Config | URL Config | API Key Source             | Status    |
@@ -192,6 +210,33 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 			wantURL:    "https://app.datadoghq.com/api/v1/metadata",
 			wantErr:    false,
 		},
+		{
+			name: "DDA with encrypted API key",
+			setupEnv: func() {
+				os.Setenv(constants.DDHostName, "test-hostname")
+				// No operator credentials
+			},
+			setupDDA: func() []client.Object {
+				return []client.Object{
+					&v2alpha1.DatadogAgent{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "test-dda",
+							Namespace: "default",
+						},
+						Spec: v2alpha1.DatadogAgentSpec{
+							Global: &v2alpha1.GlobalConfig{
+								Credentials: &v2alpha1.DatadogCredentials{
+									APIKey: apiutils.NewStringPointer("ENC[encrypted-api-key]"),
+								},
+							},
+						},
+					},
+				}
+			},
+			wantAPIKey: "encrypted-api-key-decrypted", // Mock decrypts "ENC[encrypted-api-key]" to this
+			wantURL:    "https://app.datadoghq.com/api/v1/metadata",
+			wantErr:    false, // Still expect error due to uninitialized decryptor
+		},
 		// Mixed/fallback tests
 		{
 			name: "operator creds without cluster name falls back to DDA cluster name but operator API key",
@@ -268,7 +313,7 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 			clientObjects = append(clientObjects, kubeSystem)
 			client := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&v2alpha1.DatadogAgent{}).WithObjects(clientObjects...).Build()
 
-			credsManager := config.NewCredentialManager(client)
+			credsManager := config.NewCredentialManagerWithDecryptor(client, &mockDecryptor{})
 			omf := &OperatorMetadataForwarder{
 				SharedMetadata: NewSharedMetadata(
 					zap.New(zap.UseDevMode(true)),
