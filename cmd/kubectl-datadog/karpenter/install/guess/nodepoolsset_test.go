@@ -98,6 +98,58 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 		},
 		{
+			name: "Kubernetes scoped labels are properly filtered out",
+			add: []NodePoolsSetAddParams{
+				{
+					AMIID:            "ami-0bd48499820cf0df6",
+					SubnetIDs:        []string{"subnet-05e10de88ea36557b", "subnet-07aaca522252301b0", "subnet-0e08d6ea64a70ad35"},
+					SecurityGroupIDs: []string{"sg-01dfd3789be8c5315", "sg-0d4942a5188f41a42"},
+					Labels: map[string]string{
+						"app":                                           "web",
+						"alpha.eksctl.io/cluster-name":                  "lenaic-karpenter-test",
+						"alpha.eksctl.io/nodegroup-name":                "ng",
+						"beta.kubernetes.io/arch":                       "arm64",
+						"beta.kubernetes.io/instance-type":              "t4g.large",
+						"beta.kubernetes.io/os":                         "linux",
+						"eks.amazonaws.com/capacityType":                "ON_DEMAND",
+						"eks.amazonaws.com/nodegroup":                   "ng",
+						"eks.amazonaws.com/nodegroup-image":             "ami-0ff91f79e4fd0a745",
+						"eks.amazonaws.com/sourceLaunchTemplateId":      "lt-031142f896fbf6764",
+						"eks.amazonaws.com/sourceLaunchTemplateVersion": "1",
+						"failure-domain.beta.kubernetes.io/region":      "eu-west-3",
+						"failure-domain.beta.kubernetes.io/zone":        "eu-west-3b",
+						"k8s.io/cloud-provider-aws":                     "b4d26d758837407c7f287bf292ecf7ed",
+						"kubernetes.io/arch":                            "arm64",
+						"kubernetes.io/hostname":                        "ip-10-11-233-112.eu-west-3.compute.internal",
+						"kubernetes.io/os":                              "linux",
+						"node.kubernetes.io/instance-type":              "t4g.large",
+						"topology.k8s.aws/zone-id":                      "euw3-az2",
+						"topology.kubernetes.io/region":                 "eu-west-3",
+						"topology.kubernetes.io/zone":                   "eu-west-3b",
+					},
+					CapacityType: "on-demand",
+				},
+			},
+			expectedEC2NodeClasses: []EC2NodeClass{
+				{
+					name:             "dd-karpenter-bufp4",
+					amiIDs:           set("ami-0bd48499820cf0df6"),
+					subnetIDs:        set("subnet-05e10de88ea36557b", "subnet-07aaca522252301b0", "subnet-0e08d6ea64a70ad35"),
+					securityGroupIDs: set("sg-01dfd3789be8c5315", "sg-0d4942a5188f41a42"),
+				},
+			},
+			expectedNodePools: []NodePool{
+				{
+					name:         "dd-karpenter-4suwo",
+					ec2NodeClass: "dd-karpenter-bufp4",
+					labels: map[string]string{
+						"app": "web",
+					},
+					capacityTypes: set("on-demand"),
+				},
+			},
+		},
+		{
 			name: "Several identical parameters are merged in a single node pool",
 			add: []NodePoolsSetAddParams{
 				{
