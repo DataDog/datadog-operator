@@ -31,6 +31,9 @@ func applyEC2NodeClassDefaults(ec2NodeClasses []EC2NodeClass) []EC2NodeClass {
 
 func applyNodePoolDefaults(nodePools []NodePool) []NodePool {
 	return lo.Map(nodePools, func(np NodePool, _ int) NodePool {
+		if np.taints == nil {
+			np.taints = make(map[taint]struct{})
+		}
 		if np.architectures == nil {
 			np.architectures = make(map[string]struct{})
 		}
@@ -85,13 +88,11 @@ func TestNodePoolsSet(t *testing.T) {
 					name:         "dd-karpenter-zq7bq",
 					ec2NodeClass: "dd-karpenter-bufp4",
 					labels:       map[string]string{"app": "web"},
-					taints: []corev1.Taint{
-						{
-							Key:    "app",
-							Value:  "web",
-							Effect: corev1.TaintEffectNoSchedule,
-						},
-					},
+					taints: set(taint{
+						key:    "app",
+						value:  "web",
+						effect: corev1.TaintEffectNoSchedule,
+					}),
 					capacityTypes: set("on-demand"),
 				},
 			},
@@ -141,13 +142,11 @@ func TestNodePoolsSet(t *testing.T) {
 					name:         "dd-karpenter-zq7bq",
 					ec2NodeClass: "dd-karpenter-bufp4",
 					labels:       map[string]string{"app": "web"},
-					taints: []corev1.Taint{
-						{
-							Key:    "app",
-							Value:  "web",
-							Effect: corev1.TaintEffectNoSchedule,
-						},
-					},
+					taints: set(taint{
+						key:    "app",
+						value:  "web",
+						effect: corev1.TaintEffectNoSchedule,
+					}),
 					capacityTypes: set("on-demand"),
 				},
 			},
@@ -209,26 +208,22 @@ func TestNodePoolsSet(t *testing.T) {
 					name:         "dd-karpenter-zq7bq",
 					ec2NodeClass: "dd-karpenter-bufp4",
 					labels:       map[string]string{"app": "web"},
-					taints: []corev1.Taint{
-						{
-							Key:    "app",
-							Value:  "web",
-							Effect: corev1.TaintEffectNoSchedule,
-						},
-					},
+					taints: set(taint{
+						key:    "app",
+						value:  "web",
+						effect: corev1.TaintEffectNoSchedule,
+					}),
 					capacityTypes: set("on-demand"),
 				},
 				{
 					name:         "dd-karpenter-iohjq",
 					ec2NodeClass: "dd-karpenter-bufp4",
 					labels:       map[string]string{"app": "api"},
-					taints: []corev1.Taint{
-						{
-							Key:    "app",
-							Value:  "api",
-							Effect: corev1.TaintEffectNoSchedule,
-						},
-					},
+					taints: set(taint{
+						key:    "app",
+						value:  "api",
+						effect: corev1.TaintEffectNoSchedule,
+					}),
 					capacityTypes: set("on-demand"),
 				},
 			},
@@ -284,26 +279,22 @@ func TestNodePoolsSet(t *testing.T) {
 					name:         "dd-karpenter-dzimw",
 					ec2NodeClass: "dd-karpenter-ko4kw",
 					labels:       map[string]string{"app": "web"},
-					taints: []corev1.Taint{
-						{
-							Key:    "app",
-							Value:  "web",
-							Effect: corev1.TaintEffectNoSchedule,
-						},
-					},
+					taints: set(taint{
+						key:    "app",
+						value:  "web",
+						effect: corev1.TaintEffectNoSchedule,
+					}),
 					capacityTypes: set("on-demand"),
 				},
 				{
 					name:         "dd-karpenter-7l4b6",
 					ec2NodeClass: "dd-karpenter-7jr4o",
 					labels:       map[string]string{"app": "api"},
-					taints: []corev1.Taint{
-						{
-							Key:    "app",
-							Value:  "api",
-							Effect: corev1.TaintEffectNoSchedule,
-						},
-					},
+					taints: set(taint{
+						key:    "app",
+						value:  "api",
+						effect: corev1.TaintEffectNoSchedule,
+					}),
 					capacityTypes: set("on-demand"),
 				},
 			},
@@ -601,7 +592,7 @@ func TestNodePoolsSet(t *testing.T) {
 			}
 
 			for _, nodePool := range nodePools {
-				assert.True(t, slices.IsSortedFunc(nodePool.taints, compareTaints))
+				assert.True(t, slices.IsSortedFunc(lo.Map(nodePool.GetTaints(), toTaint), compareTaints))
 				assert.True(t, slices.IsSorted(nodePool.GetArchitectures()))
 				assert.True(t, slices.IsSorted(nodePool.GetZones()))
 				assert.True(t, slices.IsSorted(nodePool.GetInstanceFamilies()))

@@ -13,6 +13,41 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+type taint struct {
+	key    string
+	value  string
+	effect corev1.TaintEffect
+}
+
+func toTaint(t corev1.Taint, _ int) taint {
+	return taint{
+		key:    t.Key,
+		value:  t.Value,
+		effect: t.Effect,
+	}
+}
+
+func toCoreTaint(t taint, _ int) corev1.Taint {
+	return corev1.Taint{
+		Key:    t.key,
+		Value:  t.value,
+		Effect: t.effect,
+	}
+}
+
+func compareTaints(x, y taint) int {
+	if c := cmp.Compare(x.key, y.key); c != 0 {
+		return c
+	}
+	if c := cmp.Compare(x.value, y.value); c != 0 {
+		return c
+	}
+	if c := cmp.Compare(x.effect, y.effect); c != 0 {
+		return c
+	}
+	return 0
+}
+
 type EC2NodeClass struct {
 	name             string
 	amiIDs           map[string]struct{}
@@ -54,7 +89,7 @@ type NodePool struct {
 	name             string
 	ec2NodeClass     string
 	labels           map[string]string
-	taints           []corev1.Taint
+	taints           map[taint]struct{}
 	architectures    map[string]struct{}
 	zones            map[string]struct{}
 	instanceFamilies map[string]struct{}
@@ -74,7 +109,11 @@ func (np *NodePool) GetLabels() map[string]string {
 }
 
 func (np *NodePool) GetTaints() []corev1.Taint {
-	return np.taints
+	taints := lo.Map(
+		slices.SortedFunc(maps.Keys(np.taints), compareTaints),
+		toCoreTaint,
+	)
+	return taints
 }
 
 func (np *NodePool) GetArchitectures() []string {
@@ -103,10 +142,10 @@ func (np *NodePool) sum64() uint64 {
 		h.Write([]byte(np.labels[k]))
 	}
 
-	for _, taint := range np.taints {
-		h.Write([]byte(taint.Key))
-		h.Write([]byte(taint.Value))
-		h.Write([]byte(taint.Effect))
+	for _, taint := range slices.SortedFunc(maps.Keys(np.taints), compareTaints) {
+		h.Write([]byte(taint.key))
+		h.Write([]byte(taint.value))
+		h.Write([]byte(taint.effect))
 	}
 
 	return h.Sum64()
@@ -157,7 +196,7 @@ func (nps *NodePoolsSet) Add(p NodePoolsSetAddParams) {
 	np := NodePool{
 		ec2NodeClass:     nc.name,
 		labels:           sanitizeLabels(p.Labels),
-		taints:           slices.SortedFunc(slices.Values(p.Taints), compareTaints),
+		taints:           lo.Keyify(lo.Map(p.Taints, toTaint)),
 		architectures:    make(map[string]struct{}),
 		zones:            lo.Keyify(p.Zones),
 		instanceFamilies: lo.Keyify(extractInstanceFamilies(p.InstanceTypes)),
@@ -205,19 +244,6 @@ func sanitizeLabels(labels map[string]string) map[string]string {
 			strings.HasPrefix(key, "topology.k8s.aws/") ||
 			strings.HasPrefix(key, "topology.kubernetes.io/")
 	})
-}
-
-func compareTaints(x, y corev1.Taint) int {
-	if c := cmp.Compare(x.Key, y.Key); c != 0 {
-		return c
-	}
-	if c := cmp.Compare(x.Value, y.Value); c != 0 {
-		return c
-	}
-	if c := cmp.Compare(x.Effect, y.Effect); c != 0 {
-		return c
-	}
-	return 0
 }
 
 func encodeUint64Base32(n uint64) string {
