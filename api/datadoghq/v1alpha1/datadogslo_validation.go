@@ -24,7 +24,7 @@ func IsValidDatadogSLO(spec *DatadogSLOSpec) error {
 	}
 
 	if spec.Type != "" && !spec.Type.IsValid() {
-		errs = append(errs, fmt.Errorf("spec.Type must be one of the values: %s or %s", DatadogSLOTypeMonitor, DatadogSLOTypeMetric))
+		errs = append(errs, fmt.Errorf("spec.Type must be one of the values: %s, %s, or %s", DatadogSLOTypeMonitor, DatadogSLOTypeMetric, DatadogSLOTypeTimeSlice))
 	}
 
 	if spec.Type == DatadogSLOTypeMetric && spec.Query == nil {
@@ -33,6 +33,49 @@ func IsValidDatadogSLO(spec *DatadogSLOSpec) error {
 
 	if spec.Type == DatadogSLOTypeMonitor && len(spec.MonitorIDs) == 0 {
 		errs = append(errs, fmt.Errorf("spec.MonitorIDs must be defined when spec.Type is monitor"))
+	}
+
+	if spec.Type == DatadogSLOTypeTimeSlice {
+		if spec.TimeSliceSpec == nil {
+			errs = append(errs, fmt.Errorf("spec.TimeSliceSpec must be defined when spec.Type is time_slice"))
+		} else {
+			// Validate time-slice specific fields
+			if spec.TimeSliceSpec.TimeSliceCondition.Comparator == "" {
+				errs = append(errs, fmt.Errorf("spec.TimeSliceSpec.TimeSliceCondition.Comparator must be defined"))
+			}
+
+			if spec.TimeSliceSpec.TimeSliceCondition.Threshold.AsApproximateFloat64() == 0 {
+				errs = append(errs, fmt.Errorf("spec.TimeSliceSpec.TimeSliceCondition.Threshold must be defined and greater than 0"))
+			}
+
+			if len(spec.TimeSliceSpec.Query.Formulas) == 0 {
+				errs = append(errs, fmt.Errorf("spec.TimeSliceSpec.Query.Formulas must contain at least one formula"))
+			}
+
+			if len(spec.TimeSliceSpec.Query.Queries) == 0 {
+				errs = append(errs, fmt.Errorf("spec.TimeSliceSpec.Query.Queries must contain at least one query"))
+			}
+
+			// Validate each formula
+			for i, formula := range spec.TimeSliceSpec.Query.Formulas {
+				if formula.Formula == "" {
+					errs = append(errs, fmt.Errorf("spec.TimeSliceSpec.Query.Formulas[%d].Formula must not be empty", i))
+				}
+			}
+
+			// Validate each query
+			for i, query := range spec.TimeSliceSpec.Query.Queries {
+				if query.DataSource == "" {
+					errs = append(errs, fmt.Errorf("spec.TimeSliceSpec.Query.Queries[%d].DataSource must be defined", i))
+				}
+				if query.Name == "" {
+					errs = append(errs, fmt.Errorf("spec.TimeSliceSpec.Query.Queries[%d].Name must be defined", i))
+				}
+				if query.Query == "" {
+					errs = append(errs, fmt.Errorf("spec.TimeSliceSpec.Query.Queries[%d].Query must be defined", i))
+				}
+			}
+		}
 	}
 
 	if spec.TargetThreshold.AsApproximateFloat64() <= 0 || spec.TargetThreshold.AsApproximateFloat64() >= 100 {
