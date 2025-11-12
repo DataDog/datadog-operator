@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -20,10 +19,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
 const (
@@ -39,8 +36,6 @@ const (
 )
 
 var (
-	// ErrEmptyAPIKey empty APIKey error
-	ErrEmptyAPIKey = errors.New("empty api key")
 	// ErrEmptyHostName empty HostName error
 	ErrEmptyHostName = errors.New("empty host name")
 )
@@ -62,8 +57,6 @@ type SharedMetadata struct {
 
 	// Shared credential management
 	credsManager *config.CredentialManager
-	decryptor    secrets.Decryptor
-	creds        sync.Map
 }
 
 // NewSharedMetadata creates a new instance of shared metadata
@@ -79,7 +72,6 @@ func NewSharedMetadata(logger logr.Logger, k8sClient client.Reader, kubernetesVe
 			Timeout: 10 * time.Second,
 		},
 		credsManager: credsManager,
-		decryptor:    secrets.NewSecretBackend(),
 	}
 }
 
@@ -117,7 +109,12 @@ func (sm *SharedMetadata) setupFromOperator() error {
 	return nil
 }
 
-func (sm *SharedMetadata) setupFromDDA(dda *v2alpha1.DatadogAgent) error {
+func (sm *SharedMetadata) setupFromDDA() error {
+	dda, err := sm.credsManager.GetDatadogAgent()
+	if err != nil {
+		return err
+	}
+
 	if sm.clusterName == "" {
 		if dda.Spec.Global != nil && dda.Spec.Global.ClusterName != nil {
 			sm.clusterName = *dda.Spec.Global.ClusterName
@@ -125,14 +122,14 @@ func (sm *SharedMetadata) setupFromDDA(dda *v2alpha1.DatadogAgent) error {
 	}
 
 	if sm.apiKey == "" {
-		apiKey, err := sm.getCredentialsFromDDA(dda)
+		creds, err := sm.credsManager.GetCredentialsFromDDA()
 		if err != nil {
 			return err
 		}
-		sm.apiKey = apiKey
+		sm.apiKey = creds.APIKey
 
 		// if API key is set from DDA, also update request URL if needed
-		if dda.Spec.Global != nil && dda.Spec.Global.Site != nil {
+		if creds.Site != nil {
 			mdfURL := url.URL{
 				Scheme: defaultURLScheme,
 				Host:   defaultURLHostPrefix + *dda.Spec.Global.Site,
@@ -149,124 +146,27 @@ func (sm *SharedMetadata) setupFromDDA(dda *v2alpha1.DatadogAgent) error {
 // If cluster name is empty (even when credentials are successfully retrieved from operator),
 // it falls back to setting up from DatadogAgent to ensure we have a valid cluster name.
 func (sm *SharedMetadata) setCredentials() error {
-	err := sm.setupFromOperator()
-	if err == nil && sm.clusterName != "" {
-		return nil
-	}
+	// err := sm.setupFromOperator()
+	// if err == nil && sm.clusterName != "" {
+	// 	return nil
+	// }
 
-	dda, err := sm.getDatadogAgent()
+	// return sm.setupFromDDA()
+	creds, err := sm.credsManager.GetCredsWithDDAFallback()
 	if err != nil {
 		return err
 	}
 
-	return sm.setupFromDDA(dda)
-}
-
-// getDatadogAgent retrieves the DatadogAgent using the provided k8s client
-func (sm *SharedMetadata) getDatadogAgent() (*v2alpha1.DatadogAgent, error) {
-	// Note: If there are no DDAs present when the Operator starts, the metadata forwarder does not re-try to get credentials from a future DDA
-	ddaList := v2alpha1.DatadogAgentList{}
-
-	// Use the k8sClient provided to SharedMetadata (supports both real and fake clients)
-	if err := sm.k8sClient.List(context.TODO(), &ddaList); err != nil {
-		return nil, err
-	}
-
-	if len(ddaList.Items) == 0 {
-		return nil, errors.New("DatadogAgent not found")
-	}
-
-	return &ddaList.Items[0], nil
-}
-
-func (sm *SharedMetadata) getCredentialsFromDDA(dda *v2alpha1.DatadogAgent) (string, error) {
-	if dda.Spec.Global == nil || dda.Spec.Global.Credentials == nil {
-		return "", fmt.Errorf("credentials not configured in the DatadogAgent")
-	}
-
-	defaultSecretName := secrets.GetDefaultCredentialsSecretName(dda)
-
-	var err error
-	apiKey := ""
-
-	if dda.Spec.Global != nil && dda.Spec.Global.Credentials != nil && dda.Spec.Global.Credentials.APIKey != nil && *dda.Spec.Global.Credentials.APIKey != "" {
-		apiKey = *dda.Spec.Global.Credentials.APIKey
-	} else {
-		_, secretName, secretKeyName := secrets.GetAPIKeySecret(dda.Spec.Global.Credentials, defaultSecretName)
-		apiKey, err = sm.getKeyFromSecret(dda.Namespace, secretName, secretKeyName)
-		if err != nil {
-			return "", err
+	sm.apiKey = creds.APIKey
+	if creds.Site != nil {
+		mdfURL := url.URL{
+			Scheme: defaultURLScheme,
+			Host:   defaultURLHostPrefix + *creds.Site,
+			Path:   defaultURLPath,
 		}
+		sm.requestURL = mdfURL.String()
 	}
-
-	if apiKey == "" {
-		return "", ErrEmptyAPIKey
-	}
-
-	return sm.resolveSecretsIfNeeded(apiKey)
-}
-
-// getKeyFromSecret is used to retrieve an API or App key from a secret object
-func (sm *SharedMetadata) getKeyFromSecret(namespace, secretName, dataKey string) (string, error) {
-	secret := &corev1.Secret{}
-	err := sm.k8sClient.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: secretName}, secret)
-	if err != nil {
-		return "", err
-	}
-
-	return string(secret.Data[dataKey]), nil
-}
-
-// resolveSecretsIfNeeded calls the secret backend if creds are encrypted
-func (sm *SharedMetadata) resolveSecretsIfNeeded(apiKey string) (string, error) {
-	if !secrets.IsEnc(apiKey) {
-		// Credentials are not encrypted
-		return apiKey, nil
-	}
-
-	// Try to get secrets from the local cache
-	if decAPIKey, cacheHit := sm.getSecretsFromCache(apiKey); cacheHit {
-		// Creds are found in local cache
-		return decAPIKey, nil
-	}
-
-	// Cache miss, call the secret decryptor
-	decrypted, err := sm.decryptor.Decrypt([]string{apiKey})
-	if err != nil {
-		sm.logger.Error(err, "cannot decrypt secrets")
-		return "", err
-	}
-
-	// Update the local cache with the decrypted secrets
-	sm.resetSecretsCache(decrypted)
-
-	return decrypted[apiKey], nil
-}
-
-// getSecretsFromCache returns the cached and decrypted values of encrypted creds
-func (sm *SharedMetadata) getSecretsFromCache(encAPIKey string) (string, bool) {
-	decAPIKey, found := sm.creds.Load(encAPIKey)
-	if !found {
-		return "", false
-	}
-
-	return decAPIKey.(string), true
-}
-
-// resetSecretsCache updates the local secret cache with new secret values
-func (sm *SharedMetadata) resetSecretsCache(newSecrets map[string]string) {
-	sm.cleanSecretsCache()
-	for k, v := range newSecrets {
-		sm.creds.Store(k, v)
-	}
-}
-
-// cleanSecretsCache deletes all cached secrets
-func (sm *SharedMetadata) cleanSecretsCache() {
-	sm.creds.Range(func(k, v any) bool {
-		sm.creds.Delete(k)
-		return true
-	})
+	return nil
 }
 
 // GetBaseHeaders returns the common HTTP headers for API requests

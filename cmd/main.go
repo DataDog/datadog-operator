@@ -255,17 +255,6 @@ func run(opts *options) error {
 	secrets.SetSecretBackendCommand(opts.secretBackendCommand)
 	secrets.SetSecretBackendArgs(opts.secretBackendArgs)
 
-	credsManager := config.NewCredentialManager()
-	creds, err := credsManager.GetCredentials()
-	if err != nil && opts.datadogMonitorEnabled {
-		return setupErrorf(setupLog, err, "Unable to get credentials for DatadogMonitor")
-	}
-
-	if opts.secretRefreshInterval > 0 && opts.secretBackendCommand == "" {
-		setupLog.Error(nil, "secretRefreshInterval is set but secretBackendCommand is not configured")
-	} else if opts.secretBackendCommand != "" && opts.secretRefreshInterval > 0 {
-		go credsManager.StartCredentialRefreshRoutine(opts.secretRefreshInterval, setupLog)
-	}
 	renewDeadline := opts.leaderElectionLeaseDuration / 2
 	retryPeriod := opts.leaderElectionLeaseDuration / 4
 
@@ -306,6 +295,19 @@ func run(opts *options) error {
 	if err != nil {
 		return setupErrorf(setupLog, err, "Unable to start manager")
 
+	}
+
+	// Client is needed when Creds should be resolved from DDA so cached client is fine
+	credsManager := config.NewCredentialManager(mgr.GetClient())
+	creds, err := credsManager.GetCredentials()
+	if err != nil && opts.datadogMonitorEnabled {
+		return setupErrorf(setupLog, err, "Unable to get credentials for DatadogMonitor")
+	}
+
+	if opts.secretRefreshInterval > 0 && opts.secretBackendCommand == "" {
+		setupLog.Error(nil, "secretRefreshInterval is set but secretBackendCommand is not configured")
+	} else if opts.secretBackendCommand != "" && opts.secretRefreshInterval > 0 {
+		go credsManager.StartCredentialRefreshRoutine(opts.secretRefreshInterval, setupLog)
 	}
 
 	// Custom setup

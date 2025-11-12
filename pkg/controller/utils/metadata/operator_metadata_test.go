@@ -10,10 +10,12 @@ import (
 	"os"
 	"testing"
 
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	testutils_test "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/config"
 )
 
@@ -50,9 +52,10 @@ func Test_getURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.loadFunc()
-
+			s := testutils_test.TestScheme()
+			client := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&v2alpha1.DatadogAgent{}).Build()
 			// Create SharedMetadata to test URL generation
-			sm := NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0", config.NewCredentialManager())
+			sm := NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0", config.NewCredentialManager(client))
 
 			if sm.requestURL != tt.wantURL {
 				t.Errorf("getURL() url = %v, want %v", sm.requestURL, tt.wantURL)
@@ -137,10 +140,15 @@ func Test_setup(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			os.Clearenv()
-
+			s := testutils_test.TestScheme()
+			client := fake.NewClientBuilder().
+				WithScheme(s).
+				WithStatusSubresource(&v2alpha1.DatadogAgent{}).
+				WithObjects(tt.dda).
+				Build()
 			// Create OperatorMetadataForwarder with the new structure
 			omf := &OperatorMetadataForwarder{
-				SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0", config.NewCredentialManager()),
+				SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0", config.NewCredentialManager(client)),
 				OperatorMetadata: OperatorMetadata{
 					ResourceCounts: make(map[string]int),
 				},
@@ -150,7 +158,7 @@ func Test_setup(t *testing.T) {
 
 			_ = omf.setupFromOperator()
 
-			_ = omf.setupFromDDA(tt.dda)
+			_ = omf.setupFromDDA()
 
 			if omf.clusterName != tt.wantClusterName {
 				t.Errorf("setupFromDDA() clusterName = %v, want %v", omf.clusterName, tt.wantClusterName)
@@ -175,8 +183,10 @@ func Test_GetPayload(t *testing.T) {
 	expectedClusterUID := "test-cluster-uid-12345"
 	expectedHostname := "test-host"
 
+	s := testutils_test.TestScheme()
+	client := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&v2alpha1.DatadogAgent{}).Build()
 	omf := &OperatorMetadataForwarder{
-		SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, expectedKubernetesVersion, expectedOperatorVersion, config.NewCredentialManager()),
+		SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, expectedKubernetesVersion, expectedOperatorVersion, config.NewCredentialManager(client)),
 		OperatorMetadata: OperatorMetadata{
 			ClusterName:    expectedClusterName,
 			IsLeader:       true,

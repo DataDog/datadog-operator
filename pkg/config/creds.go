@@ -6,33 +6,51 @@
 package config
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
+)
+
+var (
+	// ErrEmptyAPIKey empty APIKey error
+	ErrEmptyAPIKey = errors.New("empty api key")
 )
 
 // Creds holds the api and app keys.
 type Creds struct {
 	APIKey string
 	AppKey string
+	Site   *string
+	URL    *string
 }
 
 // CredentialManager provides the credentials from the operator configuration.
 type CredentialManager struct {
+	client           client.Client
 	secretBackend    secrets.Decryptor
 	creds            Creds
 	credsMutex       sync.Mutex
 	decryptorBackoff wait.Backoff
 	callbacks        []CredentialChangeCallback
 	callbackMutex    sync.RWMutex
+
+	decryptor secrets.Decryptor
+	credsMap  sync.Map
 }
 
 type CredentialChangeCallback func(newCreds Creds) error
@@ -44,8 +62,9 @@ func (cm *CredentialManager) RegisterCallback(cb CredentialChangeCallback) {
 }
 
 // NewCredentialManager returns a CredentialManager.
-func NewCredentialManager() *CredentialManager {
+func NewCredentialManager(client client.Client) *CredentialManager {
 	return &CredentialManager{
+		client:        client,
 		secretBackend: secrets.NewSecretBackend(),
 		creds:         Creds{},
 		decryptorBackoff: wait.Backoff{
@@ -103,6 +122,20 @@ func (cm *CredentialManager) GetCredentials() (Creds, error) {
 
 	creds := Creds{APIKey: apiKey, AppKey: appKey}
 	cm.cacheCreds(creds)
+
+	return creds, nil
+}
+
+func (cm *CredentialManager) GetCredsWithDDAFallback() (Creds, error) {
+	creds, err := cm.GetCredentials()
+	if err == nil {
+		return creds, nil
+	}
+
+	creds, err = cm.GetCredentialsFromDDA()
+	if err != nil {
+		return Creds{}, err
+	}
 
 	return creds, nil
 }
@@ -178,4 +211,131 @@ func (cm *CredentialManager) StartCredentialRefreshRoutine(interval time.Duratio
 			logger.Error(err, "Failed to refresh credentials")
 		}
 	}
+}
+
+// getDatadogAgent retrieves the DatadogAgent using Get client method
+func (cm *CredentialManager) GetDatadogAgent() (*v2alpha1.DatadogAgent, error) {
+	// Note: If there are no DDAs present when the Operator starts, the metadata forwarder does not re-try to get credentials from a future DDA
+	ddaList := v2alpha1.DatadogAgentList{}
+
+	// Create new client because manager client requires manager to start first
+	s := runtime.NewScheme()
+	_ = v2alpha1.AddToScheme(s)
+
+	if err := cm.client.List(context.TODO(), &ddaList); err != nil {
+		return nil, err
+	}
+
+	if len(ddaList.Items) == 0 {
+		return nil, errors.New("DatadogAgent not found")
+	}
+
+	return &ddaList.Items[0], nil
+}
+
+// GetCredentialsFromDDA retrieves the API key from the DatadogAgent and decrypts it if needed
+// It returns the API key and the site if set in the DatadogAgent
+func (cm *CredentialManager) GetCredentialsFromDDA() (Creds, error) {
+	creds := Creds{}
+	dda, err := cm.GetDatadogAgent()
+	if err != nil {
+		return creds, err
+	}
+
+	if dda.Spec.Global == nil || dda.Spec.Global.Credentials == nil {
+		return creds, fmt.Errorf("credentials not configured in the DatadogAgent")
+	}
+
+	defaultSecretName := secrets.GetDefaultCredentialsSecretName(dda)
+
+	apiKey := ""
+
+	if dda.Spec.Global != nil && dda.Spec.Global.Credentials != nil && dda.Spec.Global.Credentials.APIKey != nil && *dda.Spec.Global.Credentials.APIKey != "" {
+		apiKey = *dda.Spec.Global.Credentials.APIKey
+	} else {
+		_, secretName, secretKeyName := secrets.GetAPIKeySecret(dda.Spec.Global.Credentials, defaultSecretName)
+		apiKey, err = cm.getKeyFromSecret(dda.Namespace, secretName, secretKeyName)
+		if err != nil {
+			return creds, err
+		}
+	}
+
+	if apiKey == "" {
+		return creds, ErrEmptyAPIKey
+	}
+
+	apiKey, err = cm.resolveSecretsIfNeeded(apiKey)
+	if err != nil {
+		return creds, err
+	}
+
+	creds.APIKey = apiKey
+	if dda.Spec.Global != nil && dda.Spec.Global.Site != nil {
+		creds.Site = dda.Spec.Global.Site
+	}
+
+	return creds, nil
+}
+
+// getKeyFromSecret is used to retrieve an API or App key from a secret object
+func (cm *CredentialManager) getKeyFromSecret(namespace, secretName, dataKey string) (string, error) {
+	secret := &corev1.Secret{}
+	err := cm.client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: secretName}, secret)
+	if err != nil {
+		return "", err
+	}
+
+	return string(secret.Data[dataKey]), nil
+}
+
+// resolveSecretsIfNeeded calls the secret backend if creds are encrypted
+func (cm *CredentialManager) resolveSecretsIfNeeded(apiKey string) (string, error) {
+	if !secrets.IsEnc(apiKey) {
+		// Credentials are not encrypted
+		return apiKey, nil
+	}
+
+	// Try to get secrets from the local cache
+	if decAPIKey, cacheHit := cm.getSecretsFromCache(apiKey); cacheHit {
+		// Creds are found in local cache
+		return decAPIKey, nil
+	}
+
+	// Cache miss, call the secret decryptor
+	decrypted, err := cm.decryptor.Decrypt([]string{apiKey})
+	if err != nil {
+		// TODO cm.logger.Error(err, "cannot decrypt secrets")
+		return "", err
+	}
+
+	// Update the local cache with the decrypted secrets
+	cm.resetSecretsCache(decrypted)
+
+	return decrypted[apiKey], nil
+}
+
+// getSecretsFromCache returns the cached and decrypted values of encrypted creds
+func (cm *CredentialManager) getSecretsFromCache(encAPIKey string) (string, bool) {
+	decAPIKey, found := cm.credsMap.Load(encAPIKey)
+	if !found {
+		return "", false
+	}
+
+	return decAPIKey.(string), true
+}
+
+// resetSecretsCache updates the local secret cache with new secret values
+func (cm *CredentialManager) resetSecretsCache(newSecrets map[string]string) {
+	cm.cleanSecretsCache()
+	for k, v := range newSecrets {
+		cm.credsMap.Store(k, v)
+	}
+}
+
+// cleanSecretsCache deletes all cached secrets
+func (cm *CredentialManager) cleanSecretsCache() {
+	cm.credsMap.Range(func(k, v any) bool {
+		cm.credsMap.Delete(k)
+		return true
+	})
 }

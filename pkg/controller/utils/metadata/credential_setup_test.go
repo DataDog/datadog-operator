@@ -268,7 +268,7 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 			clientObjects = append(clientObjects, kubeSystem)
 			client := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&v2alpha1.DatadogAgent{}).WithObjects(clientObjects...).Build()
 
-			credsManager := config.NewCredentialManager()
+			credsManager := config.NewCredentialManager(client)
 			omf := &OperatorMetadataForwarder{
 				SharedMetadata: NewSharedMetadata(
 					zap.New(zap.UseDevMode(true)),
