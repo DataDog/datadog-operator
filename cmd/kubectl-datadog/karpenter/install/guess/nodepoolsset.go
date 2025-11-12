@@ -14,20 +14,36 @@ import (
 )
 
 type EC2NodeClass struct {
-	Name             string
-	AMIIDs           []string
-	SubnetIDs        []string
-	SecurityGroupIDs []string
+	name             string
+	amiIDs           map[string]struct{}
+	subnetIDs        map[string]struct{}
+	securityGroupIDs map[string]struct{}
+}
+
+func (nc *EC2NodeClass) GetName() string {
+	return nc.name
+}
+
+func (nc *EC2NodeClass) GetAMIIDs() []string {
+	return slices.Sorted(maps.Keys(nc.amiIDs))
+}
+
+func (nc *EC2NodeClass) GetSubnetIDs() []string {
+	return slices.Sorted(maps.Keys(nc.subnetIDs))
+}
+
+func (nc *EC2NodeClass) GetSecurityGroupIDs() []string {
+	return slices.Sorted(maps.Keys(nc.securityGroupIDs))
 }
 
 func (nc *EC2NodeClass) sum64() uint64 {
 	h := fnv.New64()
 
-	for _, x := range nc.AMIIDs {
+	for _, x := range slices.Sorted(maps.Keys(nc.amiIDs)) {
 		h.Write([]byte(x))
 	}
 
-	for _, x := range nc.SecurityGroupIDs {
+	for _, x := range slices.Sorted(maps.Keys(nc.securityGroupIDs)) {
 		h.Write([]byte(x))
 	}
 
@@ -35,27 +51,59 @@ func (nc *EC2NodeClass) sum64() uint64 {
 }
 
 type NodePool struct {
-	Name             string
-	EC2NodeClass     string
-	Labels           map[string]string
-	Taints           []corev1.Taint
-	Architectures    []string
-	Zones            []string
-	InstanceFamilies []string
-	CapacityTypes    []string
+	name             string
+	ec2NodeClass     string
+	labels           map[string]string
+	taints           []corev1.Taint
+	architectures    map[string]struct{}
+	zones            map[string]struct{}
+	instanceFamilies map[string]struct{}
+	capacityTypes    map[string]struct{}
+}
+
+func (np *NodePool) GetName() string {
+	return np.name
+}
+
+func (np *NodePool) GetEC2NodeClass() string {
+	return np.ec2NodeClass
+}
+
+func (np *NodePool) GetLabels() map[string]string {
+	return np.labels
+}
+
+func (np *NodePool) GetTaints() []corev1.Taint {
+	return np.taints
+}
+
+func (np *NodePool) GetArchitectures() []string {
+	return slices.Sorted(maps.Keys(np.architectures))
+}
+
+func (np *NodePool) GetZones() []string {
+	return slices.Sorted(maps.Keys(np.zones))
+}
+
+func (np *NodePool) GetInstanceFamilies() []string {
+	return slices.Sorted(maps.Keys(np.instanceFamilies))
+}
+
+func (np *NodePool) GetCapacityTypes() []string {
+	return slices.Sorted(maps.Keys(np.capacityTypes))
 }
 
 func (np *NodePool) sum64() uint64 {
 	h := fnv.New64()
 
-	h.Write([]byte(np.EC2NodeClass))
+	h.Write([]byte(np.ec2NodeClass))
 
-	for _, k := range slices.Sorted(maps.Keys(np.Labels)) {
+	for _, k := range slices.Sorted(maps.Keys(np.labels)) {
 		h.Write([]byte(k))
-		h.Write([]byte(np.Labels[k]))
+		h.Write([]byte(np.labels[k]))
 	}
 
-	for _, taint := range np.Taints {
+	for _, taint := range np.taints {
 		h.Write([]byte(taint.Key))
 		h.Write([]byte(taint.Value))
 		h.Write([]byte(taint.Effect))
@@ -90,47 +138,47 @@ type NodePoolsSetAddParams struct {
 
 func (nps *NodePoolsSet) Add(p NodePoolsSetAddParams) {
 	nc := EC2NodeClass{
-		AMIIDs:           []string{p.AMIID},
-		SubnetIDs:        slices.Sorted(slices.Values(p.SubnetIDs)),
-		SecurityGroupIDs: slices.Sorted(slices.Values(p.SecurityGroupIDs)),
+		amiIDs:           map[string]struct{}{p.AMIID: {}},
+		subnetIDs:        lo.Keyify(p.SubnetIDs),
+		securityGroupIDs: lo.Keyify(p.SecurityGroupIDs),
 	}
 
 	h := nc.sum64()
 
-	nc.Name = "dd-karpenter-" + encodeUint64Base32(h)[8:]
+	nc.name = "dd-karpenter-" + encodeUint64Base32(h)[8:]
 
 	if n, found := nps.ec2NodeClasses[h]; found {
-		n.SubnetIDs = slices.Compact(slices.Sorted(slices.Values(append(n.SubnetIDs, p.SubnetIDs...))))
+		maps.Copy(n.subnetIDs, lo.Keyify(p.SubnetIDs))
 		nps.ec2NodeClasses[h] = n
 	} else {
 		nps.ec2NodeClasses[h] = nc
 	}
 
 	np := NodePool{
-		EC2NodeClass:     nc.Name,
-		Labels:           sanitizeLabels(p.Labels),
-		Taints:           slices.SortedFunc(slices.Values(p.Taints), compareTaints),
-		Architectures:    []string{},
-		Zones:            slices.Sorted(slices.Values(p.Zones)),
-		InstanceFamilies: extractInstanceFamilies(p.InstanceTypes),
-		CapacityTypes:    []string{p.CapacityType},
+		ec2NodeClass:     nc.name,
+		labels:           sanitizeLabels(p.Labels),
+		taints:           slices.SortedFunc(slices.Values(p.Taints), compareTaints),
+		architectures:    make(map[string]struct{}),
+		zones:            lo.Keyify(p.Zones),
+		instanceFamilies: lo.Keyify(extractInstanceFamilies(p.InstanceTypes)),
+		capacityTypes:    map[string]struct{}{p.CapacityType: {}},
 	}
 
 	if p.Architecture != "" {
-		np.Architectures = []string{p.Architecture}
+		np.architectures[p.Architecture] = struct{}{}
 	}
 
 	h = np.sum64()
 
-	np.Name = "dd-karpenter-" + encodeUint64Base32(h)[8:]
+	np.name = "dd-karpenter-" + encodeUint64Base32(h)[8:]
 
 	if n, found := nps.nodePools[h]; found {
 		if p.Architecture != "" {
-			n.Architectures = slices.Compact(slices.Sorted(slices.Values(append(n.Architectures, p.Architecture))))
+			n.architectures[p.Architecture] = struct{}{}
 		}
-		n.Zones = slices.Compact(slices.Sorted(slices.Values(append(n.Zones, p.Zones...))))
-		n.InstanceFamilies = slices.Compact(slices.Sorted(slices.Values(append(n.InstanceFamilies, extractInstanceFamilies(p.InstanceTypes)...))))
-		n.CapacityTypes = slices.Compact(slices.Sorted(slices.Values(append(n.CapacityTypes, p.CapacityType))))
+		maps.Copy(n.zones, lo.Keyify(p.Zones))
+		maps.Copy(n.instanceFamilies, lo.Keyify(extractInstanceFamilies(p.InstanceTypes)))
+		n.capacityTypes[p.CapacityType] = struct{}{}
 		nps.nodePools[h] = n
 	} else {
 		nps.nodePools[h] = np

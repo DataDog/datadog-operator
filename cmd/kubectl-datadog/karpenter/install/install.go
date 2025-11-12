@@ -322,13 +322,13 @@ func (o *options) run(cmd *cobra.Command) error {
 
 	for _, nc := range nodePoolsSet.GetEC2NodeClasses() {
 		if err := k8s.CreateOrUpdateEC2NodeClass(ctx, o.Client, clusterName, nc); err != nil {
-			return fmt.Errorf("failed to create or update EC2NodeClass %s: %w", nc.Name, err)
+			return fmt.Errorf("failed to create or update EC2NodeClass %s: %w", nc.GetName(), err)
 		}
 	}
 
 	for _, np := range nodePoolsSet.GetNodePools() {
 		if err := k8s.CreateOrUpdateNodePool(ctx, o.Client, np); err != nil {
-			return fmt.Errorf("failed to create or update NodePool %s: %w", np.Name, err)
+			return fmt.Errorf("failed to create or update NodePool %s: %w", np.GetName(), err)
 		}
 	}
 

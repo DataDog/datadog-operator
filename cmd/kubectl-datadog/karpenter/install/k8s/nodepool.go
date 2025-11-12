@@ -14,42 +14,42 @@ import (
 func CreateOrUpdateNodePool(ctx context.Context, client client.Client, np guess.NodePool) error {
 	requirements := []karpv1.NodeSelectorRequirementWithMinValues{}
 
-	if len(np.Architectures) > 0 {
+	if architectures := np.GetArchitectures(); len(architectures) > 0 {
 		requirements = append(requirements, karpv1.NodeSelectorRequirementWithMinValues{
 			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
 				Key:      "kubernetes.io/arch",
 				Operator: corev1.NodeSelectorOpIn,
-				Values:   np.Architectures,
+				Values:   architectures,
 			},
 		})
 	}
 
-	if len(np.Zones) > 0 {
+	if zones := np.GetZones(); len(zones) > 0 {
 		requirements = append(requirements, karpv1.NodeSelectorRequirementWithMinValues{
 			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
 				Key:      "topology.kubernetes.io/zone",
 				Operator: corev1.NodeSelectorOpIn,
-				Values:   np.Zones,
+				Values:   zones,
 			},
 		})
 	}
 
-	if len(np.InstanceFamilies) > 0 {
+	if instanceFamilies := np.GetInstanceFamilies(); len(instanceFamilies) > 0 {
 		requirements = append(requirements, karpv1.NodeSelectorRequirementWithMinValues{
 			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
 				Key:      "karpenter.k8s.aws/instance-family",
 				Operator: corev1.NodeSelectorOpIn,
-				Values:   np.InstanceFamilies,
+				Values:   instanceFamilies,
 			},
 		})
 	}
 
-	if len(np.CapacityTypes) > 0 {
+	if capacityTypes := np.GetCapacityTypes(); len(capacityTypes) > 0 {
 		requirements = append(requirements, karpv1.NodeSelectorRequirementWithMinValues{
 			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
 				Key:      "karpenter.sh/capacity-type",
 				Operator: corev1.NodeSelectorOpIn,
-				Values:   np.CapacityTypes,
+				Values:   capacityTypes,
 			},
 		})
 	}
@@ -60,21 +60,21 @@ func CreateOrUpdateNodePool(ctx context.Context, client client.Client, np guess.
 			Kind:       "NodePool",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: np.Name,
+			Name: np.GetName(),
 		},
 		Spec: karpv1.NodePoolSpec{
 			Template: karpv1.NodeClaimTemplate{
 				ObjectMeta: karpv1.ObjectMeta{
-					Labels: np.Labels,
+					Labels: np.GetLabels(),
 				},
 				Spec: karpv1.NodeClaimTemplateSpec{
 					NodeClassRef: &karpv1.NodeClassReference{
 						Group: "karpenter.k8s.aws",
 						Kind:  "EC2NodeClass",
-						Name:  np.EC2NodeClass,
+						Name:  np.GetEC2NodeClass(),
 					},
 					Requirements: requirements,
-					Taints:       np.Taints,
+					Taints:       np.GetTaints(),
 				},
 			},
 		},

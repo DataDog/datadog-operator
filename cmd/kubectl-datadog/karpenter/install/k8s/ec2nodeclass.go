@@ -18,21 +18,21 @@ func CreateOrUpdateEC2NodeClass(ctx context.Context, client client.Client, clust
 			Kind:       "EC2NodeClass",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: nc.Name,
+			Name: nc.GetName(),
 		},
 		Spec: karpawsv1.EC2NodeClassSpec{
 			Role: "KarpenterNodeRole-" + clusterName,
-			AMISelectorTerms: lo.Map(nc.AMIIDs, func(ami string, _ int) karpawsv1.AMISelectorTerm {
+			AMISelectorTerms: lo.Map(nc.GetAMIIDs(), func(ami string, _ int) karpawsv1.AMISelectorTerm {
 				return karpawsv1.AMISelectorTerm{
 					Alias: "al2023@latest",
 				}
 			}),
-			SubnetSelectorTerms: lo.Map(nc.SubnetIDs, func(subnetID string, _ int) karpawsv1.SubnetSelectorTerm {
+			SubnetSelectorTerms: lo.Map(nc.GetSubnetIDs(), func(subnetID string, _ int) karpawsv1.SubnetSelectorTerm {
 				return karpawsv1.SubnetSelectorTerm{
 					ID: subnetID,
 				}
 			}),
-			SecurityGroupSelectorTerms: lo.Map(nc.SecurityGroupIDs, func(sgID string, _ int) karpawsv1.SecurityGroupSelectorTerm {
+			SecurityGroupSelectorTerms: lo.Map(nc.GetSecurityGroupIDs(), func(sgID string, _ int) karpawsv1.SecurityGroupSelectorTerm {
 				return karpawsv1.SecurityGroupSelectorTerm{
 					ID: sgID,
 				}
