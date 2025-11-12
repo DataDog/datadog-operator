@@ -199,7 +199,7 @@ func (nps *NodePoolsSet) Add(p NodePoolsSetAddParams) {
 		taints:           lo.Keyify(lo.Map(p.Taints, toTaint)),
 		architectures:    make(map[string]struct{}),
 		zones:            lo.Keyify(p.Zones),
-		instanceFamilies: lo.Keyify(extractInstanceFamilies(p.InstanceTypes)),
+		instanceFamilies: extractInstanceFamilies(p.InstanceTypes),
 		capacityTypes:    map[string]struct{}{p.CapacityType: {}},
 	}
 
@@ -216,7 +216,7 @@ func (nps *NodePoolsSet) Add(p NodePoolsSetAddParams) {
 			n.architectures[p.Architecture] = struct{}{}
 		}
 		maps.Copy(n.zones, lo.Keyify(p.Zones))
-		maps.Copy(n.instanceFamilies, lo.Keyify(extractInstanceFamilies(p.InstanceTypes)))
+		maps.Copy(n.instanceFamilies, extractInstanceFamilies(p.InstanceTypes))
 		n.capacityTypes[p.CapacityType] = struct{}{}
 		nps.nodePools[h] = n
 	} else {
@@ -252,21 +252,11 @@ func encodeUint64Base32(n uint64) string {
 	return strings.ToLower(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(buf))
 }
 
-func extractInstanceFamilies(instanceTypes []string) []string {
-	families := make(map[string]bool)
-	for _, instanceType := range instanceTypes {
-		// Extract family: "m5.large" -> "m5", "t3.medium" -> "t3"
-		if family, _, _ := strings.Cut(instanceType, "."); family != "" {
-			families[family] = true
-		}
-	}
-	if len(families) == 0 {
-		return nil
-	}
-	result := make([]string, 0, len(families))
-	for family := range families {
-		result = append(result, family)
-	}
-	slices.Sort(result)
-	return result
+// extractInstanceFamilies extracts instance families from instance types by taking
+// the part before the first dot (e.g., "m5" from "m5.large", "t3" from "t3.micro").
+func extractInstanceFamilies(instanceTypes []string) map[string]struct{} {
+	return lo.Keyify(lo.FilterMap(instanceTypes, func(instanceType string, _ int) (string, bool) {
+		family, _, _ := strings.Cut(instanceType, ".")
+		return family, family != ""
+	}))
 }

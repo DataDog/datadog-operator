@@ -612,42 +612,42 @@ func TestExtractInstanceFamilies(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
 		instanceTypes []string
-		expected      []string
+		expected      map[string]struct{}
 	}{
 		{
 			name:          "empty list",
 			instanceTypes: []string{},
-			expected:      nil,
+			expected:      set[string](),
 		},
 		{
 			name:          "single instance type",
 			instanceTypes: []string{"m5.large"},
-			expected:      []string{"m5"},
+			expected:      set("m5"),
 		},
 		{
 			name:          "multiple instances of same family",
 			instanceTypes: []string{"m5.large", "m5.xlarge", "m5.2xlarge"},
-			expected:      []string{"m5"},
+			expected:      set("m5"),
 		},
 		{
 			name:          "mixed families",
 			instanceTypes: []string{"m5.large", "t3.medium", "c5.xlarge", "t3.large"},
-			expected:      []string{"c5", "m5", "t3"},
+			expected:      set("c5", "m5", "t3"),
 		},
 		{
 			name:          "with duplicates",
 			instanceTypes: []string{"m5.large", "m5.large", "t3.medium", "t3.medium"},
-			expected:      []string{"m5", "t3"},
+			expected:      set("m5", "t3"),
 		},
 		{
 			name:          "GPU and Graviton instances",
 			instanceTypes: []string{"p3.2xlarge", "g4dn.xlarge", "t4g.micro", "m6g.medium"},
-			expected:      []string{"g4dn", "m6g", "p3", "t4g"},
+			expected:      set("g4dn", "m6g", "p3", "t4g"),
 		},
 		{
 			name:          "with empty strings",
 			instanceTypes: []string{"", "m5.large", "", "t3.medium"},
-			expected:      []string{"m5", "t3"},
+			expected:      set("m5", "t3"),
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
