@@ -31,7 +31,7 @@ func TestLiveContainerFeature(t *testing.T) {
 				WithLiveContainerCollectionEnabled(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false),
+			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true),
 		},
 		{
 			Name: "live container collection enabled with single container",
@@ -40,40 +40,10 @@ func TestLiveContainerFeature(t *testing.T) {
 				WithSingleContainerStrategy(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName, false),
+			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName, true),
 		},
 		{
-			Name: "live container collection enabled on core agent via env var",
-			DDA: testutils.NewDatadogAgentBuilder().
-				WithLiveContainerCollectionEnabled(true).
-				WithComponentOverride(
-					v2alpha1.NodeAgentComponentName,
-					v2alpha1.DatadogAgentComponentOverride{
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.60.0"},
-						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "true"}},
-					},
-				).
-				Build(),
-			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true),
-		},
-		{
-			Name: "live container collection enabled on core agent via spec",
-			DDA: testutils.NewDatadogAgentBuilder().
-				WithLiveContainerCollectionEnabled(true).
-				WithComponentOverride(
-					v2alpha1.NodeAgentComponentName,
-					v2alpha1.DatadogAgentComponentOverride{
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.60.0"},
-					},
-				).
-				WithProcessChecksInCoreAgent(true).
-				Build(),
-			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true),
-		},
-		{
-			Name: "live container collection enabled in core agent via spec without min version",
+			Name: "live container collection without min version to run in core agent",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithLiveContainerCollectionEnabled(true).
 				WithComponentOverride(
@@ -82,7 +52,6 @@ func TestLiveContainerFeature(t *testing.T) {
 						Image: &v2alpha1.AgentImageConfig{Tag: "7.52.0"},
 					},
 				).
-				WithProcessChecksInCoreAgent(true).
 				Build(),
 			WantConfigure: true,
 			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false),
@@ -98,7 +67,6 @@ func TestLiveContainerFeature(t *testing.T) {
 						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "false"}},
 					},
 				).
-				WithProcessChecksInCoreAgent(true).
 				Build(),
 			WantConfigure: true,
 			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false),

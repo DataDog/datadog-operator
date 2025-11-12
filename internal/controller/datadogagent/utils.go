@@ -210,6 +210,25 @@ func getDDAIGVK() schema.GroupVersionKind {
 	}
 }
 
+// Delete specific workload and dependents with background propagation
+// Only used for Helm-managed cluster checks runner deployment
+func deleteAllWorkloadsAndDependentsBackground(ctx context.Context, logger logr.Logger, c client.Client, obj client.Object, component string) error {
+	propagationPolicy := metav1.DeletePropagationBackground
+	selector := labels.SelectorFromSet(labels.Set{
+		apicommon.AgentDeploymentComponentLabelKey: component,
+		kubernetes.AppKubernetesManageByLabelKey:   "Helm",
+	})
+	logger.Info("deleting all workloads and dependents for matching DDA with background propagation", "labels", selector.String())
+	if err := c.DeleteAllOf(ctx, obj, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{LabelSelector: selector, Namespace: obj.GetNamespace()}, DeleteOptions: client.DeleteOptions{PropagationPolicy: &propagationPolicy}}); err != nil {
+		if apierrors.IsNotFound(err) {
+			logger.Info("object not found, skipping deletion", "object", obj.GetName(), "namespace", obj.GetNamespace())
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
 // delete ALL workloads for a given DDA/DDAI and orphan pods
 func deleteObjectAndOrphanDependents(ctx context.Context, logger logr.Logger, c client.Client, obj client.Object, component string) error {
 	propagationPolicy := metav1.DeletePropagationOrphan
