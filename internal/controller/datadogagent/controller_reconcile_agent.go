@@ -323,6 +323,9 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 
 		node := &corev1.Node{}
 		if err := r.client.Get(ctx, types.NamespacedName{Name: nodeName}, node); err != nil {
+			if errors.IsNotFound(err) {
+				continue
+			}
 			return err
 		}
 
