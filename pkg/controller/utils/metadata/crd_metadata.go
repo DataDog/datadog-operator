@@ -42,11 +42,11 @@ type CRDMetadataForwarder struct {
 }
 
 type CRDMetadataPayload struct {
-	Timestamp            int64       `json:"timestamp"`
-	ClusterID            string      `json:"cluster_id"`
-	ClusterName          string      `json:"clustername"`
-	Metadata             CRDMetadata `json:"datadog_operator_crd_metadata"`
-	ClusterAgentMetadata struct{}    `json:"datadog_cluster_agent_metadata"`
+	Hostname    string      `json:"hostname"`
+	Timestamp   int64       `json:"timestamp"`
+	ClusterID   string      `json:"cluster_id"`
+	ClusterName string      `json:"clustername"`
+	Metadata    CRDMetadata `json:"datadog_operator_crd_metadata"`
 }
 
 type CRDMetadata struct {
@@ -218,6 +218,7 @@ func (cmf *CRDMetadataForwarder) buildPayload(clusterUID string, crdInstance CRD
 	}
 
 	payload := CRDMetadataPayload{
+		Hostname:    cmf.hostName,
 		Timestamp:   now,
 		ClusterID:   clusterUID,
 		ClusterName: cmf.clusterName,
