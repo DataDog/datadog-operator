@@ -328,9 +328,6 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 
 		node := &corev1.Node{}
 		if err := r.client.Get(ctx, types.NamespacedName{Name: nodeName}, node); err != nil {
-			if !errors.IsNotFound(err) {
-				continue
-			}
 			return err
 		}
 
@@ -359,7 +356,7 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 		}
 
 		if len(labelsToRemove) > 0 || len(labelsToAddOrChange) > 0 {
-			r.log.V(1).Info("waffles modifying node labels", "labelsToRemove", labelsToRemove, "labelsToAddOrChange", labelsToAddOrChange)
+			r.log.V(1).Info("modifying node labels", "node", node.Name, "labelsToRemove", labelsToRemove, "labelsToAddOrChange", labelsToAddOrChange)
 			for k, v := range node.Labels {
 				if _, ok := labelsToRemove[k]; ok {
 					continue

@@ -32,6 +32,10 @@ func sendProfileEnabledMetric(enabled bool) {
 	}
 }
 
+// reconcileProfiles reconciles all profiles
+// - returns a list of profiles that should be applied (including the default profile)
+// - configures node labels based on the profiles that are applied
+// - applies profile status updates in k8s
 func (r *Reconciler) reconcileProfiles(ctx context.Context) ([]*v1alpha1.DatadogAgentProfile, error) {
 	now := metav1.Now()
 	// start with the default profile so that on error, at minimum the default profile is applied
@@ -69,8 +73,6 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context) ([]*v1alpha1.Datadog
 		}
 	}
 
-	r.log.Info("waffles profilesByNode", "profilesByNode", profilesByNode)
-
 	// label nodes
 	if err := r.labelNodesWithProfiles(ctx, profilesByNode); err != nil {
 		return appliedProfiles, fmt.Errorf("unable to label nodes with profiles: %w", err)
@@ -78,6 +80,10 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context) ([]*v1alpha1.Datadog
 	return appliedProfiles, nil
 }
 
+// reconcileProfile reconciles a single profile
+// - validates the profile
+// - checks for conflicts with existing profiles
+// - updates the profile status based on profile validation and application success
 func (r *Reconciler) reconcileProfile(ctx context.Context, profile *v1alpha1.DatadogAgentProfile, nodeList []corev1.Node, profilesByNode map[string]types.NamespacedName, now metav1.Time) error {
 	r.log.Info("reconciling profile", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
 	// validate profile name, spec, and selectors
