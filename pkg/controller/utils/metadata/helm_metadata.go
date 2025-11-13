@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -24,6 +23,7 @@ import (
 	"github.com/go-logr/logr"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-agent/pkg/util/scrubber"
@@ -127,23 +127,19 @@ func NewHelmMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kuber
 
 // getWatchNamespacesForHelm retrieves the list of namespaces to watch from environment variables
 func getWatchNamespacesForHelm(logger logr.Logger) []string {
-	// Priority: DD_AGENT_WATCH_NAMESPACE > WATCH_NAMESPACE > empty (all namespaces)
-	for _, envVar := range []string{"DD_AGENT_WATCH_NAMESPACE", "WATCH_NAMESPACE"} {
-		if nsValue, found := os.LookupEnv(envVar); found && nsValue != "" {
-			result := make([]string, 0)
-			for _, ns := range strings.Split(nsValue, ",") {
-				if trimmed := strings.TrimSpace(ns); trimmed != "" {
-					result = append(result, trimmed)
-				}
-			}
-			if len(result) > 0 {
-				logger.V(1).Info("Using namespaces for Helm metadata", "env_var", envVar, "namespaces", result)
-				return result
-			}
+	nsMap := config.GetWatchNamespacesFromEnv(logger, config.AgentWatchNamespaceEnvVar)
+
+	namespaces := make([]string, 0, len(nsMap))
+	for ns := range nsMap {
+		if ns == cache.AllNamespaces {
+			logger.V(1).Info("Helm metadata watching all namespaces")
+			return []string{""}
 		}
+		namespaces = append(namespaces, ns)
 	}
 
-	return []string{""}
+	logger.V(1).Info("Helm metadata watching specific namespaces", "namespaces", namespaces)
+	return namespaces
 }
 
 // Start starts the helm metadata forwarder
@@ -347,7 +343,6 @@ func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) (
 		return cachedReleases, nil, notScrubbed
 	}
 
-	namespacesToSearch := getWatchNamespacesForHelm(hmf.logger)
 	hmf.logger.V(1).Info("Cache miss, discovering Helm releases from cluster")
 
 	latestReleases := make(map[string]struct {
@@ -358,6 +353,7 @@ func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) (
 
 	var allErrors []error
 
+	namespacesToSearch := getWatchNamespacesForHelm(hmf.logger)
 	for _, namespace := range namespacesToSearch {
 		listOpts := []client.ListOption{
 			client.MatchingLabels{"owner": "helm"},
