@@ -268,6 +268,7 @@ func DefaultSeccompConfigDataForSystemProbe() map[string]string {
 					"symlinkat",
 					"sysinfo",
 					"tgkill",
+					"timer_create",
 					"tkill",
 					"umask",
 					"uname",
