@@ -314,6 +314,16 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	volMountMgr.AddVolumeMountToContainer(&osReleaseVolMount, apicommon.SystemProbeContainerName)
 	volMgr.AddVolume(&osReleaseVol)
 
+	// cgroup volume mount
+	cgroupsVol, cgroupsVolMount := volume.GetVolumes(common.CgroupsVolumeName, common.CgroupsHostPath, common.CgroupsMountPath, true)
+	volMountMgr.AddVolumeMountToContainer(&cgroupsVolMount, apicommon.SystemProbeContainerName)
+	volMgr.AddVolume(&cgroupsVol)
+
+	// host root volume mount
+	hostRootVol, hostRootVolMount := volume.GetVolumes(common.HostRootVolumeName, common.HostRootHostPath, common.HostRootMountPath, true)
+	volMountMgr.AddVolumeMountToContainer(&hostRootVolMount, apicommon.SystemProbeContainerName)
+	volMgr.AddVolume(&hostRootVol)
+
 	// Custom policies are copied and merged with default policies via a workaround in the init-volume container.
 	if f.customConfig != nil {
 		var vol corev1.Volume

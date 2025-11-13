@@ -242,6 +242,16 @@ func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool) *te
 					ReadOnly:  true,
 				},
 				{
+					Name:      common.CgroupsVolumeName,
+					MountPath: common.CgroupsMountPath,
+					ReadOnly:  true,
+				},
+				{
+					Name:      common.HostRootVolumeName,
+					MountPath: common.HostRootMountPath,
+					ReadOnly:  true,
+				},
+				{
 					Name:      securityAgentRuntimePoliciesDirVolumeName,
 					MountPath: securityAgentRuntimePoliciesDirVolumePath,
 					ReadOnly:  true,
@@ -318,6 +328,22 @@ func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool) *te
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
 							Path: common.SystemProbeOSReleaseDirVolumePath,
+						},
+					},
+				},
+				{
+					Name: common.CgroupsVolumeName,
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: common.CgroupsHostPath,
+						},
+					},
+				},
+				{
+					Name: common.HostRootVolumeName,
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: common.HostRootHostPath,
 						},
 					},
 				},
