@@ -108,7 +108,7 @@ This indicates the specific permission that needs to be added to the Operator Cl
 
 ## Going further
 
-⚠️ **Advanced users Only - Not recommended**
+⚠️ **Advanced users only - Not recommended**
 
 Manually managing RBAC permissions significantly increases operational complexity and the risk of deployment failures. This approach requires deep Kubernetes expertise and ongoing maintenance as new Operator/Agent features are released.
 
