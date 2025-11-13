@@ -1,6 +1,6 @@
 # Datadog Operator Kubernetes permissions
 
-This document explains how and why the Operator requires RBAC permissions for Kubernetes clusters. In the context of Kubernetes security, a balance is essential between the principle of least privilege and the smooth operation of vital components like the Datadog Agent, itself managed by the Datadog Operator.
+This document explains how and why the Operator requires RBAC permissions for Kubernetes clusters. Kubernetes security requires balancing least privilege with the practical needs of critical components such as the Datadog Agent, which is managed by the Datadog Operator.
 
 ## Quick Summary
 
@@ -11,15 +11,15 @@ This document explains how and why the Operator requires RBAC permissions for Ku
 
 ## Generation of Datadog Operator role
 
-The [Datadog Operator ClusterRole](../config/rbac/role.yaml) is automatically generated using [kubebuilder markers](https://book.kubebuilder.io/reference/markers/rbac) listed in `_controller` files: [datadogagent_controller.go](../internal/controller/datadogagent_controller.go) for instance. For a given controller, it can only grant a RBAC permission if itself is granted it. This means that in order for the `DatadogAgent` controller to create the Agent DaemonSet, the Operator itself needs to be granted this permission.
+The [Datadog Operator ClusterRole](../config/rbac/role.yaml) is automatically generated using [kubebuilder markers](https://book.kubebuilder.io/reference/markers/rbac) listed in `_controller` files: [datadogagent_controller.go](../internal/controller/datadogagent_controller.go), for example. For a given controller, a controller can only grant a RBAC permission if the Operator itself already has that permission. This means that in order for the `DatadogAgent` controller to create the Agent DaemonSet, the Operator itself needs to be granted this permission.
 
 ## Minimal set of permissions needed by the Datadog Operator
 
-The Datadog Operator requires a very minimal set of permissions to run without errors:
-* Manage `leases` in the API group `coordination.k8s.io`: this is needed to run leader election. Only a single Operator replica will take actions when running multiple replicas for availability.
-* Manage (`create`, `get`, `list`, `watch`, `update`, `delete`, `patch`) Datadog custom resources (`datadoghq.com` API group) depending on which controller is enabled. For example,  if the `DatadogDashboard` controller is enabled, it needs these permissions to manage the lifecycle of `DatadogDashboard` resources, such as when a `DatadogDashboard` is created, the Operator needs to know and reconcile accordingly.
+The Datadog Operator requires a minimal set of permissions to run without errors:
+* Manage `leases` in the API group `coordination.k8s.io`: this is needed to run leader election. Only a single Operator replica takes actions when running multiple replicas for availability.
+* Manage (`create`, `get`, `list`, `watch`, `update`, `delete`, `patch`) Datadog custom resources (`datadoghq.com` API group) depending on which controller is enabled. For example, if the `DatadogDashboard` controller is enabled, it needs these permissions to manage the lifecycle of `DatadogDashboard` resources, such as when a `DatadogDashboard` is created, the Operator needs to know and reconcile accordingly.
     * The exact set of resources is listed in `_controller` files within [controller](../internal/controller).
-    * If the custom resource manages native Kubernetes resources (e.g. a `DaemonSet` is created by the `DatadogAgent` controller), managing it is also needed.
+    * If the custom resource manages native Kubernetes resources (for example, a `DaemonSet` is created by the `DatadogAgent` controller), managing it is also needed.
 
 This set of permissions (lease and Datadog-resources lifecycle) is sufficient for the following controllers:
 * `DatadogDashboard`
@@ -33,7 +33,7 @@ This section covers more details on the permissions required by the `DatadogAgen
 
 ### Direct and indirect permissions
 
-We first need to distinguish between the direct permissions needed by the Operator itself and those indirectly needed by the Datadog Agent to run in Kubernetes clusters. As mentioned previously, the Operator manages the lifecycle of Datadog-custom resources. In the case of `DatadogAgent`, this means managing the lifecycle of native Kubernetes resources, such as DaemonSet needed by the Datadog Agent architecture. More details on the Agent architecture on Kubernetes can be found [in this blog post](https://www.datadoghq.com/architecture/efficient-kubernetes-monitoring-with-the-datadog-cluster-agent/). This is an example of direct permissions needed by the Operator but not by the Agent. On the other hand, if we take the resource `nodes` where the Operator role includes `get,list,patch,watch` permissions, it is not directly needed by the Operator, but it is needed by the Agent DaemonSet to access kubelet endpoints on each node to provide observability.
+We first need to distinguish between the direct permissions needed by the Operator itself and those indirectly needed by the Datadog Agent to run in Kubernetes clusters. As mentioned previously, the Operator manages the lifecycle of Datadog custom resources. In the case of `DatadogAgent`, this means managing the lifecycle of native Kubernetes resources, such as DaemonSet required by the Datadog Agent. More details on the Agent architecture on Kubernetes can be found [in this blog post](https://www.datadoghq.com/architecture/efficient-kubernetes-monitoring-with-the-datadog-cluster-agent/). This is an example of a permission the Operator needs directly, but which the Agent itself does not need. On the other hand, if we take the resource `nodes` where the Operator role includes `get,list,patch,watch` permissions, it is not directly needed by the Operator, but it is needed by the Agent DaemonSet to access kubelet endpoints on each node to provide observability.
 
 #### Examples of direct vs indirect permissions
 
@@ -108,7 +108,7 @@ This indicates the specific permission that needs to be added to the Operator Cl
 
 ## Going further
 
-⚠️ **Advanced Users Only - Not Recommended**
+⚠️ **Advanced users Only - Not recommended**
 
 Manually managing RBAC permissions significantly increases operational complexity and the risk of deployment failures. This approach requires deep Kubernetes expertise and ongoing maintenance as new Operator/Agent features are released.
 
