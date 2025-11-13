@@ -28,7 +28,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-operator/pkg/config"
-	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 const (
@@ -144,18 +143,21 @@ func getWatchNamespacesForHelm(logger logr.Logger) []string {
 
 // Start starts the helm metadata forwarder
 func (hmf *HelmMetadataForwarder) Start() {
-	err := hmf.setCredentials()
-	if err != nil {
-		hmf.logger.Error(err, "Could not set credentials; not starting helm metadata forwarder")
-		return
-	}
-
 	if hmf.hostName == "" {
 		hmf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting helm metadata forwarder")
 		return
 	}
 
-	hmf.payloadHeader = hmf.getHeaders()
+	apiKey, requestURL, err := hmf.getApiKeyAndURL()
+	if err != nil {
+		hmf.logger.Error(err, "Could not set credentials; not starting helm metadata forwarder")
+		return
+	}
+
+	hmf.payloadHeader = hmf.GetHeaders(*apiKey)
+	if requestURL != nil {
+		hmf.requestURL = *requestURL
+	}
 
 	hmf.logger.Info("Starting helm metadata forwarder")
 
@@ -301,16 +303,6 @@ func (hmf *HelmMetadataForwarder) buildPayload(release HelmReleaseData, clusterU
 	}
 
 	return jsonPayload
-}
-
-func (hmf *HelmMetadataForwarder) setCredentials() error {
-	return hmf.SharedMetadata.setCredentials()
-}
-
-func (hmf *HelmMetadataForwarder) getHeaders() http.Header {
-	headers := hmf.GetBaseHeaders()
-	headers.Set(userAgentHTTPHeaderKey, fmt.Sprintf("Datadog Operator/%s", version.GetVersion()))
-	return headers
 }
 
 // getFromCache retrieves the cached Helm releases if they exist and are not expired

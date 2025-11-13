@@ -21,6 +21,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 const (
@@ -46,7 +47,6 @@ type SharedMetadata struct {
 	logger    logr.Logger
 
 	// Shared metadata fields
-	apiKey            string
 	clusterUID        string
 	clusterName       string
 	operatorVersion   string
@@ -91,90 +91,61 @@ func (sm *SharedMetadata) GetOrCreateClusterUID() (string, error) {
 	return sm.clusterUID, nil
 }
 
-func (sm *SharedMetadata) setupFromOperator() error {
+// getApiKeyAndURL retrieves the API key and request URL from the operator or DDA
+// and sets the cluster name from the operator or DDA in the SharedMetadata struct
+func (sm *SharedMetadata) getApiKeyAndURL() (*string, *string, error) {
+	// Get credentials (operator → DDA fallback handled internally)
+	creds, err := sm.credsManager.GetCredsWithDDAFallback()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Set cluster name - try operator first, then DDA
+	// TODO: not ideal really; maybe we could drop cluster name from metadata or extract it as part of rest of metadata instead of tieing with credentials
 	sm.clusterName = os.Getenv(constants.DDClusterName)
-
-	if sm.credsManager == nil {
-		return fmt.Errorf("credentials Manager is undefined")
-	}
-
-	creds, err := sm.credsManager.GetCredentials()
-	if err != nil {
-		return err
-	}
-
-	// API key
-	sm.apiKey = creds.APIKey
-
-	return nil
-}
-
-func (sm *SharedMetadata) setupFromDDA() error {
-	dda, err := sm.credsManager.GetDatadogAgent()
-	if err != nil {
-		return err
-	}
-
 	if sm.clusterName == "" {
-		if dda.Spec.Global != nil && dda.Spec.Global.ClusterName != nil {
+		// Fallback to DDA cluster name
+		dda, err := sm.credsManager.GetDatadogAgent()
+		if err == nil && dda.Spec.Global != nil && dda.Spec.Global.ClusterName != nil {
 			sm.clusterName = *dda.Spec.Global.ClusterName
 		}
 	}
 
-	if sm.apiKey == "" {
-		creds, err := sm.credsManager.GetCredentialsFromDDA()
-		if err != nil {
-			return err
-		}
-		sm.apiKey = creds.APIKey
-
-		// if API key is set from DDA, also update request URL if needed
-		if creds.Site != nil {
-			mdfURL := url.URL{
-				Scheme: defaultURLScheme,
-				Host:   defaultURLHostPrefix + *dda.Spec.Global.Site,
-				Path:   defaultURLPath,
-			}
-			sm.requestURL = mdfURL.String()
-		}
-	}
-
-	return nil
-}
-
-// setCredentials attempts to set up credentials and cluster name from the operator configuration first.
-// If cluster name is empty (even when credentials are successfully retrieved from operator),
-// it falls back to setting up from DatadogAgent to ensure we have a valid cluster name.
-func (sm *SharedMetadata) setCredentials() error {
-	// err := sm.setupFromOperator()
-	// if err == nil && sm.clusterName != "" {
-	// 	return nil
-	// }
-
-	// return sm.setupFromDDA()
-	creds, err := sm.credsManager.GetCredsWithDDAFallback()
-	if err != nil {
-		return err
-	}
-
-	sm.apiKey = creds.APIKey
 	if creds.Site != nil {
 		mdfURL := url.URL{
 			Scheme: defaultURLScheme,
 			Host:   defaultURLHostPrefix + *creds.Site,
 			Path:   defaultURLPath,
 		}
-		sm.requestURL = mdfURL.String()
+		requestURL := mdfURL.String()
+		return &creds.APIKey, &requestURL, nil
 	}
-	return nil
+	return &creds.APIKey, nil, nil
 }
 
+// setCredentials attempts to set up credentials and cluster name from the operator configuration first.
+// If cluster name is empty (even when credentials are successfully retrieved from operator),
+// it falls back to setting up from DatadogAgent to ensure we have a valid cluster name.
+// func (sm *SharedMetadata) setCredentials() error {
+// 	apiKey, requestURL, err := sm.getApiKeyAndURL()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	sm.apiKey = *apiKey
+// 	// request can still be nil
+// 	if requestURL != nil {
+// 		sm.requestURL = *requestURL
+// 	}
+// 	return nil
+// }
+
 // GetBaseHeaders returns the common HTTP headers for API requests
-func (sm *SharedMetadata) GetBaseHeaders() http.Header {
+func (sm *SharedMetadata) GetHeaders(apiKey string) http.Header {
 	header := http.Header{}
-	header.Set(apiHTTPHeaderKey, sm.apiKey)
+	header.Set(apiHTTPHeaderKey, apiKey)
 	header.Set(contentTypeHeaderKey, "application/json")
 	header.Set(acceptHeaderKey, "application/json")
+	header.Set(userAgentHTTPHeaderKey, fmt.Sprintf("Datadog Operator/%s", version.GetVersion()))
 	return header
 }
 

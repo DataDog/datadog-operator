@@ -17,6 +17,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	testutils_test "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/config"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_getURL(t *testing.T) {
@@ -156,20 +157,18 @@ func Test_setup(t *testing.T) {
 
 			tt.loadFunc()
 
-			_ = omf.setupFromOperator()
+			apiKey, requestURL, err := omf.getApiKeyAndURL()
 
-			_ = omf.setupFromDDA()
+			assert.Nil(t, err)
+			assert.Equal(t, tt.wantAPIKey, *apiKey)
+			if requestURL != nil {
+				assert.Equal(t, tt.wantURL, *requestURL)
+			} else {
+				assert.Equal(t, tt.wantURL, omf.requestURL)
+			}
 
 			if omf.clusterName != tt.wantClusterName {
 				t.Errorf("setupFromDDA() clusterName = %v, want %v", omf.clusterName, tt.wantClusterName)
-			}
-
-			if omf.apiKey != tt.wantAPIKey {
-				t.Errorf("setupFromDDA() apiKey = %v, want %v", omf.apiKey, tt.wantAPIKey)
-			}
-
-			if omf.requestURL != tt.wantURL {
-				t.Errorf("setupFromDDA() url = %v, want %v", omf.requestURL, tt.wantURL)
 			}
 		})
 	}

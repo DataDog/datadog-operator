@@ -20,7 +20,6 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
-	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 const (
@@ -99,7 +98,7 @@ func (omf *OperatorMetadataForwarder) Start() {
 }
 
 func (omf *OperatorMetadataForwarder) setupRequestPrerequisites() error {
-	err := omf.setCredentials()
+	apiKey, requestURL, err := omf.getApiKeyAndURL()
 	if err != nil {
 		omf.logger.Error(err, "Could not get credentials")
 		return err
@@ -108,7 +107,11 @@ func (omf *OperatorMetadataForwarder) setupRequestPrerequisites() error {
 		omf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting operator metadata forwarder")
 		return ErrEmptyHostName
 	}
-	omf.payloadHeader = omf.getHeaders()
+
+	omf.payloadHeader = omf.GetHeaders(*apiKey)
+	if requestURL != nil {
+		omf.requestURL = *requestURL
+	}
 
 	clusterUID, err := omf.GetOrCreateClusterUID()
 	if err != nil {
@@ -176,16 +179,6 @@ func (omf *OperatorMetadataForwarder) GetPayload(clusterUID string) []byte {
 	}
 
 	return jsonPayload
-}
-
-func (omf *OperatorMetadataForwarder) setCredentials() error {
-	return omf.SharedMetadata.setCredentials()
-}
-
-func (omf *OperatorMetadataForwarder) getHeaders() http.Header {
-	headers := omf.GetBaseHeaders()
-	headers.Set(userAgentHTTPHeaderKey, fmt.Sprintf("Datadog Operator/%s", version.GetVersion()))
-	return headers
 }
 
 // updateResourceCounts refreshes resource counts and stores them in OperatorMetadata.ResourceCounts

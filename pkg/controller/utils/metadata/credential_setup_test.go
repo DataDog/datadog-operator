@@ -42,26 +42,15 @@ func (m *mockDecryptor) Decrypt(encrypted []string) (map[string]string, error) {
 	return decrypted, nil
 }
 
-// Current coverage
-// | Credential Source | Site Config | URL Config | API Key Source             | Status    |
-// |-------------------|-------------|------------|----------------------------|-----------|
-// | Operator env vars | Default     | Default    | DD_API_KEY                 | ✅         |
-// | Operator env vars | DD_SITE     | Default    | DD_API_KEY                 | ✅         |
-// | Operator env vars | Default     | DD_URL     | DD_API_KEY                 | ✅         |
-// | DDA CRD           | Default     | Default    | spec.credentials.apiKey    | ✅         |
-// | DDA CRD           | spec.site   | Default    | spec.credentials.apiKey    | ✅         |
-// | DDA CRD           | Default     | Default    | spec.credentials.apiSecret | ✅         |
-// | None              | Any         | Any        | Missing                    | ✅ (Error) |
-// | Any               | Any         | Any        | No hostname                | ✅ (Error) |
-
 func TestSetupRequestPrerequisites(t *testing.T) {
 	tests := []struct {
-		name       string
-		setupEnv   func()
-		setupDDA   func() []client.Object
-		wantAPIKey string
-		wantURL    string
-		wantErr    bool
+		name            string
+		setupEnv        func()
+		setupDDA        func() []client.Object
+		wantAPIKey      string
+		wantURL         string
+		wantClusterName string
+		wantErr         bool
 	}{
 		// Pure operator credential tests
 		{
@@ -75,9 +64,10 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 			setupDDA: func() []client.Object {
 				return []client.Object{} // No DDA needed
 			},
-			wantAPIKey: "operator-api-key",
-			wantURL:    "https://app.datadoghq.com/api/v1/metadata",
-			wantErr:    false,
+			wantAPIKey:      "operator-api-key",
+			wantURL:         "https://app.datadoghq.com/api/v1/metadata",
+			wantClusterName: "test-cluster",
+			wantErr:         false,
 		},
 		{
 			name: "operator creds with custom site via DD_SITE",
@@ -91,9 +81,10 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 			setupDDA: func() []client.Object {
 				return []client.Object{} // No DDA needed
 			},
-			wantAPIKey: "operator-api-key",
-			wantURL:    "https://app.datadoghq.eu/api/v1/metadata",
-			wantErr:    false,
+			wantAPIKey:      "operator-api-key",
+			wantURL:         "https://app.datadoghq.eu/api/v1/metadata",
+			wantClusterName: "test-cluster",
+			wantErr:         false,
 		},
 		{
 			name: "operator creds with custom URL via DD_URL",
@@ -107,9 +98,10 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 			setupDDA: func() []client.Object {
 				return []client.Object{} // No DDA needed
 			},
-			wantAPIKey: "operator-api-key",
-			wantURL:    "https://custom.datadoghq.com/api/v1/metadata",
-			wantErr:    false,
+			wantAPIKey:      "operator-api-key",
+			wantURL:         "https://custom.datadoghq.com/api/v1/metadata",
+			wantClusterName: "test-cluster",
+			wantErr:         false,
 		},
 		// Pure DDA credential tests
 		{
@@ -127,6 +119,7 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 						},
 						Spec: v2alpha1.DatadogAgentSpec{
 							Global: &v2alpha1.GlobalConfig{
+								ClusterName: apiutils.NewStringPointer("dda-cluster-name"),
 								Credentials: &v2alpha1.DatadogCredentials{
 									APIKey: apiutils.NewStringPointer("dda-api-key"),
 								},
@@ -135,9 +128,10 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 					},
 				}
 			},
-			wantAPIKey: "dda-api-key",
-			wantURL:    "https://app.datadoghq.com/api/v1/metadata",
-			wantErr:    false,
+			wantAPIKey:      "dda-api-key",
+			wantURL:         "https://app.datadoghq.com/api/v1/metadata",
+			wantClusterName: "dda-cluster-name",
+			wantErr:         false,
 		},
 		{
 			name: "DDA with API key and custom site",
@@ -154,6 +148,7 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 						},
 						Spec: v2alpha1.DatadogAgentSpec{
 							Global: &v2alpha1.GlobalConfig{
+								ClusterName: apiutils.NewStringPointer("dda-eu-cluster"),
 								Credentials: &v2alpha1.DatadogCredentials{
 									APIKey: apiutils.NewStringPointer("dda-api-key"),
 								},
@@ -163,9 +158,10 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 					},
 				}
 			},
-			wantAPIKey: "dda-api-key",
-			wantURL:    "https://app.datadoghq.eu/api/v1/metadata",
-			wantErr:    false,
+			wantAPIKey:      "dda-api-key",
+			wantURL:         "https://app.datadoghq.eu/api/v1/metadata",
+			wantClusterName: "dda-eu-cluster",
+			wantErr:         false,
 		},
 		{
 			name: "DDA with secret reference",
@@ -182,6 +178,7 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 						},
 						Spec: v2alpha1.DatadogAgentSpec{
 							Global: &v2alpha1.GlobalConfig{
+								ClusterName: apiutils.NewStringPointer("dda-secret-cluster"),
 								Credentials: &v2alpha1.DatadogCredentials{
 									APISecret: &v2alpha1.SecretConfig{
 										SecretName: "datadog-secret",
@@ -206,9 +203,10 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 					},
 				}
 			},
-			wantAPIKey: "secret-api-key",
-			wantURL:    "https://app.datadoghq.com/api/v1/metadata",
-			wantErr:    false,
+			wantAPIKey:      "secret-api-key",
+			wantURL:         "https://app.datadoghq.com/api/v1/metadata",
+			wantClusterName: "dda-secret-cluster",
+			wantErr:         false,
 		},
 		{
 			name: "DDA with encrypted API key",
@@ -225,6 +223,7 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 						},
 						Spec: v2alpha1.DatadogAgentSpec{
 							Global: &v2alpha1.GlobalConfig{
+								ClusterName: apiutils.NewStringPointer("dda-encrypted-cluster"),
 								Credentials: &v2alpha1.DatadogCredentials{
 									APIKey: apiutils.NewStringPointer("ENC[encrypted-api-key]"),
 								},
@@ -233,9 +232,10 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 					},
 				}
 			},
-			wantAPIKey: "encrypted-api-key-decrypted", // Mock decrypts "ENC[encrypted-api-key]" to this
-			wantURL:    "https://app.datadoghq.com/api/v1/metadata",
-			wantErr:    false, // Still expect error due to uninitialized decryptor
+			wantAPIKey:      "encrypted-api-key-decrypted", // Mock decrypts "ENC[encrypted-api-key]" to this
+			wantURL:         "https://app.datadoghq.com/api/v1/metadata",
+			wantClusterName: "dda-encrypted-cluster",
+			wantErr:         false,
 		},
 		// Mixed/fallback tests
 		{
@@ -264,9 +264,10 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 					},
 				}
 			},
-			wantAPIKey: "operator-api-key", // Should use DDA credentials
-			wantURL:    "https://app.datadoghq.com/api/v1/metadata",
-			wantErr:    false,
+			wantAPIKey:      "operator-api-key", // Uses operator API key
+			wantURL:         "https://app.datadoghq.com/api/v1/metadata",
+			wantClusterName: "dda-cluster-name", // Gets cluster name from DDA
+			wantErr:         false,
 		},
 		// Error cases
 		{
@@ -279,7 +280,8 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 			setupDDA: func() []client.Object {
 				return []client.Object{} // No DDA
 			},
-			wantErr: true,
+			wantClusterName: "", // Not relevant for error case
+			wantErr:         true,
 		},
 		{
 			name: "no credentials anywhere should fail",
@@ -290,7 +292,8 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 			setupDDA: func() []client.Object {
 				return []client.Object{} // No DDA
 			},
-			wantErr: true,
+			wantClusterName: "", // Not relevant for error case
+			wantErr:         true,
 		},
 	}
 
@@ -337,10 +340,14 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 			require.NoError(t, err)
 
 			// Verify API key is set correctly
-			assert.Equal(t, tt.wantAPIKey, omf.apiKey, "API key should match expected value")
+			apiKey, _, _ := omf.getApiKeyAndURL()
+			assert.Equal(t, tt.wantAPIKey, *apiKey, "API key should match expected value")
 
 			// Verify URL is set correctly
 			assert.Equal(t, tt.wantURL, omf.requestURL, "Request URL should match expected value")
+
+			// Verify cluster name is set correctly
+			assert.Equal(t, tt.wantClusterName, omf.clusterName, "Cluster name should match expected value")
 
 			// Verify headers are set with correct API key
 			headers := omf.payloadHeader
