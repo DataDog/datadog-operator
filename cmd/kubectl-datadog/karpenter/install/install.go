@@ -10,9 +10,13 @@ import (
 	"os/signal"
 	"slices"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/fatih/color"
+	"github.com/pkg/browser"
+	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -39,6 +43,8 @@ import (
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/karpenter/install/k8s"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
+
+const autoscalingSettingsURL = "https://app.datadoghq.com/orchestration/scaling/settings"
 
 var (
 	//go:embed assets/cfn/dd-karpenter.yaml
@@ -87,7 +93,8 @@ func (_ *InferenceMethod) Type() string {
 var (
 	clusterName        string
 	karpenterNamespace string
-	inferenceMethod    = InferenceMethodNone
+	inferenceMethod    = InferenceMethodNodeGroups
+	debug              bool
 	installExample     = `
   # install Karpenter
   %[1]s install
@@ -130,6 +137,7 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd.Flags().StringVar(&clusterName, "cluster-name", "", "Name of the EKS cluster")
 	cmd.Flags().StringVar(&karpenterNamespace, "karpenter-namespace", "dd-karpenter", "Name of the Kubernetes namespace to deploy Karpenter into")
 	cmd.Flags().Var(&inferenceMethod, "inference-method", "Method to infer EC2NodeClass and NodePool properties: none, nodes, nodegroups")
+	cmd.Flags().BoolVar(&debug, "debug", false, "Enable debug logs")
 
 	o.ConfigFlags.AddFlags(cmd.Flags())
 
@@ -177,7 +185,10 @@ func (o *options) run(cmd *cobra.Command) error {
 		return errors.New("cluster name must be specified either via --cluster-name or in the current kubeconfig context")
 	}
 
-	cmd.Printf("Installing Karpenter on cluster %s.\n", clusterName)
+	msg := "Installing Karpenter on cluster " + clusterName + "."
+	cmd.Println("╭─" + strings.Repeat("─", len(msg)) + "─╮")
+	cmd.Println("│ " + msg + " │")
+	cmd.Println("╰─" + strings.Repeat("─", len(msg)) + "─╯")
 
 	// Get AWS config
 	awsConfig, err := config.LoadDefaultConfig(ctx)
@@ -301,10 +312,12 @@ func (o *options) run(cmd *cobra.Command) error {
 		}
 	}
 
-	cmd.Printf("Creating the following node pools:\n %s\n", spew.Sdump(nodePoolsSet))
+	if debug {
+		cmd.Printf("Creating the following node pools:\n %s\n", spew.Sdump(nodePoolsSet))
+	}
 
 	sch := runtime.NewScheme()
-	if err := scheme.AddToScheme(sch); err != nil {
+	if err = scheme.AddToScheme(sch); err != nil {
 		return fmt.Errorf("failed to add runtime scheme: %w", err)
 	}
 	sch.AddKnownTypes(
@@ -321,19 +334,37 @@ func (o *options) run(cmd *cobra.Command) error {
 	metav1.AddToGroupVersion(sch, schema.GroupVersion{Group: "karpenter.k8s.aws", Version: "v1"})
 
 	for _, nc := range nodePoolsSet.GetEC2NodeClasses() {
-		if err := k8s.CreateOrUpdateEC2NodeClass(ctx, o.Client, clusterName, nc); err != nil {
+		if err = k8s.CreateOrUpdateEC2NodeClass(ctx, o.Client, clusterName, nc); err != nil {
 			return fmt.Errorf("failed to create or update EC2NodeClass %s: %w", nc.GetName(), err)
 		}
 	}
 
 	for _, np := range nodePoolsSet.GetNodePools() {
-		if err := k8s.CreateOrUpdateNodePool(ctx, o.Client, np); err != nil {
+		if err = k8s.CreateOrUpdateNodePool(ctx, o.Client, np); err != nil {
 			return fmt.Errorf("failed to create or update NodePool %s: %w", np.GetName(), err)
 		}
 	}
 
-	cmd.Println("Karpenter is now fully up and running.")
-	cmd.Println("You can now go to https://app.datadoghq.com/orchestration/scaling/cluster to enable Datadog managed cluster autoscaling.")
+	browser.Stdout = cmd.OutOrStdout()
+	browser.Stderr = cmd.ErrOrStderr()
+	if err = browser.OpenURL(autoscalingSettingsURL); err != nil {
+		log.Printf("Failed to open URL in browser: %v", err)
+	}
+
+	msg2 := []string{
+		"Karpenter is now fully up and running.",
+		"",
+		"Navigate to the Autoscaling settings page",
+		"and select cluster to start generating recommendations:",
+		autoscalingSettingsURL,
+	}
+	msg2Size := slices.Max(lo.Map(msg2, func(s string, _ int) int { return len(s) }))
+	msg2[4] = color.New(color.Bold, color.Underline, color.FgBlue).Sprint(autoscalingSettingsURL)
+	cmd.Println("╭─" + strings.Repeat("─", msg2Size) + "─╮")
+	for _, msg = range msg2 {
+		cmd.Printf("│ %-*s │\n", msg2Size, msg)
+	}
+	cmd.Println("╰─" + strings.Repeat("─", msg2Size) + "─╯")
 
 	return nil
 }

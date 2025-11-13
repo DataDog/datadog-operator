@@ -55,8 +55,10 @@ require (
 	github.com/aws/smithy-go v1.23.2
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
+	github.com/fatih/color v1.16.0
 	github.com/gobuffalo/flect v1.0.3
 	github.com/google/go-containerregistry v0.6.0
+	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/prometheus/client_golang v1.21.1
 	github.com/samber/lo v1.49.1
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8
@@ -139,7 +141,6 @@ require (
 	github.com/evanphx/json-patch v5.9.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d // indirect
-	github.com/fatih/color v1.16.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
