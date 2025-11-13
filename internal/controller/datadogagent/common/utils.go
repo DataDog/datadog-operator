@@ -48,18 +48,19 @@ func GetDefaultMetadata(owner metav1.Object, componentKind, instanceName, versio
 
 	if selector != nil {
 		maps.Copy(labels, selector.MatchLabels)
-		// if update metadata is present, use k8s instance and component as the selector
-	} else if val, ok := owner.GetAnnotations()[apicommon.UpdateMetadataAnnotationKey]; ok && val == "true" {
+		// if update metadata is disabled, use agent deployment name and component as the selector
+	} else if val, ok := owner.GetAnnotations()[apicommon.UpdateMetadataAnnotationKey]; ok && val == "false" {
 		selector = &metav1.LabelSelector{
 			MatchLabels: map[string]string{
-				kubernetes.AppKubernetesInstanceLabelKey:   instanceName,
+				apicommon.AgentDeploymentNameLabelKey:      owner.GetName(),
 				apicommon.AgentDeploymentComponentLabelKey: componentKind,
 			},
 		}
 	} else {
+		// default to using the k8s instance label as the selector
 		selector = &metav1.LabelSelector{
 			MatchLabels: map[string]string{
-				apicommon.AgentDeploymentNameLabelKey:      owner.GetName(),
+				kubernetes.AppKubernetesInstanceLabelKey:   instanceName,
 				apicommon.AgentDeploymentComponentLabelKey: componentKind,
 			},
 		}
