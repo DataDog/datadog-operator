@@ -120,13 +120,13 @@ func (o *Options) Validate() error {
 func (o *Options) Init(cmd *cobra.Command) error {
 	var err error
 	if o.mappingPath != "" {
-		o.mappingPath, err = ResolveFilePath(o.mappingPath)
+		o.mappingPath, err = resolveFilePath(o.mappingPath)
 		if err != nil {
 			return fmt.Errorf("could not resolve mapping path: %v: %w", o.mappingPath, err)
 		}
 	}
 	if o.sourcePath != "" {
-		o.sourcePath, err = ResolveFilePath(o.sourcePath)
+		o.sourcePath, err = resolveFilePath(o.sourcePath)
 		if err != nil {
 			return fmt.Errorf("could not resolve source path: %v: %w", o.sourcePath, err)
 		}
@@ -134,7 +134,7 @@ func (o *Options) Init(cmd *cobra.Command) error {
 
 	if o.destPath != "" {
 		// Ignore the err since we will create the file later if it doesn't exist
-		destPath, err := ResolveFilePath(o.destPath)
+		destPath, err := resolveFilePath(o.destPath)
 		if err == nil {
 			o.destPath = destPath
 		}
@@ -166,8 +166,8 @@ func (o *Options) Run() {
 	}
 }
 
-// ResolveFilePath validates and returns absolute filepath.
-func ResolveFilePath(p string) (string, error) {
+// resolveFilePath validates and returns absolute filepath.
+func resolveFilePath(p string) (string, error) {
 	if p == "" {
 		return "", fmt.Errorf("path cannot be empty")
 	}
