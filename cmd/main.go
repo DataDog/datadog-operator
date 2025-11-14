@@ -388,8 +388,13 @@ func run(opts *options) error {
 		return setupErrorf(setupLog, err, "Unable to start controllers")
 	}
 
-	setupAndStartOperatorMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
-	setupAndStartHelmMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
+	go func() {
+		// Block until this controller manager is elected leader
+		<-mgr.Elected()
+		setupLog.Info("Starting metadata forwarders")
+		setupAndStartOperatorMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
+		setupAndStartHelmMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
+	}()
 
 	// +kubebuilder:scaffold:builder
 
