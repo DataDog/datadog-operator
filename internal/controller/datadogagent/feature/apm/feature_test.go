@@ -739,6 +739,10 @@ func testAPMInstrumentationWithLanguageDetectionEnabledForClusterAgent() *test.C
 					Name:  DDLanguageDetectionEnabled,
 					Value: "true",
 				},
+				{
+					Name:  DDLanguageDetectionReportingEnabled,
+					Value: "true",
+				},
 			}
 			assert.True(
 				t,
@@ -783,24 +787,32 @@ func testAPMInstrumentationWithLanguageDetectionForNodeAgent(languageDetectionEn
 			processAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ProcessAgentContainerName]
 
 			var expectedEnvVars []*corev1.EnvVar
+			var expectedCoreAgentEnvVars []*corev1.EnvVar
 			if languageDetectionEnabled {
-				expectedEnvVars = []*corev1.EnvVar{
+				expectedEnvVars = append(expectedEnvVars, []*corev1.EnvVar{
 					{
 						Name:  DDLanguageDetectionEnabled,
+						Value: "true",
+					},
+					{
+						Name:  DDLanguageDetectionReportingEnabled,
 						Value: "true",
 					},
 					{
 						Name:  common.DDProcessConfigRunInCoreAgent,
 						Value: apiutils.BoolToString(&processChecksInCoreAgent),
 					},
-				}
+				}...)
+				expectedCoreAgentEnvVars = append(expectedCoreAgentEnvVars, expectedEnvVars...)
+			} else {
+				expectedCoreAgentEnvVars = append(expectedCoreAgentEnvVars, &corev1.EnvVar{Name: DDLanguageDetectionReportingEnabled, Value: "false"})
 			}
 
 			// Assert Env Vars Added to Core Agent Container
 			assert.True(
 				t,
-				apiutils.IsEqualStruct(coreAgentEnvVars, expectedEnvVars),
-				"Core Agent Container ENVs \ndiff = %s", cmp.Diff(coreAgentEnvVars, expectedEnvVars),
+				apiutils.IsEqualStruct(coreAgentEnvVars, expectedCoreAgentEnvVars),
+				"Core Agent Container ENVs \ndiff = %s", cmp.Diff(coreAgentEnvVars, expectedCoreAgentEnvVars),
 			)
 
 			// Assert Env Vars Added to Process Agent Container

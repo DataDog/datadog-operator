@@ -224,9 +224,9 @@ func run(opts *options) error {
 	version.PrintVersionLogs(setupLog)
 
 	if opts.datadogAgentEnabled {
-		setupLog.Error(nil, "[WARNING] Upcoming Agent DaemonSet selector changes in Operator v1.21. If you rely on Datadog Agent pod labels e.g. in NetworkPolicies, verify if you may be impacted. See README for details.")
+		setupLog.Error(nil, "[WARNING] Agent DaemonSet selector changed in Operator v1.21. If you rely on Datadog Agent pod labels e.g. in NetworkPolicies, verify if you may be impacted. See README for details.")
 		if opts.datadogAgentProfileEnabled {
-			setupLog.Error(nil, "[WARNING] Upcoming selector changes in Agent DaemonSets managed by DAPs in Operator v1.18 and v1.21. If you rely on Datadog Agent pod labels, e.g. in NetworkPolicies, verify if you may be impacted. See README for details.")
+			setupLog.Error(nil, "[WARNING] Selector changed in Agent DaemonSets managed by DAPs in Operator v1.18 and v1.21. If you rely on Datadog Agent pod labels, e.g. in NetworkPolicies, verify if you may be impacted. See README for details.")
 		}
 	}
 
@@ -388,9 +388,14 @@ func run(opts *options) error {
 		return setupErrorf(setupLog, err, "Unable to start controllers")
 	}
 
-	setupAndStartOperatorMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
-	setupAndStartCRDMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
-	setupAndStartHelmMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
+	go func() {
+		// Block until this controller manager is elected leader
+		<-mgr.Elected()
+		setupLog.Info("Starting metadata forwarders")
+		setupAndStartOperatorMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
+		setupAndStartHelmMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
+    setupAndStartCRDMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
+	}()
 
 	// +kubebuilder:scaffold:builder
 
