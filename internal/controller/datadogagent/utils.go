@@ -247,9 +247,11 @@ func deleteObjectAndOrphanDependents(ctx context.Context, logger logr.Logger, c 
 	return nil
 }
 
+// default to true as of 1.21
+// TODO: remove once the UpdateMetadataAnnotationKey annotation is removed
 func useV3Metadata(dda metav1.Object) bool {
-	if val, ok := dda.GetAnnotations()[apicommon.UpdateMetadataAnnotationKey]; ok && val == "true" {
-		return true
+	if val, ok := dda.GetAnnotations()[apicommon.UpdateMetadataAnnotationKey]; ok && val == "false" {
+		return false
 	}
-	return false
+	return true
 }
