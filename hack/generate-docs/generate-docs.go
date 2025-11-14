@@ -17,17 +17,29 @@ import (
 
 const (
 	crdFile                 = "config/crd/bases/v1/datadoghq.com_datadogagents.yaml"
+	publicHeaderFile        = "hack/generate-docs/public_header.markdown"
+	publicFooterFile        = "hack/generate-docs/public_footer.markdown"
+	publicOverridesFile     = "hack/generate-docs/public_overrides.markdown"
+	publicDocsFile          = "docs/configuration_public.md"
 	headerFile              = "hack/generate-docs/header.markdown"
 	footerFile              = "hack/generate-docs/$VERSION_footer.markdown"
 	v2OverridesFile         = "hack/generate-docs/v2alpha1_overrides.markdown"
 	docsFile                = "docs/configuration.$VERSION.md"
 	updatedDescriptionsFile = "hack/generate-docs/updated_descriptions.json"
+	typesFile               = "api/datadoghq/v2alpha1/datadogagent_types.go"
 )
 
 type parameterDoc struct {
 	name        string
 	description string
 }
+
+type OutputFormat string
+
+const (
+	FormatTable OutputFormat = "table" // current format
+	FormatHugo  OutputFormat = "hugo"  // new public format
+)
 
 func main() {
 	crdYaml := mustReadFile(crdFile)
@@ -41,7 +53,9 @@ func main() {
 
 	for _, crdVersion := range crd.Spec.Versions {
 		generateDoc(header, crdVersion, crdVersion.Name)
+		generatePublicDoc(crdVersion, crdVersion.Name)
 	}
+
 }
 
 func generateDoc(header []byte, crd apiextensions.CustomResourceDefinitionVersion, version string) {
@@ -77,6 +91,48 @@ func generateDoc(header []byte, crd apiextensions.CustomResourceDefinitionVersio
 	mustWrite(f, footer)
 }
 
+func generatePublicDoc(crd apiextensions.CustomResourceDefinitionVersion, version string) {
+	publicHeader := mustReadFile(publicHeaderFile)
+	publicFooter := mustReadFile(publicFooterFile)
+	publicOverrides := mustReadFile(publicOverridesFile)
+
+	f, err := os.OpenFile(publicDocsFile, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0o644)
+	if err != nil {
+		panic(fmt.Sprintf("cannot write to public docs file: %s", err))
+	}
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil {
+			panic(fmt.Sprintf("cannot close file: %s", closeErr))
+		}
+	}()
+
+	// Write header
+	mustWrite(f, publicHeader)
+	mustWriteString(f, "\n\n")
+
+	// Load doc-gen annotations from Go source
+	annotations, err := ParseDocGenAnnotations(typesFile)
+	if err != nil {
+		panic(fmt.Sprintf("failed to parse doc-gen annotations: %s", err))
+	}
+
+	generatePublicContent(f, crd, annotations)
+
+	// Write overrides section
+	mustWrite(f, publicOverrides)
+	mustWriteString(f, "\n\n")
+
+	// Generate override parameters
+	mustWriteString(f, fmt.Sprintf("{{%% collapse-content title=\"Parameters\" level=\"h4\" expanded=true id=\"override-options-list\" %%}}\n"))
+	nameToDescMap := loadJSONToMap(updatedDescriptionsFile)
+	overrideProps := crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties["override"]
+	writeOverridesRecursivePublic(f, "[component]", []string{"override"}, overrideProps.AdditionalProperties.Schema.Properties, nameToDescMap, annotations)
+
+	mustWriteString(f, "{{% /collapse-content %}}\n\n\n")
+
+	mustWrite(f, publicFooter)
+}
+
 func generateContent_v2alpha1(f *os.File, crd apiextensions.CustomResourceDefinitionVersion) {
 	nameToDescMap := loadJSONToMap(updatedDescriptionsFile)
 	writePropsTable(f, crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties, nameToDescMap)
@@ -91,8 +147,16 @@ func generateContent_v2alpha1(f *os.File, crd apiextensions.CustomResourceDefini
 	writeOverridesRecursive(f, "[key]", overrideProps.AdditionalProperties.Schema.Properties, nameToDescMap)
 }
 
-func writePropsTable(f *os.File, props map[string]apiextensions.JSONSchemaProps, nameToDescMap map[string]string) {
+func generatePublicContent(f *os.File, crd apiextensions.CustomResourceDefinitionVersion, annotations map[string]FieldAnnotation) {
+	nameToDescMap := loadJSONToMap(updatedDescriptionsFile)
 
+	// Write global options section
+	writePropsTablePublic(f, crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties, nameToDescMap, annotations)
+
+	mustWriteString(f, "For a complete list of parameters, see the [Operator configuration spec][8].\n\n")
+}
+
+func writePropsTable(f *os.File, props map[string]apiextensions.JSONSchemaProps, nameToDescMap map[string]string) {
 	docs := getParameterDocs([]string{}, props)
 
 	sort.Slice(docs, func(i, j int) bool {
@@ -106,18 +170,39 @@ func writePropsTable(f *os.File, props map[string]apiextensions.JSONSchemaProps,
 			// Replace imported description with manual edits
 			desc = newDesc
 		} else {
-			// If needed, remove the name of the parameter from the description itself. This is done for visual appeal in our public docs.
-			// Isolate parameter name from full period-delimited name
 			paramName := doc.name[strings.LastIndex(doc.name, ".")+1:]
 			prefix := cases.Title(language.English, cases.Compact).String(paramName) + " "
-			// Remove parameter name from description
 			desc = strings.TrimPrefix(desc, prefix)
-			// Capitalize new beginning word of description
 			desc = strings.ToUpper(desc[:1]) + desc[1:]
 		}
 
 		mustWriteString(f, fmt.Sprintf("| %s | %s |\n", doc.name, desc))
 	}
+}
+
+func writePropsTablePublic(f *os.File, props map[string]apiextensions.JSONSchemaProps, nameToDescMap map[string]string, annotations map[string]FieldAnnotation) {
+	// For global props, displayPath and annotationPath are the same (both start empty)
+	docs := getParameterDocsPublic([]string{}, []string{}, props, annotations)
+	sort.Slice(docs, func(i, j int) bool {
+		return docs[i].name < docs[j].name
+	})
+
+	mustWriteString(f, fmt.Sprintf("{{%% collapse-content title=\"Parameters\" level=\"h4\" expanded=true id=\"global-options-list\" %%}}\n"))
+	for _, doc := range docs {
+		desc := doc.description
+		if newDesc, ok := nameToDescMap[doc.name]; ok {
+			desc = newDesc
+		} else {
+			// Clean up description (same logic as existing)
+			paramName := doc.name[strings.LastIndex(doc.name, ".")+1:]
+			prefix := cases.Title(language.English, cases.Compact).String(paramName) + " "
+			desc = strings.TrimPrefix(desc, prefix)
+			desc = strings.ToUpper(desc[:1]) + desc[1:]
+		}
+		mustWriteString(f, fmt.Sprintf("`%s`\n", doc.name))
+		mustWriteString(f, fmt.Sprintf(": %s\n\n", desc))
+	}
+	mustWriteString(f, "{{% /collapse-content %}}\n\n")
 }
 
 func mustReadFile(path string) []byte {
@@ -175,6 +260,72 @@ func getParameterDoc(path []string, name string, prop apiextensions.JSONSchemaPr
 	return getParameterDocs(path, prop.Properties)
 }
 
+// getParameterDocsPublic is like getParameterDocs but respects +doc-gen: annotations
+// Takes two path parameters:
+// - displayPath: used for building the display name (e.g., "livenessProbe.exec.command")
+// - annotationPath: used for looking up annotations (e.g., "containers.livenessProbe")
+func getParameterDocsPublic(displayPath []string, annotationPath []string, props map[string]apiextensions.JSONSchemaProps, annotations map[string]FieldAnnotation) []parameterDoc {
+	parameterDocs := []parameterDoc{}
+	for name, prop := range props {
+		parameterDocs = append(parameterDocs, getParameterDocPublic(displayPath, annotationPath, name, prop, annotations)...)
+	}
+
+	return parameterDocs
+}
+
+func getParameterDocPublic(displayPath []string, annotationPath []string, name string, prop apiextensions.JSONSchemaProps, annotations map[string]FieldAnnotation) []parameterDoc {
+	displayPath = append(displayPath, name)
+	annotationPath = append(annotationPath, name)
+
+	displayName := strings.Join(displayPath, ".")
+	annotationKey := strings.Join(annotationPath, ".")
+
+	// Check for annotations on this field using the annotation path
+	annotation, hasAnnotation := annotations[annotationKey]
+
+	// Handle +doc-gen:exclude - skip this field and all children
+	if hasAnnotation && annotation.Exclude {
+		return []parameterDoc{}
+	}
+
+	// Handle +doc-gen:truncate - show field but don't recurse
+	if hasAnnotation && annotation.Truncate {
+		desc := strings.ReplaceAll(prop.Description, "\n", " ")
+		return []parameterDoc{
+			{
+				name:        displayName,
+				description: desc,
+			},
+		}
+	}
+
+	// Handle +doc-gen:link - show field with link, don't recurse
+	if hasAnnotation && annotation.Link != "" {
+		desc := strings.ReplaceAll(prop.Description, "\n", " ")
+		// Append link to description
+		desc = fmt.Sprintf("%s See [link](%s) for more information.", desc, annotation.Link)
+		return []parameterDoc{
+			{
+				name:        displayName,
+				description: desc,
+			},
+		}
+	}
+
+	// No special annotations - proceed normally
+	if len(prop.Properties) == 0 {
+		return []parameterDoc{
+			{
+				name:        displayName,
+				description: strings.ReplaceAll(prop.Description, "\n", " "),
+			},
+		}
+	}
+
+	// Recurse into nested properties
+	return getParameterDocsPublic(displayPath, annotationPath, prop.Properties, annotations)
+}
+
 func exampleFile(version string) string {
 	return fmt.Sprintf("hack/generate-docs/%s_example.markdown", version)
 }
@@ -206,6 +357,41 @@ func writeOverridesRecursive(f *os.File, prefix string, props map[string]apiexte
 				desc = newDesc
 			}
 			mustWriteString(f, fmt.Sprintf("| %s | %s |\n", name, desc))
+		}
+	}
+}
+
+func writeOverridesRecursivePublic(f *os.File, prefix string, annotationPath []string, props map[string]apiextensions.JSONSchemaProps, nameToDescMap map[string]string, annotations map[string]FieldAnnotation) {
+	// displayPath always starts fresh (like internal), annotationPath accumulates path for annotation lookup in the map
+	docs := getParameterDocsPublic([]string{}, annotationPath, props, annotations)
+
+	sort.Slice(docs, func(i, j int) bool {
+		return docs[i].name < docs[j].name
+	})
+
+	for _, doc := range docs {
+		if props[doc.name].Type == "array" {
+			arrayType := props[doc.name].Items.Schema.Type
+			propName := prefix + "." + doc.name
+			mustWriteString(f, fmt.Sprintf("`%s`\n: _type_: `[]%s`\n<br /> %s\n\n", propName, arrayType, doc.description))
+		} else if props[doc.name].AdditionalProperties != nil {
+			mapKeyType := "string"
+			mapValueType := props[doc.name].AdditionalProperties.Schema.Type
+			propName := prefix + "." + doc.name
+			mustWriteString(f, fmt.Sprintf("`%s`\n: _type_: `map[%s]%s`\n<br /> %s\n\n", propName, mapKeyType, mapValueType, doc.description))
+
+			valueTypeProps := props[doc.name].AdditionalProperties.Schema.Properties
+			// Accumulate annotation path with field name
+			newAnnotationPath := append(annotationPath, doc.name)
+			// Recurse: displayPath resets to []string{}, annotationPath accumulates
+			writeOverridesRecursivePublic(f, prefix+"."+doc.name+".[container]", newAnnotationPath, valueTypeProps, nameToDescMap, annotations)
+		} else {
+			name := prefix + "." + doc.name
+			desc := doc.description
+			if newDesc, ok := nameToDescMap[name]; ok {
+				desc = newDesc
+			}
+			mustWriteString(f, fmt.Sprintf("`%s`\n: %s\n\n", name, desc))
 		}
 	}
 }

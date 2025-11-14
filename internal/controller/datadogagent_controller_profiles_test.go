@@ -146,7 +146,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			Name: agentprofile.DaemonSetName(types.NamespacedName{
 				Namespace: profile.Namespace,
 				Name:      profile.Name,
-			}, false),
+			}, true),
 		}
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
@@ -271,7 +271,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			Name: agentprofile.DaemonSetName(types.NamespacedName{
 				Namespace: profile.Namespace,
 				Name:      profile.Name,
-			}, false),
+			}, true),
 		}
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
@@ -401,7 +401,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			Name: agentprofile.DaemonSetName(types.NamespacedName{
 				Namespace: profile.Namespace,
 				Name:      profile.Name,
-			}, false),
+			}, true),
 		}
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
@@ -555,7 +555,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			Name: agentprofile.DaemonSetName(types.NamespacedName{
 				Namespace: profiles[0].Namespace,
 				Name:      profiles[0].Name,
-			}, false),
+			}, true),
 		}
 
 		profile2DaemonSetName := types.NamespacedName{
@@ -563,7 +563,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			Name: agentprofile.DaemonSetName(types.NamespacedName{
 				Namespace: profiles[1].Namespace,
 				Name:      profiles[1].Name,
-			}, false),
+			}, true),
 		}
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
@@ -755,7 +755,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			Name: agentprofile.DaemonSetName(types.NamespacedName{
 				Namespace: profiles[0].Namespace,
 				Name:      profiles[0].Name,
-			}, false),
+			}, true),
 		}
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
@@ -890,7 +890,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			Name: agentprofile.DaemonSetName(types.NamespacedName{
 				Namespace: profile.Namespace,
 				Name:      profile.Name,
-			}, false),
+			}, true),
 		}
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
@@ -1021,7 +1021,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			Name: agentprofile.DaemonSetName(types.NamespacedName{
 				Namespace: profile.Namespace,
 				Name:      profile.Name,
-			}, false),
+			}, true),
 		}
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{

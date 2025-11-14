@@ -25,6 +25,7 @@ For instance:
 ```yaml
 image:
   tag: 1.2.0
+clusterName: my-cluster
 datadogMonitor:
   enabled: true
 ```
@@ -61,6 +62,26 @@ helm upgrade my-datadog-operator datadog/datadog-operator -f values.yaml
 
    ```shell
    helm upgrade my-datadog-operator datadog/datadog-operator -f values.yaml
+   ```
+
+### Configure cluster name (optional)
+
+Setting a cluster name is optional but recommended. The cluster name can be configured in the following ways:
+
+- **Helm chart `clusterName` value** (sets `DD_CLUSTER_NAME` environment variable on the Operator):
+   ```yaml
+   clusterName: my-cluster
+   ```
+
+- **DatadogAgent CRD `spec.global.clusterName`**:
+   ```yaml
+   apiVersion: datadoghq.com/v2alpha1
+   kind: DatadogAgent
+   metadata:
+     name: datadog
+   spec:
+     global:
+       clusterName: my-cluster
    ```
 
 ## Install the Datadog Operator with Operator Lifecycle Manager

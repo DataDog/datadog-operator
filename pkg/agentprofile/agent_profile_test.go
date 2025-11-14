@@ -1103,3 +1103,205 @@ func TestGetMaxUnavailable(t *testing.T) {
 		})
 	}
 }
+
+func TestSortProfiles(t *testing.T) {
+	time1 := metav1.Now()
+	time2 := metav1.NewTime(time1.Add(time.Hour))
+	time3 := metav1.NewTime(time1.Add(2 * time.Hour))
+
+	tests := []struct {
+		name     string
+		profiles []v1alpha1.DatadogAgentProfile
+		expected []v1alpha1.DatadogAgentProfile
+	}{
+		{
+			name:     "nil",
+			profiles: nil,
+			expected: []v1alpha1.DatadogAgentProfile{},
+		},
+		{
+			name:     "empty slice",
+			profiles: []v1alpha1.DatadogAgentProfile{},
+			expected: []v1alpha1.DatadogAgentProfile{},
+		},
+		{
+			name: "single profile",
+			profiles: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "foo",
+						CreationTimestamp: time1,
+					},
+				},
+			},
+			expected: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "foo",
+						CreationTimestamp: time1,
+					},
+				},
+			},
+		},
+		{
+			name: "profiles with different creation timestamps",
+			profiles: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "newest",
+						CreationTimestamp: time3,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "oldest",
+						CreationTimestamp: time1,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "middle",
+						CreationTimestamp: time2,
+					},
+				},
+			},
+			expected: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "oldest",
+						CreationTimestamp: time1,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "middle",
+						CreationTimestamp: time2,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "newest",
+						CreationTimestamp: time3,
+					},
+				},
+			},
+		},
+		{
+			name: "profiles with same creation timestamp, different names",
+			profiles: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "aaa",
+						CreationTimestamp: time1,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "ccc",
+						CreationTimestamp: time1,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "bbb",
+						CreationTimestamp: time1,
+					},
+				},
+			},
+			expected: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "aaa",
+						CreationTimestamp: time1,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "bbb",
+						CreationTimestamp: time1,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "ccc",
+						CreationTimestamp: time1,
+					},
+				},
+			},
+		},
+		{
+			name: "mix of same and different timestamps",
+			profiles: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "profile-z",
+						CreationTimestamp: time2,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "profile-a",
+						CreationTimestamp: time2,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "oldest",
+						CreationTimestamp: time1,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "newest",
+						CreationTimestamp: time3,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "profile-b",
+						CreationTimestamp: time2,
+					},
+				},
+			},
+			expected: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "oldest",
+						CreationTimestamp: time1,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "profile-a",
+						CreationTimestamp: time2,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "profile-b",
+						CreationTimestamp: time2,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "profile-z",
+						CreationTimestamp: time2,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "newest",
+						CreationTimestamp: time3,
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual := SortProfiles(tt.profiles)
+			assert.Equal(t, tt.expected, actual)
+		})
+	}
+}

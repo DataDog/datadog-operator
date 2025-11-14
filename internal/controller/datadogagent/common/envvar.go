@@ -14,6 +14,7 @@ const (
 	DDClusterAgentEnabled               = "DD_CLUSTER_AGENT_ENABLED"
 	DDClusterAgentKubeServiceName       = "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME"
 	DDClusterAgentTokenName             = "DD_CLUSTER_AGENT_TOKEN_NAME"
+	DDAuthTokenFilePath                 = "DD_AUTH_TOKEN_FILE_PATH"
 	DDContainerCollectionEnabled        = "DD_PROCESS_CONFIG_CONTAINER_COLLECTION_ENABLED"
 	DDDogstatsdEnabled                  = "DD_USE_DOGSTATSD"
 	DDHealthPort                        = "DD_HEALTH_PORT"
