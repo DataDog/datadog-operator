@@ -27,7 +27,7 @@ type expectedPorts struct {
 }
 
 var (
-	defaultExpectedPorts            = expectedPorts{
+	defaultExpectedPorts = expectedPorts{
 		httpPort: 4318,
 		grpcPort: 4317,
 	}
@@ -56,7 +56,7 @@ var (
 	}
 )
 
-var defaultAnnotations = map[string]string{"checksum/otel_collector_gateway-custom-config": "067e3253ea3876a7f8c34da66cec95c7"}
+var defaultAnnotations = map[string]string{"checksum/otel_agent_gateway-custom-config": "067e3253ea3876a7f8c34da66cec95c7"}
 
 func Test_otelAgentGatewayFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
@@ -155,7 +155,7 @@ func Test_otelAgentGatewayFeature_Configure(t *testing.T) {
 				grpcPort: 4444,
 				httpPort: 5555,
 			},
-				map[string]string{"checksum/otel_collector_gateway-custom-config": "7f42776096ad5c386fa4a800948ee4c6"},
+				map[string]string{"checksum/otel_agent_gateway-custom-config": "7f42776096ad5c386fa4a800948ee4c6"},
 				defaultVolumeMounts,
 				defaultVolumes(defaultLocalObjectReferenceName),
 			),

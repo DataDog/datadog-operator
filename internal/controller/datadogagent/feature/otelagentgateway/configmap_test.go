@@ -22,7 +22,7 @@ func Test_buildOtelAgentGatewayConfigMap(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "-otel-agent-gateway-config",
 			Annotations: map[string]string{
-				"checksum/otel_collector_gateway-custom-config": "067e3253ea3876a7f8c34da66cec95c7",
+				"checksum/otel_agent_gateway-custom-config": "067e3253ea3876a7f8c34da66cec95c7",
 			},
 		},
 		Data: map[string]string{
