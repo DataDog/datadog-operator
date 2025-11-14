@@ -637,6 +637,13 @@ func (builder *DatadogAgentBuilder) WithClusterChecksUseCLCEnabled(enabled bool)
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithClusterChecks(enabled bool, useRunners bool) *DatadogAgentBuilder {
+	builder.initCC()
+	builder.datadogAgent.Spec.Features.ClusterChecks.Enabled = apiutils.NewBoolPointer(enabled)
+	builder.datadogAgent.Spec.Features.ClusterChecks.UseClusterChecksRunners = apiutils.NewBoolPointer(useRunners)
+	return builder
+}
+
 // Prometheus Scrape
 
 func (builder *DatadogAgentBuilder) initPrometheusScrape() {
@@ -1033,6 +1040,36 @@ func (builder *DatadogAgentBuilder) WithComponentOverride(componentName v2alpha1
 	}
 
 	builder.datadogAgent.Spec.Override[componentName] = &override
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithClusterAgentImage(image string) *DatadogAgentBuilder {
+	if builder.datadogAgent.Spec.Override == nil {
+		builder.datadogAgent.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{}
+	}
+
+	if builder.datadogAgent.Spec.Override[v2alpha1.ClusterAgentComponentName] == nil {
+		builder.datadogAgent.Spec.Override[v2alpha1.ClusterAgentComponentName] = &v2alpha1.DatadogAgentComponentOverride{}
+	}
+
+	builder.datadogAgent.Spec.Override[v2alpha1.ClusterAgentComponentName].Image = &v2alpha1.AgentImageConfig{
+		Name: image,
+	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithClusterChecksRunnerImage(image string) *DatadogAgentBuilder {
+	if builder.datadogAgent.Spec.Override == nil {
+		builder.datadogAgent.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{}
+	}
+
+	if builder.datadogAgent.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName] == nil {
+		builder.datadogAgent.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName] = &v2alpha1.DatadogAgentComponentOverride{}
+	}
+
+	builder.datadogAgent.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName].Image = &v2alpha1.AgentImageConfig{
+		Name: image,
+	}
 	return builder
 }
 

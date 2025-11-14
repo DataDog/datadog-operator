@@ -16,14 +16,22 @@ var versionRx = regexp.MustCompile(`(\d+\.\d+\.\d+)(\-[^\+]+)*(\+.+)*`)
 var versionWithDashesRx = regexp.MustCompile(`(\d+\-\d+\-\d+)(\-[^\+]+)*(\+.+)*`)
 
 // IsAboveMinVersion uses semver to check if `version` is >= minVersion.
-// For versions not containing a semver, it will consider them above minVersion.
-func IsAboveMinVersion(version, minVersion string) bool {
+// The defaultValue parameter controls the behavior when version parsing fails:
+//   - nil: uses the default behavior (returns true for unparseable versions)
+//   - true: returns true for unparseable versions
+//   - false: returns false for unparseable versions
+func IsAboveMinVersion(version, minVersion string, defaultValue *bool) bool {
+	// Determine the fallback value
+	fallback := true
+	if defaultValue != nil {
+		fallback = *defaultValue
+	}
 
 	version = formatVersionTag(version)
 	v, err := semver.NewVersion(version)
 	if err != nil {
-		// If the version tag is not a valid semver, return true.
-		return true
+		// If the version tag is not a valid semver, return fallback value.
+		return fallback
 	}
 
 	c, err := semver.NewConstraint(">= " + minVersion)
