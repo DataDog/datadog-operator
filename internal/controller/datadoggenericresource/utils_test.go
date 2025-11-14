@@ -1,6 +1,7 @@
 package datadoggenericresource
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -25,13 +26,13 @@ func Test_apiCreateAndUpdateStatus(t *testing.T) {
 	status := &v1alpha1.DatadogGenericResourceStatus{}
 
 	// Valid subresource case
-	err := apiCreateAndUpdateStatus(mockReconciler, *logger, instance, status, metav1.Now(), "test-hash")
+	err := apiCreateAndUpdateStatus(context.TODO(), mockReconciler, *logger, instance, status, metav1.Now(), "test-hash")
 	assert.NoError(t, err)
 
 	// Invalid subresource case
 	instance.Spec.Type = "unsupportedType"
 	assert.PanicsWithError(t, "unsupported type: unsupportedType", func() {
-		apiCreateAndUpdateStatus(mockReconciler, *logger, instance, status, metav1.Now(), "test-hash")
+		apiCreateAndUpdateStatus(context.TODO(), mockReconciler, *logger, instance, status, metav1.Now(), "test-hash")
 	})
 }
 
@@ -43,7 +44,7 @@ func Test_apiGet(t *testing.T) {
 		},
 	}
 
-	err := apiGet(mockReconciler, instance)
+	err := apiGet(context.TODO(), mockReconciler, instance)
 	assert.NoError(t, err)
 }
 
@@ -55,7 +56,7 @@ func Test_apiUpdate(t *testing.T) {
 		},
 	}
 
-	err := apiUpdate(mockReconciler, instance)
+	err := apiUpdate(context.TODO(), mockReconciler, instance)
 	assert.NoError(t, err)
 }
 
@@ -67,7 +68,7 @@ func Test_apiDelete(t *testing.T) {
 		},
 	}
 
-	err := apiDelete(mockReconciler, instance)
+	err := apiDelete(context.TODO(), mockReconciler, instance)
 	assert.NoError(t, err)
 }
 

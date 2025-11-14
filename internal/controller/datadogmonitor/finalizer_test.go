@@ -90,7 +90,7 @@ func Test_handleFinalizer(t *testing.T) {
 			testMonitor := &datadoghqv1alpha1.DatadogMonitor{}
 			_ = r.client.Get(context.TODO(), client.ObjectKey{Namespace: "foo", Name: test.objectName}, testMonitor)
 
-			_, err := r.handleFinalizer(reqLogger, testMonitor)
+			_, err := r.handleFinalizer(context.TODO(), reqLogger, testMonitor)
 
 			assert.NoError(t, err)
 			if test.finalizerShouldExist {

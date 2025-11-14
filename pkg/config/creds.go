@@ -31,16 +31,6 @@ type CredentialManager struct {
 	creds            Creds
 	credsMutex       sync.Mutex
 	decryptorBackoff wait.Backoff
-	callbacks        []CredentialChangeCallback
-	callbackMutex    sync.RWMutex
-}
-
-type CredentialChangeCallback func(newCreds Creds) error
-
-func (cm *CredentialManager) RegisterCallback(cb CredentialChangeCallback) {
-	cm.callbackMutex.Lock()
-	defer cm.callbackMutex.Unlock()
-	cm.callbacks = append(cm.callbacks, cb)
 }
 
 // NewCredentialManager returns a CredentialManager.
@@ -57,14 +47,7 @@ func NewCredentialManager() *CredentialManager {
 	}
 }
 
-// GetCredentials returns the API and APP keys respectively from the operator configurations.
-// This function tries to decrypt the secrets using the secret backend if needed.
-// It returns an error if the creds aren't configured or if the secret backend fails to decrypt.
-func (cm *CredentialManager) GetCredentials() (Creds, error) {
-	if creds, found := cm.getCredsFromCache(); found {
-		return creds, nil
-	}
-
+func (cm *CredentialManager) getCredentials() (Creds, error) {
 	apiKey := os.Getenv(constants.DDAPIKey)
 	appKey := os.Getenv(constants.DDAppKey)
 
@@ -102,6 +85,21 @@ func (cm *CredentialManager) GetCredentials() (Creds, error) {
 	}
 
 	creds := Creds{APIKey: apiKey, AppKey: appKey}
+
+	return creds, nil
+}
+
+// GetCredentials returns the API and APP keys respectively from the operator configurations.
+// This function tries to decrypt the secrets using the secret backend if needed.
+// It returns an error if the creds aren't configured or if the secret backend fails to decrypt.
+func (cm *CredentialManager) GetCredentials() (Creds, error) {
+	if creds, found := cm.getCredsFromCache(); found {
+		return creds, nil
+	}
+	creds, err := cm.getCredentials()
+	if err != nil {
+		return Creds{}, err
+	}
 	cm.cacheCreds(creds)
 
 	return creds, nil
@@ -124,45 +122,23 @@ func (cm *CredentialManager) getCredsFromCache() (Creds, bool) {
 }
 
 func (cm *CredentialManager) refresh(logger logr.Logger) error {
+	// what do I want here? I want to refresh while also keeping safe
 	cm.credsMutex.Lock()
 	oldCreds := cm.creds
 	cm.credsMutex.Unlock()
-	cm.creds = Creds{}
 
-	newCreds, err := cm.GetCredentials()
-
+	newCreds, err := cm.getCredentials()
 	if err != nil {
 		return err
 	}
 
 	if oldCreds != newCreds {
-		logger.Info("Credentials have changed, updating creds")
-		// callbacks
-		err = cm.notifyCallbacks(newCreds)
-
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// Recreate custom resource clients
-func (cm *CredentialManager) notifyCallbacks(newCreds Creds) error {
-	cm.callbackMutex.RLock()
-	defer cm.callbackMutex.RUnlock()
-
-	var errs []error
-	for _, cb := range cm.callbacks {
-		if err := cb(newCreds); err != nil {
-			errs = append(errs, err)
-		}
+		logger.Info("Credentials have changed, cache refreshed")
+		cm.credsMutex.Lock()
+		cm.creds = newCreds
+		cm.credsMutex.Unlock()
 	}
 
-	if len(errs) > 0 {
-		// combine multiple errors
-		return errors.Join(errs...)
-	}
 	return nil
 }
 

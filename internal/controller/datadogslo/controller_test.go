@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 	"time"
 
@@ -30,6 +29,7 @@ import (
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/DataDog/datadog-operator/internal/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
+	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
@@ -132,7 +132,10 @@ func TestReconciler_Reconcile(t *testing.T) {
 			testConfig.HTTPClient = httpServer.Client()
 			apiClient := datadogapi.NewAPIClient(testConfig)
 			client := datadogV1.NewServiceLevelObjectivesApi(apiClient)
-			testAuth := setupTestAuth(httpServer.URL)
+			// testAuth := setupTestAuth(httpServer.URL)
+			t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+			t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+			t.Setenv("DD_URL", httpServer.URL)
 
 			m := mockedFields{
 				k8sClient: fake.NewClientBuilder().WithStatusSubresource(&v1alpha1.DatadogSLO{}).Build(),
@@ -141,10 +144,16 @@ func TestReconciler_Reconcile(t *testing.T) {
 				tt.mockOn(t, &m)
 			}
 			recorder := record.NewFakeRecorder(5)
+
+			// Parse URL once for the test
+			apiURL, err := datadogclient.ParseURL(testLogger)
+			assert.NoError(t, err)
+
 			r := &Reconciler{
 				client:        m.k8sClient,
 				datadogClient: client,
-				datadogAuth:   testAuth,
+				apiURL:        apiURL,
+				credsManager:  config.NewCredentialManager(),
 				recorder:      recorder,
 				log:           testLogger,
 			}
@@ -217,114 +226,4 @@ func defaultDatadogSLOResponse() datadogV1.SLOListResponse {
 
 func ptrString(s string) *string {
 	return &s
-}
-
-func setupTestAuth(apiURL string) context.Context {
-	testAuth := context.WithValue(
-		context.Background(),
-		datadogapi.ContextAPIKeys,
-		map[string]datadogapi.APIKey{
-			"apiKeyAuth": {
-				Key: "DUMMY_API_KEY",
-			},
-			"appKeyAuth": {
-				Key: "DUMMY_APP_KEY",
-			},
-		},
-	)
-	parsedAPIURL, _ := url.Parse(apiURL)
-	testAuth = context.WithValue(testAuth, datadogapi.ContextServerIndex, 1)
-	testAuth = context.WithValue(testAuth, datadogapi.ContextServerVariables, map[string]string{
-		"name":     parsedAPIURL.Host,
-		"protocol": parsedAPIURL.Scheme,
-	})
-
-	return testAuth
-}
-
-// TestReconciler_UpdateDatadogClient tests the UpdateDatadogClient method of the Reconciler
-func TestReconciler_UpdateDatadogClient(t *testing.T) {
-	testLogger := zap.New(zap.UseDevMode(true))
-	recorder := record.NewFakeRecorder(10)
-	client := fake.NewClientBuilder().Build()
-
-	tests := []struct {
-		name     string
-		newCreds config.Creds
-		wantErr  bool
-	}{
-		{
-			name: "valid credentials update",
-			newCreds: config.Creds{
-				APIKey: "test-api-key",
-				AppKey: "test-app-key",
-			},
-			wantErr: false,
-		},
-		{
-			name: "empty API key",
-			newCreds: config.Creds{
-				APIKey: "",
-				AppKey: "test-app-key",
-			},
-			wantErr: true,
-		},
-		{
-			name: "empty App key",
-			newCreds: config.Creds{
-				APIKey: "test-api-key",
-				AppKey: "",
-			},
-			wantErr: true,
-		},
-		{
-			name: "both keys empty",
-			newCreds: config.Creds{
-				APIKey: "",
-				AppKey: "",
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create reconciler with initial valid credentials
-			initialCreds := config.Creds{
-				APIKey: "initial-api-key",
-				AppKey: "initial-app-key",
-			}
-			r, err := NewReconciler(client, initialCreds, testLogger, recorder)
-			assert.NoError(t, err)
-
-			// Store original client and auth references
-			originalClient := r.datadogClient
-			originalAuth := r.datadogAuth
-
-			// Call UpdateDatadogClient
-			err = r.UpdateDatadogClient(tt.newCreds)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-				// Verify original client and auth are preserved on error
-				if originalClient != r.datadogClient {
-					t.Errorf("Expected clients to be the same, but they are different")
-				}
-				if originalAuth != r.datadogAuth {
-					t.Errorf("Expected client auth to be the same, but they are different")
-				}
-				assert.Equal(t, originalClient, r.datadogClient)
-				assert.Equal(t, originalAuth, r.datadogAuth)
-			} else {
-				assert.NoError(t, err)
-				// Verify client and auth are recreated
-				if originalClient == r.datadogClient {
-					t.Errorf("Expected clients to be different, but they are the same")
-				}
-				if originalAuth == r.datadogAuth {
-					t.Errorf("Expected auths to be different, but they are the same")
-				}
-			}
-		})
-	}
 }
