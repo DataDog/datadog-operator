@@ -512,3 +512,7 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 func (f *apmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
+
+func (f *apmFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}
