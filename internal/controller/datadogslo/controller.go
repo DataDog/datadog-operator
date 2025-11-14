@@ -48,17 +48,17 @@ type Reconciler struct {
 	client        client.Client
 	datadogClient *datadogV1.ServiceLevelObjectivesApi
 	datadogAuth   context.Context
-	credManager   *config.CredentialManager
+	credsManager  *config.CredentialManager
 	log           logr.Logger
 	recorder      record.EventRecorder
 }
 
-func NewReconciler(client client.Client, credManager *config.CredentialManager, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
+func NewReconciler(client client.Client, credsManager *config.CredentialManager, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
 	// possibly set URL here
 	return &Reconciler{
 		client:        client,
 		datadogClient: datadogclient.InitSLOClient(),
-		credManager:   credManager,
+		credsManager:  credsManager,
 		log:           log,
 		recorder:      recorder,
 	}, nil
@@ -119,7 +119,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	shouldUpdate := false
 
 	// Get fresh credentials and create auth context for this reconcile
-	creds, err := r.credManager.GetCredentials()
+	creds, err := r.credsManager.GetCredentials()
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to get credentials: %w", err)
 	}

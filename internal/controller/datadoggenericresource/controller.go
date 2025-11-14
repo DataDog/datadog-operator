@@ -42,13 +42,13 @@ type Reconciler struct {
 	datadogNotebooksClient  *datadogV1.NotebooksApi
 	datadogMonitorsClient   *datadogV1.MonitorsApi
 	datadogAuth             context.Context
-	credManager             *config.CredentialManager
+	credsManager            *config.CredentialManager
 	scheme                  *runtime.Scheme
 	log                     logr.Logger
 	recorder                record.EventRecorder
 }
 
-func NewReconciler(client client.Client, credManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
+func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
 	ddClients := datadogclient.InitGenericClients()
 
 	return &Reconciler{
@@ -56,7 +56,7 @@ func NewReconciler(client client.Client, credManager *config.CredentialManager, 
 		datadogSyntheticsClient: ddClients.SyntheticsClient,
 		datadogNotebooksClient:  ddClients.NotebooksClient,
 		datadogMonitorsClient:   ddClients.MonitorsClient,
-		credManager:             credManager,
+		credsManager:            credsManager,
 		scheme:                  scheme,
 		log:                     log,
 		recorder:                recorder,
@@ -109,7 +109,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	shouldUpdate := false
 
 	// Get fresh credentials and create auth context for this reconcile
-	creds, err := r.credManager.GetCredentials()
+	creds, err := r.credsManager.GetCredentials()
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to get credentials: %w", err)
 	}

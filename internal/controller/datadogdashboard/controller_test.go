@@ -22,6 +22,7 @@ import (
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/stretchr/testify/assert"
 )
@@ -177,13 +178,15 @@ func TestReconcileDatadogDashboard_Reconcile(t *testing.T) {
 			apiClient := datadogapi.NewAPIClient(testConfig)
 			client := datadogV1.NewDashboardsApi(apiClient)
 
-			testAuth := setupTestAuth(httpServer.URL)
+			t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+			t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+			t.Setenv("DD_URL", httpServer.URL)
 
 			// Set up
 			r := &Reconciler{
 				client:        fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogDashboard{}).Build(),
 				datadogClient: client,
-				datadogAuth:   testAuth,
+				credsManager:  config.NewCredentialManager(),
 				scheme:        s,
 				recorder:      recorder,
 				log:           logf.Log.WithName(tt.name),

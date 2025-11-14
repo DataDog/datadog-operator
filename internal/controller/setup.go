@@ -181,7 +181,7 @@ func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, pInfo kubernet
 
 	monitorReconciler := &DatadogMonitorReconciler{
 		Client:                 mgr.GetClient(),
-		CredManager:            options.CredsManager,
+		CredsManager:           options.CredsManager,
 		Log:                    ctrl.Log.WithName("controllers").WithName(monitorControllerName),
 		Scheme:                 mgr.GetScheme(),
 		Recorder:               mgr.GetEventRecorderFor(monitorControllerName),
@@ -198,11 +198,11 @@ func startDatadogDashboard(logger logr.Logger, mgr manager.Manager, pInfo kubern
 	}
 
 	dashboardReconciler := &DatadogDashboardReconciler{
-		Client:      mgr.GetClient(),
-		CredManager: options.CredsManager,
-		Log:         ctrl.Log.WithName("controllers").WithName(dashboardControllerName),
-		Scheme:      mgr.GetScheme(),
-		Recorder:    mgr.GetEventRecorderFor(dashboardControllerName),
+		Client:       mgr.GetClient(),
+		CredsManager: options.CredsManager,
+		Log:          ctrl.Log.WithName("controllers").WithName(dashboardControllerName),
+		Scheme:       mgr.GetScheme(),
+		Recorder:     mgr.GetEventRecorderFor(dashboardControllerName),
 	}
 
 	return dashboardReconciler.SetupWithManager(mgr)
@@ -215,11 +215,11 @@ func startDatadogGenericResource(logger logr.Logger, mgr manager.Manager, pInfo 
 	}
 
 	genericResourceReconciler := &DatadogGenericResourceReconciler{
-		Client:      mgr.GetClient(),
-		CredManager: options.CredsManager,
-		Log:         ctrl.Log.WithName("controllers").WithName(genericResourceControllerName),
-		Scheme:      mgr.GetScheme(),
-		Recorder:    mgr.GetEventRecorderFor(genericResourceControllerName),
+		Client:       mgr.GetClient(),
+		CredsManager: options.CredsManager,
+		Log:          ctrl.Log.WithName("controllers").WithName(genericResourceControllerName),
+		Scheme:       mgr.GetScheme(),
+		Recorder:     mgr.GetEventRecorderFor(genericResourceControllerName),
 	}
 
 	return genericResourceReconciler.SetupWithManager(mgr)
@@ -232,11 +232,11 @@ func startDatadogSLO(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.P
 	}
 
 	sloReconciler := &DatadogSLOReconciler{
-		Client:      mgr.GetClient(),
-		CredManager: options.CredsManager,
-		Log:         ctrl.Log.WithName("controllers").WithName(sloControllerName),
-		Scheme:      mgr.GetScheme(),
-		Recorder:    mgr.GetEventRecorderFor(sloControllerName),
+		Client:       mgr.GetClient(),
+		CredsManager: options.CredsManager,
+		Log:          ctrl.Log.WithName("controllers").WithName(sloControllerName),
+		Scheme:       mgr.GetScheme(),
+		Recorder:     mgr.GetEventRecorderFor(sloControllerName),
 	}
 
 	return sloReconciler.SetupWithManager(mgr)

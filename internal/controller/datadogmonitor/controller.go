@@ -67,7 +67,7 @@ type Reconciler struct {
 	client                 client.Client
 	datadogClient          *datadogV1.MonitorsApi
 	datadogAuth            context.Context
-	credManager            *config.CredentialManager
+	credsManager           *config.CredentialManager
 	log                    logr.Logger
 	scheme                 *runtime.Scheme
 	recorder               record.EventRecorder
@@ -76,11 +76,11 @@ type Reconciler struct {
 }
 
 // NewReconciler returns a new Reconciler object
-func NewReconciler(client client.Client, credManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, operatorMetricsEnabled bool, metricForwardersMgr pkgutils.MetricsForwardersManager) (*Reconciler, error) {
+func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, operatorMetricsEnabled bool, metricForwardersMgr pkgutils.MetricsForwardersManager) (*Reconciler, error) {
 	return &Reconciler{
 		client:                 client,
 		datadogClient:          datadogclient.InitMonitorClient(),
-		credManager:            credManager,
+		credsManager:           credsManager,
 		scheme:                 scheme,
 		log:                    log,
 		recorder:               recorder,
@@ -146,7 +146,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	shouldUpdate := false
 
 	// Get fresh credentials and create auth context for this reconcile
-	creds, err := r.credManager.GetCredentials()
+	creds, err := r.credsManager.GetCredentials()
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to get credentials: %w", err)
 	}

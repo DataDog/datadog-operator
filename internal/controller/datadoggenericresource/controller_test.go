@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
@@ -24,6 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
 
@@ -158,14 +158,16 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 			synthClient := datadogV1.NewSyntheticsApi(apiClient)
 			nbClient := datadogV1.NewNotebooksApi(apiClient)
 
-			testAuth := setupTestAuth(httpServer.URL)
+			t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+			t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+			t.Setenv("DD_URL", httpServer.URL)
 
 			// Set up
 			r := &Reconciler{
 				client:                  fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
 				datadogSyntheticsClient: synthClient,
 				datadogNotebooksClient:  nbClient,
-				datadogAuth:             testAuth,
+				credsManager:            config.NewCredentialManager(),
 				scheme:                  s,
 				recorder:                recorder,
 				log:                     logf.Log.WithName(tt.name),
@@ -238,27 +240,4 @@ func mockGenericResource() *datadoghqv1alpha1.DatadogGenericResource {
 			JsonSpec: "{\"foo\": \"bar\"}",
 		},
 	}
-}
-
-func setupTestAuth(apiURL string) context.Context {
-	testAuth := context.WithValue(
-		context.Background(),
-		datadogapi.ContextAPIKeys,
-		map[string]datadogapi.APIKey{
-			"apiKeyAuth": {
-				Key: "DUMMY_API_KEY",
-			},
-			"appKeyAuth": {
-				Key: "DUMMY_APP_KEY",
-			},
-		},
-	)
-	parsedAPIURL, _ := url.Parse(apiURL)
-	testAuth = context.WithValue(testAuth, datadogapi.ContextServerIndex, 1)
-	testAuth = context.WithValue(testAuth, datadogapi.ContextServerVariables, map[string]string{
-		"name":     parsedAPIURL.Host,
-		"protocol": parsedAPIURL.Scheme,
-	})
-
-	return testAuth
 }
