@@ -8,7 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/karpenter/install/guess"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/guess"
 )
 
 func CreateOrUpdateNodePool(ctx context.Context, client client.Client, np guess.NodePool) error {

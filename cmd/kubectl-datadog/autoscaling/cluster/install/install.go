@@ -37,10 +37,10 @@ import (
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/kube"
 
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/karpenter/install/aws"
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/karpenter/install/guess"
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/karpenter/install/helm"
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/karpenter/install/k8s"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/aws"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/guess"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/helm"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/k8s"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
 
@@ -96,7 +96,7 @@ var (
 	inferenceMethod    = InferenceMethodNodeGroups
 	debug              bool
 	installExample     = `
-  # install Karpenter
+  # install autoscaling
   %[1]s install
 `
 )
@@ -119,8 +119,8 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 	o := newOptions(streams)
 	cmd := &cobra.Command{
 		Use:          "install",
-		Short:        "Install Karpenter on an EKS cluster",
-		Example:      fmt.Sprintf(installExample, "kubectl datadog karpenter"),
+		Short:        "Install autoscaling on an EKS cluster",
+		Example:      fmt.Sprintf(installExample, "kubectl datadog autoscaling cluster"),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			if err := o.complete(c, args); err != nil {

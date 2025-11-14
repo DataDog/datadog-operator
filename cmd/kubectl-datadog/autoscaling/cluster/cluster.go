@@ -1,13 +1,13 @@
-package karpenter
+package cluster
 
 import (
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/karpenter/install"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install"
 )
 
-// options provides information required by agent command
+// options provides information required by cluster command
 type options struct {
 	genericclioptions.IOStreams
 	configFlags *genericclioptions.ConfigFlags
@@ -21,10 +21,11 @@ func newOptions(streams genericclioptions.IOStreams) *options {
 	}
 }
 
-// New provides a cobra command wrapping options for "karpenter" sub command
+// New provides a cobra command wrapping options for "cluster" sub command
 func New(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "karpenter [subcommand] [flags]",
+		Use:   "cluster [subcommand] [flags]",
+		Short: "Manage cluster autoscaling",
 	}
 
 	cmd.AddCommand(install.New(streams))
