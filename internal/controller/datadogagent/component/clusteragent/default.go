@@ -201,7 +201,7 @@ func defaultEnvVars(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) [
 			},
 		},
 		{
-			Name:  DDAuthTokenFilePath,
+			Name:  common.DDAuthTokenFilePath,
 			Value: filepath.Join(common.AuthVolumePath, "token"),
 		},
 		{

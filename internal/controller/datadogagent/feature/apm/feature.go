@@ -331,6 +331,10 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, pr
 				Name:  DDLanguageDetectionEnabled,
 				Value: "true",
 			})
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  DDLanguageDetectionReportingEnabled,
+				Value: "true",
+			})
 		}
 
 		if len(f.singleStepInstrumentation.disabledNamespaces) > 0 {
@@ -445,10 +449,18 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 			Name:  DDLanguageDetectionEnabled,
 			Value: "true",
 		})
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+			Name:  DDLanguageDetectionReportingEnabled,
+			Value: "true",
+		})
 
 		// Enable language detection in process agent
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, &corev1.EnvVar{
 			Name:  DDLanguageDetectionEnabled,
+			Value: "true",
+		})
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, &corev1.EnvVar{
+			Name:  DDLanguageDetectionReportingEnabled,
 			Value: "true",
 		})
 
@@ -459,6 +471,12 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, runInCoreAgentEnvVar)
 		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, runInCoreAgentEnvVar)
+	} else {
+		// Language Detection reporting is enabled by default in the Agent
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+			Name:  DDLanguageDetectionReportingEnabled,
+			Value: "false",
+		})
 	}
 
 	// uds

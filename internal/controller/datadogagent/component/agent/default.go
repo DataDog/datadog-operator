@@ -7,6 +7,7 @@ package agent
 
 import (
 	"fmt"
+	"path/filepath"
 	"strconv"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -575,6 +576,10 @@ func commonEnvVars(dda metav1.Object) []corev1.EnvVar {
 		{
 			Name:  common.DDClusterAgentTokenName,
 			Value: secrets.GetDefaultDCATokenSecretName(dda),
+		},
+		{
+			Name:  common.DDAuthTokenFilePath,
+			Value: filepath.Join(common.AuthVolumePath, "token"),
 		},
 		{
 			Name: common.DDKubeletHost,
