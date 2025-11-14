@@ -356,6 +356,13 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, true, "", nil).
 				WithAdmissionControllerEnabled(true).
+				WithComponentOverride(
+					v2alpha1.NodeAgentComponentName,
+					v2alpha1.DatadogAgentComponentOverride{
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.60.0"},
+						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "false"}},
+					},
+				).
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  testAPMInstrumentationWithLanguageDetectionEnabledForClusterAgent(),
@@ -400,7 +407,6 @@ func TestAPMFeature(t *testing.T) {
 						Image: &v2alpha1.AgentImageConfig{Tag: "7.60.0"},
 					},
 				).
-				WithProcessChecksInCoreAgent(true).
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  testAPMInstrumentationWithLanguageDetectionEnabledForClusterAgent(),
@@ -733,6 +739,10 @@ func testAPMInstrumentationWithLanguageDetectionEnabledForClusterAgent() *test.C
 					Name:  DDLanguageDetectionEnabled,
 					Value: "true",
 				},
+				{
+					Name:  DDLanguageDetectionReportingEnabled,
+					Value: "true",
+				},
 			}
 			assert.True(
 				t,
@@ -777,24 +787,32 @@ func testAPMInstrumentationWithLanguageDetectionForNodeAgent(languageDetectionEn
 			processAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ProcessAgentContainerName]
 
 			var expectedEnvVars []*corev1.EnvVar
+			var expectedCoreAgentEnvVars []*corev1.EnvVar
 			if languageDetectionEnabled {
-				expectedEnvVars = []*corev1.EnvVar{
+				expectedEnvVars = append(expectedEnvVars, []*corev1.EnvVar{
 					{
 						Name:  DDLanguageDetectionEnabled,
+						Value: "true",
+					},
+					{
+						Name:  DDLanguageDetectionReportingEnabled,
 						Value: "true",
 					},
 					{
 						Name:  common.DDProcessConfigRunInCoreAgent,
 						Value: apiutils.BoolToString(&processChecksInCoreAgent),
 					},
-				}
+				}...)
+				expectedCoreAgentEnvVars = append(expectedCoreAgentEnvVars, expectedEnvVars...)
+			} else {
+				expectedCoreAgentEnvVars = append(expectedCoreAgentEnvVars, &corev1.EnvVar{Name: DDLanguageDetectionReportingEnabled, Value: "false"})
 			}
 
 			// Assert Env Vars Added to Core Agent Container
 			assert.True(
 				t,
-				apiutils.IsEqualStruct(coreAgentEnvVars, expectedEnvVars),
-				"Core Agent Container ENVs \ndiff = %s", cmp.Diff(coreAgentEnvVars, expectedEnvVars),
+				apiutils.IsEqualStruct(coreAgentEnvVars, expectedCoreAgentEnvVars),
+				"Core Agent Container ENVs \ndiff = %s", cmp.Diff(coreAgentEnvVars, expectedCoreAgentEnvVars),
 			)
 
 			// Assert Env Vars Added to Process Agent Container

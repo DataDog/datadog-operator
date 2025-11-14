@@ -6,10 +6,11 @@
 package agentprofile
 
 import (
+	"cmp"
 	"fmt"
 	"maps"
 	"os"
-	"sort"
+	"slices"
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
@@ -355,18 +356,21 @@ func labelsOverride(profile *v1alpha1.DatadogAgentProfile) map[string]string {
 // SortProfiles sorts the profiles by creation timestamp. If two profiles have
 // the same creation timestamp, it sorts them by name.
 func SortProfiles(profiles []v1alpha1.DatadogAgentProfile) []v1alpha1.DatadogAgentProfile {
-	sortedProfiles := make([]v1alpha1.DatadogAgentProfile, len(profiles))
-	copy(sortedProfiles, profiles)
+	sorted := append([]v1alpha1.DatadogAgentProfile{}, profiles...)
 
-	sort.Slice(sortedProfiles, func(i, j int) bool {
-		if !sortedProfiles[i].CreationTimestamp.Equal(&sortedProfiles[j].CreationTimestamp) {
-			return sortedProfiles[i].CreationTimestamp.Before(&sortedProfiles[j].CreationTimestamp)
-		}
+	if len(sorted) > 1 {
+		slices.SortStableFunc(sorted, compareProfiles)
+	}
 
-		return sortedProfiles[i].Name < sortedProfiles[j].Name
-	})
+	return sorted
+}
 
-	return sortedProfiles
+// compareProfiles compares two profiles first by creation time, then by name.
+func compareProfiles(a, b v1alpha1.DatadogAgentProfile) int {
+	return cmp.Or(
+		a.CreationTimestamp.Time.Compare(b.CreationTimestamp.Time),
+		cmp.Compare(a.Name, b.Name),
+	)
 }
 
 func profileMatchesNode(profile *v1alpha1.DatadogAgentProfile, nodeLabels map[string]string) (bool, error) {
