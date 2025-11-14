@@ -24,7 +24,7 @@ func TestGetClusterNameFromKubeConfig(t *testing.T) {
 		{
 			name:        "eksctl",
 			kubeConfig:  "testdata/kubeconfig-eks.yaml",
-			kubeContext: "lenaic.huard@datadoghq.com@lenaic-karpenter-test.us-east-1.eksctl.io",
+			kubeContext: "test.user@example.com@lenaic-karpenter-test.us-east-1.eksctl.io",
 			clusterName: "lenaic-karpenter-test",
 		},
 	}
