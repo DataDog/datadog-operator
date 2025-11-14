@@ -8,6 +8,7 @@ import (
 	"maps"
 	"regexp"
 	"slices"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -59,11 +60,33 @@ func GetNodesProperties(ctx context.Context, clientset *kubernetes.Clientset, ec
 			return nil, fmt.Errorf("failed to describe instances: %w", err)
 		}
 
+		imageIds := lo.Uniq(lo.FlatMap(instances.Reservations, func(reservation ec2types.Reservation, _ int) []string {
+			return lo.Map(reservation.Instances, func(instance ec2types.Instance, _ int) string {
+				return *instance.ImageId
+			})
+		}))
+
+		images, err := ec2Client.DescribeImages(ctx, &ec2.DescribeImagesInput{
+			ImageIds: imageIds,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to describe images: %w", err)
+		}
+		amiIDsToFamily := lo.Associate(images.Images, func(image ec2types.Image) (string, string) {
+			return *image.ImageId, detectAMIFamilyFromImage(*image.Name)
+		})
+
 		for _, reservation := range instances.Reservations {
 			for _, instance := range reservation.Instances {
 				node := instanceToNode[*instance.InstanceId]
 
+				amiFamily := "Custom"
+				if family, ok := amiIDsToFamily[*instance.ImageId]; ok {
+					amiFamily = family
+				}
+
 				nps.Add(NodePoolsSetAddParams{
+					AMIFamily:        amiFamily,
 					AMIID:            *instance.ImageId,
 					SubnetIDs:        []string{*instance.SubnetId},
 					SecurityGroupIDs: lo.Map(instance.SecurityGroups, func(sg ec2types.GroupIdentifier, _ int) string { return *sg.GroupId }),
@@ -81,6 +104,31 @@ func GetNodesProperties(ctx context.Context, clientset *kubernetes.Clientset, ec
 		if cont == "" {
 			return nps, nil
 		}
+	}
+}
+
+func detectAMIFamilyFromImage(imageName string) string {
+	containsAny := func(s string, patterns ...string) bool {
+		return lo.SomeBy(patterns, func(pattern string) bool {
+			return strings.Contains(s, pattern)
+		})
+	}
+
+	lowerName := strings.ToLower(imageName)
+
+	switch {
+	case containsAny(imageName, "amazon-linux-2023", "al2023"):
+		return "AL2023"
+	case containsAny(imageName, "amazon-linux-2-", "amzn2-ami"):
+		return "AL2"
+	case strings.Contains(lowerName, "bottlerocket"):
+		return "Bottlerocket"
+	case strings.Contains(imageName, "Windows_Server-2022"):
+		return "Windows2022"
+	case strings.Contains(imageName, "Windows_Server-2019"):
+		return "Windows2019"
+	default:
+		return "Custom"
 	}
 }
 

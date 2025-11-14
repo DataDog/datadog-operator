@@ -50,6 +50,7 @@ func compareTaints(x, y taint) int {
 
 type EC2NodeClass struct {
 	name             string
+	amiFamily        string
 	amiIDs           map[string]struct{}
 	subnetIDs        map[string]struct{}
 	securityGroupIDs map[string]struct{}
@@ -57,6 +58,10 @@ type EC2NodeClass struct {
 
 func (nc *EC2NodeClass) GetName() string {
 	return nc.name
+}
+
+func (nc *EC2NodeClass) GetAMIFamily() string {
+	return nc.amiFamily
 }
 
 func (nc *EC2NodeClass) GetAMIIDs() []string {
@@ -74,9 +79,7 @@ func (nc *EC2NodeClass) GetSecurityGroupIDs() []string {
 func (nc *EC2NodeClass) sum64() uint64 {
 	h := fnv.New64()
 
-	for _, x := range slices.Sorted(maps.Keys(nc.amiIDs)) {
-		h.Write([]byte(x))
-	}
+	h.Write([]byte(nc.amiFamily))
 
 	for _, x := range slices.Sorted(maps.Keys(nc.securityGroupIDs)) {
 		h.Write([]byte(x))
@@ -164,6 +167,7 @@ func NewNodePoolsSet() *NodePoolsSet {
 }
 
 type NodePoolsSetAddParams struct {
+	AMIFamily        string
 	AMIID            string
 	SubnetIDs        []string
 	SecurityGroupIDs []string
@@ -177,9 +181,14 @@ type NodePoolsSetAddParams struct {
 
 func (nps *NodePoolsSet) Add(p NodePoolsSetAddParams) {
 	nc := EC2NodeClass{
-		amiIDs:           map[string]struct{}{p.AMIID: {}},
+		amiFamily:        p.AMIFamily,
+		amiIDs:           make(map[string]struct{}),
 		subnetIDs:        lo.Keyify(p.SubnetIDs),
 		securityGroupIDs: lo.Keyify(p.SecurityGroupIDs),
+	}
+
+	if p.AMIID != "" {
+		nc.amiIDs[p.AMIID] = struct{}{}
 	}
 
 	h := nc.sum64()
@@ -187,6 +196,9 @@ func (nps *NodePoolsSet) Add(p NodePoolsSetAddParams) {
 	nc.name = "dd-karpenter-" + encodeUint64Base32(h)[8:]
 
 	if n, found := nps.ec2NodeClasses[h]; found {
+		if p.AMIID != "" {
+			n.amiIDs[p.AMIID] = struct{}{}
+		}
 		maps.Copy(n.subnetIDs, lo.Keyify(p.SubnetIDs))
 		nps.ec2NodeClasses[h] = n
 	} else {

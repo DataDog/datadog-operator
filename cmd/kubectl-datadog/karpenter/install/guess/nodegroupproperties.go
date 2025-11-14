@@ -53,6 +53,7 @@ func GetNodeGroupsProperties(ctx context.Context, eksClient *eks.Client, ec2Clie
 			}
 
 			params := NodePoolsSetAddParams{
+				AMIFamily:     convertAMITypeToFamily(ng.AmiType),
 				SubnetIDs:     ng.Subnets,
 				Labels:        ng.Labels,
 				Taints:        lo.Map(ng.Taints, func(t ekstypes.Taint, _ int) corev1.Taint { return convertTaint(t) }),
@@ -148,6 +149,41 @@ func extractArchitectureFromAMIType(amiType ekstypes.AMITypes) string {
 
 	default:
 		return "" // Unknown AMI type
+	}
+}
+
+func convertAMITypeToFamily(amiType ekstypes.AMITypes) string {
+	switch amiType {
+	case ekstypes.AMITypesAl2X8664,
+		ekstypes.AMITypesAl2X8664Gpu,
+		ekstypes.AMITypesAl2Arm64:
+		return "AL2"
+
+	case ekstypes.AMITypesAl2023X8664Standard,
+		ekstypes.AMITypesAl2023X8664Neuron,
+		ekstypes.AMITypesAl2023X8664Nvidia,
+		ekstypes.AMITypesAl2023Arm64Standard:
+		return "AL2023"
+
+	case ekstypes.AMITypesBottlerocketX8664,
+		ekstypes.AMITypesBottlerocketX8664Nvidia,
+		ekstypes.AMITypesBottlerocketArm64,
+		ekstypes.AMITypesBottlerocketArm64Nvidia:
+		return "Bottlerocket"
+
+	case ekstypes.AMITypesWindowsCore2019X8664,
+		ekstypes.AMITypesWindowsFull2019X8664:
+		return "Windows2019"
+
+	case ekstypes.AMITypesWindowsCore2022X8664,
+		ekstypes.AMITypesWindowsFull2022X8664:
+		return "Windows2022"
+
+	case ekstypes.AMITypesCustom:
+		return "Custom"
+
+	default:
+		return "Custom" // Fallback to Custom for unknown AMI types
 	}
 }
 
