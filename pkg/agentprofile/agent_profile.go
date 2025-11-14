@@ -75,7 +75,7 @@ func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nod
 	toLabelNodeCount := 0
 
 	// Parse profile requirements once to avoid recreating them for each node
-	profileRequirements, err := ParseProfileRequirements(profile)
+	profileRequirements, err := parseProfileRequirements(profile)
 	if err != nil {
 		logger.Error(err, "profile selector is invalid, skipping", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
 		metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.FalseValue)
@@ -376,8 +376,8 @@ func compareProfiles(a, b v1alpha1.DatadogAgentProfile) int {
 	)
 }
 
-// ParseProfileRequirements creates requirements from a profile's node affinity
-func ParseProfileRequirements(profile *v1alpha1.DatadogAgentProfile) ([]*labels.Requirement, error) {
+// parseProfileRequirements creates requirements from a profile's node affinity
+func parseProfileRequirements(profile *v1alpha1.DatadogAgentProfile) ([]*labels.Requirement, error) {
 	if profile == nil || profile.Spec.ProfileAffinity == nil {
 		return nil, nil
 	}
@@ -399,7 +399,7 @@ func ParseProfileRequirements(profile *v1alpha1.DatadogAgentProfile) ([]*labels.
 
 // profileMatchesNodeWithRequirements checks if a node matches the given requirements
 func profileMatchesNodeWithRequirements(requirements []*labels.Requirement, nodeLabels map[string]string) bool {
-	if requirements == nil || len(requirements) == 0 {
+	if len(requirements) == 0 {
 		return true
 	}
 
