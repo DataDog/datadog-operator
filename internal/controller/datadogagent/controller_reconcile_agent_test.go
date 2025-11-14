@@ -38,17 +38,20 @@ func Test_getValidDaemonSetNames(t *testing.T) {
 		introspectionEnabled bool
 		profilesEnabled      bool
 		edsEnabled           bool
+		useV3Metadata        bool
 		existingProviders    map[string]struct{}
 		existingProfiles     []v1alpha1.DatadogAgentProfile
 		wantDS               map[string]struct{}
 		wantEDS              map[string]struct{}
 	}{
+		// V2 Metadata test cases
 		{
-			name:                 "introspection disabled, profiles disabled, eds disabled",
+			name:                 "v2: introspection disabled, profiles disabled, eds disabled",
 			dsName:               "foo",
 			introspectionEnabled: false,
 			profilesEnabled:      false,
 			edsEnabled:           false,
+			useV3Metadata:        false,
 			existingProviders: map[string]struct{}{
 				gkeCosProvider: {},
 			},
@@ -57,11 +60,12 @@ func Test_getValidDaemonSetNames(t *testing.T) {
 			wantEDS:          map[string]struct{}{},
 		},
 		{
-			name:                 "introspection disabled, profiles disabled, eds enabled",
+			name:                 "v2: introspection disabled, profiles disabled, eds enabled",
 			dsName:               "foo",
 			introspectionEnabled: false,
 			profilesEnabled:      false,
 			edsEnabled:           true,
+			useV3Metadata:        false,
 			existingProviders: map[string]struct{}{
 				gkeCosProvider: {},
 			},
@@ -70,11 +74,12 @@ func Test_getValidDaemonSetNames(t *testing.T) {
 			wantEDS:          map[string]struct{}{"foo": {}},
 		},
 		{
-			name:                 "introspection enabled, profiles disabled, eds disabled",
+			name:                 "v2: introspection enabled, profiles disabled, eds disabled",
 			dsName:               "foo",
 			introspectionEnabled: true,
 			profilesEnabled:      false,
 			edsEnabled:           false,
+			useV3Metadata:        false,
 			existingProviders: map[string]struct{}{
 				gkeCosProvider: {},
 			},
@@ -83,11 +88,12 @@ func Test_getValidDaemonSetNames(t *testing.T) {
 			wantEDS:          map[string]struct{}{},
 		},
 		{
-			name:                 "introspection enabled, profiles disabled, eds enabled",
+			name:                 "v2: introspection enabled, profiles disabled, eds enabled",
 			dsName:               "foo",
 			introspectionEnabled: true,
 			profilesEnabled:      false,
 			edsEnabled:           true,
+			useV3Metadata:        false,
 			existingProviders: map[string]struct{}{
 				gkeCosProvider: {},
 			},
@@ -96,11 +102,12 @@ func Test_getValidDaemonSetNames(t *testing.T) {
 			wantEDS:          map[string]struct{}{"foo-gke-cos": {}},
 		},
 		{
-			name:                 "introspection enabled, profiles enabled, eds disabled",
+			name:                 "v2: introspection enabled, profiles enabled, eds disabled",
 			dsName:               "foo",
 			introspectionEnabled: true,
 			profilesEnabled:      true,
 			edsEnabled:           false,
+			useV3Metadata:        false,
 			existingProviders: map[string]struct{}{
 				gkeCosProvider:  {},
 				defaultProvider: {},
@@ -122,11 +129,12 @@ func Test_getValidDaemonSetNames(t *testing.T) {
 			wantEDS: map[string]struct{}{},
 		},
 		{
-			name:                 "introspection enabled, profiles enabled, eds enabled",
+			name:                 "v2: introspection enabled, profiles enabled, eds enabled",
 			dsName:               "foo",
 			introspectionEnabled: true,
 			profilesEnabled:      true,
 			edsEnabled:           true,
+			useV3Metadata:        false,
 			existingProviders: map[string]struct{}{
 				gkeCosProvider:  {},
 				defaultProvider: {},
@@ -148,6 +156,118 @@ func Test_getValidDaemonSetNames(t *testing.T) {
 				"foo-gke-cos": {},
 			},
 		},
+		// V3 Metadata test cases
+		{
+			name:                 "v3: introspection disabled, profiles disabled, eds disabled",
+			dsName:               "foo",
+			introspectionEnabled: false,
+			profilesEnabled:      false,
+			edsEnabled:           false,
+			useV3Metadata:        true,
+			existingProviders: map[string]struct{}{
+				gkeCosProvider: {},
+			},
+			existingProfiles: []v1alpha1.DatadogAgentProfile{},
+			wantDS:           map[string]struct{}{"foo": {}},
+			wantEDS:          map[string]struct{}{},
+		},
+		{
+			name:                 "v3: introspection disabled, profiles disabled, eds enabled",
+			dsName:               "foo",
+			introspectionEnabled: false,
+			profilesEnabled:      false,
+			edsEnabled:           true,
+			useV3Metadata:        true,
+			existingProviders: map[string]struct{}{
+				gkeCosProvider: {},
+			},
+			existingProfiles: []v1alpha1.DatadogAgentProfile{},
+			wantDS:           map[string]struct{}{},
+			wantEDS:          map[string]struct{}{"foo": {}},
+		},
+		{
+			name:                 "v3: introspection enabled, profiles disabled, eds disabled",
+			dsName:               "foo",
+			introspectionEnabled: true,
+			profilesEnabled:      false,
+			edsEnabled:           false,
+			useV3Metadata:        true,
+			existingProviders: map[string]struct{}{
+				gkeCosProvider: {},
+			},
+			existingProfiles: []v1alpha1.DatadogAgentProfile{},
+			wantDS:           map[string]struct{}{"foo-gke-cos": {}},
+			wantEDS:          map[string]struct{}{},
+		},
+		{
+			name:                 "v3: introspection enabled, profiles disabled, eds enabled",
+			dsName:               "foo",
+			introspectionEnabled: true,
+			profilesEnabled:      false,
+			edsEnabled:           true,
+			useV3Metadata:        true,
+			existingProviders: map[string]struct{}{
+				gkeCosProvider: {},
+			},
+			existingProfiles: []v1alpha1.DatadogAgentProfile{},
+			wantDS:           map[string]struct{}{},
+			wantEDS:          map[string]struct{}{"foo-gke-cos": {}},
+		},
+		{
+			name:                 "v3: introspection enabled, profiles enabled, eds disabled",
+			dsName:               "foo",
+			introspectionEnabled: true,
+			profilesEnabled:      true,
+			edsEnabled:           false,
+			useV3Metadata:        true,
+			existingProviders: map[string]struct{}{
+				gkeCosProvider:  {},
+				defaultProvider: {},
+			},
+			existingProfiles: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "profile-1",
+						Namespace: "ns-1",
+					},
+				},
+			},
+			wantDS: map[string]struct{}{
+				"foo-default":             {},
+				"foo-gke-cos":             {},
+				"profile-1-agent-default": {},
+				"profile-1-agent-gke-cos": {},
+			},
+			wantEDS: map[string]struct{}{},
+		},
+		{
+			name:                 "v3: introspection enabled, profiles enabled, eds enabled",
+			dsName:               "foo",
+			introspectionEnabled: true,
+			profilesEnabled:      true,
+			edsEnabled:           true,
+			useV3Metadata:        true,
+			existingProviders: map[string]struct{}{
+				gkeCosProvider:  {},
+				defaultProvider: {},
+			},
+			existingProfiles: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "profile-1",
+						Namespace: "ns-1",
+					},
+				},
+			},
+			wantDS: map[string]struct{}{
+				"profile-1-agent-default": {},
+				"profile-1-agent-gke-cos": {},
+			},
+			wantEDS: map[string]struct{}{
+				"foo-default": {},
+				"foo-gke-cos": {},
+			},
+		},
 	}
 
 	for _, tt := range testCases {
@@ -162,7 +282,7 @@ func Test_getValidDaemonSetNames(t *testing.T) {
 				},
 			}
 
-			validDSNames, validEDSNames := r.getValidDaemonSetNames(tt.dsName, tt.existingProviders, tt.existingProfiles, false)
+			validDSNames, validEDSNames := r.getValidDaemonSetNames(tt.dsName, tt.existingProviders, tt.existingProfiles, tt.useV3Metadata)
 			assert.Equal(t, tt.wantDS, validDSNames)
 			assert.Equal(t, tt.wantEDS, validEDSNames)
 		})
@@ -342,11 +462,11 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 		},
 		{
 			name:        "no unused ds, introspection enabled, profiles enabled",
-			description: "DS `datadog-agent-with-profile-ns-1-profile-1-gke-cos` should not be deleted",
+			description: "DS `profile-1-agent-gke-cos` should not be deleted",
 			existingAgents: []client.Object{
 				&appsv1.DaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Name:      "profile-1-agent-gke-cos",
 						Namespace: "ns-1",
 						Labels: map[string]string{
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
@@ -375,7 +495,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				Items: []appsv1.DaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+							Name:      "profile-1-agent-gke-cos",
 							Namespace: "ns-1",
 							Labels: map[string]string{
 								constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
@@ -446,7 +566,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 		},
 		{
 			name:        "multiple unused ds, introspection enabled, profiles enabled",
-			description: "All DS except `datadog-agent-with-profile-ns-1-profile-1-gke-cos` should be deleted",
+			description: "All DS except `profile-1-agent-gke-cos` should be deleted",
 			existingAgents: []client.Object{
 				&appsv1.DaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
@@ -460,7 +580,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 				&appsv1.DaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "datadog-agent-with-profile-ns-1-profile-1",
+						Name:      "profile-1-agent",
 						Namespace: "ns-1",
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
@@ -471,7 +591,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 				&appsv1.DaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Name:      "profile-1-agent-gke-cos",
 						Namespace: "ns-1",
 						Labels: map[string]string{
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
@@ -500,7 +620,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				Items: []appsv1.DaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+							Name:      "profile-1-agent-gke-cos",
 							Namespace: "ns-1",
 							Labels: map[string]string{
 								constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
@@ -519,7 +639,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 		},
 		{
 			name:        "multiple unused eds, introspection enabled, profiles enabled",
-			description: "All but EDS `dda-foo-agent-gke-cos` and DS `datadog-agent-with-profile-ns-1-profile-1-gke-cos` should be deleted",
+			description: "All but EDS `dda-foo-agent-gke-cos` and DS `profile-1-agent-gke-cos` should be deleted",
 			existingAgents: []client.Object{
 				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
@@ -534,7 +654,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "datadog-agent-with-profile-ns-1-profile-1",
+						Name:      "profile-1-agent",
 						Namespace: "ns-1",
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
@@ -545,7 +665,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Name:      "profile-1-agent-gke-cos",
 						Namespace: "ns-1",
 						Labels: map[string]string{
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
@@ -569,7 +689,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 				&appsv1.DaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Name:      "profile-1-agent-gke-cos",
 						Namespace: "ns-1",
 						Labels: map[string]string{
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
@@ -598,7 +718,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				Items: []appsv1.DaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+							Name:      "profile-1-agent-gke-cos",
 							Namespace: "ns-1",
 							Labels: map[string]string{
 								constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
@@ -656,7 +776,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 				&appsv1.DaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "datadog-agent-with-profile-ns-1-profile-1",
+						Name:      "profile-1-agent",
 						Namespace: "ns-1",
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
@@ -667,7 +787,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 				&appsv1.DaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Name:      "profile-1-agent-gke-cos",
 						Namespace: "ns-1",
 						Labels: map[string]string{
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
@@ -730,7 +850,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "datadog-agent-with-profile-ns-1-profile-1",
+						Name:      "profile-1-agent",
 						Namespace: "ns-1",
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
@@ -741,7 +861,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Name:      "profile-1-agent-gke-cos",
 						Namespace: "ns-1",
 						Labels: map[string]string{
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
@@ -765,7 +885,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 				&appsv1.DaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Name:      "profile-1-agent-gke-cos",
 						Namespace: "ns-1",
 						Labels: map[string]string{
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
@@ -813,7 +933,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 		},
 		{
 			name:        "multiple unused ds, introspection disabled, profiles enabled",
-			description: "DS `datadog-agent-with-profile-ns-1-profile-1-gke-cos` should be deleted",
+			description: "DS `profile-1-agent-gke-cos` should be deleted",
 			existingAgents: []client.Object{
 				&appsv1.DaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
@@ -827,7 +947,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 				&appsv1.DaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "datadog-agent-with-profile-ns-1-profile-1",
+						Name:      "profile-1-agent",
 						Namespace: "ns-1",
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
@@ -838,7 +958,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 				&appsv1.DaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Name:      "profile-1-agent-gke-cos",
 						Namespace: "ns-1",
 						Labels: map[string]string{
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
@@ -873,7 +993,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				Items: []appsv1.DaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      "datadog-agent-with-profile-ns-1-profile-1",
+							Name:      "dda-foo-agent",
 							Namespace: "ns-1",
 							Labels: map[string]string{
 								apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
@@ -885,7 +1005,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 					},
 					{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      "dda-foo-agent",
+							Name:      "profile-1-agent",
 							Namespace: "ns-1",
 							Labels: map[string]string{
 								apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
@@ -903,7 +1023,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 		},
 		{
 			name:        "multiple unused eds, introspection disabled, profiles enabled",
-			description: "All but EDS `dda-foo-agent` and DS `datadog-agent-with-profile-ns-1-profile-1` should be deleted",
+			description: "All but EDS `dda-foo-agent` and DS `profile-1-agent` should be deleted",
 			existingAgents: []client.Object{
 				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
@@ -918,7 +1038,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "datadog-agent-with-profile-ns-1-profile-1",
+						Name:      "profile-1-agent",
 						Namespace: "ns-1",
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
@@ -929,7 +1049,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Name:      "profile-1-agent-gke-cos",
 						Namespace: "ns-1",
 						Labels: map[string]string{
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
@@ -953,7 +1073,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 				&appsv1.DaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Name:      "profile-1-agent-gke-cos",
 						Namespace: "ns-1",
 						Labels: map[string]string{
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
@@ -965,7 +1085,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 				&appsv1.DaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "datadog-agent-with-profile-ns-1-profile-1",
+						Name:      "profile-1-agent",
 						Namespace: "ns-1",
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
@@ -999,7 +1119,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				Items: []appsv1.DaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      "datadog-agent-with-profile-ns-1-profile-1",
+							Name:      "profile-1-agent",
 							Namespace: "ns-1",
 							Labels: map[string]string{
 								apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
@@ -1040,7 +1160,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 				&appsv1.DaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "datadog-agent-with-profile-ns-1-profile-1",
+						Name:      "profile-1-agent",
 						Namespace: "ns-1",
 						Labels: map[string]string{
 							"foo": "bar",
@@ -1049,7 +1169,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 				&appsv1.DaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Name:      "profile-1-agent-gke-cos",
 						Namespace: "ns-1",
 						Labels: map[string]string{
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
@@ -1082,7 +1202,14 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				Items: []appsv1.DaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      "datadog-agent-with-profile-ns-1-profile-1",
+							Name:            "dda-foo-agent",
+							Namespace:       "ns-1",
+							ResourceVersion: "999",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "profile-1-agent",
 							Namespace: "ns-1",
 							Labels: map[string]string{
 								"foo": "bar",
@@ -1092,19 +1219,12 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 					},
 					{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+							Name:      "profile-1-agent-gke-cos",
 							Namespace: "ns-1",
 							Labels: map[string]string{
 								constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
 								kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
 							},
-							ResourceVersion: "999",
-						},
-					},
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:            "dda-foo-agent",
-							Namespace:       "ns-1",
 							ResourceVersion: "999",
 						},
 					},
@@ -1126,7 +1246,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "datadog-agent-with-profile-ns-1-profile-1",
+						Name:      "profile-1-agent",
 						Namespace: "ns-1",
 						Labels: map[string]string{
 							"foo": "bar",
@@ -1135,7 +1255,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Name:      "profile-1-agent-gke-cos",
 						Namespace: "ns-1",
 						Labels: map[string]string{
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
@@ -1155,7 +1275,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 				&appsv1.DaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Name:      "profile-1-agent-gke-cos",
 						Namespace: "ns-1",
 						Labels: map[string]string{
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
@@ -1165,7 +1285,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 				&appsv1.DaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "datadog-agent-with-profile-ns-1-profile-1",
+						Name:      "profile-1-agent",
 						Namespace: "ns-1",
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
@@ -1197,7 +1317,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				Items: []appsv1.DaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      "datadog-agent-with-profile-ns-1-profile-1",
+							Name:      "profile-1-agent",
 							Namespace: "ns-1",
 							Labels: map[string]string{
 								apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
@@ -1207,7 +1327,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 					},
 					{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+							Name:      "profile-1-agent-gke-cos",
 							Namespace: "ns-1",
 							Labels: map[string]string{
 								constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
@@ -1222,27 +1342,6 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      "datadog-agent-with-profile-ns-1-profile-1",
-							Namespace: "ns-1",
-							Labels: map[string]string{
-								"foo": "bar",
-							},
-							ResourceVersion: "999",
-						},
-					},
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
-							Namespace: "ns-1",
-							Labels: map[string]string{
-								constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
-								kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
-							},
-							ResourceVersion: "999",
-						},
-					},
-					{
-						ObjectMeta: metav1.ObjectMeta{
 							Name:            "dda-foo-agent",
 							Namespace:       "ns-1",
 							ResourceVersion: "999",
@@ -1255,6 +1354,27 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 							Labels: map[string]string{
 								constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
 								apicommon.AgentDeploymentComponentLabelKey:   constants.DefaultAgentResourceSuffix,
+							},
+							ResourceVersion: "999",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "profile-1-agent",
+							Namespace: "ns-1",
+							Labels: map[string]string{
+								"foo": "bar",
+							},
+							ResourceVersion: "999",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "profile-1-agent-gke-cos",
+							Namespace: "ns-1",
+							Labels: map[string]string{
+								constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+								kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
 							},
 							ResourceVersion: "999",
 						},
