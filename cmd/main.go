@@ -141,8 +141,9 @@ type options struct {
 	datadogGenericResourceEnabled          bool
 
 	// Secret Backend options
-	secretBackendCommand string
-	secretBackendArgs    stringSlice
+	secretBackendCommand  string
+	secretBackendArgs     stringSlice
+	secretRefreshInterval time.Duration
 }
 
 func (opts *options) Parse() {
@@ -163,6 +164,7 @@ func (opts *options) Parse() {
 	// Custom flags
 	flag.StringVar(&opts.secretBackendCommand, "secretBackendCommand", "", "Secret backend command")
 	flag.Var(&opts.secretBackendArgs, "secretBackendArgs", "Space separated arguments of the secret backend command")
+	flag.DurationVar(&opts.secretRefreshInterval, "secretRefreshInterval", 0, "Interval for refreshing secrets from secret backend")
 	flag.BoolVar(&opts.supportCilium, "supportCilium", false, "Support usage of Cilium network policies.")
 	flag.BoolVar(&opts.datadogAgentEnabled, "datadogAgentEnabled", true, "Enable the DatadogAgent controller")
 	flag.BoolVar(&opts.datadogMonitorEnabled, "datadogMonitorEnabled", false, "Enable the DatadogMonitor controller")
@@ -222,9 +224,9 @@ func run(opts *options) error {
 	version.PrintVersionLogs(setupLog)
 
 	if opts.datadogAgentEnabled {
-		setupLog.Error(nil, "[WARNING] Upcoming Agent DaemonSet selector changes in Operator v1.20. If you rely on Datadog Agent pod labels e.g. in NetworkPolicies, verify if you may be impacted. See README for details.")
+		setupLog.Error(nil, "[WARNING] Agent DaemonSet selector changed in Operator v1.21. If you rely on Datadog Agent pod labels e.g. in NetworkPolicies, verify if you may be impacted. See README for details.")
 		if opts.datadogAgentProfileEnabled {
-			setupLog.Error(nil, "[WARNING] Upcoming selector changes in Agent DaemonSets managed by DAPs in Operator v1.18 and v1.20. If you rely on Datadog Agent pod labels, e.g. in NetworkPolicies, verify if you may be impacted. See README for details.")
+			setupLog.Error(nil, "[WARNING] Selector changed in Agent DaemonSets managed by DAPs in Operator v1.18 and v1.21. If you rely on Datadog Agent pod labels, e.g. in NetworkPolicies, verify if you may be impacted. See README for details.")
 		}
 	}
 
@@ -253,6 +255,17 @@ func run(opts *options) error {
 	secrets.SetSecretBackendCommand(opts.secretBackendCommand)
 	secrets.SetSecretBackendArgs(opts.secretBackendArgs)
 
+	credsManager := config.NewCredentialManager()
+	creds, err := credsManager.GetCredentials()
+	if err != nil && opts.datadogMonitorEnabled {
+		return setupErrorf(setupLog, err, "Unable to get credentials for DatadogMonitor")
+	}
+
+	if opts.secretRefreshInterval > 0 && opts.secretBackendCommand == "" {
+		setupLog.Error(nil, "secretRefreshInterval is set but secretBackendCommand is not configured")
+	} else if opts.secretBackendCommand != "" && opts.secretRefreshInterval > 0 {
+		go credsManager.StartCredentialRefreshRoutine(opts.secretRefreshInterval, setupLog)
+	}
 	renewDeadline := opts.leaderElectionLeaseDuration / 2
 	retryPeriod := opts.leaderElectionLeaseDuration / 4
 
@@ -297,11 +310,6 @@ func run(opts *options) error {
 
 	// Custom setup
 	customSetupHealthChecks(setupLog, mgr, &opts.maximumGoroutines)
-
-	creds, err := config.NewCredentialManager().GetCredentials()
-	if err != nil && opts.datadogMonitorEnabled {
-		return setupErrorf(setupLog, err, "Unable to get credentials for DatadogMonitor")
-	}
 
 	if opts.remoteConfigEnabled {
 		go func() {
@@ -348,7 +356,9 @@ func run(opts *options) error {
 			MaxPodSchedulerFailure:              opts.edsMaxPodSchedulerFailure,
 		},
 		SupportCilium:                 opts.supportCilium,
+		CredsManager:                  credsManager,
 		Creds:                         creds,
+		SecretRefreshInterval:         opts.secretRefreshInterval,
 		DatadogAgentEnabled:           opts.datadogAgentEnabled,
 		DatadogAgentInternalEnabled:   opts.datadogAgentInternalEnabled,
 		DatadogMonitorEnabled:         opts.datadogMonitorEnabled,
@@ -373,12 +383,18 @@ func run(opts *options) error {
 				"CRDs of this version were removed in v1.10.0.")
 		}
 	}
-
+	// START controllers setup
 	if err = controller.SetupControllers(setupLog, mgr, platformInfo, options); err != nil {
 		return setupErrorf(setupLog, err, "Unable to start controllers")
 	}
 
-	setupAndStartMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts)
+	go func() {
+		// Block until this controller manager is elected leader
+		<-mgr.Elected()
+		setupLog.Info("Starting metadata forwarders")
+		setupAndStartOperatorMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
+		setupAndStartHelmMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
+	}()
 
 	// +kubebuilder:scaffold:builder
 
@@ -486,9 +502,9 @@ func setupErrorf(logger logr.Logger, err error, msg string, keysAndValues ...any
 	return fmt.Errorf("%s, err:%w", msg, err)
 }
 
-func setupAndStartMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options) {
-	mdf := metadata.NewMetadataForwarder(logger, client)
-	mdf.OperatorMetadata = metadata.OperatorMetadata{
+func setupAndStartOperatorMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options, credsManager *config.CredentialManager) {
+	omf := metadata.NewOperatorMetadataForwarder(logger, client, kubernetesVersion, version.GetVersion(), credsManager)
+	omf.OperatorMetadata = metadata.OperatorMetadata{
 		OperatorVersion:               version.GetVersion(),
 		KubernetesVersion:             kubernetesVersion,
 		InstallMethodTool:             "datadog-operator",
@@ -500,13 +516,20 @@ func setupAndStartMetadataForwarder(logger logr.Logger, client client.Reader, ku
 		DatadogSLOEnabled:             options.datadogSLOEnabled,
 		DatadogGenericResourceEnabled: options.datadogGenericResourceEnabled,
 		DatadogAgentProfileEnabled:    options.datadogAgentProfileEnabled,
+		DatadogAgentInternalEnabled:   options.datadogAgentInternalEnabled,
 		LeaderElectionEnabled:         options.enableLeaderElection,
 		ExtendedDaemonSetEnabled:      options.supportExtendedDaemonset,
 		RemoteConfigEnabled:           options.remoteConfigEnabled,
 		IntrospectionEnabled:          options.introspectionEnabled,
 		ConfigDDURL:                   os.Getenv(constants.DDURL),
 		ConfigDDSite:                  os.Getenv(constants.DDSite),
+		ResourceCounts:                make(map[string]int),
 	}
 
-	mdf.Start()
+	omf.Start()
+}
+
+func setupAndStartHelmMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options, credsManager *config.CredentialManager) {
+	hmf := metadata.NewHelmMetadataForwarder(logger, client, kubernetesVersion, version.GetVersion(), credsManager)
+	hmf.Start()
 }

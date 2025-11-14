@@ -6,10 +6,11 @@
 package agentprofile
 
 import (
+	"cmp"
 	"fmt"
 	"maps"
 	"os"
-	"sort"
+	"slices"
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
@@ -73,16 +74,19 @@ func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nod
 
 	toLabelNodeCount := 0
 
+	// Parse profile requirements once to avoid recreating them for each node
+	profileRequirements, err := parseProfileRequirements(profile)
+	if err != nil {
+		logger.Error(err, "profile selector is invalid, skipping", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+		metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.FalseValue)
+		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))
+		profileStatus.Valid = metav1.ConditionFalse
+		UpdateProfileStatus(logger, profile, profileStatus, now)
+		return profileAppliedByNode, err
+	}
+
 	for _, node := range nodes {
-		matchesNode, err := profileMatchesNode(profile, node.Labels)
-		if err != nil {
-			logger.Error(err, "profile selector is invalid, skipping", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
-			metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.FalseValue)
-			profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))
-			profileStatus.Valid = metav1.ConditionFalse
-			UpdateProfileStatus(logger, profile, profileStatus, now)
-			return profileAppliedByNode, err
-		}
+		matchesNode := profileMatchesNodeWithRequirements(profileRequirements, node.Labels)
 		metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.TrueValue)
 		profileStatus.Valid = metav1.ConditionTrue
 		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionTrue, now, ValidConditionReason, "Valid manifest"))
@@ -355,41 +359,57 @@ func labelsOverride(profile *v1alpha1.DatadogAgentProfile) map[string]string {
 // SortProfiles sorts the profiles by creation timestamp. If two profiles have
 // the same creation timestamp, it sorts them by name.
 func SortProfiles(profiles []v1alpha1.DatadogAgentProfile) []v1alpha1.DatadogAgentProfile {
-	sortedProfiles := make([]v1alpha1.DatadogAgentProfile, len(profiles))
-	copy(sortedProfiles, profiles)
+	sorted := append([]v1alpha1.DatadogAgentProfile{}, profiles...)
 
-	sort.Slice(sortedProfiles, func(i, j int) bool {
-		if !sortedProfiles[i].CreationTimestamp.Equal(&sortedProfiles[j].CreationTimestamp) {
-			return sortedProfiles[i].CreationTimestamp.Before(&sortedProfiles[j].CreationTimestamp)
-		}
-
-		return sortedProfiles[i].Name < sortedProfiles[j].Name
-	})
-
-	return sortedProfiles
-}
-
-func profileMatchesNode(profile *v1alpha1.DatadogAgentProfile, nodeLabels map[string]string) (bool, error) {
-	if profile.Spec.ProfileAffinity == nil {
-		return true, nil
+	if len(sorted) > 1 {
+		slices.SortStableFunc(sorted, compareProfiles)
 	}
 
-	for _, requirement := range profile.Spec.ProfileAffinity.ProfileNodeAffinity {
+	return sorted
+}
+
+// compareProfiles compares two profiles first by creation time, then by name.
+func compareProfiles(a, b v1alpha1.DatadogAgentProfile) int {
+	return cmp.Or(
+		a.CreationTimestamp.Time.Compare(b.CreationTimestamp.Time),
+		cmp.Compare(a.Name, b.Name),
+	)
+}
+
+// parseProfileRequirements creates requirements from a profile's node affinity
+func parseProfileRequirements(profile *v1alpha1.DatadogAgentProfile) ([]*labels.Requirement, error) {
+	if profile == nil || profile.Spec.ProfileAffinity == nil {
+		return nil, nil
+	}
+
+	requirements := make([]*labels.Requirement, len(profile.Spec.ProfileAffinity.ProfileNodeAffinity))
+	for i, requirement := range profile.Spec.ProfileAffinity.ProfileNodeAffinity {
 		selector, err := labels.NewRequirement(
 			requirement.Key,
 			nodeSelectorOperatorToSelectionOperator(requirement.Operator),
 			requirement.Values,
 		)
 		if err != nil {
-			return false, err
+			return nil, err
 		}
+		requirements[i] = selector
+	}
+	return requirements, nil
+}
 
-		if !selector.Matches(labels.Set(nodeLabels)) {
-			return false, nil
-		}
+// profileMatchesNodeWithRequirements checks if a node matches the given requirements
+func profileMatchesNodeWithRequirements(requirements []*labels.Requirement, nodeLabels map[string]string) bool {
+	if len(requirements) == 0 {
+		return true
 	}
 
-	return true, nil
+	nodeSet := labels.Set(nodeLabels)
+	for _, requirement := range requirements {
+		if !requirement.Matches(nodeSet) {
+			return false
+		}
+	}
+	return true
 }
 
 func nodeSelectorOperatorToSelectionOperator(op v1.NodeSelectorOperator) selection.Operator {
