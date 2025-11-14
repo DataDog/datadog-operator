@@ -48,35 +48,20 @@ type Reconciler struct {
 	client        client.Client
 	datadogClient *datadogV1.ServiceLevelObjectivesApi
 	datadogAuth   context.Context
+	credManager   *config.CredentialManager
 	log           logr.Logger
 	recorder      record.EventRecorder
 }
 
-func NewReconciler(client client.Client, creds config.Creds, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
-	ddClient, err := datadogclient.InitDatadogSLOClient(log, creds)
-	if err != nil {
-		return &Reconciler{}, err
-	}
+func NewReconciler(client client.Client, credManager *config.CredentialManager, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
+	// possibly set URL here
 	return &Reconciler{
 		client:        client,
-		datadogClient: ddClient.Client,
-		datadogAuth:   ddClient.Auth,
+		datadogClient: datadogclient.InitSLOClient(),
+		credManager:   credManager,
 		log:           log,
 		recorder:      recorder,
 	}, nil
-}
-
-func (r *Reconciler) UpdateDatadogClient(newCreds config.Creds) error {
-	r.log.Info("Recreating Datadog client due to credential change", "reconciler", "DatadogSLO")
-	ddClient, err := datadogclient.InitDatadogSLOClient(r.log, newCreds)
-	if err != nil {
-		return fmt.Errorf("unable to create Datadog API Client in DatadogSLO: %w", err)
-	}
-	r.datadogClient = ddClient.Client
-	r.datadogAuth = ddClient.Auth
-
-	r.log.Info("Successfully recreated datadog client due to credential change", "reconciler", "DatadogSLO")
-	return nil
 }
 
 var _ reconcile.Reconciler = (*Reconciler)(nil)
@@ -132,6 +117,16 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 
 	shouldCreate := false
 	shouldUpdate := false
+
+	// Get fresh credentials and create auth context for this reconcile
+	creds, err := r.credManager.GetCredentials()
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("failed to get credentials: %w", err)
+	}
+	r.datadogAuth, err = datadogclient.GetAuth(r.log, creds)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("failed to setup auth: %w", err)
+	}
 
 	if instance.Status.ID == "" {
 		shouldCreate = true

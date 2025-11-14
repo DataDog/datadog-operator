@@ -42,41 +42,25 @@ type Reconciler struct {
 	datadogNotebooksClient  *datadogV1.NotebooksApi
 	datadogMonitorsClient   *datadogV1.MonitorsApi
 	datadogAuth             context.Context
+	credManager             *config.CredentialManager
 	scheme                  *runtime.Scheme
 	log                     logr.Logger
 	recorder                record.EventRecorder
 }
 
-func NewReconciler(client client.Client, creds config.Creds, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
-	ddClient, err := datadogclient.InitDatadogGenericClient(log, creds)
-	if err != nil {
-		return &Reconciler{}, err
-	}
+func NewReconciler(client client.Client, credManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
+	ddClients := datadogclient.InitGenericClients()
 
 	return &Reconciler{
 		client:                  client,
-		datadogSyntheticsClient: ddClient.SyntheticsClient,
-		datadogNotebooksClient:  ddClient.NotebooksClient,
-		datadogMonitorsClient:   ddClient.MonitorsClient,
-		datadogAuth:             ddClient.Auth,
+		datadogSyntheticsClient: ddClients.SyntheticsClient,
+		datadogNotebooksClient:  ddClients.NotebooksClient,
+		datadogMonitorsClient:   ddClients.MonitorsClient,
+		credManager:             credManager,
 		scheme:                  scheme,
 		log:                     log,
 		recorder:                recorder,
 	}, nil
-}
-
-func (r *Reconciler) UpdateDatadogClient(newCreds config.Creds) error {
-	r.log.Info("Recreating Datadog client due to credential change", "reconciler", "DatadogGenericResource")
-	ddClient, err := datadogclient.InitDatadogGenericClient(r.log, newCreds)
-	if err != nil {
-		return fmt.Errorf("unable to create Datadog API Client in DatadogGenericResource: %w", err)
-	}
-	r.datadogSyntheticsClient = ddClient.SyntheticsClient
-	r.datadogMonitorsClient = ddClient.MonitorsClient
-	r.datadogAuth = ddClient.Auth
-
-	r.log.Info("Successfully recreated datadog client due to credential change", "reconciler", "DatadogGenericResource")
-	return nil
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -123,6 +107,16 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 
 	shouldCreate := false
 	shouldUpdate := false
+
+	// Get fresh credentials and create auth context for this reconcile
+	creds, err := r.credManager.GetCredentials()
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("failed to get credentials: %w", err)
+	}
+	r.datadogAuth, err = datadogclient.GetAuth(r.log, creds)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("failed to setup auth: %w", err)
+	}
 
 	if instance.Status.Id == "" {
 		shouldCreate = true

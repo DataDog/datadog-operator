@@ -22,12 +22,12 @@ import (
 )
 
 type DatadogSLOReconciler struct {
-	Client   client.Client
-	Creds    config.Creds
-	Log      logr.Logger
-	Scheme   *runtime.Scheme
-	Recorder record.EventRecorder
-	internal *datadogslo.Reconciler
+	Client      client.Client
+	CredManager *config.CredentialManager
+	Log         logr.Logger
+	Scheme      *runtime.Scheme
+	Recorder    record.EventRecorder
+	internal    *datadogslo.Reconciler
 }
 
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogslos,verbs=get;list;watch;create;update;patch;delete
@@ -40,7 +40,7 @@ func (r *DatadogSLOReconciler) Reconcile(ctx context.Context, req reconcile.Requ
 }
 
 func (r *DatadogSLOReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	internal, err := datadogslo.NewReconciler(r.Client, r.Creds, r.Log, r.Recorder)
+	internal, err := datadogslo.NewReconciler(r.Client, r.CredManager, r.Log, r.Recorder)
 	if err != nil {
 		return err
 	}
@@ -57,8 +57,3 @@ func (r *DatadogSLOReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 var _ reconcile.Reconciler = (*DatadogSLOReconciler)(nil)
-
-// Callback function for credential change from credential manager
-func (r *DatadogSLOReconciler) onCredentialChange(newCreds config.Creds) error {
-	return r.internal.UpdateDatadogClient(newCreds)
-}

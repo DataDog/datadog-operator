@@ -67,6 +67,7 @@ type Reconciler struct {
 	client                 client.Client
 	datadogClient          *datadogV1.MonitorsApi
 	datadogAuth            context.Context
+	credManager            *config.CredentialManager
 	log                    logr.Logger
 	scheme                 *runtime.Scheme
 	recorder               record.EventRecorder
@@ -75,34 +76,17 @@ type Reconciler struct {
 }
 
 // NewReconciler returns a new Reconciler object
-func NewReconciler(client client.Client, creds config.Creds, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, operatorMetricsEnabled bool, metricForwardersMgr pkgutils.MetricsForwardersManager) (*Reconciler, error) {
-	ddClient, err := datadogclient.InitDatadogMonitorClient(log, creds)
-	if err != nil {
-		return &Reconciler{}, err
-	}
-
+func NewReconciler(client client.Client, credManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, operatorMetricsEnabled bool, metricForwardersMgr pkgutils.MetricsForwardersManager) (*Reconciler, error) {
 	return &Reconciler{
 		client:                 client,
-		datadogClient:          ddClient.Client,
-		datadogAuth:            ddClient.Auth,
+		datadogClient:          datadogclient.InitMonitorClient(),
+		credManager:            credManager,
 		scheme:                 scheme,
 		log:                    log,
 		recorder:               recorder,
 		operatorMetricsEnabled: operatorMetricsEnabled,
 		forwarders:             metricForwardersMgr,
 	}, nil
-}
-
-func (r *Reconciler) UpdateDatadogClient(newCreds config.Creds) error {
-	r.log.Info("Recreating Datadog client due to credential change", "reconciler", "DatadogMonitor")
-	ddClient, err := datadogclient.InitDatadogMonitorClient(r.log, newCreds)
-	if err != nil {
-		return fmt.Errorf("unable to create Datadog API Client in DatadogMonitor: %w", err)
-	}
-	r.datadogClient = ddClient.Client
-	r.datadogAuth = ddClient.Auth
-	r.log.Info("Successfully recreated datadog client due to credential change", "reconciler", "DatadogMonitor")
-	return nil
 }
 
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context
@@ -160,6 +144,16 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 
 	shouldCreate := false
 	shouldUpdate := false
+
+	// Get fresh credentials and create auth context for this reconcile
+	creds, err := r.credManager.GetCredentials()
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("failed to get credentials: %w", err)
+	}
+	r.datadogAuth, err = datadogclient.GetAuth(r.log, creds)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("failed to setup auth: %w", err)
+	}
 
 	// Check if we need to create the monitor, update the monitor definition, or update monitor state
 	if instance.Status.ID == 0 {
