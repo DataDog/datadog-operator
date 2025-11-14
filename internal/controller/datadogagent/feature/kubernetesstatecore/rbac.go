@@ -6,13 +6,12 @@
 package kubernetesstatecore
 
 import (
-	"maps"
-	"slices"
 	"strings"
 
 	"github.com/gobuffalo/flect"
 	rbacv1 "k8s.io/api/rbac/v1"
 
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
@@ -137,33 +136,16 @@ func getRBACPolicyRules(collectorOpts collectorOptions) []rbacv1.PolicyRule {
 
 	// Add permissions for custom resources
 	if len(collectorOpts.customResources) > 0 {
-		// Group custom resources by API group using sets to avoid duplicates
-		groupedResources := make(map[string]map[string]struct{})
+		rbacBuilder := utils.NewRBACBuilder(commonVerbs...)
 		for _, cr := range collectorOpts.customResources {
-			apiGroup := cr.GroupVersionKind.Group
 			// Use the resource plural if specified, otherwise derive it from the Kind
 			resourceName := cr.ResourcePlural
 			if resourceName == "" {
 				resourceName = strings.ToLower(flect.Pluralize(cr.GroupVersionKind.Kind))
 			}
-
-			if _, exists := groupedResources[apiGroup]; !exists {
-				groupedResources[apiGroup] = make(map[string]struct{})
-			}
-			groupedResources[apiGroup][resourceName] = struct{}{}
+			rbacBuilder.AddGroupKind(cr.GroupVersionKind.Group, resourceName)
 		}
-
-		// Create RBAC rules for each API group
-		for apiGroup, resourceSet := range groupedResources {
-			// Convert set to sorted slice for deterministic output
-			resources := slices.Sorted(maps.Keys(resourceSet))
-
-			rbacRules = append(rbacRules, rbacv1.PolicyRule{
-				APIGroups: []string{apiGroup},
-				Resources: resources,
-				Verbs:     commonVerbs,
-			})
-		}
+		rbacRules = append(rbacRules, rbacBuilder.Build()...)
 	}
 
 	return rbacRules

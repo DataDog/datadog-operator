@@ -38,11 +38,6 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 		return result, err
 	}
 
-	// Check for deprecated configurations and log warnings
-	if instance.Spec.Global != nil && instance.Spec.Global.RunProcessChecksInCoreAgent != nil {
-		reqLogger.Error(nil, "DEPRECATION WARNING: The 'runProcessChecksInCoreAgent' configuration is deprecated in 1.19, and will be removed in v1.21. See github.com/DataDog/datadog-operator/blob/main/docs/deprecated_configs.md for details.")
-	}
-
 	// 2. Handle finalizer logic.
 	if result, err := r.handleFinalizer(reqLogger, instance, r.finalizeDadV2); utils.ShouldReturn(result, err) {
 		return result, err
@@ -322,7 +317,7 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 	profilesList := datadoghqv1alpha1.DatadogAgentProfileList{}
 	err := r.client.List(ctx, &profilesList)
 	if err != nil {
-		return nil, nil, err
+		logger.Info("unable to list DatadogAgentProfiles", "error", err)
 	}
 
 	var profileListToApply []datadoghqv1alpha1.DatadogAgentProfile
@@ -334,7 +329,7 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 		oldStatus := profile.Status
 		profileAppliedByNode, err = agentprofile.ApplyProfile(logger, &profile, nodeList, profileAppliedByNode, now, maxUnavailable, r.options.DatadogAgentInternalEnabled)
 		if result, e := r.updateDAPStatus(ctx, logger, &profile, &oldStatus); utils.ShouldReturn(result, e) {
-			return nil, nil, e
+			logger.Info("unable to update DatadogAgentProfile status", "error", e, "requeue", result.Requeue, "requeueAfter", result.RequeueAfter)
 		}
 		if err != nil {
 			// profile is invalid or conflicts

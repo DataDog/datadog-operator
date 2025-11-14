@@ -7,6 +7,7 @@ package agent
 
 import (
 	"fmt"
+	"path/filepath"
 	"strconv"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -104,6 +105,7 @@ func DefaultSeccompConfigDataForSystemProbe() map[string]string {
 					"capset",
 					"chdir",
 					"chmod",
+					"chown",
 					"clock_gettime",
 					"clone",
 					"clone3",
@@ -187,6 +189,8 @@ func DefaultSeccompConfigDataForSystemProbe() map[string]string {
 					"memfd_create",
 					"mkdir",
 					"mkdirat",
+					"mknod",
+					"mknodat",
 					"mmap",
 					"mmap2",
 					"mprotect",
@@ -574,6 +578,10 @@ func commonEnvVars(dda metav1.Object) []corev1.EnvVar {
 			Value: secrets.GetDefaultDCATokenSecretName(dda),
 		},
 		{
+			Name:  common.DDAuthTokenFilePath,
+			Value: filepath.Join(common.AuthVolumePath, "token"),
+		},
+		{
 			Name: common.DDKubeletHost,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
@@ -742,6 +750,9 @@ func volumeMountsForSystemProbe() []corev1.VolumeMount {
 		common.GetVolumeMountForLogs(),
 		common.GetVolumeMountForAuth(true),
 		common.GetVolumeMountForConfig(),
+		common.GetVolumeMountForDogstatsdSocket(false),
+		common.GetVolumeMountForRuntimeSocket(true),
+		common.GetVolumeMountForProc(),
 	}
 }
 

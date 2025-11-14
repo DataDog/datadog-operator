@@ -36,6 +36,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/helm"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -140,6 +141,29 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	// Start by creating the Default Agent daemonset
 	daemonset = componentagent.NewDefaultAgentDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent, instanceName)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
+
+	// Check if this operator daemonset should have migration label (after Helm migration completed)
+	if helm.IsHelmMigration(dda) {
+		dsList := appsv1.DaemonSetList{}
+		if err := r.client.List(context.TODO(), &dsList, client.MatchingLabels{
+			apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+			kubernetes.AppKubernetesManageByLabelKey:   "Helm",
+			apicommon.AgentDeploymentNameLabelKey:      "datadog",
+		}); err == nil && len(dsList.Items) == 0 {
+			nsName := types.NamespacedName{
+				Name:      daemonset.GetName(),
+				Namespace: daemonset.GetNamespace(),
+			}
+			existingDaemonset := &appsv1.DaemonSet{}
+			if err := r.client.Get(context.TODO(), nsName, existingDaemonset); err != nil {
+				if daemonset.Labels == nil {
+					daemonset.Labels = make(map[string]string)
+				}
+				daemonset.Labels[constants.MD5AgentDeploymentMigratedLabelKey] = "true"
+				logger.Info("Adding migration label to new operator daemonset as Helm migration has completed")
+			}
+		}
+	}
 	// Set Global setting on the default daemonset
 	global.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda.GetObjectMeta(), &dda.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
 
@@ -420,7 +444,24 @@ func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger log
 	}
 
 	dsName := component.GetDaemonSetNameFromDatadogAgent(dda, &dda.Spec)
+
 	validDaemonSetNames, validExtendedDaemonSetNames := r.getValidDaemonSetNames(dsName, providerList, profiles, useV3Metadata(dda))
+	// log computed valid names for debugging
+	vd := make([]string, 0, len(validDaemonSetNames))
+	for n := range validDaemonSetNames {
+		vd = append(vd, n)
+	}
+	veds := make([]string, 0, len(validExtendedDaemonSetNames))
+	for n := range validExtendedDaemonSetNames {
+		veds = append(veds, n)
+	}
+
+	// Safety guard: if no valid names could be computed, skip cleanup to avoid
+	// deleting all DaemonSets during transient cache hiccups (e.g., empty provider list).
+	if len(validDaemonSetNames) == 0 && len(validExtendedDaemonSetNames) == 0 {
+		logger.Info("Skipping cleanup of DaemonSets: no valid names computed", "providersLen", len(providerList), "profilesLen", len(profiles))
+		return nil
+	}
 
 	// Only the default profile uses an EDS when profiles are enabled
 	// Multiple EDSs can be created with introspection
@@ -429,9 +470,10 @@ func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger log
 		if err := r.client.List(ctx, &edsList, matchLabels); err != nil {
 			return err
 		}
-
+		logger.V(1).Info("Listed ExtendedDaemonSets for cleanup", "count", len(edsList.Items))
 		for _, eds := range edsList.Items {
 			if _, ok := validExtendedDaemonSetNames[eds.Name]; !ok {
+				logger.Info("Candidate ExtendedDaemonSet deletion", "name", eds.Name)
 				if err := r.deleteV2ExtendedDaemonSet(logger, dda, &eds, newStatus); err != nil {
 					return err
 				}
@@ -444,8 +486,10 @@ func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger log
 		return err
 	}
 
+	logger.V(1).Info("Listed DaemonSets for cleanup", "count", len(daemonSetList.Items))
 	for _, daemonSet := range daemonSetList.Items {
 		if _, ok := validDaemonSetNames[daemonSet.Name]; !ok {
+			logger.Info("Candidate DaemonSet deletion", "name", daemonSet.Name)
 			if err := r.deleteV2DaemonSet(logger, dda, &daemonSet, newStatus); err != nil {
 				return err
 			}

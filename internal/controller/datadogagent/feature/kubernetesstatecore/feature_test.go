@@ -168,6 +168,20 @@ func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {
 				}
 				annotations := mgr.AnnotationMgr.Annotations
 				assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
+			} else {
+				// Verify default config annotation - CRDs and APIServices collected, no custom resource metrics
+				defaultConfigData := map[string]any{
+					"collect_crds":        true,
+					"collect_apiservices": true,
+					"collect_cr_metrics":  nil,
+				}
+				hash, err := comparison.GenerateMD5ForSpec(defaultConfigData)
+				assert.NoError(t, err)
+				wantAnnotations := map[string]string{
+					fmt.Sprintf(constants.MD5ChecksumAnnotationKey, feature.KubernetesStateCoreIDType): hash,
+				}
+				annotations := mgr.AnnotationMgr.Annotations
+				assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Default config annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
 			}
 		},
 	)

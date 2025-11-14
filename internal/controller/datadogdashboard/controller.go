@@ -2,6 +2,9 @@ package datadogdashboard
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,6 +23,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/config"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
@@ -28,10 +32,11 @@ import (
 )
 
 const (
-	defaultRequeuePeriod    = 60 * time.Second
-	defaultErrRequeuePeriod = 5 * time.Second
-	defaultForceSyncPeriod  = 60 * time.Minute
-	datadogDashboardKind    = "DatadogDashboard"
+	defaultRequeuePeriod             = 60 * time.Second
+	defaultErrRequeuePeriod          = 5 * time.Second
+	defaultForceSyncPeriod           = 60 * time.Minute
+	datadogDashboardKind             = "DatadogDashboard"
+	DDDashboardForceSyncPeriodEnvVar = "DD_DASHBOARD_FORCE_SYNC_PERIOD"
 )
 
 type Reconciler struct {
@@ -43,7 +48,12 @@ type Reconciler struct {
 	recorder      record.EventRecorder
 }
 
-func NewReconciler(client client.Client, ddClient datadogclient.DatadogDashboardClient, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) *Reconciler {
+func NewReconciler(client client.Client, creds config.Creds, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
+	ddClient, err := datadogclient.InitDatadogDashboardClient(log, creds)
+	if err != nil {
+		return &Reconciler{}, err
+	}
+
 	return &Reconciler{
 		client:        client,
 		datadogClient: ddClient.Client,
@@ -51,7 +61,21 @@ func NewReconciler(client client.Client, ddClient datadogclient.DatadogDashboard
 		scheme:        scheme,
 		log:           log,
 		recorder:      recorder,
+	}, nil
+}
+
+func (r *Reconciler) UpdateDatadogClient(newCreds config.Creds) error {
+	r.log.Info("Recreating Datadog client due to credential change", "reconciler", "DatadogDashboard")
+	ddClient, err := datadogclient.InitDatadogDashboardClient(r.log, newCreds)
+	if err != nil {
+		return fmt.Errorf("unable to create Datadog API Client in DatadogDashboard: %w", err)
 	}
+	r.datadogClient = ddClient.Client
+	r.datadogAuth = ddClient.Auth
+
+	r.log.Info("Successfully recreated datadog client due to credential change", "reconciler", "DatadogDashboard")
+
+	return nil
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -62,6 +86,18 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	logger := r.log.WithValues("datadogdashboard", req.NamespacedName)
 	logger.Info("Reconciling Datadog Dashboard")
 	now := metav1.NewTime(time.Now())
+
+	forceSyncPeriod := defaultForceSyncPeriod
+
+	if userForceSyncPeriod, ok := os.LookupEnv(DDDashboardForceSyncPeriodEnvVar); ok {
+		forceSyncPeriodInt, err := strconv.Atoi(userForceSyncPeriod)
+		if err != nil {
+			logger.Error(err, "Invalid value for dashboard force sync period. Defaulting to 60 minutes.")
+		} else {
+			logger.V(1).Info("Setting dashboard force sync period", "minutes", forceSyncPeriodInt)
+			forceSyncPeriod = time.Duration(forceSyncPeriodInt) * time.Minute
+		}
+	}
 
 	instance := &v1alpha1.DatadogDashboard{}
 	var result ctrl.Result
@@ -106,7 +142,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		if instanceSpecHash != statusSpecHash {
 			logger.Info("DatadogDashboard manifest has changed")
 			shouldUpdate = true
-		} else if instance.Status.LastForceSyncTime == nil || ((defaultForceSyncPeriod - now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0) {
+		} else if instance.Status.LastForceSyncTime == nil || ((forceSyncPeriod - now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0) {
 			// Periodically force a sync with the API to ensure parity
 			// Get Dashboard to make sure it exists before trying any updates. If it doesn't, set shouldCreate
 			_, err = r.get(instance)
