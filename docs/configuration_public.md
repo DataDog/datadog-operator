@@ -105,6 +105,9 @@ spec:
 `features.asm.threats.enabled`
 : Enables ASM App & API Protection. Default: false
 
+`features.autodiscovery.extraIgnoreAutoConfig`
+: ExtraIgnoreAutoConfig provides a list of integrations to add to the Agent's ignore_autoconf list. Entries provided here are appended to defaults set by the Operator rather than overriding them.
+
 `features.autoscaling.workload.enabled`
 : Enables the workload autoscaling product. Default: false
 
