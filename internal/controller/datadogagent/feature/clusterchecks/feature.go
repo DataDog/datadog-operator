@@ -236,6 +236,10 @@ func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTem
 	return nil
 }
 
+func (f *clusterChecksFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}
+
 func (f *clusterChecksFeature) updateConfigHash(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) {
 	hash, err := comparison.GenerateMD5ForSpec(ddaSpec.Features.ClusterChecks)
 	if err != nil {

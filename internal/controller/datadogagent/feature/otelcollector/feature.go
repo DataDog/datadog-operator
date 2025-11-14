@@ -353,3 +353,7 @@ func (o *otelCollectorFeature) ManageSingleContainerNodeAgent(managers feature.P
 func (o *otelCollectorFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
+
+func (o *otelCollectorFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}

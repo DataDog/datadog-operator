@@ -133,3 +133,7 @@ func (f *liveContainerFeature) manageNodeAgent(agentContainerName apicommon.Agen
 func (f *liveContainerFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
+
+func (f *liveContainerFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}

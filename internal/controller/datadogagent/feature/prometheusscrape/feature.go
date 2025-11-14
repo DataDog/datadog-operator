@@ -154,3 +154,7 @@ func (f *prometheusScrapeFeature) manageNodeAgent(agentContainerName apicommon.A
 func (f *prometheusScrapeFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
+
+func (f *prometheusScrapeFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}
