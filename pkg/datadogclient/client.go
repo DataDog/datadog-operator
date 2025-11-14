@@ -61,9 +61,46 @@ func InitGenericClients() GenericClients {
 	}
 }
 
-// SetupAuth creates an authenticated context for Datadog API calls.
-// Auth contexts should be short-lived and recreated when credentials change.
-func GetAuth(logger logr.Logger, creds config.Creds) (context.Context, error) {
+// ParsedAPIURL holds the parsed Datadog API URL information.
+// This should be parsed once during reconciler initialization and reused.
+type ParsedAPIURL struct {
+	Host     string
+	Protocol string
+}
+
+// ParseURL extracts and parses the Datadog API URL from environment variables.
+func ParseURL(logger logr.Logger) (*ParsedAPIURL, error) {
+	apiURL := ""
+	if os.Getenv(constants.DDddURL) != "" {
+		apiURL = os.Getenv(constants.DDddURL)
+	} else if os.Getenv(constants.DDURL) != "" {
+		apiURL = os.Getenv(constants.DDURL)
+	} else if site := os.Getenv(constants.DDSite); site != "" {
+		apiURL = prefix + strings.TrimSpace(site)
+	}
+
+	if apiURL == "" {
+		return nil, nil
+	}
+
+	logger.Info("Got API URL for DatadogOperator controller", "URL", apiURL)
+	parsedAPIURL, parseErr := url.Parse(apiURL)
+	if parseErr != nil {
+		return nil, fmt.Errorf(`invalid API URL : %w`, parseErr)
+	}
+	if parsedAPIURL.Host == "" || parsedAPIURL.Scheme == "" {
+		return nil, fmt.Errorf(`missing protocol or host : %s`, apiURL)
+	}
+
+	return &ParsedAPIURL{
+		Host:     parsedAPIURL.Host,
+		Protocol: parsedAPIURL.Scheme,
+	}, nil
+}
+
+// GetAuth creates an authenticated context for Datadog API calls.
+// The apiURL parameter should be parsed  with ParseURL
+func GetAuth(creds config.Creds, apiURL *ParsedAPIURL) context.Context {
 	// Initialize the official Datadog V1 API client.
 	authV1 := context.WithValue(
 		context.Background(),
@@ -78,31 +115,14 @@ func GetAuth(logger logr.Logger, creds config.Creds) (context.Context, error) {
 		},
 	)
 
-	apiURL := ""
-	if os.Getenv(constants.DDddURL) != "" {
-		apiURL = os.Getenv(constants.DDddURL)
-	} else if os.Getenv(constants.DDURL) != "" {
-		apiURL = os.Getenv(constants.DDURL)
-	} else if site := os.Getenv(constants.DDSite); site != "" {
-		apiURL = prefix + strings.TrimSpace(site)
-	}
-
-	if apiURL != "" {
-		logger.Info("Got API URL for DatadogOperator controller", "URL", apiURL)
-		parsedAPIURL, parseErr := url.Parse(apiURL)
-		if parseErr != nil {
-			return authV1, fmt.Errorf(`invalid API URL : %w`, parseErr)
-		}
-		if parsedAPIURL.Host == "" || parsedAPIURL.Scheme == "" {
-			return authV1, fmt.Errorf(`missing protocol or host : %s`, apiURL)
-		}
+	if apiURL != nil {
 		// If API URL is passed, set and use the API name and protocol on ServerIndex{1}.
 		authV1 = context.WithValue(authV1, datadogapi.ContextServerIndex, 1)
 		authV1 = context.WithValue(authV1, datadogapi.ContextServerVariables, map[string]string{
-			"name":     parsedAPIURL.Host,
-			"protocol": parsedAPIURL.Scheme,
+			"name":     apiURL.Host,
+			"protocol": apiURL.Protocol,
 		})
 	}
 
-	return authV1, nil
+	return authV1
 }

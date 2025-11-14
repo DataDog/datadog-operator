@@ -42,6 +42,7 @@ type Reconciler struct {
 	datadogNotebooksClient  *datadogV1.NotebooksApi
 	datadogMonitorsClient   *datadogV1.MonitorsApi
 	datadogAuth             context.Context
+	apiURL                  *datadogclient.ParsedAPIURL
 	credsManager            *config.CredentialManager
 	scheme                  *runtime.Scheme
 	log                     logr.Logger
@@ -49,6 +50,11 @@ type Reconciler struct {
 }
 
 func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
+	apiURL, err := datadogclient.ParseURL(log)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse API URL: %w", err)
+	}
+
 	ddClients := datadogclient.InitGenericClients()
 
 	return &Reconciler{
@@ -56,6 +62,7 @@ func NewReconciler(client client.Client, credsManager *config.CredentialManager,
 		datadogSyntheticsClient: ddClients.SyntheticsClient,
 		datadogNotebooksClient:  ddClients.NotebooksClient,
 		datadogMonitorsClient:   ddClients.MonitorsClient,
+		apiURL:                  apiURL,
 		credsManager:            credsManager,
 		scheme:                  scheme,
 		log:                     log,
@@ -113,10 +120,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to get credentials: %w", err)
 	}
-	r.datadogAuth, err = datadogclient.GetAuth(r.log, creds)
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("failed to setup auth: %w", err)
-	}
+	r.datadogAuth = datadogclient.GetAuth(creds, r.apiURL)
 
 	if instance.Status.Id == "" {
 		shouldCreate = true

@@ -29,6 +29,7 @@ import (
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/DataDog/datadog-operator/internal/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
+	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
@@ -143,9 +144,15 @@ func TestReconciler_Reconcile(t *testing.T) {
 				tt.mockOn(t, &m)
 			}
 			recorder := record.NewFakeRecorder(5)
+
+			// Parse URL once for the test
+			apiURL, err := datadogclient.ParseURL(testLogger)
+			assert.NoError(t, err)
+
 			r := &Reconciler{
 				client:        m.k8sClient,
 				datadogClient: client,
+				apiURL:        apiURL,
 				credsManager:  config.NewCredentialManager(),
 				recorder:      recorder,
 				log:           testLogger,

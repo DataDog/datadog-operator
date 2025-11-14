@@ -25,6 +25,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 )
 
 const (
@@ -162,11 +163,16 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 			t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
 			t.Setenv("DD_URL", httpServer.URL)
 
+			// Parse URL once for the test
+			apiURL, parseErr := datadogclient.ParseURL(logf.Log)
+			assert.NoError(t, parseErr)
+
 			// Set up
 			r := &Reconciler{
 				client:                  fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
 				datadogSyntheticsClient: synthClient,
 				datadogNotebooksClient:  nbClient,
+				apiURL:                  apiURL,
 				credsManager:            config.NewCredentialManager(),
 				scheme:                  s,
 				recorder:                recorder,
