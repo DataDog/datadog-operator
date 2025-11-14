@@ -133,3 +133,7 @@ func (f *rcFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provid
 func (f *rcFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
+
+func (f *rcFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}

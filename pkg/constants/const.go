@@ -59,6 +59,8 @@ const (
 	DefaultClusterAgentResourceSuffix = "cluster-agent"
 	// DefaultClusterChecksRunnerResourceSuffix use as suffix for cluster-checks-runner resource naming
 	DefaultClusterChecksRunnerResourceSuffix = "cluster-checks-runner"
+	// DefaultOtelAgentGatewayResourceSuffix use as suffix for otel-agent-gateway resource naming
+	DefaultOtelAgentGatewayResourceSuffix = "otel-agent-gateway"
 )
 
 // Labels

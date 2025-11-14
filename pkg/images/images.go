@@ -42,6 +42,10 @@ const (
 	// Default Image names
 	DefaultAgentImageName        string = "agent"
 	DefaultClusterAgentImageName string = "cluster-agent"
+	// Default DDOT Collector standalone image
+	DefaultDDOTCollectorImageName string = "ddot-collector"
+	// DDOTCollectorLatestVersion corresponds to the latest stable DDOT collector release
+	DDOTCollectorLatestVersion = "7.71.1"
 )
 
 // imageHasTag identifies whether an image string contains a tag suffix
@@ -131,6 +135,12 @@ func GetLatestAgentImageWithSuffix(withJMX, withFIPS, withFull bool) string {
 // GetLatestClusterAgentImage returns the latest stable agent release version
 func GetLatestClusterAgentImage() string {
 	image := newImage(DefaultImageRegistry, DefaultClusterAgentImageName, ClusterAgentLatestVersion, false, false, false)
+	return image.ToString()
+}
+
+// GetLatestDDOTCollectorImage returns the latest stable DDOT collector image
+func GetLatestDDOTCollectorImage() string {
+	image := newImage(DefaultImageRegistry, DefaultDDOTCollectorImageName, DDOTCollectorLatestVersion, false, false, false)
 	return image.ToString()
 }
 

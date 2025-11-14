@@ -121,3 +121,7 @@ func (f *asmFeature) ManageNodeAgent(_ feature.PodTemplateManagers, _ string) er
 func (f *asmFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers, _ string) error {
 	return nil
 }
+
+func (f *asmFeature) ManageOtelAgentGateway(_ feature.PodTemplateManagers, _ string) error {
+	return nil
+}

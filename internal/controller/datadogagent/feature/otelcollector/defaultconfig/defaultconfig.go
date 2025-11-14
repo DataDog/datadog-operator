@@ -1,6 +1,8 @@
 // package defaultconfig exposes the otel-agent default config
 package defaultconfig
 
+import "fmt"
+
 var DefaultOtelCollectorConfig = `
 receivers:
   prometheus:
@@ -48,3 +50,44 @@ service:
       receivers: [otlp]
       processors: [infraattributes, batch]
       exporters: [datadog]`
+
+var DefaultOtelCollectorConfigInGateway = func(ddaName string) string {
+	return fmt.Sprintf(`
+receivers:
+  otlp:
+    protocols:
+      grpc:
+          endpoint: 0.0.0.0:4317
+      http:
+          endpoint: 0.0.0.0:4318
+exporters:
+  debug:
+    verbosity: detailed
+  otlphttp:
+    endpoint: http://%s-otel-agent-gateway:4318
+    tls:
+      insecure: true
+processors:
+  batch:
+    timeout: 10s
+connectors:
+  datadog/connector:
+    traces:
+      compute_top_level_by_span_kind: true
+      peer_tags_aggregation: true
+      compute_stats_by_span_kind: true
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp, datadog/connector]
+    metrics:
+      receivers: [otlp, datadog/connector]
+      processors: [batch]
+      exporters: [otlphttp]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp]`, ddaName)
+}

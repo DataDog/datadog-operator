@@ -56,6 +56,9 @@ func (r *Reconciler) manageGlobalDependencies(logger logr.Logger, dda *datadoghq
 	if err := global.ApplyGlobalComponentDependencies(logger, dda.GetObjectMeta(), &dda.Spec, &dda.Status, resourceManagers, datadoghqv2alpha1.ClusterChecksRunnerComponentName, requiredComponents.ClusterChecksRunner, false); len(err) > 0 {
 		errs = append(errs, err...)
 	}
+	if err := global.ApplyGlobalComponentDependencies(logger, dda.GetObjectMeta(), &dda.Spec, &dda.Status, resourceManagers, datadoghqv2alpha1.OtelAgentGatewayComponentName, requiredComponents.OtelAgentGateway, false); len(err) > 0 {
+		errs = append(errs, err...)
+	}
 
 	if len(errs) > 0 {
 		return errors.NewAggregate(errs)

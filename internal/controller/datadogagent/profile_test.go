@@ -194,7 +194,7 @@ func Test_computeProfileMerge(t *testing.T) {
 					Name:      "foo-profile",
 					Namespace: "bar",
 					Annotations: map[string]string{
-						constants.MD5DDAIDeploymentAnnotationKey: "7540aac2cb9cbb8adc8666a70fc3e822",
+						constants.MD5DDAIDeploymentAnnotationKey: "e160cdf078da13507876397e80bbe4e0",
 					},
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
@@ -259,6 +259,9 @@ func Test_computeProfileMerge(t *testing.T) {
 							Disabled: apiutils.NewBoolPointer(true),
 						},
 						v2alpha1.ClusterChecksRunnerComponentName: {
+							Disabled: apiutils.NewBoolPointer(true),
+						},
+						v2alpha1.OtelAgentGatewayComponentName: {
 							Disabled: apiutils.NewBoolPointer(true),
 						},
 					},
@@ -536,6 +539,9 @@ func Test_setProfileSpec(t *testing.T) {
 							Disabled: apiutils.NewBoolPointer(true),
 						},
 						v2alpha1.ClusterChecksRunnerComponentName: {
+							Disabled: apiutils.NewBoolPointer(true),
+						},
+						v2alpha1.OtelAgentGatewayComponentName: {
 							Disabled: apiutils.NewBoolPointer(true),
 						},
 					},

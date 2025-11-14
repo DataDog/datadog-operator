@@ -22,6 +22,8 @@ const (
 	ClusterAgentComponentName ComponentName = "clusterAgent"
 	// ClusterChecksRunnerComponentName is the name of the Cluster Check Runner
 	ClusterChecksRunnerComponentName ComponentName = "clusterChecksRunner"
+	// OtelAgentGatewayComponentName is the name of the OTel Agent Gateway
+	OtelAgentGatewayComponentName ComponentName = "otelAgentGateway"
 )
 
 // DatadogAgentSpec defines the desired state of DatadogAgent
@@ -46,6 +48,8 @@ type DatadogFeatures struct {
 
 	// OtelCollector configuration.
 	OtelCollector *OtelCollectorFeatureConfig `json:"otelCollector,omitempty"`
+	// OTel Agent Gateway configuration.
+	OtelAgentGateway *OtelAgentGatewayFeatureConfig `json:"otelAgentGateway,omitempty"`
 	// LogCollection configuration.
 	LogCollection *LogCollectionFeatureConfig `json:"logCollection,omitempty"`
 	// LiveProcessCollection configuration.
@@ -1001,6 +1005,27 @@ type OtelCollectorFeatureConfig struct {
 	// OTelCollector Config Relevant to the Core agent
 	// +optional
 	CoreConfig *CoreConfig `json:"coreConfig,omitempty"`
+}
+
+// OtelAgentGatewayFeatureConfig contains the configuration for the OTel Agent Gateway.
+// +k8s:openapi-gen=true
+type OtelAgentGatewayFeatureConfig struct {
+	// Enabled enables the OTel Agent Gateway.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Conf overrides the configuration for the default OTel Agent Gateway.
+	// This must point to a ConfigMap containing a valid OTel collector configuration.
+	// When passing a configmap, file name *must* be otel-config.yaml.
+	// +optional
+	Conf *CustomConfig `json:"conf,omitempty"`
+
+	// Ports contains the ports that the OTel Collector is listening on.
+	// Defaults: otel-grpc:4317 / otel-http:4318.
+	// +optional
+	// +listType=atomic
+	Ports []*corev1.ContainerPort `json:"ports,omitempty"`
 }
 
 // ControlPlaneMonitoringFeatureConfig contains the configuration for the control plane monitoring.
@@ -2144,6 +2169,9 @@ type DatadogAgentStatus struct {
 	// The actual state of the Cluster Checks Runner as a deployment.
 	// +optional
 	ClusterChecksRunner *DeploymentStatus `json:"clusterChecksRunner,omitempty"`
+	// The actual state of the OTel Agent Gateway as a deployment.
+	// +optional
+	OtelAgentGateway *DeploymentStatus `json:"otelAgentGateway,omitempty"`
 	// RemoteConfigConfiguration stores the configuration received from RemoteConfig.
 	// +optional
 	RemoteConfigConfiguration *RemoteConfigConfiguration `json:"remoteConfigConfiguration,omitempty"`

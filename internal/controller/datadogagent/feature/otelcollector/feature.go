@@ -54,6 +54,8 @@ type otelCollectorFeature struct {
 	forceEnableLocalService bool
 	localServiceName        string
 
+	otelGatewayEnabled bool
+
 	logger logr.Logger
 }
 
@@ -117,6 +119,11 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 		}
 
 	}
+
+	if ddaSpec.Features.OtelAgentGateway != nil {
+		o.otelGatewayEnabled = apiutils.BoolValue(ddaSpec.Features.OtelAgentGateway.Enabled)
+	}
+
 	return reqComp
 }
 
@@ -162,7 +169,12 @@ func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManag
 	}
 
 	if o.customConfig.ConfigData == nil && o.customConfig.ConfigMap == nil {
-		var defaultConfig = defaultconfig.DefaultOtelCollectorConfig
+		var defaultConfig string
+		if o.otelGatewayEnabled {
+			defaultConfig = defaultconfig.DefaultOtelCollectorConfigInGateway(o.owner.GetName())
+		} else {
+			defaultConfig = defaultconfig.DefaultOtelCollectorConfig
+		}
 		if grpcPort != 4317 {
 			defaultConfig = strings.Replace(defaultConfig, "4317", strconv.Itoa(grpcPort), 1)
 		}
@@ -351,5 +363,9 @@ func (o *otelCollectorFeature) ManageSingleContainerNodeAgent(managers feature.P
 }
 
 func (o *otelCollectorFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}
+
+func (o *otelCollectorFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
