@@ -139,7 +139,9 @@ func clusterAgentDefaultPodSpec(dda *datadoghqv2alpha1.DatadogAgent) corev1.PodS
 			{
 				Name: "certificates",
 				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: "datadog-agent-cluster-ca-secret",
+					},
 				},
 			},
 			{
