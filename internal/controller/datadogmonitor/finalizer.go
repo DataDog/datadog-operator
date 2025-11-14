@@ -21,11 +21,11 @@ const (
 	datadogMonitorFinalizer = "finalizer.monitor.datadoghq.com"
 )
 
-func (r *Reconciler) handleFinalizer(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (ctrl.Result, error) {
+func (r *Reconciler) handleFinalizer(auth context.Context, logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (ctrl.Result, error) {
 	// Check if the DatadogMonitor instance is marked to be deleted, which is indicated by the deletion timestamp being set.
 	if dm.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(dm, datadogMonitorFinalizer) {
-			r.finalizeDatadogMonitor(logger, dm)
+			r.finalizeDatadogMonitor(auth, logger, dm)
 
 			controllerutil.RemoveFinalizer(dm, datadogMonitorFinalizer)
 			err := r.client.Update(context.TODO(), dm)
@@ -51,9 +51,9 @@ func (r *Reconciler) handleFinalizer(logger logr.Logger, dm *datadoghqv1alpha1.D
 	return ctrl.Result{}, nil
 }
 
-func (r *Reconciler) finalizeDatadogMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) {
+func (r *Reconciler) finalizeDatadogMonitor(auth context.Context, logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) {
 	if dm.Status.Primary {
-		err := deleteMonitor(r.datadogAuth, r.datadogClient, dm.Status.ID)
+		err := deleteMonitor(auth, r.datadogClient, dm.Status.ID)
 		if err != nil {
 			logger.Error(err, "failed to finalize monitor", "Monitor ID", fmt.Sprint(dm.Status.ID))
 

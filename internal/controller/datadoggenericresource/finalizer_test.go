@@ -100,7 +100,7 @@ func Test_handleFinalizer(t *testing.T) {
 			testGcr := &datadoghqv1alpha1.DatadogGenericResource{}
 			err := r.client.Get(context.TODO(), client.ObjectKey{Name: test.resourceName, Namespace: testNamespace}, testGcr)
 
-			_, err = r.handleFinalizer(reqLogger, testGcr)
+			_, err = r.handleFinalizer(context.TODO(), reqLogger, testGcr)
 
 			assert.NoError(t, err)
 			if test.finalizerShouldExist {

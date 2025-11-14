@@ -1,6 +1,7 @@
 package datadoggenericresource
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -18,7 +19,7 @@ const mockSubresource = "mock_resource"
 
 type MockHandler struct{}
 
-func (h *MockHandler) createResourcefunc(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+func (h *MockHandler) createResourcefunc(auth context.Context, r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
 	status.Id = "mock-id"
 	status.Created = &now
 	status.LastForceSyncTime = &now
@@ -28,30 +29,30 @@ func (h *MockHandler) createResourcefunc(r *Reconciler, logger logr.Logger, inst
 	return nil
 }
 
-func (h *MockHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
+func (h *MockHandler) getResourcefunc(auth context.Context, r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
 	return nil
 }
-func (h *MockHandler) updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
+func (h *MockHandler) updateResourcefunc(auth context.Context, r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
 	return nil
 }
-func (h *MockHandler) deleteResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
+func (h *MockHandler) deleteResourcefunc(auth context.Context, r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
 	return nil
 }
 
-func apiDelete(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return getHandler(instance.Spec.Type).deleteResourcefunc(r, instance)
+func apiDelete(auth context.Context, r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
+	return getHandler(instance.Spec.Type).deleteResourcefunc(auth, r, instance)
 }
 
-func apiGet(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return getHandler(instance.Spec.Type).getResourcefunc(r, instance)
+func apiGet(auth context.Context, r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
+	return getHandler(instance.Spec.Type).getResourcefunc(auth, r, instance)
 }
 
-func apiUpdate(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return getHandler(instance.Spec.Type).updateResourcefunc(r, instance)
+func apiUpdate(auth context.Context, r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
+	return getHandler(instance.Spec.Type).updateResourcefunc(auth, r, instance)
 }
 
-func apiCreateAndUpdateStatus(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	return getHandler(instance.Spec.Type).createResourcefunc(r, logger, instance, status, now, hash)
+func apiCreateAndUpdateStatus(auth context.Context, r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+	return getHandler(instance.Spec.Type).createResourcefunc(auth, r, logger, instance, status, now, hash)
 }
 
 func getHandler(resourceType v1alpha1.SupportedResourcesType) ResourceHandler {

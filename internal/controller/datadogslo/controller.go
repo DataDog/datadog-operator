@@ -47,7 +47,6 @@ const (
 type Reconciler struct {
 	client        client.Client
 	datadogClient *datadogV1.ServiceLevelObjectivesApi
-	datadogAuth   context.Context
 	apiURL        *datadogclient.ParsedAPIURL
 	credsManager  *config.CredentialManager
 	log           logr.Logger
@@ -93,10 +92,17 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, err
 	}
 
+	// Get fresh credentials and create auth context for this reconcile
+	creds, err := r.credsManager.GetCredentials()
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("failed to get credentials: %w", err)
+	}
+	datadogAuth := datadogclient.GetAuth(creds, r.apiURL)
+
 	final := finalizer.NewFinalizer(
 		logger,
 		r.client,
-		r.deleteResource(logger, instance),
+		r.deleteResource(logger, instance, datadogAuth),
 		defaultRequeuePeriod,
 		defaultErrRequeuePeriod,
 	)
@@ -124,13 +130,6 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	shouldCreate := false
 	shouldUpdate := false
 
-	// Get fresh credentials and create auth context for this reconcile
-	creds, err := r.credsManager.GetCredentials()
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("failed to get credentials: %w", err)
-	}
-	r.datadogAuth = datadogclient.GetAuth(creds, r.apiURL)
-
 	if instance.Status.ID == "" {
 		shouldCreate = true
 	} else {
@@ -139,7 +138,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		} else if instance.Status.LastForceSyncTime == nil || (defaultForceSyncPeriod-now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0 {
 			// Periodically force a sync with the API SLO to ensure parity
 			// Get SLO to make sure it exists before trying any updates. If it doesn't, set shouldCreate
-			_, err = r.get(instance)
+			_, err = r.get(datadogAuth, instance)
 			if err != nil {
 				logger.Error(err, "error getting SLO", "SLO ID", instance.Status.ID)
 				if strings.Contains(err.Error(), ctrutils.NotFoundString) {
@@ -164,9 +163,9 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		}
 
 		if shouldCreate {
-			err = r.create(logger, instance, status, now, instanceSpecHash)
+			err = r.create(datadogAuth, logger, instance, status, now, instanceSpecHash)
 		} else if shouldUpdate {
-			err = r.update(logger, instance, status, now, instanceSpecHash)
+			err = r.update(datadogAuth, logger, instance, status, now, instanceSpecHash)
 		}
 
 		if err != nil {
@@ -248,11 +247,11 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, instance *v1alpha1
 	return result, nil
 }
 
-func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogSLO, status *v1alpha1.DatadogSLOStatus, now metav1.Time, hash string) error {
+func (r *Reconciler) create(auth context.Context, logger logr.Logger, instance *v1alpha1.DatadogSLO, status *v1alpha1.DatadogSLOStatus, now metav1.Time, hash string) error {
 	logger.V(1).Info("SLO ID is not set; creating SLO in Datadog")
 
 	// Create SLO in Datadog
-	createdSLO, err := createSLO(r.datadogAuth, r.datadogClient, instance)
+	createdSLO, err := createSLO(auth, r.datadogClient, instance)
 	if err != nil {
 		logger.Error(err, "error creating SLO")
 		updateErrStatus(status, now, v1alpha1.DatadogSLOSyncStatusCreateError, "CreatingSLO", err)
@@ -277,12 +276,12 @@ func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogSLO, s
 	return nil
 }
 
-func (r *Reconciler) get(instance *v1alpha1.DatadogSLO) (*datadogV1.SLOResponseData, error) {
-	return getSLO(r.datadogAuth, r.datadogClient, instance.Status.ID)
+func (r *Reconciler) get(auth context.Context, instance *v1alpha1.DatadogSLO) (*datadogV1.SLOResponseData, error) {
+	return getSLO(auth, r.datadogClient, instance.Status.ID)
 }
 
-func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogSLO, status *v1alpha1.DatadogSLOStatus, now metav1.Time, hash string) error {
-	if _, err := updateSLO(r.datadogAuth, r.datadogClient, instance); err != nil {
+func (r *Reconciler) update(auth context.Context, logger logr.Logger, instance *v1alpha1.DatadogSLO, status *v1alpha1.DatadogSLOStatus, now metav1.Time, hash string) error {
+	if _, err := updateSLO(auth, r.datadogClient, instance); err != nil {
 		logger.Error(err, "error updating SLO", "SLO ID", instance.Status.ID)
 		updateErrStatus(status, now, v1alpha1.DatadogSLOSyncStatusUpdateError, "UpdatingSLO", err)
 		return err
@@ -299,11 +298,11 @@ func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogSLO, s
 	return nil
 }
 
-func (r *Reconciler) deleteResource(logger logr.Logger, instance *v1alpha1.DatadogSLO) finalizer.ResourceDeleteFunc {
+func (r *Reconciler) deleteResource(logger logr.Logger, instance *v1alpha1.DatadogSLO, auth context.Context) finalizer.ResourceDeleteFunc {
 	return func(ctx context.Context, k8sObj client.Object, datadogID string) error {
 		if datadogID != "" {
 			kind := k8sObj.GetObjectKind().GroupVersionKind().Kind
-			httpErrorCode, err := deleteSLO(r.datadogAuth, r.datadogClient, datadogID)
+			httpErrorCode, err := deleteSLO(auth, r.datadogClient, datadogID)
 			if err != nil && httpErrorCode != 404 {
 				return err
 			} else if httpErrorCode == 404 {
