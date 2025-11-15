@@ -47,6 +47,8 @@ type DatadogFeatures struct {
 	// OtelCollector configuration.
 	// +doc-gen:link=https://docs.datadoghq.com/opentelemetry/setup/ddot_collector/install/kubernetes_daemonset/?tab=datadogoperator#overview
 	OtelCollector *OtelCollectorFeatureConfig `json:"otelCollector,omitempty"`
+	// OtelAgentGateway configuration.
+	OtelAgentGateway *OtelAgentGatewayFeatureConfig `json:"otelAgentGateway,omitempty"`
 	// LogCollection configuration.
 	LogCollection *LogCollectionFeatureConfig `json:"logCollection,omitempty"`
 	// LiveProcessCollection configuration.
@@ -1006,6 +1008,27 @@ type OtelCollectorFeatureConfig struct {
 	// OTelCollector Config Relevant to the Core agent
 	// +optional
 	CoreConfig *CoreConfig `json:"coreConfig,omitempty"`
+}
+
+// OtelAgentGatewayFeatureConfig contains the configuration for the OTel Agent Gateway.
+// +k8s:openapi-gen=true
+type OtelAgentGatewayFeatureConfig struct {
+	// Enabled enables the OTel Agent Gateway.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Conf overrides the configuration for the default OTel Agent Gateway.
+	// This must point to a ConfigMap containing a valid OTel collector configuration.
+	// When passing a configmap, file name *must* be otel-gateway-config.yaml.
+	// +optional
+	Conf *CustomConfig `json:"conf,omitempty"`
+
+	// Ports contains the ports that the OTel Collector is listening on.
+	// Defaults: otel-grpc:4317 / otel-http:4318.
+	// +optional
+	// +listType=atomic
+	Ports []*corev1.ContainerPort `json:"ports,omitempty"`
 }
 
 // ControlPlaneMonitoringFeatureConfig contains the configuration for the control plane monitoring.
