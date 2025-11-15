@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"os/signal"
 	"slices"
@@ -46,8 +47,7 @@ import (
 )
 
 const (
-	autoscalingSettingsURL = "https://app.datadoghq.com/orchestration/scaling/settings"
-	karpenterOCIRegistry   = "oci://public.ecr.aws/karpenter/karpenter"
+	karpenterOCIRegistry = "oci://public.ecr.aws/karpenter/karpenter"
 )
 
 var (
@@ -357,6 +357,13 @@ func (o *options) run(cmd *cobra.Command) error {
 			return fmt.Errorf("failed to create or update NodePool %s: %w", np.GetName(), err)
 		}
 	}
+
+	autoscalingSettingsURL := (&url.URL{
+		Scheme:   "https",
+		Host:     "app.datadoghq.com",
+		Path:     "orchestration/scaling/settings",
+		RawQuery: url.Values{"query": []string{"kube_cluster_name:" + clusterName}}.Encode(),
+	}).String()
 
 	browser.Stdout = cmd.OutOrStdout()
 	browser.Stderr = cmd.ErrOrStderr()
