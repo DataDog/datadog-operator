@@ -1,0 +1,120 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  features:
+    apm:
+      hostPortConfig:
+        enabled: true
+      unixDomainSocketConfig:
+        enabled: true
+    clusterChecks:
+      enabled: true
+    dogstatsd:
+      hostPortConfig:
+        enabled: false
+        hostPort: 1234
+      originDetectionEnabled: true
+      unixDomainSocketConfig:
+        enabled: true
+    kubeStateMetricsCore:
+      enabled: true
+    otelCollector:
+      enabled: true
+      ports:
+      - containerPort: 4317
+        name: otel-grpc
+        protocol: TCP
+      - containerPort: 4318
+        name: otel-http
+        protocol: TCP
+    prometheusScrape:
+      additionalConfigs: |
+        - autodiscovery:
+            kubernetes_annotations:
+              exclude:
+                custom_exclude_label: "true"
+              include:
+                custom_include_label: "true"
+            kubernetes_container_names:
+            - my-app
+          configurations:
+          - send_distribution_buckets: true
+            timeout: 5
+    remoteConfiguration:
+      enabled: true
+  global:
+    checksTagCardinality: low
+    clusterName: test
+    credentials:
+      apiKey: testapikey
+      appKey: testappkey
+    kubelet:
+      tlsVerify: false
+    logLevel: debug
+    namespaceLabelsAsTags:
+      env: environment
+    networkPolicy:
+      create: true
+    nodeLabelsAsTags:
+      beta.kubernetes.io/instance-type: aws-instance-type
+    podAnnotationsAsTags:
+      iam.amazonaws.com/role: kube_iamrole
+    podLabelsAsTags:
+      app: kube_app
+    registry: docker.io/datadog
+    tags:
+    - test:tag
+  override:
+    nodeAgent:
+      containers:
+        agent:
+          env:
+          - name: DD_LOG_LEVEL
+            value: warn
+          - name: DD_USE_DOGSTATSD
+            value: "true"
+          - name: DD_EXPVAR_PORT
+            value: "6000"
+          volumeMounts:
+          - mountPath: this/is/a/volume/mount
+            name: example
+            readOnly: true
+        process-agent:
+          volumeMounts:
+          - mountPath: this/is/a/volume/mount
+            name: example
+            readOnly: true
+        security-agent:
+          volumeMounts:
+          - mountPath: this/is/a/volume/mount
+            name: example
+            readOnly: true
+        system-probe:
+          volumeMounts:
+          - mountPath: this/is/a/volume/mount
+            name: example
+            readOnly: true
+        trace-agent:
+          volumeMounts:
+          - mountPath: this/is/a/volume/mount
+            name: example
+            readOnly: true
+      env:
+      - name: DD_KUBERNETES_KUBELET_HOST
+        valueFrom:
+          fieldRef:
+            fieldPath: status.hostIP
+      extraConfd:
+        configDataMap:
+          http_check.yaml: |-
+            init_config:
+            instances:
+              - name: "test"
+                url: "https://google.com"
+      hostPID: true
+      volumes:
+      - hostPath:
+          path: this/is/a/host/path
+        name: example
