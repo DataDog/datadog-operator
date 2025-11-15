@@ -1,7 +1,6 @@
 package helm
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -9,20 +8,21 @@ import (
 
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
+	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
 )
 
-func CreateOrUpgrade(ctx context.Context, ac *action.Configuration, releaseName, namespace string, chartData []byte, values map[string]any) error {
+func CreateOrUpgrade(ctx context.Context, ac *action.Configuration, releaseName, namespace, chartRef, version string, values map[string]any) error {
 	exist, err := doesExist(ctx, ac, releaseName)
 	if err != nil {
 		return err
 	}
 
 	if exist {
-		return upgrade(ctx, ac, releaseName, namespace, chartData, values)
+		return upgrade(ctx, ac, releaseName, namespace, chartRef, version, values)
 	} else {
-		return install(ctx, ac, releaseName, namespace, chartData, values)
+		return install(ctx, ac, releaseName, namespace, chartRef, version, values)
 	}
 }
 
@@ -41,46 +41,72 @@ func doesExist(_ context.Context, ac *action.Configuration, releaseName string) 
 	return true, nil
 }
 
-func install(ctx context.Context, ac *action.Configuration, releaseName, namespace string, chartData []byte, values map[string]any) error {
-	log.Printf("Installing Helm release %s…", releaseName)
+func install(ctx context.Context, ac *action.Configuration, releaseName, namespace, chartRef, version string, values map[string]any) error {
+	if version != "" {
+		log.Printf("Installing Helm release %s from %s (version: %s)…", releaseName, chartRef, version)
+	} else {
+		log.Printf("Installing Helm release %s from %s (latest version)…", releaseName, chartRef)
+	}
 
 	installAction := action.NewInstall(ac)
 	installAction.ReleaseName = releaseName
 	installAction.CreateNamespace = true
 	installAction.Namespace = namespace
+	installAction.ChartPathOptions.Version = version
 
-	chart, err := loader.LoadArchive(bytes.NewReader(chartData))
+	settings := cli.New()
+	settings.SetNamespace(namespace)
+
+	chartPath, err := installAction.ChartPathOptions.LocateChart(chartRef, settings)
 	if err != nil {
-		return fmt.Errorf("failed to load Helm chart: %w", err)
+		return fmt.Errorf("failed to locate chart %s: %w", chartRef, err)
 	}
 
-	_, err = installAction.RunWithContext(ctx, chart, values)
+	chart, err := loader.Load(chartPath)
+	if err != nil {
+		return fmt.Errorf("failed to load Helm chart from %s: %w", chartPath, err)
+	}
+
+	release, err := installAction.RunWithContext(ctx, chart, values)
 	if err != nil {
 		return fmt.Errorf("failed to install Helm release %s: %w", releaseName, err)
 	}
 
-	log.Printf("Installed Helm release %s.", releaseName)
+	log.Printf("Installed Helm release %s.", release.Name)
 
 	return nil
 }
 
-func upgrade(ctx context.Context, ac *action.Configuration, releaseName, namespace string, chartData []byte, values map[string]any) error {
-	log.Printf("Upgrading Helm release %s…", releaseName)
+func upgrade(ctx context.Context, ac *action.Configuration, releaseName, namespace, chartRef, version string, values map[string]any) error {
+	if version != "" {
+		log.Printf("Upgrading Helm release %s from %s (version: %s)…", releaseName, chartRef, version)
+	} else {
+		log.Printf("Upgrading Helm release %s from %s (latest version)…", releaseName, chartRef)
+	}
 
 	upgradeAction := action.NewUpgrade(ac)
 	upgradeAction.Namespace = namespace
+	upgradeAction.ChartPathOptions.Version = version
 
-	chart, err := loader.LoadArchive(bytes.NewReader(chartData))
+	settings := cli.New()
+	settings.SetNamespace(namespace)
+
+	chartPath, err := upgradeAction.ChartPathOptions.LocateChart(chartRef, settings)
 	if err != nil {
-		return fmt.Errorf("failed to load Helm chart: %w", err)
+		return fmt.Errorf("failed to locate chart %s: %w", chartRef, err)
 	}
 
-	_, err = upgradeAction.RunWithContext(ctx, releaseName, chart, values)
+	chart, err := loader.Load(chartPath)
+	if err != nil {
+		return fmt.Errorf("failed to load Helm chart from %s: %w", chartPath, err)
+	}
+
+	release, err := upgradeAction.RunWithContext(ctx, releaseName, chart, values)
 	if err != nil {
 		return fmt.Errorf("failed to upgrade Helm release %s: %w", releaseName, err)
 	}
 
-	log.Printf("Upgraded Helm release %s.", releaseName)
+	log.Printf("Upgraded Helm release %s.", release.Name)
 
 	return nil
 }

@@ -36,6 +36,7 @@ import (
 
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/kube"
+	"helm.sh/helm/v3/pkg/registry"
 
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/aws"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/guess"
@@ -44,17 +45,17 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
 
-const autoscalingSettingsURL = "https://app.datadoghq.com/orchestration/scaling/settings"
+const (
+	autoscalingSettingsURL = "https://app.datadoghq.com/orchestration/scaling/settings"
+	karpenterOCIRegistry   = "oci://public.ecr.aws/karpenter/karpenter"
+)
 
 var (
-	//go:embed assets/cfn/dd-karpenter.yaml
+	//go:embed assets/dd-karpenter.yaml
 	DdKarpenterCfn string
 
-	//go:embed assets/cfn/karpenter.yaml
+	//go:embed assets/karpenter.yaml
 	KarpenterCfn string
-
-	//go:embed assets/charts/karpenter-1.8.2.tgz
-	KarpenterHelmChart []byte
 )
 
 // InferenceMethod defines how to infer EC2NodeClass and NodePool properties
@@ -93,6 +94,7 @@ func (_ *InferenceMethod) Type() string {
 var (
 	clusterName        string
 	karpenterNamespace string
+	karpenterVersion   string
 	inferenceMethod    = InferenceMethodNodeGroups
 	debug              bool
 	installExample     = `
@@ -136,6 +138,7 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 
 	cmd.Flags().StringVar(&clusterName, "cluster-name", "", "Name of the EKS cluster")
 	cmd.Flags().StringVar(&karpenterNamespace, "karpenter-namespace", "dd-karpenter", "Name of the Kubernetes namespace to deploy Karpenter into")
+	cmd.Flags().StringVar(&karpenterVersion, "karpenter-version", "", "Version of Karpenter to install (default to latest)")
 	cmd.Flags().Var(&inferenceMethod, "inference-method", "Method to infer EC2NodeClass and NodePool properties: none, nodes, nodegroups")
 	cmd.Flags().BoolVar(&debug, "debug", false, "Enable debug logs")
 
@@ -166,6 +169,8 @@ func (o *options) validate() error {
 func (o *options) run(cmd *cobra.Command) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	log.SetOutput(cmd.OutOrStderr())
 
 	if clusterName == "" {
 		kubeRawConfig, err := o.ConfigFlags.ToRawKubeConfigLoader().RawConfig()
@@ -264,6 +269,14 @@ func (o *options) run(cmd *cobra.Command) error {
 		return fmt.Errorf("failed to initialize Helm configuration: %w", err)
 	}
 
+	if actionConfig.RegistryClient, err = registry.NewClient(
+		registry.ClientOptDebug(debug),
+		registry.ClientOptEnableCache(true),
+		registry.ClientOptWriter(log.Writer()),
+	); err != nil {
+		return fmt.Errorf("failed to create registry client: %w", err)
+	}
+
 	values := map[string]any{
 		"settings": map[string]any{
 			"clusterName":       clusterName,
@@ -283,7 +296,7 @@ func (o *options) run(cmd *cobra.Command) error {
 		},
 	}
 
-	if err = helm.CreateOrUpgrade(ctx, actionConfig, "karpenter", karpenterNamespace, KarpenterHelmChart, values); err != nil {
+	if err = helm.CreateOrUpgrade(ctx, actionConfig, "karpenter", karpenterNamespace, karpenterOCIRegistry, karpenterVersion, values); err != nil {
 		return fmt.Errorf("failed to create or update Helm release: %w", err)
 	}
 
