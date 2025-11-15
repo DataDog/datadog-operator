@@ -1450,3 +1450,258 @@ func TestParseProfileRequirements(t *testing.T) {
 		})
 	}
 }
+
+func TestApplyProfileToNodes(t *testing.T) {
+	tests := []struct {
+		name                    string
+		profileMeta             metav1.ObjectMeta
+		profileRequirementsSpec []struct {
+			key      string
+			operator selection.Operator
+			values   []string
+		}
+		nodes                        []v1.Node
+		existingProfileAppliedByNode map[string]types.NamespacedName
+		expectedProfileAppliedByNode map[string]types.NamespacedName
+		expectedError                error
+	}{
+		{
+			name: "profile applied to single node",
+			profileMeta: metav1.ObjectMeta{
+				Name:      "profile",
+				Namespace: testNamespace,
+			},
+			profileRequirementsSpec: []struct {
+				key      string
+				operator selection.Operator
+				values   []string
+			}{
+				{key: "os", operator: selection.In, values: []string{"linux"}},
+			},
+			nodes: []v1.Node{
+				createNodeWithLabels("node1", map[string]string{"os": "linux"}),
+			},
+			existingProfileAppliedByNode: map[string]types.NamespacedName{},
+			expectedProfileAppliedByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile"},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "profile applied to multiple nodes",
+			profileMeta: metav1.ObjectMeta{
+				Name:      "profile",
+				Namespace: testNamespace,
+			},
+			profileRequirementsSpec: []struct {
+				key      string
+				operator selection.Operator
+				values   []string
+			}{
+				{key: "os", operator: selection.In, values: []string{"linux"}},
+			},
+			nodes: []v1.Node{
+				createNodeWithLabels("node1", map[string]string{"os": "linux"}),
+				createNodeWithLabels("node2", map[string]string{"os": "windows"}),
+				createNodeWithLabels("node3", map[string]string{"os": "linux"}),
+			},
+			existingProfileAppliedByNode: map[string]types.NamespacedName{},
+			expectedProfileAppliedByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile"},
+				"node3": {Namespace: testNamespace, Name: "profile"},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "conflicting profile",
+			profileMeta: metav1.ObjectMeta{
+				Name:      "new-profile",
+				Namespace: testNamespace,
+			},
+			profileRequirementsSpec: []struct {
+				key      string
+				operator selection.Operator
+				values   []string
+			}{
+				{key: "os", operator: selection.In, values: []string{"linux"}},
+			},
+			nodes: []v1.Node{
+				createNodeWithLabels("node1", map[string]string{"os": "linux"}),
+			},
+			existingProfileAppliedByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "existing-profile"},
+			},
+			expectedProfileAppliedByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "existing-profile"},
+			},
+			expectedError: fmt.Errorf("profile new-profile conflicts with existing profile: default/existing-profile"),
+		},
+		{
+			name: "no matching nodes",
+			profileMeta: metav1.ObjectMeta{
+				Name:      "profile",
+				Namespace: testNamespace,
+			},
+			profileRequirementsSpec: []struct {
+				key      string
+				operator selection.Operator
+				values   []string
+			}{
+				{key: "os", operator: selection.In, values: []string{"linux"}},
+			},
+			nodes: []v1.Node{
+				createNodeWithLabels("node1", map[string]string{"os": "windows"}),
+				createNodeWithLabels("node2", map[string]string{"os": "darwin"}),
+			},
+			existingProfileAppliedByNode: map[string]types.NamespacedName{},
+			expectedProfileAppliedByNode: map[string]types.NamespacedName{},
+			expectedError:                nil,
+		},
+		{
+			name: "empty nodes list",
+			profileMeta: metav1.ObjectMeta{
+				Name:      "profile",
+				Namespace: testNamespace,
+			},
+			profileRequirementsSpec: []struct {
+				key      string
+				operator selection.Operator
+				values   []string
+			}{
+				{key: "os", operator: selection.In, values: []string{"linux"}},
+			},
+			nodes:                        []v1.Node{},
+			existingProfileAppliedByNode: map[string]types.NamespacedName{},
+			expectedProfileAppliedByNode: map[string]types.NamespacedName{},
+			expectedError:                nil,
+		},
+		{
+			name: "nil profile requirements (matches all nodes)",
+			profileMeta: metav1.ObjectMeta{
+				Name:      "profile",
+				Namespace: testNamespace,
+			},
+			profileRequirementsSpec: nil,
+			nodes: []v1.Node{
+				createNodeWithLabels("node1", map[string]string{"os": "linux"}),
+				createNodeWithLabels("node2", map[string]string{"os": "windows"}),
+			},
+			existingProfileAppliedByNode: map[string]types.NamespacedName{},
+			expectedProfileAppliedByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile"},
+				"node2": {Namespace: testNamespace, Name: "profile"},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "empty profile requirements (matches all nodes)",
+			profileMeta: metav1.ObjectMeta{
+				Name:      "profile",
+				Namespace: testNamespace,
+			},
+			profileRequirementsSpec: []struct {
+				key      string
+				operator selection.Operator
+				values   []string
+			}{},
+			nodes: []v1.Node{
+				createNodeWithLabels("node1", map[string]string{"os": "linux"}),
+			},
+			existingProfileAppliedByNode: map[string]types.NamespacedName{},
+			expectedProfileAppliedByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile"},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "multiple nodes, some conflicting profiles",
+			profileMeta: metav1.ObjectMeta{
+				Name:      "profile",
+				Namespace: testNamespace,
+			},
+			profileRequirementsSpec: []struct {
+				key      string
+				operator selection.Operator
+				values   []string
+			}{
+				{key: "os", operator: selection.In, values: []string{"linux"}},
+			},
+			nodes: []v1.Node{
+				createNodeWithLabels("node1", map[string]string{"os": "linux"}),
+				createNodeWithLabels("node2", map[string]string{"os": "linux"}),
+				createNodeWithLabels("node3", map[string]string{"os": "windows"}),
+			},
+			existingProfileAppliedByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "existing-profile"},
+			},
+			expectedProfileAppliedByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "existing-profile"},
+			},
+			expectedError: fmt.Errorf("profile profile conflicts with existing profile: default/existing-profile"),
+		},
+		{
+			name: "multiple requirements",
+			profileMeta: metav1.ObjectMeta{
+				Name:      "profile",
+				Namespace: testNamespace,
+			},
+			profileRequirementsSpec: []struct {
+				key      string
+				operator selection.Operator
+				values   []string
+			}{
+				{key: "os", operator: selection.In, values: []string{"linux"}},
+				{key: "tier", operator: selection.In, values: []string{"production"}},
+				{key: "zone", operator: selection.Exists, values: nil},
+			},
+			nodes: []v1.Node{
+				createNodeWithLabels("node1", map[string]string{"os": "linux", "tier": "production", "zone": "us-east-1"}),
+				createNodeWithLabels("node2", map[string]string{"os": "linux", "tier": "staging"}),
+				createNodeWithLabels("node3", map[string]string{"os": "windows", "tier": "production", "zone": "us-east-1"}),
+			},
+			existingProfileAppliedByNode: map[string]types.NamespacedName{},
+			expectedProfileAppliedByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile"},
+			},
+			expectedError: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			profileRequirements, err := createRequirements(tt.profileRequirementsSpec)
+			assert.NoError(t, err)
+
+			e := ApplyProfileToNodes(tt.profileMeta, profileRequirements, tt.nodes, tt.existingProfileAppliedByNode)
+			assert.Equal(t, e, tt.expectedError)
+			assert.Equal(t, tt.expectedProfileAppliedByNode, tt.existingProfileAppliedByNode)
+		})
+	}
+}
+
+// createRequirements creates multiple label requirements with the given parameters
+func createRequirements(requirements []struct {
+	key      string
+	operator selection.Operator
+	values   []string
+}) ([]*labels.Requirement, error) {
+	result := make([]*labels.Requirement, len(requirements))
+	for i, req := range requirements {
+		labelReq, err := labels.NewRequirement(req.key, req.operator, req.values)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to create requirement for key %s: %v", req.key, err)
+		}
+		result[i] = labelReq
+	}
+	return result, nil
+}
+
+// createNodeWithLabels creates a node with the given name and labels
+func createNodeWithLabels(name string, nodeLabels map[string]string) v1.Node {
+	return v1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   name,
+			Labels: nodeLabels,
+		},
+	}
+}

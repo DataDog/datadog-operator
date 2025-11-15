@@ -39,6 +39,46 @@ const (
 	labelValueMaxLength = 63
 )
 
+// ApplyProfileToNodes applies a profile to nodes based on its label requirements
+// If there is a conflict with an existing profile, it returns an error
+func ApplyProfileToNodes(profile metav1.ObjectMeta, profileRequirements []*labels.Requirement, nodes []v1.Node, profileAppliedByNode map[string]types.NamespacedName) error {
+	for _, node := range nodes {
+		matchesNode := profileMatchesNodeWithRequirements(profileRequirements, node.Labels)
+		if matchesNode {
+			if existingProfile, found := profileAppliedByNode[node.Name]; found {
+				// Conflict. This profile should not be applied.
+				return fmt.Errorf("profile %s conflicts with existing profile: %s", profile.Name, existingProfile.String())
+			}
+
+			profileAppliedByNode[node.Name] = types.NamespacedName{
+				Namespace: profile.Namespace,
+				Name:      profile.Name,
+			}
+		}
+	}
+
+	return nil
+}
+
+// ValidateProfileAndReturnRequirements validates a profile's name and spec and affinity requirements
+func ValidateProfileAndReturnRequirements(profile *v1alpha1.DatadogAgentProfile, ddaiEnabled bool) ([]*labels.Requirement, error) {
+	if err := validateProfile(profile, ddaiEnabled); err != nil {
+		return nil, err
+	}
+	return parseProfileRequirements(profile)
+}
+
+// validateProfile validates a profile's name and spec
+func validateProfile(profile *v1alpha1.DatadogAgentProfile, ddaiEnabled bool) error {
+	if err := validateProfileName(profile.Name); err != nil {
+		return fmt.Errorf("profile name is invalid: %w", err)
+	}
+	if err := v1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec, ddaiEnabled); err != nil {
+		return fmt.Errorf("profile spec is invalid: %w", err)
+	}
+	return nil
+}
+
 // ApplyProfile validates a profile spec and returns a map that maps each
 // node name to the profile that should be applied to it.
 // When create strategy is enabled, the profile is mapped to:
@@ -152,7 +192,7 @@ func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nod
 }
 
 func ApplyDefaultProfile(profilesToApply []v1alpha1.DatadogAgentProfile, profileAppliedByNode map[string]types.NamespacedName, nodes []v1.Node) []v1alpha1.DatadogAgentProfile {
-	profilesToApply = append(profilesToApply, defaultProfile())
+	profilesToApply = append(profilesToApply, DefaultProfile())
 
 	// Apply the default profile to all nodes that don't have a profile applied
 	for _, node := range nodes {
@@ -216,9 +256,8 @@ func DaemonSetName(profileNamespacedName types.NamespacedName, useV3Metadata boo
 	return daemonSetNamePrefix + profileNamespacedName.Namespace + "-" + profileNamespacedName.Name
 }
 
-// defaultProfile returns the default profile, we just need a name to identify
-// it.
-func defaultProfile() v1alpha1.DatadogAgentProfile {
+// DefaultProfile returns the default profile, we just need a name to identify it
+func DefaultProfile() v1alpha1.DatadogAgentProfile {
 	return v1alpha1.DatadogAgentProfile{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "",
