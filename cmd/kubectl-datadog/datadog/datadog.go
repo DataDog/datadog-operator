@@ -10,6 +10,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/agent/agent"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/clusteragent/clusteragent"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/flare"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/get"
@@ -50,6 +51,9 @@ func NewCmd(streams genericclioptions.IOStreams) *cobra.Command {
 
 	// DatadogMetric commands
 	cmd.AddCommand(metrics.New(streams))
+
+	// Autoscaling commands
+	cmd.AddCommand(autoscaling.New(streams))
 
 	o := newOptions(streams)
 	o.configFlags.AddFlags(cmd.Flags())
