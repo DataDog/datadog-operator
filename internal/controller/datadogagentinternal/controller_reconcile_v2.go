@@ -73,15 +73,22 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 		}
 	}
-	// 2. Reconcile each component.
-	// 2.a. Cluster Agent
 
-	result, err = r.reconcileV2ClusterAgent(logger, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus)
+	// 2. Reconcile each component using the component registry
+	params := &ReconcileComponentParams{
+		Logger:             logger,
+		DDAI:               instance,
+		RequiredComponents: requiredComponents,
+		Features:           append(configuredFeatures, enabledFeatures...),
+		ResourceManagers:   resourceManagers,
+		Status:             newStatus,
+		Provider:           "",
+	}
+
+	result, err = r.componentRegistry.ReconcileComponents(ctx, params)
 	if utils.ShouldReturn(result, err) {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	}
-	// Update the status to make it the ClusterAgentReconcileConditionType successful
-	condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.ClusterAgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 
 	// 2.b. Node Agent
 	result, err = r.reconcileV2Agent(logger, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus)
@@ -89,14 +96,6 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	}
 	condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.AgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
-
-	// 2.c. Cluster Checks Runner
-	result, err = r.reconcileV2ClusterChecksRunner(logger, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus)
-	if utils.ShouldReturn(result, err) {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
-	}
-	// Update the status to set ClusterChecksRunnerReconcileConditionType to successful
-	condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.ClusterChecksRunnerReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 
 	// 3. Cleanup extraneous resources.
 	if err = r.cleanupExtraneousResources(ctx, logger, instance, newStatus, resourceManagers); err != nil {
