@@ -22,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
+	"github.com/DataDog/datadog-operator/pkg/certificates"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	pkgutils "github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -176,6 +177,16 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 	}
 	if err = r.overrideDependencies(logger, resourceManagers, instance); err != nil {
+		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
+	}
+
+	// certificate and private key are both stored in a Secret and mounted to all pods.
+	// Agents will use the mounted CA key to self-sign their service certificates at startup.
+	// Make sure secret exists
+	certManager := certificates.NewManager(r.client)
+	err = certManager.GetOrCreateCA(ctx, instance.Namespace)
+	if err != nil {
+		logger.Error(err, "Failed to get or create CA certificate")
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 	}
 

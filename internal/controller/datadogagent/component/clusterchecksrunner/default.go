@@ -59,6 +59,7 @@ func NewDefaultClusterChecksRunnerPodTemplateSpec(dda metav1.Object) *corev1.Pod
 		common.GetVolumeForRmCorechecks(),
 		common.GetVolumeForLogs(),
 		common.GetVolumeForChecksd(),
+		common.GetVolumeForCertificates(),
 
 		// /tmp is needed because some versions of the DCA (at least until
 		// 1.19.0) write to it.
@@ -74,6 +75,7 @@ func NewDefaultClusterChecksRunnerPodTemplateSpec(dda metav1.Object) *corev1.Pod
 		common.GetVolumeMountForInstallInfo(),
 		common.GetVolumeMountForConfig(),
 		common.GetVolumeMountForLogs(),
+		common.GetVolumeMountForCertificates(),
 		common.GetVolumeMountForTmp(),
 		common.GetVolumeMountForRmCorechecks(),
 	}
