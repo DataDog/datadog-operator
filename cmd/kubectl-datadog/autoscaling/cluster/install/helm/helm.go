@@ -1,3 +1,5 @@
+// Package helm provides Helm chart management functionality for installing
+// and upgrading Karpenter releases on Kubernetes clusters.
 package helm
 
 import (

@@ -1,3 +1,5 @@
+// Package k8s provides Kubernetes-specific functionality for creating and managing
+// Karpenter custom resources including EC2NodeClass and NodePool objects.
 package k8s
 
 import (

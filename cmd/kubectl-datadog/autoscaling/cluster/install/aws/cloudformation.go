@@ -1,3 +1,5 @@
+// Package aws provides AWS-specific functionality for managing CloudFormation stacks,
+// IAM configurations, and other AWS resources required for Karpenter installation.
 package aws
 
 import (
@@ -152,7 +154,7 @@ func describeStack(ctx context.Context, client *cloudformation.Client, stackName
 		return err
 	}
 	if len(out.Stacks) == 0 {
-		return errors.New("No stack found")
+		return errors.New("no stack found")
 	}
 
 	stack := out.Stacks[0]

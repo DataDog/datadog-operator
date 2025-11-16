@@ -18,8 +18,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-const NodeListChunkSize = 100
+const nodeListChunkSize = 100
 
+// awsProviderIDRegexp matches the AWS provider ID format for EC2 instances.
+// Format: aws:///ZONE/INSTANCE_ID (e.g., aws:///us-east-1a/i-0abc123def456789)
 var awsProviderIDRegexp = regexp.MustCompile(`^aws:///[^/]+/(i-[0-9a-f]+)$`)
 
 func GetNodesProperties(ctx context.Context, clientset *kubernetes.Clientset, ec2Client *ec2.Client) (*NodePoolsSet, error) {
@@ -28,7 +30,7 @@ func GetNodesProperties(ctx context.Context, clientset *kubernetes.Clientset, ec
 	var cont string
 	for {
 		nodesList, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{
-			Limit:    NodeListChunkSize,
+			Limit:    nodeListChunkSize,
 			Continue: cont,
 		})
 		if err != nil {

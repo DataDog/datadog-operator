@@ -1,3 +1,6 @@
+// Package install provides functionality to install and configure Karpenter
+// autoscaling on EKS clusters, including CloudFormation stack creation,
+// Helm chart deployment, and resource configuration.
 package install
 
 import (
@@ -81,12 +84,17 @@ func (i *InferenceMethod) String() string {
 // Set sets the InferenceMethod value from a string
 func (i *InferenceMethod) Set(s string) error {
 	switch s {
-	case "none", "nodes", "nodegroups":
-		*i = InferenceMethod(s)
-		return nil
+	case "none":
+		*i = InferenceMethodNone
+	case "nodes":
+		*i = InferenceMethodNodes
+	case "nodegroups":
+		*i = InferenceMethodNodeGroups
 	default:
 		return fmt.Errorf("inference-method must be one of none, nodes or nodegroups")
 	}
+
+	return nil
 }
 
 // Type returns the type name for pflag
@@ -379,7 +387,7 @@ func createNodePoolResources(ctx context.Context, cmd *cobra.Command, clients *c
 	case InferenceMethodNodes:
 		nodePoolsSet, err = guess.GetNodesProperties(ctx, clients.k8sClientset, clients.ec2)
 		if err != nil {
-			return fmt.Errorf("failed to gather nodes properies: %w", err)
+			return fmt.Errorf("failed to gather nodes properties: %w", err)
 		}
 
 	case InferenceMethodNodeGroups:

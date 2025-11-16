@@ -1,3 +1,5 @@
+// Package cluster provides CLI commands for managing cluster-level autoscaling features,
+// specifically Karpenter installation and configuration on EKS clusters.
 package cluster
 
 import (

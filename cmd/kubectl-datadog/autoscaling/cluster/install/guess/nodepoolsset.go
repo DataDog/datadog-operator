@@ -1,3 +1,6 @@
+// Package guess provides logic for inferring Karpenter NodePool and EC2NodeClass
+// configurations from existing EKS cluster resources, including node groups and
+// running nodes.
 package guess
 
 import (

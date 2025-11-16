@@ -1,3 +1,5 @@
+// Package autoscaling provides CLI commands for managing Kubernetes autoscaling features,
+// including Karpenter installation and configuration on EKS clusters.
 package autoscaling
 
 import (
