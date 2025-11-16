@@ -94,7 +94,7 @@ func createStack(ctx context.Context, client *cloudformation.Client, stackName s
 		return fmt.Errorf("failed to wait for stack %s creation: %w", stackName, err)
 	}
 
-	log.Printf("Created stack %s with id %s.", stackName, *out.StackId)
+	log.Printf("Created stack %s with id %s.", stackName, aws.ToString(out.StackId))
 
 	return nil
 }
@@ -138,7 +138,7 @@ func updateStack(ctx context.Context, client *cloudformation.Client, stackName s
 		return fmt.Errorf("failed to wait for stack %s update: %w", stackName, err)
 	}
 
-	log.Printf("Updated stack %s with id %s.", stackName, *out.StackId)
+	log.Printf("Updated stack %s with id %s.", stackName, aws.ToString(out.StackId))
 
 	return nil
 }

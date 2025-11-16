@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
@@ -64,21 +65,16 @@ func GetNodeGroupsProperties(ctx context.Context, eksClient *eks.Client, ec2Clie
 			}
 
 			if ng.LaunchTemplate != nil && ng.LaunchTemplate.Id != nil && ng.LaunchTemplate.Version != nil {
-				launchTemplateName := *ng.LaunchTemplate.Id
-				if ltName := ng.LaunchTemplate.Name; ltName != nil {
-					launchTemplateName = *ltName
-				}
-
 				launchTemplate, err := ec2Client.DescribeLaunchTemplateVersions(ctx, &ec2.DescribeLaunchTemplateVersionsInput{
 					LaunchTemplateId: ng.LaunchTemplate.Id,
 					Versions:         []string{*ng.LaunchTemplate.Version},
 				})
 				if err != nil {
-					return nil, fmt.Errorf("failed to describe launch template %s version %s: %w", launchTemplateName, *ng.LaunchTemplate.Version, err)
+					return nil, fmt.Errorf("failed to describe launch template %s version %s: %w", aws.ToString(ng.LaunchTemplate.Name), aws.ToString(ng.LaunchTemplate.Version), err)
 				}
 
 				if len(launchTemplate.LaunchTemplateVersions) != 1 {
-					return nil, fmt.Errorf("couldn’t get launch template %s version %s description", launchTemplateName, *ng.LaunchTemplate.Version)
+					return nil, fmt.Errorf("couldn’t get launch template %s version %s description", aws.ToString(ng.LaunchTemplate.Name), aws.ToString(ng.LaunchTemplate.Version))
 				}
 
 				if imageId := launchTemplate.LaunchTemplateVersions[0].LaunchTemplateData.ImageId; imageId != nil {
