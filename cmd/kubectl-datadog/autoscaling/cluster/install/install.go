@@ -20,6 +20,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
+	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -30,7 +31,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	karpawsv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -173,21 +176,13 @@ func (o *options) run(cmd *cobra.Command) error {
 	log.SetOutput(cmd.OutOrStderr())
 
 	if clusterName == "" {
-		kubeRawConfig, err := o.ConfigFlags.ToRawKubeConfigLoader().RawConfig()
-		if err != nil {
-			return fmt.Errorf("failed to get raw kubeconfig: %w", err)
+		if name, err := o.getClusterNameFromKubeconfig(ctx); err != nil {
+			return err
+		} else if name != "" {
+			clusterName = name
+		} else {
+			return errors.New("cluster name must be specified either via --cluster-name or in the current kubeconfig context")
 		}
-
-		kubeContext := ""
-		if o.ConfigFlags.Context != nil {
-			kubeContext = *o.ConfigFlags.Context
-		}
-
-		clusterName = guess.GetClusterNameFromKubeconfig(ctx, kubeRawConfig, kubeContext)
-	}
-
-	if clusterName == "" {
-		return errors.New("cluster name must be specified either via --cluster-name or in the current kubeconfig context")
 	}
 
 	msg := "Installing Karpenter on cluster " + clusterName + "."
@@ -195,29 +190,89 @@ func (o *options) run(cmd *cobra.Command) error {
 	cmd.Println("│ " + msg + " │")
 	cmd.Println("╰─" + strings.Repeat("─", len(msg)) + "─╯")
 
-	// Get AWS config
+	clients, err := o.buildClients(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to build clients: %w", err)
+	}
+
+	if err = createCloudFormationStacks(ctx, clients, clusterName, karpenterNamespace); err != nil {
+		return err
+	}
+
+	if err = updateAwsAuthConfigMap(ctx, clients, clusterName); err != nil {
+		return err
+	}
+
+	if err = o.installHelmChart(ctx, clusterName, karpenterNamespace, karpenterVersion, debug); err != nil {
+		return err
+	}
+
+	if err = createNodePoolResources(ctx, cmd, clients, clusterName, inferenceMethod, debug); err != nil {
+		return err
+	}
+
+	return displaySuccessMessage(cmd, clusterName)
+}
+
+type clients struct {
+	// AWS clients
+	config         awssdk.Config
+	cloudFormation *cloudformation.Client
+	ec2            *ec2.Client
+	eks            *eks.Client
+	sts            *sts.Client
+
+	// Kubernetes clients
+	k8sClient    client.Client         // controller-runtime client
+	k8sClientset *kubernetes.Clientset // typed Kubernetes client
+}
+
+func (o *options) getClusterNameFromKubeconfig(ctx context.Context) (string, error) {
+	kubeRawConfig, err := o.ConfigFlags.ToRawKubeConfigLoader().RawConfig()
+	if err != nil {
+		return "", fmt.Errorf("failed to get raw kubeconfig: %w", err)
+	}
+
+	kubeContext := ""
+	if o.ConfigFlags.Context != nil {
+		kubeContext = *o.ConfigFlags.Context
+	}
+
+	return guess.GetClusterNameFromKubeconfig(ctx, kubeRawConfig, kubeContext), nil
+}
+
+func (o *options) buildClients(ctx context.Context) (*clients, error) {
+	// Load AWS config
 	awsConfig, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to load AWS config: %w", err)
+		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}
 
-	// Check if the EKS Pod Identity Agent is already installed and unmanaged
-	eksClient := eks.NewFromConfig(awsConfig)
-	isUnmanagedEKSPIAInstalled, err := guess.IsThereUnmanagedEKSPodIdentityAgentInstalled(ctx, eksClient, clusterName)
-	if err != nil {
-		return fmt.Errorf("failed to check if EKS pod identity agent is installed: %w", err)
-	}
+	// Create AWS clients
+	return &clients{
+		config:         awsConfig,
+		cloudFormation: cloudformation.NewFromConfig(awsConfig),
+		ec2:            ec2.NewFromConfig(awsConfig),
+		eks:            eks.NewFromConfig(awsConfig),
+		sts:            sts.NewFromConfig(awsConfig),
+		k8sClient:      o.Client,
+		k8sClientset:   o.Clientset,
+	}, nil
+}
 
-	// Create CloudFormation stacks
-	cloudformationClient := cloudformation.NewFromConfig(awsConfig)
-
-	if err = aws.CreateOrUpdateStack(ctx, cloudformationClient, "dd-karpenter-"+clusterName+"-karpenter", KarpenterCfn, map[string]string{
+func createCloudFormationStacks(ctx context.Context, clients *clients, clusterName string, karpenterNamespace string) error {
+	if err := aws.CreateOrUpdateStack(ctx, clients.cloudFormation, "dd-karpenter-"+clusterName+"-karpenter", KarpenterCfn, map[string]string{
 		"ClusterName": clusterName,
 	}); err != nil {
 		return fmt.Errorf("failed to create or update Cloud Formation stack: %w", err)
 	}
 
-	if err = aws.CreateOrUpdateStack(ctx, cloudformationClient, "dd-karpenter-"+clusterName+"-dd-karpenter", DdKarpenterCfn, map[string]string{
+	isUnmanagedEKSPIAInstalled, err := guess.IsThereUnmanagedEKSPodIdentityAgentInstalled(ctx, clients.eks, clusterName)
+	if err != nil {
+		return fmt.Errorf("failed to check if EKS pod identity agent is installed: %w", err)
+	}
+
+	if err := aws.CreateOrUpdateStack(ctx, clients.cloudFormation, "dd-karpenter-"+clusterName+"-dd-karpenter", DdKarpenterCfn, map[string]string{
 		"ClusterName":            clusterName,
 		"KarpenterNamespace":     karpenterNamespace,
 		"DeployPodIdentityAddon": strconv.FormatBool(!isUnmanagedEKSPIAInstalled),
@@ -225,16 +280,18 @@ func (o *options) run(cmd *cobra.Command) error {
 		return fmt.Errorf("failed to create or update Cloud Formation stack: %w", err)
 	}
 
-	awsAuthConfigMapPresent, err := guess.IsAwsAuthConfigMapPresent(ctx, o.Clientset)
+	return nil
+}
+
+func updateAwsAuthConfigMap(ctx context.Context, clients *clients, clusterName string) error {
+	awsAuthConfigMapPresent, err := guess.IsAwsAuthConfigMapPresent(ctx, clients.k8sClientset)
 	if err != nil {
 		return fmt.Errorf("failed to check if aws-auth ConfigMap is present: %w", err)
 	}
 
 	if awsAuthConfigMapPresent {
 		// Get AWS account ID
-		stsClient := sts.NewFromConfig(awsConfig)
-		var callerIdentity *sts.GetCallerIdentityOutput
-		callerIdentity, err = stsClient.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
+		callerIdentity, err := clients.sts.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
 		if err != nil {
 			return fmt.Errorf("failed to get identity caller: %w", err)
 		}
@@ -244,7 +301,7 @@ func (o *options) run(cmd *cobra.Command) error {
 		accountID := *callerIdentity.Account
 
 		// Add role mapping in the `aws-auth` ConfigMap
-		if err = aws.EnsureAwsAuthRole(ctx, o.Clientset, aws.RoleMapping{
+		if err = aws.EnsureAwsAuthRole(ctx, clients.k8sClientset, aws.RoleMapping{
 			RoleArn:  "arn:aws:iam::" + accountID + ":role/KarpenterNodeRole-" + clusterName,
 			Username: "system:node:{{EC2PrivateDNSName}}",
 			Groups:   []string{"system:bootstrappers", "system:nodes"},
@@ -253,7 +310,10 @@ func (o *options) run(cmd *cobra.Command) error {
 		}
 	}
 
-	// Install Helm chart
+	return nil
+}
+
+func (o *options) installHelmChart(ctx context.Context, clusterName string, karpenterNamespace string, karpenterVersion string, debug bool) error {
 	kubeConfig := ""
 	if o.ConfigFlags.KubeConfig != nil {
 		kubeConfig = *o.ConfigFlags.KubeConfig
@@ -265,10 +325,11 @@ func (o *options) run(cmd *cobra.Command) error {
 	restClientGetter := kube.GetConfig(kubeConfig, kubeContext, karpenterNamespace)
 	actionConfig := new(action.Configuration)
 
-	if err = actionConfig.Init(restClientGetter, karpenterNamespace, os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
+	if err := actionConfig.Init(restClientGetter, karpenterNamespace, os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
 		return fmt.Errorf("failed to initialize Helm configuration: %w", err)
 	}
 
+	var err error
 	if actionConfig.RegistryClient, err = registry.NewClient(
 		registry.ClientOptDebug(debug),
 		registry.ClientOptEnableCache(true),
@@ -300,10 +361,13 @@ func (o *options) run(cmd *cobra.Command) error {
 		return fmt.Errorf("failed to create or update Helm release: %w", err)
 	}
 
-	ec2Client := ec2.NewFromConfig(awsConfig)
+	return nil
+}
 
-	// Create EC2NodeClass and NodePool
+func createNodePoolResources(ctx context.Context, cmd *cobra.Command, clients *clients, clusterName string, inferenceMethod InferenceMethod, debug bool) error {
 	var nodePoolsSet *guess.NodePoolsSet
+	var err error
+
 	switch inferenceMethod {
 	case InferenceMethodNone:
 		cmd.Printf("Karpenter has been successfully installed, but no EC2NodeClass nor NodePool have been created yet. " +
@@ -313,13 +377,13 @@ func (o *options) run(cmd *cobra.Command) error {
 		return nil
 
 	case InferenceMethodNodes:
-		nodePoolsSet, err = guess.GetNodesProperties(ctx, o.Clientset, ec2Client)
+		nodePoolsSet, err = guess.GetNodesProperties(ctx, clients.k8sClientset, clients.ec2)
 		if err != nil {
 			return fmt.Errorf("failed to gather nodes properies: %w", err)
 		}
 
 	case InferenceMethodNodeGroups:
-		nodePoolsSet, err = guess.GetNodeGroupsProperties(ctx, eksClient, ec2Client, clusterName)
+		nodePoolsSet, err = guess.GetNodeGroupsProperties(ctx, clients.eks, clients.ec2, clusterName)
 		if err != nil {
 			return fmt.Errorf("failed to gather node groups properties: %w", err)
 		}
@@ -347,17 +411,21 @@ func (o *options) run(cmd *cobra.Command) error {
 	metav1.AddToGroupVersion(sch, schema.GroupVersion{Group: "karpenter.k8s.aws", Version: "v1"})
 
 	for _, nc := range nodePoolsSet.GetEC2NodeClasses() {
-		if err = k8s.CreateOrUpdateEC2NodeClass(ctx, o.Client, clusterName, nc); err != nil {
+		if err = k8s.CreateOrUpdateEC2NodeClass(ctx, clients.k8sClient, clusterName, nc); err != nil {
 			return fmt.Errorf("failed to create or update EC2NodeClass %s: %w", nc.GetName(), err)
 		}
 	}
 
 	for _, np := range nodePoolsSet.GetNodePools() {
-		if err = k8s.CreateOrUpdateNodePool(ctx, o.Client, np); err != nil {
+		if err = k8s.CreateOrUpdateNodePool(ctx, clients.k8sClient, np); err != nil {
 			return fmt.Errorf("failed to create or update NodePool %s: %w", np.GetName(), err)
 		}
 	}
 
+	return nil
+}
+
+func displaySuccessMessage(cmd *cobra.Command, clusterName string) error {
 	autoscalingSettingsURL := (&url.URL{
 		Scheme:   "https",
 		Host:     "app.datadoghq.com",
@@ -367,24 +435,26 @@ func (o *options) run(cmd *cobra.Command) error {
 
 	browser.Stdout = cmd.OutOrStdout()
 	browser.Stderr = cmd.ErrOrStderr()
-	if err = browser.OpenURL(autoscalingSettingsURL); err != nil {
+	if err := browser.OpenURL(autoscalingSettingsURL); err != nil {
 		log.Printf("Failed to open URL in browser: %v", err)
 	}
 
-	msg2 := []string{
+	lines := []string{
 		"Karpenter is now fully up and running.",
 		"",
 		"Navigate to the Autoscaling settings page",
 		"and select cluster to start generating recommendations:",
 		autoscalingSettingsURL,
 	}
-	msg2Size := slices.Max(lo.Map(msg2, func(s string, _ int) int { return len(s) }))
-	msg2[4] = color.New(color.Bold, color.Underline, color.FgBlue).Sprint(autoscalingSettingsURL)
-	cmd.Println("╭─" + strings.Repeat("─", msg2Size) + "─╮")
-	for _, msg = range msg2 {
-		cmd.Printf("│ %-*s │\n", msg2Size, msg)
+
+	maxLength := slices.Max(lo.Map(lines, func(s string, _ int) int { return len(s) }))
+	lines[4] = color.New(color.Bold, color.Underline, color.FgBlue).Sprint(autoscalingSettingsURL)
+
+	cmd.Println("╭─" + strings.Repeat("─", maxLength) + "─╮")
+	for _, line := range lines {
+		cmd.Printf("│ %-*s │\n", maxLength, line)
 	}
-	cmd.Println("╰─" + strings.Repeat("─", msg2Size) + "─╯")
+	cmd.Println("╰─" + strings.Repeat("─", maxLength) + "─╯")
 
 	return nil
 }
