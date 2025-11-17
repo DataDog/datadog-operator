@@ -86,7 +86,11 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 	// TODO: introspection
 	sendProfileEnabledMetric(r.options.DatadogAgentProfileEnabled)
 	if r.options.DatadogAgentProfileEnabled {
-		profileDDAIs, e := r.applyProfilesToDDAISpec(ctx, logger, ddai, now)
+		appliedProfiles, e := r.reconcileProfiles(ctx)
+		if e != nil {
+			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
+		}
+		profileDDAIs, e := r.applyProfilesToDDAISpec(ddai, appliedProfiles)
 		if e != nil {
 			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
 		}

@@ -25,7 +25,7 @@ import (
 
 func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *v1alpha1.DatadogAgentInternal) (reconcile.Result, error) {
 	reqLogger := r.log.WithValues("datadogagent", pkgutils.GetNamespacedName(instance))
-	reqLogger.Info("Reconciling DatadogAgent")
+	reqLogger.Info("Reconciling DatadogAgentInternal")
 	// var result reconcile.Result
 
 	// TODO: validate the resource
