@@ -16,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/condition"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
 
 const (
@@ -64,6 +65,34 @@ func UpdateProfileStatus(logger logr.Logger, profile *datadoghqv1alpha1.DatadogA
 	}
 
 	profile.Status = newStatus
+}
+
+func GenerateProfileStatusFromConditions(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, now metav1.Time) {
+	if profile == nil {
+		return
+	}
+	newStatus := v1alpha1.DatadogAgentProfileStatus{}
+
+	newStatus.LastUpdate = &now
+	hash, err := comparison.GenerateMD5ForSpec(profile.Spec)
+	if err != nil {
+		logger.Error(err, "couldn't generate hash for profile", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+	}
+	newStatus.CurrentHash = hash
+	inferFromConditions(profile.Status.Conditions, &newStatus)
+	profile.Status = newStatus
+}
+
+// inferFromConditions infers the status of the profile from the conditions
+func inferFromConditions(statusConditions []metav1.Condition, newStatus *v1alpha1.DatadogAgentProfileStatus) {
+	for _, condition := range statusConditions {
+		switch condition.Type {
+		case ValidConditionType:
+			newStatus.Valid = condition.Status
+		case AppliedConditionType:
+			newStatus.Applied = condition.Status
+		}
+	}
 }
 
 // NewDatadogAgentProfileCondition returns a new metav1.Condition instance
