@@ -30,6 +30,7 @@ instances:
 	optionsWithVPA := collectorOptions{enableVPA: true}
 	optionsWithCRD := collectorOptions{enableCRD: true}
 	optionsWithAPIService := collectorOptions{enableAPIService: true}
+	optionsWithControllerRevisions := collectorOptions{enableControllerRevisions: true}
 
 	// Test custom resources
 	optionsWithCustomResources := collectorOptions{
@@ -158,6 +159,17 @@ instances:
 				collectorOpts:            optionsWithAPIService,
 			},
 			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithAPIService)),
+		},
+		{
+			name: "with ControllerRevisions",
+			fields: fields{
+				owner:                    owner,
+				enable:                   true,
+				runInClusterChecksRunner: true,
+				configConfigMapName:      defaultKubeStateMetricsCoreConf,
+				collectorOpts:            optionsWithControllerRevisions,
+			},
+			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithControllerRevisions)),
 		},
 		{
 			name: "with custom resources",

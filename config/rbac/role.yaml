@@ -100,6 +100,13 @@ rules:
 - apiGroups:
   - apps
   resources:
+  - controllerrevisions
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - apps
+  resources:
   - daemonsets
   - deployments
   verbs:
