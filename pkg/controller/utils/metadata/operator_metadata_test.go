@@ -173,7 +173,6 @@ func Test_GetPayload(t *testing.T) {
 	expectedOperatorVersion := "v1.19.0"
 	expectedClusterName := "test-cluster"
 	expectedClusterUID := "test-cluster-uid-12345"
-	expectedHostname := "test-host"
 
 	omf := &OperatorMetadataForwarder{
 		SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, expectedKubernetesVersion, expectedOperatorVersion, config.NewCredentialManager()),
@@ -183,9 +182,6 @@ func Test_GetPayload(t *testing.T) {
 			ResourceCounts: make(map[string]int),
 		},
 	}
-
-	// Set hostname in SharedMetadata to simulate it being populated
-	omf.hostName = expectedHostname
 
 	// Set cluster name in SharedMetadata to simulate it being populated
 	omf.clusterName = expectedClusterName
@@ -207,10 +203,6 @@ func Test_GetPayload(t *testing.T) {
 	}
 
 	// Validate top-level fields
-	if hostname, ok := parsed["hostname"].(string); !ok || hostname != expectedHostname {
-		t.Errorf("GetPayload() hostname = %v, want %v", hostname, expectedHostname)
-	}
-
 	if timestamp, ok := parsed["timestamp"].(float64); !ok || timestamp <= 0 {
 		t.Errorf("GetPayload() timestamp = %v, want positive number", timestamp)
 	}

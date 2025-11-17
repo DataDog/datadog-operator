@@ -56,7 +56,6 @@ type HelmMetadataForwarder struct {
 }
 
 type HelmMetadataPayload struct {
-	Hostname    string       `json:"hostname"`
 	Timestamp   int64        `json:"timestamp"`
 	ClusterID   string       `json:"cluster_id"`
 	ClusterName string       `json:"clustername"`
@@ -147,11 +146,6 @@ func (hmf *HelmMetadataForwarder) Start() {
 	err := hmf.setCredentials()
 	if err != nil {
 		hmf.logger.Error(err, "Could not set credentials; not starting helm metadata forwarder")
-		return
-	}
-
-	if hmf.hostName == "" {
-		hmf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting helm metadata forwarder")
 		return
 	}
 
@@ -287,7 +281,6 @@ func (hmf *HelmMetadataForwarder) buildPayload(release HelmReleaseData, clusterU
 	}
 
 	payload := HelmMetadataPayload{
-		Hostname:    hmf.hostName,
 		Timestamp:   now,
 		ClusterID:   clusterUID,
 		ClusterName: hmf.clusterName,

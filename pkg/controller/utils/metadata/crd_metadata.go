@@ -42,7 +42,6 @@ type CRDMetadataForwarder struct {
 }
 
 type CRDMetadataPayload struct {
-	Hostname    string      `json:"hostname"`
 	Timestamp   int64       `json:"timestamp"`
 	ClusterID   string      `json:"cluster_id"`
 	ClusterName string      `json:"clustername"`
@@ -218,7 +217,6 @@ func (cmf *CRDMetadataForwarder) buildPayload(clusterUID string, crdInstance CRD
 	}
 
 	payload := CRDMetadataPayload{
-		Hostname:    cmf.hostName,
 		Timestamp:   now,
 		ClusterID:   clusterUID,
 		ClusterName: cmf.clusterName,

@@ -38,7 +38,6 @@ type OperatorMetadataForwarder struct {
 }
 
 type OperatorMetadataPayload struct {
-	Hostname    string           `json:"hostname"`
 	Timestamp   int64            `json:"timestamp"`
 	ClusterID   string           `json:"cluster_id"`
 	ClusterName string           `json:"clustername"`
@@ -157,7 +156,6 @@ func (omf *OperatorMetadataForwarder) GetPayload(clusterUID string) []byte {
 	omf.OperatorMetadata.KubernetesVersion = omf.kubernetesVersion
 
 	payload := OperatorMetadataPayload{
-		Hostname:    omf.hostName,
 		Timestamp:   now,
 		ClusterID:   clusterUID,
 		ClusterName: omf.clusterName,
