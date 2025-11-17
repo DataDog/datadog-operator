@@ -36,7 +36,9 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	karpawsv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -250,20 +252,61 @@ func (o *options) getClusterNameFromKubeconfig(ctx context.Context) (string, err
 }
 
 func (o *options) buildClients(ctx context.Context) (*clients, error) {
-	// Load AWS config
 	awsConfig, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}
 
-	// Create AWS clients
+	sch := runtime.NewScheme()
+
+	if err = scheme.AddToScheme(sch); err != nil {
+		return nil, fmt.Errorf("failed to add base scheme: %w", err)
+	}
+
+	sch.AddKnownTypes(
+		schema.GroupVersion{Group: "karpenter.sh", Version: "v1"},
+		&karpv1.NodePool{},
+		&karpv1.NodePoolList{},
+	)
+	metav1.AddToGroupVersion(sch, schema.GroupVersion{Group: "karpenter.sh", Version: "v1"})
+
+	sch.AddKnownTypes(
+		schema.GroupVersion{Group: "karpenter.k8s.aws", Version: "v1"},
+		&karpawsv1.EC2NodeClass{},
+		&karpawsv1.EC2NodeClassList{},
+	)
+	metav1.AddToGroupVersion(sch, schema.GroupVersion{Group: "karpenter.k8s.aws", Version: "v1"})
+
+	restConfig, err := o.ConfigFlags.ToRESTConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get REST config: %w", err)
+	}
+
+	httpClient, err := rest.HTTPClientFor(restConfig)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create http client: %w", err)
+	}
+
+	mapper, err := apiutil.NewDynamicRESTMapper(restConfig, httpClient)
+	if err != nil {
+		return nil, fmt.Errorf("unable to instantiate mapper: %w", err)
+	}
+
+	k8sClient, err := client.New(restConfig, client.Options{
+		Scheme: sch,
+		Mapper: mapper,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Karpenter client: %w", err)
+	}
+
 	return &clients{
 		config:         awsConfig,
 		cloudFormation: cloudformation.NewFromConfig(awsConfig),
 		ec2:            ec2.NewFromConfig(awsConfig),
 		eks:            eks.NewFromConfig(awsConfig),
 		sts:            sts.NewFromConfig(awsConfig),
-		k8sClient:      o.Client,
+		k8sClient:      k8sClient, // o.Client,
 		k8sClientset:   o.Clientset,
 	}, nil
 }
@@ -400,23 +443,6 @@ func createNodePoolResources(ctx context.Context, cmd *cobra.Command, clients *c
 	if debug {
 		cmd.Printf("Creating the following node pools:\n %s\n", spew.Sdump(nodePoolsSet))
 	}
-
-	sch := runtime.NewScheme()
-	if err = scheme.AddToScheme(sch); err != nil {
-		return fmt.Errorf("failed to add runtime scheme: %w", err)
-	}
-	sch.AddKnownTypes(
-		schema.GroupVersion{Group: "karpenter.sh", Version: "v1"},
-		&karpv1.NodePool{},
-		&karpv1.NodePoolList{},
-	)
-	metav1.AddToGroupVersion(sch, schema.GroupVersion{Group: "karpenter.sh", Version: "v1"})
-	sch.AddKnownTypes(
-		schema.GroupVersion{Group: "karpenter.k8s.aws", Version: "v1"},
-		&karpawsv1.EC2NodeClass{},
-		&karpawsv1.EC2NodeClassList{},
-	)
-	metav1.AddToGroupVersion(sch, schema.GroupVersion{Group: "karpenter.k8s.aws", Version: "v1"})
 
 	for _, nc := range nodePoolsSet.GetEC2NodeClasses() {
 		if err = k8s.CreateOrUpdateEC2NodeClass(ctx, clients.k8sClient, clusterName, nc); err != nil {
