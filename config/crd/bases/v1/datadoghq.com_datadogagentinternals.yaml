@@ -1001,6 +1001,52 @@ spec:
                               type: string
                           type: object
                       type: object
+                    appsec:
+                      description: AppSec (Application Security) configuration for proxy auto-injection.
+                      properties:
+                        injector:
+                          description: Injector configures the AppSec proxy auto-injection feature.
+                          properties:
+                            autoDetect:
+                              description: |-
+                                AutoDetect enables auto-detection of supported proxies (Envoy Gateway, Istio).
+                                Default: true
+                              type: boolean
+                            enabled:
+                              description: |-
+                                Enabled enables the AppSec proxy auto-injection feature.
+                                Default: false
+                              type: boolean
+                            processor:
+                              description: Processor configuration for the AppSec processor service.
+                              properties:
+                                address:
+                                  description: Address of the AppSec processor service.
+                                  type: string
+                                port:
+                                  description: |-
+                                    Port of the AppSec processor service.
+                                    Default: 443
+                                  format: int32
+                                  type: integer
+                                service:
+                                  description: Service configuration for the AppSec processor.
+                                  properties:
+                                    name:
+                                      description: Name of the AppSec processor service.
+                                      type: string
+                                    namespace:
+                                      description: Namespace where the AppSec processor is deployed.
+                                      type: string
+                                  type: object
+                              type: object
+                            proxies:
+                              description: 'Proxies is a list of proxy types to inject. Valid values: "envoy-gateway", "istio".'
+                              items:
+                                type: string
+                              type: array
+                          type: object
+                      type: object
                     asm:
                       description: ASM (Application Security Management) configuration.
                       properties:
@@ -8865,6 +8911,52 @@ spec:
                                 path:
                                   description: Path defines the socket path used when enabled.
                                   type: string
+                              type: object
+                          type: object
+                        appsec:
+                          description: AppSec (Application Security) configuration for proxy auto-injection.
+                          properties:
+                            injector:
+                              description: Injector configures the AppSec proxy auto-injection feature.
+                              properties:
+                                autoDetect:
+                                  description: |-
+                                    AutoDetect enables auto-detection of supported proxies (Envoy Gateway, Istio).
+                                    Default: true
+                                  type: boolean
+                                enabled:
+                                  description: |-
+                                    Enabled enables the AppSec proxy auto-injection feature.
+                                    Default: false
+                                  type: boolean
+                                processor:
+                                  description: Processor configuration for the AppSec processor service.
+                                  properties:
+                                    address:
+                                      description: Address of the AppSec processor service.
+                                      type: string
+                                    port:
+                                      description: |-
+                                        Port of the AppSec processor service.
+                                        Default: 443
+                                      format: int32
+                                      type: integer
+                                    service:
+                                      description: Service configuration for the AppSec processor.
+                                      properties:
+                                        name:
+                                          description: Name of the AppSec processor service.
+                                          type: string
+                                        namespace:
+                                          description: Namespace where the AppSec processor is deployed.
+                                          type: string
+                                      type: object
+                                  type: object
+                                proxies:
+                                  description: 'Proxies is a list of proxy types to inject. Valid values: "envoy-gateway", "istio".'
+                                  items:
+                                    type: string
+                                  type: array
                               type: object
                           type: object
                         asm:

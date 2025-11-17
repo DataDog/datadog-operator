@@ -756,6 +756,43 @@ func (builder *DatadogAgentBuilder) WithASMEnabled(threats, sca, iast bool) *Dat
 	return builder
 }
 
+// AppSec
+
+func (builder *DatadogAgentBuilder) WithAppSecEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.AppSec = &v2alpha1.AppSecFeatureConfig{
+		Injector: &v2alpha1.AppSecInjectorConfig{
+			Enabled: apiutils.NewBoolPointer(enabled),
+		},
+	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithAppSecConfig(enabled bool, autoDetect *bool, proxies []string, processorPort *int32, processorAddress, processorServiceName, processorServiceNamespace *string) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.AppSec = &v2alpha1.AppSecFeatureConfig{
+		Injector: &v2alpha1.AppSecInjectorConfig{
+			Enabled:    apiutils.NewBoolPointer(enabled),
+			AutoDetect: autoDetect,
+			Proxies:    proxies,
+		},
+	}
+
+	if processorPort != nil || processorAddress != nil || processorServiceName != nil || processorServiceNamespace != nil {
+		builder.datadogAgent.Spec.Features.AppSec.Injector.Processor = &v2alpha1.AppSecProcessorConfig{
+			Address: processorAddress,
+			Port:    processorPort,
+		}
+
+		if processorServiceName != nil || processorServiceNamespace != nil {
+			builder.datadogAgent.Spec.Features.AppSec.Injector.Processor.Service = &v2alpha1.AppSecProcessorServiceConfig{
+				Name:      processorServiceName,
+				Namespace: processorServiceNamespace,
+			}
+		}
+	}
+
+	return builder
+}
+
 // OTLP
 
 func (builder *DatadogAgentBuilder) initOTLP() {
