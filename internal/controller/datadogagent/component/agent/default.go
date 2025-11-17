@@ -337,9 +337,8 @@ func agentImage() string {
 	return images.GetLatestAgentImage()
 }
 
-func fullAgentImage() string {
-	return images.GetLatestAgentImageWithSuffix(false, false, true)
-
+func ddotCollectorImage() string {
+	return images.GetLatestDdotCollectorImage()
 }
 
 func initContainers(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Container {
@@ -442,7 +441,7 @@ func processAgentContainer(dda metav1.Object) corev1.Container {
 func otelAgentContainer(_ metav1.Object) corev1.Container {
 	return corev1.Container{
 		Name:  string(apicommon.OtelAgent),
-		Image: fullAgentImage(),
+		Image: ddotCollectorImage(),
 		Command: []string{
 			"otel-agent",
 			"--core-config=" + agentCustomConfigVolumePath,

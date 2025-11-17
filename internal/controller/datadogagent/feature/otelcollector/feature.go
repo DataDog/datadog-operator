@@ -22,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 func init() {
@@ -68,6 +69,20 @@ func (o *otelCollectorFeature) ID() feature.IDType {
 }
 
 func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
+	var agentImageName string
+	agentVersion := images.AgentLatestVersion
+	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
+		if nodeAgent.Image != nil {
+			agentImageName = nodeAgent.Image.Name
+			agentVersion = common.GetAgentVersionFromImage(*nodeAgent.Image)
+		}
+	}
+	supportedVersion := utils.IsAboveMinVersion(agentVersion, "7.67.0-0")
+	if !supportedVersion && agentImageName == "" {
+		o.logger.Info("OTel Agent Standalone image requires agent version 7.67.0 or higher. Update the Agent version or use the agent image with -full tag instead.",
+			"current_version", agentVersion)
+	}
+
 	o.owner = dda
 	if ddaSpec.Features.OtelCollector.Conf != nil {
 		o.customConfig = ddaSpec.Features.OtelCollector.Conf
@@ -218,21 +233,6 @@ func (o *otelCollectorFeature) ManageClusterAgent(managers feature.PodTemplateMa
 }
 
 func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	// // Use -full image for all containers
-	image := &images.Image{}
-	for i, container := range managers.PodTemplateSpec().Spec.Containers {
-		image = images.FromString(container.Image).
-			WithFull(true)
-		// Note: if an image tag override is configured, this image tag will be overwritten
-		managers.PodTemplateSpec().Spec.Containers[i].Image = image.ToString()
-	}
-
-	for i, container := range managers.PodTemplateSpec().Spec.InitContainers {
-		image = images.FromString(container.Image).
-			WithFull(true)
-		// Note: if an image tag override is configured, this image tag will be overwritten
-		managers.PodTemplateSpec().Spec.InitContainers[i].Image = image.ToString()
-	}
 
 	var vol corev1.Volume
 	if o.customConfig != nil && o.customConfig.ConfigMap != nil {
