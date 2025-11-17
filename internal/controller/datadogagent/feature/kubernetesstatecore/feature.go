@@ -22,7 +22,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
@@ -96,8 +95,8 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 		// Determine CollectControllerRevisions setting
-		// Default to false, then check version requirements
-		f.collectControllerRevisions = false
+		// Default to true, then check version requirements
+		f.collectControllerRevisions = true
 
 		// This check will only run in the Cluster Checks Runners or Cluster Agent (not the Node Agent)
 		if ddaSpec.Features.ClusterChecks != nil && apiutils.BoolValue(ddaSpec.Features.ClusterChecks.Enabled) && apiutils.BoolValue(ddaSpec.Features.ClusterChecks.UseClusterChecksRunners) {
@@ -119,8 +118,8 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 
 					// ControllerRevisions version check - enable if version supports it
 					fallback := false
-					if utils.IsAboveMinVersion(agentVersion, controllerRevisionsCollectionMinVersion, &fallback) {
-						f.collectControllerRevisions = true
+					if !utils.IsAboveMinVersion(agentVersion, controllerRevisionsCollectionMinVersion, &fallback) {
+						f.collectControllerRevisions = false
 					}
 				}
 			}
@@ -137,27 +136,10 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 
 					// ControllerRevisions version check - enable if version supports it
 					fallback := false
-					if utils.IsAboveMinVersion(agentVersion, controllerRevisionsCollectionMinVersion, &fallback) {
-						f.collectControllerRevisions = true
+					if !utils.IsAboveMinVersion(agentVersion, controllerRevisionsCollectionMinVersion, &fallback) {
+						f.collectControllerRevisions = false
 					}
 				}
-			}
-		}
-
-		// If no override was found, check default version based on deployment mode
-		if !f.collectControllerRevisions {
-			// Determine which default version to check based on deployment mode
-			var defaultVersion string
-			if f.runInClusterChecksRunner {
-				defaultVersion = images.AgentLatestVersion
-			} else {
-				defaultVersion = images.ClusterAgentLatestVersion
-			}
-
-			// Check if default version supports controllerrevisions
-			fallback := false
-			if utils.IsAboveMinVersion(defaultVersion, controllerRevisionsCollectionMinVersion, &fallback) {
-				f.collectControllerRevisions = true
 			}
 		}
 
