@@ -1,0 +1,21 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present Datadog, Inc.
+
+package appsec
+
+import (
+	"fmt"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	appSecRBACPrefix = "appsec"
+)
+
+// GetAppSecRBACResourceName returns the RBAC resources name for AppSec feature
+func GetAppSecRBACResourceName(owner metav1.Object, suffix string) string {
+	return fmt.Sprintf("%s-%s-%s-%s", owner.GetNamespace(), owner.GetName(), appSecRBACPrefix, suffix)
+}
