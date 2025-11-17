@@ -65,6 +65,8 @@ type DatadogFeatures struct {
 	APM *APMFeatureConfig `json:"apm,omitempty"`
 	// ASM (Application Security Management) configuration.
 	ASM *ASMFeatureConfig `json:"asm,omitempty"`
+	// AppSec (Application Security) configuration for proxy auto-injection.
+	AppSec *AppSecFeatureConfig `json:"appsec,omitempty"`
 	// CSPM (Cloud Security Posture Management) configuration.
 	CSPM *CSPMFeatureConfig `json:"cspm,omitempty"`
 	// CWS (Cloud Workload Security) configuration.
@@ -303,6 +305,61 @@ type ASMIASTConfig struct {
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// AppSecFeatureConfig contains Application Security configuration for proxy auto-injection.
+type AppSecFeatureConfig struct {
+	// Injector configures the AppSec proxy auto-injection feature.
+	// +optional
+	Injector *AppSecInjectorConfig `json:"injector,omitempty"`
+}
+
+// AppSecInjectorConfig configures the AppSec proxy auto-injection feature.
+type AppSecInjectorConfig struct {
+	// Enabled enables the AppSec proxy auto-injection feature.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// AutoDetect enables auto-detection of supported proxies (Envoy Gateway, Istio).
+	// Default: true
+	// +optional
+	AutoDetect *bool `json:"autoDetect,omitempty"`
+
+	// Proxies is a list of proxy types to inject. Valid values: "envoy-gateway", "istio".
+	// +optional
+	Proxies []string `json:"proxies,omitempty"`
+
+	// Processor configuration for the AppSec processor service.
+	// +optional
+	Processor *AppSecProcessorConfig `json:"processor,omitempty"`
+}
+
+// AppSecProcessorConfig configures the AppSec processor service.
+type AppSecProcessorConfig struct {
+	// Address of the AppSec processor service.
+	// +optional
+	Address *string `json:"address,omitempty"`
+
+	// Port of the AppSec processor service.
+	// Default: 443
+	// +optional
+	Port *int32 `json:"port,omitempty"`
+
+	// Service configuration for the AppSec processor.
+	// +optional
+	Service *AppSecProcessorServiceConfig `json:"service,omitempty"`
+}
+
+// AppSecProcessorServiceConfig configures the AppSec processor service reference.
+type AppSecProcessorServiceConfig struct {
+	// Name of the AppSec processor service.
+	// +optional
+	Name *string `json:"name,omitempty"`
+
+	// Namespace where the AppSec processor is deployed.
+	// +optional
+	Namespace *string `json:"namespace,omitempty"`
 }
 
 // LogCollectionFeatureConfig contains Logs configuration.
