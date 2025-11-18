@@ -474,7 +474,7 @@ func displaySuccessMessage(cmd *cobra.Command, clusterName string) error {
 	}
 
 	lines := []string{
-		"Karpenter is now fully up and running.",
+		"Datadog cluster autoscaling is now ready to be enabled.",
 		"",
 		"Navigate to the Autoscaling settings page",
 		"and select cluster to start generating recommendations:",
