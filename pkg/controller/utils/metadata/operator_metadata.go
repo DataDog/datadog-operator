@@ -38,10 +38,9 @@ type OperatorMetadataForwarder struct {
 }
 
 type OperatorMetadataPayload struct {
-	Timestamp   int64            `json:"timestamp"`
-	ClusterID   string           `json:"cluster_id"`
-	ClusterName string           `json:"clustername"`
-	Metadata    OperatorMetadata `json:"datadog_operator_metadata"`
+	Timestamp int64            `json:"timestamp"`
+	ClusterID string           `json:"cluster_id"`
+	Metadata  OperatorMetadata `json:"datadog_operator_metadata"`
 }
 
 type OperatorMetadata struct {
@@ -62,7 +61,6 @@ type OperatorMetadata struct {
 	RemoteConfigEnabled           bool           `json:"remote_config_enabled"`
 	IntrospectionEnabled          bool           `json:"introspection_enabled"`
 	ClusterID                     string         `json:"cluster_id"`
-	ClusterName                   string         `json:"cluster_name"`
 	ConfigDDURL                   string         `json:"config_dd_url"`
 	ConfigDDSite                  string         `json:"config_site"`
 	ResourceCounts                map[string]int `json:"resource_count"`
@@ -151,15 +149,13 @@ func (omf *OperatorMetadataForwarder) GetPayload(clusterUID string) []byte {
 	now := time.Now().Unix()
 
 	omf.OperatorMetadata.ClusterID = clusterUID
-	omf.OperatorMetadata.ClusterName = omf.clusterName
 	omf.OperatorMetadata.OperatorVersion = omf.operatorVersion
 	omf.OperatorMetadata.KubernetesVersion = omf.kubernetesVersion
 
 	payload := OperatorMetadataPayload{
-		Timestamp:   now,
-		ClusterID:   clusterUID,
-		ClusterName: omf.clusterName,
-		Metadata:    omf.OperatorMetadata,
+		Timestamp: now,
+		ClusterID: clusterUID,
+		Metadata:  omf.OperatorMetadata,
 	}
 
 	jsonPayload, err := json.Marshal(payload)

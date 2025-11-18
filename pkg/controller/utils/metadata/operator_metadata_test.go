@@ -177,7 +177,6 @@ func Test_GetPayload(t *testing.T) {
 	omf := &OperatorMetadataForwarder{
 		SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, expectedKubernetesVersion, expectedOperatorVersion, config.NewCredentialManager()),
 		OperatorMetadata: OperatorMetadata{
-			ClusterName:    expectedClusterName,
 			IsLeader:       true,
 			ResourceCounts: make(map[string]int),
 		},
@@ -209,10 +208,6 @@ func Test_GetPayload(t *testing.T) {
 
 	if clusterID, ok := parsed["cluster_id"].(string); !ok || clusterID != expectedClusterUID {
 		t.Errorf("GetPayload() cluster_id = %v, want %v", clusterID, expectedClusterUID)
-	}
-
-	if clusterName, ok := parsed["clustername"].(string); !ok || clusterName != expectedClusterName {
-		t.Errorf("GetPayload() cluster_name = %v, want %v", clusterName, expectedClusterName)
 	}
 
 	// Validate metadata object exists

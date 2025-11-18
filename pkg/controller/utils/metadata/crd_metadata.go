@@ -42,19 +42,16 @@ type CRDMetadataForwarder struct {
 }
 
 type CRDMetadataPayload struct {
-	Timestamp   int64       `json:"timestamp"`
-	ClusterID   string      `json:"cluster_id"`
-	ClusterName string      `json:"clustername"`
-	Metadata    CRDMetadata `json:"datadog_operator_crd_metadata"`
+	Timestamp int64       `json:"timestamp"`
+	ClusterID string      `json:"cluster_id"`
+	Metadata  CRDMetadata `json:"datadog_operator_crd_metadata"`
 }
 
 type CRDMetadata struct {
 	// Shared
-	OperatorVersion   string `json:"operator_version"`
-	KubernetesVersion string `json:"kubernetes_version"`
-	ClusterID         string `json:"cluster_id"`
-	ClusterName       string `json:"cluster_name"`
-
+	OperatorVersion    string `json:"operator_version"`
+	KubernetesVersion  string `json:"kubernetes_version"`
+	ClusterID          string `json:"cluster_id"`
 	CRDKind            string `json:"crd_kind"`
 	CRDName            string `json:"crd_name"`
 	CRDNamespace       string `json:"crd_namespace"`
@@ -204,7 +201,6 @@ func (cmf *CRDMetadataForwarder) buildPayload(clusterUID string, crdInstance CRD
 		OperatorVersion:   cmf.operatorVersion,
 		KubernetesVersion: cmf.kubernetesVersion,
 		ClusterID:         clusterUID,
-		ClusterName:       cmf.clusterName,
 
 		CRDKind:            crdInstance.Kind,
 		CRDName:            crdInstance.Name,
@@ -217,10 +213,9 @@ func (cmf *CRDMetadataForwarder) buildPayload(clusterUID string, crdInstance CRD
 	}
 
 	payload := CRDMetadataPayload{
-		Timestamp:   now,
-		ClusterID:   clusterUID,
-		ClusterName: cmf.clusterName,
-		Metadata:    crdMetadata,
+		Timestamp: now,
+		ClusterID: clusterUID,
+		Metadata:  crdMetadata,
 	}
 
 	jsonPayload, err := json.Marshal(payload)
