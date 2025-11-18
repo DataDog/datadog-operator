@@ -2,7 +2,6 @@ package guess
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"maps"
@@ -51,54 +50,52 @@ func GetNodesProperties(ctx context.Context, clientset *kubernetes.Clientset, ec
 			return matches[1], node, true
 		})
 
-		if len(instanceToNode) == 0 {
-			return nil, errors.New("No node not managed by Karpenter found in the cluster")
-		}
-
-		instances, err := ec2Client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
-			InstanceIds: slices.Collect(maps.Keys(instanceToNode)),
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to describe instances: %w", err)
-		}
-
-		imageIds := lo.Uniq(lo.FlatMap(instances.Reservations, func(reservation ec2types.Reservation, _ int) []string {
-			return lo.Map(reservation.Instances, func(instance ec2types.Instance, _ int) string {
-				return *instance.ImageId
+		if len(instanceToNode) != 0 {
+			instances, err := ec2Client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
+				InstanceIds: slices.Collect(maps.Keys(instanceToNode)),
 			})
-		}))
+			if err != nil {
+				return nil, fmt.Errorf("failed to describe instances: %w", err)
+			}
 
-		images, err := ec2Client.DescribeImages(ctx, &ec2.DescribeImagesInput{
-			ImageIds: imageIds,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to describe images: %w", err)
-		}
-		amiIDsToFamily := lo.Associate(images.Images, func(image ec2types.Image) (string, string) {
-			return *image.ImageId, detectAMIFamilyFromImage(*image.Name)
-		})
-
-		for _, reservation := range instances.Reservations {
-			for _, instance := range reservation.Instances {
-				node := instanceToNode[*instance.InstanceId]
-
-				amiFamily := "Custom"
-				if family, ok := amiIDsToFamily[*instance.ImageId]; ok {
-					amiFamily = family
-				}
-
-				nps.Add(NodePoolsSetAddParams{
-					AMIFamily:        amiFamily,
-					AMIID:            *instance.ImageId,
-					SubnetIDs:        []string{*instance.SubnetId},
-					SecurityGroupIDs: lo.Map(instance.SecurityGroups, func(sg ec2types.GroupIdentifier, _ int) string { return *sg.GroupId }),
-					Labels:           node.Labels,
-					Taints:           node.Spec.Taints,
-					Architecture:     convertArchitecture(instance.Architecture),
-					Zones:            extractZones(instance.Placement),
-					InstanceTypes:    []string{string(instance.InstanceType)},
-					CapacityType:     convertInstanceLifecycleType(instance.InstanceLifecycle),
+			imageIds := lo.Uniq(lo.FlatMap(instances.Reservations, func(reservation ec2types.Reservation, _ int) []string {
+				return lo.Map(reservation.Instances, func(instance ec2types.Instance, _ int) string {
+					return *instance.ImageId
 				})
+			}))
+
+			images, err := ec2Client.DescribeImages(ctx, &ec2.DescribeImagesInput{
+				ImageIds: imageIds,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to describe images: %w", err)
+			}
+			amiIDsToFamily := lo.Associate(images.Images, func(image ec2types.Image) (string, string) {
+				return *image.ImageId, detectAMIFamilyFromImage(*image.Name)
+			})
+
+			for _, reservation := range instances.Reservations {
+				for _, instance := range reservation.Instances {
+					node := instanceToNode[*instance.InstanceId]
+
+					amiFamily := "Custom"
+					if family, ok := amiIDsToFamily[*instance.ImageId]; ok {
+						amiFamily = family
+					}
+
+					nps.Add(NodePoolsSetAddParams{
+						AMIFamily:        amiFamily,
+						AMIID:            *instance.ImageId,
+						SubnetIDs:        []string{*instance.SubnetId},
+						SecurityGroupIDs: lo.Map(instance.SecurityGroups, func(sg ec2types.GroupIdentifier, _ int) string { return *sg.GroupId }),
+						Labels:           node.Labels,
+						Taints:           node.Spec.Taints,
+						Architecture:     convertArchitecture(instance.Architecture),
+						Zones:            extractZones(instance.Placement),
+						InstanceTypes:    []string{string(instance.InstanceType)},
+						CapacityType:     convertInstanceLifecycleType(instance.InstanceLifecycle),
+					})
+				}
 			}
 		}
 
