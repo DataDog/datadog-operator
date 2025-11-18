@@ -84,7 +84,10 @@ func GetNodeGroupsProperties(ctx context.Context, eksClient *eks.Client, ec2Clie
 				params.InstanceTypes = append(params.InstanceTypes, string(launchTemplate.LaunchTemplateVersions[0].LaunchTemplateData.InstanceType))
 			}
 
-			if len(params.SecurityGroupIDs) == 0 && cluster.Cluster != nil && cluster.Cluster.ResourcesVpcConfig != nil && cluster.Cluster.ResourcesVpcConfig.VpcId != nil {
+			if len(params.SecurityGroupIDs) == 0 &&
+				cluster.Cluster != nil &&
+				cluster.Cluster.ResourcesVpcConfig != nil &&
+				cluster.Cluster.ResourcesVpcConfig.ClusterSecurityGroupId != nil {
 				params.SecurityGroupIDs = []string{*cluster.Cluster.ResourcesVpcConfig.ClusterSecurityGroupId}
 			}
 
