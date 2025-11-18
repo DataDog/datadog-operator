@@ -26,6 +26,8 @@ var (
 	defaultDDAMap []byte
 )
 
+const defaultDDAMapUrl = "https://raw.githubusercontent.com/DataDog/helm-charts/main/tools/yaml-mapper/mapping_datadog_helm_to_datadogagent_crd.yaml"
+
 // defaultFileHeader Default file header for the mapped DDA custom resource output
 var defaultFileHeader = map[string]interface{}{
 	"apiVersion": "datadoghq.com/v2alpha1",
@@ -91,14 +93,21 @@ func (m *Mapper) loadInputs() (mappingValues chartutil.Values, sourceValues char
 	// If updating mapping:
 	// Use latest datadog chart values.yaml as sourcePath if none provided
 	if config.UpdateMap && sourcePath == "" {
-		tmpSourcePath = utils.FetchLatestValuesFile()
+		tmpSourcePath, err = utils.FetchLatestValues()
+		if err != nil {
+			return nil, nil, err
+		}
 		m.MapConfig.SourcePath = tmpSourcePath
 
 	}
 
 	// Use latest mappingPath if none provided
 	if mappingPath == "" {
-		tmpMappingPath, _ = utils.FetchLatestDDAMapping()
+		tmpFile, _ := os.CreateTemp("", constants.DefaultDDAMappingPath)
+		defer tmpFile.Close()
+
+		// Ignore error so we can fall back on embedded mapping
+		tmpMappingPath, _ = utils.FetchYAMLFile(defaultDDAMapUrl, tmpFile.Name())
 		m.MapConfig.MappingPath = tmpMappingPath
 	}
 
@@ -358,7 +367,10 @@ func flattenValues(sourceValues chartutil.Values, valuesMap map[string]interface
 }
 
 func getDefaultValues() (chartutil.Values, error) {
-	defaultValsPath := utils.FetchLatestValuesFile()
+	defaultValsPath, err := utils.FetchLatestValues()
+	if err != nil {
+		return nil, err
+	}
 	defaultValsFile, err := os.ReadFile(defaultValsPath)
 	if err != nil {
 		return nil, err
