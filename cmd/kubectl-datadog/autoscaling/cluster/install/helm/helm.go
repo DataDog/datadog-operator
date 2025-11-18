@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
 
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
@@ -55,6 +56,9 @@ func install(ctx context.Context, ac *action.Configuration, releaseName, namespa
 	installAction.CreateNamespace = true
 	installAction.Namespace = namespace
 	installAction.ChartPathOptions.Version = version
+	installAction.Wait = true
+	installAction.WaitForJobs = true
+	installAction.Timeout = 30 * time.Minute
 
 	settings := cli.New()
 	settings.SetNamespace(namespace)
@@ -68,6 +72,9 @@ func install(ctx context.Context, ac *action.Configuration, releaseName, namespa
 	if err != nil {
 		return fmt.Errorf("failed to load Helm chart from %s: %w", chartPath, err)
 	}
+
+	ctx, cancel := context.WithTimeout(ctx, installAction.Timeout)
+	defer cancel()
 
 	release, err := installAction.RunWithContext(ctx, chart, values)
 	if err != nil {
@@ -89,6 +96,9 @@ func upgrade(ctx context.Context, ac *action.Configuration, releaseName, namespa
 	upgradeAction := action.NewUpgrade(ac)
 	upgradeAction.Namespace = namespace
 	upgradeAction.ChartPathOptions.Version = version
+	upgradeAction.Wait = true
+	upgradeAction.WaitForJobs = true
+	upgradeAction.Timeout = 30 * time.Minute
 
 	settings := cli.New()
 	settings.SetNamespace(namespace)
@@ -102,6 +112,9 @@ func upgrade(ctx context.Context, ac *action.Configuration, releaseName, namespa
 	if err != nil {
 		return fmt.Errorf("failed to load Helm chart from %s: %w", chartPath, err)
 	}
+
+	ctx, cancel := context.WithTimeout(ctx, upgradeAction.Timeout)
+	defer cancel()
 
 	release, err := upgradeAction.RunWithContext(ctx, releaseName, chart, values)
 	if err != nil {
