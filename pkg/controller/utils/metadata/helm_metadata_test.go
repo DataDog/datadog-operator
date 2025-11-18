@@ -19,8 +19,6 @@ import (
 func Test_HelmMetadataForwarder_getPayload(t *testing.T) {
 	expectedKubernetesVersion := "v1.28.0"
 	expectedOperatorVersion := "v1.19.0"
-	expectedClusterName := "test-cluster"
-	expectedHostname := "test-host"
 	expectedClusterUID := "test-cluster-uid-123"
 	expectedReleaseName := "my-release"
 	expectedNamespace := "default"
@@ -29,10 +27,6 @@ func Test_HelmMetadataForwarder_getPayload(t *testing.T) {
 	expectedAppVersion := "7.50.0"
 
 	hmf := NewHelmMetadataForwarder(zap.New(zap.UseDevMode(true)), nil, expectedKubernetesVersion, expectedOperatorVersion, config.NewCredentialManager())
-
-	// Set required fields
-	hmf.hostName = expectedHostname
-	hmf.clusterName = expectedClusterName
 
 	release := HelmReleaseData{
 		ReleaseName:        expectedReleaseName,
@@ -61,10 +55,6 @@ func Test_HelmMetadataForwarder_getPayload(t *testing.T) {
 	}
 
 	// Validate top-level fields
-	if hostname, ok := parsed["hostname"].(string); !ok || hostname != expectedHostname {
-		t.Errorf("buildPayload() hostname = %v, want %v", hostname, expectedHostname)
-	}
-
 	if timestamp, ok := parsed["timestamp"].(float64); !ok || timestamp <= 0 {
 		t.Errorf("buildPayload() timestamp = %v, want positive number", timestamp)
 	}
@@ -86,10 +76,6 @@ func Test_HelmMetadataForwarder_getPayload(t *testing.T) {
 
 	if clusterID, ok := metadata["cluster_id"].(string); !ok || clusterID != expectedClusterUID {
 		t.Errorf("buildPayload() cluster_id = %v, want %v", clusterID, expectedClusterUID)
-	}
-
-	if clusterName, ok := metadata["cluster_name"].(string); !ok || clusterName != expectedClusterName {
-		t.Errorf("buildPayload() cluster_name = %v, want %v", clusterName, expectedClusterName)
 	}
 
 	if chartName, ok := metadata["chart_name"].(string); !ok || chartName != expectedChartName {

@@ -56,18 +56,15 @@ type HelmMetadataForwarder struct {
 }
 
 type HelmMetadataPayload struct {
-	Hostname    string       `json:"hostname"`
-	Timestamp   int64        `json:"timestamp"`
-	ClusterID   string       `json:"cluster_id"`
-	ClusterName string       `json:"clustername"`
-	Metadata    HelmMetadata `json:"datadog_operator_helm_metadata"`
+	Timestamp int64        `json:"timestamp"`
+	ClusterID string       `json:"cluster_id"`
+	Metadata  HelmMetadata `json:"datadog_operator_helm_metadata"`
 }
 
 type HelmMetadata struct {
 	OperatorVersion           string `json:"operator_version"`
 	KubernetesVersion         string `json:"kubernetes_version"`
 	ClusterID                 string `json:"cluster_id"`
-	ClusterName               string `json:"cluster_name"`
 	ChartName                 string `json:"chart_name"`
 	ChartReleaseName          string `json:"chart_release_name"`
 	ChartAppVersion           string `json:"chart_app_version"`
@@ -147,11 +144,6 @@ func (hmf *HelmMetadataForwarder) Start() {
 	err := hmf.setCredentials()
 	if err != nil {
 		hmf.logger.Error(err, "Could not set credentials; not starting helm metadata forwarder")
-		return
-	}
-
-	if hmf.hostName == "" {
-		hmf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting helm metadata forwarder")
 		return
 	}
 
@@ -275,7 +267,6 @@ func (hmf *HelmMetadataForwarder) buildPayload(release HelmReleaseData, clusterU
 		OperatorVersion:           hmf.operatorVersion,
 		KubernetesVersion:         hmf.kubernetesVersion,
 		ClusterID:                 clusterUID,
-		ClusterName:               hmf.clusterName,
 		ChartName:                 release.ChartName,
 		ChartReleaseName:          release.ReleaseName,
 		ChartAppVersion:           release.AppVersion,
@@ -287,11 +278,9 @@ func (hmf *HelmMetadataForwarder) buildPayload(release HelmReleaseData, clusterU
 	}
 
 	payload := HelmMetadataPayload{
-		Hostname:    hmf.hostName,
-		Timestamp:   now,
-		ClusterID:   clusterUID,
-		ClusterName: hmf.clusterName,
-		Metadata:    helmMetadata,
+		Timestamp: now,
+		ClusterID: clusterUID,
+		Metadata:  helmMetadata,
 	}
 
 	jsonPayload, err := json.Marshal(payload)

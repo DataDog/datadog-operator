@@ -16,7 +16,6 @@ import (
 func Test_CRDBuildPayload(t *testing.T) {
 	expectedKubernetesVersion := "v1.28.0"
 	expectedOperatorVersion := "v1.19.0"
-	expectedClusterName := "test-cluster"
 	expectedClusterUID := "test-cluster-uid-12345"
 	expectedCRDKind := "DatadogAgent"
 	expectedCRDName := "my-datadog-agent"
@@ -36,9 +35,6 @@ func Test_CRDBuildPayload(t *testing.T) {
 			DatadogAgentProfileEnabled:  true,
 		},
 	)
-
-	// Set cluster name in SharedMetadata to simulate it being populated
-	cmf.clusterName = expectedClusterName
 
 	// Set cluster UID in SharedMetadata to simulate it being populated
 	cmf.clusterUID = expectedClusterUID
@@ -92,10 +88,6 @@ func Test_CRDBuildPayload(t *testing.T) {
 		t.Errorf("buildPayload() cluster_id = %v, want %v", clusterID, expectedClusterUID)
 	}
 
-	if clusterName, ok := parsed["clustername"].(string); !ok || clusterName != expectedClusterName {
-		t.Errorf("buildPayload() cluster_name = %v, want %v", clusterName, expectedClusterName)
-	}
-
 	// Validate metadata object exists
 	metadata, ok := parsed["datadog_operator_crd_metadata"].(map[string]interface{})
 	if !ok {
@@ -113,10 +105,6 @@ func Test_CRDBuildPayload(t *testing.T) {
 
 	if clusterID, ok := metadata["cluster_id"].(string); !ok || clusterID != expectedClusterUID {
 		t.Errorf("buildPayload() metadata.cluster_id = %v, want %v", clusterID, expectedClusterUID)
-	}
-
-	if clusterName, ok := metadata["cluster_name"].(string); !ok || clusterName != expectedClusterName {
-		t.Errorf("buildPayload() metadata.cluster_name = %v, want %v", clusterName, expectedClusterName)
 	}
 
 	if crdKind, ok := metadata["crd_kind"].(string); !ok || crdKind != expectedCRDKind {
