@@ -1,6 +1,7 @@
 package otelcollector
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 
@@ -79,7 +80,7 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 	}
 	supportedVersion := utils.IsAboveMinVersion(agentVersion, "7.67.0-0")
 	if !supportedVersion && agentImageName == "" {
-		o.logger.Info("OTel Agent Standalone image requires agent version 7.67.0 or higher. Update the Agent version or use the agent image with -full tag instead.",
+		o.logger.Error(errors.New("Incompatible OTel Agent image"), "OTel Agent Standalone image requires agent version 7.67.0 or higher. Update the Agent version or use the agent image with -full tag instead.",
 			"current_version", agentVersion)
 	}
 
