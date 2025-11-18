@@ -26,6 +26,8 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
+var incompatibleImageErr = errors.New("Incompatible OTel Agent image")
+
 func init() {
 	err := feature.Register(feature.OtelAgentIDType, buildOtelCollectorFeature)
 	if err != nil {
@@ -56,6 +58,8 @@ type otelCollectorFeature struct {
 	forceEnableLocalService bool
 	localServiceName        string
 
+	incompatibleImage bool
+
 	logger logr.Logger
 }
 
@@ -78,10 +82,12 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 			agentVersion = common.GetAgentVersionFromImage(*nodeAgent.Image)
 		}
 	}
-	supportedVersion := utils.IsAboveMinVersion(agentVersion, "7.67.0-0")
+	supportedVersion := utils.IsAboveMinVersion(agentVersion, "7.67.0-0", apiutils.NewBoolPointer(true))
 	if !supportedVersion && agentImageName == "" {
-		o.logger.Error(errors.New("Incompatible OTel Agent image"), "OTel Agent Standalone image requires agent version 7.67.0 or higher. Update the Agent version or use the agent image with -full tag instead.",
+		o.incompatibleImage = true
+		o.logger.Error(incompatibleImageErr, "OTel Agent Standalone image requires agent version 7.67.0 or higher. Update the Agent version or use the agent image with -full tag instead.",
 			"current_version", agentVersion)
+		return feature.RequiredComponents{}
 	}
 
 	o.owner = dda
@@ -161,6 +167,9 @@ func (o *otelCollectorFeature) buildOTelAgentCoreConfigMap() (*corev1.ConfigMap,
 }
 
 func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+	if o.incompatibleImage {
+		return incompatibleImageErr
+	}
 	// check if an otel collector config was provided. If not, use default.
 	if o.customConfig == nil {
 		o.customConfig = &v2alpha1.CustomConfig{}
@@ -234,6 +243,9 @@ func (o *otelCollectorFeature) ManageClusterAgent(managers feature.PodTemplateMa
 }
 
 func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	if o.incompatibleImage {
+		return incompatibleImageErr
+	}
 
 	var vol corev1.Volume
 	if o.customConfig != nil && o.customConfig.ConfigMap != nil {
