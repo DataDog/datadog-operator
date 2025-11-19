@@ -318,3 +318,22 @@ func GetVolumeForSeccomp() corev1.Volume {
 		},
 	}
 }
+
+// GetVolumeForEventSocket returns the volume for the event monitor socket
+func GetVolumeForEventSocket() corev1.Volume {
+	return corev1.Volume{
+		Name: EventSocketVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}
+}
+
+// GetVolumeMountForEventSocket returns the VolumeMount for the event monitor socket
+func GetVolumeMountForEventSocket() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      EventSocketVolumeName,
+		MountPath: EventSocketMountPath,
+		ReadOnly:  false,
+	}
+}
