@@ -115,9 +115,9 @@ func buildPaths(path []string, currentType string, structDefs map[string]*struct
 
 		// Recurse into nested types (unless annotated to stop)
 		shouldRecurse := field.typeName != "" &&
-			!field.annotation.Exclude &&
-			!field.annotation.Truncate &&
-			field.annotation.Link == ""
+						!field.annotation.Exclude &&
+						!field.annotation.Truncate &&
+						field.annotation.Link == ""
 
 		if shouldRecurse {
 			buildPaths(fieldPath, field.typeName, structDefs, annotations)
