@@ -312,6 +312,21 @@ spec:
 `features.orchestratorExplorer.scrubContainers`
 : ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ). Default: true
 
+`features.otelAgentGateway.conf.configData`
+: ConfigData corresponds to the configuration file content.
+
+`features.otelAgentGateway.conf.configMap.items`
+: Maps a ConfigMap data `key` to a file `path` mount.
+
+`features.otelAgentGateway.conf.configMap.name`
+: Is the name of the ConfigMap.
+
+`features.otelAgentGateway.enabled`
+: Enables the OTel Agent Gateway. Default: false
+
+`features.otelAgentGateway.ports`
+: Contains the ports that the OTel Collector is listening on. Defaults: otel-grpc:4317 / otel-http:4318.
+
 `features.otelCollector`
 : OtelCollector configuration. See [link](https://docs.datadoghq.com/opentelemetry/setup/ddot_collector/install/kubernetes_daemonset/?tab=datadogoperator#overview) for more information.
 

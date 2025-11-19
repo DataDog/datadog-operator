@@ -124,3 +124,7 @@ func (p *processDiscoveryFeature) manageNodeAgent(agentContainerName apicommon.A
 func (p *processDiscoveryFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
+
+func (p *processDiscoveryFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}

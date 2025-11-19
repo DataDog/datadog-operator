@@ -45,6 +45,7 @@ const (
 	ClusterRoleBindingResource          = "clusterrolebindings"
 	ClusterRoleResource                 = "clusterroles"
 	ComponentStatusesResource           = "componentstatuses"
+	ControllerRevisionsResource         = "controllerrevisions"
 	ConfigMapsResource                  = "configmaps"
 	CronjobsResource                    = "cronjobs"
 	CustomResourceDefinitionsResource   = "customresourcedefinitions"

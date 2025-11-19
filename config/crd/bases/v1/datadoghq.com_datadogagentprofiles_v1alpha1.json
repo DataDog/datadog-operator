@@ -2088,6 +2088,109 @@
                   },
                   "type": "object"
                 },
+                "otelAgentGateway": {
+                  "additionalProperties": false,
+                  "description": "OtelAgentGateway configuration.",
+                  "properties": {
+                    "conf": {
+                      "additionalProperties": false,
+                      "description": "Conf overrides the configuration for the default OTel Agent Gateway.\nThis must point to a ConfigMap containing a valid OTel collector configuration.\nWhen passing a configmap, file name *must* be otel-gateway-config.yaml.",
+                      "properties": {
+                        "configData": {
+                          "description": "ConfigData corresponds to the configuration file content.",
+                          "type": "string"
+                        },
+                        "configMap": {
+                          "additionalProperties": false,
+                          "description": "ConfigMap references an existing ConfigMap with the configuration file content.",
+                          "properties": {
+                            "items": {
+                              "description": "Items maps a ConfigMap data `key` to a file `path` mount.",
+                              "items": {
+                                "additionalProperties": false,
+                                "description": "Maps a string key to a path within a volume.",
+                                "properties": {
+                                  "key": {
+                                    "description": "key is the key to project.",
+                                    "type": "string"
+                                  },
+                                  "mode": {
+                                    "description": "mode is Optional: mode bits used to set permissions on this file.\nMust be an octal value between 0000 and 0777 or a decimal value between 0 and 511.\nYAML accepts both octal and decimal values, JSON requires decimal values for mode bits.\nIf not specified, the volume defaultMode will be used.\nThis might be in conflict with other options that affect the file\nmode, like fsGroup, and the result can be other mode bits set.",
+                                    "format": "int32",
+                                    "type": "integer"
+                                  },
+                                  "path": {
+                                    "description": "path is the relative path of the file to map the key to.\nMay not be an absolute path.\nMay not contain the path element '..'.\nMay not start with the string '..'.",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "path"
+                                ],
+                                "type": "object"
+                              },
+                              "type": "array",
+                              "x-kubernetes-list-map-keys": [
+                                "key"
+                              ],
+                              "x-kubernetes-list-type": "map"
+                            },
+                            "name": {
+                              "description": "Name is the name of the ConfigMap.",
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "enabled": {
+                      "description": "Enabled enables the OTel Agent Gateway.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "ports": {
+                      "description": "Ports contains the ports that the OTel Collector is listening on.\nDefaults: otel-grpc:4317 / otel-http:4318.",
+                      "items": {
+                        "additionalProperties": false,
+                        "description": "ContainerPort represents a network port in a single container.",
+                        "properties": {
+                          "containerPort": {
+                            "description": "Number of port to expose on the pod's IP address.\nThis must be a valid port number, 0 \u003c x \u003c 65536.",
+                            "format": "int32",
+                            "type": "integer"
+                          },
+                          "hostIP": {
+                            "description": "What host IP to bind the external port to.",
+                            "type": "string"
+                          },
+                          "hostPort": {
+                            "description": "Number of port to expose on the host.\nIf specified, this must be a valid port number, 0 \u003c x \u003c 65536.\nIf HostNetwork is specified, this must match ContainerPort.\nMost containers do not need this.",
+                            "format": "int32",
+                            "type": "integer"
+                          },
+                          "name": {
+                            "description": "If specified, this must be an IANA_SVC_NAME and unique within the pod. Each\nnamed port in a pod must have a unique name. Name for the port that can be\nreferred to by services.",
+                            "type": "string"
+                          },
+                          "protocol": {
+                            "default": "TCP",
+                            "description": "Protocol for port. Must be UDP, TCP, or SCTP.\nDefaults to \"TCP\".",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "containerPort"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array",
+                      "x-kubernetes-list-type": "atomic"
+                    }
+                  },
+                  "type": "object"
+                },
                 "otelCollector": {
                   "additionalProperties": false,
                   "description": "OtelCollector configuration.",
