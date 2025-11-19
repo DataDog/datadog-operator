@@ -20,6 +20,8 @@ spec:
         enabled: true
     kubeStateMetricsCore:
       enabled: true
+    liveProcessCollection:
+      enabled: true
     otelCollector:
       enabled: true
       ports:
@@ -92,6 +94,8 @@ spec:
             name: example
             readOnly: true
         system-probe:
+          securityContext:
+            seccompProfile: localhost/system-probe
           volumeMounts:
           - mountPath: this/is/a/volume/mount
             name: example

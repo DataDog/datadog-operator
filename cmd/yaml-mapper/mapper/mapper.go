@@ -172,6 +172,13 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 	}
 	sort.Strings(mappingKeys)
 
+	// Keep track of visited values source keys that are present in mapping file
+	sourceKeys := flattenValues(sourceValues, map[string]interface{}{}, "")
+	sourceKeysRef := map[string]interface{}{}
+	for k := range sourceKeys {
+		utils.MergeOrSet(sourceKeysRef, k, map[string]interface{}{"visited": false})
+	}
+
 	// Map values.yaml => DDA
 	for _, sourceKey := range mappingKeys {
 		pathVal, _ := sourceValues.PathValue(sourceKey)
@@ -188,6 +195,8 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 				continue
 			}
 		}
+
+		utils.MergeOrSet(sourceKeysRef, sourceKey, map[string]interface{}{"visited": true})
 
 		destKey, _ := mappingValues[sourceKey]
 		if (destKey == "" || destKey == nil) && !apiutils.IsEqualStruct(pathVal, defaultVal) {
@@ -239,6 +248,14 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 			if interim != nil {
 				utils.MergeOrSet(interim, destKey.(string), pathVal)
 			}
+		}
+	}
+
+	// Log warnings for source values keys that aren't present in mapping file.
+	for k, v := range sourceKeysRef {
+		visited, ok := utils.GetPathBool(v, "visited")
+		if ok && !visited {
+			log.Printf("Warning: source value key %s was not found in mapping.", k)
 		}
 	}
 
