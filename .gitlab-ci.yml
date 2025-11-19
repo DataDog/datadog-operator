@@ -98,7 +98,6 @@ generate_code:
 
 build_operator_image_amd64:
   stage: image
-  rules: !reference [.on_build_images]
   tags:
     - "arch:amd64"
   image: $JOB_DOCKER_IMAGE
@@ -115,6 +114,7 @@ build_operator_image_amd64:
 
 build_operator_image_fips_amd64:
   extends: build_operator_image_amd64
+  rules: !reference [.on_build_images]
   variables:
     TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips-amd64
     RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64
@@ -180,6 +180,7 @@ build_operator_check_image_arm64:
 
 build_bundle_image:
   stage: image
+  rules: !reference [.on_build_images]
   tags:
     - "arch:amd64"
   image: $JOB_DOCKER_IMAGE
