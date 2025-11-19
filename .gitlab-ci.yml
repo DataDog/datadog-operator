@@ -180,6 +180,7 @@ build_operator_check_image_arm64:
 
 build_bundle_image:
   stage: image
+  rules: !reference [.on_build_images]
   tags:
     - "arch:amd64"
   image: $JOB_DOCKER_IMAGE
