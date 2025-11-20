@@ -591,6 +591,9 @@ spec:
 `global.useFIPSAgent`
 : UseFIPSAgent enables the FIPS flavor of the Agent. If 'true', the FIPS proxy will always be disabled. Default: 'false'
 
+`global.useVSock`
+: UseVSock allows the use of VSock communication between the Agent and containerized workloads. Default: 'false'
+
 `override`
 : The default configurations of the agents
 
