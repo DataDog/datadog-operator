@@ -22,20 +22,20 @@ import (
 )
 
 func init() {
-	err := feature.Register(feature.AppSecIDType, buildAppSecFeature)
+	err := feature.Register(feature.AppsecIDType, buildAppsecFeature)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func buildAppSecFeature(options *feature.Options) feature.Feature {
-	appSecFeat := &appSecFeature{
+func buildAppsecFeature(options *feature.Options) feature.Feature {
+	appSecFeat := &appsecFeature{
 		rbacSuffix: common.ClusterAgentSuffix,
 	}
 	return appSecFeat
 }
 
-type appSecFeature struct {
+type appsecFeature struct {
 	enabled               bool
 	autoDetect            *bool
 	proxies               []string
@@ -49,15 +49,15 @@ type appSecFeature struct {
 }
 
 // ID returns the ID of the Feature
-func (f *appSecFeature) ID() feature.IDType {
-	return feature.AppSecIDType
+func (f *appsecFeature) ID() feature.IDType {
+	return feature.AppsecIDType
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *appSecFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
+func (f *appsecFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	f.owner = dda
 
-	appSec := ddaSpec.Features.AppSec
+	appSec := ddaSpec.Features.Appsec
 	if appSec == nil || appSec.Injector == nil || !apiutils.BoolValue(appSec.Injector.Enabled) {
 		return feature.RequiredComponents{}
 	}
@@ -92,19 +92,19 @@ func (f *appSecFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAg
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *appSecFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *appsecFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	if !f.enabled {
 		return nil
 	}
 
 	// Manage RBAC permissions
-	rbacName := GetAppSecRBACResourceName(f.owner, f.rbacSuffix)
+	rbacName := GetAppsecRBACResourceName(f.owner, f.rbacSuffix)
 	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules())
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *appSecFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *appsecFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	if !f.enabled {
 		return nil
 	}
@@ -124,11 +124,11 @@ func (f *appSecFeature) ManageClusterAgent(managers feature.PodTemplateManagers,
 		return err
 	}
 
-	// Set auto-detect if specified
-	if f.autoDetect != nil && *f.autoDetect {
+	// Set auto-detect if explicitly specified (default is true in cluster-agent if not set)
+	if f.autoDetect != nil {
 		if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  DDAppsecProxyAutoDetect,
-			Value: "true",
+			Value: apiutils.BoolToString(f.autoDetect),
 		}, merger.IgnoreNewEnvVarMergeFunction); err != nil {
 			return err
 		}
@@ -191,14 +191,14 @@ func (f *appSecFeature) ManageClusterAgent(managers feature.PodTemplateManagers,
 	return nil
 }
 
-func (f *appSecFeature) ManageSingleContainerNodeAgent(_ feature.PodTemplateManagers, _ string) error {
+func (f *appsecFeature) ManageSingleContainerNodeAgent(_ feature.PodTemplateManagers, _ string) error {
 	return nil
 }
 
-func (f *appSecFeature) ManageNodeAgent(_ feature.PodTemplateManagers, _ string) error {
+func (f *appsecFeature) ManageNodeAgent(_ feature.PodTemplateManagers, _ string) error {
 	return nil
 }
 
-func (f *appSecFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers, _ string) error {
+func (f *appsecFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers, _ string) error {
 	return nil
 }

@@ -12,10 +12,10 @@ import (
 )
 
 const (
-	appSecRBACPrefix = "appsec"
+	appsecRBACPrefix = "appsec"
 )
 
-// GetAppSecRBACResourceName returns the RBAC resources name for AppSec feature
-func GetAppSecRBACResourceName(owner metav1.Object, suffix string) string {
-	return fmt.Sprintf("%s-%s-%s-%s", owner.GetNamespace(), owner.GetName(), appSecRBACPrefix, suffix)
+// GetAppsecRBACResourceName returns the RBAC resources name for AppSec feature
+func GetAppsecRBACResourceName(owner metav1.Object, suffix string) string {
+	return fmt.Sprintf("%s-%s-%s-%s", owner.GetNamespace(), owner.GetName(), appsecRBACPrefix, suffix)
 }

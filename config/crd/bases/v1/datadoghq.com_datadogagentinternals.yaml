@@ -1002,10 +1002,10 @@ spec:
                           type: object
                       type: object
                     appsec:
-                      description: AppSec (Application Security) configuration for proxy auto-injection.
+                      description: Appsec (Application Security) configuration for proxy auto-injection.
                       properties:
                         injector:
-                          description: Injector configures the AppSec proxy auto-injection feature.
+                          description: Injector configures the Appsec proxy auto-injection feature.
                           properties:
                             autoDetect:
                               description: |-
@@ -1018,25 +1018,25 @@ spec:
                                 Default: false
                               type: boolean
                             processor:
-                              description: Processor configuration for the AppSec processor service.
+                              description: Processor configuration for the Appsec processor service.
                               properties:
                                 address:
-                                  description: Address of the AppSec processor service.
+                                  description: Address of the Appsec processor service.
                                   type: string
                                 port:
                                   description: |-
-                                    Port of the AppSec processor service.
+                                    Port of the Appsec processor service.
                                     Default: 443
                                   format: int32
                                   type: integer
                                 service:
-                                  description: Service configuration for the AppSec processor.
+                                  description: Service configuration for the Appsec processor.
                                   properties:
                                     name:
-                                      description: Name of the AppSec processor service.
+                                      description: Name of the Appsec processor service.
                                       type: string
                                     namespace:
-                                      description: Namespace where the AppSec processor is deployed.
+                                      description: Namespace where the Appsec processor is deployed.
                                       type: string
                                   type: object
                               type: object
@@ -8914,10 +8914,10 @@ spec:
                               type: object
                           type: object
                         appsec:
-                          description: AppSec (Application Security) configuration for proxy auto-injection.
+                          description: Appsec (Application Security) configuration for proxy auto-injection.
                           properties:
                             injector:
-                              description: Injector configures the AppSec proxy auto-injection feature.
+                              description: Injector configures the Appsec proxy auto-injection feature.
                               properties:
                                 autoDetect:
                                   description: |-
@@ -8930,25 +8930,25 @@ spec:
                                     Default: false
                                   type: boolean
                                 processor:
-                                  description: Processor configuration for the AppSec processor service.
+                                  description: Processor configuration for the Appsec processor service.
                                   properties:
                                     address:
-                                      description: Address of the AppSec processor service.
+                                      description: Address of the Appsec processor service.
                                       type: string
                                     port:
                                       description: |-
-                                        Port of the AppSec processor service.
+                                        Port of the Appsec processor service.
                                         Default: 443
                                       format: int32
                                       type: integer
                                     service:
-                                      description: Service configuration for the AppSec processor.
+                                      description: Service configuration for the Appsec processor.
                                       properties:
                                         name:
-                                          description: Name of the AppSec processor service.
+                                          description: Name of the Appsec processor service.
                                           type: string
                                         namespace:
-                                          description: Namespace where the AppSec processor is deployed.
+                                          description: Namespace where the Appsec processor is deployed.
                                           type: string
                                       type: object
                                   type: object
