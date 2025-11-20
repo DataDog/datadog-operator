@@ -142,7 +142,7 @@ var (
 	clusterName              string
 	karpenterNamespace       string
 	karpenterVersion         string
-	createKarpenterResources = CreateKarpenterResourcesEC2NodeClass
+	createKarpenterResources = CreateKarpenterResourcesAll
 	inferenceMethod          = InferenceMethodNodeGroups
 	debug                    bool
 	installExample           = `
@@ -187,7 +187,7 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd.Flags().StringVar(&clusterName, "cluster-name", "", "Name of the EKS cluster")
 	cmd.Flags().StringVar(&karpenterNamespace, "karpenter-namespace", "dd-karpenter", "Name of the Kubernetes namespace to deploy Karpenter into")
 	cmd.Flags().StringVar(&karpenterVersion, "karpenter-version", "", "Version of Karpenter to install (default to latest)")
-	cmd.Flags().Var(&createKarpenterResources, "create-karpenter-resources", "Which Karpenter resources to create: none, ec2nodeclass, all (default: ec2nodeclass)")
+	cmd.Flags().Var(&createKarpenterResources, "create-karpenter-resources", "Which Karpenter resources to create: none, ec2nodeclass, all (default: all)")
 	cmd.Flags().Var(&inferenceMethod, "inference-method", "Method to infer EC2NodeClass and NodePool properties: nodes, nodegroups")
 	cmd.Flags().BoolVar(&debug, "debug", false, "Enable debug logs")
 
