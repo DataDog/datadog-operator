@@ -40,6 +40,19 @@ func buildSLO(crdSLO *v1alpha1.DatadogSLO) (*datadogV1.ServiceLevelObjectiveRequ
 			sloReq.SetMonitorIds(crdSLO.Spec.MonitorIDs)
 			sloReq.SetGroups(crdSLO.Spec.Groups)
 		}
+		if crdSLO.Spec.Type == v1alpha1.DatadogSLOTypeTimeSlice {
+			// For time-slice SLOs, we need to set the SLI specification
+			// The API might require a different approach for time-slice SLOs
+			// For now, we'll leave this as a placeholder since the exact API structure
+			// for time-slice SLOs in the Datadog API client v2.34.0 needs to be verified
+
+			// TODO: Implement time-slice SLO support once the API structure is confirmed
+			// The fields we need to map are:
+			// - crdSLO.Spec.TimeSliceSpec.TimeSliceCondition.Comparator
+			// - crdSLO.Spec.TimeSliceSpec.TimeSliceCondition.Threshold
+			// - crdSLO.Spec.TimeSliceSpec.Query.Formulas
+			// - crdSLO.Spec.TimeSliceSpec.Query.Queries
+		}
 	}
 
 	// Used for SLO updates
@@ -60,6 +73,19 @@ func buildSLO(crdSLO *v1alpha1.DatadogSLO) (*datadogV1.ServiceLevelObjectiveRequ
 		if crdSLO.Spec.Type == v1alpha1.DatadogSLOTypeMonitor {
 			slo.SetMonitorIds(crdSLO.Spec.MonitorIDs)
 			slo.SetGroups(crdSLO.Spec.Groups)
+		}
+		if crdSLO.Spec.Type == v1alpha1.DatadogSLOTypeTimeSlice {
+			// For time-slice SLOs, we need to set the SLI specification
+			// The API might require a different approach for time-slice SLOs
+			// For now, we'll leave this as a placeholder since the exact API structure
+			// for time-slice SLOs in the Datadog API client v2.34.0 needs to be verified
+
+			// TODO: Implement time-slice SLO support once the API structure is confirmed
+			// The fields we need to map are:
+			// - crdSLO.Spec.TimeSliceSpec.TimeSliceCondition.Comparator
+			// - crdSLO.Spec.TimeSliceSpec.TimeSliceCondition.Threshold
+			// - crdSLO.Spec.TimeSliceSpec.Query.Formulas
+			// - crdSLO.Spec.TimeSliceSpec.Query.Queries
 		}
 	}
 
