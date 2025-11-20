@@ -11,6 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/guess"
+	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 func CreateOrUpdateEC2NodeClass(ctx context.Context, client client.Client, clusterName string, nc guess.EC2NodeClass) error {
@@ -43,6 +44,10 @@ func CreateOrUpdateEC2NodeClass(ctx context.Context, client client.Client, clust
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nc.GetName(),
+			Labels: map[string]string{
+				"app.kubernetes.io/managed-by": "kubectl-datadog",
+				"app.kubernetes.io/version":    version.GetVersion(),
+			},
 		},
 		Spec: karpawsv1.EC2NodeClassSpec{
 			Role:             "KarpenterNodeRole-" + clusterName,

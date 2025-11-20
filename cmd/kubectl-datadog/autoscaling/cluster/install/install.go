@@ -52,6 +52,7 @@ import (
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/helm"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/k8s"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
+	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 const (
@@ -390,6 +391,10 @@ func (o *options) installHelmChart(ctx context.Context, clusterName string, karp
 	}
 
 	values := map[string]any{
+		"additionalLabels": map[string]string{
+			"app.kubernetes.io/managed-by": "kubectl-datadog",
+			"app.kubernetes.io/version":    version.GetVersion(),
+		},
 		"settings": map[string]any{
 			"clusterName":       clusterName,
 			"interruptionQueue": clusterName,
