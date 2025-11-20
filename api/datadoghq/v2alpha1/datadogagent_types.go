@@ -1753,6 +1753,11 @@ type GlobalConfig struct {
 	// Configure the secret backend feature https://docs.datadoghq.com/agent/guide/secrets-management
 	// See also: https://github.com/DataDog/datadog-operator/blob/main/docs/secret_management.md
 	SecretBackend *SecretBackendConfig `json:"secretBackend,omitempty"`
+
+	// UseVSock allows the use of VSock communication between the Agent and containerized workloads.
+	// Default: 'false'
+	// +optional
+	UseVSock *bool `json:"useVSock,omitempty"`
 }
 
 // DatadogCredentials is a generic structure that holds credentials to access Datadog.
