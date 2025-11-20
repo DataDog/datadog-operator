@@ -14,8 +14,8 @@ import (
 
 type SyntheticsAPITestHandler struct{}
 
-func (h *SyntheticsAPITestHandler) createResourcefunc(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	createdTest, err := createSyntheticsAPITest(r.datadogAuth, r.datadogSyntheticsClient, instance)
+func (h *SyntheticsAPITestHandler) createResourcefunc(auth context.Context, r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+	createdTest, err := createSyntheticsAPITest(auth, r.datadogSyntheticsClient, instance)
 	if err != nil {
 		logger.Error(err, "error creating API test")
 		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
@@ -25,22 +25,22 @@ func (h *SyntheticsAPITestHandler) createResourcefunc(r *Reconciler, logger logr
 	return updateStatusFromSyntheticsTest(&createdTest, additionalProperties, status, logger, hash)
 }
 
-func (h *SyntheticsAPITestHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := getSyntheticsTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
+func (h *SyntheticsAPITestHandler) getResourcefunc(auth context.Context, r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
+	_, err := getSyntheticsTest(auth, r.datadogSyntheticsClient, instance.Status.Id)
 	return err
 }
-func (h *SyntheticsAPITestHandler) updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := updateSyntheticsAPITest(r.datadogAuth, r.datadogSyntheticsClient, instance)
+func (h *SyntheticsAPITestHandler) updateResourcefunc(auth context.Context, r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
+	_, err := updateSyntheticsAPITest(auth, r.datadogSyntheticsClient, instance)
 	return err
 }
-func (h *SyntheticsAPITestHandler) deleteResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return deleteSyntheticTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
+func (h *SyntheticsAPITestHandler) deleteResourcefunc(auth context.Context, r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
+	return deleteSyntheticTest(auth, r.datadogSyntheticsClient, instance.Status.Id)
 }
 
 type SyntheticsBrowserTestHandler struct{}
 
-func (h *SyntheticsBrowserTestHandler) createResourcefunc(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	createdTest, err := createSyntheticBrowserTest(r.datadogAuth, r.datadogSyntheticsClient, instance)
+func (h *SyntheticsBrowserTestHandler) createResourcefunc(auth context.Context, r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+	createdTest, err := createSyntheticBrowserTest(auth, r.datadogSyntheticsClient, instance)
 	if err != nil {
 		logger.Error(err, "error creating browser test")
 		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
@@ -50,16 +50,16 @@ func (h *SyntheticsBrowserTestHandler) createResourcefunc(r *Reconciler, logger 
 	return updateStatusFromSyntheticsTest(&createdTest, additionalProperties, status, logger, hash)
 }
 
-func (h *SyntheticsBrowserTestHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := getSyntheticsTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
+func (h *SyntheticsBrowserTestHandler) getResourcefunc(auth context.Context, r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
+	_, err := getSyntheticsTest(auth, r.datadogSyntheticsClient, instance.Status.Id)
 	return err
 }
-func (h *SyntheticsBrowserTestHandler) updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := updateSyntheticsBrowserTest(r.datadogAuth, r.datadogSyntheticsClient, instance)
+func (h *SyntheticsBrowserTestHandler) updateResourcefunc(auth context.Context, r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
+	_, err := updateSyntheticsBrowserTest(auth, r.datadogSyntheticsClient, instance)
 	return err
 }
-func (h *SyntheticsBrowserTestHandler) deleteResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return deleteSyntheticTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
+func (h *SyntheticsBrowserTestHandler) deleteResourcefunc(auth context.Context, r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
+	return deleteSyntheticTest(auth, r.datadogSyntheticsClient, instance.Status.Id)
 }
 
 // Synthetic tests (encompass browser and API tests): get

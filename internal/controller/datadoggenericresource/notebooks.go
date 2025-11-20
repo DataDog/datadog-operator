@@ -13,8 +13,8 @@ import (
 
 type NotebookHandler struct{}
 
-func (h *NotebookHandler) createResourcefunc(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	createdNotebook, err := createNotebook(r.datadogAuth, r.datadogNotebooksClient, instance)
+func (h *NotebookHandler) createResourcefunc(auth context.Context, r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+	createdNotebook, err := createNotebook(auth, r.datadogNotebooksClient, instance)
 	if err != nil {
 		logger.Error(err, "error creating notebook")
 		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
@@ -31,16 +31,16 @@ func (h *NotebookHandler) createResourcefunc(r *Reconciler, logger logr.Logger, 
 	return nil
 }
 
-func (h *NotebookHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := getNotebook(r.datadogAuth, r.datadogNotebooksClient, instance.Status.Id)
+func (h *NotebookHandler) getResourcefunc(auth context.Context, r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
+	_, err := getNotebook(auth, r.datadogNotebooksClient, instance.Status.Id)
 	return err
 }
-func (h *NotebookHandler) updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := updateNotebook(r.datadogAuth, r.datadogNotebooksClient, instance)
+func (h *NotebookHandler) updateResourcefunc(auth context.Context, r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
+	_, err := updateNotebook(auth, r.datadogNotebooksClient, instance)
 	return err
 }
-func (h *NotebookHandler) deleteResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return deleteNotebook(r.datadogAuth, r.datadogNotebooksClient, instance.Status.Id)
+func (h *NotebookHandler) deleteResourcefunc(auth context.Context, r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
+	return deleteNotebook(auth, r.datadogNotebooksClient, instance.Status.Id)
 }
 
 func getNotebook(auth context.Context, client *datadogV1.NotebooksApi, notebookStringID string) (datadogV1.NotebookResponse, error) {
