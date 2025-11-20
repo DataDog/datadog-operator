@@ -103,16 +103,16 @@ spec:
 : Enables the AppSec proxy auto-injection feature. Default: false
 
 `features.appsec.injector.processor.address`
-: Of the AppSec processor service.
+: Of the Appsec processor service.
 
 `features.appsec.injector.processor.port`
-: Of the AppSec processor service. Default: 443
+: Of the Appsec processor service. Default: 443
 
 `features.appsec.injector.processor.service.name`
-: Of the AppSec processor service.
+: Of the Appsec processor service.
 
 `features.appsec.injector.processor.service.namespace`
-: Where the AppSec processor is deployed.
+: Where the Appsec processor is deployed.
 
 `features.appsec.injector.proxies`
 : Is a list of proxy types to inject. Valid values: "envoy-gateway", "istio".

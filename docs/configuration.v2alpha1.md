@@ -71,10 +71,10 @@ spec:
 | features.apm.unixDomainSocketConfig.path | Defines the socket path used when enabled. |
 | features.appsec.injector.autoDetect | AutoDetect enables auto-detection of supported proxies (Envoy Gateway, Istio). Default: true |
 | features.appsec.injector.enabled | Enables the AppSec proxy auto-injection feature. Default: false |
-| features.appsec.injector.processor.address | Of the AppSec processor service. |
-| features.appsec.injector.processor.port | Of the AppSec processor service. Default: 443 |
-| features.appsec.injector.processor.service.name | Of the AppSec processor service. |
-| features.appsec.injector.processor.service.namespace | Where the AppSec processor is deployed. |
+| features.appsec.injector.processor.address | Of the Appsec processor service. |
+| features.appsec.injector.processor.port | Of the Appsec processor service. Default: 443 |
+| features.appsec.injector.processor.service.name | Of the Appsec processor service. |
+| features.appsec.injector.processor.service.namespace | Where the Appsec processor is deployed. |
 | features.appsec.injector.proxies | Is a list of proxy types to inject. Valid values: "envoy-gateway", "istio". |
 | features.asm.iast.enabled | Enables Interactive Application Security Testing (IAST). Default: false |
 | features.asm.sca.enabled | Enables Software Composition Analysis (SCA). Default: false |

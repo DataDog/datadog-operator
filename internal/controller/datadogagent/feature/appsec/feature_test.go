@@ -49,7 +49,7 @@ func assertEnv(envVars ...envVar) *test.ComponentTest {
 	)
 }
 
-func TestAppSecFeature(t *testing.T) {
+func TestAppsecFeature(t *testing.T) {
 	port443 := int32(443)
 	autoDetectTrue := true
 	processorAddress := "processor.example.com"
@@ -58,16 +58,16 @@ func TestAppSecFeature(t *testing.T) {
 
 	test.FeatureTestSuite{
 		{
-			Name: "AppSec not enabled",
+			Name: "Appsec not enabled",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithAppSecEnabled(false).
+				WithAppsecEnabled(false).
 				Build(),
 			WantConfigure: false,
 		},
 		{
-			Name: "AppSec enabled with minimal config",
+			Name: "Appsec enabled with minimal config",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithAppSecEnabled(true).
+				WithAppsecEnabled(true).
 				Build(),
 
 			WantConfigure: true,
@@ -77,9 +77,9 @@ func TestAppSecFeature(t *testing.T) {
 			),
 		},
 		{
-			Name: "AppSec enabled with autoDetect",
+			Name: "Appsec enabled with autoDetect true",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithAppSecConfig(true, &autoDetectTrue, nil, nil, nil, nil, nil).
+				WithAppsecConfig(true, &autoDetectTrue, nil, nil, nil, nil, nil).
 				Build(),
 
 			WantConfigure: true,
@@ -90,9 +90,22 @@ func TestAppSecFeature(t *testing.T) {
 			),
 		},
 		{
-			Name: "AppSec enabled with proxies list",
+			Name: "Appsec enabled with autoDetect false",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithAppSecConfig(true, nil, []string{"envoy-gateway", "istio"}, nil, nil, nil, nil).
+				WithAppsecConfig(true, apiutils.NewBoolPointer(false), nil, nil, nil, nil, nil).
+				Build(),
+
+			WantConfigure: true,
+			ClusterAgent: assertEnv(
+				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
+				envVar{name: DDAppsecProxyAutoDetect, value: "false", present: true},
+			),
+		},
+		{
+			Name: "Appsec enabled with proxies list",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAppsecConfig(true, nil, []string{"envoy-gateway", "istio"}, nil, nil, nil, nil).
 				Build(),
 
 			WantConfigure: true,
@@ -103,9 +116,9 @@ func TestAppSecFeature(t *testing.T) {
 			),
 		},
 		{
-			Name: "AppSec enabled with processor port",
+			Name: "Appsec enabled with processor port",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithAppSecConfig(true, nil, nil, &port443, nil, nil, nil).
+				WithAppsecConfig(true, nil, nil, &port443, nil, nil, nil).
 				Build(),
 
 			WantConfigure: true,
@@ -116,9 +129,9 @@ func TestAppSecFeature(t *testing.T) {
 			),
 		},
 		{
-			Name: "AppSec enabled with processor address",
+			Name: "Appsec enabled with processor address",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithAppSecConfig(true, nil, nil, nil, &processorAddress, nil, nil).
+				WithAppsecConfig(true, nil, nil, nil, &processorAddress, nil, nil).
 				Build(),
 
 			WantConfigure: true,
@@ -129,9 +142,9 @@ func TestAppSecFeature(t *testing.T) {
 			),
 		},
 		{
-			Name: "AppSec enabled with processor service name and namespace",
+			Name: "Appsec enabled with processor service name and namespace",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithAppSecConfig(true, nil, nil, nil, nil, &serviceName, &serviceNamespace).
+				WithAppsecConfig(true, nil, nil, nil, nil, &serviceName, &serviceNamespace).
 				Build(),
 
 			WantConfigure: true,
@@ -143,9 +156,9 @@ func TestAppSecFeature(t *testing.T) {
 			),
 		},
 		{
-			Name: "AppSec enabled with full config",
+			Name: "Appsec enabled with full config",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithAppSecConfig(
+				WithAppsecConfig(
 					true,
 					apiutils.NewBoolPointer(true),
 					[]string{"envoy-gateway", "istio"},
@@ -168,5 +181,5 @@ func TestAppSecFeature(t *testing.T) {
 				envVar{name: DDClusterAgentAppsecInjectorProcessorServiceNamespace, value: "datadog", present: true},
 			),
 		},
-	}.Run(t, buildAppSecFeature)
+	}.Run(t, buildAppsecFeature)
 }
