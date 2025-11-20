@@ -63,8 +63,9 @@ func CreateOrUpdateNodePool(ctx context.Context, client client.Client, np guess.
 		ObjectMeta: metav1.ObjectMeta{
 			Name: np.GetName(),
 			Labels: map[string]string{
-				"app.kubernetes.io/managed-by": "kubectl-datadog",
-				"app.kubernetes.io/version":    version.GetVersion(),
+				"app.kubernetes.io/managed-by":      "kubectl-datadog",
+				"app.kubernetes.io/version":         version.GetVersion(),
+				"autoscaling.datadoghq.com/created": "true",
 			},
 		},
 		Spec: karpv1.NodePoolSpec{

@@ -45,8 +45,9 @@ func CreateOrUpdateEC2NodeClass(ctx context.Context, client client.Client, clust
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nc.GetName(),
 			Labels: map[string]string{
-				"app.kubernetes.io/managed-by": "kubectl-datadog",
-				"app.kubernetes.io/version":    version.GetVersion(),
+				"app.kubernetes.io/managed-by":      "kubectl-datadog",
+				"app.kubernetes.io/version":         version.GetVersion(),
+				"autoscaling.datadoghq.com/created": "true",
 			},
 		},
 		Spec: karpawsv1.EC2NodeClassSpec{
