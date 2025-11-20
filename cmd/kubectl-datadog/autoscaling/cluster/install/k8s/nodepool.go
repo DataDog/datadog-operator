@@ -77,6 +77,15 @@ func CreateOrUpdateNodePool(ctx context.Context, client client.Client, np guess.
 					Taints:       np.GetTaints(),
 				},
 			},
+			Disruption: karpv1.Disruption{
+				Budgets: []karpv1.Budget{
+					{
+						Nodes: "10%",
+					},
+				},
+				ConsolidateAfter:    karpv1.MustParseNillableDuration("5m"),
+				ConsolidationPolicy: karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized,
+			},
 		},
 	})
 }
