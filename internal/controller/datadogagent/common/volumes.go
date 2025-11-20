@@ -57,7 +57,18 @@ func GetVolumeForRmCorechecks() corev1.Volume {
 }
 
 // GetVolumeForAuth return the Volume container authentication information
-func GetVolumeForAuth() corev1.Volume {
+func GetVolumeForAuth(hostPath bool) corev1.Volume {
+	if hostPath {
+		return corev1.Volume{
+			Name: AuthVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: AuthVolumePath,
+				},
+			},
+		}
+	}
+
 	return corev1.Volume{
 		Name: AuthVolumeName,
 		VolumeSource: corev1.VolumeSource{

@@ -49,6 +49,7 @@ type cwsFeature struct {
 	activityDumpEnabled        bool
 	remoteConfigurationEnabled bool
 	directSendFromSystemProbe  bool
+	useVSock                   bool
 
 	owner  metav1.Object
 	logger logr.Logger
@@ -88,6 +89,7 @@ func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			f.customConfigAnnotationValue = hash
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.CWSIDType)
 		}
+		f.useVSock = apiutils.BoolValue(ddaSpec.Global.UseVSock)
 		f.configMapName = constants.GetConfName(dda, f.customConfig, defaultCWSConf)
 
 		if cwsConfig.Network != nil {
@@ -206,9 +208,19 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	}
 	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, enabledEnvVar)
 
+	socketPath := filepath.Join(common.SystemProbeSocketVolumePath, "runtime-security.sock")
+	if f.useVSock {
+		socketPath = "vsock:5020"
+
+		managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, &corev1.EnvVar{
+			Name:  DDRuntimeSecurityConfigEventGRPCServer,
+			Value: "security-agent",
+		})
+	}
+
 	runtimeSocketEnvVar := &corev1.EnvVar{
 		Name:  DDRuntimeSecurityConfigSocket,
-		Value: filepath.Join(common.SystemProbeSocketVolumePath, "runtime-security.sock"),
+		Value: socketPath,
 	}
 	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, runtimeSocketEnvVar)
 

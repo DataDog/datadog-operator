@@ -261,6 +261,20 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	if !*config.UseFIPSAgent && config.FIPS != nil && apiutils.BoolValue(config.FIPS.Enabled) {
 		applyFIPSConfig(logger, manager, ddaMeta, ddaSpec, resourcesManager)
 	}
+
+	// Enable VSock communication between the Agent and containerized workloads if specified
+	if config.UseVSock != nil && *config.UseVSock {
+		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  DDVSockAddr,
+			Value: "host",
+		})
+
+		// Remote agent doesn't work with vsock yet
+		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  DDRemoteAgentRegistryEnabled,
+			Value: "false",
+		})
+	}
 }
 
 func updateContainerImages(config *v2alpha1.GlobalConfig, podTemplateManager feature.PodTemplateManagers) {
