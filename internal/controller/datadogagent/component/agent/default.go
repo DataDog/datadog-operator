@@ -439,7 +439,7 @@ func processAgentContainer(dda metav1.Object) corev1.Container {
 	}
 }
 
-func otelAgentContainer(_ metav1.Object) corev1.Container {
+func otelAgentContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
 		Name:  string(apicommon.OtelAgent),
 		Image: fullAgentImage(),
@@ -448,7 +448,7 @@ func otelAgentContainer(_ metav1.Object) corev1.Container {
 			"--core-config=" + agentCustomConfigVolumePath,
 			"--sync-delay=30s",
 		},
-		Env:          []corev1.EnvVar{},
+		Env: commonEnvVars(dda),
 		VolumeMounts: volumeMountsForOtelAgent(),
 		// todo(mackjmr): remove once support for annotations is removed.
 		// the otel-agent feature adds these ports if none are supplied by
@@ -750,6 +750,8 @@ func volumeMountsForSystemProbe() []corev1.VolumeMount {
 		common.GetVolumeMountForLogs(),
 		common.GetVolumeMountForAuth(true),
 		common.GetVolumeMountForConfig(),
+		common.GetVolumeMountForDogstatsdSocket(false),
+		common.GetVolumeMountForProc(),
 	}
 }
 
