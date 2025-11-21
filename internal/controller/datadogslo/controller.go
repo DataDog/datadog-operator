@@ -284,6 +284,9 @@ func (r *Reconciler) get(instance *v1alpha1.DatadogSLO) (*datadogV1.SLOResponseD
 }
 
 func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogSLO, status *v1alpha1.DatadogSLOStatus, now metav1.Time, hash string) error {
+	// Update hash to reflect the spec we're attempting to sync (whether it succeeds or fails)
+	status.CurrentHash = hash
+
 	if _, err := updateSLO(r.datadogAuth, r.datadogClient, instance); err != nil {
 		logger.Error(err, "error updating SLO", "SLO ID", instance.Status.ID)
 		updateErrStatus(status, now, v1alpha1.DatadogSLOSyncStatusUpdateError, "UpdatingSLO", err)
@@ -294,7 +297,6 @@ func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogSLO, s
 	// Set condition and status
 	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeUpdated, metav1.ConditionTrue, "UpdatingSLO", "DatadogSLO Updated")
 	status.SyncStatus = v1alpha1.DatadogSLOSyncStatusOK
-	status.CurrentHash = hash
 	status.LastForceSyncTime = &now
 
 	logger.Info("Updated DatadogSLO", "SLO ID", instance.Status.ID)
