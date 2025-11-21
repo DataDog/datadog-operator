@@ -177,6 +177,8 @@ func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogGeneri
 	if err != nil {
 		logger.Error(err, "error updating generic resource", "generic resource Id", instance.Status.Id)
 		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusUpdateError, "UpdatingGenericResource", err)
+		// Update hash to reflect the spec that was attempted to be updated instead of letting the previous hash remain
+		status.CurrentHash = hash
 		return err
 	}
 

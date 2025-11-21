@@ -197,6 +197,8 @@ func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogDashbo
 	if _, err := updateDashboard(r.datadogAuth, logger, r.datadogClient, instance); err != nil {
 		logger.Error(err, "error updating Dashboard", "Dashboard ID", instance.Status.ID)
 		updateErrStatus(status, now, v1alpha1.DatadogDashboardSyncStatusUpdateError, "UpdatingDasboard", err)
+		// Update hash to reflect the spec that was attempted to be updated instead of letting the previous hash remain
+		status.CurrentHash = hash
 		return err
 	}
 

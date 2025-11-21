@@ -287,6 +287,8 @@ func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogSLO, s
 	if _, err := updateSLO(r.datadogAuth, r.datadogClient, instance); err != nil {
 		logger.Error(err, "error updating SLO", "SLO ID", instance.Status.ID)
 		updateErrStatus(status, now, v1alpha1.DatadogSLOSyncStatusUpdateError, "UpdatingSLO", err)
+		// Update hash to reflect the spec that was attempted to be updated instead of letting the previous hash remain
+		status.CurrentHash = hash
 		return err
 	}
 	r.recordEvent(instance, buildEventInfo(instance.Name, instance.Namespace, datadog.UpdateEvent))
