@@ -194,11 +194,12 @@ func (r *Reconciler) get(instance *v1alpha1.DatadogDashboard) (datadogV1.Dashboa
 }
 
 func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogDashboard, status *v1alpha1.DatadogDashboardStatus, now metav1.Time, hash string) error {
+	// Update hash to reflect the spec we're attempting to sync (whether it succeeds or fails)
+	status.CurrentHash = hash
+
 	if _, err := updateDashboard(r.datadogAuth, logger, r.datadogClient, instance); err != nil {
 		logger.Error(err, "error updating Dashboard", "Dashboard ID", instance.Status.ID)
 		updateErrStatus(status, now, v1alpha1.DatadogDashboardSyncStatusUpdateError, "UpdatingDasboard", err)
-		// Update hash to reflect the spec that was attempted to be updated instead of letting the previous hash remain
-		status.CurrentHash = hash
 		return err
 	}
 
@@ -208,7 +209,6 @@ func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogDashbo
 	// Set condition and status
 	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeUpdated, metav1.ConditionTrue, "UpdatingDashboard", "DatadogDashboard Update")
 	status.SyncStatus = v1alpha1.DatadogDashboardSyncStatusOK
-	status.CurrentHash = hash
 	status.LastForceSyncTime = &now
 
 	logger.Info("Updated DatadogDashboard", "Dashboard ID", instance.Status.ID)
