@@ -296,6 +296,7 @@ e2e:
 e2e_mq:
   extends: e2e
   timeout: 40m
+  retry: 0
   rules:
     # Skip if only .md files are changed
     - if: $CI_COMMIT_BRANCH
