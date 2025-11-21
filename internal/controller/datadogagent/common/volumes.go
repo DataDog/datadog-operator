@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/DataDog/datadog-operator/pkg/certificates"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
@@ -201,11 +202,14 @@ func GetVolumeMountForTmp() corev1.VolumeMount {
 }
 
 // GetVolumeForCertificates return the Volume use to store certificates
+// Mounts certificate authority secret containing both tls.crt and tls.key
 func GetVolumeForCertificates() corev1.Volume {
 	return corev1.Volume{
 		Name: CertificatesVolumeName,
 		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{},
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: certificates.CASecretName,
+			},
 		},
 	}
 }
