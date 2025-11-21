@@ -412,6 +412,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 					SupportCilium: false,
 				},
 			}
+			r.initializeComponentRegistry()
 
 			var dda *v2alpha1.DatadogAgent
 			if tt.loadFunc != nil {
@@ -534,6 +535,7 @@ func Test_Introspection(t *testing.T) {
 					IntrospectionEnabled: true,
 				},
 			}
+			r.initializeComponentRegistry()
 
 			var dda *v2alpha1.DatadogAgent
 			if tt.loadFunc != nil {
@@ -721,6 +723,7 @@ func Test_otelImageTags(t *testing.T) {
 					SupportCilium: false,
 				},
 			}
+			r.initializeComponentRegistry()
 
 			client.Create(context.TODO(), tt.dda)
 
@@ -918,6 +921,7 @@ func Test_AutopilotOverrides(t *testing.T) {
 			rec := broadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{})
 			fakeClient := fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build()
 			r := &Reconciler{client: fakeClient, scheme: s, recorder: rec}
+			r.initializeComponentRegistry()
 
 			var dda *v2alpha1.DatadogAgent
 			if tt.loadFunc != nil {
@@ -1137,6 +1141,7 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 					IntrospectionEnabled: true,
 				},
 			}
+			r.initializeComponentRegistry()
 
 			var dda *v2alpha1.DatadogAgent
 			if tt.loadFunc != nil {
@@ -1630,6 +1635,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 					DatadogAgentProfileEnabled:  tt.profilesEnabled,
 				},
 			}
+			r.initializeComponentRegistry()
 
 			var dda *v2alpha1.DatadogAgent
 			if tt.loadFunc != nil {
