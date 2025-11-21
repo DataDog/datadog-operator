@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DataDog/datadog-operator/pkg/version"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
@@ -74,6 +75,16 @@ func createStack(ctx context.Context, client *cloudformation.Client, stackName s
 			Capabilities: []types.Capability{
 				types.CapabilityCapabilityNamedIam,
 			},
+			Tags: []types.Tag{
+				{
+					Key:   aws.String("managed-by"),
+					Value: aws.String("kubectl-datadog"),
+				},
+				{
+					Key:   aws.String("version"),
+					Value: aws.String(version.GetVersion()),
+				},
+			},
 		},
 	)
 	if err != nil {
@@ -110,6 +121,16 @@ func updateStack(ctx context.Context, client *cloudformation.Client, stackName s
 			Parameters:   parameters,
 			Capabilities: []types.Capability{
 				types.CapabilityCapabilityNamedIam,
+			},
+			Tags: []types.Tag{
+				{
+					Key:   aws.String("managed-by"),
+					Value: aws.String("kubectl-datadog"),
+				},
+				{
+					Key:   aws.String("version"),
+					Value: aws.String(version.GetVersion()),
+				},
 			},
 		},
 	)
