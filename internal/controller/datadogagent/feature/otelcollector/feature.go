@@ -90,6 +90,13 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 		return feature.RequiredComponents{}
 	}
 
+	if strings.HasSuffix(agentVersion, "-full") && agentImageName == "" {
+		o.incompatibleImage = true
+		o.logger.Error(errIncompatibleImage, "OTel Agent Standalone image does not support full tag. Update the Agent to version without -full tag, or use the agent image with -full tag instead.",
+			"current_version", agentVersion)
+		return feature.RequiredComponents{}
+	}
+
 	o.owner = dda
 	if ddaSpec.Features.OtelCollector.Conf != nil {
 		o.customConfig = ddaSpec.Features.OtelCollector.Conf
