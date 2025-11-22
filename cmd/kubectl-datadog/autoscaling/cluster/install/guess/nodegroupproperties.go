@@ -81,6 +81,7 @@ func GetNodeGroupsProperties(ctx context.Context, eksClient *eks.Client, ec2Clie
 					params.AMIID = *imageId
 				}
 				params.SecurityGroupIDs = launchTemplate.LaunchTemplateVersions[0].LaunchTemplateData.SecurityGroupIds
+				params.MetadataOptions = extractMetadataOptionsFromLaunchTemplate(launchTemplate.LaunchTemplateVersions[0].LaunchTemplateData.MetadataOptions)
 				params.InstanceTypes = append(params.InstanceTypes, string(launchTemplate.LaunchTemplateVersions[0].LaunchTemplateData.InstanceType))
 			}
 
@@ -217,5 +218,23 @@ func convertCapacityType(ct ekstypes.CapacityTypes) string {
 		return "reserved"
 	default:
 		return "on-demand"
+	}
+}
+
+func extractMetadataOptionsFromLaunchTemplate(opts *ec2types.LaunchTemplateInstanceMetadataOptions) *MetadataOptions {
+	if opts == nil {
+		return nil
+	}
+
+	var hopLimit *int64
+	if opts.HttpPutResponseHopLimit != nil {
+		hopLimit = lo.ToPtr(int64(*opts.HttpPutResponseHopLimit))
+	}
+
+	return &MetadataOptions{
+		HTTPEndpoint:            lo.Ternary(opts.HttpEndpoint != "", lo.ToPtr(string(opts.HttpEndpoint)), nil),
+		HTTPTokens:              lo.Ternary(opts.HttpTokens != "", lo.ToPtr(string(opts.HttpTokens)), nil),
+		HTTPPutResponseHopLimit: hopLimit,
+		HTTPProtocolIPv6:        lo.Ternary(opts.HttpProtocolIpv6 != "", lo.ToPtr(string(opts.HttpProtocolIpv6)), nil),
 	}
 }

@@ -64,6 +64,7 @@ func CreateOrUpdateEC2NodeClass(ctx context.Context, client client.Client, clust
 					ID: sgID,
 				}
 			}),
+			MetadataOptions: convertMetadataOptions(nc.GetMetadataOptions()),
 		},
 	})
 }
@@ -82,5 +83,18 @@ func amiFamilyToAlias(amiFamily string) string {
 		return "windows2022@latest"
 	default:
 		return "" // Custom or unknown families don't have aliases
+	}
+}
+
+func convertMetadataOptions(opts *guess.MetadataOptions) *karpawsv1.MetadataOptions {
+	if opts == nil {
+		return nil
+	}
+
+	return &karpawsv1.MetadataOptions{
+		HTTPEndpoint:            opts.HTTPEndpoint,
+		HTTPTokens:              opts.HTTPTokens,
+		HTTPPutResponseHopLimit: opts.HTTPPutResponseHopLimit,
+		HTTPProtocolIPv6:        opts.HTTPProtocolIPv6,
 	}
 }

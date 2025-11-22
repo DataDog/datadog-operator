@@ -51,12 +51,20 @@ func compareTaints(x, y taint) int {
 	return 0
 }
 
+type MetadataOptions struct {
+	HTTPEndpoint            *string // "enabled" or "disabled"
+	HTTPTokens              *string // "required" or "optional"
+	HTTPPutResponseHopLimit *int64  // Hop limit for IMDS requests
+	HTTPProtocolIPv6        *string // "enabled" or "disabled"
+}
+
 type EC2NodeClass struct {
 	name             string
 	amiFamily        string
 	amiIDs           map[string]struct{}
 	subnetIDs        map[string]struct{}
 	securityGroupIDs map[string]struct{}
+	metadataOptions  *MetadataOptions
 }
 
 func (nc *EC2NodeClass) GetName() string {
@@ -79,13 +87,41 @@ func (nc *EC2NodeClass) GetSecurityGroupIDs() []string {
 	return slices.Sorted(maps.Keys(nc.securityGroupIDs))
 }
 
+func (nc *EC2NodeClass) GetMetadataOptions() *MetadataOptions {
+	return nc.metadataOptions
+}
+
 func (nc *EC2NodeClass) sum64() uint64 {
 	h := fnv.New64()
 
 	h.Write([]byte(nc.amiFamily))
 
+	binary.Write(h, binary.BigEndian, uint32(len(nc.securityGroupIDs)))
 	for _, x := range slices.Sorted(maps.Keys(nc.securityGroupIDs)) {
 		h.Write([]byte(x))
+	}
+
+	h.Write([]byte{lo.Ternary(nc.metadataOptions != nil, byte(1), byte(0))})
+	if nc.metadataOptions != nil {
+		h.Write([]byte{lo.Ternary(nc.metadataOptions.HTTPEndpoint != nil, byte(1), byte(0))})
+		if nc.metadataOptions.HTTPEndpoint != nil {
+			h.Write([]byte(*nc.metadataOptions.HTTPEndpoint))
+		}
+
+		h.Write([]byte{lo.Ternary(nc.metadataOptions.HTTPTokens != nil, byte(1), byte(0))})
+		if nc.metadataOptions.HTTPTokens != nil {
+			h.Write([]byte(*nc.metadataOptions.HTTPTokens))
+		}
+
+		h.Write([]byte{lo.Ternary(nc.metadataOptions.HTTPPutResponseHopLimit != nil, byte(1), byte(0))})
+		if nc.metadataOptions.HTTPPutResponseHopLimit != nil {
+			binary.Write(h, binary.BigEndian, *nc.metadataOptions.HTTPPutResponseHopLimit)
+		}
+
+		h.Write([]byte{lo.Ternary(nc.metadataOptions.HTTPProtocolIPv6 != nil, byte(1), byte(0))})
+		if nc.metadataOptions.HTTPProtocolIPv6 != nil {
+			h.Write([]byte(*nc.metadataOptions.HTTPProtocolIPv6))
+		}
 	}
 
 	return h.Sum64()
@@ -143,11 +179,13 @@ func (np *NodePool) sum64() uint64 {
 
 	h.Write([]byte(np.ec2NodeClass))
 
+	binary.Write(h, binary.BigEndian, uint32(len(np.labels)))
 	for _, k := range slices.Sorted(maps.Keys(np.labels)) {
 		h.Write([]byte(k))
 		h.Write([]byte(np.labels[k]))
 	}
 
+	binary.Write(h, binary.BigEndian, uint32(len(np.taints)))
 	for _, taint := range slices.SortedFunc(maps.Keys(np.taints), compareTaints) {
 		h.Write([]byte(taint.key))
 		h.Write([]byte(taint.value))
@@ -174,6 +212,7 @@ type NodePoolsSetAddParams struct {
 	AMIID            string
 	SubnetIDs        []string
 	SecurityGroupIDs []string
+	MetadataOptions  *MetadataOptions
 	Labels           map[string]string
 	Taints           []corev1.Taint
 	Architecture     string
@@ -188,6 +227,7 @@ func (nps *NodePoolsSet) Add(p NodePoolsSetAddParams) {
 		amiIDs:           make(map[string]struct{}),
 		subnetIDs:        lo.Keyify(p.SubnetIDs),
 		securityGroupIDs: lo.Keyify(p.SecurityGroupIDs),
+		metadataOptions:  p.MetadataOptions,
 	}
 
 	if p.AMIID != "" {

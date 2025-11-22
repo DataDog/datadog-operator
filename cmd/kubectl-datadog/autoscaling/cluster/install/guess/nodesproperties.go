@@ -88,6 +88,7 @@ func GetNodesProperties(ctx context.Context, clientset *kubernetes.Clientset, ec
 						AMIID:            *instance.ImageId,
 						SubnetIDs:        []string{*instance.SubnetId},
 						SecurityGroupIDs: lo.Map(instance.SecurityGroups, func(sg ec2types.GroupIdentifier, _ int) string { return *sg.GroupId }),
+						MetadataOptions:  extractMetadataOptions(instance.MetadataOptions),
 						Labels:           node.Labels,
 						Taints:           node.Spec.Taints,
 						Architecture:     convertArchitecture(instance.Architecture),
@@ -128,6 +129,24 @@ func detectAMIFamilyFromImage(imageName string) string {
 		return "Windows2019"
 	default:
 		return "Custom"
+	}
+}
+
+func extractMetadataOptions(opts *ec2types.InstanceMetadataOptionsResponse) *MetadataOptions {
+	if opts == nil {
+		return nil
+	}
+
+	var hopLimit *int64
+	if opts.HttpPutResponseHopLimit != nil {
+		hopLimit = lo.ToPtr(int64(*opts.HttpPutResponseHopLimit))
+	}
+
+	return &MetadataOptions{
+		HTTPEndpoint:            lo.Ternary(opts.HttpEndpoint != "", lo.ToPtr(string(opts.HttpEndpoint)), nil),
+		HTTPTokens:              lo.Ternary(opts.HttpTokens != "", lo.ToPtr(string(opts.HttpTokens)), nil),
+		HTTPPutResponseHopLimit: hopLimit,
+		HTTPProtocolIPv6:        lo.Ternary(opts.HttpProtocolIpv6 != "", lo.ToPtr(string(opts.HttpProtocolIpv6)), nil),
 	}
 }
 
