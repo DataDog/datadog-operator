@@ -32,4 +32,6 @@ const (
 	DDKubernetesResourcesLabelsAsTags      = "DD_KUBERNETES_RESOURCES_LABELS_AS_TAGS"
 	DDKubernetesResourcesAnnotationsAsTags = "DD_KUBERNETES_RESOURCES_ANNOTATIONS_AS_TAGS"
 	DDCSIEnabled                           = "DD_CSI_ENABLED"
+	DDVSockAddr                            = "DD_VSOCK_ADDR"
+	DDEventGRPCServer                      = "DD_RUNTIME_SECURITY_CONFIG_EVENT_GRPC_SERVER"
 )
