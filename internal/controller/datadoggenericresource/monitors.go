@@ -13,8 +13,8 @@ import (
 
 type MonitorHandler struct{}
 
-func (h *MonitorHandler) createResourcefunc(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	createdMonitor, err := createMonitor(r.datadogAuth, r.datadogMonitorsClient, instance)
+func (h *MonitorHandler) createResourcefunc(auth context.Context, r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+	createdMonitor, err := createMonitor(auth, r.datadogMonitorsClient, instance)
 	if err != nil {
 		logger.Error(err, "error creating monitor")
 		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
@@ -31,16 +31,16 @@ func (h *MonitorHandler) createResourcefunc(r *Reconciler, logger logr.Logger, i
 	return nil
 }
 
-func (h *MonitorHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := getMonitor(r.datadogAuth, r.datadogMonitorsClient, instance.Status.Id)
+func (h *MonitorHandler) getResourcefunc(auth context.Context, r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
+	_, err := getMonitor(auth, r.datadogMonitorsClient, instance.Status.Id)
 	return err
 }
-func (h *MonitorHandler) updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := updateMonitor(r.datadogAuth, r.datadogMonitorsClient, instance)
+func (h *MonitorHandler) updateResourcefunc(auth context.Context, r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
+	_, err := updateMonitor(auth, r.datadogMonitorsClient, instance)
 	return err
 }
-func (h *MonitorHandler) deleteResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return deleteMonitor(r.datadogAuth, r.datadogMonitorsClient, instance.Status.Id)
+func (h *MonitorHandler) deleteResourcefunc(auth context.Context, r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
+	return deleteMonitor(auth, r.datadogMonitorsClient, instance.Status.Id)
 }
 
 func getMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorStringID string) (datadogV1.Monitor, error) {

@@ -58,7 +58,7 @@ func Test_handleFinalizer(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			reqLogger := testLogger.WithValues("test:", test.name)
 			_ = r.client.Create(context.TODO(), test.db)
-			_, err := r.handleFinalizer(reqLogger, test.db)
+			_, err := r.handleFinalizer(context.TODO(), reqLogger, test.db)
 			assert.NoError(t, err)
 			if test.finalizerShouldExist {
 				assert.True(t, controllerutil.ContainsFinalizer(test.db, datadogDashboardFinalizer))

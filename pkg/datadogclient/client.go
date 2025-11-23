@@ -7,7 +7,6 @@ package datadogclient
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -23,110 +22,85 @@ import (
 
 const prefix = "https://api."
 
-// DatadogMonitorClient contains the Datadog Monitor API Client and Authentication context.
-type DatadogMonitorClient struct {
-	Client *datadogV1.MonitorsApi
-	Auth   context.Context
-}
-
-// InitDatadogMonitorClient initializes the Datadog Monitor API Client and establishes credentials.
-func InitDatadogMonitorClient(logger logr.Logger, creds config.Creds) (DatadogMonitorClient, error) {
-	if creds.APIKey == "" || creds.AppKey == "" {
-		return DatadogMonitorClient{}, errors.New("error obtaining API key and/or app key")
-	}
-
+// InitMonitorClient creates a stateless Datadog Monitor API client.
+func InitMonitorClient() *datadogV1.MonitorsApi {
 	configV1 := datadogapi.NewConfiguration()
 	apiClient := datadogapi.NewAPIClient(configV1)
-	client := datadogV1.NewMonitorsApi(apiClient)
-
-	authV1, err := setupAuth(logger, creds)
-	if err != nil {
-		return DatadogMonitorClient{}, err
-	}
-
-	return DatadogMonitorClient{Client: client, Auth: authV1}, nil
+	return datadogV1.NewMonitorsApi(apiClient)
 }
 
-// DatadogSLOClient contains the Datadog Monitor API Client and Authentication context.
-type DatadogSLOClient struct {
-	Client *datadogV1.ServiceLevelObjectivesApi
-	Auth   context.Context
-}
-
-// InitDatadogSLOClient initializes the Datadog SLO API Client and establishes credentials.
-func InitDatadogSLOClient(logger logr.Logger, creds config.Creds) (DatadogSLOClient, error) {
-	if creds.APIKey == "" || creds.AppKey == "" {
-		return DatadogSLOClient{}, errors.New("error obtaining API key and/or app key")
-	}
-
+// InitSLOClient creates a stateless Datadog SLO API client.
+func InitSLOClient() *datadogV1.ServiceLevelObjectivesApi {
 	configV1 := datadogapi.NewConfiguration()
 	apiClient := datadogapi.NewAPIClient(configV1)
-	client := datadogV1.NewServiceLevelObjectivesApi(apiClient)
-
-	authV1, err := setupAuth(logger, creds)
-	if err != nil {
-		return DatadogSLOClient{}, err
-	}
-
-	return DatadogSLOClient{Client: client, Auth: authV1}, nil
+	return datadogV1.NewServiceLevelObjectivesApi(apiClient)
 }
 
-type DatadogDashboardClient struct {
-	Client *datadogV1.DashboardsApi
-	Auth   context.Context
-}
-
-// InitDatadogDashboardClient initializes the Datadog Dashboard API Client and establishes credentials.
-func InitDatadogDashboardClient(logger logr.Logger, creds config.Creds) (DatadogDashboardClient, error) {
-	if creds.APIKey == "" || creds.AppKey == "" {
-		return DatadogDashboardClient{}, errors.New("error obtaining API key and/or app key")
-	}
-
+// InitDashboardClient creates a stateless Datadog Dashboard API client.
+func InitDashboardClient() *datadogV1.DashboardsApi {
 	configV1 := datadogapi.NewConfiguration()
 	apiClient := datadogapi.NewAPIClient(configV1)
-	client := datadogV1.NewDashboardsApi(apiClient)
-
-	authV1, err := setupAuth(logger, creds)
-	if err != nil {
-		return DatadogDashboardClient{}, err
-	}
-
-	return DatadogDashboardClient{Client: client, Auth: authV1}, nil
+	return datadogV1.NewDashboardsApi(apiClient)
 }
 
-type DatadogGenericClient struct {
+// GenericClients holds multiple API clients for the Generic Resource controller.
+type GenericClients struct {
 	SyntheticsClient *datadogV1.SyntheticsApi
 	NotebooksClient  *datadogV1.NotebooksApi
 	MonitorsClient   *datadogV1.MonitorsApi
-	Auth             context.Context
 }
 
-// InitDatadogGenericClient initializes the Datadog Generic API Client and establishes credentials.
-func InitDatadogGenericClient(logger logr.Logger, creds config.Creds) (DatadogGenericClient, error) {
-	if creds.APIKey == "" || creds.AppKey == "" {
-		return DatadogGenericClient{}, errors.New("error obtaining API key and/or app key")
-	}
-
+// InitGenericClients creates stateless Datadog API clients for generic resources.
+func InitGenericClients() GenericClients {
 	configV1 := datadogapi.NewConfiguration()
 	apiClient := datadogapi.NewAPIClient(configV1)
-	syntheticsClient := datadogV1.NewSyntheticsApi(apiClient)
-	notebooksClient := datadogV1.NewNotebooksApi(apiClient)
-	monitorsClient := datadogV1.NewMonitorsApi(apiClient)
+	return GenericClients{
+		SyntheticsClient: datadogV1.NewSyntheticsApi(apiClient),
+		NotebooksClient:  datadogV1.NewNotebooksApi(apiClient),
+		MonitorsClient:   datadogV1.NewMonitorsApi(apiClient),
+	}
+}
 
-	authV1, err := setupAuth(logger, creds)
-	if err != nil {
-		return DatadogGenericClient{}, err
+// ParsedAPIURL holds the parsed Datadog API URL information.
+// This should be parsed once during reconciler initialization and reused.
+type ParsedAPIURL struct {
+	Host     string
+	Protocol string
+}
+
+// ParseURL extracts and parses the Datadog API URL from environment variables.
+func ParseURL(logger logr.Logger) (*ParsedAPIURL, error) {
+	apiURL := ""
+	if os.Getenv(constants.DDddURL) != "" {
+		apiURL = os.Getenv(constants.DDddURL)
+	} else if os.Getenv(constants.DDURL) != "" {
+		apiURL = os.Getenv(constants.DDURL)
+	} else if site := os.Getenv(constants.DDSite); site != "" {
+		apiURL = prefix + strings.TrimSpace(site)
 	}
 
-	return DatadogGenericClient{
-		SyntheticsClient: syntheticsClient,
-		NotebooksClient:  notebooksClient,
-		MonitorsClient:   monitorsClient,
-		Auth:             authV1,
+	if apiURL == "" {
+		return nil, nil
+	}
+
+	logger.Info("Got API URL for DatadogOperator controller", "URL", apiURL)
+	parsedAPIURL, parseErr := url.Parse(apiURL)
+	if parseErr != nil {
+		return nil, fmt.Errorf(`invalid API URL : %w`, parseErr)
+	}
+	if parsedAPIURL.Host == "" || parsedAPIURL.Scheme == "" {
+		return nil, fmt.Errorf(`missing protocol or host : %s`, apiURL)
+	}
+
+	return &ParsedAPIURL{
+		Host:     parsedAPIURL.Host,
+		Protocol: parsedAPIURL.Scheme,
 	}, nil
 }
 
-func setupAuth(logger logr.Logger, creds config.Creds) (context.Context, error) {
+// GetAuth creates an authenticated context for Datadog API calls.
+// The apiURL parameter should be parsed  with ParseURL
+func GetAuth(creds config.Creds, apiURL *ParsedAPIURL) context.Context {
 	// Initialize the official Datadog V1 API client.
 	authV1 := context.WithValue(
 		context.Background(),
@@ -141,32 +115,14 @@ func setupAuth(logger logr.Logger, creds config.Creds) (context.Context, error) 
 		},
 	)
 
-	apiURL := ""
-	if os.Getenv(constants.DDddURL) != "" {
-		apiURL = os.Getenv(constants.DDddURL)
-	} else if os.Getenv(constants.DDURL) != "" {
-		apiURL = os.Getenv(constants.DDURL)
-	} else if site := os.Getenv(constants.DDSite); site != "" {
-		apiURL = prefix + strings.TrimSpace(site)
-	}
-
-	if apiURL != "" {
-		logger.Info("Got API URL for DatadogOperator controller", "URL", apiURL)
-		parsedAPIURL, parseErr := url.Parse(apiURL)
-		if parseErr != nil {
-			return authV1, fmt.Errorf(`invalid API URL : %w`, parseErr)
-		}
-		if parsedAPIURL.Host == "" || parsedAPIURL.Scheme == "" {
-			return authV1, fmt.Errorf(`missing protocol or host : %s`, apiURL)
-		}
+	if apiURL != nil {
 		// If API URL is passed, set and use the API name and protocol on ServerIndex{1}.
 		authV1 = context.WithValue(authV1, datadogapi.ContextServerIndex, 1)
 		authV1 = context.WithValue(authV1, datadogapi.ContextServerVariables, map[string]string{
-			"name":     parsedAPIURL.Host,
-			"protocol": parsedAPIURL.Scheme,
+			"name":     apiURL.Host,
+			"protocol": apiURL.Protocol,
 		})
 	}
 
-	return authV1, nil
-
+	return authV1
 }

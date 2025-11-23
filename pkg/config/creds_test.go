@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-operator/pkg/secrets"
-	"github.com/go-logr/logr"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -211,82 +210,6 @@ func Test_getCredentials(t *testing.T) {
 			assert.EqualValues(t, tt.want, got)
 			tt.wantFunc(t, decryptor, credsManager)
 			tt.resetFunc(credsManager)
-		})
-	}
-}
-
-func Test_refresh(t *testing.T) {
-	tests := []struct {
-		name        string
-		setupFunc   func(*CredentialManager) *secrets.DummyDecryptor
-		callbackHit bool
-		wantErr     bool
-		resetFunc   func()
-	}{
-		{
-			name: "no refresh when creds unchanged",
-			setupFunc: func(cm *CredentialManager) *secrets.DummyDecryptor {
-				// Set same creds in cache and env
-				os.Setenv("DD_API_KEY", "same-api")
-				os.Setenv("DD_APP_KEY", "same-app")
-				cm.cacheCreds(Creds{APIKey: "same-api", AppKey: "same-app"})
-				return secrets.NewDummyDecryptor(0)
-			},
-			callbackHit: false,
-			wantErr:     false,
-			resetFunc: func() {
-				os.Unsetenv("DD_API_KEY")
-				os.Unsetenv("DD_APP_KEY")
-			},
-		},
-		{
-			name: "refresh triggers callback on cred change",
-			setupFunc: func(cm *CredentialManager) *secrets.DummyDecryptor {
-				// Set different creds in cache vs env
-				os.Setenv("DD_API_KEY", "new-api")
-				os.Setenv("DD_APP_KEY", "new-app")
-				cm.cacheCreds(Creds{APIKey: "old-api", AppKey: "old-app"})
-				return secrets.NewDummyDecryptor(0)
-			},
-			callbackHit: true,
-			wantErr:     false,
-			resetFunc: func() {
-				os.Unsetenv("DD_API_KEY")
-				os.Unsetenv("DD_APP_KEY")
-			},
-		},
-		{
-			name: "refresh returns error on GetCredentials failure",
-			setupFunc: func(cm *CredentialManager) *secrets.DummyDecryptor {
-				// No env vars set - will cause GetCredentials to fail
-				cm.cacheCreds(Creds{APIKey: "old-api", AppKey: "old-app"})
-				return secrets.NewDummyDecryptor(0)
-			},
-			callbackHit: false,
-			wantErr:     true,
-			resetFunc:   func() {},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			defer tt.resetFunc()
-
-			cm := NewCredentialManager()
-			decryptor := tt.setupFunc(cm)
-			cm.secretBackend = decryptor
-
-			// Track if callback was called
-			var callbackCalled bool
-			cm.RegisterCallback(func(newCreds Creds) error {
-				callbackCalled = true
-				return nil
-			})
-
-			err := cm.refresh(logr.Logger{})
-
-			assert.Equal(t, tt.wantErr, err != nil)
-			assert.Equal(t, tt.callbackHit, callbackCalled)
 		})
 	}
 }

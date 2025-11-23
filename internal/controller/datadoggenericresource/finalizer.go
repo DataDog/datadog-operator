@@ -21,11 +21,11 @@ const (
 	datadogGenericResourceFinalizer = "finalizer.datadoghq.com/genericresource"
 )
 
-func (r *Reconciler) handleFinalizer(logger logr.Logger, instance *datadoghqv1alpha1.DatadogGenericResource) (ctrl.Result, error) {
+func (r *Reconciler) handleFinalizer(auth context.Context, logger logr.Logger, instance *datadoghqv1alpha1.DatadogGenericResource) (ctrl.Result, error) {
 	// Check if the DatadogGenericResource instance is marked to be deleted, which is indicated by the deletion timestamp being set.
 	if instance.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(instance, datadogGenericResourceFinalizer) {
-			r.finalizeDatadogCustomResource(logger, instance)
+			r.finalizeDatadogCustomResource(auth, logger, instance)
 
 			controllerutil.RemoveFinalizer(instance, datadogGenericResourceFinalizer)
 			err := r.client.Update(context.TODO(), instance)
@@ -51,8 +51,8 @@ func (r *Reconciler) handleFinalizer(logger logr.Logger, instance *datadoghqv1al
 	return ctrl.Result{}, nil
 }
 
-func (r *Reconciler) finalizeDatadogCustomResource(logger logr.Logger, instance *datadoghqv1alpha1.DatadogGenericResource) {
-	err := apiDelete(r, instance)
+func (r *Reconciler) finalizeDatadogCustomResource(auth context.Context, logger logr.Logger, instance *datadoghqv1alpha1.DatadogGenericResource) {
+	err := apiDelete(auth, r, instance)
 	if err != nil {
 		logger.Error(err, "failed to finalize ", "custom resource Id", fmt.Sprint(instance.Status.Id))
 

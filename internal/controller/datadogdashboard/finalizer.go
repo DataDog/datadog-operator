@@ -20,11 +20,11 @@ const (
 	datadogDashboardFinalizer = "finalizer.datadoghq.com/dashboard"
 )
 
-func (r *Reconciler) handleFinalizer(logger logr.Logger, db *datadoghqv1alpha1.DatadogDashboard) (ctrl.Result, error) {
+func (r *Reconciler) handleFinalizer(auth context.Context, logger logr.Logger, db *datadoghqv1alpha1.DatadogDashboard) (ctrl.Result, error) {
 	// Check if the DatadogDashboard instance is marked to be deleted, which is indicated by the deletion timestamp being set.
 	if db.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(db, datadogDashboardFinalizer) {
-			r.finalizeDatadogDashboard(logger, db)
+			r.finalizeDatadogDashboard(auth, logger, db)
 
 			controllerutil.RemoveFinalizer(db, datadogDashboardFinalizer)
 			err := r.client.Update(context.TODO(), db)
@@ -50,8 +50,8 @@ func (r *Reconciler) handleFinalizer(logger logr.Logger, db *datadoghqv1alpha1.D
 	return ctrl.Result{}, nil
 }
 
-func (r *Reconciler) finalizeDatadogDashboard(logger logr.Logger, db *datadoghqv1alpha1.DatadogDashboard) {
-	err := deleteDashboard(r.datadogAuth, r.datadogClient, db.Status.ID)
+func (r *Reconciler) finalizeDatadogDashboard(auth context.Context, logger logr.Logger, db *datadoghqv1alpha1.DatadogDashboard) {
+	err := deleteDashboard(auth, r.datadogClient, db.Status.ID)
 	if err != nil {
 		logger.Error(err, "failed to finalize dashboard", "dashboard ID", fmt.Sprint(db.Status.ID))
 
