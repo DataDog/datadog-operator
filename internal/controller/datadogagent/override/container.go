@@ -9,17 +9,17 @@ import (
 	"fmt"
 	"strconv"
 
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
-
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // Container use to override a corev1.Container with a v2alpha1.DatadogAgentGenericContainer.
@@ -158,7 +158,7 @@ func overrideContainer(container *corev1.Container, override *v2alpha1.DatadogAg
 	}
 
 	if override.SecurityContext != nil {
-		container.SecurityContext = override.SecurityContext
+		container.SecurityContext = overrideSecurityContext(override.SecurityContext)
 	}
 }
 
@@ -272,4 +272,12 @@ func overrideStartupProbe(startupProbeOverride *corev1.Probe) *corev1.Probe {
 			Port: intstr.IntOrString{IntVal: constants.DefaultAgentHealthPort}}
 	}
 	return startupProbeOverride
+}
+
+func overrideSecurityContext(securityContext *corev1.SecurityContext) *corev1.SecurityContext {
+	if securityContext.ReadOnlyRootFilesystem == nil {
+		// Default to readOnlyRootFilesystem to true if not explicitly configured.
+		securityContext.ReadOnlyRootFilesystem = apiutils.NewBoolPointer(true)
+	}
+	return securityContext
 }
