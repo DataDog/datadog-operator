@@ -14,6 +14,12 @@ func set[T comparable](vals ...T) map[T]struct{} {
 	return lo.Keyify(vals)
 }
 
+func blockDeviceMappingsMap(bdms ...BlockDeviceMapping) map[string]*BlockDeviceMapping {
+	return lo.Associate(bdms, func(bdm BlockDeviceMapping) (string, *BlockDeviceMapping) {
+		return lo.FromPtr(bdm.DeviceName), lo.ToPtr(bdm)
+	})
+}
+
 func applyEC2NodeClassDefaults(ec2NodeClasses []EC2NodeClass) []EC2NodeClass {
 	return lo.Map(ec2NodeClasses, func(nc EC2NodeClass, _ int) EC2NodeClass {
 		if nc.amiIDs == nil {
@@ -24,6 +30,9 @@ func applyEC2NodeClassDefaults(ec2NodeClasses []EC2NodeClass) []EC2NodeClass {
 		}
 		if nc.securityGroupIDs == nil {
 			nc.securityGroupIDs = make(map[string]struct{})
+		}
+		if nc.blockDeviceMappings == nil {
+			nc.blockDeviceMappings = make(map[string]*BlockDeviceMapping)
 		}
 		return nc
 	})
@@ -78,7 +87,7 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedEC2NodeClasses: []EC2NodeClass{
 				{
-					name:             "dd-karpenter-qhzou",
+					name:             "dd-karpenter-obxiu",
 					amiFamily:        "AL2",
 					amiIDs:           set("ami-0bd48499820cf0df6"),
 					subnetIDs:        set("subnet-05e10de88ea36557b", "subnet-07aaca522252301b0", "subnet-0e08d6ea64a70ad35"),
@@ -87,8 +96,8 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedNodePools: []NodePool{
 				{
-					name:         "dd-karpenter-756aq",
-					ec2NodeClass: "dd-karpenter-qhzou",
+					name:         "dd-karpenter-wtyrq",
+					ec2NodeClass: "dd-karpenter-obxiu",
 					labels:       map[string]string{"app": "web"},
 					taints: set(taint{
 						key:    "app",
@@ -135,7 +144,7 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedEC2NodeClasses: []EC2NodeClass{
 				{
-					name:             "dd-karpenter-qhzou",
+					name:             "dd-karpenter-obxiu",
 					amiFamily:        "AL2",
 					amiIDs:           set("ami-0bd48499820cf0df6"),
 					subnetIDs:        set("subnet-05e10de88ea36557b", "subnet-07aaca522252301b0", "subnet-0e08d6ea64a70ad35"),
@@ -144,8 +153,8 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedNodePools: []NodePool{
 				{
-					name:         "dd-karpenter-4zohm",
-					ec2NodeClass: "dd-karpenter-qhzou",
+					name:         "dd-karpenter-bcogm",
+					ec2NodeClass: "dd-karpenter-obxiu",
 					labels: map[string]string{
 						"app": "web",
 					},
@@ -189,7 +198,7 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedEC2NodeClasses: []EC2NodeClass{
 				{
-					name:             "dd-karpenter-qhzou",
+					name:             "dd-karpenter-obxiu",
 					amiFamily:        "AL2",
 					amiIDs:           set("ami-0bd48499820cf0df6"),
 					subnetIDs:        set("subnet-05e10de88ea36557b", "subnet-07aaca522252301b0", "subnet-0e08d6ea64a70ad35"),
@@ -198,8 +207,8 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedNodePools: []NodePool{
 				{
-					name:         "dd-karpenter-756aq",
-					ec2NodeClass: "dd-karpenter-qhzou",
+					name:         "dd-karpenter-wtyrq",
+					ec2NodeClass: "dd-karpenter-obxiu",
 					labels:       map[string]string{"app": "web"},
 					taints: set(taint{
 						key:    "app",
@@ -253,7 +262,7 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedEC2NodeClasses: []EC2NodeClass{
 				{
-					name:             "dd-karpenter-qhzou",
+					name:             "dd-karpenter-obxiu",
 					amiFamily:        "AL2",
 					amiIDs:           set("ami-0bd48499820cf0df6"),
 					subnetIDs:        set("subnet-05e10de88ea36557b", "subnet-07aaca522252301b0", "subnet-0e08d6ea64a70ad35"),
@@ -262,14 +271,14 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedNodePools: []NodePool{
 				{
-					name:          "dd-karpenter-lpdu4",
-					ec2NodeClass:  "dd-karpenter-qhzou",
+					name:          "dd-karpenter-dpwb4",
+					ec2NodeClass:  "dd-karpenter-obxiu",
 					labels:        map[string]string{},
 					capacityTypes: set("on-demand"),
 				},
 				{
-					name:         "dd-karpenter-756aq",
-					ec2NodeClass: "dd-karpenter-qhzou",
+					name:         "dd-karpenter-wtyrq",
+					ec2NodeClass: "dd-karpenter-obxiu",
 					labels:       map[string]string{"app": "web"},
 					taints: set(taint{
 						key:    "app",
@@ -279,8 +288,8 @@ func TestNodePoolsSet(t *testing.T) {
 					capacityTypes: set("on-demand"),
 				},
 				{
-					name:         "dd-karpenter-ej56y",
-					ec2NodeClass: "dd-karpenter-qhzou",
+					name:         "dd-karpenter-dvkxy",
+					ec2NodeClass: "dd-karpenter-obxiu",
 					labels:       map[string]string{"app": "api"},
 					taints: set(taint{
 						key:    "app",
@@ -327,14 +336,14 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedEC2NodeClasses: []EC2NodeClass{
 				{
-					name:             "dd-karpenter-qykuq",
+					name:             "dd-karpenter-plw4q",
 					amiFamily:        "AL2",
 					amiIDs:           set("ami-0bd48499820cf0df6"),
 					subnetIDs:        set("subnet-05e10de88ea36557b", "subnet-07aaca522252301b0", "subnet-0e08d6ea64a70ad35"),
 					securityGroupIDs: set("sg-01dfd3789be8c5315"),
 				},
 				{
-					name:             "dd-karpenter-lwkia",
+					name:             "dd-karpenter-r4oia",
 					amiFamily:        "AL2",
 					amiIDs:           set("ami-0bd48499820cf0df6"),
 					subnetIDs:        set("subnet-05e10de88ea36557b", "subnet-07aaca522252301b0", "subnet-0e08d6ea64a70ad35"),
@@ -343,8 +352,8 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedNodePools: []NodePool{
 				{
-					name:         "dd-karpenter-vrtrq",
-					ec2NodeClass: "dd-karpenter-qykuq",
+					name:         "dd-karpenter-b6be2",
+					ec2NodeClass: "dd-karpenter-plw4q",
 					labels:       map[string]string{"app": "web"},
 					taints: set(taint{
 						key:    "app",
@@ -354,8 +363,8 @@ func TestNodePoolsSet(t *testing.T) {
 					capacityTypes: set("on-demand"),
 				},
 				{
-					name:         "dd-karpenter-tvyuw",
-					ec2NodeClass: "dd-karpenter-lwkia",
+					name:         "dd-karpenter-3s4qq",
+					ec2NodeClass: "dd-karpenter-r4oia",
 					labels:       map[string]string{"app": "api"},
 					taints: set(taint{
 						key:    "app",
@@ -393,7 +402,7 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedEC2NodeClasses: []EC2NodeClass{
 				{
-					name:             "dd-karpenter-qhzou",
+					name:             "dd-karpenter-obxiu",
 					amiFamily:        "AL2",
 					amiIDs:           set("ami-0bd48499820cf0df6"),
 					subnetIDs:        set("subnet-05e10de88ea36557b", "subnet-07aaca522252301b0", "subnet-0e08d6ea64a70ad35"),
@@ -402,8 +411,8 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedNodePools: []NodePool{
 				{
-					name:          "dd-karpenter-lpdu4",
-					ec2NodeClass:  "dd-karpenter-qhzou",
+					name:          "dd-karpenter-dpwb4",
+					ec2NodeClass:  "dd-karpenter-obxiu",
 					labels:        map[string]string{},
 					capacityTypes: set("on-demand"),
 				},
@@ -439,7 +448,7 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedEC2NodeClasses: []EC2NodeClass{
 				{
-					name:             "dd-karpenter-qhzou",
+					name:             "dd-karpenter-obxiu",
 					amiFamily:        "AL2",
 					amiIDs:           set("ami-0bd48499820cf0df6"),
 					subnetIDs:        set("subnet-05e10de88ea36557b"),
@@ -448,8 +457,8 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedNodePools: []NodePool{
 				{
-					name:          "dd-karpenter-4zohm",
-					ec2NodeClass:  "dd-karpenter-qhzou",
+					name:          "dd-karpenter-bcogm",
+					ec2NodeClass:  "dd-karpenter-obxiu",
 					labels:        map[string]string{"app": "web"},
 					capacityTypes: set("on-demand", "spot"),
 				},
@@ -488,7 +497,7 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedEC2NodeClasses: []EC2NodeClass{
 				{
-					name:             "dd-karpenter-qhzou",
+					name:             "dd-karpenter-obxiu",
 					amiFamily:        "AL2",
 					amiIDs:           set("ami-0bd48499820cf0df6"),
 					subnetIDs:        set("subnet-05e10de88ea36557b", "subnet-07aaca522252301b0", "subnet-0e08d6ea64a70ad35"),
@@ -497,8 +506,8 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedNodePools: []NodePool{
 				{
-					name:          "dd-karpenter-qws4i",
-					ec2NodeClass:  "dd-karpenter-qhzou",
+					name:          "dd-karpenter-dcvbi",
+					ec2NodeClass:  "dd-karpenter-obxiu",
 					labels:        map[string]string{"app": "backend"},
 					architectures: set("amd64", "arm64"),
 					capacityTypes: set("on-demand"),
@@ -541,7 +550,7 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedEC2NodeClasses: []EC2NodeClass{
 				{
-					name:             "dd-karpenter-qhzou",
+					name:             "dd-karpenter-obxiu",
 					amiFamily:        "AL2",
 					amiIDs:           set("ami-0bd48499820cf0df6"),
 					subnetIDs:        set("subnet-05e10de88ea36557b", "subnet-07aaca522252301b0", "subnet-0e08d6ea64a70ad35"),
@@ -550,8 +559,8 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedNodePools: []NodePool{
 				{
-					name:          "dd-karpenter-dftzm",
-					ec2NodeClass:  "dd-karpenter-qhzou",
+					name:          "dd-karpenter-2t4om",
+					ec2NodeClass:  "dd-karpenter-obxiu",
 					labels:        map[string]string{"app": "multi-zone"},
 					architectures: set("amd64"),
 					zones:         set("us-east-1a", "us-east-1b", "us-east-1c"),
@@ -583,7 +592,7 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedEC2NodeClasses: []EC2NodeClass{
 				{
-					name:             "dd-karpenter-qykuq",
+					name:             "dd-karpenter-plw4q",
 					amiFamily:        "AL2",
 					amiIDs:           set("ami-0bd48499820cf0df6"),
 					subnetIDs:        set("subnet-05e10de88ea36557b"),
@@ -592,15 +601,15 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedNodePools: []NodePool{
 				{
-					name:          "dd-karpenter-hp7la",
-					ec2NodeClass:  "dd-karpenter-qykuq",
+					name:          "dd-karpenter-t3bag",
+					ec2NodeClass:  "dd-karpenter-plw4q",
 					labels:        map[string]string{"app": "frontend"},
 					architectures: set("amd64"),
 					capacityTypes: set("on-demand"),
 				},
 				{
-					name:          "dd-karpenter-4lt7o",
-					ec2NodeClass:  "dd-karpenter-qykuq",
+					name:          "dd-karpenter-xzhca",
+					ec2NodeClass:  "dd-karpenter-plw4q",
 					labels:        map[string]string{"app": "ml"},
 					architectures: set("arm64"),
 					capacityTypes: set("on-demand"),
@@ -643,7 +652,7 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedEC2NodeClasses: []EC2NodeClass{
 				{
-					name:             "dd-karpenter-qhzou",
+					name:             "dd-karpenter-obxiu",
 					amiFamily:        "AL2",
 					amiIDs:           set("ami-0bd48499820cf0df6"),
 					subnetIDs:        set("subnet-05e10de88ea36557b", "subnet-07aaca522252301b0", "subnet-0e08d6ea64a70ad35"),
@@ -652,8 +661,8 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedNodePools: []NodePool{
 				{
-					name:             "dd-karpenter-w6pc4",
-					ec2NodeClass:     "dd-karpenter-qhzou",
+					name:             "dd-karpenter-e5y34",
+					ec2NodeClass:     "dd-karpenter-obxiu",
 					labels:           map[string]string{"app": "mixed-instances"},
 					architectures:    set("amd64"),
 					instanceFamilies: set("c5", "m5", "t3"),
@@ -691,7 +700,7 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedEC2NodeClasses: []EC2NodeClass{
 				{
-					name:             "dd-karpenter-wiooc",
+					name:             "dd-karpenter-vslxc",
 					amiFamily:        "AL2023",
 					amiIDs:           set("ami-0a1b2c3d4e5f6g7h8", "ami-9h8g7f6e5d4c3b2a1", "ami-1a2b3c4d5e6f7g8h9"),
 					subnetIDs:        set("subnet-05e10de88ea36557b", "subnet-07aaca522252301b0", "subnet-0e08d6ea64a70ad35"),
@@ -700,8 +709,8 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedNodePools: []NodePool{
 				{
-					name:          "dd-karpenter-olpak",
-					ec2NodeClass:  "dd-karpenter-wiooc",
+					name:          "dd-karpenter-rkiwm",
+					ec2NodeClass:  "dd-karpenter-vslxc",
 					labels:        map[string]string{"env": "prod"},
 					capacityTypes: set("on-demand"),
 				},
@@ -737,7 +746,7 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedEC2NodeClasses: []EC2NodeClass{
 				{
-					name:             "dd-karpenter-a3kei",
+					name:             "dd-karpenter-x3ium",
 					amiFamily:        "AL2023",
 					amiIDs:           set("ami-0a1b2c3d4e5f6g7h8"),
 					subnetIDs:        set("subnet-05e10de88ea36557b"),
@@ -748,7 +757,7 @@ func TestNodePoolsSet(t *testing.T) {
 					},
 				},
 				{
-					name:             "dd-karpenter-3iwfo",
+					name:             "dd-karpenter-oxuyk",
 					amiFamily:        "AL2023",
 					amiIDs:           set("ami-0a1b2c3d4e5f6g7h8"),
 					subnetIDs:        set("subnet-05e10de88ea36557b"),
@@ -761,14 +770,14 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedNodePools: []NodePool{
 				{
-					name:          "dd-karpenter-vhc56",
-					ec2NodeClass:  "dd-karpenter-a3kei",
+					name:          "dd-karpenter-mjjsy",
+					ec2NodeClass:  "dd-karpenter-x3ium",
 					labels:        map[string]string{"env": "dev"},
 					capacityTypes: set("on-demand"),
 				},
 				{
-					name:          "dd-karpenter-kxp4i",
-					ec2NodeClass:  "dd-karpenter-3iwfo",
+					name:          "dd-karpenter-pkvlq",
+					ec2NodeClass:  "dd-karpenter-oxuyk",
 					labels:        map[string]string{"env": "dev"},
 					capacityTypes: set("on-demand"),
 				},
@@ -806,7 +815,7 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedEC2NodeClasses: []EC2NodeClass{
 				{
-					name:             "dd-karpenter-kp4si",
+					name:             "dd-karpenter-6sg5o",
 					amiFamily:        "AL2023",
 					amiIDs:           set("ami-0a1b2c3d4e5f6g7h8", "ami-9h8g7f6e5d4c3b2a1"),
 					subnetIDs:        set("subnet-05e10de88ea36557b", "subnet-07aaca522252301b0"),
@@ -820,14 +829,14 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedNodePools: []NodePool{
 				{
-					name:          "dd-karpenter-nrcso",
-					ec2NodeClass:  "dd-karpenter-kp4si",
+					name:          "dd-karpenter-kkile",
+					ec2NodeClass:  "dd-karpenter-6sg5o",
 					labels:        map[string]string{"env": "prod"},
 					capacityTypes: set("on-demand"),
 				},
 				{
-					name:          "dd-karpenter-nmjyw",
-					ec2NodeClass:  "dd-karpenter-kp4si",
+					name:          "dd-karpenter-va2ui",
+					ec2NodeClass:  "dd-karpenter-6sg5o",
 					labels:        map[string]string{"env": "staging"},
 					capacityTypes: set("on-demand"),
 				},
@@ -857,7 +866,7 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedEC2NodeClasses: []EC2NodeClass{
 				{
-					name:             "dd-karpenter-e6bh6",
+					name:             "dd-karpenter-qew66",
 					amiFamily:        "AL2023",
 					amiIDs:           set("ami-0a1b2c3d4e5f6g7h8"),
 					subnetIDs:        set("subnet-05e10de88ea36557b"),
@@ -865,7 +874,7 @@ func TestNodePoolsSet(t *testing.T) {
 					metadataOptions:  nil,
 				},
 				{
-					name:             "dd-karpenter-jnyv4",
+					name:             "dd-karpenter-ider4",
 					amiFamily:        "AL2023",
 					amiIDs:           set("ami-9h8g7f6e5d4c3b2a1"),
 					subnetIDs:        set("subnet-05e10de88ea36557b"),
@@ -875,14 +884,14 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedNodePools: []NodePool{
 				{
-					name:          "dd-karpenter-tap3i",
-					ec2NodeClass:  "dd-karpenter-e6bh6",
+					name:          "dd-karpenter-erfd4",
+					ec2NodeClass:  "dd-karpenter-qew66",
 					labels:        map[string]string{"env": "test"},
 					capacityTypes: set("on-demand"),
 				},
 				{
-					name:          "dd-karpenter-vjb4y",
-					ec2NodeClass:  "dd-karpenter-jnyv4",
+					name:          "dd-karpenter-2hyyo",
+					ec2NodeClass:  "dd-karpenter-ider4",
 					labels:        map[string]string{"env": "test"},
 					capacityTypes: set("on-demand"),
 				},
@@ -908,7 +917,7 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedEC2NodeClasses: []EC2NodeClass{
 				{
-					name:             "dd-karpenter-jyejo",
+					name:             "dd-karpenter-jeth6",
 					amiFamily:        "AL2023",
 					amiIDs:           set("ami-0a1b2c3d4e5f6g7h8"),
 					subnetIDs:        set("subnet-05e10de88ea36557b"),
@@ -923,10 +932,312 @@ func TestNodePoolsSet(t *testing.T) {
 			},
 			expectedNodePools: []NodePool{
 				{
-					name:          "dd-karpenter-57cw4",
-					ec2NodeClass:  "dd-karpenter-jyejo",
+					name:          "dd-karpenter-5taay",
+					ec2NodeClass:  "dd-karpenter-jeth6",
 					labels:        map[string]string{"app": "api"},
 					capacityTypes: set("spot"),
+				},
+			},
+		},
+		{
+			name: "Single BlockDeviceMapping creates EC2NodeClass",
+			add: []NodePoolsSetAddParams{
+				{
+					AMIFamily:        "AL2023",
+					AMIID:            "ami-0a1b2c3d4e5f6g7h8",
+					SubnetIDs:        []string{"subnet-05e10de88ea36557b"},
+					SecurityGroupIDs: []string{"sg-01dfd3789be8c5315"},
+					BlockDeviceMappings: []BlockDeviceMapping{
+						{
+							DeviceName:          lo.ToPtr("/dev/xvda"),
+							RootVolume:          true,
+							VolumeSize:          lo.ToPtr("100Gi"),
+							VolumeType:          lo.ToPtr("gp3"),
+							DeleteOnTermination: lo.ToPtr(true),
+						},
+					},
+					Labels:       map[string]string{"env": "prod"},
+					CapacityType: "on-demand",
+				},
+			},
+			expectedEC2NodeClasses: []EC2NodeClass{
+				{
+					name:             "dd-karpenter-ffvck",
+					amiFamily:        "AL2023",
+					amiIDs:           set("ami-0a1b2c3d4e5f6g7h8"),
+					subnetIDs:        set("subnet-05e10de88ea36557b"),
+					securityGroupIDs: set("sg-01dfd3789be8c5315"),
+					blockDeviceMappings: blockDeviceMappingsMap(
+						BlockDeviceMapping{
+							DeviceName:          lo.ToPtr("/dev/xvda"),
+							RootVolume:          true,
+							VolumeSize:          lo.ToPtr("100Gi"),
+							VolumeType:          lo.ToPtr("gp3"),
+							DeleteOnTermination: lo.ToPtr(true),
+						},
+					),
+				},
+			},
+			expectedNodePools: []NodePool{
+				{
+					name:          "dd-karpenter-uk3ie",
+					ec2NodeClass:  "dd-karpenter-ffvck",
+					labels:        map[string]string{"env": "prod"},
+					capacityTypes: set("on-demand"),
+				},
+			},
+		},
+		{
+			name: "Different BlockDeviceMappings create different EC2NodeClasses",
+			add: []NodePoolsSetAddParams{
+				{
+					AMIFamily:        "AL2023",
+					AMIID:            "ami-0a1b2c3d4e5f6g7h8",
+					SubnetIDs:        []string{"subnet-05e10de88ea36557b"},
+					SecurityGroupIDs: []string{"sg-01dfd3789be8c5315"},
+					BlockDeviceMappings: []BlockDeviceMapping{
+						{
+							DeviceName:          lo.ToPtr("/dev/xvda"),
+							RootVolume:          true,
+							VolumeSize:          lo.ToPtr("100Gi"),
+							VolumeType:          lo.ToPtr("gp3"),
+							DeleteOnTermination: lo.ToPtr(true),
+						},
+					},
+					Labels:       map[string]string{"app": "web"},
+					CapacityType: "on-demand",
+				},
+				{
+					AMIFamily:        "AL2023",
+					AMIID:            "ami-0a1b2c3d4e5f6g7h8",
+					SubnetIDs:        []string{"subnet-05e10de88ea36557b"},
+					SecurityGroupIDs: []string{"sg-01dfd3789be8c5315"},
+					BlockDeviceMappings: []BlockDeviceMapping{
+						{
+							DeviceName:          lo.ToPtr("/dev/xvda"),
+							RootVolume:          true,
+							VolumeSize:          lo.ToPtr("200Gi"),
+							VolumeType:          lo.ToPtr("gp3"),
+							DeleteOnTermination: lo.ToPtr(true),
+						},
+					},
+					Labels:       map[string]string{"app": "db"},
+					CapacityType: "on-demand",
+				},
+			},
+			expectedEC2NodeClasses: []EC2NodeClass{
+				{
+					name:             "dd-karpenter-ffvck",
+					amiFamily:        "AL2023",
+					amiIDs:           set("ami-0a1b2c3d4e5f6g7h8"),
+					subnetIDs:        set("subnet-05e10de88ea36557b"),
+					securityGroupIDs: set("sg-01dfd3789be8c5315"),
+					blockDeviceMappings: blockDeviceMappingsMap(
+						BlockDeviceMapping{
+							DeviceName:          lo.ToPtr("/dev/xvda"),
+							RootVolume:          true,
+							VolumeSize:          lo.ToPtr("100Gi"),
+							VolumeType:          lo.ToPtr("gp3"),
+							DeleteOnTermination: lo.ToPtr(true),
+						},
+					),
+				},
+				{
+					name:             "dd-karpenter-yoqeq",
+					amiFamily:        "AL2023",
+					amiIDs:           set("ami-0a1b2c3d4e5f6g7h8"),
+					subnetIDs:        set("subnet-05e10de88ea36557b"),
+					securityGroupIDs: set("sg-01dfd3789be8c5315"),
+					blockDeviceMappings: blockDeviceMappingsMap(
+						BlockDeviceMapping{
+							DeviceName:          lo.ToPtr("/dev/xvda"),
+							RootVolume:          true,
+							VolumeSize:          lo.ToPtr("200Gi"),
+							VolumeType:          lo.ToPtr("gp3"),
+							DeleteOnTermination: lo.ToPtr(true),
+						},
+					),
+				},
+			},
+			expectedNodePools: []NodePool{
+				{
+					name:          "dd-karpenter-3zifc",
+					ec2NodeClass:  "dd-karpenter-ffvck",
+					labels:        map[string]string{"app": "web"},
+					capacityTypes: set("on-demand"),
+				},
+				{
+					name:          "dd-karpenter-6y3r4",
+					ec2NodeClass:  "dd-karpenter-yoqeq",
+					labels:        map[string]string{"app": "db"},
+					capacityTypes: set("on-demand"),
+				},
+			},
+		},
+		{
+			name: "BlockDeviceMappings with full properties",
+			add: []NodePoolsSetAddParams{
+				{
+					AMIFamily:        "AL2023",
+					AMIID:            "ami-0a1b2c3d4e5f6g7h8",
+					SubnetIDs:        []string{"subnet-05e10de88ea36557b"},
+					SecurityGroupIDs: []string{"sg-01dfd3789be8c5315"},
+					BlockDeviceMappings: []BlockDeviceMapping{
+						{
+							DeviceName:          lo.ToPtr("/dev/xvda"),
+							RootVolume:          true,
+							VolumeSize:          lo.ToPtr("100Gi"),
+							VolumeType:          lo.ToPtr("gp3"),
+							IOPS:                lo.ToPtr(int64(3000)),
+							Throughput:          lo.ToPtr(int64(125)),
+							Encrypted:           lo.ToPtr(true),
+							DeleteOnTermination: lo.ToPtr(true),
+							KMSKeyID:            lo.ToPtr("arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"),
+						},
+						{
+							DeviceName:          lo.ToPtr("/dev/xvdb"),
+							RootVolume:          false,
+							VolumeSize:          lo.ToPtr("500Gi"),
+							VolumeType:          lo.ToPtr("gp3"),
+							IOPS:                lo.ToPtr(int64(10000)),
+							Throughput:          lo.ToPtr(int64(250)),
+							Encrypted:           lo.ToPtr(true),
+							DeleteOnTermination: lo.ToPtr(false),
+						},
+					},
+					Labels:       map[string]string{"app": "database"},
+					CapacityType: "on-demand",
+				},
+			},
+			expectedEC2NodeClasses: []EC2NodeClass{
+				{
+					name:             "dd-karpenter-lqvvm",
+					amiFamily:        "AL2023",
+					amiIDs:           set("ami-0a1b2c3d4e5f6g7h8"),
+					subnetIDs:        set("subnet-05e10de88ea36557b"),
+					securityGroupIDs: set("sg-01dfd3789be8c5315"),
+					blockDeviceMappings: blockDeviceMappingsMap(
+						BlockDeviceMapping{
+							DeviceName:          lo.ToPtr("/dev/xvda"),
+							RootVolume:          true,
+							VolumeSize:          lo.ToPtr("100Gi"),
+							VolumeType:          lo.ToPtr("gp3"),
+							IOPS:                lo.ToPtr(int64(3000)),
+							Throughput:          lo.ToPtr(int64(125)),
+							Encrypted:           lo.ToPtr(true),
+							DeleteOnTermination: lo.ToPtr(true),
+							KMSKeyID:            lo.ToPtr("arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"),
+						},
+						BlockDeviceMapping{
+							DeviceName:          lo.ToPtr("/dev/xvdb"),
+							RootVolume:          false,
+							VolumeSize:          lo.ToPtr("500Gi"),
+							VolumeType:          lo.ToPtr("gp3"),
+							IOPS:                lo.ToPtr(int64(10000)),
+							Throughput:          lo.ToPtr(int64(250)),
+							Encrypted:           lo.ToPtr(true),
+							DeleteOnTermination: lo.ToPtr(false),
+						},
+					),
+				},
+			},
+			expectedNodePools: []NodePool{
+				{
+					name:          "dd-karpenter-smtfa",
+					ec2NodeClass:  "dd-karpenter-lqvvm",
+					labels:        map[string]string{"app": "database"},
+					capacityTypes: set("on-demand"),
+				},
+			},
+		},
+		{
+			name: "BlockDeviceMappings with snapshot",
+			add: []NodePoolsSetAddParams{
+				{
+					AMIFamily:        "AL2023",
+					AMIID:            "ami-0a1b2c3d4e5f6g7h8",
+					SubnetIDs:        []string{"subnet-05e10de88ea36557b"},
+					SecurityGroupIDs: []string{"sg-01dfd3789be8c5315"},
+					BlockDeviceMappings: []BlockDeviceMapping{
+						{
+							DeviceName:          lo.ToPtr("/dev/xvda"),
+							RootVolume:          true,
+							VolumeSize:          lo.ToPtr("100Gi"),
+							VolumeType:          lo.ToPtr("gp3"),
+							SnapshotID:          lo.ToPtr("snap-1234567890abcdef0"),
+							DeleteOnTermination: lo.ToPtr(true),
+						},
+					},
+					Labels:       map[string]string{"env": "restore"},
+					CapacityType: "on-demand",
+				},
+			},
+			expectedEC2NodeClasses: []EC2NodeClass{
+				{
+					name:             "dd-karpenter-b5mqq",
+					amiFamily:        "AL2023",
+					amiIDs:           set("ami-0a1b2c3d4e5f6g7h8"),
+					subnetIDs:        set("subnet-05e10de88ea36557b"),
+					securityGroupIDs: set("sg-01dfd3789be8c5315"),
+					blockDeviceMappings: blockDeviceMappingsMap(
+						BlockDeviceMapping{
+							DeviceName:          lo.ToPtr("/dev/xvda"),
+							RootVolume:          true,
+							VolumeSize:          lo.ToPtr("100Gi"),
+							VolumeType:          lo.ToPtr("gp3"),
+							SnapshotID:          lo.ToPtr("snap-1234567890abcdef0"),
+							DeleteOnTermination: lo.ToPtr(true),
+						},
+					),
+				},
+			},
+			expectedNodePools: []NodePool{
+				{
+					name:          "dd-karpenter-jgajg",
+					ec2NodeClass:  "dd-karpenter-b5mqq",
+					labels:        map[string]string{"env": "restore"},
+					capacityTypes: set("on-demand"),
+				},
+			},
+		},
+		{
+			name: "Empty BlockDeviceMappings vs nil BlockDeviceMappings treated the same",
+			add: []NodePoolsSetAddParams{
+				{
+					AMIFamily:           "AL2023",
+					AMIID:               "ami-0a1b2c3d4e5f6g7h8",
+					SubnetIDs:           []string{"subnet-05e10de88ea36557b"},
+					SecurityGroupIDs:    []string{"sg-01dfd3789be8c5315"},
+					BlockDeviceMappings: nil,
+					Labels:              map[string]string{"env": "test"},
+					CapacityType:        "on-demand",
+				},
+				{
+					AMIFamily:           "AL2023",
+					AMIID:               "ami-9h8g7f6e5d4c3b2a1",
+					SubnetIDs:           []string{"subnet-05e10de88ea36557b"},
+					SecurityGroupIDs:    []string{"sg-01dfd3789be8c5315"},
+					BlockDeviceMappings: []BlockDeviceMapping{},
+					Labels:              map[string]string{"env": "test"},
+					CapacityType:        "on-demand",
+				},
+			},
+			expectedEC2NodeClasses: []EC2NodeClass{
+				{
+					name:                "dd-karpenter-qew66",
+					amiFamily:           "AL2023",
+					amiIDs:              set("ami-0a1b2c3d4e5f6g7h8", "ami-9h8g7f6e5d4c3b2a1"),
+					subnetIDs:           set("subnet-05e10de88ea36557b"),
+					securityGroupIDs:    set("sg-01dfd3789be8c5315"),
+					blockDeviceMappings: blockDeviceMappingsMap(),
+				},
+			},
+			expectedNodePools: []NodePool{
+				{
+					name:          "dd-karpenter-erfd4",
+					ec2NodeClass:  "dd-karpenter-qew66",
+					labels:        map[string]string{"env": "test"},
+					capacityTypes: set("on-demand"),
 				},
 			},
 		},
