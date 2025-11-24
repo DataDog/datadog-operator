@@ -67,12 +67,48 @@ var (
 	KarpenterCfn string
 )
 
+// CreateKarpenterResources defines which Karpenter resources to create
+type CreateKarpenterResources string
+
+const (
+	// CreateKarpenterResourcesNone does not create any Karpenter resources
+	CreateKarpenterResourcesNone CreateKarpenterResources = "none"
+	// CreateKarpenterResourcesEC2NodeClass creates only EC2NodeClass resources
+	CreateKarpenterResourcesEC2NodeClass CreateKarpenterResources = "ec2nodeclass"
+	// CreateKarpenterResourcesAll creates both EC2NodeClass and NodePool resources
+	CreateKarpenterResourcesAll CreateKarpenterResources = "all"
+)
+
+// String returns the string representation of CreateKarpenterResources
+func (c *CreateKarpenterResources) String() string {
+	return string(*c)
+}
+
+// Set sets the CreateKarpenterResources value from a string
+func (c *CreateKarpenterResources) Set(s string) error {
+	switch s {
+	case "none":
+		*c = CreateKarpenterResourcesNone
+	case "ec2nodeclass":
+		*c = CreateKarpenterResourcesEC2NodeClass
+	case "all":
+		*c = CreateKarpenterResourcesAll
+	default:
+		return fmt.Errorf("create-karpenter-resources must be one of none, ec2nodeclass or all")
+	}
+
+	return nil
+}
+
+// Type returns the type name for pflag
+func (_ *CreateKarpenterResources) Type() string {
+	return "CreateKarpenterResources"
+}
+
 // InferenceMethod defines how to infer EC2NodeClass and NodePool properties
 type InferenceMethod string
 
 const (
-	// InferenceMethodNone does not infer any properties, creates empty resources
-	InferenceMethodNone InferenceMethod = "none"
 	// InferenceMethodNodes infers properties from existing Kubernetes nodes
 	InferenceMethodNodes InferenceMethod = "nodes"
 	// InferenceMethodNodeGroups infers properties from EKS node groups
@@ -87,14 +123,12 @@ func (i *InferenceMethod) String() string {
 // Set sets the InferenceMethod value from a string
 func (i *InferenceMethod) Set(s string) error {
 	switch s {
-	case "none":
-		*i = InferenceMethodNone
 	case "nodes":
 		*i = InferenceMethodNodes
 	case "nodegroups":
 		*i = InferenceMethodNodeGroups
 	default:
-		return fmt.Errorf("inference-method must be one of none, nodes or nodegroups")
+		return fmt.Errorf("inference-method must be one of nodes or nodegroups")
 	}
 
 	return nil
@@ -106,12 +140,13 @@ func (_ *InferenceMethod) Type() string {
 }
 
 var (
-	clusterName        string
-	karpenterNamespace string
-	karpenterVersion   string
-	inferenceMethod    = InferenceMethodNodeGroups
-	debug              bool
-	installExample     = `
+	clusterName              string
+	karpenterNamespace       string
+	karpenterVersion         string
+	createKarpenterResources = CreateKarpenterResourcesAll
+	inferenceMethod          = InferenceMethodNodeGroups
+	debug                    bool
+	installExample           = `
   # install autoscaling
   %[1]s install
 `
@@ -153,7 +188,8 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd.Flags().StringVar(&clusterName, "cluster-name", "", "Name of the EKS cluster")
 	cmd.Flags().StringVar(&karpenterNamespace, "karpenter-namespace", "dd-karpenter", "Name of the Kubernetes namespace to deploy Karpenter into")
 	cmd.Flags().StringVar(&karpenterVersion, "karpenter-version", "", "Version of Karpenter to install (default to latest)")
-	cmd.Flags().Var(&inferenceMethod, "inference-method", "Method to infer EC2NodeClass and NodePool properties: none, nodes, nodegroups")
+	cmd.Flags().Var(&createKarpenterResources, "create-karpenter-resources", "Which Karpenter resources to create: none, ec2nodeclass, all (default: all)")
+	cmd.Flags().Var(&inferenceMethod, "inference-method", "Method to infer EC2NodeClass and NodePool properties: nodes, nodegroups")
 	cmd.Flags().BoolVar(&debug, "debug", false, "Enable debug logs")
 
 	o.ConfigFlags.AddFlags(cmd.Flags())
@@ -173,8 +209,12 @@ func (o *options) validate() error {
 		return errors.New("no arguments are allowed")
 	}
 
-	if !slices.Contains([]InferenceMethod{InferenceMethodNone, InferenceMethodNodes, InferenceMethodNodeGroups}, inferenceMethod) {
-		return errors.New("inference-method must be one of none, nodes or nodegroups")
+	if !slices.Contains([]CreateKarpenterResources{CreateKarpenterResourcesNone, CreateKarpenterResourcesEC2NodeClass, CreateKarpenterResourcesAll}, createKarpenterResources) {
+		return errors.New("create-karpenter-resources must be one of none, ec2nodeclass or all")
+	}
+
+	if !slices.Contains([]InferenceMethod{InferenceMethodNodes, InferenceMethodNodeGroups}, inferenceMethod) {
+		return errors.New("inference-method must be one of nodes or nodegroups")
 	}
 
 	return nil
@@ -218,11 +258,11 @@ func (o *options) run(cmd *cobra.Command) error {
 		return err
 	}
 
-	if err = createNodePoolResources(ctx, cmd, clients, clusterName, inferenceMethod, debug); err != nil {
+	if err = createNodePoolResources(ctx, cmd, clients, clusterName, createKarpenterResources, inferenceMethod, debug); err != nil {
 		return err
 	}
 
-	return displaySuccessMessage(cmd, clusterName)
+	return displaySuccessMessage(cmd, clusterName, createKarpenterResources)
 }
 
 type clients struct {
@@ -420,18 +460,15 @@ func (o *options) installHelmChart(ctx context.Context, clusterName string, karp
 	return nil
 }
 
-func createNodePoolResources(ctx context.Context, cmd *cobra.Command, clients *clients, clusterName string, inferenceMethod InferenceMethod, debug bool) error {
+func createNodePoolResources(ctx context.Context, cmd *cobra.Command, clients *clients, clusterName string, createResources CreateKarpenterResources, inferenceMethod InferenceMethod, debug bool) error {
+	if createResources == CreateKarpenterResourcesNone {
+		return nil
+	}
+
 	var nodePoolsSet *guess.NodePoolsSet
 	var err error
 
 	switch inferenceMethod {
-	case InferenceMethodNone:
-		cmd.Printf("Karpenter has been successfully installed, but no EC2NodeClass nor NodePool have been created yet. " +
-			"Those objects are mandatory for Karpenter to be able to auto-scale the cluster. " +
-			"Use --inference-method=nodes or --inference-method=nodegroups to create some " +
-			"with reasonable defaults based on the existing nodes of the cluster.\n")
-		return nil
-
 	case InferenceMethodNodes:
 		nodePoolsSet, err = guess.GetNodesProperties(ctx, clients.k8sClientset, clients.ec2)
 		if err != nil {
@@ -446,25 +483,29 @@ func createNodePoolResources(ctx context.Context, cmd *cobra.Command, clients *c
 	}
 
 	if debug {
-		cmd.Printf("Creating the following node pools:\n %s\n", spew.Sdump(nodePoolsSet))
+		cmd.Printf("Creating the following resources:\n %s\n", spew.Sdump(nodePoolsSet))
 	}
 
-	for _, nc := range nodePoolsSet.GetEC2NodeClasses() {
-		if err = k8s.CreateOrUpdateEC2NodeClass(ctx, clients.k8sClient, clusterName, nc); err != nil {
-			return fmt.Errorf("failed to create or update EC2NodeClass %s: %w", nc.GetName(), err)
+	if createResources == CreateKarpenterResourcesEC2NodeClass || createResources == CreateKarpenterResourcesAll {
+		for _, nc := range nodePoolsSet.GetEC2NodeClasses() {
+			if err = k8s.CreateOrUpdateEC2NodeClass(ctx, clients.k8sClient, clusterName, nc); err != nil {
+				return fmt.Errorf("failed to create or update EC2NodeClass %s: %w", nc.GetName(), err)
+			}
 		}
 	}
 
-	for _, np := range nodePoolsSet.GetNodePools() {
-		if err = k8s.CreateOrUpdateNodePool(ctx, clients.k8sClient, np); err != nil {
-			return fmt.Errorf("failed to create or update NodePool %s: %w", np.GetName(), err)
+	if createResources == CreateKarpenterResourcesAll {
+		for _, np := range nodePoolsSet.GetNodePools() {
+			if err = k8s.CreateOrUpdateNodePool(ctx, clients.k8sClient, np); err != nil {
+				return fmt.Errorf("failed to create or update NodePool %s: %w", np.GetName(), err)
+			}
 		}
 	}
 
 	return nil
 }
 
-func displaySuccessMessage(cmd *cobra.Command, clusterName string) error {
+func displaySuccessMessage(cmd *cobra.Command, clusterName string, createResources CreateKarpenterResources) error {
 	autoscalingSettingsURL := (&url.URL{
 		Scheme:   "https",
 		Host:     "app.datadoghq.com",
@@ -478,16 +519,34 @@ func displaySuccessMessage(cmd *cobra.Command, clusterName string) error {
 		log.Printf("Failed to open URL in browser: %v", err)
 	}
 
-	lines := []string{
-		"Datadog cluster autoscaling is now ready to be enabled.",
-		"",
-		"Navigate to the Autoscaling settings page",
-		"and select cluster to start generating recommendations:",
-		autoscalingSettingsURL,
+	var lines []string
+
+	switch createResources {
+	case CreateKarpenterResourcesNone:
+		lines = []string{
+			"Datadog cluster autoscaling is partially configured.",
+			"",
+			"No Karpenter resources were created.",
+			"Use --create-karpenter-resources=ec2nodeclass or =all",
+			"to create EC2NodeClass and/or NodePool resources.",
+			"",
+			"Navigate to the Autoscaling settings page:",
+			autoscalingSettingsURL,
+		}
+	case CreateKarpenterResourcesEC2NodeClass:
+		fallthrough
+	case CreateKarpenterResourcesAll:
+		lines = []string{
+			"Datadog cluster autoscaling is now ready to be enabled.",
+			"",
+			"Navigate to the Autoscaling settings page",
+			"and select cluster to start generating recommendations:",
+			autoscalingSettingsURL,
+		}
 	}
 
 	maxLength := slices.Max(lo.Map(lines, func(s string, _ int) int { return len(s) }))
-	lines[4] = color.New(color.Bold, color.Underline, color.FgBlue).Sprint(autoscalingSettingsURL)
+	lines[len(lines)-1] = color.New(color.Bold, color.Underline, color.FgBlue).Sprint(autoscalingSettingsURL)
 
 	cmd.Println("╭─" + strings.Repeat("─", maxLength) + "─╮")
 	for _, line := range lines {
