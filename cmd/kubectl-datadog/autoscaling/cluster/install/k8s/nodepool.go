@@ -9,6 +9,7 @@ import (
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/guess"
+	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 func CreateOrUpdateNodePool(ctx context.Context, client client.Client, np guess.NodePool) error {
@@ -61,6 +62,11 @@ func CreateOrUpdateNodePool(ctx context.Context, client client.Client, np guess.
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: np.GetName(),
+			Labels: map[string]string{
+				"app.kubernetes.io/managed-by":      "kubectl-datadog",
+				"app.kubernetes.io/version":         version.GetVersion(),
+				"autoscaling.datadoghq.com/created": "true",
+			},
 		},
 		Spec: karpv1.NodePoolSpec{
 			Template: karpv1.NodeClaimTemplate{
@@ -76,6 +82,15 @@ func CreateOrUpdateNodePool(ctx context.Context, client client.Client, np guess.
 					Requirements: requirements,
 					Taints:       np.GetTaints(),
 				},
+			},
+			Disruption: karpv1.Disruption{
+				Budgets: []karpv1.Budget{
+					{
+						Nodes: "10%",
+					},
+				},
+				ConsolidateAfter:    karpv1.MustParseNillableDuration("5m"),
+				ConsolidationPolicy: karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized,
 			},
 		},
 	})
