@@ -36,9 +36,6 @@ func Test_CRDBuildPayload(t *testing.T) {
 		},
 	)
 
-	// Set cluster UID in SharedMetadata to simulate it being populated
-	cmf.clusterUID = expectedClusterUID
-
 	// Create a test CRD instance
 	testSpec := map[string]interface{}{
 		"global": map[string]interface{}{
@@ -82,6 +79,10 @@ func Test_CRDBuildPayload(t *testing.T) {
 
 	if timestamp, ok := parsed["timestamp"].(float64); !ok || timestamp <= 0 {
 		t.Errorf("buildPayload() timestamp = %v, want positive number", timestamp)
+	}
+
+	if uuid, ok := parsed["uuid"].(string); !ok || uuid != expectedClusterUID {
+		t.Errorf("buildPayload() uuid = %v, want %v", uuid, expectedClusterUID)
 	}
 
 	if clusterID, ok := parsed["cluster_id"].(string); !ok || clusterID != expectedClusterUID {

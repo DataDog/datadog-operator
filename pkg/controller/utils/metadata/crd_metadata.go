@@ -42,7 +42,7 @@ type CRDMetadataForwarder struct {
 }
 
 type CRDMetadataPayload struct {
-	Hostname  string      `json:"hostname"`
+	UUID      string      `json:"uuid"`
 	Timestamp int64       `json:"timestamp"`
 	ClusterID string      `json:"cluster_id"`
 	Metadata  CRDMetadata `json:"datadog_operator_crd_metadata"`
@@ -99,8 +99,9 @@ func (cmf *CRDMetadataForwarder) Start() {
 		return
 	}
 
-	if cmf.hostName == "" {
-		cmf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting crd metadata forwarder")
+	clusterUID, err := cmf.GetOrCreateClusterUID()
+	if err != nil {
+		cmf.logger.Error(err, "Could not get cluster UID; not starting CRD metadata forwarder")
 		return
 	}
 
@@ -111,20 +112,14 @@ func (cmf *CRDMetadataForwarder) Start() {
 	ticker := time.NewTicker(crdMetadataInterval)
 	go func() {
 		for range ticker.C {
-			if err := cmf.sendMetadata(); err != nil {
+			if err := cmf.sendMetadata(clusterUID); err != nil {
 				cmf.logger.Error(err, "Error while sending CRD metadata")
 			}
 		}
 	}()
 }
 
-func (cmf *CRDMetadataForwarder) sendMetadata() error {
-	clusterUID, err := cmf.GetOrCreateClusterUID()
-	if err != nil {
-		cmf.logger.Error(err, "Failed to get cluster UID")
-		return err
-	}
-
+func (cmf *CRDMetadataForwarder) sendMetadata(clusterUID string) error {
 	allCRDs, listSuccess := cmf.getAllActiveCRDs()
 	changedCRDs := cmf.getChangedCRDs(allCRDs)
 
@@ -149,8 +144,6 @@ func (cmf *CRDMetadataForwarder) sendMetadata() error {
 
 func (cmf *CRDMetadataForwarder) sendCRDMetadata(clusterUID string, crdInstance CRDInstance) error {
 	payload := cmf.buildPayload(clusterUID, crdInstance)
-
-	cmf.logger.V(1).Info("CRD metadata payload", "payload", string(payload))
 
 	reader := bytes.NewReader(payload)
 	req, err := http.NewRequestWithContext(context.TODO(), "POST", cmf.requestURL, reader)
@@ -219,7 +212,7 @@ func (cmf *CRDMetadataForwarder) buildPayload(clusterUID string, crdInstance CRD
 	}
 
 	payload := CRDMetadataPayload{
-		Hostname:  cmf.hostName,
+		UUID:      clusterUID,
 		Timestamp: now,
 		ClusterID: clusterUID,
 		Metadata:  crdMetadata,
