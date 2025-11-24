@@ -98,7 +98,6 @@ generate_code:
 
 build_operator_image_amd64:
   stage: image
-  rules: !reference [.on_build_images]
   tags:
     - "arch:amd64"
   image: $JOB_DOCKER_IMAGE
@@ -115,6 +114,7 @@ build_operator_image_amd64:
 
 build_operator_image_fips_amd64:
   extends: build_operator_image_amd64
+  rules: !reference [.on_build_images]
   variables:
     TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips-amd64
     RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64
@@ -180,6 +180,7 @@ build_operator_check_image_arm64:
 
 build_bundle_image:
   stage: image
+  rules: !reference [.on_build_images]
   tags:
     - "arch:amd64"
   image: $JOB_DOCKER_IMAGE
@@ -190,7 +191,7 @@ build_bundle_image:
     - BUNDLE_IMG=$TARGET_IMAGE make bundle-build-push
     - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
 
-.on_run_e2e:
+.on_run_e2e_base:
   # Skip if only .md files are changed
   - if: $CI_COMMIT_BRANCH
     changes:
@@ -212,9 +213,31 @@ build_bundle_image:
   # Run automatically otherwise
   - when: on_success
 
+.on_run_e2e:
+  # Skip if only .md files are changed
+  - if: $CI_COMMIT_BRANCH
+    changes:
+      paths:
+        - "*.md"
+      compare_to: "refs/heads/main"
+    when: never
+  # Skip on mergequeue branches (handled by e2e_mq)
+  - if: "$CI_COMMIT_BRANCH =~ /^mq-working-branch-/"
+    when: never
+  - if: $CI_COMMIT_TAG
+    allow_failure: true
+  # Allow failure if we're explicitly pushing images to staging
+  - if: $PUSH_IMAGES_TO_STAGING == 'true'
+    allow_failure: true
+  # Disable on Conductor-triggered jobs (ex: nightly)
+  - if: '$DDR == "true"'
+    when: never
+  # Run automatically otherwise
+  - when: on_success
+
 trigger_e2e_operator_image:
   stage: e2e
-  rules: !reference [.on_run_e2e]
+  rules: !reference [.on_run_e2e_base]
   trigger:
     project: DataDog/public-images
     branch: main
@@ -269,6 +292,24 @@ e2e:
     - echo "Running e2e test with target image $TARGET_IMAGE"
     - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-tests
   retry: 2
+
+e2e_mq:
+  extends: e2e
+  timeout: 40m
+  retry: 0
+  rules:
+    # Skip if only .md files are changed
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        paths:
+          - "*.md"
+        compare_to: "refs/heads/main"
+      when: never
+    # Only run on mergequeue branches with allow_failure
+    - if: "$CI_COMMIT_BRANCH =~ /^mq-working-branch-/"
+      allow_failure: true
+    # Don't run otherwise
+    - when: never
 
 publish_public_main:
   stage: release

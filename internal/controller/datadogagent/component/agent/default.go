@@ -447,7 +447,7 @@ func otelAgentContainer(dda metav1.Object) corev1.Container {
 			"--core-config=" + agentCustomConfigVolumePath,
 			"--sync-delay=30s",
 		},
-		Env: commonEnvVars(dda),
+		Env:          commonEnvVars(dda),
 		VolumeMounts: volumeMountsForOtelAgent(),
 		// todo(mackjmr): remove once support for annotations is removed.
 		// the otel-agent feature adds these ports if none are supplied by
