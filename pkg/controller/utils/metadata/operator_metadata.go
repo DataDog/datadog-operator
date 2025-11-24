@@ -6,12 +6,10 @@
 package metadata
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -31,8 +29,6 @@ const (
 type OperatorMetadataForwarder struct {
 	*SharedMetadata
 
-	// Operator-specific fields
-	payloadHeader    http.Header
 	OperatorMetadata OperatorMetadata
 }
 
@@ -78,6 +74,11 @@ func NewOperatorMetadataForwarder(logger logr.Logger, k8sClient client.Reader, k
 
 // Start starts the operator metadata forwarder
 func (omf *OperatorMetadataForwarder) Start() {
+	if omf.hostName == "" {
+		omf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting helm metadata forwarder")
+		return
+	}
+
 	omf.logger.Info("Starting operator metadata forwarder")
 
 	ticker := time.NewTicker(defaultInterval)
@@ -97,51 +98,16 @@ func (omf *OperatorMetadataForwarder) Start() {
 	}()
 }
 
-func (omf *OperatorMetadataForwarder) setupRequestPrerequisites() error {
-	apiKey, requestURL, err := omf.getApiKeyAndURL()
-	if err != nil {
-		omf.logger.Error(err, "Could not get credentials")
-		return err
-	}
-	if omf.hostName == "" {
-		omf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting operator metadata forwarder")
-		return ErrEmptyHostName
-	}
-
-	omf.payloadHeader = omf.GetHeaders(*apiKey)
-	if requestURL != nil {
-		omf.requestURL = *requestURL
-	}
-
+func (omf *OperatorMetadataForwarder) sendMetadata() error {
 	clusterUID, err := omf.GetOrCreateClusterUID()
 	if err != nil {
-		omf.logger.Error(err, "Failed to get cluster UID")
-		return err
+		return fmt.Errorf("error getting cluster UID: %w", err)
 	}
-	omf.SharedMetadata.clusterUID = clusterUID
-	return nil
-}
-
-func (omf *OperatorMetadataForwarder) sendMetadata() error {
-	err := omf.setupRequestPrerequisites()
+	payload := omf.GetPayload(clusterUID)
+	req, err := omf.createRequest(payload)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating request: %w", err)
 	}
-
-	payload := omf.GetPayload(omf.SharedMetadata.clusterUID)
-
-	omf.logger.Info("Operator metadata payload", "payload", string(payload))
-
-	omf.logger.V(1).Info("Sending operator metadata to URL", "url", omf.requestURL)
-
-	reader := bytes.NewReader(payload)
-	req, err := http.NewRequestWithContext(context.TODO(), "POST", omf.requestURL, reader)
-	if err != nil {
-		omf.logger.Error(err, "Error creating request", "url", omf.requestURL, "reader", reader)
-		return err
-	}
-	req.Header = omf.payloadHeader
-
 	resp, err := omf.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("error sending operator metadata request: %w", err)
@@ -161,7 +127,7 @@ func (omf *OperatorMetadataForwarder) GetPayload(clusterUID string) []byte {
 	now := time.Now().Unix()
 
 	omf.OperatorMetadata.ClusterID = clusterUID
-	omf.OperatorMetadata.ClusterName = omf.clusterName
+	omf.OperatorMetadata.ClusterName = omf.GetOrCreateClusterName()
 	omf.OperatorMetadata.OperatorVersion = omf.operatorVersion
 	omf.OperatorMetadata.KubernetesVersion = omf.kubernetesVersion
 
@@ -169,7 +135,7 @@ func (omf *OperatorMetadataForwarder) GetPayload(clusterUID string) []byte {
 		Hostname:    omf.hostName,
 		Timestamp:   now,
 		ClusterID:   clusterUID,
-		ClusterName: omf.clusterName,
+		ClusterName: omf.GetOrCreateClusterName(),
 		Metadata:    omf.OperatorMetadata,
 	}
 

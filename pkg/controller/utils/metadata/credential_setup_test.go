@@ -329,34 +329,37 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 			}
 
 			// Call setupRequestPrerequisites
-			err := omf.setupRequestPrerequisites()
+			req, err := omf.createRequest([]byte("test"))
 
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
 			}
+			assert.NotNil(t, req)
 
 			// Verify no error
 			require.NoError(t, err)
 
 			// Verify API key is set correctly
-			apiKey, _, _ := omf.getApiKeyAndURL()
+			apiKey, requestURL, _ := omf.getApiKeyAndURL()
 			assert.Equal(t, tt.wantAPIKey, *apiKey, "API key should match expected value")
 
 			// Verify URL is set correctly
-			assert.Equal(t, tt.wantURL, omf.requestURL, "Request URL should match expected value")
+			assert.Equal(t, tt.wantURL, *requestURL, "Request URL should match expected value")
 
 			// Verify cluster name is set correctly
-			assert.Equal(t, tt.wantClusterName, omf.clusterName, "Cluster name should match expected value")
+			assert.Equal(t, tt.wantClusterName, omf.GetOrCreateClusterName(), "Cluster name should match expected value")
 
 			// Verify headers are set with correct API key
-			headers := omf.payloadHeader
-			assert.Equal(t, tt.wantAPIKey, headers.Get("Dd-Api-Key"), "Header should contain correct API key")
-			assert.Equal(t, "application/json", headers.Get("Content-Type"), "Content-Type header should be set")
-			assert.Equal(t, "application/json", headers.Get("Accept"), "Accept header should be set")
+			assert.Equal(t, "Datadog Operator/0.0.0", req.Header.Get("User-Agent"), "User-Agent header should be set")
+			assert.Equal(t, tt.wantAPIKey, req.Header.Get("Dd-Api-Key"), "Header should contain correct API key")
+			assert.Equal(t, "application/json", req.Header.Get("Content-Type"), "Content-Type header should be set")
+			assert.Equal(t, "application/json", req.Header.Get("Accept"), "Accept header should be set")
 
 			// Verify cluster UID is set
-			assert.NotEmpty(t, omf.clusterUID, "Cluster UID should be set")
+			clusterUID, err := omf.GetOrCreateClusterUID()
+			assert.NoError(t, err)
+			assert.NotEmpty(t, clusterUID, "Cluster UID should be set")
 		})
 	}
 }

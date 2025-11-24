@@ -6,6 +6,7 @@
 package metadata
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -19,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/version"
@@ -51,7 +53,6 @@ type SharedMetadata struct {
 	clusterName       string
 	operatorVersion   string
 	kubernetesVersion string
-	requestURL        string
 	hostName          string
 	httpClient        *http.Client
 
@@ -66,13 +67,39 @@ func NewSharedMetadata(logger logr.Logger, k8sClient client.Reader, kubernetesVe
 		logger:            logger,
 		operatorVersion:   operatorVersion,
 		kubernetesVersion: kubernetesVersion,
-		requestURL:        getURL(),
 		hostName:          os.Getenv(constants.DDHostName),
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
 		credsManager: credsManager,
 	}
+}
+
+func (sm *SharedMetadata) createRequest(payload []byte) (*http.Request, error) {
+	if sm.hostName == "" {
+		sm.logger.Error(ErrEmptyHostName, "Could not set host name; not starting operator metadata forwarder")
+		return nil, ErrEmptyHostName
+	}
+
+	apiKey, requestURL, err := sm.getApiKeyAndURL()
+	if err != nil {
+		sm.logger.Error(err, "Could not get credentials")
+		return nil, err
+	}
+	payloadHeader := sm.GetHeaders(*apiKey)
+
+	sm.logger.Info("Operator metadata payload", "payload", string(payload))
+
+	sm.logger.V(1).Info("Sending operator metadata to URL", "url", *requestURL)
+
+	reader := bytes.NewReader(payload)
+	req, err := http.NewRequestWithContext(context.TODO(), "POST", *requestURL, reader)
+	if err != nil {
+		sm.logger.Error(err, "Error creating request", "url", *requestURL, "reader", reader)
+		return nil, err
+	}
+	req.Header = payloadHeader
+	return req, nil
 }
 
 // GetOrCreateClusterUID retrieves the cluster UID from kube-system namespace
@@ -91,13 +118,9 @@ func (sm *SharedMetadata) GetOrCreateClusterUID() (string, error) {
 	return sm.clusterUID, nil
 }
 
-// getApiKeyAndURL retrieves the API key and request URL from the operator or DDA
-// and sets the cluster name from the operator or DDA in the SharedMetadata struct
-func (sm *SharedMetadata) getApiKeyAndURL() (*string, *string, error) {
-	// Get credentials (operator → DDA fallback handled internally)
-	creds, err := sm.credsManager.GetCredsWithDDAFallback()
-	if err != nil {
-		return nil, nil, err
+func (sm *SharedMetadata) GetOrCreateClusterName() string {
+	if sm.clusterName != "" {
+		return sm.clusterName
 	}
 
 	// Set cluster name - try operator first, then DDA
@@ -105,39 +128,58 @@ func (sm *SharedMetadata) getApiKeyAndURL() (*string, *string, error) {
 	sm.clusterName = os.Getenv(constants.DDClusterName)
 	if sm.clusterName == "" {
 		// Fallback to DDA cluster name
-		dda, err := sm.credsManager.GetDatadogAgent()
+		dda, err := sm.getDatadogAgent()
 		if err == nil && dda.Spec.Global != nil && dda.Spec.Global.ClusterName != nil {
 			sm.clusterName = *dda.Spec.Global.ClusterName
 		}
 	}
-
-	if creds.Site != nil {
-		mdfURL := url.URL{
-			Scheme: defaultURLScheme,
-			Host:   defaultURLHostPrefix + *creds.Site,
-			Path:   defaultURLPath,
-		}
-		requestURL := mdfURL.String()
-		return &creds.APIKey, &requestURL, nil
-	}
-	return &creds.APIKey, nil, nil
+	return sm.clusterName
 }
 
-// setCredentials attempts to set up credentials and cluster name from the operator configuration first.
-// If cluster name is empty (even when credentials are successfully retrieved from operator),
-// it falls back to setting up from DatadogAgent to ensure we have a valid cluster name.
-// func (sm *SharedMetadata) setCredentials() error {
-// 	apiKey, requestURL, err := sm.getApiKeyAndURL()
-// 	if err != nil {
-// 		return err
-// 	}
-// 	sm.apiKey = *apiKey
-// 	// request can still be nil
-// 	if requestURL != nil {
-// 		sm.requestURL = *requestURL
-// 	}
-// 	return nil
-// }
+// getApiKeyAndURL retrieves the API key and request URL from the operator or DDA
+// and sets the cluster name from the operator or DDA in the SharedMetadata struct
+func (sm *SharedMetadata) getApiKeyAndURL() (*string, *string, error) {
+	// Get credentials (operator → DDA fallback handled internally), dda can be nil
+	dda, _ := sm.getDatadogAgent()
+	creds, err := sm.credsManager.GetCredsWithDDAFallback(dda)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	mdfURL := url.URL{
+		Scheme: defaultURLScheme,
+		Host:   defaultURLHost,
+		Path:   defaultURLPath,
+	}
+	if creds.Site != nil {
+		mdfURL.Host = defaultURLHostPrefix + *creds.Site
+	}
+
+	if creds.URL != nil {
+		tempURL, err := url.Parse(*creds.URL)
+		if err == nil {
+			mdfURL.Host = tempURL.Host
+			mdfURL.Scheme = tempURL.Scheme
+		}
+	}
+	requestURL := mdfURL.String()
+	return &creds.APIKey, &requestURL, nil
+}
+
+// getDatadogAgent retrieves the DatadogAgent using Get client method
+func (sm *SharedMetadata) getDatadogAgent() (*v2alpha1.DatadogAgent, error) {
+	ddaList := v2alpha1.DatadogAgentList{}
+
+	if err := sm.k8sClient.List(context.TODO(), &ddaList); err != nil {
+		return nil, err
+	}
+
+	if len(ddaList.Items) == 0 {
+		return nil, errors.New("DatadogAgent not found")
+	}
+
+	return &ddaList.Items[0], nil
+}
 
 // GetBaseHeaders returns the common HTTP headers for API requests
 func (sm *SharedMetadata) GetHeaders(apiKey string) http.Header {
@@ -147,29 +189,4 @@ func (sm *SharedMetadata) GetHeaders(apiKey string) http.Header {
 	header.Set(acceptHeaderKey, "application/json")
 	header.Set(userAgentHTTPHeaderKey, fmt.Sprintf("Datadog Operator/%s", version.GetVersion()))
 	return header
-}
-
-func getURL() string {
-	mdfURL := url.URL{
-		Scheme: defaultURLScheme,
-		Host:   defaultURLHost,
-		Path:   defaultURLPath,
-	}
-
-	// check site env var
-	// example: datadoghq.com
-	if siteFromEnvVar := os.Getenv("DD_SITE"); siteFromEnvVar != "" {
-		mdfURL.Host = defaultURLHostPrefix + siteFromEnvVar
-	}
-	// check url env var
-	// example: https://app.datadoghq.com
-	if urlFromEnvVar := os.Getenv("DD_URL"); urlFromEnvVar != "" {
-		tempURL, err := url.Parse(urlFromEnvVar)
-		if err == nil {
-			mdfURL.Host = tempURL.Host
-			mdfURL.Scheme = tempURL.Scheme
-		}
-	}
-
-	return mdfURL.String()
 }

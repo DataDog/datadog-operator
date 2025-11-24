@@ -15,7 +15,6 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
@@ -144,13 +143,21 @@ func (cm *CredentialManager) GetCredentials() (Creds, error) {
 	return creds, nil
 }
 
-func (cm *CredentialManager) GetCredsWithDDAFallback() (Creds, error) {
+func (cm *CredentialManager) GetCredsWithDDAFallback(dda *v2alpha1.DatadogAgent) (Creds, error) {
 	creds, err := cm.GetCredentials()
 	if err == nil {
+		if os.Getenv("DD_SITE") != "" {
+			site := os.Getenv("DD_SITE")
+			creds.Site = &site
+		}
+		if os.Getenv("DD_URL") != "" {
+			url := os.Getenv("DD_URL")
+			creds.URL = &url
+		}
 		return creds, nil
 	}
 
-	creds, err = cm.GetCredentialsFromDDA()
+	creds, err = cm.getCredentialsFromDDA(dda)
 	if err != nil {
 		return Creds{}, err
 	}
@@ -231,33 +238,12 @@ func (cm *CredentialManager) StartCredentialRefreshRoutine(interval time.Duratio
 	}
 }
 
-// getDatadogAgent retrieves the DatadogAgent using Get client method
-func (cm *CredentialManager) GetDatadogAgent() (*v2alpha1.DatadogAgent, error) {
-	// Note: If there are no DDAs present when the Operator starts, the metadata forwarder does not re-try to get credentials from a future DDA
-	ddaList := v2alpha1.DatadogAgentList{}
-
-	// Create new client because manager client requires manager to start first
-	s := runtime.NewScheme()
-	_ = v2alpha1.AddToScheme(s)
-
-	if err := cm.client.List(context.TODO(), &ddaList); err != nil {
-		return nil, err
-	}
-
-	if len(ddaList.Items) == 0 {
-		return nil, errors.New("DatadogAgent not found")
-	}
-
-	return &ddaList.Items[0], nil
-}
-
 // GetCredentialsFromDDA retrieves the API key from the DatadogAgent and decrypts it if needed
 // It returns the API key and the site if set in the DatadogAgent
-func (cm *CredentialManager) GetCredentialsFromDDA() (Creds, error) {
+func (cm *CredentialManager) getCredentialsFromDDA(dda *v2alpha1.DatadogAgent) (Creds, error) {
 	creds := Creds{}
-	dda, err := cm.GetDatadogAgent()
-	if err != nil {
-		return creds, err
+	if dda == nil {
+		return creds, fmt.Errorf("DatadogAgent is nil")
 	}
 
 	if dda.Spec.Global == nil || dda.Spec.Global.Credentials == nil {
@@ -267,7 +253,7 @@ func (cm *CredentialManager) GetCredentialsFromDDA() (Creds, error) {
 	defaultSecretName := secrets.GetDefaultCredentialsSecretName(dda)
 
 	apiKey := ""
-
+	err := error(nil)
 	if dda.Spec.Global != nil && dda.Spec.Global.Credentials != nil && dda.Spec.Global.Credentials.APIKey != nil && *dda.Spec.Global.Credentials.APIKey != "" {
 		apiKey = *dda.Spec.Global.Credentials.APIKey
 	} else {
