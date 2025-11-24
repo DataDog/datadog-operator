@@ -178,6 +178,9 @@ func (r *Reconciler) get(instance *v1alpha1.DatadogGenericResource) error {
 }
 
 func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+	// Update hash to reflect the spec we're attempting to sync (whether it succeeds or fails)
+	status.CurrentHash = hash
+
 	err := apiUpdate(r, instance)
 	if err != nil {
 		logger.Error(err, "error updating generic resource", "generic resource Id", instance.Status.Id)
@@ -191,7 +194,6 @@ func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogGeneri
 	// Set condition and status
 	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeUpdated, metav1.ConditionTrue, "UpdatingGenericResource", "DatadogGenericResource Update")
 	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
-	status.CurrentHash = hash
 	status.LastForceSyncTime = &now
 
 	logger.Info("Updated Datadog Generic Resource", "Generic Resource Id", instance.Status.Id)
