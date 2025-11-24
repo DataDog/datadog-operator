@@ -6,17 +6,35 @@
 package utils
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/hashicorp/go-retryablehttp"
 	"helm.sh/helm/v3/pkg/chartutil"
 )
 
-const defaultHttpTimeout = 60 * time.Second
+const (
+	defaultHttpTimeout      = 5 * time.Second
+	defaultHttpMaxRetries   = 3
+	defaultHttpRetryWaitMin = 200 * time.Millisecond
+	defaultHttpRetryWaitMax = 2 * time.Second
+)
+
+var httpClient = &http.Client{
+	Timeout: defaultHttpTimeout,
+}
+
+var retryableClient = func() *retryablehttp.Client {
+	c := retryablehttp.NewClient()
+	c.HTTPClient = httpClient
+	c.RetryWaitMin = defaultHttpRetryWaitMin
+	c.RetryWaitMax = defaultHttpRetryWaitMax
+	c.RetryMax = defaultHttpMaxRetries
+	return c
+}()
 
 // FetchLatestValues fetches the latest Datadog Helm chart values.yaml and writes it to a temp file.
 func FetchLatestValues() (string, error) {
@@ -44,20 +62,13 @@ func FetchLatestValues() (string, error) {
 	return chartValuesPath, nil
 }
 
-// fetchURL makes GET HTTP request.
+// fetchURL makes GET HTTP request with retries.
 func fetchURL(url string) (*http.Response, error) {
-	client := &http.Client{
-		Timeout: defaultHttpTimeout,
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), defaultHttpTimeout)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := retryablehttp.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
-	return client.Do(req)
+	return retryableClient.Do(req)
 }
 
 // FetchYAMLFile fetches YAML file at URL and writes it to a temp file.
