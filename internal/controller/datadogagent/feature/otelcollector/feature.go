@@ -85,14 +85,14 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 	supportedVersion := utils.IsAboveMinVersion(agentVersion, "7.67.0-0", apiutils.NewBoolPointer(true))
 	if !supportedVersion && agentImageName == "" {
 		o.incompatibleImage = true
-		o.logger.Error(errIncompatibleImage, "OTel Agent Standalone image requires agent version 7.67.0 or higher. Update the Agent version or use the agent image with -full tag instead.",
+		o.logger.Error(errIncompatibleImage, "OTel Agent Standalone image requires agent version 7.67.0 or higher. Update the Agent version to a version > 7.67.0 or use the agent image in combination with the `-full` tag instead (registry.domain/agent:version-full)",
 			"current_version", agentVersion)
 		return feature.RequiredComponents{}
 	}
 
 	if strings.HasSuffix(agentVersion, "-full") && agentImageName == "" {
 		o.incompatibleImage = true
-		o.logger.Error(errIncompatibleImage, "OTel Agent Standalone image does not support full tag. Update the Agent to version without -full tag, or use the agent image with -full tag instead.",
+		o.logger.Error(errIncompatibleImage, "OTel Agent Standalone image does not support full tag. Update the Agent to version without -full tag (e.g. 7.XX.0 instead of 7.XX.0-full), or override the agent image name and tag instead (registry.domain/agent:version-full)",
 			"current_version", agentVersion)
 		return feature.RequiredComponents{}
 	}
