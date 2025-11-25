@@ -319,7 +319,7 @@ func GetVolumeForSeccomp() corev1.Volume {
 	}
 }
 
-// GetVolumeForRunPath returns the volume for the event monitor socket
+// GetVolumeForRunPath returns the volume for the agent run path
 func GetVolumeForRunPath() corev1.Volume {
 	return corev1.Volume{
 		Name: RunPathVolumeName,
@@ -329,7 +329,7 @@ func GetVolumeForRunPath() corev1.Volume {
 	}
 }
 
-// GetVolumeMountForRunPath returns the VolumeMount for the event monitor socket
+// GetVolumeMountForRunPath returns the VolumeMount for the run path
 func GetVolumeMountForRunPath() corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:      RunPathVolumeName,
