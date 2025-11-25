@@ -2,7 +2,7 @@ version = '2'
 
 [run]
 tests = false
-timeout = "10m"
+timeout = "20m"
 
 [formatters]
 enable = ['gci']
