@@ -156,8 +156,8 @@ const (
 	HostRunPath       = "/run"
 	HostRunMountPath  = "/host/run"
 
-	EventSocketVolumeName = "eventsocket"
-	EventSocketMountPath  = "/opt/datadog-agent/run"
+	RunPathVolumeName  = "pointerdir"
+	RunPathVolumeMount = "/opt/datadog-agent/run"
 )
 
 // Field paths

@@ -706,6 +706,8 @@ func volumesForAgent(dda metav1.Object, requiredContainers []apicommon.AgentCont
 		common.GetVolumeForCgroups(),
 		common.GetVolumeForDogstatsd(),
 		common.GetVolumeForRuntimeSocket(),
+		common.GetVolumeForRunPath(),
+		common.GetVolumeForTmp(),
 	}
 
 	for _, containerName := range requiredContainers {
@@ -713,7 +715,6 @@ func volumesForAgent(dda metav1.Object, requiredContainers []apicommon.AgentCont
 			sysProbeVolumes := []corev1.Volume{
 				common.GetVolumeForSecurity(dda),
 				common.GetVolumeForSeccomp(),
-				common.GetVolumeForEventSocket(),
 			}
 			volumes = append(volumes, sysProbeVolumes...)
 		}
@@ -732,6 +733,8 @@ func volumeMountsForCoreAgent() []corev1.VolumeMount {
 		common.GetVolumeMountForCgroups(),
 		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForRuntimeSocket(true),
+		common.GetVolumeMountForRunPath(),
+		common.GetVolumeMountForTmp(),
 	}
 }
 
@@ -744,6 +747,7 @@ func volumeMountsForTraceAgent() []corev1.VolumeMount {
 		common.GetVolumeMountForConfig(),
 		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForRuntimeSocket(true),
+		common.GetVolumeMountForTmp(),
 	}
 }
 
@@ -755,6 +759,7 @@ func volumeMountsForProcessAgent() []corev1.VolumeMount {
 		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForRuntimeSocket(true),
 		common.GetVolumeMountForProc(),
+		common.GetVolumeMountForTmp(),
 	}
 }
 
@@ -765,6 +770,7 @@ func volumeMountsForSecurityAgent() []corev1.VolumeMount {
 		common.GetVolumeMountForConfig(),
 		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForRuntimeSocket(true),
+		common.GetVolumeMountForTmp(),
 	}
 }
 
@@ -775,7 +781,8 @@ func volumeMountsForSystemProbe() []corev1.VolumeMount {
 		common.GetVolumeMountForConfig(),
 		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForProc(),
-		common.GetVolumeMountForEventSocket(),
+		common.GetVolumeMountForRunPath(),
+		common.GetVolumeMountForTmp(),
 	}
 }
 
@@ -791,6 +798,7 @@ func volumeMountsForOtelAgent() []corev1.VolumeMount {
 		common.GetVolumeMountForLogs(),
 		common.GetVolumeMountForConfig(),
 		common.GetVolumeMountForAuth(true),
+		common.GetVolumeMountForTmp(),
 	}
 }
 
@@ -803,5 +811,6 @@ func volumeMountsForAgentDataPlane() []corev1.VolumeMount {
 		common.GetVolumeMountForRuntimeSocket(true),
 		common.GetVolumeMountForProc(),
 		common.GetVolumeMountForCgroups(),
+		common.GetVolumeMountForTmp(),
 	}
 }
