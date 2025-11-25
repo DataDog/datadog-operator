@@ -71,7 +71,7 @@ build: manager kubectl-datadog ## Builds manager + kubectl plugin
 .PHONY: fmt
 fmt: bin/$(PLATFORM)/golangci-lint ## Run formatters against code
 	go fmt ./...
-	bin/$(PLATFORM)/golangci-lint run ./... --fix
+	bin/$(PLATFORM)/golangci-lint run ./... ./api/... ./test/e2e/... --fix
 
 .PHONY: vet
 vet: ## Run go vet against code
