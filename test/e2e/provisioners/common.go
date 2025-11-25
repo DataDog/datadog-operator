@@ -6,7 +6,6 @@
 package provisioners
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -86,7 +85,7 @@ func saveKustomization(path string, kustomization *types.Kustomization) error {
 func UpdateKustomization(kustomizeDirPath string, kustomizeResourcePaths []string) error {
 	var imgName, imgTag string
 
-	kustomizationFilePath := fmt.Sprintf("%s/kustomization.yaml", kustomizeDirPath)
+	kustomizationFilePath := kustomizeDirPath + "/kustomization.yaml"
 	k, err := loadKustomization(kustomizationFilePath)
 	if err != nil {
 		return err

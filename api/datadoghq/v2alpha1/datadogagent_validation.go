@@ -5,14 +5,14 @@
 
 package v2alpha1
 
-import "fmt"
+import "errors"
 
 // ValidateDatadogAgent is used to check if a DatadogAgent is valid
 func ValidateDatadogAgent(dda *DatadogAgent) error {
 	// TODO
 	// Ensure required credentials are configured.
 	if dda.Spec.Global == nil || dda.Spec.Global.Credentials == nil {
-		return fmt.Errorf("credentials not configured in the DatadogAgent, can't reconcile")
+		return errors.New("credentials not configured in the DatadogAgent, can't reconcile")
 	}
 	return nil
 }

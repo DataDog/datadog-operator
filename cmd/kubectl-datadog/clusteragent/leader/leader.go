@@ -110,16 +110,16 @@ func (o *options) run(cmd *cobra.Command) error {
 
 	// Try to get leader from lease if supported
 	if useLease {
-		fmt.Fprintln(o.IOStreams.Out, "Using lease for leader election")
+		fmt.Fprintln(o.Out, "Using lease for leader election")
 		leaderName, err = o.getLeaderFromLease(objKey)
 	}
 
 	// Fall back to ConfigMap if lease is not supported or failed
 	if !useLease || err != nil {
 		if err != nil {
-			fmt.Fprintln(o.IOStreams.Out, "Lease lookup failed, falling back to ConfigMap")
+			fmt.Fprintln(o.Out, "Lease lookup failed, falling back to ConfigMap")
 		}
-		fmt.Fprintln(o.IOStreams.Out, "Using ConfigMap for leader election")
+		fmt.Fprintln(o.Out, "Using ConfigMap for leader election")
 		leaderName, err = o.getLeaderFromConfigMap(objKey)
 	}
 

@@ -6,6 +6,7 @@
 package v1alpha1
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -33,7 +34,7 @@ func validateProfileAffinity(profileAffinity *ProfileAffinity) error {
 		return undefinedError("profileNodeAffinity")
 	}
 	if len(profileAffinity.ProfileNodeAffinity) < 1 {
-		return fmt.Errorf("profileNodeAffinity must have at least 1 requirement")
+		return errors.New("profileNodeAffinity must have at least 1 requirement")
 	}
 
 	return nil
@@ -67,7 +68,7 @@ func validateFeatures(features *v2alpha1.DatadogFeatures, datadogAgentInternalEn
 		return nil
 	}
 	if !datadogAgentInternalEnabled {
-		return fmt.Errorf("the 'features' field is only supported when DatadogAgentInternal is enabled")
+		return errors.New("the 'features' field is only supported when DatadogAgentInternal is enabled")
 	}
 
 	// Only GPU feature is currently supported in DatadogAgentProfile context.
@@ -121,7 +122,7 @@ func validateFeatures(features *v2alpha1.DatadogFeatures, datadogAgentInternalEn
 
 func validateOverride(component v2alpha1.ComponentName, override *v2alpha1.DatadogAgentComponentOverride) error {
 	if component != v2alpha1.NodeAgentComponentName {
-		return fmt.Errorf("only node agent componentoverrides are supported")
+		return errors.New("only node agent componentoverrides are supported")
 	}
 
 	if override.Name != nil {

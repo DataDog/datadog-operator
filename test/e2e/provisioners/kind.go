@@ -6,7 +6,6 @@
 package provisioners
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -368,7 +367,7 @@ func localKindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params 
 func KustomizeWorkloadAppFunc(name string, extraKustomizeResources []string) func(e config.Env, kubeProvider *kubernetes.Provider) (*kubeComp.Workload, error) {
 	return func(e config.Env, kubeProvider *kubernetes.Provider) (*kubeComp.Workload, error) {
 		k8sComponent := &kubeComp.Workload{}
-		if err := e.Ctx().RegisterComponentResource("dd:apps", fmt.Sprintf("kustomize-%s", name), k8sComponent, pulumi.DeleteBeforeReplace(true)); err != nil {
+		if err := e.Ctx().RegisterComponentResource("dd:apps", "kustomize-"+name, k8sComponent, pulumi.DeleteBeforeReplace(true)); err != nil {
 			return nil, err
 		}
 

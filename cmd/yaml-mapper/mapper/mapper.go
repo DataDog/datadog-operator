@@ -99,7 +99,7 @@ func (m *Mapper) loadInputs() (mappingValues chartutil.Values, sourceValues char
 		if err != nil {
 			return nil, nil, err
 		}
-		m.MapConfig.SourcePath = tmpSourcePath
+		m.SourcePath = tmpSourcePath
 
 	}
 
@@ -110,11 +110,11 @@ func (m *Mapper) loadInputs() (mappingValues chartutil.Values, sourceValues char
 
 		// Ignore error so we can fall back on embedded mapping
 		tmpMappingPath, _ = utils.FetchYAMLFile(defaultDDAMapUrl, tmpFile.Name())
-		m.MapConfig.MappingPath = tmpMappingPath
+		m.MappingPath = tmpMappingPath
 	}
 
 	// Read mapping file
-	mapping, err := os.ReadFile(m.MapConfig.MappingPath)
+	mapping, err := os.ReadFile(m.MappingPath)
 	if err != nil {
 		// Fall back on embedded default mapping
 		mapping = defaultDDAMap
@@ -125,7 +125,7 @@ func (m *Mapper) loadInputs() (mappingValues chartutil.Values, sourceValues char
 	}
 
 	// Read source yaml file
-	source, err := os.ReadFile(m.MapConfig.SourcePath)
+	source, err := os.ReadFile(m.SourcePath)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -151,19 +151,19 @@ func (m *Mapper) loadInputs() (mappingValues chartutil.Values, sourceValues char
 
 // mapValues maps the Helm source Values to a DDA custom resource based on the provided mapping Values.
 func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartutil.Values) (map[string]interface{}, error) {
-	var ddaName = m.MapConfig.DDAName
+	var ddaName = m.DDAName
 	var interim = map[string]interface{}{}
 	defaultValues, _ := getDefaultValues()
 
-	if m.MapConfig.HeaderPath == "" {
+	if m.HeaderPath == "" {
 		interim = defaultFileHeader
 		if ddaName == "" {
 			ddaName = "datadog"
 		}
 		utils.MergeOrSet(interim, "metadata.name", ddaName)
 
-		if m.MapConfig.Namespace != "" {
-			utils.MergeOrSet(interim, "metadata.namespace", m.MapConfig.Namespace)
+		if m.Namespace != "" {
+			utils.MergeOrSet(interim, "metadata.namespace", m.Namespace)
 		}
 	}
 
@@ -200,7 +200,7 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 
 		utils.MergeOrSet(sourceKeysRef, sourceKey, map[string]interface{}{"visited": true})
 
-		destKey, _ := mappingValues[sourceKey]
+		destKey := mappingValues[sourceKey]
 		if (destKey == "" || destKey == nil) && !apiutils.IsEqualStruct(pathVal, defaultVal) {
 			log.Printf("Warning: DDA destination key not found. Could not map: %s\n", sourceKey)
 			continue
@@ -350,23 +350,23 @@ func (m *Mapper) updateMapping(sourceValues chartutil.Values, mappingValues char
 	if e != nil {
 		return e
 	}
-	if strings.HasPrefix(m.MapConfig.MappingPath, constants.DefaultDDAMappingPath) {
+	if strings.HasPrefix(m.MappingPath, constants.DefaultDDAMappingPath) {
 		newMapYaml = `# This file maps keys from the Datadog Helm chart (YAML) to the DatadogAgent CustomResource spec (YAML).
 ` + newMapYaml
 	}
 
-	if m.MapConfig.PrintOutput {
+	if m.PrintOutput {
 		log.Println("")
 		log.Println(newMapYaml)
 	}
 
-	e = os.WriteFile(m.MapConfig.MappingPath, []byte(newMapYaml), 0660)
+	e = os.WriteFile(m.MappingPath, []byte(newMapYaml), 0660)
 	if e != nil {
 		log.Printf("Error updating mapping yaml. %v", e)
 		return e
 	}
 
-	log.Printf("Mapping file, %s, successfully updated", m.MapConfig.MappingPath)
+	log.Printf("Mapping file, %s, successfully updated", m.MappingPath)
 
 	return nil
 }

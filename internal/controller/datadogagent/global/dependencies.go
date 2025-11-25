@@ -297,7 +297,7 @@ func clusterAgentDependencies(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAg
 		}
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 func nodeAgentDependencies(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, manager feature.ResourceManagers) error {
@@ -316,7 +316,7 @@ func nodeAgentDependencies(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		errs = append(errs, err)
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 func clusterChecksRunnerDependencies(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, manager feature.ResourceManagers) error {
@@ -334,7 +334,7 @@ func clusterChecksRunnerDependencies(ddaMeta metav1.Object, ddaSpec *v2alpha1.Da
 		errs = append(errs, err)
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 func addNetworkPolicyDependencies(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, manager feature.ResourceManagers, componentName v2alpha1.ComponentName) error {

@@ -280,8 +280,8 @@ var mapOverrideType = MappingProcessor{
 					utils.MergeOrSet(interim, newPath, string(newPathVal))
 
 				case newType == "int":
-					switch {
-					case pathValType == "string":
+					switch pathValType {
+					case "string":
 						convertedInt, convErr := strconv.Atoi(pathVal.(string))
 						if convErr != nil {
 							log.Println(convErr)

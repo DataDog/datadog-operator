@@ -180,7 +180,7 @@ func (hmf *HelmMetadataForwarder) sendMetadata() error {
 
 	hmf.logger.Info("Discovered Helm releases", "count", len(releases))
 
-	clusterUID, err := hmf.SharedMetadata.GetOrCreateClusterUID()
+	clusterUID, err := hmf.GetOrCreateClusterUID()
 	if err != nil {
 		hmf.logger.Error(err, "Error getting cluster UID")
 	}

@@ -6,7 +6,7 @@
 package v1alpha1
 
 import (
-	"fmt"
+	"errors"
 
 	utilserrors "k8s.io/apimachinery/pkg/util/errors"
 )
@@ -16,19 +16,19 @@ import (
 func IsValidDatadogMonitor(spec *DatadogMonitorSpec) error {
 	var errs []error
 	if spec.Query == "" {
-		errs = append(errs, fmt.Errorf("spec.Query must be defined"))
+		errs = append(errs, errors.New("spec.Query must be defined"))
 	}
 
 	if spec.Type == "" {
-		errs = append(errs, fmt.Errorf("spec.Type must be defined"))
+		errs = append(errs, errors.New("spec.Type must be defined"))
 	}
 
 	if spec.Name == "" {
-		errs = append(errs, fmt.Errorf("spec.Name must be defined"))
+		errs = append(errs, errors.New("spec.Name must be defined"))
 	}
 
 	if spec.Message == "" {
-		errs = append(errs, fmt.Errorf("spec.Message must be defined"))
+		errs = append(errs, errors.New("spec.Message must be defined"))
 	}
 
 	return utilserrors.NewAggregate(errs)

@@ -76,7 +76,7 @@ func (builder *DatadogAgentInternalBuilder) WithName(name string) *DatadogAgentI
 }
 
 func (builder *DatadogAgentInternalBuilder) WithAnnotations(annotations map[string]string) *DatadogAgentInternalBuilder {
-	builder.datadogAgentInternal.ObjectMeta.Annotations = annotations
+	builder.datadogAgentInternal.Annotations = annotations
 	return builder
 }
 

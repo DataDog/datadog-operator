@@ -6,7 +6,7 @@
 package v1alpha1
 
 import (
-	"fmt"
+	"errors"
 
 	utilserrors "k8s.io/apimachinery/pkg/util/errors"
 )
@@ -23,11 +23,11 @@ var allowedCustomResourcesEnumMap = map[SupportedResourcesType]string{
 func IsValidDatadogGenericResource(spec *DatadogGenericResourceSpec) error {
 	var errs []error
 	if _, ok := allowedCustomResourcesEnumMap[spec.Type]; !ok {
-		errs = append(errs, fmt.Errorf("spec.Type must be a supported resource type"))
+		errs = append(errs, errors.New("spec.Type must be a supported resource type"))
 	}
 
 	if spec.JsonSpec == "" {
-		errs = append(errs, fmt.Errorf("spec.JsonSpec must be defined"))
+		errs = append(errs, errors.New("spec.JsonSpec must be defined"))
 	}
 
 	return utilserrors.NewAggregate(errs)

@@ -6,6 +6,7 @@
 package v1alpha1
 
 import (
+	"errors"
 	"fmt"
 
 	utilserrors "k8s.io/apimachinery/pkg/util/errors"
@@ -16,11 +17,11 @@ import (
 func IsValidDatadogSLO(spec *DatadogSLOSpec) error {
 	var errs []error
 	if spec.Name == "" {
-		errs = append(errs, fmt.Errorf("spec.Name must be defined"))
+		errs = append(errs, errors.New("spec.Name must be defined"))
 	}
 
 	if spec.Type == "" {
-		errs = append(errs, fmt.Errorf("spec.Type must be defined"))
+		errs = append(errs, errors.New("spec.Type must be defined"))
 	}
 
 	if spec.Type != "" && !spec.Type.IsValid() {
@@ -28,26 +29,26 @@ func IsValidDatadogSLO(spec *DatadogSLOSpec) error {
 	}
 
 	if spec.Type == DatadogSLOTypeMetric && spec.Query == nil {
-		errs = append(errs, fmt.Errorf("spec.Query must be defined when spec.Type is metric"))
+		errs = append(errs, errors.New("spec.Query must be defined when spec.Type is metric"))
 	}
 
 	if spec.Type == DatadogSLOTypeMonitor && len(spec.MonitorIDs) == 0 {
-		errs = append(errs, fmt.Errorf("spec.MonitorIDs must be defined when spec.Type is monitor"))
+		errs = append(errs, errors.New("spec.MonitorIDs must be defined when spec.Type is monitor"))
 	}
 
 	if spec.TargetThreshold.AsApproximateFloat64() <= 0 || spec.TargetThreshold.AsApproximateFloat64() >= 100 {
-		errs = append(errs, fmt.Errorf("spec.TargetThreshold must be greater than 0 and less than 100"))
+		errs = append(errs, errors.New("spec.TargetThreshold must be greater than 0 and less than 100"))
 	}
 
 	if spec.WarningThreshold != nil && (spec.WarningThreshold.AsApproximateFloat64() <= 0 || spec.WarningThreshold.AsApproximateFloat64() >= 100) {
-		errs = append(errs, fmt.Errorf("spec.WarningThreshold must be greater than 0 and less than 100"))
+		errs = append(errs, errors.New("spec.WarningThreshold must be greater than 0 and less than 100"))
 	}
 
 	switch spec.Timeframe {
 	case DatadogSLOTimeFrame7d, DatadogSLOTimeFrame30d, DatadogSLOTimeFrame90d:
 		break
 	default:
-		errs = append(errs, fmt.Errorf("spec.Timeframe must be defined as one of the values: 7d, 30d, or 90d"))
+		errs = append(errs, errors.New("spec.Timeframe must be defined as one of the values: 7d, 30d, or 90d"))
 	}
 
 	return utilserrors.NewAggregate(errs)

@@ -73,7 +73,8 @@ func (f *controlPlaneMonitoringFeature) ManageDependencies(managers feature.Reso
 	f.provider = provider
 	// Create ConfigMaps for control plane monitoring
 	providerLabel, _ := kubernetes.GetProviderLabelKeyValue(provider)
-	if providerLabel == kubernetes.OpenShiftProviderLabel {
+	switch providerLabel {
+	case kubernetes.OpenShiftProviderLabel:
 		// OpenShift ConfigMap
 		openshiftConfigMap, err2 := f.buildControlPlaneMonitoringConfigMap(kubernetes.OpenShiftProviderLabel, f.openshiftConfigMapName)
 		if err2 != nil {
@@ -92,7 +93,7 @@ func (f *controlPlaneMonitoringFeature) ManageDependencies(managers feature.Reso
 		f.logger.Info("OpenShift control plane monitoring requires manual etcd secret copy",
 			"command", copyCommand,
 			"note", "Run this command if cluster-checks-runner and node-agent pods fail to start due to missing etcd-metric-cert secret")
-	} else if providerLabel == kubernetes.EKSProviderLabel {
+	case kubernetes.EKSProviderLabel:
 		// EKS ConfigMap
 		eksConfigMap, err2 := f.buildControlPlaneMonitoringConfigMap(kubernetes.EKSProviderLabel, f.eksConfigMapName)
 		if err2 != nil {
@@ -115,12 +116,12 @@ func (f *controlPlaneMonitoringFeature) ManageClusterAgent(managers feature.PodT
 
 	// Select the appropriate configmap based on provider
 	var configMapName string
-	if providerLabel == kubernetes.OpenShiftProviderLabel {
+	switch providerLabel {
+	case kubernetes.OpenShiftProviderLabel:
 		configMapName = f.openshiftConfigMapName
-	} else if providerLabel == kubernetes.EKSProviderLabel {
+	case kubernetes.EKSProviderLabel:
 		configMapName = f.eksConfigMapName
-	} else {
-		configMapName = f.defaultConfigMapName
+	default:
 		return nil
 	}
 
