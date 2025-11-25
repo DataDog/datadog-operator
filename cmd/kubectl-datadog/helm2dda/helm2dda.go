@@ -8,11 +8,12 @@ package helm2dda
 import (
 	"fmt"
 
+	"github.com/spf13/cobra"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
+
 	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/constants"
 	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/mapper"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
-	"github.com/spf13/cobra"
-	"k8s.io/cli-runtime/pkg/genericiooptions"
 )
 
 // options provides information required by helm2dda command
@@ -63,7 +64,7 @@ kubectl datadog helm2dda --sourcePath=example_source.yaml
 				return err
 			}
 
-			return o.run(c)
+			return o.run()
 		},
 	}
 
@@ -142,7 +143,7 @@ func (o *options) init(cmd *cobra.Command) error {
 }
 
 // run runs the helm2dda command
-func (o *options) run(cmd *cobra.Command) error {
+func (o *options) run() error {
 	mapperConfig := mapper.MapConfig{
 		MappingPath: o.mappingPath,
 		SourcePath:  o.sourcePath,
