@@ -83,17 +83,25 @@ func GetNodesProperties(ctx context.Context, clientset *kubernetes.Clientset, ec
 						amiFamily = family
 					}
 
+					blockDeviceMappings, err := extractBlockDeviceMappingsWithVolumeDetails(ctx, ec2Client, instance.BlockDeviceMappings)
+					if err != nil {
+						log.Printf("Failed to get volume details for instance %s: %v", *instance.InstanceId, err)
+						blockDeviceMappings = extractBasicBlockDeviceMappings(instance.BlockDeviceMappings)
+					}
+
 					nps.Add(NodePoolsSetAddParams{
-						AMIFamily:        amiFamily,
-						AMIID:            *instance.ImageId,
-						SubnetIDs:        []string{*instance.SubnetId},
-						SecurityGroupIDs: lo.Map(instance.SecurityGroups, func(sg ec2types.GroupIdentifier, _ int) string { return *sg.GroupId }),
-						Labels:           node.Labels,
-						Taints:           node.Spec.Taints,
-						Architecture:     convertArchitecture(instance.Architecture),
-						Zones:            extractZones(instance.Placement),
-						InstanceTypes:    []string{string(instance.InstanceType)},
-						CapacityType:     convertInstanceLifecycleType(instance.InstanceLifecycle),
+						AMIFamily:           amiFamily,
+						AMIID:               *instance.ImageId,
+						SubnetIDs:           []string{*instance.SubnetId},
+						SecurityGroupIDs:    lo.Map(instance.SecurityGroups, func(sg ec2types.GroupIdentifier, _ int) string { return *sg.GroupId }),
+						MetadataOptions:     extractMetadataOptions(instance.MetadataOptions),
+						BlockDeviceMappings: blockDeviceMappings,
+						Labels:              node.Labels,
+						Taints:              node.Spec.Taints,
+						Architecture:        convertArchitecture(instance.Architecture),
+						Zones:               extractZones(instance.Placement),
+						InstanceTypes:       []string{string(instance.InstanceType)},
+						CapacityType:        convertInstanceLifecycleType(instance.InstanceLifecycle),
 					})
 				}
 			}
@@ -131,6 +139,24 @@ func detectAMIFamilyFromImage(imageName string) string {
 	}
 }
 
+func extractMetadataOptions(opts *ec2types.InstanceMetadataOptionsResponse) *MetadataOptions {
+	if opts == nil {
+		return nil
+	}
+
+	var hopLimit *int64
+	if opts.HttpPutResponseHopLimit != nil {
+		hopLimit = lo.ToPtr(int64(*opts.HttpPutResponseHopLimit))
+	}
+
+	return &MetadataOptions{
+		HTTPEndpoint:            lo.Ternary(opts.HttpEndpoint != "", lo.ToPtr(string(opts.HttpEndpoint)), nil),
+		HTTPTokens:              lo.Ternary(opts.HttpTokens != "", lo.ToPtr(string(opts.HttpTokens)), nil),
+		HTTPPutResponseHopLimit: hopLimit,
+		HTTPProtocolIPv6:        lo.Ternary(opts.HttpProtocolIpv6 != "", lo.ToPtr(string(opts.HttpProtocolIpv6)), nil),
+	}
+}
+
 func convertArchitecture(arch ec2types.ArchitectureValues) string {
 	switch arch {
 	case ec2types.ArchitectureValuesX8664:
@@ -162,4 +188,92 @@ func convertInstanceLifecycleType(ilt ec2types.InstanceLifecycleType) string {
 	default:
 		return "on-demand"
 	}
+}
+
+func extractBlockDeviceMappingsWithVolumeDetails(ctx context.Context, ec2Client *ec2.Client, mappings []ec2types.InstanceBlockDeviceMapping) ([]BlockDeviceMapping, error) {
+	if len(mappings) == 0 {
+		return nil, nil
+	}
+
+	volumeIDs := lo.FilterMap(mappings, func(mapping ec2types.InstanceBlockDeviceMapping, _ int) (string, bool) {
+		if mapping.Ebs != nil && mapping.Ebs.VolumeId != nil {
+			return *mapping.Ebs.VolumeId, true
+		}
+		return "", false
+	})
+
+	if len(volumeIDs) == 0 {
+		return extractBasicBlockDeviceMappings(mappings), nil
+	}
+
+	volumesResp, err := ec2Client.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{
+		VolumeIds: volumeIDs,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to describe volumes: %w", err)
+	}
+
+	volumeDetails := lo.Associate(volumesResp.Volumes, func(vol ec2types.Volume) (string, ec2types.Volume) {
+		if vol.VolumeId != nil {
+			return *vol.VolumeId, vol
+		}
+		return "", vol
+	})
+
+	return lo.FilterMap(mappings, func(mapping ec2types.InstanceBlockDeviceMapping, _ int) (BlockDeviceMapping, bool) {
+		// Skip non-EBS volumes (e.g., instance store volumes)
+		if mapping.Ebs == nil || mapping.Ebs.VolumeId == nil {
+			return BlockDeviceMapping{}, false
+		}
+
+		if vol, ok := volumeDetails[*mapping.Ebs.VolumeId]; ok {
+			return BlockDeviceMapping{
+				DeviceName:          mapping.DeviceName,
+				RootVolume:          isRootDevice(mapping.DeviceName),
+				DeleteOnTermination: mapping.Ebs.DeleteOnTermination,
+				VolumeSize:          lo.Ternary(vol.Size != nil, lo.ToPtr(fmt.Sprintf("%dGi", lo.FromPtr(vol.Size))), nil),
+				VolumeType:          lo.Ternary(vol.VolumeType != "", lo.ToPtr(string(vol.VolumeType)), nil),
+				IOPS:                lo.Ternary(vol.Iops != nil, lo.ToPtr(int64(lo.FromPtr(vol.Iops))), nil),
+				Throughput:          lo.Ternary(vol.Throughput != nil, lo.ToPtr(int64(lo.FromPtr(vol.Throughput))), nil),
+				Encrypted:           vol.Encrypted,
+				KMSKeyID:            vol.KmsKeyId,
+				SnapshotID:          vol.SnapshotId,
+			}, true
+		} else {
+			return BlockDeviceMapping{
+				DeviceName:          mapping.DeviceName,
+				RootVolume:          isRootDevice(mapping.DeviceName),
+				DeleteOnTermination: mapping.Ebs.DeleteOnTermination,
+			}, true
+		}
+	}), nil
+}
+
+func extractBasicBlockDeviceMappings(mappings []ec2types.InstanceBlockDeviceMapping) []BlockDeviceMapping {
+	if len(mappings) == 0 {
+		return nil
+	}
+
+	return lo.FilterMap(mappings, func(mapping ec2types.InstanceBlockDeviceMapping, _ int) (BlockDeviceMapping, bool) {
+		// Skip non-EBS volumes (e.g., instance store volumes)
+		if mapping.Ebs == nil {
+			return BlockDeviceMapping{}, false
+		}
+
+		return BlockDeviceMapping{
+			DeviceName:          mapping.DeviceName,
+			RootVolume:          isRootDevice(mapping.DeviceName),
+			DeleteOnTermination: mapping.Ebs.DeleteOnTermination,
+			// Note: Other properties like size, type, IOPS, etc. are not available
+			// from InstanceBlockDeviceMapping without calling DescribeVolumes
+		}, true
+	})
+}
+
+func isRootDevice(deviceName *string) bool {
+	if deviceName == nil {
+		return false
+	}
+	return *deviceName == "/dev/xvda" || // Amazon Linux, Ubuntu on Nitro
+		*deviceName == "/dev/sda1" // Older instances, Windows
 }
