@@ -15,6 +15,19 @@ import (
 	"helm.sh/helm/v3/pkg/chartutil"
 )
 
+func TestRun(t *testing.T) {
+	mapper := NewMapper(MapConfig{
+		MappingPath: "mapping_datadog_helm_to_datadogagent_crd.yaml",
+		SourcePath:  "../examples/example_source.yaml",
+		DestPath:    "../examples/destination.yaml",
+	})
+
+	err := mapper.Run()
+	require.NoError(t, err)
+
+	// TODO: add validations against the v2alpha1.DatadogAgent struct
+}
+
 func TestMergeMapDeep(t *testing.T) {
 	tests := []struct {
 		name     string

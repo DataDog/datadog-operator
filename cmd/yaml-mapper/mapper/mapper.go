@@ -6,7 +6,6 @@
 package mapper
 
 import (
-	_ "embed"
 	"fmt"
 	"log"
 	"os"
@@ -14,10 +13,13 @@ import (
 	"strings"
 	"time"
 
+	"helm.sh/helm/v3/pkg/chartutil"
+
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/constants"
 	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/utils"
-	"helm.sh/helm/v3/pkg/chartutil"
+
+	_ "embed"
 )
 
 var (
@@ -25,6 +27,8 @@ var (
 	//go:embed mapping_datadog_helm_to_datadogagent_crd.yaml
 	defaultDDAMap []byte
 )
+
+const defaultDDAMapUrl = "https://raw.githubusercontent.com/DataDog/helm-charts/main/tools/yaml-mapper/mapping_datadog_helm_to_datadogagent_crd.yaml"
 
 // defaultFileHeader Default file header for the mapped DDA custom resource output
 var defaultFileHeader = map[string]interface{}{
@@ -91,14 +95,21 @@ func (m *Mapper) loadInputs() (mappingValues chartutil.Values, sourceValues char
 	// If updating mapping:
 	// Use latest datadog chart values.yaml as sourcePath if none provided
 	if config.UpdateMap && sourcePath == "" {
-		tmpSourcePath = utils.FetchLatestValuesFile()
+		tmpSourcePath, err = utils.FetchLatestValues()
+		if err != nil {
+			return nil, nil, err
+		}
 		m.MapConfig.SourcePath = tmpSourcePath
 
 	}
 
 	// Use latest mappingPath if none provided
 	if mappingPath == "" {
-		tmpMappingPath, _ = utils.FetchLatestDDAMapping()
+		tmpFile, _ := os.CreateTemp("", constants.DefaultDDAMappingPath)
+		defer tmpFile.Close()
+
+		// Ignore error so we can fall back on embedded mapping
+		tmpMappingPath, _ = utils.FetchYAMLFile(defaultDDAMapUrl, tmpFile.Name())
 		m.MapConfig.MappingPath = tmpMappingPath
 	}
 
@@ -163,6 +174,13 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 	}
 	sort.Strings(mappingKeys)
 
+	// Keep track of visited values source keys that are present in mapping file
+	sourceKeys := flattenValues(sourceValues, map[string]interface{}{}, "")
+	sourceKeysRef := map[string]interface{}{}
+	for k := range sourceKeys {
+		utils.MergeOrSet(sourceKeysRef, k, map[string]interface{}{"visited": false})
+	}
+
 	// Map values.yaml => DDA
 	for _, sourceKey := range mappingKeys {
 		pathVal, _ := sourceValues.PathValue(sourceKey)
@@ -179,6 +197,8 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 				continue
 			}
 		}
+
+		utils.MergeOrSet(sourceKeysRef, sourceKey, map[string]interface{}{"visited": true})
 
 		destKey, _ := mappingValues[sourceKey]
 		if (destKey == "" || destKey == nil) && !apiutils.IsEqualStruct(pathVal, defaultVal) {
@@ -230,6 +250,14 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 			if interim != nil {
 				utils.MergeOrSet(interim, destKey.(string), pathVal)
 			}
+		}
+	}
+
+	// Log warnings for source values keys that aren't present in mapping file.
+	for k, v := range sourceKeysRef {
+		visited, ok := utils.GetPathBool(v, "visited")
+		if ok && !visited {
+			log.Printf("Warning: source value key %s was not found in mapping.", k)
 		}
 	}
 
@@ -358,7 +386,10 @@ func flattenValues(sourceValues chartutil.Values, valuesMap map[string]interface
 }
 
 func getDefaultValues() (chartutil.Values, error) {
-	defaultValsPath := utils.FetchLatestValuesFile()
+	defaultValsPath, err := utils.FetchLatestValues()
+	if err != nil {
+		return nil, err
+	}
 	defaultValsFile, err := os.ReadFile(defaultValsPath)
 	if err != nil {
 		return nil, err

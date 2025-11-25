@@ -142,5 +142,5 @@ func ShouldCreateAgentLocalService(versionInfo *version.Info, forceEnableLocalSe
 		return false
 	}
 	// Service Internal Traffic Policy is enabled by default since 1.22
-	return utils.IsAboveMinVersion(versionInfo.GitVersion, localServiceDefaultMinimumVersion) || forceEnableLocalService
+	return utils.IsAboveMinVersion(versionInfo.GitVersion, localServiceDefaultMinimumVersion, nil) || forceEnableLocalService
 }

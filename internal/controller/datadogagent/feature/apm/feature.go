@@ -388,10 +388,10 @@ func supportsInstrumentationTargets(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	// Agent version must >= 7.64.0 to run feature in core agent
 	if nodeAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok {
 		if nodeAgent.Image != nil {
-			return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), minInstrumentationTargetsVersion)
+			return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), minInstrumentationTargetsVersion, nil)
 		}
 	}
-	return utils.IsAboveMinVersion(images.ClusterAgentLatestVersion, minInstrumentationTargetsVersion)
+	return utils.IsAboveMinVersion(images.ClusterAgentLatestVersion, minInstrumentationTargetsVersion, nil)
 }
 
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
@@ -510,5 +510,9 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *apmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}
+
+func (f *apmFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

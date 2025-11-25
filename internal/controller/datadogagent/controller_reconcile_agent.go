@@ -321,6 +321,11 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 	for nodeName, profileNamespacedName := range profilesByNode {
 		isDefaultProfile := agentprofile.IsDefaultProfile(profileNamespacedName.Namespace, profileNamespacedName.Name)
 
+		// in the refactor, we don't explicitly set the default profile so empty profile nodes fall under the default profile
+		if profileNamespacedName.Name == "" && profileNamespacedName.Namespace == "" {
+			isDefaultProfile = true
+		}
+
 		node := &corev1.Node{}
 		if err := r.client.Get(ctx, types.NamespacedName{Name: nodeName}, node); err != nil {
 			return err
@@ -351,6 +356,7 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 		}
 
 		if len(labelsToRemove) > 0 || len(labelsToAddOrChange) > 0 {
+			r.log.V(1).Info("modifying node labels", "node", node.Name, "labelsToRemove", labelsToRemove, "labelsToAddOrChange", labelsToAddOrChange)
 			for k, v := range node.Labels {
 				if _, ok := labelsToRemove[k]; ok {
 					continue

@@ -44,29 +44,6 @@ datadog:
   remoteConfiguration:
     enabled: true
 
-  # Credentials for mapSecretKeyName tests
-  credentials:
-    apiSecret:
-      secretName: datadog-api-secret
-    appSecret:
-      secretName: datadog-app-secret
-
-  # Cluster Agent token secret for mapSecretKeyName
-  clusterAgentTokenSecret:
-    secretName: datadog-ca-token
-
-  # Features used by mapSystemProbeAppArmor
-  features:
-    cws:
-      enabled: true
-    npm:
-      enabled: false
-    tcpQueueLength:
-      enabled: true
-    gpu:
-      enabled: true
-      privilegedMode: true
-
   # Kubelet host as YAML string to test valueFrom parsing
   kubelet:
     tlsVerify: false
@@ -123,10 +100,9 @@ agents:
           value: "warn"
         - name: DD_USE_DOGSTATSD
           value: "true"
-    system-probe:
+    systemProbe:
       securityContext:
         seccompProfile: "localhost/system-probe"
-      appArmorProfile: "unconfined"
   volumeMounts:
     - name: example
       mountPath: "this/is/a/volume/mount"
@@ -138,11 +114,12 @@ agents:
 
 # Additional deprecated networkPolicy keys for multi-source OR test
 clusterAgent:
-  config:
-    external_metrics:
-      local_service_name: "my-local-ext-metrics-svc"
   networkPolicy:
     create: false
+
 clusterChecksRunner:
   networkPolicy:
     create: false
+
+fakeKey:
+  fake: true

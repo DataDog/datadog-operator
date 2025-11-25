@@ -32,6 +32,7 @@ func depRuleRegistry() map[string]DepRule {
 		networkPolicyCreateDepRule,
 		clusterAgentPDBCreateDepRule,
 		clusterChecksRunnerPDBCreateDepRule,
+		processAgentEnabledDepRule,
 	} {
 		r[rule.Standard] = rule
 	}
@@ -100,6 +101,12 @@ var clusterChecksRunnerPDBCreateDepRule = DepRule{
 	Deprecated: []string{"clusterChecksRunner.createPodDisruptionBudget"},
 	Action:     DepBoolOr,
 	Standard:   "clusterChecksRunner.pdb.create",
+}
+
+var processAgentEnabledDepRule = DepRule{
+	Deprecated: []string{"datadog.processAgent.enabled"},
+	Action:     DepBoolOr,
+	Standard:   "datadog.processAgent.processCollection",
 }
 
 // ApplyDeprecationRules maps “standard” key values by looking at their

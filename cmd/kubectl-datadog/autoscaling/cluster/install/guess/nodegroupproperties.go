@@ -1,0 +1,268 @@
+package guess
+
+import (
+	"context"
+	"fmt"
+	"slices"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
+	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
+	"github.com/samber/lo"
+	corev1 "k8s.io/api/core/v1"
+)
+
+func GetNodeGroupsProperties(ctx context.Context, eksClient *eks.Client, ec2Client *ec2.Client, clusterName string) (*NodePoolsSet, error) {
+	nps := NewNodePoolsSet()
+
+	cluster, err := eksClient.DescribeCluster(ctx, &eks.DescribeClusterInput{
+		Name: &clusterName,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to describe cluster: %w", err)
+	}
+
+	var nextToken *string
+	for {
+		nodegroupsList, err := eksClient.ListNodegroups(ctx, &eks.ListNodegroupsInput{
+			ClusterName: &clusterName,
+			NextToken:   nextToken,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to list node groups: %w", err)
+		}
+
+		for _, ngName := range nodegroupsList.Nodegroups {
+			nodegroup, err := eksClient.DescribeNodegroup(ctx, &eks.DescribeNodegroupInput{
+				ClusterName:   &clusterName,
+				NodegroupName: &ngName,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to describe node group %s: %w", ngName, err)
+			}
+
+			ng := nodegroup.Nodegroup
+			if ng == nil {
+				return nil, fmt.Errorf("node group %s not found", ngName)
+			}
+
+			zones, err := extractZonesFromSubnets(ctx, ec2Client, ng.Subnets)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get zones for node group %s: %w", ngName, err)
+			}
+
+			params := NodePoolsSetAddParams{
+				AMIFamily:     convertAMITypeToFamily(ng.AmiType),
+				SubnetIDs:     ng.Subnets,
+				Labels:        ng.Labels,
+				Taints:        lo.Map(ng.Taints, func(t ekstypes.Taint, _ int) corev1.Taint { return convertTaint(t) }),
+				Architecture:  extractArchitectureFromAMIType(ng.AmiType),
+				Zones:         zones,
+				InstanceTypes: ng.InstanceTypes,
+				CapacityType:  convertCapacityType(ng.CapacityType),
+			}
+
+			if ng.LaunchTemplate != nil && ng.LaunchTemplate.Id != nil && ng.LaunchTemplate.Version != nil {
+				launchTemplate, err := ec2Client.DescribeLaunchTemplateVersions(ctx, &ec2.DescribeLaunchTemplateVersionsInput{
+					LaunchTemplateId: ng.LaunchTemplate.Id,
+					Versions:         []string{*ng.LaunchTemplate.Version},
+				})
+				if err != nil {
+					return nil, fmt.Errorf("failed to describe launch template %s version %s: %w", aws.ToString(ng.LaunchTemplate.Name), aws.ToString(ng.LaunchTemplate.Version), err)
+				}
+
+				if len(launchTemplate.LaunchTemplateVersions) != 1 {
+					return nil, fmt.Errorf("couldn’t get launch template %s version %s description", aws.ToString(ng.LaunchTemplate.Name), aws.ToString(ng.LaunchTemplate.Version))
+				}
+
+				ltData := launchTemplate.LaunchTemplateVersions[0].LaunchTemplateData
+				if imageId := ltData.ImageId; imageId != nil {
+					params.AMIID = *imageId
+				}
+				params.SecurityGroupIDs = ltData.SecurityGroupIds
+				params.MetadataOptions = extractMetadataOptionsFromLaunchTemplate(ltData.MetadataOptions)
+				params.BlockDeviceMappings = extractBlockDeviceMappingsFromLaunchTemplate(ltData.BlockDeviceMappings)
+				params.InstanceTypes = append(params.InstanceTypes, string(ltData.InstanceType))
+			}
+
+			if len(params.SecurityGroupIDs) == 0 &&
+				cluster.Cluster != nil &&
+				cluster.Cluster.ResourcesVpcConfig != nil &&
+				cluster.Cluster.ResourcesVpcConfig.ClusterSecurityGroupId != nil {
+				params.SecurityGroupIDs = []string{*cluster.Cluster.ResourcesVpcConfig.ClusterSecurityGroupId}
+			}
+
+			nps.Add(params)
+		}
+
+		nextToken = nodegroupsList.NextToken
+		if nextToken == nil {
+			return nps, nil
+		}
+	}
+}
+
+func convertTaint(in ekstypes.Taint) (out corev1.Taint) {
+	switch in.Effect {
+	case ekstypes.TaintEffectNoExecute:
+		out.Effect = corev1.TaintEffectNoExecute
+	case ekstypes.TaintEffectNoSchedule:
+		out.Effect = corev1.TaintEffectNoSchedule
+	case ekstypes.TaintEffectPreferNoSchedule:
+		out.Effect = corev1.TaintEffectPreferNoSchedule
+	}
+
+	if in.Key != nil {
+		out.Key = *in.Key
+	}
+
+	if in.Value != nil {
+		out.Value = *in.Value
+	}
+
+	return
+}
+
+func extractArchitectureFromAMIType(amiType ekstypes.AMITypes) string {
+	switch amiType {
+	case ekstypes.AMITypesAl2X8664,
+		ekstypes.AMITypesAl2X8664Gpu,
+		ekstypes.AMITypesBottlerocketX8664,
+		ekstypes.AMITypesBottlerocketX8664Nvidia,
+		ekstypes.AMITypesWindowsCore2019X8664,
+		ekstypes.AMITypesWindowsFull2019X8664,
+		ekstypes.AMITypesWindowsCore2022X8664,
+		ekstypes.AMITypesWindowsFull2022X8664,
+		ekstypes.AMITypesAl2023X8664Standard,
+		ekstypes.AMITypesAl2023X8664Neuron,
+		ekstypes.AMITypesAl2023X8664Nvidia:
+		return "amd64"
+
+	case ekstypes.AMITypesAl2Arm64,
+		ekstypes.AMITypesBottlerocketArm64,
+		ekstypes.AMITypesBottlerocketArm64Nvidia,
+		ekstypes.AMITypesAl2023Arm64Standard:
+		return "arm64"
+
+	case ekstypes.AMITypesCustom:
+		return "" // Cannot determine architecture from custom AMI
+
+	default:
+		return "" // Unknown AMI type
+	}
+}
+
+func convertAMITypeToFamily(amiType ekstypes.AMITypes) string {
+	switch amiType {
+	case ekstypes.AMITypesAl2X8664,
+		ekstypes.AMITypesAl2X8664Gpu,
+		ekstypes.AMITypesAl2Arm64:
+		return "AL2"
+
+	case ekstypes.AMITypesAl2023X8664Standard,
+		ekstypes.AMITypesAl2023X8664Neuron,
+		ekstypes.AMITypesAl2023X8664Nvidia,
+		ekstypes.AMITypesAl2023Arm64Standard:
+		return "AL2023"
+
+	case ekstypes.AMITypesBottlerocketX8664,
+		ekstypes.AMITypesBottlerocketX8664Nvidia,
+		ekstypes.AMITypesBottlerocketArm64,
+		ekstypes.AMITypesBottlerocketArm64Nvidia:
+		return "Bottlerocket"
+
+	case ekstypes.AMITypesWindowsCore2019X8664,
+		ekstypes.AMITypesWindowsFull2019X8664:
+		return "Windows2019"
+
+	case ekstypes.AMITypesWindowsCore2022X8664,
+		ekstypes.AMITypesWindowsFull2022X8664:
+		return "Windows2022"
+
+	case ekstypes.AMITypesCustom:
+		return "Custom"
+
+	default:
+		return "Custom" // Fallback to Custom for unknown AMI types
+	}
+}
+
+func extractZonesFromSubnets(ctx context.Context, ec2Client *ec2.Client, subnetIDs []string) ([]string, error) {
+	if len(subnetIDs) == 0 {
+		return []string{}, nil
+	}
+
+	subnets, err := ec2Client.DescribeSubnets(ctx, &ec2.DescribeSubnetsInput{
+		SubnetIds: subnetIDs,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to describe subnets: %w", err)
+	}
+
+	return slices.Compact(slices.Sorted(slices.Values(lo.FilterMap(subnets.Subnets, func(subnet ec2types.Subnet, _ int) (string, bool) {
+		if az := subnet.AvailabilityZone; az != nil {
+			return *az, true
+		} else {
+			return "", false
+		}
+	})))), nil
+}
+
+func convertCapacityType(ct ekstypes.CapacityTypes) string {
+	switch ct {
+	case ekstypes.CapacityTypesOnDemand:
+		return "on-demand"
+	case ekstypes.CapacityTypesSpot:
+		return "spot"
+	case ekstypes.CapacityTypesCapacityBlock:
+		return "reserved"
+	default:
+		return "on-demand"
+	}
+}
+
+func extractMetadataOptionsFromLaunchTemplate(opts *ec2types.LaunchTemplateInstanceMetadataOptions) *MetadataOptions {
+	if opts == nil {
+		return nil
+	}
+
+	var hopLimit *int64
+	if opts.HttpPutResponseHopLimit != nil {
+		hopLimit = lo.ToPtr(int64(*opts.HttpPutResponseHopLimit))
+	}
+
+	return &MetadataOptions{
+		HTTPEndpoint:            lo.Ternary(opts.HttpEndpoint != "", lo.ToPtr(string(opts.HttpEndpoint)), nil),
+		HTTPTokens:              lo.Ternary(opts.HttpTokens != "", lo.ToPtr(string(opts.HttpTokens)), nil),
+		HTTPPutResponseHopLimit: hopLimit,
+		HTTPProtocolIPv6:        lo.Ternary(opts.HttpProtocolIpv6 != "", lo.ToPtr(string(opts.HttpProtocolIpv6)), nil),
+	}
+}
+
+func extractBlockDeviceMappingsFromLaunchTemplate(mappings []ec2types.LaunchTemplateBlockDeviceMapping) []BlockDeviceMapping {
+	if len(mappings) == 0 {
+		return nil
+	}
+
+	return lo.FilterMap(mappings, func(mapping ec2types.LaunchTemplateBlockDeviceMapping, _ int) (BlockDeviceMapping, bool) {
+		// Skip non-EBS volumes (e.g., instance store volumes)
+		if mapping.Ebs == nil {
+			return BlockDeviceMapping{}, false
+		}
+
+		return BlockDeviceMapping{
+			DeviceName:          mapping.DeviceName,
+			RootVolume:          isRootDevice(mapping.DeviceName),
+			DeleteOnTermination: mapping.Ebs.DeleteOnTermination,
+			VolumeSize:          lo.Ternary(mapping.Ebs.VolumeSize != nil, lo.ToPtr(fmt.Sprintf("%dGi", lo.FromPtr(mapping.Ebs.VolumeSize))), nil),
+			VolumeType:          lo.Ternary(mapping.Ebs.VolumeType != "", lo.ToPtr(string(mapping.Ebs.VolumeType)), nil),
+			IOPS:                lo.Ternary(mapping.Ebs.Iops != nil, lo.ToPtr(int64(lo.FromPtr(mapping.Ebs.Iops))), nil),
+			Throughput:          lo.Ternary(mapping.Ebs.Throughput != nil, lo.ToPtr(int64(lo.FromPtr(mapping.Ebs.Throughput))), nil),
+			Encrypted:           mapping.Ebs.Encrypted,
+			KMSKeyID:            mapping.Ebs.KmsKeyId,
+			SnapshotID:          mapping.Ebs.SnapshotId,
+		}, true
+	})
+}

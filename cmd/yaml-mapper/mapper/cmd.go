@@ -13,10 +13,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/constants"
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
+
+	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/constants"
 )
 
 // Options provides information required to manage the map command.
