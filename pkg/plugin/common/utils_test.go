@@ -305,10 +305,20 @@ func TestValidateAnnotationsMatching(t *testing.T) {
 }
 
 func TestRegExEscape(t *testing.T) {
+	// Good behavior: we don't match because escaped dot prevents X from matching
 	matched, _ := regexp.MatchString(ADPrefixRegex, "adXdatadoghqXcom/")
 	assert.False(t, matched)
 
+	// Good behavior: we match exactly
+	matched, _ = regexp.MatchString(ADPrefixRegex, "ad.datadoghq.com/foo.check_names")
+	assert.True(t, matched)
+
+	// Bad regex: we match because of un-escaped dot in the regex
 	matched, _ = regexp.MatchString("ad.datadoghq.com/", "adXdatadoghqXcom/")
 	assert.True(t, matched)
+
+	// Good behavior: we don't match because the string does not start with the prefix, it only contains it
+	matched, _ = regexp.MatchString(ADPrefixRegex, "abcad.datadoghq.com/")
+	assert.False(t, matched)
 
 }
