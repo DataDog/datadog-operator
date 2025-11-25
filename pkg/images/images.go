@@ -131,12 +131,6 @@ func GetLatestDdotCollectorImage() string {
 	return image.ToString()
 }
 
-// GetLatestAgentImageWithSuffix returns the latest stable agent release version
-func GetLatestAgentImageWithSuffix(withJMX, withFIPS, withFull bool) string {
-	image := newImage(DefaultImageRegistry, DefaultAgentImageName, AgentLatestVersion, withJMX, withFIPS, withFull)
-	return image.ToString()
-}
-
 // GetLatestClusterAgentImage returns the latest stable agent release version
 func GetLatestClusterAgentImage() string {
 	image := newImage(DefaultImageRegistry, DefaultClusterAgentImageName, ClusterAgentLatestVersion, false, false, false)
