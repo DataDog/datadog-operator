@@ -77,11 +77,14 @@ func GetNodeGroupsProperties(ctx context.Context, eksClient *eks.Client, ec2Clie
 					return nil, fmt.Errorf("couldn’t get launch template %s version %s description", aws.ToString(ng.LaunchTemplate.Name), aws.ToString(ng.LaunchTemplate.Version))
 				}
 
-				if imageId := launchTemplate.LaunchTemplateVersions[0].LaunchTemplateData.ImageId; imageId != nil {
+				ltData := launchTemplate.LaunchTemplateVersions[0].LaunchTemplateData
+				if imageId := ltData.ImageId; imageId != nil {
 					params.AMIID = *imageId
 				}
-				params.SecurityGroupIDs = launchTemplate.LaunchTemplateVersions[0].LaunchTemplateData.SecurityGroupIds
-				params.InstanceTypes = append(params.InstanceTypes, string(launchTemplate.LaunchTemplateVersions[0].LaunchTemplateData.InstanceType))
+				params.SecurityGroupIDs = ltData.SecurityGroupIds
+				params.MetadataOptions = extractMetadataOptionsFromLaunchTemplate(ltData.MetadataOptions)
+				params.BlockDeviceMappings = extractBlockDeviceMappingsFromLaunchTemplate(ltData.BlockDeviceMappings)
+				params.InstanceTypes = append(params.InstanceTypes, string(ltData.InstanceType))
 			}
 
 			if len(params.SecurityGroupIDs) == 0 &&
@@ -218,4 +221,48 @@ func convertCapacityType(ct ekstypes.CapacityTypes) string {
 	default:
 		return "on-demand"
 	}
+}
+
+func extractMetadataOptionsFromLaunchTemplate(opts *ec2types.LaunchTemplateInstanceMetadataOptions) *MetadataOptions {
+	if opts == nil {
+		return nil
+	}
+
+	var hopLimit *int64
+	if opts.HttpPutResponseHopLimit != nil {
+		hopLimit = lo.ToPtr(int64(*opts.HttpPutResponseHopLimit))
+	}
+
+	return &MetadataOptions{
+		HTTPEndpoint:            lo.Ternary(opts.HttpEndpoint != "", lo.ToPtr(string(opts.HttpEndpoint)), nil),
+		HTTPTokens:              lo.Ternary(opts.HttpTokens != "", lo.ToPtr(string(opts.HttpTokens)), nil),
+		HTTPPutResponseHopLimit: hopLimit,
+		HTTPProtocolIPv6:        lo.Ternary(opts.HttpProtocolIpv6 != "", lo.ToPtr(string(opts.HttpProtocolIpv6)), nil),
+	}
+}
+
+func extractBlockDeviceMappingsFromLaunchTemplate(mappings []ec2types.LaunchTemplateBlockDeviceMapping) []BlockDeviceMapping {
+	if len(mappings) == 0 {
+		return nil
+	}
+
+	return lo.FilterMap(mappings, func(mapping ec2types.LaunchTemplateBlockDeviceMapping, _ int) (BlockDeviceMapping, bool) {
+		// Skip non-EBS volumes (e.g., instance store volumes)
+		if mapping.Ebs == nil {
+			return BlockDeviceMapping{}, false
+		}
+
+		return BlockDeviceMapping{
+			DeviceName:          mapping.DeviceName,
+			RootVolume:          isRootDevice(mapping.DeviceName),
+			DeleteOnTermination: mapping.Ebs.DeleteOnTermination,
+			VolumeSize:          lo.Ternary(mapping.Ebs.VolumeSize != nil, lo.ToPtr(fmt.Sprintf("%dGi", lo.FromPtr(mapping.Ebs.VolumeSize))), nil),
+			VolumeType:          lo.Ternary(mapping.Ebs.VolumeType != "", lo.ToPtr(string(mapping.Ebs.VolumeType)), nil),
+			IOPS:                lo.Ternary(mapping.Ebs.Iops != nil, lo.ToPtr(int64(lo.FromPtr(mapping.Ebs.Iops))), nil),
+			Throughput:          lo.Ternary(mapping.Ebs.Throughput != nil, lo.ToPtr(int64(lo.FromPtr(mapping.Ebs.Throughput))), nil),
+			Encrypted:           mapping.Ebs.Encrypted,
+			KMSKeyID:            mapping.Ebs.KmsKeyId,
+			SnapshotID:          mapping.Ebs.SnapshotId,
+		}, true
+	})
 }

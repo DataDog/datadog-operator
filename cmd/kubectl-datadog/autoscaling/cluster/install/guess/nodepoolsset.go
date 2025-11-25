@@ -7,6 +7,7 @@ import (
 	"cmp"
 	"encoding/base32"
 	"encoding/binary"
+	"hash"
 	"hash/fnv"
 	"maps"
 	"slices"
@@ -20,6 +21,12 @@ type taint struct {
 	key    string
 	value  string
 	effect corev1.TaintEffect
+}
+
+func (t *taint) sum64(h hash.Hash64) {
+	h.Write([]byte(t.key))
+	h.Write([]byte(t.value))
+	h.Write([]byte(t.effect))
 }
 
 func toTaint(t corev1.Taint, _ int) taint {
@@ -51,12 +58,54 @@ func compareTaints(x, y taint) int {
 	return 0
 }
 
+type MetadataOptions struct {
+	HTTPEndpoint            *string // "enabled" or "disabled"
+	HTTPTokens              *string // "required" or "optional"
+	HTTPPutResponseHopLimit *int64  // Hop limit for IMDS requests
+	HTTPProtocolIPv6        *string // "enabled" or "disabled"
+}
+
+func (mo *MetadataOptions) sum64(h hash.Hash64) {
+	h.Write([]byte(lo.FromPtr(mo.HTTPEndpoint)))
+	h.Write([]byte(lo.FromPtr(mo.HTTPTokens)))
+	binary.Write(h, binary.BigEndian, lo.FromPtr(mo.HTTPPutResponseHopLimit))
+	h.Write([]byte(lo.FromPtr(mo.HTTPProtocolIPv6)))
+}
+
+type BlockDeviceMapping struct {
+	DeviceName          *string // Device name (e.g., "/dev/xvda", "/dev/sda1")
+	RootVolume          bool    // Whether this is the root volume
+	VolumeSize          *string // Volume size in Gi format (e.g., "100Gi")
+	VolumeType          *string // Volume type (e.g., "gp3", "io1", "io2")
+	IOPS                *int64  // I/O operations per second
+	Throughput          *int64  // Throughput in MiB/s (for gp3 volumes)
+	Encrypted           *bool   // Whether the volume is encrypted
+	DeleteOnTermination *bool   // Whether to delete volume on instance termination
+	KMSKeyID            *string // KMS key ID for encryption
+	SnapshotID          *string // Snapshot ID to create volume from
+}
+
+func (bdm *BlockDeviceMapping) sum64(h hash.Hash64) {
+	h.Write([]byte(lo.FromPtr(bdm.DeviceName)))
+	h.Write([]byte{lo.Ternary(bdm.RootVolume, byte(1), byte(0))})
+	h.Write([]byte(lo.FromPtr(bdm.VolumeSize)))
+	h.Write([]byte(lo.FromPtr(bdm.VolumeType)))
+	binary.Write(h, binary.BigEndian, lo.FromPtr(bdm.IOPS))
+	binary.Write(h, binary.BigEndian, lo.FromPtr(bdm.Throughput))
+	h.Write([]byte{lo.Ternary(lo.FromPtr(bdm.Encrypted), byte(1), byte(0))})
+	h.Write([]byte{lo.Ternary(lo.FromPtr(bdm.DeleteOnTermination), byte(1), byte(0))})
+	h.Write([]byte(lo.FromPtr(bdm.KMSKeyID)))
+	h.Write([]byte(lo.FromPtr(bdm.SnapshotID)))
+}
+
 type EC2NodeClass struct {
-	name             string
-	amiFamily        string
-	amiIDs           map[string]struct{}
-	subnetIDs        map[string]struct{}
-	securityGroupIDs map[string]struct{}
+	name                string
+	amiFamily           string
+	amiIDs              map[string]struct{}
+	subnetIDs           map[string]struct{}
+	securityGroupIDs    map[string]struct{}
+	metadataOptions     *MetadataOptions
+	blockDeviceMappings map[string]*BlockDeviceMapping
 }
 
 func (nc *EC2NodeClass) GetName() string {
@@ -79,13 +128,36 @@ func (nc *EC2NodeClass) GetSecurityGroupIDs() []string {
 	return slices.Sorted(maps.Keys(nc.securityGroupIDs))
 }
 
+func (nc *EC2NodeClass) GetMetadataOptions() *MetadataOptions {
+	return nc.metadataOptions
+}
+
+func (nc *EC2NodeClass) GetBlockDeviceMappings() []BlockDeviceMapping {
+	return lo.Map(slices.SortedFunc(maps.Values(nc.blockDeviceMappings), func(a, b *BlockDeviceMapping) int {
+		return cmp.Compare(lo.FromPtr(a.DeviceName), lo.FromPtr(b.DeviceName))
+	}), func(bdm *BlockDeviceMapping, _ int) BlockDeviceMapping {
+		return lo.FromPtr(bdm)
+	})
+}
+
 func (nc *EC2NodeClass) sum64() uint64 {
 	h := fnv.New64()
 
 	h.Write([]byte(nc.amiFamily))
 
+	binary.Write(h, binary.BigEndian, uint32(len(nc.securityGroupIDs)))
 	for _, x := range slices.Sorted(maps.Keys(nc.securityGroupIDs)) {
 		h.Write([]byte(x))
+	}
+
+	h.Write([]byte{lo.Ternary(nc.metadataOptions != nil, byte(1), byte(0))})
+	if nc.metadataOptions != nil {
+		nc.metadataOptions.sum64(h)
+	}
+
+	binary.Write(h, binary.BigEndian, uint32(len(nc.blockDeviceMappings)))
+	for _, deviceName := range slices.Sorted(maps.Keys(nc.blockDeviceMappings)) {
+		nc.blockDeviceMappings[deviceName].sum64(h)
 	}
 
 	return h.Sum64()
@@ -143,15 +215,15 @@ func (np *NodePool) sum64() uint64 {
 
 	h.Write([]byte(np.ec2NodeClass))
 
+	binary.Write(h, binary.BigEndian, uint32(len(np.labels)))
 	for _, k := range slices.Sorted(maps.Keys(np.labels)) {
 		h.Write([]byte(k))
 		h.Write([]byte(np.labels[k]))
 	}
 
+	binary.Write(h, binary.BigEndian, uint32(len(np.taints)))
 	for _, taint := range slices.SortedFunc(maps.Keys(np.taints), compareTaints) {
-		h.Write([]byte(taint.key))
-		h.Write([]byte(taint.value))
-		h.Write([]byte(taint.effect))
+		taint.sum64(h)
 	}
 
 	return h.Sum64()
@@ -170,16 +242,18 @@ func NewNodePoolsSet() *NodePoolsSet {
 }
 
 type NodePoolsSetAddParams struct {
-	AMIFamily        string
-	AMIID            string
-	SubnetIDs        []string
-	SecurityGroupIDs []string
-	Labels           map[string]string
-	Taints           []corev1.Taint
-	Architecture     string
-	Zones            []string
-	InstanceTypes    []string
-	CapacityType     string
+	AMIFamily           string
+	AMIID               string
+	SubnetIDs           []string
+	SecurityGroupIDs    []string
+	MetadataOptions     *MetadataOptions
+	BlockDeviceMappings []BlockDeviceMapping
+	Labels              map[string]string
+	Taints              []corev1.Taint
+	Architecture        string
+	Zones               []string
+	InstanceTypes       []string
+	CapacityType        string
 }
 
 func (nps *NodePoolsSet) Add(p NodePoolsSetAddParams) {
@@ -188,6 +262,10 @@ func (nps *NodePoolsSet) Add(p NodePoolsSetAddParams) {
 		amiIDs:           make(map[string]struct{}),
 		subnetIDs:        lo.Keyify(p.SubnetIDs),
 		securityGroupIDs: lo.Keyify(p.SecurityGroupIDs),
+		metadataOptions:  p.MetadataOptions,
+		blockDeviceMappings: lo.Associate(p.BlockDeviceMappings, func(bdm BlockDeviceMapping) (string, *BlockDeviceMapping) {
+			return lo.FromPtr(bdm.DeviceName), lo.ToPtr(bdm)
+		}),
 	}
 
 	if p.AMIID != "" {
