@@ -76,6 +76,17 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 				}
 			}
 		}
+
+		for i, initContainer := range manager.PodTemplateSpec().Spec.InitContainers {
+			manager.PodTemplateSpec().Spec.InitContainers[i].Image = images.OverrideAgentImage(initContainer.Image, override.Image)
+			if override.Image.PullPolicy != nil {
+				manager.PodTemplateSpec().Spec.InitContainers[i].ImagePullPolicy = *override.Image.PullPolicy
+			}
+		}
+
+		if override.Image.PullSecrets != nil {
+			manager.PodTemplateSpec().Spec.ImagePullSecrets = *override.Image.PullSecrets
+		}
 	}
 
 	for _, env := range override.Env {
