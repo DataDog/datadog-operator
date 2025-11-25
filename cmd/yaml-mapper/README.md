@@ -47,12 +47,14 @@ yaml-mapper --sourcePath=examples/example_source.yaml --mappingPath=mapper/mappi
 Below are different ways to update the mapping file based on your source:
 
 1. **Local `values.yaml` from your branch**
+
     If you have run into a CI error when adding a new field to `values.yaml`, run this command:
     ```bash
     yaml-mapper --updateMap --sourcePath=<PATH_TO>helm-charts/charts/datadog/values.yaml
     ```
 2. **Latest published Datadog Helm chart values**
-   This pulls the latest `values.yaml` from the [latest published Helm chart](https://github.com/DataDog/helm-charts/releases/latest) and updates the default mapping file.
+   
+    This pulls the latest `values.yaml` from the [latest published Helm chart](https://github.com/DataDog/helm-charts/releases/latest) and updates the default mapping file.
     ``` bash
     yaml-mapper --updateMap
     ```
