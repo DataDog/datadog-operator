@@ -11,7 +11,7 @@ const (
 	// ADPrefix prefix used for AD annotations
 	ADPrefix = "ad.datadoghq.com/"
 	// ADPrefixRegex used for matching AD annotations
-	ADPrefixRegex = "ad\\.datadoghq\\.com/"
+	ADPrefixRegex = "^ad\\.datadoghq\\.com/"
 	// AgentLabelValue label value to define the Agent
 	AgentLabelValue = "agent"
 	// ComponentLabelKey label key used to define the datadog agent component
