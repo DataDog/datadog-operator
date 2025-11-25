@@ -11,8 +11,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/utils"
 	"sigs.k8s.io/yaml"
+
+	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/utils"
 )
 
 type MappingRunFunc = func(values map[string]interface{}, newPath string, pathVal interface{}, args []interface{})

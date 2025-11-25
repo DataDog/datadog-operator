@@ -6,7 +6,6 @@
 package mapper
 
 import (
-	_ "embed"
 	"fmt"
 	"log"
 	"os"
@@ -14,10 +13,13 @@ import (
 	"strings"
 	"time"
 
+	"helm.sh/helm/v3/pkg/chartutil"
+
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/constants"
 	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/utils"
-	"helm.sh/helm/v3/pkg/chartutil"
+
+	_ "embed"
 )
 
 var (

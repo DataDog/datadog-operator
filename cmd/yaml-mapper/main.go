@@ -8,14 +8,14 @@ package main
 import (
 	"os"
 
-	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/mapper"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/mapper"
 
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 type Options struct {
