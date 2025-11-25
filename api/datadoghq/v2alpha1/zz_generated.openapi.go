@@ -24,6 +24,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DaemonSetStatus":                     schema_datadog_operator_api_datadoghq_v2alpha1_DaemonSetStatus(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogAgent":                        schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgent(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogAgentGenericContainer":        schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogAgentList":                    schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgentList(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogAgentStatus":                  schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgentStatus(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogCredentials":                  schema_datadog_operator_api_datadoghq_v2alpha1_DatadogCredentials(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogFeatures":                     schema_datadog_operator_api_datadoghq_v2alpha1_DatadogFeatures(ref),
@@ -473,6 +474,67 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgentGenericContainer
 		},
 		Dependencies: []string{
 			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SeccompConfig", "k8s.io/api/core/v1.ContainerPort", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.VolumeMount"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgentList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogAgentList contains a list of DatadogAgent. Unless explicitly stated otherwise all files in this repository are licensed under the Apache License Version 2.0. This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2016-present Datadog, Inc. ComponentName is the name of a Deployment Component DatadogAgentSpec defines the desired state of DatadogAgent DatadogFeatures are features running on the Agent and Cluster Agent. Configuration structs for each feature in DatadogFeatures. All parameters are optional and have default values when necessary. Note: configuration in DatadogAgentSpec.Override takes precedence. APMFeatureConfig contains APM (Application Performance Monitoring) configuration. APM runs in the Trace Agent. ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature. SingleStepInstrumentation contains the config for the namespaces to target and the library to inject. SSITarget is a rule to apply the auto instrumentation to a specific workload using the pod and namespace selectors. NamespaceSelector is a struct to store the configuration for the namespace selector. It can be used to match the namespaces to apply the auto instrumentation to. LanguageDetectionConfig contains the config for Language Detection. CSIConfig contains the config for Datadog CSI driver. InjectorConfig contains the configuration for the APM Injector. ASMFeatureConfig contains Application Security Management (ASM) configuration. Note that this will only affect pods where the Datadog client libraries are installed or APM Single Step Instrumentation is enabled. LogCollectionFeatureConfig contains Logs configuration. Logs collection is run in the Agent. LiveProcessCollectionFeatureConfig contains Process Collection configuration. Process Collection is run in the Process Agent. LiveContainerCollectionFeatureConfig contains Container Collection configuration. Container Collection is run in the Process Agent. ProcessDiscoveryFeatureConfig contains the configuration for the process discovery check ProcessDiscovery is run in the ProcessAgent OOMKillFeatureConfig configures the OOM Kill monitoring feature. TCPQueueLengthFeatureConfig configures the TCP queue length monitoring feature. EBPFCheckFeatureConfig configures the eBPF check feature. CSPMFeatureConfig contains CSPM (Cloud Security Posture Management) configuration. CSPM runs in the Security Agent and Cluster Agent. CSPMHostBenchmarksConfig contains configuration for host benchmarks. CWSFeatureConfig contains CWS (Cloud Workload Security) configuration. CWS runs in the Security Agent. RemoteConfigurationFeatureConfig contains RC (Remote Configuration) configuration. RC runs in the Agent. SBOMFeatureConfig contains SBOM (Software Bill of Materials) collection configuration. SBOM runs in the Agent. SBOMTypeConfig contains configuration for a SBOM collection type. SBOMTypeConfig contains configuration for a SBOM collection type. NPMFeatureConfig contains NPM (Network Performance Monitoring) feature configuration. Network Performance Monitoring runs in the System Probe and Process Agent. USMFeatureConfig contains USM (Universal Service Monitoring) feature configuration. Universal Service Monitoring runs in the Process Agent and System Probe. ServiceDiscoveryFeatureConfig configures the service discovery check feature. ServiceDiscoveryNetworkStatsConfig configures Service Discovery's network stats collection feature. GPUFeatureConfig contains the GPU monitoring configuration. DogstatsdFeatureConfig contains the Dogstatsd configuration parameters. OTLPFeatureConfig contains configuration for OTLP ingest. OTLPReceiverConfig contains configuration for the OTLP ingest receiver. OTLPProtocolsConfig contains configuration for the OTLP ingest receiver protocols. OTLPGRPCConfig contains configuration for the OTLP ingest OTLP/gRPC receiver. OTLPHTTPConfig contains configuration for the OTLP ingest OTLP/HTTP receiver. EventCollectionFeatureConfig contains the Event Collection configuration. EventTypes defines the kind and reasons of events to collect. OrchestratorExplorerFeatureConfig contains the Orchestrator Explorer check feature configuration. The Orchestrator Explorer check runs in the Process and Cluster Agents (or Cluster Check Runners). See also: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources KubeStateMetricsCoreFeatureConfig contains the Kube State Metrics Core check feature configuration. The Kube State Metrics Core check runs in the Cluster Agent (or Cluster Check Runners). See also: https://docs.datadoghq.com/integrations/kubernetes_state_core Resource configures a custom resource for metric generation. GroupVersionKind is the Kubernetes group, version, and kind of a resource. Labels is common configuration of labels to add to metrics. Generator describes a unique metric name. Metric defines a metric to expose. Type represents the type of the metric. See https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#metric-types. Supported metric types. MetricMeta are variables which may used for any metric type. MetricGauge targets a Path that may be a single value, array, or object. Arrays and objects will generate a metric per element. Ref: https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#gauge MetricInfo is a metric which is used to expose textual information. Ref: https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#info MetricStateSet is a metric which represent a series of related boolean values, also called a bitset. Ref: https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#stateset OtelCollectorFeatureConfig contains the configuration for the otel-agent. ControlPlaneMonitoringFeatureConfig contains the configuration for the control plane monitoring. CoreConfig exposes the otel collector configs relevant to the core agent. AdmissionControllerFeatureConfig contains the Admission Controller feature configuration. The Admission Controller runs in the Cluster Agent. Selectors define a pod selector for sidecar injection. Profile defines a sidecar configuration override. CWSInstrumentationConfig contains the configuration of the CWS Instrumentation admission controller endpoint. ExternalMetricsServerFeatureConfig contains the External Metrics Server feature configuration. The External Metrics Server runs in the Cluster Agent. AutoscalingFeatureConfig contains the Autoscaling product configuration. WorkloadAutoscalingFeatureConfig contains the configuration for the workload autoscaling product. ClusterChecksFeatureConfig contains the Cluster Checks feature configuration. Cluster Checks are picked up and scheduled by the Cluster Agent. Cluster Checks Runners are Agents dedicated to running Cluster Checks dispatched by the Cluster Agent. (If Cluster Checks Runners are not activated, checks are dispatched to Node Agents). PrometheusScrapeFeatureConfig allows configuration of the Prometheus Autodiscovery feature. HelmCheckFeatureConfig allows configuration of the Helm check feature. Generic support structs SecretConfig contains a secret name and an included key. ConfigMapConfig contains ConfigMap information used to store a configuration file. CustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to datadog.yaml, system-probe.yaml, security-agent.yaml or datadog-cluster.yaml. The configuration can be provided in the ConfigData field as raw data, or referenced in a ConfigMap. Note: `ConfigData` and `ConfigMap` cannot be set together. MultiCustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to /confd/*.yaml. The configuration can be provided in the ConfigDataMap field as raw data, or referenced in a single ConfigMap. Note: `ConfigDataMap` and `ConfigMap` cannot be set together. KubeletConfig contains the kubelet configuration parameters. HostPortConfig contains host port configuration. UnixDomainSocketConfig contains the Unix Domain Socket configuration. Endpoint configures an endpoint and its associated Datadog credentials. OriginDetectionUnified defines the origin detection unified mechanism behavior. AgentImageConfig defines the agent container image config. DaemonSetStatus defines the observed state of Agent running as DaemonSet. DeploymentStatus type representing a Deployment status. GlobalConfig is a set of parameters that are used to configure all the components of the Datadog Operator. DatadogCredentials is a generic structure that holds credentials to access Datadog. SecretBackendRolesConfig provides configuration of the secrets Datadog agents can read for the SecretBackend feature SecretBackendConfig provides configuration for the secret backend. NetworkPolicyFlavor specifies which flavor of Network Policy to use. NetworkPolicyConfig provides Network Policy configuration for the agents. LocalService provides the internal traffic policy service configuration. SeccompConfig is used to override default values for Seccomp Profile configurations. AgentConfigFileName is the list of known Agent config files DatadogAgentComponentOverride is the generic description equivalent to a subset of the PodTemplate for a component. DatadogAgentGenericContainer is the generic structure describing any container's common configuration. FIPSConfig contains the FIPS configuration. RemoteConfigConfiguration stores the configuration received from RemoteConfig. DatadogAgentStatus defines the observed state of DatadogAgent. DatadogAgent Deployment with the Datadog Operator. DatadogAgentList contains a list of DatadogAgent.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogAgent"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+			VendorExtensible: spec.VendorExtensible{
+				Extensions: spec.Extensions{
+					"x-kubernetes-unions": []interface{}{
+						map[string]interface{}{
+							"fields-to-discriminateBy": map[string]interface{}{
+								"items":    "Items",
+								"metadata": "ListMeta",
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogAgent", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 

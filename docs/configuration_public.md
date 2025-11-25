@@ -96,26 +96,8 @@ spec:
 `features.apm.unixDomainSocketConfig.path`
 : Defines the socket path used when enabled.
 
-`features.appsec.injector.autoDetect`
-: AutoDetect enables auto-detection of supported proxies (Envoy Gateway, Istio). Default: true
-
-`features.appsec.injector.enabled`
-: Enables the AppSec proxy auto-injection feature. Default: false
-
-`features.appsec.injector.processor.address`
-: Of the Appsec processor service.
-
-`features.appsec.injector.processor.port`
-: Of the Appsec processor service. Default: 443
-
-`features.appsec.injector.processor.service.name`
-: Of the Appsec processor service.
-
-`features.appsec.injector.processor.service.namespace`
-: Where the Appsec processor is deployed.
-
-`features.appsec.injector.proxies`
-: Is a list of proxy types to inject. Valid values: "envoy-gateway", "istio".
+`features.appsec.injector`
+: App & API Protection Security Injector allows the agent to inject gateway/ingress configuration into the cluster to forward all requests to an external security processor app that scans, block and protect your entire cluster from malicious actors. Feature is in preview. Default Enabled: false
 
 `features.asm.iast.enabled`
 : Enables Interactive Application Security Testing (IAST). Default: false

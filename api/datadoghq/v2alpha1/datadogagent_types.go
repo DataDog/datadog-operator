@@ -2119,56 +2119,9 @@ type DatadogAgent struct {
 // ASMFeatureConfig contains Application Security Management (ASM) configuration.
 // Note that this will only affect pods where the Datadog client libraries are installed or APM Single Step Instrumentation is enabled.
 // AppSecFeatureConfig contains Application Security configuration for proxy auto-injection.
-type AppSecFeatureConfig struct {
-	// Injector configures the AppSec proxy auto-injection feature.
-	// +optional
-	Injector *AppSecInjectorConfig `json:"injector,omitempty"`
-}
 // AppSecInjectorConfig configures the AppSec proxy auto-injection feature.
-type AppSecInjectorConfig struct {
-	// Enabled enables the AppSec proxy auto-injection feature.
-	// Default: false
-	// +optional
-	Enabled *bool `json:"enabled,omitempty"`
-
-	// AutoDetect enables auto-detection of supported proxies (Envoy Gateway, Istio).
-	// Default: true
-	// +optional
-	AutoDetect *bool `json:"autoDetect,omitempty"`
-
-	// Proxies is a list of proxy types to inject. Valid values: "envoy-gateway", "istio".
-	// +optional
-	Proxies []string `json:"proxies,omitempty"`
-
-	// Processor configuration for the AppSec processor service.
-	// +optional
-	Processor *AppSecProcessorConfig `json:"processor,omitempty"`
-}
 // AppSecProcessorConfig configures the AppSec processor service.
-type AppSecProcessorConfig struct {
-	// Address of the AppSec processor service.
-	// +optional
-	Address *string `json:"address,omitempty"`
-
-	// Port of the AppSec processor service.
-	// Default: 443
-	// +optional
-	Port *int32 `json:"port,omitempty"`
-
-	// Service configuration for the AppSec processor.
-	// +optional
-	Service *AppSecProcessorServiceConfig `json:"service,omitempty"`
-}
 // AppSecProcessorServiceConfig configures the AppSec processor service reference.
-type AppSecProcessorServiceConfig struct {
-	// Name of the AppSec processor service.
-	// +optional
-	Name *string `json:"name,omitempty"`
-
-	// Namespace where the AppSec processor is deployed.
-	// +optional
-	Namespace *string `json:"namespace,omitempty"`
-}
 // LogCollectionFeatureConfig contains Logs configuration.
 // Logs collection is run in the Agent.
 // LiveProcessCollectionFeatureConfig contains Process Collection configuration.
@@ -2352,7 +2305,11 @@ type AppSecProcessorServiceConfig struct {
 // Note that this will only affect pods where the Datadog client libraries are installed or APM Single Step Instrumentation is enabled.
 // AppsecFeatureConfig contains Application Security configuration for proxy auto-injection.
 type AppsecFeatureConfig struct {
-	// Injector configures the Appsec proxy auto-injection feature.
+	// App & API Protection Security Injector allows the agent to inject gateway/ingress configuration
+	// into the cluster to forward all requests to an external security processor app that scans, block and protect your entire cluster from malicious actors.
+	// Feature is in preview.
+	// Default Enabled: false
+	// +doc-gen:truncate
 	// +optional
 	Injector *AppsecInjectorConfig `json:"injector,omitempty"`
 }
@@ -2588,6 +2545,374 @@ type AppsecProcessorServiceConfig struct {
 // AppSecInjectorConfig configures the AppSec proxy auto-injection feature.
 // AppSecProcessorConfig configures the AppSec processor service.
 // AppSecProcessorServiceConfig configures the AppSec processor service reference.
+// LogCollectionFeatureConfig contains Logs configuration.
+// Logs collection is run in the Agent.
+// LiveProcessCollectionFeatureConfig contains Process Collection configuration.
+// Process Collection is run in the Process Agent.
+// LiveContainerCollectionFeatureConfig contains Container Collection configuration.
+// Container Collection is run in the Process Agent.
+// ProcessDiscoveryFeatureConfig contains the configuration for the process discovery check
+// ProcessDiscovery is run in the ProcessAgent
+// OOMKillFeatureConfig configures the OOM Kill monitoring feature.
+// TCPQueueLengthFeatureConfig configures the TCP queue length monitoring feature.
+// EBPFCheckFeatureConfig configures the eBPF check feature.
+// CSPMFeatureConfig contains CSPM (Cloud Security Posture Management) configuration.
+// CSPM runs in the Security Agent and Cluster Agent.
+// CSPMHostBenchmarksConfig contains configuration for host benchmarks.
+// +k8s:openapi-gen=true
+// CWSFeatureConfig contains CWS (Cloud Workload Security) configuration.
+// CWS runs in the Security Agent.
+// RemoteConfigurationFeatureConfig contains RC (Remote Configuration) configuration.
+// RC runs in the Agent.
+// SBOMFeatureConfig contains SBOM (Software Bill of Materials) collection configuration.
+// SBOM runs in the Agent.
+// SBOMTypeConfig contains configuration for a SBOM collection type.
+// SBOMTypeConfig contains configuration for a SBOM collection type.
+// NPMFeatureConfig contains NPM (Network Performance Monitoring) feature configuration.
+// Network Performance Monitoring runs in the System Probe and Process Agent.
+// USMFeatureConfig contains USM (Universal Service Monitoring) feature configuration.
+// Universal Service Monitoring runs in the Process Agent and System Probe.
+// ServiceDiscoveryFeatureConfig configures the service discovery check feature.
+// ServiceDiscoveryNetworkStatsConfig configures Service Discovery's network stats
+// collection feature.
+// GPUFeatureConfig contains the GPU monitoring configuration.
+// DogstatsdFeatureConfig contains the Dogstatsd configuration parameters.
+// +k8s:openapi-gen=true
+// OTLPFeatureConfig contains configuration for OTLP ingest.
+// +k8s:openapi-gen=true
+// OTLPReceiverConfig contains configuration for the OTLP ingest receiver.
+// +k8s:openapi-gen=true
+// OTLPProtocolsConfig contains configuration for the OTLP ingest receiver protocols.
+// +k8s:openapi-gen=true
+// OTLPGRPCConfig contains configuration for the OTLP ingest OTLP/gRPC receiver.
+// +k8s:openapi-gen=true
+// OTLPHTTPConfig contains configuration for the OTLP ingest OTLP/HTTP receiver.
+// +k8s:openapi-gen=true
+// EventCollectionFeatureConfig contains the Event Collection configuration.
+// +k8s:openapi-gen=true
+// EventTypes defines the kind and reasons of events to collect.
+// OrchestratorExplorerFeatureConfig contains the Orchestrator Explorer check feature configuration.
+// The Orchestrator Explorer check runs in the Process and Cluster Agents (or Cluster Check Runners).
+// See also: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources
+// +k8s:openapi-gen=true
+// KubeStateMetricsCoreFeatureConfig contains the Kube State Metrics Core check feature configuration.
+// The Kube State Metrics Core check runs in the Cluster Agent (or Cluster Check Runners).
+// See also: https://docs.datadoghq.com/integrations/kubernetes_state_core
+// +k8s:openapi-gen=true
+// Resource configures a custom resource for metric generation.
+// GroupVersionKind is the Kubernetes group, version, and kind of a resource.
+// Labels is common configuration of labels to add to metrics.
+// Generator describes a unique metric name.
+// Metric defines a metric to expose.
+// +union
+// Type represents the type of the metric. See https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#metric-types.
+// Supported metric types.
+// MetricMeta are variables which may used for any metric type.
+// MetricGauge targets a Path that may be a single value, array, or object. Arrays and objects will generate a metric per element.
+// Ref: https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#gauge
+// MetricInfo is a metric which is used to expose textual information.
+// Ref: https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#info
+// MetricStateSet is a metric which represent a series of related boolean values, also called a bitset.
+// Ref: https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#stateset
+// OtelCollectorFeatureConfig contains the configuration for the otel-agent.
+// +k8s:openapi-gen=true
+// ControlPlaneMonitoringFeatureConfig contains the configuration for the control plane monitoring.
+// +k8s:openapi-gen=true
+// CoreConfig exposes the otel collector configs relevant to the core agent.
+// +k8s:openapi-gen=true
+// AdmissionControllerFeatureConfig contains the Admission Controller feature configuration.
+// The Admission Controller runs in the Cluster Agent.
+// Selectors define a pod selector for sidecar injection.
+// Profile defines a sidecar configuration override.
+// CWSInstrumentationConfig contains the configuration of the CWS Instrumentation admission controller endpoint.
+// ExternalMetricsServerFeatureConfig contains the External Metrics Server feature configuration.
+// The External Metrics Server runs in the Cluster Agent.
+// AutoscalingFeatureConfig contains the Autoscaling product configuration.
+// WorkloadAutoscalingFeatureConfig contains the configuration for the workload autoscaling product.
+// ClusterChecksFeatureConfig contains the Cluster Checks feature configuration.
+// Cluster Checks are picked up and scheduled by the Cluster Agent.
+// Cluster Checks Runners are Agents dedicated to running Cluster Checks dispatched by the Cluster Agent.
+// (If Cluster Checks Runners are not activated, checks are dispatched to Node Agents).
+// PrometheusScrapeFeatureConfig allows configuration of the Prometheus Autodiscovery feature.
+// +k8s:openapi-gen=true
+// HelmCheckFeatureConfig allows configuration of the Helm check feature.
+// +k8s:openapi-gen=true
+// Generic support structs
+// SecretConfig contains a secret name and an included key.
+// +kubebuilder:object:generate=true
+// ConfigMapConfig contains ConfigMap information used to store a configuration file.
+// +kubebuilder:object:generate=true
+// CustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to datadog.yaml,
+// system-probe.yaml, security-agent.yaml or datadog-cluster.yaml.
+// The configuration can be provided in the ConfigData field as raw data, or referenced in a ConfigMap.
+// Note: `ConfigData` and `ConfigMap` cannot be set together.
+// +k8s:openapi-gen=true
+// MultiCustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to /confd/*.yaml.
+// The configuration can be provided in the ConfigDataMap field as raw data, or referenced in a single ConfigMap.
+// Note: `ConfigDataMap` and `ConfigMap` cannot be set together.
+// +k8s:openapi-gen=true
+// KubeletConfig contains the kubelet configuration parameters.
+// +kubebuilder:object:generate=true
+// HostPortConfig contains host port configuration.
+// UnixDomainSocketConfig contains the Unix Domain Socket configuration.
+// +k8s:openapi-gen=true
+// Endpoint configures an endpoint and its associated Datadog credentials.
+// OriginDetectionUnified defines the origin detection unified mechanism behavior.
+// AgentImageConfig defines the agent container image config.
+// +kubebuilder:object:generate=true
+// DaemonSetStatus defines the observed state of Agent running as DaemonSet.
+// +k8s:openapi-gen=true
+// +kubebuilder:object:generate=true
+// DeploymentStatus type representing a Deployment status.
+// +k8s:openapi-gen=true
+// +kubebuilder:object:generate=true
+// GlobalConfig is a set of parameters that are used to configure all the components of the Datadog Operator.
+// DatadogCredentials is a generic structure that holds credentials to access Datadog.
+// +k8s:openapi-gen=true
+// SecretBackendRolesConfig provides configuration of the secrets Datadog agents can read for the SecretBackend feature
+// +k8s:openapi-gen=true
+// SecretBackendConfig provides configuration for the secret backend.
+// +k8s:openapi-gen=true
+// NetworkPolicyFlavor specifies which flavor of Network Policy to use.
+// NetworkPolicyConfig provides Network Policy configuration for the agents.
+// +k8s:openapi-gen=true
+// LocalService provides the internal traffic policy service configuration.
+// +k8s:openapi-gen=true
+// SeccompConfig is used to override default values for Seccomp Profile configurations.
+// +k8s:openapi-gen=true
+// AgentConfigFileName is the list of known Agent config files
+// DatadogAgentComponentOverride is the generic description equivalent to a subset of the PodTemplate for a component.
+// DatadogAgentGenericContainer is the generic structure describing any container's common configuration.
+// +k8s:openapi-gen=true
+// FIPSConfig contains the FIPS configuration.
+// +k8s:openapi-gen=true
+// RemoteConfigConfiguration stores the configuration received from RemoteConfig.
+// +k8s:openapi-gen=true
+// DatadogAgentStatus defines the observed state of DatadogAgent.
+// +k8s:openapi-gen=true
+// DatadogAgent Deployment with the Datadog Operator.
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:storageversion
+// +kubebuilder:resource:path=datadogagents,shortName=dd
+// +kubebuilder:printcolumn:name="agent",type="string",JSONPath=".status.agent.status"
+// +kubebuilder:printcolumn:name="cluster-agent",type="string",JSONPath=".status.clusterAgent.status"
+// +kubebuilder:printcolumn:name="cluster-checks-runner",type="string",JSONPath=".status.clusterChecksRunner.status"
+// +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
+// +k8s:openapi-gen=true
+// +genclient
+//+kubebuilder:object:root=true
+// DatadogAgentList contains a list of DatadogAgent.
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present Datadog, Inc.
+// ComponentName is the name of a Deployment Component
+// DatadogAgentSpec defines the desired state of DatadogAgent
+// DatadogFeatures are features running on the Agent and Cluster Agent.
+// +k8s:openapi-gen=true
+// Configuration structs for each feature in DatadogFeatures. All parameters are optional and have default values when necessary.
+// Note: configuration in DatadogAgentSpec.Override takes precedence.
+// APMFeatureConfig contains APM (Application Performance Monitoring) configuration.
+// APM runs in the Trace Agent.
+// ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.
+// +k8s:openapi-gen=true
+// SingleStepInstrumentation contains the config for the namespaces to target and the library to inject.
+// SSITarget is a rule to apply the auto instrumentation to a specific workload using the pod and namespace selectors.
+// NamespaceSelector is a struct to store the configuration for the namespace selector. It can be used to match the
+// namespaces to apply the auto instrumentation to.
+// LanguageDetectionConfig contains the config for Language Detection.
+// CSIConfig contains the config for Datadog CSI driver.
+// InjectorConfig contains the configuration for the APM Injector.
+// ASMFeatureConfig contains Application Security Management (ASM) configuration.
+// Note that this will only affect pods where the Datadog client libraries are installed or APM Single Step Instrumentation is enabled.
+// AppsecFeatureConfig contains Application Security configuration for proxy auto-injection.
+// AppsecInjectorConfig configures the Appsec proxy auto-injection feature.
+// AppsecProcessorConfig configures the Appsec processor service.
+// AppsecProcessorServiceConfig configures the Appsec processor service reference.
+// LogCollectionFeatureConfig contains Logs configuration.
+// Logs collection is run in the Agent.
+// LiveProcessCollectionFeatureConfig contains Process Collection configuration.
+// Process Collection is run in the Process Agent.
+// LiveContainerCollectionFeatureConfig contains Container Collection configuration.
+// Container Collection is run in the Process Agent.
+// ProcessDiscoveryFeatureConfig contains the configuration for the process discovery check
+// ProcessDiscovery is run in the ProcessAgent
+// OOMKillFeatureConfig configures the OOM Kill monitoring feature.
+// TCPQueueLengthFeatureConfig configures the TCP queue length monitoring feature.
+// EBPFCheckFeatureConfig configures the eBPF check feature.
+// CSPMFeatureConfig contains CSPM (Cloud Security Posture Management) configuration.
+// CSPM runs in the Security Agent and Cluster Agent.
+// CSPMHostBenchmarksConfig contains configuration for host benchmarks.
+// +k8s:openapi-gen=true
+// CWSFeatureConfig contains CWS (Cloud Workload Security) configuration.
+// CWS runs in the Security Agent.
+// RemoteConfigurationFeatureConfig contains RC (Remote Configuration) configuration.
+// RC runs in the Agent.
+// SBOMFeatureConfig contains SBOM (Software Bill of Materials) collection configuration.
+// SBOM runs in the Agent.
+// SBOMTypeConfig contains configuration for a SBOM collection type.
+// SBOMTypeConfig contains configuration for a SBOM collection type.
+// NPMFeatureConfig contains NPM (Network Performance Monitoring) feature configuration.
+// Network Performance Monitoring runs in the System Probe and Process Agent.
+// USMFeatureConfig contains USM (Universal Service Monitoring) feature configuration.
+// Universal Service Monitoring runs in the Process Agent and System Probe.
+// ServiceDiscoveryFeatureConfig configures the service discovery check feature.
+// ServiceDiscoveryNetworkStatsConfig configures Service Discovery's network stats
+// collection feature.
+// GPUFeatureConfig contains the GPU monitoring configuration.
+// DogstatsdFeatureConfig contains the Dogstatsd configuration parameters.
+// +k8s:openapi-gen=true
+// OTLPFeatureConfig contains configuration for OTLP ingest.
+// +k8s:openapi-gen=true
+// OTLPReceiverConfig contains configuration for the OTLP ingest receiver.
+// +k8s:openapi-gen=true
+// OTLPProtocolsConfig contains configuration for the OTLP ingest receiver protocols.
+// +k8s:openapi-gen=true
+// OTLPGRPCConfig contains configuration for the OTLP ingest OTLP/gRPC receiver.
+// +k8s:openapi-gen=true
+// OTLPHTTPConfig contains configuration for the OTLP ingest OTLP/HTTP receiver.
+// +k8s:openapi-gen=true
+// EventCollectionFeatureConfig contains the Event Collection configuration.
+// +k8s:openapi-gen=true
+// EventTypes defines the kind and reasons of events to collect.
+// OrchestratorExplorerFeatureConfig contains the Orchestrator Explorer check feature configuration.
+// The Orchestrator Explorer check runs in the Process and Cluster Agents (or Cluster Check Runners).
+// See also: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources
+// +k8s:openapi-gen=true
+// KubeStateMetricsCoreFeatureConfig contains the Kube State Metrics Core check feature configuration.
+// The Kube State Metrics Core check runs in the Cluster Agent (or Cluster Check Runners).
+// See also: https://docs.datadoghq.com/integrations/kubernetes_state_core
+// +k8s:openapi-gen=true
+// Resource configures a custom resource for metric generation.
+// GroupVersionKind is the Kubernetes group, version, and kind of a resource.
+// Labels is common configuration of labels to add to metrics.
+// Generator describes a unique metric name.
+// Metric defines a metric to expose.
+// +union
+// Type represents the type of the metric. See https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#metric-types.
+// Supported metric types.
+// MetricMeta are variables which may used for any metric type.
+// MetricGauge targets a Path that may be a single value, array, or object. Arrays and objects will generate a metric per element.
+// Ref: https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#gauge
+// MetricInfo is a metric which is used to expose textual information.
+// Ref: https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#info
+// MetricStateSet is a metric which represent a series of related boolean values, also called a bitset.
+// Ref: https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#stateset
+// OtelCollectorFeatureConfig contains the configuration for the otel-agent.
+// +k8s:openapi-gen=true
+// OtelAgentGatewayFeatureConfig contains the configuration for the OTel Agent Gateway.
+// +k8s:openapi-gen=true
+// ControlPlaneMonitoringFeatureConfig contains the configuration for the control plane monitoring.
+// +k8s:openapi-gen=true
+// CoreConfig exposes the otel collector configs relevant to the core agent.
+// +k8s:openapi-gen=true
+// AdmissionControllerFeatureConfig contains the Admission Controller feature configuration.
+// The Admission Controller runs in the Cluster Agent.
+// Selectors define a pod selector for sidecar injection.
+// Profile defines a sidecar configuration override.
+// CWSInstrumentationConfig contains the configuration of the CWS Instrumentation admission controller endpoint.
+// ExternalMetricsServerFeatureConfig contains the External Metrics Server feature configuration.
+// The External Metrics Server runs in the Cluster Agent.
+// AutoscalingFeatureConfig contains the Autoscaling product configuration.
+// WorkloadAutoscalingFeatureConfig contains the configuration for the workload autoscaling product.
+// ClusterChecksFeatureConfig contains the Cluster Checks feature configuration.
+// Cluster Checks are picked up and scheduled by the Cluster Agent.
+// Cluster Checks Runners are Agents dedicated to running Cluster Checks dispatched by the Cluster Agent.
+// (If Cluster Checks Runners are not activated, checks are dispatched to Node Agents).
+// PrometheusScrapeFeatureConfig allows configuration of the Prometheus Autodiscovery feature.
+// +k8s:openapi-gen=true
+// HelmCheckFeatureConfig allows configuration of the Helm check feature.
+// +k8s:openapi-gen=true
+// Generic support structs
+// SecretConfig contains a secret name and an included key.
+// +kubebuilder:object:generate=true
+// ConfigMapConfig contains ConfigMap information used to store a configuration file.
+// +kubebuilder:object:generate=true
+// CustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to datadog.yaml,
+// system-probe.yaml, security-agent.yaml or datadog-cluster.yaml.
+// The configuration can be provided in the ConfigData field as raw data, or referenced in a ConfigMap.
+// Note: `ConfigData` and `ConfigMap` cannot be set together.
+// +k8s:openapi-gen=true
+// MultiCustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to /confd/*.yaml.
+// The configuration can be provided in the ConfigDataMap field as raw data, or referenced in a single ConfigMap.
+// Note: `ConfigDataMap` and `ConfigMap` cannot be set together.
+// +k8s:openapi-gen=true
+// KubeletConfig contains the kubelet configuration parameters.
+// +kubebuilder:object:generate=true
+// HostPortConfig contains host port configuration.
+// UnixDomainSocketConfig contains the Unix Domain Socket configuration.
+// +k8s:openapi-gen=true
+// Endpoint configures an endpoint and its associated Datadog credentials.
+// OriginDetectionUnified defines the origin detection unified mechanism behavior.
+// AgentImageConfig defines the agent container image config.
+// +kubebuilder:object:generate=true
+// DaemonSetStatus defines the observed state of Agent running as DaemonSet.
+// +k8s:openapi-gen=true
+// +kubebuilder:object:generate=true
+// DeploymentStatus type representing a Deployment status.
+// +k8s:openapi-gen=true
+// +kubebuilder:object:generate=true
+// GlobalConfig is a set of parameters that are used to configure all the components of the Datadog Operator.
+// DatadogCredentials is a generic structure that holds credentials to access Datadog.
+// +k8s:openapi-gen=true
+// SecretBackendRolesConfig provides configuration of the secrets Datadog agents can read for the SecretBackend feature
+// +k8s:openapi-gen=true
+// SecretBackendConfig provides configuration for the secret backend.
+// +k8s:openapi-gen=true
+// NetworkPolicyFlavor specifies which flavor of Network Policy to use.
+// NetworkPolicyConfig provides Network Policy configuration for the agents.
+// +k8s:openapi-gen=true
+// LocalService provides the internal traffic policy service configuration.
+// +k8s:openapi-gen=true
+// SeccompConfig is used to override default values for Seccomp Profile configurations.
+// +k8s:openapi-gen=true
+// AgentConfigFileName is the list of known Agent config files
+// DatadogAgentComponentOverride is the generic description equivalent to a subset of the PodTemplate for a component.
+// DatadogAgentGenericContainer is the generic structure describing any container's common configuration.
+// +k8s:openapi-gen=true
+// FIPSConfig contains the FIPS configuration.
+// +k8s:openapi-gen=true
+// RemoteConfigConfiguration stores the configuration received from RemoteConfig.
+// +k8s:openapi-gen=true
+// DatadogAgentStatus defines the observed state of DatadogAgent.
+// +k8s:openapi-gen=true
+// DatadogAgent Deployment with the Datadog Operator.
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:storageversion
+// +kubebuilder:resource:path=datadogagents,shortName=dd
+// +kubebuilder:printcolumn:name="agent",type="string",JSONPath=".status.agent.status"
+// +kubebuilder:printcolumn:name="cluster-agent",type="string",JSONPath=".status.clusterAgent.status"
+// +kubebuilder:printcolumn:name="cluster-checks-runner",type="string",JSONPath=".status.clusterChecksRunner.status"
+// +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
+// +k8s:openapi-gen=true
+// +genclient
+//+kubebuilder:object:root=true
+// DatadogAgentList contains a list of DatadogAgent.
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present Datadog, Inc.
+// ComponentName is the name of a Deployment Component
+// DatadogAgentSpec defines the desired state of DatadogAgent
+// DatadogFeatures are features running on the Agent and Cluster Agent.
+// +k8s:openapi-gen=true
+// Configuration structs for each feature in DatadogFeatures. All parameters are optional and have default values when necessary.
+// Note: configuration in DatadogAgentSpec.Override takes precedence.
+// APMFeatureConfig contains APM (Application Performance Monitoring) configuration.
+// APM runs in the Trace Agent.
+// ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.
+// +k8s:openapi-gen=true
+// SingleStepInstrumentation contains the config for the namespaces to target and the library to inject.
+// SSITarget is a rule to apply the auto instrumentation to a specific workload using the pod and namespace selectors.
+// NamespaceSelector is a struct to store the configuration for the namespace selector. It can be used to match the
+// namespaces to apply the auto instrumentation to.
+// LanguageDetectionConfig contains the config for Language Detection.
+// CSIConfig contains the config for Datadog CSI driver.
+// InjectorConfig contains the configuration for the APM Injector.
+// ASMFeatureConfig contains Application Security Management (ASM) configuration.
+// Note that this will only affect pods where the Datadog client libraries are installed or APM Single Step Instrumentation is enabled.
 // LogCollectionFeatureConfig contains Logs configuration.
 // Logs collection is run in the Agent.
 // LiveProcessCollectionFeatureConfig contains Process Collection configuration.

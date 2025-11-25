@@ -998,7 +998,7 @@
                   "properties": {
                     "injector": {
                       "additionalProperties": false,
-                      "description": "Injector configures the Appsec proxy auto-injection feature.",
+                      "description": "App \u0026 API Protection Security Injector allows the agent to inject gateway/ingress configuration\ninto the cluster to forward all requests to an external security processor app that scans, block and protect your entire cluster from malicious actors.\nFeature is in preview.\nDefault Enabled: false",
                       "properties": {
                         "autoDetect": {
                           "description": "AutoDetect enables auto-detection of supported proxies (Envoy Gateway, Istio).\nDefault: true",

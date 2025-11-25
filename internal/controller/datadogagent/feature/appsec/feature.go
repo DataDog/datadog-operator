@@ -202,3 +202,7 @@ func (f *appsecFeature) ManageNodeAgent(_ feature.PodTemplateManagers, _ string)
 func (f *appsecFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers, _ string) error {
 	return nil
 }
+
+func (f *appsecFeature) ManageOtelAgentGateway(_ feature.PodTemplateManagers, _ string) error {
+	return nil
+}

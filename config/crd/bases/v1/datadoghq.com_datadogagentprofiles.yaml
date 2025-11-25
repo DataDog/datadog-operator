@@ -1005,7 +1005,11 @@ spec:
                           description: Appsec (Application Security) configuration for proxy auto-injection.
                           properties:
                             injector:
-                              description: Injector configures the Appsec proxy auto-injection feature.
+                              description: |-
+                                App & API Protection Security Injector allows the agent to inject gateway/ingress configuration
+                                into the cluster to forward all requests to an external security processor app that scans, block and protect your entire cluster from malicious actors.
+                                Feature is in preview.
+                                Default Enabled: false
                               properties:
                                 autoDetect:
                                   description: |-
