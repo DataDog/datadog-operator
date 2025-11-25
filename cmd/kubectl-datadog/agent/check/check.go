@@ -131,7 +131,7 @@ func (o *options) run(cmd *cobra.Command) error {
 	case node != "":
 		var err error
 		pods, err = o.getPodsByOptions(metav1.ListOptions{
-			FieldSelector: fmt.Sprintf("spec.nodeName=%s", node),
+			FieldSelector: "spec.nodeName=" + node,
 			LabelSelector: common.AgentLabel,
 		})
 		if err != nil {
@@ -209,7 +209,7 @@ func (o *options) run(cmd *cobra.Command) error {
 	wg.Wait()
 
 	for podName, errors := range podErrors {
-		cmd.Println(fmt.Sprintf("Errors reported by Agent %s", podName))
+		cmd.Println("Errors reported by Agent " + podName)
 		for _, err := range errors {
 			cmd.Println(err)
 		}

@@ -178,7 +178,7 @@ func (omf *OperatorMetadataForwarder) setCredentials() error {
 
 func (omf *OperatorMetadataForwarder) getHeaders() http.Header {
 	headers := omf.GetBaseHeaders()
-	headers.Set(userAgentHTTPHeaderKey, fmt.Sprintf("Datadog Operator/%s", version.GetVersion()))
+	headers.Set(userAgentHTTPHeaderKey, "Datadog Operator/"+version.GetVersion())
 	return headers
 }
 

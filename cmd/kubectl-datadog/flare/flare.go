@@ -330,7 +330,7 @@ func (o *options) createMetricsFile(pod *corev1.Pod, dir string, cmd *cobra.Comm
 	result := o.Clientset.CoreV1().RESTClient().Get().
 		Namespace(pod.Namespace).
 		Resource("pods").
-		Name(fmt.Sprintf("%s:8383", pod.Name)).
+		Name(pod.Name + ":8383").
 		SubResource("proxy").
 		Suffix("metrics").
 		Do(context.TODO())
@@ -340,7 +340,7 @@ func (o *options) createMetricsFile(pod *corev1.Pod, dir string, cmd *cobra.Comm
 		return err
 	}
 
-	return redactAndSave(filepath.Join(dir, fmt.Sprintf("%s-metrics.txt", pod.Name)), metrics, cmd)
+	return redactAndSave(filepath.Join(dir, pod.Name+"-metrics.txt"), metrics, cmd)
 }
 
 // createStatusFile gets status of a pod and stores it in a file
@@ -355,7 +355,7 @@ func (o *options) createStatusFile(pod *corev1.Pod, dir string, cmd *cobra.Comma
 		return err
 	}
 
-	return redactAndSave(filepath.Join(dir, fmt.Sprintf("%s-status.txt", pod.Name)), status, cmd)
+	return redactAndSave(filepath.Join(dir, pod.Name+"-status.txt"), status, cmd)
 }
 
 // createVersionFile gets the version from the operator pod and stores it in a file
@@ -371,7 +371,7 @@ func (o *options) createVersionFile(pod *corev1.Pod, dir string, cmd *cobra.Comm
 		return err
 	}
 
-	return redactAndSave(filepath.Join(dir, fmt.Sprintf("%s-version.txt", pod.Name)), version, cmd)
+	return redactAndSave(filepath.Join(dir, pod.Name+"-version.txt"), version, cmd)
 }
 
 // getOperatorVersion gets the version from the operator pod
@@ -486,7 +486,7 @@ func (o *options) savePodLogs(pod corev1.Pod, dir string, cmd *cobra.Command) er
 		return err
 	}
 
-	return redactAndSave(filepath.Join(dir, fmt.Sprintf("%s.json", pod.Name)), logBytes, cmd)
+	return redactAndSave(filepath.Join(dir, pod.Name+".json"), logBytes, cmd)
 }
 
 // getArchivePath builds the zip file path in a temporary directory

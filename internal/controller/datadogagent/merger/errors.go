@@ -7,10 +7,9 @@ package merger
 
 import (
 	"errors"
-	"fmt"
 )
 
-var errMergeAttempted = fmt.Errorf("merge attempted")
+var errMergeAttempted = errors.New("merge attempted")
 
 // IsMergeAttemptedError returns true if the err is a MergeAttemptedError type
 func IsMergeAttemptedError(err error) bool {

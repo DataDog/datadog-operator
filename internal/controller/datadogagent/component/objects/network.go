@@ -375,19 +375,19 @@ func egressAgentDatadogIntake(podSelector metav1.LabelSelector, site string, ddU
 			{
 				ToFQDNs: append(defaultDDFQDNs(site, ddURL), []cilium.FQDNSelector{
 					{
-						MatchName: fmt.Sprintf("api.%s", site),
+						MatchName: "api." + site,
 					},
 					{
-						MatchName: fmt.Sprintf("agent-intake.logs.%s", site),
+						MatchName: "agent-intake.logs." + site,
 					},
 					{
-						MatchName: fmt.Sprintf("agent-http-intake.logs.%s", site),
+						MatchName: "agent-http-intake.logs." + site,
 					},
 					{
-						MatchName: fmt.Sprintf("process.%s", site),
+						MatchName: "process." + site,
 					},
 					{
-						MatchName: fmt.Sprintf("orchestrator.%s", site),
+						MatchName: "orchestrator." + site,
 					},
 				}...),
 				ToPorts: []cilium.PortRule{
@@ -416,7 +416,7 @@ func egressDCADatadogIntake(podSelector metav1.LabelSelector, site string, ddURL
 		EndpointSelector: podSelector,
 		Egress: []cilium.EgressRule{
 			{
-				ToFQDNs: append(defaultDDFQDNs(site, ddURL), cilium.FQDNSelector{MatchName: fmt.Sprintf("orchestrator.%s", site)}),
+				ToFQDNs: append(defaultDDFQDNs(site, ddURL), cilium.FQDNSelector{MatchName: "orchestrator." + site}),
 				ToPorts: []cilium.PortRule{
 					{
 						Ports: []cilium.PortProtocol{
@@ -643,7 +643,7 @@ func defaultDDFQDNs(site, ddURL string) []cilium.FQDNSelector {
 
 	selectors = append(selectors, []cilium.FQDNSelector{
 		{
-			MatchPattern: fmt.Sprintf("*-app.agent.%s", site),
+			MatchPattern: "*-app.agent." + site,
 		},
 	}...)
 

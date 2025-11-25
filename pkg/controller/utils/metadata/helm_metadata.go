@@ -309,7 +309,7 @@ func (hmf *HelmMetadataForwarder) setCredentials() error {
 
 func (hmf *HelmMetadataForwarder) getHeaders() http.Header {
 	headers := hmf.GetBaseHeaders()
-	headers.Set(userAgentHTTPHeaderKey, fmt.Sprintf("Datadog Operator/%s", version.GetVersion()))
+	headers.Set(userAgentHTTPHeaderKey, "Datadog Operator/"+version.GetVersion())
 	return headers
 }
 

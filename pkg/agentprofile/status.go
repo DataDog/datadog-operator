@@ -6,7 +6,7 @@
 package agentprofile
 
 import (
-	"fmt"
+	"errors"
 	"os"
 
 	"github.com/go-logr/logr"
@@ -37,7 +37,7 @@ const (
 
 func UpdateProfileStatus(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentProfile, newStatus datadoghqv1alpha1.DatadogAgentProfileStatus, now metav1.Time) {
 	if profile == nil || profile.Name == "" {
-		logger.Error(fmt.Errorf("empty profile"), "Unable to update profile status")
+		logger.Error(errors.New("empty profile"), "Unable to update profile status")
 		return
 	}
 
@@ -51,7 +51,7 @@ func UpdateProfileStatus(logger logr.Logger, profile *datadoghqv1alpha1.DatadogA
 
 	if os.Getenv(common.CreateStrategyEnabled) == "true" {
 		if newStatus.CreateStrategy == nil {
-			logger.Error(fmt.Errorf("new create strategy status empty"), "Unable to update profile status")
+			logger.Error(errors.New("new create strategy status empty"), "Unable to update profile status")
 			return
 		}
 		if newStatus.CreateStrategy.Status == datadoghqv1alpha1.InProgressStatus {

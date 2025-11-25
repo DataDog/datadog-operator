@@ -148,12 +148,12 @@ func (sb *SecretBackend) isConfigured() bool {
 
 // GetDefaultCredentialsSecretName returns the default name for credentials secret
 func GetDefaultCredentialsSecretName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-secret", dda.GetName())
+	return dda.GetName() + "-secret"
 }
 
 // GetDefaultDCATokenSecretName returns the default name for cluster-agent secret
 func GetDefaultDCATokenSecretName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-token", constants.GetDDAName(dda))
+	return constants.GetDDAName(dda) + "-token"
 }
 
 // GetAPIKeySecret returns the API key secret name and the key inside the secret

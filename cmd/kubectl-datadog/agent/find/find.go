@@ -101,7 +101,7 @@ func (o *options) run(cmd *cobra.Command) error {
 // getAgentByNode returns the pod of the datadog agent running on a given node
 func (o *options) getAgentByNode(nodeName string) (string, error) {
 	podList, err := o.Clientset.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{
-		FieldSelector: fmt.Sprintf("spec.nodeName=%s", nodeName),
+		FieldSelector: "spec.nodeName=" + nodeName,
 		LabelSelector: common.AgentLabel,
 	})
 	if err != nil {

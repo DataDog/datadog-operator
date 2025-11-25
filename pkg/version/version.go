@@ -77,7 +77,7 @@ func printVersionSlice() []string {
 		fmt.Sprintf("Version: %v", Version),
 		fmt.Sprintf("Build time: %v", BuildTime),
 		fmt.Sprintf("Git Commit: %v", Commit),
-		fmt.Sprintf("Go Version: %s", runtime.Version()),
+		"Go Version: " + runtime.Version(),
 		fmt.Sprintf("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH),
 	}
 }

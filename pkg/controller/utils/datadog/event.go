@@ -5,8 +5,6 @@
 
 package datadog
 
-import "fmt"
-
 // Event contains the rquired information to send Datadog events
 type Event struct {
 	Title string
@@ -30,7 +28,7 @@ const (
 // crDetected returns the detection event of a CR
 func crDetected(id string) Event {
 	return Event{
-		Title: fmt.Sprintf("Detect Custom Resource %s", id),
+		Title: "Detect Custom Resource " + id,
 		Type:  DetectionEvent,
 	}
 }
@@ -38,7 +36,7 @@ func crDetected(id string) Event {
 // crDeleted returns the delete event of a CR
 func crDeleted(id string) Event {
 	return Event{
-		Title: fmt.Sprintf("Delete Custom Resource %s", id),
+		Title: "Delete Custom Resource " + id,
 		Type:  DeletionEvent,
 	}
 }

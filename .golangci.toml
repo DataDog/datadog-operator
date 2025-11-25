@@ -59,7 +59,6 @@ disable = [
   'noinlineerr',
   'nonamedreturns',
   'paralleltest',
-  'perfsprint',
   'prealloc',
   'revive',
   'rowserrcheck',

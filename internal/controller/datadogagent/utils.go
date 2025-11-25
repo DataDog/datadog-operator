@@ -8,6 +8,7 @@ package datadogagent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -179,7 +180,7 @@ func getReplicas(currentReplicas, newReplicas *int32) *int32 {
 func getDDAICRDFromConfig(sch *runtime.Scheme) (*apiextensionsv1.CustomResourceDefinition, error) {
 	_, filename, _, ok := goruntime.Caller(0)
 	if !ok {
-		return nil, fmt.Errorf("unable to get caller")
+		return nil, errors.New("unable to get caller")
 	}
 	path := filepath.Join(filepath.Dir(filename), "..", "..", "..", "config", "crd", "bases", "v1", "datadoghq.com_datadogagentinternals.yaml")
 
@@ -199,7 +200,7 @@ func getDDAICRDFromConfig(sch *runtime.Scheme) (*apiextensionsv1.CustomResourceD
 		return crd, nil
 	}
 
-	return nil, fmt.Errorf("decoded object is not a CustomResourceDefinition")
+	return nil, errors.New("decoded object is not a CustomResourceDefinition")
 }
 
 func getDDAIGVK() schema.GroupVersionKind {

@@ -418,7 +418,7 @@ func traceAgentContainer(dda metav1.Object) corev1.Container {
 		Image: agentImage(),
 		Command: []string{
 			"trace-agent",
-			fmt.Sprintf("--config=%s", agentCustomConfigVolumePath),
+			"--config=" + agentCustomConfigVolumePath,
 		},
 		Env:           envVarsForTraceAgent(dda),
 		VolumeMounts:  volumeMountsForTraceAgent(),
@@ -431,8 +431,8 @@ func processAgentContainer(dda metav1.Object) corev1.Container {
 		Name:  string(apicommon.ProcessAgentContainerName),
 		Image: agentImage(),
 		Command: []string{
-			"process-agent", fmt.Sprintf("--config=%s", agentCustomConfigVolumePath),
-			fmt.Sprintf("--sysprobe-config=%s", systemProbeConfigVolumePath),
+			"process-agent", "--config=" + agentCustomConfigVolumePath,
+			"--sysprobe-config=" + systemProbeConfigVolumePath,
 		},
 		Env:          commonEnvVars(dda),
 		VolumeMounts: volumeMountsForProcessAgent(),
@@ -476,7 +476,7 @@ func securityAgentContainer(dda metav1.Object) corev1.Container {
 		Image: agentImage(),
 		Command: []string{
 			"security-agent",
-			"start", fmt.Sprintf("-c=%s", agentCustomConfigVolumePath),
+			"start", "-c=" + agentCustomConfigVolumePath,
 		},
 		Env:          envVarsForSecurityAgent(dda),
 		VolumeMounts: volumeMountsForSecurityAgent(),
@@ -489,7 +489,7 @@ func systemProbeContainer(dda metav1.Object) corev1.Container {
 		Image: agentImage(),
 		Command: []string{
 			"system-probe",
-			fmt.Sprintf("--config=%s", systemProbeConfigVolumePath),
+			"--config=" + systemProbeConfigVolumePath,
 		},
 		Env:          commonEnvVars(dda),
 		VolumeMounts: volumeMountsForSystemProbe(),
@@ -509,7 +509,7 @@ func agentDataPlaneContainer(dda metav1.Object) corev1.Container {
 		Command: []string{
 			"agent-data-plane",
 			"run",
-			fmt.Sprintf("--config=%s", agentCustomConfigVolumePath),
+			"--config=" + agentCustomConfigVolumePath,
 		},
 		Env:            commonEnvVars(dda),
 		VolumeMounts:   volumeMountsForAgentDataPlane(),

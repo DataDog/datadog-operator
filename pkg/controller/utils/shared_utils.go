@@ -6,7 +6,6 @@
 package utils
 
 import (
-	"fmt"
 	"strconv"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,7 +21,7 @@ func ShouldReturn(result reconcile.Result, err error) bool {
 
 // GetDatadogLeaderElectionResourceName return the nome of the Resource managing the leader election token info.
 func GetDatadogLeaderElectionResourceName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-leader-election", dda.GetName())
+	return dda.GetName() + "-leader-election"
 }
 
 // GetDatadogAgentResourceNamespace returns the namespace of the Datadog Agent Resource
@@ -32,7 +31,7 @@ func GetDatadogAgentResourceNamespace(dda metav1.Object) string {
 
 // GetDatadogTokenResourceName returns the name of the ConfigMap used by the cluster agent to store token
 func GetDatadogTokenResourceName(dda metav1.Object) string {
-	return fmt.Sprintf("%stoken", dda.GetName())
+	return dda.GetName() + "token"
 }
 
 // GetDatadogAgentResourceUID returns the UID of the Datadog Agent Resource

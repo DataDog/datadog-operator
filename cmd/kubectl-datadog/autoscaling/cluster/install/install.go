@@ -91,7 +91,7 @@ func (c *CreateKarpenterResources) Set(s string) error {
 	case "all":
 		*c = CreateKarpenterResourcesAll
 	default:
-		return fmt.Errorf("create-karpenter-resources must be one of none, ec2nodeclass or all")
+		return errors.New("create-karpenter-resources must be one of none, ec2nodeclass or all")
 	}
 
 	return nil
@@ -125,7 +125,7 @@ func (i *InferenceMethod) Set(s string) error {
 	case "nodegroups":
 		*i = InferenceMethodNodeGroups
 	default:
-		return fmt.Errorf("inference-method must be one of nodes or nodegroups")
+		return errors.New("inference-method must be one of nodes or nodegroups")
 	}
 
 	return nil

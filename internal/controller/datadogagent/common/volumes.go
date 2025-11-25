@@ -126,7 +126,7 @@ func GetVolumeForDogstatsd() corev1.Volume {
 
 // GetInstallInfoConfigMapName return the InstallInfo config map name base on the dda name
 func GetInstallInfoConfigMapName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-install-info", constants.GetDDAName(dda))
+	return constants.GetDDAName(dda) + "-install-info"
 }
 
 // GetVolumeMountForConfig return the VolumeMount that contains the agent config

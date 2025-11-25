@@ -21,11 +21,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// IntToString converts int32 to string
-func IntToString(i int32) string {
-	return fmt.Sprintf("%d", i)
-}
-
 // GetDurationAsString gets object's age
 func GetDurationAsString(obj metav1.Object) string {
 	return durafmt.ParseShort(time.Since(obj.GetCreationTimestamp().Time)).String()
@@ -114,12 +109,12 @@ func ValidateAnnotationsContent(annotations map[string]string, identifier string
 	errors := []string{}
 	adAnnotations := map[string]bool{
 		// Required
-		fmt.Sprintf("%s.check_names", identifier):  true,
-		fmt.Sprintf("%s.init_configs", identifier): true,
-		fmt.Sprintf("%s.instances", identifier):    true,
+		identifier + ".check_names":  true,
+		identifier + ".init_configs": true,
+		identifier + ".instances":    true,
 		// Optional
-		fmt.Sprintf("%s.logs", identifier): false,
-		fmt.Sprintf("%s.tags", identifier): false,
+		identifier + ".logs": false,
+		identifier + ".tags": false,
 	}
 
 	metricAnnotations := false
@@ -152,7 +147,7 @@ func ValidateAnnotationsContent(annotations map[string]string, identifier string
 func ValidateAnnotationsMatching(annotations map[string]string, validIDs map[string]bool) []string {
 	errors := []string{}
 	for annotation := range annotations {
-		if matched, _ := regexp.MatchString(fmt.Sprintf(`%s.+\..+`, ADPrefixRegex), annotation); matched {
+		if matched, _ := regexp.MatchString(ADPrefixRegex+".+\\..+", annotation); matched {
 			id := strings.Split(annotation[len(ADPrefix):], ".")[0]
 			if found := validIDs[id]; !found {
 				errors = append(errors, fmt.Sprintf("Annotation %s is invalid: %s doesn't match a container name", annotation, id))

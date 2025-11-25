@@ -7,7 +7,6 @@ package datadogdashboard
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -54,11 +53,11 @@ func (r *Reconciler) handleFinalizer(logger logr.Logger, db *datadoghqv1alpha1.D
 func (r *Reconciler) finalizeDatadogDashboard(logger logr.Logger, db *datadoghqv1alpha1.DatadogDashboard) {
 	err := deleteDashboard(r.datadogAuth, r.datadogClient, db.Status.ID)
 	if err != nil {
-		logger.Error(err, "failed to finalize dashboard", "dashboard ID", fmt.Sprint(db.Status.ID))
+		logger.Error(err, "failed to finalize dashboard", "dashboard ID", db.Status.ID)
 
 		return
 	}
-	logger.Info("Successfully finalized DatadogDashboard", "dashboard ID", fmt.Sprint(db.Status.ID))
+	logger.Info("Successfully finalized DatadogDashboard", "dashboard ID", db.Status.ID)
 	event := buildEventInfo(db.Name, db.Namespace, datadog.DeletionEvent)
 	r.recordEvent(db, event)
 }
@@ -70,7 +69,7 @@ func (r *Reconciler) addFinalizer(logger logr.Logger, db *datadoghqv1alpha1.Data
 
 	err := r.client.Update(context.TODO(), db)
 	if err != nil {
-		logger.Error(err, "failed to update DatadogDashboard with finalizer", "dashboard ID", fmt.Sprint(db.Status.ID))
+		logger.Error(err, "failed to update DatadogDashboard with finalizer", "dashboard ID", db.Status.ID)
 		return err
 	}
 

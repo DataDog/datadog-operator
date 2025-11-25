@@ -7,6 +7,7 @@ package agentprofile
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -138,7 +139,7 @@ func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nod
 				profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(AppliedConditionType, metav1.ConditionFalse, now, ConflictConditionReason, "Conflict with existing profile"))
 				profileStatus.Applied = metav1.ConditionFalse
 				UpdateProfileStatus(logger, profile, profileStatus, now)
-				return profileAppliedByNode, fmt.Errorf("conflict with existing profile")
+				return profileAppliedByNode, errors.New("conflict with existing profile")
 			} else {
 				profileLabelValue, labelExists := node.Labels[constants.ProfileLabelKey]
 				if labelExists && profileLabelValue == profile.Name {
@@ -473,11 +474,11 @@ func nodeSelectorOperatorToSelectionOperator(op v1.NodeSelectorOperator) selecti
 func validateProfileName(profileName string) error {
 	// Label values can be empty but a profile's name should not be empty
 	if profileName == "" {
-		return fmt.Errorf("Profile name cannot be empty")
+		return errors.New("Profile name cannot be empty")
 	}
 	// We add the profile name as a label value, which can be 63 characters max
 	if len(profileName) > labelValueMaxLength {
-		return fmt.Errorf("Profile name must be no more than 63 characters")
+		return errors.New("Profile name must be no more than 63 characters")
 	}
 
 	return nil
@@ -496,7 +497,7 @@ func canLabel(logger logr.Logger, createStrategy *v1alpha1.CreateStrategy) bool 
 	case v1alpha1.WaitingStatus:
 		return false
 	default:
-		logger.Error(fmt.Errorf("received unexpected create strategy status condition"), string(createStrategy.Status))
+		logger.Error(errors.New("received unexpected create strategy status condition"), string(createStrategy.Status))
 		return false
 	}
 }

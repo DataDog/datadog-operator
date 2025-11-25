@@ -6,6 +6,7 @@
 package mapper
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -108,7 +109,7 @@ func (o *Options) Complete(cmd *cobra.Command, args []string) error {
 // Validate ensures that all required arguments and flag values are provided.
 func (o *Options) Validate() error {
 	if o.sourcePath == "" && !o.updateMap {
-		return fmt.Errorf("`--sourcePath` flag is required")
+		return errors.New("`--sourcePath` flag is required")
 	}
 
 	if len(o.args) > 1 {
@@ -170,7 +171,7 @@ func (o *Options) Run() {
 // resolveFilePath validates and returns absolute filepath.
 func resolveFilePath(p string) (string, error) {
 	if p == "" {
-		return "", fmt.Errorf("path cannot be empty")
+		return "", errors.New("path cannot be empty")
 	}
 
 	// Expand tilde

@@ -7,7 +7,7 @@ package datadogmonitor
 
 import (
 	"context"
-	"fmt"
+	"strconv"
 
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -55,11 +55,11 @@ func (r *Reconciler) finalizeDatadogMonitor(logger logr.Logger, dm *datadoghqv1a
 	if dm.Status.Primary {
 		err := deleteMonitor(r.datadogAuth, r.datadogClient, dm.Status.ID)
 		if err != nil {
-			logger.Error(err, "failed to finalize monitor", "Monitor ID", fmt.Sprint(dm.Status.ID))
+			logger.Error(err, "failed to finalize monitor", "Monitor ID", strconv.Itoa(dm.Status.ID))
 
 			return
 		}
-		logger.Info("Successfully finalized DatadogMonitor", "Monitor ID", fmt.Sprint(dm.Status.ID))
+		logger.Info("Successfully finalized DatadogMonitor", "Monitor ID", strconv.Itoa(dm.Status.ID))
 		event := buildEventInfo(dm.Name, dm.Namespace, datadog.DeletionEvent)
 		r.recordEvent(dm, event)
 	}
@@ -72,7 +72,7 @@ func (r *Reconciler) addFinalizer(logger logr.Logger, dm *datadoghqv1alpha1.Data
 
 	err := r.client.Update(context.TODO(), dm)
 	if err != nil {
-		logger.Error(err, "failed to update DatadogMonitor with finalizer", "Monitor ID", fmt.Sprint(dm.Status.ID))
+		logger.Error(err, "failed to update DatadogMonitor with finalizer", "Monitor ID", strconv.Itoa(dm.Status.ID))
 		return err
 	}
 
