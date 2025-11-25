@@ -54,23 +54,27 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	if override.Image != nil {
 		agentContainersMap := getAgentContainersMap()
 		for i, container := range manager.PodTemplateSpec().Spec.Containers {
-			if _, ok := agentContainersMap[apicommon.AgentContainerName(container.Name)]; ok {
-				manager.PodTemplateSpec().Spec.Containers[i].Image = images.OverrideAgentImage(container.Image, override.Image)
+			containerName := apicommon.AgentContainerName(container.Name)
+			if _, ok := agentContainersMap[containerName]; ok {
+				// OtelAgent uses a different image (ddot-collector) that doesn't support JMX suffix,
+				// so we need to apply overrides without JMX-related changes
+				if containerName == apicommon.OtelAgent {
+					// Create a copy of the override without JMX settings for OtelAgent
+					otelOverride := &v2alpha1.AgentImageConfig{
+						Name:       override.Image.Name,
+						Tag:        override.Image.Tag,
+						PullPolicy: override.Image.PullPolicy,
+						// Explicitly disable JMX for OtelAgent (ddot-collector doesn't support -jmx suffix)
+						JMXEnabled: false,
+					}
+					manager.PodTemplateSpec().Spec.Containers[i].Image = images.OverrideAgentImage(container.Image, otelOverride)
+				} else {
+					manager.PodTemplateSpec().Spec.Containers[i].Image = images.OverrideAgentImage(container.Image, override.Image)
+				}
 				if override.Image.PullPolicy != nil {
 					manager.PodTemplateSpec().Spec.Containers[i].ImagePullPolicy = *override.Image.PullPolicy
 				}
 			}
-		}
-
-		for i, initContainer := range manager.PodTemplateSpec().Spec.InitContainers {
-			manager.PodTemplateSpec().Spec.InitContainers[i].Image = images.OverrideAgentImage(initContainer.Image, override.Image)
-			if override.Image.PullPolicy != nil {
-				manager.PodTemplateSpec().Spec.InitContainers[i].ImagePullPolicy = *override.Image.PullPolicy
-			}
-		}
-
-		if override.Image.PullSecrets != nil {
-			manager.PodTemplateSpec().Spec.ImagePullSecrets = *override.Image.PullSecrets
 		}
 	}
 
