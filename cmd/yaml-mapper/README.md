@@ -21,7 +21,7 @@ make yaml-mapper
 
 ### Mapping Helm YAML to DatadogAgent CRD Spec
 
-This mapper converts a `datadog` Helm chart values yaml file to the `DatadogAgent` CRD spec.
+This mapper converts a `datadog` Helm chart values YAML file to the `DatadogAgent` CRD spec.
 
 The resulting file is written to `dda.yaml.<timestamp>`. To specify a destination file, use flag `--destPath=[<FILENAME>.yaml]`.
 
@@ -42,7 +42,7 @@ yaml-mapper --sourcePath=examples/example_source.yaml --mappingPath=mapper/mappi
 
 ### Update Mapping File from a Source YAML
 
-*When updating the mapping file, please be sure to add the [corresponding key!](#updating-mapping-keys)*
+*When updating the mapping file, be sure to add the [corresponding key!](#updating-mapping-keys)*
 
 Below are different ways to update the mapping file based on your source:
 
