@@ -6,6 +6,7 @@
 package appsec
 
 import (
+	"cmp"
 	"encoding/json"
 	"strconv"
 
@@ -22,8 +23,7 @@ import (
 )
 
 func init() {
-	err := feature.Register(feature.AppsecIDType, buildAppsecFeature)
-	if err != nil {
+	if err := feature.Register(feature.AppsecIDType, buildAppsecFeature); err != nil {
 		panic(err)
 	}
 }
@@ -36,16 +36,16 @@ func buildAppsecFeature(options *feature.Options) feature.Feature {
 }
 
 type appsecFeature struct {
-	enabled               bool
-	autoDetect            *bool
-	proxies               []string
-	processorAddress      *string
-	processorPort         *int32
-	processorServiceName  *string
-	processorServiceNs    *string
-	owner                 metav1.Object
-	serviceAccountName    string
-	rbacSuffix            string
+	enabled              bool
+	autoDetect           *bool
+	proxies              []string
+	processorAddress     *string
+	processorPort        *int32
+	processorServiceName *string
+	processorServiceNs   *string
+	owner                metav1.Object
+	serviceAccountName   string
+	rbacSuffix           string
 }
 
 // ID returns the ID of the Feature
@@ -54,30 +54,25 @@ func (f *appsecFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *appsecFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
-	f.owner = dda
+func (f *appsecFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaSpecRC *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
+	mergeConfigs(ddaSpec, ddaSpecRC)
 
-	appSec := ddaSpec.Features.Appsec
-	if appSec == nil || appSec.Injector == nil || !apiutils.BoolValue(appSec.Injector.Enabled) {
+	appsec := ddaSpec.Features.Appsec
+	if !apiutils.BoolValue(appsec.Injector.Enabled) || (!apiutils.BoolValue(appsec.Injector.AutoDetect) && len(appsec.Injector.Proxies) == 0) {
 		return feature.RequiredComponents{}
 	}
 
+	f.owner = dda
 	f.enabled = true
 	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
-	f.autoDetect = appSec.Injector.AutoDetect
-	f.proxies = appSec.Injector.Proxies
+	f.autoDetect = appsec.Injector.AutoDetect
+	f.proxies = appsec.Injector.Proxies
 
 	// Process processor configuration
-	if appSec.Injector.Processor != nil {
-		processor := appSec.Injector.Processor
-		f.processorAddress = processor.Address
-		f.processorPort = processor.Port
-
-		if processor.Service != nil {
-			f.processorServiceName = processor.Service.Name
-			f.processorServiceNs = processor.Service.Namespace
-		}
-	}
+	f.processorAddress = appsec.Injector.Processor.Address
+	f.processorPort = appsec.Injector.Processor.Port
+	f.processorServiceName = appsec.Injector.Processor.Service.Name
+	f.processorServiceNs = appsec.Injector.Processor.Service.Namespace
 
 	// The cluster agent is required for the AppSec feature.
 	return feature.RequiredComponents{
@@ -92,19 +87,19 @@ func (f *appsecFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAg
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *appsecFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *appsecFeature) ManageDependencies(managers feature.ResourceManagers, _ string) error {
 	if !f.enabled {
 		return nil
 	}
 
 	// Manage RBAC permissions
-	rbacName := GetAppsecRBACResourceName(f.owner, f.rbacSuffix)
+	rbacName := getAppsecRBACResourceName(f.owner, f.rbacSuffix)
 	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules())
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *appsecFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *appsecFeature) ManageClusterAgent(managers feature.PodTemplateManagers, _ string) error {
 	if !f.enabled {
 		return nil
 	}
@@ -205,4 +200,35 @@ func (f *appsecFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers,
 
 func (f *appsecFeature) ManageOtelAgentGateway(_ feature.PodTemplateManagers, _ string) error {
 	return nil
+}
+
+func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) {
+	if ddaRCStatus == nil || ddaRCStatus.Features == nil || ddaRCStatus.Features.Appsec == nil || ddaRCStatus.Features.Appsec.Injector == nil || ddaRCStatus.Features.Appsec.Injector.Enabled == nil {
+		return
+	}
+
+	// Fill up empty nested structs to avoid nil pointer dereference
+	ddaRCStatus.Features = cmp.Or(ddaRCStatus.Features, &v2alpha1.DatadogFeatures{})
+	ddaRCStatus.Features.Appsec = cmp.Or(ddaRCStatus.Features.Appsec, &v2alpha1.AppsecFeatureConfig{})
+	ddaRCStatus.Features.Appsec.Injector = cmp.Or(ddaRCStatus.Features.Appsec.Injector, &v2alpha1.AppsecInjectorConfig{})
+	ddaRCStatus.Features.Appsec.Injector.Processor = cmp.Or(ddaRCStatus.Features.Appsec.Injector.Processor, &v2alpha1.AppsecProcessorConfig{})
+	ddaRCStatus.Features.Appsec.Injector.Processor.Service = cmp.Or(ddaRCStatus.Features.Appsec.Injector.Processor.Service, &v2alpha1.AppsecProcessorServiceConfig{})
+
+	ddaSpec.Features = cmp.Or(ddaSpec.Features, &v2alpha1.DatadogFeatures{})
+	ddaSpec.Features.Appsec = cmp.Or(ddaSpec.Features.Appsec, &v2alpha1.AppsecFeatureConfig{})
+	ddaSpec.Features.Appsec.Injector = cmp.Or(ddaSpec.Features.Appsec.Injector, &v2alpha1.AppsecInjectorConfig{})
+	ddaSpec.Features.Appsec.Injector.Processor = cmp.Or(ddaSpec.Features.Appsec.Injector.Processor, &v2alpha1.AppsecProcessorConfig{})
+	ddaSpec.Features.Appsec.Injector.Processor.Service = cmp.Or(ddaSpec.Features.Appsec.Injector.Processor.Service, &v2alpha1.AppsecProcessorServiceConfig{})
+
+	// Merge AppSec feature configuration from Remote Config status into DDA spec
+	ddaSpec.Features.Appsec.Injector.Enabled = cmp.Or(ddaSpec.Features.Appsec.Injector.Enabled, ddaRCStatus.Features.Appsec.Injector.Enabled)
+	ddaSpec.Features.Appsec.Injector.AutoDetect = cmp.Or(ddaSpec.Features.Appsec.Injector.AutoDetect, ddaRCStatus.Features.Appsec.Injector.AutoDetect)
+	ddaSpec.Features.Appsec.Injector.Processor.Address = cmp.Or(ddaSpec.Features.Appsec.Injector.Processor.Address, ddaRCStatus.Features.Appsec.Injector.Processor.Address)
+	ddaSpec.Features.Appsec.Injector.Processor.Port = cmp.Or(ddaSpec.Features.Appsec.Injector.Processor.Port, ddaRCStatus.Features.Appsec.Injector.Processor.Port)
+	ddaSpec.Features.Appsec.Injector.Processor.Service.Name = cmp.Or(ddaSpec.Features.Appsec.Injector.Processor.Service.Name, ddaRCStatus.Features.Appsec.Injector.Processor.Service.Name)
+	ddaSpec.Features.Appsec.Injector.Processor.Service.Namespace = cmp.Or(ddaSpec.Features.Appsec.Injector.Processor.Service.Namespace, ddaRCStatus.Features.Appsec.Injector.Processor.Service.Namespace)
+
+	if len(ddaSpec.Features.Appsec.Injector.Proxies) == 0 && len(ddaRCStatus.Features.Appsec.Injector.Proxies) > 0 {
+		ddaSpec.Features.Appsec.Injector.Proxies = ddaRCStatus.Features.Appsec.Injector.Proxies
+	}
 }

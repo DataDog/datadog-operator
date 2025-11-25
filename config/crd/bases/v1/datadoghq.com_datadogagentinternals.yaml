@@ -1002,7 +1002,7 @@ spec:
                           type: object
                       type: object
                     appsec:
-                      description: Appsec (Application Security) configuration for proxy auto-injection.
+                      description: Appsec (App & API Protection) configuration for proxy injection.
                       properties:
                         injector:
                           description: |-
@@ -8918,7 +8918,7 @@ spec:
                               type: object
                           type: object
                         appsec:
-                          description: Appsec (Application Security) configuration for proxy auto-injection.
+                          description: Appsec (App & API Protection) configuration for proxy injection.
                           properties:
                             injector:
                               description: |-

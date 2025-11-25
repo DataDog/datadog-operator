@@ -2,15 +2,19 @@
 // under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
+
 package v2alpha1
+
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 )
+
 // ComponentName is the name of a Deployment Component
 type ComponentName string
+
 const (
 	// NodeAgentComponentName is the name of the Datadog Node Agent
 	NodeAgentComponentName ComponentName = "nodeAgent"
@@ -19,6 +23,7 @@ const (
 	// ClusterChecksRunnerComponentName is the name of the Cluster Check Runner
 	ClusterChecksRunnerComponentName ComponentName = "clusterChecksRunner"
 )
+
 // DatadogAgentSpec defines the desired state of DatadogAgent
 type DatadogAgentSpec struct {
 	// Features running on the Agent and Cluster Agent
@@ -33,6 +38,7 @@ type DatadogAgentSpec struct {
 	// +optional
 	Override map[ComponentName]*DatadogAgentComponentOverride `json:"override,omitempty"`
 }
+
 // DatadogFeatures are features running on the Agent and Cluster Agent.
 // +k8s:openapi-gen=true
 type DatadogFeatures struct {
@@ -59,10 +65,10 @@ type DatadogFeatures struct {
 	EBPFCheck *EBPFCheckFeatureConfig `json:"ebpfCheck,omitempty"`
 	// APM (Application Performance Monitoring) configuration.
 	APM *APMFeatureConfig `json:"apm,omitempty"`
+	// Appsec (App & API Protection) configuration for proxy injection.
+	Appsec *AppsecFeatureConfig `json:"appsec,omitempty"`
 	// ASM (Application Security Management) configuration.
 	ASM *ASMFeatureConfig `json:"asm,omitempty"`
-	// Appsec (Application Security) configuration for proxy auto-injection.
-	Appsec *AppsecFeatureConfig `json:"appsec,omitempty"`
 	// CSPM (Cloud Security Posture Management) configuration.
 	CSPM *CSPMFeatureConfig `json:"cspm,omitempty"`
 	// CWS (Cloud Workload Security) configuration.
@@ -109,8 +115,10 @@ type DatadogFeatures struct {
 	// ControlPlaneMonitoring configuration.
 	ControlPlaneMonitoring *ControlPlaneMonitoringFeatureConfig `json:"controlPlaneMonitoring,omitempty"`
 }
+
 // Configuration structs for each feature in DatadogFeatures. All parameters are optional and have default values when necessary.
 // Note: configuration in DatadogAgentSpec.Override takes precedence.
+
 // APMFeatureConfig contains APM (Application Performance Monitoring) configuration.
 // APM runs in the Trace Agent.
 type APMFeatureConfig struct {
@@ -145,6 +153,7 @@ type APMFeatureConfig struct {
 	// +optional
 	ErrorTrackingStandalone *ErrorTrackingStandalone `json:"errorTrackingStandalone,omitempty"`
 }
+
 // ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.
 // +k8s:openapi-gen=true
 type ErrorTrackingStandalone struct {
@@ -153,6 +162,7 @@ type ErrorTrackingStandalone struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
+
 // SingleStepInstrumentation contains the config for the namespaces to target and the library to inject.
 type SingleStepInstrumentation struct {
 	// Enabled enables injecting the Datadog APM libraries into all pods in the cluster.
@@ -191,6 +201,7 @@ type SingleStepInstrumentation struct {
 	// +optional
 	Targets []SSITarget `json:"targets,omitempty"`
 }
+
 // SSITarget is a rule to apply the auto instrumentation to a specific workload using the pod and namespace selectors.
 type SSITarget struct {
 	// Name is the name of the target. It will be appended to the pod annotations to identify the target that was used.
@@ -215,6 +226,7 @@ type SSITarget struct {
 	// +listMapKey=name
 	TracerConfigs []corev1.EnvVar `json:"ddTraceConfigs,omitempty"`
 }
+
 // NamespaceSelector is a struct to store the configuration for the namespace selector. It can be used to match the
 // namespaces to apply the auto instrumentation to.
 type NamespaceSelector struct {
@@ -230,6 +242,7 @@ type NamespaceSelector struct {
 	// +optional
 	MatchExpressions []metav1.LabelSelectorRequirement `json:"matchExpressions,omitempty"`
 }
+
 // LanguageDetectionConfig contains the config for Language Detection.
 type LanguageDetectionConfig struct {
 	// Enabled enables Language Detection to automatically detect languages of user workloads (beta).
@@ -238,6 +251,7 @@ type LanguageDetectionConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
+
 // CSIConfig contains the config for Datadog CSI driver.
 type CSIConfig struct {
 	// Enables the usage of CSI driver in Datadog Agent.
@@ -246,6 +260,7 @@ type CSIConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
+
 // InjectorConfig contains the configuration for the APM Injector.
 type InjectorConfig struct {
 	// Set the image tag to use for the APM Injector.
@@ -3071,6 +3086,13 @@ type AppsecProcessorServiceConfig struct {
 // +genclient
 //+kubebuilder:object:root=true
 // DatadogAgentList contains a list of DatadogAgent.
+// AppsecFeatureConfig contains Application Security configuration for proxy auto-injection.
+// AppsecInjectorConfig configures the Appsec proxy auto-injection feature.
+// AppsecProcessorConfig configures the Appsec processor service.
+// AppsecProcessorServiceConfig configures the Appsec processor service reference.
+// ASMFeatureConfig contains Application Security Management (ASM) configuration.
+// Note that this will only affect pods where the Datadog client libraries are installed or APM Single Step Instrumentation is enabled.
+// DatadogAgent Deployment with the Datadog Operator.
 type DatadogAgentList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

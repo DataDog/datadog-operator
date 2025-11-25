@@ -990,7 +990,7 @@
             },
             "appsec": {
               "additionalProperties": false,
-              "description": "Appsec (Application Security) configuration for proxy auto-injection.",
+              "description": "Appsec (App \u0026 API Protection) configuration for proxy injection.",
               "properties": {
                 "injector": {
                   "additionalProperties": false,
@@ -8754,7 +8754,7 @@
                 },
                 "appsec": {
                   "additionalProperties": false,
-                  "description": "Appsec (Application Security) configuration for proxy auto-injection.",
+                  "description": "Appsec (App \u0026 API Protection) configuration for proxy injection.",
                   "properties": {
                     "injector": {
                       "additionalProperties": false,

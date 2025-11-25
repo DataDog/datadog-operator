@@ -1359,14 +1359,14 @@ func (in *DatadogFeatures) DeepCopyInto(out *DatadogFeatures) {
 		*out = new(APMFeatureConfig)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.ASM != nil {
-		in, out := &in.ASM, &out.ASM
-		*out = new(ASMFeatureConfig)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.Appsec != nil {
 		in, out := &in.Appsec, &out.Appsec
 		*out = new(AppsecFeatureConfig)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.ASM != nil {
+		in, out := &in.ASM, &out.ASM
+		*out = new(ASMFeatureConfig)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.CSPM != nil {

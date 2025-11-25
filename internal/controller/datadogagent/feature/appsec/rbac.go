@@ -6,10 +6,22 @@
 package appsec
 
 import (
+	"fmt"
+
 	rbacv1 "k8s.io/api/rbac/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
+
+const (
+	appsecRBACPrefix = "appsec"
+)
+
+// getAppsecRBACResourceName returns the RBAC resources name for AppSec feature
+func getAppsecRBACResourceName(owner metav1.Object, suffix string) string {
+	return fmt.Sprintf("%s-%s-%s-%s", owner.GetNamespace(), owner.GetName(), appsecRBACPrefix, suffix)
+}
 
 // getRBACPolicyRules generates the cluster role permissions required for the AppSec proxy injector feature
 func getRBACPolicyRules() []rbacv1.PolicyRule {
