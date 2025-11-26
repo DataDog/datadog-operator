@@ -155,6 +155,9 @@ const (
 	HostRunVolumeName = "hostrun"
 	HostRunPath       = "/run"
 	HostRunMountPath  = "/host/run"
+
+	RunPathVolumeName  = "pointerdir"
+	RunPathVolumeMount = "/opt/datadog-agent/run"
 )
 
 // Field paths
