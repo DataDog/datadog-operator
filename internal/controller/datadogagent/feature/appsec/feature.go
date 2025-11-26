@@ -8,8 +8,10 @@ package appsec
 import (
 	"cmp"
 	"encoding/json"
+	"fmt"
 	"strconv"
 
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -32,6 +34,11 @@ func buildAppsecFeature(options *feature.Options) feature.Feature {
 	appSecFeat := &appsecFeature{
 		rbacSuffix: common.ClusterAgentSuffix,
 	}
+
+	if options != nil {
+		appSecFeat.logger = options.Logger.WithValues("feature", "appsec")
+	}
+
 	return appSecFeat
 }
 
@@ -46,6 +53,8 @@ type appsecFeature struct {
 	owner                metav1.Object
 	serviceAccountName   string
 	rbacSuffix           string
+
+	logger logr.Logger
 }
 
 // ID returns the ID of the Feature
@@ -55,10 +64,11 @@ func (f *appsecFeature) ID() feature.IDType {
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *appsecFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaSpecRC *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
-	mergeConfigs(ddaSpec, ddaSpecRC)
+	f.mergeConfigs(ddaSpec, ddaSpecRC)
 
 	appsec := ddaSpec.Features.Appsec
-	if !apiutils.BoolValue(appsec.Injector.Enabled) || (!apiutils.BoolValue(appsec.Injector.AutoDetect) && len(appsec.Injector.Proxies) == 0) {
+	if appsec == nil || appsec.Injector == nil || !apiutils.BoolValue(appsec.Injector.Enabled) || (!apiutils.BoolValue(appsec.Injector.AutoDetect) && len(appsec.Injector.Proxies) == 0) {
+		f.logger.V(2).Info("feature is disabled or not configured")
 		return feature.RequiredComponents{}
 	}
 
@@ -93,6 +103,7 @@ func (f *appsecFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAg
 // Feature's dependencies should be added in the store.
 func (f *appsecFeature) ManageDependencies(managers feature.ResourceManagers, _ string) error {
 	if !f.enabled {
+		f.logger.V(2).Info("feature is disabled, not adding RBAC permissions")
 		return nil
 	}
 
@@ -105,30 +116,32 @@ func (f *appsecFeature) ManageDependencies(managers feature.ResourceManagers, _ 
 // It should do nothing if the feature doesn't need to configure it.
 func (f *appsecFeature) ManageClusterAgent(managers feature.PodTemplateManagers, _ string) error {
 	if !f.enabled {
+		f.logger.V(2).Info("feature is disabled, adding no environment variables")
 		return nil
 	}
 
-	// Always set the base enabled flags
-	if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  DDAppsecProxyEnabled,
-		Value: "true",
-	}, merger.IgnoreNewEnvVarMergeFunction); err != nil {
+	addEnvVar := func(key, value string) error {
+		if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  key,
+			Value: value,
+		}, merger.IgnoreNewEnvVarMergeFunction); err != nil {
+			return fmt.Errorf("adding env var %s to the cluster-agent returned an error: %w", key, err)
+		}
+
+		return nil
+	}
+
+	if err := addEnvVar(DDAppsecProxyEnabled, "true"); err != nil {
 		return err
 	}
 
-	if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  DDClusterAgentAppsecInjectorEnabled,
-		Value: "true",
-	}, merger.IgnoreNewEnvVarMergeFunction); err != nil {
+	if err := addEnvVar(DDClusterAgentAppsecInjectorEnabled, "true"); err != nil {
 		return err
 	}
 
 	// Set auto-detect if explicitly specified (default is true in cluster-agent if not set)
 	if f.autoDetect != nil {
-		if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  DDAppsecProxyAutoDetect,
-			Value: apiutils.BoolToString(f.autoDetect),
-		}, merger.IgnoreNewEnvVarMergeFunction); err != nil {
+		if err := addEnvVar(DDAppsecProxyAutoDetect, apiutils.BoolToString(f.autoDetect)); err != nil {
 			return err
 		}
 	}
@@ -137,52 +150,41 @@ func (f *appsecFeature) ManageClusterAgent(managers feature.PodTemplateManagers,
 	if len(f.proxies) > 0 {
 		proxiesJSON, err := json.Marshal(f.proxies)
 		if err != nil {
-			return err
+			return fmt.Errorf("could not marshal AppSec proxies list to JSON: %w", err)
 		}
-		if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  DDAppsecProxyProxies,
-			Value: string(proxiesJSON),
-		}, merger.IgnoreNewEnvVarMergeFunction); err != nil {
+		if err := addEnvVar(DDAppsecProxyProxies, string(proxiesJSON)); err != nil {
 			return err
 		}
 	}
 
 	// Set processor port if specified
 	if f.processorPort != nil {
-		if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  DDAppsecProxyProcessorPort,
-			Value: strconv.Itoa(int(*f.processorPort)),
-		}, merger.IgnoreNewEnvVarMergeFunction); err != nil {
+		port := int(*f.processorPort)
+		if port < 1 || port > 65535 {
+			return fmt.Errorf("processor port must be between 1 and 65535, got %d", port)
+		}
+		if err := addEnvVar(DDAppsecProxyProcessorPort, strconv.Itoa(port)); err != nil {
 			return err
 		}
 	}
 
 	// Set processor address if specified
 	if f.processorAddress != nil {
-		if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  DDAppsecProxyProcessorAddress,
-			Value: *f.processorAddress,
-		}, merger.IgnoreNewEnvVarMergeFunction); err != nil {
+		if err := addEnvVar(DDAppsecProxyProcessorAddress, *f.processorAddress); err != nil {
 			return err
 		}
 	}
 
 	// Set processor service name if specified
 	if f.processorServiceName != nil {
-		if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  DDClusterAgentAppsecInjectorProcessorServiceName,
-			Value: *f.processorServiceName,
-		}, merger.IgnoreNewEnvVarMergeFunction); err != nil {
+		if err := addEnvVar(DDClusterAgentAppsecInjectorProcessorServiceName, *f.processorServiceName); err != nil {
 			return err
 		}
 	}
 
 	// Set processor service namespace if specified
 	if f.processorServiceNs != nil {
-		if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  DDClusterAgentAppsecInjectorProcessorServiceNamespace,
-			Value: *f.processorServiceNs,
-		}, merger.IgnoreNewEnvVarMergeFunction); err != nil {
+		if err := addEnvVar(DDClusterAgentAppsecInjectorProcessorServiceNamespace, *f.processorServiceNs); err != nil {
 			return err
 		}
 	}
@@ -206,10 +208,12 @@ func (f *appsecFeature) ManageOtelAgentGateway(_ feature.PodTemplateManagers, _ 
 	return nil
 }
 
-func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) {
+func (f *appsecFeature) mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) {
 	if ddaRCStatus == nil || ddaRCStatus.Features == nil || ddaRCStatus.Features.Appsec == nil || ddaRCStatus.Features.Appsec.Injector == nil || ddaRCStatus.Features.Appsec.Injector.Enabled == nil {
 		return
 	}
+
+	f.logger.V(1).Info("Merging AppSec feature configuration from Remote Config status into DDA spec")
 
 	// Fill up empty nested structs to avoid nil pointer dereference
 	ddaRCStatus.Features = cmp.Or(ddaRCStatus.Features, &v2alpha1.DatadogFeatures{})

@@ -435,3 +435,217 @@ func TestAppsecFeatureProcessorWithoutService(t *testing.T) {
 	assert.Nil(t, f.processorServiceName)
 	assert.Nil(t, f.processorServiceNs)
 }
+
+func TestAppsecFeatureRemoteConfigMerge(t *testing.T) {
+	tests := []struct {
+		name           string
+		ddaSpec        *v2alpha1.DatadogAgentSpec
+		rcStatus       *v2alpha1.RemoteConfigConfiguration
+		wantEnabled    bool
+		wantAutoDetect *bool
+		wantProxies    []string
+		wantPort       *int32
+	}{
+		{
+			name: "RC enables feature when DDA spec is empty",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					Appsec: &v2alpha1.AppsecFeatureConfig{
+						Injector: &v2alpha1.AppsecInjectorConfig{},
+					},
+				},
+			},
+			rcStatus: &v2alpha1.RemoteConfigConfiguration{
+				Features: &v2alpha1.DatadogFeatures{
+					Appsec: &v2alpha1.AppsecFeatureConfig{
+						Injector: &v2alpha1.AppsecInjectorConfig{
+							Enabled:    apiutils.NewBoolPointer(true),
+							AutoDetect: apiutils.NewBoolPointer(true),
+						},
+					},
+				},
+			},
+			wantEnabled:    true,
+			wantAutoDetect: apiutils.NewBoolPointer(true),
+		},
+		{
+			name: "DDA spec takes precedence over RC",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					Appsec: &v2alpha1.AppsecFeatureConfig{
+						Injector: &v2alpha1.AppsecInjectorConfig{
+							Enabled:    apiutils.NewBoolPointer(true),
+							AutoDetect: apiutils.NewBoolPointer(false),
+							Proxies:    []string{"envoy-gateway"},
+						},
+					},
+				},
+			},
+			rcStatus: &v2alpha1.RemoteConfigConfiguration{
+				Features: &v2alpha1.DatadogFeatures{
+					Appsec: &v2alpha1.AppsecFeatureConfig{
+						Injector: &v2alpha1.AppsecInjectorConfig{
+							Enabled:    apiutils.NewBoolPointer(true),
+							AutoDetect: apiutils.NewBoolPointer(true),
+						},
+					},
+				},
+			},
+			wantEnabled:    true,
+			wantAutoDetect: apiutils.NewBoolPointer(false),
+			wantProxies:    []string{"envoy-gateway"},
+		},
+		{
+			name: "RC proxies used when DDA spec has empty proxies",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					Appsec: &v2alpha1.AppsecFeatureConfig{
+						Injector: &v2alpha1.AppsecInjectorConfig{
+							Enabled: apiutils.NewBoolPointer(true),
+						},
+					},
+				},
+			},
+			rcStatus: &v2alpha1.RemoteConfigConfiguration{
+				Features: &v2alpha1.DatadogFeatures{
+					Appsec: &v2alpha1.AppsecFeatureConfig{
+						Injector: &v2alpha1.AppsecInjectorConfig{
+							Enabled:    apiutils.NewBoolPointer(true),
+							AutoDetect: apiutils.NewBoolPointer(false),
+							Proxies:    []string{"istio"},
+						},
+					},
+				},
+			},
+			wantEnabled:    true,
+			wantAutoDetect: apiutils.NewBoolPointer(false),
+			wantProxies:    []string{"istio"},
+		},
+		{
+			name: "RC processor port used when not set in DDA spec",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					Appsec: &v2alpha1.AppsecFeatureConfig{
+						Injector: &v2alpha1.AppsecInjectorConfig{
+							Enabled:    apiutils.NewBoolPointer(true),
+							AutoDetect: apiutils.NewBoolPointer(true),
+							Processor:  &v2alpha1.AppsecProcessorConfig{},
+						},
+					},
+				},
+			},
+			rcStatus: &v2alpha1.RemoteConfigConfiguration{
+				Features: &v2alpha1.DatadogFeatures{
+					Appsec: &v2alpha1.AppsecFeatureConfig{
+						Injector: &v2alpha1.AppsecInjectorConfig{
+							Enabled: apiutils.NewBoolPointer(true),
+							Processor: &v2alpha1.AppsecProcessorConfig{
+								Port: apiutils.NewInt32Pointer(8443),
+							},
+						},
+					},
+				},
+			},
+			wantEnabled:    true,
+			wantAutoDetect: apiutils.NewBoolPointer(true),
+			wantPort:       apiutils.NewInt32Pointer(8443),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := testutils.NewDatadogAgentBuilder().Build()
+			dda.Spec = *tt.ddaSpec
+
+			f := buildAppsecFeature(nil).(*appsecFeature)
+			f.Configure(dda, tt.ddaSpec, tt.rcStatus)
+
+			assert.Equal(t, tt.wantEnabled, f.enabled)
+
+			if tt.wantAutoDetect != nil {
+				assert.Equal(t, tt.wantAutoDetect, f.autoDetect)
+			}
+
+			if tt.wantProxies != nil {
+				assert.Equal(t, tt.wantProxies, f.proxies)
+			}
+
+			if tt.wantPort != nil {
+				assert.Equal(t, tt.wantPort, f.processorPort)
+			}
+		})
+	}
+}
+
+func TestAppsecFeatureInvalidConfig(t *testing.T) {
+	// Test that autoDetect=false with empty proxies disables the feature
+	dda := testutils.NewDatadogAgentBuilder().
+		WithAppsecConfig(
+			true,
+			apiutils.NewBoolPointer(false), // autoDetect=false
+			nil,                            // empty proxies
+			nil,
+			nil,
+			nil,
+			nil,
+		).
+		Build()
+
+	f := buildAppsecFeature(nil).(*appsecFeature)
+	reqComp := f.Configure(dda, &dda.Spec, nil)
+
+	// Feature should not be enabled because validation requires either autoDetect=true OR proxies list
+	assert.False(t, f.enabled, "Feature should not be enabled with autoDetect=false and empty proxies")
+
+	// Cluster agent should not be required
+	if reqComp.ClusterAgent.IsRequired != nil {
+		assert.False(t, *reqComp.ClusterAgent.IsRequired)
+	}
+}
+
+func TestAppsecFeatureInvalidProcessorPort(t *testing.T) {
+	tests := []struct {
+		name string
+		port int32
+	}{
+		{
+			name: "port too low",
+			port: 0,
+		},
+		{
+			name: "port negative",
+			port: -1,
+		},
+		{
+			name: "port too high",
+			port: 65536,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := testutils.NewDatadogAgentBuilder().
+				WithAppsecConfig(
+					true,
+					apiutils.NewBoolPointer(true),
+					nil,
+					&tt.port,
+					nil,
+					nil,
+					nil,
+				).
+				Build()
+
+			f := buildAppsecFeature(nil).(*appsecFeature)
+			f.Configure(dda, &dda.Spec, nil)
+
+			// Create fake managers
+			mgr := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+
+			// ManageClusterAgent should return an error for invalid port
+			err := f.ManageClusterAgent(mgr, "test")
+			assert.Error(t, err, "Should return error for invalid port")
+			assert.Contains(t, err.Error(), "processor port must be between 1 and 65535")
+		})
+	}
+}
