@@ -2,6 +2,7 @@ package otelcollector
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -24,6 +25,15 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
+)
+
+const (
+	otelAgentMinVersion             = "7.67.0-0"
+	otelAgentOverrideImageNameField = "override.nodeAgent.image.name"
+	otelAgentFullImageExample       = "gcr.io/datadoghq/agent:7.72.1-full"
+	otelAgentVersionExample         = "7.72.1"
+	otelAgentVersionWithFullExample = "7.72.1-full"
+	otelAgentMinVersionForDisplay   = "7.67.0"
 )
 
 var errIncompatibleImage = errors.New("Incompatible OTel Agent image")
@@ -82,17 +92,21 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 			agentVersion = common.GetAgentVersionFromImage(*nodeAgent.Image)
 		}
 	}
-	supportedVersion := utils.IsAboveMinVersion(agentVersion, "7.67.0-0", apiutils.NewBoolPointer(true))
+	supportedVersion := utils.IsAboveMinVersion(agentVersion, otelAgentMinVersion, apiutils.NewBoolPointer(true))
 	if !supportedVersion && agentImageName == "" {
 		o.incompatibleImage = true
-		o.logger.Error(errIncompatibleImage, "OTel Agent Standalone image requires agent version 7.67.0 or higher. Update the Agent version to a version > 7.67.0 or use the agent image in combination with the `-full` tag instead (registry.domain/agent:version-full)",
+		o.logger.Error(errIncompatibleImage,
+			fmt.Sprintf("OTel Agent Standalone requires Agent version %s or higher. Either update the Agent version to %s+, or override the Agent image by setting %s to a fully qualified image name with the -full tag (e.g., %s)",
+				otelAgentMinVersionForDisplay, otelAgentMinVersionForDisplay, otelAgentOverrideImageNameField, otelAgentFullImageExample),
 			"current_version", agentVersion)
 		return feature.RequiredComponents{}
 	}
 
 	if strings.HasSuffix(agentVersion, "-full") && agentImageName == "" {
 		o.incompatibleImage = true
-		o.logger.Error(errIncompatibleImage, "OTel Agent Standalone image does not support full tag. Update the Agent to version without -full tag (e.g. 7.XX.0 instead of 7.XX.0-full), or override the agent image name and tag instead (registry.domain/agent:version-full)",
+		o.logger.Error(errIncompatibleImage,
+			fmt.Sprintf("OTel Agent Standalone does not support the -full tag. Either remove the -full suffix from the Agent tag (e.g., use %s instead of %s), or override the Agent image by setting %s to a fully qualified image name (e.g., %s)",
+				otelAgentVersionExample, otelAgentVersionWithFullExample, otelAgentOverrideImageNameField, otelAgentFullImageExample),
 			"current_version", agentVersion)
 		return feature.RequiredComponents{}
 	}
