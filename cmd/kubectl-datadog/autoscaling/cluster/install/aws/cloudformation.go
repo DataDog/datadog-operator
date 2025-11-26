@@ -10,11 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/datadog-operator/pkg/version"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	"github.com/aws/smithy-go"
+
+	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 const (

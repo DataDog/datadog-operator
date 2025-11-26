@@ -96,6 +96,19 @@ generate_code:
     - make generate manifests
     - git diff --exit-code
 
+check_formatting:
+  stage: test
+  tags: ["arch:amd64"]
+  rules:
+    - if: '$DDR == "true"'
+      when: never
+    - when: on_success
+  before_script:
+    - make install-tools
+  script:
+    - make fmt
+    - git diff --exit-code
+
 build_operator_image_amd64:
   stage: image
   tags:
