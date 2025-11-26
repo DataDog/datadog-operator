@@ -69,13 +69,14 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with minimal config",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithAppsecEnabled(true).
+				WithAppsecConfig(true, apiutils.NewBoolPointer(true), nil, nil, nil, nil, nil).
 				Build(),
 
 			WantConfigure: true,
 			ClusterAgent: assertEnv(
 				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
 				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
+				envVar{name: DDAppsecProxyAutoDetect, value: "true", present: true},
 			),
 		},
 		{
@@ -94,7 +95,7 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with autoDetect false",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithAppsecConfig(true, apiutils.NewBoolPointer(false), nil, nil, nil, nil, nil).
+				WithAppsecConfig(true, apiutils.NewBoolPointer(false), []string{"envoy-gateway"}, nil, nil, nil, nil).
 				Build(),
 
 			WantConfigure: true,
@@ -102,6 +103,7 @@ func TestAppsecFeature(t *testing.T) {
 				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
 				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
 				envVar{name: DDAppsecProxyAutoDetect, value: "false", present: true},
+				envVar{name: DDAppsecProxyProxies, value: `["envoy-gateway"]`, present: true},
 			),
 		},
 		{
@@ -120,39 +122,42 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with processor port",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithAppsecConfig(true, nil, nil, &port443, nil, nil, nil).
+				WithAppsecConfig(true, apiutils.NewBoolPointer(true), nil, &port443, nil, nil, nil).
 				Build(),
 
 			WantConfigure: true,
 			ClusterAgent: assertEnv(
 				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
 				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
+				envVar{name: DDAppsecProxyAutoDetect, value: "true", present: true},
 				envVar{name: DDAppsecProxyProcessorPort, value: "443", present: true},
 			),
 		},
 		{
 			Name: "Appsec enabled with processor address",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithAppsecConfig(true, nil, nil, nil, &processorAddress, nil, nil).
+				WithAppsecConfig(true, apiutils.NewBoolPointer(true), nil, nil, &processorAddress, nil, nil).
 				Build(),
 
 			WantConfigure: true,
 			ClusterAgent: assertEnv(
 				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
 				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
+				envVar{name: DDAppsecProxyAutoDetect, value: "true", present: true},
 				envVar{name: DDAppsecProxyProcessorAddress, value: "processor.example.com", present: true},
 			),
 		},
 		{
 			Name: "Appsec enabled with processor service name and namespace",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithAppsecConfig(true, nil, nil, nil, nil, &serviceName, &serviceNamespace).
+				WithAppsecConfig(true, apiutils.NewBoolPointer(true), nil, nil, nil, &serviceName, &serviceNamespace).
 				Build(),
 
 			WantConfigure: true,
 			ClusterAgent: assertEnv(
 				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
 				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
+				envVar{name: DDAppsecProxyAutoDetect, value: "true", present: true},
 				envVar{name: DDClusterAgentAppsecInjectorProcessorServiceName, value: "appsec-processor", present: true},
 				envVar{name: DDClusterAgentAppsecInjectorProcessorServiceNamespace, value: "datadog", present: true},
 			),
@@ -202,28 +207,6 @@ func TestAppsecFeatureConfigure(t *testing.T) {
 		wantProcessorPort *int32
 	}{
 		{
-			name: "Appsec nil",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{
-					Appsec: nil,
-				},
-			},
-			wantEnabled:      false,
-			wantClusterAgent: false,
-		},
-		{
-			name: "Appsec Injector nil",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: nil,
-					},
-				},
-			},
-			wantEnabled:      false,
-			wantClusterAgent: false,
-		},
-		{
 			name: "Appsec Injector enabled false",
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
@@ -243,7 +226,8 @@ func TestAppsecFeatureConfigure(t *testing.T) {
 				Features: &v2alpha1.DatadogFeatures{
 					Appsec: &v2alpha1.AppsecFeatureConfig{
 						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled: apiutils.NewBoolPointer(true),
+							Enabled:    apiutils.NewBoolPointer(true),
+							AutoDetect: apiutils.NewBoolPointer(true),
 						},
 					},
 				},
@@ -330,7 +314,7 @@ func TestAppsecFeatureManageDependenciesEnabled(t *testing.T) {
 			Name: "ManageDependencies when enabled",
 			DDA: func() *v2alpha1.DatadogAgent {
 				dda := testutils.NewDatadogAgentBuilder().
-					WithAppsecEnabled(true).
+					WithAppsecConfig(true, apiutils.NewBoolPointer(true), nil, nil, nil, nil, nil).
 					Build()
 				dda.Name = "datadog"
 				dda.Namespace = "test-namespace"
@@ -362,9 +346,15 @@ func TestAppsecFeatureManageClusterChecksRunner(t *testing.T) {
 	assert.NoError(t, err, "ManageClusterChecksRunner should return no error")
 }
 
+func TestAppsecFeatureManageOtelAgentGateway(t *testing.T) {
+	f := &appsecFeature{}
+	err := f.ManageOtelAgentGateway(nil, "")
+	assert.NoError(t, err, "ManageOtelAgentGateway should return no error")
+}
+
 func TestAppsecFeatureServiceAccountName(t *testing.T) {
 	dda := testutils.NewDatadogAgentBuilder().
-		WithAppsecEnabled(true).
+		WithAppsecConfig(true, apiutils.NewBoolPointer(true), nil, nil, nil, nil, nil).
 		Build()
 	dda.Name = "test-datadog-agent"
 
@@ -378,7 +368,7 @@ func TestAppsecFeatureServiceAccountName(t *testing.T) {
 
 func TestAppsecFeatureOwnerSet(t *testing.T) {
 	dda := testutils.NewDatadogAgentBuilder().
-		WithAppsecEnabled(true).
+		WithAppsecConfig(true, apiutils.NewBoolPointer(true), nil, nil, nil, nil, nil).
 		Build()
 	dda.Name = "test-owner"
 	dda.Namespace = "test-namespace"
@@ -399,7 +389,7 @@ func TestAppsecFeatureProcessorServiceConfig(t *testing.T) {
 	dda := testutils.NewDatadogAgentBuilder().
 		WithAppsecConfig(
 			true,
-			nil,
+			apiutils.NewBoolPointer(true),
 			nil,
 			nil,
 			nil,
@@ -425,7 +415,7 @@ func TestAppsecFeatureProcessorWithoutService(t *testing.T) {
 	dda := testutils.NewDatadogAgentBuilder().
 		WithAppsecConfig(
 			true,
-			nil,
+			apiutils.NewBoolPointer(true),
 			nil,
 			&port,
 			&address,

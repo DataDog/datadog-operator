@@ -69,10 +69,14 @@ func (f *appsecFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAg
 	f.proxies = appsec.Injector.Proxies
 
 	// Process processor configuration
-	f.processorAddress = appsec.Injector.Processor.Address
-	f.processorPort = appsec.Injector.Processor.Port
-	f.processorServiceName = appsec.Injector.Processor.Service.Name
-	f.processorServiceNs = appsec.Injector.Processor.Service.Namespace
+	if appsec.Injector.Processor != nil {
+		f.processorAddress = appsec.Injector.Processor.Address
+		f.processorPort = appsec.Injector.Processor.Port
+		if appsec.Injector.Processor.Service != nil {
+			f.processorServiceName = appsec.Injector.Processor.Service.Name
+			f.processorServiceNs = appsec.Injector.Processor.Service.Namespace
+		}
+	}
 
 	// The cluster agent is required for the AppSec feature.
 	return feature.RequiredComponents{
@@ -221,10 +225,10 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.Remo
 	ddaSpec.Features.Appsec.Injector.Processor.Service = cmp.Or(ddaSpec.Features.Appsec.Injector.Processor.Service, &v2alpha1.AppsecProcessorServiceConfig{})
 
 	// Merge AppSec feature configuration from Remote Config status into DDA spec
-	ddaSpec.Features.Appsec.Injector.Enabled = cmp.Or(ddaSpec.Features.Appsec.Injector.Enabled, ddaRCStatus.Features.Appsec.Injector.Enabled)
-	ddaSpec.Features.Appsec.Injector.AutoDetect = cmp.Or(ddaSpec.Features.Appsec.Injector.AutoDetect, ddaRCStatus.Features.Appsec.Injector.AutoDetect)
+	ddaSpec.Features.Appsec.Injector.Enabled = cmp.Or(ddaSpec.Features.Appsec.Injector.Enabled, ddaRCStatus.Features.Appsec.Injector.Enabled, apiutils.NewBoolPointer(false))
+	ddaSpec.Features.Appsec.Injector.AutoDetect = cmp.Or(ddaSpec.Features.Appsec.Injector.AutoDetect, ddaRCStatus.Features.Appsec.Injector.AutoDetect, apiutils.NewBoolPointer(true))
 	ddaSpec.Features.Appsec.Injector.Processor.Address = cmp.Or(ddaSpec.Features.Appsec.Injector.Processor.Address, ddaRCStatus.Features.Appsec.Injector.Processor.Address)
-	ddaSpec.Features.Appsec.Injector.Processor.Port = cmp.Or(ddaSpec.Features.Appsec.Injector.Processor.Port, ddaRCStatus.Features.Appsec.Injector.Processor.Port)
+	ddaSpec.Features.Appsec.Injector.Processor.Port = cmp.Or(ddaSpec.Features.Appsec.Injector.Processor.Port, ddaRCStatus.Features.Appsec.Injector.Processor.Port, apiutils.NewInt32Pointer(443))
 	ddaSpec.Features.Appsec.Injector.Processor.Service.Name = cmp.Or(ddaSpec.Features.Appsec.Injector.Processor.Service.Name, ddaRCStatus.Features.Appsec.Injector.Processor.Service.Name)
 	ddaSpec.Features.Appsec.Injector.Processor.Service.Namespace = cmp.Or(ddaSpec.Features.Appsec.Injector.Processor.Service.Namespace, ddaRCStatus.Features.Appsec.Injector.Processor.Service.Namespace)
 

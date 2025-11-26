@@ -59,6 +59,7 @@ const (
 	defaultAPMErrorTrackingStandalone   bool   = false
 
 	defaultAppsecInjectorEnabled       bool  = false
+	defaultAppsecInjectorAutoDetect    bool  = true
 	defaultAppsecInjectorProcessorPort int32 = 443
 
 	defaultNPMEnabled         bool = false
@@ -361,7 +362,7 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 
 	if *ddaSpec.Features.Appsec.Injector.Enabled {
 		if ddaSpec.Features.Appsec.Injector.AutoDetect == nil {
-			ddaSpec.Features.Appsec.Injector.AutoDetect = apiutils.NewBoolPointer(true)
+			ddaSpec.Features.Appsec.Injector.AutoDetect = apiutils.NewBoolPointer(defaultAppsecInjectorAutoDetect)
 		}
 
 		if ddaSpec.Features.Appsec.Injector.Processor == nil {
