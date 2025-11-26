@@ -7,6 +7,7 @@ import (
 
 	karpawsv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/samber/lo"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -64,6 +65,8 @@ func CreateOrUpdateEC2NodeClass(ctx context.Context, client client.Client, clust
 					ID: sgID,
 				}
 			}),
+			MetadataOptions:     convertMetadataOptions(nc.GetMetadataOptions()),
+			BlockDeviceMappings: convertBlockDeviceMappings(nc.GetBlockDeviceMappings()),
 		},
 	})
 }
@@ -83,4 +86,47 @@ func amiFamilyToAlias(amiFamily string) string {
 	default:
 		return "" // Custom or unknown families don't have aliases
 	}
+}
+
+func convertMetadataOptions(opts *guess.MetadataOptions) *karpawsv1.MetadataOptions {
+	if opts == nil {
+		return nil
+	}
+
+	return &karpawsv1.MetadataOptions{
+		HTTPEndpoint:            opts.HTTPEndpoint,
+		HTTPTokens:              opts.HTTPTokens,
+		HTTPPutResponseHopLimit: opts.HTTPPutResponseHopLimit,
+		HTTPProtocolIPv6:        opts.HTTPProtocolIPv6,
+	}
+}
+
+func convertBlockDeviceMappings(mappings []guess.BlockDeviceMapping) []*karpawsv1.BlockDeviceMapping {
+	if len(mappings) == 0 {
+		return nil
+	}
+
+	return lo.Map(mappings, func(bdm guess.BlockDeviceMapping, _ int) *karpawsv1.BlockDeviceMapping {
+		var volumeSize *resource.Quantity
+		if bdm.VolumeSize != nil {
+			if quantity, err := resource.ParseQuantity(*bdm.VolumeSize); err == nil {
+				volumeSize = &quantity
+			}
+		}
+
+		return &karpawsv1.BlockDeviceMapping{
+			DeviceName: bdm.DeviceName,
+			RootVolume: bdm.RootVolume,
+			EBS: &karpawsv1.BlockDevice{
+				VolumeSize:          volumeSize,
+				VolumeType:          bdm.VolumeType,
+				IOPS:                bdm.IOPS,
+				Throughput:          bdm.Throughput,
+				Encrypted:           bdm.Encrypted,
+				DeleteOnTermination: bdm.DeleteOnTermination,
+				KMSKeyID:            bdm.KMSKeyID,
+				SnapshotID:          bdm.SnapshotID,
+			},
+		}
+	})
 }

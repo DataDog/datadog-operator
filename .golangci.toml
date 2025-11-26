@@ -2,7 +2,15 @@ version = '2'
 
 [run]
 tests = false
-timeout = "10m"
+timeout = "20m"
+
+[formatters]
+enable = ['gci']
+
+[formatters.settings]
+[formatters.settings.gci]
+sections = ['standard', 'default', 'prefix(github.com/DataDog/datadog-operator)', 'blank']
+custom-order = true
 
 [linters]
 default = 'all'
