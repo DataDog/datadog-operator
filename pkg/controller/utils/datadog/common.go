@@ -9,11 +9,12 @@ import (
 	"encoding/json"
 	"fmt"
 
-	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+
+	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
 var log = logf.Log.WithName("DatadogMetricForwarders")

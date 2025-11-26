@@ -32,7 +32,6 @@ core,github.com/DataDog/zstd,BSD-3-Clause
 core,github.com/Masterminds/semver,MIT
 core,github.com/Masterminds/semver/v3,MIT
 core,github.com/antlr4-go/antlr/v4,BSD-3-Clause
-core,github.com/asaskevich/govalidator,MIT
 core,github.com/benbjohnson/clock,MIT
 core,github.com/beorn7/perks/quantile,MIT
 core,github.com/blang/semver/v4,MIT
@@ -61,7 +60,6 @@ core,github.com/google/btree,Apache-2.0
 core,github.com/google/cel-go,Apache-2.0
 core,github.com/google/gnostic-models,Apache-2.0
 core,github.com/google/go-cmp/cmp,BSD-3-Clause
-core,github.com/google/gofuzz,Apache-2.0
 core,github.com/google/pprof/profile,Apache-2.0
 core,github.com/google/uuid,BSD-3-Clause
 core,github.com/grpc-ecosystem/go-grpc-middleware,Apache-2.0
@@ -70,9 +68,6 @@ core,github.com/grpc-ecosystem/grpc-gateway/v2,BSD-3-Clause
 core,github.com/hashicorp/hcl,MPL-2.0
 core,github.com/josharian/intern,MIT
 core,github.com/json-iterator/go,MIT
-core,github.com/klauspost/compress,Apache-2.0
-core,github.com/klauspost/compress/internal/snapref,BSD-3-Clause
-core,github.com/klauspost/compress/zstd/internal/xxhash,MIT
 core,github.com/magiconair/properties,BSD-2-Clause
 core,github.com/mailru/easyjson,MIT
 core,github.com/mitchellh/mapstructure,MIT
@@ -123,6 +118,7 @@ core,go.opentelemetry.io/proto/otlp,Apache-2.0
 core,go.uber.org/atomic,MIT
 core,go.uber.org/multierr,MIT
 core,go.uber.org/zap,MIT
+core,go.yaml.in/yaml/v2,Apache-2.0
 core,golang.org/x/exp/slices,BSD-3-Clause
 core,golang.org/x/mod/semver,BSD-3-Clause
 core,golang.org/x/net,BSD-3-Clause
@@ -155,6 +151,7 @@ core,k8s.io/klog/v2,Apache-2.0
 core,k8s.io/kube-aggregator/pkg/apis/apiregistration,Apache-2.0
 core,k8s.io/kube-openapi/pkg,Apache-2.0
 core,k8s.io/kube-openapi/pkg/internal/third_party/go-json-experiment/json,BSD-3-Clause
+core,k8s.io/kube-openapi/pkg/internal/third_party/govalidator,MIT
 core,k8s.io/kube-openapi/pkg/validation/errors,Apache-2.0
 core,k8s.io/kube-openapi/pkg/validation/spec,Apache-2.0
 core,k8s.io/kube-openapi/pkg/validation/strfmt,Apache-2.0
@@ -164,6 +161,6 @@ core,k8s.io/utils/internal/third_party/forked/golang,BSD-3-Clause
 core,sigs.k8s.io/apiserver-network-proxy/konnectivity-client,Apache-2.0
 core,sigs.k8s.io/controller-runtime,Apache-2.0
 core,sigs.k8s.io/json,Apache-2.0
+core,sigs.k8s.io/randfill,Apache-2.0
 core,sigs.k8s.io/structured-merge-diff/v4,Apache-2.0
 core,sigs.k8s.io/yaml,Apache-2.0
-core,sigs.k8s.io/yaml/goyaml.v2,Apache-2.0
