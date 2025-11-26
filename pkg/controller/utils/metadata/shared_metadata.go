@@ -88,8 +88,6 @@ func (sm *SharedMetadata) createRequest(payload []byte) (*http.Request, error) {
 	}
 	payloadHeader := sm.GetHeaders(*apiKey)
 
-	sm.logger.Info("Operator metadata payload", "payload", string(payload))
-
 	sm.logger.V(1).Info("Sending operator metadata to URL", "url", *requestURL)
 
 	reader := bytes.NewReader(payload)

@@ -78,6 +78,7 @@ func (omf *OperatorMetadataForwarder) Start() {
 		omf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting helm metadata forwarder")
 		return
 	}
+	omf.updateResourceCounts()
 
 	omf.logger.Info("Starting operator metadata forwarder")
 
