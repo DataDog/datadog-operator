@@ -639,7 +639,7 @@ func Test_otelImageTags(t *testing.T) {
 				return nil
 			},
 		},
-				{
+		{
 			name: "otelEnabled true, override Tag to incompatible full version",
 			dda: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithOTelCollectorEnabled(true).
