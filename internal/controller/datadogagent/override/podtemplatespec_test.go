@@ -1000,6 +1000,41 @@ func TestPodTemplateSpec(t *testing.T) {
 				assert.Equal(t, expectedConstraints, manager.PodTemplateSpec().Spec.TopologySpreadConstraints)
 			},
 		},
+		{
+			name: "OtelAgent container should not get JMX suffix when JMXEnabled is true",
+			existingManager: func() *fake.PodTemplateManagers {
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
+				// Add regular agent containers
+				manager.PodTemplateSpec().Spec.Containers = []v1.Container{
+					{Name: string(apicommon.CoreAgentContainerName), Image: "gcr.io/datadoghq/agent:7.72.1"},
+					{Name: string(apicommon.OtelAgent), Image: "gcr.io/datadoghq/ddot-collector:7.72.1"},
+				}
+				return manager
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Image: &v2alpha1.AgentImageConfig{
+					JMXEnabled: true,
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				// Find the containers
+				var coreAgentImage, otelAgentImage string
+				for _, container := range manager.PodTemplateSpec().Spec.Containers {
+					switch container.Name {
+					case string(apicommon.CoreAgentContainerName):
+						coreAgentImage = container.Image
+					case string(apicommon.OtelAgent):
+						otelAgentImage = container.Image
+					}
+				}
+
+				// Core agent should have JMX suffix
+				assert.Equal(t, "gcr.io/datadoghq/agent:7.72.1-jmx", coreAgentImage, "Core agent should have JMX suffix")
+
+				// OtelAgent should NOT have JMX suffix
+				assert.Equal(t, "gcr.io/datadoghq/ddot-collector:7.72.1", otelAgentImage, "OtelAgent should not have JMX suffix")
+			},
+		},
 	}
 
 	for _, test := range tests {
