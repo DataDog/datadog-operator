@@ -3,6 +3,7 @@ package datadoggenericresource
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV2"
 	"github.com/go-logr/logr"
@@ -67,6 +68,9 @@ func (h *DowntimeHandler) deleteResourcefunc(r *Reconciler, instance *v1alpha1.D
 }
 
 func getDowntime(auth context.Context, client *datadogV2.DowntimesApi, downtimeID string) (datadogV2.DowntimeResponse, error) {
+	if downtimeID == "" {
+		return datadogV2.DowntimeResponse{}, fmt.Errorf("cannot get downtime: downtimeID is empty")
+	}
 	downtime, _, err := client.GetDowntime(auth, downtimeID)
 	if err != nil {
 		return datadogV2.DowntimeResponse{}, translateClientError(err, "error getting downtime")
@@ -75,6 +79,11 @@ func getDowntime(auth context.Context, client *datadogV2.DowntimesApi, downtimeI
 }
 
 func deleteDowntime(auth context.Context, client *datadogV2.DowntimesApi, downtimeID string) error {
+	if downtimeID == "" {
+		return fmt.Errorf("cannot delete downtime: downtimeID is empty")
+	}
+	// Note: Downtimes canceled through the API are no longer active, but are retained for approximately two days before being permanently removed.
+	// The downtime may still appear in search results until it is permanently removed.
 	if _, err := client.CancelDowntime(auth, downtimeID); err != nil {
 		return translateClientError(err, "error deleting downtime")
 	}
@@ -82,10 +91,15 @@ func deleteDowntime(auth context.Context, client *datadogV2.DowntimesApi, downti
 }
 
 func createDowntime(auth context.Context, client *datadogV2.DowntimesApi, instance *v1alpha1.DatadogGenericResource) (datadogV2.DowntimeResponse, error) {
+	if instance.Spec.JsonSpec == "" {
+		return datadogV2.DowntimeResponse{}, fmt.Errorf("cannot create downtime: spec.jsonSpec is empty")
+	}
+
 	downtimeBody := &datadogV2.DowntimeCreateRequest{}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), downtimeBody); err != nil {
 		return datadogV2.DowntimeResponse{}, translateClientError(err, "error unmarshalling downtime spec")
 	}
+
 	downtime, _, err := client.CreateDowntime(auth, *downtimeBody)
 	if err != nil {
 		return datadogV2.DowntimeResponse{}, translateClientError(err, "error creating downtime")
@@ -94,11 +108,28 @@ func createDowntime(auth context.Context, client *datadogV2.DowntimesApi, instan
 }
 
 func updateDowntime(auth context.Context, client *datadogV2.DowntimesApi, instance *v1alpha1.DatadogGenericResource) (datadogV2.DowntimeResponse, error) {
-	downtimeUpdateData := &datadogV2.DowntimeUpdateRequest{}
-	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), downtimeUpdateData); err != nil {
-		return datadogV2.DowntimeResponse{}, translateClientError(err, "error unmarshalling downtime update spec")
+	// Validate the presence of a target downtime ID
+	if instance.Status.Id == "" {
+		return datadogV2.DowntimeResponse{}, fmt.Errorf("cannot update downtime: status.id is empty")
 	}
-	downtimeUpdated, _, err := client.UpdateDowntime(auth, instance.Status.Id, *downtimeUpdateData)
+
+	if instance.Spec.JsonSpec == "" {
+		return datadogV2.DowntimeResponse{}, fmt.Errorf("cannot update downtime: spec.jsonSpec is empty")
+	}
+
+	// Unmarshal the user-provided spec into the typed update request to preserve field fidelity
+	var updateReq datadogV2.DowntimeUpdateRequest
+	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), &updateReq); err != nil {
+		return datadogV2.DowntimeResponse{}, translateClientError(err, "error unmarshalling downtime spec")
+	}
+
+	// Enforce correct resource type and ID regardless of what's in the spec
+	// This prevents accidental cross-resource updates if the spec contains incorrect values
+	updateReq.Data.Type = datadogV2.DOWNTIMERESOURCETYPE_DOWNTIME
+	updateReq.Data.Id = instance.Status.Id
+
+	// Call update using the status ID as the path parameter
+	downtimeUpdated, _, err := client.UpdateDowntime(auth, instance.Status.Id, updateReq)
 	if err != nil {
 		return datadogV2.DowntimeResponse{}, translateClientError(err, "error updating downtime")
 	}
