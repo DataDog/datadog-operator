@@ -1705,11 +1705,6 @@ func verifyDDAI(t *testing.T, c client.Client, expectedDDAI []v1alpha1.DatadogAg
 		ddaiList.Items[i].ObjectMeta.ManagedFields = nil
 		// type meta is only added when merging ddais
 		ddaiList.Items[i].TypeMeta = metav1.TypeMeta{}
-
-		// Print actual MD5 hash for debugging
-		if actualMD5, ok := ddaiList.Items[i].Annotations[constants.MD5DDAIDeploymentAnnotationKey]; ok {
-			t.Logf("Actual MD5 hash for DDAI %s: %s", ddaiList.Items[i].Name, actualMD5)
-		}
 	}
 	assert.ElementsMatch(t, expectedDDAI, ddaiList.Items)
 	return nil
