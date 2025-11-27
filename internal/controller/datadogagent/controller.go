@@ -25,6 +25,7 @@ import (
 	// Use to register features
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/admissioncontroller"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/apm"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/appsec"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/asm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/autoscaling"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/clusterchecks"
