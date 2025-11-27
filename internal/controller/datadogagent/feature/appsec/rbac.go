@@ -26,17 +26,24 @@ func getAppsecRBACResourceName(owner metav1.Object, suffix string) string {
 // getRBACPolicyRules generates the cluster role permissions required for the AppSec proxy injector feature
 func getRBACPolicyRules() []rbacv1.PolicyRule {
 	return []rbacv1.PolicyRule{
+		{
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.EventsResource},
+			Verbs: []string{
+				rbac.GetVerb,
+			},
+		},
 		// CRD detection
 		{
-			APIGroups: []string{"apiextensions.k8s.io"},
-			Resources: []string{"customresourcedefinitions"},
+			APIGroups: []string{rbac.APIExtensionsAPIGroup},
+			Resources: []string{rbac.CustomResourceDefinitionsResource},
 			Verbs: []string{
 				rbac.GetVerb,
 			},
 		},
 		// Envoy Gateway resources
 		{
-			APIGroups: []string{"gateway.networking.k8s.io"},
+			APIGroups: []string{rbac.GatewayAPIGroup},
 			Resources: []string{
 				"gateways",
 				"gatewayclasses",
@@ -49,7 +56,7 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 			},
 		},
 		{
-			APIGroups: []string{"gateway.networking.k8s.io"},
+			APIGroups: []string{rbac.GatewayAPIGroup},
 			Resources: []string{"referencegrants"},
 			Verbs: []string{
 				rbac.GetVerb,
