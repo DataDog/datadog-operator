@@ -75,7 +75,7 @@ spec:
 | features.appsec.injector.processor.port | Of the Appsec processor service. Default: 443 |
 | features.appsec.injector.processor.service.name | Of the Appsec processor service. |
 | features.appsec.injector.processor.service.namespace | Where the Appsec processor is deployed. |
-| features.appsec.injector.proxies | Is a list of proxy types to inject. Valid values: "envoy-gateway", "istio". |
+| features.appsec.injector.proxies | List of proxy types to inject. Valid values: "envoy-gateway", "istio". |
 | features.asm.iast.enabled | Enables Interactive Application Security Testing (IAST). Default: false |
 | features.asm.sca.enabled | Enables Software Composition Analysis (SCA). Default: false |
 | features.asm.threats.enabled | Enables ASM App & API Protection. Default: false |
