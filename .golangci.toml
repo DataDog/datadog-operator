@@ -42,7 +42,6 @@ disable = [
   'gomoddirectives',
   'gosec',
   'inamedparam',
-  'ineffassign',
   'interfacebloat',
   'intrange',
   'ireturn',

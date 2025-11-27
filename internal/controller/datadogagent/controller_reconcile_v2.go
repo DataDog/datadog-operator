@@ -136,14 +136,13 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// 1. Manage dependencies.
 	depsStore, resourceManagers := r.setupDependencies(instance, logger)
 
-	providerList := map[string]struct{}{kubernetes.LegacyProvider: {}}
 	k8sProvider := kubernetes.LegacyProvider
 	if r.options.IntrospectionEnabled {
 		nodeList, err := r.getNodeList(ctx)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
-		providerList = kubernetes.GetProviderListFromNodeList(nodeList, logger)
+		providerList := kubernetes.GetProviderListFromNodeList(nodeList, logger)
 
 		k8sProvider = kubernetes.DefaultProvider
 		if len(providerList) == 1 {
