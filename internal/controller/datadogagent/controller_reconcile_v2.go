@@ -324,10 +324,9 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 		logger.Info("unable to list DatadogAgentProfiles", "error", err)
 	}
 
-	var profileListToApply []datadoghqv1alpha1.DatadogAgentProfile
 	profileAppliedByNode := make(map[string]types.NamespacedName, len(nodeList))
-
 	sortedProfiles := agentprofile.SortProfiles(profilesList.Items)
+	profileListToApply := make([]datadoghqv1alpha1.DatadogAgentProfile, 0, len(sortedProfiles))
 	for _, profile := range sortedProfiles {
 		maxUnavailable := agentprofile.GetMaxUnavailable(logger, ddaSpec, &profile, len(nodeList), &r.options.ExtendedDaemonsetOptions)
 		oldStatus := profile.Status
