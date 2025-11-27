@@ -35,7 +35,7 @@ spec:
         keyName: app-key
 {{< /highlight >}}
 
-{{%% collapse-content title="Parameters" level="h4" expanded=true id="global-options-list" %%}}
+{{% collapse-content title="Parameters" level="h4" expanded=true id="global-options-list" %}}
 `features.admissionController.agentCommunicationMode`
 : AgentCommunicationMode corresponds to the mode used by the Datadog application libraries to communicate with the Agent. It can be "hostip", "service", or "socket".
 
@@ -609,7 +609,7 @@ spec:
 {{< /highlight >}}
 In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.containers.system-probe.resources.limits` appear as `[component].image.name` and `[component].containers.[container].resources.limits`, respectively.
 
-{{%% collapse-content title="Parameters" level="h4" expanded=true id="override-options-list" %%}}
+{{% collapse-content title="Parameters" level="h4" expanded=true id="override-options-list" %}}
 `[component].affinity`
 : If specified, the pod's scheduling constraints. See [link](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity) for more information.
 

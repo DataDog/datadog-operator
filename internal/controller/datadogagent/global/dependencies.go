@@ -6,6 +6,7 @@
 package global
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/go-logr/logr"
