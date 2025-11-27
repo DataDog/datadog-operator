@@ -1,4 +1,4 @@
-image: registry.ddbuild.io/images/mirror/library/golang:1.25.3
+image: registry.ddbuild.io/images/mirror/library/golang:1.24.6
 variables:
   PROJECTNAME: "datadog-operator"
   PROJECTNAME_CHECK: "datadog-operator-check"
@@ -286,7 +286,7 @@ e2e:
     KUBERNETES_MEMORY_LIMIT: 16Gi
     TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
     # Temporary workaround from https://github.com/golang/go/issues/75031
-    GOTOOLCHAIN: go1.25.0+auto
+    GOTOOLCHAIN: go1.24.0+auto
   image: $BUILD_DOCKER_REGISTRY/test-infra-definitions/runner:$TEST_INFRA_DEFINITIONS_BUILDIMAGES
   before_script:
     # Setup AWS Credentials
