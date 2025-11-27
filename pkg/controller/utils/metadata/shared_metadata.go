@@ -105,7 +105,7 @@ func (sm *SharedMetadata) setupFromOperator() error {
 	sm.clusterName = os.Getenv(constants.DDClusterName)
 
 	if sm.credsManager == nil {
-		return errors.New("credentials Manager is undefined")
+		return fmt.Errorf("credentials Manager is undefined")
 	}
 
 	creds, err := sm.credsManager.GetCredentials()
@@ -191,7 +191,7 @@ func (sm *SharedMetadata) getDatadogAgent() (*v2alpha1.DatadogAgent, error) {
 
 func (sm *SharedMetadata) getCredentialsFromDDA(dda *v2alpha1.DatadogAgent) (string, error) {
 	if dda.Spec.Global == nil || dda.Spec.Global.Credentials == nil {
-		return "", errors.New("credentials not configured in the DatadogAgent")
+		return "", fmt.Errorf("credentials not configured in the DatadogAgent")
 	}
 
 	defaultSecretName := secrets.GetDefaultCredentialsSecretName(dda)

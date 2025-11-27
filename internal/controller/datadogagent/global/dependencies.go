@@ -6,7 +6,6 @@
 package global
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -190,7 +189,7 @@ func AddCredentialDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpe
 	// Create API key secret
 	if !apiKeySecretValid {
 		if global.Credentials.APIKey == nil || *global.Credentials.APIKey == "" {
-			return errors.New("api key must be set")
+			return fmt.Errorf("api key must be set")
 		}
 		if err := manager.SecretManager().AddSecret(ddaMeta.GetNamespace(), secretName, v2alpha1.DefaultAPIKeyKey, *global.Credentials.APIKey); err != nil {
 			logger.Error(err, "Error adding api key secret")

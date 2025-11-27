@@ -74,7 +74,7 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&image, "image", "i", "", "The image of the Datadog Agent")
-	cmd.Flags().BoolVarP(&latest, "latest", "l", false, "Upgrade to "+images.GetLatestAgentImage())
+	cmd.Flags().BoolVarP(&latest, "latest", "l", false, fmt.Sprintf("Upgrade to %s", images.GetLatestAgentImage()))
 
 	o.ConfigFlags.AddFlags(cmd.Flags())
 

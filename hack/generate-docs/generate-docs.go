@@ -123,7 +123,7 @@ func generatePublicDoc(crd apiextensions.CustomResourceDefinitionVersion, versio
 	mustWriteString(f, "\n\n")
 
 	// Generate override parameters
-	mustWriteString(f, "{{%% collapse-content title=\"Parameters\" level=\"h4\" expanded=true id=\"override-options-list\" %%}}\n")
+	mustWriteString(f, fmt.Sprintf("{{%% collapse-content title=\"Parameters\" level=\"h4\" expanded=true id=\"override-options-list\" %%}}\n"))
 	nameToDescMap := loadJSONToMap(updatedDescriptionsFile)
 	overrideProps := crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties["override"]
 	writeOverridesRecursivePublic(f, "[component]", []string{"override"}, overrideProps.AdditionalProperties.Schema.Properties, nameToDescMap, annotations)
@@ -187,7 +187,7 @@ func writePropsTablePublic(f *os.File, props map[string]apiextensions.JSONSchema
 		return docs[i].name < docs[j].name
 	})
 
-	mustWriteString(f, "{{%% collapse-content title=\"Parameters\" level=\"h4\" expanded=true id=\"global-options-list\" %%}}\n")
+	mustWriteString(f, fmt.Sprintf("{{%% collapse-content title=\"Parameters\" level=\"h4\" expanded=true id=\"global-options-list\" %%}}\n"))
 	for _, doc := range docs {
 		desc := doc.description
 		if newDesc, ok := nameToDescMap[doc.name]; ok {

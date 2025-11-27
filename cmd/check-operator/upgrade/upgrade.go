@@ -7,14 +7,13 @@ package upgrade
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/spf13/cobra"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -124,7 +123,7 @@ func (o *Options) Complete(cmd *cobra.Command, args []string) error {
 // Validate ensures that all required arguments and flag values are provided.
 func (o *Options) Validate() error {
 	if o.datadogAgentName == "" {
-		return errors.New("the DatadogAgent name is required")
+		return fmt.Errorf("the DatadogAgent name is required")
 	}
 
 	return nil
@@ -134,7 +133,7 @@ func (o *Options) getV2Status() (common.StatusWrapper, error) {
 	datadogAgent := &v2alpha1.DatadogAgent{}
 	err := o.Client.Get(context.TODO(), client.ObjectKey{Namespace: o.UserNamespace, Name: o.datadogAgentName}, datadogAgent)
 	if err != nil {
-		if k8serrors.IsNotFound(err) {
+		if errors.IsNotFound(err) {
 
 			return nil, err
 		}
@@ -169,7 +168,7 @@ func (o *Options) Run() error {
 		o.printOutf("v2alpha1 is available")
 		status, err := o.getV2Status()
 
-		if k8serrors.IsNotFound(err) {
+		if errors.IsNotFound(err) {
 			o.printOutf("Got a not found error while getting %s/%s. Assuming this DatadogAgent CR has never been deployed in this environment", o.UserNamespace, o.datadogAgentName)
 			return true, nil
 		} else if err != nil {

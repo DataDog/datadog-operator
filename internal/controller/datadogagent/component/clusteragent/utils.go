@@ -108,7 +108,7 @@ func GetDefaultExternalMetricSecretName(dda metav1.Object) string {
 
 // GetHPAClusterRoleBindingName returns a external metrics provider clusterrolebinding for auth-delegator
 func GetHPAClusterRoleBindingName(dda metav1.Object) string {
-	return GetClusterAgentRbacResourcesName(dda) + "-auth-delegator"
+	return fmt.Sprintf("%s-auth-delegator", GetClusterAgentRbacResourcesName(dda))
 }
 
 // GetExternalMetricsReaderClusterRoleName returns the name for the external metrics reader cluster role
@@ -117,15 +117,15 @@ func GetExternalMetricsReaderClusterRoleName(dda metav1.Object, versionInfo *ver
 		// For GKE clusters the name of the role is hardcoded and cannot be changed - HPA controller expects this name
 		return "external-metrics-reader"
 	}
-	return GetClusterAgentRbacResourcesName(dda) + "-metrics-reader"
+	return fmt.Sprintf("%s-metrics-reader", GetClusterAgentRbacResourcesName(dda))
 }
 
 // GetResourceMetadataAsTagsClusterRoleName returns the name for the cluster role name used for kubernetes resource labels and annotations as tags
 func GetResourceMetadataAsTagsClusterRoleName(dda metav1.Object) string {
-	return GetClusterAgentRbacResourcesName(dda) + "-annotations-and-labels-as-tags"
+	return fmt.Sprintf("%s-annotations-and-labels-as-tags", GetClusterAgentRbacResourcesName(dda))
 }
 
 // GetApiserverAuthReaderRoleBindingName returns the name for the role binding to access the extension-apiserver-authentication cm
 func GetApiserverAuthReaderRoleBindingName(dda metav1.Object) string {
-	return GetClusterAgentRbacResourcesName(dda) + "-apiserver"
+	return fmt.Sprintf("%s-apiserver", GetClusterAgentRbacResourcesName(dda))
 }

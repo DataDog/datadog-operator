@@ -8,7 +8,6 @@ package leader
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -89,7 +88,7 @@ func (o *options) validate() error {
 		if len(o.args) != 0 {
 			o.DDAName = o.args[0]
 		} else {
-			return errors.New("DatadogAgent resource name is required")
+			return fmt.Errorf("DatadogAgent resource name is required")
 		}
 	}
 	return nil
@@ -97,7 +96,7 @@ func (o *options) validate() error {
 
 // run runs the leader command.
 func (o *options) run(cmd *cobra.Command) error {
-	leaderObjName := o.DDAName + "-leader-election"
+	leaderObjName := fmt.Sprintf("%s-leader-election", o.DDAName)
 	objKey := client.ObjectKey{Namespace: o.UserNamespace, Name: leaderObjName}
 
 	var leaderName string

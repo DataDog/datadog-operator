@@ -7,6 +7,7 @@ package datadoggenericresource
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -53,11 +54,11 @@ func (r *Reconciler) handleFinalizer(logger logr.Logger, instance *datadoghqv1al
 func (r *Reconciler) finalizeDatadogCustomResource(logger logr.Logger, instance *datadoghqv1alpha1.DatadogGenericResource) {
 	err := apiDelete(r, instance)
 	if err != nil {
-		logger.Error(err, "failed to finalize ", "custom resource Id", instance.Status.Id)
+		logger.Error(err, "failed to finalize ", "custom resource Id", fmt.Sprint(instance.Status.Id))
 
 		return
 	}
-	logger.Info("Successfully finalized DatadogGenericResource", "custom resource Id", instance.Status.Id)
+	logger.Info("Successfully finalized DatadogGenericResource", "custom resource Id", fmt.Sprint(instance.Status.Id))
 	event := buildEventInfo(instance.Name, instance.Namespace, datadog.DeletionEvent)
 	r.recordEvent(instance, event)
 }
@@ -69,7 +70,7 @@ func (r *Reconciler) addFinalizer(logger logr.Logger, instance *datadoghqv1alpha
 
 	err := r.client.Update(context.TODO(), instance)
 	if err != nil {
-		logger.Error(err, "failed to update DatadogGenericResource with finalizer", "custom resource Id", instance.Status.Id)
+		logger.Error(err, "failed to update DatadogGenericResource with finalizer", "custom resource Id", fmt.Sprint(instance.Status.Id))
 		return err
 	}
 

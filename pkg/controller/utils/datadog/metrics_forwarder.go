@@ -685,7 +685,7 @@ func (mf *metricsForwarder) getDatadogAgentInternal() (*v1alpha1.DatadogAgentInt
 // getCredentialsFromDDA retrieves the API key configured in the DatadogAgent
 func (mf *metricsForwarder) getCredentialsFromDDA(dda *v2alpha1.DatadogAgent) (string, error) {
 	if dda.Spec.Global == nil || dda.Spec.Global.Credentials == nil {
-		return "", errors.New("credentials not configured in the DatadogAgent")
+		return "", fmt.Errorf("credentials not configured in the DatadogAgent")
 	}
 
 	defaultSecretName := secrets.GetDefaultCredentialsSecretName(dda)

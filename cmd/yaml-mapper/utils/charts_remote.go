@@ -83,7 +83,7 @@ func FetchYAMLFile(url string, name string) (string, error) {
 		return "", fmt.Errorf("failed to fetch yaml file %s: %v\n", url, resp.Status)
 	}
 
-	tmpFile, err := os.CreateTemp("", name+".yaml.*")
+	tmpFile, err := os.CreateTemp("", fmt.Sprintf("%s.yaml.*", name))
 	if err != nil {
 		return "", fmt.Errorf("error creating temporary file: %w\n", err)
 

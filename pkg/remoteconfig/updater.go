@@ -341,7 +341,7 @@ func (r *RemoteConfigUpdater) parseReceivedUpdates(updates map[string]state.RawC
 			if err := json.Unmarshal(c.Config, &order); err != nil {
 				r.logger.Info("Error unmarshalling configuration_order:", "err", err)
 				applyStatus(configPath, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
-				return DatadogAgentRemoteConfig{}, errors.New("could not unmarshal configuration order")
+				return DatadogAgentRemoteConfig{}, fmt.Errorf("could not unmarshal configuration order")
 			}
 		} else {
 			var configData DatadogAgentRemoteConfig

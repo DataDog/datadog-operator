@@ -7,7 +7,7 @@ package apm
 
 import (
 	"encoding/json"
-	"errors"
+	"fmt"
 	"path/filepath"
 	"strconv"
 
@@ -312,7 +312,7 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, pr
 	if f.singleStepInstrumentation != nil {
 		if len(f.singleStepInstrumentation.disabledNamespaces) > 0 && len(f.singleStepInstrumentation.enabledNamespaces) > 0 {
 			// This configuration is not supported
-			return errors.New("`spec.features.apm.instrumentation.enabledNamespaces` and `spec.features.apm.instrumentation.disabledNamespaces` cannot be set together")
+			return fmt.Errorf("`spec.features.apm.instrumentation.enabledNamespaces` and `spec.features.apm.instrumentation.disabledNamespaces` cannot be set together")
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  DDAPMInstrumentationEnabled,

@@ -7,13 +7,12 @@ package patchcrd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
@@ -79,11 +78,11 @@ func (o *Options) Complete(cmd *cobra.Command, args []string) error {
 // Validate ensures that all required arguments and flag values are provided.
 func (o *Options) Validate() error {
 	if o.crdName == "" {
-		return errors.New("the CRD name is required")
+		return fmt.Errorf("the CRD name is required")
 	}
 
 	if len(o.storedVersions) == 0 {
-		return errors.New("at least one storedVersion needs to be provided")
+		return fmt.Errorf("at least one storedVersion needs to be provided")
 	}
 
 	return nil
@@ -94,7 +93,7 @@ func (o *Options) Run() error {
 	o.printOutf("Start checking patched CRD status")
 	crd, err := o.APIExtClient.ApiextensionsV1().CustomResourceDefinitions().Get(context.Background(), o.crdName, v1.GetOptions{})
 	if err != nil {
-		if k8serrors.IsNotFound(err) {
+		if errors.IsNotFound(err) {
 			return fmt.Errorf("unable to patch %s CRD, err: %w", o.crdName, err)
 		}
 		return fmt.Errorf("unknown error during CRD get, err: %w", err)
