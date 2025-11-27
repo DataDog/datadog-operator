@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -572,7 +573,7 @@ func Test_otelImageTags(t *testing.T) {
 		wantFunc func(c client.Client) error
 	}{
 		{
-			name: "otelEnabled true, no override - full image all agents",
+			name: "otelEnabled true, no override",
 			dda: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithOTelCollectorEnabled(true).
 				Build(),
@@ -585,20 +586,20 @@ func Test_otelImageTags(t *testing.T) {
 				assert.NoError(t, verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers))
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
-				assert.Equal(t, fmt.Sprintf("gcr.io/datadoghq/agent:%s-full", images.AgentLatestVersion), agentContainer[apicommon.CoreAgentContainerName].Image)
-				assert.Equal(t, fmt.Sprintf("gcr.io/datadoghq/agent:%s-full", images.AgentLatestVersion), agentContainer[apicommon.TraceAgentContainerName].Image)
-				assert.Equal(t, fmt.Sprintf("gcr.io/datadoghq/agent:%s-full", images.AgentLatestVersion), agentContainer[apicommon.OtelAgent].Image)
+				assert.Equal(t, fmt.Sprintf("gcr.io/datadoghq/agent:%s", images.AgentLatestVersion), agentContainer[apicommon.CoreAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("gcr.io/datadoghq/agent:%s", images.AgentLatestVersion), agentContainer[apicommon.TraceAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("gcr.io/datadoghq/ddot-collector:%s", images.AgentLatestVersion), agentContainer[apicommon.OtelAgent].Image)
 
 				return nil
 			},
 		},
 		{
-			name: "otelEnabled true, override Tag - override tag all agents",
+			name: "otelEnabled true, override Tag to compatible version",
 			dda: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithOTelCollectorEnabled(true).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
 					Image: &v2alpha1.AgentImageConfig{
-						Tag: "7.65.0-full",
+						Tag: "7.71.0",
 					},
 				}).
 				Build(),
@@ -611,10 +612,50 @@ func Test_otelImageTags(t *testing.T) {
 				assert.NoError(t, verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers))
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
-				assert.Equal(t, "gcr.io/datadoghq/agent:7.65.0-full", agentContainer[apicommon.CoreAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/agent:7.65.0-full", agentContainer[apicommon.TraceAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/agent:7.65.0-full", agentContainer[apicommon.OtelAgent].Image)
+				assert.Equal(t, "gcr.io/datadoghq/agent:7.71.0", agentContainer[apicommon.CoreAgentContainerName].Image)
+				assert.Equal(t, "gcr.io/datadoghq/agent:7.71.0", agentContainer[apicommon.TraceAgentContainerName].Image)
+				assert.Equal(t, "gcr.io/datadoghq/ddot-collector:7.71.0", agentContainer[apicommon.OtelAgent].Image)
 
+				return nil
+			},
+		},
+		{
+			name: "otelEnabled true, override Tag to incompatible version",
+			dda: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithOTelCollectorEnabled(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+					Image: &v2alpha1.AgentImageConfig{
+						Tag: "7.66.0",
+					},
+				}).
+				Build(),
+			wantFunc: func(c client.Client) error {
+				expectedContainers := []string{
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+					string(apicommon.OtelAgent),
+				}
+				assert.Error(t, errors.New("Incompatible OTel Agent image"), verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers))
+				return nil
+			},
+		},
+		{
+			name: "otelEnabled true, override Tag to incompatible full version",
+			dda: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithOTelCollectorEnabled(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+					Image: &v2alpha1.AgentImageConfig{
+						Tag: "7.72.1-full",
+					},
+				}).
+				Build(),
+			wantFunc: func(c client.Client) error {
+				expectedContainers := []string{
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+					string(apicommon.OtelAgent),
+				}
+				assert.Error(t, errors.New("Incompatible OTel Agent image"), verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers))
 				return nil
 			},
 		},

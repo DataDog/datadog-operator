@@ -142,8 +142,8 @@ type DatadogPodAutoscalerObjective struct {
 	// ContainerResource allows to set a container-level resource objective.
 	ContainerResource *DatadogPodAutoscalerContainerResourceObjective `json:"containerResource,omitempty"`
 
-	// CustomQueryObjective allows to set a controller-level objective.
-	CustomQueryObjective *DatadogPodAutoscalerCustomQueryObjective `json:"customQueryObjective,omitempty"`
+	// CustomQuery allows to set a controller-level objective.
+	CustomQuery *DatadogPodAutoscalerCustomQueryObjective `json:"customQuery,omitempty"`
 }
 
 // DatadogPodAutoscalerPodResourceObjective defines a pod-level resource objective (for instance, CPU Utilization at 80%)
@@ -176,16 +176,13 @@ type DatadogPodAutoscalerContainerResourceObjective struct {
 // DatadogPodAutoscalerCustomQueryObjective defines a controller-level objective
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerCustomQueryObjective struct {
-	// Query is the timeseries query to use for the objective.
-	// +kubebuilder:validation:Required
-	Query DatadogPodAutoscalerTimeseriesFormulaRequest `json:"query"`
+	// Request is the timeseries query to use for the objective.
+	Request DatadogPodAutoscalerTimeseriesFormulaRequest `json:"request"`
 
 	// Value is the value of the objective
-	// +kubebuilder:validation:Required
 	Value DatadogPodAutoscalerObjectiveValue `json:"value"`
 
 	// Window is the time duration over which the query is computed. It should contain at least one full sample.
-	// +kubebuilder:validation:Required
 	Window metav1.Duration `json:"window"`
 }
 
@@ -194,26 +191,26 @@ type DatadogPodAutoscalerCustomQueryObjective struct {
 // Reference: https://github.com/DataDog/datadog-api-spec/blob/94d1542b31ad0df1da915bae84686b13ba1a65ae/spec/v2/query.yaml#L124
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerTimeseriesFormulaRequest struct {
-	// Formulas to compute (optional).
+	// Formula to compute (optional).
 	// +optional
-	Formulas []DatadogPodAutoscalerQueryFormula `json:"formulas,omitempty"`
+	Formula string `json:"formula,omitempty"`
+
+	// Queries is a list of timeseries queries to use for the objective.
+	// At least one query must be specified
+	// +listType=atomic
 	// +kubebuilder:validation:MinItems=1
-	// +kubebuilder:vallidation:Required
 	Queries []DatadogPodAutoscalerTimeseriesQuery `json:"queries"`
 }
 
-// +kubebuilder:object:generate=true
-type DatadogPodAutoscalerQueryFormula struct {
-	// +kubebuilder:validation:MinLength=1
-	Formula string `json:"formula"`
-}
-
-// +kubebuilder:validation:Enum:=metrics;apm_metrics
+// +kubebuilder:validation:Enum:=Metrics;ApmMetrics
 type DatadogPodAutoscalerMetricsDataSource string
 
 const (
-	DatadogPodAutoscalerMetricsDataSourceMetrics    DatadogPodAutoscalerMetricsDataSource = "metrics"
-	DatadogPodAutoscalerMetricsDataSourceApmMetrics DatadogPodAutoscalerMetricsDataSource = "apm_metrics"
+	// DatadogPodAutoscalerMetricsDataSourceMetrics defines the source of the timeseries query as a standard Datadog metrics query.
+	DatadogPodAutoscalerMetricsDataSourceMetrics DatadogPodAutoscalerMetricsDataSource = "Metrics"
+
+	// DatadogPodAutoscalerMetricsDataSourceApmMetrics defines the source of the timeseries query as an APM metrics query.
+	DatadogPodAutoscalerMetricsDataSourceApmMetrics DatadogPodAutoscalerMetricsDataSource = "ApmMetrics"
 )
 
 // TimeseriesQuery is a discriminated union. Only Metrics and APMMetrics are supported for autoscaling.
@@ -222,12 +219,17 @@ type DatadogPodAutoscalerTimeseriesQuery struct {
 	// Optional variable name ("a", "b", etc.) to reference in formulas.
 	// +optional
 	Name string `json:"name"`
-	// +required
+
+	// Source defines the source of the timeseries query.
 	Source DatadogPodAutoscalerMetricsDataSource `json:"source"`
+
+	// Metrics is a standard Datadog metrics query.
 	// +optional
 	Metrics *DatadogPodAutoscalerMetricsTimeseriesQuery `json:"metrics,omitempty"`
+
+	// ApmMetrics is allows to query APM metrics.
 	// +optional
-	ApmMetrics *DatadogPodAutoscalerApmMetricsTimeseriesQuery `json:"apm_metrics,omitempty"`
+	ApmMetrics *DatadogPodAutoscalerApmMetricsTimeseriesQuery `json:"apmMetrics,omitempty"`
 }
 
 // +kubebuilder:object:generate=true
@@ -239,15 +241,36 @@ type DatadogPodAutoscalerMetricsTimeseriesQuery struct {
 
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerApmMetricsTimeseriesQuery struct {
-	Stat         DatadogPodAutoscalerApmMetricsStat `json:"stat"`
-	Service      *string                            `json:"service,omitempty"`
-	ResourceName *string                            `json:"resource_name,omitempty"`
+	// Stat defines the statistic to compute for the APM metrics query.
+	Stat DatadogPodAutoscalerApmMetricsStat `json:"stat"`
+
+	// Service is the name of the service to query.
+	// +optional
+	Service string `json:"service,omitempty"`
+
+	// ResourceName is the name of the resource to query.
+	// +optional
+	ResourceName string `json:"resourceName,omitempty"`
+
 	// ResourceHash is a fingerprint of the resource name that can be used to identify the resource instead of the resource name.
-	ResourceHash  *string  `json:"resource_hash,omitempty"`
-	OperationName *string  `json:"operation_name,omitempty"`
-	GroupBy       []string `json:"group_by,omitempty"`
-	QueryFilter   *string  `json:"query_filter,omitempty"`
-	SpanKind      *string  `json:"span_kind,omitempty"`
+	// +optional
+	ResourceHash string `json:"resourceHash,omitempty"`
+
+	// OperationName is the name of the operation to query.
+	// +optional
+	OperationName string `json:"operationName,omitempty"`
+
+	// GroupBy is the list of tags to group by.
+	// +optional
+	GroupBy []string `json:"groupBy,omitempty"`
+
+	// QueryFilter is the filter to apply to the query.
+	// +optional
+	QueryFilter string `json:"queryFilter,omitempty"`
+
+	// SpanKind is the kind of span to query.
+	// +optional
+	SpanKind string `json:"spanKind,omitempty"`
 }
 
 // DatadogPodAutoscalerApmMetricsStat represents the statistic to compute for an APM metrics query.
