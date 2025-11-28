@@ -61,14 +61,20 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	depsStore, resourceManagers := r.setupDependencies(instance, logger)
 
 	var err error
-	// only manage dependencies for default DDAIs
+	// only manage global dependencies for default DDAIs (profile DDAIs should share these)
 	if !isDDAILabeledWithProfile(instance) {
 		if err = r.manageGlobalDependencies(logger, instance, resourceManagers, requiredComponents); err != nil {
 			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 		}
-		if err = r.manageFeatureDependencies(logger, enabledFeatures, resourceManagers); err != nil {
-			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
-		}
+	}
+
+	// Always manage feature dependencies (even for profile DDAIs, as features may differ between profiles)
+	if err = r.manageFeatureDependencies(logger, enabledFeatures, resourceManagers); err != nil {
+		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
+	}
+
+	// Only manage override dependencies for default DDAIs
+	if !isDDAILabeledWithProfile(instance) {
 		if err = r.overrideDependencies(logger, resourceManagers, instance); err != nil {
 			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 		}
@@ -104,12 +110,10 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	}
 
-	// 4. Apply and cleanup dependencies.
-	// only manage dependencies for default DDAIs
-	if !isDDAILabeledWithProfile(instance) {
-		if err = r.applyAndCleanupDependencies(ctx, logger, depsStore); err != nil {
-			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
-		}
+	// 4. Apply all dependencies.
+	// Always apply dependencies, even for profile DDAIs, as they may have feature-specific dependencies
+	if err = r.applyAndCleanupDependencies(ctx, logger, depsStore); err != nil {
+		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	}
 
 	// Always requeue
