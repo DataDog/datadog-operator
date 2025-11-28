@@ -1006,9 +1006,9 @@ spec:
                           properties:
                             injector:
                               description: |-
-                                App & API Protection Security Injector allows the agent to inject gateway/ingress configuration
-                                into the cluster to forward all requests to an external security processor app that scans, block and protect your entire cluster from malicious actors.
-                                Feature is in preview.
+                                App & API Protection Security Injector allows the Agent to inject gateway/ingress configuration into the cluster.
+                                With this configuration enabled, it forwards all requests to an external security processor app that scans, blocks, and protects your entire cluster from malicious actors.
+                                Feature is in Preview.
                                 Default Enabled: false
                               properties:
                                 autoDetect:
@@ -1045,7 +1045,7 @@ spec:
                                       type: object
                                   type: object
                                 proxies:
-                                  description: 'Proxies is a list of proxy types to inject. Valid values: "envoy-gateway", "istio".'
+                                  description: 'Proxies List of proxy types to inject. Valid values: "envoy-gateway", "istio".'
                                   items:
                                     type: string
                                   type: array

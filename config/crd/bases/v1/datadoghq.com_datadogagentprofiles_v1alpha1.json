@@ -998,7 +998,7 @@
                   "properties": {
                     "injector": {
                       "additionalProperties": false,
-                      "description": "App \u0026 API Protection Security Injector allows the agent to inject gateway/ingress configuration\ninto the cluster to forward all requests to an external security processor app that scans, block and protect your entire cluster from malicious actors.\nFeature is in preview.\nDefault Enabled: false",
+                      "description": "App \u0026 API Protection Security Injector allows the Agent to inject gateway/ingress configuration into the cluster.\nWith this configuration enabled, it forwards all requests to an external security processor app that scans, blocks, and protects your entire cluster from malicious actors.\nFeature is in Preview.\nDefault Enabled: false",
                       "properties": {
                         "autoDetect": {
                           "description": "AutoDetect enables auto-detection of supported proxies (Envoy Gateway, Istio).\nDefault: true",
@@ -1040,7 +1040,7 @@
                           "type": "object"
                         },
                         "proxies": {
-                          "description": "Proxies is a list of proxy types to inject. Valid values: \"envoy-gateway\", \"istio\".",
+                          "description": "Proxies List of proxy types to inject. Valid values: \"envoy-gateway\", \"istio\".",
                           "items": {
                             "type": "string"
                           },
