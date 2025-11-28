@@ -7,6 +7,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -16,6 +19,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 const alternativeRuntimeClass = "nvidia-like"
@@ -407,4 +412,85 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 	}
 
 	tests.Run(t, buildFeature)
+}
+
+func Test_GPUFeature_ManageDependencies(t *testing.T) {
+	logger := logf.Log.WithName("test")
+
+	tests := []struct {
+		name                 string
+		dda                  *v2alpha1.DatadogAgent
+		gpuFeature           *gpuFeature
+		wantSeccompConfigMap bool
+		wantConfigMapName    string
+	}{
+		{
+			name: "GPU privileged mode enabled - should create seccomp ConfigMap",
+			dda: &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dda",
+					Namespace: "default",
+				},
+			},
+			gpuFeature: &gpuFeature{
+				isPrivilegedModeEnabled: true,
+			},
+			wantSeccompConfigMap: true,
+			wantConfigMapName:    "test-dda-system-probe-seccomp",
+		},
+		{
+			name: "GPU privileged mode disabled - should not create seccomp ConfigMap",
+			dda: &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dda",
+					Namespace: "default",
+				},
+			},
+			gpuFeature: &gpuFeature{
+				isPrivilegedModeEnabled: false,
+			},
+			wantSeccompConfigMap: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set the owner in the feature
+			tt.gpuFeature.owner = tt.dda
+
+			// Create a fake store and managers
+			scheme := runtime.NewScheme()
+			_ = corev1.AddToScheme(scheme)
+			_ = v2alpha1.AddToScheme(scheme)
+			storeOptions := &store.StoreOptions{
+				Scheme: scheme,
+				Logger: logger,
+			}
+			depsStore := store.NewStore(tt.dda, storeOptions)
+			managers := feature.NewResourceManagers(depsStore)
+
+			// Call ManageDependencies
+			err := tt.gpuFeature.ManageDependencies(managers, "")
+			assert.NoError(t, err)
+
+			// Check if the ConfigMap was added to the store
+			if tt.wantSeccompConfigMap {
+				obj, found := depsStore.Get(kubernetes.ConfigMapKind, tt.dda.GetNamespace(), tt.wantConfigMapName)
+				assert.True(t, found, "Expected seccomp ConfigMap to be created")
+
+				if found {
+					cm := obj.(*corev1.ConfigMap)
+					assert.Equal(t, tt.wantConfigMapName, cm.Name)
+					assert.Equal(t, tt.dda.GetNamespace(), cm.Namespace)
+
+					// Check that it contains the seccomp profile
+					_, hasSeccompKey := cm.Data[common.SystemProbeSeccompKey]
+					assert.True(t, hasSeccompKey, "ConfigMap should contain system-probe-seccomp.json key")
+				}
+			} else {
+				_, found := depsStore.Get(kubernetes.ConfigMapKind, tt.dda.GetNamespace(), tt.wantConfigMapName)
+				assert.False(t, found, "Expected no seccomp ConfigMap to be created")
+			}
+		})
+	}
 }

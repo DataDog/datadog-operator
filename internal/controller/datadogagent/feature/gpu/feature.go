@@ -14,6 +14,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -27,6 +28,8 @@ func buildFeature(*feature.Options) feature.Feature {
 }
 
 type gpuFeature struct {
+	// owner is the DatadogAgent or DatadogAgentInternal object that owns this feature
+	owner metav1.Object
 	// podRuntimeClassName is the value to set in the runtimeClassName
 	// configuration of the agent pod. If this is empty, the runtimeClassName
 	// will not be changed.
@@ -42,11 +45,12 @@ func (f *gpuFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *gpuFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+func (f *gpuFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	if ddaSpec.Features == nil || ddaSpec.Features.GPU == nil || !apiutils.BoolValue(ddaSpec.Features.GPU.Enabled) {
 		return reqComp
 	}
 
+	f.owner = dda
 	f.isPrivilegedModeEnabled = apiutils.BoolValue(ddaSpec.Features.GPU.PrivilegedMode)
 	f.patchCgroupPermissions = apiutils.BoolValue(ddaSpec.Features.GPU.PatchCgroupPermissions)
 
@@ -77,6 +81,48 @@ func (f *gpuFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSp
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *gpuFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+	// When GPU privileged mode is enabled, system-probe container is required
+	// and needs the seccomp ConfigMap. Create it here as a feature dependency.
+	logger := managers.Store().Logger().WithName("gpu-feature")
+	logger.V(2).Info("ManageDependencies called",
+		"privilegedMode", f.isPrivilegedModeEnabled,
+		"hasOwner", f.owner != nil)
+
+	if f.isPrivilegedModeEnabled && f.owner != nil {
+		configMapName := common.GetDefaultSeccompConfigMapName(f.owner)
+		namespace := f.owner.GetNamespace()
+		logger.V(2).Info("Creating system-probe seccomp ConfigMap",
+			"name", configMapName,
+			"namespace", namespace)
+
+		// Create the system-probe seccomp ConfigMap with default profile
+		seccompConfigData := agent.DefaultSeccompConfigDataForSystemProbe()
+		if seccompConfigData != nil {
+			logger.V(2).Info("Got seccomp config data",
+				"dataKeys", len(seccompConfigData))
+
+			configMap := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      configMapName,
+					Namespace: namespace,
+				},
+				Data: seccompConfigData,
+			}
+			// Use Store().AddOrUpdate like kubernetesstatecore does
+			if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, configMap); err != nil {
+				logger.Error(err, "Failed to add ConfigMap to store")
+				return err
+			}
+			logger.Info("Successfully added system-probe seccomp ConfigMap to store",
+				"name", configMapName)
+		} else {
+			logger.V(2).Info("No seccomp config data returned")
+		}
+	} else {
+		logger.V(2).Info("Skipping seccomp ConfigMap creation",
+			"privilegedMode", f.isPrivilegedModeEnabled,
+			"hasOwner", f.owner != nil)
+	}
 	return nil
 }
 
