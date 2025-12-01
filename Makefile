@@ -313,7 +313,7 @@ lint: bin/$(PLATFORM)/golangci-lint vet ## Lint
 
 .PHONY: licenses
 licenses: bin/$(PLATFORM)/go-licenses
-	./bin/$(PLATFORM)/go-licenses report ./cmd --template ./hack/licenses.tpl > LICENSE-3rdparty.csv 2> errors
+	CGO_ENABLED=1 GOOS=linux ./bin/$(PLATFORM)/go-licenses report ./cmd --template ./hack/licenses.tpl > LICENSE-3rdparty.csv 2> errors
 
 .PHONY: verify-licenses
 verify-licenses: bin/$(PLATFORM)/go-licenses ## Verify licenses
