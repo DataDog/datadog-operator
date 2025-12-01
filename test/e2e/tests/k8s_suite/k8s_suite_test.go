@@ -8,26 +8,24 @@ package k8ssuite
 import (
 	"context"
 	"fmt"
-
-	"github.com/DataDog/datadog-agent/test/fakeintake/aggregator"
-	"github.com/DataDog/datadog-agent/test/fakeintake/client"
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
-	"github.com/DataDog/datadog-operator/test/e2e/common"
-	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
-	"github.com/DataDog/datadog-operator/test/e2e/tests/utils"
-
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/DataDog/datadog-agent/test/fakeintake/aggregator"
+	"github.com/DataDog/datadog-agent/test/fakeintake/client"
+	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
+	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
+	"github.com/DataDog/datadog-operator/test/e2e/common"
+	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
+	"github.com/DataDog/datadog-operator/test/e2e/tests/utils"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agentwithoperatorparams"
 	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -129,6 +127,45 @@ func (s *k8sSuite) TestGenericK8s() {
 
 	})
 
+	s.T().Run("Autodiscovery works", func(t *testing.T) {
+		nginxManifestPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "autodiscovery-annotation.yaml"))
+		require.NoError(s.T(), err)
+
+		kubeClient := s.Env().KubernetesCluster.KubernetesClient
+		err = utils.ApplyManifestFile(t.Context(), kubeClient, nginxManifestPath, common.NamespaceName)
+		require.NoError(s.T(), err)
+
+		t.Cleanup(func() {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
+			_ = utils.DeleteManifestFile(ctx, kubeClient, nginxManifestPath, common.NamespaceName)
+		})
+
+		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
+		s.Assert().NoError(err)
+
+		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
+			utils.VerifyNumPodsForSelector(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), 1, "app=nginx")
+
+			selector := common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-minimum"
+			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), selector)
+
+			agentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{
+				LabelSelector: selector,
+				FieldSelector: "status.phase=Running",
+			})
+			assert.NoError(c, err)
+
+			for _, pod := range agentPods.Items {
+				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "collector", "-j"})
+				assert.NoError(c, err)
+				utils.VerifyCheck(c, output, "http_check")
+			}
+
+			s.verifyHTTPCheck(c)
+		}, 15*time.Minute, 15*time.Second, "could not validate http_check in time")
+	})
+
 	s.T().Run("KSM check works cluster check runner", func(t *testing.T) {
 		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-ccr-enabled.yaml"))
 		assert.NoError(s.T(), err)
@@ -170,50 +207,6 @@ func (s *k8sSuite) TestGenericK8s() {
 
 			s.verifyKSMCheck(c, "kubernetes_state_customresource.uptodateagents")
 		}, 15*time.Minute, 15*time.Second, "could not validate kubernetes_state_core (cluster check on CCR) check in time")
-	})
-
-	s.T().Run("Autodiscovery works", func(t *testing.T) {
-		ddaConfigPath, err := common.GetAbsPath(common.DdaMinimalPath)
-		assert.NoError(s.T(), err)
-
-		ddaOpts := []agentwithoperatorparams.Option{
-			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{Name: "dda-autodiscovery", YamlFilePath: ddaConfigPath}),
-		}
-		ddaOpts = append(ddaOpts, defaultDDAOpts...)
-
-		provisionerOptions := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-autodiscovery"),
-			provisioners.WithDDAOptions(ddaOpts...),
-			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{Name: "nginx", Path: strings.Join([]string{common.ManifestsPath, "autodiscovery-annotation.yaml"}, "/")}),
-			provisioners.WithLocal(s.local),
-		}
-		provisionerOptions = append(provisionerOptions, defaultProvisionerOpts...)
-
-		// Add nginx with annotations
-		s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
-
-		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
-		s.Assert().NoError(err)
-
-		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
-			utils.VerifyNumPodsForSelector(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), 1, "app=nginx")
-
-			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), common.NodeAgentSelector+",agent.datadoghq.com/name=dda-autodiscovery")
-
-			// check agent pods for http check
-			agentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-autodiscovery",
-				FieldSelector: "status.phase=Running"})
-			assert.NoError(c, err)
-
-			for _, pod := range agentPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "collector", "-j"})
-				assert.NoError(c, err)
-
-				utils.VerifyCheck(c, output, "http_check")
-			}
-
-			s.verifyHTTPCheck(c)
-		}, 900*time.Second, 15*time.Second, "could not validate http_check in time")
 	})
 
 	s.T().Run("Logs collection works", func(t *testing.T) {
