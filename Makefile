@@ -313,7 +313,13 @@ lint: bin/$(PLATFORM)/golangci-lint vet ## Lint
 
 .PHONY: licenses
 licenses: bin/$(PLATFORM)/go-licenses
-	./bin/$(PLATFORM)/go-licenses report ./cmd --template ./hack/licenses.tpl > LICENSE-3rdparty.csv 2> errors
+	# Generate licenses for all target platforms (linux/darwin/windows)
+	GOOS=linux ./bin/$(PLATFORM)/go-licenses report ./cmd ./cmd/kubectl-datadog ./cmd/check-operator ./cmd/helpers ./cmd/yaml-mapper --template ./hack/licenses.tpl > /tmp/licenses-linux.csv 2> errors
+	GOOS=darwin ./bin/$(PLATFORM)/go-licenses report ./cmd ./cmd/kubectl-datadog ./cmd/check-operator ./cmd/helpers ./cmd/yaml-mapper --template ./hack/licenses.tpl > /tmp/licenses-darwin.csv 2>> errors
+	GOOS=windows ./bin/$(PLATFORM)/go-licenses report ./cmd ./cmd/kubectl-datadog ./cmd/check-operator ./cmd/helpers ./cmd/yaml-mapper --template ./hack/licenses.tpl > /tmp/licenses-windows.csv 2>> errors
+	# Merge all platform-specific licenses into a single sorted file
+	head -1 /tmp/licenses-linux.csv > LICENSE-3rdparty.csv
+	tail -n +2 /tmp/licenses-linux.csv /tmp/licenses-darwin.csv /tmp/licenses-windows.csv | grep -v "^==>" | grep -v "^$$" | LC_ALL=C sort -u >> LICENSE-3rdparty.csv
 
 .PHONY: verify-licenses
 verify-licenses: bin/$(PLATFORM)/go-licenses ## Verify licenses
