@@ -252,9 +252,6 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentCon
 			Name:  DDDogstatsdOriginDetectionClient,
 			Value: "true",
 		})
-		if f.udsEnabled {
-			managers.PodTemplateSpec().Spec.HostPID = true
-		}
 		// Tag cardinality is only configured if origin detection is enabled.
 		// The value validation happens at the Agent level - if the lower(string) is not `low`, `orchestrator` or `high`, the Agent defaults to `low`.
 		if f.tagCardinality != "" {

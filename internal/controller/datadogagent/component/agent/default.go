@@ -53,6 +53,15 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, agentComponent feature.Re
 		agentContainers = agentOptimizedContainers(dda, requiredContainers)
 	}
 
+	// Check if system-probe container is required, and enable HostPID if so
+	hostPID := false
+	for _, containerName := range requiredContainers {
+		if containerName == apicommon.SystemProbeContainerName {
+			hostPID = true
+			break
+		}
+	}
+
 	return &corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:      labels,
@@ -67,6 +76,7 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, agentComponent feature.Re
 			InitContainers:     initContainers(dda, requiredContainers),
 			Containers:         agentContainers,
 			Volumes:            volumesForAgent(dda, requiredContainers),
+			HostPID:            hostPID,
 		},
 	}
 }
