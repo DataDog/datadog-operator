@@ -250,7 +250,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgent(ref common.Refe
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogAgent Deployment with the Datadog Operator.",
+				Description: "DatadogAgent defines Agent configuration, see reference https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
