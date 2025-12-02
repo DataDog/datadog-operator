@@ -88,10 +88,19 @@ func VerifyAgentPodLogs(c *assert.CollectT, collectorOutput string) {
 		assert.True(c, ok)
 		assert.NotEmpty(c, agentLogs)
 		for _, log := range agentLogs {
-			if integration, integrationOk := log.(map[string]interface{})["sources"].([]interface{})[0].(map[string]interface{}); integrationOk {
+			sources, sourcesOk := log.(map[string]interface{})["sources"].([]interface{})
+			if !sourcesOk || len(sources) == 0 {
+				continue
+			}
+
+			if integration, integrationOk := sources[0].(map[string]interface{}); integrationOk {
 				messages, exists := integration["messages"].([]interface{})
 				assert.True(c, exists)
 				assert.NotEmpty(c, messages)
+
+				if len(messages) == 0 {
+					continue
+				}
 
 				message, msgOk := messages[0].(string)
 				assert.True(c, msgOk)

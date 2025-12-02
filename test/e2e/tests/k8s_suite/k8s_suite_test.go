@@ -252,7 +252,7 @@ func (s *k8sSuite) TestGenericK8s() {
 			}
 
 			s.verifyAPILogs()
-		}, 900*time.Second, 15*time.Second, "could not valid logs collection in time")
+		}, 900*time.Second, 15*time.Second, "could not validate logs collection in time")
 	})
 
 	s.T().Run("APM hostPort k8s service UDP works", func(t *testing.T) {
