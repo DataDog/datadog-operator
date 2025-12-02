@@ -8,7 +8,6 @@ package agent
 import (
 	"fmt"
 	"path/filepath"
-	"slices"
 	"strconv"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -54,9 +53,6 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, agentComponent feature.Re
 		agentContainers = agentOptimizedContainers(dda, requiredContainers)
 	}
 
-	// Check if system-probe container is required, and enable HostPID if so
-	hostPID := slices.Contains(requiredContainers, apicommon.SystemProbeContainerName)
-
 	return &corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:      labels,
@@ -71,7 +67,6 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, agentComponent feature.Re
 			InitContainers:     initContainers(dda, requiredContainers),
 			Containers:         agentContainers,
 			Volumes:            volumesForAgent(dda, requiredContainers),
-			HostPID:            hostPID,
 		},
 	}
 }
