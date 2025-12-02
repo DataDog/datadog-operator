@@ -56,6 +56,7 @@ const (
 	DatadogMetricsStatusResource        = "datadogmetrics/status"
 	DatadogPodAutoscalersResource       = "datadogpodautoscalers"
 	DatadogPodAutoscalersStatusResource = "datadogpodautoscalers/status"
+	DatadogServiceMonitorsResource      = "datadogservicemonitors"
 	DeploymentsResource                 = "deployments"
 	EndpointsResource                   = "endpoints"
 	EndpointsSlicesResource             = "endpointslices"
