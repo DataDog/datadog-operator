@@ -289,6 +289,8 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					assert.True(t, mgr.Tpl.Spec.HostPID, "13. Host PID \ndiff = %s", cmp.Diff(mgr.Tpl.Spec.HostPID, true))
 					assertWants(t, mgrInterface, "13", getWantVolumeMounts(), getWantVolumes(), []*corev1.EnvVar{getOriginDetectionEnvVar(), getOriginDetectionClientEnvVar(), getNonLocalTrafficEnvVar()}, getWantUDSEnvVars(), getWantContainerPorts())
 				},
 			),
