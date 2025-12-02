@@ -63,23 +63,27 @@ func (s *k8sSuite) TestGenericK8s() {
 		}, 300*time.Second, 15*time.Second, "Could not validate operator pod in time")
 	})
 
-	s.T().Run("Minimal DDA config", func(t *testing.T) {
-		ddaConfigPath, err := common.GetAbsPath(common.DdaMinimalPath)
+	s.T().Run("Deploy comprehensive DDA", func(t *testing.T) {
+		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-comprehensive.yaml"))
 		assert.NoError(s.T(), err)
 
 		ddaOpts := []agentwithoperatorparams.Option{
 			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
-				Name:         "dda-minimum",
+				Name:         "datadog-comprehensive",
 				YamlFilePath: ddaConfigPath,
 			}),
 		}
 		ddaOpts = append(ddaOpts, defaultDDAOpts...)
 
 		provisionerOptions := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-minimal-dda"),
+			provisioners.WithTestName("e2e-operator-comprehensive"),
 			provisioners.WithK8sVersion(common.K8sVersion),
 			provisioners.WithOperatorOptions(defaultOperatorOpts...),
 			provisioners.WithDDAOptions(ddaOpts...),
+			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{
+				Name: "nginx",
+				Path: strings.Join([]string{common.ManifestsPath, "autodiscovery-annotation.yaml"}, "/"),
+			}),
 			provisioners.WithLocal(s.local),
 		}
 
@@ -88,11 +92,27 @@ func (s *k8sSuite) TestGenericK8s() {
 		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 		s.Assert().NoError(err)
 
+		// Wait for all pods to be ready
 		s.Assert().EventuallyWithT(func(c *assert.CollectT) {
-			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), common.NodeAgentSelector+",agent.datadoghq.com/name=dda-minimum")
-			utils.VerifyNumPodsForSelector(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), 1, common.ClusterAgentSelector+",agent.datadoghq.com/name=dda-minimum")
+			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(),
+				common.NodeAgentSelector+",agent.datadoghq.com/name=datadog-comprehensive")
 
-			agentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-minimum",
+			utils.VerifyNumPodsForSelector(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), 1,
+				common.ClusterAgentSelector+",agent.datadoghq.com/name=datadog-comprehensive")
+
+			utils.VerifyNumPodsForSelector(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), 1,
+				common.ClusterCheckRunnerSelector+",agent.datadoghq.com/name=datadog-comprehensive")
+
+			utils.VerifyNumPodsForSelector(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), 1,
+				"app=nginx")
+		}, 10*time.Minute, 15*time.Second, "Pods not ready")
+	})
+
+	s.T().Run("Kubelet check works", func(t *testing.T) {
+
+		s.Assert().EventuallyWithT(func(c *assert.CollectT) {
+			agentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{
+				LabelSelector: common.NodeAgentSelector + ",agent.datadoghq.com/name=datadog-comprehensive",
 				FieldSelector: "status.phase=Running"})
 			assert.NoError(s.T(), err)
 
@@ -114,8 +134,14 @@ func (s *k8sSuite) TestGenericK8s() {
 					s.Assert().Greater(points.Value, float64(0))
 				}
 			}
+		}, 10*time.Minute, 30*time.Second, "could not validate kubelet check in time")
 
-			clusterAgentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: common.ClusterAgentSelector + ",agent.datadoghq.com/e2e-test=datadog-agent-minimum"})
+	})
+
+	s.T().Run("KSM check works cluster check runner", func(t *testing.T) {
+		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
+			clusterAgentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{
+				LabelSelector: common.ClusterAgentSelector + ",agent.datadoghq.com/name=datadog-comprehensive"})
 			assert.NoError(s.T(), err)
 
 			for _, pod := range clusterAgentPods.Items {
@@ -125,41 +151,9 @@ func (s *k8sSuite) TestGenericK8s() {
 			}
 
 			s.verifyKSMCheck(c)
-		}, 10*time.Minute, 30*time.Second, "could not validate KSM (cluster check) metrics in time")
 
-	})
-
-	s.T().Run("KSM check works cluster check runner", func(t *testing.T) {
-		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-ccr-enabled.yaml"))
-		assert.NoError(s.T(), err)
-
-		ddaOpts := []agentwithoperatorparams.Option{
-			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
-				Name:         "datadog-ccr-enabled",
-				YamlFilePath: ddaConfigPath,
-			}),
-		}
-		ddaOpts = append(ddaOpts, defaultDDAOpts...)
-
-		provisionerOptions := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-ksm-ccr"),
-			provisioners.WithK8sVersion(common.K8sVersion),
-			provisioners.WithOperatorOptions(defaultOperatorOpts...),
-			provisioners.WithDDAOptions(ddaOpts...),
-			provisioners.WithLocal(s.local),
-		}
-
-		s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
-
-		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
-		s.Assert().NoError(err)
-
-		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
-			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), "app.kubernetes.io/instance=datadog-ccr-enabled-agent")
-
-			utils.VerifyNumPodsForSelector(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), 1, "app.kubernetes.io/instance=datadog-ccr-enabled-cluster-checks-runner")
-
-			ccrPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: "app.kubernetes.io/instance=datadog-ccr-enabled-cluster-checks-runner"})
+			ccrPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{
+				LabelSelector: common.ClusterCheckRunnerSelector + ",agent.datadoghq.com/name=datadog-comprehensive"})
 			assert.NoError(s.T(), err)
 
 			for _, ccr := range ccrPods.Items {
@@ -169,39 +163,15 @@ func (s *k8sSuite) TestGenericK8s() {
 			}
 
 			s.verifyKSMCheck(c, "kubernetes_state_customresource.uptodateagents")
-		}, 15*time.Minute, 15*time.Second, "could not validate kubernetes_state_core (cluster check on CCR) check in time")
+		}, 15*time.Minute, 15*time.Second, "could not validate kubernetes_state_core check in time")
 	})
 
 	s.T().Run("Autodiscovery works", func(t *testing.T) {
-		ddaConfigPath, err := common.GetAbsPath(common.DdaMinimalPath)
-		assert.NoError(s.T(), err)
-
-		ddaOpts := []agentwithoperatorparams.Option{
-			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{Name: "dda-autodiscovery", YamlFilePath: ddaConfigPath}),
-		}
-		ddaOpts = append(ddaOpts, defaultDDAOpts...)
-
-		provisionerOptions := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-autodiscovery"),
-			provisioners.WithDDAOptions(ddaOpts...),
-			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{Name: "nginx", Path: strings.Join([]string{common.ManifestsPath, "autodiscovery-annotation.yaml"}, "/")}),
-			provisioners.WithLocal(s.local),
-		}
-		provisionerOptions = append(provisionerOptions, defaultProvisionerOpts...)
-
-		// Add nginx with annotations
-		s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
-
-		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
-		s.Assert().NoError(err)
-
 		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
 			utils.VerifyNumPodsForSelector(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), 1, "app=nginx")
 
-			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), common.NodeAgentSelector+",agent.datadoghq.com/name=dda-autodiscovery")
-
-			// check agent pods for http check
-			agentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-autodiscovery",
+			agentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{
+				LabelSelector: common.NodeAgentSelector + ",agent.datadoghq.com/name=datadog-comprehensive",
 				FieldSelector: "status.phase=Running"})
 			assert.NoError(c, err)
 
@@ -217,32 +187,15 @@ func (s *k8sSuite) TestGenericK8s() {
 	})
 
 	s.T().Run("Logs collection works", func(t *testing.T) {
-		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-logs.yaml"))
-		assert.NoError(s.T(), err)
-
-		ddaOpts := []agentwithoperatorparams.Option{
-			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
-				Name:         "datadog-agent-logs",
-				YamlFilePath: ddaConfigPath,
-			}),
-		}
-		ddaOpts = append(ddaOpts, defaultDDAOpts...)
-
-		provisionerOptions := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-logs-collection"),
-			provisioners.WithK8sVersion(common.K8sVersion),
-			provisioners.WithOperatorOptions(defaultOperatorOpts...),
-			provisioners.WithDDAOptions(ddaOpts...),
-			provisioners.WithLocal(s.local),
-		}
-
-		s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
-
-		// Verify logs collection on agent pod
+		// Verify logs collection on agent pod using comprehensive DDA
 		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
-			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), "app.kubernetes.io/instance=datadog-agent-logs-agent")
+			// Verify agent pods are running with comprehensive DDA
+			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(),
+				common.NodeAgentSelector+",agent.datadoghq.com/name=datadog-comprehensive")
 
-			agentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: "app.kubernetes.io/instance=datadog-agent-logs-agent"})
+			agentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{
+				LabelSelector: common.NodeAgentSelector + ",agent.datadoghq.com/name=datadog-comprehensive",
+			})
 			assert.NoError(c, err)
 
 			for _, pod := range agentPods.Items {
