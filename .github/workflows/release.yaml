@@ -32,7 +32,7 @@ jobs:
         uses: little-core-labs/get-git-tag@2c292ff564c1a61b989e29f0410d131317f89b03 # v3.0.2
         id: tag
       - name: Set up Go
-        uses: actions/setup-go@dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Get Latest Release
@@ -74,7 +74,7 @@ jobs:
         uses: little-core-labs/get-git-tag@2c292ff564c1a61b989e29f0410d131317f89b03 # v3.0.2
         id: tag
       - name: Set up Go
-        uses: actions/setup-go@dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Get Latest Release
@@ -114,7 +114,7 @@ jobs:
         uses: little-core-labs/get-git-tag@2c292ff564c1a61b989e29f0410d131317f89b03 # v3.0.2
         id: tag
       - name: Set up Go
-        uses: actions/setup-go@dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Get Latest Release
