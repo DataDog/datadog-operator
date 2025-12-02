@@ -84,7 +84,12 @@ func VerifyAgentPodLogs(c *assert.CollectT, collectorOutput string) {
 	tailedIntegrations := 0
 	if logsJson != nil {
 		var ok bool
-		agentLogs, ok = logsJson["logsStats"].(map[string]interface{})["integrations"].([]interface{})
+		logsStats, logsStatsOk := logsJson["logsStats"].(map[string]interface{})
+		if !logsStatsOk {
+			assert.Fail(c, "logsStats field is not a map or is nil")
+			return
+		}
+		agentLogs, ok = logsStats["integrations"].([]interface{})
 		assert.True(c, ok)
 		assert.NotEmpty(c, agentLogs)
 		for _, log := range agentLogs {
