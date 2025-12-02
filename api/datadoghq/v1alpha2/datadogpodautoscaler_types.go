@@ -212,7 +212,7 @@ type HorizontalFallbackTriggers struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:shortName=dpa
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Apply Mode",type="string",JSONPath=".spec.policy.applyMode"
+// +kubebuilder:printcolumn:name="Apply Mode",type="string",JSONPath=".spec.applyPolicy.mode"
 // +kubebuilder:printcolumn:name="Active",type="string",JSONPath=".status.conditions[?(@.type=='Active')].status"
 // +kubebuilder:printcolumn:name="In Error",type="string",JSONPath=".status.conditions[?(@.type=='Error')].status"
 // +kubebuilder:printcolumn:name="Desired Replicas",type="integer",JSONPath=".status.horizontal.target.desiredReplicas"
