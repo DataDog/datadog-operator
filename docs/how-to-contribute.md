@@ -122,9 +122,6 @@ go work use . ./test/e2e
 # Run E2E tests and destroy environment stacks after tests complete.
 $ aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests
 
-# Run a specific E2E test
-$ E2E_RUN_REGEX="TestLocalKindSuite/TestGenericK8s/Logs_collection_works" aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests
-
 # Run E2E tests with K8S_VERSION and IMG environment variables.
 $ K8S_VERSION=1.25 IMG=your-dockerhub/operator:tag aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests
 
