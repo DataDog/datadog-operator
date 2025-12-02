@@ -135,7 +135,7 @@ func (s *k8sSuite) TestGenericK8s() {
 
 		ddaOpts := []agentwithoperatorparams.Option{
 			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
-				Name:         "dda-minimum",
+				Name:         "datadog-ccr-enabled",
 				YamlFilePath: ddaConfigPath,
 			}),
 		}
