@@ -19,8 +19,7 @@ var (
 	ImgPullPassword   = GetEnv("IMAGE_PULL_PASSWORD", "")
 	OperatorImageName = GetEnv("IMG", "")
 
-	DdaMinimalPath = filepath.Join(ManifestsPath, "datadog-agent-minimum.yaml")
-	ManifestsPath  = filepath.Join(ProjectRootPath, "test/e2e/manifests/new_manifests")
+	ManifestsPath = filepath.Join(ProjectRootPath, "test/e2e/manifests")
 
 	ProjectRootPath = projectRoot()
 )
