@@ -9,6 +9,9 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+    labels:
+      - tooling
+      - qa/skip-qa
     groups:
       gh-actions-packages:
         patterns:
