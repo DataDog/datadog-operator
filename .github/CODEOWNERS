@@ -21,5 +21,7 @@ README.md               @DataDog/documentation @DataDog/container-ecosystems
 /internal/controller/datadogagent/feature/helmcheck/*              @DataDog/container-integrations
 /internal/controller/datadogagent/feature/autoscaling/*            @DataDog/container-autoscaling
 
-
 /api/**/datadogpodautoscaler*.go              @DataDog/container-autoscaling
+
+# kubectl plugin
+/cmd/kubectl-datadog/autoscaling/             @DataDog/container-autoscaling
