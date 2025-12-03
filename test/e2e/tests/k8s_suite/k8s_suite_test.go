@@ -133,6 +133,7 @@ func (s *k8sSuite) TestGenericK8s() {
 		// Reuse the dda-minimum DDA, just add nginx workload
 		provisionerOptions := []provisioners.KubernetesProvisionerOption{
 			provisioners.WithTestName("e2e-operator-autodiscovery"),
+			provisioners.WithoutDDA(),
 			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{Name: "nginx", Path: strings.Join([]string{common.ManifestsPath, "autodiscovery-annotation.yaml"}, "/")}),
 			provisioners.WithLocal(s.local),
 		}
