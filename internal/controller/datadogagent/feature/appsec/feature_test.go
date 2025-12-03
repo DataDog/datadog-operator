@@ -9,8 +9,6 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
@@ -52,24 +50,22 @@ func assertEnv(envVars ...envVar) *test.ComponentTest {
 }
 
 func TestAppsecFeature(t *testing.T) {
-	port443 := int32(443)
-	autoDetectTrue := true
-	processorAddress := "processor.example.com"
-	serviceName := "appsec-processor"
-	serviceNamespace := "datadog"
-
 	test.FeatureTestSuite{
 		{
 			Name: "Appsec not enabled",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithAppsecEnabled(false).
 				Build(),
 			WantConfigure: false,
 		},
 		{
 			Name: "Appsec enabled with minimal config",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithAppsecConfig(true, apiutils.NewBoolPointer(true), nil, nil, nil, nil, nil).
+				WithClusterAgentTag("7.73.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:            "true",
+					AnnotationInjectorAutoDetect:         "true",
+					AnnotationInjectorProcessorServiceName: "appsec-processor",
+				}).
 				Build(),
 
 			WantConfigure: true,
@@ -82,7 +78,12 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with autoDetect true",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithAppsecConfig(true, &autoDetectTrue, nil, nil, nil, nil, nil).
+				WithClusterAgentTag("7.73.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:            "true",
+					AnnotationInjectorAutoDetect:         "true",
+					AnnotationInjectorProcessorServiceName: "appsec-processor",
+				}).
 				Build(),
 
 			WantConfigure: true,
@@ -95,7 +96,13 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with autoDetect false",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithAppsecConfig(true, apiutils.NewBoolPointer(false), []string{"envoy-gateway"}, nil, nil, nil, nil).
+				WithClusterAgentTag("7.73.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:            "true",
+					AnnotationInjectorAutoDetect:         "false",
+					AnnotationInjectorProxies:            `["envoy-gateway"]`,
+					AnnotationInjectorProcessorServiceName: "appsec-processor",
+				}).
 				Build(),
 
 			WantConfigure: true,
@@ -109,7 +116,12 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with proxies list",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithAppsecConfig(true, nil, []string{"envoy-gateway", "istio"}, nil, nil, nil, nil).
+				WithClusterAgentTag("7.73.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:            "true",
+					AnnotationInjectorProxies:            `["envoy-gateway","istio"]`,
+					AnnotationInjectorProcessorServiceName: "appsec-processor",
+				}).
 				Build(),
 
 			WantConfigure: true,
@@ -122,7 +134,13 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with processor port",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithAppsecConfig(true, apiutils.NewBoolPointer(true), nil, &port443, nil, nil, nil).
+				WithClusterAgentTag("7.73.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:            "true",
+					AnnotationInjectorAutoDetect:         "true",
+					AnnotationInjectorProcessorPort:      "443",
+					AnnotationInjectorProcessorServiceName: "appsec-processor",
+				}).
 				Build(),
 
 			WantConfigure: true,
@@ -136,7 +154,13 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with processor address",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithAppsecConfig(true, apiutils.NewBoolPointer(true), nil, nil, &processorAddress, nil, nil).
+				WithClusterAgentTag("7.73.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:            "true",
+					AnnotationInjectorAutoDetect:         "true",
+					AnnotationInjectorProcessorAddress:   "processor.example.com",
+					AnnotationInjectorProcessorServiceName: "appsec-processor",
+				}).
 				Build(),
 
 			WantConfigure: true,
@@ -150,7 +174,13 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with processor service name and namespace",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithAppsecConfig(true, apiutils.NewBoolPointer(true), nil, nil, nil, &serviceName, &serviceNamespace).
+				WithClusterAgentTag("7.73.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:                    "true",
+					AnnotationInjectorAutoDetect:                 "true",
+					AnnotationInjectorProcessorServiceName:       "appsec-processor",
+					AnnotationInjectorProcessorServiceNamespace:  "datadog",
+				}).
 				Build(),
 
 			WantConfigure: true,
@@ -165,15 +195,16 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with full config",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithAppsecConfig(
-					true,
-					apiutils.NewBoolPointer(true),
-					[]string{"envoy-gateway", "istio"},
-					apiutils.NewInt32Pointer(443),
-					apiutils.NewStringPointer("processor.example.com"),
-					apiutils.NewStringPointer("appsec-processor"),
-					apiutils.NewStringPointer("datadog"),
-				).
+				WithClusterAgentTag("7.73.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:                    "true",
+					AnnotationInjectorAutoDetect:                 "true",
+					AnnotationInjectorProxies:                    `["envoy-gateway","istio"]`,
+					AnnotationInjectorProcessorPort:              "443",
+					AnnotationInjectorProcessorAddress:           "processor.example.com",
+					AnnotationInjectorProcessorServiceName:       "appsec-processor",
+					AnnotationInjectorProcessorServiceNamespace:  "datadog",
+				}).
 				Build(),
 
 			WantConfigure: true,
@@ -198,76 +229,58 @@ func TestAppsecFeatureID(t *testing.T) {
 
 func TestAppsecFeatureConfigure(t *testing.T) {
 	tests := []struct {
-		name              string
-		ddaSpec           *v2alpha1.DatadogAgentSpec
-		wantEnabled       bool
-		wantClusterAgent  bool
-		wantAutoDetect    *bool
-		wantProxies       []string
-		wantProcessorPort *int32
+		name             string
+		annotations      map[string]string
+		wantEnabled      bool
+		wantClusterAgent bool
+		wantAutoDetect   *bool
+		wantProxies      []string
+		wantProcessorPort int
 	}{
 		{
-			name: "Appsec Injector enabled false",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled: apiutils.NewBoolPointer(false),
-						},
-					},
-				},
-			},
+			name:             "Appsec Injector not enabled",
+			annotations:      map[string]string{},
 			wantEnabled:      false,
 			wantClusterAgent: false,
 		},
 		{
 			name: "Appsec enabled with RequiredComponents",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled:    apiutils.NewBoolPointer(true),
-							AutoDetect: apiutils.NewBoolPointer(true),
-						},
-					},
-				},
+			annotations: map[string]string{
+				AnnotationInjectorEnabled:            "true",
+				AnnotationInjectorAutoDetect:         "true",
+				AnnotationInjectorProcessorServiceName: "appsec-processor",
 			},
 			wantEnabled:      true,
 			wantClusterAgent: true,
 		},
 		{
 			name: "Appsec with all configs",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled:    apiutils.NewBoolPointer(true),
-							AutoDetect: apiutils.NewBoolPointer(true),
-							Proxies:    []string{"envoy-gateway", "istio"},
-							Processor: &v2alpha1.AppsecProcessorConfig{
-								Port: apiutils.NewInt32Pointer(443),
-							},
-						},
-					},
-				},
+			annotations: map[string]string{
+				AnnotationInjectorEnabled:            "true",
+				AnnotationInjectorAutoDetect:         "true",
+				AnnotationInjectorProxies:            `["envoy-gateway","istio"]`,
+				AnnotationInjectorProcessorPort:      "443",
+				AnnotationInjectorProcessorServiceName: "appsec-processor",
 			},
 			wantEnabled:       true,
 			wantClusterAgent:  true,
-			wantAutoDetect:    apiutils.NewBoolPointer(true),
+			wantAutoDetect:    boolPtr(true),
 			wantProxies:       []string{"envoy-gateway", "istio"},
-			wantProcessorPort: apiutils.NewInt32Pointer(443),
+			wantProcessorPort: 443,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dda := testutils.NewDatadogAgentBuilder().Build()
-			dda.Spec = *tt.ddaSpec
+			dda := testutils.NewDatadogAgentBuilder().
+				WithClusterAgentTag("7.73.0").
+				WithAnnotations(tt.annotations).
+				Build()
 
 			f := buildAppsecFeature(nil).(*appsecFeature)
-			reqComp := f.Configure(dda, tt.ddaSpec, nil)
+			reqComp := f.Configure(dda, &dda.Spec, nil)
 
-			assert.Equal(t, tt.wantEnabled, f.enabled)
+			assert.Equal(t, tt.wantEnabled, f.config.Enabled)
 
 			if tt.wantClusterAgent {
 				assert.NotNil(t, reqComp.ClusterAgent.IsRequired)
@@ -280,372 +293,330 @@ func TestAppsecFeatureConfigure(t *testing.T) {
 			}
 
 			if tt.wantAutoDetect != nil {
-				assert.Equal(t, tt.wantAutoDetect, f.autoDetect)
+				assert.Equal(t, tt.wantAutoDetect, f.config.AutoDetect)
 			}
 
 			if tt.wantProxies != nil {
-				assert.Equal(t, tt.wantProxies, f.proxies)
+				assert.Equal(t, tt.wantProxies, f.config.Proxies)
 			}
 
-			if tt.wantProcessorPort != nil {
-				assert.Equal(t, tt.wantProcessorPort, f.processorPort)
+			if tt.wantProcessorPort != 0 {
+				assert.Equal(t, tt.wantProcessorPort, f.config.ProcessorPort)
 			}
 		})
 	}
 }
 
-func TestAppsecFeatureManageDependenciesDisabled(t *testing.T) {
-	// Test that ManageDependencies returns nil when feature is disabled
+func TestAppsecFeatureManageClusterAgentDisabled(t *testing.T) {
+	// Test that ManageClusterAgent does nothing when feature is disabled
 	dda := testutils.NewDatadogAgentBuilder().
-		WithAppsecEnabled(false).
 		Build()
 
 	f := buildAppsecFeature(nil).(*appsecFeature)
 	f.Configure(dda, &dda.Spec, nil)
 
-	// ManageDependencies should return nil when disabled without calling RBACManager
-	assert.False(t, f.enabled, "Feature should not be enabled")
+	mgr := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+	err := f.ManageClusterAgent(mgr, "")
+
+	assert.NoError(t, err)
+	envVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+	assert.Empty(t, envVars)
 }
 
-func TestAppsecFeatureManageDependenciesEnabled(t *testing.T) {
-	// Test that ManageDependencies is called when feature is enabled (tested via test suite)
-	tests := test.FeatureTestSuite{
-		{
-			Name: "ManageDependencies when enabled",
-			DDA: func() *v2alpha1.DatadogAgent {
-				dda := testutils.NewDatadogAgentBuilder().
-					WithAppsecConfig(true, apiutils.NewBoolPointer(true), nil, nil, nil, nil, nil).
-					Build()
-				dda.Name = "datadog"
-				dda.Namespace = "test-namespace"
-				return dda
-			}(),
-			WantConfigure: true,
-			// The test framework will call ManageDependencies and verify no error is returned
-		},
+func TestAppsecFeatureManageClusterAgentEnabled(t *testing.T) {
+	// Test that ManageClusterAgent adds env vars when feature is enabled
+	dda := testutils.NewDatadogAgentBuilder().
+				WithClusterAgentTag("7.73.0").
+		WithAnnotations(map[string]string{
+			AnnotationInjectorEnabled:            "true",
+			AnnotationInjectorAutoDetect:         "true",
+			AnnotationInjectorProcessorServiceName: "appsec-processor",
+		}).
+		Build()
+
+	f := buildAppsecFeature(nil).(*appsecFeature)
+	f.Configure(dda, &dda.Spec, nil)
+
+	mgr := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+	err := f.ManageClusterAgent(mgr, "")
+
+	assert.NoError(t, err)
+	envVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+	assert.NotEmpty(t, envVars)
+
+	// Check that required env vars are set
+	envMap := make(map[string]string)
+	for _, env := range envVars {
+		envMap[env.Name] = env.Value
 	}
 
-	tests.Run(t, buildAppsecFeature)
+	assert.Equal(t, "true", envMap[DDAppsecProxyEnabled])
+	assert.Equal(t, "true", envMap[DDClusterAgentAppsecInjectorEnabled])
+	assert.Equal(t, "true", envMap[DDAppsecProxyAutoDetect])
 }
 
-func TestAppsecFeatureManageSingleContainerNodeAgent(t *testing.T) {
-	f := &appsecFeature{}
-	err := f.ManageSingleContainerNodeAgent(nil, "")
-	assert.NoError(t, err, "ManageSingleContainerNodeAgent should return no error")
-}
-
-func TestAppsecFeatureManageNodeAgent(t *testing.T) {
-	f := &appsecFeature{}
-	err := f.ManageNodeAgent(nil, "")
-	assert.NoError(t, err, "ManageNodeAgent should return no error")
-}
-
-func TestAppsecFeatureManageClusterChecksRunner(t *testing.T) {
-	f := &appsecFeature{}
-	err := f.ManageClusterChecksRunner(nil, "")
-	assert.NoError(t, err, "ManageClusterChecksRunner should return no error")
-}
-
-func TestAppsecFeatureManageOtelAgentGateway(t *testing.T) {
-	f := &appsecFeature{}
-	err := f.ManageOtelAgentGateway(nil, "")
-	assert.NoError(t, err, "ManageOtelAgentGateway should return no error")
-}
-
-func TestAppsecFeatureServiceAccountName(t *testing.T) {
-	dda := testutils.NewDatadogAgentBuilder().
-		WithAppsecConfig(true, apiutils.NewBoolPointer(true), nil, nil, nil, nil, nil).
-		Build()
-	dda.Name = "test-datadog-agent"
-
-	f := buildAppsecFeature(nil).(*appsecFeature)
-	f.Configure(dda, &dda.Spec, nil)
-
-	// Verify service account name is set
-	assert.NotEmpty(t, f.serviceAccountName, "Service account name should be set")
-	assert.Contains(t, f.serviceAccountName, "test-datadog-agent", "Service account should include DDA name")
-}
-
-func TestAppsecFeatureOwnerSet(t *testing.T) {
-	dda := testutils.NewDatadogAgentBuilder().
-		WithAppsecConfig(true, apiutils.NewBoolPointer(true), nil, nil, nil, nil, nil).
-		Build()
-	dda.Name = "test-owner"
-	dda.Namespace = "test-namespace"
-
-	f := buildAppsecFeature(nil).(*appsecFeature)
-	f.Configure(dda, &dda.Spec, nil)
-
-	// Verify owner is set correctly
-	assert.NotNil(t, f.owner, "Owner should be set")
-	assert.Equal(t, "test-owner", f.owner.GetName())
-	assert.Equal(t, "test-namespace", f.owner.GetNamespace())
-}
-
-func TestAppsecFeatureProcessorServiceConfig(t *testing.T) {
-	serviceName := "appsec-processor"
-	serviceNamespace := "custom-namespace"
-
-	dda := testutils.NewDatadogAgentBuilder().
-		WithAppsecConfig(
-			true,
-			apiutils.NewBoolPointer(true),
-			nil,
-			nil,
-			nil,
-			&serviceName,
-			&serviceNamespace,
-		).
-		Build()
-
-	f := buildAppsecFeature(nil).(*appsecFeature)
-	f.Configure(dda, &dda.Spec, nil)
-
-	// Verify processor service config is set
-	assert.NotNil(t, f.processorServiceName)
-	assert.Equal(t, "appsec-processor", *f.processorServiceName)
-	assert.NotNil(t, f.processorServiceNs)
-	assert.Equal(t, "custom-namespace", *f.processorServiceNs)
-}
-
-func TestAppsecFeatureProcessorWithoutService(t *testing.T) {
-	port := int32(8443)
-	address := "custom-processor.example.com"
-
-	dda := testutils.NewDatadogAgentBuilder().
-		WithAppsecConfig(
-			true,
-			apiutils.NewBoolPointer(true),
-			nil,
-			&port,
-			&address,
-			nil, // No service name
-			nil, // No service namespace
-		).
-		Build()
-
-	f := buildAppsecFeature(nil).(*appsecFeature)
-	f.Configure(dda, &dda.Spec, nil)
-
-	// Verify processor config without service
-	assert.NotNil(t, f.processorPort)
-	assert.Equal(t, int32(8443), *f.processorPort)
-	assert.NotNil(t, f.processorAddress)
-	assert.Equal(t, "custom-processor.example.com", *f.processorAddress)
-	assert.Nil(t, f.processorServiceName)
-	assert.Nil(t, f.processorServiceNs)
-}
-
-func TestAppsecFeatureRemoteConfigMerge(t *testing.T) {
+func TestFromAnnotations(t *testing.T) {
 	tests := []struct {
-		name           string
-		ddaSpec        *v2alpha1.DatadogAgentSpec
-		rcStatus       *v2alpha1.RemoteConfigConfiguration
-		wantEnabled    bool
-		wantAutoDetect *bool
-		wantProxies    []string
-		wantPort       *int32
+		name        string
+		annotations map[string]string
+		wantConfig  Config
+		wantErr     bool
 	}{
 		{
-			name: "RC enables feature when DDA spec is empty",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{},
-					},
-				},
-			},
-			rcStatus: &v2alpha1.RemoteConfigConfiguration{
-				Features: &v2alpha1.DatadogFeatures{
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled:    apiutils.NewBoolPointer(true),
-							AutoDetect: apiutils.NewBoolPointer(true),
-						},
-					},
-				},
-			},
-			wantEnabled:    true,
-			wantAutoDetect: apiutils.NewBoolPointer(true),
+			name:        "empty annotations",
+			annotations: map[string]string{},
+			wantConfig:  Config{},
+			wantErr:     false,
 		},
 		{
-			name: "DDA spec takes precedence over RC",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled:    apiutils.NewBoolPointer(true),
-							AutoDetect: apiutils.NewBoolPointer(false),
-							Proxies:    []string{"envoy-gateway"},
-						},
-					},
-				},
+			name: "enabled only",
+			annotations: map[string]string{
+				AnnotationInjectorEnabled: "true",
 			},
-			rcStatus: &v2alpha1.RemoteConfigConfiguration{
-				Features: &v2alpha1.DatadogFeatures{
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled:    apiutils.NewBoolPointer(true),
-							AutoDetect: apiutils.NewBoolPointer(true),
-						},
-					},
-				},
+			wantConfig: Config{
+				Enabled: true,
 			},
-			wantEnabled:    true,
-			wantAutoDetect: apiutils.NewBoolPointer(false),
-			wantProxies:    []string{"envoy-gateway"},
+			wantErr: false,
 		},
 		{
-			name: "RC proxies used when DDA spec has empty proxies",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled: apiutils.NewBoolPointer(true),
-						},
-					},
-				},
+			name: "enabled with autoDetect",
+			annotations: map[string]string{
+				AnnotationInjectorEnabled:    "true",
+				AnnotationInjectorAutoDetect: "true",
 			},
-			rcStatus: &v2alpha1.RemoteConfigConfiguration{
-				Features: &v2alpha1.DatadogFeatures{
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled:    apiutils.NewBoolPointer(true),
-							AutoDetect: apiutils.NewBoolPointer(false),
-							Proxies:    []string{"istio"},
-						},
-					},
-				},
+			wantConfig: Config{
+				Enabled:    true,
+				AutoDetect: boolPtr(true),
 			},
-			wantEnabled:    true,
-			wantAutoDetect: apiutils.NewBoolPointer(false),
-			wantProxies:    []string{"istio"},
+			wantErr: false,
 		},
 		{
-			name: "RC processor port used when not set in DDA spec",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled:    apiutils.NewBoolPointer(true),
-							AutoDetect: apiutils.NewBoolPointer(true),
-							Processor:  &v2alpha1.AppsecProcessorConfig{},
-						},
-					},
-				},
+			name: "enabled with proxies",
+			annotations: map[string]string{
+				AnnotationInjectorEnabled: "true",
+				AnnotationInjectorProxies: `["envoy-gateway","istio"]`,
 			},
-			rcStatus: &v2alpha1.RemoteConfigConfiguration{
-				Features: &v2alpha1.DatadogFeatures{
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled: apiutils.NewBoolPointer(true),
-							Processor: &v2alpha1.AppsecProcessorConfig{
-								Port: apiutils.NewInt32Pointer(8443),
-							},
-						},
-					},
-				},
+			wantConfig: Config{
+				Enabled: true,
+				Proxies: []string{"envoy-gateway", "istio"},
 			},
-			wantEnabled:    true,
-			wantAutoDetect: apiutils.NewBoolPointer(true),
-			wantPort:       apiutils.NewInt32Pointer(8443),
+			wantErr: false,
+		},
+		{
+			name: "enabled with processor port",
+			annotations: map[string]string{
+				AnnotationInjectorEnabled:     "true",
+				AnnotationInjectorProcessorPort: "443",
+			},
+			wantConfig: Config{
+				Enabled:       true,
+				ProcessorPort: 443,
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid enabled value",
+			annotations: map[string]string{
+				AnnotationInjectorEnabled: "invalid",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid autoDetect value",
+			annotations: map[string]string{
+				AnnotationInjectorEnabled:    "true",
+				AnnotationInjectorAutoDetect: "invalid",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid proxies JSON",
+			annotations: map[string]string{
+				AnnotationInjectorEnabled: "true",
+				AnnotationInjectorProxies: "not-json",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid processor port",
+			annotations: map[string]string{
+				AnnotationInjectorEnabled:     "true",
+				AnnotationInjectorProcessorPort: "not-a-number",
+			},
+			wantErr: true,
+		},
+		{
+			name: "full config",
+			annotations: map[string]string{
+				AnnotationInjectorEnabled:                    "true",
+				AnnotationInjectorAutoDetect:                 "false",
+				AnnotationInjectorProxies:                    `["envoy-gateway"]`,
+				AnnotationInjectorProcessorPort:              "8080",
+				AnnotationInjectorProcessorAddress:           "processor.example.com",
+				AnnotationInjectorProcessorServiceName:       "appsec-svc",
+				AnnotationInjectorProcessorServiceNamespace:  "datadog",
+			},
+			wantConfig: Config{
+				Enabled:                   true,
+				AutoDetect:                boolPtr(false),
+				Proxies:                   []string{"envoy-gateway"},
+				ProcessorPort:             8080,
+				ProcessorAddress:          "processor.example.com",
+				ProcessorServiceName:      "processor.example.com",
+				ProcessorServiceNamespace: "processor.example.com",
+			},
+			wantErr: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dda := testutils.NewDatadogAgentBuilder().Build()
-			dda.Spec = *tt.ddaSpec
+			config, err := FromAnnotations(tt.annotations)
 
-			f := buildAppsecFeature(nil).(*appsecFeature)
-			f.Configure(dda, tt.ddaSpec, tt.rcStatus)
-
-			assert.Equal(t, tt.wantEnabled, f.enabled)
-
-			if tt.wantAutoDetect != nil {
-				assert.Equal(t, tt.wantAutoDetect, f.autoDetect)
-			}
-
-			if tt.wantProxies != nil {
-				assert.Equal(t, tt.wantProxies, f.proxies)
-			}
-
-			if tt.wantPort != nil {
-				assert.Equal(t, tt.wantPort, f.processorPort)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.wantConfig.Enabled, config.Enabled)
+				assert.Equal(t, tt.wantConfig.AutoDetect, config.AutoDetect)
+				assert.Equal(t, tt.wantConfig.Proxies, config.Proxies)
+				assert.Equal(t, tt.wantConfig.ProcessorPort, config.ProcessorPort)
 			}
 		})
 	}
 }
 
-func TestAppsecFeatureInvalidConfig(t *testing.T) {
-	// Test that autoDetect=false with empty proxies disables the feature
-	dda := testutils.NewDatadogAgentBuilder().
-		WithAppsecConfig(
-			true,
-			apiutils.NewBoolPointer(false), // autoDetect=false
-			nil,                            // empty proxies
-			nil,
-			nil,
-			nil,
-			nil,
-		).
-		Build()
-
-	f := buildAppsecFeature(nil).(*appsecFeature)
-	reqComp := f.Configure(dda, &dda.Spec, nil)
-
-	// Feature should not be enabled because validation requires either autoDetect=true OR proxies list
-	assert.False(t, f.enabled, "Feature should not be enabled with autoDetect=false and empty proxies")
-
-	// Cluster agent should not be required
-	if reqComp.ClusterAgent.IsRequired != nil {
-		assert.False(t, *reqComp.ClusterAgent.IsRequired)
-	}
-}
-
-func TestAppsecFeatureInvalidProcessorPort(t *testing.T) {
+func TestConfigValidate(t *testing.T) {
 	tests := []struct {
-		name string
-		port int32
+		name    string
+		config  Config
+		wantErr bool
 	}{
 		{
-			name: "port too low",
-			port: 0,
+			name: "valid config with autoDetect",
+			config: Config{
+				Enabled:              true,
+				AutoDetect:           boolPtr(true),
+				ProcessorServiceName: "appsec-processor",
+			},
+			wantErr: false,
 		},
 		{
-			name: "port negative",
-			port: -1,
+			name: "valid config with proxies",
+			config: Config{
+				Enabled:              true,
+				Proxies:              []string{"envoy-gateway"},
+				ProcessorServiceName: "appsec-processor",
+			},
+			wantErr: false,
 		},
 		{
-			name: "port too high",
-			port: 65536,
+			name: "invalid port - negative",
+			config: Config{
+				Enabled:              true,
+				AutoDetect:           boolPtr(true),
+				ProcessorPort:        -1,
+				ProcessorServiceName: "appsec-processor",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid port - too high",
+			config: Config{
+				Enabled:              true,
+				AutoDetect:           boolPtr(true),
+				ProcessorPort:        70000,
+				ProcessorServiceName: "appsec-processor",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid proxy value",
+			config: Config{
+				Enabled:              true,
+				Proxies:              []string{"invalid-proxy"},
+				ProcessorServiceName: "appsec-processor",
+			},
+			wantErr: true,
+		},
+		{
+			name: "missing service name",
+			config: Config{
+				Enabled:    true,
+				AutoDetect: boolPtr(true),
+			},
+			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dda := testutils.NewDatadogAgentBuilder().
-				WithAppsecConfig(
-					true,
-					apiutils.NewBoolPointer(true),
-					nil,
-					&tt.port,
-					nil,
-					nil,
-					nil,
-				).
-				Build()
+			err := tt.config.validate()
 
-			f := buildAppsecFeature(nil).(*appsecFeature)
-			f.Configure(dda, &dda.Spec, nil)
-
-			// Create fake managers
-			mgr := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
-
-			// ManageClusterAgent should return an error for invalid port
-			err := f.ManageClusterAgent(mgr, "test")
-			assert.Error(t, err, "Should return error for invalid port")
-			assert.Contains(t, err.Error(), "processor port must be between 1 and 65535")
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
 		})
 	}
+}
+
+func TestConfigIsEnabled(t *testing.T) {
+	tests := []struct {
+		name        string
+		config      Config
+		wantEnabled bool
+	}{
+		{
+			name: "enabled with autoDetect true",
+			config: Config{
+				Enabled:    true,
+				AutoDetect: boolPtr(true),
+			},
+			wantEnabled: true,
+		},
+		{
+			name: "enabled with autoDetect false and proxies",
+			config: Config{
+				Enabled:    true,
+				AutoDetect: boolPtr(false),
+				Proxies:    []string{"envoy-gateway"},
+			},
+			wantEnabled: true,
+		},
+		{
+			name: "enabled with autoDetect false but no proxies",
+			config: Config{
+				Enabled:    true,
+				AutoDetect: boolPtr(false),
+			},
+			wantEnabled: false,
+		},
+		{
+			name: "not enabled",
+			config: Config{
+				Enabled: false,
+			},
+			wantEnabled: false,
+		},
+		{
+			name: "enabled with proxies but no autoDetect",
+			config: Config{
+				Enabled: true,
+				Proxies: []string{"envoy-gateway"},
+			},
+			wantEnabled: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.wantEnabled, tt.config.isEnabled())
+		})
+	}
+}
+
+func boolPtr(b bool) *bool {
+	return &b
 }

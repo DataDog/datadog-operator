@@ -988,66 +988,6 @@
               },
               "type": "object"
             },
-            "appsec": {
-              "additionalProperties": false,
-              "description": "Appsec (App \u0026 API Protection) configuration for proxy injection.",
-              "properties": {
-                "injector": {
-                  "additionalProperties": false,
-                  "description": "App \u0026 API Protection Security Injector allows the Agent to inject gateway/ingress configuration into the cluster.\nWith this configuration enabled, it forwards all requests to an external security processor app that scans, blocks, and protects your entire cluster from malicious actors.\nFeature is in Preview.\nDefault Enabled: false",
-                  "properties": {
-                    "autoDetect": {
-                      "description": "AutoDetect enables auto-detection of supported proxies (Envoy Gateway, Istio).\nDefault: true",
-                      "type": "boolean"
-                    },
-                    "enabled": {
-                      "description": "Enabled enables the AppSec proxy auto-injection feature.\nDefault: false",
-                      "type": "boolean"
-                    },
-                    "processor": {
-                      "additionalProperties": false,
-                      "description": "Processor configuration for the Appsec processor service.",
-                      "properties": {
-                        "address": {
-                          "description": "Address of the Appsec processor service.",
-                          "type": "string"
-                        },
-                        "port": {
-                          "description": "Port of the Appsec processor service.\nDefault: 443",
-                          "format": "int32",
-                          "type": "integer"
-                        },
-                        "service": {
-                          "additionalProperties": false,
-                          "description": "Service configuration for the Appsec processor.",
-                          "properties": {
-                            "name": {
-                              "description": "Name of the Appsec processor service.",
-                              "type": "string"
-                            },
-                            "namespace": {
-                              "description": "Namespace where the Appsec processor is deployed.",
-                              "type": "string"
-                            }
-                          },
-                          "type": "object"
-                        }
-                      },
-                      "type": "object"
-                    },
-                    "proxies": {
-                      "description": "Proxies List of proxy types to inject. Valid values: \"envoy-gateway\", \"istio\".",
-                      "items": {
-                        "type": "string"
-                      },
-                      "type": "array"
-                    }
-                  },
-                  "type": "object"
-                }
-              },
-              "type": "object"
-            },
             "asm": {
               "additionalProperties": false,
               "description": "ASM (Application Security Management) configuration.",
@@ -8810,66 +8750,6 @@
                         "path": {
                           "description": "Path defines the socket path used when enabled.",
                           "type": "string"
-                        }
-                      },
-                      "type": "object"
-                    }
-                  },
-                  "type": "object"
-                },
-                "appsec": {
-                  "additionalProperties": false,
-                  "description": "Appsec (App \u0026 API Protection) configuration for proxy injection.",
-                  "properties": {
-                    "injector": {
-                      "additionalProperties": false,
-                      "description": "App \u0026 API Protection Security Injector allows the Agent to inject gateway/ingress configuration into the cluster.\nWith this configuration enabled, it forwards all requests to an external security processor app that scans, blocks, and protects your entire cluster from malicious actors.\nFeature is in Preview.\nDefault Enabled: false",
-                      "properties": {
-                        "autoDetect": {
-                          "description": "AutoDetect enables auto-detection of supported proxies (Envoy Gateway, Istio).\nDefault: true",
-                          "type": "boolean"
-                        },
-                        "enabled": {
-                          "description": "Enabled enables the AppSec proxy auto-injection feature.\nDefault: false",
-                          "type": "boolean"
-                        },
-                        "processor": {
-                          "additionalProperties": false,
-                          "description": "Processor configuration for the Appsec processor service.",
-                          "properties": {
-                            "address": {
-                              "description": "Address of the Appsec processor service.",
-                              "type": "string"
-                            },
-                            "port": {
-                              "description": "Port of the Appsec processor service.\nDefault: 443",
-                              "format": "int32",
-                              "type": "integer"
-                            },
-                            "service": {
-                              "additionalProperties": false,
-                              "description": "Service configuration for the Appsec processor.",
-                              "properties": {
-                                "name": {
-                                  "description": "Name of the Appsec processor service.",
-                                  "type": "string"
-                                },
-                                "namespace": {
-                                  "description": "Namespace where the Appsec processor is deployed.",
-                                  "type": "string"
-                                }
-                              },
-                              "type": "object"
-                            }
-                          },
-                          "type": "object"
-                        },
-                        "proxies": {
-                          "description": "Proxies List of proxy types to inject. Valid values: \"envoy-gateway\", \"istio\".",
-                          "items": {
-                            "type": "string"
-                          },
-                          "type": "array"
                         }
                       },
                       "type": "object"

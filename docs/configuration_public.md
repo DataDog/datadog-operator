@@ -96,9 +96,6 @@ spec:
 `features.apm.unixDomainSocketConfig.path`
 : Defines the socket path used when enabled.
 
-`features.appsec.injector`
-: App & API Protection Security Injector allows the Agent to inject gateway/ingress configuration into the cluster. With this configuration enabled, it forwards all requests to an external security processor app that scans, blocks, and protects your entire cluster from malicious actors. Feature is in Preview. Default Enabled: false
-
 `features.asm.iast.enabled`
 : Enables Interactive Application Security Testing (IAST). Default: false
 

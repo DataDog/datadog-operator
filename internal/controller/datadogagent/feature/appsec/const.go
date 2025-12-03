@@ -5,6 +5,26 @@
 
 package appsec
 
+const ClusterAgentMinVersion = "7.73.0"
+
+// Appsec proxy injection annotations (Preview feature)
+const (
+	// AnnotationInjectorEnabled enables AppSec proxy integration
+	AnnotationInjectorEnabled = "agent.datadoghq.com/appsec.injector.enabled"
+	// AnnotationInjectorAutoDetect enables auto-detection of supported proxies
+	AnnotationInjectorAutoDetect = "agent.datadoghq.com/appsec.injector.autoDetect"
+	// AnnotationInjectorProxies is the JSON array of proxy types to inject
+	AnnotationInjectorProxies = "agent.datadoghq.com/appsec.injector.proxies"
+	// AnnotationInjectorProcessorAddress is the processor service port
+	AnnotationInjectorProcessorAddress = "agent.datadoghq.com/appsec.injector.processor.address"
+	// AnnotationInjectorProcessorPort is the processor service address
+	AnnotationInjectorProcessorPort = "agent.datadoghq.com/appsec.injector.processor.port"
+	// AnnotationInjectorProcessorServiceName is the processor service name (required)
+	AnnotationInjectorProcessorServiceName = "agent.datadoghq.com/appsec.injector.processor.service.name"
+	// AnnotationInjectorProcessorServiceNamespace is the processor service namespace (defaults to the cluster-agent namespace)
+	AnnotationInjectorProcessorServiceNamespace = "agent.datadoghq.com/appsec.injector.processor.service.namespace"
+)
+
 const (
 	// DDAppsecProxyEnabled enables AppSec proxy integration
 	DDAppsecProxyEnabled = "DD_APPSEC_PROXY_ENABLED"
@@ -23,3 +43,6 @@ const (
 	// DDClusterAgentAppsecInjectorProcessorServiceNamespace is the processor service namespace
 	DDClusterAgentAppsecInjectorProcessorServiceNamespace = "DD_CLUSTER_AGENT_APPSEC_INJECTOR_PROCESSOR_SERVICE_NAMESPACE"
 )
+
+// AllowedProxyValues are what proxies the current RBAC supports
+var AllowedProxyValues = []string{"envoy-gateway", "istio"}

@@ -59,8 +59,6 @@ type DatadogFeatures struct {
 	EBPFCheck *EBPFCheckFeatureConfig `json:"ebpfCheck,omitempty"`
 	// APM (Application Performance Monitoring) configuration.
 	APM *APMFeatureConfig `json:"apm,omitempty"`
-	// Appsec (App & API Protection) configuration for proxy injection.
-	Appsec *AppsecFeatureConfig `json:"appsec,omitempty"`
 	// ASM (Application Security Management) configuration.
 	ASM *ASMFeatureConfig `json:"asm,omitempty"`
 	// CSPM (Cloud Security Posture Management) configuration.

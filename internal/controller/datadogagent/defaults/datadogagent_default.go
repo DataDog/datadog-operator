@@ -58,10 +58,6 @@ const (
 	defaultCWSSecurityProfilesEnabled   bool   = true
 	defaultAPMErrorTrackingStandalone   bool   = false
 
-	defaultAppsecInjectorEnabled       bool  = false
-	defaultAppsecInjectorAutoDetect    bool  = true
-	defaultAppsecInjectorProcessorPort int32 = 443
-
 	defaultNPMEnabled         bool = false
 	defaultNPMEnableConntrack bool = true
 	defaultNPMCollectDNSStats bool = true
@@ -347,35 +343,6 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		}
 
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.ErrorTrackingStandalone.Enabled, defaultAPMErrorTrackingStandalone)
-	}
-
-	// Appsec Feature
-	if ddaSpec.Features.Appsec == nil {
-		ddaSpec.Features.Appsec = &v2alpha1.AppsecFeatureConfig{}
-	}
-
-	if ddaSpec.Features.Appsec.Injector == nil {
-		ddaSpec.Features.Appsec.Injector = &v2alpha1.AppsecInjectorConfig{}
-	}
-
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.Appsec.Injector.Enabled, defaultAppsecInjectorEnabled)
-
-	if *ddaSpec.Features.Appsec.Injector.Enabled {
-		if ddaSpec.Features.Appsec.Injector.AutoDetect == nil {
-			ddaSpec.Features.Appsec.Injector.AutoDetect = apiutils.NewBoolPointer(defaultAppsecInjectorAutoDetect)
-		}
-
-		if ddaSpec.Features.Appsec.Injector.Processor == nil {
-			ddaSpec.Features.Appsec.Injector.Processor = &v2alpha1.AppsecProcessorConfig{}
-		}
-
-		if ddaSpec.Features.Appsec.Injector.Processor.Port == nil {
-			ddaSpec.Features.Appsec.Injector.Processor.Port = apiutils.NewInt32Pointer(defaultAppsecInjectorProcessorPort)
-		}
-
-		if ddaSpec.Features.Appsec.Injector.Processor.Service == nil {
-			ddaSpec.Features.Appsec.Injector.Processor.Service = &v2alpha1.AppsecProcessorServiceConfig{}
-		}
 	}
 
 	// ASM Features

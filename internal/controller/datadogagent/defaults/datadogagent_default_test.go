@@ -250,11 +250,6 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
 					},
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAppsecInjectorEnabled),
-						},
-					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -385,11 +380,6 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(valueFalse),
 						},
 					},
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAppsecInjectorEnabled),
-						},
-					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
@@ -484,11 +474,6 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						IAST: &v2alpha1.ASMIASTConfig{
 							Enabled: apiutils.NewBoolPointer(valueFalse),
-						},
-					},
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAppsecInjectorEnabled),
 						},
 					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
@@ -638,11 +623,6 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						IAST: &v2alpha1.ASMIASTConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
-						},
-					},
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAppsecInjectorEnabled),
 						},
 					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
@@ -803,11 +783,6 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
 					},
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAppsecInjectorEnabled),
-						},
-					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -961,11 +936,6 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
 					},
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAppsecInjectorEnabled),
-						},
-					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -1117,11 +1087,6 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						IAST: &v2alpha1.ASMIASTConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
-						},
-					},
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAppsecInjectorEnabled),
 						},
 					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
@@ -1286,11 +1251,6 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
 					},
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAppsecInjectorEnabled),
-						},
-					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -1442,11 +1402,6 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						IAST: &v2alpha1.ASMIASTConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
-						},
-					},
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAppsecInjectorEnabled),
 						},
 					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
@@ -1605,11 +1560,6 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
 					},
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAppsecInjectorEnabled),
-						},
-					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -1756,11 +1706,6 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						IAST: &v2alpha1.ASMIASTConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
-						},
-					},
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAppsecInjectorEnabled),
 						},
 					},
 					ProcessDiscovery: &v2alpha1.ProcessDiscoveryFeatureConfig{
@@ -1936,11 +1881,6 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
 					},
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAppsecInjectorEnabled),
-						},
-					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -2093,11 +2033,6 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						IAST: &v2alpha1.ASMIASTConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
-						},
-					},
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAppsecInjectorEnabled),
 						},
 					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
@@ -2277,11 +2212,6 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
 					},
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAppsecInjectorEnabled),
-						},
-					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -2436,11 +2366,6 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						IAST: &v2alpha1.ASMIASTConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
-						},
-					},
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAppsecInjectorEnabled),
 						},
 					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
@@ -2610,11 +2535,6 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						IAST: &v2alpha1.ASMIASTConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
-						},
-					},
-					Appsec: &v2alpha1.AppsecFeatureConfig{
-						Injector: &v2alpha1.AppsecInjectorConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAppsecInjectorEnabled),
 						},
 					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{

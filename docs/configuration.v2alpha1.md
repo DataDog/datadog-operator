@@ -69,13 +69,6 @@ spec:
 | features.apm.instrumentation.targets | Is a list of targets to apply the auto instrumentation to. The first target that matches the pod will be used. If no target matches, the auto instrumentation will not be applied. (Requires Cluster Agent 7.64.0+) |
 | features.apm.unixDomainSocketConfig.enabled | Enables Unix Domain Socket. Default: true |
 | features.apm.unixDomainSocketConfig.path | Defines the socket path used when enabled. |
-| features.appsec.injector.autoDetect | AutoDetect enables auto-detection of supported proxies (Envoy Gateway, Istio). Default: true |
-| features.appsec.injector.enabled | Enables the AppSec proxy auto-injection feature. Default: false |
-| features.appsec.injector.processor.address | Of the Appsec processor service. |
-| features.appsec.injector.processor.port | Of the Appsec processor service. Default: 443 |
-| features.appsec.injector.processor.service.name | Of the Appsec processor service. |
-| features.appsec.injector.processor.service.namespace | Where the Appsec processor is deployed. |
-| features.appsec.injector.proxies | List of proxy types to inject. Valid values: "envoy-gateway", "istio". |
 | features.asm.iast.enabled | Enables Interactive Application Security Testing (IAST). Default: false |
 | features.asm.sca.enabled | Enables Software Composition Analysis (SCA). Default: false |
 | features.asm.threats.enabled | Enables ASM App & API Protection. Default: false |
