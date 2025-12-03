@@ -32,15 +32,15 @@ func init() {
 }
 
 func buildAppsecFeature(options *feature.Options) feature.Feature {
-	appSecFeat := &appsecFeature{
+	appsecFeat := &appsecFeature{
 		rbacSuffix: common.ClusterAgentSuffix,
 	}
 
 	if options != nil {
-		appSecFeat.logger = options.Logger.WithValues("feature", "appsec")
+		appsecFeat.logger = options.Logger.WithValues("feature", "appsec")
 	}
 
-	return appSecFeat
+	return appsecFeat
 }
 
 type appsecFeature struct {

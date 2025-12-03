@@ -33,6 +33,16 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 				rbac.GetVerb,
 			},
 		},
+		{
+			APIGroups: []string{rbac.NetworkingAPIGroup},
+			Resources: []string{rbac.IngressesResource},
+			Verbs: []string{
+				rbac.ListVerb,
+				rbac.GetVerb,
+				rbac.WatchVerb,
+				rbac.PatchVerb,
+			},
+		},
 		// CRD detection
 		{
 			APIGroups: []string{rbac.APIExtensionsAPIGroup},
