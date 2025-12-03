@@ -17,6 +17,7 @@ spec:
       enabled: true
     logCollection:
       enabled: true
+      containerCollectAll: true
     kubeStateMetricsCore:
       collectCrMetrics:
       - groupVersionKind:

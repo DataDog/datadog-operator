@@ -145,7 +145,7 @@ func (s *k8sSuite) TestGenericK8s() {
 			assert.NoError(s.T(), err)
 
 			for _, pod := range clusterAgentPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "collector", "-j"})
+				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "cluster-agent", []string{"agent", "status", "collector", "-j"})
 				assert.NoError(c, err)
 				utils.VerifyCheck(c, output, "kubernetes_state_core")
 			}
