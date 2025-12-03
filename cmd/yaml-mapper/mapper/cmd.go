@@ -24,25 +24,25 @@ import (
 type Options struct {
 	genericiooptions.IOStreams
 
-	configFlags *genericclioptions.ConfigFlags
-	args        []string
-	mappingPath string
-	sourcePath  string
-	destPath    string
-	headerPath  string
-	ddaName     string
-	namespace   string
-	updateMap   bool
-	printOutput bool
+	ConfigFlags *genericclioptions.ConfigFlags
+	Args        []string
+	MappingPath string
+	SourcePath  string
+	DestPath    string
+	HeaderPath  string
+	DdaName     string
+	Namespace   string
+	UpdateMap   bool
+	PrintOutput bool
 }
 
 // NewOptions provides an instance of Options with default values.
 func NewOptions(streams genericiooptions.IOStreams) *Options {
 	return &Options{
-		configFlags: genericclioptions.NewConfigFlags(false),
+		ConfigFlags: genericclioptions.NewConfigFlags(false),
 		IOStreams:   streams,
-		updateMap:   false,
-		printOutput: false,
+		UpdateMap:   false,
+		PrintOutput: false,
 	}
 }
 
@@ -73,14 +73,14 @@ func NewCmdMap(streams genericiooptions.IOStreams) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&o.sourcePath, "sourcePath", "f", "", "Path to source YAML file. Required. Example: source.yaml")
-	cmd.Flags().StringVarP(&o.mappingPath, "mappingPath", "m", "", "Path to mapping YAML file.")
-	cmd.Flags().StringVarP(&o.destPath, "destPath", "d", "", "Path to destination YAML file.")
-	cmd.Flags().StringVarP(&o.ddaName, "ddaName", "", "", "DatadogAgent custom resource name.")
-	cmd.Flags().StringVarP(&o.headerPath, "headerPath", "p", "", "Path to header YAML file. The content in this file will be prepended to the output.")
-	cmd.Flags().BoolVarP(&o.updateMap, "updateMap", "u", false, fmt.Sprintf("Update 'mappingPath' with provided 'sourcePath'. If set to 'true', default mappingPath is %s and default sourcePath is latest published Datadog chart values.yaml.", constants.DefaultDDAMappingPath))
-	cmd.Flags().BoolVarP(&o.printOutput, "printOutput", "o", true, "print mapped DDA output to stdout")
-	o.configFlags.AddFlags(cmd.Flags())
+	cmd.Flags().StringVarP(&o.SourcePath, "sourcePath", "f", "", "Path to source YAML file. Required. Example: source.yaml")
+	cmd.Flags().StringVarP(&o.MappingPath, "mappingPath", "m", "", "Path to mapping YAML file.")
+	cmd.Flags().StringVarP(&o.DestPath, "destPath", "d", "", "Path to destination YAML file.")
+	cmd.Flags().StringVarP(&o.DdaName, "ddaName", "", "", "DatadogAgent custom resource name.")
+	cmd.Flags().StringVarP(&o.HeaderPath, "headerPath", "p", "", "Path to header YAML file. The content in this file will be prepended to the output.")
+	cmd.Flags().BoolVarP(&o.UpdateMap, "updateMap", "u", false, fmt.Sprintf("Update 'mappingPath' with provided 'sourcePath'. If set to 'true', default mappingPath is %s and default sourcePath is latest published Datadog chart values.yaml.", constants.DefaultDDAMappingPath))
+	cmd.Flags().BoolVarP(&o.PrintOutput, "printOutput", "o", true, "print mapped DDA output to stdout")
+	o.ConfigFlags.AddFlags(cmd.Flags())
 
 	// Hide default k8s cli-runtime flags from usage
 	toHide := []string{
@@ -97,9 +97,9 @@ func NewCmdMap(streams genericiooptions.IOStreams) *cobra.Command {
 
 // Complete sets all information required for processing the map command.
 func (o *Options) Complete(cmd *cobra.Command, args []string) error {
-	o.args = args
+	o.Args = args
 	if len(args) == 1 {
-		o.ddaName = args[0]
+		o.DdaName = args[0]
 	}
 
 	return o.Init(cmd)
@@ -107,12 +107,12 @@ func (o *Options) Complete(cmd *cobra.Command, args []string) error {
 
 // Validate ensures that all required arguments and flag values are provided.
 func (o *Options) Validate() error {
-	if o.sourcePath == "" && !o.updateMap {
+	if o.SourcePath == "" && !o.UpdateMap {
 		return fmt.Errorf("`--sourcePath` flag is required")
 	}
 
-	if len(o.args) > 1 {
-		return fmt.Errorf("received %v arguments. Only 1 argument allowed", len(o.args))
+	if len(o.Args) > 1 {
+		return fmt.Errorf("received %v arguments. Only 1 argument allowed", len(o.Args))
 	}
 	return nil
 }
@@ -120,29 +120,29 @@ func (o *Options) Validate() error {
 // Init initialize the command config
 func (o *Options) Init(cmd *cobra.Command) error {
 	var err error
-	if o.mappingPath != "" {
-		o.mappingPath, err = ResolveFilePath(o.mappingPath)
+	if o.MappingPath != "" {
+		o.MappingPath, err = ResolveFilePath(o.MappingPath)
 		if err != nil {
-			return fmt.Errorf("could not resolve mapping path: %v: %w", o.mappingPath, err)
+			return fmt.Errorf("could not resolve mapping path: %v: %w", o.MappingPath, err)
 		}
 	}
-	if o.sourcePath != "" {
-		o.sourcePath, err = ResolveFilePath(o.sourcePath)
+	if o.SourcePath != "" {
+		o.SourcePath, err = ResolveFilePath(o.SourcePath)
 		if err != nil {
-			return fmt.Errorf("could not resolve source path: %v: %w", o.sourcePath, err)
+			return fmt.Errorf("could not resolve source path: %v: %w", o.SourcePath, err)
 		}
 	}
 
-	if o.destPath != "" {
+	if o.DestPath != "" {
 		// Ignore the err since we will create the file later if it doesn't exist
-		destPath, err := ResolveFilePath(o.destPath)
+		destPath, err := ResolveFilePath(o.DestPath)
 		if err == nil {
-			o.destPath = destPath
+			o.DestPath = destPath
 		}
 	}
 
-	if o.namespace == "" {
-		o.namespace, _ = cmd.Flags().GetString("namespace")
+	if o.Namespace == "" {
+		o.Namespace, _ = cmd.Flags().GetString("namespace")
 	}
 
 	return nil
@@ -151,14 +151,14 @@ func (o *Options) Init(cmd *cobra.Command) error {
 // Run is used to run the map command.
 func (o *Options) Run() {
 	mapperConfig := MapConfig{
-		MappingPath: o.mappingPath,
-		SourcePath:  o.sourcePath,
-		DestPath:    o.destPath,
-		DDAName:     o.ddaName,
-		Namespace:   o.namespace,
-		UpdateMap:   o.updateMap,
-		PrintOutput: o.printOutput,
-		HeaderPath:  o.headerPath,
+		MappingPath: o.MappingPath,
+		SourcePath:  o.SourcePath,
+		DestPath:    o.DestPath,
+		DDAName:     o.DdaName,
+		Namespace:   o.Namespace,
+		UpdateMap:   o.UpdateMap,
+		PrintOutput: o.PrintOutput,
+		HeaderPath:  o.HeaderPath,
 	}
 	newMapper := NewMapper(mapperConfig)
 	err := newMapper.Run()
