@@ -12,7 +12,8 @@ import (
 	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/mapper"
 )
 
-// New provides a cobra command wrapping options for "check" sub command
+// New provides a cobra command wrapping options for "helm2dda" sub command
+// It returns an instance of the cmd/yaml-mapper/cmd with command name and usage overrides.
 func New(streams genericiooptions.IOStreams) *cobra.Command {
 	newCmd := mapper.NewCmdMap(streams)
 
