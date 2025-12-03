@@ -22,41 +22,27 @@ type Config struct {
 	ProcessorServiceNamespace string
 }
 
-func boolAnnot(annotations map[string]string, annot string) (bool, error) {
-	value, found := annotations[annot]
-	if !found {
-		return false, nil
-	}
-
-	enabled, err := strconv.ParseBool(value)
-	if err != nil {
-		return false, fmt.Errorf("failed to parse %q annotation value: %s", annot, err)
-	}
-
-	return enabled, nil
-}
-
 // FromAnnotations create a appsec.Config from an annotation map
 func FromAnnotations(annotations map[string]string) (config Config, err error) {
 	// Read configuration from annotations
 
 	if enabledStr, ok := annotations[AnnotationInjectorEnabled]; ok {
 		if config.Enabled, err = strconv.ParseBool(enabledStr); err != nil {
-			return config, fmt.Errorf("failed to parse annotation %q value: %s", AnnotationInjectorEnabled, err)
+			return config, fmt.Errorf("failed to parse annotation %q value: %w", AnnotationInjectorEnabled, err)
 		}
 	}
 
 	if autoDetectStr, ok := annotations[AnnotationInjectorAutoDetect]; ok {
-		autoDetect, err := strconv.ParseBool(autoDetectStr)
-		if err != nil {
-			return config, fmt.Errorf("failed to parse annotation %q value: %s", AnnotationInjectorAutoDetect, err)
+		autoDetect, parseErr := strconv.ParseBool(autoDetectStr)
+		if parseErr != nil {
+			return config, fmt.Errorf("failed to parse annotation %q value: %w", AnnotationInjectorAutoDetect, parseErr)
 		}
 		config.AutoDetect = &autoDetect
 	}
 
 	if proxiesStr, ok := annotations[AnnotationInjectorProxies]; ok && proxiesStr != "" {
-		if err := json.Unmarshal([]byte(proxiesStr), &config.Proxies); err != nil {
-			return config, fmt.Errorf("cannot parse annotation %q value: %s", AnnotationInjectorProxies, err)
+		if parseErr := json.Unmarshal([]byte(proxiesStr), &config.Proxies); parseErr != nil {
+			return config, fmt.Errorf("cannot parse annotation %q value: %w", AnnotationInjectorProxies, parseErr)
 		}
 	}
 
@@ -66,7 +52,7 @@ func FromAnnotations(annotations map[string]string) (config Config, err error) {
 
 	if portStr, ok := annotations[AnnotationInjectorProcessorPort]; ok && portStr != "" {
 		if config.ProcessorPort, err = strconv.Atoi(portStr); err != nil {
-			return config, fmt.Errorf("cannot parse annotation %q value: %s", AnnotationInjectorProcessorPort, err)
+			return config, fmt.Errorf("cannot parse annotation %q value: %w", AnnotationInjectorProcessorPort, err)
 		}
 	}
 

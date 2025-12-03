@@ -756,7 +756,6 @@ func (builder *DatadogAgentBuilder) WithASMEnabled(threats, sca, iast bool) *Dat
 	return builder
 }
 
-
 // OTLP
 
 func (builder *DatadogAgentBuilder) initOTLP() {
