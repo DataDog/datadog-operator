@@ -7,6 +7,7 @@ metadata:
     agent.datadoghq.com/e2e-test: datadog-agent-ccr-enabled
 spec:
   global:
+    clusterAgentToken: thisisa32characterstoken00000000
     kubelet:
       tlsVerify: false
   features:
