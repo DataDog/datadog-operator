@@ -129,6 +129,42 @@ func (s *k8sSuite) TestGenericK8s() {
 
 	})
 
+	s.T().Run("Autodiscovery works", func(t *testing.T) {
+		// Reuse the dda-minimum DDA, just add nginx workload
+		provisionerOptions := []provisioners.KubernetesProvisionerOption{
+			provisioners.WithTestName("e2e-operator-autodiscovery"),
+			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{Name: "nginx", Path: strings.Join([]string{common.ManifestsPath, "autodiscovery-annotation.yaml"}, "/")}),
+			provisioners.WithLocal(s.local),
+		}
+		provisionerOptions = append(provisionerOptions, defaultProvisionerOpts...)
+
+		// Add nginx with annotations to existing environment
+		s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
+
+		err := s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
+		s.Assert().NoError(err)
+
+		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
+			utils.VerifyNumPodsForSelector(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), 1, "app=nginx")
+
+			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), common.NodeAgentSelector+",agent.datadoghq.com/name=dda-minimum")
+
+			// check agent pods for http check
+			agentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-minimum",
+				FieldSelector: "status.phase=Running"})
+			assert.NoError(c, err)
+
+			for _, pod := range agentPods.Items {
+				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "collector", "-j"})
+				assert.NoError(c, err)
+
+				utils.VerifyCheck(c, output, "http_check")
+			}
+
+			s.verifyHTTPCheck(c)
+		}, 900*time.Second, 15*time.Second, "could not validate http_check in time")
+	})
+
 	s.T().Run("KSM check works cluster check runner", func(t *testing.T) {
 		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-ccr-enabled.yaml"))
 		assert.NoError(s.T(), err)
@@ -170,50 +206,6 @@ func (s *k8sSuite) TestGenericK8s() {
 
 			s.verifyKSMCheck(c, "kubernetes_state_customresource.uptodateagents")
 		}, 15*time.Minute, 15*time.Second, "could not validate kubernetes_state_core (cluster check on CCR) check in time")
-	})
-
-	s.T().Run("Autodiscovery works", func(t *testing.T) {
-		ddaConfigPath, err := common.GetAbsPath(common.DdaMinimalPath)
-		assert.NoError(s.T(), err)
-
-		ddaOpts := []agentwithoperatorparams.Option{
-			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{Name: "dda-autodiscovery", YamlFilePath: ddaConfigPath}),
-		}
-		ddaOpts = append(ddaOpts, defaultDDAOpts...)
-
-		provisionerOptions := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-autodiscovery"),
-			provisioners.WithDDAOptions(ddaOpts...),
-			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{Name: "nginx", Path: strings.Join([]string{common.ManifestsPath, "autodiscovery-annotation.yaml"}, "/")}),
-			provisioners.WithLocal(s.local),
-		}
-		provisionerOptions = append(provisionerOptions, defaultProvisionerOpts...)
-
-		// Add nginx with annotations
-		s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
-
-		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
-		s.Assert().NoError(err)
-
-		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
-			utils.VerifyNumPodsForSelector(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), 1, "app=nginx")
-
-			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), common.NodeAgentSelector+",agent.datadoghq.com/name=dda-autodiscovery")
-
-			// check agent pods for http check
-			agentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-autodiscovery",
-				FieldSelector: "status.phase=Running"})
-			assert.NoError(c, err)
-
-			for _, pod := range agentPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "collector", "-j"})
-				assert.NoError(c, err)
-
-				utils.VerifyCheck(c, output, "http_check")
-			}
-
-			s.verifyHTTPCheck(c)
-		}, 900*time.Second, 15*time.Second, "could not validate http_check in time")
 	})
 
 	s.T().Run("Logs collection works", func(t *testing.T) {
