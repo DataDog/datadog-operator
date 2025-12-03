@@ -82,7 +82,7 @@ func (c Config) validate() error {
 		}
 	}
 
-	if c.ProcessorServiceName == "" {
+	if c.isEnabled() && c.ProcessorServiceName == "" {
 		return fmt.Errorf("invalid configuration: must specify a non-empty service name with a running service")
 	}
 

@@ -62,8 +62,8 @@ func TestAppsecFeature(t *testing.T) {
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithClusterAgentTag("7.73.0").
 				WithAnnotations(map[string]string{
-					AnnotationInjectorEnabled:            "true",
-					AnnotationInjectorAutoDetect:         "true",
+					AnnotationInjectorEnabled:              "true",
+					AnnotationInjectorAutoDetect:           "true",
 					AnnotationInjectorProcessorServiceName: "appsec-processor",
 				}).
 				Build(),
@@ -80,8 +80,8 @@ func TestAppsecFeature(t *testing.T) {
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithClusterAgentTag("7.73.0").
 				WithAnnotations(map[string]string{
-					AnnotationInjectorEnabled:            "true",
-					AnnotationInjectorAutoDetect:         "true",
+					AnnotationInjectorEnabled:              "true",
+					AnnotationInjectorAutoDetect:           "true",
 					AnnotationInjectorProcessorServiceName: "appsec-processor",
 				}).
 				Build(),
@@ -98,9 +98,9 @@ func TestAppsecFeature(t *testing.T) {
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithClusterAgentTag("7.73.0").
 				WithAnnotations(map[string]string{
-					AnnotationInjectorEnabled:            "true",
-					AnnotationInjectorAutoDetect:         "false",
-					AnnotationInjectorProxies:            `["envoy-gateway"]`,
+					AnnotationInjectorEnabled:              "true",
+					AnnotationInjectorAutoDetect:           "false",
+					AnnotationInjectorProxies:              `["envoy-gateway"]`,
 					AnnotationInjectorProcessorServiceName: "appsec-processor",
 				}).
 				Build(),
@@ -118,8 +118,8 @@ func TestAppsecFeature(t *testing.T) {
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithClusterAgentTag("7.73.0").
 				WithAnnotations(map[string]string{
-					AnnotationInjectorEnabled:            "true",
-					AnnotationInjectorProxies:            `["envoy-gateway","istio"]`,
+					AnnotationInjectorEnabled:              "true",
+					AnnotationInjectorProxies:              `["envoy-gateway","istio"]`,
 					AnnotationInjectorProcessorServiceName: "appsec-processor",
 				}).
 				Build(),
@@ -136,9 +136,9 @@ func TestAppsecFeature(t *testing.T) {
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithClusterAgentTag("7.73.0").
 				WithAnnotations(map[string]string{
-					AnnotationInjectorEnabled:            "true",
-					AnnotationInjectorAutoDetect:         "true",
-					AnnotationInjectorProcessorPort:      "443",
+					AnnotationInjectorEnabled:              "true",
+					AnnotationInjectorAutoDetect:           "true",
+					AnnotationInjectorProcessorPort:        "443",
 					AnnotationInjectorProcessorServiceName: "appsec-processor",
 				}).
 				Build(),
@@ -156,9 +156,9 @@ func TestAppsecFeature(t *testing.T) {
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithClusterAgentTag("7.73.0").
 				WithAnnotations(map[string]string{
-					AnnotationInjectorEnabled:            "true",
-					AnnotationInjectorAutoDetect:         "true",
-					AnnotationInjectorProcessorAddress:   "processor.example.com",
+					AnnotationInjectorEnabled:              "true",
+					AnnotationInjectorAutoDetect:           "true",
+					AnnotationInjectorProcessorAddress:     "processor.example.com",
 					AnnotationInjectorProcessorServiceName: "appsec-processor",
 				}).
 				Build(),
@@ -176,10 +176,10 @@ func TestAppsecFeature(t *testing.T) {
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithClusterAgentTag("7.73.0").
 				WithAnnotations(map[string]string{
-					AnnotationInjectorEnabled:                    "true",
-					AnnotationInjectorAutoDetect:                 "true",
-					AnnotationInjectorProcessorServiceName:       "appsec-processor",
-					AnnotationInjectorProcessorServiceNamespace:  "datadog",
+					AnnotationInjectorEnabled:                   "true",
+					AnnotationInjectorAutoDetect:                "true",
+					AnnotationInjectorProcessorServiceName:      "appsec-processor",
+					AnnotationInjectorProcessorServiceNamespace: "datadog",
 				}).
 				Build(),
 
@@ -197,13 +197,13 @@ func TestAppsecFeature(t *testing.T) {
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithClusterAgentTag("7.73.0").
 				WithAnnotations(map[string]string{
-					AnnotationInjectorEnabled:                    "true",
-					AnnotationInjectorAutoDetect:                 "true",
-					AnnotationInjectorProxies:                    `["envoy-gateway","istio"]`,
-					AnnotationInjectorProcessorPort:              "443",
-					AnnotationInjectorProcessorAddress:           "processor.example.com",
-					AnnotationInjectorProcessorServiceName:       "appsec-processor",
-					AnnotationInjectorProcessorServiceNamespace:  "datadog",
+					AnnotationInjectorEnabled:                   "true",
+					AnnotationInjectorAutoDetect:                "true",
+					AnnotationInjectorProxies:                   `["envoy-gateway","istio"]`,
+					AnnotationInjectorProcessorPort:             "443",
+					AnnotationInjectorProcessorAddress:          "processor.example.com",
+					AnnotationInjectorProcessorServiceName:      "appsec-processor",
+					AnnotationInjectorProcessorServiceNamespace: "datadog",
 				}).
 				Build(),
 
@@ -229,12 +229,12 @@ func TestAppsecFeatureID(t *testing.T) {
 
 func TestAppsecFeatureConfigure(t *testing.T) {
 	tests := []struct {
-		name             string
-		annotations      map[string]string
-		wantEnabled      bool
-		wantClusterAgent bool
-		wantAutoDetect   *bool
-		wantProxies      []string
+		name              string
+		annotations       map[string]string
+		wantEnabled       bool
+		wantClusterAgent  bool
+		wantAutoDetect    *bool
+		wantProxies       []string
 		wantProcessorPort int
 	}{
 		{
@@ -246,8 +246,8 @@ func TestAppsecFeatureConfigure(t *testing.T) {
 		{
 			name: "Appsec enabled with RequiredComponents",
 			annotations: map[string]string{
-				AnnotationInjectorEnabled:            "true",
-				AnnotationInjectorAutoDetect:         "true",
+				AnnotationInjectorEnabled:              "true",
+				AnnotationInjectorAutoDetect:           "true",
 				AnnotationInjectorProcessorServiceName: "appsec-processor",
 			},
 			wantEnabled:      true,
@@ -256,11 +256,12 @@ func TestAppsecFeatureConfigure(t *testing.T) {
 		{
 			name: "Appsec with all configs",
 			annotations: map[string]string{
-				AnnotationInjectorEnabled:            "true",
-				AnnotationInjectorAutoDetect:         "true",
-				AnnotationInjectorProxies:            `["envoy-gateway","istio"]`,
-				AnnotationInjectorProcessorPort:      "443",
-				AnnotationInjectorProcessorServiceName: "appsec-processor",
+				AnnotationInjectorEnabled:                   "true",
+				AnnotationInjectorAutoDetect:                "true",
+				AnnotationInjectorProxies:                   `["envoy-gateway","istio"]`,
+				AnnotationInjectorProcessorPort:             "443",
+				AnnotationInjectorProcessorServiceName:      "appsec-processor",
+				AnnotationInjectorProcessorServiceNamespace: "datadog",
 			},
 			wantEnabled:       true,
 			wantClusterAgent:  true,
@@ -326,10 +327,10 @@ func TestAppsecFeatureManageClusterAgentDisabled(t *testing.T) {
 func TestAppsecFeatureManageClusterAgentEnabled(t *testing.T) {
 	// Test that ManageClusterAgent adds env vars when feature is enabled
 	dda := testutils.NewDatadogAgentBuilder().
-				WithClusterAgentTag("7.73.0").
+		WithClusterAgentTag("7.73.0").
 		WithAnnotations(map[string]string{
-			AnnotationInjectorEnabled:            "true",
-			AnnotationInjectorAutoDetect:         "true",
+			AnnotationInjectorEnabled:              "true",
+			AnnotationInjectorAutoDetect:           "true",
 			AnnotationInjectorProcessorServiceName: "appsec-processor",
 		}).
 		Build()
@@ -405,7 +406,7 @@ func TestFromAnnotations(t *testing.T) {
 		{
 			name: "enabled with processor port",
 			annotations: map[string]string{
-				AnnotationInjectorEnabled:     "true",
+				AnnotationInjectorEnabled:       "true",
 				AnnotationInjectorProcessorPort: "443",
 			},
 			wantConfig: Config{
@@ -440,7 +441,7 @@ func TestFromAnnotations(t *testing.T) {
 		{
 			name: "invalid processor port",
 			annotations: map[string]string{
-				AnnotationInjectorEnabled:     "true",
+				AnnotationInjectorEnabled:       "true",
 				AnnotationInjectorProcessorPort: "not-a-number",
 			},
 			wantErr: true,
@@ -448,13 +449,13 @@ func TestFromAnnotations(t *testing.T) {
 		{
 			name: "full config",
 			annotations: map[string]string{
-				AnnotationInjectorEnabled:                    "true",
-				AnnotationInjectorAutoDetect:                 "false",
-				AnnotationInjectorProxies:                    `["envoy-gateway"]`,
-				AnnotationInjectorProcessorPort:              "8080",
-				AnnotationInjectorProcessorAddress:           "processor.example.com",
-				AnnotationInjectorProcessorServiceName:       "appsec-svc",
-				AnnotationInjectorProcessorServiceNamespace:  "datadog",
+				AnnotationInjectorEnabled:                   "true",
+				AnnotationInjectorAutoDetect:                "false",
+				AnnotationInjectorProxies:                   `["envoy-gateway"]`,
+				AnnotationInjectorProcessorPort:             "8080",
+				AnnotationInjectorProcessorAddress:          "processor.example.com",
+				AnnotationInjectorProcessorServiceName:      "appsec-svc",
+				AnnotationInjectorProcessorServiceNamespace: "datadog",
 			},
 			wantConfig: Config{
 				Enabled:                   true,
