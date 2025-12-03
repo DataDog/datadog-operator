@@ -3,6 +3,7 @@ package datadoggenericresource
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV2"
@@ -110,26 +111,32 @@ func createDowntime(auth context.Context, client *datadogV2.DowntimesApi, instan
 func updateDowntime(auth context.Context, client *datadogV2.DowntimesApi, instance *v1alpha1.DatadogGenericResource) (datadogV2.DowntimeResponse, error) {
 	// Validate the presence of a target downtime ID
 	if instance.Status.Id == "" {
-		return datadogV2.DowntimeResponse{}, fmt.Errorf("cannot update downtime: status.id is empty")
+		return datadogV2.DowntimeResponse{}, errors.New("cannot update downtime: status.id is empty")
 	}
 
 	if instance.Spec.JsonSpec == "" {
-		return datadogV2.DowntimeResponse{}, fmt.Errorf("cannot update downtime: spec.jsonSpec is empty")
+		return datadogV2.DowntimeResponse{}, errors.New("cannot update downtime: spec.jsonSpec is empty")
 	}
 
-	// Unmarshal the user-provided spec into the typed update request to preserve field fidelity
-	var updateReq datadogV2.DowntimeUpdateRequest
-	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), &updateReq); err != nil {
+	// Unmarshal just the attributes portion from the user's spec
+	// ID is retrieved from the status and type is always downtime
+	var specData struct {
+		Data struct {
+			Attributes *datadogV2.DowntimeUpdateRequestAttributes
+		}
+	}
+	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), &specData); err != nil {
 		return datadogV2.DowntimeResponse{}, translateClientError(err, "error unmarshalling downtime spec")
 	}
 
-	// Enforce correct resource type and ID regardless of what's in the spec
-	// This prevents accidental cross-resource updates if the spec contains incorrect values
-	updateReq.Data.Type = datadogV2.DOWNTIMERESOURCETYPE_DOWNTIME
-	updateReq.Data.Id = instance.Status.Id
+	// Construct the update request data with the required id and type fields
+	updateData := datadogV2.NewDowntimeUpdateRequestData(*specData.Data.Attributes, instance.Status.Id, datadogV2.DOWNTIMERESOURCETYPE_DOWNTIME)
+
+	// Construct the update request using the public constructor
+	updateReq := datadogV2.NewDowntimeUpdateRequest(*updateData)
 
 	// Call update using the status ID as the path parameter
-	downtimeUpdated, _, err := client.UpdateDowntime(auth, instance.Status.Id, updateReq)
+	downtimeUpdated, _, err := client.UpdateDowntime(auth, instance.Status.Id, *updateReq)
 	if err != nil {
 		return datadogV2.DowntimeResponse{}, translateClientError(err, "error updating downtime")
 	}
