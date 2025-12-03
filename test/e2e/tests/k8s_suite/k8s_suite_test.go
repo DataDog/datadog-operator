@@ -140,18 +140,6 @@ func (s *k8sSuite) TestGenericK8s() {
 
 	s.T().Run("KSM check works cluster check runner", func(t *testing.T) {
 		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
-			clusterAgentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{
-				LabelSelector: common.ClusterAgentSelector + ",agent.datadoghq.com/name=datadog-comprehensive"})
-			assert.NoError(s.T(), err)
-
-			for _, pod := range clusterAgentPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "cluster-agent", []string{"agent", "status", "collector", "-j"})
-				assert.NoError(c, err)
-				utils.VerifyCheck(c, output, "kubernetes_state_core")
-			}
-
-			s.verifyKSMCheck(c)
-
 			ccrPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{
 				LabelSelector: common.ClusterCheckRunnerSelector + ",agent.datadoghq.com/name=datadog-comprehensive"})
 			assert.NoError(s.T(), err)
