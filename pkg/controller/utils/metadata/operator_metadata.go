@@ -66,8 +66,9 @@ type OperatorMetadata struct {
 
 // NewOperatorMetadataForwarder creates a new instance of the operator metadata forwarder
 func NewOperatorMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string, credsManager *config.CredentialManager) *OperatorMetadataForwarder {
+	forwarderLogger := logger.WithName("operator")
 	return &OperatorMetadataForwarder{
-		SharedMetadata:   NewSharedMetadata(logger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
+		SharedMetadata:   NewSharedMetadata(forwarderLogger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
 		OperatorMetadata: OperatorMetadata{},
 	}
 }
@@ -75,18 +76,18 @@ func NewOperatorMetadataForwarder(logger logr.Logger, k8sClient client.Reader, k
 // Start starts the operator metadata forwarder
 func (omf *OperatorMetadataForwarder) Start() {
 	if omf.hostName == "" {
-		omf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting helm metadata forwarder")
+		omf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting metadata forwarder")
 		return
 	}
 	omf.updateResourceCounts()
 
-	omf.logger.Info("Starting operator metadata forwarder")
+	omf.logger.Info("Starting metadata forwarder")
 
 	ticker := time.NewTicker(defaultInterval)
 	go func() {
 		for range ticker.C {
 			if err := omf.sendMetadata(); err != nil {
-				omf.logger.Error(err, "Error while sending operator metadata")
+				omf.logger.Error(err, "Error while sending metadata")
 			}
 		}
 	}()
@@ -111,16 +112,16 @@ func (omf *OperatorMetadataForwarder) sendMetadata() error {
 	}
 	resp, err := omf.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("error sending operator metadata request: %w", err)
+		return fmt.Errorf("error sending metadata request: %w", err)
 	}
 
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to read operator metadata response body: %w", err)
+		return fmt.Errorf("failed to read metadata response body: %w", err)
 	}
 
-	omf.logger.V(1).Info("Read operator metadata response", "status code", resp.StatusCode, "body", string(body))
+	omf.logger.V(1).Info("Read metadata response", "status code", resp.StatusCode, "body", string(body))
 	return nil
 }
 
