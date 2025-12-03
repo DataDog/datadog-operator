@@ -193,6 +193,8 @@ func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogGeneri
 
 	// Set condition and status
 	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeUpdated, metav1.ConditionTrue, "UpdatingGenericResource", "DatadogGenericResource Update")
+	// Clear error condition on successful update
+	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeError, metav1.ConditionFalse, "", "")
 	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
 	status.LastForceSyncTime = &now
 
@@ -212,6 +214,8 @@ func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogGeneri
 
 	// Set condition and status
 	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeCreated, metav1.ConditionTrue, "CreatingGenericResource", "DatadogGenericResource Created")
+	// Clear error condition on successful creation
+	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeError, metav1.ConditionFalse, "", "")
 	logger.Info("created a new DatadogGenericResource", "generic resource Id", status.Id)
 
 	return nil
