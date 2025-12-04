@@ -143,14 +143,13 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// 1. Manage dependencies.
 	depsStore, resourceManagers := r.setupDependencies(instance, logger)
 
-	providerList := map[string]struct{}{kubernetes.LegacyProvider: {}}
 	k8sProvider := kubernetes.LegacyProvider
 	if r.options.IntrospectionEnabled {
 		nodeList, err := r.getNodeList(ctx)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
-		providerList = kubernetes.GetProviderListFromNodeList(nodeList, logger)
+		providerList := kubernetes.GetProviderListFromNodeList(nodeList, logger)
 
 		k8sProvider = kubernetes.DefaultProvider
 		if len(providerList) == 1 {
@@ -331,10 +330,9 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 		logger.Info("unable to list DatadogAgentProfiles", "error", err)
 	}
 
-	var profileListToApply []datadoghqv1alpha1.DatadogAgentProfile
 	profileAppliedByNode := make(map[string]types.NamespacedName, len(nodeList))
-
 	sortedProfiles := agentprofile.SortProfiles(profilesList.Items)
+	profileListToApply := make([]datadoghqv1alpha1.DatadogAgentProfile, 0, len(sortedProfiles))
 	for _, profile := range sortedProfiles {
 		maxUnavailable := agentprofile.GetMaxUnavailable(logger, ddaSpec, &profile, len(nodeList), &r.options.ExtendedDaemonsetOptions)
 		oldStatus := profile.Status
