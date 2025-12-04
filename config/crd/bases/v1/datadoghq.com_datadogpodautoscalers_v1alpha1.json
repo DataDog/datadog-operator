@@ -288,6 +288,26 @@
           },
           "type": "object"
         },
+        "recommendationOptions": {
+          "additionalProperties": false,
+          "description": "RecommendationOptions defines options for how recommendations are generated.",
+          "properties": {
+            "oomBumpUpRatio": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "description": "OOMBumpUpRatio is the ratio to increase memory when OOM is detected.\nThis is a pod-level setting that applies to memory scaling recommendations.\nUse a plain number (e.g., \"1.2\" means increase by 20%).\nRepresented as a resource.Quantity to avoid floating point in CRDs.",
+              "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+              "x-kubernetes-int-or-string": true
+            }
+          },
+          "type": "object"
+        },
         "remoteVersion": {
           "description": "RemoteVersion is the version of the .Spec currently store in this object.\nOnly set if the owner is Remote.",
           "format": "int64",
