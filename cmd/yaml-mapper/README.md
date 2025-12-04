@@ -6,7 +6,7 @@ The purpose of this tool is to map a YAML file of a certain structure to another
 
 ## Motivation
 
-The motivation for creating this tool was to provide a way to support Datadog users who desire to switch from deploying the Datadog Agent using the `datadog` Helm chart to using the Datadog Operator controller. It is a potentially significant change that requires creating a new `DatadogAgent` custom resource specification. As a result, we are providing a way to map from a Helm chart `values.yaml` file to a `DatadogAgent` CRD spec, using a provided mapping.yaml file.
+The motivation for creating this tool is to provide a way to support Datadog users who want to switch from using the `datadog` Helm chart to using the Datadog Operator controller when deploying the Datadog Agent. It is a significant change that requires creating a new `DatadogAgent` custom resource specification. As a result, we are providing a way to map from a Helm chart `values.yaml` file to a `DatadogAgent` CRD spec, using a provided `mapping.yaml` file.
 
 ## How to install
 
@@ -21,7 +21,7 @@ make yaml-mapper
 
 ### Mapping Helm YAML to DatadogAgent CRD Spec
 
-This mapper converts a `datadog` Helm chart values yaml file to the `DatadogAgent` CRD spec.
+This mapper converts a `datadog` Helm chart values YAML file to the `DatadogAgent` CRD spec.
 
 The resulting file is written to `dda.yaml.<timestamp>`. To specify a destination file, use flag `--destPath=[<FILENAME>.yaml]`.
 
@@ -42,33 +42,32 @@ yaml-mapper --sourcePath=examples/example_source.yaml --mappingPath=mapper/mappi
 
 ### Update Mapping File from a Source YAML
 
-*When updating the mapping file, please be sure to add the [corresponding key!](#updating-mapping-keys)*
+*When updating the mapping file, be sure to add the [corresponding key!](#updating-mapping-keys)*
 
 Below are different ways to update the mapping file based on your source:
 
-1. **Local values.yaml from your branch**
-If you have run into a CI error when adding a new field to values.yaml, run this command:
+1. **Local `values.yaml` from your branch**
 
-```bash
-yaml-mapper --updateMap --sourcePath=<PATH_TO>helm-charts/charts/datadog/values.yaml
-```
+    If you have run into a CI error when adding a new field to `values.yaml`, run this command:
+    ```bash
+    yaml-mapper --updateMap --sourcePath=<PATH_TO>helm-charts/charts/datadog/values.yaml
+    ```
 2. **Latest published Datadog Helm chart values**
-This pulls the latest values.yaml from the [latest published Helm chart](https://github.com/DataDog/helm-charts/releases/latest) and updates the default mapping file.
-
-``` bash
-yaml-mapper --updateMap
-```
+   
+    This pulls the latest `values.yaml` from the [latest published Helm chart](https://github.com/DataDog/helm-charts/releases/latest) and updates the default mapping file.
+    ``` bash
+    yaml-mapper --updateMap
+    ```
 3. **Update a custom mapping file with a custom source YAML**
-
-```bash
-yaml-mapper --updateMap --sourcePath=<YOUR_SOURCE_FILE> --mappingPath=<YOUR_MAPPING_FILE>
-```
+    ```bash
+    yaml-mapper --updateMap --sourcePath=<YOUR_SOURCE_FILE> --mappingPath=<YOUR_MAPPING_FILE>
+    ```
 
 ### Update Mapping Keys
 
 Currently, this process is manual. To update a mapping key, search for it in the [operator configuration](https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md).  When adding the corresponding operator value, be sure to prepend it with `spec.`.
- 
-If the key does not have a corresponding value in the Datadog Operator configuration, please leave the mapping as is with an empty string. 
+
+If the key does not have a corresponding value in the Datadog Operator configuration, leave the mapping as is with an empty string.
 
 Thank you for helping us keep the mapping accurate and up to date!
 
