@@ -90,11 +90,13 @@ func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			f.customConfigAnnotationValue = hash
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.CWSIDType)
 		}
-		f.useVSock = apiutils.BoolValue(ddaSpec.Global.UseVSock)
 		f.configMapName = constants.GetConfName(dda, f.customConfig, defaultCWSConf)
 
 		if cwsConfig.Enforcement != nil {
 			f.enforcementEnabled = apiutils.BoolValue(cwsConfig.Enforcement.Enabled)
+		}
+		if ddaSpec.Global != nil {
+			f.useVSock = apiutils.BoolValue(ddaSpec.Global.UseVSock)
 		}
 		if cwsConfig.Network != nil {
 			f.networkEnabled = apiutils.BoolValue(cwsConfig.Network.Enabled)
