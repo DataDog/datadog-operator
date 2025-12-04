@@ -34,7 +34,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus, dcaProvider string) (reconcile.Result, error) {
+func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus, provider string) (reconcile.Result, error) {
 	var result reconcile.Result
 	now := metav1.NewTime(time.Now())
 
@@ -48,7 +48,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Lo
 	// Apply features changes on the Deployment.Spec.Template
 	var featErrors []error
 	for _, feat := range features {
-		if errFeat := feat.ManageClusterAgent(podManagers, dcaProvider); errFeat != nil {
+		if errFeat := feat.ManageClusterAgent(podManagers, provider); errFeat != nil {
 			featErrors = append(featErrors, errFeat)
 		}
 	}
@@ -58,7 +58,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Lo
 		return result, err
 	}
 
-	deploymentLogger := logger.WithValues("component", datadoghqv2alpha1.ClusterAgentComponentName, "provider", dcaProvider)
+	deploymentLogger := logger.WithValues("component", datadoghqv2alpha1.ClusterAgentComponentName, "provider", provider)
 
 	// The requiredComponents can change depending on if updates to features result in disabled components
 	dcaEnabled := requiredComponents.ClusterAgent.IsEnabled()
@@ -79,14 +79,14 @@ func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Lo
 				)
 			}
 			deleteStatusV2WithClusterAgent(newStatus)
-			return r.cleanupV2ClusterAgent(deploymentLogger, dda, deployment, resourcesManager, newStatus)
+			return r.cleanupV2ClusterAgent(ctx, deploymentLogger, dda, deployment, resourcesManager, newStatus)
 		}
 		override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.ClusterAgentComponentName, dda.Name)
 		override.Deployment(deployment, componentOverride)
 	} else if !dcaEnabled {
 		// If the override is not defined, then disable based on dcaEnabled value
 		deleteStatusV2WithClusterAgent(newStatus)
-		return r.cleanupV2ClusterAgent(deploymentLogger, dda, deployment, resourcesManager, newStatus)
+		return r.cleanupV2ClusterAgent(ctx, deploymentLogger, dda, deployment, resourcesManager, newStatus)
 	}
 
 	if r.options.IntrospectionEnabled {
@@ -94,7 +94,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Lo
 		if deployment.Labels == nil {
 			deployment.Labels = make(map[string]string)
 		}
-		deployment.Labels[constants.MD5AgentDeploymentProviderLabelKey] = dcaProvider
+		deployment.Labels[constants.MD5AgentDeploymentProviderLabelKey] = provider
 	}
 
 	return r.createOrUpdateDeployment(deploymentLogger, dda, deployment, newStatus, updateStatusV2WithClusterAgent)
@@ -110,7 +110,7 @@ func deleteStatusV2WithClusterAgent(newStatus *datadoghqv2alpha1.DatadogAgentSta
 	condition.DeleteDatadogAgentStatusCondition(newStatus, common.ClusterAgentReconcileConditionType)
 }
 
-func (r *Reconciler) cleanupV2ClusterAgent(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, deployment *appsv1.Deployment, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *Reconciler) cleanupV2ClusterAgent(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, deployment *appsv1.Deployment, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	nsName := types.NamespacedName{
 		Name:      deployment.GetName(),
 		Namespace: deployment.GetNamespace(),
@@ -118,16 +118,16 @@ func (r *Reconciler) cleanupV2ClusterAgent(logger logr.Logger, dda *datadoghqv2a
 
 	// ClusterAgentDeployment attached to this instance
 	clusterAgentDeployment := &appsv1.Deployment{}
-	if err := r.client.Get(context.TODO(), nsName, clusterAgentDeployment); err != nil {
+	if err := r.client.Get(ctx, nsName, clusterAgentDeployment); err != nil {
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
 	}
 	logger.Info("Deleting Cluster Agent Deployment", "deployment.Namespace", clusterAgentDeployment.Namespace, "deployment.Name", clusterAgentDeployment.Name)
-	event := buildEventInfo(clusterAgentDeployment.Name, clusterAgentDeployment.Namespace, kubernetes.ClusterRoleBindingKind, datadog.DeletionEvent)
+	event := buildEventInfo(clusterAgentDeployment.Name, clusterAgentDeployment.Namespace, kubernetes.DeploymentKind, datadog.DeletionEvent)
 	r.recordEvent(dda, event)
-	if err := r.client.Delete(context.TODO(), clusterAgentDeployment); err != nil {
+	if err := r.client.Delete(ctx, clusterAgentDeployment); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -163,7 +163,7 @@ func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, logger logr.L
 	}
 	for _, deployment := range deploymentList.Items {
 		if deploymentName != deployment.Name {
-			if _, err := r.cleanupV2ClusterAgent(logger, dda, &deployment, resourcesManager, newStatus); err != nil {
+			if _, err := r.cleanupV2ClusterAgent(ctx, logger, dda, &deployment, resourcesManager, newStatus); err != nil {
 				return err
 			}
 		}
