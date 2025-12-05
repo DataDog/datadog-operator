@@ -15,9 +15,9 @@ const (
 	AnnotationInjectorAutoDetect = "agent.datadoghq.com/appsec.injector.autoDetect"
 	// AnnotationInjectorProxies is the JSON array of proxy types to inject
 	AnnotationInjectorProxies = "agent.datadoghq.com/appsec.injector.proxies"
-	// AnnotationInjectorProcessorAddress is the processor service port
+	// AnnotationInjectorProcessorAddress is the processor service address
 	AnnotationInjectorProcessorAddress = "agent.datadoghq.com/appsec.injector.processor.address"
-	// AnnotationInjectorProcessorPort is the processor service address
+	// AnnotationInjectorProcessorPort is the processor service port
 	AnnotationInjectorProcessorPort = "agent.datadoghq.com/appsec.injector.processor.port"
 	// AnnotationInjectorProcessorServiceName is the processor service name (required)
 	AnnotationInjectorProcessorServiceName = "agent.datadoghq.com/appsec.injector.processor.service.name"
