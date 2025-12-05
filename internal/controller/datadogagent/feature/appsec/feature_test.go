@@ -463,8 +463,8 @@ func TestFromAnnotations(t *testing.T) {
 				Proxies:                   []string{"envoy-gateway"},
 				ProcessorPort:             8080,
 				ProcessorAddress:          "processor.example.com",
-				ProcessorServiceName:      "processor.example.com",
-				ProcessorServiceNamespace: "processor.example.com",
+				ProcessorServiceName:      "appsec-svc",
+				ProcessorServiceNamespace: "datadog",
 			},
 			wantErr: false,
 		},
@@ -481,7 +481,10 @@ func TestFromAnnotations(t *testing.T) {
 				assert.Equal(t, tt.wantConfig.Enabled, config.Enabled)
 				assert.Equal(t, tt.wantConfig.AutoDetect, config.AutoDetect)
 				assert.Equal(t, tt.wantConfig.Proxies, config.Proxies)
+				assert.Equal(t, tt.wantConfig.ProcessorAddress, config.ProcessorAddress)
 				assert.Equal(t, tt.wantConfig.ProcessorPort, config.ProcessorPort)
+				assert.Equal(t, tt.wantConfig.ProcessorServiceName, config.ProcessorServiceName)
+				assert.Equal(t, tt.wantConfig.ProcessorServiceNamespace, config.ProcessorServiceNamespace)
 			}
 		})
 	}
