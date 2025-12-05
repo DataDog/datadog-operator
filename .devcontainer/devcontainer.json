@@ -2,7 +2,8 @@
   "image": "mcr.microsoft.com/devcontainers/go:dev-1.25",
   "features": {
     "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
-      "moby": false
+      "moby": false,
+      "version": "1.25.5"
     }
   },
   "runArgs": [
