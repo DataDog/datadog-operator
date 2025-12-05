@@ -42,6 +42,7 @@ func (r *Reconciler) reconcileV2ClusterChecksRunner(ctx context.Context, logger 
 	manageFeatureFunc := func(feat feature.Feature, managers feature.PodTemplateManagers, provider string) error {
 		return feat.ManageClusterChecksRunner(managers, provider)
 	}
+	statusUpdateFunc := updateStatusV2WithClusterChecksRunner
 
 	// Start by creating the Default Cluster-Agent deployment
 	deployment := newDeploymentFunc(dda)
@@ -59,21 +60,15 @@ func (r *Reconciler) reconcileV2ClusterChecksRunner(ctx context.Context, logger 
 	}
 	if len(featErrors) > 0 {
 		err := utilerrors.NewAggregate(featErrors)
-		updateStatusV2WithClusterChecksRunner(deployment, newStatus, now, metav1.ConditionFalse, fmt.Sprintf("%s feature error", componentName), err.Error())
+		statusUpdateFunc(deployment, newStatus, now, metav1.ConditionFalse, fmt.Sprintf("%s feature error", componentName), err.Error())
 		return result, err
 	}
 
 	// The requiredComponents can change depending on if updates to features result in disabled components
 	componentEnabled := requiredComponents.ClusterChecksRunner.IsEnabled()
-	dcaEnabled := requiredComponents.ClusterAgent.IsEnabled()
 
-	// If the Cluster Agent is disabled, then CCR should be disabled too
-	if dcaOverride, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterAgentComponentName]; ok {
-		if apiutils.BoolValue(dcaOverride.Disabled) {
-			return r.cleanupV2ClusterChecksRunner(ctx, deploymentLogger, dda, deployment, newStatus)
-		}
-	} else if !dcaEnabled {
-		return r.cleanupV2ClusterChecksRunner(ctx, deploymentLogger, dda, deployment, newStatus)
+	if forceDeleteComponentCCR(dda, componentName, requiredComponents) {
+		return r.cleanupV2ClusterChecksRunner(ctx, deploymentLogger, dda, deployment, resourcesManager, newStatus)
 	}
 
 	// If Override is defined for the CCR component, apply the override on the PodTemplateSpec, it will cascade to container.
@@ -91,12 +86,12 @@ func (r *Reconciler) reconcileV2ClusterChecksRunner(ctx context.Context, logger 
 					true,
 				)
 			}
-			return r.cleanupV2ClusterChecksRunner(ctx, deploymentLogger, dda, deployment, newStatus)
+			return r.cleanupV2ClusterChecksRunner(ctx, deploymentLogger, dda, deployment, resourcesManager, newStatus)
 		}
 		override.PodTemplateSpec(logger, podManagers, componentOverride, componentName, dda.Name)
 		override.Deployment(deployment, componentOverride)
 	} else if !componentEnabled {
-		return r.cleanupV2ClusterChecksRunner(ctx, deploymentLogger, dda, deployment, newStatus)
+		return r.cleanupV2ClusterChecksRunner(ctx, deploymentLogger, dda, deployment, resourcesManager, newStatus)
 	}
 
 	if r.options.IntrospectionEnabled {
@@ -107,7 +102,7 @@ func (r *Reconciler) reconcileV2ClusterChecksRunner(ctx context.Context, logger 
 		deployment.Labels[constants.MD5AgentDeploymentProviderLabelKey] = provider
 	}
 
-	return r.createOrUpdateDeployment(deploymentLogger, dda, deployment, newStatus, updateStatusV2WithClusterChecksRunner)
+	return r.createOrUpdateDeployment(deploymentLogger, dda, deployment, newStatus, statusUpdateFunc)
 }
 
 func updateStatusV2WithClusterChecksRunner(deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
@@ -120,7 +115,7 @@ func deleteStatusWithClusterChecksRunner(newStatus *datadoghqv2alpha1.DatadogAge
 	condition.DeleteDatadogAgentStatusCondition(newStatus, conditionType)
 }
 
-func (r *Reconciler) cleanupV2ClusterChecksRunner(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *Reconciler) cleanupV2ClusterChecksRunner(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, deployment *appsv1.Deployment, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	nsName := types.NamespacedName{
 		Name:      deployment.GetName(),
 		Namespace: deployment.GetNamespace(),
@@ -142,6 +137,9 @@ func (r *Reconciler) cleanupV2ClusterChecksRunner(ctx context.Context, logger lo
 		return reconcile.Result{}, err
 	}
 
+	if result, err := cleanupRelatedResourcesCCR(ctx, logger, dda, resourcesManager); err != nil {
+		return result, err
+	}
 	deleteStatusWithClusterChecksRunner(newStatus, common.ClusterChecksRunnerReconcileConditionType, setClusterChecksRunnerStatus)
 
 	return reconcile.Result{}, nil
@@ -149,4 +147,21 @@ func (r *Reconciler) cleanupV2ClusterChecksRunner(ctx context.Context, logger lo
 
 func setClusterChecksRunnerStatus(status *datadoghqv2alpha1.DatadogAgentStatus, deploymentStatus *datadoghqv2alpha1.DeploymentStatus) {
 	status.ClusterChecksRunner = deploymentStatus
+}
+
+func forceDeleteComponentCCR(dda *datadoghqv2alpha1.DatadogAgent, componentName datadoghqv2alpha1.ComponentName, requiredComponents feature.RequiredComponents) bool {
+	dcaEnabled := requiredComponents.ClusterAgent.IsEnabled()
+	// If the Cluster Agent is disabled, then CCR should be disabled too
+	if dcaOverride, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterAgentComponentName]; ok {
+		if apiutils.BoolValue(dcaOverride.Disabled) {
+			return true
+		}
+	} else if !dcaEnabled {
+		return true
+	}
+	return false
+}
+
+func cleanupRelatedResourcesCCR(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) (reconcile.Result, error) {
+	return reconcile.Result{}, nil
 }

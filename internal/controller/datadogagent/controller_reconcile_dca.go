@@ -42,6 +42,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Lo
 	manageFeatureFunc := func(feat feature.Feature, managers feature.PodTemplateManagers, provider string) error {
 		return feat.ManageClusterAgent(managers, provider)
 	}
+	statusUpdateFunc := updateStatusV2WithClusterAgent
 
 	// Start by creating the Default Cluster-Agent deployment
 	deployment := newDeploymentFunc(dda.GetObjectMeta(), &dda.Spec)
@@ -59,12 +60,16 @@ func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Lo
 	}
 	if len(featErrors) > 0 {
 		err := utilerrors.NewAggregate(featErrors)
-		updateStatusV2WithClusterAgent(deployment, newStatus, now, metav1.ConditionFalse, fmt.Sprintf("%s feature error", componentName), err.Error())
+		statusUpdateFunc(deployment, newStatus, now, metav1.ConditionFalse, fmt.Sprintf("%s feature error", componentName), err.Error())
 		return result, err
 	}
 
 	// The requiredComponents can change depending on if updates to features result in disabled components
 	componentEnabled := requiredComponents.ClusterAgent.IsEnabled()
+
+	if forceDeleteComponentDCA(dda, componentName, requiredComponents) {
+		return r.cleanupV2ClusterAgent(ctx, deploymentLogger, dda, deployment, resourcesManager, newStatus)
+	}
 
 	// If Override is defined for the clusterAgent component, apply the override on the PodTemplateSpec, it will cascade to container.
 	if componentOverride, ok := dda.Spec.Override[componentName]; ok {
@@ -98,11 +103,11 @@ func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Lo
 		deployment.Labels[constants.MD5AgentDeploymentProviderLabelKey] = provider
 	}
 
-	return r.createOrUpdateDeployment(deploymentLogger, dda, deployment, newStatus, updateStatusV2WithClusterAgent)
+	return r.createOrUpdateDeployment(deploymentLogger, dda, deployment, newStatus, statusUpdateFunc)
 }
 
-func updateStatusV2WithClusterAgent(dca *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
-	setClusterAgentStatus(newStatus, condition.UpdateDeploymentStatus(dca, newStatus.ClusterAgent, &updateTime))
+func updateStatusV2WithClusterAgent(deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
+	setClusterAgentStatus(newStatus, condition.UpdateDeploymentStatus(deployment, newStatus.ClusterAgent, &updateTime))
 	condition.UpdateDatadogAgentStatusConditions(newStatus, updateTime, common.ClusterAgentReconcileConditionType, status, reason, message, true)
 }
 
@@ -121,7 +126,7 @@ func (r *Reconciler) cleanupV2ClusterAgent(ctx context.Context, logger logr.Logg
 	existingDeployment := &appsv1.Deployment{}
 	if err := r.client.Get(ctx, nsName, existingDeployment); err != nil {
 		if errors.IsNotFound(err) {
-			deleteStatusV2WithClusterAgent(newStatus, common.ClusterChecksRunnerReconcileConditionType, setClusterChecksRunnerStatus)
+			deleteStatusWithClusterChecksRunner(newStatus, common.ClusterChecksRunnerReconcileConditionType, setClusterChecksRunnerStatus)
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
@@ -133,6 +138,24 @@ func (r *Reconciler) cleanupV2ClusterAgent(ctx context.Context, logger logr.Logg
 		return reconcile.Result{}, err
 	}
 
+	if result, err := cleanupRelatedResourcesDCA(ctx, logger, dda, resourcesManager); err != nil {
+		return result, err
+	}
+
+	deleteStatusV2WithClusterAgent(newStatus, common.ClusterAgentReconcileConditionType, setClusterAgentStatus)
+
+	return reconcile.Result{}, nil
+}
+
+func setClusterAgentStatus(status *datadoghqv2alpha1.DatadogAgentStatus, deploymentStatus *datadoghqv2alpha1.DeploymentStatus) {
+	status.ClusterAgent = deploymentStatus
+}
+
+func forceDeleteComponentDCA(dda *datadoghqv2alpha1.DatadogAgent, componentName datadoghqv2alpha1.ComponentName, requiredComponents feature.RequiredComponents) bool {
+	return false
+}
+
+func cleanupRelatedResourcesDCA(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) (reconcile.Result, error) {
 	// Delete associated RBACs as well
 	rbacManager := resourcesManager.RBACManager()
 	logger.Info("Deleting Cluster Agent RBACs")
@@ -145,12 +168,5 @@ func (r *Reconciler) cleanupV2ClusterAgent(ctx context.Context, logger logr.Logg
 	if err := rbacManager.DeleteClusterRoleByComponent(string(datadoghqv2alpha1.ClusterAgentComponentName)); err != nil {
 		return reconcile.Result{}, err
 	}
-
-	deleteStatusV2WithClusterAgent(newStatus, common.ClusterAgentReconcileConditionType, setClusterAgentStatus)
-
 	return reconcile.Result{}, nil
-}
-
-func setClusterAgentStatus(status *datadoghqv2alpha1.DatadogAgentStatus, deploymentStatus *datadoghqv2alpha1.DeploymentStatus) {
-	status.ClusterAgent = deploymentStatus
 }
