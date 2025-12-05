@@ -81,14 +81,12 @@ func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Lo
 					true,
 				)
 			}
-			deleteStatusV2WithClusterAgent(newStatus, common.ClusterAgentReconcileConditionType, setClusterAgentStatus)
 			return r.cleanupV2ClusterAgent(ctx, deploymentLogger, dda, deployment, resourcesManager, newStatus)
 		}
 		override.PodTemplateSpec(logger, podManagers, componentOverride, componentName, dda.Name)
 		override.Deployment(deployment, componentOverride)
 	} else if !componentEnabled {
 		// If the override is not defined, then disable based on dcaEnabled value
-		deleteStatusV2WithClusterAgent(newStatus, common.ClusterAgentReconcileConditionType, setClusterAgentStatus)
 		return r.cleanupV2ClusterAgent(ctx, deploymentLogger, dda, deployment, resourcesManager, newStatus)
 	}
 
@@ -123,6 +121,7 @@ func (r *Reconciler) cleanupV2ClusterAgent(ctx context.Context, logger logr.Logg
 	existingDeployment := &appsv1.Deployment{}
 	if err := r.client.Get(ctx, nsName, existingDeployment); err != nil {
 		if errors.IsNotFound(err) {
+			deleteStatusV2WithClusterAgent(newStatus, common.ClusterChecksRunnerReconcileConditionType, setClusterChecksRunnerStatus)
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
@@ -133,8 +132,6 @@ func (r *Reconciler) cleanupV2ClusterAgent(ctx context.Context, logger logr.Logg
 	if err := r.client.Delete(ctx, existingDeployment); err != nil {
 		return reconcile.Result{}, err
 	}
-
-	setClusterAgentStatus(newStatus, nil)
 
 	// Delete associated RBACs as well
 	rbacManager := resourcesManager.RBACManager()
@@ -148,6 +145,8 @@ func (r *Reconciler) cleanupV2ClusterAgent(ctx context.Context, logger logr.Logg
 	if err := rbacManager.DeleteClusterRoleByComponent(string(datadoghqv2alpha1.ClusterAgentComponentName)); err != nil {
 		return reconcile.Result{}, err
 	}
+
+	deleteStatusV2WithClusterAgent(newStatus, common.ClusterAgentReconcileConditionType, setClusterAgentStatus)
 
 	return reconcile.Result{}, nil
 }

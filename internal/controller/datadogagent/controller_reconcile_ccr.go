@@ -91,13 +91,11 @@ func (r *Reconciler) reconcileV2ClusterChecksRunner(ctx context.Context, logger 
 					true,
 				)
 			}
-			deleteStatusWithClusterChecksRunner(newStatus, common.ClusterChecksRunnerReconcileConditionType, setClusterChecksRunnerStatus)
 			return r.cleanupV2ClusterChecksRunner(ctx, deploymentLogger, dda, deployment, newStatus)
 		}
 		override.PodTemplateSpec(logger, podManagers, componentOverride, componentName, dda.Name)
 		override.Deployment(deployment, componentOverride)
 	} else if !componentEnabled {
-		deleteStatusWithClusterChecksRunner(newStatus, common.ClusterChecksRunnerReconcileConditionType, setClusterChecksRunnerStatus)
 		return r.cleanupV2ClusterChecksRunner(ctx, deploymentLogger, dda, deployment, newStatus)
 	}
 
@@ -132,6 +130,7 @@ func (r *Reconciler) cleanupV2ClusterChecksRunner(ctx context.Context, logger lo
 	existingDeployment := &appsv1.Deployment{}
 	if err := r.client.Get(ctx, nsName, existingDeployment); err != nil {
 		if errors.IsNotFound(err) {
+			deleteStatusWithClusterChecksRunner(newStatus, common.ClusterChecksRunnerReconcileConditionType, setClusterChecksRunnerStatus)
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
@@ -143,7 +142,7 @@ func (r *Reconciler) cleanupV2ClusterChecksRunner(ctx context.Context, logger lo
 		return reconcile.Result{}, err
 	}
 
-	setClusterChecksRunnerStatus(newStatus, nil)
+	deleteStatusWithClusterChecksRunner(newStatus, common.ClusterChecksRunnerReconcileConditionType, setClusterChecksRunnerStatus)
 
 	return reconcile.Result{}, nil
 }
