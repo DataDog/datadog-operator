@@ -90,7 +90,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 						cond.Status == metav1.ConditionTrue &&
 						cond.Reason == "OverrideConflict" {
 						found = true
-						assert.Contains(t, cond.Message, "ClusterAgent component is set to disabled")
+						assert.Contains(t, cond.Message, "clusterAgent component is set to disabled")
 						break
 					}
 				}
@@ -140,7 +140,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 						cond.Status == metav1.ConditionTrue &&
 						cond.Reason == "OverrideConflict" {
 						found = true
-						assert.Contains(t, cond.Message, "ClusterChecks component is set to disabled")
+						assert.Contains(t, cond.Message, "clusterChecksRunner component is set to disabled")
 						break
 					}
 				}
@@ -400,7 +400,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 			description: "DCA should clean up status even when deployment doesn't exist during cleanup",
 		},
 		{
-			name: "CCR cleanup when deployment doesn't exist", 
+			name: "CCR cleanup when deployment doesn't exist",
 			fields: fields{
 				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.Deployment{}, &v2alpha1.DatadogAgent{}).Build(),
 				scheme:   s,
@@ -415,7 +415,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 
 				// Set status as if CCR was previously created
 				dda.Status.ClusterChecksRunner = &v2alpha1.DeploymentStatus{
-					State: "Running", 
+					State: "Running",
 				}
 				_ = c.Status().Update(context.TODO(), dda)
 
@@ -498,7 +498,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 				deploymentList := &appsv1.DeploymentList{}
 				err := c.List(context.TODO(), deploymentList, client.InNamespace(resourcesNamespace))
 				require.NoError(t, err)
-				
+
 				for _, deployment := range deploymentList.Items {
 					assert.NotContains(t, deployment.Name, "cluster-agent", "DCA deployment should be deleted when disabled")
 				}
@@ -507,7 +507,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 				dda := &v2alpha1.DatadogAgent{}
 				err = c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dda)
 				require.NoError(t, err)
-				
+
 				// Both DCA and CCR should clean up status when deployment exists and gets deleted
 				// controller_reconcile_v2.go line 207 adds generated token regardless of whether the component is disabled
 				assert.NotNil(t, dda.Status.ClusterAgent, "DCA status structure exists due to token generation")

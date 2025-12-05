@@ -37,17 +37,23 @@ func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Lo
 	componentName := datadoghqv2alpha1.ClusterAgentComponentName
 	deploymentLogger := logger.WithValues("component", componentName)
 
+	applyGlobalSettingsFunc := global.ApplyGlobalSettingsClusterAgent
+	newDeploymentFunc := componentdca.NewDefaultClusterAgentDeployment
+	manageFeatureFunc := func(feat feature.Feature, managers feature.PodTemplateManagers, provider string) error {
+		return feat.ManageClusterAgent(managers, provider)
+	}
+
 	// Start by creating the Default Cluster-Agent deployment
-	deployment := componentdca.NewDefaultClusterAgentDeployment(dda.GetObjectMeta(), &dda.Spec)
+	deployment := newDeploymentFunc(dda.GetObjectMeta(), &dda.Spec)
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
-	global.ApplyGlobalSettingsClusterAgent(logger, podManagers, dda.GetObjectMeta(), &dda.Spec, resourcesManager, requiredComponents)
+	applyGlobalSettingsFunc(logger, podManagers, dda.GetObjectMeta(), &dda.Spec, resourcesManager, requiredComponents)
 
 	// Apply features changes on the Deployment.Spec.Template
 	var featErrors []error
 	for _, feat := range features {
-		if errFeat := feat.ManageClusterAgent(podManagers, provider); errFeat != nil {
+		if errFeat := manageFeatureFunc(feat, podManagers, provider); errFeat != nil {
 			featErrors = append(featErrors, errFeat)
 		}
 	}
@@ -58,12 +64,12 @@ func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Lo
 	}
 
 	// The requiredComponents can change depending on if updates to features result in disabled components
-	dcaEnabled := requiredComponents.ClusterAgent.IsEnabled()
+	componentEnabled := requiredComponents.ClusterAgent.IsEnabled()
 
 	// If Override is defined for the clusterAgent component, apply the override on the PodTemplateSpec, it will cascade to container.
-	if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterAgentComponentName]; ok {
+	if componentOverride, ok := dda.Spec.Override[componentName]; ok {
 		if apiutils.BoolValue(componentOverride.Disabled) {
-			if dcaEnabled {
+			if componentEnabled {
 				// The override supersedes what's set in requiredComponents; update status to reflect the conflict
 				condition.UpdateDatadogAgentStatusConditions(
 					newStatus,
@@ -75,14 +81,14 @@ func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Lo
 					true,
 				)
 			}
-			deleteStatusV2WithClusterAgent(newStatus)
+			deleteStatusV2WithClusterAgent(newStatus, common.ClusterAgentReconcileConditionType, setClusterAgentStatus)
 			return r.cleanupV2ClusterAgent(ctx, deploymentLogger, dda, deployment, resourcesManager, newStatus)
 		}
 		override.PodTemplateSpec(logger, podManagers, componentOverride, componentName, dda.Name)
 		override.Deployment(deployment, componentOverride)
-	} else if !dcaEnabled {
+	} else if !componentEnabled {
 		// If the override is not defined, then disable based on dcaEnabled value
-		deleteStatusV2WithClusterAgent(newStatus)
+		deleteStatusV2WithClusterAgent(newStatus, common.ClusterAgentReconcileConditionType, setClusterAgentStatus)
 		return r.cleanupV2ClusterAgent(ctx, deploymentLogger, dda, deployment, resourcesManager, newStatus)
 	}
 
@@ -98,13 +104,13 @@ func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Lo
 }
 
 func updateStatusV2WithClusterAgent(dca *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
-	newStatus.ClusterAgent = condition.UpdateDeploymentStatus(dca, newStatus.ClusterAgent, &updateTime)
+	setClusterAgentStatus(newStatus, condition.UpdateDeploymentStatus(dca, newStatus.ClusterAgent, &updateTime))
 	condition.UpdateDatadogAgentStatusConditions(newStatus, updateTime, common.ClusterAgentReconcileConditionType, status, reason, message, true)
 }
 
-func deleteStatusV2WithClusterAgent(newStatus *datadoghqv2alpha1.DatadogAgentStatus) {
-	newStatus.ClusterAgent = nil
-	condition.DeleteDatadogAgentStatusCondition(newStatus, common.ClusterAgentReconcileConditionType)
+func deleteStatusV2WithClusterAgent(newStatus *datadoghqv2alpha1.DatadogAgentStatus, conditionType string, setStatusFunc func(status *datadoghqv2alpha1.DatadogAgentStatus, deploymentStatus *datadoghqv2alpha1.DeploymentStatus)) {
+	setStatusFunc(newStatus, nil)
+	condition.DeleteDatadogAgentStatusCondition(newStatus, conditionType)
 }
 
 func (r *Reconciler) cleanupV2ClusterAgent(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, deployment *appsv1.Deployment, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
@@ -128,6 +134,8 @@ func (r *Reconciler) cleanupV2ClusterAgent(ctx context.Context, logger logr.Logg
 		return reconcile.Result{}, err
 	}
 
+	setClusterAgentStatus(newStatus, nil)
+
 	// Delete associated RBACs as well
 	rbacManager := resourcesManager.RBACManager()
 	logger.Info("Deleting Cluster Agent RBACs")
@@ -141,11 +149,9 @@ func (r *Reconciler) cleanupV2ClusterAgent(ctx context.Context, logger logr.Logg
 		return reconcile.Result{}, err
 	}
 
-	newStatus.ClusterAgent = nil
-
 	return reconcile.Result{}, nil
 }
 
-func (r *Reconciler) setClusterAgentStatus(status *datadoghqv2alpha1.DatadogAgentStatus, deploymentStatus *datadoghqv2alpha1.DeploymentStatus) {
+func setClusterAgentStatus(status *datadoghqv2alpha1.DatadogAgentStatus, deploymentStatus *datadoghqv2alpha1.DeploymentStatus) {
 	status.ClusterAgent = deploymentStatus
 }
