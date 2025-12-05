@@ -47,32 +47,45 @@ func VerifyCheck(c *assert.CollectT, collectorOutput string, checkName string) {
 
 	checksJson := common.ParseCollectorJson(collectorOutput)
 	if checksJson != nil {
-		runnerStats, ok := checksJson["runnerStats"].(map[string]interface{})
-		assert.True(c, ok)
-		assert.NotNil(c, runnerStats)
+		runnerStats, runnerStatsOk := checksJson["runnerStats"].(map[string]interface{})
+		if !runnerStatsOk {
+			assert.Fail(c, "runnerStats field is not a map or is nil")
+			return
+		}
 
-		runningChecks, ok = runnerStats["Checks"].(map[string]interface{})
-		assert.True(c, ok)
-		assert.NotNil(c, runningChecks)
+		var checksOk bool
+		runningChecks, checksOk = runnerStats["Checks"].(map[string]interface{})
+		if !checksOk {
+			assert.Fail(c, "Checks field is not a map or is nil")
+			return
+		}
 
 		if check, found := runningChecks[checkName].(map[string]interface{}); found {
 			for _, instance := range check {
-				assert.Equal(c, checkName, instance.(map[string]interface{})["CheckName"].(string))
+				instanceMap, instanceOk := instance.(map[string]interface{})
+				if !instanceOk {
+					continue
+				}
 
-				lastError, exists := instance.(map[string]interface{})["LastError"].(string)
+				checkNameVal, checkNameOk := instanceMap["CheckName"].(string)
+				if checkNameOk {
+					assert.Equal(c, checkName, checkNameVal)
+				}
+
+				lastError, exists := instanceMap["LastError"].(string)
 				assert.True(c, exists)
 				assert.Empty(c, lastError)
 
-				totalErrors, exists := instance.(map[string]interface{})["TotalErrors"].(float64)
+				totalErrors, exists := instanceMap["TotalErrors"].(float64)
 				assert.True(c, exists)
 				assert.Zero(c, totalErrors)
 
-				totalMetricSamples, exists := instance.(map[string]interface{})["TotalMetricSamples"].(float64)
+				totalMetricSamples, exists := instanceMap["TotalMetricSamples"].(float64)
 				assert.True(c, exists)
 				assert.Greater(c, totalMetricSamples, float64(0))
 			}
 		} else {
-			assert.True(c, found, "Check %s not found or not yet running.", checkName)
+			assert.Failf(c, "Check not found", "Check %s not found or not yet running", checkName)
 		}
 	}
 }
@@ -84,14 +97,28 @@ func VerifyAgentPodLogs(c *assert.CollectT, collectorOutput string) {
 	tailedIntegrations := 0
 	if logsJson != nil {
 		var ok bool
-		agentLogs, ok = logsJson["logsStats"].(map[string]interface{})["integrations"].([]interface{})
+		logsStats, logsStatsOk := logsJson["logsStats"].(map[string]interface{})
+		if !logsStatsOk {
+			assert.Fail(c, "logsStats field is not a map or is nil")
+			return
+		}
+		agentLogs, ok = logsStats["integrations"].([]interface{})
 		assert.True(c, ok)
 		assert.NotEmpty(c, agentLogs)
 		for _, log := range agentLogs {
-			if integration, integrationOk := log.(map[string]interface{})["sources"].([]interface{})[0].(map[string]interface{}); integrationOk {
+			sources, sourcesOk := log.(map[string]interface{})["sources"].([]interface{})
+			if !sourcesOk || len(sources) == 0 {
+				continue
+			}
+
+			if integration, integrationOk := sources[0].(map[string]interface{}); integrationOk {
 				messages, exists := integration["messages"].([]interface{})
 				assert.True(c, exists)
 				assert.NotEmpty(c, messages)
+
+				if len(messages) == 0 {
+					continue
+				}
 
 				message, msgOk := messages[0].(string)
 				assert.True(c, msgOk)
@@ -141,10 +168,34 @@ func VerifyAgentTraces(c *assert.CollectT, collectorOutput string) {
 	foundServices := map[string]bool{}
 
 	if apmAgentJson != nil {
-		apmStats := apmAgentJson["apmStats"].(map[string]interface{})["receiver"].([]interface{})
-		for _, service := range apmStats {
-			serviceName := service.(map[string]interface{})["Service"].(string)
-			tracesReceived := service.(map[string]interface{})["TracesReceived"].(float64)
+		apmStatsMap, apmStatsOk := apmAgentJson["apmStats"].(map[string]interface{})
+		if !apmStatsOk {
+			assert.Fail(c, "apmStats field is not a map or is nil")
+			return
+		}
+
+		receiver, receiverOk := apmStatsMap["receiver"].([]interface{})
+		if !receiverOk {
+			assert.Fail(c, "receiver field is not an array or is nil")
+			return
+		}
+
+		for _, service := range receiver {
+			serviceMap, serviceOk := service.(map[string]interface{})
+			if !serviceOk {
+				continue
+			}
+
+			serviceName, serviceNameOk := serviceMap["Service"].(string)
+			if !serviceNameOk {
+				continue
+			}
+
+			tracesReceived, tracesOk := serviceMap["TracesReceived"].(float64)
+			if !tracesOk {
+				continue
+			}
+
 			// Ensure we received at least one trace for the service
 			assert.Greater(c, tracesReceived, float64(0), "Expected traces to be received for service %s", serviceName)
 			// Mark the service as found

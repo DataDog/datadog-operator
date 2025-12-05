@@ -173,7 +173,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 		} else if instance.Status.MonitorLastForceSyncTime == nil || (forceSyncPeriod-now.Sub(instance.Status.MonitorLastForceSyncTime.Time)) <= 0 {
 			// Periodically force a sync with the API monitor to ensure parity
 			// Get monitor to make sure it exists before trying any updates. If it doesn't, set shouldCreate
-			m, err = r.get(instance, newStatus)
+			_, err = r.get(instance, newStatus)
 			if err != nil {
 				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
 				if strings.Contains(err.Error(), ctrutils.NotFoundString) {

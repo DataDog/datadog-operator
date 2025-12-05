@@ -16,6 +16,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 )
 
@@ -111,10 +112,10 @@ func (f *logCollectionFeature) ManageNodeAgent(managers feature.PodTemplateManag
 }
 
 func (f *logCollectionFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
-	// pointerdir volume mount
+	// pointerdir volume mount (replace default empty dir volume)
 	pointerVol, pointerVolMount := volume.GetVolumes(pointerVolumeName, f.tempStoragePath, pointerVolumePath, false)
-	managers.VolumeMount().AddVolumeMountToContainer(&pointerVolMount, agentContainerName)
-	managers.Volume().AddVolume(&pointerVol)
+	managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&pointerVolMount, agentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)
+	managers.Volume().AddVolumeWithMergeFunc(&pointerVol, merger.OverrideCurrentVolumeMergeFunction)
 
 	// pod logs volume mount
 	podLogVol, podLogVolMount := volume.GetVolumes(podLogVolumeName, f.podLogsPath, podLogVolumePath, true)
