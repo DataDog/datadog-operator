@@ -6,7 +6,7 @@ permissions:
   # packages: read
 env:
   PROJECTNAME: "datadog-operator"
-  GO_VERSION: 1.25.3
+  GO_VERSION: 1.25.5
 jobs:
   build:
     runs-on: ubuntu-latest
