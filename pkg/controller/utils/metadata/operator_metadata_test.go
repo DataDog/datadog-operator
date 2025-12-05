@@ -10,11 +10,17 @@ import (
 	"os"
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	testutils_test "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/config"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_getURL(t *testing.T) {
@@ -26,6 +32,11 @@ func Test_getURL(t *testing.T) {
 		{
 			name: "default case",
 			loadFunc: func() {
+				os.Clearenv()
+				os.Setenv("DD_CLUSTER_NAME", "cluster")
+				os.Setenv("DD_API_KEY", "api-key")
+				os.Setenv("DD_APP_KEY", "app-key")
+				os.Setenv("DD_HOSTNAME", "host-name")
 			},
 			wantURL: "https://app.datadoghq.com/api/v1/metadata",
 		},
@@ -34,6 +45,9 @@ func Test_getURL(t *testing.T) {
 			loadFunc: func() {
 				os.Clearenv()
 				os.Setenv("DD_SITE", "datad0g.com")
+				os.Setenv("DD_API_KEY", "api-key")
+				os.Setenv("DD_APP_KEY", "app-key")
+				os.Setenv("DD_HOSTNAME", "host-name")
 			},
 			wantURL: "https://app.datad0g.com/api/v1/metadata",
 		},
@@ -42,6 +56,9 @@ func Test_getURL(t *testing.T) {
 			loadFunc: func() {
 				os.Clearenv()
 				os.Setenv("DD_URL", "https://app.datad0g.com")
+				os.Setenv("DD_API_KEY", "api-key")
+				os.Setenv("DD_APP_KEY", "app-key")
+				os.Setenv("DD_HOSTNAME", "host-name")
 			},
 			wantURL: "https://app.datad0g.com/api/v1/metadata",
 		},
@@ -50,12 +67,25 @@ func Test_getURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.loadFunc()
+			s := testutils_test.TestScheme()
 
+			clientObjects := []client.Object{}
+			kubeSystem := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kube-system",
+					UID:  "test-cluster-uid",
+				},
+			}
+			clientObjects = append(clientObjects, kubeSystem)
+
+			client := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&v2alpha1.DatadogAgent{}).WithObjects(clientObjects...).Build()
 			// Create SharedMetadata to test URL generation
-			sm := NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0", config.NewCredentialManager())
+			sm := NewSharedMetadata(zap.New(zap.UseDevMode(true)), client, "v1.28.0", "v1.19.0", config.NewCredentialManager(client))
+			request, err := sm.createRequest([]byte("test"))
+			assert.Nil(t, err)
 
-			if sm.requestURL != tt.wantURL {
-				t.Errorf("getURL() url = %v, want %v", sm.requestURL, tt.wantURL)
+			if request.URL.String() != tt.wantURL {
+				t.Errorf("getURL() url = %v, want %v", request.URL, tt.wantURL)
 
 			}
 		})
@@ -86,6 +116,7 @@ func Test_setup(t *testing.T) {
 				os.Setenv("DD_API_KEY", fakeAPIKeyOperator)
 				os.Setenv("DD_APP_KEY", fakeAPPKeyDDA)
 				os.Setenv("DD_CLUSTER_NAME", fakeClusterNameOperator)
+				os.Setenv("DD_HOSTNAME", "host-name")
 			},
 			dda:             &v2alpha1.DatadogAgent{},
 			wantClusterName: "fake_cluster_name_operator",
@@ -97,6 +128,8 @@ func Test_setup(t *testing.T) {
 			loadFunc: func() {
 				os.Clearenv()
 				os.Setenv("DD_CLUSTER_NAME", fakeClusterNameOperator)
+				os.Setenv("DD_HOSTNAME", "host-name")
+
 			},
 			dda: &v2alpha1.DatadogAgent{
 				Spec: v2alpha1.DatadogAgentSpec{
@@ -116,6 +149,7 @@ func Test_setup(t *testing.T) {
 			name: "credentials and site set in DDA",
 			loadFunc: func() {
 				os.Clearenv()
+				os.Setenv("DD_HOSTNAME", "host-name")
 			},
 			dda: &v2alpha1.DatadogAgent{
 				Spec: v2alpha1.DatadogAgentSpec{
@@ -137,31 +171,38 @@ func Test_setup(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			os.Clearenv()
+			tt.loadFunc()
 
+			s := testutils_test.TestScheme()
+			kubeSystem := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kube-system",
+					UID:  "test-cluster-uid",
+				},
+			}
+			client := fake.NewClientBuilder().
+				WithScheme(s).
+				WithStatusSubresource(&v2alpha1.DatadogAgent{}).
+				WithObjects(tt.dda, kubeSystem).
+				Build()
 			// Create OperatorMetadataForwarder with the new structure
 			omf := &OperatorMetadataForwarder{
-				SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0", config.NewCredentialManager()),
+				SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), client, "v1.28.0", "v1.19.0", config.NewCredentialManager(client)),
 				OperatorMetadata: OperatorMetadata{
 					ResourceCounts: make(map[string]int),
 				},
 			}
 
-			tt.loadFunc()
+			_, err := omf.createRequest([]byte("test"))
+			assert.Nil(t, err)
+			apiKey, requestURL, err := omf.getApiKeyAndURL()
 
-			_ = omf.setupFromOperator()
+			assert.Nil(t, err)
+			assert.Equal(t, tt.wantAPIKey, *apiKey)
+			assert.Equal(t, tt.wantURL, *requestURL)
 
-			_ = omf.setupFromDDA(tt.dda)
-
-			if omf.clusterName != tt.wantClusterName {
-				t.Errorf("setupFromDDA() clusterName = %v, want %v", omf.clusterName, tt.wantClusterName)
-			}
-
-			if omf.apiKey != tt.wantAPIKey {
-				t.Errorf("setupFromDDA() apiKey = %v, want %v", omf.apiKey, tt.wantAPIKey)
-			}
-
-			if omf.requestURL != tt.wantURL {
-				t.Errorf("setupFromDDA() url = %v, want %v", omf.requestURL, tt.wantURL)
+			if omf.GetOrCreateClusterName() != tt.wantClusterName {
+				t.Errorf("setupFromDDA() clusterName = %v, want %v", omf.GetOrCreateClusterName(), tt.wantClusterName)
 			}
 		})
 	}
@@ -175,8 +216,16 @@ func Test_GetPayload(t *testing.T) {
 	expectedClusterUID := "test-cluster-uid-12345"
 	expectedHostname := "test-host"
 
+	s := testutils_test.TestScheme()
+	kubeSystem := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "kube-system",
+			UID:  "test-cluster-uid-12345",
+		},
+	}
+	client := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&v2alpha1.DatadogAgent{}, kubeSystem).Build()
 	omf := &OperatorMetadataForwarder{
-		SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, expectedKubernetesVersion, expectedOperatorVersion, config.NewCredentialManager()),
+		SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), client, expectedKubernetesVersion, expectedOperatorVersion, config.NewCredentialManager(client)),
 		OperatorMetadata: OperatorMetadata{
 			ClusterName:    expectedClusterName,
 			IsLeader:       true,
@@ -189,9 +238,6 @@ func Test_GetPayload(t *testing.T) {
 
 	// Set cluster name in SharedMetadata to simulate it being populated
 	omf.clusterName = expectedClusterName
-
-	// Set cluster UID in SharedMetadata to simulate it being populated
-	omf.clusterUID = expectedClusterUID
 
 	payload := omf.GetPayload(expectedClusterUID)
 

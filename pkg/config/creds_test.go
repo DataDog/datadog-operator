@@ -9,10 +9,12 @@ import (
 	"os"
 	"testing"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	testutils_test "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 	"github.com/go-logr/logr"
-
 	"github.com/stretchr/testify/assert"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func Test_getCredentials(t *testing.T) {
@@ -203,7 +205,9 @@ func Test_getCredentials(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			credsManager := NewCredentialManager()
+			s := testutils_test.TestScheme()
+			client := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&v2alpha1.DatadogAgent{}).Build()
+			credsManager := NewCredentialManager(client)
 			decryptor := tt.setupFunc(credsManager)
 			credsManager.secretBackend = decryptor
 			got, err := credsManager.GetCredentials()
@@ -271,8 +275,9 @@ func Test_refresh(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			defer tt.resetFunc()
-
-			cm := NewCredentialManager()
+			s := testutils_test.TestScheme()
+			client := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&v2alpha1.DatadogAgent{}).Build()
+			cm := NewCredentialManager(client)
 			decryptor := tt.setupFunc(cm)
 			cm.secretBackend = decryptor
 
