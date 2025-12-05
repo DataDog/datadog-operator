@@ -22,7 +22,15 @@ type Config struct {
 	ProcessorServiceNamespace string
 }
 
-// FromAnnotations create a appsec.Config from an annotation map
+// FromAnnotations creates an appsec.Config from an annotation map and validates it.
+// It parses annotations with the "agent.datadoghq.com/appsec.injector.*" prefix
+// to configure the AppSec proxy injection feature.
+//
+// Returns an error if:
+//   - Boolean values cannot be parsed (enabled, autoDetect)
+//   - Proxies JSON is malformed
+//   - Port is not a valid integer
+//   - Configuration validation fails (invalid port range, invalid proxy values, missing required fields)
 func FromAnnotations(annotations map[string]string) (config Config, err error) {
 	// Read configuration from annotations
 
@@ -56,6 +64,11 @@ func FromAnnotations(annotations map[string]string) (config Config, err error) {
 		}
 	}
 
+	// Validate the configuration before returning
+	if err = config.Validate(); err != nil {
+		return config, fmt.Errorf("invalid configuration: %w", err)
+	}
+
 	return config, nil
 }
 
@@ -71,19 +84,24 @@ func (c Config) isEnabled() bool {
 	return true
 }
 
-func (c Config) validate() error {
+// Validate checks that the Config has valid values for all fields.
+// It returns an error if any validation fails.
+func (c Config) Validate() error {
 	if c.ProcessorPort < 0 || c.ProcessorPort > 65535 {
-		return fmt.Errorf("invalid configuration: port must be between 0 and 65535")
+		return fmt.Errorf("processor port %d must be between 0 and 65535 (annotation: %s)",
+			c.ProcessorPort, AnnotationInjectorProcessorPort)
 	}
 
 	for _, proxy := range c.Proxies {
-		if !slices.Contains(AllowedProxyValues, proxy) {
-			return fmt.Errorf("invalid configuration: invalid proxy value %q (allowed values: %v)", proxy, AllowedProxyValues)
+		if !slices.Contains(AllowedProxyValues(), proxy) {
+			return fmt.Errorf("invalid proxy value %q (allowed values: %v, annotation: %s)",
+				proxy, AllowedProxyValues(), AnnotationInjectorProxies)
 		}
 	}
 
 	if c.isEnabled() && c.ProcessorServiceName == "" {
-		return fmt.Errorf("invalid configuration: must specify a non-empty service name with a running service")
+		return fmt.Errorf("processor service name is required when AppSec is enabled (annotation: %s)",
+			AnnotationInjectorProcessorServiceName)
 	}
 
 	return nil

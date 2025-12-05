@@ -227,6 +227,65 @@ func TestAppsecFeatureID(t *testing.T) {
 	assert.Equal(t, string(feature.AppsecIDType), string(f.ID()))
 }
 
+func TestAppsecVersionCheck(t *testing.T) {
+	tests := []struct {
+		name            string
+		clusterAgentTag string
+		wantConfigured  bool
+	}{
+		{
+			name:            "version below minimum 7.72.0",
+			clusterAgentTag: "7.72.0",
+			wantConfigured:  false,
+		},
+		{
+			name:            "version below minimum 7.60.0",
+			clusterAgentTag: "7.60.0",
+			wantConfigured:  false,
+		},
+		{
+			name:            "version at exact minimum 7.73.0",
+			clusterAgentTag: "7.73.0",
+			wantConfigured:  true,
+		},
+		{
+			name:            "version above minimum 7.74.0",
+			clusterAgentTag: "7.74.0",
+			wantConfigured:  true,
+		},
+		{
+			name:            "version far above minimum 8.0.0",
+			clusterAgentTag: "8.0.0",
+			wantConfigured:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := testutils.NewDatadogAgentBuilder().
+				WithClusterAgentTag(tt.clusterAgentTag).
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:              "true",
+					AnnotationInjectorAutoDetect:           "true",
+					AnnotationInjectorProcessorServiceName: "appsec-processor",
+				}).
+				Build()
+
+			f := buildAppsecFeature(nil).(*appsecFeature)
+			reqComp := f.Configure(dda, &dda.Spec, nil)
+
+			if tt.wantConfigured {
+				assert.True(t, reqComp.ClusterAgent.IsRequired != nil && *reqComp.ClusterAgent.IsRequired,
+					"Feature should be configured for version %s", tt.clusterAgentTag)
+				assert.True(t, f.config.Enabled, "Config should be enabled for valid version")
+			} else {
+				assert.False(t, reqComp.ClusterAgent.IsRequired != nil && *reqComp.ClusterAgent.IsRequired,
+					"Feature should not be configured for version %s", tt.clusterAgentTag)
+			}
+		})
+	}
+}
+
 func TestAppsecFeatureConfigure(t *testing.T) {
 	tests := []struct {
 		name              string
@@ -372,46 +431,54 @@ func TestFromAnnotations(t *testing.T) {
 		{
 			name: "enabled only",
 			annotations: map[string]string{
-				AnnotationInjectorEnabled: "true",
+				AnnotationInjectorEnabled:              "true",
+				AnnotationInjectorProcessorServiceName: "appsec-svc",
 			},
 			wantConfig: Config{
-				Enabled: true,
+				Enabled:              true,
+				ProcessorServiceName: "appsec-svc",
 			},
 			wantErr: false,
 		},
 		{
 			name: "enabled with autoDetect",
 			annotations: map[string]string{
-				AnnotationInjectorEnabled:    "true",
-				AnnotationInjectorAutoDetect: "true",
+				AnnotationInjectorEnabled:              "true",
+				AnnotationInjectorAutoDetect:           "true",
+				AnnotationInjectorProcessorServiceName: "appsec-svc",
 			},
 			wantConfig: Config{
-				Enabled:    true,
-				AutoDetect: boolPtr(true),
+				Enabled:              true,
+				AutoDetect:           boolPtr(true),
+				ProcessorServiceName: "appsec-svc",
 			},
 			wantErr: false,
 		},
 		{
 			name: "enabled with proxies",
 			annotations: map[string]string{
-				AnnotationInjectorEnabled: "true",
-				AnnotationInjectorProxies: `["envoy-gateway","istio"]`,
+				AnnotationInjectorEnabled:              "true",
+				AnnotationInjectorProxies:              `["envoy-gateway","istio"]`,
+				AnnotationInjectorProcessorServiceName: "appsec-svc",
 			},
 			wantConfig: Config{
-				Enabled: true,
-				Proxies: []string{"envoy-gateway", "istio"},
+				Enabled:              true,
+				Proxies:              []string{"envoy-gateway", "istio"},
+				ProcessorServiceName: "appsec-svc",
 			},
 			wantErr: false,
 		},
 		{
 			name: "enabled with processor port",
 			annotations: map[string]string{
-				AnnotationInjectorEnabled:       "true",
-				AnnotationInjectorProcessorPort: "443",
+				AnnotationInjectorEnabled:              "true",
+				AnnotationInjectorProcessorPort:        "443",
+				AnnotationInjectorProcessorServiceName: "appsec-svc",
 			},
 			wantConfig: Config{
-				Enabled:       true,
-				ProcessorPort: 443,
+				Enabled:              true,
+				ProcessorPort:        443,
+				ProcessorServiceName: "appsec-svc",
 			},
 			wantErr: false,
 		},
@@ -555,7 +622,7 @@ func TestConfigValidate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.config.validate()
+			err := tt.config.Validate()
 
 			if tt.wantErr {
 				assert.Error(t, err)

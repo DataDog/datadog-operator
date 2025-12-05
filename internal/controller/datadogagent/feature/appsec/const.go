@@ -21,7 +21,7 @@ const (
 	AnnotationInjectorProcessorPort = "agent.datadoghq.com/appsec.injector.processor.port"
 	// AnnotationInjectorProcessorServiceName is the processor service name (required)
 	AnnotationInjectorProcessorServiceName = "agent.datadoghq.com/appsec.injector.processor.service.name"
-	// AnnotationInjectorProcessorServiceNamespace is the processor service namespace (defaults to the cluster-agent namespace)
+	// AnnotationInjectorProcessorServiceNamespace is the processor service namespace (optional, cluster-agent will use its own namespace if not specified)
 	AnnotationInjectorProcessorServiceNamespace = "agent.datadoghq.com/appsec.injector.processor.service.namespace"
 )
 
@@ -44,5 +44,12 @@ const (
 	DDClusterAgentAppsecInjectorProcessorServiceNamespace = "DD_CLUSTER_AGENT_APPSEC_INJECTOR_PROCESSOR_SERVICE_NAMESPACE"
 )
 
-// AllowedProxyValues are what proxies the current RBAC supports
-var AllowedProxyValues = []string{"envoy-gateway", "istio"}
+var allowedProxyValues = []string{"envoy-gateway", "istio"}
+
+// AllowedProxyValues returns the proxy types that the current RBAC supports.
+// The returned slice must not be modified.
+func AllowedProxyValues() []string {
+	result := make([]string, len(allowedProxyValues))
+	copy(result, allowedProxyValues)
+	return result
+}

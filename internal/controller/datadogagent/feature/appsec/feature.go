@@ -59,6 +59,10 @@ func (f *appsecFeature) ID() feature.IDType {
 
 func isAboveMinVersion(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	// Agent version must >= 7.73.0 to run appsec feature
+	if ddaSpec == nil {
+		return utils.IsAboveMinVersion(images.AgentLatestVersion, ClusterAgentMinVersion, nil)
+	}
+
 	image := images.AgentLatestVersion
 	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok {
 		if clusterAgent.Image != nil {
@@ -73,12 +77,7 @@ func (f *appsecFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAg
 	var err error
 	f.config, err = FromAnnotations(dda.GetAnnotations())
 	if err != nil {
-		f.logger.Error(err, "failed to parse annotations")
-		return feature.RequiredComponents{}
-	}
-
-	if err := f.config.validate(); err != nil {
-		f.logger.Error(err, "failed to validate annotations")
+		f.logger.Error(err, "failed to parse and validate AppSec configuration")
 		return feature.RequiredComponents{}
 	}
 

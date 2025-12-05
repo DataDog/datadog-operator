@@ -30,7 +30,7 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 			APIGroups: []string{rbac.CoreAPIGroup},
 			Resources: []string{rbac.EventsResource},
 			Verbs: []string{
-				rbac.GetVerb,
+				rbac.CreateVerb,
 			},
 		},
 		{
@@ -57,6 +57,7 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 			Resources: []string{
 				"gateways",
 				"gatewayclasses",
+				"httproutes",
 			},
 			Verbs: []string{
 				rbac.GetVerb,
