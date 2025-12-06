@@ -1058,6 +1058,13 @@ func (builder *DatadogAgentBuilder) WithClusterAgentImage(image string) *Datadog
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithClusterAgentDisabled(disabled bool) *DatadogAgentBuilder {
+	builder.WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+		Disabled: apiutils.NewBoolPointer(disabled),
+	})
+	return builder
+}
+
 func (builder *DatadogAgentBuilder) WithClusterChecksRunnerImage(image string) *DatadogAgentBuilder {
 	if builder.datadogAgent.Spec.Override == nil {
 		builder.datadogAgent.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{}

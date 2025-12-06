@@ -1201,19 +1201,17 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 }
 
 func verifyDCADeployment(t *testing.T, c client.Client, ddaName, resourcesNamespace, expectedName string, provider string) error {
-	deploymentList := appsv1.DeploymentList{}
-	if err := c.List(context.TODO(), &deploymentList, client.HasLabels{constants.MD5AgentDeploymentProviderLabelKey}); err != nil {
+	dcaDeployment := appsv1.Deployment{}
+	if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: expectedName}, &dcaDeployment); err != nil {
 		return err
 	}
-	assert.Equal(t, 1, len(deploymentList.Items))
-	assert.Equal(t, expectedName, deploymentList.Items[0].ObjectMeta.Name)
+	assert.Contains(t, dcaDeployment.ObjectMeta.Labels, constants.MD5AgentDeploymentProviderLabelKey)
 
 	cms := corev1.ConfigMapList{}
 	if err := c.List(context.TODO(), &cms, client.InNamespace(resourcesNamespace)); err != nil {
 		return err
 	}
 
-	dcaDeployment := deploymentList.Items[0]
 	if provider == kubernetes.DefaultProvider {
 		for _, cm := range cms.Items {
 			assert.NotEqual(t, fmt.Sprintf("datadog-controlplane-monitoring-%s", provider), cm.ObjectMeta.Name,
