@@ -26,6 +26,7 @@ const (
 	DiscoveryAPIGroup        = "discovery.k8s.io"
 	ExtensionsAPIGroup       = "extensions"
 	ExternalMetricsAPIGroup  = "external.metrics.k8s.io"
+	GatewayAPIGroup          = "gateway.networking.k8s.io"
 	NetworkingAPIGroup       = "networking.k8s.io"
 	OpenShiftQuotaAPIGroup   = "quota.openshift.io"
 	PolicyAPIGroup           = "policy"
