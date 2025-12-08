@@ -33,12 +33,11 @@ func NewDatadogPodAutoscalerFromV1Alpha1(in *v1alpha1.DatadogPodAutoscaler) *Dat
 func ConvertDatadogPodAutoscalerSpecFromV1Alpha1(in v1alpha1.DatadogPodAutoscalerSpec) DatadogPodAutoscalerSpec {
 	// Same fields
 	out := DatadogPodAutoscalerSpec{
-		TargetRef:             in.TargetRef,
-		Owner:                 in.Owner,
-		RemoteVersion:         in.RemoteVersion,
-		Objectives:            in.Targets,
-		Constraints:           in.Constraints,
-		RecommendationOptions: in.RecommendationOptions,
+		TargetRef:     in.TargetRef,
+		Owner:         in.Owner,
+		RemoteVersion: in.RemoteVersion,
+		Objectives:    in.Targets,
+		Constraints:   in.Constraints,
 	}
 
 	// Other fields
@@ -80,12 +79,11 @@ func NewDatadogPodAutoscalerToV1Alpha1(in *DatadogPodAutoscaler) *v1alpha1.Datad
 
 func ConvertDatadogPodAutoscalerSpecToV1Alpha1(in DatadogPodAutoscalerSpec) v1alpha1.DatadogPodAutoscalerSpec {
 	out := v1alpha1.DatadogPodAutoscalerSpec{
-		TargetRef:             in.TargetRef,
-		Owner:                 in.Owner,
-		RemoteVersion:         in.RemoteVersion,
-		Targets:               in.Objectives,
-		Constraints:           in.Constraints,
-		RecommendationOptions: in.RecommendationOptions,
+		TargetRef:     in.TargetRef,
+		Owner:         in.Owner,
+		RemoteVersion: in.RemoteVersion,
+		Targets:       in.Objectives,
+		Constraints:   in.Constraints,
 	}
 
 	if in.ApplyPolicy != nil {
