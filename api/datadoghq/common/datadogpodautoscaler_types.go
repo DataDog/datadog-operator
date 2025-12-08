@@ -364,6 +364,17 @@ type DatadogPodAutoscalerContainerResourceConstraints struct {
 	MaxAllowed corev1.ResourceList `json:"maxAllowed,omitempty"`
 }
 
+// DatadogPodAutoscalerRecommendationOptions defines options for how recommendations are generated.
+// +kubebuilder:object:generate=true
+type DatadogPodAutoscalerRecommendationOptions struct {
+	// OOMBumpUpRatio is the ratio to increase memory when OOM is detected.
+	// This is a pod-level setting that applies to memory scaling recommendations.
+	// Use a plain number (e.g., "1.2" means increase by 20%).
+	// Represented as a resource.Quantity to avoid floating point in CRDs.
+	// +optional
+	OOMBumpUpRatio *resource.Quantity `json:"oomBumpUpRatio,omitempty"`
+}
+
 // DatadogPodAutoscalerStatus defines the observed state of DatadogPodAutoscaler
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerStatus struct {
