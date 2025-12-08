@@ -137,9 +137,7 @@ func (sm *SharedMetadata) GetOrCreateClusterName() string {
 // getApiKeyAndURL retrieves the API key and request URL from the operator or DDA
 // and sets the cluster name from the operator or DDA in the SharedMetadata struct
 func (sm *SharedMetadata) getApiKeyAndURL() (*string, *string, error) {
-	// Get credentials (operator → DDA fallback handled internally), dda can be nil
-	dda, _ := sm.getDatadogAgent()
-	creds, err := sm.credsManager.GetCredsWithDDAFallback(dda)
+	creds, err := sm.credsManager.GetCredsWithDDAFallback(sm.getDatadogAgent)
 	if err != nil {
 		return nil, nil, err
 	}

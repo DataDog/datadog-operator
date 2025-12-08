@@ -143,7 +143,7 @@ func (cm *CredentialManager) GetCredentials() (Creds, error) {
 	return creds, nil
 }
 
-func (cm *CredentialManager) GetCredsWithDDAFallback(dda *v2alpha1.DatadogAgent) (Creds, error) {
+func (cm *CredentialManager) GetCredsWithDDAFallback(getDDA func() (*v2alpha1.DatadogAgent, error)) (Creds, error) {
 	creds, err := cm.GetCredentials()
 	if err == nil {
 		if os.Getenv("DD_SITE") != "" {
@@ -155,6 +155,11 @@ func (cm *CredentialManager) GetCredsWithDDAFallback(dda *v2alpha1.DatadogAgent)
 			creds.URL = &url
 		}
 		return creds, nil
+	}
+
+	dda, err := getDDA()
+	if err != nil {
+		return Creds{}, err
 	}
 
 	creds, err = cm.getCredentialsFromDDA(dda)
@@ -254,7 +259,7 @@ func (cm *CredentialManager) getCredentialsFromDDA(dda *v2alpha1.DatadogAgent) (
 
 	apiKey := ""
 	err := error(nil)
-	if dda.Spec.Global.Credentials.APIKey != nil && *dda.Spec.Global.Credentials.APIKey != "" {
+	if dda.Spec.Global != nil && dda.Spec.Global.Credentials != nil && dda.Spec.Global.Credentials.APIKey != nil && *dda.Spec.Global.Credentials.APIKey != "" {
 		apiKey = *dda.Spec.Global.Credentials.APIKey
 	} else {
 		_, secretName, secretKeyName := secrets.GetAPIKeySecret(dda.Spec.Global.Credentials, defaultSecretName)
