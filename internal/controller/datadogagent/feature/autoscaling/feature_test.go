@@ -7,6 +7,7 @@ package autoscaling
 
 import (
 	"fmt"
+	"sort"
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -34,24 +35,40 @@ const (
 func TestAutoscalingFeature(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
-			Name:          "v2alpha1 autoscaling disabled",
-			DDA:           newAgent(false, true),
-			ClusterAgent:  testDCAResources(false),
+			Name:          "autoscaling disabled",
+			DDA:           newAgent(false, false, true),
+			ClusterAgent:  testDCAResources(false, false),
 			Agent:         testAgentResources(false),
 			WantConfigure: false,
 		},
 		{
-			Name:                 "v2alpha1 autoscaling enabled",
-			DDA:                  newAgent(true, true),
+			Name:                 "workload autoscaling enabled",
+			DDA:                  newAgent(true, false, true),
 			WantConfigure:        true,
-			ClusterAgent:         testDCAResources(true),
+			ClusterAgent:         testDCAResources(true, false),
 			Agent:                testAgentResources(true),
 			WantDependenciesFunc: testRBACResources,
 		},
 		{
-			Name:                      "v2alpha1 autoscaling enabled but admission disabled",
-			DDA:                       newAgent(true, false),
-			ClusterAgent:              testDCAResources(true),
+			Name:                 "cluster autoscaling enabled",
+			DDA:                  newAgent(false, true, false),
+			WantConfigure:        true,
+			ClusterAgent:         testDCAResources(false, true),
+			Agent:                testAgentResources(false),
+			WantDependenciesFunc: testRBACResources,
+		},
+		{
+			Name:                 "workload and cluster autoscaling enabled",
+			DDA:                  newAgent(true, true, true),
+			WantConfigure:        true,
+			ClusterAgent:         testDCAResources(true, true),
+			Agent:                testAgentResources(true),
+			WantDependenciesFunc: testRBACResources,
+		},
+		{
+			Name:                      "autoscaling enabled but admission disabled",
+			DDA:                       newAgent(true, true, false),
+			ClusterAgent:              testDCAResources(true, true),
 			Agent:                     testAgentResources(true),
 			WantConfigure:             true,
 			WantManageDependenciesErr: true,
@@ -61,7 +78,7 @@ func TestAutoscalingFeature(t *testing.T) {
 	tests.Run(t, buildAutoscalingFeature)
 }
 
-func newAgent(enabled bool, admissionEnabled bool) *v2alpha1.DatadogAgent {
+func newAgent(workloadEnabled, clusterEnabled, admissionEnabled bool) *v2alpha1.DatadogAgent {
 	return &v2alpha1.DatadogAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
@@ -71,7 +88,10 @@ func newAgent(enabled bool, admissionEnabled bool) *v2alpha1.DatadogAgent {
 			Features: &v2alpha1.DatadogFeatures{
 				Autoscaling: &v2alpha1.AutoscalingFeatureConfig{
 					Workload: &v2alpha1.WorkloadAutoscalingFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(enabled),
+						Enabled: apiutils.NewBoolPointer(workloadEnabled),
+					},
+					Cluster: &v2alpha1.ClusterAutoscalingFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(clusterEnabled),
 					},
 				},
 				AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
@@ -89,45 +109,84 @@ func testRBACResources(t testing.TB, store store.StoreClient) {
 	// validate clusterRole policy rules
 	crObj, found := store.Get(kubernetes.ClusterRolesKind, "", rbacName)
 
+	policyRules := []rbacv1.PolicyRule{
+		{
+			Verbs:     []string{"*"},
+			APIGroups: []string{"datadoghq.com"},
+			Resources: []string{"datadogpodautoscalers", "datadogpodautoscalers/status"},
+		},
+		{
+			Verbs:     []string{"create", "patch"},
+			APIGroups: []string{""},
+			Resources: []string{"events"},
+		},
+		{
+			Verbs:     []string{"get", "update"},
+			APIGroups: []string{"*"},
+			Resources: []string{"*/scale"},
+		},
+		{
+			Verbs:     []string{"patch"},
+			APIGroups: []string{""},
+			Resources: []string{"pods"},
+		},
+		{
+			Verbs:     []string{"patch"},
+			APIGroups: []string{"apps"},
+			Resources: []string{"deployments"},
+		},
+		{
+			Verbs:     []string{"patch"},
+			APIGroups: []string{"argoproj.io"},
+			Resources: []string{"rollouts"},
+		},
+	}
+
+	if t.Name() == "TestAutoscalingFeature/cluster_autoscaling_enabled" {
+		policyRules = []rbacv1.PolicyRule{
+			{
+				Verbs:     []string{"create", "delete", "get", "list", "patch"},
+				APIGroups: []string{"karpenter.sh"},
+				Resources: []string{"*"},
+			},
+			{
+				Verbs:     []string{"create", "patch"},
+				APIGroups: []string{""},
+				Resources: []string{"events"},
+			},
+			{
+				Verbs:     []string{"get", "list"},
+				APIGroups: []string{"karpenter.k8s.aws"},
+				Resources: []string{"*"},
+			},
+		}
+	}
+
+	if t.Name() == "TestAutoscalingFeature/workload_and_cluster_autoscaling_enabled" {
+		policyRules = append(policyRules, []rbacv1.PolicyRule{
+			{
+				Verbs:     []string{"create", "delete", "get", "list", "patch"},
+				APIGroups: []string{"karpenter.sh"},
+				Resources: []string{"*"},
+			},
+			{
+				Verbs:     []string{"get", "list"},
+				APIGroups: []string{"karpenter.k8s.aws"},
+				Resources: []string{"*"},
+			},
+		}...,
+		)
+	}
+
 	if !found {
 		t.Error("Should have created ClusterRole")
 	} else {
 		cr := crObj.(*rbacv1.ClusterRole)
+		fmt.Println(cr.Rules)
 		assert.True(
 			t,
-			apiutils.IsEqualStruct(cr.Rules, []rbacv1.PolicyRule{
-				{
-					Verbs:     []string{"*"},
-					APIGroups: []string{"datadoghq.com"},
-					Resources: []string{"datadogpodautoscalers", "datadogpodautoscalers/status"},
-				},
-				{
-					Verbs:     []string{"create", "patch"},
-					APIGroups: []string{""},
-					Resources: []string{"events"},
-				},
-				{
-					Verbs:     []string{"get", "update"},
-					APIGroups: []string{"*"},
-					Resources: []string{"*/scale"},
-				},
-				{
-					Verbs:     []string{"patch"},
-					APIGroups: []string{""},
-					Resources: []string{"pods"},
-				},
-				{
-					Verbs:     []string{"patch"},
-					APIGroups: []string{"apps"},
-					Resources: []string{"deployments"},
-				},
-				{
-					Verbs:     []string{"patch"},
-					APIGroups: []string{"argoproj.io"},
-					Resources: []string{"rollouts"},
-				},
-			}),
-			"ClusterRole Policy Rules \ndiff = %s", cmp.Diff(cr.Rules, ""),
+			rulesEqual(cr.Rules, policyRules),
+			"ClusterRole Policy Rules \ndiff = %s", cmp.Diff(cr.Rules, policyRules),
 		)
 	}
 
@@ -152,7 +211,7 @@ func testRBACResources(t testing.TB, store store.StoreClient) {
 	}
 }
 
-func testDCAResources(enabled bool) *test.ComponentTest {
+func testDCAResources(workloadEnabled, clusterEnabled bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -160,7 +219,7 @@ func testDCAResources(enabled bool) *test.ComponentTest {
 			clusterAgentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 
 			var expectedClusterAgentEnvVars []*corev1.EnvVar
-			if enabled {
+			if workloadEnabled {
 				expectedClusterAgentEnvVars = append(expectedClusterAgentEnvVars,
 					&corev1.EnvVar{
 						Name:  DDAutoscalingWorkloadEnabled,
@@ -168,6 +227,15 @@ func testDCAResources(enabled bool) *test.ComponentTest {
 					},
 					&corev1.EnvVar{
 						Name:  DDAutoscalingFailoverEnabled,
+						Value: "true",
+					},
+				)
+			}
+
+			if clusterEnabled {
+				expectedClusterAgentEnvVars = append(expectedClusterAgentEnvVars,
+					&corev1.EnvVar{
+						Name:  DDAutoscalingClusterEnabled,
 						Value: "true",
 					},
 				)
@@ -182,14 +250,14 @@ func testDCAResources(enabled bool) *test.ComponentTest {
 	)
 }
 
-func testAgentResources(enabled bool) *test.ComponentTest {
+func testAgentResources(workloadEnabled bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
 			coreAgentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 			var expectedCoreAgentEnvVars []*corev1.EnvVar
-			if enabled {
+			if workloadEnabled {
 				expectedCoreAgentEnvVars = append(expectedCoreAgentEnvVars,
 					&corev1.EnvVar{
 						Name:  DDAutoscalingFailoverEnabled,
@@ -209,4 +277,16 @@ func testAgentResources(enabled bool) *test.ComponentTest {
 			)
 		},
 	)
+}
+
+func rulesEqual(in, out []rbacv1.PolicyRule) bool {
+	sort.Slice(in, func(i, j int) bool {
+		return in[i].APIGroups[0] < in[j].APIGroups[0]
+	})
+
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].APIGroups[0] < out[j].APIGroups[0]
+	})
+
+	return apiutils.IsEqualStruct(in, out)
 }

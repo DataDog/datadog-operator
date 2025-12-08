@@ -291,8 +291,6 @@ rules:
 - apiGroups:
   - datadoghq.com
   - karpenter.azure.com
-  - karpenter.k8s.aws
-  - karpenter.sh
   resources:
   - '*'
   verbs:
@@ -307,6 +305,7 @@ rules:
   - watch
 - apiGroups:
   - external.metrics.k8s.io
+  - karpenter.k8s.aws
   resources:
   - '*'
   verbs:
@@ -341,6 +340,17 @@ rules:
   - delete
   - get
   - patch
+- apiGroups:
+  - karpenter.sh
+  resources:
+  - '*'
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - watch
 - apiGroups:
   - metrics.eks.amazonaws.com
   resources:
