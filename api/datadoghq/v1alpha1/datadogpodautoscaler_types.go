@@ -62,8 +62,6 @@ import (
 //         limits:
 //           minAllowed:
 //           maxAllowed:
-//   recommendationOptions:
-//     oomBumpUpRatio: 1.2
 
 // DatadogPodAutoscalerSpec defines the desired state of DatadogPodAutoscaler
 type DatadogPodAutoscalerSpec struct {
@@ -91,10 +89,6 @@ type DatadogPodAutoscalerSpec struct {
 
 	// Constraints defines constraints that should always be respected.
 	Constraints *common.DatadogPodAutoscalerConstraints `json:"constraints,omitempty"`
-
-	// RecommendationOptions defines options for how recommendations are generated.
-	// +optional
-	RecommendationOptions *common.DatadogPodAutoscalerRecommendationOptions `json:"recommendationOptions,omitempty"`
 }
 
 // DatadogPodAutoscalerOwner defines the source of truth for this object (local or remote)
