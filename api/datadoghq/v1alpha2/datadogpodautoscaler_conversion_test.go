@@ -82,9 +82,6 @@ func TestNewDatadogPodAutoscalerFromV1Alpha1(t *testing.T) {
 					Strategy: common.DatadogPodAutoscalerDisabledUpdateStrategy,
 				},
 			},
-			RecommendationOptions: &common.DatadogPodAutoscalerRecommendationOptions{
-				OOMBumpUpRatio: utils.NewPointer(resource.MustParse("1.2")),
-			},
 		},
 	}
 
@@ -152,9 +149,6 @@ func TestNewDatadogPodAutoscalerFromV1Alpha1(t *testing.T) {
 				Update: &common.DatadogPodAutoscalerUpdatePolicy{
 					Strategy: common.DatadogPodAutoscalerDisabledUpdateStrategy,
 				},
-			},
-			RecommendationOptions: &common.DatadogPodAutoscalerRecommendationOptions{
-				OOMBumpUpRatio: utils.NewPointer(resource.MustParse("1.2")),
 			},
 		},
 	}
@@ -229,9 +223,6 @@ func TestNewDatadogPodAutoscalerToV1Alpha1(t *testing.T) {
 					Strategy: common.DatadogPodAutoscalerDisabledUpdateStrategy,
 				},
 			},
-			RecommendationOptions: &common.DatadogPodAutoscalerRecommendationOptions{
-				OOMBumpUpRatio: utils.NewPointer(resource.MustParse("1.2")),
-			},
 		},
 	}
 
@@ -299,9 +290,6 @@ func TestNewDatadogPodAutoscalerToV1Alpha1(t *testing.T) {
 				Update: &common.DatadogPodAutoscalerUpdatePolicy{
 					Strategy: common.DatadogPodAutoscalerDisabledUpdateStrategy,
 				},
-			},
-			RecommendationOptions: &common.DatadogPodAutoscalerRecommendationOptions{
-				OOMBumpUpRatio: utils.NewPointer(resource.MustParse("1.2")),
 			},
 		},
 	}
