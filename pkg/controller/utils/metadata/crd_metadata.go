@@ -330,7 +330,7 @@ func (cmf *CRDMetadataForwarder) getChangedCRDs(crds []CRDInstance) []CRDInstanc
 
 	var changed []CRDInstance
 	for _, crd := range crds {
-		key := getCacheKey(crd)
+		key := buildCacheKey(crd)
 		newHash, err := hashCRD(crd)
 		if err != nil {
 			cmf.logger.Error(err, "Failed to hash CRD", "key", key)
@@ -353,7 +353,7 @@ func (cmf *CRDMetadataForwarder) cleanupDeletedCRDs(currentCRDs []CRDInstance, s
 
 	currentKeys := make(map[string]bool)
 	for _, crd := range currentCRDs {
-		currentKeys[getCacheKey(crd)] = true
+		currentKeys[buildCacheKey(crd)] = true
 	}
 
 	for key := range cmf.crdCache {
@@ -373,8 +373,8 @@ func (cmf *CRDMetadataForwarder) cleanupDeletedCRDs(currentCRDs []CRDInstance, s
 }
 
 // Cache helper functions
-// getCacheKey returns a unique key for a CRD instance, with format "kind/namespace/name"
-func getCacheKey(crd CRDInstance) string {
+// buildCacheKey builds a unique key for a CRD instance, with format "kind/namespace/name"
+func buildCacheKey(crd CRDInstance) string {
 	return fmt.Sprintf("%s/%s/%s", crd.Kind, crd.Namespace, crd.Name)
 }
 

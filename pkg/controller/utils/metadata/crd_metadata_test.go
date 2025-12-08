@@ -348,18 +348,18 @@ func Test_CRDPerKindErrorHandling(t *testing.T) {
 	}
 }
 
-// Test getCacheKey function
-func Test_GetCacheKey(t *testing.T) {
+// Test buildCacheKey function
+func Test_BuildCacheKey(t *testing.T) {
 	crd := CRDInstance{
 		Kind:      "DatadogAgent",
 		Name:      "my-agent",
 		Namespace: "datadog",
 	}
 
-	key := getCacheKey(crd)
+	key := buildCacheKey(crd)
 	expected := "DatadogAgent/datadog/my-agent"
 	if key != expected {
-		t.Errorf("getCacheKey() = %s, want %s", key, expected)
+		t.Errorf("buildCacheKey() = %s, want %s", key, expected)
 	}
 }
 
