@@ -350,6 +350,7 @@ rules:
   - get
   - list
   - patch
+  - update
   - watch
 - apiGroups:
   - metrics.eks.amazonaws.com

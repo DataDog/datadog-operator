@@ -182,12 +182,7 @@ func testRBACResources(t testing.TB, store store.StoreClient) {
 		t.Error("Should have created ClusterRole")
 	} else {
 		cr := crObj.(*rbacv1.ClusterRole)
-		fmt.Println(cr.Rules)
-		assert.True(
-			t,
-			rulesEqual(cr.Rules, policyRules),
-			"ClusterRole Policy Rules \ndiff = %s", cmp.Diff(cr.Rules, policyRules),
-		)
+		assertRulesEqual(t, policyRules, cr.Rules)
 	}
 
 	// validate clusterRoleBinding roleRef name
@@ -279,14 +274,18 @@ func testAgentResources(workloadEnabled bool) *test.ComponentTest {
 	)
 }
 
-func rulesEqual(in, out []rbacv1.PolicyRule) bool {
-	sort.Slice(in, func(i, j int) bool {
-		return in[i].APIGroups[0] < in[j].APIGroups[0]
+func assertRulesEqual(t testing.TB, expected, result []rbacv1.PolicyRule) {
+	t.Helper()
+
+	sort.Slice(expected, func(i, j int) bool {
+		return expected[i].APIGroups[0] < expected[j].APIGroups[0]
 	})
 
-	sort.Slice(out, func(i, j int) bool {
-		return out[i].APIGroups[0] < out[j].APIGroups[0]
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].APIGroups[0] < result[j].APIGroups[0]
 	})
 
-	return apiutils.IsEqualStruct(in, out)
+	if !assert.True(t, apiutils.IsEqualStruct(expected, result)) {
+		t.Logf("ClusterRole Policy Rules \ndiff = %s", cmp.Diff(expected, result))
+	}
 }
