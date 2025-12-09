@@ -4152,6 +4152,70 @@
                     "description": "Annotations provide annotations that are added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods.",
                     "type": "object"
                   },
+                  "celWorkloadExclude": {
+                    "additionalProperties": false,
+                    "description": "CELWorkloadExclude allows excluding workloads from monitoring using Common Expression Language (CEL).\nThe configuration is a YAML string that will be converted to JSON and set as the DD_CEL_WORKLOAD_EXCLUDE environment variable.\nThis feature requires Agent/Cluster Agent version 7.73 or later.",
+                    "properties": {
+                      "products": {
+                        "description": "Products defines a list of products to exclude from collection.",
+                        "items": {
+                          "description": "Product defines the products CelWorkloadExcludeRules applies to.",
+                          "enum": [
+                            "metrics",
+                            "logs",
+                            "sbom",
+                            "global"
+                          ],
+                          "type": "string"
+                        },
+                        "type": "array",
+                        "x-kubernetes-list-type": "atomic"
+                      },
+                      "rules": {
+                        "additionalProperties": false,
+                        "description": "Rules defines a list of CEL rules to exclude workloads from collection.",
+                        "properties": {
+                          "containers": {
+                            "description": "Containers exclude rule",
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          "kube_endpoints": {
+                            "description": "KubeEndpoints exclude rule",
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          "kube_services": {
+                            "description": "KubeServices exclude rule",
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          "pods": {
+                            "description": "Pods exclude rule",
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          "processes": {
+                            "description": "Processes exclude rule",
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  },
                   "containers": {
                     "additionalProperties": {
                       "additionalProperties": false,

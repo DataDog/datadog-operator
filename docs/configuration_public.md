@@ -620,6 +620,24 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 : _type_: `map[string]string`
 <br /> Annotations provide annotations that are added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods.
 
+`[component].celWorkloadExclude.products`
+: Products defines a list of products to exclude from collection.
+
+`[component].celWorkloadExclude.rules.containers`
+: Containers exclude rule
+
+`[component].celWorkloadExclude.rules.kube_endpoints`
+: KubeEndpoints exclude rule
+
+`[component].celWorkloadExclude.rules.kube_services`
+: KubeServices exclude rule
+
+`[component].celWorkloadExclude.rules.pods`
+: Pods exclude rule
+
+`[component].celWorkloadExclude.rules.processes`
+: Processes exclude rule
+
 `[component].containers`
 : _type_: `map[string]object`
 <br /> Configure the basic configurations for each Agent container. Valid Agent container names are: `agent`, `cluster-agent`, `init-config`, `init-volume`, `process-agent`, `seccomp-setup`, `security-agent`, `system-probe`, and `trace-agent`.
