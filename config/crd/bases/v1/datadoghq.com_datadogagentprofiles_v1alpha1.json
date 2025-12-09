@@ -1036,6 +1036,17 @@
                   "additionalProperties": false,
                   "description": "Autoscaling configuration.",
                   "properties": {
+                    "cluster": {
+                      "additionalProperties": false,
+                      "description": "Cluster contains the configuration for the cluster autoscaling product.",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables the cluster autoscaling product.\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    },
                     "workload": {
                       "additionalProperties": false,
                       "description": "Workload contains the configuration for the workload autoscaling product.",
