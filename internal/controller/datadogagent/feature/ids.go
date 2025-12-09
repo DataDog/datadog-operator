@@ -59,6 +59,8 @@ const (
 	APMIDType = "apm"
 	// ASMIDType ASM feature
 	ASMIDType = "asm"
+	// AppsecIDType AppSec feature
+	AppsecIDType = "appsec"
 	// AdmissionControllerIDType Admission controller feature
 	AdmissionControllerIDType = "admission_controller"
 	// OTLPIDType OTLP ingest feature
