@@ -394,7 +394,7 @@ func run(opts *options) error {
 		setupLog.Info("Starting metadata forwarders")
 		setupAndStartOperatorMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
 		setupAndStartHelmMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
-    setupAndStartCRDMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
+		setupAndStartCRDMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
 	}()
 
 	// +kubebuilder:scaffold:builder
