@@ -56,6 +56,8 @@ func apiCreateAndUpdateStatus(r *Reconciler, logger logr.Logger, instance *v1alp
 
 func getHandler(resourceType v1alpha1.SupportedResourcesType) ResourceHandler {
 	switch resourceType {
+	case v1alpha1.Downtime:
+		return &DowntimeHandler{}
 	case v1alpha1.Monitor:
 		return &MonitorHandler{}
 	case v1alpha1.Notebook:
