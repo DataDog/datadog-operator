@@ -184,7 +184,7 @@ func TestCheckRequiredCredentials(t *testing.T) {
 				datadogGenericResourceEnabled: tt.datadogGenericResourceEnabled,
 			}
 
-			credsManager := config.NewCredentialManager()
+			credsManager := config.NewCredentialManager(nil)
 			_, err := credsManager.GetCredentials()
 			err = checkRequiredCredentials(opts, err)
 
