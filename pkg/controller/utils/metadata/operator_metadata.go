@@ -86,7 +86,7 @@ func (omf *OperatorMetadataForwarder) Start() {
 	go func() {
 		for range ticker.C {
 			if err := omf.sendMetadata(); err != nil {
-				omf.logger.Error(err, "Error while sending metadata")
+				omf.logger.Info("Error while sending metadata", "error", err)
 			}
 		}
 	}()
@@ -138,7 +138,7 @@ func (omf *OperatorMetadataForwarder) GetPayload(clusterUID string) []byte {
 
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
-		omf.logger.Error(err, "Error marshaling payload to json")
+		omf.logger.V(1).Info("Error marshaling payload to json", "error", err)
 	}
 
 	return jsonPayload

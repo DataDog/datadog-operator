@@ -93,7 +93,7 @@ func (sm *SharedMetadata) createRequest(payload []byte) (*http.Request, error) {
 	reader := bytes.NewReader(payload)
 	req, err := http.NewRequestWithContext(context.TODO(), "POST", *requestURL, reader)
 	if err != nil {
-		sm.logger.Error(err, "Error creating request", "url", *requestURL, "reader", reader)
+		sm.logger.V(1).Info("Error creating request", "error", err, "url", *requestURL)
 		return nil, err
 	}
 	req.Header = payloadHeader

@@ -151,7 +151,7 @@ func (hmf *HelmMetadataForwarder) Start() {
 	go func() {
 		for range ticker.C {
 			if err := hmf.sendMetadata(); err != nil {
-				hmf.logger.Error(err, "Error while sending metadata")
+				hmf.logger.Info("Error while sending metadata", "error", err)
 			}
 		}
 	}()
@@ -162,7 +162,7 @@ func (hmf *HelmMetadataForwarder) sendMetadata() error {
 
 	releases, err := hmf.discoverAllHelmReleases(ctx)
 	if err != nil {
-		hmf.logger.Error(err, "Failed to discover Helm releases")
+		hmf.logger.Info("Failed to discover Helm releases", "error", err)
 		return err
 	}
 
@@ -177,9 +177,6 @@ func (hmf *HelmMetadataForwarder) sendMetadata() error {
 			"chart_version", release.ChartVersion)
 
 		if err := hmf.sendSingleReleasePayload(release); err != nil {
-			hmf.logger.Error(err, "Failed to send payload for release",
-				"release", release.ReleaseName,
-				"namespace", release.Namespace)
 			sendErrors = append(sendErrors, err)
 		} else {
 			hmf.logger.V(1).Info("Successfully sent metadata",
@@ -268,7 +265,8 @@ func (hmf *HelmMetadataForwarder) buildPayload(release HelmReleaseData, clusterU
 
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
-		hmf.logger.Error(err, "Error marshaling payload to json",
+		hmf.logger.V(1).Info("Error marshaling payload to json",
+			"error", err,
 			"release", release.ReleaseName)
 	}
 
@@ -328,7 +326,7 @@ func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) (
 
 			secretList := &corev1.SecretList{}
 			if err := hmf.k8sClient.List(ctx, secretList, listOpts...); err != nil {
-				hmf.logger.Error(err, "Error listing Secrets for Helm releases", "namespace", namespace, "chart", chartName)
+				hmf.logger.Info("Error listing Secrets for Helm releases", "error", err, "namespace", namespace, "chart", chartName)
 				allErrors = append(allErrors, fmt.Errorf("secrets in namespace %s for chart %s: %w", namespace, chartName, err))
 			} else {
 				hmf.logger.V(1).Info("Scanning Secrets for Helm releases", "namespace", namespace, "chart", chartName, "total_secrets", len(secretList.Items))
@@ -356,7 +354,7 @@ func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) (
 
 			cmList := &corev1.ConfigMapList{}
 			if err := hmf.k8sClient.List(ctx, cmList, listOpts...); err != nil {
-				hmf.logger.Error(err, "Error listing ConfigMaps for Helm releases", "namespace", namespace, "chart", chartName)
+				hmf.logger.Info("Error listing ConfigMaps for Helm releases", "error", err, "namespace", namespace, "chart", chartName)
 				allErrors = append(allErrors, fmt.Errorf("configmaps in namespace %s for chart %s: %w", namespace, chartName, err))
 			} else {
 				hmf.logger.V(1).Info("Scanning ConfigMaps for Helm releases", "namespace", namespace, "chart", chartName, "total_configmaps", len(cmList.Items))
