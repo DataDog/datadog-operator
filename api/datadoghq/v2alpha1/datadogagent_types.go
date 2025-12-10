@@ -1979,9 +1979,9 @@ type DatadogAgentComponentOverride struct {
 	// +optional
 	ExtraChecksd *MultiCustomConfig `json:"extraChecksd,omitempty"`
 
-	// CELWorkloadExclude allows excluding workloads from monitoring using Common Expression Language (CEL).
-	// The configuration is a YAML string that will be converted to JSON and set as the DD_CEL_WORKLOAD_EXCLUDE environment variable.
-	// This feature requires Agent/Cluster Agent version 7.73 or later.
+	// CELWorkloadExclude enables excluding workloads from monitoring using Common Expression Language (CEL).
+	// See https://docs.datadoghq.com/containers/guide/container-discovery-management
+	// (Requires Agent 7.73+ and Cluster Agent 7.73+)
 	// +optional
 	// +listType=atomic
 	CELWorkloadExclude []CelWorkloadExcludeConfig `json:"celWorkloadExclude,omitempty"`

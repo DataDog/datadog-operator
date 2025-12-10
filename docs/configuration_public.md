@@ -622,7 +622,7 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 
 `[component].celWorkloadExclude`
 : _type_: `[]object`
-<br /> CELWorkloadExclude allows excluding workloads from monitoring using Common Expression Language (CEL). The configuration is a YAML string that will be converted to JSON and set as the DD_CEL_WORKLOAD_EXCLUDE environment variable. This feature requires Agent/Cluster Agent version 7.73 or later.
+<br /> CELWorkloadExclude enables excluding workloads from monitoring using Common Expression Language (CEL). See https://docs.datadoghq.com/containers/guide/container-discovery-management (Requires Agent 7.73+ and Cluster Agent 7.73+)
 
 `[component].containers`
 : _type_: `map[string]object`
