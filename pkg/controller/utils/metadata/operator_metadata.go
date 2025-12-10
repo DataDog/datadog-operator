@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -116,12 +115,8 @@ func (omf *OperatorMetadataForwarder) sendMetadata() error {
 	}
 
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read metadata response body: %w", err)
-	}
 
-	omf.logger.V(1).Info("Read metadata response", "status code", resp.StatusCode, "body", string(body))
+	omf.logger.V(1).Info("Sent metadata", "status code", resp.StatusCode)
 	return nil
 }
 
