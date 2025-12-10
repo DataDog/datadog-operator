@@ -302,8 +302,8 @@ func run(opts *options) error {
 	creds, err := credsManager.GetCredentials()
 	if err != nil && opts.datadogMonitorEnabled {
 		return setupErrorf(setupLog, err, "Unable to get credentials for DatadogMonitor")
-  }
-  
+	}
+
 	// Checks if credentials are mandatory due to a resource controller being enabled
 	if checkErr := checkRequiredCredentials(opts, err); checkErr != nil {
 		return checkErr
