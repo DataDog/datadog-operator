@@ -12,9 +12,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/go-logr/logr"
-	"sigs.k8s.io/yaml"
-
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -23,6 +20,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/images"
+	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func getAgentContainersMap() map[apicommon.AgentContainerName]string {
@@ -101,19 +100,18 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 		manager.EnvFromVar().AddEnvFromVar(&e)
 	}
 
-	// Handle CELWorkloadExclude: convert YAML to JSON and set as DD_CEL_WORKLOAD_EXCLUDE env var
-	//if override.CELWorkloadExclude != nil && *override.CELWorkloadExclude != "" {
-	//	jsonConfig, err := convertYAMLToJSON(*override.CELWorkloadExclude)
-	//	if err != nil {
-	//		logger.Error(err, "failed to convert celWorkloadExclude YAML to JSON")
-	//	} else {
-	//		celEnvVar := corev1.EnvVar{
-	//			Name:  "DD_CEL_WORKLOAD_EXCLUDE",
-	//			Value: jsonConfig,
-	//		}
-	//		manager.EnvVar().AddEnvVar(&celEnvVar)
-	//	}
-	//}
+	if override.CELWorkloadExclude != nil && len(override.CELWorkloadExclude) > 0 {
+		jsonConfig, err := json.Marshal(override.CELWorkloadExclude)
+		if err != nil {
+			logger.Error(err, "failed to convert to JSON")
+		} else {
+			celEnvVar := corev1.EnvVar{
+				Name:  common.DDCELWorkloadExclude,
+				Value: string(jsonConfig),
+			}
+			manager.EnvVar().AddEnvVar(&celEnvVar)
+		}
+	}
 
 	// Override agent configurations such as datadog.yaml, system-probe.yaml, etc.
 	overrideCustomConfigVolumes(logger, manager, override.CustomConfigurations, componentName, ddaName)
@@ -267,23 +265,4 @@ func sortKeys(keysMap map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig) []
 	}
 	slices.Sort(sortedKeys)
 	return sortedKeys
-}
-
-// convertYAMLToJSON converts a YAML string to a JSON string.
-// This is used for the celWorkloadExclude field which accepts YAML but needs to be
-// set as JSON in the DD_CEL_WORKLOAD_EXCLUDE environment variable.
-func convertYAMLToJSON(yamlStr string) (string, error) {
-	// Parse YAML to an intermediate representation
-	var data interface{}
-	if err := yaml.Unmarshal([]byte(yamlStr), &data); err != nil {
-		return "", fmt.Errorf("failed to unmarshal YAML: %w", err)
-	}
-
-	// Convert to JSON
-	jsonBytes, err := json.Marshal(data)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal to JSON: %w", err)
-	}
-
-	return string(jsonBytes), nil
 }

@@ -1983,7 +1983,8 @@ type DatadogAgentComponentOverride struct {
 	// The configuration is a YAML string that will be converted to JSON and set as the DD_CEL_WORKLOAD_EXCLUDE environment variable.
 	// This feature requires Agent/Cluster Agent version 7.73 or later.
 	// +optional
-	CELWorkloadExclude *CelWorkloadExcludeConfig `json:"celWorkloadExclude,omitempty"`
+	// +listType=atomic
+	CELWorkloadExclude []CelWorkloadExcludeConfig `json:"celWorkloadExclude,omitempty"`
 
 	// Configure the basic configurations for each Agent container. Valid Agent container names are:
 	// `agent`, `cluster-agent`, `init-config`, `init-volume`, `process-agent`, `seccomp-setup`,
