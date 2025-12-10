@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.17.3
+    controller-gen.kubebuilder.io/version: v0.16.3
   name: datadogagentprofiles.datadoghq.com
 spec:
   group: datadoghq.com
@@ -1523,6 +1523,65 @@ spec:
                                 (Requires Agent and Cluster Agent 7.40.0+).
                                 Default: {}
                               type: object
+                          type: object
+                        hostProfiler:
+                          description: HostProfiler configuration.
+                          properties:
+                            conf:
+                              description: |-
+                                Conf overrides the configuration for the default Kubernetes State Metrics Core check.
+                                This must point to a ConfigMap containing a valid cluster check configuration.
+                                When passing a configmap, file name *must* be otel-config.yaml.
+                              properties:
+                                configData:
+                                  description: ConfigData corresponds to the configuration file content.
+                                  type: string
+                                configMap:
+                                  description: ConfigMap references an existing ConfigMap with the configuration file content.
+                                  properties:
+                                    items:
+                                      description: Items maps a ConfigMap data `key` to a file `path` mount.
+                                      items:
+                                        description: Maps a string key to a path within a volume.
+                                        properties:
+                                          key:
+                                            description: key is the key to project.
+                                            type: string
+                                          mode:
+                                            description: |-
+                                              mode is Optional: mode bits used to set permissions on this file.
+                                              Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511.
+                                              YAML accepts both octal and decimal values, JSON requires decimal values for mode bits.
+                                              If not specified, the volume defaultMode will be used.
+                                              This might be in conflict with other options that affect the file
+                                              mode, like fsGroup, and the result can be other mode bits set.
+                                            format: int32
+                                            type: integer
+                                          path:
+                                            description: |-
+                                              path is the relative path of the file to map the key to.
+                                              May not be an absolute path.
+                                              May not contain the path element '..'.
+                                              May not start with the string '..'.
+                                            type: string
+                                        required:
+                                          - key
+                                          - path
+                                        type: object
+                                      type: array
+                                      x-kubernetes-list-map-keys:
+                                        - key
+                                      x-kubernetes-list-type: map
+                                    name:
+                                      description: Name is the name of the ConfigMap.
+                                      type: string
+                                  type: object
+                              type: object
+                            enabled:
+                              description: |-
+                                Enabled enables the OTel Agent.
+                                Default: false
+                              type: boolean
                           type: object
                         kubeStateMetricsCore:
                           description: KubeStateMetricsCore check configuration.

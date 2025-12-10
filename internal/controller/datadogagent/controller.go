@@ -48,6 +48,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/oomkill"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/orchestratorexplorer"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/hostprofiler"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otlp"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/processdiscovery"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/prometheusscrape"

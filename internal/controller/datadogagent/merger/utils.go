@@ -16,6 +16,7 @@ var AllAgentContainers = map[common.AgentContainerName]struct{}{
 	common.SecurityAgentContainerName:  {},
 	common.SystemProbeContainerName:    {},
 	common.OtelAgent:                   {},
+	common.HostProfiler:                {},
 	common.AgentDataPlaneContainerName: {},
 	// DCA containers
 	common.ClusterAgentContainerName: {},
