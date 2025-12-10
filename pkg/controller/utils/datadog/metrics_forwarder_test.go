@@ -210,7 +210,7 @@ func Test_setupFromOperator(t *testing.T) {
 				k8sClient:    fake.NewFakeClient(),
 				decryptor:    d,
 				creds:        sync.Map{},
-				credsManager: config.NewCredentialManager(),
+				credsManager: config.NewCredentialManager(fake.NewFakeClient()),
 			}
 			if tt.loadFunc != nil {
 				tt.loadFunc(mf, d)
@@ -424,7 +424,7 @@ func Test_setupFromDDA(t *testing.T) {
 				k8sClient:    fake.NewFakeClient(),
 				decryptor:    d,
 				creds:        sync.Map{},
-				credsManager: config.NewCredentialManager(),
+				credsManager: config.NewCredentialManager(fake.NewFakeClient()),
 			}
 
 			err := mf.setupFromDDA(tt.args.dda, tt.args.credsSetFromOperator)
@@ -599,7 +599,7 @@ func Test_getCredentialsFromDDA(t *testing.T) {
 				k8sClient:    tt.fields.client,
 				decryptor:    d,
 				creds:        sync.Map{},
-				credsManager: config.NewCredentialManager(),
+				credsManager: config.NewCredentialManager(fake.NewFakeClient()),
 			}
 			if tt.args.loadFunc != nil {
 				tt.args.loadFunc(mf, d)
