@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/DataDog/datadog-operator/pkg/config"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
@@ -28,7 +30,7 @@ func Test_CRDBuildPayload(t *testing.T) {
 		nil,
 		expectedKubernetesVersion,
 		expectedOperatorVersion,
-		nil,
+		config.NewCredentialManager(fake.NewFakeClient()),
 		EnabledCRDKindsConfig{
 			DatadogAgentEnabled:         true,
 			DatadogAgentInternalEnabled: true,
@@ -173,7 +175,7 @@ func Test_CRDCacheDetection(t *testing.T) {
 		nil,
 		"v1.28.0",
 		"v1.19.0",
-		nil,
+		config.NewCredentialManager(fake.NewFakeClient()),
 		EnabledCRDKindsConfig{
 			DatadogAgentEnabled:         true,
 			DatadogAgentInternalEnabled: true,
@@ -249,7 +251,7 @@ func Test_CRDCacheCleanup(t *testing.T) {
 		nil,
 		"v1.28.0",
 		"v1.19.0",
-		nil,
+		config.NewCredentialManager(fake.NewFakeClient()),
 		EnabledCRDKindsConfig{DatadogAgentEnabled: true},
 	)
 
@@ -297,7 +299,7 @@ func Test_CRDPerKindErrorHandling(t *testing.T) {
 		nil,
 		"v1.28.0",
 		"v1.19.0",
-		nil,
+		config.NewCredentialManager(fake.NewFakeClient()),
 		EnabledCRDKindsConfig{
 			DatadogAgentEnabled:         true,
 			DatadogAgentInternalEnabled: true,

@@ -6,14 +6,12 @@
 package metadata
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
 	"maps"
-	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -24,7 +22,6 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
-	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 const (
@@ -34,8 +31,7 @@ const (
 type CRDMetadataForwarder struct {
 	*SharedMetadata
 
-	payloadHeader http.Header
-	enabledCRDs   EnabledCRDKindsConfig
+	enabledCRDs EnabledCRDKindsConfig
 
 	crdCache   map[string]string // key: "kind/namespace/name", value: hash of spec
 	cacheMutex sync.RWMutex
@@ -84,8 +80,9 @@ type EnabledCRDKindsConfig struct {
 
 // NewCRDMetadataForwarder creates a new instance of the CRD metadata forwarder
 func NewCRDMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string, credsManager *config.CredentialManager, config EnabledCRDKindsConfig) *CRDMetadataForwarder {
+	forwarderLogger := logger.WithName("crd")
 	return &CRDMetadataForwarder{
-		SharedMetadata: NewSharedMetadata(logger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
+		SharedMetadata: NewSharedMetadata(forwarderLogger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
 		enabledCRDs:    config,
 		crdCache:       make(map[string]string),
 	}
@@ -93,47 +90,38 @@ func NewCRDMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubern
 
 // Start starts the CRD metadata forwarder
 func (cmf *CRDMetadataForwarder) Start() {
-	err := cmf.setCredentials()
-	if err != nil {
-		cmf.logger.Error(err, "Could not set credentials; not starting CRD metadata forwarder")
+	if cmf.hostName == "" {
+		cmf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting metadata forwarder")
 		return
 	}
 
-	clusterUID, err := cmf.GetOrCreateClusterUID()
-	if err != nil {
-		cmf.logger.Error(err, "Could not get cluster UID; not starting CRD metadata forwarder")
-		return
-	}
-
-	cmf.payloadHeader = cmf.getHeaders()
-
-	cmf.logger.Info("Starting CRD metadata forwarder")
+	cmf.logger.Info("Starting metadata forwarder")
 
 	ticker := time.NewTicker(crdMetadataInterval)
 	go func() {
 		for range ticker.C {
-			if err := cmf.sendMetadata(clusterUID); err != nil {
-				cmf.logger.Error(err, "Error while sending CRD metadata")
+			if err := cmf.sendMetadata(); err != nil {
+				cmf.logger.Error(err, "Error while sending metadata")
 			}
 		}
 	}()
 }
 
-func (cmf *CRDMetadataForwarder) sendMetadata(clusterUID string) error {
+func (cmf *CRDMetadataForwarder) sendMetadata() error {
 	allCRDs, listSuccess := cmf.getAllActiveCRDs()
 	changedCRDs := cmf.getChangedCRDs(allCRDs)
 
 	if len(changedCRDs) == 0 {
-		cmf.logger.V(1).Info("No CRD changes detected")
+		cmf.logger.V(1).Info("No changes detected")
 		return nil
 	}
 
-	cmf.logger.Info("Detected CRD changes", "count", len(changedCRDs))
+	cmf.logger.V(1).Info("Detected changes", "count", len(changedCRDs))
 
 	// Send individual payloads for each changed CRD
 	for _, crd := range changedCRDs {
-		if err := cmf.sendCRDMetadata(clusterUID, crd); err != nil {
-			cmf.logger.Error(err, "Failed to send CRD metadata",
+		if err := cmf.sendCRDMetadata(crd); err != nil {
+			cmf.logger.Error(err, "Failed to send metadata",
 				"kind", crd.Kind, "name", crd.Name, "namespace", crd.Namespace)
 		}
 	}
@@ -142,29 +130,35 @@ func (cmf *CRDMetadataForwarder) sendMetadata(clusterUID string) error {
 	return nil
 }
 
-func (cmf *CRDMetadataForwarder) sendCRDMetadata(clusterUID string, crdInstance CRDInstance) error {
+func (cmf *CRDMetadataForwarder) sendCRDMetadata(crdInstance CRDInstance) error {
+	clusterUID, err := cmf.GetOrCreateClusterUID()
+	if err != nil {
+		return fmt.Errorf("error getting cluster UID: %w", err)
+	}
+
 	payload := cmf.buildPayload(clusterUID, crdInstance)
 
-	reader := bytes.NewReader(payload)
-	req, err := http.NewRequestWithContext(context.TODO(), "POST", cmf.requestURL, reader)
+	cmf.logger.V(1).Info("Sending metadata HTTP request",
+		"kind", crdInstance.Kind,
+		"name", crdInstance.Name)
+
+	req, err := cmf.createRequest(payload)
 	if err != nil {
-		cmf.logger.Error(err, "Error creating request", "url", cmf.requestURL)
-		return err
+		return fmt.Errorf("error creating request: %w", err)
 	}
-	req.Header = cmf.payloadHeader
 
 	resp, err := cmf.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("error sending CRD metadata request: %w", err)
+		return fmt.Errorf("error sending metadata request: %w", err)
 	}
 
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to read CRD metadata response body: %w", err)
+		return fmt.Errorf("failed to read metadata response body: %w", err)
 	}
 
-	cmf.logger.V(1).Info("Read CRD metadata response",
+	cmf.logger.V(1).Info("Read metadata response",
 		"status code", resp.StatusCode,
 		"body", string(body),
 		"kind", crdInstance.Kind,
@@ -311,16 +305,6 @@ func (cmf *CRDMetadataForwarder) getAllActiveCRDs() ([]CRDInstance, map[string]b
 	}
 
 	return crds, listSuccess
-}
-
-func (cmf *CRDMetadataForwarder) setCredentials() error {
-	return cmf.SharedMetadata.setCredentials()
-}
-
-func (cmf *CRDMetadataForwarder) getHeaders() http.Header {
-	headers := cmf.GetBaseHeaders()
-	headers.Set(userAgentHTTPHeaderKey, fmt.Sprintf("Datadog Operator/%s", version.GetVersion()))
-	return headers
 }
 
 // getChangedCRDs returns only CRDs whose specs have changed and updates the cache
