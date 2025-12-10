@@ -1035,6 +1035,49 @@ func TestPodTemplateSpec(t *testing.T) {
 				assert.Equal(t, "gcr.io/datadoghq/ddot-collector:7.72.1", otelAgentImage, "OtelAgent should not have JMX suffix")
 			},
 		},
+		{
+			name: "Add CEL Workload Exclude",
+			existingManager: func() *fake.PodTemplateManagers {
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
+
+				manager.EnvVar().AddEnvVar(&v1.EnvVar{
+					Name:  "existing-env",
+					Value: "123",
+				})
+
+				return manager
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				CELWorkloadExclude: []v2alpha1.CelWorkloadExcludeConfig{
+					{
+						Products: []v2alpha1.Product{v2alpha1.ProductMetrics, v2alpha1.ProductLogs},
+						Rules: &v2alpha1.CelWorkloadExcludeRules{
+							Containers: []string{
+								"container.name = 'redis'",
+							},
+							Pods: []string{
+								"pod.name.startsWith('filtered')",
+							},
+						},
+					},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				expectedEnv := v1.EnvVar{
+					Name:  common.DDCELWorkloadExclude,
+					Value: `[{"products":["metrics","logs"],"rules":{"containers":["container.name = 'redis'"],"pods":["pod.name.startsWith('filtered')"]}}]`,
+				}
+				for containerName, envVars := range manager.EnvVarMgr.EnvVarsByC {
+					assert.Containsf(
+						t,
+						envVars,
+						&expectedEnv,
+						"Container %s missing expected CELWorkloadExclude env var: %+v",
+						containerName, expectedEnv,
+					)
+				}
+			},
+		},
 	}
 
 	for _, test := range tests {
