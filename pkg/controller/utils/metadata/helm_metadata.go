@@ -13,7 +13,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -28,7 +27,6 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/util/scrubber"
 	"github.com/DataDog/datadog-operator/pkg/config"
-	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 const (
@@ -49,8 +47,6 @@ var (
 type HelmMetadataForwarder struct {
 	*SharedMetadata
 
-	// Helm-specific fields
-	payloadHeader        http.Header
 	allHelmReleasesCache allHelmReleasesCache
 }
 
@@ -119,8 +115,9 @@ type HelmReleaseMinimal struct {
 
 // NewHelmMetadataForwarder creates a new instance of the helm metadata forwarder
 func NewHelmMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string, credsManager *config.CredentialManager) *HelmMetadataForwarder {
+	forwarderLogger := logger.WithName("helm")
 	return &HelmMetadataForwarder{
-		SharedMetadata: NewSharedMetadata(logger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
+		SharedMetadata: NewSharedMetadata(forwarderLogger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
 	}
 }
 
@@ -131,38 +128,30 @@ func getWatchNamespacesForHelm(logger logr.Logger) []string {
 	namespaces := make([]string, 0, len(nsMap))
 	for ns := range nsMap {
 		if ns == cache.AllNamespaces {
-			logger.V(1).Info("Helm metadata watching all namespaces")
+			logger.V(1).Info("Watching all namespaces")
 			return []string{""}
 		}
 		namespaces = append(namespaces, ns)
 	}
 
-	logger.V(1).Info("Helm metadata watching specific namespaces", "namespaces", namespaces)
+	logger.V(1).Info("Watching specific namespaces", "namespaces", namespaces)
 	return namespaces
 }
 
 // Start starts the helm metadata forwarder
 func (hmf *HelmMetadataForwarder) Start() {
-	err := hmf.setCredentials()
-	if err != nil {
-		hmf.logger.Error(err, "Could not set credentials; not starting helm metadata forwarder")
-		return
-	}
-
 	if hmf.hostName == "" {
-		hmf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting helm metadata forwarder")
+		hmf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting metadata forwarder")
 		return
 	}
 
-	hmf.payloadHeader = hmf.getHeaders()
-
-	hmf.logger.Info("Starting helm metadata forwarder")
+	hmf.logger.Info("Starting metadata forwarder")
 
 	ticker := time.NewTicker(defaultInterval)
 	go func() {
 		for range ticker.C {
 			if err := hmf.sendMetadata(); err != nil {
-				hmf.logger.Error(err, "Error while sending helm metadata")
+				hmf.logger.Error(err, "Error while sending metadata")
 			}
 		}
 	}()
@@ -179,11 +168,6 @@ func (hmf *HelmMetadataForwarder) sendMetadata() error {
 
 	hmf.logger.Info("Discovered Helm releases", "count", len(releases))
 
-	clusterUID, err := hmf.SharedMetadata.GetOrCreateClusterUID()
-	if err != nil {
-		hmf.logger.Error(err, "Error getting cluster UID")
-	}
-
 	var sendErrors []error
 	for _, release := range releases {
 		hmf.logger.V(1).Info("Processing Helm release",
@@ -192,13 +176,13 @@ func (hmf *HelmMetadataForwarder) sendMetadata() error {
 			"chart", release.ChartName,
 			"chart_version", release.ChartVersion)
 
-		if err := hmf.sendSingleReleasePayload(release, clusterUID, notScrubbed); err != nil {
+		if err := hmf.sendSingleReleasePayload(release, notScrubbed); err != nil {
 			hmf.logger.Error(err, "Failed to send payload for release",
 				"release", release.ReleaseName,
 				"namespace", release.Namespace)
 			sendErrors = append(sendErrors, err)
 		} else {
-			hmf.logger.V(1).Info("Successfully sent Helm metadata",
+			hmf.logger.V(1).Info("Successfully sent metadata",
 				"release", release.ReleaseName,
 				"namespace", release.Namespace)
 		}
@@ -212,16 +196,20 @@ func (hmf *HelmMetadataForwarder) sendMetadata() error {
 	return nil
 }
 
-func (hmf *HelmMetadataForwarder) sendSingleReleasePayload(release HelmReleaseData, clusterUID string, notScrubbed bool) error {
+func (hmf *HelmMetadataForwarder) sendSingleReleasePayload(release HelmReleaseData, notScrubbed bool) error {
+	clusterUID, err := hmf.GetOrCreateClusterUID()
+	if err != nil {
+		return fmt.Errorf("error getting cluster UID: %w", err)
+	}
 	payload := hmf.buildPayload(release, clusterUID)
 	if notScrubbed {
-		hmf.logger.V(1).Info("Built Helm metadata payload (not scrubbed)",
+		hmf.logger.V(1).Info("Built metadata payload (not scrubbed)",
 			"release", release.ReleaseName,
 			"namespace", release.Namespace,
 			"chart", release.ChartName,
 			"payload_size", len(payload))
 	} else {
-		hmf.logger.V(1).Info("Built Helm metadata payload",
+		hmf.logger.V(1).Info("Built metadata payload",
 			"release", release.ReleaseName,
 			"namespace", release.Namespace,
 			"chart", release.ChartName,
@@ -229,33 +217,30 @@ func (hmf *HelmMetadataForwarder) sendSingleReleasePayload(release HelmReleaseDa
 			"payload", string(payload))
 	}
 
-	hmf.logger.V(1).Info("Sending helm metadata HTTP request",
-		"release", release.ReleaseName,
-		"url", hmf.requestURL)
+	hmf.logger.V(1).Info("Sending metadata HTTP request",
+		"release", release.ReleaseName)
 
-	reader := bytes.NewReader(payload)
-	req, err := http.NewRequestWithContext(context.TODO(), "POST", hmf.requestURL, reader)
+	req, err := hmf.createRequest(payload)
 	if err != nil {
 		return fmt.Errorf("error creating request: %w", err)
 	}
-	req.Header = hmf.payloadHeader
 
 	resp, err := hmf.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("error sending helm metadata request: %w", err)
+		return fmt.Errorf("error sending metadata request: %w", err)
 	}
 	defer resp.Body.Close()
 
-	hmf.logger.V(1).Info("Received HTTP response for Helm metadata",
+	hmf.logger.V(1).Info("Received HTTP response for metadata",
 		"release", release.ReleaseName,
 		"status_code", resp.StatusCode)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to read helm metadata response body: %w", err)
+		return fmt.Errorf("failed to read metadata response body: %w", err)
 	}
 
-	hmf.logger.V(1).Info("Read helm metadata response",
+	hmf.logger.V(1).Info("Read metadata response",
 		"release", release.ReleaseName,
 		"status_code", resp.StatusCode,
 		"response_body", string(body))
@@ -274,7 +259,7 @@ func (hmf *HelmMetadataForwarder) buildPayload(release HelmReleaseData, clusterU
 		OperatorVersion:           hmf.operatorVersion,
 		KubernetesVersion:         hmf.kubernetesVersion,
 		ClusterID:                 clusterUID,
-		ClusterName:               hmf.clusterName,
+		ClusterName:               hmf.GetOrCreateClusterName(),
 		ChartName:                 release.ChartName,
 		ChartReleaseName:          release.ReleaseName,
 		ChartAppVersion:           release.AppVersion,
@@ -289,7 +274,7 @@ func (hmf *HelmMetadataForwarder) buildPayload(release HelmReleaseData, clusterU
 		Hostname:    hmf.hostName,
 		Timestamp:   now,
 		ClusterID:   clusterUID,
-		ClusterName: hmf.clusterName,
+		ClusterName: hmf.GetOrCreateClusterName(),
 		Metadata:    helmMetadata,
 	}
 
@@ -300,16 +285,6 @@ func (hmf *HelmMetadataForwarder) buildPayload(release HelmReleaseData, clusterU
 	}
 
 	return jsonPayload
-}
-
-func (hmf *HelmMetadataForwarder) setCredentials() error {
-	return hmf.SharedMetadata.setCredentials()
-}
-
-func (hmf *HelmMetadataForwarder) getHeaders() http.Header {
-	headers := hmf.GetBaseHeaders()
-	headers.Set(userAgentHTTPHeaderKey, fmt.Sprintf("Datadog Operator/%s", version.GetVersion()))
-	return headers
 }
 
 // getFromCache retrieves the cached Helm releases if they exist and are not expired

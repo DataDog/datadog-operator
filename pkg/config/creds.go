@@ -6,33 +6,50 @@
 package config
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"os"
 	"sync"
 	"time"
 
+	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
-	"github.com/go-logr/logr"
+)
+
+var (
+	// ErrEmptyAPIKey empty APIKey error
+	ErrEmptyAPIKey = errors.New("empty api key")
 )
 
 // Creds holds the api and app keys.
 type Creds struct {
 	APIKey string
 	AppKey string
+	Site   *string
+	URL    *string
 }
 
 // CredentialManager provides the credentials from the operator configuration.
 type CredentialManager struct {
+	client           client.Client
 	secretBackend    secrets.Decryptor
 	creds            Creds
 	credsMutex       sync.Mutex
 	decryptorBackoff wait.Backoff
 	callbacks        []CredentialChangeCallback
 	callbackMutex    sync.RWMutex
+
+	ddaDecryptor secrets.Decryptor
+	ddaCredsMap  sync.Map
 }
 
 type CredentialChangeCallback func(newCreds Creds) error
@@ -44,8 +61,27 @@ func (cm *CredentialManager) RegisterCallback(cb CredentialChangeCallback) {
 }
 
 // NewCredentialManager returns a CredentialManager.
-func NewCredentialManager() *CredentialManager {
+func NewCredentialManagerWithDecryptor(client client.Client, decryptor secrets.Decryptor) *CredentialManager {
 	return &CredentialManager{
+		client:        client,
+		secretBackend: decryptor,
+		creds:         Creds{},
+		decryptorBackoff: wait.Backoff{
+			Steps:    5,
+			Duration: 10 * time.Millisecond,
+			Factor:   5.0,
+			Cap:      20 * time.Second,
+		},
+		ddaDecryptor: decryptor,
+		ddaCredsMap:  sync.Map{},
+	}
+}
+
+// TODO deprecate in favor of NewCredentialManagerWithDecryptor
+// NewCredentialManager returns a CredentialManager.
+func NewCredentialManager(client client.Client) *CredentialManager {
+	return &CredentialManager{
+		client:        client,
 		secretBackend: secrets.NewSecretBackend(),
 		creds:         Creds{},
 		decryptorBackoff: wait.Backoff{
@@ -103,6 +139,33 @@ func (cm *CredentialManager) GetCredentials() (Creds, error) {
 
 	creds := Creds{APIKey: apiKey, AppKey: appKey}
 	cm.cacheCreds(creds)
+
+	return creds, nil
+}
+
+func (cm *CredentialManager) GetCredsWithDDAFallback(getDDA func() (*v2alpha1.DatadogAgent, error)) (Creds, error) {
+	creds, err := cm.GetCredentials()
+	if err == nil {
+		if os.Getenv("DD_SITE") != "" {
+			site := os.Getenv("DD_SITE")
+			creds.Site = &site
+		}
+		if os.Getenv("DD_URL") != "" {
+			url := os.Getenv("DD_URL")
+			creds.URL = &url
+		}
+		return creds, nil
+	}
+
+	dda, err := getDDA()
+	if err != nil {
+		return Creds{}, err
+	}
+
+	creds, err = cm.getCredentialsFromDDA(dda)
+	if err != nil {
+		return Creds{}, err
+	}
 
 	return creds, nil
 }
@@ -178,4 +241,110 @@ func (cm *CredentialManager) StartCredentialRefreshRoutine(interval time.Duratio
 			logger.Error(err, "Failed to refresh credentials")
 		}
 	}
+}
+
+// GetCredentialsFromDDA retrieves the API key from the DatadogAgent and decrypts it if needed
+// It returns the API key and the site if set in the DatadogAgent
+func (cm *CredentialManager) getCredentialsFromDDA(dda *v2alpha1.DatadogAgent) (Creds, error) {
+	creds := Creds{}
+	if dda == nil {
+		return creds, fmt.Errorf("DatadogAgent is nil")
+	}
+
+	if dda.Spec.Global == nil || dda.Spec.Global.Credentials == nil {
+		return creds, fmt.Errorf("credentials not configured in the DatadogAgent")
+	}
+
+	defaultSecretName := secrets.GetDefaultCredentialsSecretName(dda)
+
+	apiKey := ""
+	err := error(nil)
+	if dda.Spec.Global != nil && dda.Spec.Global.Credentials != nil && dda.Spec.Global.Credentials.APIKey != nil && *dda.Spec.Global.Credentials.APIKey != "" {
+		apiKey = *dda.Spec.Global.Credentials.APIKey
+	} else {
+		_, secretName, secretKeyName := secrets.GetAPIKeySecret(dda.Spec.Global.Credentials, defaultSecretName)
+		apiKey, err = cm.getKeyFromSecret(dda.Namespace, secretName, secretKeyName)
+		if err != nil {
+			return creds, err
+		}
+	}
+
+	if apiKey == "" {
+		return creds, ErrEmptyAPIKey
+	}
+
+	apiKey, err = cm.resolveSecretsIfNeeded(apiKey)
+	if err != nil {
+		return creds, err
+	}
+
+	creds.APIKey = apiKey
+	if dda.Spec.Global != nil && dda.Spec.Global.Site != nil {
+		creds.Site = dda.Spec.Global.Site
+	}
+
+	return creds, nil
+}
+
+// getKeyFromSecret is used to retrieve an API or App key from a secret object
+func (cm *CredentialManager) getKeyFromSecret(namespace, secretName, dataKey string) (string, error) {
+	secret := &corev1.Secret{}
+	err := cm.client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: secretName}, secret)
+	if err != nil {
+		return "", err
+	}
+
+	return string(secret.Data[dataKey]), nil
+}
+
+// resolveSecretsIfNeeded calls the secret backend if creds are encrypted
+func (cm *CredentialManager) resolveSecretsIfNeeded(apiKey string) (string, error) {
+	if !secrets.IsEnc(apiKey) {
+		// Credentials are not encrypted
+		return apiKey, nil
+	}
+
+	// Try to get secrets from the local cache
+	if decAPIKey, cacheHit := cm.getSecretsFromCache(apiKey); cacheHit {
+		// Creds are found in local cache
+		return decAPIKey, nil
+	}
+
+	// Cache miss, call the secret decryptor
+	decrypted, err := cm.ddaDecryptor.Decrypt([]string{apiKey})
+	if err != nil {
+		// TODO cm.logger.Error(err, "cannot decrypt secrets")
+		return "", err
+	}
+
+	// Update the local cache with the decrypted secrets
+	cm.resetSecretsCache(decrypted)
+
+	return decrypted[apiKey], nil
+}
+
+// getSecretsFromCache returns the cached and decrypted values of encrypted creds
+func (cm *CredentialManager) getSecretsFromCache(encAPIKey string) (string, bool) {
+	decAPIKey, found := cm.ddaCredsMap.Load(encAPIKey)
+	if !found {
+		return "", false
+	}
+
+	return decAPIKey.(string), true
+}
+
+// resetSecretsCache updates the local secret cache with new secret values
+func (cm *CredentialManager) resetSecretsCache(newSecrets map[string]string) {
+	cm.cleanSecretsCache()
+	for k, v := range newSecrets {
+		cm.ddaCredsMap.Store(k, v)
+	}
+}
+
+// cleanSecretsCache deletes all cached secrets
+func (cm *CredentialManager) cleanSecretsCache() {
+	cm.ddaCredsMap.Range(func(k, v any) bool {
+		cm.ddaCredsMap.Delete(k)
+		return true
+	})
 }
