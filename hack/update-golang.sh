@@ -14,6 +14,13 @@ source "$SCRIPTS_DIR/os-env.sh"
 JQ="$ROOT/bin/$PLATFORM/jq"
 YQ="$ROOT/bin/$PLATFORM/yq"
 
+# Set SED command based on OS
+if [[ "$OS" == "darwin" ]]; then
+    SED="gsed"
+else
+    SED="sed"
+fi
+
 # Ensure jq and yq are available
 if [[ ! -x "$JQ" ]]; then
     echo "Error: jq is not executable or found at $JQ"
@@ -43,7 +50,7 @@ new_minor_version=$major.$minor
 go_work_file="$ROOT/go.work"
 if [[ -f $go_work_file ]]; then
     echo "Processing $go_work_file..."
-    sed -i -E "s/^go [^ ].*/go $GOVERSION/gm" "$go_work_file"
+    $SED -i -E "s/^go [^ ].*/go $GOVERSION/gm" "$go_work_file"
 else
     echo "Warning: $go_work_file not found, skipping."
 fi
@@ -52,7 +59,7 @@ fi
 dev_container_file="$ROOT/.devcontainer/devcontainer.json"
 if [[ -f $dev_container_file ]]; then
     echo "Processing $dev_container_file..."
-    sed -i -E "s|(mcr\.microsoft\.com/devcontainers/go:)[^\"]+|\1dev-$new_minor_version|" "$dev_container_file"
+    $SED -i -E "s|(mcr\.microsoft\.com/devcontainers/go:)[^\"]+|\1dev-$new_minor_version|" "$dev_container_file"
 else
     echo "Warning: $dev_container_file not found, skipping."
 fi
@@ -62,7 +69,7 @@ dockerfile_files="$ROOT/Dockerfile $ROOT/check-operator.Dockerfile"
 for file in $dockerfile_files; do
     if [[ -f $file ]]; then
         echo "Processing $file..."
-        sed -i -E "s|(FROM golang:)[^ ]+|\1$GOVERSION|" "$file"
+        $SED -i -E "s|(FROM golang:)[^ ]+|\1$GOVERSION|" "$file"
     else
         echo "Warning: $file not found, skipping."
     fi
@@ -72,7 +79,7 @@ done
 gitlab_file="$ROOT/.gitlab-ci.yml"
 if [[ -f $gitlab_file ]]; then
     echo "Processing $gitlab_file..."
-    sed -i -E "s|(image: registry\.ddbuild\.io/images/mirror/library/golang:)[^ ]+|\1$GOVERSION|" "$gitlab_file"
+    $SED -i -E "s|(image: registry\.ddbuild\.io/images/mirror/library/golang:)[^ ]+|\1$GOVERSION|" "$gitlab_file"
 else
     echo "Warning: $gitlab_file not found, skipping."
 fi

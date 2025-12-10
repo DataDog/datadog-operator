@@ -1254,11 +1254,22 @@ type ExternalMetricsServerFeatureConfig struct {
 type AutoscalingFeatureConfig struct {
 	// Workload contains the configuration for the workload autoscaling product.
 	Workload *WorkloadAutoscalingFeatureConfig `json:"workload,omitempty"`
+
+	// Cluster contains the configuration for the cluster autoscaling product.
+	Cluster *ClusterAutoscalingFeatureConfig `json:"cluster,omitempty"`
 }
 
 // WorkloadAutoscalingFeatureConfig contains the configuration for the workload autoscaling product.
 type WorkloadAutoscalingFeatureConfig struct {
 	// Enabled enables the workload autoscaling product.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// ClusterAutoscalingFeatureConfig contains the configuration for the cluster autoscaling product.
+type ClusterAutoscalingFeatureConfig struct {
+	// Enabled enables the cluster autoscaling product.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
@@ -2185,7 +2196,7 @@ type DatadogAgentStatus struct {
 	RemoteConfigConfiguration *RemoteConfigConfiguration `json:"remoteConfigConfiguration,omitempty"`
 }
 
-// DatadogAgent Deployment with the Datadog Operator.
+// DatadogAgent defines Agent configuration, see reference https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion

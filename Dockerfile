@@ -2,7 +2,7 @@
 ARG FIPS_ENABLED=false
 
 # Build the manager binary
-FROM golang:1.25.3 AS builder
+FROM golang:1.25.5 AS builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -31,6 +31,7 @@ COPY api/ api/
 COPY internal/controller/ internal/controller/
 COPY pkg/ pkg/
 COPY cmd/helpers/ cmd/helpers/
+COPY cmd/yaml-mapper/ cmd/yaml-mapper/
 
 # Build
 ARG LDFLAGS
@@ -44,6 +45,8 @@ RUN if [ "$FIPS_ENABLED" = "true" ]; then \
     fi
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GO111MODULE=on go build -a -ldflags "${LDFLAGS}" -o helpers cmd/helpers/main.go
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GO111MODULE=on go build -a -ldflags "${LDFLAGS}" -o yaml-mapper cmd/yaml-mapper/main.go
 
 FROM registry.access.redhat.com/ubi9/ubi-minimal:latest AS certs
 
@@ -66,6 +69,9 @@ COPY --from=builder /workspace/manager .
 COPY --from=builder /workspace/helpers .
 COPY scripts/readsecret.sh .
 RUN chmod 550 readsecret.sh && chmod 550 helpers
+
+COPY --from=builder /workspace/yaml-mapper .
+RUN chmod 550 yaml-mapper
 
 COPY ./LICENSE ./LICENSE-3rdparty.csv /licenses/
 RUN chmod -R 755 /licenses

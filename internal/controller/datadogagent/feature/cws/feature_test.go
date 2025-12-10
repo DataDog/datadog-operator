@@ -212,11 +212,6 @@ func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool) *te
 					ReadOnly:  false,
 				},
 				{
-					Name:      securityfsVolumeName,
-					MountPath: securityfsMountPath,
-					ReadOnly:  true,
-				},
-				{
 					Name:      common.SystemProbeSocketVolumeName,
 					MountPath: common.SystemProbeSocketVolumePath,
 					ReadOnly:  false,
@@ -239,6 +234,16 @@ func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool) *te
 				{
 					Name:      common.SystemProbeOSReleaseDirVolumeName,
 					MountPath: common.SystemProbeOSReleaseDirMountPath,
+					ReadOnly:  true,
+				},
+				{
+					Name:      common.CgroupsVolumeName,
+					MountPath: common.CgroupsMountPath,
+					ReadOnly:  true,
+				},
+				{
+					Name:      common.HostRootVolumeName,
+					MountPath: common.HostRootMountPath,
 					ReadOnly:  true,
 				},
 				{
@@ -272,14 +277,6 @@ func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool) *te
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
 							Path: tracefsPath,
-						},
-					},
-				},
-				{
-					Name: securityfsVolumeName,
-					VolumeSource: corev1.VolumeSource{
-						HostPath: &corev1.HostPathVolumeSource{
-							Path: securityfsVolumePath,
 						},
 					},
 				},
@@ -318,6 +315,22 @@ func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool) *te
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
 							Path: common.SystemProbeOSReleaseDirVolumePath,
+						},
+					},
+				},
+				{
+					Name: common.CgroupsVolumeName,
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: common.CgroupsHostPath,
+						},
+					},
+				},
+				{
+					Name: common.HostRootVolumeName,
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: common.HostRootHostPath,
 						},
 					},
 				},

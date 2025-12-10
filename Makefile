@@ -71,7 +71,7 @@ build: manager kubectl-datadog ## Builds manager + kubectl plugin
 .PHONY: fmt
 fmt: bin/$(PLATFORM)/golangci-lint ## Run formatters against code
 	go fmt ./...
-	bin/$(PLATFORM)/golangci-lint run ./... --fix
+	bin/$(PLATFORM)/golangci-lint run ./... ./api/... ./test/e2e/... --fix
 
 .PHONY: vet
 vet: ## Run go vet against code
@@ -211,7 +211,13 @@ e2e-tests: ## Run E2E tests and destroy environment stacks after tests complete.
 		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -v -run $(E2E_RUN_REGEX) -timeout 0s -coverprofile cover_e2e.out; \
 	fi
 
+.PHONY: yaml-mapper-tests
+yaml-mapper-tests:  fmt vet yaml-mapper-unit-tests
+# Run yaml-mapper tests
 
+.PHONY: yaml-mapper-unit-tests
+yaml-mapper-unit-tests: # Run yaml-mapper unit tests
+	go test -C cmd/yaml-mapper/mapper -count=1 -v
 
 .PHONY: bundle
 bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests ## Generate bundle manifests and metadata, then validate generated files.
@@ -307,7 +313,13 @@ lint: bin/$(PLATFORM)/golangci-lint vet ## Lint
 
 .PHONY: licenses
 licenses: bin/$(PLATFORM)/go-licenses
-	./bin/$(PLATFORM)/go-licenses report ./cmd --template ./hack/licenses.tpl > LICENSE-3rdparty.csv 2> errors
+	# Generate licenses for all target platforms (linux/darwin/windows)
+	GOOS=linux ./bin/$(PLATFORM)/go-licenses report ./cmd ./cmd/kubectl-datadog ./cmd/check-operator ./cmd/helpers ./cmd/yaml-mapper --template ./hack/licenses.tpl > /tmp/licenses-linux.csv 2> errors
+	GOOS=darwin ./bin/$(PLATFORM)/go-licenses report ./cmd ./cmd/kubectl-datadog ./cmd/check-operator ./cmd/helpers ./cmd/yaml-mapper --template ./hack/licenses.tpl > /tmp/licenses-darwin.csv 2>> errors
+	GOOS=windows ./bin/$(PLATFORM)/go-licenses report ./cmd ./cmd/kubectl-datadog ./cmd/check-operator ./cmd/helpers ./cmd/yaml-mapper --template ./hack/licenses.tpl > /tmp/licenses-windows.csv 2>> errors
+	# Merge all platform-specific licenses into a single sorted file
+	head -1 /tmp/licenses-linux.csv > LICENSE-3rdparty.csv
+	tail -n +2 /tmp/licenses-linux.csv /tmp/licenses-darwin.csv /tmp/licenses-windows.csv | grep -v "^==>" | grep -v "^$$" | LC_ALL=C sort -u >> LICENSE-3rdparty.csv
 
 .PHONY: verify-licenses
 verify-licenses: bin/$(PLATFORM)/go-licenses ## Verify licenses
@@ -324,6 +336,10 @@ sync: ## Run go work sync
 
 kubectl-datadog: lint
 	go build -ldflags '${LDFLAGS}' -o bin/kubectl-datadog ./cmd/kubectl-datadog/main.go
+
+.PHONY: yaml-mapper
+yaml-mapper: fmt vet lint
+	go build -ldflags '${LDFLAGS}' -o bin/yaml-mapper ./cmd/yaml-mapper/main.go
 
 .PHONY: check-operator
 check-operator: fmt vet lint
