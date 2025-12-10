@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -87,7 +86,7 @@ func (omf *OperatorMetadataForwarder) Start() {
 	go func() {
 		for range ticker.C {
 			if err := omf.sendMetadata(); err != nil {
-				omf.logger.Error(err, "Error while sending metadata")
+				omf.logger.Info("Error while sending metadata", "error", err)
 			}
 		}
 	}()
@@ -116,12 +115,8 @@ func (omf *OperatorMetadataForwarder) sendMetadata() error {
 	}
 
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read metadata response body: %w", err)
-	}
 
-	omf.logger.V(1).Info("Read metadata response", "status code", resp.StatusCode, "body", string(body))
+	omf.logger.V(1).Info("Sent metadata", "status code", resp.StatusCode)
 	return nil
 }
 
@@ -143,7 +138,7 @@ func (omf *OperatorMetadataForwarder) GetPayload(clusterUID string) []byte {
 
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
-		omf.logger.Error(err, "Error marshaling payload to json")
+		omf.logger.V(1).Info("Error marshaling payload to json", "error", err)
 	}
 
 	return jsonPayload
