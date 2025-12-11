@@ -709,7 +709,7 @@ publish_nightly_workflow:
   variables:
     OPERATOR_NIGHTLY: "true"
     SKIP_PLAN_CHECK: "true"
-    ENVIRONMENTS: "experimental"
+    ENVIRONMENTS: "experimental,staging"
     CHART: "datadog-operator"
     OPTION_AUTOMATIC_ROLLOUT: "true"
     EXPLICIT_WORKFLOWS: "//workflows:deploy_operator_nightly.operator_nightly.publish"
@@ -737,7 +737,7 @@ publish_release_candidate_workflow:
   variables:
     OPERATOR_RC: "true"
     SKIP_PLAN_CHECK: "true"
-    ENVIRONMENTS: "experimental,alpha,staging"
+    ENVIRONMENTS: "experimental,staging"
     CHART: "datadog-operator"
     OPTION_AUTOMATIC_ROLLOUT: "true"
     EXPLICIT_WORKFLOWS: "//workflows:deploy_operator_rc.operator_rc"
