@@ -194,7 +194,7 @@ metadata:
       ]
     capabilities: Full Lifecycle
     categories: Monitoring, Logging & Tracing
-    createdAt: "2025-12-05 16:51:00"
+    createdAt: "2025-12-11 19:46:15"
     description: |-
       Datadog provides a modern monitoring and analytics platform. Gather metrics, logs and traces for full observability of your Kubernetes cluster with Datadog Operator.
 
@@ -202,7 +202,7 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.34.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/DataDog/datadog-operator
-    containerImage: gcr.io/datadoghq/operator:1.21.0-rc.2
+    containerImage: gcr.io/datadoghq/operator:1.21.0-rc.3
     support: Datadog, Inc.
     features.operators.openshift.io/disconnected: "true"
     features.operators.openshift.io/fips-compliant: "false"
@@ -211,12 +211,12 @@ metadata:
     features.operators.openshift.io/token-auth-aws: "false"
     features.operators.openshift.io/token-auth-azure: "false"
     features.operators.openshift.io/token-auth-gcp: "false"
-    olm.skipRange: '>=1.7.0 <1.21.0-rc.2'
+    olm.skipRange: '>=1.7.0 <1.21.0-rc.3'
   labels:
     operatorframework.io/arch.amd64: supported
     operatorframework.io/arch.arm64: supported
     operatorframework.io/os.linux: supported
-  name: datadog-operator.v1.21.0-rc.2
+  name: datadog-operator.v1.21.0-rc.3
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -568,8 +568,6 @@ spec:
             - apiGroups:
                 - datadoghq.com
                 - karpenter.azure.com
-                - karpenter.k8s.aws
-                - karpenter.sh
               resources:
                 - '*'
               verbs:
@@ -584,11 +582,24 @@ spec:
                 - watch
             - apiGroups:
                 - external.metrics.k8s.io
+                - karpenter.k8s.aws
               resources:
                 - '*'
               verbs:
                 - get
                 - list
+                - watch
+            - apiGroups:
+                - karpenter.sh
+              resources:
+                - '*'
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
                 - watch
             - apiGroups:
                 - metrics.eks.amazonaws.com
@@ -742,7 +753,7 @@ spec:
                             fieldPath: metadata.namespace
                       - name: DD_TOOL_VERSION
                         value: redhat-community-operators
-                    image: gcr.io/datadoghq/operator:1.21.0-rc.2
+                    image: gcr.io/datadoghq/operator:1.21.0-rc.3
                     imagePullPolicy: IfNotPresent
                     livenessProbe:
                       httpGet:
@@ -840,5 +851,5 @@ spec:
   minKubeVersion: 1.16.0
   provider:
     name: Datadog
-  version: 1.21.0-rc.2
+  version: 1.21.0-rc.3
   replaces: datadog-operator.v1.20.0
