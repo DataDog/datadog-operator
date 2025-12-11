@@ -126,7 +126,7 @@ func (r *Reconciler) cleanupV2ClusterAgent(ctx context.Context, logger logr.Logg
 	existingDeployment := &appsv1.Deployment{}
 	if err := r.client.Get(ctx, nsName, existingDeployment); err != nil {
 		if errors.IsNotFound(err) {
-			deleteStatusWithClusterChecksRunner(newStatus, common.ClusterChecksRunnerReconcileConditionType, setClusterChecksRunnerStatus)
+			deleteStatusV2WithClusterAgent(newStatus, common.ClusterChecksRunnerReconcileConditionType, setClusterChecksRunnerStatus)
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
