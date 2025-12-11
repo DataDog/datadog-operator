@@ -151,7 +151,7 @@ func (hmf *HelmMetadataForwarder) Start() {
 	go func() {
 		for range ticker.C {
 			if err := hmf.sendMetadata(); err != nil {
-				hmf.logger.Error(err, "Error while sending metadata")
+				hmf.logger.Info("Error while sending metadata", "error", err)
 			}
 		}
 	}()
@@ -160,13 +160,13 @@ func (hmf *HelmMetadataForwarder) Start() {
 func (hmf *HelmMetadataForwarder) sendMetadata() error {
 	ctx := context.Background()
 
-	releases, err, notScrubbed := hmf.discoverAllHelmReleases(ctx)
+	releases, err := hmf.discoverAllHelmReleases(ctx)
 	if err != nil {
-		hmf.logger.Error(err, "Failed to discover Helm releases")
+		hmf.logger.Info("Failed to discover Helm releases", "error", err)
 		return err
 	}
 
-	hmf.logger.Info("Discovered Helm releases", "count", len(releases))
+	hmf.logger.V(1).Info("Discovered Helm releases", "count", len(releases))
 
 	var sendErrors []error
 	for _, release := range releases {
@@ -176,10 +176,7 @@ func (hmf *HelmMetadataForwarder) sendMetadata() error {
 			"chart", release.ChartName,
 			"chart_version", release.ChartVersion)
 
-		if err := hmf.sendSingleReleasePayload(release, notScrubbed); err != nil {
-			hmf.logger.Error(err, "Failed to send payload for release",
-				"release", release.ReleaseName,
-				"namespace", release.Namespace)
+		if err := hmf.sendSingleReleasePayload(release); err != nil {
 			sendErrors = append(sendErrors, err)
 		} else {
 			hmf.logger.V(1).Info("Successfully sent metadata",
@@ -196,29 +193,18 @@ func (hmf *HelmMetadataForwarder) sendMetadata() error {
 	return nil
 }
 
-func (hmf *HelmMetadataForwarder) sendSingleReleasePayload(release HelmReleaseData, notScrubbed bool) error {
+func (hmf *HelmMetadataForwarder) sendSingleReleasePayload(release HelmReleaseData) error {
 	clusterUID, err := hmf.GetOrCreateClusterUID()
 	if err != nil {
 		return fmt.Errorf("error getting cluster UID: %w", err)
 	}
 	payload := hmf.buildPayload(release, clusterUID)
-	if notScrubbed {
-		hmf.logger.V(1).Info("Built metadata payload (not scrubbed)",
-			"release", release.ReleaseName,
-			"namespace", release.Namespace,
-			"chart", release.ChartName,
-			"payload_size", len(payload))
-	} else {
-		hmf.logger.V(1).Info("Built metadata payload",
-			"release", release.ReleaseName,
-			"namespace", release.Namespace,
-			"chart", release.ChartName,
-			"payload_size", len(payload),
-			"payload", string(payload))
-	}
 
-	hmf.logger.V(1).Info("Sending metadata HTTP request",
-		"release", release.ReleaseName)
+	hmf.logger.V(1).Info("Built metadata payload",
+		"release", release.ReleaseName,
+		"namespace", release.Namespace,
+		"chart", release.ChartName,
+		"payload_size", len(payload))
 
 	req, err := hmf.createRequest(payload)
 	if err != nil {
@@ -242,8 +228,7 @@ func (hmf *HelmMetadataForwarder) sendSingleReleasePayload(release HelmReleaseDa
 
 	hmf.logger.V(1).Info("Read metadata response",
 		"release", release.ReleaseName,
-		"status_code", resp.StatusCode,
-		"response_body", string(body))
+		"status_code", resp.StatusCode)
 
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("received error status code %d: %s", resp.StatusCode, string(body))
@@ -280,7 +265,8 @@ func (hmf *HelmMetadataForwarder) buildPayload(release HelmReleaseData, clusterU
 
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
-		hmf.logger.Error(err, "Error marshaling payload to json",
+		hmf.logger.V(1).Info("Error marshaling payload to json",
+			"error", err,
 			"release", release.ReleaseName)
 	}
 
@@ -308,13 +294,11 @@ func (c *allHelmReleasesCache) setCache(releases []HelmReleaseData) {
 }
 
 // discoverAllHelmReleases finds all Helm releases in the watched namespaces
-func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) ([]HelmReleaseData, error, bool) {
-	var notScrubbed bool
-
+func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) ([]HelmReleaseData, error) {
 	// Check cache first
 	if cachedReleases, ok := hmf.allHelmReleasesCache.getFromCache(); ok {
 		hmf.logger.V(1).Info("Using cached Helm releases", "count", len(cachedReleases))
-		return cachedReleases, nil, notScrubbed
+		return cachedReleases, nil
 	}
 
 	hmf.logger.V(1).Info("Cache miss, discovering Helm releases from cluster")
@@ -342,7 +326,7 @@ func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) (
 
 			secretList := &corev1.SecretList{}
 			if err := hmf.k8sClient.List(ctx, secretList, listOpts...); err != nil {
-				hmf.logger.Error(err, "Error listing Secrets for Helm releases", "namespace", namespace, "chart", chartName)
+				hmf.logger.Info("Error listing Secrets for Helm releases", "error", err, "namespace", namespace, "chart", chartName)
 				allErrors = append(allErrors, fmt.Errorf("secrets in namespace %s for chart %s: %w", namespace, chartName, err))
 			} else {
 				hmf.logger.V(1).Info("Scanning Secrets for Helm releases", "namespace", namespace, "chart", chartName, "total_secrets", len(secretList.Items))
@@ -370,7 +354,7 @@ func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) (
 
 			cmList := &corev1.ConfigMapList{}
 			if err := hmf.k8sClient.List(ctx, cmList, listOpts...); err != nil {
-				hmf.logger.Error(err, "Error listing ConfigMaps for Helm releases", "namespace", namespace, "chart", chartName)
+				hmf.logger.Info("Error listing ConfigMaps for Helm releases", "error", err, "namespace", namespace, "chart", chartName)
 				allErrors = append(allErrors, fmt.Errorf("configmaps in namespace %s for chart %s: %w", namespace, chartName, err))
 			} else {
 				hmf.logger.V(1).Info("Scanning ConfigMaps for Helm releases", "namespace", namespace, "chart", chartName, "total_configmaps", len(cmList.Items))
@@ -399,7 +383,7 @@ func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) (
 	}
 
 	if len(allErrors) > 0 && len(latestReleases) == 0 {
-		return nil, fmt.Errorf("failed to discover any Helm releases: %v", allErrors), notScrubbed
+		return nil, fmt.Errorf("failed to discover any Helm releases: %v", allErrors)
 	}
 
 	releases := make([]HelmReleaseData, 0, len(latestReleases))
@@ -422,14 +406,12 @@ func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) (
 		if err != nil {
 			hmf.logger.V(1).Info("Failed to scrub provided values, using unscrubbed", "release", data.release.Name, "error", err)
 			scrubbedProvidedYAML = providedValuesYAML
-			notScrubbed = true
 		}
 
 		scrubbedFullYAML, err := scrubber.ScrubBytes(fullValuesYAML)
 		if err != nil {
 			hmf.logger.V(1).Info("Failed to scrub full values, using unscrubbed", "release", data.release.Name, "error", err)
 			scrubbedFullYAML = fullValuesYAML
-			notScrubbed = true
 		}
 		// values will be scrubbed again in decoder layer
 
@@ -450,7 +432,7 @@ func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) (
 
 	hmf.allHelmReleasesCache.setCache(releases)
 
-	return releases, nil, notScrubbed
+	return releases, nil
 }
 
 // parseHelmResource extracts release information from a Helm Secret or ConfigMap
