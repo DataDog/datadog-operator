@@ -2,6 +2,7 @@ name: validation
 on: [push, pull_request]
 # Permission forced by repo-level setting; only elevate on job-level
 permissions:
+  id-token: write # needed for Codecov OIDC-based auth
   contents: read
   # packages: read
 env:
