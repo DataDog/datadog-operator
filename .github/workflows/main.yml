@@ -2,7 +2,7 @@ name: validation
 on: [push, pull_request]
 # Permission forced by repo-level setting; only elevate on job-level
 permissions:
-  id-token: write # needed for Codecov OIDC-based auth
+  id-token: write # needed for codecov, allows the action to get a JWT signed by GitHub
   contents: read
   # packages: read
 env:
