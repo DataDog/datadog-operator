@@ -620,6 +620,10 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 : _type_: `map[string]string`
 <br /> Annotations provide annotations that are added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods.
 
+`[component].celWorkloadExclude`
+: _type_: `[]object`
+<br /> CELWorkloadExclude enables excluding workloads from monitoring using Common Expression Language (CEL). See https://docs.datadoghq.com/containers/guide/container-discovery-management (Requires Agent 7.73+ and Cluster Agent 7.73+)
+
 `[component].containers`
 : _type_: `map[string]object`
 <br /> Configure the basic configurations for each Agent container. Valid Agent container names are: `agent`, `cluster-agent`, `init-config`, `init-volume`, `process-agent`, `seccomp-setup`, `security-agent`, `system-probe`, and `trace-agent`.
