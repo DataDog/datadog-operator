@@ -401,6 +401,7 @@ func run(opts *options) error {
 		setupLog.Info("Starting metadata forwarders")
 		setupAndStartOperatorMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
 		setupAndStartHelmMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
+		setupAndStartCRDMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
 	}()
 
 	// +kubebuilder:scaffold:builder
@@ -552,6 +553,22 @@ func setupAndStartOperatorMetadataForwarder(logger logr.Logger, client client.Re
 	}
 
 	omf.Start()
+}
+
+func setupAndStartCRDMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options, credsManager *config.CredentialManager) {
+	cmf := metadata.NewCRDMetadataForwarder(
+		logger,
+		client,
+		kubernetesVersion,
+		version.GetVersion(),
+		credsManager,
+		metadata.EnabledCRDKindsConfig{
+			DatadogAgentEnabled:         options.datadogAgentEnabled,
+			DatadogAgentInternalEnabled: options.datadogAgentInternalEnabled,
+			DatadogAgentProfileEnabled:  options.datadogAgentProfileEnabled,
+		},
+	)
+	cmf.Start()
 }
 
 func setupAndStartHelmMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options, credsManager *config.CredentialManager) {
