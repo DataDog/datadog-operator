@@ -266,6 +266,9 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 func updateContainerImages(config *v2alpha1.GlobalConfig, podTemplateManager feature.PodTemplateManagers) {
 	image := &images.Image{}
 	for i, container := range podTemplateManager.PodTemplateSpec().Spec.Containers {
+		if container.Name == "host-profiler" {
+			continue
+		}
 		image = images.FromString(container.Image).
 			WithRegistry(*config.Registry).
 			WithFIPS(*config.UseFIPSAgent)

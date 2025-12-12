@@ -60,6 +60,8 @@ const (
 	SystemProbeContainerName AgentContainerName = "system-probe"
 	// OtelAgent is the name of the OTel container
 	OtelAgent AgentContainerName = "otel-agent"
+	// HostProfiler is the name of the Host Profiler container
+	HostProfiler AgentContainerName = "host-profiler"
 	// AgentDataPlaneContainerName is the name of the Agent Data Plane container
 	AgentDataPlaneContainerName AgentContainerName = "agent-data-plane"
 	// AllContainers is used internally to reference all containers in the pod

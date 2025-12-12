@@ -341,6 +341,10 @@ func ddotCollectorImage() string {
 	return images.GetLatestDdotCollectorImage()
 }
 
+func hostProfilerImage() string {
+	return images.GetLatestHostProfilerImage()
+}
+
 func initContainers(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Container {
 	initContainers := []corev1.Container{
 		initVolumeContainer(),
@@ -378,7 +382,7 @@ func agentSingleContainer(dda metav1.Object) []corev1.Container {
 
 func agentOptimizedContainers(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Container {
 	containers := []corev1.Container{coreAgentContainer(dda)}
-
+	// requiredContainers = append(requiredContainers, apicommon.HostProfiler)
 	for _, containerName := range requiredContainers {
 		switch containerName {
 		case apicommon.CoreAgentContainerName:
@@ -393,6 +397,8 @@ func agentOptimizedContainers(dda metav1.Object, requiredContainers []apicommon.
 			containers = append(containers, systemProbeContainer(dda))
 		case apicommon.OtelAgent:
 			containers = append(containers, otelAgentContainer(dda))
+		case apicommon.HostProfiler:
+			containers = append(containers, hostProfilerContainer(dda))
 		case apicommon.AgentDataPlaneContainerName:
 			containers = append(containers, agentDataPlaneContainer(dda))
 		}
@@ -480,6 +486,25 @@ func otelAgentContainer(dda metav1.Object) corev1.Container {
 		},
 		SecurityContext: &corev1.SecurityContext{
 			ReadOnlyRootFilesystem: apiutils.NewBoolPointer(true),
+		},
+	}
+}
+
+func hostProfilerContainer(dda metav1.Object) corev1.Container {
+	return corev1.Container{
+		Name:  string(apicommon.HostProfiler),
+		Image: "mackjmr/ddot-ebpf:latest",
+		Command: []string{
+			"/opt/datadog-agent/embedded/bin/full-host-profiler",
+			"run",
+			"--core-config=" + agentCustomConfigVolumePath,
+		},
+		Env: commonEnvVars(dda),
+		VolumeMounts: volumeMountsForOtelAgent(),
+		Ports: []corev1.ContainerPort{},
+		SecurityContext: &corev1.SecurityContext{
+			ReadOnlyRootFilesystem: apiutils.NewBoolPointer(true),
+			Privileged:             apiutils.NewBoolPointer(true),
 		},
 	}
 }

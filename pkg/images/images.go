@@ -131,6 +131,12 @@ func GetLatestDdotCollectorImage() string {
 	return image.ToString()
 }
 
+// GetLatestAgentImage returns the latest host profiler image
+func GetLatestHostProfilerImage() string {
+	image := newImage("registry.ddbuild.io/ci/datadog-agent", "ddot-ebpf", "v84458322-f2f797fd-7-amd64", false, false, false)
+	return image.ToString()
+}
+
 // GetLatestClusterAgentImage returns the latest stable agent release version
 func GetLatestClusterAgentImage() string {
 	image := newImage(DefaultImageRegistry, DefaultClusterAgentImageName, ClusterAgentLatestVersion, false, false, false)
