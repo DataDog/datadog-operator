@@ -14,6 +14,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -37,22 +38,48 @@ const (
 	defaultProfileName  = "default"
 	daemonSetNamePrefix = "datadog-agent-with-profile-"
 	labelValueMaxLength = 63
+	// Kubernetes default for DaemonSet MaxUnavailable is 1
+	// https://github.com/kubernetes/kubernetes/blob/4aca09bc0c45acc69cfdb425d1eea8818eee04d9/pkg/apis/apps/v1/defaults.go#L87
+	defaultMaxUnavailable = 1
 )
+
+// CreateStrategyInfo holds create strategy data for a profile
+type CreateStrategyInfo struct {
+	nodesNeedingLabel   []string // list of nodes needing labels
+	nodesAlreadyLabeled int32    // number of nodes with the correct label
+}
 
 // ApplyProfileToNodes applies a profile to nodes based on its label requirements
 // If there is a conflict with an existing profile, it returns an error
-func ApplyProfileToNodes(profile metav1.ObjectMeta, profileRequirements []*labels.Requirement, nodes []v1.Node, profileAppliedByNode map[string]types.NamespacedName) error {
-	for _, node := range nodes {
-		matchesNode := profileMatchesNodeWithRequirements(profileRequirements, node.Labels)
-		if matchesNode {
-			if existingProfile, found := profileAppliedByNode[node.Name]; found {
-				// Conflict. This profile should not be applied.
-				return fmt.Errorf("profile %s conflicts with existing profile: %s", profile.Name, existingProfile.String())
-			}
+func ApplyProfileToNodes(profile metav1.ObjectMeta, profileRequirements []*labels.Requirement, nodes []v1.Node, profileAppliedByNode map[string]types.NamespacedName, csInfo map[types.NamespacedName]*CreateStrategyInfo) error {
+	profileNSName := types.NamespacedName{
+		Namespace: profile.Namespace,
+		Name:      profile.Name,
+	}
 
-			profileAppliedByNode[node.Name] = types.NamespacedName{
-				Namespace: profile.Namespace,
-				Name:      profile.Name,
+	if CreateStrategyEnabled() && csInfo[profileNSName] == nil {
+		csInfo[profileNSName] = &CreateStrategyInfo{}
+	}
+
+	for _, node := range nodes {
+		if !profileMatchesNodeWithRequirements(profileRequirements, node.Labels) {
+			continue
+		}
+
+		if existingProfile := profileAppliedByNode[node.Name]; !IsDefaultProfile(existingProfile.Namespace, existingProfile.Name) {
+			return fmt.Errorf("profile %s conflicts with existing profile: %s", profile.Name, existingProfile.String())
+		}
+
+		profileAppliedByNode[node.Name] = profileNSName
+
+		if CreateStrategyEnabled() {
+			// check for missing or wrong label
+			profileLabelValue, labelExists := node.Labels[constants.ProfileLabelKey]
+			needsLabel := !(labelExists && profileLabelValue == profile.Name)
+			if needsLabel {
+				csInfo[profileNSName].nodesNeedingLabel = append(csInfo[profileNSName].nodesNeedingLabel, node.Name)
+			} else {
+				csInfo[profileNSName].nodesAlreadyLabeled++
 			}
 		}
 	}
@@ -536,10 +563,6 @@ func CreateStrategyEnabled() bool {
 // GetMaxUnavailable gets the maxUnavailable value as in int.
 // Priority is DAP > DDA > Kubernetes default value
 func GetMaxUnavailable(logger logr.Logger, ddaSpec *v2alpha1.DatadogAgentSpec, profile *v1alpha1.DatadogAgentProfile, numNodes int, edsOptions *agent.ExtendedDaemonsetOptions) int {
-	// Kubernetes default for DaemonSet MaxUnavailable is 1
-	// https://github.com/kubernetes/kubernetes/blob/4aca09bc0c45acc69cfdb425d1eea8818eee04d9/pkg/apis/apps/v1/defaults.go#L87
-	defaultMaxUnavailable := 1
-
 	// maxUnavailable from profile
 	if profile.Spec.Config != nil {
 		if nodeAgentOverride, ok := profile.Spec.Config.Override[v2alpha1.NodeAgentComponentName]; ok {
@@ -578,4 +601,131 @@ func GetMaxUnavailable(logger logr.Logger, ddaSpec *v2alpha1.DatadogAgentSpec, p
 
 	// k8s default
 	return defaultMaxUnavailable
+}
+
+// ApplyCreateStrategy applies the create strategy to the profiles
+// - determines the max number of nodes that can be labeled based on max unavailable values
+// - updates the profile status based on the create strategy
+func ApplyCreateStrategy(logger logr.Logger, profilesByNode map[string]types.NamespacedName, csInfo *CreateStrategyInfo, profile *v1alpha1.DatadogAgentProfile, ddaEDSMaxUnavailable intstr.IntOrString, numNodes int, dsStatus *appsv1.DaemonSetStatus) {
+	if profile.Status.CreateStrategy == nil {
+		profile.Status.CreateStrategy = &v1alpha1.CreateStrategy{}
+	}
+
+	maxUnavailable := int32(getMaxNodesToLabel(logger, profile.Spec.Config, ddaEDSMaxUnavailable, numNodes))
+
+	// currentUnavailable: nodes labeled but pods not ready yet
+	currentUnavailable := int32(0)
+	if dsStatus != nil {
+		currentUnavailable = csInfo.nodesAlreadyLabeled - dsStatus.NumberReady
+	}
+
+	numNodesToLabel := applyMaxNodesToLabel(profilesByNode, csInfo, maxUnavailable, currentUnavailable)
+
+	// # of new unavailable pods after labeling new nodes
+	newUnavailable := currentUnavailable + numNodesToLabel
+
+	updateCreateStrategyStatus(profile, csInfo, numNodesToLabel, maxUnavailable, newUnavailable, dsStatus)
+}
+
+// applyMaxNodesToLabel trims the list of nodes based on max unavailable and returns the number of nodes to be labeled
+func applyMaxNodesToLabel(profilesByNode map[string]types.NamespacedName, csInfo *CreateStrategyInfo, maxUnavailable int32, currentUnavailable int32) int32 {
+	// sort to apply create strategy deterministically
+	slices.Sort(csInfo.nodesNeedingLabel)
+
+	// don't label if at capacity
+	if currentUnavailable >= maxUnavailable {
+		for _, nodeName := range csInfo.nodesNeedingLabel {
+			delete(profilesByNode, nodeName)
+		}
+		return 0
+	}
+
+	capacity := maxUnavailable - currentUnavailable
+	nodesToLabel := min(capacity, int32(len(csInfo.nodesNeedingLabel)))
+
+	// delete nodes to be labeled if we are at capacity
+	for i := nodesToLabel; i < int32(len(csInfo.nodesNeedingLabel)); i++ {
+		delete(profilesByNode, csInfo.nodesNeedingLabel[i])
+	}
+
+	return nodesToLabel
+}
+
+// updateCreateStrategyStatus updates the profile's create strategy status fields
+func updateCreateStrategyStatus(profile *v1alpha1.DatadogAgentProfile, info *CreateStrategyInfo, numNodesToLabel int32, maxUnavailable int32, newUnavailable int32, dsStatus *appsv1.DaemonSetStatus) {
+	profile.Status.CreateStrategy.MaxUnavailable = maxUnavailable
+	profile.Status.CreateStrategy.NodesLabeled = info.nodesAlreadyLabeled + numNodesToLabel
+	profile.Status.CreateStrategy.PodsReady = dsStatus.NumberReady
+
+	totalNodes := info.nodesAlreadyLabeled + int32(len(info.nodesNeedingLabel))
+
+	if totalNodes == 0 {
+		// no nodes match this profile - completed
+		profile.Status.CreateStrategy.Status = v1alpha1.CompletedStatus
+	} else if info.nodesAlreadyLabeled == totalNodes {
+		// all matching nodes are already labeled - completed
+		profile.Status.CreateStrategy.Status = v1alpha1.CompletedStatus
+	} else if numNodesToLabel > 0 || newUnavailable < maxUnavailable {
+		// labeled nodes in this round or can label more nodes - in progress
+		profile.Status.CreateStrategy.Status = v1alpha1.InProgressStatus
+	} else {
+		// can't label any nodes, waiting for pods to become ready
+		profile.Status.CreateStrategy.Status = v1alpha1.WaitingStatus
+	}
+}
+
+// GetMaxUnavailableFromSpecAndEDS gets the max unavailable value from a dda spec and eds options, and allows for a custom default value to be provided
+func GetMaxUnavailableFromSpecAndEDS(spec *v2alpha1.DatadogAgentSpec, edsOptions *agent.ExtendedDaemonsetOptions, customDefault *intstr.IntOrString) intstr.IntOrString {
+	// maxUnavailable from DDA spec
+	if spec != nil {
+		if nodeAgentOverride, ok := spec.Override[v2alpha1.NodeAgentComponentName]; ok {
+			if nodeAgentOverride.UpdateStrategy != nil && nodeAgentOverride.UpdateStrategy.RollingUpdate != nil && nodeAgentOverride.UpdateStrategy.RollingUpdate.MaxUnavailable != nil {
+				return *nodeAgentOverride.UpdateStrategy.RollingUpdate.MaxUnavailable
+			}
+		}
+	}
+
+	// maxUnavailable from EDS options
+	if edsOptions != nil && edsOptions.MaxPodUnavailable != "" {
+		return intstr.Parse(edsOptions.MaxPodUnavailable)
+	}
+
+	// if a default value is provided, return it over the k8s default
+	if customDefault != nil {
+		return *customDefault
+	}
+
+	// k8s default
+	return intstr.FromInt(defaultMaxUnavailable)
+}
+
+func getMaxNodesToLabel(logger logr.Logger, spec *v2alpha1.DatadogAgentSpec, ddaEDSMaxUnavailable intstr.IntOrString, numNodes int) int {
+	// get max unavailable from profile with fallback to dda/eds max unavailable
+	profileMaxUnavailable := GetMaxUnavailableFromSpecAndEDS(spec, nil, &ddaEDSMaxUnavailable)
+
+	// use max unavailable to calculate the max number of nodes to label
+	numToScale, err := intstr.GetScaledValueFromIntOrPercent(&profileMaxUnavailable, numNodes, true)
+	if err != nil {
+		logger.Error(err, "unable to get max unavailable pods, defaulting to 1")
+		return defaultMaxUnavailable
+	}
+	return numToScale
+}
+
+func CreateStrategyNeeded(profile *v1alpha1.DatadogAgentProfile, csInfo map[types.NamespacedName]*CreateStrategyInfo) bool {
+	profileNSName := types.NamespacedName{
+		Namespace: profile.Namespace,
+		Name:      profile.Name,
+	}
+
+	if IsDefaultProfile(profile.Namespace, profile.Name) {
+		return false
+	}
+
+	info := csInfo[profileNSName]
+	if info == nil {
+		return false
+	}
+
+	return true
 }
