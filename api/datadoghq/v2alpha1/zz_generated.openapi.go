@@ -79,7 +79,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_CelWorkloadExcludeConfig(ref
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "CelWorkloadExcludeConfig is used to configure a set of rules and products to filter collection",
+				Description: "CelWorkloadExcludeConfig configures CEL-based filtering to exclude specific workloads from Agent collection.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"products": {
@@ -89,7 +89,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_CelWorkloadExcludeConfig(ref
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Products defines a list of products to exclude from collection.",
+							Description: "Products specifies which products these exclusion rules apply to.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -104,7 +104,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_CelWorkloadExcludeConfig(ref
 					},
 					"rules": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Rules defines a list of CEL rules to exclude workloads from collection.",
+							Description: "Rules defines the CEL expressions used to identify workloads to exclude.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CelWorkloadExcludeRules"),
 						},
 					},
