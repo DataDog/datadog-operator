@@ -1,0 +1,226 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present Datadog, Inc.
+
+package datadogagent
+
+// THIS IS A TEMPLATE FILE - Copy and modify for your new component
+// Replace all instances of "Example" with your component name
+
+import (
+	"context"
+
+	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	// Import your component package here:
+	// componentexample "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/example"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
+	"github.com/DataDog/datadog-operator/pkg/condition"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/go-logr/logr"
+)
+
+// ExampleComponent implements ComponentReconciler for a new example deployment
+type ExampleComponent struct {
+	reconciler *Reconciler
+}
+
+// NewExampleComponent creates a new Example component
+func NewExampleComponent(reconciler *Reconciler) *ExampleComponent {
+	return &ExampleComponent{
+		reconciler: reconciler,
+	}
+}
+
+// Name returns the component name
+func (c *ExampleComponent) Name() datadoghqv2alpha1.ComponentName {
+	// TODO: Define this in api/datadoghq/v2alpha1/datadogagent_types.go
+	// Example: datadoghqv2alpha1.ExampleComponentName
+	return "example"
+}
+
+// IsEnabled checks if the Example component should be reconciled
+func (c *ExampleComponent) IsEnabled(requiredComponents feature.RequiredComponents) bool {
+	// TODO: Add your component to feature.RequiredComponents struct
+	// Example: return requiredComponents.Example.IsEnabled()
+	return false // Replace with actual check
+}
+
+// GetConditionType returns the condition type for status updates
+func (c *ExampleComponent) GetConditionType() string {
+	// TODO: Define this in internal/controller/datadogagent/common/const.go
+	// Example: return common.ExampleReconcileConditionType
+	return "ExampleReconcile"
+}
+
+// Reconcile reconciles the Example component
+func (c *ExampleComponent) Reconcile(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error) {
+	var result reconcile.Result
+
+	// Step 1: Create the default deployment/daemonset
+	// TODO: Create component/example package with NewDefaultExampleDeployment function
+	// Example:
+	// deployment := componentexample.NewDefaultExampleDeployment(params.DDA)
+	// podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
+
+	// For daemonset instead of deployment:
+	// daemonset := componentexample.NewDefaultExampleDaemonSet(params.DDA)
+	// podManagers := feature.NewPodTemplateManagers(&daemonset.Spec.Template)
+
+	// Step 2: Apply global settings
+	// TODO: Create global settings function in internal/controller/datadogagent/global/
+	// Example:
+	// global.ApplyGlobalSettingsExample(params.Logger, podManagers, params.DDA.GetObjectMeta(),
+	//     &params.DDA.Spec, params.ResourceManagers, params.RequiredComponents)
+
+	// Step 3: Apply features changes
+	// TODO: Add ManageExample method to feature.Feature interface
+	// Example:
+	// for _, feat := range params.Features {
+	//     if errFeat := feat.ManageExample(podManagers, params.Provider); errFeat != nil {
+	//         return result, errFeat
+	//     }
+	// }
+
+	// Step 4: Check for dependencies (if any)
+	// Example: if this component depends on Cluster Agent
+	// dcaEnabled := params.RequiredComponents.ClusterAgent.IsEnabled()
+	// if dcaOverride, ok := params.DDA.Spec.Override[datadoghqv2alpha1.ClusterAgentComponentName]; ok {
+	//     if apiutils.BoolValue(dcaOverride.Disabled) {
+	//         return c.Cleanup(ctx, params)
+	//     }
+	// } else if !dcaEnabled {
+	//     return c.Cleanup(ctx, params)
+	// }
+
+	// Step 5: Apply overrides if defined
+	if componentOverride, ok := params.DDA.Spec.Override[c.Name()]; ok {
+		if apiutils.BoolValue(componentOverride.Disabled) {
+			return c.Cleanup(ctx, params)
+		}
+		// override.PodTemplateSpec(params.Logger, podManagers, componentOverride, c.Name(), params.DDA.Name)
+		// override.Deployment(deployment, componentOverride)
+		// Or for daemonset: override.DaemonSet(daemonset, componentOverride)
+	}
+
+	// Step 6: Add provider label if introspection is enabled (optional)
+	// if c.reconciler.options.IntrospectionEnabled {
+	//     if deployment.Labels == nil {
+	//         deployment.Labels = make(map[string]string)
+	//     }
+	//     deployment.Labels[constants.MD5AgentDeploymentProviderLabelKey] = params.Provider
+	// }
+
+	// Step 7: Create or update the resource
+	// For deployment:
+	// return c.reconciler.createOrUpdateDeployment(params.Logger, params.DDA, deployment,
+	//     params.Status, updateStatusV2WithExample)
+
+	// For daemonset:
+	// return c.reconciler.createOrUpdateDaemonSet(params.Logger, params.DDA, daemonset,
+	//     params.Status, updateStatusV2WithExample)
+
+	return result, nil
+}
+
+// Cleanup removes the Example deployment and associated resources
+func (c *ExampleComponent) Cleanup(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error) {
+	// TODO: Create the default resource to get the name for deletion
+	// deployment := componentexample.NewDefaultExampleDeployment(params.DDA)
+	// return c.reconciler.cleanupV2Example(params.Logger, params.DDA, deployment, params.Status)
+
+	return reconcile.Result{}, nil
+}
+
+// The following functions are helper functions for status updates and cleanup
+// Keep these for backward compatibility with existing code
+
+func (r *Reconciler) cleanupV2Example(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent,
+	deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+
+	nsName := types.NamespacedName{
+		Name:      deployment.GetName(),
+		Namespace: deployment.GetNamespace(),
+	}
+
+	// Find and delete the deployment
+	exampleDeployment := &appsv1.Deployment{}
+	if err := r.client.Get(context.TODO(), nsName, exampleDeployment); err != nil {
+		if !errors.IsNotFound(err) {
+			return reconcile.Result{}, err
+		}
+	} else {
+		logger.Info("Deleting Example Deployment", "deployment.Namespace", exampleDeployment.Namespace, "deployment.Name", exampleDeployment.Name)
+		event := buildEventInfo(exampleDeployment.Name, exampleDeployment.Namespace, kubernetes.DeploymentKind, datadog.DeletionEvent)
+		r.recordEvent(dda, event)
+		if err := r.client.Delete(context.TODO(), exampleDeployment); err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
+	// TODO: Delete associated RBACs if needed
+	// rbacManager := resourcesManager.RBACManager()
+	// logger.Info("Deleting Example RBACs")
+	// if err := rbacManager.DeleteServiceAccountByComponent(string(datadoghqv2alpha1.ExampleComponentName), dda.Namespace); err != nil {
+	//     return reconcile.Result{}, err
+	// }
+
+	deleteStatusWithExample(newStatus)
+
+	return reconcile.Result{}, nil
+}
+
+func updateStatusV2WithExample(deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus,
+	updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
+
+	// TODO: Add Example field to DatadogAgentStatus struct in api/datadoghq/v2alpha1/datadogagent_types.go
+	// Example: newStatus.Example = condition.UpdateDeploymentStatus(deployment, newStatus.Example, &updateTime)
+	condition.UpdateDatadogAgentStatusConditions(newStatus, updateTime, common.ExampleReconcileConditionType, status, reason, message, true)
+}
+
+func deleteStatusWithExample(newStatus *datadoghqv2alpha1.DatadogAgentStatus) {
+	// TODO: Clear the status field
+	// Example: newStatus.Example = nil
+	condition.DeleteDatadogAgentStatusCondition(newStatus, common.ExampleReconcileConditionType)
+}
+
+// CHECKLIST FOR ADDING A NEW COMPONENT:
+//
+// 1. Create component package in internal/controller/datadogagent/component/<name>/
+//    - Add NewDefault<Name>Deployment() or NewDefault<Name>DaemonSet()
+//
+// 2. Add component name constant in api/datadoghq/v2alpha1/datadogagent_types.go
+//    - const <Name>ComponentName ComponentName = "<name>"
+//
+// 3. Add status field in api/datadoghq/v2alpha1/datadogagent_types.go (DatadogAgentStatus struct)
+//    - <Name> *<Name>Status `json:"<name>,omitempty"`
+//
+// 4. Add condition type in internal/controller/datadogagent/common/const.go
+//    - const <Name>ReconcileConditionType = "<Name>Reconcile"
+//
+// 5. Add to RequiredComponents in internal/controller/datadogagent/feature/types.go
+//    - <Name> Component
+//
+// 6. Add Manage<Name> method to Feature interface in feature/feature.go
+//    - Manage<Name>(managers PodTemplateManagers, provider string) error
+//
+// 7. Create global settings in internal/controller/datadogagent/global/<name>.go
+//    - func ApplyGlobalSettings<Name>(...)
+//
+// 8. Implement this component file (remove .tmpl extension and fill in TODOs)
+//
+// 9. Register component in controller.go initializeComponentRegistry()
+//    - r.componentRegistry.Register(New<Name>Component(r))
+//
+// 10. Add tests in controller_reconcile_<name>_test.go
