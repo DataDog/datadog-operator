@@ -1,8 +1,6 @@
 package hostprofiler
 
 import (
-	"fmt"
-
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -38,7 +36,6 @@ func init() {
 }
 
 func buildHostProfilerFeature(options *feature.Options) feature.Feature {
-	fmt.Println("IN HERRRRRE +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ 2")
 
 	hostProfilerFeat := &hostProfilerFeature{}
 
@@ -54,7 +51,6 @@ func (o *hostProfilerFeature) ID() feature.IDType {
 }
 
 func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
-	fmt.Println("IN HERRRRRE +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ 1")
 	o.owner = dda
 	if ddaSpec.Features.HostProfiler.Conf != nil {
 		o.customConfig = ddaSpec.Features.HostProfiler.Conf
@@ -132,7 +128,28 @@ func (o *hostProfilerFeature) ManageClusterAgent(managers feature.PodTemplateMan
 }
 
 func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	// Host PID
+	managers.PodTemplateSpec().Spec.HostPID = *apiutils.NewBoolPointer(true)
+	
+	// Tracingfs volume
+	volumeTracingfs := corev1.Volume{
+		Name: "tracingfs",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/sys/kernel/tracing",
+			},
+		},
+	}
+	managers.Volume().AddVolume(&volumeTracingfs)
 
+	tracingfsMount := corev1.VolumeMount{
+		Name:      "tracingfs",
+		MountPath: "/sys/kernel/tracing",
+		ReadOnly:  true,
+	}
+	managers.VolumeMount().AddVolumeMountToContainer(&tracingfsMount, apicommon.HostProfiler)
+
+	// Config volume
 	var vol corev1.Volume
 	if o.customConfig != nil && o.customConfig.ConfigMap != nil {
 		// Custom config is referenced via ConfigMap
