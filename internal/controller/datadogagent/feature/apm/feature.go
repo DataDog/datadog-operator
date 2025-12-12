@@ -190,7 +190,7 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			}
 		}
 
-		f.processCheckRunsInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(ddaSpec, apiutils.BoolValue(ddaSpec.Global.RunProcessChecksInCoreAgent))
+		f.processCheckRunsInCoreAgent = featutils.ShouldRunProcessChecksInCoreAgent(ddaSpec)
 		if f.shouldEnableLanguageDetection() && !f.processCheckRunsInCoreAgent {
 			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommon.ProcessAgentContainerName)
 		}
@@ -331,6 +331,10 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, pr
 				Name:  DDLanguageDetectionEnabled,
 				Value: "true",
 			})
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  DDLanguageDetectionReportingEnabled,
+				Value: "true",
+			})
 		}
 
 		if len(f.singleStepInstrumentation.disabledNamespaces) > 0 {
@@ -384,10 +388,10 @@ func supportsInstrumentationTargets(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	// Agent version must >= 7.64.0 to run feature in core agent
 	if nodeAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok {
 		if nodeAgent.Image != nil {
-			return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), minInstrumentationTargetsVersion)
+			return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), minInstrumentationTargetsVersion, nil)
 		}
 	}
-	return utils.IsAboveMinVersion(images.ClusterAgentLatestVersion, minInstrumentationTargetsVersion)
+	return utils.IsAboveMinVersion(images.ClusterAgentLatestVersion, minInstrumentationTargetsVersion, nil)
 }
 
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
@@ -445,10 +449,18 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 			Name:  DDLanguageDetectionEnabled,
 			Value: "true",
 		})
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+			Name:  DDLanguageDetectionReportingEnabled,
+			Value: "true",
+		})
 
 		// Enable language detection in process agent
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, &corev1.EnvVar{
 			Name:  DDLanguageDetectionEnabled,
+			Value: "true",
+		})
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, &corev1.EnvVar{
+			Name:  DDLanguageDetectionReportingEnabled,
 			Value: "true",
 		})
 
@@ -459,6 +471,12 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, runInCoreAgentEnvVar)
 		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, runInCoreAgentEnvVar)
+	} else {
+		// Language Detection reporting is enabled by default in the Agent
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+			Name:  DDLanguageDetectionReportingEnabled,
+			Value: "false",
+		})
 	}
 
 	// uds
@@ -492,5 +510,9 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *apmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}
+
+func (f *apmFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

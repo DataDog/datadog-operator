@@ -27,10 +27,14 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 )
 
-// These constants are only used within pkg/config
+// Environment variable names for namespace watching configuration
 const (
 	// AgentWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogAgent controller.
-	agentWatchNamespaceEnvVar = "DD_AGENT_WATCH_NAMESPACE"
+	AgentWatchNamespaceEnvVar = "DD_AGENT_WATCH_NAMESPACE"
+	// WatchNamespaceEnvVar is a comma-separated list of namespaces watched by all controllers, unless a controller-specific configuration is provided.
+	// An empty value means the operator is running with cluster scope.
+	WatchNamespaceEnvVar = "WATCH_NAMESPACE"
+
 	// DashboardWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogDashboard controller.
 	dashboardWatchNamespaceEnvVar = "DD_DASHBOARD_WATCH_NAMESPACE"
 	// GenericResourceWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogGenericResource controller.
@@ -41,9 +45,6 @@ const (
 	profileWatchNamespaceEnvVar = "DD_AGENT_PROFILE_WATCH_NAMESPACE"
 	// SLOWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogSLO controller.
 	sloWatchNamespaceEnvVar = "DD_SLO_WATCH_NAMESPACE"
-	// WatchNamespaceEnvVar is a comma-separated list of namespaces watched by all controllers, unless a controller-specific configuration is provided.
-	// An empty value means the operator is running with cluster scope.
-	watchNamespaceEnvVar = "WATCH_NAMESPACE"
 )
 
 var (
@@ -75,7 +76,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 	byObject := map[client.Object]cache.ByObject{}
 
 	if opts.DatadogAgentEnabled {
-		agentNamespaces := getWatchNamespacesFromEnv(logger, agentWatchNamespaceEnvVar)
+		agentNamespaces := GetWatchNamespacesFromEnv(logger, AgentWatchNamespaceEnvVar)
 		logger.Info("DatadogAgent Enabled", "watching namespaces", slices.Collect(maps.Keys(agentNamespaces)))
 		byObject[agentObj] = cache.ByObject{
 			Namespaces: agentNamespaces,
@@ -83,7 +84,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 	}
 
 	if opts.DatadogDashboardEnabled {
-		dashboardNamespaces := getWatchNamespacesFromEnv(logger, dashboardWatchNamespaceEnvVar)
+		dashboardNamespaces := GetWatchNamespacesFromEnv(logger, dashboardWatchNamespaceEnvVar)
 		logger.Info("DatadogDashboard Enabled", "watching namespaces", slices.Collect(maps.Keys(dashboardNamespaces)))
 		byObject[dashboardObj] = cache.ByObject{
 			Namespaces: dashboardNamespaces,
@@ -91,7 +92,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 	}
 
 	if opts.DatadogGenericResourceEnabled {
-		genericResourceNamespaces := getWatchNamespacesFromEnv(logger, genericResourceWatchNamespaceEnvVar)
+		genericResourceNamespaces := GetWatchNamespacesFromEnv(logger, genericResourceWatchNamespaceEnvVar)
 		logger.Info("DatadogGenericResource Enabled", "watching namespaces", slices.Collect(maps.Keys(genericResourceNamespaces)))
 		byObject[genericResourceObj] = cache.ByObject{
 			Namespaces: genericResourceNamespaces,
@@ -99,7 +100,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 	}
 
 	if opts.DatadogMonitorEnabled {
-		monitorNamespaces := getWatchNamespacesFromEnv(logger, monitorWatchNamespaceEnvVar)
+		monitorNamespaces := GetWatchNamespacesFromEnv(logger, monitorWatchNamespaceEnvVar)
 		logger.Info("DatadogMonitor Enabled", "watching namespaces", slices.Collect(maps.Keys(monitorNamespaces)))
 		byObject[monitorObj] = cache.ByObject{
 			Namespaces: monitorNamespaces,
@@ -107,7 +108,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 	}
 
 	if opts.DatadogSLOEnabled {
-		sloNamespaces := getWatchNamespacesFromEnv(logger, sloWatchNamespaceEnvVar)
+		sloNamespaces := GetWatchNamespacesFromEnv(logger, sloWatchNamespaceEnvVar)
 		logger.Info("DatadogSLO Enabled", "watching namespaces", slices.Collect(maps.Keys(sloNamespaces)))
 		byObject[sloObj] = cache.ByObject{
 			Namespaces: sloNamespaces,
@@ -115,7 +116,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 	}
 
 	if opts.DatadogAgentProfileEnabled {
-		agentProfileNamespaces := getWatchNamespacesFromEnv(logger, profileWatchNamespaceEnvVar)
+		agentProfileNamespaces := GetWatchNamespacesFromEnv(logger, profileWatchNamespaceEnvVar)
 		logger.Info("DatadogAgentProfile Enabled", "watching namespace", slices.Collect(maps.Keys(agentProfileNamespaces)))
 		byObject[profileObj] = cache.ByObject{
 			Namespaces: agentProfileNamespaces,
@@ -126,7 +127,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		// interested in the node name and the labels. This function removes all the
 		// rest of fields to reduce memory usage.
 		// Pods are watched in DatadogAgent namespace(s) since that's where Agent pods are running.
-		agentNamespaces := getWatchNamespacesFromEnv(logger, agentWatchNamespaceEnvVar)
+		agentNamespaces := GetWatchNamespacesFromEnv(logger, AgentWatchNamespaceEnvVar)
 		logger.Info("DatadogAgentProfile Enabled", "watching Pods in namespaces", slices.Collect(maps.Keys(agentNamespaces)))
 		byObject[podObj] = cache.ByObject{
 			Namespaces: agentNamespaces,
@@ -180,7 +181,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 	}
 
 	if opts.DatadogAgentInternalEnabled {
-		agentInternalNamespaces := getWatchNamespacesFromEnv(logger, agentWatchNamespaceEnvVar)
+		agentInternalNamespaces := GetWatchNamespacesFromEnv(logger, AgentWatchNamespaceEnvVar)
 		logger.Info("DatadogAgentInternal Enabled", "watching namespaces", slices.Collect(maps.Keys(agentInternalNamespaces)))
 		byObject[agentInternalObj] = cache.ByObject{
 			Namespaces: agentInternalNamespaces,
@@ -190,20 +191,21 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 	return cache.Options{
 		// DefaultNamespaces is set to DatadogAgent CRD namespaces so all resources needed for DatadogAgent reconciliation
 		// are cached from the same namespace(s) as the DatadogAgent.
-		DefaultNamespaces: getWatchNamespacesFromEnv(logger, agentWatchNamespaceEnvVar),
+		DefaultNamespaces: GetWatchNamespacesFromEnv(logger, AgentWatchNamespaceEnvVar),
 		ByObject:          byObject,
 	}
 }
 
-func getWatchNamespacesFromEnv(logger logr.Logger, envVar string) map[string]cache.Config {
+// GetWatchNamespacesFromEnv retrieves the list of namespaces to watch from environment variables.
+func GetWatchNamespacesFromEnv(logger logr.Logger, envVar string) map[string]cache.Config {
 	cacheConfig := cache.Config{}
 
 	nsEnvValue, found := os.LookupEnv(envVar)
 	if !found {
 		logger.Info(fmt.Sprintf("CRD-specific namespaces environmental variable %s not set, will be using common config", envVar))
-		nsEnvValue, found = os.LookupEnv(watchNamespaceEnvVar)
+		nsEnvValue, found = os.LookupEnv(WatchNamespaceEnvVar)
 		if !found {
-			logger.Info(fmt.Sprintf("Common namespaces environmental variable %s not set, will be watching all namespaces", watchNamespaceEnvVar))
+			logger.Info(fmt.Sprintf("Common namespaces environmental variable %s not set, will be watching all namespaces", WatchNamespaceEnvVar))
 			return map[string]cache.Config{cache.AllNamespaces: cacheConfig}
 		}
 	}

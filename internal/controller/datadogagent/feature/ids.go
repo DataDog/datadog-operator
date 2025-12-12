@@ -27,6 +27,8 @@ const (
 	LiveProcessIDType = "live_process"
 	// OtelAgentIDType Otel Agent feature.
 	OtelAgentIDType = "otel_agent"
+	// OtelAgentGatewayIDType OTel Agent Gateway feature.
+	OtelAgentGatewayIDType = "otel_agent_gateway"
 	// ProcessDiscoveryIDType Process Discovery feature.
 	ProcessDiscoveryIDType = "process_discovery"
 	// KubernetesAPIServerIDType Kube APIServer feature.
@@ -57,6 +59,8 @@ const (
 	APMIDType = "apm"
 	// ASMIDType ASM feature
 	ASMIDType = "asm"
+	// AppsecIDType AppSec feature
+	AppsecIDType = "appsec"
 	// AdmissionControllerIDType Admission controller feature
 	AdmissionControllerIDType = "admission_controller"
 	// OTLPIDType OTLP ingest feature

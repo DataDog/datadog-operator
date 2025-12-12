@@ -36,6 +36,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/helm"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -140,6 +141,29 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	// Start by creating the Default Agent daemonset
 	daemonset = componentagent.NewDefaultAgentDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent, instanceName)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
+
+	// Check if this operator daemonset should have migration label (after Helm migration completed)
+	if helm.IsHelmMigration(dda) {
+		dsList := appsv1.DaemonSetList{}
+		if err := r.client.List(context.TODO(), &dsList, client.MatchingLabels{
+			apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+			kubernetes.AppKubernetesManageByLabelKey:   "Helm",
+			apicommon.AgentDeploymentNameLabelKey:      "datadog",
+		}); err == nil && len(dsList.Items) == 0 {
+			nsName := types.NamespacedName{
+				Name:      daemonset.GetName(),
+				Namespace: daemonset.GetNamespace(),
+			}
+			existingDaemonset := &appsv1.DaemonSet{}
+			if err := r.client.Get(context.TODO(), nsName, existingDaemonset); err != nil {
+				if daemonset.Labels == nil {
+					daemonset.Labels = make(map[string]string)
+				}
+				daemonset.Labels[constants.MD5AgentDeploymentMigratedLabelKey] = "true"
+				logger.Info("Adding migration label to new operator daemonset as Helm migration has completed")
+			}
+		}
+	}
 	// Set Global setting on the default daemonset
 	global.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda.GetObjectMeta(), &dda.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
 
@@ -297,6 +321,11 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 	for nodeName, profileNamespacedName := range profilesByNode {
 		isDefaultProfile := agentprofile.IsDefaultProfile(profileNamespacedName.Namespace, profileNamespacedName.Name)
 
+		// in the refactor, we don't explicitly set the default profile so empty profile nodes fall under the default profile
+		if profileNamespacedName.Name == "" && profileNamespacedName.Namespace == "" {
+			isDefaultProfile = true
+		}
+
 		node := &corev1.Node{}
 		if err := r.client.Get(ctx, types.NamespacedName{Name: nodeName}, node); err != nil {
 			return err
@@ -327,6 +356,7 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 		}
 
 		if len(labelsToRemove) > 0 || len(labelsToAddOrChange) > 0 {
+			r.log.V(1).Info("modifying node labels", "node", node.Name, "labelsToRemove", labelsToRemove, "labelsToAddOrChange", labelsToAddOrChange)
 			for k, v := range node.Labels {
 				if _, ok := labelsToRemove[k]; ok {
 					continue

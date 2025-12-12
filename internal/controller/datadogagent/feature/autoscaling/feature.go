@@ -38,6 +38,9 @@ func buildAutoscalingFeature(options *feature.Options) feature.Feature {
 }
 
 type autoscalingFeature struct {
+	workloadEnabled bool
+	clusterEnabled  bool
+
 	serviceAccountName           string
 	owner                        metav1.Object
 	logger                       logr.Logger
@@ -57,13 +60,25 @@ func (f *autoscalingFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Data
 	}
 
 	autoscaling := ddaSpec.Features.Autoscaling
-	if autoscaling == nil || autoscaling.Workload == nil || !apiutils.BoolValue(autoscaling.Workload.Enabled) {
+	if autoscaling == nil {
 		return feature.RequiredComponents{}
 	}
 
-	admission := ddaSpec.Features.AdmissionController
-	f.admissionControllerActivated = apiutils.BoolValue(admission.Enabled)
-	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
+	if (autoscaling.Workload == nil || !apiutils.BoolValue(autoscaling.Workload.Enabled)) &&
+		(autoscaling.Cluster == nil || !apiutils.BoolValue(autoscaling.Cluster.Enabled)) {
+		return feature.RequiredComponents{}
+	}
+
+	if autoscaling.Workload != nil && apiutils.BoolValue(autoscaling.Workload.Enabled) {
+		f.workloadEnabled = true
+		f.admissionControllerActivated = apiutils.BoolValue(ddaSpec.Features.AdmissionController.Enabled)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
+	}
+
+	if autoscaling.Cluster != nil && apiutils.BoolValue(autoscaling.Cluster.Enabled) {
+		f.clusterEnabled = true
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
+	}
 
 	return feature.RequiredComponents{
 		ClusterAgent: feature.RequiredComponent{
@@ -71,31 +86,48 @@ func (f *autoscalingFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Data
 			Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
 		},
 	}
+
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *autoscalingFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
 	// Hack to trigger an error if admission feature is not enabled as we cannot return an error in configure
-	if !f.admissionControllerActivated {
-		return errors.New("admission controller feature must be enabled to use the autoscaling feature")
+	if f.workloadEnabled && !f.admissionControllerActivated {
+		return errors.New("admission controller feature must be enabled to use the workload autoscaling feature")
 	}
 
-	return managers.RBACManager().AddClusterPolicyRulesByComponent(f.owner.GetNamespace(), componentdca.GetClusterAgentRbacResourcesName(f.owner)+"-autoscaling", f.serviceAccountName, getDCAClusterPolicyRules(), string(v2alpha1.ClusterAgentComponentName))
+	return managers.RBACManager().AddClusterPolicyRulesByComponent(
+		f.owner.GetNamespace(),
+		componentdca.GetClusterAgentRbacResourcesName(f.owner)+"-autoscaling",
+		f.serviceAccountName,
+		getDCAClusterPolicyRules(f.workloadEnabled, f.clusterEnabled),
+		string(v2alpha1.ClusterAgentComponentName),
+	)
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *autoscalingFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
-	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  DDAutoscalingWorkloadEnabled,
-		Value: "true",
-	})
 
-	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  DDAutoscalingFailoverEnabled,
-		Value: "true",
-	})
+	if f.workloadEnabled {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDAutoscalingWorkloadEnabled,
+			Value: "true",
+		})
+
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDAutoscalingFailoverEnabled,
+			Value: "true",
+		})
+	}
+
+	if f.clusterEnabled {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDAutoscalingClusterEnabled,
+			Value: "true",
+		})
+	}
 
 	return nil
 }
@@ -110,15 +142,18 @@ func (f *autoscalingFeature) ManageSingleContainerNodeAgent(managers feature.Pod
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *autoscalingFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-		Name:  DDAutoscalingFailoverEnabled,
-		Value: "true",
-	})
 
-	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-		Name:  DDAutoscalingFailoverMetrics,
-		Value: defaultFailoverMetrics,
-	})
+	if f.workloadEnabled {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+			Name:  DDAutoscalingFailoverEnabled,
+			Value: "true",
+		})
+
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+			Name:  DDAutoscalingFailoverMetrics,
+			Value: defaultFailoverMetrics,
+		})
+	}
 
 	return nil
 }
@@ -126,5 +161,9 @@ func (f *autoscalingFeature) ManageNodeAgent(managers feature.PodTemplateManager
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *autoscalingFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}
+
+func (f *autoscalingFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

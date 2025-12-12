@@ -120,7 +120,6 @@ func (f *controlPlaneMonitoringFeature) ManageClusterAgent(managers feature.PodT
 	} else if providerLabel == kubernetes.EKSProviderLabel {
 		configMapName = f.eksConfigMapName
 	} else {
-		configMapName = f.defaultConfigMapName
 		return nil
 	}
 
@@ -322,5 +321,9 @@ func (f *controlPlaneMonitoringFeature) ManageClusterChecksRunner(managers featu
 		}
 		managers.VolumeMount().AddVolumeMountToContainer(&disableEtcdAutoconfVolumeMount, apicommon.ClusterChecksRunnersContainerName)
 	}
+	return nil
+}
+
+func (f *controlPlaneMonitoringFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

@@ -220,3 +220,7 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 func (f *sbomFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
+
+func (f *sbomFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}

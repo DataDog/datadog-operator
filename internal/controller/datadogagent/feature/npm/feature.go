@@ -88,6 +88,9 @@ func (f *npmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplate
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	// enable HostPID for system-probe
+	managers.PodTemplateSpec().Spec.HostPID = true
+
 	// annotations
 	managers.Annotation().AddAnnotation(common.SystemProbeAppArmorAnnotationKey, common.SystemProbeAppArmorAnnotationValue)
 
@@ -175,5 +178,9 @@ func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *npmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}
+
+func (f *npmFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

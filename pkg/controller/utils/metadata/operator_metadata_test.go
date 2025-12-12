@@ -10,10 +10,17 @@ import (
 	"os"
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	testutils_test "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
+	"github.com/DataDog/datadog-operator/pkg/config"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_getURL(t *testing.T) {
@@ -25,6 +32,11 @@ func Test_getURL(t *testing.T) {
 		{
 			name: "default case",
 			loadFunc: func() {
+				os.Clearenv()
+				os.Setenv("DD_CLUSTER_NAME", "cluster")
+				os.Setenv("DD_API_KEY", "api-key")
+				os.Setenv("DD_APP_KEY", "app-key")
+				os.Setenv("DD_HOSTNAME", "host-name")
 			},
 			wantURL: "https://app.datadoghq.com/api/v1/metadata",
 		},
@@ -33,6 +45,9 @@ func Test_getURL(t *testing.T) {
 			loadFunc: func() {
 				os.Clearenv()
 				os.Setenv("DD_SITE", "datad0g.com")
+				os.Setenv("DD_API_KEY", "api-key")
+				os.Setenv("DD_APP_KEY", "app-key")
+				os.Setenv("DD_HOSTNAME", "host-name")
 			},
 			wantURL: "https://app.datad0g.com/api/v1/metadata",
 		},
@@ -41,6 +56,9 @@ func Test_getURL(t *testing.T) {
 			loadFunc: func() {
 				os.Clearenv()
 				os.Setenv("DD_URL", "https://app.datad0g.com")
+				os.Setenv("DD_API_KEY", "api-key")
+				os.Setenv("DD_APP_KEY", "app-key")
+				os.Setenv("DD_HOSTNAME", "host-name")
 			},
 			wantURL: "https://app.datad0g.com/api/v1/metadata",
 		},
@@ -49,12 +67,25 @@ func Test_getURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.loadFunc()
+			s := testutils_test.TestScheme()
 
+			clientObjects := []client.Object{}
+			kubeSystem := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kube-system",
+					UID:  "test-cluster-uid",
+				},
+			}
+			clientObjects = append(clientObjects, kubeSystem)
+
+			client := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&v2alpha1.DatadogAgent{}).WithObjects(clientObjects...).Build()
 			// Create SharedMetadata to test URL generation
-			sm := NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0")
+			sm := NewSharedMetadata(zap.New(zap.UseDevMode(true)), client, "v1.28.0", "v1.19.0", config.NewCredentialManager(client))
+			request, err := sm.createRequest([]byte("test"))
+			assert.Nil(t, err)
 
-			if sm.requestURL != tt.wantURL {
-				t.Errorf("getURL() url = %v, want %v", sm.requestURL, tt.wantURL)
+			if request.URL.String() != tt.wantURL {
+				t.Errorf("getURL() url = %v, want %v", request.URL, tt.wantURL)
 
 			}
 		})
@@ -85,6 +116,7 @@ func Test_setup(t *testing.T) {
 				os.Setenv("DD_API_KEY", fakeAPIKeyOperator)
 				os.Setenv("DD_APP_KEY", fakeAPPKeyDDA)
 				os.Setenv("DD_CLUSTER_NAME", fakeClusterNameOperator)
+				os.Setenv("DD_HOSTNAME", "host-name")
 			},
 			dda:             &v2alpha1.DatadogAgent{},
 			wantClusterName: "fake_cluster_name_operator",
@@ -96,6 +128,8 @@ func Test_setup(t *testing.T) {
 			loadFunc: func() {
 				os.Clearenv()
 				os.Setenv("DD_CLUSTER_NAME", fakeClusterNameOperator)
+				os.Setenv("DD_HOSTNAME", "host-name")
+
 			},
 			dda: &v2alpha1.DatadogAgent{
 				Spec: v2alpha1.DatadogAgentSpec{
@@ -115,6 +149,7 @@ func Test_setup(t *testing.T) {
 			name: "credentials and site set in DDA",
 			loadFunc: func() {
 				os.Clearenv()
+				os.Setenv("DD_HOSTNAME", "host-name")
 			},
 			dda: &v2alpha1.DatadogAgent{
 				Spec: v2alpha1.DatadogAgentSpec{
@@ -136,28 +171,38 @@ func Test_setup(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			os.Clearenv()
-
-			// Create OperatorMetadataForwarder with the new structure
-			omf := &OperatorMetadataForwarder{
-				SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0"),
-			}
-
 			tt.loadFunc()
 
-			_ = omf.setupFromOperator()
-
-			_ = omf.setupFromDDA(tt.dda)
-
-			if omf.clusterName != tt.wantClusterName {
-				t.Errorf("setupFromDDA() clusterName = %v, want %v", omf.clusterName, tt.wantClusterName)
+			s := testutils_test.TestScheme()
+			kubeSystem := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kube-system",
+					UID:  "test-cluster-uid",
+				},
+			}
+			client := fake.NewClientBuilder().
+				WithScheme(s).
+				WithStatusSubresource(&v2alpha1.DatadogAgent{}).
+				WithObjects(tt.dda, kubeSystem).
+				Build()
+			// Create OperatorMetadataForwarder with the new structure
+			omf := &OperatorMetadataForwarder{
+				SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), client, "v1.28.0", "v1.19.0", config.NewCredentialManager(client)),
+				OperatorMetadata: OperatorMetadata{
+					ResourceCounts: make(map[string]int),
+				},
 			}
 
-			if omf.apiKey != tt.wantAPIKey {
-				t.Errorf("setupFromDDA() apiKey = %v, want %v", omf.apiKey, tt.wantAPIKey)
-			}
+			_, err := omf.createRequest([]byte("test"))
+			assert.Nil(t, err)
+			apiKey, requestURL, err := omf.getApiKeyAndURL()
 
-			if omf.requestURL != tt.wantURL {
-				t.Errorf("setupFromDDA() url = %v, want %v", omf.requestURL, tt.wantURL)
+			assert.Nil(t, err)
+			assert.Equal(t, tt.wantAPIKey, *apiKey)
+			assert.Equal(t, tt.wantURL, *requestURL)
+
+			if omf.GetOrCreateClusterName() != tt.wantClusterName {
+				t.Errorf("setupFromDDA() clusterName = %v, want %v", omf.GetOrCreateClusterName(), tt.wantClusterName)
 			}
 		})
 	}
@@ -168,13 +213,23 @@ func Test_GetPayload(t *testing.T) {
 	expectedKubernetesVersion := "v1.28.0"
 	expectedOperatorVersion := "v1.19.0"
 	expectedClusterName := "test-cluster"
+	expectedClusterUID := "test-cluster-uid-12345"
 	expectedHostname := "test-host"
 
+	s := testutils_test.TestScheme()
+	kubeSystem := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "kube-system",
+			UID:  "test-cluster-uid-12345",
+		},
+	}
+	client := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&v2alpha1.DatadogAgent{}, kubeSystem).Build()
 	omf := &OperatorMetadataForwarder{
-		SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), nil, expectedKubernetesVersion, expectedOperatorVersion),
+		SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), client, expectedKubernetesVersion, expectedOperatorVersion, config.NewCredentialManager(client)),
 		OperatorMetadata: OperatorMetadata{
-			ClusterName: expectedClusterName,
-			IsLeader:    true,
+			ClusterName:    expectedClusterName,
+			IsLeader:       true,
+			ResourceCounts: make(map[string]int),
 		},
 	}
 
@@ -184,7 +239,7 @@ func Test_GetPayload(t *testing.T) {
 	// Set cluster name in SharedMetadata to simulate it being populated
 	omf.clusterName = expectedClusterName
 
-	payload := omf.GetPayload()
+	payload := omf.GetPayload(expectedClusterUID)
 
 	// Verify payload is valid JSON
 	if len(payload) == 0 {
@@ -206,6 +261,14 @@ func Test_GetPayload(t *testing.T) {
 		t.Errorf("GetPayload() timestamp = %v, want positive number", timestamp)
 	}
 
+	if clusterID, ok := parsed["cluster_id"].(string); !ok || clusterID != expectedClusterUID {
+		t.Errorf("GetPayload() cluster_id = %v, want %v", clusterID, expectedClusterUID)
+	}
+
+	if clusterName, ok := parsed["clustername"].(string); !ok || clusterName != expectedClusterName {
+		t.Errorf("GetPayload() cluster_name = %v, want %v", clusterName, expectedClusterName)
+	}
+
 	// Validate metadata object exists
 	metadata, ok := parsed["datadog_operator_metadata"].(map[string]interface{})
 	if !ok {
@@ -225,6 +288,10 @@ func Test_GetPayload(t *testing.T) {
 		t.Errorf("GetPayload() cluster_name = %v, want %v", clusterName, expectedClusterName)
 	}
 
+	if clusterID, ok := metadata["cluster_id"].(string); !ok || clusterID != expectedClusterUID {
+		t.Errorf("GetPayload() cluster_id in metadata = %v, want %v", clusterID, expectedClusterUID)
+	}
+
 	if isLeader, ok := metadata["is_leader"].(bool); !ok || !isLeader {
 		t.Errorf("GetPayload() is_leader = %v, want true", isLeader)
 	}
@@ -242,18 +309,33 @@ func Test_GetPayload(t *testing.T) {
 		"datadogslo_enabled",
 		"datadoggenericresource_enabled",
 		"datadogagentprofile_enabled",
+		"datadogagentinternal_enabled",
 		"leader_election_enabled",
 		"extendeddaemonset_enabled",
 		"remote_config_enabled",
 		"introspection_enabled",
+		"cluster_id",
 		"cluster_name",
 		"config_dd_url",
 		"config_site",
+		"resource_count",
 	}
 
 	for _, field := range expectedFields {
 		if _, exists := metadata[field]; !exists {
 			t.Errorf("GetPayload() missing expected field: %s", field)
 		}
+	}
+
+	// Verify resource_count is a valid map
+	if resourceCount, ok := metadata["resource_count"].(map[string]interface{}); ok {
+		// Valid map - verify it's structured correctly (values are numbers)
+		for _, value := range resourceCount {
+			if _, ok := value.(float64); !ok {
+				t.Errorf("GetPayload() resource_count value is not a number: %v", value)
+			}
+		}
+	} else {
+		t.Errorf("GetPayload() resource_count is not a map, got: %T", metadata["resource_count"])
 	}
 }

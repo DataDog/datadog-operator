@@ -44,7 +44,7 @@ func (p *processDiscoveryFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.D
 			apicommon.CoreAgentContainerName,
 		}
 
-		p.runInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(ddaSpec, apiutils.BoolValue(ddaSpec.Global.RunProcessChecksInCoreAgent))
+		p.runInCoreAgent = featutils.ShouldRunProcessChecksInCoreAgent(ddaSpec)
 
 		if !p.runInCoreAgent {
 			reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)
@@ -122,5 +122,9 @@ func (p *processDiscoveryFeature) manageNodeAgent(agentContainerName apicommon.A
 }
 
 func (p *processDiscoveryFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}
+
+func (p *processDiscoveryFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

@@ -20,7 +20,7 @@ type CustomResourceDefinitionURLs struct {
 func (r *RemoteConfigUpdater) crdConfigUpdateCallback(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) {
 	ctx := context.Background()
 
-	var configIDs []string
+	configIDs := make([]string, 0, len(updates))
 	for id := range updates {
 		applyStatus(id, state.ApplyStatus{State: state.ApplyStateUnacknowledged, Error: ""})
 		configIDs = append(configIDs, id)

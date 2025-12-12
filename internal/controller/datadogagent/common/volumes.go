@@ -318,3 +318,22 @@ func GetVolumeForSeccomp() corev1.Volume {
 		},
 	}
 }
+
+// GetVolumeForRunPath returns the volume for the agent run path
+func GetVolumeForRunPath() corev1.Volume {
+	return corev1.Volume{
+		Name: RunPathVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}
+}
+
+// GetVolumeMountForRunPath returns the VolumeMount for the run path
+func GetVolumeMountForRunPath() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      RunPathVolumeName,
+		MountPath: RunPathVolumeMount,
+		ReadOnly:  false,
+	}
+}

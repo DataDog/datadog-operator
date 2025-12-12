@@ -41,8 +41,8 @@ func Test_CacheConfig(t *testing.T) {
 			},
 
 			envConfig: map[string]string{
-				watchNamespaceEnvVar:                "datadog",
-				agentWatchNamespaceEnvVar:           "agentNs",
+				WatchNamespaceEnvVar:                "datadog",
+				AgentWatchNamespaceEnvVar:           "agentNs",
 				monitorWatchNamespaceEnvVar:         "monitorNs, monitorNs2",
 				sloWatchNamespaceEnvVar:             "  nsWithSpace ",
 				profileWatchNamespaceEnvVar:         "profileNs",
@@ -72,7 +72,7 @@ func Test_CacheConfig(t *testing.T) {
 			},
 
 			envConfig: map[string]string{
-				watchNamespaceEnvVar:        "datadog",
+				WatchNamespaceEnvVar:        "datadog",
 				profileWatchNamespaceEnvVar: "profileNs",
 			},
 
@@ -98,8 +98,8 @@ func Test_CacheConfig(t *testing.T) {
 			},
 
 			envConfig: map[string]string{
-				watchNamespaceEnvVar:        "datadog",
-				agentWatchNamespaceEnvVar:   "agentNs1,agentNs2",
+				WatchNamespaceEnvVar:        "datadog",
+				AgentWatchNamespaceEnvVar:   "agentNs1,agentNs2",
 				profileWatchNamespaceEnvVar: "profileNs",
 			},
 
@@ -125,8 +125,8 @@ func Test_CacheConfig(t *testing.T) {
 			},
 
 			envConfig: map[string]string{
-				watchNamespaceEnvVar:        "datadog",
-				agentWatchNamespaceEnvVar:   "agentNs1,agentNs2",
+				WatchNamespaceEnvVar:        "datadog",
+				AgentWatchNamespaceEnvVar:   "agentNs1,agentNs2",
 				profileWatchNamespaceEnvVar: "profileNs",
 			},
 
@@ -153,8 +153,8 @@ func Test_CacheConfig(t *testing.T) {
 			},
 
 			envConfig: map[string]string{
-				watchNamespaceEnvVar:        "datadog",
-				agentWatchNamespaceEnvVar:   "agentNs1,agentNs2",
+				WatchNamespaceEnvVar:        "datadog",
+				AgentWatchNamespaceEnvVar:   "agentNs1,agentNs2",
 				profileWatchNamespaceEnvVar: "profileNs",
 			},
 

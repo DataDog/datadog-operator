@@ -1032,6 +1032,17 @@
               "additionalProperties": false,
               "description": "Autoscaling configuration.",
               "properties": {
+                "cluster": {
+                  "additionalProperties": false,
+                  "description": "Cluster contains the configuration for the cluster autoscaling product.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables the cluster autoscaling product.\nDefault: false",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
                 "workload": {
                   "additionalProperties": false,
                   "description": "Workload contains the configuration for the workload autoscaling product.",
@@ -2020,6 +2031,109 @@
                 "scrubContainers": {
                   "description": "ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ).\nDefault: true",
                   "type": "boolean"
+                }
+              },
+              "type": "object"
+            },
+            "otelAgentGateway": {
+              "additionalProperties": false,
+              "description": "OtelAgentGateway configuration.",
+              "properties": {
+                "conf": {
+                  "additionalProperties": false,
+                  "description": "Conf overrides the configuration for the default OTel Agent Gateway.\nThis must point to a ConfigMap containing a valid OTel collector configuration.\nWhen passing a configmap, file name *must* be otel-gateway-config.yaml.",
+                  "properties": {
+                    "configData": {
+                      "description": "ConfigData corresponds to the configuration file content.",
+                      "type": "string"
+                    },
+                    "configMap": {
+                      "additionalProperties": false,
+                      "description": "ConfigMap references an existing ConfigMap with the configuration file content.",
+                      "properties": {
+                        "items": {
+                          "description": "Items maps a ConfigMap data `key` to a file `path` mount.",
+                          "items": {
+                            "additionalProperties": false,
+                            "description": "Maps a string key to a path within a volume.",
+                            "properties": {
+                              "key": {
+                                "description": "key is the key to project.",
+                                "type": "string"
+                              },
+                              "mode": {
+                                "description": "mode is Optional: mode bits used to set permissions on this file.\nMust be an octal value between 0000 and 0777 or a decimal value between 0 and 511.\nYAML accepts both octal and decimal values, JSON requires decimal values for mode bits.\nIf not specified, the volume defaultMode will be used.\nThis might be in conflict with other options that affect the file\nmode, like fsGroup, and the result can be other mode bits set.",
+                                "format": "int32",
+                                "type": "integer"
+                              },
+                              "path": {
+                                "description": "path is the relative path of the file to map the key to.\nMay not be an absolute path.\nMay not contain the path element '..'.\nMay not start with the string '..'.",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "path"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array",
+                          "x-kubernetes-list-map-keys": [
+                            "key"
+                          ],
+                          "x-kubernetes-list-type": "map"
+                        },
+                        "name": {
+                          "description": "Name is the name of the ConfigMap.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "enabled": {
+                  "description": "Enabled enables the OTel Agent Gateway.\nDefault: false",
+                  "type": "boolean"
+                },
+                "ports": {
+                  "description": "Ports contains the ports that the OTel Collector is listening on.\nDefaults: otel-grpc:4317 / otel-http:4318.",
+                  "items": {
+                    "additionalProperties": false,
+                    "description": "ContainerPort represents a network port in a single container.",
+                    "properties": {
+                      "containerPort": {
+                        "description": "Number of port to expose on the pod's IP address.\nThis must be a valid port number, 0 \u003c x \u003c 65536.",
+                        "format": "int32",
+                        "type": "integer"
+                      },
+                      "hostIP": {
+                        "description": "What host IP to bind the external port to.",
+                        "type": "string"
+                      },
+                      "hostPort": {
+                        "description": "Number of port to expose on the host.\nIf specified, this must be a valid port number, 0 \u003c x \u003c 65536.\nIf HostNetwork is specified, this must match ContainerPort.\nMost containers do not need this.",
+                        "format": "int32",
+                        "type": "integer"
+                      },
+                      "name": {
+                        "description": "If specified, this must be an IANA_SVC_NAME and unique within the pod. Each\nnamed port in a pod must have a unique name. Name for the port that can be\nreferred to by services.",
+                        "type": "string"
+                      },
+                      "protocol": {
+                        "default": "TCP",
+                        "description": "Protocol for port. Must be UDP, TCP, or SCTP.\nDefaults to \"TCP\".",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "containerPort"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "x-kubernetes-list-type": "atomic"
                 }
               },
               "type": "object"
@@ -3157,10 +3271,6 @@
               "description": "Registry is the image registry to use for all Agent images.\nUse 'public.ecr.aws/datadog' for AWS ECR.\nUse 'datadoghq.azurecr.io' for Azure Container Registry.\nUse 'gcr.io/datadoghq' for Google Container Registry.\nUse 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region.\nUse 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region.\nUse 'docker.io/datadog' for DockerHub.\nDefault: 'gcr.io/datadoghq'",
               "type": "string"
             },
-            "runProcessChecksInCoreAgent": {
-              "description": "Configure whether the Process Agent or core Agent collects process and/or container information (Linux only).\nIf no other checks are running, the Process Agent container will not initialize.\n(Requires Agent 7.60.0+)\nDefault: 'true'\nDeprecated: Functionality now handled automatically. Use env var `DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED` to override.",
-              "type": "boolean"
-            },
             "secretBackend": {
               "additionalProperties": false,
               "description": "Configure the secret backend feature https://docs.datadoghq.com/agent/guide/secrets-management\nSee also: https://github.com/DataDog/datadog-operator/blob/main/docs/secret_management.md",
@@ -3496,7 +3606,7 @@
                                   "x-kubernetes-map-type": "atomic"
                                 },
                                 "matchLabelKeys": {
-                                  "description": "MatchLabelKeys is a set of pod label keys to select which pods will\nbe taken into consideration. The keys are used to lookup values from the\nincoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`\nto select the group of existing pods which pods will be taken into consideration\nfor the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming\npod labels will be ignored. The default value is empty.\nThe same key is forbidden to exist in both matchLabelKeys and labelSelector.\nAlso, matchLabelKeys cannot be set when labelSelector isn't set.\nThis is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).",
+                                  "description": "MatchLabelKeys is a set of pod label keys to select which pods will\nbe taken into consideration. The keys are used to lookup values from the\nincoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`\nto select the group of existing pods which pods will be taken into consideration\nfor the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming\npod labels will be ignored. The default value is empty.\nThe same key is forbidden to exist in both matchLabelKeys and labelSelector.\nAlso, matchLabelKeys cannot be set when labelSelector isn't set.",
                                   "items": {
                                     "type": "string"
                                   },
@@ -3504,7 +3614,7 @@
                                   "x-kubernetes-list-type": "atomic"
                                 },
                                 "mismatchLabelKeys": {
-                                  "description": "MismatchLabelKeys is a set of pod label keys to select which pods will\nbe taken into consideration. The keys are used to lookup values from the\nincoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`\nto select the group of existing pods which pods will be taken into consideration\nfor the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming\npod labels will be ignored. The default value is empty.\nThe same key is forbidden to exist in both mismatchLabelKeys and labelSelector.\nAlso, mismatchLabelKeys cannot be set when labelSelector isn't set.\nThis is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).",
+                                  "description": "MismatchLabelKeys is a set of pod label keys to select which pods will\nbe taken into consideration. The keys are used to lookup values from the\nincoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`\nto select the group of existing pods which pods will be taken into consideration\nfor the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming\npod labels will be ignored. The default value is empty.\nThe same key is forbidden to exist in both mismatchLabelKeys and labelSelector.\nAlso, mismatchLabelKeys cannot be set when labelSelector isn't set.",
                                   "items": {
                                     "type": "string"
                                   },
@@ -3645,7 +3755,7 @@
                               "x-kubernetes-map-type": "atomic"
                             },
                             "matchLabelKeys": {
-                              "description": "MatchLabelKeys is a set of pod label keys to select which pods will\nbe taken into consideration. The keys are used to lookup values from the\nincoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`\nto select the group of existing pods which pods will be taken into consideration\nfor the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming\npod labels will be ignored. The default value is empty.\nThe same key is forbidden to exist in both matchLabelKeys and labelSelector.\nAlso, matchLabelKeys cannot be set when labelSelector isn't set.\nThis is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).",
+                              "description": "MatchLabelKeys is a set of pod label keys to select which pods will\nbe taken into consideration. The keys are used to lookup values from the\nincoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`\nto select the group of existing pods which pods will be taken into consideration\nfor the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming\npod labels will be ignored. The default value is empty.\nThe same key is forbidden to exist in both matchLabelKeys and labelSelector.\nAlso, matchLabelKeys cannot be set when labelSelector isn't set.",
                               "items": {
                                 "type": "string"
                               },
@@ -3653,7 +3763,7 @@
                               "x-kubernetes-list-type": "atomic"
                             },
                             "mismatchLabelKeys": {
-                              "description": "MismatchLabelKeys is a set of pod label keys to select which pods will\nbe taken into consideration. The keys are used to lookup values from the\nincoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`\nto select the group of existing pods which pods will be taken into consideration\nfor the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming\npod labels will be ignored. The default value is empty.\nThe same key is forbidden to exist in both mismatchLabelKeys and labelSelector.\nAlso, mismatchLabelKeys cannot be set when labelSelector isn't set.\nThis is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).",
+                              "description": "MismatchLabelKeys is a set of pod label keys to select which pods will\nbe taken into consideration. The keys are used to lookup values from the\nincoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`\nto select the group of existing pods which pods will be taken into consideration\nfor the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming\npod labels will be ignored. The default value is empty.\nThe same key is forbidden to exist in both mismatchLabelKeys and labelSelector.\nAlso, mismatchLabelKeys cannot be set when labelSelector isn't set.",
                               "items": {
                                 "type": "string"
                               },
@@ -3793,7 +3903,7 @@
                                   "x-kubernetes-map-type": "atomic"
                                 },
                                 "matchLabelKeys": {
-                                  "description": "MatchLabelKeys is a set of pod label keys to select which pods will\nbe taken into consideration. The keys are used to lookup values from the\nincoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`\nto select the group of existing pods which pods will be taken into consideration\nfor the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming\npod labels will be ignored. The default value is empty.\nThe same key is forbidden to exist in both matchLabelKeys and labelSelector.\nAlso, matchLabelKeys cannot be set when labelSelector isn't set.\nThis is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).",
+                                  "description": "MatchLabelKeys is a set of pod label keys to select which pods will\nbe taken into consideration. The keys are used to lookup values from the\nincoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`\nto select the group of existing pods which pods will be taken into consideration\nfor the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming\npod labels will be ignored. The default value is empty.\nThe same key is forbidden to exist in both matchLabelKeys and labelSelector.\nAlso, matchLabelKeys cannot be set when labelSelector isn't set.",
                                   "items": {
                                     "type": "string"
                                   },
@@ -3801,7 +3911,7 @@
                                   "x-kubernetes-list-type": "atomic"
                                 },
                                 "mismatchLabelKeys": {
-                                  "description": "MismatchLabelKeys is a set of pod label keys to select which pods will\nbe taken into consideration. The keys are used to lookup values from the\nincoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`\nto select the group of existing pods which pods will be taken into consideration\nfor the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming\npod labels will be ignored. The default value is empty.\nThe same key is forbidden to exist in both mismatchLabelKeys and labelSelector.\nAlso, mismatchLabelKeys cannot be set when labelSelector isn't set.\nThis is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).",
+                                  "description": "MismatchLabelKeys is a set of pod label keys to select which pods will\nbe taken into consideration. The keys are used to lookup values from the\nincoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`\nto select the group of existing pods which pods will be taken into consideration\nfor the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming\npod labels will be ignored. The default value is empty.\nThe same key is forbidden to exist in both mismatchLabelKeys and labelSelector.\nAlso, mismatchLabelKeys cannot be set when labelSelector isn't set.",
                                   "items": {
                                     "type": "string"
                                   },
@@ -3942,7 +4052,7 @@
                               "x-kubernetes-map-type": "atomic"
                             },
                             "matchLabelKeys": {
-                              "description": "MatchLabelKeys is a set of pod label keys to select which pods will\nbe taken into consideration. The keys are used to lookup values from the\nincoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`\nto select the group of existing pods which pods will be taken into consideration\nfor the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming\npod labels will be ignored. The default value is empty.\nThe same key is forbidden to exist in both matchLabelKeys and labelSelector.\nAlso, matchLabelKeys cannot be set when labelSelector isn't set.\nThis is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).",
+                              "description": "MatchLabelKeys is a set of pod label keys to select which pods will\nbe taken into consideration. The keys are used to lookup values from the\nincoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`\nto select the group of existing pods which pods will be taken into consideration\nfor the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming\npod labels will be ignored. The default value is empty.\nThe same key is forbidden to exist in both matchLabelKeys and labelSelector.\nAlso, matchLabelKeys cannot be set when labelSelector isn't set.",
                               "items": {
                                 "type": "string"
                               },
@@ -3950,7 +4060,7 @@
                               "x-kubernetes-list-type": "atomic"
                             },
                             "mismatchLabelKeys": {
-                              "description": "MismatchLabelKeys is a set of pod label keys to select which pods will\nbe taken into consideration. The keys are used to lookup values from the\nincoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`\nto select the group of existing pods which pods will be taken into consideration\nfor the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming\npod labels will be ignored. The default value is empty.\nThe same key is forbidden to exist in both mismatchLabelKeys and labelSelector.\nAlso, mismatchLabelKeys cannot be set when labelSelector isn't set.\nThis is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).",
+                              "description": "MismatchLabelKeys is a set of pod label keys to select which pods will\nbe taken into consideration. The keys are used to lookup values from the\nincoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`\nto select the group of existing pods which pods will be taken into consideration\nfor the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming\npod labels will be ignored. The default value is empty.\nThe same key is forbidden to exist in both mismatchLabelKeys and labelSelector.\nAlso, mismatchLabelKeys cannot be set when labelSelector isn't set.",
                               "items": {
                                 "type": "string"
                               },
@@ -5295,7 +5405,7 @@
                 "description": "EnvFrom specifies the ConfigMaps and Secrets to expose as environment variables.\nPriority is env \u003e envFrom.",
                 "items": {
                   "additionalProperties": false,
-                  "description": "EnvFromSource represents the source of a set of ConfigMaps",
+                  "description": "EnvFromSource represents the source of a set of ConfigMaps or Secrets",
                   "properties": {
                     "configMapRef": {
                       "additionalProperties": false,
@@ -5315,7 +5425,7 @@
                       "x-kubernetes-map-type": "atomic"
                     },
                     "prefix": {
-                      "description": "An optional identifier to prepend to each key in the ConfigMap. Must be a C_IDENTIFIER.",
+                      "description": "Optional text to prepend to the name of each environment variable. Must be a C_IDENTIFIER.",
                       "type": "string"
                     },
                     "secretRef": {
@@ -5803,11 +5913,11 @@
                       "type": "integer"
                     },
                     "nodeAffinityPolicy": {
-                      "description": "NodeAffinityPolicy indicates how we will treat Pod's nodeAffinity/nodeSelector\nwhen calculating pod topology spread skew. Options are:\n- Honor: only nodes matching nodeAffinity/nodeSelector are included in the calculations.\n- Ignore: nodeAffinity/nodeSelector are ignored. All nodes are included in the calculations.\n\nIf this value is nil, the behavior is equivalent to the Honor policy.\nThis is a beta-level feature default enabled by the NodeInclusionPolicyInPodTopologySpread feature flag.",
+                      "description": "NodeAffinityPolicy indicates how we will treat Pod's nodeAffinity/nodeSelector\nwhen calculating pod topology spread skew. Options are:\n- Honor: only nodes matching nodeAffinity/nodeSelector are included in the calculations.\n- Ignore: nodeAffinity/nodeSelector are ignored. All nodes are included in the calculations.\n\nIf this value is nil, the behavior is equivalent to the Honor policy.",
                       "type": "string"
                     },
                     "nodeTaintsPolicy": {
-                      "description": "NodeTaintsPolicy indicates how we will treat node taints when calculating\npod topology spread skew. Options are:\n- Honor: nodes without taints, along with tainted nodes for which the incoming pod\nhas a toleration, are included.\n- Ignore: node taints are ignored. All nodes are included.\n\nIf this value is nil, the behavior is equivalent to the Ignore policy.\nThis is a beta-level feature default enabled by the NodeInclusionPolicyInPodTopologySpread feature flag.",
+                      "description": "NodeTaintsPolicy indicates how we will treat node taints when calculating\npod topology spread skew. Options are:\n- Honor: nodes without taints, along with tainted nodes for which the incoming pod\nhas a toleration, are included.\n- Ignore: node taints are ignored. All nodes are included.\n\nIf this value is nil, the behavior is equivalent to the Ignore policy.",
                       "type": "string"
                     },
                     "topologyKey": {
@@ -6628,7 +6738,7 @@
                     },
                     "image": {
                       "additionalProperties": false,
-                      "description": "image represents an OCI object (a container image or artifact) pulled and mounted on the kubelet's host machine.\nThe volume is resolved at pod startup depending on which PullPolicy value is provided:\n\n- Always: the kubelet always attempts to pull the reference. Container creation will fail If the pull fails.\n- Never: the kubelet never pulls the reference and only uses a local image or artifact. Container creation will fail if the reference isn't present.\n- IfNotPresent: the kubelet pulls if the reference isn't already present on disk. Container creation will fail if the reference isn't present and the pull fails.\n\nThe volume gets re-resolved if the pod gets deleted and recreated, which means that new remote content will become available on pod recreation.\nA failure to resolve or pull the image during pod startup will block containers from starting and may add significant latency. Failures will be retried using normal volume backoff and will be reported on the pod reason and message.\nThe types of objects that may be mounted by this volume are defined by the container runtime implementation on a host machine and at minimum must include all valid types supported by the container image field.\nThe OCI object gets mounted in a single directory (spec.containers[*].volumeMounts.mountPath) by merging the manifest layers in the same way as for container images.\nThe volume will be mounted read-only (ro) and non-executable files (noexec).\nSub path mounts for containers are not supported (spec.containers[*].volumeMounts.subpath).\nThe field spec.securityContext.fsGroupChangePolicy has no effect on this volume type.",
+                      "description": "image represents an OCI object (a container image or artifact) pulled and mounted on the kubelet's host machine.\nThe volume is resolved at pod startup depending on which PullPolicy value is provided:\n\n- Always: the kubelet always attempts to pull the reference. Container creation will fail If the pull fails.\n- Never: the kubelet never pulls the reference and only uses a local image or artifact. Container creation will fail if the reference isn't present.\n- IfNotPresent: the kubelet pulls if the reference isn't already present on disk. Container creation will fail if the reference isn't present and the pull fails.\n\nThe volume gets re-resolved if the pod gets deleted and recreated, which means that new remote content will become available on pod recreation.\nA failure to resolve or pull the image during pod startup will block containers from starting and may add significant latency. Failures will be retried using normal volume backoff and will be reported on the pod reason and message.\nThe types of objects that may be mounted by this volume are defined by the container runtime implementation on a host machine and at minimum must include all valid types supported by the container image field.\nThe OCI object gets mounted in a single directory (spec.containers[*].volumeMounts.mountPath) by merging the manifest layers in the same way as for container images.\nThe volume will be mounted read-only (ro) and non-executable files (noexec).\nSub path mounts for containers are not supported (spec.containers[*].volumeMounts.subpath) before 1.33.\nThe field spec.securityContext.fsGroupChangePolicy has no effect on this volume type.",
                       "properties": {
                         "pullPolicy": {
                           "description": "Policy for pulling OCI objects. Possible values are:\nAlways: the kubelet always attempts to pull the reference. Container creation will fail If the pull fails.\nNever: the kubelet never pulls the reference and only uses a local image or artifact. Container creation will fail if the reference isn't present.\nIfNotPresent: the kubelet pulls if the reference isn't already present on disk. Container creation will fail if the reference isn't present and the pull fails.\nDefaults to Always if :latest tag is specified, or IfNotPresent otherwise.",
@@ -8637,6 +8747,17 @@
                   "additionalProperties": false,
                   "description": "Autoscaling configuration.",
                   "properties": {
+                    "cluster": {
+                      "additionalProperties": false,
+                      "description": "Cluster contains the configuration for the cluster autoscaling product.",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables the cluster autoscaling product.\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    },
                     "workload": {
                       "additionalProperties": false,
                       "description": "Workload contains the configuration for the workload autoscaling product.",
@@ -9625,6 +9746,109 @@
                     "scrubContainers": {
                       "description": "ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ).\nDefault: true",
                       "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "otelAgentGateway": {
+                  "additionalProperties": false,
+                  "description": "OtelAgentGateway configuration.",
+                  "properties": {
+                    "conf": {
+                      "additionalProperties": false,
+                      "description": "Conf overrides the configuration for the default OTel Agent Gateway.\nThis must point to a ConfigMap containing a valid OTel collector configuration.\nWhen passing a configmap, file name *must* be otel-gateway-config.yaml.",
+                      "properties": {
+                        "configData": {
+                          "description": "ConfigData corresponds to the configuration file content.",
+                          "type": "string"
+                        },
+                        "configMap": {
+                          "additionalProperties": false,
+                          "description": "ConfigMap references an existing ConfigMap with the configuration file content.",
+                          "properties": {
+                            "items": {
+                              "description": "Items maps a ConfigMap data `key` to a file `path` mount.",
+                              "items": {
+                                "additionalProperties": false,
+                                "description": "Maps a string key to a path within a volume.",
+                                "properties": {
+                                  "key": {
+                                    "description": "key is the key to project.",
+                                    "type": "string"
+                                  },
+                                  "mode": {
+                                    "description": "mode is Optional: mode bits used to set permissions on this file.\nMust be an octal value between 0000 and 0777 or a decimal value between 0 and 511.\nYAML accepts both octal and decimal values, JSON requires decimal values for mode bits.\nIf not specified, the volume defaultMode will be used.\nThis might be in conflict with other options that affect the file\nmode, like fsGroup, and the result can be other mode bits set.",
+                                    "format": "int32",
+                                    "type": "integer"
+                                  },
+                                  "path": {
+                                    "description": "path is the relative path of the file to map the key to.\nMay not be an absolute path.\nMay not contain the path element '..'.\nMay not start with the string '..'.",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "path"
+                                ],
+                                "type": "object"
+                              },
+                              "type": "array",
+                              "x-kubernetes-list-map-keys": [
+                                "key"
+                              ],
+                              "x-kubernetes-list-type": "map"
+                            },
+                            "name": {
+                              "description": "Name is the name of the ConfigMap.",
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "enabled": {
+                      "description": "Enabled enables the OTel Agent Gateway.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "ports": {
+                      "description": "Ports contains the ports that the OTel Collector is listening on.\nDefaults: otel-grpc:4317 / otel-http:4318.",
+                      "items": {
+                        "additionalProperties": false,
+                        "description": "ContainerPort represents a network port in a single container.",
+                        "properties": {
+                          "containerPort": {
+                            "description": "Number of port to expose on the pod's IP address.\nThis must be a valid port number, 0 \u003c x \u003c 65536.",
+                            "format": "int32",
+                            "type": "integer"
+                          },
+                          "hostIP": {
+                            "description": "What host IP to bind the external port to.",
+                            "type": "string"
+                          },
+                          "hostPort": {
+                            "description": "Number of port to expose on the host.\nIf specified, this must be a valid port number, 0 \u003c x \u003c 65536.\nIf HostNetwork is specified, this must match ContainerPort.\nMost containers do not need this.",
+                            "format": "int32",
+                            "type": "integer"
+                          },
+                          "name": {
+                            "description": "If specified, this must be an IANA_SVC_NAME and unique within the pod. Each\nnamed port in a pod must have a unique name. Name for the port that can be\nreferred to by services.",
+                            "type": "string"
+                          },
+                          "protocol": {
+                            "default": "TCP",
+                            "description": "Protocol for port. Must be UDP, TCP, or SCTP.\nDefaults to \"TCP\".",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "containerPort"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array",
+                      "x-kubernetes-list-type": "atomic"
                     }
                   },
                   "type": "object"

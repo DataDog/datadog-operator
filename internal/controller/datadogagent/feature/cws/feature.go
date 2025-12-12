@@ -182,6 +182,9 @@ func (f *cwsFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplate
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	// enable HostPID for system-probe
+	managers.PodTemplateSpec().Spec.HostPID = true
+
 	// annotations
 	managers.Annotation().AddAnnotation(common.SystemProbeAppArmorAnnotationKey, common.SystemProbeAppArmorAnnotationValue)
 
@@ -271,11 +274,6 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	volMountMgr.AddVolumeMountToContainer(&tracefsVolMount, apicommon.SystemProbeContainerName)
 	volMgr.AddVolume(&tracefsVol)
 
-	// securityfs volume mount
-	securityfsVol, securityfsVolMount := volume.GetVolumes(securityfsVolumeName, securityfsVolumePath, securityfsMountPath, true)
-	volMountMgr.AddVolumeMountToContainer(&securityfsVolMount, apicommon.SystemProbeContainerName)
-	volMgr.AddVolume(&securityfsVol)
-
 	// socket volume mount (needs write perms for the system probe container but not the others)
 	socketVol, socketVolMount := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, false)
 	volMountMgr.AddVolumeMountToContainer(&socketVolMount, apicommon.SystemProbeContainerName)
@@ -313,6 +311,16 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	osReleaseVol, osReleaseVolMount := volume.GetVolumes(common.SystemProbeOSReleaseDirVolumeName, common.SystemProbeOSReleaseDirVolumePath, common.SystemProbeOSReleaseDirMountPath, true)
 	volMountMgr.AddVolumeMountToContainer(&osReleaseVolMount, apicommon.SystemProbeContainerName)
 	volMgr.AddVolume(&osReleaseVol)
+
+	// cgroup volume mount
+	cgroupsVol, cgroupsVolMount := volume.GetVolumes(common.CgroupsVolumeName, common.CgroupsHostPath, common.CgroupsMountPath, true)
+	volMountMgr.AddVolumeMountToContainer(&cgroupsVolMount, apicommon.SystemProbeContainerName)
+	volMgr.AddVolume(&cgroupsVol)
+
+	// host root volume mount
+	hostRootVol, hostRootVolMount := volume.GetVolumes(common.HostRootVolumeName, common.HostRootHostPath, common.HostRootMountPath, true)
+	volMountMgr.AddVolumeMountToContainer(&hostRootVolMount, apicommon.SystemProbeContainerName)
+	volMgr.AddVolume(&hostRootVol)
 
 	// Custom policies are copied and merged with default policies via a workaround in the init-volume container.
 	if f.customConfig != nil {
@@ -374,5 +382,9 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *cwsFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}
+
+func (f *cwsFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

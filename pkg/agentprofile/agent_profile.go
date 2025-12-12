@@ -6,10 +6,11 @@
 package agentprofile
 
 import (
+	"cmp"
 	"fmt"
 	"maps"
 	"os"
-	"sort"
+	"slices"
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
@@ -37,6 +38,46 @@ const (
 	daemonSetNamePrefix = "datadog-agent-with-profile-"
 	labelValueMaxLength = 63
 )
+
+// ApplyProfileToNodes applies a profile to nodes based on its label requirements
+// If there is a conflict with an existing profile, it returns an error
+func ApplyProfileToNodes(profile metav1.ObjectMeta, profileRequirements []*labels.Requirement, nodes []v1.Node, profileAppliedByNode map[string]types.NamespacedName) error {
+	for _, node := range nodes {
+		matchesNode := profileMatchesNodeWithRequirements(profileRequirements, node.Labels)
+		if matchesNode {
+			if existingProfile, found := profileAppliedByNode[node.Name]; found {
+				// Conflict. This profile should not be applied.
+				return fmt.Errorf("profile %s conflicts with existing profile: %s", profile.Name, existingProfile.String())
+			}
+
+			profileAppliedByNode[node.Name] = types.NamespacedName{
+				Namespace: profile.Namespace,
+				Name:      profile.Name,
+			}
+		}
+	}
+
+	return nil
+}
+
+// ValidateProfileAndReturnRequirements validates a profile's name and spec and affinity requirements
+func ValidateProfileAndReturnRequirements(profile *v1alpha1.DatadogAgentProfile, ddaiEnabled bool) ([]*labels.Requirement, error) {
+	if err := validateProfile(profile, ddaiEnabled); err != nil {
+		return nil, err
+	}
+	return parseProfileRequirements(profile)
+}
+
+// validateProfile validates a profile's name and spec
+func validateProfile(profile *v1alpha1.DatadogAgentProfile, ddaiEnabled bool) error {
+	if err := validateProfileName(profile.Name); err != nil {
+		return fmt.Errorf("profile name is invalid: %w", err)
+	}
+	if err := v1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec, ddaiEnabled); err != nil {
+		return fmt.Errorf("profile spec is invalid: %w", err)
+	}
+	return nil
+}
 
 // ApplyProfile validates a profile spec and returns a map that maps each
 // node name to the profile that should be applied to it.
@@ -73,16 +114,19 @@ func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nod
 
 	toLabelNodeCount := 0
 
+	// Parse profile requirements once to avoid recreating them for each node
+	profileRequirements, err := parseProfileRequirements(profile)
+	if err != nil {
+		logger.Error(err, "profile selector is invalid, skipping", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+		metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.FalseValue)
+		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))
+		profileStatus.Valid = metav1.ConditionFalse
+		UpdateProfileStatus(logger, profile, profileStatus, now)
+		return profileAppliedByNode, err
+	}
+
 	for _, node := range nodes {
-		matchesNode, err := profileMatchesNode(profile, node.Labels)
-		if err != nil {
-			logger.Error(err, "profile selector is invalid, skipping", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
-			metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.FalseValue)
-			profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))
-			profileStatus.Valid = metav1.ConditionFalse
-			UpdateProfileStatus(logger, profile, profileStatus, now)
-			return profileAppliedByNode, err
-		}
+		matchesNode := profileMatchesNodeWithRequirements(profileRequirements, node.Labels)
 		metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.TrueValue)
 		profileStatus.Valid = metav1.ConditionTrue
 		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionTrue, now, ValidConditionReason, "Valid manifest"))
@@ -148,7 +192,7 @@ func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nod
 }
 
 func ApplyDefaultProfile(profilesToApply []v1alpha1.DatadogAgentProfile, profileAppliedByNode map[string]types.NamespacedName, nodes []v1.Node) []v1alpha1.DatadogAgentProfile {
-	profilesToApply = append(profilesToApply, defaultProfile())
+	profilesToApply = append(profilesToApply, DefaultProfile())
 
 	// Apply the default profile to all nodes that don't have a profile applied
 	for _, node := range nodes {
@@ -212,9 +256,8 @@ func DaemonSetName(profileNamespacedName types.NamespacedName, useV3Metadata boo
 	return daemonSetNamePrefix + profileNamespacedName.Namespace + "-" + profileNamespacedName.Name
 }
 
-// defaultProfile returns the default profile, we just need a name to identify
-// it.
-func defaultProfile() v1alpha1.DatadogAgentProfile {
+// DefaultProfile returns the default profile, we just need a name to identify it
+func DefaultProfile() v1alpha1.DatadogAgentProfile {
 	return v1alpha1.DatadogAgentProfile{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "",
@@ -355,41 +398,57 @@ func labelsOverride(profile *v1alpha1.DatadogAgentProfile) map[string]string {
 // SortProfiles sorts the profiles by creation timestamp. If two profiles have
 // the same creation timestamp, it sorts them by name.
 func SortProfiles(profiles []v1alpha1.DatadogAgentProfile) []v1alpha1.DatadogAgentProfile {
-	sortedProfiles := make([]v1alpha1.DatadogAgentProfile, len(profiles))
-	copy(sortedProfiles, profiles)
+	sorted := append([]v1alpha1.DatadogAgentProfile{}, profiles...)
 
-	sort.Slice(sortedProfiles, func(i, j int) bool {
-		if !sortedProfiles[i].CreationTimestamp.Equal(&sortedProfiles[j].CreationTimestamp) {
-			return sortedProfiles[i].CreationTimestamp.Before(&sortedProfiles[j].CreationTimestamp)
-		}
-
-		return sortedProfiles[i].Name < sortedProfiles[j].Name
-	})
-
-	return sortedProfiles
-}
-
-func profileMatchesNode(profile *v1alpha1.DatadogAgentProfile, nodeLabels map[string]string) (bool, error) {
-	if profile.Spec.ProfileAffinity == nil {
-		return true, nil
+	if len(sorted) > 1 {
+		slices.SortStableFunc(sorted, compareProfiles)
 	}
 
-	for _, requirement := range profile.Spec.ProfileAffinity.ProfileNodeAffinity {
+	return sorted
+}
+
+// compareProfiles compares two profiles first by creation time, then by name.
+func compareProfiles(a, b v1alpha1.DatadogAgentProfile) int {
+	return cmp.Or(
+		a.CreationTimestamp.Time.Compare(b.CreationTimestamp.Time),
+		cmp.Compare(a.Name, b.Name),
+	)
+}
+
+// parseProfileRequirements creates requirements from a profile's node affinity
+func parseProfileRequirements(profile *v1alpha1.DatadogAgentProfile) ([]*labels.Requirement, error) {
+	if profile == nil || profile.Spec.ProfileAffinity == nil {
+		return nil, nil
+	}
+
+	requirements := make([]*labels.Requirement, len(profile.Spec.ProfileAffinity.ProfileNodeAffinity))
+	for i, requirement := range profile.Spec.ProfileAffinity.ProfileNodeAffinity {
 		selector, err := labels.NewRequirement(
 			requirement.Key,
 			nodeSelectorOperatorToSelectionOperator(requirement.Operator),
 			requirement.Values,
 		)
 		if err != nil {
-			return false, err
+			return nil, err
 		}
+		requirements[i] = selector
+	}
+	return requirements, nil
+}
 
-		if !selector.Matches(labels.Set(nodeLabels)) {
-			return false, nil
-		}
+// profileMatchesNodeWithRequirements checks if a node matches the given requirements
+func profileMatchesNodeWithRequirements(requirements []*labels.Requirement, nodeLabels map[string]string) bool {
+	if len(requirements) == 0 {
+		return true
 	}
 
-	return true, nil
+	nodeSet := labels.Set(nodeLabels)
+	for _, requirement := range requirements {
+		if !requirement.Matches(nodeSet) {
+			return false
+		}
+	}
+	return true
 }
 
 func nodeSelectorOperatorToSelectionOperator(op v1.NodeSelectorOperator) selection.Operator {

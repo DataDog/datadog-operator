@@ -47,7 +47,7 @@ func (f *liveContainerFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.Data
 			apicommon.CoreAgentContainerName,
 		}
 
-		f.runInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(ddaSpec, apiutils.BoolValue(ddaSpec.Global.RunProcessChecksInCoreAgent))
+		f.runInCoreAgent = featutils.ShouldRunProcessChecksInCoreAgent(ddaSpec)
 
 		if !f.runInCoreAgent {
 			reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)
@@ -131,5 +131,9 @@ func (f *liveContainerFeature) manageNodeAgent(agentContainerName apicommon.Agen
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *liveContainerFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}
+
+func (f *liveContainerFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

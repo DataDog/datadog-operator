@@ -38,11 +38,6 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 		return result, err
 	}
 
-	// Check for deprecated configurations and log warnings
-	if instance.Spec.Global != nil && instance.Spec.Global.RunProcessChecksInCoreAgent != nil {
-		reqLogger.Error(nil, "DEPRECATION WARNING: The 'runProcessChecksInCoreAgent' configuration is deprecated in 1.19, and will be removed in v1.21. See github.com/DataDog/datadog-operator/blob/main/docs/deprecated_configs.md for details.")
-	}
-
 	// 2. Handle finalizer logic.
 	if result, err := r.handleFinalizer(reqLogger, instance, r.finalizeDadV2); utils.ShouldReturn(result, err) {
 		return result, err
@@ -91,7 +86,11 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 	// TODO: introspection
 	sendProfileEnabledMetric(r.options.DatadogAgentProfileEnabled)
 	if r.options.DatadogAgentProfileEnabled {
-		profileDDAIs, e := r.applyProfilesToDDAISpec(ctx, logger, ddai, now)
+		appliedProfiles, e := r.reconcileProfiles(ctx)
+		if e != nil {
+			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
+		}
+		profileDDAIs, e := r.applyProfilesToDDAISpec(ddai, appliedProfiles)
 		if e != nil {
 			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
 		}
@@ -137,14 +136,13 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// 1. Manage dependencies.
 	depsStore, resourceManagers := r.setupDependencies(instance, logger)
 
-	providerList := map[string]struct{}{kubernetes.LegacyProvider: {}}
 	k8sProvider := kubernetes.LegacyProvider
 	if r.options.IntrospectionEnabled {
 		nodeList, err := r.getNodeList(ctx)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
-		providerList = kubernetes.GetProviderListFromNodeList(nodeList, logger)
+		providerList := kubernetes.GetProviderListFromNodeList(nodeList, logger)
 
 		k8sProvider = kubernetes.DefaultProvider
 		if len(providerList) == 1 {
@@ -324,10 +322,9 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 		logger.Info("unable to list DatadogAgentProfiles", "error", err)
 	}
 
-	var profileListToApply []datadoghqv1alpha1.DatadogAgentProfile
 	profileAppliedByNode := make(map[string]types.NamespacedName, len(nodeList))
-
 	sortedProfiles := agentprofile.SortProfiles(profilesList.Items)
+	profileListToApply := make([]datadoghqv1alpha1.DatadogAgentProfile, 0, len(sortedProfiles))
 	for _, profile := range sortedProfiles {
 		maxUnavailable := agentprofile.GetMaxUnavailable(logger, ddaSpec, &profile, len(nodeList), &r.options.ExtendedDaemonsetOptions)
 		oldStatus := profile.Status

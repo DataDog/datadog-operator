@@ -1,6 +1,8 @@
 package otelcollector
 
 import (
+	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -22,7 +24,19 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
+
+const (
+	otelAgentMinVersion             = "7.67.0-0"
+	otelAgentOverrideImageNameField = "override.nodeAgent.image.name"
+	otelAgentFullImageExample       = "gcr.io/datadoghq/agent:7.72.1-full"
+	otelAgentVersionExample         = "7.72.1"
+	otelAgentVersionWithFullExample = "7.72.1-full"
+	otelAgentMinVersionForDisplay   = "7.67.0"
+)
+
+var errIncompatibleImage = errors.New("Incompatible OTel Agent image")
 
 func init() {
 	err := feature.Register(feature.OtelAgentIDType, buildOtelCollectorFeature)
@@ -54,6 +68,8 @@ type otelCollectorFeature struct {
 	forceEnableLocalService bool
 	localServiceName        string
 
+	incompatibleImage bool
+
 	logger logr.Logger
 }
 
@@ -68,6 +84,33 @@ func (o *otelCollectorFeature) ID() feature.IDType {
 }
 
 func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
+	var agentImageName string
+	agentVersion := images.AgentLatestVersion
+	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
+		if nodeAgent.Image != nil {
+			agentImageName = nodeAgent.Image.Name
+			agentVersion = common.GetAgentVersionFromImage(*nodeAgent.Image)
+		}
+	}
+	supportedVersion := utils.IsAboveMinVersion(agentVersion, otelAgentMinVersion, apiutils.NewBoolPointer(true))
+	if !supportedVersion && agentImageName == "" {
+		o.incompatibleImage = true
+		o.logger.Error(errIncompatibleImage,
+			fmt.Sprintf("OTel Agent Standalone requires Agent version %s or higher. Either update the Agent version to %s+, or override the Agent image by setting %s to a fully qualified image name with the -full tag (e.g., %s)",
+				otelAgentMinVersionForDisplay, otelAgentMinVersionForDisplay, otelAgentOverrideImageNameField, otelAgentFullImageExample),
+			"current_version", agentVersion)
+		return feature.RequiredComponents{}
+	}
+
+	if strings.HasSuffix(agentVersion, "-full") && agentImageName == "" {
+		o.incompatibleImage = true
+		o.logger.Error(errIncompatibleImage,
+			fmt.Sprintf("OTel Agent Standalone does not support the -full tag. Either remove the -full suffix from the Agent tag (e.g., use %s instead of %s), or override the Agent image by setting %s to a fully qualified image name (e.g., %s)",
+				otelAgentVersionExample, otelAgentVersionWithFullExample, otelAgentOverrideImageNameField, otelAgentFullImageExample),
+			"current_version", agentVersion)
+		return feature.RequiredComponents{}
+	}
+
 	o.owner = dda
 	if ddaSpec.Features.OtelCollector.Conf != nil {
 		o.customConfig = ddaSpec.Features.OtelCollector.Conf
@@ -145,6 +188,9 @@ func (o *otelCollectorFeature) buildOTelAgentCoreConfigMap() (*corev1.ConfigMap,
 }
 
 func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+	if o.incompatibleImage {
+		return errIncompatibleImage
+	}
 	// check if an otel collector config was provided. If not, use default.
 	if o.customConfig == nil {
 		o.customConfig = &v2alpha1.CustomConfig{}
@@ -218,20 +264,8 @@ func (o *otelCollectorFeature) ManageClusterAgent(managers feature.PodTemplateMa
 }
 
 func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	// // Use -full image for all containers
-	image := &images.Image{}
-	for i, container := range managers.PodTemplateSpec().Spec.Containers {
-		image = images.FromString(container.Image).
-			WithFull(true)
-		// Note: if an image tag override is configured, this image tag will be overwritten
-		managers.PodTemplateSpec().Spec.Containers[i].Image = image.ToString()
-	}
-
-	for i, container := range managers.PodTemplateSpec().Spec.InitContainers {
-		image = images.FromString(container.Image).
-			WithFull(true)
-		// Note: if an image tag override is configured, this image tag will be overwritten
-		managers.PodTemplateSpec().Spec.InitContainers[i].Image = image.ToString()
+	if o.incompatibleImage {
+		return errIncompatibleImage
 	}
 
 	var vol corev1.Volume
@@ -351,5 +385,9 @@ func (o *otelCollectorFeature) ManageSingleContainerNodeAgent(managers feature.P
 }
 
 func (o *otelCollectorFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}
+
+func (o *otelCollectorFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }

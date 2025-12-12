@@ -29,6 +29,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/pkg/config"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
@@ -74,7 +75,12 @@ type Reconciler struct {
 }
 
 // NewReconciler returns a new Reconciler object
-func NewReconciler(client client.Client, ddClient datadogclient.DatadogMonitorClient, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, operatorMetricsEnabled bool, metricForwardersMgr pkgutils.MetricsForwardersManager) (*Reconciler, error) {
+func NewReconciler(client client.Client, creds config.Creds, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, operatorMetricsEnabled bool, metricForwardersMgr pkgutils.MetricsForwardersManager) (*Reconciler, error) {
+	ddClient, err := datadogclient.InitDatadogMonitorClient(log, creds)
+	if err != nil {
+		return &Reconciler{}, err
+	}
+
 	return &Reconciler{
 		client:                 client,
 		datadogClient:          ddClient.Client,
@@ -85,6 +91,18 @@ func NewReconciler(client client.Client, ddClient datadogclient.DatadogMonitorCl
 		operatorMetricsEnabled: operatorMetricsEnabled,
 		forwarders:             metricForwardersMgr,
 	}, nil
+}
+
+func (r *Reconciler) UpdateDatadogClient(newCreds config.Creds) error {
+	r.log.Info("Recreating Datadog client due to credential change", "reconciler", "DatadogMonitor")
+	ddClient, err := datadogclient.InitDatadogMonitorClient(r.log, newCreds)
+	if err != nil {
+		return fmt.Errorf("unable to create Datadog API Client in DatadogMonitor: %w", err)
+	}
+	r.datadogClient = ddClient.Client
+	r.datadogAuth = ddClient.Auth
+	r.log.Info("Successfully recreated datadog client due to credential change", "reconciler", "DatadogMonitor")
+	return nil
 }
 
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context
@@ -155,7 +173,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 		} else if instance.Status.MonitorLastForceSyncTime == nil || (forceSyncPeriod-now.Sub(instance.Status.MonitorLastForceSyncTime.Time)) <= 0 {
 			// Periodically force a sync with the API monitor to ensure parity
 			// Get monitor to make sure it exists before trying any updates. If it doesn't, set shouldCreate
-			m, err = r.get(instance, newStatus)
+			_, err = r.get(instance, newStatus)
 			if err != nil {
 				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
 				if strings.Contains(err.Error(), ctrutils.NotFoundString) {

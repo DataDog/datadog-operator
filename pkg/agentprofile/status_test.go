@@ -369,3 +369,197 @@ func TestUpdateProfileStatus(t *testing.T) {
 		})
 	}
 }
+
+func TestGenerateProfileStatusFromConditions(t *testing.T) {
+	now := metav1.Now()
+	tests := []struct {
+		name                  string
+		profile               *datadoghqv1alpha1.DatadogAgentProfile
+		expectedProfileStatus datadoghqv1alpha1.DatadogAgentProfileStatus
+	}{
+		{
+			name: "profile with no conditions",
+			profile: &datadoghqv1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-profile",
+					Namespace: "test-namespace",
+				},
+				Spec: datadoghqv1alpha1.DatadogAgentProfileSpec{},
+				Status: datadoghqv1alpha1.DatadogAgentProfileStatus{
+					Conditions: []metav1.Condition{},
+				},
+			},
+			expectedProfileStatus: datadoghqv1alpha1.DatadogAgentProfileStatus{
+				LastUpdate:  &now,
+				CurrentHash: "99914b932bd37a50b983c5e7c90ae93b",
+				Valid:       "",
+				Applied:     "",
+			},
+		},
+		{
+			name: "profile with Valid condition True",
+			profile: &datadoghqv1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-profile",
+					Namespace: "test-namespace",
+				},
+				Spec: datadoghqv1alpha1.DatadogAgentProfileSpec{},
+				Status: datadoghqv1alpha1.DatadogAgentProfileStatus{
+					Conditions: []metav1.Condition{
+						{
+							Type:               ValidConditionType,
+							Status:             metav1.ConditionTrue,
+							LastTransitionTime: now,
+							Reason:             ValidConditionReason,
+							Message:            "Profile is valid",
+						},
+					},
+				},
+			},
+			expectedProfileStatus: datadoghqv1alpha1.DatadogAgentProfileStatus{
+				LastUpdate:  &now,
+				CurrentHash: "99914b932bd37a50b983c5e7c90ae93b",
+				Valid:       metav1.ConditionTrue,
+				Applied:     "",
+			},
+		},
+		{
+			name: "profile with Applied condition True",
+			profile: &datadoghqv1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-profile",
+					Namespace: "test-namespace",
+				},
+				Spec: datadoghqv1alpha1.DatadogAgentProfileSpec{},
+				Status: datadoghqv1alpha1.DatadogAgentProfileStatus{
+					Conditions: []metav1.Condition{
+						{
+							Type:               AppliedConditionType,
+							Status:             metav1.ConditionTrue,
+							LastTransitionTime: now,
+							Reason:             AppliedConditionReason,
+							Message:            "Profile is applied",
+						},
+					},
+				},
+			},
+			expectedProfileStatus: datadoghqv1alpha1.DatadogAgentProfileStatus{
+				LastUpdate:  &now,
+				CurrentHash: "99914b932bd37a50b983c5e7c90ae93b",
+				Valid:       "",
+				Applied:     metav1.ConditionTrue,
+			},
+		},
+		{
+			name: "profile with both Valid and Applied conditions",
+			profile: &datadoghqv1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-profile",
+					Namespace: "test-namespace",
+				},
+				Spec: datadoghqv1alpha1.DatadogAgentProfileSpec{},
+				Status: datadoghqv1alpha1.DatadogAgentProfileStatus{
+					Conditions: []metav1.Condition{
+						{
+							Type:               ValidConditionType,
+							Status:             metav1.ConditionTrue,
+							LastTransitionTime: now,
+							Reason:             ValidConditionReason,
+							Message:            "Profile is valid",
+						},
+						{
+							Type:               AppliedConditionType,
+							Status:             metav1.ConditionFalse,
+							LastTransitionTime: now,
+							Reason:             ConflictConditionReason,
+							Message:            "Profile has conflicts",
+						},
+					},
+				},
+			},
+			expectedProfileStatus: datadoghqv1alpha1.DatadogAgentProfileStatus{
+				LastUpdate:  &now,
+				CurrentHash: "99914b932bd37a50b983c5e7c90ae93b",
+				Valid:       metav1.ConditionTrue,
+				Applied:     metav1.ConditionFalse,
+			},
+		},
+		{
+			name: "profile with multiple Valid conditions uses last one",
+			profile: &datadoghqv1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-profile",
+					Namespace: "test-namespace",
+				},
+				Spec: datadoghqv1alpha1.DatadogAgentProfileSpec{},
+				Status: datadoghqv1alpha1.DatadogAgentProfileStatus{
+					Conditions: []metav1.Condition{
+						{
+							Type:               ValidConditionType,
+							Status:             metav1.ConditionFalse,
+							LastTransitionTime: now,
+							Reason:             InvalidConditionReason,
+							Message:            "First valid condition - false",
+						},
+						{
+							Type:               ValidConditionType,
+							Status:             metav1.ConditionTrue,
+							LastTransitionTime: now,
+							Reason:             ValidConditionReason,
+							Message:            "Second valid condition - true",
+						},
+					},
+				},
+			},
+			expectedProfileStatus: datadoghqv1alpha1.DatadogAgentProfileStatus{
+				LastUpdate:  &now,
+				CurrentHash: "99914b932bd37a50b983c5e7c90ae93b",
+				Valid:       metav1.ConditionTrue,
+				Applied:     "",
+			},
+		},
+		{
+			name: "profile with unrelated conditions ignores them",
+			profile: &datadoghqv1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-profile",
+					Namespace: "test-namespace",
+				},
+				Spec: datadoghqv1alpha1.DatadogAgentProfileSpec{},
+				Status: datadoghqv1alpha1.DatadogAgentProfileStatus{
+					Conditions: []metav1.Condition{
+						{
+							Type:               "UnrelatedCondition",
+							Status:             metav1.ConditionTrue,
+							LastTransitionTime: now,
+							Reason:             "SomeReason",
+							Message:            "Unrelated condition",
+						},
+						{
+							Type:               ValidConditionType,
+							Status:             metav1.ConditionTrue,
+							LastTransitionTime: now,
+							Reason:             ValidConditionReason,
+							Message:            "Profile is valid",
+						},
+					},
+				},
+			},
+			expectedProfileStatus: datadoghqv1alpha1.DatadogAgentProfileStatus{
+				LastUpdate:  &now,
+				CurrentHash: "99914b932bd37a50b983c5e7c90ae93b",
+				Valid:       metav1.ConditionTrue,
+				Applied:     "",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logger := logf.Log.WithName("testGenerateProfileStatusFromConditions")
+
+			GenerateProfileStatusFromConditions(logger, tt.profile, now)
+			assert.Equal(t, tt.expectedProfileStatus, tt.profile.Status)
+		})
+	}
+}

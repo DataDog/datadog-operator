@@ -72,6 +72,7 @@ spec:
 | features.asm.iast.enabled | Enables Interactive Application Security Testing (IAST). Default: false |
 | features.asm.sca.enabled | Enables Software Composition Analysis (SCA). Default: false |
 | features.asm.threats.enabled | Enables ASM App & API Protection. Default: false |
+| features.autoscaling.cluster.enabled | Enables the cluster autoscaling product. Default: false |
 | features.autoscaling.workload.enabled | Enables the workload autoscaling product. Default: false |
 | features.clusterChecks.enabled | Enables Cluster Checks scheduling in the Cluster Agent. Default: true |
 | features.clusterChecks.useClusterChecksRunners | Enabled enables Cluster Checks Runners to run all Cluster Checks. Default: false |
@@ -154,6 +155,11 @@ spec:
 | features.orchestratorExplorer.enabled | Enables the Orchestrator Explorer. Default: true |
 | features.orchestratorExplorer.extraTags | Additional tags to associate with the collected data in the form of `a b c`. This is a Cluster Agent option distinct from DD_TAGS that is used in the Orchestrator Explorer. |
 | features.orchestratorExplorer.scrubContainers | ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ). Default: true |
+| features.otelAgentGateway.conf.configData | ConfigData corresponds to the configuration file content. |
+| features.otelAgentGateway.conf.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
+| features.otelAgentGateway.conf.configMap.name | Is the name of the ConfigMap. |
+| features.otelAgentGateway.enabled | Enables the OTel Agent Gateway. Default: false |
+| features.otelAgentGateway.ports | Contains the ports that the OTel Collector is listening on. Defaults: otel-grpc:4317 / otel-http:4318. |
 | features.otelCollector.conf.configData | ConfigData corresponds to the configuration file content. |
 | features.otelCollector.conf.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | features.otelCollector.conf.configMap.name | Is the name of the ConfigMap. |
@@ -257,7 +263,6 @@ spec:
 | global.podAnnotationsAsTags | Provide a mapping of Kubernetes Annotations to Datadog Tags. <KUBERNETES_ANNOTATIONS>: <DATADOG_TAG_KEY> |
 | global.podLabelsAsTags | Provide a mapping of Kubernetes Labels to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY> |
 | global.registry | Is the image registry to use for all Agent images. Use 'public.ecr.aws/datadog' for AWS ECR. Use 'datadoghq.azurecr.io' for Azure Container Registry. Use 'gcr.io/datadoghq' for Google Container Registry. Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region. Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region. Use 'docker.io/datadog' for DockerHub. Default: 'gcr.io/datadoghq' |
-| global.runProcessChecksInCoreAgent | Configure whether the Process Agent or core Agent collects process and/or container information (Linux only). If no other checks are running, the Process Agent container will not initialize. (Requires Agent 7.60.0+) Default: 'true' Deprecated: Functionality now handled automatically. Use env var `DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED` to override. |
 | global.secretBackend.args | List of arguments to pass to the command (space-separated strings). |
 | global.secretBackend.command | The secret backend command to use. Datadog provides a pre-defined binary `/readsecret_multiple_providers.sh`. Read more about `/readsecret_multiple_providers.sh` at https://docs.datadoghq.com/agent/configuration/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers. |
 | global.secretBackend.enableGlobalPermissions | Whether to create a global permission allowing Datadog agents to read all Kubernetes secrets. Default: `false`. |

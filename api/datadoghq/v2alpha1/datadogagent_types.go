@@ -45,7 +45,10 @@ type DatadogFeatures struct {
 	// Application-level features
 
 	// OtelCollector configuration.
+	// +doc-gen:link=https://docs.datadoghq.com/opentelemetry/setup/ddot_collector/install/kubernetes_daemonset/?tab=datadogoperator#overview
 	OtelCollector *OtelCollectorFeatureConfig `json:"otelCollector,omitempty"`
+	// OtelAgentGateway configuration.
+	OtelAgentGateway *OtelAgentGatewayFeatureConfig `json:"otelAgentGateway,omitempty"`
 	// LogCollection configuration.
 	LogCollection *LogCollectionFeatureConfig `json:"logCollection,omitempty"`
 	// LiveProcessCollection configuration.
@@ -75,6 +78,7 @@ type DatadogFeatures struct {
 	// Dogstatsd configuration.
 	Dogstatsd *DogstatsdFeatureConfig `json:"dogstatsd,omitempty"`
 	// OTLP ingest configuration
+	// +doc-gen:link=https://docs.datadoghq.com/opentelemetry/setup/otlp_ingest_in_the_agent/?tab=kubernetesoperator
 	OTLP *OTLPFeatureConfig `json:"otlp,omitempty"`
 	// Remote Configuration configuration.
 	RemoteConfiguration *RemoteConfigurationFeatureConfig `json:"remoteConfiguration,omitempty"`
@@ -96,6 +100,7 @@ type DatadogFeatures struct {
 	// AdmissionController configuration.
 	AdmissionController *AdmissionControllerFeatureConfig `json:"admissionController,omitempty"`
 	// ExternalMetricsServer configuration.
+	// +doc-gen:link=https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md
 	ExternalMetricsServer *ExternalMetricsServerFeatureConfig `json:"externalMetricsServer,omitempty"`
 	// Autoscaling configuration.
 	Autoscaling *AutoscalingFeatureConfig `json:"autoscaling,omitempty"`
@@ -137,6 +142,7 @@ type APMFeatureConfig struct {
 	// Feature is in beta.
 	// See also: https://docs.datadoghq.com/tracing/trace_collection/single-step-apm
 	// Enabled Default: false
+	// +doc-gen:truncate
 	// +optional
 	SingleStepInstrumentation *SingleStepInstrumentation `json:"instrumentation,omitempty"`
 
@@ -433,6 +439,7 @@ type CSPMFeatureConfig struct {
 	// CustomBenchmarks contains CSPM benchmarks.
 	// The content of the ConfigMap will be merged with the benchmarks bundled with the agent.
 	// Any benchmarks with the same name as those existing in the agent will take precedence.
+	// +doc-gen:truncate
 	// +optional
 	CustomBenchmarks *CustomConfig `json:"customBenchmarks,omitempty"`
 
@@ -1003,6 +1010,27 @@ type OtelCollectorFeatureConfig struct {
 	CoreConfig *CoreConfig `json:"coreConfig,omitempty"`
 }
 
+// OtelAgentGatewayFeatureConfig contains the configuration for the OTel Agent Gateway.
+// +k8s:openapi-gen=true
+type OtelAgentGatewayFeatureConfig struct {
+	// Enabled enables the OTel Agent Gateway.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Conf overrides the configuration for the default OTel Agent Gateway.
+	// This must point to a ConfigMap containing a valid OTel collector configuration.
+	// When passing a configmap, file name *must* be otel-gateway-config.yaml.
+	// +optional
+	Conf *CustomConfig `json:"conf,omitempty"`
+
+	// Ports contains the ports that the OTel Collector is listening on.
+	// Defaults: otel-grpc:4317 / otel-http:4318.
+	// +optional
+	// +listType=atomic
+	Ports []*corev1.ContainerPort `json:"ports,omitempty"`
+}
+
 // ControlPlaneMonitoringFeatureConfig contains the configuration for the control plane monitoring.
 // +k8s:openapi-gen=true
 type ControlPlaneMonitoringFeatureConfig struct {
@@ -1070,6 +1098,7 @@ type AdmissionControllerFeatureConfig struct {
 	WebhookName *string `json:"webhookName,omitempty"`
 
 	// AgentSidecarInjection contains Agent sidecar injection configurations.
+	// +doc-gen:link=https://docs.datadoghq.com/integrations/eks_fargate/?tab=admissioncontrollerdatadogoperator
 	// +optional
 	AgentSidecarInjection *AgentSidecarInjectionConfig `json:"agentSidecarInjection,omitempty"`
 
@@ -1225,11 +1254,22 @@ type ExternalMetricsServerFeatureConfig struct {
 type AutoscalingFeatureConfig struct {
 	// Workload contains the configuration for the workload autoscaling product.
 	Workload *WorkloadAutoscalingFeatureConfig `json:"workload,omitempty"`
+
+	// Cluster contains the configuration for the cluster autoscaling product.
+	Cluster *ClusterAutoscalingFeatureConfig `json:"cluster,omitempty"`
 }
 
 // WorkloadAutoscalingFeatureConfig contains the configuration for the workload autoscaling product.
 type WorkloadAutoscalingFeatureConfig struct {
 	// Enabled enables the workload autoscaling product.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// ClusterAutoscalingFeatureConfig contains the configuration for the cluster autoscaling product.
+type ClusterAutoscalingFeatureConfig struct {
+	// Enabled enables the cluster autoscaling product.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
@@ -1679,19 +1719,12 @@ type GlobalConfig struct {
 	UseFIPSAgent *bool `json:"useFIPSAgent,omitempty"`
 
 	// FIPS contains configuration used to customize the FIPS proxy sidecar.
+	// +doc-gen:link=https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md
 	FIPS *FIPSConfig `json:"fips,omitempty"`
 
 	// Configure the secret backend feature https://docs.datadoghq.com/agent/guide/secrets-management
 	// See also: https://github.com/DataDog/datadog-operator/blob/main/docs/secret_management.md
 	SecretBackend *SecretBackendConfig `json:"secretBackend,omitempty"`
-
-	// Configure whether the Process Agent or core Agent collects process and/or container information (Linux only).
-	// If no other checks are running, the Process Agent container will not initialize.
-	// (Requires Agent 7.60.0+)
-	// Default: 'true'
-	// +optional
-	// Deprecated: Functionality now handled automatically. Use env var `DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED` to override.
-	RunProcessChecksInCoreAgent *bool `json:"runProcessChecksInCoreAgent,omitempty"`
 }
 
 // DatadogCredentials is a generic structure that holds credentials to access Datadog.
@@ -1913,6 +1946,7 @@ type DatadogAgentComponentOverride struct {
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 
 	// Pod-level SecurityContext.
+	// +doc-gen:link=https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
 	// +optional
 	SecurityContext *corev1.PodSecurityContext `json:"securityContext,omitempty"`
 
@@ -1929,6 +1963,7 @@ type DatadogAgentComponentOverride struct {
 	RuntimeClassName *string `json:"runtimeClassName,omitempty"`
 
 	// If specified, the pod's scheduling constraints.
+	// +doc-gen:link=https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
 	// +optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 
@@ -1938,12 +1973,14 @@ type DatadogAgentComponentOverride struct {
 	// DNS parameters given in DNSConfig will be merged with the policy selected with DNSPolicy.
 	// To have DNS options set along with hostNetwork, you have to specify DNS policy
 	// explicitly to 'ClusterFirstWithHostNet'.
+	// +doc-gen:link=https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-s-dns-config
 	// +optional
 	DNSPolicy *corev1.DNSPolicy `json:"dnsPolicy,omitempty"`
 
 	// Specifies the DNS parameters of a pod.
 	// Parameters specified here will be merged to the generated DNS
 	// configuration based on DNSPolicy.
+	// +doc-gen:link=https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-s-dns-config
 	// +optional
 	DNSConfig *corev1.PodDNSConfig `json:"dnsConfig,omitempty"`
 
@@ -1953,11 +1990,13 @@ type DatadogAgentComponentOverride struct {
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
 	// The deployment strategy to use to replace existing pods with new ones.
+	// +doc-gen:link=https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#updating-a-deployment https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/#updating-a-daemonset
 	// +optional
 	UpdateStrategy *common.UpdateStrategy `json:"updateStrategy,omitempty"`
 
 	// Configure the component tolerations.
 	// +optional
+	// +doc-gen:link=https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
 	// +listType=atomic
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 
@@ -1983,6 +2022,7 @@ type DatadogAgentComponentOverride struct {
 	// TopologySpreadConstraints describes how a group of pods ought to spread across topology
 	// domains. Scheduler will schedule pods in a way which abides by the constraints.
 	// All topologySpreadConstraints are ANDed.
+	// +doc-gen:link=https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#topologyspreadconstraint
 	// +optional
 	// +listType=map
 	// +listMapKey=topologyKey
@@ -2006,6 +2046,7 @@ type DatadogAgentGenericContainer struct {
 	// Specify additional ports to be exposed by the container. Not specifying a port here
 	// DOES NOT prevent that port from being exposed.
 	// See https://pkg.go.dev/k8s.io/api/core/v1#Container documentation for more details.
+	// +doc-gen:truncate
 	// +optional
 	// +listType=atomic
 	Ports []corev1.ContainerPort `json:"ports,omitempty"`
@@ -2028,6 +2069,7 @@ type DatadogAgentGenericContainer struct {
 	// Specify the Request and Limits of the pods
 	// To get guaranteed QoS class, specify requests and limits equal.
 	// See also: http://kubernetes.io/docs/user-guide/compute-resources/
+	// +doc-gen:link=https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 
 	// Command allows the specification of a custom entrypoint for container
@@ -2044,23 +2086,28 @@ type DatadogAgentGenericContainer struct {
 	HealthPort *int32 `json:"healthPort,omitempty"`
 
 	// Configure the Readiness Probe of the container
+	// +doc-gen:link=https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 	// +optional
 	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
 
 	// Configure the Liveness Probe of the container
+	// +doc-gen:link=https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 	// +optional
 	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
 
 	// Configure the Startup Probe of the container
+	// +doc-gen:link=https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 	// +optional
 	StartupProbe *corev1.Probe `json:"startupProbe,omitempty"`
 
 	// Container-level SecurityContext.
+	// +doc-gen:link=https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
 	// +optional
 	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 
 	// Seccomp configurations to override Operator actions. For all other Seccomp Profile manipulation,
 	// use SecurityContext.
+	// +doc-gen:link=https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#seccomp
 	// +optional
 	SeccompConfig *SeccompConfig `json:"seccompConfig,omitempty"`
 
@@ -2149,7 +2196,7 @@ type DatadogAgentStatus struct {
 	RemoteConfigConfiguration *RemoteConfigConfiguration `json:"remoteConfigConfiguration,omitempty"`
 }
 
-// DatadogAgent Deployment with the Datadog Operator.
+// DatadogAgent defines Agent configuration, see reference https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion

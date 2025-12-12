@@ -843,7 +843,33 @@ func TestContainer(t *testing.T) {
 				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
 					return reflect.DeepEqual(
 						&corev1.SecurityContext{
-							RunAsUser: apiutils.NewInt64Pointer(12345),
+							RunAsUser:              apiutils.NewInt64Pointer(12345),
+							ReadOnlyRootFilesystem: apiutils.NewBoolPointer(true),
+						},
+						container.SecurityContext)
+				})
+			},
+		},
+		{
+			name:          "override security context read-only root filesystem",
+			containerName: apicommon.CoreAgentContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{*agentContainer},
+					},
+				})
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				SecurityContext: &corev1.SecurityContext{
+					ReadOnlyRootFilesystem: apiutils.NewBoolPointer(false),
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
+					return reflect.DeepEqual(
+						&corev1.SecurityContext{
+							ReadOnlyRootFilesystem: apiutils.NewBoolPointer(false),
 						},
 						container.SecurityContext)
 				})
