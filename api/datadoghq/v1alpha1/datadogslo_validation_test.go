@@ -157,6 +157,159 @@ func TestIsValidDatadogSLO(t *testing.T) {
 			},
 			expected: errors.New("spec.Timeframe must be defined as one of the values: 7d, 30d, or 90d"),
 		},
+		{
+			name: "Valid time-slice spec",
+			spec: &DatadogSLOSpec{
+				Name: "MyTimeSliceSLO",
+				TimeSliceSpec: &DatadogSLOTimeSliceSpec{
+					TimeSliceCondition: DatadogSLOTimeSliceCondition{
+						Comparator: ">",
+						Threshold:  resource.MustParse("5.0"),
+					},
+					Query: DatadogSLOTimeSliceQuery{
+						Formulas: []DatadogSLOFormula{
+							{Formula: "query1"},
+						},
+						Queries: []DatadogSLOQueryDefinition{
+							{
+								DataSource: "metrics",
+								Name:       "query1",
+								Query:      "avg:system.cpu.user{*}",
+							},
+						},
+					},
+				},
+				Type:            DatadogSLOTypeTimeSlice,
+				TargetThreshold: resource.MustParse("99.0"),
+				Timeframe:       DatadogSLOTimeFrame7d,
+			},
+			expected: nil,
+		},
+		{
+			name: "Missing TimeSliceSpec for time-slice type",
+			spec: &DatadogSLOSpec{
+				Name:            "MyTimeSliceSLO",
+				Type:            DatadogSLOTypeTimeSlice,
+				TargetThreshold: resource.MustParse("99.0"),
+				Timeframe:       DatadogSLOTimeFrame7d,
+			},
+			expected: errors.New("spec.TimeSliceSpec must be defined when spec.Type is time_slice"),
+		},
+		{
+			name: "Missing comparator in time-slice condition",
+			spec: &DatadogSLOSpec{
+				Name: "MyTimeSliceSLO",
+				TimeSliceSpec: &DatadogSLOTimeSliceSpec{
+					TimeSliceCondition: DatadogSLOTimeSliceCondition{
+						Threshold: resource.MustParse("5.0"),
+					},
+					Query: DatadogSLOTimeSliceQuery{
+						Formulas: []DatadogSLOFormula{
+							{Formula: "query1"},
+						},
+						Queries: []DatadogSLOQueryDefinition{
+							{
+								DataSource: "metrics",
+								Name:       "query1",
+								Query:      "avg:system.cpu.user{*}",
+							},
+						},
+					},
+				},
+				Type:            DatadogSLOTypeTimeSlice,
+				TargetThreshold: resource.MustParse("99.0"),
+				Timeframe:       DatadogSLOTimeFrame7d,
+			},
+			expected: errors.New("spec.TimeSliceSpec.TimeSliceCondition.Comparator must be defined"),
+		},
+		{
+			name: "Missing formulas in time-slice query",
+			spec: &DatadogSLOSpec{
+				Name: "MyTimeSliceSLO",
+				TimeSliceSpec: &DatadogSLOTimeSliceSpec{
+					TimeSliceCondition: DatadogSLOTimeSliceCondition{
+						Comparator: ">",
+						Threshold:  resource.MustParse("5.0"),
+					},
+					Query: DatadogSLOTimeSliceQuery{
+						Formulas: []DatadogSLOFormula{},
+						Queries: []DatadogSLOQueryDefinition{
+							{
+								DataSource: "metrics",
+								Name:       "query1",
+								Query:      "avg:system.cpu.user{*}",
+							},
+						},
+					},
+				},
+				Type:            DatadogSLOTypeTimeSlice,
+				TargetThreshold: resource.MustParse("99.0"),
+				Timeframe:       DatadogSLOTimeFrame7d,
+			},
+			expected: errors.New("spec.TimeSliceSpec.Query.Formulas must contain at least one formula"),
+		},
+		{
+			name: "Empty formula string",
+			spec: &DatadogSLOSpec{
+				Name: "MyTimeSliceSLO",
+				TimeSliceSpec: &DatadogSLOTimeSliceSpec{
+					TimeSliceCondition: DatadogSLOTimeSliceCondition{
+						Comparator: ">",
+						Threshold:  resource.MustParse("5.0"),
+					},
+					Query: DatadogSLOTimeSliceQuery{
+						Formulas: []DatadogSLOFormula{
+							{Formula: ""},
+						},
+						Queries: []DatadogSLOQueryDefinition{
+							{
+								DataSource: "metrics",
+								Name:       "query1",
+								Query:      "avg:system.cpu.user{*}",
+							},
+						},
+					},
+				},
+				Type:            DatadogSLOTypeTimeSlice,
+				TargetThreshold: resource.MustParse("99.0"),
+				Timeframe:       DatadogSLOTimeFrame7d,
+			},
+			expected: errors.New("spec.TimeSliceSpec.Query.Formulas[0].Formula must not be empty"),
+		},
+		{
+			name: "Missing query fields",
+			spec: &DatadogSLOSpec{
+				Name: "MyTimeSliceSLO",
+				TimeSliceSpec: &DatadogSLOTimeSliceSpec{
+					TimeSliceCondition: DatadogSLOTimeSliceCondition{
+						Comparator: ">",
+						Threshold:  resource.MustParse("5.0"),
+					},
+					Query: DatadogSLOTimeSliceQuery{
+						Formulas: []DatadogSLOFormula{
+							{Formula: "query1"},
+						},
+						Queries: []DatadogSLOQueryDefinition{
+							{
+								DataSource: "",
+								Name:       "",
+								Query:      "",
+							},
+						},
+					},
+				},
+				Type:            DatadogSLOTypeTimeSlice,
+				TargetThreshold: resource.MustParse("99.0"),
+				Timeframe:       DatadogSLOTimeFrame7d,
+			},
+			expected: utilserrors.NewAggregate(
+				[]error{
+					errors.New("spec.TimeSliceSpec.Query.Queries[0].DataSource must be defined"),
+					errors.New("spec.TimeSliceSpec.Query.Queries[0].Name must be defined"),
+					errors.New("spec.TimeSliceSpec.Query.Queries[0].Query must be defined"),
+				},
+			),
+		},
 	}
 
 	for _, tt := range tests {
