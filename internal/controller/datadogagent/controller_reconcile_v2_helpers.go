@@ -5,20 +5,27 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/condition"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -207,7 +214,7 @@ func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, logger logr
 		errs = append(errs, err)
 		logger.Error(err, "Error cleaning up old DCA Deployments")
 	}
-	if err := r.cleanupOldCCRDeployments(ctx, logger, instance, newStatus); err != nil {
+	if err := r.cleanupOldCCRDeployments(ctx, logger, instance, resourceManagers, newStatus); err != nil {
 		errs = append(errs, err)
 		logger.Error(err, "Error cleaning up old CCR Deployments")
 	}
@@ -251,4 +258,62 @@ func generateNewStatusFromDDA(ddaStatus *datadoghqv2alpha1.DatadogAgentStatus) *
 		}
 	}
 	return status
+}
+
+// cleanupOldDCADeployments deletes DCA deployments when a DCA Deployment's name is changed using clusterAgent name override
+func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) error {
+	matchLabels := client.MatchingLabels{
+		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterAgentResourceSuffix,
+		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
+	}
+	deploymentName := component.GetDeploymentNameFromDatadogAgent(dda, &dda.Spec)
+	deploymentList := appsv1.DeploymentList{}
+	if err := r.client.List(ctx, &deploymentList, matchLabels); err != nil {
+		return err
+	}
+	for _, deployment := range deploymentList.Items {
+		if deploymentName != deployment.Name {
+			if _, err := r.cleanupV2ClusterAgent(ctx, logger, dda, &deployment, resourcesManager, newStatus); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// cleanupOldCCRDeployments deletes CCR deployments when a CCR Deployment's name is changed using clusterChecksRunner name override
+func (r *Reconciler) cleanupOldCCRDeployments(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) error {
+	matchLabels := client.MatchingLabels{
+		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterChecksRunnerResourceSuffix,
+		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
+	}
+	deploymentName := getDeploymentNameFromCCR(dda)
+	deploymentList := appsv1.DeploymentList{}
+	if err := r.client.List(ctx, &deploymentList, matchLabels); err != nil {
+		return err
+	}
+	for _, deployment := range deploymentList.Items {
+		if deploymentName != deployment.Name {
+			if _, err := r.cleanupV2ClusterChecksRunner(ctx, logger, dda, &deployment, resourcesManager, newStatus); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// getDeploymentNameFromCCR returns the expected CCR deployment name based on
+// the DDA name and clusterChecksRunner name override
+func getDeploymentNameFromCCR(dda *datadoghqv2alpha1.DatadogAgent) string {
+	deploymentName := clusterchecksrunner.GetClusterChecksRunnerName(dda)
+	if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterChecksRunnerComponentName]; ok {
+		if componentOverride.Name != nil && *componentOverride.Name != "" {
+			deploymentName = *componentOverride.Name
+		}
+	}
+	return deploymentName
 }

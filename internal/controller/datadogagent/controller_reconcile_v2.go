@@ -196,7 +196,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	}
 
 	// 2.c. Cluster Checks Runner
-	result, err = r.reconcileV2ClusterChecksRunner(logger, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus)
+	result, err = r.reconcileV2ClusterChecksRunner(ctx, logger, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus, k8sProvider)
 	if utils.ShouldReturn(result, err) {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	}
