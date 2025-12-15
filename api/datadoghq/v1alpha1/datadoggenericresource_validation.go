@@ -12,6 +12,7 @@ import (
 )
 
 var allowedCustomResourcesEnumMap = map[SupportedResourcesType]string{
+	Downtime:              "",
 	Monitor:               "",
 	Notebook:              "",
 	SyntheticsAPITest:     "",

@@ -15,6 +15,7 @@ import (
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
+	datadogV2 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV2"
 	"github.com/go-logr/logr"
 
 	"github.com/DataDog/datadog-operator/pkg/config"
@@ -98,6 +99,7 @@ type DatadogGenericClient struct {
 	SyntheticsClient *datadogV1.SyntheticsApi
 	NotebooksClient  *datadogV1.NotebooksApi
 	MonitorsClient   *datadogV1.MonitorsApi
+	DowntimesClient  *datadogV2.DowntimesApi
 	Auth             context.Context
 }
 
@@ -112,6 +114,7 @@ func InitDatadogGenericClient(logger logr.Logger, creds config.Creds) (DatadogGe
 	syntheticsClient := datadogV1.NewSyntheticsApi(apiClient)
 	notebooksClient := datadogV1.NewNotebooksApi(apiClient)
 	monitorsClient := datadogV1.NewMonitorsApi(apiClient)
+	downtimesClient := datadogV2.NewDowntimesApi(apiClient)
 
 	authV1, err := setupAuth(logger, creds)
 	if err != nil {
@@ -122,6 +125,7 @@ func InitDatadogGenericClient(logger logr.Logger, creds config.Creds) (DatadogGe
 		SyntheticsClient: syntheticsClient,
 		NotebooksClient:  notebooksClient,
 		MonitorsClient:   monitorsClient,
+		DowntimesClient:  downtimesClient,
 		Auth:             authV1,
 	}, nil
 }

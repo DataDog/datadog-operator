@@ -89,6 +89,7 @@ rules:
   resources:
   - customresourcedefinitions
   verbs:
+  - get
   - list
   - watch
 - apiGroups:
@@ -290,8 +291,6 @@ rules:
 - apiGroups:
   - datadoghq.com
   - karpenter.azure.com
-  - karpenter.k8s.aws
-  - karpenter.sh
   resources:
   - '*'
   verbs:
@@ -306,11 +305,52 @@ rules:
   - watch
 - apiGroups:
   - external.metrics.k8s.io
+  - karpenter.k8s.aws
   resources:
   - '*'
   verbs:
   - get
   - list
+  - watch
+- apiGroups:
+  - gateway.envoyproxy.io
+  resources:
+  - envoyextensionpolicies
+  verbs:
+  - create
+  - delete
+  - get
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - gatewayclasses
+  - gateways
+  - httproutes
+  verbs:
+  - get
+  - list
+  - patch
+  - watch
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - referencegrants
+  verbs:
+  - create
+  - delete
+  - get
+  - patch
+- apiGroups:
+  - karpenter.sh
+  resources:
+  - '*'
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - metrics.eks.amazonaws.com
@@ -320,11 +360,21 @@ rules:
   verbs:
   - get
 - apiGroups:
+  - networking.istio.io
+  resources:
+  - envoyfilters
+  verbs:
+  - create
+  - delete
+  - get
+- apiGroups:
   - networking.k8s.io
   resources:
   - ingresses
   verbs:
+  - get
   - list
+  - patch
   - watch
 - apiGroups:
   - networking.k8s.io

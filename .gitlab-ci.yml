@@ -1,4 +1,4 @@
-image: registry.ddbuild.io/images/mirror/library/golang:1.25.3
+image: registry.ddbuild.io/images/mirror/library/golang:1.25.5
 variables:
   PROJECTNAME: "datadog-operator"
   PROJECTNAME_CHECK: "datadog-operator-check"
@@ -256,6 +256,8 @@ build_bundle_image:
 trigger_e2e_operator_image:
   stage: e2e
   rules: !reference [.on_run_e2e_base]
+  needs:
+    - build_operator_image_amd64
   trigger:
     project: DataDog/public-images
     branch: main
@@ -707,7 +709,7 @@ publish_nightly_workflow:
   variables:
     OPERATOR_NIGHTLY: "true"
     SKIP_PLAN_CHECK: "true"
-    ENVIRONMENTS: "experimental"
+    ENVIRONMENTS: "experimental,staging"
     CHART: "datadog-operator"
     OPTION_AUTOMATIC_ROLLOUT: "true"
     EXPLICIT_WORKFLOWS: "//workflows:deploy_operator_nightly.operator_nightly.publish"
@@ -735,7 +737,7 @@ publish_release_candidate_workflow:
   variables:
     OPERATOR_RC: "true"
     SKIP_PLAN_CHECK: "true"
-    ENVIRONMENTS: "experimental,alpha,staging"
+    ENVIRONMENTS: "experimental,staging"
     CHART: "datadog-operator"
     OPTION_AUTOMATIC_ROLLOUT: "true"
     EXPLICIT_WORKFLOWS: "//workflows:deploy_operator_rc.operator_rc"
