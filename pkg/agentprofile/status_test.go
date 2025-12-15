@@ -392,6 +392,7 @@ func TestGenerateProfileStatusFromConditions(t *testing.T) {
 			expectedProfileStatus: datadoghqv1alpha1.DatadogAgentProfileStatus{
 				LastUpdate:  &now,
 				CurrentHash: "99914b932bd37a50b983c5e7c90ae93b",
+				Conditions:  []metav1.Condition{},
 				Valid:       "",
 				Applied:     "",
 			},
@@ -419,8 +420,17 @@ func TestGenerateProfileStatusFromConditions(t *testing.T) {
 			expectedProfileStatus: datadoghqv1alpha1.DatadogAgentProfileStatus{
 				LastUpdate:  &now,
 				CurrentHash: "99914b932bd37a50b983c5e7c90ae93b",
-				Valid:       metav1.ConditionTrue,
-				Applied:     "",
+				Conditions: []metav1.Condition{
+					{
+						Type:               ValidConditionType,
+						Status:             metav1.ConditionTrue,
+						LastTransitionTime: now,
+						Reason:             ValidConditionReason,
+						Message:            "Profile is valid",
+					},
+				},
+				Valid:   metav1.ConditionTrue,
+				Applied: "",
 			},
 		},
 		{
@@ -446,8 +456,17 @@ func TestGenerateProfileStatusFromConditions(t *testing.T) {
 			expectedProfileStatus: datadoghqv1alpha1.DatadogAgentProfileStatus{
 				LastUpdate:  &now,
 				CurrentHash: "99914b932bd37a50b983c5e7c90ae93b",
-				Valid:       "",
-				Applied:     metav1.ConditionTrue,
+				Conditions: []metav1.Condition{
+					{
+						Type:               AppliedConditionType,
+						Status:             metav1.ConditionTrue,
+						LastTransitionTime: now,
+						Reason:             AppliedConditionReason,
+						Message:            "Profile is applied",
+					},
+				},
+				Valid:   "",
+				Applied: metav1.ConditionTrue,
 			},
 		},
 		{
@@ -480,8 +499,24 @@ func TestGenerateProfileStatusFromConditions(t *testing.T) {
 			expectedProfileStatus: datadoghqv1alpha1.DatadogAgentProfileStatus{
 				LastUpdate:  &now,
 				CurrentHash: "99914b932bd37a50b983c5e7c90ae93b",
-				Valid:       metav1.ConditionTrue,
-				Applied:     metav1.ConditionFalse,
+				Conditions: []metav1.Condition{
+					{
+						Type:               ValidConditionType,
+						Status:             metav1.ConditionTrue,
+						LastTransitionTime: now,
+						Reason:             ValidConditionReason,
+						Message:            "Profile is valid",
+					},
+					{
+						Type:               AppliedConditionType,
+						Status:             metav1.ConditionFalse,
+						LastTransitionTime: now,
+						Reason:             ConflictConditionReason,
+						Message:            "Profile has conflicts",
+					},
+				},
+				Valid:   metav1.ConditionTrue,
+				Applied: metav1.ConditionFalse,
 			},
 		},
 		{
@@ -514,8 +549,24 @@ func TestGenerateProfileStatusFromConditions(t *testing.T) {
 			expectedProfileStatus: datadoghqv1alpha1.DatadogAgentProfileStatus{
 				LastUpdate:  &now,
 				CurrentHash: "99914b932bd37a50b983c5e7c90ae93b",
-				Valid:       metav1.ConditionTrue,
-				Applied:     "",
+				Conditions: []metav1.Condition{
+					{
+						Type:               ValidConditionType,
+						Status:             metav1.ConditionFalse,
+						LastTransitionTime: now,
+						Reason:             InvalidConditionReason,
+						Message:            "First valid condition - false",
+					},
+					{
+						Type:               ValidConditionType,
+						Status:             metav1.ConditionTrue,
+						LastTransitionTime: now,
+						Reason:             ValidConditionReason,
+						Message:            "Second valid condition - true",
+					},
+				},
+				Valid:   metav1.ConditionTrue,
+				Applied: "",
 			},
 		},
 		{
@@ -548,8 +599,24 @@ func TestGenerateProfileStatusFromConditions(t *testing.T) {
 			expectedProfileStatus: datadoghqv1alpha1.DatadogAgentProfileStatus{
 				LastUpdate:  &now,
 				CurrentHash: "99914b932bd37a50b983c5e7c90ae93b",
-				Valid:       metav1.ConditionTrue,
-				Applied:     "",
+				Conditions: []metav1.Condition{
+					{
+						Type:               "UnrelatedCondition",
+						Status:             metav1.ConditionTrue,
+						LastTransitionTime: now,
+						Reason:             "SomeReason",
+						Message:            "Unrelated condition",
+					},
+					{
+						Type:               ValidConditionType,
+						Status:             metav1.ConditionTrue,
+						LastTransitionTime: now,
+						Reason:             ValidConditionReason,
+						Message:            "Profile is valid",
+					},
+				},
+				Valid:   metav1.ConditionTrue,
+				Applied: "",
 			},
 		},
 	}

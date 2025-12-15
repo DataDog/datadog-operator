@@ -71,7 +71,9 @@ func GenerateProfileStatusFromConditions(logger logr.Logger, profile *v1alpha1.D
 	if profile == nil {
 		return
 	}
-	newStatus := v1alpha1.DatadogAgentProfileStatus{}
+	// Start from the current status to avoid dropping fields that are managed elsewhere
+	// (e.g., CreateStrategy) or losing the Conditions we infer from.
+	newStatus := profile.Status
 
 	newStatus.LastUpdate = &now
 	hash, err := comparison.GenerateMD5ForSpec(profile.Spec)
