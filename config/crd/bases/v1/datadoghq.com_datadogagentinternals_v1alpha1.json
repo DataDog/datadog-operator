@@ -1037,7 +1037,7 @@
                   "description": "Cluster contains the configuration for the cluster autoscaling product.",
                   "properties": {
                     "enabled": {
-                      "description": "Enabled enables the cluster autoscaling product.\nDefault: false",
+                      "description": "Enabled enables the cluster autoscaling product.\n(Requires Cluster Agent 7.74.0+)\nDefault: false",
                       "type": "boolean"
                     }
                   },
@@ -8752,7 +8752,7 @@
                       "description": "Cluster contains the configuration for the cluster autoscaling product.",
                       "properties": {
                         "enabled": {
-                          "description": "Enabled enables the cluster autoscaling product.\nDefault: false",
+                          "description": "Enabled enables the cluster autoscaling product.\n(Requires Cluster Agent 7.74.0+)\nDefault: false",
                           "type": "boolean"
                         }
                       },
