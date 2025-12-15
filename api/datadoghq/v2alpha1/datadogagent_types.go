@@ -1270,6 +1270,7 @@ type WorkloadAutoscalingFeatureConfig struct {
 // ClusterAutoscalingFeatureConfig contains the configuration for the cluster autoscaling product.
 type ClusterAutoscalingFeatureConfig struct {
 	// Enabled enables the cluster autoscaling product.
+	// (Requires Cluster Agent 7.74.0+)
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
