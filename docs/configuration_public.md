@@ -106,7 +106,7 @@ spec:
 : Enables ASM App & API Protection. Default: false
 
 `features.autoscaling.cluster.enabled`
-: Enables the cluster autoscaling product. Default: false
+: Enables the cluster autoscaling product. (Requires Cluster Agent 7.74.0+) Default: false
 
 `features.autoscaling.workload.enabled`
 : Enables the workload autoscaling product. Default: false
