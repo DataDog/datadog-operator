@@ -1,6 +1,8 @@
 package hostprofiler
 
 import (
+	"errors"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -18,12 +20,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+var errHostPIDDisabledManually = errors.New("Host PID is required for host profiler")
+
 type hostProfilerFeature struct {
 	owner                       metav1.Object
 	customConfig                *v2alpha1.CustomConfig
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
 	configMapName               string
+
+	hostPIDDisabledManually bool
 
 	logger logr.Logger
 }
@@ -51,6 +57,15 @@ func (o *hostProfilerFeature) ID() feature.IDType {
 }
 
 func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
+	// If a user disabled HostPID manually, error out rather than enabling it for them.
+	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
+		if nodeAgent.HostPID != nil && apiutils.BoolValue(nodeAgent.HostPID) == false {
+			o.logger.Error(errHostPIDDisabledManually, "Host PID is required to run the host profiler. Please enable host PID or disable the host profiler")
+			o.hostPIDDisabledManually = true
+			return feature.RequiredComponents{}
+		}
+	}
+
 	o.owner = dda
 	if ddaSpec.Features.HostProfiler.Conf != nil {
 		o.customConfig = ddaSpec.Features.HostProfiler.Conf
@@ -98,6 +113,10 @@ func (o *hostProfilerFeature) buildHostProfilerCoreConfigMap() (*corev1.ConfigMa
 }
 
 func (o *hostProfilerFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+	if o.hostPIDDisabledManually {
+		return errHostPIDDisabledManually
+	}
+
 	// check if an otel collector config was provided. If not, use default.
 	if o.customConfig == nil {
 		o.customConfig = &v2alpha1.CustomConfig{}
@@ -128,9 +147,13 @@ func (o *hostProfilerFeature) ManageClusterAgent(managers feature.PodTemplateMan
 }
 
 func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	if o.hostPIDDisabledManually {
+		return errHostPIDDisabledManually
+	}
+
 	// Host PID
 	managers.PodTemplateSpec().Spec.HostPID = *apiutils.NewBoolPointer(true)
-	
+
 	// Tracingfs volume
 	volumeTracingfs := corev1.Volume{
 		Name: "tracingfs",
