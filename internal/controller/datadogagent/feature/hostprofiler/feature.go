@@ -96,7 +96,7 @@ func (o *hostProfilerFeature) buildHostProfilerCoreConfigMap() (*corev1.ConfigMa
 		}
 
 		// Add md5 hash annotation for configMap
-		o.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.OtelAgentIDType)
+		o.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.HostProfilerIDType)
 		o.customConfigAnnotationValue, err = comparison.GenerateMD5ForSpec(o.customConfig.ConfigData)
 		if err != nil {
 			return cm, err

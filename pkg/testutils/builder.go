@@ -468,6 +468,20 @@ func (builder *DatadogAgentBuilder) WithOTelCollectorPorts(grpcPort int32, httpP
 	return builder
 }
 
+// OTel Agent
+func (builder *DatadogAgentBuilder) initHostProfiler() {
+	if builder.datadogAgent.Spec.Features.HostProfiler == nil {
+		builder.datadogAgent.Spec.Features.HostProfiler = &v2alpha1.HostProfilerFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithHostProfilerEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initHostProfiler()
+	builder.datadogAgent.Spec.Features.HostProfiler.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+
 // Log Collection
 func (builder *DatadogAgentBuilder) initLogCollection() {
 	if builder.datadogAgent.Spec.Features.LogCollection == nil {
