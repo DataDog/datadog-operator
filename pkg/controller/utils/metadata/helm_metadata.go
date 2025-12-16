@@ -150,7 +150,7 @@ func (hmf *HelmMetadataForwarder) Start() {
 	go func() {
 		for range ticker.C {
 			if err := hmf.sendMetadata(); err != nil {
-				hmf.logger.Info("Error while sending metadata", "error", err)
+				hmf.logger.V(1).Info("Error while sending metadata", "error", err)
 			}
 		}
 	}()
@@ -161,7 +161,7 @@ func (hmf *HelmMetadataForwarder) sendMetadata() error {
 
 	releases, err := hmf.discoverAllHelmReleases(ctx)
 	if err != nil {
-		hmf.logger.Info("Failed to discover Helm releases", "error", err)
+		hmf.logger.V(1).Info("Failed to discover Helm releases", "error", err)
 		return err
 	}
 
