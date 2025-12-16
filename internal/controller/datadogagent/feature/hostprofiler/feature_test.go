@@ -171,6 +171,8 @@ func testExpectedAgent(
 			// annotations
 			agentAnnotations := mgr.AnnotationMgr.Annotations
 			assert.Equal(t, expectedAnnotations, agentAnnotations)
+
+			assert.Equal(t, true, mgr.Tpl.Spec.HostPID)
 		},
 	)
 }

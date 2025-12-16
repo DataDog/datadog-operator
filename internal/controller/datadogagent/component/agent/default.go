@@ -493,7 +493,8 @@ func otelAgentContainer(dda metav1.Object) corev1.Container {
 func hostProfilerContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
 		Name:  string(apicommon.HostProfiler),
-		Image: "mackjmr/ddot-ebpf:latest",
+		// Note: Dev Image, Subject to change
+		Image: "datadog/ddot-ebpf-dev:nightly-latest",
 		Command: []string{
 			"/opt/datadog-agent/embedded/bin/full-host-profiler",
 			"run",

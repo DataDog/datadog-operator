@@ -1579,7 +1579,7 @@ spec:
                           type: object
                         enabled:
                           description: |-
-                            Enabled enables the OTel Agent.
+                            Enabled enables the Host Profiler.
                             Default: false
                           type: boolean
                       type: object
@@ -9504,7 +9504,7 @@ spec:
                               type: object
                             enabled:
                               description: |-
-                                Enabled enables the OTel Agent.
+                                Enabled enables the Host Profiler.
                                 Default: false
                               type: boolean
                           type: object

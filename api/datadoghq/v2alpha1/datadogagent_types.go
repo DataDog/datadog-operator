@@ -1015,7 +1015,7 @@ type OtelCollectorFeatureConfig struct {
 // HostProfilerFeatureConfig contains the configuration for the host profiler.
 // +k8s:openapi-gen=true
 type HostProfilerFeatureConfig struct {
-	// Enabled enables the OTel Agent.
+	// Enabled enables the Host Profiler.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`

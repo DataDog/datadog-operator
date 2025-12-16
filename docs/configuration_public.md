@@ -232,7 +232,7 @@ spec:
 : Is the name of the ConfigMap.
 
 `features.hostProfiler.enabled`
-: Enables the OTel Agent. Default: false
+: Enables the Host Profiler. Default: false
 
 `features.kubeStateMetricsCore.collectCrMetrics`
 : `CollectCrMetrics` defines custom resources for the kube-state-metrics core check to collect.  The datadog agent uses the same logic as upstream `kube-state-metrics`. So is its configuration. The exact structure and existing fields of each item in this list can be found in: https://github.com/kubernetes/kube-state-metrics/blob/main/docs/metrics/extend/customresourcestate-metrics.md

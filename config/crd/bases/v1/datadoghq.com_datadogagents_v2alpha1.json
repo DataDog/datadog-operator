@@ -1607,7 +1607,7 @@
                   "type": "object"
                 },
                 "enabled": {
-                  "description": "Enabled enables the OTel Agent.\nDefault: false",
+                  "description": "Enabled enables the Host Profiler.\nDefault: false",
                   "type": "boolean"
                 }
               },
@@ -9441,7 +9441,7 @@
                       "type": "object"
                     },
                     "enabled": {
-                      "description": "Enabled enables the OTel Agent.\nDefault: false",
+                      "description": "Enabled enables the Host Profiler.\nDefault: false",
                       "type": "boolean"
                     }
                   },
