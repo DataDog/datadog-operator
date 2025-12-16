@@ -382,7 +382,6 @@ func agentSingleContainer(dda metav1.Object) []corev1.Container {
 
 func agentOptimizedContainers(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Container {
 	containers := []corev1.Container{coreAgentContainer(dda)}
-	// requiredContainers = append(requiredContainers, apicommon.HostProfiler)
 	for _, containerName := range requiredContainers {
 		switch containerName {
 		case apicommon.CoreAgentContainerName:
@@ -492,17 +491,17 @@ func otelAgentContainer(dda metav1.Object) corev1.Container {
 
 func hostProfilerContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
-		Name:  string(apicommon.HostProfiler),
+		Name: string(apicommon.HostProfiler),
 		// Note: Dev Image, Subject to change
-		Image: "datadog/ddot-ebpf-dev:nightly-latest",
+		Image: hostProfilerImage(),
 		Command: []string{
 			"/opt/datadog-agent/embedded/bin/full-host-profiler",
 			"run",
 			"--core-config=" + agentCustomConfigVolumePath,
 		},
-		Env: commonEnvVars(dda),
+		Env:          commonEnvVars(dda),
 		VolumeMounts: volumeMountsForOtelAgent(),
-		Ports: []corev1.ContainerPort{},
+		Ports:        []corev1.ContainerPort{},
 		SecurityContext: &corev1.SecurityContext{
 			ReadOnlyRootFilesystem: apiutils.NewBoolPointer(true),
 			Privileged:             apiutils.NewBoolPointer(true),

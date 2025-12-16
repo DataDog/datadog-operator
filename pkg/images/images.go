@@ -42,9 +42,11 @@ const (
 	// FullTagSuffix tag suffix for full agent images
 	FullTagSuffix = "-full"
 	// Default Image names
-	DefaultAgentImageName         string = "agent"
-	DefaultClusterAgentImageName  string = "cluster-agent"
-	DefaultDdotCollectorImageName string = "ddot-collector"
+	DefaultAgentImageName                string = "agent"
+	DefaultClusterAgentImageName         string = "cluster-agent"
+	DefaultDdotCollectorImageName        string = "ddot-collector"
+	DefaultHostProfilerDevImageName      string = "ddot-ebpf-dev"
+	DefaultHostProfilerDevImageLatestTag string = "nightly-latest"
 )
 
 // imageHasTag identifies whether an image string contains a tag suffix
@@ -133,7 +135,7 @@ func GetLatestDdotCollectorImage() string {
 
 // GetLatestAgentImage returns the latest host profiler image
 func GetLatestHostProfilerImage() string {
-	image := newImage("registry.ddbuild.io/ci/datadog-agent", "ddot-ebpf", "v84458322-f2f797fd-7-amd64", false, false, false)
+	image := newImage(DockerHubContainerRegistry, DefaultHostProfilerDevImageName, DefaultHostProfilerDevImageLatestTag, false, false, false)
 	return image.ToString()
 }
 
