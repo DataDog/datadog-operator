@@ -86,7 +86,7 @@ func (omf *OperatorMetadataForwarder) Start() {
 	go func() {
 		for range ticker.C {
 			if err := omf.sendMetadata(); err != nil {
-				omf.logger.Info("Error while sending metadata", "error", err)
+				omf.logger.V(1).Info("Error while sending metadata", "error", err)
 			}
 		}
 	}()
