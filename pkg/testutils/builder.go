@@ -13,10 +13,8 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector/defaultconfig"
 	hpdefaultconfig "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/hostprofiler/defaultconfig"
-
-
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector/defaultconfig"
 	"github.com/DataDog/datadog-operator/pkg/images"
 )
 
@@ -515,7 +513,6 @@ func (builder *DatadogAgentBuilder) WithHostProfilerConfigMapMultipleItems() *Da
 	}
 	return builder
 }
-
 
 // Log Collection
 func (builder *DatadogAgentBuilder) initLogCollection() {
