@@ -112,13 +112,6 @@ func GetCondition(status *v2alpha1.DatadogAgentStatus, t string) *metav1.Conditi
 	return nil
 }
 
-func GetConditionDDAI(status *v1alpha1.DatadogAgentInternalStatus, t string) *metav1.Condition {
-	idConditionComplete := getIndexForConditionTypeDDAI(status, t)
-	if idConditionComplete >= 0 {
-		return &status.Conditions[idConditionComplete]
-	}
-	return nil
-}
 func getIndexForConditionType(status *v2alpha1.DatadogAgentStatus, t string) int {
 	idCondition := -1
 	if status == nil {

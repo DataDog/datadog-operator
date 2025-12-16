@@ -91,7 +91,6 @@ func (c *ClusterAgentComponent) Reconcile(ctx context.Context, params *Reconcile
 	if componentOverride, ok := params.DDAI.Spec.Override[c.Name()]; ok {
 		if apiutils.BoolValue(componentOverride.Disabled) {
 			// This case is handled by the registry, but we double-check here
-			deleteStatusV2WithClusterAgent(params.Status)
 			return c.Cleanup(ctx, params)
 		}
 		override.PodTemplateSpec(params.Logger, podManagers, componentOverride, c.Name(), params.DDAI.Name)
@@ -142,6 +141,8 @@ func (r *Reconciler) cleanupV2ClusterAgent(logger logr.Logger, ddai *v1alpha1.Da
 	clusterAgentDeployment := &appsv1.Deployment{}
 	if err := r.client.Get(context.TODO(), nsName, clusterAgentDeployment); err != nil {
 		if errors.IsNotFound(err) {
+			deleteStatusV2WithClusterAgent(newStatus)
+
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
@@ -166,7 +167,7 @@ func (r *Reconciler) cleanupV2ClusterAgent(logger logr.Logger, ddai *v1alpha1.Da
 		return reconcile.Result{}, err
 	}
 
-	newStatus.ClusterAgent = nil
+	deleteStatusV2WithClusterAgent(newStatus)
 
 	return reconcile.Result{}, nil
 }
