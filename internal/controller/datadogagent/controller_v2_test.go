@@ -22,6 +22,7 @@ import (
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
+	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -392,6 +393,72 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds); client.IgnoreNotFound(err) != nil {
 					return err
 				}
+				return nil
+			},
+		},
+		{
+			name: "DCA status and condition set",
+			fields: fields{
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithStatus(v2alpha1.DatadogAgentStatus{
+						ClusterAgent: &v2alpha1.DeploymentStatus{
+							GeneratedToken: "token",
+						},
+					}).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				dda := &v2alpha1.DatadogAgent{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, dda); client.IgnoreNotFound(err) != nil {
+					return err
+				}
+				// assert.Equal(t, "token", dda.Status.ClusterAgent.GeneratedToken)
+				assert.NotNil(t, dda.Status.ClusterAgent, "DCA status should be set")
+				dcaCondition := condition.GetCondition(&dda.Status, common.ClusterAgentReconcileConditionType)
+				assert.True(t, dcaCondition.Status == metav1.ConditionTrue && dcaCondition.Reason == "reconcile_succeed", "DCA status condition should be set")
+				return nil
+			},
+		},
+		{
+			name: "DCA status condition should be deleted when disabled",
+			fields: fields{
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+						Disabled: apiutils.NewBoolPointer(true),
+					}).
+					WithStatus(v2alpha1.DatadogAgentStatus{
+						ClusterAgent: &v2alpha1.DeploymentStatus{
+							GeneratedToken: "token",
+						},
+					}).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				dda := &v2alpha1.DatadogAgent{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, dda); client.IgnoreNotFound(err) != nil {
+					return err
+				}
+				// assert.Equal(t, "token", dda.Status.ClusterAgent.GeneratedToken)
+				assert.Nil(t, dda.Status.ClusterAgent, "DCA status should be nil when cleaned up")
+				assert.Nil(t, condition.GetCondition(&dda.Status, common.ClusterAgentReconcileConditionType), "DCA status condition should be nil when cleaned up")
 				return nil
 			},
 		},
