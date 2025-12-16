@@ -266,11 +266,6 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	volMountMgr.AddVolumeMountToContainer(&debugfsVolMount, apicommon.SystemProbeContainerName)
 	volMgr.AddVolume(&debugfsVol)
 
-	// tracefs volume mount
-	tracefsVol, tracefsVolMount := volume.GetVolumes(tracefsVolumeName, tracefsPath, tracefsPath, false)
-	volMountMgr.AddVolumeMountToContainer(&tracefsVolMount, apicommon.SystemProbeContainerName)
-	volMgr.AddVolume(&tracefsVol)
-
 	// socket volume mount (needs write perms for the system probe container but not the others)
 	socketVol, socketVolMount := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, false)
 	volMountMgr.AddVolumeMountToContainer(&socketVolMount, apicommon.SystemProbeContainerName)
