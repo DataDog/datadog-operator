@@ -116,6 +116,8 @@ func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, logger logr
 // *************************************
 
 // applyAndCleanupDependencies applies pending changes and cleans up unused dependencies.
+// It excludes DDA-managed resources from cleanup to avoid competition between the DDA
+// and DDAI controllers when DatadogAgentInternalEnabled is true.
 func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, logger logr.Logger, depsStore *store.Store) error {
 	var errs []error
 	errs = append(errs, depsStore.Apply(ctx, r.client)...)
@@ -123,9 +125,15 @@ func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, logger log
 		logger.V(2).Info("Dependencies apply error", "errs", errs)
 		return errors.NewAggregate(errs)
 	}
-	// TODO: modify cleanup to prevent DDA dependency deletion
-	// if errs = depsStore.Cleanup(ctx, r.client); len(errs) > 0 {
-	// 	return errors.NewAggregate(errs)
-	// }
+
+	// Cleanup unused dependencies, excluding resources managed by the DDA controller.
+	// When DatadogAgentInternalEnabled is true, the DDA controller manages certain
+	// dependencies (like credentials, DCA token, DCA service) and labels them with
+	// ManagedByDDAControllerLabelKey. We exclude these from cleanup to prevent
+	// the DDAI controller from deleting them.
+	if errs = depsStore.Cleanup(ctx, r.client, true); len(errs) > 0 {
+		logger.V(2).Info("Dependencies cleanup error", "errs", errs)
+		return errors.NewAggregate(errs)
+	}
 	return nil
 }
