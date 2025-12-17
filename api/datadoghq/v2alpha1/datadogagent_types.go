@@ -1857,6 +1857,52 @@ type SeccompConfig struct {
 	CustomProfile *CustomConfig `json:"customProfile,omitempty"`
 }
 
+// Product defines which Datadog product(s) the CEL-based workload exclusion rules apply to.
+// Use "global" to apply rules across all products, or specify individual products for granular control.
+// +kubebuilder:validation:Enum:=metrics;logs;sbom;global
+type Product string
+
+const (
+	ProductMetrics Product = "metrics"
+	ProductLogs    Product = "logs"
+	ProductSBOM    Product = "sbom"
+	ProductGlobal  Product = "global"
+)
+
+type CelWorkloadExcludeRules struct {
+	// Containers exclude rule
+	// +optional
+	Containers []string `json:"containers,omitempty"`
+
+	// Pods exclude rule
+	// +optional
+	Pods []string `json:"pods,omitempty"`
+
+	// KubeServices exclude rule
+	// +optional
+	KubeServices []string `json:"kube_services,omitempty"`
+
+	// KubeEndpoints exclude rule
+	// +optional
+	KubeEndpoints []string `json:"kube_endpoints,omitempty"`
+
+	// Processes exclude rule
+	// +optional
+	Processes []string `json:"processes,omitempty"`
+}
+
+// CelWorkloadExcludeConfig configures CEL-based filtering to exclude specific workloads
+// from Agent collection.
+// +k8s:openapi-gen=true
+type CelWorkloadExcludeConfig struct {
+	// Products specifies which products these exclusion rules apply to.
+	// +listType=atomic
+	Products []Product `json:"products,omitempty"`
+
+	// Rules defines the CEL expressions used to identify workloads to exclude.
+	Rules *CelWorkloadExcludeRules `json:"rules,omitempty"`
+}
+
 // AgentConfigFileName is the list of known Agent config files
 type AgentConfigFileName string
 
@@ -1933,6 +1979,13 @@ type DatadogAgentComponentOverride struct {
 	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
 	// +optional
 	ExtraChecksd *MultiCustomConfig `json:"extraChecksd,omitempty"`
+
+	// CELWorkloadExclude enables excluding workloads from monitoring using Common Expression Language (CEL).
+	// See https://docs.datadoghq.com/containers/guide/container-discovery-management
+	// (Requires Agent 7.73+ and Cluster Agent 7.73+)
+	// +optional
+	// +listType=atomic
+	CELWorkloadExclude []CelWorkloadExcludeConfig `json:"celWorkloadExclude,omitempty"`
 
 	// Configure the basic configurations for each Agent container. Valid Agent container names are:
 	// `agent`, `cluster-agent`, `init-config`, `init-volume`, `process-agent`, `seccomp-setup`,
