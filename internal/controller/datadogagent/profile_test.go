@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -822,6 +823,10 @@ func Test_reconcileProfile(t *testing.T) {
 					Name:      "profile",
 					Namespace: "default",
 				},
+				"node2": {
+					Name:      "default",
+					Namespace: "",
+				},
 			},
 		},
 		{
@@ -979,7 +984,12 @@ func Test_reconcileProfile(t *testing.T) {
 					},
 				},
 			},
-			wantProfilesByNode: make(map[string]types.NamespacedName),
+			wantProfilesByNode: map[string]types.NamespacedName{
+				"node1": {
+					Name:      "default",
+					Namespace: "",
+				},
+			},
 		},
 	}
 
@@ -1000,8 +1010,16 @@ func Test_reconcileProfile(t *testing.T) {
 				},
 			}
 
+			// Pre-populate with default profile for nodes without a profile (matching production code)
+			for _, node := range tt.nodes {
+				if _, exists := tt.profilesByNode[node.Name]; !exists {
+					tt.profilesByNode[node.Name] = types.NamespacedName{Namespace: "", Name: "default"}
+				}
+			}
+
 			profileCopy := tt.profile.DeepCopy()
-			err := r.reconcileProfile(ctx, profileCopy, tt.nodes, tt.profilesByNode, now)
+			csInfo := make(map[types.NamespacedName]*agentprofile.CreateStrategyInfo)
+			err := r.reconcileProfile(ctx, profileCopy, tt.nodes, tt.profilesByNode, csInfo, now)
 
 			assert.Equal(t, tt.wantErr, err)
 			assert.Equal(t, tt.wantStatus, profileCopy.Status)
@@ -1190,7 +1208,12 @@ func Test_reconcileProfiles(t *testing.T) {
 				},
 			}
 
-			appliedProfiles, err := r.reconcileProfiles(ctx)
+			dsNSName := types.NamespacedName{
+				Namespace: "default",
+				Name:      "datadog-agent",
+			}
+			maxUnavailable := intstr.FromInt(1)
+			appliedProfiles, err := r.reconcileProfiles(ctx, dsNSName, maxUnavailable)
 
 			assert.Equal(t, tt.wantErr, err)
 			assert.Equal(t, tt.wantAppliedProfiles, len(appliedProfiles))
