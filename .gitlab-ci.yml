@@ -565,8 +565,7 @@ submit_preflight_redhat_image:
     - if: $REDHAT_SUBMIT_PREFLIGHT_IMAGE == 'true'
       when: manual
     - when: never
-  # needs:
-  #   - "publish_redhat_public_tag"
+  needs: []
   tags: ["runner:docker", "size:large"]
   image: $JOB_DOCKER_IMAGE
   script:
