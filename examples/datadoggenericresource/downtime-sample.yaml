@@ -1,0 +1,42 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogGenericResource
+metadata:
+  name: ddgr-downtime-sample
+spec:
+  type: downtime
+  # This example schedules a downtime for monitors with the tag "service:web-store"
+  # The downtime starts immediately and has no end time (one-time schedule with null start)
+  jsonSpec: |-
+    {
+      "data": {
+        "type": "downtime",
+        "attributes": {
+          "message": "Example downtime set by Datadog Generic Resource",
+          "monitor_identifier": {
+            "monitor_tags": [
+              "foo:bar"
+            ]
+          },
+          "scope": "test:example-downtime",
+          "display_timezone": "Europe/Paris",
+          "notify_end_types": [
+            "expired",
+            "canceled"
+          ],
+          "notify_end_states": [
+            "alert",
+            "warn"
+          ],
+          "schedule": {
+            "timezone": "Europe/Paris",
+            "recurrences": [
+              {
+                "start": "2025-12-03T11:11",
+                "duration": "1h",
+                "rrule": "FREQ=DAILY;INTERVAL=1"
+              }
+            ]
+          }
+        }
+      }
+    }
