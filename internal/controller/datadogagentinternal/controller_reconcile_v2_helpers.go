@@ -92,13 +92,18 @@ func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, logger logr
 	// 	errs = append(errs, err)
 	// 	logger.Error(err, "Error cleaning up old DaemonSets")
 	// }
-	if err := r.cleanupOldDCADeployments(ctx, logger, instance, resourceManagers, newStatus); err != nil {
-		errs = append(errs, err)
-		logger.Error(err, "Error cleaning up old DCA Deployments")
-	}
-	if err := r.cleanupOldCCRDeployments(ctx, logger, instance, newStatus); err != nil {
-		errs = append(errs, err)
-		logger.Error(err, "Error cleaning up old CCR Deployments")
+
+	// Only cleanup DCA and CCR deployments for the default (non-profile) DDAI
+	// Profile DDAIs do not manage any component except the Agent DaemonSet
+	if !isDDAILabeledWithProfile(instance) {
+		if err := r.cleanupOldDCADeployments(ctx, logger, instance, resourceManagers, newStatus); err != nil {
+			errs = append(errs, err)
+			logger.Error(err, "Error cleaning up old DCA Deployments")
+		}
+		if err := r.cleanupOldCCRDeployments(ctx, logger, instance, newStatus); err != nil {
+			errs = append(errs, err)
+			logger.Error(err, "Error cleaning up old CCR Deployments")
+		}
 	}
 	if len(errs) > 0 {
 		return errors.NewAggregate(errs)
