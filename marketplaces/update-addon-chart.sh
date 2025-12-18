@@ -55,6 +55,9 @@ sed -i '' "s#{{- end -}}{{- end -}}#{{- end -}}#g" ./charts/operator-eks-addon/c
 # presence of gcr.io/datadoghq/operator in values.yaml may cause issues with add-on validation
 sed -i '' 's#gcr.io/datadoghq/operator#709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator#g' ./charts/operator-eks-addon/charts/datadog-operator/values.yaml
 
+# remove Helm lookup function usage
+sed -i '' 's#{{- \$list := lookup "v1" "ConfigMap" \$ns "" -}}#{{- $list := "" -}}#' ./charts/operator-eks-addon/charts/datadog-operator/templates/_helpers.tpl
+
 # template the chart with default values
 helm template operator-eks-addon ./charts/operator-eks-addon -n datadog-agent > addon_manifest.yaml
 echo "Chart updated and templated to addon_manifest.yaml"

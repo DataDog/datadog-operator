@@ -38,3 +38,8 @@ func UpdateStatusConditions(conditions *[]metav1.Condition, now metav1.Time, t T
 		Message:            msg,
 	})
 }
+
+// RemoveStatusCondition is a generic method/wrapper to remove a specific condition type in the status conditions.
+func RemoveStatusCondition(conditions *[]metav1.Condition, conditionType Type) {
+	meta.RemoveStatusCondition(conditions, string(conditionType))
+}

@@ -6,12 +6,14 @@
 package override
 
 import (
+	"encoding/json"
 	"fmt"
 	"maps"
 	"slices"
 	"strings"
 
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -97,6 +99,19 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	for _, envFrom := range override.EnvFrom {
 		e := envFrom
 		manager.EnvFromVar().AddEnvFromVar(&e)
+	}
+
+	if override.CELWorkloadExclude != nil && len(override.CELWorkloadExclude) > 0 {
+		jsonConfig, err := json.Marshal(override.CELWorkloadExclude)
+		if err != nil {
+			logger.Error(err, "failed to convert to JSON")
+		} else {
+			celEnvVar := corev1.EnvVar{
+				Name:  common.DDCELWorkloadExclude,
+				Value: string(jsonConfig),
+			}
+			manager.EnvVar().AddEnvVar(&celEnvVar)
+		}
 	}
 
 	// Override agent configurations such as datadog.yaml, system-probe.yaml, etc.

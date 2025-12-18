@@ -75,7 +75,7 @@ func getLeaderElectionPolicyRuleDCA(dda metav1.Object) []rbacv1.PolicyRule {
 
 // GetDefaultClusterAgentClusterRolePolicyRules returns the default policy rules for the Cluster Agent
 // Can be used by the Agent if the Cluster Agent is disabled
-func GetDefaultClusterAgentClusterRolePolicyRules(dda metav1.Object) []rbacv1.PolicyRule {
+func GetDefaultClusterAgentClusterRolePolicyRules(_ metav1.Object) []rbacv1.PolicyRule {
 	return []rbacv1.PolicyRule{
 		{
 			APIGroups: []string{rbac.CoreAPIGroup},
@@ -101,7 +101,7 @@ func GetDefaultClusterAgentClusterRolePolicyRules(dda metav1.Object) []rbacv1.Po
 			Verbs:     []string{rbac.GetVerb, rbac.ListVerb},
 		},
 		{
-			NonResourceURLs: []string{rbac.VersionURL, rbac.HealthzURL},
+			NonResourceURLs: []string{rbac.VersionURL, rbac.HealthzURL, rbac.MetricsURL},
 			Verbs:           []string{rbac.GetVerb},
 		},
 		{
