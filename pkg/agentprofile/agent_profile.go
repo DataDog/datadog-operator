@@ -669,7 +669,7 @@ func updateCreateStrategyStatus(profile *v1alpha1.DatadogAgentProfile, info *Cre
 
 	totalNodes := info.nodesAlreadyLabeled + int32(len(info.nodesNeedingLabel))
 
-	newStatus := v1alpha1.WaitingStatus
+	var newStatus v1alpha1.CreateStrategyStatus
 	if totalNodes == 0 {
 		// no nodes match this profile - completed
 		newStatus = v1alpha1.CompletedStatus

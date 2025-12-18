@@ -1816,6 +1816,8 @@ func TestApplyCreateStrategy(t *testing.T) {
 	t.Setenv(apicommon.CreateStrategyEnabled, "true")
 
 	logger := logr.Discard()
+	// Use a fixed time to detect when LastTransition gets updated
+	initialTransitionTime := metav1.NewTime(time.Date(2025, 12, 15, 0, 0, 0, 0, time.UTC))
 
 	tests := []struct {
 		name                         string
@@ -1828,9 +1830,12 @@ func TestApplyCreateStrategy(t *testing.T) {
 		expectedProfilesByNode       map[string]types.NamespacedName
 		expectedNodesLabeled         map[types.NamespacedName]int32
 		expectedCreateStrategyStatus map[types.NamespacedName]v1alpha1.CreateStrategyStatus
+		// expectLastTransitionChanged: true means status changed, so LastTransition should be updated (different from initial)
+		// false means status unchanged, so LastTransition should remain the same
+		expectLastTransitionChanged map[types.NamespacedName]bool
 	}{
 		{
-			name: "nodes under limit - all kept",
+			name: "nodes under limit - all kept - last transition updated",
 			profilesByNode: map[string]types.NamespacedName{
 				"node1": {Namespace: testNamespace, Name: "profile1"},
 				"node2": {Namespace: testNamespace, Name: "profile1"},
@@ -1847,7 +1852,12 @@ func TestApplyCreateStrategy(t *testing.T) {
 					Spec: v1alpha1.DatadogAgentProfileSpec{
 						Config: &v2alpha1.DatadogAgentSpec{},
 					},
-					Status: v1alpha1.DatadogAgentProfileStatus{},
+					Status: v1alpha1.DatadogAgentProfileStatus{
+						CreateStrategy: &v1alpha1.CreateStrategy{
+							Status:         v1alpha1.WaitingStatus,
+							LastTransition: &initialTransitionTime,
+						},
+					},
 				},
 			},
 			ddaEDSMaxUnavailable: intstr.FromInt(3),
@@ -1862,6 +1872,52 @@ func TestApplyCreateStrategy(t *testing.T) {
 			},
 			expectedCreateStrategyStatus: map[types.NamespacedName]v1alpha1.CreateStrategyStatus{
 				{Namespace: testNamespace, Name: "profile1"}: v1alpha1.InProgressStatus,
+			},
+			expectLastTransitionChanged: map[types.NamespacedName]bool{
+				{Namespace: testNamespace, Name: "profile1"}: true,
+			},
+		},
+		{
+			name: "status stays InProgress - LastTransition unchanged",
+			profilesByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile1"},
+				"node2": {Namespace: testNamespace, Name: "profile1"},
+			},
+			csInfo: map[types.NamespacedName]*CreateStrategyInfo{
+				{Namespace: testNamespace, Name: "profile1"}: {
+					nodesNeedingLabel:   []string{"node1", "node2"},
+					nodesAlreadyLabeled: 0,
+				},
+			},
+			appliedProfiles: []*v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "profile1", Namespace: testNamespace},
+					Spec: v1alpha1.DatadogAgentProfileSpec{
+						Config: &v2alpha1.DatadogAgentSpec{},
+					},
+					Status: v1alpha1.DatadogAgentProfileStatus{
+						CreateStrategy: &v1alpha1.CreateStrategy{
+							Status:         v1alpha1.InProgressStatus,
+							LastTransition: &initialTransitionTime,
+						},
+					},
+				},
+			},
+			ddaEDSMaxUnavailable: intstr.FromInt(3),
+			numNodes:             5,
+			numberReady:          0,
+			expectedProfilesByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile1"},
+				"node2": {Namespace: testNamespace, Name: "profile1"},
+			},
+			expectedNodesLabeled: map[types.NamespacedName]int32{
+				{Namespace: testNamespace, Name: "profile1"}: 2,
+			},
+			expectedCreateStrategyStatus: map[types.NamespacedName]v1alpha1.CreateStrategyStatus{
+				{Namespace: testNamespace, Name: "profile1"}: v1alpha1.InProgressStatus,
+			},
+			expectLastTransitionChanged: map[types.NamespacedName]bool{
+				{Namespace: testNamespace, Name: "profile1"}: false,
 			},
 		},
 		{
@@ -1883,7 +1939,12 @@ func TestApplyCreateStrategy(t *testing.T) {
 					Spec: v1alpha1.DatadogAgentProfileSpec{
 						Config: &v2alpha1.DatadogAgentSpec{},
 					},
-					Status: v1alpha1.DatadogAgentProfileStatus{},
+					Status: v1alpha1.DatadogAgentProfileStatus{
+						CreateStrategy: &v1alpha1.CreateStrategy{
+							Status:         v1alpha1.WaitingStatus,
+							LastTransition: &initialTransitionTime,
+						},
+					},
 				},
 			},
 			ddaEDSMaxUnavailable: intstr.FromInt(2),
@@ -1899,6 +1960,9 @@ func TestApplyCreateStrategy(t *testing.T) {
 			},
 			expectedCreateStrategyStatus: map[types.NamespacedName]v1alpha1.CreateStrategyStatus{
 				{Namespace: testNamespace, Name: "profile1"}: v1alpha1.InProgressStatus,
+			},
+			expectLastTransitionChanged: map[types.NamespacedName]bool{
+				{Namespace: testNamespace, Name: "profile1"}: true,
 			},
 		},
 		{
@@ -1920,7 +1984,12 @@ func TestApplyCreateStrategy(t *testing.T) {
 					Spec: v1alpha1.DatadogAgentProfileSpec{
 						Config: &v2alpha1.DatadogAgentSpec{},
 					},
-					Status: v1alpha1.DatadogAgentProfileStatus{},
+					Status: v1alpha1.DatadogAgentProfileStatus{
+						CreateStrategy: &v1alpha1.CreateStrategy{
+							Status:         v1alpha1.WaitingStatus,
+							LastTransition: &initialTransitionTime,
+						},
+					},
 				},
 			},
 			ddaEDSMaxUnavailable: intstr.FromInt(1),
@@ -1937,9 +2006,12 @@ func TestApplyCreateStrategy(t *testing.T) {
 			expectedCreateStrategyStatus: map[types.NamespacedName]v1alpha1.CreateStrategyStatus{
 				{Namespace: testNamespace, Name: "profile1"}: v1alpha1.InProgressStatus,
 			},
+			expectLastTransitionChanged: map[types.NamespacedName]bool{
+				{Namespace: testNamespace, Name: "profile1"}: true,
+			},
 		},
 		{
-			name: "multiple profiles with different limits",
+			name: "multiple profiles with different limits - one changes status, one stays same",
 			profilesByNode: map[string]types.NamespacedName{
 				"node1": {Namespace: testNamespace, Name: "profile1"},
 				"node2": {Namespace: testNamespace, Name: "profile1"},
@@ -1963,7 +2035,12 @@ func TestApplyCreateStrategy(t *testing.T) {
 					Spec: v1alpha1.DatadogAgentProfileSpec{
 						Config: &v2alpha1.DatadogAgentSpec{},
 					},
-					Status: v1alpha1.DatadogAgentProfileStatus{},
+					Status: v1alpha1.DatadogAgentProfileStatus{
+						CreateStrategy: &v1alpha1.CreateStrategy{
+							Status:         v1alpha1.WaitingStatus, // will change to InProgress
+							LastTransition: &initialTransitionTime,
+						},
+					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "profile2", Namespace: testNamespace},
@@ -1980,7 +2057,12 @@ func TestApplyCreateStrategy(t *testing.T) {
 							},
 						},
 					},
-					Status: v1alpha1.DatadogAgentProfileStatus{},
+					Status: v1alpha1.DatadogAgentProfileStatus{
+						CreateStrategy: &v1alpha1.CreateStrategy{
+							Status:         v1alpha1.InProgressStatus, // will stay InProgress
+							LastTransition: &initialTransitionTime,
+						},
+					},
 				},
 			},
 			ddaEDSMaxUnavailable: intstr.FromInt(2),
@@ -1999,6 +2081,47 @@ func TestApplyCreateStrategy(t *testing.T) {
 			expectedCreateStrategyStatus: map[types.NamespacedName]v1alpha1.CreateStrategyStatus{
 				{Namespace: testNamespace, Name: "profile1"}: v1alpha1.InProgressStatus,
 				{Namespace: testNamespace, Name: "profile2"}: v1alpha1.InProgressStatus,
+			},
+			expectLastTransitionChanged: map[types.NamespacedName]bool{
+				{Namespace: testNamespace, Name: "profile1"}: true,  // Waiting -> InProgress
+				{Namespace: testNamespace, Name: "profile2"}: false, // InProgress -> InProgress
+			},
+		},
+		{
+			name: "nil initial CreateStrategy - LastTransition set on first run",
+			profilesByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile1"},
+			},
+			csInfo: map[types.NamespacedName]*CreateStrategyInfo{
+				{Namespace: testNamespace, Name: "profile1"}: {
+					nodesNeedingLabel:   []string{"node1"},
+					nodesAlreadyLabeled: 0,
+				},
+			},
+			appliedProfiles: []*v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "profile1", Namespace: testNamespace},
+					Spec: v1alpha1.DatadogAgentProfileSpec{
+						Config: &v2alpha1.DatadogAgentSpec{},
+					},
+					Status: v1alpha1.DatadogAgentProfileStatus{}, // nil CreateStrategy
+				},
+			},
+			ddaEDSMaxUnavailable: intstr.FromInt(1),
+			numNodes:             1,
+			numberReady:          0,
+			expectedProfilesByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile1"},
+			},
+			expectedNodesLabeled: map[types.NamespacedName]int32{
+				{Namespace: testNamespace, Name: "profile1"}: 1,
+			},
+			expectedCreateStrategyStatus: map[types.NamespacedName]v1alpha1.CreateStrategyStatus{
+				{Namespace: testNamespace, Name: "profile1"}: v1alpha1.InProgressStatus,
+			},
+			// When starting from nil, status goes from "" to InProgress, which is a change
+			expectLastTransitionChanged: map[types.NamespacedName]bool{
+				{Namespace: testNamespace, Name: "profile1"}: true,
 			},
 		},
 	}
