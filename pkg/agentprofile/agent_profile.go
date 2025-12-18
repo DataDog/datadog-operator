@@ -742,10 +742,5 @@ func CreateStrategyNeeded(profile *v1alpha1.DatadogAgentProfile, csInfo map[type
 		return false
 	}
 
-	info := csInfo[profileNSName]
-	if info == nil {
-		return false
-	}
-
-	return true
+	return csInfo[profileNSName] != nil
 }
