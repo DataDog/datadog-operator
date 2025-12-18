@@ -13,8 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
@@ -35,7 +34,7 @@ const (
 	ConflictConditionReason = "Conflict"
 )
 
-func UpdateProfileStatus(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentProfile, newStatus datadoghqv1alpha1.DatadogAgentProfileStatus, now metav1.Time) {
+func UpdateProfileStatus(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, newStatus v1alpha1.DatadogAgentProfileStatus, now metav1.Time) {
 	if profile == nil || profile.Name == "" {
 		logger.Error(fmt.Errorf("empty profile"), "Unable to update profile status")
 		return
@@ -54,8 +53,8 @@ func UpdateProfileStatus(logger logr.Logger, profile *datadoghqv1alpha1.DatadogA
 			logger.Error(fmt.Errorf("new create strategy status empty"), "Unable to update profile status")
 			return
 		}
-		if newStatus.CreateStrategy.Status == datadoghqv1alpha1.InProgressStatus {
-			newStatus.CreateStrategy.Status = datadoghqv1alpha1.WaitingStatus
+		if newStatus.CreateStrategy.Status == v1alpha1.InProgressStatus {
+			newStatus.CreateStrategy.Status = v1alpha1.WaitingStatus
 		}
 		if profile.Status.CreateStrategy == nil || profile.Status.CreateStrategy.Status == "" || profile.Status.CreateStrategy.Status != newStatus.CreateStrategy.Status {
 			newStatus.CreateStrategy.LastTransition = &now
