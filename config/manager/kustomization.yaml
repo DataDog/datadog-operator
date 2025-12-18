@@ -2,7 +2,7 @@ resources:
 - manager.yaml
 images:
 - name: controller
-  newName: test-operator
-  newTag: 0.0.2
+  newName: gcr.io/datadoghq/operator
+  newTag: 1.20.0
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
