@@ -439,7 +439,7 @@ func processAgentContainer(dda metav1.Object) corev1.Container {
 		Name:  string(apicommon.ProcessAgentContainerName),
 		Image: agentImage(),
 		Command: []string{
-			"process-agent", fmt.Sprintf("--config=%s", agentCustomConfigVolumePath),
+			"process-agent", fmt.Sprintf("--cfgpath=%s", agentCustomConfigVolumePath),
 			fmt.Sprintf("--sysprobe-config=%s", systemProbeConfigVolumePath),
 		},
 		Env:          commonEnvVars(dda),
