@@ -607,6 +607,14 @@ func GetMaxUnavailable(logger logr.Logger, ddaSpec *v2alpha1.DatadogAgentSpec, p
 // - determines the max number of nodes that can be labeled based on max unavailable values
 // - updates the profile status based on the create strategy
 func ApplyCreateStrategy(logger logr.Logger, profilesByNode map[string]types.NamespacedName, csInfo *CreateStrategyInfo, profile *v1alpha1.DatadogAgentProfile, ddaEDSMaxUnavailable intstr.IntOrString, numNodes int, dsStatus *appsv1.DaemonSetStatus) {
+	// Preserve previous status fields to ensure stable transitions across reconciles.
+	var previousStatus v1alpha1.CreateStrategyStatus
+	var previousLastTransition *metav1.Time
+	if profile.Status.CreateStrategy != nil {
+		previousStatus = profile.Status.CreateStrategy.Status
+		previousLastTransition = profile.Status.CreateStrategy.LastTransition
+	}
+
 	if profile.Status.CreateStrategy == nil {
 		profile.Status.CreateStrategy = &v1alpha1.CreateStrategy{}
 	}
@@ -624,7 +632,7 @@ func ApplyCreateStrategy(logger logr.Logger, profilesByNode map[string]types.Nam
 	// # of new unavailable pods after labeling new nodes
 	newUnavailable := currentUnavailable + numNodesToLabel
 
-	updateCreateStrategyStatus(profile, csInfo, numNodesToLabel, maxUnavailable, newUnavailable, dsStatus)
+	updateCreateStrategyStatus(profile, csInfo, numNodesToLabel, maxUnavailable, newUnavailable, dsStatus, previousStatus, previousLastTransition)
 }
 
 // applyMaxNodesToLabel trims the list of nodes based on max unavailable and returns the number of nodes to be labeled
@@ -652,26 +660,38 @@ func applyMaxNodesToLabel(profilesByNode map[string]types.NamespacedName, csInfo
 }
 
 // updateCreateStrategyStatus updates the profile's create strategy status fields
-func updateCreateStrategyStatus(profile *v1alpha1.DatadogAgentProfile, info *CreateStrategyInfo, numNodesToLabel int32, maxUnavailable int32, newUnavailable int32, dsStatus *appsv1.DaemonSetStatus) {
+func updateCreateStrategyStatus(profile *v1alpha1.DatadogAgentProfile, info *CreateStrategyInfo, numNodesToLabel int32, maxUnavailable int32, newUnavailable int32, dsStatus *appsv1.DaemonSetStatus, previousStatus v1alpha1.CreateStrategyStatus, previousLastTransition *metav1.Time) {
 	profile.Status.CreateStrategy.MaxUnavailable = maxUnavailable
 	profile.Status.CreateStrategy.NodesLabeled = info.nodesAlreadyLabeled + numNodesToLabel
-	profile.Status.CreateStrategy.PodsReady = dsStatus.NumberReady
+	if dsStatus != nil {
+		profile.Status.CreateStrategy.PodsReady = dsStatus.NumberReady
+	}
 
 	totalNodes := info.nodesAlreadyLabeled + int32(len(info.nodesNeedingLabel))
 
+	var newStatus v1alpha1.CreateStrategyStatus
 	if totalNodes == 0 {
 		// no nodes match this profile - completed
-		profile.Status.CreateStrategy.Status = v1alpha1.CompletedStatus
+		newStatus = v1alpha1.CompletedStatus
 	} else if info.nodesAlreadyLabeled == totalNodes {
 		// all matching nodes are already labeled - completed
-		profile.Status.CreateStrategy.Status = v1alpha1.CompletedStatus
+		newStatus = v1alpha1.CompletedStatus
 	} else if numNodesToLabel > 0 || newUnavailable < maxUnavailable {
 		// labeled nodes in this round or can label more nodes - in progress
-		profile.Status.CreateStrategy.Status = v1alpha1.InProgressStatus
+		newStatus = v1alpha1.InProgressStatus
 	} else {
 		// can't label any nodes, waiting for pods to become ready
-		profile.Status.CreateStrategy.Status = v1alpha1.WaitingStatus
+		newStatus = v1alpha1.WaitingStatus
 	}
+
+	// Only bump LastTransition when the Status field changes.
+	if previousStatus != newStatus {
+		now := metav1.Now()
+		profile.Status.CreateStrategy.LastTransition = &now
+	} else {
+		profile.Status.CreateStrategy.LastTransition = previousLastTransition
+	}
+	profile.Status.CreateStrategy.Status = newStatus
 }
 
 // GetMaxUnavailableFromSpecAndEDS gets the max unavailable value from a dda spec and eds options, and allows for a custom default value to be provided
@@ -722,10 +742,5 @@ func CreateStrategyNeeded(profile *v1alpha1.DatadogAgentProfile, csInfo map[type
 		return false
 	}
 
-	info := csInfo[profileNSName]
-	if info == nil {
-		return false
-	}
-
-	return true
+	return csInfo[profileNSName] != nil
 }
