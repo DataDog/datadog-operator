@@ -29,6 +29,8 @@ const (
 	OtelAgentIDType = "otel_agent"
 	// OtelAgentGatewayIDType OTel Agent Gateway feature.
 	OtelAgentGatewayIDType = "otel_agent_gateway"
+	// HostProfilerIDType Host Profiler feature.
+	HostProfilerIDType = "host_profiler"
 	// ProcessDiscoveryIDType Process Discovery feature.
 	ProcessDiscoveryIDType = "process_discovery"
 	// KubernetesAPIServerIDType Kube APIServer feature.
