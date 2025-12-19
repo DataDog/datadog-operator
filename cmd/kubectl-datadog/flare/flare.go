@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -459,7 +458,7 @@ func (o *options) execInPod(command []string, pod *corev1.Pod) ([]byte, error) {
 	}
 
 	var stdout bytes.Buffer
-	if err := exec.Stream(remotecommand.StreamOptions{Stdout: &stdout}); err != nil {
+	if err := exec.StreamWithContext(context.TODO(), remotecommand.StreamOptions{Stdout: &stdout}); err != nil {
 		return []byte{}, err
 	}
 
@@ -524,7 +523,7 @@ func (o *options) sendFlare(archivePath, version string, cmd *cobra.Command) (st
 		}
 	}()
 
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return "", err
 	}

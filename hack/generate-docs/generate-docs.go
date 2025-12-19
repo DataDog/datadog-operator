@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"sort"
 	"strings"
@@ -217,7 +216,7 @@ func mustReadFile(path string) []byte {
 		}
 	}()
 
-	b, err := ioutil.ReadAll(f)
+	b, err := io.ReadAll(f)
 	if err != nil {
 		panic(fmt.Sprintf("cannot read file %q: %s", path, err))
 	}
