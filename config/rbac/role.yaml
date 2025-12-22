@@ -98,9 +98,6 @@ rules:
   - apiservices
   verbs:
   - '*'
-  - deletecollection
-  - list
-  - watch
 - apiGroups:
   - apps
   resources:
