@@ -298,7 +298,7 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state
 
 	ctx := context.Background()
 
-	var configIDs []string
+	configIDs := make([]string, 0, len(updates))
 	for id := range updates {
 		applyStatus(id, state.ApplyStatus{State: state.ApplyStateUnacknowledged, Error: ""})
 		configIDs = append(configIDs, id)

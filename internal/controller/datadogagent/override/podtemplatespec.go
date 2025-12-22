@@ -6,12 +6,14 @@
 package override
 
 import (
+	"encoding/json"
 	"fmt"
 	"maps"
 	"slices"
 	"strings"
 
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -54,8 +56,23 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	if override.Image != nil {
 		agentContainersMap := getAgentContainersMap()
 		for i, container := range manager.PodTemplateSpec().Spec.Containers {
-			if _, ok := agentContainersMap[apicommon.AgentContainerName(container.Name)]; ok {
-				manager.PodTemplateSpec().Spec.Containers[i].Image = images.OverrideAgentImage(container.Image, override.Image)
+			containerName := apicommon.AgentContainerName(container.Name)
+			if _, ok := agentContainersMap[containerName]; ok {
+				// OtelAgent uses a different image (ddot-collector) that doesn't support JMX suffix,
+				// so we need to apply overrides without JMX-related changes
+				if containerName == apicommon.OtelAgent {
+					// Create a copy of the override without JMX settings for OtelAgent
+					otelOverride := &v2alpha1.AgentImageConfig{
+						Name:       override.Image.Name,
+						Tag:        override.Image.Tag,
+						PullPolicy: override.Image.PullPolicy,
+						// Explicitly disable JMX for OtelAgent (ddot-collector doesn't support -jmx suffix)
+						JMXEnabled: false,
+					}
+					manager.PodTemplateSpec().Spec.Containers[i].Image = images.OverrideAgentImage(container.Image, otelOverride)
+				} else {
+					manager.PodTemplateSpec().Spec.Containers[i].Image = images.OverrideAgentImage(container.Image, override.Image)
+				}
 				if override.Image.PullPolicy != nil {
 					manager.PodTemplateSpec().Spec.Containers[i].ImagePullPolicy = *override.Image.PullPolicy
 				}
@@ -82,6 +99,19 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	for _, envFrom := range override.EnvFrom {
 		e := envFrom
 		manager.EnvFromVar().AddEnvFromVar(&e)
+	}
+
+	if override.CELWorkloadExclude != nil && len(override.CELWorkloadExclude) > 0 {
+		jsonConfig, err := json.Marshal(override.CELWorkloadExclude)
+		if err != nil {
+			logger.Error(err, "failed to convert to JSON")
+		} else {
+			celEnvVar := corev1.EnvVar{
+				Name:  common.DDCELWorkloadExclude,
+				Value: string(jsonConfig),
+			}
+			manager.EnvVar().AddEnvVar(&celEnvVar)
+		}
 	}
 
 	// Override agent configurations such as datadog.yaml, system-probe.yaml, etc.

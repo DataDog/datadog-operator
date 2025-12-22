@@ -19,6 +19,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
@@ -86,7 +87,13 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 	// TODO: introspection
 	sendProfileEnabledMetric(r.options.DatadogAgentProfileEnabled)
 	if r.options.DatadogAgentProfileEnabled {
-		appliedProfiles, e := r.reconcileProfiles(ctx)
+		dsName := component.GetDaemonSetNameFromDatadogAgent(instance, &instance.Spec)
+		dsNSName := types.NamespacedName{
+			Namespace: instance.Namespace,
+			Name:      dsName,
+		}
+		maxUnavailable := agentprofile.GetMaxUnavailableFromSpecAndEDS(&instance.Spec, &r.options.ExtendedDaemonsetOptions, nil)
+		appliedProfiles, e := r.reconcileProfiles(ctx, dsNSName, maxUnavailable)
 		if e != nil {
 			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
 		}
@@ -179,15 +186,22 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 	}
 
-	// 2. Reconcile each component.
-	// 2.a. Cluster Agent
+	// 2. Reconcile each component using the component registry
+	params := &ReconcileComponentParams{
+		Logger:             logger,
+		DDA:                instance,
+		RequiredComponents: requiredComponents,
+		Features:           append(configuredFeatures, enabledFeatures...),
+		ResourceManagers:   resourceManagers,
+		Status:             newStatus,
+		Provider:           k8sProvider,
+		ProviderList:       providerList,
+	}
 
-	result, err = r.reconcileV2ClusterAgent(ctx, logger, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus, k8sProvider)
+	result, err = r.componentRegistry.ReconcileComponents(ctx, params)
 	if utils.ShouldReturn(result, err) {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	}
-	// Update the status to make it the ClusterAgentReconcileConditionType successful
-	condition.UpdateDatadogAgentStatusConditions(newStatus, now, common.ClusterAgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 
 	// 2.b. Node Agent and profiles
 	// TODO: ignore profiles and introspection for DDAI
@@ -195,14 +209,6 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	if result, err = r.reconcileAgentProfiles(ctx, logger, instance, requiredComponents, append(configuredFeatures, enabledFeatures...), resourceManagers, newStatus, now); utils.ShouldReturn(result, err) {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	}
-
-	// 2.c. Cluster Checks Runner
-	result, err = r.reconcileV2ClusterChecksRunner(logger, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus)
-	if utils.ShouldReturn(result, err) {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
-	}
-	// Update the status to set ClusterChecksRunnerReconcileConditionType to successful
-	condition.UpdateDatadogAgentStatusConditions(newStatus, now, common.ClusterChecksRunnerReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 
 	// TODO: this feels like it should be moved somewhere else
 	userSpecifiedClusterAgentToken := instance.Spec.Global.ClusterAgentToken != nil || instance.Spec.Global.ClusterAgentTokenSecret != nil
@@ -324,10 +330,9 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 		logger.Info("unable to list DatadogAgentProfiles", "error", err)
 	}
 
-	var profileListToApply []datadoghqv1alpha1.DatadogAgentProfile
 	profileAppliedByNode := make(map[string]types.NamespacedName, len(nodeList))
-
 	sortedProfiles := agentprofile.SortProfiles(profilesList.Items)
+	profileListToApply := make([]datadoghqv1alpha1.DatadogAgentProfile, 0, len(sortedProfiles))
 	for _, profile := range sortedProfiles {
 		maxUnavailable := agentprofile.GetMaxUnavailable(logger, ddaSpec, &profile, len(nodeList), &r.options.ExtendedDaemonsetOptions)
 		oldStatus := profile.Status

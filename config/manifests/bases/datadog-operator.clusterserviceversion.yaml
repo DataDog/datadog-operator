@@ -39,7 +39,7 @@ spec:
       kind: DatadogAgentProfile
       name: datadogagentprofiles.datadoghq.com
       version: v1alpha1
-    - description: DatadogAgent Deployment with the Datadog Operator.
+    - description: DatadogAgent defines Agent configuration, see reference https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md
       displayName: Datadog Agent
       kind: DatadogAgent
       name: datadogagents.datadoghq.com

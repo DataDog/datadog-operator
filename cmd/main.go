@@ -255,17 +255,6 @@ func run(opts *options) error {
 	secrets.SetSecretBackendCommand(opts.secretBackendCommand)
 	secrets.SetSecretBackendArgs(opts.secretBackendArgs)
 
-	credsManager := config.NewCredentialManager()
-	creds, err := credsManager.GetCredentials()
-	if err != nil && opts.datadogMonitorEnabled {
-		return setupErrorf(setupLog, err, "Unable to get credentials for DatadogMonitor")
-	}
-
-	if opts.secretRefreshInterval > 0 && opts.secretBackendCommand == "" {
-		setupLog.Error(nil, "secretRefreshInterval is set but secretBackendCommand is not configured")
-	} else if opts.secretBackendCommand != "" && opts.secretRefreshInterval > 0 {
-		go credsManager.StartCredentialRefreshRoutine(opts.secretRefreshInterval, setupLog)
-	}
 	renewDeadline := opts.leaderElectionLeaseDuration / 2
 	retryPeriod := opts.leaderElectionLeaseDuration / 4
 
@@ -306,6 +295,24 @@ func run(opts *options) error {
 	if err != nil {
 		return setupErrorf(setupLog, err, "Unable to start manager")
 
+	}
+
+	// Client is needed when Creds should be resolved from DDA so cached client is fine
+	credsManager := config.NewCredentialManagerWithDecryptor(mgr.GetClient(), secrets.NewSecretBackend())
+	creds, err := credsManager.GetCredentials()
+	if err != nil && opts.datadogMonitorEnabled {
+		return setupErrorf(setupLog, err, "Unable to get credentials for DatadogMonitor")
+	}
+
+	// Checks if credentials are mandatory due to a resource controller being enabled
+	if checkErr := checkRequiredCredentials(opts, err); checkErr != nil {
+		return checkErr
+	}
+
+	if opts.secretRefreshInterval > 0 && opts.secretBackendCommand == "" {
+		setupLog.Error(nil, "secretRefreshInterval is set but secretBackendCommand is not configured")
+	} else if opts.secretBackendCommand != "" && opts.secretRefreshInterval > 0 {
+		go credsManager.StartCredentialRefreshRoutine(opts.secretRefreshInterval, setupLog)
 	}
 
 	// Custom setup
@@ -394,6 +401,7 @@ func run(opts *options) error {
 		setupLog.Info("Starting metadata forwarders")
 		setupAndStartOperatorMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
 		setupAndStartHelmMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
+		setupAndStartCRDMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
 	}()
 
 	// +kubebuilder:scaffold:builder
@@ -502,6 +510,24 @@ func setupErrorf(logger logr.Logger, err error, msg string, keysAndValues ...any
 	return fmt.Errorf("%s, err:%w", msg, err)
 }
 
+// checkRequiredCredentials checks if credentials are required by any enabled controllers
+// and returns an error if they are required but the provided error indicates they
+// could not be obtained.
+func checkRequiredCredentials(opts *options, credErr error) error {
+	// Check if credentials are required by any enabled controllers
+	requireCreds := opts.datadogMonitorEnabled || opts.datadogDashboardEnabled || opts.datadogSLOEnabled || opts.datadogGenericResourceEnabled
+
+	if requireCreds && credErr != nil {
+		return setupErrorf(setupLog, credErr, "Unable to retrieve Datadog API credentials required by one or more enabled controllers",
+			"DatadogMonitor", opts.datadogMonitorEnabled,
+			"DatadogDashboard", opts.datadogDashboardEnabled,
+			"DatadogSLO", opts.datadogSLOEnabled,
+			"DatadogGenericResource", opts.datadogGenericResourceEnabled)
+	}
+
+	return nil
+}
+
 func setupAndStartOperatorMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options, credsManager *config.CredentialManager) {
 	omf := metadata.NewOperatorMetadataForwarder(logger, client, kubernetesVersion, version.GetVersion(), credsManager)
 	omf.OperatorMetadata = metadata.OperatorMetadata{
@@ -527,6 +553,22 @@ func setupAndStartOperatorMetadataForwarder(logger logr.Logger, client client.Re
 	}
 
 	omf.Start()
+}
+
+func setupAndStartCRDMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options, credsManager *config.CredentialManager) {
+	cmf := metadata.NewCRDMetadataForwarder(
+		logger,
+		client,
+		kubernetesVersion,
+		version.GetVersion(),
+		credsManager,
+		metadata.EnabledCRDKindsConfig{
+			DatadogAgentEnabled:         options.datadogAgentEnabled,
+			DatadogAgentInternalEnabled: options.datadogAgentInternalEnabled,
+			DatadogAgentProfileEnabled:  options.datadogAgentProfileEnabled,
+		},
+	)
+	cmf.Start()
 }
 
 func setupAndStartHelmMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options, credsManager *config.CredentialManager) {

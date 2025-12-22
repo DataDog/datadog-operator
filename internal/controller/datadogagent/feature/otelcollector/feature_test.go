@@ -474,7 +474,7 @@ func testExpectedAgent(
 			image := mgr.PodTemplateSpec().Spec.Containers[0].Image
 			assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
 			assert.True(t, apiutils.IsEqualStruct(otelAgentEnvVars, wantEnvVarsOTel), "OTel Agent envvars \ndiff = %s", cmp.Diff(otelAgentEnvVars, wantEnvVarsOTel))
-			assert.Equal(t, images.GetLatestAgentImageWithSuffix(false, false, true), image)
+			assert.Equal(t, images.GetLatestAgentImage(), image)
 
 			// annotations
 			agentAnnotations := mgr.AnnotationMgr.Annotations

@@ -10,11 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/datadog-operator/pkg/version"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	"github.com/aws/smithy-go"
+
+	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 const (
@@ -27,7 +28,7 @@ func CreateOrUpdateStack(ctx context.Context, client *cloudformation.Client, sta
 		return err
 	}
 
-	var parameters []types.Parameter
+	parameters := make([]types.Parameter, 0, len(params))
 	for key, value := range params {
 		parameters = append(parameters, types.Parameter{
 			ParameterKey:   aws.String(key),

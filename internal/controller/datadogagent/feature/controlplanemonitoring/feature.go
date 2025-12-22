@@ -120,7 +120,6 @@ func (f *controlPlaneMonitoringFeature) ManageClusterAgent(managers feature.PodT
 	} else if providerLabel == kubernetes.EKSProviderLabel {
 		configMapName = f.eksConfigMapName
 	} else {
-		configMapName = f.defaultConfigMapName
 		return nil
 	}
 

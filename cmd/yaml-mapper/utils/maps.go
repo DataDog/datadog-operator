@@ -24,8 +24,7 @@ func InsertAtPath(path string, val interface{}, destMap map[string]interface{}) 
 		for i := 1; i <= len(parts)-1; i++ {
 			p := parts[len(parts)-(i+1)]
 			// `t` is a placeholder map to carry over submaps between iterations
-			t := make(map[string]interface{})
-			t = res
+			t := res
 			res = make(map[string]interface{})
 			res[p] = t
 		}
