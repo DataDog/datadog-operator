@@ -164,6 +164,48 @@ func updateStack(ctx context.Context, client *cloudformation.Client, stackName s
 	return nil
 }
 
+func DeleteStack(ctx context.Context, client *cloudformation.Client, stackName string) error {
+	exist, err := doesStackExist(ctx, client, stackName)
+	if err != nil {
+		return err
+	}
+
+	if !exist {
+		log.Printf("Stack %s does not exist, skipping deletion.", stackName)
+		return nil
+	}
+
+	log.Printf("Deleting stack %s…", stackName)
+
+	_, err = client.DeleteStack(
+		ctx,
+		&cloudformation.DeleteStackInput{
+			StackName: aws.String(stackName),
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to delete stack %s: %w", stackName, err)
+	}
+
+	waiter := cloudformation.NewStackDeleteCompleteWaiter(client)
+	if err := waiter.Wait(
+		ctx,
+		&cloudformation.DescribeStacksInput{
+			StackName: aws.String(stackName),
+		},
+		maxWaitDuration,
+	); err != nil {
+		log.Printf("Failed to delete stack %s.", stackName)
+		describeStack(ctx, client, stackName)
+
+		return fmt.Errorf("failed to wait for stack %s deletion: %w", stackName, err)
+	}
+
+	log.Printf("Deleted stack %s.", stackName)
+
+	return nil
+}
+
 func describeStack(ctx context.Context, client *cloudformation.Client, stackName string) error {
 	out, err := client.DescribeStacks(
 		ctx,

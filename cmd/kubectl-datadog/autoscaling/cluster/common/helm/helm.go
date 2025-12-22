@@ -125,3 +125,33 @@ func upgrade(ctx context.Context, ac *action.Configuration, releaseName, namespa
 
 	return nil
 }
+
+func Uninstall(ctx context.Context, ac *action.Configuration, releaseName string) error {
+	exist, err := doesExist(ctx, ac, releaseName)
+	if err != nil {
+		return err
+	}
+
+	if !exist {
+		log.Printf("Helm release %s does not exist, skipping uninstallation.", releaseName)
+		return nil
+	}
+
+	log.Printf("Uninstalling Helm release %s…", releaseName)
+
+	uninstallAction := action.NewUninstall(ac)
+	uninstallAction.Wait = true
+	uninstallAction.Timeout = 30 * time.Minute
+
+	ctx, cancel := context.WithTimeout(ctx, uninstallAction.Timeout)
+	defer cancel()
+
+	response, err := uninstallAction.Run(releaseName)
+	if err != nil {
+		return fmt.Errorf("failed to uninstall Helm release %s: %w", releaseName, err)
+	}
+
+	log.Printf("Uninstalled Helm release %s.", response.Release.Name)
+
+	return nil
+}
