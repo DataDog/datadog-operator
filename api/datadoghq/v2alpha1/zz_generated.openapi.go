@@ -1302,7 +1302,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_NetworkPolicyConfig(ref comm
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "DNSSelectorEndpoints defines the cilium selector of the DNS\u202fserver entity.",
+							Description: "DNSSelectorEndpoints defines the cilium selector of the DNS server entity.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
