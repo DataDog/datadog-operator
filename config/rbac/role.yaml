@@ -13,23 +13,11 @@ rules:
   - ""
   resources:
   - componentstatuses
-  - deployments
-  - limitranges
-  - namespaces
-  - persistentvolumeclaims
-  - persistentvolumes
-  - replicationcontrollers
-  - resourcequotas
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
   - configmaps
   - endpoints
   - events
+  - namespaces
+  - nodes
   - pods
   - secrets
   - serviceaccounts
@@ -45,11 +33,15 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - nodes
+  - deployments
+  - limitranges
+  - persistentvolumeclaims
+  - persistentvolumes
+  - replicationcontrollers
+  - resourcequotas
   verbs:
   - get
   - list
-  - patch
   - watch
 - apiGroups:
   - ""
