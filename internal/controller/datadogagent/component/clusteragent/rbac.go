@@ -98,6 +98,10 @@ func GetDefaultClusterAgentClusterRolePolicyRules(_ metav1.Object) []rbacv1.Poli
 				rbac.GetVerb,
 				rbac.ListVerb,
 				rbac.WatchVerb,
+				rbac.CreateVerb,
+				rbac.UpdateVerb,
+				rbac.PatchVerb,
+				rbac.DeleteVerb,
 			},
 		},
 		{
