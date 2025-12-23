@@ -14,16 +14,17 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/samber/lo"
-	"github.com/spf13/cobra"
-
 	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
-
+	karpawsv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/samber/lo"
+	"github.com/spf13/cobra"
+	"helm.sh/helm/v3/pkg/action"
+	"helm.sh/helm/v3/pkg/kube"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -35,12 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	karpawsv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
-
-	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/kube"
 
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/helm"

@@ -143,9 +143,6 @@ func Uninstall(ctx context.Context, ac *action.Configuration, releaseName string
 	uninstallAction.Wait = true
 	uninstallAction.Timeout = 30 * time.Minute
 
-	ctx, cancel := context.WithTimeout(ctx, uninstallAction.Timeout)
-	defer cancel()
-
 	response, err := uninstallAction.Run(releaseName)
 	if err != nil {
 		return fmt.Errorf("failed to uninstall Helm release %s: %w", releaseName, err)
