@@ -59,7 +59,7 @@ func (c *ClusterChecksRunnerComponent) GetConditionType() string {
 	return common.ClusterChecksRunnerReconcileConditionType
 }
 
-// Reconcile reconciles the ClusterChecksRunner component
+// Reconcile reconciles component
 func (c *ClusterChecksRunnerComponent) Reconcile(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error) {
 	var result reconcile.Result
 	now := metav1.NewTime(time.Now())
@@ -71,10 +71,9 @@ func (c *ClusterChecksRunnerComponent) Reconcile(ctx context.Context, params *Re
 	manageFeatureFunc := func(feat feature.Feature, managers feature.PodTemplateManagers, provider string) error {
 		return feat.ManageClusterChecksRunner(managers, "")
 	}
-	statusUpdateFunc := updateStatusV2WithClusterChecksRunner
 
 	// Start by creating the Default Cluster-Agent deployment
-	deployment := newDeploymentFunc(params.DDA.GetObjectMeta())
+	deployment := newDeploymentFunc(params.DDA.GetObjectMeta(), &params.DDA.Spec)
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
@@ -89,18 +88,18 @@ func (c *ClusterChecksRunnerComponent) Reconcile(ctx context.Context, params *Re
 	}
 	if len(featErrors) > 0 {
 		err := utilerrors.NewAggregate(featErrors)
-		statusUpdateFunc(deployment, params.Status, now, metav1.ConditionFalse, fmt.Sprintf("%s feature error", componentName), err.Error())
+		c.UpdateStatus(deployment, params.Status, now, metav1.ConditionFalse, fmt.Sprintf("%s feature error", componentName), err.Error())
 		return result, err
 	}
 
 	// The requiredComponents can change depending on if updates to features result in disabled components
-	componentEnabled := params.RequiredComponents.ClusterChecksRunner.IsEnabled()
+	componentEnabled := c.IsEnabled(params.RequiredComponents)
 
-	if forceDeleteComponentCCR(params.DDA, componentName, params.RequiredComponents) {
+	if c.ForceDeleteComponent(params.DDA, componentName, params.RequiredComponents) {
 		return c.Cleanup(ctx, params)
 	}
 
-	// If Override is defined for the CCR component, apply the override on the PodTemplateSpec, it will cascade to container.
+	// If Override is defined for the component, apply the override on the PodTemplateSpec, it will cascade to container.
 	if componentOverride, ok := params.DDA.Spec.Override[componentName]; ok {
 		if apiutils.BoolValue(componentOverride.Disabled) {
 			if componentEnabled {
@@ -131,12 +130,12 @@ func (c *ClusterChecksRunnerComponent) Reconcile(ctx context.Context, params *Re
 		deployment.Labels[constants.MD5AgentDeploymentProviderLabelKey] = params.Provider
 	}
 
-	return c.reconciler.createOrUpdateDeployment(deploymentLogger, params.DDA, deployment, params.Status, statusUpdateFunc)
+	return c.reconciler.createOrUpdateDeployment(deploymentLogger, params.DDA, deployment, params.Status, c.UpdateStatus)
 }
 
 // Cleanup removes the ClusterChecksRunner deployment
 func (c *ClusterChecksRunnerComponent) Cleanup(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error) {
-	deployment := componentccr.NewDefaultClusterChecksRunnerDeployment(params.DDA)
+	deployment := componentccr.NewDefaultClusterChecksRunnerDeployment(params.DDA.GetObjectMeta(), &params.DDA.Spec)
 	return c.reconciler.cleanupV2ClusterChecksRunner(ctx, params.Logger, params.DDA, deployment, params.ResourceManagers, params.Status)
 }
 
@@ -172,7 +171,7 @@ func (r *Reconciler) cleanupV2ClusterChecksRunner(ctx context.Context, logger lo
 	return reconcile.Result{}, nil
 }
 
-func updateStatusV2WithClusterChecksRunner(deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
+func (c *ClusterChecksRunnerComponent) UpdateStatus(deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
 	setClusterChecksRunnerStatus(newStatus, condition.UpdateDeploymentStatus(deployment, newStatus.ClusterChecksRunner, &updateTime))
 	condition.UpdateDatadogAgentStatusConditions(newStatus, updateTime, common.ClusterChecksRunnerReconcileConditionType, status, reason, message, true)
 }
@@ -186,7 +185,7 @@ func setClusterChecksRunnerStatus(status *datadoghqv2alpha1.DatadogAgentStatus, 
 	status.ClusterChecksRunner = deploymentStatus
 }
 
-func forceDeleteComponentCCR(dda *datadoghqv2alpha1.DatadogAgent, componentName datadoghqv2alpha1.ComponentName, requiredComponents feature.RequiredComponents) bool {
+func (c *ClusterChecksRunnerComponent) ForceDeleteComponent(dda *datadoghqv2alpha1.DatadogAgent, componentName datadoghqv2alpha1.ComponentName, requiredComponents feature.RequiredComponents) bool {
 	dcaEnabled := requiredComponents.ClusterAgent.IsEnabled()
 	// If the Cluster Agent is disabled, then CCR should be disabled too
 	if dcaOverride, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterAgentComponentName]; ok {
