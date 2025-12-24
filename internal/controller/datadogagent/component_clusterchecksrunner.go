@@ -55,48 +55,55 @@ func (c *ClusterChecksRunnerComponent) GetConditionType() string {
 	return common.ClusterChecksRunnerReconcileConditionType
 }
 
+func (c *ClusterChecksRunnerComponent) GetGlobalSettingsFunc() func(logger logr.Logger, podManagers feature.PodTemplateManagers, dda metav1.Object, spec *datadoghqv2alpha1.DatadogAgentSpec, resourceManagers feature.ResourceManagers, requiredComponents feature.RequiredComponents) {
+	return global.ApplyGlobalSettingsClusterChecksRunner
+}
+
+func (c *ClusterChecksRunnerComponent) GetNewDeploymentFunc() func(dda metav1.Object, spec *datadoghqv2alpha1.DatadogAgentSpec) *appsv1.Deployment {
+	return componentccr.NewDefaultClusterChecksRunnerDeployment
+}
+
+func (c *ClusterChecksRunnerComponent) GetManageFeatureFunc() func(feat feature.Feature, managers feature.PodTemplateManagers, provider string) error {
+	return func(feat feature.Feature, managers feature.PodTemplateManagers, provider string) error {
+		return feat.ManageClusterChecksRunner(managers, provider)
+	}
+}
+
 // Reconcile reconciles component
 func (c *ClusterChecksRunnerComponent) Reconcile(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error) {
 	var result reconcile.Result
 	now := metav1.NewTime(time.Now())
-	componentName := datadoghqv2alpha1.ClusterChecksRunnerComponentName
-	deploymentLogger := params.Logger.WithValues("component", componentName)
-
-	applyGlobalSettingsFunc := global.ApplyGlobalSettingsClusterChecksRunner
-	newDeploymentFunc := componentccr.NewDefaultClusterChecksRunnerDeployment
-	manageFeatureFunc := func(feat feature.Feature, managers feature.PodTemplateManagers, provider string) error {
-		return feat.ManageClusterChecksRunner(managers, "")
-	}
+	deploymentLogger := params.Logger.WithValues("component", c.Name())
 
 	// Start by creating the Default Cluster-Agent deployment
-	deployment := newDeploymentFunc(params.DDA.GetObjectMeta(), &params.DDA.Spec)
+	deployment := c.GetNewDeploymentFunc()(params.DDA.GetObjectMeta(), &params.DDA.Spec)
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
-	applyGlobalSettingsFunc(params.Logger, podManagers, params.DDA.GetObjectMeta(), &params.DDA.Spec, params.ResourceManagers, params.RequiredComponents)
+	c.GetGlobalSettingsFunc()(params.Logger, podManagers, params.DDA.GetObjectMeta(), &params.DDA.Spec, params.ResourceManagers, params.RequiredComponents)
 
 	// Apply features changes on the Deployment.Spec.Template
 	var featErrors []error
 	for _, feat := range params.Features {
-		if errFeat := manageFeatureFunc(feat, podManagers, params.Provider); errFeat != nil {
+		if errFeat := c.GetManageFeatureFunc()(feat, podManagers, params.Provider); errFeat != nil {
 			featErrors = append(featErrors, errFeat)
 		}
 	}
 	if len(featErrors) > 0 {
 		err := utilerrors.NewAggregate(featErrors)
-		c.UpdateStatus(deployment, params.Status, now, metav1.ConditionFalse, fmt.Sprintf("%s feature error", componentName), err.Error())
+		c.UpdateStatus(deployment, params.Status, now, metav1.ConditionFalse, fmt.Sprintf("%s feature error", c.Name()), err.Error())
 		return result, err
 	}
 
 	// The requiredComponents can change depending on if updates to features result in disabled components
 	componentEnabled := c.IsEnabled(params.RequiredComponents)
 
-	if c.ForceDeleteComponent(params.DDA, componentName, params.RequiredComponents) {
+	if c.ForceDeleteComponent(params.DDA, c.Name(), params.RequiredComponents) {
 		return c.Cleanup(ctx, params)
 	}
 
 	// If Override is defined for the component, apply the override on the PodTemplateSpec, it will cascade to container.
-	if componentOverride, ok := params.DDA.Spec.Override[componentName]; ok {
+	if componentOverride, ok := params.DDA.Spec.Override[c.Name()]; ok {
 		if apiutils.BoolValue(componentOverride.Disabled) {
 			if componentEnabled {
 				// The override supersedes what's set in requiredComponents; update status to reflect the conflict
@@ -106,13 +113,13 @@ func (c *ClusterChecksRunnerComponent) Reconcile(ctx context.Context, params *Re
 					common.OverrideReconcileConflictConditionType,
 					metav1.ConditionTrue,
 					"OverrideConflict",
-					fmt.Sprintf("%s component is set to disabled", componentName),
+					fmt.Sprintf("%s component is set to disabled", c.Name()),
 					true,
 				)
 			}
 			return c.Cleanup(ctx, params)
 		}
-		override.PodTemplateSpec(params.Logger, podManagers, componentOverride, componentName, params.DDA.Name)
+		override.PodTemplateSpec(params.Logger, podManagers, componentOverride, c.Name(), params.DDA.Name)
 		override.Deployment(deployment, componentOverride)
 	} else if !componentEnabled {
 		return c.Cleanup(ctx, params)
@@ -129,9 +136,9 @@ func (c *ClusterChecksRunnerComponent) Reconcile(ctx context.Context, params *Re
 	return c.reconciler.createOrUpdateDeployment(deploymentLogger, params.DDA, deployment, params.Status, c.UpdateStatus)
 }
 
-// Cleanup removes the ClusterChecksRunner deployment
+// Cleanup removes the component deployment, associated resources and updates status
 func (c *ClusterChecksRunnerComponent) Cleanup(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error) {
-	deployment := componentccr.NewDefaultClusterChecksRunnerDeployment(params.DDA.GetObjectMeta(), &params.DDA.Spec)
+	deployment := c.GetNewDeploymentFunc()(params.DDA.GetObjectMeta(), &params.DDA.Spec)
 	result, err := c.reconciler.deleteDeploymentWithEvent(ctx, params.Logger, params.DDA, deployment)
 
 	if err != nil {
@@ -142,23 +149,19 @@ func (c *ClusterChecksRunnerComponent) Cleanup(ctx context.Context, params *Reco
 	if result, err := c.CleanupDependencies(ctx, params.Logger, params.DDA, params.ResourceManagers); err != nil {
 		return result, err
 	}
-	c.DeleteStatus(params.Status, common.ClusterChecksRunnerReconcileConditionType, setClusterChecksRunnerStatus)
+	c.DeleteStatus(params.Status, c.GetConditionType())
 
 	return result, nil
 }
 
 func (c *ClusterChecksRunnerComponent) UpdateStatus(deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
-	setClusterChecksRunnerStatus(newStatus, condition.UpdateDeploymentStatus(deployment, newStatus.ClusterChecksRunner, &updateTime))
+	newStatus.ClusterChecksRunner = condition.UpdateDeploymentStatus(deployment, newStatus.ClusterChecksRunner, &updateTime)
 	condition.UpdateDatadogAgentStatusConditions(newStatus, updateTime, common.ClusterChecksRunnerReconcileConditionType, status, reason, message, true)
 }
 
-func (c *ClusterChecksRunnerComponent) DeleteStatus(newStatus *datadoghqv2alpha1.DatadogAgentStatus, conditionType string, setStatusFunc func(status *datadoghqv2alpha1.DatadogAgentStatus, deploymentStatus *datadoghqv2alpha1.DeploymentStatus)) {
-	setStatusFunc(newStatus, nil)
+func (c *ClusterChecksRunnerComponent) DeleteStatus(newStatus *datadoghqv2alpha1.DatadogAgentStatus, conditionType string) {
+	newStatus.ClusterChecksRunner = nil
 	condition.DeleteDatadogAgentStatusCondition(newStatus, conditionType)
-}
-
-func setClusterChecksRunnerStatus(status *datadoghqv2alpha1.DatadogAgentStatus, deploymentStatus *datadoghqv2alpha1.DeploymentStatus) {
-	status.ClusterChecksRunner = deploymentStatus
 }
 
 func (c *ClusterChecksRunnerComponent) ForceDeleteComponent(dda *datadoghqv2alpha1.DatadogAgent, componentName datadoghqv2alpha1.ComponentName, requiredComponents feature.RequiredComponents) bool {

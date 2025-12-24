@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -36,6 +37,27 @@ type ComponentReconciler interface {
 
 	// GetConditionType returns the condition type used for status updates
 	GetConditionType() string
+
+	// GetGlobalSettingsFunc returns the function to apply global settings to the component
+	GetGlobalSettingsFunc() func(logger logr.Logger, podManagers feature.PodTemplateManagers, dda metav1.Object, spec *datadoghqv2alpha1.DatadogAgentSpec, resourceManagers feature.ResourceManagers, requiredComponents feature.RequiredComponents)
+
+	// GetNewDeploymentFunc returns the function to create a new deployment for the component
+	GetNewDeploymentFunc() func(dda metav1.Object, spec *datadoghqv2alpha1.DatadogAgentSpec) *appsv1.Deployment
+
+	// GetManageFeatureFunc feature function to manage the component
+	GetManageFeatureFunc() func(feat feature.Feature, managers feature.PodTemplateManagers, provider string) error
+
+	// UpdateStatus updates the status of the component
+	UpdateStatus(deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
+
+	// DeleteStatus deletes the status of the component
+	DeleteStatus(newStatus *datadoghqv2alpha1.DatadogAgentStatus, conditionType string)
+
+	// ForceDeleteComponent forces the deletion of the component
+	ForceDeleteComponent(dda *datadoghqv2alpha1.DatadogAgent, componentName datadoghqv2alpha1.ComponentName, requiredComponents feature.RequiredComponents) bool
+
+	// CleanupDependencies deletes any dependencies associated with the component
+	CleanupDependencies(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) (reconcile.Result, error)
 }
 
 // ReconcileComponentParams bundles common parameters needed by all components
