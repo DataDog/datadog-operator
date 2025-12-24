@@ -1,6 +1,6 @@
 # Datadog Plugin for kubectl
 
-The Datadog provides a `kubectl` plugin with helper utilities that give visibility into internal components. You can use the plugin with Operator installations or with the Datadog [Helm chart][1].
+Datadog provides a `kubectl` plugin with helper utilities that gives visibility into internal components. You can use the plugin with Operator installations or with the Datadog [Helm chart][1].
 
 ## Install the plugin
 
