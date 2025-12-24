@@ -7,8 +7,10 @@ package global
 
 import (
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 )
@@ -27,5 +29,9 @@ func ApplyGlobalSettingsOtelAgentGateway(
 }
 
 func applyOtelAgentGatewayResources(manager feature.PodTemplateManagers, ddaSpec *v2alpha1.DatadogAgentSpec) {
-	// Add any OtelAgentGateway-specific resource configuration here
+	// Enable the OTel collector
+	manager.EnvVar().AddEnvVarToContainer(apicommon.OtelAgent, &corev1.EnvVar{
+		Name:  "DD_OTELCOLLECTOR_ENABLED",
+		Value: "true",
+	})
 }
