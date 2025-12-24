@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
@@ -27,6 +28,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -260,6 +262,32 @@ func generateNewStatusFromDDA(ddaStatus *datadoghqv2alpha1.DatadogAgentStatus) *
 	return status
 }
 
+// deleteDeploymentWithEvent deletes a deployment and records DDA event only if deletion was successful
+func (r *Reconciler) deleteDeploymentWithEvent(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, deployment *appsv1.Deployment) (reconcile.Result, error) {
+	nsName := types.NamespacedName{
+		Name:      deployment.GetName(),
+		Namespace: deployment.GetNamespace(),
+	}
+
+	// Existing deployment attached to this instance
+	existingDeployment := &appsv1.Deployment{}
+	if err := r.client.Get(ctx, nsName, existingDeployment); err != nil {
+		if apierrors.IsNotFound(err) {
+			return reconcile.Result{}, nil
+		}
+		return reconcile.Result{}, err
+	}
+	logger.Info("Deleting Deployment", "deployment.Namespace", existingDeployment.Namespace, "deployment.Name", existingDeployment.Name)
+	if err := r.client.Delete(ctx, existingDeployment); err != nil {
+		return reconcile.Result{}, err
+	}
+	// Record event only if deletion was successful
+	event := buildEventInfo(existingDeployment.Name, existingDeployment.Namespace, kubernetes.DeploymentKind, datadog.DeletionEvent)
+	r.recordEvent(dda, event)
+
+	return reconcile.Result{}, nil
+}
+
 // cleanupOldDCADeployments deletes DCA deployments when a DCA Deployment's name is changed using clusterAgent name override
 func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) error {
 	matchLabels := client.MatchingLabels{
@@ -274,12 +302,11 @@ func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, logger logr.L
 	}
 	for _, deployment := range deploymentList.Items {
 		if deploymentName != deployment.Name {
-			if _, err := r.cleanupV2ClusterAgent(ctx, logger, dda, &deployment); err != nil {
+			if _, err := r.deleteDeploymentWithEvent(ctx, logger, dda, &deployment); err != nil {
 				return err
 			}
 		}
 	}
-
 	return nil
 }
 
@@ -297,7 +324,7 @@ func (r *Reconciler) cleanupOldCCRDeployments(ctx context.Context, logger logr.L
 	}
 	for _, deployment := range deploymentList.Items {
 		if deploymentName != deployment.Name {
-			if _, err := r.cleanupV2ClusterChecksRunner(ctx, logger, dda, &deployment); err != nil {
+			if _, err := r.deleteDeploymentWithEvent(ctx, logger, dda, &deployment); err != nil {
 				return err
 			}
 		}

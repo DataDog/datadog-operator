@@ -12,9 +12,7 @@ import (
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -27,8 +25,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // ClusterChecksRunnerComponent implements ComponentReconciler for the Cluster Checks Runner deployment
@@ -136,7 +132,7 @@ func (c *ClusterChecksRunnerComponent) Reconcile(ctx context.Context, params *Re
 // Cleanup removes the ClusterChecksRunner deployment
 func (c *ClusterChecksRunnerComponent) Cleanup(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error) {
 	deployment := componentccr.NewDefaultClusterChecksRunnerDeployment(params.DDA.GetObjectMeta(), &params.DDA.Spec)
-	result, err := c.reconciler.cleanupV2ClusterChecksRunner(ctx, params.Logger, params.DDA, deployment)
+	result, err := c.reconciler.deleteDeploymentWithEvent(ctx, params.Logger, params.DDA, deployment)
 
 	if err != nil {
 		return result, err
@@ -149,33 +145,6 @@ func (c *ClusterChecksRunnerComponent) Cleanup(ctx context.Context, params *Reco
 	c.DeleteStatus(params.Status, common.ClusterChecksRunnerReconcileConditionType, setClusterChecksRunnerStatus)
 
 	return result, nil
-}
-
-// The following functions are kept for backward compatibility with existing code
-
-func (r *Reconciler) cleanupV2ClusterChecksRunner(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, deployment *appsv1.Deployment) (reconcile.Result, error) {
-	nsName := types.NamespacedName{
-		Name:      deployment.GetName(),
-		Namespace: deployment.GetNamespace(),
-	}
-
-	// Existing deployment attached to this instance
-	existingDeployment := &appsv1.Deployment{}
-	if err := r.client.Get(ctx, nsName, existingDeployment); err != nil {
-		if errors.IsNotFound(err) {
-			return reconcile.Result{}, nil
-		}
-		return reconcile.Result{}, err
-	}
-	logger.Info("Deleting Deployment", "deployment.Namespace", existingDeployment.Namespace, "deployment.Name", existingDeployment.Name)
-	if err := r.client.Delete(ctx, existingDeployment); err != nil {
-		return reconcile.Result{}, err
-	}
-	// Record event only if deletion was successful
-	event := buildEventInfo(existingDeployment.Name, existingDeployment.Namespace, kubernetes.DeploymentKind, datadog.DeletionEvent)
-	r.recordEvent(dda, event)
-
-	return reconcile.Result{}, nil
 }
 
 func (c *ClusterChecksRunnerComponent) UpdateStatus(deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
