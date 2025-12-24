@@ -274,7 +274,7 @@ func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, logger logr.L
 	}
 	for _, deployment := range deploymentList.Items {
 		if deploymentName != deployment.Name {
-			if _, err := r.cleanupV2ClusterAgent(ctx, logger, dda, &deployment, resourcesManager, newStatus); err != nil {
+			if _, err := r.cleanupV2ClusterAgent(ctx, logger, dda, &deployment); err != nil {
 				return err
 			}
 		}
@@ -297,7 +297,7 @@ func (r *Reconciler) cleanupOldCCRDeployments(ctx context.Context, logger logr.L
 	}
 	for _, deployment := range deploymentList.Items {
 		if deploymentName != deployment.Name {
-			if _, err := r.cleanupV2ClusterChecksRunner(ctx, logger, dda, &deployment, resourcesManager, newStatus); err != nil {
+			if _, err := r.cleanupV2ClusterChecksRunner(ctx, logger, dda, &deployment); err != nil {
 				return err
 			}
 		}

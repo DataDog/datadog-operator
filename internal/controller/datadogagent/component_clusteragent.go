@@ -135,12 +135,24 @@ func (c *ClusterAgentComponent) Reconcile(ctx context.Context, params *Reconcile
 // Cleanup removes the Cluster Agent deployment and associated resources
 func (c *ClusterAgentComponent) Cleanup(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error) {
 	deployment := componentdca.NewDefaultClusterAgentDeployment(params.DDA.GetObjectMeta(), &params.DDA.Spec)
-	return c.reconciler.cleanupV2ClusterAgent(ctx, params.Logger, params.DDA, deployment, params.ResourceManagers, params.Status)
+	result, err := c.reconciler.cleanupV2ClusterAgent(ctx, params.Logger, params.DDA, deployment)
+
+	if err != nil {
+		return result, err
+	}
+
+	// Do status and other resource cleanup if the deployment was deleted successfully
+	if result, err := c.CleanupDependencies(ctx, params.Logger, params.DDA, params.ResourceManagers); err != nil {
+		return result, err
+	}
+	c.DeleteStatus(params.Status, common.ClusterAgentReconcileConditionType, setClusterAgentStatus)
+
+	return result, nil
 }
 
 // The following functions are kept for backward compatibility with existing code
 
-func (r *Reconciler) cleanupV2ClusterAgent(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, deployment *appsv1.Deployment, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *Reconciler) cleanupV2ClusterAgent(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, deployment *appsv1.Deployment) (reconcile.Result, error) {
 	nsName := types.NamespacedName{
 		Name:      deployment.GetName(),
 		Namespace: deployment.GetNamespace(),
@@ -150,23 +162,17 @@ func (r *Reconciler) cleanupV2ClusterAgent(ctx context.Context, logger logr.Logg
 	existingDeployment := &appsv1.Deployment{}
 	if err := r.client.Get(ctx, nsName, existingDeployment); err != nil {
 		if errors.IsNotFound(err) {
-			deleteStatusV2WithClusterAgent(newStatus, common.ClusterAgentReconcileConditionType, setClusterAgentStatus)
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
 	}
 	logger.Info("Deleting Deployment", "deployment.Namespace", existingDeployment.Namespace, "deployment.Name", existingDeployment.Name)
-	event := buildEventInfo(existingDeployment.Name, existingDeployment.Namespace, kubernetes.DeploymentKind, datadog.DeletionEvent)
-	r.recordEvent(dda, event)
 	if err := r.client.Delete(ctx, existingDeployment); err != nil {
 		return reconcile.Result{}, err
 	}
-
-	if result, err := cleanupRelatedResourcesDCA(ctx, logger, dda, resourcesManager); err != nil {
-		return result, err
-	}
-
-	deleteStatusV2WithClusterAgent(newStatus, common.ClusterAgentReconcileConditionType, setClusterAgentStatus)
+	// Record event only if deletion was successful
+	event := buildEventInfo(existingDeployment.Name, existingDeployment.Namespace, kubernetes.DeploymentKind, datadog.DeletionEvent)
+	r.recordEvent(dda, event)
 
 	return reconcile.Result{}, nil
 }
@@ -176,7 +182,7 @@ func (c *ClusterAgentComponent) UpdateStatus(deployment *appsv1.Deployment, newS
 	condition.UpdateDatadogAgentStatusConditions(newStatus, updateTime, common.ClusterAgentReconcileConditionType, status, reason, message, true)
 }
 
-func deleteStatusV2WithClusterAgent(newStatus *datadoghqv2alpha1.DatadogAgentStatus, conditionType string, setStatusFunc func(status *datadoghqv2alpha1.DatadogAgentStatus, deploymentStatus *datadoghqv2alpha1.DeploymentStatus)) {
+func (c *ClusterAgentComponent) DeleteStatus(newStatus *datadoghqv2alpha1.DatadogAgentStatus, conditionType string, setStatusFunc func(status *datadoghqv2alpha1.DatadogAgentStatus, deploymentStatus *datadoghqv2alpha1.DeploymentStatus)) {
 	setStatusFunc(newStatus, nil)
 	condition.DeleteDatadogAgentStatusCondition(newStatus, conditionType)
 }
@@ -188,7 +194,7 @@ func setClusterAgentStatus(status *datadoghqv2alpha1.DatadogAgentStatus, deploym
 func (c *ClusterAgentComponent) ForceDeleteComponent(dda *datadoghqv2alpha1.DatadogAgent, componentName datadoghqv2alpha1.ComponentName, requiredComponents feature.RequiredComponents) bool {
 	return false
 }
-func cleanupRelatedResourcesDCA(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) (reconcile.Result, error) {
+func (c *ClusterAgentComponent) CleanupDependencies(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) (reconcile.Result, error) {
 	// Delete associated RBACs as well
 	rbacManager := resourcesManager.RBACManager()
 	logger.Info("Deleting Cluster Agent RBACs")
