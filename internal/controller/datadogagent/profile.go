@@ -210,9 +210,10 @@ func setProfileSpec(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.Datad
 	affinity := setProfileDDAIAffinity(ddai, profile)
 	if !agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
 		ddai.Spec = *profile.Spec.Config
-		// DCA and CCR are auto disabled for user created profiles
+		// DCA, CCR, and OtelAgentGateway are auto disabled for user created profiles
 		disableComponent(ddai, v2alpha1.ClusterAgentComponentName)
 		disableComponent(ddai, v2alpha1.ClusterChecksRunnerComponentName)
+		disableComponent(ddai, v2alpha1.OtelAgentGatewayComponentName)
 		setProfileNodeAgentOverride(ddai, profile)
 	}
 	ensureOverrideExists(ddai, v2alpha1.NodeAgentComponentName)
