@@ -1,6 +1,6 @@
-# Datadog Operator Plugin for kubectl
+# Datadog Plugin for kubectl
 
-The Datadog Operator has a `kubectl` plugin, which provides a set of helper utilities that give visibility into certain internal components.
+The Datadog provides a `kubectl` plugin with helper utilities that give visibility into internal components. You can use the plugin with Operator installations or with the Datadog [Helm chart][1].
 
 ## Install the plugin
 
@@ -77,3 +77,5 @@ Available Commands:
   pod         Validate the autodiscovery annotations for a pod
   service     Validate the autodiscovery annotations for a service
 ```
+
+[1]: https://github.com/DataDog/helm-charts/tree/main/charts/datadog
