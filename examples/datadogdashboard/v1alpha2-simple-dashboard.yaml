@@ -1,0 +1,70 @@
+apiVersion: datadoghq.com/v1alpha2
+kind: DatadogDashboard
+metadata:
+  name: simple-dashboard-v1alpha2
+  namespace: system
+spec:
+  title: Simple Dashboard v1alpha2
+  layoutType: ordered
+  tags:
+    - "team:example"
+  templateVariables:
+    - availableValues: 
+        - host1
+        - host2
+        - host3
+      name: host
+      prefix: host
+  notifyList:
+    - example@datadoghq.com
+  widgets:
+    - definition:
+        type: timeseries
+        title: "CPU Usage by Host"
+        title_size: "16"
+        title_align: left
+        show_legend: true
+        legend_layout: auto
+        legend_columns:
+          - avg
+          - min
+          - max
+          - value
+          - sum
+        requests:
+          - formulas:
+              - formula: query1
+            queries:
+              - name: query1
+                data_source: metrics
+                query: "avg:system.cpu.user{*} by {host}"
+            response_format: timeseries
+            style:
+              palette: dog_classic
+              order_by: values
+              line_type: solid
+              line_width: normal
+            display_type: line
+      layout:
+        x: 0
+        y: 0
+        width: 6
+        height: 3
+    - definition:
+        type: query_value
+        title: "Average Memory Usage"
+        title_size: "16"
+        title_align: center
+        requests:
+          - queries:
+              - name: memory_query
+                data_source: metrics
+                query: "avg:system.mem.used{*}"
+            response_format: scalar
+        autoscale: true
+        precision: 2
+      layout:
+        x: 6
+        y: 0
+        width: 3
+        height: 3
