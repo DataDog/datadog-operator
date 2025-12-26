@@ -229,11 +229,12 @@ func (hmf *HelmMetadataForwarder) watchLoop(namespace, chartName string, isSecre
 			return fmt.Errorf("failed to list secrets: %w", err)
 		}
 
-		// Process existing releases
-		for i := range secretList.Items {
-			hmf.processHelmSecret(&secretList.Items[i])
+		// Filter to only process the latest revision of each release
+		latestSecrets := hmf.findLatestSecretRevisions(secretList.Items)
+		for i := range latestSecrets {
+			hmf.processHelmSecret(&latestSecrets[i])
 		}
-		hmf.logger.V(1).Info("Processed existing secrets, starting watch", "count", len(secretList.Items), "namespace", watchNamespace)
+		hmf.logger.V(1).Info("Processed existing secrets, starting watch", "total", len(secretList.Items), "latest_only", len(latestSecrets), "namespace", watchNamespace)
 
 		// Start watching for new/updated releases
 		watcher, err = hmf.clientset.CoreV1().Secrets(watchNamespace).Watch(hmf.ctx, watchOpts)
@@ -248,11 +249,12 @@ func (hmf *HelmMetadataForwarder) watchLoop(namespace, chartName string, isSecre
 			return fmt.Errorf("failed to list configmaps: %w", err)
 		}
 
-		// Process existing releases
-		for i := range cmList.Items {
-			hmf.processHelmConfigMap(&cmList.Items[i])
+		// Filter to only process the latest revision of each release
+		latestCMs := hmf.findLatestConfigMapRevisions(cmList.Items)
+		for i := range latestCMs {
+			hmf.processHelmConfigMap(&latestCMs[i])
 		}
-		hmf.logger.V(1).Info("Processed existing configmaps, starting watch", "count", len(cmList.Items), "namespace", watchNamespace)
+		hmf.logger.V(1).Info("Processed existing configmaps, starting watch", "total", len(cmList.Items), "latest_only", len(latestCMs), "namespace", watchNamespace)
 
 		// Start watching for new/updated releases
 		watcher, err = hmf.clientset.CoreV1().ConfigMaps(watchNamespace).Watch(hmf.ctx, watchOpts)
@@ -295,6 +297,80 @@ func (hmf *HelmMetadataForwarder) watchLoop(namespace, chartName string, isSecre
 			}
 		}
 	}
+}
+
+// findLatestSecretRevisions filters a list of Secrets to only include the latest revision of each Helm release
+func (hmf *HelmMetadataForwarder) findLatestSecretRevisions(secrets []corev1.Secret) []corev1.Secret {
+	latestRevisions := make(map[string]struct {
+		secret   *corev1.Secret
+		revision int
+	})
+
+	for i := range secrets {
+		secret := &secrets[i]
+		if !strings.HasPrefix(secret.Name, releasePrefix) {
+			continue
+		}
+
+		_, releaseName, revision, ok := hmf.parseHelmResource(secret.Name, secret.Data["release"])
+		if !ok {
+			continue
+		}
+
+		key := fmt.Sprintf("%s/%s", secret.Namespace, releaseName)
+		if existing, exists := latestRevisions[key]; !exists || revision > existing.revision {
+			latestRevisions[key] = struct {
+				secret   *corev1.Secret
+				revision int
+			}{
+				secret:   secret,
+				revision: revision,
+			}
+		}
+	}
+
+	result := make([]corev1.Secret, 0, len(latestRevisions))
+	for _, data := range latestRevisions {
+		result = append(result, *data.secret)
+	}
+	return result
+}
+
+// findLatestConfigMapRevisions filters a list of ConfigMaps to only include the latest revision of each Helm release
+func (hmf *HelmMetadataForwarder) findLatestConfigMapRevisions(configMaps []corev1.ConfigMap) []corev1.ConfigMap {
+	latestRevisions := make(map[string]struct {
+		cm       *corev1.ConfigMap
+		revision int
+	})
+
+	for i := range configMaps {
+		cm := &configMaps[i]
+		if !strings.HasPrefix(cm.Name, releasePrefix) {
+			continue
+		}
+
+		_, releaseName, revision, ok := hmf.parseHelmResource(cm.Name, []byte(cm.Data["release"]))
+		if !ok {
+			continue
+		}
+
+		key := fmt.Sprintf("%s/%s", cm.Namespace, releaseName)
+		if existing, exists := latestRevisions[key]; !exists || revision > existing.revision {
+			latestRevisions[key] = struct {
+				cm       *corev1.ConfigMap
+				revision int
+			}{
+				cm:       cm,
+				revision: revision,
+			}
+		}
+	}
+
+	result := make([]corev1.ConfigMap, 0, len(latestRevisions))
+	for _, data := range latestRevisions {
+		result = append(result, *data.cm)
+	}
+	return result
 }
 
 // processHelmSecret processes a Helm release Secret and sends metadata if it's new
