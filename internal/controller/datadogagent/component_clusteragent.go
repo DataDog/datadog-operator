@@ -7,24 +7,18 @@ package datadogagent
 
 import (
 	"context"
-	"fmt"
-	"time"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/condition"
-	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 // ClusterAgentComponent implements ComponentReconciler for the Cluster Agent deployment
@@ -66,73 +60,6 @@ func (c *ClusterAgentComponent) GetManageFeatureFunc() func(feat feature.Feature
 	return func(feat feature.Feature, managers feature.PodTemplateManagers, provider string) error {
 		return feat.ManageClusterAgent(managers, provider)
 	}
-}
-
-// Reconcile reconciles component
-func (c *ClusterAgentComponent) Reconcile(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error) {
-	var result reconcile.Result
-	now := metav1.NewTime(time.Now())
-	deploymentLogger := params.Logger.WithValues("component", c.Name())
-
-	// Start by creating the Default Cluster-Agent deployment
-	deployment := c.GetNewDeploymentFunc()(params.DDA.GetObjectMeta(), &params.DDA.Spec)
-	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
-
-	// Set Global setting on the default deployment
-	c.GetGlobalSettingsFunc()(params.Logger, podManagers, params.DDA.GetObjectMeta(), &params.DDA.Spec, params.ResourceManagers, params.RequiredComponents)
-
-	// Apply features changes on the Deployment.Spec.Template
-	var featErrors []error
-	for _, feat := range params.Features {
-		if errFeat := c.GetManageFeatureFunc()(feat, podManagers, params.Provider); errFeat != nil {
-			featErrors = append(featErrors, errFeat)
-		}
-	}
-	if len(featErrors) > 0 {
-		err := utilerrors.NewAggregate(featErrors)
-		c.UpdateStatus(deployment, params.Status, now, metav1.ConditionFalse, fmt.Sprintf("%s feature error", c.Name()), err.Error())
-		return result, err
-	}
-
-	// The requiredComponents can change depending on if updates to features result in disabled components
-	componentEnabled := c.IsEnabled(params.RequiredComponents)
-
-	if c.ForceDeleteComponent(params.DDA, c.Name(), params.RequiredComponents) {
-		return c.Cleanup(ctx, params)
-	}
-
-	// If Override is defined for the component, apply the override on the PodTemplateSpec, it will cascade to container.
-	if componentOverride, ok := params.DDA.Spec.Override[c.Name()]; ok {
-		if apiutils.BoolValue(componentOverride.Disabled) {
-			if componentEnabled {
-				// The override supersedes what's set in requiredComponents; update status to reflect the conflict
-				condition.UpdateDatadogAgentStatusConditions(
-					params.Status,
-					metav1.NewTime(time.Now()),
-					common.OverrideReconcileConflictConditionType,
-					metav1.ConditionTrue,
-					"OverrideConflict",
-					fmt.Sprintf("%s component is set to disabled", c.Name()),
-					true,
-				)
-			}
-			return c.Cleanup(ctx, params)
-		}
-		override.PodTemplateSpec(params.Logger, podManagers, componentOverride, c.Name(), params.DDA.Name)
-		override.Deployment(deployment, componentOverride)
-	} else if !componentEnabled {
-		return c.Cleanup(ctx, params)
-	}
-
-	if c.reconciler.options.IntrospectionEnabled {
-		// Add provider label to deployment
-		if deployment.Labels == nil {
-			deployment.Labels = make(map[string]string)
-		}
-		deployment.Labels[constants.MD5AgentDeploymentProviderLabelKey] = params.Provider
-	}
-
-	return c.reconciler.createOrUpdateDeployment(deploymentLogger, params.DDA, deployment, params.Status, c.UpdateStatus)
 }
 
 // Cleanup removes the component deployment, associated resources and updates status
