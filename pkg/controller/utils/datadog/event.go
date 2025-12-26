@@ -25,6 +25,8 @@ const (
 	UpdateEvent EventType = "Update"
 	// DeletionEvent should be used for resource deletion events
 	DeletionEvent EventType = "Delete"
+	// RecreationEvent should be used for resource recreation events
+	RecreationEvent EventType = "Recreate"
 )
 
 // crDetected returns the detection event of a CR
