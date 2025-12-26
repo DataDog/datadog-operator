@@ -25,6 +25,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	apimversion "k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/discovery"
+	k8sclientset "k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
@@ -271,6 +272,13 @@ func run(opts *options) error {
 
 	restConfig := ctrl.GetConfigOrDie()
 	restConfig.UserAgent = "datadog-operator"
+
+	// Create Kubernetes clientset for helm metadata forwarder
+	clientset, err := k8sclientset.NewForConfig(restConfig)
+	if err != nil {
+		return setupErrorf(setupLog, err, "Unable to create Kubernetes clientset")
+	}
+
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:                     scheme,
 		Metrics:                    metricsServerOptions,
@@ -400,7 +408,7 @@ func run(opts *options) error {
 		<-mgr.Elected()
 		setupLog.Info("Starting metadata forwarders")
 		setupAndStartOperatorMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
-		setupAndStartHelmMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
+		setupAndStartHelmMetadataForwarder(metadataLog, mgr.GetAPIReader(), clientset, versionInfo.String(), opts, options.CredsManager)
 		setupAndStartCRDMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
 	}()
 
@@ -571,7 +579,7 @@ func setupAndStartCRDMetadataForwarder(logger logr.Logger, client client.Reader,
 	cmf.Start()
 }
 
-func setupAndStartHelmMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options, credsManager *config.CredentialManager) {
-	hmf := metadata.NewHelmMetadataForwarder(logger, client, kubernetesVersion, version.GetVersion(), credsManager)
+func setupAndStartHelmMetadataForwarder(logger logr.Logger, client client.Reader, clientset *k8sclientset.Clientset, kubernetesVersion string, options *options, credsManager *config.CredentialManager) {
+	hmf := metadata.NewHelmMetadataForwarder(logger, client, clientset, kubernetesVersion, version.GetVersion(), credsManager)
 	hmf.Start()
 }

@@ -22,6 +22,9 @@ import (
 	"github.com/go-logr/logr"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
+	k8sclientset "k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -29,8 +32,6 @@ import (
 )
 
 const (
-	// helmValuesCacheTTL is the time-to-live for the cached Helm values (~5 minutes)
-	helmValuesCacheTTL = 5 * time.Minute
 	// releasePrefix is the prefix for Helm release ConfigMaps and Secrets
 	releasePrefix = "sh.helm.release.v1."
 )
@@ -46,7 +47,16 @@ var (
 type HelmMetadataForwarder struct {
 	*SharedMetadata
 
-	allHelmReleasesCache allHelmReleasesCache
+	// Track processed releases to avoid duplicate sends
+	// Key: namespace/name/resourceVersion
+	processedReleases sync.Map
+
+	// Context for watch cancellation
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	// Kubernetes clientset for direct watch API access
+	clientset *k8sclientset.Clientset
 }
 
 type HelmMetadataPayload struct {
@@ -70,13 +80,6 @@ type HelmMetadata struct {
 	ChartConfigMapUID         string `json:"chart_configmap_uid"`
 	HelmProvidedConfiguration string `json:"helm_provided_configuration"` // User-provided values only
 	HelmFullConfiguration     string `json:"helm_full_configuration"`     // Includes defaults
-}
-
-// allHelmReleasesCache holds cached Helm releases with timestamp
-type allHelmReleasesCache struct {
-	mu        sync.RWMutex
-	releases  []HelmReleaseData
-	timestamp time.Time
 }
 
 // HelmReleaseData contains all data for a single Helm release
@@ -113,10 +116,22 @@ type HelmReleaseMinimal struct {
 }
 
 // NewHelmMetadataForwarder creates a new instance of the helm metadata forwarder
-func NewHelmMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string, credsManager *config.CredentialManager) *HelmMetadataForwarder {
+func NewHelmMetadataForwarder(logger logr.Logger, k8sClient client.Reader, clientset *k8sclientset.Clientset, kubernetesVersion string, operatorVersion string, credsManager *config.CredentialManager) *HelmMetadataForwarder {
 	forwarderLogger := logger.WithName("helm")
+	ctx, cancel := context.WithCancel(context.Background())
 	return &HelmMetadataForwarder{
 		SharedMetadata: NewSharedMetadata(forwarderLogger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
+		ctx:            ctx,
+		cancel:         cancel,
+		clientset:      clientset,
+	}
+}
+
+// Stop stops the helm metadata forwarder and cancels all watches
+func (hmf *HelmMetadataForwarder) Stop() {
+	hmf.logger.Info("Stopping metadata forwarder")
+	if hmf.cancel != nil {
+		hmf.cancel()
 	}
 }
 
@@ -137,7 +152,7 @@ func getWatchNamespacesForHelm(logger logr.Logger) []string {
 	return namespaces
 }
 
-// Start starts the helm metadata forwarder
+// Start starts the helm metadata forwarder with watch-based event handling
 func (hmf *HelmMetadataForwarder) Start() {
 	if hmf.hostName == "" {
 		hmf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting metadata forwarder")
@@ -146,50 +161,251 @@ func (hmf *HelmMetadataForwarder) Start() {
 
 	hmf.logger.Info("Starting metadata forwarder")
 
-	ticker := time.NewTicker(defaultInterval)
-	go func() {
-		for range ticker.C {
-			if err := hmf.sendMetadata(); err != nil {
-				hmf.logger.V(1).Info("Error while sending metadata", "error", err)
-			}
+	namespacesToWatch := getWatchNamespacesForHelm(hmf.logger)
+
+	for _, namespace := range namespacesToWatch {
+		for chartName := range allowedCharts {
+			// Start watch for Secrets
+			go hmf.watchHelmResources(namespace, chartName, true)
+			// Start watch for ConfigMaps
+			go hmf.watchHelmResources(namespace, chartName, false)
 		}
-	}()
+	}
 }
 
-func (hmf *HelmMetadataForwarder) sendMetadata() error {
-	ctx := context.Background()
-
-	releases, err := hmf.discoverAllHelmReleases(ctx)
-	if err != nil {
-		hmf.logger.V(1).Info("Failed to discover Helm releases", "error", err)
-		return err
+// watchHelmResources watches for Helm release changes in Secrets or ConfigMaps
+func (hmf *HelmMetadataForwarder) watchHelmResources(namespace, chartName string, isSecret bool) {
+	resourceType := "ConfigMap"
+	if isSecret {
+		resourceType = "Secret"
 	}
 
-	hmf.logger.V(1).Info("Discovered Helm releases", "count", len(releases))
+	hmf.logger.V(1).Info("Starting watch for Helm releases",
+		"namespace", namespace,
+		"chart", chartName,
+		"resource_type", resourceType)
 
-	var sendErrors []error
-	for _, release := range releases {
-		hmf.logger.V(1).Info("Processing Helm release",
-			"release", release.ReleaseName,
-			"namespace", release.Namespace,
-			"chart", release.ChartName,
-			"chart_version", release.ChartVersion)
+	for {
+		select {
+		case <-hmf.ctx.Done():
+			hmf.logger.V(1).Info("Watch cancelled", "namespace", namespace, "chart", chartName, "resource_type", resourceType)
+			return
+		default:
+		}
 
-		if err := hmf.sendSingleReleasePayload(release); err != nil {
-			sendErrors = append(sendErrors, err)
-		} else {
-			hmf.logger.V(1).Info("Successfully sent metadata",
-				"release", release.ReleaseName,
-				"namespace", release.Namespace)
+		if err := hmf.watchLoop(namespace, chartName, isSecret); err != nil {
+			hmf.logger.Info("Watch error, will retry",
+				"error", err,
+				"namespace", namespace,
+				"chart", chartName,
+				"resource_type", resourceType)
+			// Backoff before retry
+			time.Sleep(5 * time.Second)
+		}
+	}
+}
+
+// watchLoop performs a single watch cycle
+func (hmf *HelmMetadataForwarder) watchLoop(namespace, chartName string, isSecret bool) error {
+	labelSelector := fmt.Sprintf("owner=helm,name=%s", chartName)
+
+	watchNamespace := namespace
+	if watchNamespace == "" {
+		watchNamespace = metav1.NamespaceAll
+	}
+
+	watchOpts := metav1.ListOptions{
+		LabelSelector: labelSelector,
+		Watch:         true,
+	}
+
+	var watcher watch.Interface
+
+	if isSecret {
+		secretList, err := hmf.clientset.CoreV1().Secrets(watchNamespace).List(hmf.ctx, metav1.ListOptions{
+			LabelSelector: labelSelector,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to list secrets: %w", err)
+		}
+
+		// Process existing releases
+		for i := range secretList.Items {
+			hmf.processHelmSecret(&secretList.Items[i])
+		}
+		hmf.logger.V(1).Info("Processed existing secrets, starting watch", "count", len(secretList.Items), "namespace", watchNamespace)
+
+		// Start watching for new/updated releases
+		watcher, err = hmf.clientset.CoreV1().Secrets(watchNamespace).Watch(hmf.ctx, watchOpts)
+		if err != nil {
+			return fmt.Errorf("failed to start secret watch: %w", err)
+		}
+	} else {
+		cmList, err := hmf.clientset.CoreV1().ConfigMaps(watchNamespace).List(hmf.ctx, metav1.ListOptions{
+			LabelSelector: labelSelector,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to list configmaps: %w", err)
+		}
+
+		// Process existing releases
+		for i := range cmList.Items {
+			hmf.processHelmConfigMap(&cmList.Items[i])
+		}
+		hmf.logger.V(1).Info("Processed existing configmaps, starting watch", "count", len(cmList.Items), "namespace", watchNamespace)
+
+		// Start watching for new/updated releases
+		watcher, err = hmf.clientset.CoreV1().ConfigMaps(watchNamespace).Watch(hmf.ctx, watchOpts)
+		if err != nil {
+			return fmt.Errorf("failed to start configmap watch: %w", err)
 		}
 	}
 
-	if len(sendErrors) > 0 {
-		return fmt.Errorf("failed to send %d/%d helm release payloads", len(sendErrors), len(releases))
+	defer watcher.Stop()
+
+	// Process watch events until context is cancelled or watch fails
+	for {
+		select {
+		case <-hmf.ctx.Done():
+			hmf.logger.V(1).Info("Watch context cancelled", "namespace", watchNamespace, "chart", chartName)
+			return nil
+
+		case event, ok := <-watcher.ResultChan():
+			if !ok {
+				return fmt.Errorf("watch channel closed, will reconnect")
+			}
+
+			switch event.Type {
+			case watch.Added:
+				if isSecret {
+					if secret, ok := event.Object.(*corev1.Secret); ok {
+						hmf.processHelmSecret(secret)
+					}
+				} else {
+					if cm, ok := event.Object.(*corev1.ConfigMap); ok {
+						hmf.processHelmConfigMap(cm)
+					}
+				}
+
+			case watch.Error:
+				hmf.logger.V(1).Info("Watch error event received",
+					"namespace", watchNamespace,
+					"chart", chartName)
+				return fmt.Errorf("watch error event")
+			}
+		}
+	}
+}
+
+// processHelmSecret processes a Helm release Secret and sends metadata if it's new
+func (hmf *HelmMetadataForwarder) processHelmSecret(secret *corev1.Secret) {
+	if !strings.HasPrefix(secret.Name, releasePrefix) {
+		return
 	}
 
-	hmf.logger.V(1).Info("Successfully sent all Helm release metadata", "count", len(releases))
-	return nil
+	trackingKey := fmt.Sprintf("%s/%s/%s", secret.Namespace, secret.Name, secret.ResourceVersion)
+	if _, exists := hmf.processedReleases.LoadOrStore(trackingKey, true); exists {
+		hmf.logger.V(1).Info("Skipping already processed secret", "secret", secret.Name, "resourceVersion", secret.ResourceVersion)
+		return
+	}
+
+	release, releaseName, revision, ok := hmf.parseHelmResource(secret.Name, secret.Data["release"])
+	if !ok {
+		return
+	}
+
+	hmf.logger.V(1).Info("Processing new/updated Helm release from Secret",
+		"release", releaseName,
+		"namespace", secret.Namespace,
+		"revision", revision)
+
+	releaseData := hmf.buildReleaseData(release, releaseName, revision, string(secret.UID), secret.Namespace)
+	if releaseData == nil {
+		return
+	}
+
+	if err := hmf.sendSingleReleasePayload(*releaseData); err != nil {
+		hmf.logger.Info("Failed to send metadata for Helm release",
+			"error", err,
+			"release", releaseName,
+			"namespace", secret.Namespace)
+		hmf.processedReleases.Delete(trackingKey)
+	} else {
+		hmf.logger.Info("Successfully sent metadata for Helm release",
+			"release", releaseName,
+			"namespace", secret.Namespace,
+			"revision", revision)
+	}
+}
+
+// processHelmConfigMap processes a Helm release ConfigMap and sends metadata if new or updated
+func (hmf *HelmMetadataForwarder) processHelmConfigMap(cm *corev1.ConfigMap) {
+	if !strings.HasPrefix(cm.Name, releasePrefix) {
+		return
+	}
+
+	trackingKey := fmt.Sprintf("%s/%s/%s", cm.Namespace, cm.Name, cm.ResourceVersion)
+	if _, exists := hmf.processedReleases.LoadOrStore(trackingKey, true); exists {
+		hmf.logger.V(1).Info("Skipping already processed configmap", "configmap", cm.Name, "resourceVersion", cm.ResourceVersion)
+		return
+	}
+
+	release, releaseName, revision, ok := hmf.parseHelmResource(cm.Name, []byte(cm.Data["release"]))
+	if !ok {
+		return
+	}
+
+	hmf.logger.V(1).Info("Processing new/updated Helm release from ConfigMap",
+		"release", releaseName,
+		"namespace", cm.Namespace,
+		"revision", revision)
+
+	releaseData := hmf.buildReleaseData(release, releaseName, revision, string(cm.UID), cm.Namespace)
+	if releaseData == nil {
+		return
+	}
+
+	if err := hmf.sendSingleReleasePayload(*releaseData); err != nil {
+		hmf.logger.Info("Failed to send metadata for Helm release",
+			"error", err,
+			"release", releaseName,
+			"namespace", cm.Namespace)
+		hmf.processedReleases.Delete(trackingKey)
+	} else {
+		hmf.logger.Info("Successfully sent metadata for Helm release",
+			"release", releaseName,
+			"namespace", cm.Namespace,
+			"revision", revision)
+	}
+}
+
+// buildReleaseData constructs HelmReleaseData from a parsed release
+func (hmf *HelmMetadataForwarder) buildReleaseData(release *HelmReleaseMinimal, releaseName string, revision int, uid, namespace string) *HelmReleaseData {
+	providedValuesYAML, err := yaml.Marshal(release.Config)
+	if err != nil {
+		hmf.logger.V(1).Info("Failed to marshal Helm provided values", "release", releaseName, "error", err)
+		return nil
+	}
+
+	fullValues := hmf.mergeValues(release.Chart.Values, release.Config)
+	fullValuesYAML, err := yaml.Marshal(fullValues)
+	if err != nil {
+		hmf.logger.V(1).Info("Failed to marshal Helm full values", "release", releaseName, "error", err)
+		fullValuesYAML = providedValuesYAML
+	}
+
+	return &HelmReleaseData{
+		ReleaseName:        releaseName,
+		Namespace:          namespace,
+		ChartName:          release.Chart.Metadata.Name,
+		ChartVersion:       release.Chart.Metadata.Version,
+		AppVersion:         release.Chart.Metadata.AppVersion,
+		ConfigMapUID:       uid,
+		ProvidedValuesYAML: string(providedValuesYAML),
+		FullValuesYAML:     string(fullValuesYAML),
+		Revision:           revision,
+		Status:             release.Info.Status,
+	}
 }
 
 func (hmf *HelmMetadataForwarder) sendSingleReleasePayload(release HelmReleaseData) error {
@@ -270,155 +486,6 @@ func (hmf *HelmMetadataForwarder) buildPayload(release HelmReleaseData, clusterU
 	}
 
 	return jsonPayload
-}
-
-// getFromCache retrieves the cached Helm releases if they exist and are not expired
-func (c *allHelmReleasesCache) getFromCache() ([]HelmReleaseData, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	if c.releases == nil || time.Since(c.timestamp) > helmValuesCacheTTL {
-		return nil, false
-	}
-	return c.releases, true
-}
-
-// setCache stores the Helm releases in the cache with the current timestamp
-func (c *allHelmReleasesCache) setCache(releases []HelmReleaseData) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.releases = releases
-	c.timestamp = time.Now()
-}
-
-// discoverAllHelmReleases finds all Helm releases in the watched namespaces
-func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) ([]HelmReleaseData, error) {
-	// Check cache first
-	if cachedReleases, ok := hmf.allHelmReleasesCache.getFromCache(); ok {
-		hmf.logger.V(1).Info("Using cached Helm releases", "count", len(cachedReleases))
-		return cachedReleases, nil
-	}
-
-	hmf.logger.V(1).Info("Cache miss, discovering Helm releases from cluster")
-
-	latestReleases := make(map[string]struct {
-		release  HelmReleaseMinimal
-		uid      string
-		revision int
-	})
-
-	var allErrors []error
-
-	namespacesToSearch := getWatchNamespacesForHelm(hmf.logger)
-	for _, namespace := range namespacesToSearch {
-		for chartName := range allowedCharts {
-			listOpts := []client.ListOption{
-				client.MatchingLabels{
-					"owner": "helm",
-					"name":  chartName,
-				},
-			}
-			if namespace != "" {
-				listOpts = append(listOpts, client.InNamespace(namespace))
-			}
-
-			secretList := &corev1.SecretList{}
-			if err := hmf.k8sClient.List(ctx, secretList, listOpts...); err != nil {
-				hmf.logger.Info("Error listing Secrets for Helm releases", "error", err, "namespace", namespace, "chart", chartName)
-				allErrors = append(allErrors, fmt.Errorf("secrets in namespace %s for chart %s: %w", namespace, chartName, err))
-			} else {
-				hmf.logger.V(1).Info("Scanning Secrets for Helm releases", "namespace", namespace, "chart", chartName, "total_secrets", len(secretList.Items))
-				for _, secret := range secretList.Items {
-					if !strings.HasPrefix(secret.Name, releasePrefix) {
-						continue
-					}
-
-					if release, releaseName, revision, ok := hmf.parseHelmResource(secret.Name, secret.Data["release"]); ok {
-						key := fmt.Sprintf("%s/%s", secret.Namespace, releaseName)
-						if existing, exists := latestReleases[key]; !exists || revision > existing.revision {
-							latestReleases[key] = struct {
-								release  HelmReleaseMinimal
-								uid      string
-								revision int
-							}{
-								release:  *release,
-								uid:      string(secret.UID),
-								revision: revision,
-							}
-						}
-					}
-				}
-			}
-
-			cmList := &corev1.ConfigMapList{}
-			if err := hmf.k8sClient.List(ctx, cmList, listOpts...); err != nil {
-				hmf.logger.Info("Error listing ConfigMaps for Helm releases", "error", err, "namespace", namespace, "chart", chartName)
-				allErrors = append(allErrors, fmt.Errorf("configmaps in namespace %s for chart %s: %w", namespace, chartName, err))
-			} else {
-				hmf.logger.V(1).Info("Scanning ConfigMaps for Helm releases", "namespace", namespace, "chart", chartName, "total_configmaps", len(cmList.Items))
-				for _, cm := range cmList.Items {
-					if !strings.HasPrefix(cm.Name, releasePrefix) {
-						continue
-					}
-
-					if release, releaseName, revision, ok := hmf.parseHelmResource(cm.Name, []byte(cm.Data["release"])); ok {
-						key := fmt.Sprintf("%s/%s", cm.Namespace, releaseName)
-						if existing, exists := latestReleases[key]; !exists || revision > existing.revision {
-							latestReleases[key] = struct {
-								release  HelmReleaseMinimal
-								uid      string
-								revision int
-							}{
-								release:  *release,
-								uid:      string(cm.UID),
-								revision: revision,
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	if len(allErrors) > 0 && len(latestReleases) == 0 {
-		return nil, fmt.Errorf("failed to discover any Helm releases: %v", allErrors)
-	}
-
-	releases := make([]HelmReleaseData, 0, len(latestReleases))
-	for _, data := range latestReleases {
-		providedValuesYAML, err := yaml.Marshal(data.release.Config)
-		if err != nil {
-			hmf.logger.V(1).Info("Failed to marshal Helm provided values", "release", data.release.Name, "error", err)
-			continue
-		}
-
-		fullValues := hmf.mergeValues(data.release.Chart.Values, data.release.Config)
-		fullValuesYAML, err := yaml.Marshal(fullValues)
-		if err != nil {
-			hmf.logger.V(1).Info("Failed to marshal Helm full values", "release", data.release.Name, "error", err)
-			// Fall back
-			fullValuesYAML = providedValuesYAML
-		}
-
-		releaseData := HelmReleaseData{
-			ReleaseName:        data.release.Name,
-			Namespace:          data.release.Namespace,
-			ChartName:          data.release.Chart.Metadata.Name,
-			ChartVersion:       data.release.Chart.Metadata.Version,
-			AppVersion:         data.release.Chart.Metadata.AppVersion,
-			ConfigMapUID:       data.uid,
-			ProvidedValuesYAML: string(providedValuesYAML),
-			FullValuesYAML:     string(fullValuesYAML),
-			Revision:           data.revision,
-			Status:             data.release.Info.Status,
-		}
-		releases = append(releases, releaseData)
-	}
-
-	hmf.allHelmReleasesCache.setCache(releases)
-
-	return releases, nil
 }
 
 // parseHelmResource extracts release information from a Helm Secret or ConfigMap
