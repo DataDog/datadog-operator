@@ -65,7 +65,7 @@ func (c *ClusterChecksRunnerComponent) Reconcile(ctx context.Context, params *Re
 	var result reconcile.Result
 
 	// Start by creating the Default Cluster Checks Runner deployment
-	deployment := componentccr.NewDefaultClusterChecksRunnerDeployment(params.DDAI)
+	deployment := componentccr.NewDefaultClusterChecksRunnerDeployment(params.DDAI.GetObjectMeta(), &params.DDAI.Spec)
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
@@ -105,7 +105,7 @@ func (c *ClusterChecksRunnerComponent) Reconcile(ctx context.Context, params *Re
 
 // Cleanup removes the ClusterChecksRunner deployment
 func (c *ClusterChecksRunnerComponent) Cleanup(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error) {
-	deployment := componentccr.NewDefaultClusterChecksRunnerDeployment(params.DDAI)
+	deployment := componentccr.NewDefaultClusterChecksRunnerDeployment(params.DDAI.GetObjectMeta(), &params.DDAI.Spec)
 	return c.reconciler.cleanupV2ClusterChecksRunner(params.Logger, params.DDAI, deployment, params.Status)
 }
 
