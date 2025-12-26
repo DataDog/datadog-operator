@@ -34,9 +34,6 @@ type ComponentReconciler interface {
 	// IsEnabled checks if this component should be reconciled based on requiredComponents
 	IsEnabled(requiredComponents feature.RequiredComponents) bool
 
-	// Cleanup removes resources when component is disabled
-	Cleanup(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error)
-
 	// GetConditionType returns the condition type used for status updates
 	GetConditionType() string
 
@@ -113,7 +110,7 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 }
 
 // Reconcile reconciles component
-func (c *ComponentRegistry) reconcileComponent(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (reconcile.Result, error) {
+func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (reconcile.Result, error) {
 	var result reconcile.Result
 	now := metav1.NewTime(time.Now())
 	deploymentLogger := params.Logger.WithValues("component", component.Name())
@@ -142,7 +139,7 @@ func (c *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 	componentEnabled := component.IsEnabled(params.RequiredComponents)
 
 	if component.ForceDeleteComponent(params.DDA, component.Name(), params.RequiredComponents) {
-		return component.Cleanup(ctx, params)
+		return r.Cleanup(ctx, params, component)
 	}
 
 	// If Override is defined for the component, apply the override on the PodTemplateSpec, it will cascade to container.
@@ -160,15 +157,15 @@ func (c *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 					true,
 				)
 			}
-			return component.Cleanup(ctx, params)
+			return r.Cleanup(ctx, params, component)
 		}
 		override.PodTemplateSpec(params.Logger, podManagers, componentOverride, component.Name(), params.DDA.Name)
 		override.Deployment(deployment, componentOverride)
 	} else if !componentEnabled {
-		return component.Cleanup(ctx, params)
+		return r.Cleanup(ctx, params, component)
 	}
 
-	if c.reconciler.options.IntrospectionEnabled {
+	if r.reconciler.options.IntrospectionEnabled {
 		// Add provider label to deployment
 		if deployment.Labels == nil {
 			deployment.Labels = make(map[string]string)
@@ -176,7 +173,7 @@ func (c *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 		deployment.Labels[constants.MD5AgentDeploymentProviderLabelKey] = params.Provider
 	}
 
-	res, err := c.reconciler.createOrUpdateDeployment(deploymentLogger, params.DDA, deployment, params.Status, component.UpdateStatus)
+	res, err := r.reconciler.createOrUpdateDeployment(deploymentLogger, params.DDA, deployment, params.Status, component.UpdateStatus)
 
 	if err == nil {
 		// Update condition to success since the deployment was created or updated successfully
@@ -192,6 +189,24 @@ func (c *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 	}
 
 	return res, err
+}
+
+// Cleanup removes the component deployment, associated resources and updates status
+func (r *ComponentRegistry) Cleanup(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (reconcile.Result, error) {
+	deployment := component.GetNewDeploymentFunc()(params.DDA.GetObjectMeta(), &params.DDA.Spec)
+	result, err := r.reconciler.deleteDeploymentWithEvent(ctx, params.Logger, params.DDA, deployment)
+
+	if err != nil {
+		return result, err
+	}
+
+	// Do status and other resource cleanup if the deployment was deleted successfully
+	if result, err = component.CleanupDependencies(ctx, params.Logger, params.DDA, params.ResourceManagers); err != nil {
+		return result, err
+	}
+	component.DeleteStatus(params.Status, component.GetConditionType())
+
+	return result, nil
 }
 
 // GetComponent returns a registered component by name

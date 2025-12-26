@@ -64,24 +64,6 @@ func (c *ClusterChecksRunnerComponent) GetManageFeatureFunc() func(feat feature.
 	}
 }
 
-// Cleanup removes the component deployment, associated resources and updates status
-func (c *ClusterChecksRunnerComponent) Cleanup(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error) {
-	deployment := c.GetNewDeploymentFunc()(params.DDA.GetObjectMeta(), &params.DDA.Spec)
-	result, err := c.reconciler.deleteDeploymentWithEvent(ctx, params.Logger, params.DDA, deployment)
-
-	if err != nil {
-		return result, err
-	}
-
-	// Do status and other resource cleanup if the deployment was deleted successfully
-	if result, err := c.CleanupDependencies(ctx, params.Logger, params.DDA, params.ResourceManagers); err != nil {
-		return result, err
-	}
-	c.DeleteStatus(params.Status, c.GetConditionType())
-
-	return result, nil
-}
-
 func (c *ClusterChecksRunnerComponent) UpdateStatus(deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
 	newStatus.ClusterChecksRunner = condition.UpdateDeploymentStatus(deployment, newStatus.ClusterChecksRunner, &updateTime)
 	condition.UpdateDatadogAgentStatusConditions(newStatus, updateTime, common.ClusterChecksRunnerReconcileConditionType, status, reason, message, true)
