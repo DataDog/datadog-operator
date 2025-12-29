@@ -164,18 +164,24 @@ func (hmf *HelmMetadataForwarder) Start() {
 
 	namespacesToWatch := getWatchNamespacesForHelm(hmf.logger)
 
-	for _, namespace := range namespacesToWatch {
-		for chartName := range allowedCharts {
-			// Start watch for Secrets
-			go hmf.watchHelmResources(namespace, chartName, true)
-			// Start watch for ConfigMaps
-			go hmf.watchHelmResources(namespace, chartName, false)
-		}
+	for chartName := range allowedCharts {
+		go hmf.watchHelmResources(chartName, namespacesToWatch, true)
+		go hmf.watchHelmResources(chartName, namespacesToWatch, false)
 	}
 }
 
 // watchHelmResources watches for Helm release changes in Secrets or ConfigMaps
-func (hmf *HelmMetadataForwarder) watchHelmResources(namespace, chartName string, isSecret bool) {
+func (hmf *HelmMetadataForwarder) watchHelmResources(chartName string, namespacesToWatch []string, isSecret bool) {
+	namespaceFilter := make(map[string]bool)
+	watchAllNamespaces := false
+	for _, ns := range namespacesToWatch {
+		if ns == "" {
+			watchAllNamespaces = true
+			break
+		}
+		namespaceFilter[ns] = true
+	}
+
 	for {
 		select {
 		case <-hmf.ctx.Done():
@@ -183,21 +189,15 @@ func (hmf *HelmMetadataForwarder) watchHelmResources(namespace, chartName string
 		default:
 		}
 
-		if err := hmf.watchLoop(namespace, chartName, isSecret); err != nil {
-			// Backoff before retry
+		if err := hmf.watchLoop(chartName, namespaceFilter, watchAllNamespaces, isSecret); err != nil {
 			time.Sleep(5 * time.Second)
 		}
 	}
 }
 
 // watchLoop performs a single watch cycle
-func (hmf *HelmMetadataForwarder) watchLoop(namespace, chartName string, isSecret bool) error {
+func (hmf *HelmMetadataForwarder) watchLoop(chartName string, namespaceFilter map[string]bool, watchAllNamespaces bool, isSecret bool) error {
 	labelSelector := fmt.Sprintf("owner=helm,name=%s", chartName)
-
-	watchNamespace := namespace
-	if watchNamespace == "" {
-		watchNamespace = metav1.NamespaceAll
-	}
 
 	watchOpts := metav1.ListOptions{
 		LabelSelector: labelSelector,
@@ -207,40 +207,52 @@ func (hmf *HelmMetadataForwarder) watchLoop(namespace, chartName string, isSecre
 	var watcher watch.Interface
 
 	if isSecret {
-		secretList, err := hmf.clientset.CoreV1().Secrets(watchNamespace).List(hmf.ctx, metav1.ListOptions{
+		secretList, err := hmf.clientset.CoreV1().Secrets(metav1.NamespaceAll).List(hmf.ctx, metav1.ListOptions{
 			LabelSelector: labelSelector,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to list secrets: %w", err)
 		}
 
-		// Filter to only process the latest revision of each release
-		latestSecrets := hmf.findLatestSecretRevisions(secretList.Items)
+		// Filter to only process the latest revision of each release in allowed namespaces
+		var filteredSecrets []corev1.Secret
+		for i := range secretList.Items {
+			if watchAllNamespaces || namespaceFilter[secretList.Items[i].Namespace] {
+				filteredSecrets = append(filteredSecrets, secretList.Items[i])
+			}
+		}
+		latestSecrets := hmf.findLatestSecretRevisions(filteredSecrets)
 		for i := range latestSecrets {
 			hmf.processHelmSecret(&latestSecrets[i])
 		}
 
 		// Start watching for new/updated releases
-		watcher, err = hmf.clientset.CoreV1().Secrets(watchNamespace).Watch(hmf.ctx, watchOpts)
+		watcher, err = hmf.clientset.CoreV1().Secrets(metav1.NamespaceAll).Watch(hmf.ctx, watchOpts)
 		if err != nil {
 			return fmt.Errorf("failed to start secret watch: %w", err)
 		}
 	} else {
-		cmList, err := hmf.clientset.CoreV1().ConfigMaps(watchNamespace).List(hmf.ctx, metav1.ListOptions{
+		cmList, err := hmf.clientset.CoreV1().ConfigMaps(metav1.NamespaceAll).List(hmf.ctx, metav1.ListOptions{
 			LabelSelector: labelSelector,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to list configmaps: %w", err)
 		}
 
-		// Filter to only process the latest revision of each release
-		latestCMs := hmf.findLatestConfigMapRevisions(cmList.Items)
+		// Filter to only process the latest revision of each release in allowed namespaces
+		var filteredCMs []corev1.ConfigMap
+		for i := range cmList.Items {
+			if watchAllNamespaces || namespaceFilter[cmList.Items[i].Namespace] {
+				filteredCMs = append(filteredCMs, cmList.Items[i])
+			}
+		}
+		latestCMs := hmf.findLatestConfigMapRevisions(filteredCMs)
 		for i := range latestCMs {
 			hmf.processHelmConfigMap(&latestCMs[i])
 		}
 
 		// Start watching for new/updated releases
-		watcher, err = hmf.clientset.CoreV1().ConfigMaps(watchNamespace).Watch(hmf.ctx, watchOpts)
+		watcher, err = hmf.clientset.CoreV1().ConfigMaps(metav1.NamespaceAll).Watch(hmf.ctx, watchOpts)
 		if err != nil {
 			return fmt.Errorf("failed to start configmap watch: %w", err)
 		}
@@ -263,16 +275,23 @@ func (hmf *HelmMetadataForwarder) watchLoop(namespace, chartName string, isSecre
 			case watch.Added:
 				if isSecret {
 					if secret, ok := event.Object.(*corev1.Secret); ok {
-						hmf.processHelmSecret(secret)
+						// Filter by namespace
+						if watchAllNamespaces || namespaceFilter[secret.Namespace] {
+							hmf.processHelmSecret(secret)
+						}
 					}
 				} else {
 					if cm, ok := event.Object.(*corev1.ConfigMap); ok {
-						hmf.processHelmConfigMap(cm)
+						// Filter by namespace
+						if watchAllNamespaces || namespaceFilter[cm.Namespace] {
+							hmf.processHelmConfigMap(cm)
+						}
 					}
 				}
 
 			case watch.Error:
-				return fmt.Errorf("watch error")
+				hmf.logger.V(1).Info("Watch error event received")
+				return fmt.Errorf("watch error event")
 			}
 		}
 	}
