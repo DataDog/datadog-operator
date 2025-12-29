@@ -14,7 +14,7 @@ spec:
           name: otel-grpc
         - containerPort: 4318
           name: otel-http
-      conf: 
+      conf:
         configData: |-
             receivers:
               otlp:
@@ -29,20 +29,16 @@ spec:
               datadog:
                 api:
                   key: ${env:DD_API_KEY}
-            processors:
-              batch:
-            connectors:
+                sending_queue:
+                  batch:
             service:
               pipelines:
                 traces:
                   receivers: [otlp]
-                  processors: [batch]
                   exporters: [datadog]
                 metrics:
                   receivers: [otlp]
-                  processors: [batch]
                   exporters: [datadog]
                 logs:
                   receivers: [otlp]
-                  processors: [batch]
                   exporters: [datadog]
