@@ -131,7 +131,6 @@ func NewHelmMetadataForwarder(logger logr.Logger, k8sClient client.Reader, clien
 
 // Stop stops the helm metadata forwarder and cancels all watches
 func (hmf *HelmMetadataForwarder) Stop() {
-	hmf.logger.V(1).Info("Stopping metadata forwarder")
 	if hmf.cancel != nil {
 		hmf.cancel()
 	}
@@ -177,30 +176,14 @@ func (hmf *HelmMetadataForwarder) Start() {
 
 // watchHelmResources watches for Helm release changes in Secrets or ConfigMaps
 func (hmf *HelmMetadataForwarder) watchHelmResources(namespace, chartName string, isSecret bool) {
-	resourceType := "ConfigMap"
-	if isSecret {
-		resourceType = "Secret"
-	}
-
-	hmf.logger.V(1).Info("Starting watch for Helm releases",
-		"namespace", namespace,
-		"chart", chartName,
-		"resource_type", resourceType)
-
 	for {
 		select {
 		case <-hmf.ctx.Done():
-			hmf.logger.V(1).Info("Watch cancelled", "namespace", namespace, "chart", chartName, "resource_type", resourceType)
 			return
 		default:
 		}
 
 		if err := hmf.watchLoop(namespace, chartName, isSecret); err != nil {
-			hmf.logger.V(1).Info("Watch error, will retry",
-				"error", err,
-				"namespace", namespace,
-				"chart", chartName,
-				"resource_type", resourceType)
 			// Backoff before retry
 			time.Sleep(5 * time.Second)
 		}
@@ -236,7 +219,6 @@ func (hmf *HelmMetadataForwarder) watchLoop(namespace, chartName string, isSecre
 		for i := range latestSecrets {
 			hmf.processHelmSecret(&latestSecrets[i])
 		}
-		hmf.logger.V(1).Info("Processed existing secrets, starting watch", "total", len(secretList.Items), "latest_only", len(latestSecrets), "namespace", watchNamespace)
 
 		// Start watching for new/updated releases
 		watcher, err = hmf.clientset.CoreV1().Secrets(watchNamespace).Watch(hmf.ctx, watchOpts)
@@ -256,7 +238,6 @@ func (hmf *HelmMetadataForwarder) watchLoop(namespace, chartName string, isSecre
 		for i := range latestCMs {
 			hmf.processHelmConfigMap(&latestCMs[i])
 		}
-		hmf.logger.V(1).Info("Processed existing configmaps, starting watch", "total", len(cmList.Items), "latest_only", len(latestCMs), "namespace", watchNamespace)
 
 		// Start watching for new/updated releases
 		watcher, err = hmf.clientset.CoreV1().ConfigMaps(watchNamespace).Watch(hmf.ctx, watchOpts)
@@ -271,7 +252,6 @@ func (hmf *HelmMetadataForwarder) watchLoop(namespace, chartName string, isSecre
 	for {
 		select {
 		case <-hmf.ctx.Done():
-			hmf.logger.V(1).Info("Watch context cancelled", "namespace", watchNamespace, "chart", chartName)
 			return nil
 
 		case event, ok := <-watcher.ResultChan():
@@ -292,10 +272,7 @@ func (hmf *HelmMetadataForwarder) watchLoop(namespace, chartName string, isSecre
 				}
 
 			case watch.Error:
-				hmf.logger.V(1).Info("Watch error event received",
-					"namespace", watchNamespace,
-					"chart", chartName)
-				return fmt.Errorf("watch error event")
+				return fmt.Errorf("watch error")
 			}
 		}
 	}
@@ -539,12 +516,6 @@ func (hmf *HelmMetadataForwarder) sendSingleReleasePayload(release HelmReleaseDa
 	}
 	payload := hmf.buildPayload(release, clusterUID)
 
-	hmf.logger.V(1).Info("Built metadata payload",
-		"release", release.ReleaseName,
-		"namespace", release.Namespace,
-		"chart", release.ChartName,
-		"payload_size", len(payload))
-
 	req, err := hmf.createRequest(payload)
 	if err != nil {
 		return fmt.Errorf("error creating request: %w", err)
@@ -555,10 +526,6 @@ func (hmf *HelmMetadataForwarder) sendSingleReleasePayload(release HelmReleaseDa
 		return fmt.Errorf("error sending metadata request: %w", err)
 	}
 	defer resp.Body.Close()
-
-	hmf.logger.V(1).Info("Received HTTP response for metadata",
-		"release", release.ReleaseName,
-		"status_code", resp.StatusCode)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
