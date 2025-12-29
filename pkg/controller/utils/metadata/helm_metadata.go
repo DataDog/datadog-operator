@@ -22,8 +22,10 @@ import (
 	"github.com/go-logr/logr"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
+	toolscache "k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/DataDog/datadog-operator/pkg/config"
 )
@@ -47,6 +49,7 @@ type HelmMetadataForwarder struct {
 	*SharedMetadata
 
 	allHelmReleasesCache allHelmReleasesCache
+	mgr                  manager.Manager
 }
 
 type HelmMetadataPayload struct {
@@ -120,6 +123,14 @@ func NewHelmMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kuber
 	}
 }
 
+func NewHelmMetadataForwarderWithManager(logger logr.Logger, mgr manager.Manager, k8sClient client.Reader, kubernetesVersion string, operatorVersion string, credsManager *config.CredentialManager) *HelmMetadataForwarder {
+	forwarderLogger := logger.WithName("helm")
+	return &HelmMetadataForwarder{
+		SharedMetadata: NewSharedMetadata(forwarderLogger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
+		mgr:            mgr,
+	}
+}
+
 // getWatchNamespacesForHelm retrieves the list of namespaces to watch from environment variables
 func getWatchNamespacesForHelm(logger logr.Logger) []string {
 	nsMap := config.GetWatchNamespacesFromEnv(logger, config.AgentWatchNamespaceEnvVar)
@@ -139,6 +150,80 @@ func getWatchNamespacesForHelm(logger logr.Logger) []string {
 
 // Start starts the helm metadata forwarder
 func (hmf *HelmMetadataForwarder) Start() {
+
+	cmInformer, err := hmf.mgr.GetCache().GetInformer(context.Background(), &corev1.ConfigMap{})
+	if err != nil {
+		hmf.logger.Error(err, "Error getting ConfigMap informer")
+		return
+	}
+	secretInformer, err := hmf.mgr.GetCache().GetInformer(context.Background(), &corev1.Secret{})
+	if err != nil {
+		hmf.logger.Error(err, "Error getting Secret informer")
+		return
+	}
+
+	_, err = cmInformer.AddEventHandler(toolscache.FilteringResourceEventHandler{
+		FilterFunc: func(obj any) bool {
+			cm, ok := obj.(*corev1.ConfigMap)
+			if ok && cm.Labels["owner"] == "helm" {
+				return true
+			}
+			return false
+		},
+		Handler: toolscache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj any) {
+				cm, _ := obj.(*corev1.ConfigMap)
+				hmf.logger.V(1).Info("ConfigMap added", "obj", cm.GetName())
+			},
+			UpdateFunc: func(oldObj, newObj any) {
+				cm, _ := newObj.(*corev1.ConfigMap)
+				hmf.logger.V(1).Info("ConfigMap updated", "oldObj", cm.GetName())
+			},
+			DeleteFunc: func(obj any) {
+				cm, _ := obj.(*corev1.ConfigMap)
+				hmf.logger.V(1).Info("ConfigMap deleted", "obj", cm.GetName())
+			},
+		},
+	})
+
+	if err != nil {
+		hmf.logger.Error(err, "Error adding event handler to Secret informer")
+		return
+	}
+
+	_, err = secretInformer.AddEventHandler(toolscache.FilteringResourceEventHandler{
+		FilterFunc: func(obj any) bool {
+			secret, ok := obj.(*corev1.Secret)
+			if ok && secret.Labels["owner"] == "helm" {
+				return true
+			}
+			return false
+		},
+		Handler: toolscache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj any) {
+				secret, _ := obj.(*corev1.Secret)
+				hmf.logger.V(1).Info("Secret added", "obj", secret.GetName())
+			},
+			UpdateFunc: func(oldObj, newObj any) {
+				secret, _ := newObj.(*corev1.Secret)
+				hmf.logger.V(1).Info("Secret updated", "oldObj", secret.GetName())
+			},
+			DeleteFunc: func(obj any) {
+				secret, _ := obj.(*corev1.Secret)
+				hmf.logger.V(1).Info("Secret deleted", "obj", secret.GetName())
+			},
+		},
+	})
+
+	if err != nil {
+		hmf.logger.Error(err, "Error adding event handler to Secret informer")
+		return
+	}
+
+	if !hmf.mgr.GetCache().WaitForCacheSync(context.Background()) {
+		hmf.logger.Error(err, "Error waiting for cache sync")
+	}
+
 	if hmf.hostName == "" {
 		hmf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting metadata forwarder")
 		return

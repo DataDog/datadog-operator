@@ -400,7 +400,7 @@ func run(opts *options) error {
 		<-mgr.Elected()
 		setupLog.Info("Starting metadata forwarders")
 		setupAndStartOperatorMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
-		setupAndStartHelmMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
+		setupAndStartHelmMetadataForwarder(metadataLog, mgr, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
 		setupAndStartCRDMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
 	}()
 
@@ -571,7 +571,7 @@ func setupAndStartCRDMetadataForwarder(logger logr.Logger, client client.Reader,
 	cmf.Start()
 }
 
-func setupAndStartHelmMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options, credsManager *config.CredentialManager) {
-	hmf := metadata.NewHelmMetadataForwarder(logger, client, kubernetesVersion, version.GetVersion(), credsManager)
+func setupAndStartHelmMetadataForwarder(logger logr.Logger, mgr manager.Manager, client client.Reader, kubernetesVersion string, options *options, credsManager *config.CredentialManager) {
+	hmf := metadata.NewHelmMetadataForwarderWithManager(logger, mgr, client, kubernetesVersion, version.GetVersion(), credsManager)
 	hmf.Start()
 }
