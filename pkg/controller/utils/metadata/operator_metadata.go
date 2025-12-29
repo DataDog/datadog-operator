@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -28,6 +29,7 @@ const (
 type OperatorMetadataForwarder struct {
 	*SharedMetadata
 
+	mutex            sync.RWMutex
 	OperatorMetadata OperatorMetadata
 }
 
@@ -64,7 +66,7 @@ type OperatorMetadata struct {
 }
 
 // NewOperatorMetadataForwarder creates a new instance of the operator metadata forwarder
-func NewOperatorMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string, credsManager *config.CredentialManager) *OperatorMetadataForwarder {
+func NewOperatorMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion, operatorVersion string, credsManager *config.CredentialManager) *OperatorMetadataForwarder {
 	forwarderLogger := logger.WithName("operator")
 	return &OperatorMetadataForwarder{
 		SharedMetadata:   NewSharedMetadata(forwarderLogger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
@@ -123,6 +125,9 @@ func (omf *OperatorMetadataForwarder) sendMetadata() error {
 func (omf *OperatorMetadataForwarder) GetPayload(clusterUID string) []byte {
 	now := time.Now().Unix()
 
+	omf.mutex.RLock()
+	defer omf.mutex.RUnlock()
+
 	omf.OperatorMetadata.ClusterID = clusterUID
 	omf.OperatorMetadata.ClusterName = omf.GetOrCreateClusterName()
 	omf.OperatorMetadata.OperatorVersion = omf.operatorVersion
@@ -151,6 +156,9 @@ func (omf *OperatorMetadataForwarder) updateResourceCounts() {
 	if omf.k8sClient == nil {
 		return
 	}
+
+	omf.mutex.Lock()
+	defer omf.mutex.Unlock()
 
 	// Only list resources that are enabled
 	// For each resource type: if fetch succeeds, update count; if fails, keep old value
