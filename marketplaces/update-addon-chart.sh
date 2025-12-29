@@ -32,6 +32,9 @@ fi
 # remove repository reference from datadog-operator Chart.yaml
 yq -i 'del(.dependencies[] | select(.alias == "datadogCRDs").repository)' $CHART_DIR/charts/datadog-operator/Chart.yaml
 
+# update image tag in operator-eks-addon values.yaml
+yq -i '.datadog-operator.image.tag = "'"$OPERATOR_SUBCHART_APPVERSION"'"' $CHART_DIR/values.yaml
+
 # clean-up sub-charts to pass add-on validation
 
 # delete semverCompare not allowed by add-on validation
