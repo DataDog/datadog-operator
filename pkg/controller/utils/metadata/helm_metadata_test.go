@@ -10,7 +10,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"testing"
-	"time"
 
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -29,7 +28,7 @@ func Test_HelmMetadataForwarder_getPayload(t *testing.T) {
 	expectedChartVersion := "3.10.0"
 	expectedAppVersion := "7.50.0"
 
-	hmf := NewHelmMetadataForwarder(zap.New(zap.UseDevMode(true)), nil, expectedKubernetesVersion, expectedOperatorVersion, config.NewCredentialManager(fake.NewFakeClient()))
+	hmf := NewHelmMetadataForwarder(zap.New(zap.UseDevMode(true)), nil, nil, expectedKubernetesVersion, expectedOperatorVersion, config.NewCredentialManager(fake.NewFakeClient()))
 
 	// Set required fields
 	hmf.hostName = expectedHostname
@@ -133,7 +132,7 @@ func Test_HelmMetadataForwarder_getPayload(t *testing.T) {
 }
 
 func Test_parseHelmResource(t *testing.T) {
-	hmf := NewHelmMetadataForwarder(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0", config.NewCredentialManager(fake.NewFakeClient()))
+	hmf := NewHelmMetadataForwarder(zap.New(zap.UseDevMode(true)), nil, nil, "v1.28.0", "v1.19.0", config.NewCredentialManager(fake.NewFakeClient()))
 
 	// Create a minimal valid Helm release JSON
 	releaseData := HelmReleaseMinimal{
@@ -237,49 +236,8 @@ func Test_parseHelmResource(t *testing.T) {
 	}
 }
 
-func Test_allHelmReleasesCache(t *testing.T) {
-	cache := &allHelmReleasesCache{}
-
-	// Test empty cache
-	if releases, ok := cache.getFromCache(); ok {
-		t.Errorf("getFromCache() on empty cache returned ok=true, releases=%v", releases)
-	}
-
-	// Set cache with test data
-	testReleases := []HelmReleaseData{
-		{
-			ReleaseName:  "release1",
-			Namespace:    "default",
-			ChartName:    "chart1",
-			ChartVersion: "1.0.0",
-		},
-		{
-			ReleaseName:  "release2",
-			Namespace:    "kube-system",
-			ChartName:    "chart2",
-			ChartVersion: "2.0.0",
-		},
-	}
-	cache.setCache(testReleases)
-
-	// Test cache hit
-	releases, ok := cache.getFromCache()
-	if !ok {
-		t.Error("getFromCache() after setCache returned ok=false")
-	}
-	if len(releases) != len(testReleases) {
-		t.Errorf("getFromCache() returned %d releases, want %d", len(releases), len(testReleases))
-	}
-
-	// Test cache expiration
-	cache.timestamp = time.Now().Add(-2 * helmValuesCacheTTL) // Set timestamp to expired
-	if _, ok := cache.getFromCache(); ok {
-		t.Error("getFromCache() on expired cache returned ok=true")
-	}
-}
-
 func Test_mergeValues(t *testing.T) {
-	hmf := NewHelmMetadataForwarder(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0", config.NewCredentialManager(fake.NewFakeClient()))
+	hmf := NewHelmMetadataForwarder(zap.New(zap.UseDevMode(true)), nil, nil, "v1.28.0", "v1.19.0", config.NewCredentialManager(fake.NewFakeClient()))
 
 	tests := []struct {
 		name      string
