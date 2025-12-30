@@ -18,6 +18,7 @@ import (
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CSPMHostBenchmarksConfig":            schema_datadog_operator_api_datadoghq_v2alpha1_CSPMHostBenchmarksConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CelWorkloadExcludeConfig":            schema_datadog_operator_api_datadoghq_v2alpha1_CelWorkloadExcludeConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ControlPlaneMonitoringFeatureConfig": schema_datadog_operator_api_datadoghq_v2alpha1_ControlPlaneMonitoringFeatureConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CoreConfig":                          schema_datadog_operator_api_datadoghq_v2alpha1_CoreConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig":                        schema_datadog_operator_api_datadoghq_v2alpha1_CustomConfig(ref),
@@ -71,6 +72,47 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_CSPMHostBenchmarksConfig(ref
 				},
 			},
 		},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_CelWorkloadExcludeConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CelWorkloadExcludeConfig configures CEL-based filtering to exclude specific workloads from Agent collection.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"products": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Products specifies which products these exclusion rules apply to.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"rules": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Rules defines the CEL expressions used to identify workloads to exclude.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CelWorkloadExcludeRules"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CelWorkloadExcludeRules"},
 	}
 }
 
@@ -250,7 +292,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgent(ref common.Refe
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogAgent Deployment with the Datadog Operator.",
+				Description: "DatadogAgent defines Agent configuration, see reference https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {

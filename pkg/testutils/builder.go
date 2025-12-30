@@ -1119,3 +1119,8 @@ func (builder *DatadogAgentBuilder) WithControlPlaneMonitoring(enabled bool) *Da
 	builder.datadogAgent.Spec.Features.ControlPlaneMonitoring.Enabled = apiutils.NewBoolPointer(enabled)
 	return builder
 }
+
+func (builder *DatadogAgentBuilder) WithStatus(status v2alpha1.DatadogAgentStatus) *DatadogAgentBuilder {
+	builder.datadogAgent.Status = status
+	return builder
+}

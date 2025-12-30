@@ -279,6 +279,31 @@ func TestGetRBACPolicyRules(t *testing.T) {
 				assert.True(t, hasArgo, "Should have Argo Application permissions")
 			},
 		},
+		{
+			name: "with wildcard kind",
+			collectorOpts: collectorOptions{
+				customResources: []v2alpha1.Resource{
+					{
+						GroupVersionKind: v2alpha1.GroupVersionKind{
+							Group:   "stable.example.com",
+							Version: "v1",
+							Kind:    "*",
+						},
+					},
+				},
+			},
+			validateFunc: func(t *testing.T, rules []rbacv1.PolicyRule) {
+				hasStable := false
+				for _, rule := range rules {
+					if slices.Contains(rule.APIGroups, "stable.example.com") {
+						hasStable = true
+						assert.Contains(t, rule.Resources, "*")
+						break
+					}
+				}
+				assert.True(t, hasStable, "Should have stable.example.com permissions")
+			},
+		},
 	}
 
 	for _, tc := range testCases {

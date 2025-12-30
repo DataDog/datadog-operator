@@ -32,6 +32,9 @@ fi
 # remove repository reference from datadog-operator Chart.yaml
 yq -i 'del(.dependencies[] | select(.alias == "datadogCRDs").repository)' $CHART_DIR/charts/datadog-operator/Chart.yaml
 
+# update image tag in operator-eks-addon values.yaml
+yq -i '.datadog-operator.image.tag = "'"$OPERATOR_SUBCHART_APPVERSION"'"' $CHART_DIR/values.yaml
+
 # clean-up sub-charts to pass add-on validation
 
 # delete semverCompare not allowed by add-on validation
@@ -48,12 +51,13 @@ sed -i '' "s#{{ .Release.Service }}#eks-addon#g" ./charts/operator-eks-addon/cha
 # replace PDB policy version check with just v1 assignment, and clean up any extra end block
 sed -i '' '/{{- define "policy.poddisruptionbudget.apiVersion" -}}/,/{{- end -}}/c\
 {{- define "policy.poddisruptionbudget.apiVersion" -}}\
-"policy/v1"\
-{{- end -}}' ./charts/operator-eks-addon/charts/datadog-operator/templates/_helpers.tpl
-sed -i '' "s#{{- end -}}{{- end -}}#{{- end -}}#g" ./charts/operator-eks-addon/charts/datadog-operator/templates/_helpers.tpl
+"policy/v1"' ./charts/operator-eks-addon/charts/datadog-operator/templates/_helpers.tpl
 
 # presence of gcr.io/datadoghq/operator in values.yaml may cause issues with add-on validation
 sed -i '' 's#gcr.io/datadoghq/operator#709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator#g' ./charts/operator-eks-addon/charts/datadog-operator/values.yaml
+
+# remove Helm lookup function usage
+sed -i '' 's#{{- \$list := lookup "v1" "ConfigMap" \$ns "" -}}#{{- $list := "" -}}#' ./charts/operator-eks-addon/charts/datadog-operator/templates/_helpers.tpl
 
 # template the chart with default values
 helm template operator-eks-addon ./charts/operator-eks-addon -n datadog-agent > addon_manifest.yaml

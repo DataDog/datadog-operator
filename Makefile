@@ -301,7 +301,7 @@ preflight-redhat-container: bin/$(PLATFORM)/preflight
 # Runs only on Linux and requires `docker login` to scan.connect.redhat.com
 .PHONY: preflight-redhat-container-submit
 preflight-redhat-container-submit: bin/$(PLATFORM)/preflight
-	bin/$(PLATFORM)/preflight check container ${IMG} --submit --pyxis-api-token=${RH_PARTNER_API_TOKEN} --certification-project-id=${RH_PARTNER_PROJECT_ID} -d ~/.docker/config.json
+	bin/$(PLATFORM)/preflight check container ${IMG} --submit --pyxis-api-token=${RH_PARTNER_API_TOKEN} --certification-component-id=${RH_PARTNER_PROJECT_ID} -d ~/.docker/config.json
 
 .PHONY: patch-crds
 patch-crds: bin/$(PLATFORM)/yq ## Patch-crds
@@ -313,7 +313,13 @@ lint: bin/$(PLATFORM)/golangci-lint vet ## Lint
 
 .PHONY: licenses
 licenses: bin/$(PLATFORM)/go-licenses
-	./bin/$(PLATFORM)/go-licenses report ./cmd --template ./hack/licenses.tpl > LICENSE-3rdparty.csv 2> errors
+	# Generate licenses for all target platforms (linux/darwin/windows)
+	GOOS=linux ./bin/$(PLATFORM)/go-licenses report ./cmd ./cmd/kubectl-datadog ./cmd/check-operator ./cmd/helpers ./cmd/yaml-mapper --template ./hack/licenses.tpl > /tmp/licenses-linux.csv 2> errors
+	GOOS=darwin ./bin/$(PLATFORM)/go-licenses report ./cmd ./cmd/kubectl-datadog ./cmd/check-operator ./cmd/helpers ./cmd/yaml-mapper --template ./hack/licenses.tpl > /tmp/licenses-darwin.csv 2>> errors
+	GOOS=windows ./bin/$(PLATFORM)/go-licenses report ./cmd ./cmd/kubectl-datadog ./cmd/check-operator ./cmd/helpers ./cmd/yaml-mapper --template ./hack/licenses.tpl > /tmp/licenses-windows.csv 2>> errors
+	# Merge all platform-specific licenses into a single sorted file
+	head -1 /tmp/licenses-linux.csv > LICENSE-3rdparty.csv
+	tail -n +2 /tmp/licenses-linux.csv /tmp/licenses-darwin.csv /tmp/licenses-windows.csv | grep -v "^==>" | grep -v "^$$" | LC_ALL=C sort -u >> LICENSE-3rdparty.csv
 
 .PHONY: verify-licenses
 verify-licenses: bin/$(PLATFORM)/go-licenses ## Verify licenses
