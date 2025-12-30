@@ -7,9 +7,9 @@ metadata:
   namespace: datadog-agent
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.15.2
+    helm.sh/chart: datadog-operator-2.16.0
     app.kubernetes.io/instance: operator-eks-addon
-    app.kubernetes.io/version: "1.20.0"
+    app.kubernetes.io/version: "1.21.0"
     app.kubernetes.io/managed-by: eks-addon
 ---
 # Source: operator-eks-addon/charts/datadog-operator/charts/datadogCRDs/templates/datadoghq.com_datadogagents_v1.yaml
@@ -20,7 +20,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.17.3
   name: datadogagents.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.13.1'
+    helm.sh/chart: 'datadogCRDs-2.14.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -51,6 +51,7 @@ spec:
       name: v2alpha1
       schema:
         openAPIV3Schema:
+          description: DatadogAgent Deployment with the Datadog Operator.
           properties:
             apiVersion:
               type: string
@@ -578,6 +579,11 @@ spec:
                       type: object
                     autoscaling:
                       properties:
+                        cluster:
+                          properties:
+                            enabled:
+                              type: boolean
+                          type: object
                         workload:
                           properties:
                             enabled:
@@ -1655,8 +1661,6 @@ spec:
                       type: object
                     registry:
                       type: string
-                    runProcessChecksInCoreAgent:
-                      type: boolean
                     secretBackend:
                       properties:
                         args:
@@ -4583,6 +4587,11 @@ spec:
                           type: object
                         autoscaling:
                           properties:
+                            cluster:
+                              properties:
+                                enabled:
+                                  type: boolean
+                              type: object
                             workload:
                               properties:
                                 enabled:
@@ -5276,7 +5285,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.17.3
   name: datadogmetrics.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.13.1'
+    helm.sh/chart: 'datadogCRDs-2.14.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -5404,7 +5413,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.17.3
   name: datadogpodautoscalers.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.13.1'
+    helm.sh/chart: 'datadogCRDs-2.14.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -7140,9 +7149,9 @@ metadata:
   name: operator-eks-addon-datadog-operator
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.15.2
+    helm.sh/chart: datadog-operator-2.16.0
     app.kubernetes.io/instance: operator-eks-addon
-    app.kubernetes.io/version: "1.20.0"
+    app.kubernetes.io/version: "1.21.0"
     app.kubernetes.io/managed-by: eks-addon
 rules:
 - nonResourceURLs:
@@ -7231,6 +7240,13 @@ rules:
   - apiservices
   verbs:
   - '*'
+- apiGroups:
+  - apps
+  resources:
+  - controllerrevisions
+  verbs:
+  - list
+  - watch
 - apiGroups:
   - apps
   resources:
@@ -7408,8 +7424,6 @@ rules:
 - apiGroups:
   - datadoghq.com
   - karpenter.azure.com
-  - karpenter.k8s.aws
-  - karpenter.sh
   resources:
   - '*'
   verbs:
@@ -7424,11 +7438,24 @@ rules:
   - watch
 - apiGroups:
   - external.metrics.k8s.io
+  - karpenter.k8s.aws
   resources:
   - '*'
   verbs:
   - get
   - list
+  - watch
+- apiGroups:
+  - karpenter.sh
+  resources:
+  - '*'
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - metrics.eks.amazonaws.com
@@ -7549,9 +7576,9 @@ metadata:
   namespace: datadog-agent
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.15.2
+    helm.sh/chart: datadog-operator-2.16.0
     app.kubernetes.io/instance: operator-eks-addon
-    app.kubernetes.io/version: "1.20.0"
+    app.kubernetes.io/version: "1.21.0"
     app.kubernetes.io/managed-by: eks-addon
 spec:
   replicas: 1
@@ -7577,7 +7604,7 @@ spec:
       serviceAccountName: operator-eks-addon-datadog-operator
       containers:
         - name: datadog-operator
-          image: "709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator:1.20.0"
+          image: "709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator:1.21.0"
           imagePullPolicy: IfNotPresent
           env:
             - name: WATCH_NAMESPACE
