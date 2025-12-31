@@ -17,7 +17,6 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -265,25 +264,33 @@ func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, pr
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
 func (f *ksmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	// Remove ksm v1 conf if the cluster checks are enabled and the ksm core is enabled
-	ignoreAutoConf := &corev1.EnvVar{
-		Name:  DDIgnoreAutoConf,
-		Value: "kubernetes_state",
-	}
+	// Mount an empty directory over kubernetes_state.d to prevent the legacy
+	// kubernetes_state check from running when KSM Core is enabled
+	vol, volMount := volume.GetVolumesEmptyDir(
+		legacyKSMAutoConfVolumeName,
+		legacyKSMAutoConfMountPath,
+		false,
+	)
+	managers.Volume().AddVolume(&vol)
+	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.UnprivilegedSingleAgentContainerName)
 
-	return managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.UnprivilegedSingleAgentContainerName, ignoreAutoConf, merger.AppendToValueEnvVarMergeFunction)
+	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *ksmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	// Remove ksm v1 conf if the cluster checks are enabled and the ksm core is enabled
-	ignoreAutoConf := &corev1.EnvVar{
-		Name:  DDIgnoreAutoConf,
-		Value: "kubernetes_state",
-	}
+	// Mount an empty directory over kubernetes_state.d to prevent the legacy
+	// kubernetes_state check from running when KSM Core is enabled
+	vol, volMount := volume.GetVolumesEmptyDir(
+		legacyKSMAutoConfVolumeName,
+		legacyKSMAutoConfMountPath,
+		false,
+	)
+	managers.Volume().AddVolume(&vol)
+	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.CoreAgentContainerName)
 
-	return managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.CoreAgentContainerName, ignoreAutoConf, merger.AppendToValueEnvVarMergeFunction)
+	return nil
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec

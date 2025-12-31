@@ -197,13 +197,28 @@ func ksmAgentSingleAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateM
 
 func ksmAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers, agentContainerName apicommon.AgentContainerName) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
-	agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 
-	want := []*corev1.EnvVar{
-		{
-			Name:  DDIgnoreAutoConf,
-			Value: "kubernetes_state",
-		},
+	// Check that an emptyDir volume is mounted to hide the built-in auto_conf.yaml
+	volumes := mgr.VolumeMgr.Volumes
+	foundVolume := false
+	for _, vol := range volumes {
+		if vol.Name == legacyKSMAutoConfVolumeName {
+			foundVolume = true
+			assert.NotNil(t, vol.VolumeSource.EmptyDir, "Volume should be an EmptyDir")
+			break
+		}
 	}
-	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, want), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, want))
+	assert.True(t, foundVolume, "legacy kubernetes_state.d override volume should be added")
+
+	// Check that the volume mount is added to the correct container
+	volumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[agentContainerName]
+	foundVolumeMount := false
+	for _, vm := range volumeMounts {
+		if vm.Name == legacyKSMAutoConfVolumeName {
+			foundVolumeMount = true
+			assert.Equal(t, legacyKSMAutoConfMountPath, vm.MountPath, "Volume mount path should match kubernetes_state.d directory")
+			break
+		}
+	}
+	assert.True(t, foundVolumeMount, "legacy kubernetes_state.d override volume mount should be added to container")
 }

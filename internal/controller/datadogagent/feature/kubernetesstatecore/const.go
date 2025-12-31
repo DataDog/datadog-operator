@@ -19,6 +19,10 @@ const (
 	ksmCoreVolumeName = "ksm-core-config"
 	// DefaultKubeStateMetricsCoreConf default ksm core ConfigMap name
 	defaultKubeStateMetricsCoreConf string = "kube-state-metrics-core-config"
+
+	// legacy kubernetes_state auto_conf override
+	legacyKSMAutoConfVolumeName = "legacy-ksm-autoconf-override"
+	legacyKSMAutoConfMountPath  = "/etc/datadog-agent/conf.d/kubernetes_state.d"
 )
 
 // GetKubeStateMetricsRBACResourceName return the RBAC resources name

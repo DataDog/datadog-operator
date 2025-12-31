@@ -8,5 +8,4 @@ package kubernetesstatecore
 const (
 	DDKubeStateMetricsCoreConfigMap = "DD_KUBE_STATE_METRICS_CORE_CONFIGMAP_NAME"
 	DDKubeStateMetricsCoreEnabled   = "DD_KUBE_STATE_METRICS_CORE_ENABLED"
-	DDIgnoreAutoConf                = "DD_IGNORE_AUTOCONF"
 )
