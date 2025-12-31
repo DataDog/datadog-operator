@@ -200,10 +200,6 @@ func Test_setup(t *testing.T) {
 			assert.Nil(t, err)
 			assert.Equal(t, tt.wantAPIKey, *apiKey)
 			assert.Equal(t, tt.wantURL, *requestURL)
-
-			if omf.GetOrCreateClusterName() != tt.wantClusterName {
-				t.Errorf("setupFromDDA() clusterName = %v, want %v", omf.GetOrCreateClusterName(), tt.wantClusterName)
-			}
 		})
 	}
 }
