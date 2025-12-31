@@ -212,7 +212,6 @@ func Test_setup(t *testing.T) {
 func Test_GetPayload(t *testing.T) {
 	expectedKubernetesVersion := "v1.28.0"
 	expectedOperatorVersion := "v1.19.0"
-	expectedClusterName := "test-cluster"
 	expectedClusterUID := "test-cluster-uid-12345"
 	expectedHostname := "test-host"
 
@@ -227,7 +226,6 @@ func Test_GetPayload(t *testing.T) {
 	omf := &OperatorMetadataForwarder{
 		SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), client, expectedKubernetesVersion, expectedOperatorVersion, config.NewCredentialManager(client)),
 		OperatorMetadata: OperatorMetadata{
-			ClusterName:    expectedClusterName,
 			IsLeader:       true,
 			ResourceCounts: make(map[string]int),
 		},
@@ -235,9 +233,6 @@ func Test_GetPayload(t *testing.T) {
 
 	// Set hostname in SharedMetadata to simulate it being populated
 	omf.hostName = expectedHostname
-
-	// Set cluster name in SharedMetadata to simulate it being populated
-	omf.clusterName = expectedClusterName
 
 	payload := omf.GetPayload(expectedClusterUID)
 
@@ -265,10 +260,6 @@ func Test_GetPayload(t *testing.T) {
 		t.Errorf("GetPayload() cluster_id = %v, want %v", clusterID, expectedClusterUID)
 	}
 
-	if clusterName, ok := parsed["clustername"].(string); !ok || clusterName != expectedClusterName {
-		t.Errorf("GetPayload() cluster_name = %v, want %v", clusterName, expectedClusterName)
-	}
-
 	// Validate metadata object exists
 	metadata, ok := parsed["datadog_operator_metadata"].(map[string]interface{})
 	if !ok {
@@ -282,10 +273,6 @@ func Test_GetPayload(t *testing.T) {
 
 	if kubernetesVersion, ok := metadata["kubernetes_version"].(string); !ok || kubernetesVersion != expectedKubernetesVersion {
 		t.Errorf("GetPayload() kubernetes_version = %v, want %v", kubernetesVersion, expectedKubernetesVersion)
-	}
-
-	if clusterName, ok := metadata["cluster_name"].(string); !ok || clusterName != expectedClusterName {
-		t.Errorf("GetPayload() cluster_name = %v, want %v", clusterName, expectedClusterName)
 	}
 
 	if clusterID, ok := metadata["cluster_id"].(string); !ok || clusterID != expectedClusterUID {
@@ -315,7 +302,6 @@ func Test_GetPayload(t *testing.T) {
 		"remote_config_enabled",
 		"introspection_enabled",
 		"cluster_id",
-		"cluster_name",
 		"config_dd_url",
 		"config_site",
 		"resource_count",
