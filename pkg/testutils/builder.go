@@ -13,7 +13,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector/defaultconfig"
+	otelcollectordefaultconfig "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector/defaultconfig"
 	"github.com/DataDog/datadog-operator/pkg/images"
 )
 
@@ -398,7 +398,7 @@ func (builder *DatadogAgentBuilder) WithOTelCollectorEnabled(enabled bool) *Data
 
 func (builder *DatadogAgentBuilder) WithOTelCollectorConfig() *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Features.OtelCollector.Conf = &v2alpha1.CustomConfig{}
-	builder.datadogAgent.Spec.Features.OtelCollector.Conf.ConfigData = apiutils.NewStringPointer(defaultconfig.DefaultOtelCollectorConfig)
+	builder.datadogAgent.Spec.Features.OtelCollector.Conf.ConfigData = apiutils.NewStringPointer(otelcollectordefaultconfig.DefaultOtelCollectorConfig)
 	return builder
 }
 
@@ -465,6 +465,19 @@ func (builder *DatadogAgentBuilder) WithOTelCollectorPorts(grpcPort int32, httpP
 			Protocol:      corev1.ProtocolTCP,
 		},
 	}
+	return builder
+}
+
+// OtelAgentGateway
+func (builder *DatadogAgentBuilder) initOtelAgentGateway() {
+	if builder.datadogAgent.Spec.Features.OtelAgentGateway == nil {
+		builder.datadogAgent.Spec.Features.OtelAgentGateway = &v2alpha1.OtelAgentGatewayFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithOTelAgentGatewayEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initOtelAgentGateway()
+	builder.datadogAgent.Spec.Features.OtelAgentGateway.Enabled = apiutils.NewBoolPointer(enabled)
 	return builder
 }
 
