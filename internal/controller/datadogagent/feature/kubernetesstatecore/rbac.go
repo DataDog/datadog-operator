@@ -11,7 +11,6 @@ import (
 	"github.com/gobuffalo/flect"
 	rbacv1 "k8s.io/api/rbac/v1"
 
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
@@ -136,22 +135,23 @@ func getRBACPolicyRules(collectorOpts collectorOptions) []rbacv1.PolicyRule {
 
 	// Add permissions for custom resources
 	if len(collectorOpts.customResources) > 0 {
-		rbacBuilder := utils.NewRBACBuilder(commonVerbs...)
 		for _, cr := range collectorOpts.customResources {
 			// Don't pluralize if the kind is a wildcard
-			if cr.GroupVersionKind.Kind == "*" {
-				rbacBuilder.AddGroupKind(cr.GroupVersionKind.Group, "*")
-				continue
+			resourceName := "*"
+			if cr.GroupVersionKind.Kind != "*" {
+				// Use the resource plural if specified, otherwise derive it from the Kind
+				resourceName = cr.ResourcePlural
+				if resourceName == "" {
+					resourceName = strings.ToLower(flect.Pluralize(cr.GroupVersionKind.Kind))
+				}
 			}
 
-			// Use the resource plural if specified, otherwise derive it from the Kind
-			resourceName := cr.ResourcePlural
-			if resourceName == "" {
-				resourceName = strings.ToLower(flect.Pluralize(cr.GroupVersionKind.Kind))
-			}
-			rbacBuilder.AddGroupKind(cr.GroupVersionKind.Group, resourceName)
+			rbacRules = append(rbacRules, rbacv1.PolicyRule{
+				APIGroups: []string{cr.GroupVersionKind.Group},
+				Resources: []string{resourceName},
+				Verbs:     commonVerbs,
+			})
 		}
-		rbacRules = append(rbacRules, rbacBuilder.Build()...)
 	}
 
 	return rbacRules

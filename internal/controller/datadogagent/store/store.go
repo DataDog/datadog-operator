@@ -13,7 +13,6 @@ import (
 	"sync"
 
 	"github.com/go-logr/logr"
-	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -221,23 +220,23 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 			objAPIServer := kubernetes.ObjectFromKind(kind, ds.platformInfo)
 			err := k8sClient.Get(ctx, objNSName, objAPIServer)
 			if err != nil && apierrors.IsNotFound(err) {
-				ds.logger.V(2).Info("store.store Add object to create", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
-				objsToCreate = append(objsToCreate, objStore)
-				continue
+				objAPIServer = nil // Object doesn't exist and needs to be created
 			} else if err != nil {
 				errs = append(errs, err)
 				continue
 			}
 
-			// ServicesKind is a special case; the cluster IPs are immutable and resource version must be set.
-			if kind == kubernetes.ServicesKind {
-				objStore.(*v1.Service).Spec.ClusterIP = objAPIServer.(*v1.Service).Spec.ClusterIP
-				objStore.(*v1.Service).Spec.ClusterIPs = objAPIServer.(*v1.Service).Spec.ClusterIPs
-				objStore.SetResourceVersion(objAPIServer.GetResourceVersion())
+			// Apply preprocessing for each object kind
+			objStore, err = ds.applyPreprocessing(kind, objStore, objAPIServer)
+			if err != nil {
+				errs = append(errs, err)
+				continue
 			}
-			// The APIServiceKind, CiliumNetworkPoliciesKind, and PodDisruptionBudgetsKind resource version must be set.
-			if kind == kubernetes.APIServiceKind || kind == kubernetes.CiliumNetworkPoliciesKind || kind == kubernetes.PodDisruptionBudgetsKind {
-				objStore.SetResourceVersion(objAPIServer.GetResourceVersion())
+
+			if objAPIServer == nil {
+				ds.logger.V(2).Info("store.store Add object to create", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
+				objsToCreate = append(objsToCreate, objStore)
+				continue
 			}
 
 			if !equality.IsEqualObject(kind, objStore, objAPIServer) {

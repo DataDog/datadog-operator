@@ -16,52 +16,51 @@ import (
 )
 
 func TestGetRBACPolicyRules(t *testing.T) {
+	// Base rules that should always be present
+	expectedBaseRules := []rbacv1.PolicyRule{
+		{
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.ConfigMapsResource, rbac.EndpointsResource, rbac.EventsResource, rbac.LimitRangesResource, rbac.NamespaceResource, rbac.NodesResource, rbac.PersistentVolumeClaimsResource, rbac.PersistentVolumesResource, rbac.PodsResource, rbac.ReplicationControllersResource, rbac.ResourceQuotasResource, rbac.SecretsResource, rbac.ServicesResource},
+			Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
+		},
+		{
+			APIGroups: []string{rbac.AppsAPIGroup},
+			Resources: []string{rbac.DaemonsetsResource, rbac.DeploymentsResource, rbac.ReplicasetsResource, rbac.StatefulsetsResource, rbac.ControllerRevisionsResource},
+			Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
+		},
+		{
+			APIGroups: []string{rbac.BatchAPIGroup},
+			Resources: []string{rbac.CronjobsResource, rbac.JobsResource},
+			Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
+		},
+		{
+			APIGroups: []string{rbac.AutoscalingK8sIoAPIGroup},
+			Resources: []string{rbac.VPAResource},
+			Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
+		},
+	}
+
 	testCases := []struct {
-		name          string
-		collectorOpts collectorOptions
-		validateFunc  func(t *testing.T, rules []rbacv1.PolicyRule)
+		name               string
+		collectorOpts      collectorOptions
+		expectedExtraRules []rbacv1.PolicyRule
 	}{
 		{
-			name:          "default options",
-			collectorOpts: collectorOptions{},
-			validateFunc: func(t *testing.T, rules []rbacv1.PolicyRule) {
-				// Check that basic rules are present
-				assert.NotEmpty(t, rules)
-
-				// All rules should have list and watch verbs
-				for _, rule := range rules {
-					assert.Equal(t, []string{rbac.ListVerb, rbac.WatchVerb}, rule.Verbs)
-				}
-
-				// Check for core resources
-				hasCore := false
-				for _, rule := range rules {
-					if slices.Contains(rule.APIGroups, rbac.CoreAPIGroup) {
-						hasCore = true
-						assert.Contains(t, rule.Resources, rbac.PodsResource)
-						assert.Contains(t, rule.Resources, rbac.NodesResource)
-						break
-					}
-				}
-				assert.True(t, hasCore, "Should have core API group")
-			},
+			name:               "default options",
+			collectorOpts:      collectorOptions{},
+			expectedExtraRules: []rbacv1.PolicyRule{},
 		},
 		{
 			name: "with API services enabled",
 			collectorOpts: collectorOptions{
 				enableAPIService: true,
 			},
-			validateFunc: func(t *testing.T, rules []rbacv1.PolicyRule) {
-				// Check for API services rule
-				hasAPIServices := false
-				for _, rule := range rules {
-					if slices.Contains(rule.APIGroups, rbac.RegistrationAPIGroup) {
-						hasAPIServices = true
-						assert.Contains(t, rule.Resources, rbac.APIServicesResource)
-						break
-					}
-				}
-				assert.True(t, hasAPIServices, "Should have API services when enabled")
+			expectedExtraRules: []rbacv1.PolicyRule{
+				{
+					APIGroups: []string{rbac.RegistrationAPIGroup},
+					Resources: []string{rbac.APIServicesResource},
+					Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
+				},
 			},
 		},
 		{
@@ -69,17 +68,12 @@ func TestGetRBACPolicyRules(t *testing.T) {
 			collectorOpts: collectorOptions{
 				enableCRD: true,
 			},
-			validateFunc: func(t *testing.T, rules []rbacv1.PolicyRule) {
-				// Check for CRD rule
-				hasCRD := false
-				for _, rule := range rules {
-					if slices.Contains(rule.APIGroups, rbac.APIExtensionsAPIGroup) {
-						hasCRD = true
-						assert.Contains(t, rule.Resources, rbac.CustomResourceDefinitionsResource)
-						break
-					}
-				}
-				assert.True(t, hasCRD, "Should have CRD when enabled")
+			expectedExtraRules: []rbacv1.PolicyRule{
+				{
+					APIGroups: []string{rbac.APIExtensionsAPIGroup},
+					Resources: []string{rbac.CustomResourceDefinitionsResource},
+					Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
+				},
 			},
 		},
 		{
@@ -95,18 +89,12 @@ func TestGetRBACPolicyRules(t *testing.T) {
 					},
 				},
 			},
-			validateFunc: func(t *testing.T, rules []rbacv1.PolicyRule) {
-				// Check for custom resource rule
-				hasCustomResource := false
-				for _, rule := range rules {
-					if slices.Contains(rule.APIGroups, "monitoring.example.com") {
-						hasCustomResource = true
-						assert.Equal(t, []string{rbac.ListVerb, rbac.WatchVerb}, rule.Verbs)
-						assert.Contains(t, rule.Resources, "servicemonitors")
-						break
-					}
-				}
-				assert.True(t, hasCustomResource, "Should have custom resource permissions")
+			expectedExtraRules: []rbacv1.PolicyRule{
+				{
+					APIGroups: []string{"monitoring.example.com"},
+					Resources: []string{"servicemonitors"},
+					Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
+				},
 			},
 		},
 		{
@@ -129,18 +117,17 @@ func TestGetRBACPolicyRules(t *testing.T) {
 					},
 				},
 			},
-			validateFunc: func(t *testing.T, rules []rbacv1.PolicyRule) {
-				// Should have a single rule for the API group with both resources
-				kafkaRuleCount := 0
-				for _, rule := range rules {
-					if slices.Contains(rule.APIGroups, "kafka.strimzi.io") {
-						kafkaRuleCount++
-						assert.Equal(t, []string{rbac.ListVerb, rbac.WatchVerb}, rule.Verbs)
-						assert.Contains(t, rule.Resources, "kafkas")
-						assert.Contains(t, rule.Resources, "kafkatopics")
-					}
-				}
-				assert.Equal(t, 1, kafkaRuleCount, "Should have exactly one rule for kafka.strimzi.io")
+			expectedExtraRules: []rbacv1.PolicyRule{
+				{
+					APIGroups: []string{"kafka.strimzi.io"},
+					Resources: []string{"kafkas"},
+					Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
+				},
+				{
+					APIGroups: []string{"kafka.strimzi.io"},
+					Resources: []string{"kafkatopics"},
+					Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
+				},
 			},
 		},
 		{
@@ -163,22 +150,17 @@ func TestGetRBACPolicyRules(t *testing.T) {
 					},
 				},
 			},
-			validateFunc: func(t *testing.T, rules []rbacv1.PolicyRule) {
-				// Should have separate rules for each API group
-				hasTekton := false
-				hasKeda := false
-				for _, rule := range rules {
-					if slices.Contains(rule.APIGroups, "tekton.dev") {
-						hasTekton = true
-						assert.Contains(t, rule.Resources, "pipelines")
-					}
-					if slices.Contains(rule.APIGroups, "keda.sh") {
-						hasKeda = true
-						assert.Contains(t, rule.Resources, "scaledobjects")
-					}
-				}
-				assert.True(t, hasTekton, "Should have tekton.dev permissions")
-				assert.True(t, hasKeda, "Should have keda.sh permissions")
+			expectedExtraRules: []rbacv1.PolicyRule{
+				{
+					APIGroups: []string{"tekton.dev"},
+					Resources: []string{"pipelines"},
+					Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
+				},
+				{
+					APIGroups: []string{"keda.sh"},
+					Resources: []string{"scaledobjects"},
+					Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
+				},
 			},
 		},
 		{
@@ -195,17 +177,12 @@ func TestGetRBACPolicyRules(t *testing.T) {
 					},
 				},
 			},
-			validateFunc: func(t *testing.T, rules []rbacv1.PolicyRule) {
-				// Should use the specified ResourcePlural
-				hasPostgres := false
-				for _, rule := range rules {
-					if slices.Contains(rule.APIGroups, "postgresql.cnpg.io") {
-						hasPostgres = true
-						assert.Contains(t, rule.Resources, "clusters")
-						break
-					}
-				}
-				assert.True(t, hasPostgres, "Should have PostgreSQL cluster permissions")
+			expectedExtraRules: []rbacv1.PolicyRule{
+				{
+					APIGroups: []string{"postgresql.cnpg.io"},
+					Resources: []string{"clusters"},
+					Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
+				},
 			},
 		},
 		{
@@ -228,23 +205,17 @@ func TestGetRBACPolicyRules(t *testing.T) {
 					},
 				},
 			},
-			validateFunc: func(t *testing.T, rules []rbacv1.PolicyRule) {
-				// Should not have duplicate resources in the rule
-				certManagerRuleCount := 0
-				for _, rule := range rules {
-					if slices.Contains(rule.APIGroups, "cert-manager.io") {
-						certManagerRuleCount++
-						// Should only have one "certificates" entry
-						certificateCount := 0
-						for _, res := range rule.Resources {
-							if res == "certificates" {
-								certificateCount++
-							}
-						}
-						assert.Equal(t, 1, certificateCount, "Should not have duplicate certificates resource")
-					}
-				}
-				assert.Equal(t, 1, certManagerRuleCount, "Should have exactly one rule for cert-manager.io")
+			expectedExtraRules: []rbacv1.PolicyRule{
+				{
+					APIGroups: []string{"cert-manager.io"},
+					Resources: []string{"certificates"},
+					Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
+				},
+				{
+					APIGroups: []string{"cert-manager.io"},
+					Resources: []string{"certificates"},
+					Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
+				},
 			},
 		},
 		{
@@ -261,22 +232,12 @@ func TestGetRBACPolicyRules(t *testing.T) {
 					},
 				},
 			},
-			validateFunc: func(t *testing.T, rules []rbacv1.PolicyRule) {
-				// Should have both VPA and custom resource permissions
-				hasVPA := false
-				hasArgo := false
-				for _, rule := range rules {
-					if slices.Contains(rule.APIGroups, rbac.AutoscalingK8sIoAPIGroup) {
-						hasVPA = true
-						assert.Contains(t, rule.Resources, rbac.VPAResource)
-					}
-					if slices.Contains(rule.APIGroups, "argoproj.io") {
-						hasArgo = true
-						assert.Contains(t, rule.Resources, "applications")
-					}
-				}
-				assert.True(t, hasVPA, "Should have VPA permissions")
-				assert.True(t, hasArgo, "Should have Argo Application permissions")
+			expectedExtraRules: []rbacv1.PolicyRule{
+				{
+					APIGroups: []string{"argoproj.io"},
+					Resources: []string{"applications"},
+					Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
+				},
 			},
 		},
 		{
@@ -292,16 +253,12 @@ func TestGetRBACPolicyRules(t *testing.T) {
 					},
 				},
 			},
-			validateFunc: func(t *testing.T, rules []rbacv1.PolicyRule) {
-				hasStable := false
-				for _, rule := range rules {
-					if slices.Contains(rule.APIGroups, "stable.example.com") {
-						hasStable = true
-						assert.Contains(t, rule.Resources, "*")
-						break
-					}
-				}
-				assert.True(t, hasStable, "Should have stable.example.com permissions")
+			expectedExtraRules: []rbacv1.PolicyRule{
+				{
+					APIGroups: []string{"stable.example.com"},
+					Resources: []string{"*"},
+					Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
+				},
 			},
 		},
 	}
@@ -309,7 +266,34 @@ func TestGetRBACPolicyRules(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			rules := getRBACPolicyRules(tc.collectorOpts)
-			tc.validateFunc(t, rules)
+
+			// check base rules
+			for _, expectedRule := range expectedBaseRules {
+				found := false
+				for _, rule := range rules {
+					if slices.Equal(rule.APIGroups, expectedRule.APIGroups) &&
+						slices.Equal(rule.Resources, expectedRule.Resources) &&
+						slices.Equal(rule.Verbs, expectedRule.Verbs) {
+						found = true
+						break
+					}
+				}
+				assert.True(t, found, "Expected base rule not found: %+v", expectedRule)
+			}
+
+			// check custom rules
+			for _, expectedRule := range tc.expectedExtraRules {
+				found := false
+				for _, rule := range rules {
+					if slices.Equal(rule.APIGroups, expectedRule.APIGroups) &&
+						slices.Equal(rule.Resources, expectedRule.Resources) &&
+						slices.Equal(rule.Verbs, expectedRule.Verbs) {
+						found = true
+						break
+					}
+				}
+				assert.True(t, found, "Expected extra rule not found: %+v", expectedRule)
+			}
 		})
 	}
 }
