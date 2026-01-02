@@ -347,9 +347,6 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 			// Verify URL is set correctly
 			assert.Equal(t, tt.wantURL, *requestURL, "Request URL should match expected value")
 
-			// Verify cluster name is set correctly
-			assert.Equal(t, tt.wantClusterName, omf.GetOrCreateClusterName(), "Cluster name should match expected value")
-
 			// Verify headers are set with correct API key
 			assert.Equal(t, "Datadog Operator/0.0.0", req.Header.Get("User-Agent"), "User-Agent header should be set")
 			assert.Equal(t, tt.wantAPIKey, req.Header.Get("Dd-Api-Key"), "Header should contain correct API key")

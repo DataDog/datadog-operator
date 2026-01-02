@@ -138,6 +138,12 @@ func getRBACPolicyRules(collectorOpts collectorOptions) []rbacv1.PolicyRule {
 	if len(collectorOpts.customResources) > 0 {
 		rbacBuilder := utils.NewRBACBuilder(commonVerbs...)
 		for _, cr := range collectorOpts.customResources {
+			// Don't pluralize if the kind is a wildcard
+			if cr.GroupVersionKind.Kind == "*" {
+				rbacBuilder.AddGroupKind(cr.GroupVersionKind.Group, "*")
+				continue
+			}
+
 			// Use the resource plural if specified, otherwise derive it from the Kind
 			resourceName := cr.ResourcePlural
 			if resourceName == "" {

@@ -207,11 +207,6 @@ func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool) *te
 					ReadOnly:  false,
 				},
 				{
-					Name:      tracefsVolumeName,
-					MountPath: tracefsPath,
-					ReadOnly:  false,
-				},
-				{
 					Name:      common.SystemProbeSocketVolumeName,
 					MountPath: common.SystemProbeSocketVolumePath,
 					ReadOnly:  false,
@@ -269,14 +264,6 @@ func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool) *te
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
 							Path: common.DebugfsPath,
-						},
-					},
-				},
-				{
-					Name: tracefsVolumeName,
-					VolumeSource: corev1.VolumeSource{
-						HostPath: &corev1.HostPathVolumeSource{
-							Path: tracefsPath,
 						},
 					},
 				},

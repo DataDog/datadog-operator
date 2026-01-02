@@ -500,8 +500,193 @@ func TestStore_Cleanup(t *testing.T) {
 					Namespace: tt.args.ddaNs,
 				},
 			}
-			got := ds.Cleanup(tt.args.ctx, tt.args.k8sClient)
+			got := ds.Cleanup(tt.args.ctx, tt.args.k8sClient, false)
 			assert.EqualValues(t, tt.want, got, "Store.Cleanup() = %v, want %v", got, tt.want)
+		})
+	}
+}
+
+func TestStore_Cleanup_ExcludeDDAManagedResources(t *testing.T) {
+	dummyName := "dda-test"
+	dummyNs := "namespace-test"
+
+	// Regular resource (should be deleted during cleanup when not in store)
+	regularConfigMap := &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "bar",
+			Name:      "regular",
+			Labels: map[string]string{
+				OperatorStoreLabelKey:                  "true",
+				kubernetes.AppKubernetesPartOfLabelKey: "namespace--test-dda--test",
+			},
+		},
+	}
+
+	// DDA-managed resource (should be excluded from cleanup when ExcludeDDAManagedResources is true)
+	ddaManagedConfigMap := &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "bar",
+			Name:      "dda-managed",
+			Labels: map[string]string{
+				OperatorStoreLabelKey:                  "true",
+				ManagedByDDAControllerLabelKey:         "true",
+				kubernetes.AppKubernetesPartOfLabelKey: "namespace--test-dda--test",
+			},
+		},
+	}
+
+	s := scheme.Scheme
+	s.AddKnownTypes(apiregistrationv1.SchemeGroupVersion, &apiregistrationv1.APIService{})
+	s.AddKnownTypes(apiregistrationv1.SchemeGroupVersion, &apiregistrationv1.APIServiceList{})
+
+	tests := []struct {
+		name                string
+		deps                map[kubernetes.ObjectKind]map[string]client.Object
+		existingObjects     []client.Object
+		excludeDDAManaged   bool
+		expectedToExist     []string // object names that should still exist after cleanup
+		expectedToBeDeleted []string // object names that should be deleted
+	}{
+		{
+			name: "exclude DDA-managed resources from cleanup",
+			deps: map[kubernetes.ObjectKind]map[string]client.Object{}, // empty store, both would be candidates for deletion
+			existingObjects: []client.Object{
+				regularConfigMap.DeepCopy(),
+				ddaManagedConfigMap.DeepCopy(),
+			},
+			excludeDDAManaged:   true,
+			expectedToExist:     []string{"dda-managed"}, // DDA-managed should NOT be deleted
+			expectedToBeDeleted: []string{"regular"},     // regular resource SHOULD be deleted
+		},
+		{
+			name: "do not exclude DDA-managed resources when option is false",
+			deps: map[kubernetes.ObjectKind]map[string]client.Object{}, // empty store
+			existingObjects: []client.Object{
+				regularConfigMap.DeepCopy(),
+				ddaManagedConfigMap.DeepCopy(),
+			},
+			excludeDDAManaged:   false,
+			expectedToExist:     []string{},                         // nothing should be preserved
+			expectedToBeDeleted: []string{"regular", "dda-managed"}, // both should be deleted
+		},
+		{
+			name: "DDA-managed resource in store is not deleted regardless of option",
+			deps: map[kubernetes.ObjectKind]map[string]client.Object{
+				kubernetes.ConfigMapKind: {
+					"bar/dda-managed": ddaManagedConfigMap.DeepCopy(),
+				},
+			},
+			existingObjects: []client.Object{
+				regularConfigMap.DeepCopy(),
+				ddaManagedConfigMap.DeepCopy(),
+			},
+			excludeDDAManaged:   true,
+			expectedToExist:     []string{"dda-managed"}, // in store, so kept
+			expectedToBeDeleted: []string{"regular"},     // not in store, deleted
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			k8sClient := fake.NewClientBuilder().
+				WithScheme(s).
+				WithObjects(tt.existingObjects...).
+				Build()
+
+			ds := &Store{
+				deps:   tt.deps,
+				logger: logf.Log.WithName(t.Name()),
+				owner: &metav1.ObjectMeta{
+					Name:      dummyName,
+					Namespace: dummyNs,
+				},
+			}
+
+			errs := ds.Cleanup(context.TODO(), k8sClient, tt.excludeDDAManaged)
+			assert.Empty(t, errs)
+
+			// Verify expected objects still exist
+			for _, name := range tt.expectedToExist {
+				cm := &corev1.ConfigMap{}
+				err := k8sClient.Get(context.TODO(), types.NamespacedName{Namespace: "bar", Name: name}, cm)
+				assert.NoError(t, err, "expected object %s to exist but it was deleted", name)
+			}
+
+			// Verify expected objects are deleted
+			for _, name := range tt.expectedToBeDeleted {
+				cm := &corev1.ConfigMap{}
+				err := k8sClient.Get(context.TODO(), types.NamespacedName{Namespace: "bar", Name: name}, cm)
+				assert.True(t, errors.IsNotFound(err), "expected object %s to be deleted but it still exists", name)
+			}
+		})
+	}
+}
+
+func TestStore_AddOrUpdate_DDAControllerLabel(t *testing.T) {
+	owner := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "bar",
+			Name:      "foo",
+		},
+	}
+
+	testScheme := runtime.NewScheme()
+	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
+
+	tests := []struct {
+		name                 string
+		isDDAControllerStore bool
+		expectedHasDDALabel  bool
+	}{
+		{
+			name:                 "regular store does not add DDA controller label",
+			isDDAControllerStore: false,
+			expectedHasDDALabel:  false,
+		},
+		{
+			name:                 "DDA controller store adds DDA controller label",
+			isDDAControllerStore: true,
+			expectedHasDDALabel:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logger := logf.Log.WithName(t.Name())
+			ds := &Store{
+				deps:                 make(map[kubernetes.ObjectKind]map[string]client.Object),
+				owner:                owner,
+				scheme:               testScheme,
+				logger:               logger,
+				isDDAControllerStore: tt.isDDAControllerStore,
+			}
+
+			cm := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "bar",
+					Name:      "test-cm",
+				},
+			}
+
+			err := ds.AddOrUpdate(kubernetes.ConfigMapKind, cm)
+			assert.NoError(t, err)
+
+			// Verify the label is set correctly
+			labels := cm.GetLabels()
+			_, hasDDALabel := labels[ManagedByDDAControllerLabelKey]
+			assert.Equal(t, tt.expectedHasDDALabel, hasDDALabel, "DDA controller label presence mismatch")
+
+			// Verify the store label is always present
+			_, hasStoreLabel := labels[OperatorStoreLabelKey]
+			assert.True(t, hasStoreLabel, "Store label should always be present")
 		})
 	}
 }

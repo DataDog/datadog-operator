@@ -50,18 +50,16 @@ type HelmMetadataForwarder struct {
 }
 
 type HelmMetadataPayload struct {
-	Hostname    string       `json:"hostname"`
-	Timestamp   int64        `json:"timestamp"`
-	ClusterID   string       `json:"cluster_id"`
-	ClusterName string       `json:"clustername"`
-	Metadata    HelmMetadata `json:"datadog_operator_helm_metadata"`
+	Hostname  string       `json:"hostname"`
+	Timestamp int64        `json:"timestamp"`
+	ClusterID string       `json:"cluster_id"`
+	Metadata  HelmMetadata `json:"datadog_operator_helm_metadata"`
 }
 
 type HelmMetadata struct {
 	OperatorVersion           string `json:"operator_version"`
 	KubernetesVersion         string `json:"kubernetes_version"`
 	ClusterID                 string `json:"cluster_id"`
-	ClusterName               string `json:"cluster_name"`
 	ChartName                 string `json:"chart_name"`
 	ChartReleaseName          string `json:"chart_release_name"`
 	ChartAppVersion           string `json:"chart_app_version"`
@@ -150,7 +148,7 @@ func (hmf *HelmMetadataForwarder) Start() {
 	go func() {
 		for range ticker.C {
 			if err := hmf.sendMetadata(); err != nil {
-				hmf.logger.Info("Error while sending metadata", "error", err)
+				hmf.logger.V(1).Info("Error while sending metadata", "error", err)
 			}
 		}
 	}()
@@ -161,7 +159,7 @@ func (hmf *HelmMetadataForwarder) sendMetadata() error {
 
 	releases, err := hmf.discoverAllHelmReleases(ctx)
 	if err != nil {
-		hmf.logger.Info("Failed to discover Helm releases", "error", err)
+		hmf.logger.V(1).Info("Failed to discover Helm releases", "error", err)
 		return err
 	}
 
@@ -243,7 +241,6 @@ func (hmf *HelmMetadataForwarder) buildPayload(release HelmReleaseData, clusterU
 		OperatorVersion:           hmf.operatorVersion,
 		KubernetesVersion:         hmf.kubernetesVersion,
 		ClusterID:                 clusterUID,
-		ClusterName:               hmf.GetOrCreateClusterName(),
 		ChartName:                 release.ChartName,
 		ChartReleaseName:          release.ReleaseName,
 		ChartAppVersion:           release.AppVersion,
@@ -255,11 +252,10 @@ func (hmf *HelmMetadataForwarder) buildPayload(release HelmReleaseData, clusterU
 	}
 
 	payload := HelmMetadataPayload{
-		Hostname:    hmf.hostName,
-		Timestamp:   now,
-		ClusterID:   clusterUID,
-		ClusterName: hmf.GetOrCreateClusterName(),
-		Metadata:    helmMetadata,
+		Hostname:  hmf.hostName,
+		Timestamp: now,
+		ClusterID: clusterUID,
+		Metadata:  helmMetadata,
 	}
 
 	jsonPayload, err := json.Marshal(payload)

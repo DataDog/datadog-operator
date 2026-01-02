@@ -50,7 +50,6 @@ type SharedMetadata struct {
 
 	// Shared metadata fields
 	clusterUID        string
-	clusterName       string
 	operatorVersion   string
 	kubernetesVersion string
 	hostName          string
@@ -114,24 +113,6 @@ func (sm *SharedMetadata) GetOrCreateClusterUID() (string, error) {
 
 	sm.clusterUID = string(kubeSystemNS.UID)
 	return sm.clusterUID, nil
-}
-
-func (sm *SharedMetadata) GetOrCreateClusterName() string {
-	if sm.clusterName != "" {
-		return sm.clusterName
-	}
-
-	// Set cluster name - try operator first, then DDA
-	// TODO: not ideal really; maybe we could drop cluster name from metadata or extract it as part of rest of metadata instead of tieing with credentials
-	sm.clusterName = os.Getenv(constants.DDClusterName)
-	if sm.clusterName == "" {
-		// Fallback to DDA cluster name
-		dda, err := sm.getDatadogAgent()
-		if err == nil && dda.Spec.Global != nil && dda.Spec.Global.ClusterName != nil {
-			sm.clusterName = *dda.Spec.Global.ClusterName
-		}
-	}
-	return sm.clusterName
 }
 
 // getApiKeyAndURL retrieves the API key and request URL from the operator or DDA
