@@ -51,7 +51,7 @@ jobs:
         env:
           GORELEASER_PREVIOUS_TAG: ${{steps.latest_version.outputs.release}}
       - name: Upload
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: kubectl-datadog-linux
           path: |
@@ -92,7 +92,7 @@ jobs:
         env:
           GORELEASER_PREVIOUS_TAG: ${{steps.latest_version.outputs.release}}
       - name: Upload
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: kubectl-datadog-darwin
           path: |
@@ -132,7 +132,7 @@ jobs:
         env:
           GORELEASER_PREVIOUS_TAG: ${{steps.latest_version.outputs.release}}
       - name: Upload
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: kubectl-datadog-windows
           path: |
@@ -166,17 +166,17 @@ jobs:
           mkdir -p ./dist/darwin
           mkdir -p ./dist/windows
       - name: Download linux binaries
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: kubectl-datadog-linux
           path: ./tmp-build/linux
       - name: Download darwin binaries
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: kubectl-datadog-darwin
           path: ./tmp-build/darwin
       - name: Download windows binaries
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: kubectl-datadog-windows
           path: ./tmp-build/windows
