@@ -55,7 +55,7 @@ func install(ctx context.Context, ac *action.Configuration, releaseName, namespa
 	installAction.ReleaseName = releaseName
 	installAction.CreateNamespace = true
 	installAction.Namespace = namespace
-	installAction.ChartPathOptions.Version = version
+	installAction.Version = version
 	installAction.Wait = true
 	installAction.WaitForJobs = true
 	installAction.Timeout = 30 * time.Minute
@@ -63,7 +63,7 @@ func install(ctx context.Context, ac *action.Configuration, releaseName, namespa
 	settings := cli.New()
 	settings.SetNamespace(namespace)
 
-	chartPath, err := installAction.ChartPathOptions.LocateChart(chartRef, settings)
+	chartPath, err := installAction.LocateChart(chartRef, settings)
 	if err != nil {
 		return fmt.Errorf("failed to locate chart %s: %w", chartRef, err)
 	}
@@ -95,7 +95,7 @@ func upgrade(ctx context.Context, ac *action.Configuration, releaseName, namespa
 
 	upgradeAction := action.NewUpgrade(ac)
 	upgradeAction.Namespace = namespace
-	upgradeAction.ChartPathOptions.Version = version
+	upgradeAction.Version = version
 	upgradeAction.Wait = true
 	upgradeAction.WaitForJobs = true
 	upgradeAction.Timeout = 30 * time.Minute
@@ -103,7 +103,7 @@ func upgrade(ctx context.Context, ac *action.Configuration, releaseName, namespa
 	settings := cli.New()
 	settings.SetNamespace(namespace)
 
-	chartPath, err := upgradeAction.ChartPathOptions.LocateChart(chartRef, settings)
+	chartPath, err := upgradeAction.LocateChart(chartRef, settings)
 	if err != nil {
 		return fmt.Errorf("failed to locate chart %s: %w", chartRef, err)
 	}
