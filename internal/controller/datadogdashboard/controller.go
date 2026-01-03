@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha2"
 	"github.com/DataDog/datadog-operator/internal/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
@@ -99,81 +100,116 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		}
 	}
 
-	instance := &v1alpha1.DatadogDashboard{}
+	// Try to get v1alpha1 first, then v1alpha2
+	var dashboard interface{}
 	var result ctrl.Result
 	var err error
 
-	if err = r.client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: req.Name}, instance); err != nil {
-		if apierrors.IsNotFound(err) {
+	v1alpha1Instance := &v1alpha1.DatadogDashboard{}
+	if err = r.client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: req.Name}, v1alpha1Instance); err == nil {
+		dashboard = v1alpha1Instance
+		logger.V(1).Info("Found v1alpha1 DatadogDashboard")
+	} else if apierrors.IsNotFound(err) {
+		// Try v1alpha2
+		v1alpha2Instance := &v1alpha2.DatadogDashboard{}
+		if err = r.client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: req.Name}, v1alpha2Instance); err == nil {
+			dashboard = v1alpha2Instance
+			logger.V(1).Info("Found v1alpha2 DatadogDashboard")
+		} else if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
+		} else {
+			return ctrl.Result{}, err
 		}
-
+	} else {
 		return ctrl.Result{}, err
 	}
 
-	if result, err = r.handleFinalizer(logger, instance); ctrutils.ShouldReturn(result, err) {
+	// Get the appropriate widget processor
+	processor, err := GetWidgetProcessor(dashboard, logger)
+	if err != nil {
+		logger.Error(err, "Failed to get widget processor")
+		return ctrl.Result{}, err
+	}
+
+	logger.V(1).Info("Using widget processor", "version", processor.GetAPIVersion())
+
+	// Handle finalizer based on version
+	if result, err = r.handleFinalizerVersionAware(logger, dashboard); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}
 
-	status := instance.Status.DeepCopy()
-	statusSpecHash := instance.Status.CurrentHash
+	// Get status and spec hash based on version
+	var status interface{}
+	var statusSpecHash string
+	var instanceSpecHash string
 
-	if err = v1alpha1.IsValidDatadogDashboard(&instance.Spec); err != nil {
-		logger.Error(err, "invalid Dashboard")
-
-		updateErrStatus(status, now, v1alpha1.DatadogDashboardSyncStatusValidateError, "ValidatingDashboard", err)
-		return r.updateStatusIfNeeded(logger, instance, status, result)
+	switch d := dashboard.(type) {
+	case *v1alpha1.DatadogDashboard:
+		status = d.Status.DeepCopy()
+		statusSpecHash = d.Status.CurrentHash
+		instanceSpecHash, err = comparison.GenerateMD5ForSpec(&d.Spec)
+	case *v1alpha2.DatadogDashboard:
+		status = d.Status.DeepCopy()
+		statusSpecHash = d.Status.CurrentHash
+		instanceSpecHash, err = comparison.GenerateMD5ForSpec(&d.Spec)
 	}
-
-	instanceSpecHash, err := comparison.GenerateMD5ForSpec(&instance.Spec)
 
 	if err != nil {
 		logger.Error(err, "error generating hash")
-		updateErrStatus(status, now, v1alpha1.DatadogDashboardSyncStatusUpdateError, "GeneratingDashboardSpecHash", err)
-		return r.updateStatusIfNeeded(logger, instance, status, result)
+		r.updateErrStatusVersionAware(status, now, "DatadogDashboardSyncStatusUpdateError", "GeneratingDashboardSpecHash", err)
+		return r.updateStatusIfNeededVersionAware(logger, dashboard, status, result)
+	}
+
+	// Validate using the processor
+	if err = processor.ValidateWidgets(dashboard); err != nil {
+		logger.Error(err, "invalid Dashboard")
+		r.updateErrStatusVersionAware(status, now, "DatadogDashboardSyncStatusValidateError", "ValidatingDashboard", err)
+		return r.updateStatusIfNeededVersionAware(logger, dashboard, status, result)
 	}
 
 	shouldCreate := false
 	shouldUpdate := false
 
-	if instance.Status.ID == "" {
+	// Get dashboard ID based on version
+	var dashboardID string
+	var lastForceSyncTime *metav1.Time
+
+	switch d := dashboard.(type) {
+	case *v1alpha1.DatadogDashboard:
+		dashboardID = d.Status.ID
+		lastForceSyncTime = d.Status.LastForceSyncTime
+	case *v1alpha2.DatadogDashboard:
+		dashboardID = d.Status.ID
+		lastForceSyncTime = d.Status.LastForceSyncTime
+	}
+
+	if dashboardID == "" {
 		shouldCreate = true
 	} else {
 		if instanceSpecHash != statusSpecHash {
 			logger.Info("DatadogDashboard manifest has changed")
 			shouldUpdate = true
-		} else if instance.Status.LastForceSyncTime == nil || ((forceSyncPeriod - now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0) {
+		} else if lastForceSyncTime == nil || ((forceSyncPeriod - now.Sub(lastForceSyncTime.Time)) <= 0) {
 			// Periodically force a sync with the API to ensure parity
-			// Get Dashboard to make sure it exists before trying any updates. If it doesn't, set shouldCreate
-			_, err = r.get(instance)
+			_, err = r.getDashboard(dashboardID)
 			if err != nil {
-				logger.Error(err, "error getting Dashboard", "Dashboard ID", instance.Status.ID)
-				updateErrStatus(status, now, v1alpha1.DatadoggDashboardSyncStatusGetError, "GettingDashboard", err)
+				logger.Error(err, "error getting Dashboard", "Dashboard ID", dashboardID)
+				r.updateErrStatusVersionAware(status, now, "DatadoggDashboardSyncStatusGetError", "GettingDashboard", err)
 				if strings.Contains(err.Error(), ctrutils.NotFoundString) {
 					shouldCreate = true
 				}
 			} else {
 				shouldUpdate = true
 			}
-			status.LastForceSyncTime = &now
+			r.setLastForceSyncTimeVersionAware(status, now)
 		}
 	}
 
 	if shouldCreate || shouldUpdate {
-		// Check that required tags are present
-		// tagsUpdated, err := r.checkRequiredTags(logger, instance)
-		// if err != nil {
-		// 	result.RequeueAfter = defaultErrRequeuePeriod
-		// 	return r.updateStatusIfNeeded(logger, instance, status, result)
-		// } else if tagsUpdated {
-		// 	// A reconcile is triggered by the update
-		// 	return r.updateStatusIfNeeded(logger, instance, status, result)
-		// }
-
 		if shouldCreate {
-			err = r.create(logger, instance, status, now, instanceSpecHash)
+			err = r.createVersionAware(logger, dashboard, status, now, instanceSpecHash, processor)
 		} else if shouldUpdate {
-			err = r.update(logger, instance, status, now, instanceSpecHash)
+			err = r.updateVersionAware(logger, dashboard, status, now, instanceSpecHash, processor)
 		}
 
 		if err != nil {
@@ -186,11 +222,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		result.RequeueAfter = defaultRequeuePeriod
 	}
 
-	return r.updateStatusIfNeeded(logger, instance, status, result)
-}
-
-func (r *Reconciler) get(instance *v1alpha1.DatadogDashboard) (datadogV1.Dashboard, error) {
-	return getDashboard(r.datadogAuth, r.datadogClient, instance.Status.ID)
+	return r.updateStatusIfNeededVersionAware(logger, dashboard, status, result)
 }
 
 func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogDashboard, status *v1alpha1.DatadogDashboardStatus, now metav1.Time, hash string) error {
@@ -292,4 +324,155 @@ func buildEventInfo(name, ns string, eventType datadog.EventType) utils.EventInf
 // recordEvent wraps the manager event recorder
 func (r *Reconciler) recordEvent(dashboard runtime.Object, info utils.EventInfo) {
 	r.recorder.Event(dashboard, corev1.EventTypeNormal, info.GetReason(), info.GetMessage())
+}
+
+// Version-aware helper methods
+
+func (r *Reconciler) getDashboard(dashboardID string) (datadogV1.Dashboard, error) {
+	return getDashboard(r.datadogAuth, r.datadogClient, dashboardID)
+}
+
+func (r *Reconciler) handleFinalizerVersionAware(logger logr.Logger, dashboard interface{}) (ctrl.Result, error) {
+	switch d := dashboard.(type) {
+	case *v1alpha1.DatadogDashboard:
+		return r.handleFinalizer(logger, d)
+	case *v1alpha2.DatadogDashboard:
+		return r.handleFinalizerV1Alpha2(logger, d)
+	default:
+		return ctrl.Result{}, fmt.Errorf("unsupported dashboard type: %T", dashboard)
+	}
+}
+
+func (r *Reconciler) handleFinalizerV1Alpha2(logger logr.Logger, instance *v1alpha2.DatadogDashboard) (ctrl.Result, error) {
+	// Similar to v1alpha1 finalizer handling but for v1alpha2
+	// For now, we'll implement a basic version
+	return ctrl.Result{}, nil
+}
+
+func (r *Reconciler) updateErrStatusVersionAware(status interface{}, now metav1.Time, syncStatus string, reason string, err error) {
+	switch s := status.(type) {
+	case *v1alpha1.DatadogDashboardStatus:
+		updateErrStatus(s, now, v1alpha1.DatadogDashboardSyncStatus(syncStatus), reason, err)
+	case *v1alpha2.DatadogDashboardStatus:
+		updateErrStatusV1Alpha2(s, now, v1alpha2.DatadogDashboardSyncStatus(syncStatus), reason, err)
+	}
+}
+
+func updateErrStatusV1Alpha2(status *v1alpha2.DatadogDashboardStatus, now metav1.Time, syncStatus v1alpha2.DatadogDashboardSyncStatus, reason string, err error) {
+	condition.UpdateFailureStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeError, reason, err)
+	status.SyncStatus = syncStatus
+}
+
+func (r *Reconciler) setLastForceSyncTimeVersionAware(status interface{}, now metav1.Time) {
+	switch s := status.(type) {
+	case *v1alpha1.DatadogDashboardStatus:
+		s.LastForceSyncTime = &now
+	case *v1alpha2.DatadogDashboardStatus:
+		s.LastForceSyncTime = &now
+	}
+}
+
+func (r *Reconciler) updateStatusIfNeededVersionAware(logger logr.Logger, dashboard interface{}, status interface{}, result ctrl.Result) (ctrl.Result, error) {
+	switch d := dashboard.(type) {
+	case *v1alpha1.DatadogDashboard:
+		s := status.(*v1alpha1.DatadogDashboardStatus)
+		return r.updateStatusIfNeeded(logger, d, s, result)
+	case *v1alpha2.DatadogDashboard:
+		s := status.(*v1alpha2.DatadogDashboardStatus)
+		return r.updateStatusIfNeededV1Alpha2(logger, d, s, result)
+	default:
+		return ctrl.Result{}, fmt.Errorf("unsupported dashboard type: %T", dashboard)
+	}
+}
+
+func (r *Reconciler) updateStatusIfNeededV1Alpha2(logger logr.Logger, instance *v1alpha2.DatadogDashboard, status *v1alpha2.DatadogDashboardStatus, result ctrl.Result) (ctrl.Result, error) {
+	if !apiequality.Semantic.DeepEqual(&instance.Status, status) {
+		instance.Status = *status
+		if err := r.client.Status().Update(context.TODO(), instance); err != nil {
+			if apierrors.IsConflict(err) {
+				logger.Error(err, "unable to update DatadogDashboard status due to update conflict")
+				return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod}, nil
+			}
+			logger.Error(err, "unable to update DatadogDashboard status")
+			return ctrl.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod}, err
+		}
+	}
+	return result, nil
+}
+
+func (r *Reconciler) createVersionAware(logger logr.Logger, dashboard interface{}, status interface{}, now metav1.Time, hash string, processor WidgetProcessor) error {
+	switch d := dashboard.(type) {
+	case *v1alpha1.DatadogDashboard:
+		s := status.(*v1alpha1.DatadogDashboardStatus)
+		return r.create(logger, d, s, now, hash)
+	case *v1alpha2.DatadogDashboard:
+		s := status.(*v1alpha2.DatadogDashboardStatus)
+		return r.createV1Alpha2(logger, d, s, now, hash, processor)
+	default:
+		return fmt.Errorf("unsupported dashboard type: %T", dashboard)
+	}
+}
+
+func (r *Reconciler) updateVersionAware(logger logr.Logger, dashboard interface{}, status interface{}, now metav1.Time, hash string, processor WidgetProcessor) error {
+	switch d := dashboard.(type) {
+	case *v1alpha1.DatadogDashboard:
+		s := status.(*v1alpha1.DatadogDashboardStatus)
+		return r.update(logger, d, s, now, hash)
+	case *v1alpha2.DatadogDashboard:
+		s := status.(*v1alpha2.DatadogDashboardStatus)
+		return r.updateV1Alpha2(logger, d, s, now, hash, processor)
+	default:
+		return fmt.Errorf("unsupported dashboard type: %T", dashboard)
+	}
+}
+
+func (r *Reconciler) createV1Alpha2(logger logr.Logger, instance *v1alpha2.DatadogDashboard, status *v1alpha2.DatadogDashboardStatus, now metav1.Time, hash string, processor WidgetProcessor) error {
+	logger.V(1).Info("Dashboard ID is not set; creating Dashboard in Datadog")
+
+	// Create Dashboard in Datadog
+	createdDashboard, err := createDashboardV1Alpha2(r.datadogAuth, logger, r.datadogClient, instance, processor)
+	if err != nil {
+		logger.Error(err, "error creating Dashboard")
+		updateErrStatusV1Alpha2(status, now, v1alpha2.DatadogDashboardSyncStatusCreateError, "CreatingDashboard", err)
+		return err
+	}
+	event := buildEventInfo(instance.Name, instance.Namespace, datadog.CreationEvent)
+	r.recordEvent(instance, event)
+
+	// Add static information to status
+	status.ID = createdDashboard.GetId()
+	createdTime := metav1.NewTime(createdDashboard.GetCreatedAt())
+	status.Creator = createdDashboard.GetAuthorHandle()
+	status.Created = &createdTime
+	status.SyncStatus = v1alpha2.DatadogDashboardSyncStatusOK
+	status.LastForceSyncTime = &createdTime
+	status.CurrentHash = hash
+
+	// Set condition and status
+	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeCreated, metav1.ConditionTrue, "CreatingDashboard", "DatadogDashboard Created")
+	logger.Info("created a new DatadogDashboard", "dashboard ID", status.ID)
+
+	return nil
+}
+
+func (r *Reconciler) updateV1Alpha2(logger logr.Logger, instance *v1alpha2.DatadogDashboard, status *v1alpha2.DatadogDashboardStatus, now metav1.Time, hash string, processor WidgetProcessor) error {
+	// Update hash to reflect the spec we're attempting to sync (whether it succeeds or fails)
+	status.CurrentHash = hash
+
+	if _, err := updateDashboardV1Alpha2(r.datadogAuth, logger, r.datadogClient, instance, processor); err != nil {
+		logger.Error(err, "error updating Dashboard", "Dashboard ID", instance.Status.ID)
+		updateErrStatusV1Alpha2(status, now, v1alpha2.DatadogDashboardSyncStatusUpdateError, "UpdatingDasboard", err)
+		return err
+	}
+
+	event := buildEventInfo(instance.Name, instance.Namespace, datadog.UpdateEvent)
+	r.recordEvent(instance, event)
+
+	// Set condition and status
+	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeUpdated, metav1.ConditionTrue, "UpdatingDashboard", "DatadogDashboard Update")
+	status.SyncStatus = v1alpha2.DatadogDashboardSyncStatusOK
+	status.LastForceSyncTime = &now
+
+	logger.Info("Updated DatadogDashboard", "Dashboard ID", instance.Status.ID)
+	return nil
 }
