@@ -60,6 +60,7 @@ require (
 	github.com/gobuffalo/flect v1.0.3
 	github.com/google/go-containerregistry v0.6.0
 	github.com/hashicorp/go-retryablehttp v0.7.7
+	github.com/modelcontextprotocol/go-sdk v1.2.0
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/prometheus/client_golang v1.22.0
 	github.com/samber/lo v1.49.1
@@ -155,6 +156,7 @@ require (
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/cel-go v0.23.2 // indirect
 	github.com/google/gnostic-models v0.6.9 // indirect
+	github.com/google/jsonschema-go v0.3.0 // indirect
 	github.com/google/pprof v0.0.0-20241210010833-40e02aabc2ad // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674 // indirect
