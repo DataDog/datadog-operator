@@ -17,6 +17,7 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/componentmeta"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
@@ -25,6 +26,9 @@ import (
 type ComponentReconciler interface {
 	// Name returns the component name (e.g., "clusterAgent", "clusterChecksRunner")
 	Name() datadoghqv2alpha1.ComponentName
+
+	// Meta returns the component metadata
+	Meta() componentmeta.ComponentMeta
 
 	// IsEnabled checks if this component should be reconciled based on requiredComponents
 	IsEnabled(requiredComponents feature.RequiredComponents) bool

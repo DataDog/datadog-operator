@@ -26,6 +26,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/componentmeta"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -35,18 +36,25 @@ import (
 // ClusterChecksRunnerComponent implements ComponentReconciler for the Cluster Checks Runner deployment
 type ClusterChecksRunnerComponent struct {
 	reconciler *Reconciler
+	meta       componentmeta.ComponentMeta
 }
 
 // NewClusterChecksRunnerComponent creates a new ClusterChecksRunner component
 func NewClusterChecksRunnerComponent(reconciler *Reconciler) *ClusterChecksRunnerComponent {
 	return &ClusterChecksRunnerComponent{
 		reconciler: reconciler,
+		meta:       componentmeta.ClusterChecksRunner(),
 	}
+}
+
+// Meta returns the component metadata
+func (c *ClusterChecksRunnerComponent) Meta() componentmeta.ComponentMeta {
+	return c.meta
 }
 
 // Name returns the component name
 func (c *ClusterChecksRunnerComponent) Name() datadoghqv2alpha1.ComponentName {
-	return datadoghqv2alpha1.ClusterChecksRunnerComponentName
+	return c.meta.ComponentName()
 }
 
 // IsEnabled checks if the ClusterChecksRunner component should be reconciled

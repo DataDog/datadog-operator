@@ -29,6 +29,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/componentmeta"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -38,18 +39,25 @@ import (
 // ClusterAgentComponent implements ComponentReconciler for the Cluster Agent deployment
 type ClusterAgentComponent struct {
 	reconciler *Reconciler
+	meta       componentmeta.ComponentMeta
 }
 
 // NewClusterAgentComponent creates a new ClusterAgent component
 func NewClusterAgentComponent(reconciler *Reconciler) *ClusterAgentComponent {
 	return &ClusterAgentComponent{
 		reconciler: reconciler,
+		meta:       componentmeta.ClusterAgent(),
 	}
+}
+
+// Meta returns the component metadata
+func (c *ClusterAgentComponent) Meta() componentmeta.ComponentMeta {
+	return c.meta
 }
 
 // Name returns the component name
 func (c *ClusterAgentComponent) Name() datadoghqv2alpha1.ComponentName {
-	return datadoghqv2alpha1.ClusterAgentComponentName
+	return c.meta.ComponentName()
 }
 
 // IsEnabled checks if the Cluster Agent component should be reconciled
