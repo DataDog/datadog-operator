@@ -604,6 +604,13 @@ func (r *Reconciler) createOrUpdateDDAI(ddai *v1alpha1.DatadogAgentInternal) err
 
 	if currentDDAI.Annotations[constants.MD5DDAIDeploymentAnnotationKey] != ddai.Annotations[constants.MD5DDAIDeploymentAnnotationKey] {
 		r.log.Info("updating DatadogAgentInternal", "ns", ddai.Namespace, "name", ddai.Name)
+
+		// Preserve finalizers from the current DDAI to prevent their deletion
+		if len(currentDDAI.Finalizers) > 0 {
+			ddai.Finalizers = currentDDAI.Finalizers
+			r.log.V(1).Info("copying finalizers from the current DDAI", "finalizers", ddai.Finalizers)
+		}
+
 		if err := kubernetes.UpdateFromObject(context.TODO(), r.client, ddai, currentDDAI.ObjectMeta); err != nil {
 			return err
 		}
