@@ -16,25 +16,25 @@ type ListAgentsArgs struct {
 
 // GetAgentStatusArgs defines arguments for getting DatadogAgent runtime status
 type GetAgentStatusArgs struct {
-	Name      string `json:"name"                jsonschema:"Name of the DatadogAgent resource"`
+	Name      string `json:"name,omitempty"      jsonschema:"Name of the DatadogAgent resource. If not specified, auto-selects the first DatadogAgent found in the namespace"`
 	Namespace string `json:"namespace,omitempty" jsonschema:"Kubernetes namespace. Empty means current namespace from kubeconfig"`
 }
 
 // DescribeAgentFeaturesArgs defines arguments for describing agent features
 type DescribeAgentFeaturesArgs struct {
-	Name      string `json:"name"                jsonschema:"Name of the DatadogAgent resource"`
+	Name      string `json:"name,omitempty"      jsonschema:"Name of the DatadogAgent resource. If not specified, auto-selects the first DatadogAgent found in the namespace"`
 	Namespace string `json:"namespace,omitempty" jsonschema:"Kubernetes namespace. Empty means current namespace from kubeconfig"`
 }
 
 // DescribeAgentComponentsArgs defines arguments for describing agent components
 type DescribeAgentComponentsArgs struct {
-	Name      string `json:"name"                jsonschema:"Name of the DatadogAgent resource"`
+	Name      string `json:"name,omitempty"      jsonschema:"Name of the DatadogAgent resource. If not specified, auto-selects the first DatadogAgent found in the namespace"`
 	Namespace string `json:"namespace,omitempty" jsonschema:"Kubernetes namespace. Empty means current namespace from kubeconfig"`
 }
 
-// GetClusterAgentLeaderArgs defines arguments for getting the cluster-agent leader pod
+// GetClusterAgentLeaderArgs defines arguments for getting cluster-agent leader
 type GetClusterAgentLeaderArgs struct {
-	Name      string `json:"name"                jsonschema:"Name of the DatadogAgent resource"`
+	Name      string `json:"name,omitempty"      jsonschema:"Name of the DatadogAgent resource. If not specified, auto-selects the first DatadogAgent found in the namespace"`
 	Namespace string `json:"namespace,omitempty" jsonschema:"Kubernetes namespace. Empty means current namespace from kubeconfig"`
 }
 
@@ -56,9 +56,9 @@ type ListAgentsOutput struct {
 	Count  int            `json:"count"`
 }
 
-// ClusterAgentLeaderOutput contains cluster-agent leader information
+// ClusterAgentLeaderOutput contains the cluster-agent leader information
 type ClusterAgentLeaderOutput struct {
-	Name           string `json:"name"`
+	DatadogAgent   string `json:"datadogAgent"`
 	Namespace      string `json:"namespace"`
 	LeaderPodName  string `json:"leaderPodName"`
 	ElectionMethod string `json:"electionMethod"` // "Lease" or "ConfigMap"

@@ -31,12 +31,17 @@ type options struct {
 	args []string
 
 	debug bool
+
+	// Proxy configuration
+	proxyConfig  *ProxyConfig
+	proxyManager *ProxyManager
 }
 
 // newOptions provides an instance of options with default values.
 func newOptions(streams genericclioptions.IOStreams) *options {
 	o := &options{
-		IOStreams: streams,
+		IOStreams:   streams,
+		proxyConfig: DefaultProxyConfig(),
 	}
 	o.SetConfigFlags()
 	return o
@@ -77,6 +82,16 @@ The MCP server exposes tools to:
 
 	cmd.Flags().BoolVar(&o.debug, "debug", false, "Enable debug logging")
 
+	// Proxy configuration flags
+	cmd.Flags().BoolVar(&o.proxyConfig.Enabled, "proxy-cluster-agent", true,
+		"Enable proxying of cluster-agent MCP tools")
+	cmd.Flags().StringVar(&o.proxyConfig.DDAName, "proxy-dda-name", "",
+		"DatadogAgent name for cluster-agent proxy (default: auto-select first)")
+	cmd.Flags().IntVar(&o.proxyConfig.Port, "proxy-port", 5000,
+		"Cluster-agent MCP server port")
+	cmd.Flags().StringVar(&o.proxyConfig.Endpoint, "proxy-endpoint", "/mcp",
+		"Cluster-agent MCP endpoint path")
+
 	return cmd
 }
 
@@ -99,16 +114,19 @@ func (o *options) run(cmd *cobra.Command) error {
 	ctx := cmd.Context()
 
 	if o.debug {
-		fmt.Fprintln(o.ErrOut, "CEDTEST: Debug logging enabled")
-		fmt.Fprintln(o.ErrOut, "CEDTEST: RUN start")
-		defer fmt.Fprintln(o.ErrOut, "CEDTEST: RUN end")
+		fmt.Fprintln(o.ErrOut, "[DEBUG]: RUN start")
+		defer fmt.Fprintln(o.ErrOut, "[DEBUG]: RUN end")
 	}
+
+	// Cleanup proxy on shutdown
+	defer func() {
+		if o.proxyManager != nil {
+			o.proxyManager.Shutdown()
+		}
+	}()
 
 	// Create MCP server with registered tools
 	server := o.createMCPServer()
-	if o.debug {
-		fmt.Fprintln(o.ErrOut, "CEDTEST: MCP server created")
-	}
 
 	// Run the server with stdio transport - this blocks until client disconnects
 	if err := server.Run(ctx, &mcp.StdioTransport{}); err != nil {

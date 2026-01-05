@@ -7,19 +7,15 @@ package mcp
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"reflect"
 
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	coordv1 "k8s.io/api/coordination/v1"
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/clusteragent/leader"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
 
@@ -41,6 +37,33 @@ func getK8sSchemaOptions() *jsonschema.ForOptions {
 			},
 		},
 	}
+}
+
+// selectDatadogAgent handles auto-selection of a DatadogAgent when name is not provided.
+// Returns the agent name and an optional error result.
+// If error result is non-nil, the caller should return it immediately.
+func (o *options) selectDatadogAgent(namespace string, providedName string) (string, *mcp.CallToolResult) {
+	// If name is provided, use it directly
+	if providedName != "" {
+		return providedName, nil
+	}
+
+	// Auto-select DatadogAgent
+	discovery := NewClusterAgentDiscovery(o.Client, o.Clientset, o.DiscoveryClient, namespace)
+	selectedName, err := discovery.SelectDatadogAgent("")
+	if err != nil {
+		//nolint:nilerr // MCP SDK pattern: tool errors are returned in CallToolResult, not as Go errors
+		return "", &mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{
+				&mcp.TextContent{
+					Text: "Failed to auto-select DatadogAgent: " + err.Error(),
+				},
+			},
+		}
+	}
+
+	return selectedName, nil
 }
 
 // registerListAgentsTool registers the list_datadog_agents tool.
@@ -141,10 +164,16 @@ func (o *options) registerGetAgentStatusTool(server *mcp.Server) {
 			namespace = o.UserNamespace
 		}
 
+		// Auto-select DatadogAgent if name not provided
+		agentName, errResult := o.selectDatadogAgent(namespace, args.Name)
+		if errResult != nil {
+			return errResult, AgentStatusOutput{}, nil
+		}
+
 		agent := &v2alpha1.DatadogAgent{}
 		key := client.ObjectKey{
 			Namespace: namespace,
-			Name:      args.Name,
+			Name:      agentName,
 		}
 
 		if err := o.Client.Get(ctx, key, agent); err != nil {
@@ -198,10 +227,16 @@ func (o *options) registerDescribeAgentFeaturesTool(server *mcp.Server) {
 			namespace = o.UserNamespace
 		}
 
+		// Auto-select DatadogAgent if name not provided
+		agentName, errResult := o.selectDatadogAgent(namespace, args.Name)
+		if errResult != nil {
+			return errResult, AgentFeaturesOutput{}, nil
+		}
+
 		agent := &v2alpha1.DatadogAgent{}
 		key := client.ObjectKey{
 			Namespace: namespace,
-			Name:      args.Name,
+			Name:      agentName,
 		}
 
 		if err := o.Client.Get(ctx, key, agent); err != nil {
@@ -253,10 +288,16 @@ func (o *options) registerDescribeAgentComponentsTool(server *mcp.Server) {
 			namespace = o.UserNamespace
 		}
 
+		// Auto-select DatadogAgent if name not provided
+		agentName, errResult := o.selectDatadogAgent(namespace, args.Name)
+		if errResult != nil {
+			return errResult, AgentComponentsOutput{}, nil
+		}
+
 		agent := &v2alpha1.DatadogAgent{}
 		key := client.ObjectKey{
 			Namespace: namespace,
-			Name:      args.Name,
+			Name:      agentName,
 		}
 
 		if err := o.Client.Get(ctx, key, agent); err != nil {
@@ -283,11 +324,6 @@ func (o *options) registerDescribeAgentComponentsTool(server *mcp.Server) {
 	})
 }
 
-// leaderResponse is used for unmarshaling ConfigMap leader annotation
-type leaderResponse struct {
-	HolderIdentity string `json:"holderIdentity"`
-}
-
 // registerGetClusterAgentLeaderTool registers the get_cluster_agent_leader tool.
 func (o *options) registerGetClusterAgentLeaderTool(server *mcp.Server) {
 	// Generate output schema with custom K8s type schemas
@@ -306,120 +342,53 @@ func (o *options) registerGetClusterAgentLeaderTool(server *mcp.Server) {
 			namespace = o.UserNamespace
 		}
 
-		// Leader object name is {DatadogAgentName}-leader-election
-		leaderObjName := fmt.Sprintf("%s-leader-election", args.Name)
-		objKey := client.ObjectKey{Namespace: namespace, Name: leaderObjName}
+		// Auto-select DatadogAgent if name not provided
+		agentName, errResult := o.selectDatadogAgent(namespace, args.Name)
+		if errResult != nil {
+			return errResult, ClusterAgentLeaderOutput{}, nil
+		}
 
-		var leaderName string
-		var electionMethod string
+		// Create discovery instance for leader lookup
+		discovery := NewClusterAgentDiscovery(o.Client, o.Clientset, o.DiscoveryClient, namespace)
 
-		// Check if Lease is supported
-		useLease, err := o.isLeaseSupported()
+		// Discover leader pod
+		leaderPodName, leaderNamespace, err := discovery.DiscoverLeaderPod(agentName)
 		if err != nil {
 			//nolint:nilerr // MCP SDK pattern: tool errors are returned in CallToolResult, not as Go errors
 			return &mcp.CallToolResult{
 				IsError: true,
 				Content: []mcp.Content{
 					&mcp.TextContent{
-						Text: fmt.Sprintf("Failed to check if Lease is supported: %s", err.Error()),
+						Text: "Failed to discover cluster-agent leader: " + err.Error(),
 					},
 				},
 			}, ClusterAgentLeaderOutput{}, nil
 		}
 
-		// Try to get leader from Lease if supported
-		if useLease {
-			leaderName, err = o.getLeaderFromLease(ctx, objKey)
-			if err == nil {
+		// Determine election method by checking which method was used
+		// Build the leader election object name
+		leaderObjName := agentName + "-leader-election"
+		objKey := client.ObjectKey{Namespace: namespace, Name: leaderObjName}
+
+		// Check if Lease API is supported and used
+		electionMethod := "ConfigMap" // Default to ConfigMap
+		useLease, err := leader.IsLeaseSupported(o.DiscoveryClient)
+		if err == nil && useLease {
+			// Try to get from Lease
+			_, leaseErr := leader.GetLeaderFromLease(o.Client, objKey)
+			if leaseErr == nil {
 				electionMethod = "Lease"
 			}
 		}
 
-		// Fall back to ConfigMap if Lease is not supported or failed
-		if !useLease || err != nil {
-			leaderName, err = o.getLeaderFromConfigMap(ctx, objKey)
-			if err != nil {
-				//nolint:nilerr // MCP SDK pattern: tool errors are returned in CallToolResult, not as Go errors
-				return &mcp.CallToolResult{
-					IsError: true,
-					Content: []mcp.Content{
-						&mcp.TextContent{
-							Text: fmt.Sprintf("Failed to get cluster-agent leader: %s", err.Error()),
-						},
-					},
-				}, ClusterAgentLeaderOutput{}, nil
-			}
-			electionMethod = "ConfigMap"
-		}
-
-		output := ClusterAgentLeaderOutput{
-			Name:           args.Name,
-			Namespace:      namespace,
-			LeaderPodName:  leaderName,
+		// Build output
+		leaderInfo := ClusterAgentLeaderOutput{
+			DatadogAgent:   agentName,
+			Namespace:      leaderNamespace,
+			LeaderPodName:  leaderPodName,
 			ElectionMethod: electionMethod,
 		}
 
-		return nil, output, nil
+		return nil, leaderInfo, nil
 	})
-}
-
-// getLeaderFromLease retrieves the leader identity from a Lease object
-func (o *options) getLeaderFromLease(ctx context.Context, objKey client.ObjectKey) (string, error) {
-	lease := &coordv1.Lease{}
-	err := o.Client.Get(ctx, objKey, lease)
-	if err != nil && apierrors.IsNotFound(err) {
-		return "", fmt.Errorf("lease %s/%s not found", objKey.Namespace, objKey.Name)
-	} else if err != nil {
-		return "", fmt.Errorf("unable to get leader election lease: %w", err)
-	}
-
-	// Get the info from the lease
-	if lease.Spec.HolderIdentity == nil {
-		return "", fmt.Errorf("lease %s/%s does not have a holder identity", objKey.Namespace, objKey.Name)
-	}
-
-	return *lease.Spec.HolderIdentity, nil
-}
-
-// getLeaderFromConfigMap retrieves the leader identity from a ConfigMap annotation
-func (o *options) getLeaderFromConfigMap(ctx context.Context, objKey client.ObjectKey) (string, error) {
-	// Get the config map holding the leader identity
-	cm := &corev1.ConfigMap{}
-	err := o.Client.Get(ctx, objKey, cm)
-	if err != nil && apierrors.IsNotFound(err) {
-		return "", fmt.Errorf("config map %s/%s not found", objKey.Namespace, objKey.Name)
-	} else if err != nil {
-		return "", fmt.Errorf("unable to get leader election config map: %w", err)
-	}
-
-	// Get leader from annotations
-	annotations := cm.GetAnnotations()
-	leaderInfo, found := annotations["control-plane.alpha.kubernetes.io/leader"]
-	if !found {
-		return "", fmt.Errorf("couldn't find leader annotation on %s/%s config map", objKey.Namespace, objKey.Name)
-	}
-
-	resp := leaderResponse{}
-	if err := json.Unmarshal([]byte(leaderInfo), &resp); err != nil {
-		return "", fmt.Errorf("couldn't unmarshal leader annotation: %w", err)
-	}
-
-	return resp.HolderIdentity, nil
-}
-
-// isLeaseSupported checks if the Kubernetes cluster supports Lease resources
-func (o *options) isLeaseSupported() (bool, error) {
-	apiGroupList, err := o.DiscoveryClient.ServerGroups()
-	if err != nil {
-		return false, fmt.Errorf("unable to discover APIGroups, err:%w", err)
-	}
-
-	groupVersions := metav1.ExtractGroupVersions(apiGroupList)
-	for _, grv := range groupVersions {
-		if grv == "coordination.k8s.io/v1" || grv == "coordination.k8s.io/v1beta1" {
-			return true, nil
-		}
-	}
-
-	return false, nil
 }

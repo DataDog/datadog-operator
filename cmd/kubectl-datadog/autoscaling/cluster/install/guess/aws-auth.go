@@ -10,7 +10,7 @@ import (
 )
 
 // IsAwsAuthConfigMapPresent checks if the aws-auth ConfigMap exists in the kube-system namespace
-func IsAwsAuthConfigMapPresent(ctx context.Context, clientset *kubernetes.Clientset) (bool, error) {
+func IsAwsAuthConfigMapPresent(ctx context.Context, clientset kubernetes.Interface) (bool, error) {
 	if _, err := clientset.CoreV1().ConfigMaps("kube-system").Get(ctx, "aws-auth", metav1.GetOptions{}); err != nil {
 		if apierrors.IsNotFound(err) {
 			return false, nil

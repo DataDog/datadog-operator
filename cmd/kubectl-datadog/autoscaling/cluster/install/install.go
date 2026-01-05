@@ -271,8 +271,8 @@ type clients struct {
 	sts            *sts.Client
 
 	// Kubernetes clients
-	k8sClient    client.Client         // controller-runtime client
-	k8sClientset *kubernetes.Clientset // typed Kubernetes client
+	k8sClient    client.Client        // controller-runtime client
+	k8sClientset kubernetes.Interface // typed Kubernetes client
 }
 
 func (o *options) getClusterNameFromKubeconfig(ctx context.Context) (string, error) {
