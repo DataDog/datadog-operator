@@ -75,21 +75,29 @@ type ReconcilerOptions struct {
 
 // Reconciler is the internal reconciler for Datadog Agent
 type Reconciler struct {
-	options      ReconcilerOptions
-	client       client.Client
-	platformInfo kubernetes.PlatformInfo
-	scheme       *runtime.Scheme
-	log          logr.Logger
-	recorder     record.EventRecorder
-	forwarders   datadog.MetricsForwardersManager
-	fieldManager *managedfields.FieldManager
+	options           ReconcilerOptions
+	client            client.Client
+	platformInfo      kubernetes.PlatformInfo
+	scheme            *runtime.Scheme
+	log               logr.Logger
+	recorder          record.EventRecorder
+	forwarders        datadog.MetricsForwardersManager
+	fieldManager      *managedfields.FieldManager
+	componentRegistry *ComponentRegistry
+}
+
+func (r *Reconciler) initializeComponentRegistry() {
+	r.componentRegistry = NewComponentRegistry(r)
+	// Register all components
+	r.componentRegistry.Register(NewClusterAgentComponent(r))
+	r.componentRegistry.Register(NewClusterChecksRunnerComponent(r))
 }
 
 // NewReconciler returns a reconciler for DatadogAgent
 func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo kubernetes.PlatformInfo,
 	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwardersMgr datadog.MetricsForwardersManager,
 ) (*Reconciler, error) {
-	return &Reconciler{
+	r := &Reconciler{
 		options:      options,
 		client:       client,
 		platformInfo: platformInfo,
@@ -97,7 +105,12 @@ func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo
 		log:          log,
 		recorder:     recorder,
 		forwarders:   metricForwardersMgr,
-	}, nil
+	}
+
+	// Initialize component registry
+	r.initializeComponentRegistry()
+
+	return r, nil
 }
 
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context

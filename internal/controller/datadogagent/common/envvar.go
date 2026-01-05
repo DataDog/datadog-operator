@@ -29,6 +29,7 @@ const (
 	DDSystemProbeSocket                 = "DD_SYSPROBE_SOCKET"
 	DDADPEnabled                        = "DD_ADP_ENABLED"
 	DDKubernetesPodResourcesSocket      = "DD_KUBERNETES_KUBELET_PODRESOURCES_SOCKET"
+	DDCELWorkloadExclude                = "DD_CEL_WORKLOAD_EXCLUDE"
 
 	// KubernetesEnvvarName Env var used by the Datadog Agent container entrypoint
 	// to add kubelet config provider and listener

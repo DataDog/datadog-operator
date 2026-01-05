@@ -13,14 +13,14 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/api/utils"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/go-logr/logr"
 
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -36,7 +36,7 @@ func TestApplyProfile(t *testing.T) {
 	tests := []struct {
 		name                           string
 		profile                        v1alpha1.DatadogAgentProfile
-		nodes                          []v1.Node
+		nodes                          []corev1.Node
 		datadogAgentInternalEnabled    bool
 		profileAppliedByNode           map[string]types.NamespacedName
 		expectedProfilesAppliedPerNode map[string]types.NamespacedName
@@ -45,7 +45,7 @@ func TestApplyProfile(t *testing.T) {
 		{
 			name:    "empty profile, empty profileAppliedByNode",
 			profile: v1alpha1.DatadogAgentProfile{},
-			nodes: []v1.Node{
+			nodes: []corev1.Node{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node1",
@@ -63,7 +63,7 @@ func TestApplyProfile(t *testing.T) {
 		{
 			name:    "empty profile, non-empty profileAppliedByNode",
 			profile: v1alpha1.DatadogAgentProfile{},
-			nodes: []v1.Node{
+			nodes: []corev1.Node{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node1",
@@ -91,7 +91,7 @@ func TestApplyProfile(t *testing.T) {
 		{
 			name:    "empty profile, , non-empty profileAppliedByNode, no nodes",
 			profile: v1alpha1.DatadogAgentProfile{},
-			nodes:   []v1.Node{},
+			nodes:   []corev1.Node{},
 			profileAppliedByNode: map[string]types.NamespacedName{
 				"node1": {
 					Namespace: testNamespace,
@@ -110,7 +110,7 @@ func TestApplyProfile(t *testing.T) {
 		{
 			name:    "non-conflicting profile, empty profileAppliedByNode",
 			profile: exampleProfileForLinux(),
-			nodes: []v1.Node{
+			nodes: []corev1.Node{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node1",
@@ -133,7 +133,7 @@ func TestApplyProfile(t *testing.T) {
 		{
 			name:    "non-conflicting profile, non-empty profileAppliedByNode",
 			profile: exampleProfileForLinux(),
-			nodes: []v1.Node{
+			nodes: []corev1.Node{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node1",
@@ -173,7 +173,7 @@ func TestApplyProfile(t *testing.T) {
 		{
 			name:    "non-conflicting profile, non-empty profileAppliedByNode, no nodes",
 			profile: exampleProfileForLinux(),
-			nodes:   []v1.Node{},
+			nodes:   []corev1.Node{},
 			profileAppliedByNode: map[string]types.NamespacedName{
 				"node2": {
 					Namespace: testNamespace,
@@ -192,7 +192,7 @@ func TestApplyProfile(t *testing.T) {
 		{
 			name:    "conflicting profile",
 			profile: exampleProfileForLinux(),
-			nodes: []v1.Node{
+			nodes: []corev1.Node{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node1",
@@ -228,7 +228,7 @@ func TestApplyProfile(t *testing.T) {
 		{
 			name:    "invalid profile",
 			profile: exampleInvalidProfile(),
-			nodes: []v1.Node{
+			nodes: []corev1.Node{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node1",
@@ -263,7 +263,7 @@ func TestApplyProfile(t *testing.T) {
 		{
 			name:    "feature override when ddai disabled",
 			profile: exampleFeatureOverrideProfile(),
-			nodes: []v1.Node{
+			nodes: []corev1.Node{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node1",
@@ -327,7 +327,7 @@ func TestOverrideFromProfile(t *testing.T) {
 				Labels: map[string]string{
 					"agent.datadoghq.com/datadogagentprofile": "example",
 				},
-				Affinity: &v1.Affinity{
+				Affinity: &corev1.Affinity{
 					PodAntiAffinity: profilePodAntiAffinity(),
 				},
 			},
@@ -337,20 +337,20 @@ func TestOverrideFromProfile(t *testing.T) {
 			profile: exampleProfileForLinux(),
 			expectedOverride: v2alpha1.DatadogAgentComponentOverride{
 				Name: &overrideNameForLinuxProfile,
-				Affinity: &v1.Affinity{
-					NodeAffinity: &v1.NodeAffinity{
-						RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-							NodeSelectorTerms: []v1.NodeSelectorTerm{
+				Affinity: &corev1.Affinity{
+					NodeAffinity: &corev1.NodeAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+							NodeSelectorTerms: []corev1.NodeSelectorTerm{
 								{
-									MatchExpressions: []v1.NodeSelectorRequirement{
+									MatchExpressions: []corev1.NodeSelectorRequirement{
 										{
 											Key:      "os",
-											Operator: v1.NodeSelectorOpIn,
+											Operator: corev1.NodeSelectorOpIn,
 											Values:   []string{"linux"},
 										},
 										{
 											Key:      constants.ProfileLabelKey,
-											Operator: v1.NodeSelectorOpIn,
+											Operator: corev1.NodeSelectorOpIn,
 											Values:   []string{"linux"},
 										},
 									},
@@ -392,15 +392,15 @@ func TestOverrideFromProfile(t *testing.T) {
 			profile: exampleDefaultProfile(),
 			expectedOverride: v2alpha1.DatadogAgentComponentOverride{
 				Name: apiutils.NewStringPointer(""),
-				Affinity: &v1.Affinity{
-					NodeAffinity: &v1.NodeAffinity{
-						RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-							NodeSelectorTerms: []v1.NodeSelectorTerm{
+				Affinity: &corev1.Affinity{
+					NodeAffinity: &corev1.NodeAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+							NodeSelectorTerms: []corev1.NodeSelectorTerm{
 								{
-									MatchExpressions: []v1.NodeSelectorRequirement{
+									MatchExpressions: []corev1.NodeSelectorRequirement{
 										{
 											Key:      constants.ProfileLabelKey,
-											Operator: v1.NodeSelectorOpDoesNotExist,
+											Operator: corev1.NodeSelectorOpDoesNotExist,
 										},
 									},
 								},
@@ -419,7 +419,7 @@ func TestOverrideFromProfile(t *testing.T) {
 				Labels: map[string]string{
 					"agent.datadoghq.com/datadogagentprofile": "all-containers",
 				},
-				Affinity: &v1.Affinity{
+				Affinity: &corev1.Affinity{
 					PodAntiAffinity: profilePodAntiAffinity(),
 				},
 				Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
@@ -693,10 +693,10 @@ func exampleProfileForLinux() v1alpha1.DatadogAgentProfile {
 		},
 		Spec: v1alpha1.DatadogAgentProfileSpec{
 			ProfileAffinity: &v1alpha1.ProfileAffinity{
-				ProfileNodeAffinity: []v1.NodeSelectorRequirement{
+				ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
 					{
 						Key:      "os",
-						Operator: v1.NodeSelectorOpIn,
+						Operator: corev1.NodeSelectorOpIn,
 						Values:   []string{"linux"},
 					},
 				},
@@ -714,10 +714,10 @@ func exampleProfileForWindows() v1alpha1.DatadogAgentProfile {
 		},
 		Spec: v1alpha1.DatadogAgentProfileSpec{
 			ProfileAffinity: &v1alpha1.ProfileAffinity{
-				ProfileNodeAffinity: []v1.NodeSelectorRequirement{
+				ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
 					{
 						Key:      "os",
-						Operator: v1.NodeSelectorOpIn,
+						Operator: corev1.NodeSelectorOpIn,
 						Values:   []string{"windows"},
 					},
 				},
@@ -748,10 +748,10 @@ func exampleFeatureOverrideProfile() v1alpha1.DatadogAgentProfile {
 		},
 		Spec: v1alpha1.DatadogAgentProfileSpec{
 			ProfileAffinity: &v1alpha1.ProfileAffinity{
-				ProfileNodeAffinity: []v1.NodeSelectorRequirement{
+				ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
 					{
 						Key:      "os",
-						Operator: v1.NodeSelectorOpIn,
+						Operator: corev1.NodeSelectorOpIn,
 						Values:   []string{"linux"},
 					},
 				},
@@ -759,7 +759,7 @@ func exampleFeatureOverrideProfile() v1alpha1.DatadogAgentProfile {
 			Config: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					GPU: &v2alpha1.GPUFeatureConfig{
-						Enabled: utils.NewBoolPointer(true),
+						Enabled: apiutils.NewBoolPointer(true),
 					},
 				},
 				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -861,17 +861,17 @@ func configWithAllOverrides(cpuRequest string) *v2alpha1.DatadogAgentSpec {
 	}
 }
 
-func cpuRequestResource(cpuRequest string) *v1.ResourceRequirements {
-	return &v1.ResourceRequirements{
-		Requests: v1.ResourceList{
-			v1.ResourceCPU: resource.MustParse(cpuRequest),
+func cpuRequestResource(cpuRequest string) *corev1.ResourceRequirements {
+	return &corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU: resource.MustParse(cpuRequest),
 		},
 	}
 }
 
-func profilePodAntiAffinity() *v1.PodAntiAffinity {
-	return &v1.PodAntiAffinity{
-		RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+func profilePodAntiAffinity() *corev1.PodAntiAffinity {
+	return &corev1.PodAntiAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
 			{
 				LabelSelector: &metav1.LabelSelector{
 					MatchExpressions: []metav1.LabelSelectorRequirement{
@@ -882,7 +882,7 @@ func profilePodAntiAffinity() *v1.PodAntiAffinity {
 						},
 					},
 				},
-				TopologyKey: v1.LabelHostname,
+				TopologyKey: corev1.LabelHostname,
 			},
 		},
 	}
@@ -1454,15 +1454,18 @@ func TestParseProfileRequirements(t *testing.T) {
 func TestApplyProfileToNodes(t *testing.T) {
 	tests := []struct {
 		name                    string
+		createStrategyEnabled   bool
 		profileMeta             metav1.ObjectMeta
 		profileRequirementsSpec []struct {
 			key      string
 			operator selection.Operator
 			values   []string
 		}
-		nodes                        []v1.Node
+		nodes                        []corev1.Node
 		existingProfileAppliedByNode map[string]types.NamespacedName
 		expectedProfileAppliedByNode map[string]types.NamespacedName
+		expectedNodesNeedingLabel    []string
+		expectedNodesAlreadyLabeled  int32
 		expectedError                error
 	}{
 		{
@@ -1478,7 +1481,7 @@ func TestApplyProfileToNodes(t *testing.T) {
 			}{
 				{key: "os", operator: selection.In, values: []string{"linux"}},
 			},
-			nodes: []v1.Node{
+			nodes: []corev1.Node{
 				createNodeWithLabels("node1", map[string]string{"os": "linux"}),
 			},
 			existingProfileAppliedByNode: map[string]types.NamespacedName{},
@@ -1500,7 +1503,7 @@ func TestApplyProfileToNodes(t *testing.T) {
 			}{
 				{key: "os", operator: selection.In, values: []string{"linux"}},
 			},
-			nodes: []v1.Node{
+			nodes: []corev1.Node{
 				createNodeWithLabels("node1", map[string]string{"os": "linux"}),
 				createNodeWithLabels("node2", map[string]string{"os": "windows"}),
 				createNodeWithLabels("node3", map[string]string{"os": "linux"}),
@@ -1508,6 +1511,7 @@ func TestApplyProfileToNodes(t *testing.T) {
 			existingProfileAppliedByNode: map[string]types.NamespacedName{},
 			expectedProfileAppliedByNode: map[string]types.NamespacedName{
 				"node1": {Namespace: testNamespace, Name: "profile"},
+				"node2": {Namespace: "", Name: "default"}, // doesn't match, keeps default
 				"node3": {Namespace: testNamespace, Name: "profile"},
 			},
 			expectedError: nil,
@@ -1525,7 +1529,7 @@ func TestApplyProfileToNodes(t *testing.T) {
 			}{
 				{key: "os", operator: selection.In, values: []string{"linux"}},
 			},
-			nodes: []v1.Node{
+			nodes: []corev1.Node{
 				createNodeWithLabels("node1", map[string]string{"os": "linux"}),
 			},
 			existingProfileAppliedByNode: map[string]types.NamespacedName{
@@ -1549,13 +1553,16 @@ func TestApplyProfileToNodes(t *testing.T) {
 			}{
 				{key: "os", operator: selection.In, values: []string{"linux"}},
 			},
-			nodes: []v1.Node{
+			nodes: []corev1.Node{
 				createNodeWithLabels("node1", map[string]string{"os": "windows"}),
 				createNodeWithLabels("node2", map[string]string{"os": "darwin"}),
 			},
 			existingProfileAppliedByNode: map[string]types.NamespacedName{},
-			expectedProfileAppliedByNode: map[string]types.NamespacedName{},
-			expectedError:                nil,
+			expectedProfileAppliedByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: "", Name: "default"}, // no match, keeps default
+				"node2": {Namespace: "", Name: "default"}, // no match, keeps default
+			},
+			expectedError: nil,
 		},
 		{
 			name: "empty nodes list",
@@ -1570,7 +1577,7 @@ func TestApplyProfileToNodes(t *testing.T) {
 			}{
 				{key: "os", operator: selection.In, values: []string{"linux"}},
 			},
-			nodes:                        []v1.Node{},
+			nodes:                        []corev1.Node{},
 			existingProfileAppliedByNode: map[string]types.NamespacedName{},
 			expectedProfileAppliedByNode: map[string]types.NamespacedName{},
 			expectedError:                nil,
@@ -1582,7 +1589,7 @@ func TestApplyProfileToNodes(t *testing.T) {
 				Namespace: testNamespace,
 			},
 			profileRequirementsSpec: nil,
-			nodes: []v1.Node{
+			nodes: []corev1.Node{
 				createNodeWithLabels("node1", map[string]string{"os": "linux"}),
 				createNodeWithLabels("node2", map[string]string{"os": "windows"}),
 			},
@@ -1604,7 +1611,7 @@ func TestApplyProfileToNodes(t *testing.T) {
 				operator selection.Operator
 				values   []string
 			}{},
-			nodes: []v1.Node{
+			nodes: []corev1.Node{
 				createNodeWithLabels("node1", map[string]string{"os": "linux"}),
 			},
 			existingProfileAppliedByNode: map[string]types.NamespacedName{},
@@ -1626,7 +1633,7 @@ func TestApplyProfileToNodes(t *testing.T) {
 			}{
 				{key: "os", operator: selection.In, values: []string{"linux"}},
 			},
-			nodes: []v1.Node{
+			nodes: []corev1.Node{
 				createNodeWithLabels("node1", map[string]string{"os": "linux"}),
 				createNodeWithLabels("node2", map[string]string{"os": "linux"}),
 				createNodeWithLabels("node3", map[string]string{"os": "windows"}),
@@ -1635,7 +1642,9 @@ func TestApplyProfileToNodes(t *testing.T) {
 				"node1": {Namespace: testNamespace, Name: "existing-profile"},
 			},
 			expectedProfileAppliedByNode: map[string]types.NamespacedName{
-				"node1": {Namespace: testNamespace, Name: "existing-profile"},
+				"node1": {Namespace: testNamespace, Name: "existing-profile"}, // conflict, keeps existing
+				"node2": {Namespace: "", Name: "default"},                     // gets default (pre-populated)
+				"node3": {Namespace: "", Name: "default"},                     // gets default (pre-populated)
 			},
 			expectedError: fmt.Errorf("profile profile conflicts with existing profile: default/existing-profile"),
 		},
@@ -1654,7 +1663,7 @@ func TestApplyProfileToNodes(t *testing.T) {
 				{key: "tier", operator: selection.In, values: []string{"production"}},
 				{key: "zone", operator: selection.Exists, values: nil},
 			},
-			nodes: []v1.Node{
+			nodes: []corev1.Node{
 				createNodeWithLabels("node1", map[string]string{"os": "linux", "tier": "production", "zone": "us-east-1"}),
 				createNodeWithLabels("node2", map[string]string{"os": "linux", "tier": "staging"}),
 				createNodeWithLabels("node3", map[string]string{"os": "windows", "tier": "production", "zone": "us-east-1"}),
@@ -1662,19 +1671,480 @@ func TestApplyProfileToNodes(t *testing.T) {
 			existingProfileAppliedByNode: map[string]types.NamespacedName{},
 			expectedProfileAppliedByNode: map[string]types.NamespacedName{
 				"node1": {Namespace: testNamespace, Name: "profile"},
+				"node2": {Namespace: "", Name: "default"}, // doesn't match, keeps default
+				"node3": {Namespace: "", Name: "default"}, // doesn't match, keeps default
 			},
 			expectedError: nil,
+		},
+		// Create strategy test cases
+		{
+			name:                  "create strategy enabled, nodes need labels",
+			createStrategyEnabled: true,
+			profileMeta: metav1.ObjectMeta{
+				Name:      "profile",
+				Namespace: testNamespace,
+			},
+			profileRequirementsSpec: []struct {
+				key      string
+				operator selection.Operator
+				values   []string
+			}{
+				{key: "os", operator: selection.In, values: []string{"linux"}},
+			},
+			nodes: []corev1.Node{
+				createNodeWithLabels("node1", map[string]string{"os": "linux"}),
+				createNodeWithLabels("node2", map[string]string{"os": "linux"}),
+			},
+			existingProfileAppliedByNode: map[string]types.NamespacedName{},
+			expectedProfileAppliedByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile"},
+				"node2": {Namespace: testNamespace, Name: "profile"},
+			},
+			expectedNodesNeedingLabel:   []string{"node1", "node2"},
+			expectedNodesAlreadyLabeled: 0,
+			expectedError:               nil,
+		},
+		{
+			name:                  "create strategy enabled, nodes already labeled",
+			createStrategyEnabled: true,
+			profileMeta: metav1.ObjectMeta{
+				Name:      "profile",
+				Namespace: testNamespace,
+			},
+			profileRequirementsSpec: []struct {
+				key      string
+				operator selection.Operator
+				values   []string
+			}{
+				{key: "os", operator: selection.In, values: []string{"linux"}},
+			},
+			nodes: []corev1.Node{
+				createNodeWithLabels("node1", map[string]string{
+					"os":                      "linux",
+					constants.ProfileLabelKey: "profile",
+				}),
+				createNodeWithLabels("node2", map[string]string{
+					"os":                      "linux",
+					constants.ProfileLabelKey: "profile",
+				}),
+			},
+			existingProfileAppliedByNode: map[string]types.NamespacedName{},
+			expectedProfileAppliedByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile"},
+				"node2": {Namespace: testNamespace, Name: "profile"},
+			},
+			expectedNodesNeedingLabel:   []string{},
+			expectedNodesAlreadyLabeled: 2,
+			expectedError:               nil,
+		},
+		{
+			name:                  "create strategyenabled, some nodes need labels, some already labeled",
+			createStrategyEnabled: true,
+			profileMeta: metav1.ObjectMeta{
+				Name:      "profile",
+				Namespace: testNamespace,
+			},
+			profileRequirementsSpec: []struct {
+				key      string
+				operator selection.Operator
+				values   []string
+			}{
+				{key: "os", operator: selection.In, values: []string{"linux"}},
+			},
+			nodes: []corev1.Node{
+				createNodeWithLabels("node1", map[string]string{
+					"os":                      "linux",
+					constants.ProfileLabelKey: "profile",
+				}),
+				createNodeWithLabels("node2", map[string]string{"os": "linux"}),
+				createNodeWithLabels("node3", map[string]string{
+					"os":                      "linux",
+					constants.ProfileLabelKey: "wrong-profile",
+				}),
+			},
+			existingProfileAppliedByNode: map[string]types.NamespacedName{},
+			expectedProfileAppliedByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile"},
+				"node2": {Namespace: testNamespace, Name: "profile"},
+				"node3": {Namespace: testNamespace, Name: "profile"},
+			},
+			expectedNodesNeedingLabel:   []string{"node2", "node3"},
+			expectedNodesAlreadyLabeled: 1,
+			expectedError:               nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.createStrategyEnabled {
+				t.Setenv(apicommon.CreateStrategyEnabled, "true")
+			}
+
 			profileRequirements, err := createRequirements(tt.profileRequirementsSpec)
 			assert.NoError(t, err)
 
-			e := ApplyProfileToNodes(tt.profileMeta, profileRequirements, tt.nodes, tt.existingProfileAppliedByNode)
-			assert.Equal(t, e, tt.expectedError)
+			// Set existingProfileAppliedByNode to default profile (done in reconcileProfiles)
+			if tt.existingProfileAppliedByNode == nil {
+				tt.existingProfileAppliedByNode = make(map[string]types.NamespacedName)
+			}
+			for _, node := range tt.nodes {
+				if _, exists := tt.existingProfileAppliedByNode[node.Name]; !exists {
+					tt.existingProfileAppliedByNode[node.Name] = types.NamespacedName{Namespace: "", Name: "default"}
+				}
+			}
+
+			csInfo := make(map[types.NamespacedName]*CreateStrategyInfo)
+			e := ApplyProfileToNodes(tt.profileMeta, profileRequirements, tt.nodes, tt.existingProfileAppliedByNode, csInfo)
+			assert.Equal(t, tt.expectedError, e)
 			assert.Equal(t, tt.expectedProfileAppliedByNode, tt.existingProfileAppliedByNode)
+
+			if tt.createStrategyEnabled {
+				profileNSName := types.NamespacedName{Namespace: tt.profileMeta.Namespace, Name: tt.profileMeta.Name}
+				if len(tt.expectedNodesNeedingLabel) > 0 || tt.expectedNodesAlreadyLabeled > 0 {
+					assert.NotNil(t, csInfo[profileNSName])
+					assert.ElementsMatch(t, tt.expectedNodesNeedingLabel, csInfo[profileNSName].nodesNeedingLabel)
+					assert.Equal(t, tt.expectedNodesAlreadyLabeled, csInfo[profileNSName].nodesAlreadyLabeled)
+				}
+			}
+		})
+	}
+}
+
+func TestApplyCreateStrategy(t *testing.T) {
+	t.Setenv(apicommon.CreateStrategyEnabled, "true")
+
+	logger := logr.Discard()
+	// Use a fixed time to detect when LastTransition gets updated
+	initialTransitionTime := metav1.NewTime(time.Date(2025, 12, 15, 0, 0, 0, 0, time.UTC))
+
+	tests := []struct {
+		name                         string
+		profilesByNode               map[string]types.NamespacedName
+		csInfo                       map[types.NamespacedName]*CreateStrategyInfo
+		appliedProfiles              []*v1alpha1.DatadogAgentProfile
+		ddaEDSMaxUnavailable         intstr.IntOrString
+		numNodes                     int
+		numberReady                  int32
+		expectedProfilesByNode       map[string]types.NamespacedName
+		expectedNodesLabeled         map[types.NamespacedName]int32
+		expectedCreateStrategyStatus map[types.NamespacedName]v1alpha1.CreateStrategyStatus
+		// expectLastTransitionChanged: true means status changed, so LastTransition should be updated (different from initial)
+		// false means status unchanged, so LastTransition should remain the same
+		expectLastTransitionChanged map[types.NamespacedName]bool
+	}{
+		{
+			name: "nodes under limit - all kept - last transition updated",
+			profilesByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile1"},
+				"node2": {Namespace: testNamespace, Name: "profile1"},
+			},
+			csInfo: map[types.NamespacedName]*CreateStrategyInfo{
+				{Namespace: testNamespace, Name: "profile1"}: {
+					nodesNeedingLabel:   []string{"node1", "node2"},
+					nodesAlreadyLabeled: 0,
+				},
+			},
+			appliedProfiles: []*v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "profile1", Namespace: testNamespace},
+					Spec: v1alpha1.DatadogAgentProfileSpec{
+						Config: &v2alpha1.DatadogAgentSpec{},
+					},
+					Status: v1alpha1.DatadogAgentProfileStatus{
+						CreateStrategy: &v1alpha1.CreateStrategy{
+							Status:         v1alpha1.WaitingStatus,
+							LastTransition: &initialTransitionTime,
+						},
+					},
+				},
+			},
+			ddaEDSMaxUnavailable: intstr.FromInt(3),
+			numNodes:             5,
+			numberReady:          0,
+			expectedProfilesByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile1"},
+				"node2": {Namespace: testNamespace, Name: "profile1"},
+			},
+			expectedNodesLabeled: map[types.NamespacedName]int32{
+				{Namespace: testNamespace, Name: "profile1"}: 2,
+			},
+			expectedCreateStrategyStatus: map[types.NamespacedName]v1alpha1.CreateStrategyStatus{
+				{Namespace: testNamespace, Name: "profile1"}: v1alpha1.InProgressStatus,
+			},
+			expectLastTransitionChanged: map[types.NamespacedName]bool{
+				{Namespace: testNamespace, Name: "profile1"}: true,
+			},
+		},
+		{
+			name: "status stays InProgress - LastTransition unchanged",
+			profilesByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile1"},
+				"node2": {Namespace: testNamespace, Name: "profile1"},
+			},
+			csInfo: map[types.NamespacedName]*CreateStrategyInfo{
+				{Namespace: testNamespace, Name: "profile1"}: {
+					nodesNeedingLabel:   []string{"node1", "node2"},
+					nodesAlreadyLabeled: 0,
+				},
+			},
+			appliedProfiles: []*v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "profile1", Namespace: testNamespace},
+					Spec: v1alpha1.DatadogAgentProfileSpec{
+						Config: &v2alpha1.DatadogAgentSpec{},
+					},
+					Status: v1alpha1.DatadogAgentProfileStatus{
+						CreateStrategy: &v1alpha1.CreateStrategy{
+							Status:         v1alpha1.InProgressStatus,
+							LastTransition: &initialTransitionTime,
+						},
+					},
+				},
+			},
+			ddaEDSMaxUnavailable: intstr.FromInt(3),
+			numNodes:             5,
+			numberReady:          0,
+			expectedProfilesByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile1"},
+				"node2": {Namespace: testNamespace, Name: "profile1"},
+			},
+			expectedNodesLabeled: map[types.NamespacedName]int32{
+				{Namespace: testNamespace, Name: "profile1"}: 2,
+			},
+			expectedCreateStrategyStatus: map[types.NamespacedName]v1alpha1.CreateStrategyStatus{
+				{Namespace: testNamespace, Name: "profile1"}: v1alpha1.InProgressStatus,
+			},
+			expectLastTransitionChanged: map[types.NamespacedName]bool{
+				{Namespace: testNamespace, Name: "profile1"}: false,
+			},
+		},
+		{
+			name: "nodes over limit - excess deleted",
+			profilesByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile1"},
+				"node2": {Namespace: testNamespace, Name: "profile1"},
+				"node3": {Namespace: testNamespace, Name: "profile1"},
+			},
+			csInfo: map[types.NamespacedName]*CreateStrategyInfo{
+				{Namespace: testNamespace, Name: "profile1"}: {
+					nodesNeedingLabel:   []string{"node1", "node2", "node3"},
+					nodesAlreadyLabeled: 0,
+				},
+			},
+			appliedProfiles: []*v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "profile1", Namespace: testNamespace},
+					Spec: v1alpha1.DatadogAgentProfileSpec{
+						Config: &v2alpha1.DatadogAgentSpec{},
+					},
+					Status: v1alpha1.DatadogAgentProfileStatus{
+						CreateStrategy: &v1alpha1.CreateStrategy{
+							Status:         v1alpha1.WaitingStatus,
+							LastTransition: &initialTransitionTime,
+						},
+					},
+				},
+			},
+			ddaEDSMaxUnavailable: intstr.FromInt(2),
+			numNodes:             5,
+			numberReady:          0,
+			expectedProfilesByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile1"},
+				"node2": {Namespace: testNamespace, Name: "profile1"},
+				// node3 should be deleted
+			},
+			expectedNodesLabeled: map[types.NamespacedName]int32{
+				{Namespace: testNamespace, Name: "profile1"}: 2,
+			},
+			expectedCreateStrategyStatus: map[types.NamespacedName]v1alpha1.CreateStrategyStatus{
+				{Namespace: testNamespace, Name: "profile1"}: v1alpha1.InProgressStatus,
+			},
+			expectLastTransitionChanged: map[types.NamespacedName]bool{
+				{Namespace: testNamespace, Name: "profile1"}: true,
+			},
+		},
+		{
+			name: "already labeled nodes don't count against limit",
+			profilesByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile1"},
+				"node2": {Namespace: testNamespace, Name: "profile1"},
+				"node3": {Namespace: testNamespace, Name: "profile1"},
+			},
+			csInfo: map[types.NamespacedName]*CreateStrategyInfo{
+				{Namespace: testNamespace, Name: "profile1"}: {
+					nodesNeedingLabel:   []string{"node3"},
+					nodesAlreadyLabeled: 2, // node1 and node2 already have correct label
+				},
+			},
+			appliedProfiles: []*v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "profile1", Namespace: testNamespace},
+					Spec: v1alpha1.DatadogAgentProfileSpec{
+						Config: &v2alpha1.DatadogAgentSpec{},
+					},
+					Status: v1alpha1.DatadogAgentProfileStatus{
+						CreateStrategy: &v1alpha1.CreateStrategy{
+							Status:         v1alpha1.WaitingStatus,
+							LastTransition: &initialTransitionTime,
+						},
+					},
+				},
+			},
+			ddaEDSMaxUnavailable: intstr.FromInt(1),
+			numNodes:             5,
+			numberReady:          2, // node1 and node2 pods are ready
+			expectedProfilesByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile1"},
+				"node2": {Namespace: testNamespace, Name: "profile1"},
+				"node3": {Namespace: testNamespace, Name: "profile1"},
+			},
+			expectedNodesLabeled: map[types.NamespacedName]int32{
+				{Namespace: testNamespace, Name: "profile1"}: 3,
+			},
+			expectedCreateStrategyStatus: map[types.NamespacedName]v1alpha1.CreateStrategyStatus{
+				{Namespace: testNamespace, Name: "profile1"}: v1alpha1.InProgressStatus,
+			},
+			expectLastTransitionChanged: map[types.NamespacedName]bool{
+				{Namespace: testNamespace, Name: "profile1"}: true,
+			},
+		},
+		{
+			name: "multiple profiles with different limits - one changes status, one stays same",
+			profilesByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile1"},
+				"node2": {Namespace: testNamespace, Name: "profile1"},
+				"node3": {Namespace: testNamespace, Name: "profile2"},
+				"node4": {Namespace: testNamespace, Name: "profile2"},
+				"node5": {Namespace: testNamespace, Name: "profile2"},
+			},
+			csInfo: map[types.NamespacedName]*CreateStrategyInfo{
+				{Namespace: testNamespace, Name: "profile1"}: {
+					nodesNeedingLabel:   []string{"node1", "node2"},
+					nodesAlreadyLabeled: 0,
+				},
+				{Namespace: testNamespace, Name: "profile2"}: {
+					nodesNeedingLabel:   []string{"node3", "node4", "node5"},
+					nodesAlreadyLabeled: 0,
+				},
+			},
+			appliedProfiles: []*v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "profile1", Namespace: testNamespace},
+					Spec: v1alpha1.DatadogAgentProfileSpec{
+						Config: &v2alpha1.DatadogAgentSpec{},
+					},
+					Status: v1alpha1.DatadogAgentProfileStatus{
+						CreateStrategy: &v1alpha1.CreateStrategy{
+							Status:         v1alpha1.WaitingStatus, // will change to InProgress
+							LastTransition: &initialTransitionTime,
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "profile2", Namespace: testNamespace},
+					Spec: v1alpha1.DatadogAgentProfileSpec{
+						Config: &v2alpha1.DatadogAgentSpec{
+							Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+								v2alpha1.NodeAgentComponentName: {
+									UpdateStrategy: &apicommon.UpdateStrategy{
+										RollingUpdate: &apicommon.RollingUpdate{
+											MaxUnavailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 1},
+										},
+									},
+								},
+							},
+						},
+					},
+					Status: v1alpha1.DatadogAgentProfileStatus{
+						CreateStrategy: &v1alpha1.CreateStrategy{
+							Status:         v1alpha1.InProgressStatus, // will stay InProgress
+							LastTransition: &initialTransitionTime,
+						},
+					},
+				},
+			},
+			ddaEDSMaxUnavailable: intstr.FromInt(2),
+			numNodes:             5,
+			numberReady:          0,
+			expectedProfilesByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile1"},
+				"node2": {Namespace: testNamespace, Name: "profile1"},
+				"node3": {Namespace: testNamespace, Name: "profile2"},
+				// node4 and node5 deleted due to profile2's limit of 1
+			},
+			expectedNodesLabeled: map[types.NamespacedName]int32{
+				{Namespace: testNamespace, Name: "profile1"}: 2,
+				{Namespace: testNamespace, Name: "profile2"}: 1,
+			},
+			expectedCreateStrategyStatus: map[types.NamespacedName]v1alpha1.CreateStrategyStatus{
+				{Namespace: testNamespace, Name: "profile1"}: v1alpha1.InProgressStatus,
+				{Namespace: testNamespace, Name: "profile2"}: v1alpha1.InProgressStatus,
+			},
+			expectLastTransitionChanged: map[types.NamespacedName]bool{
+				{Namespace: testNamespace, Name: "profile1"}: true,  // Waiting -> InProgress
+				{Namespace: testNamespace, Name: "profile2"}: false, // InProgress -> InProgress
+			},
+		},
+		{
+			name: "nil initial CreateStrategy - LastTransition set on first run",
+			profilesByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile1"},
+			},
+			csInfo: map[types.NamespacedName]*CreateStrategyInfo{
+				{Namespace: testNamespace, Name: "profile1"}: {
+					nodesNeedingLabel:   []string{"node1"},
+					nodesAlreadyLabeled: 0,
+				},
+			},
+			appliedProfiles: []*v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "profile1", Namespace: testNamespace},
+					Spec: v1alpha1.DatadogAgentProfileSpec{
+						Config: &v2alpha1.DatadogAgentSpec{},
+					},
+					Status: v1alpha1.DatadogAgentProfileStatus{}, // nil CreateStrategy
+				},
+			},
+			ddaEDSMaxUnavailable: intstr.FromInt(1),
+			numNodes:             1,
+			numberReady:          0,
+			expectedProfilesByNode: map[string]types.NamespacedName{
+				"node1": {Namespace: testNamespace, Name: "profile1"},
+			},
+			expectedNodesLabeled: map[types.NamespacedName]int32{
+				{Namespace: testNamespace, Name: "profile1"}: 1,
+			},
+			expectedCreateStrategyStatus: map[types.NamespacedName]v1alpha1.CreateStrategyStatus{
+				{Namespace: testNamespace, Name: "profile1"}: v1alpha1.InProgressStatus,
+			},
+			// When starting from nil, status goes from "" to InProgress, which is a change
+			expectLastTransitionChanged: map[types.NamespacedName]bool{
+				{Namespace: testNamespace, Name: "profile1"}: true,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, profile := range tt.appliedProfiles {
+				dsStatus := &appsv1.DaemonSetStatus{
+					NumberReady: tt.numberReady,
+				}
+				profileNSName := types.NamespacedName{Namespace: profile.Namespace, Name: profile.Name}
+				ApplyCreateStrategy(logger, tt.profilesByNode, tt.csInfo[profileNSName], profile, tt.ddaEDSMaxUnavailable, tt.numNodes, dsStatus)
+			}
+
+			assert.Equal(t, tt.expectedProfilesByNode, tt.profilesByNode)
+
+			// status
+			for _, profile := range tt.appliedProfiles {
+				profileNSName := types.NamespacedName{Namespace: profile.Namespace, Name: profile.Name}
+				if expectedCount, ok := tt.expectedNodesLabeled[profileNSName]; ok {
+					assert.NotNil(t, profile.Status.CreateStrategy)
+					assert.Equal(t, expectedCount, profile.Status.CreateStrategy.NodesLabeled)
+					assert.Equal(t, tt.expectedCreateStrategyStatus[profileNSName], profile.Status.CreateStrategy.Status)
+				}
+			}
 		})
 	}
 }
@@ -1697,8 +2167,8 @@ func createRequirements(requirements []struct {
 }
 
 // createNodeWithLabels creates a node with the given name and labels
-func createNodeWithLabels(name string, nodeLabels map[string]string) v1.Node {
-	return v1.Node{
+func createNodeWithLabels(name string, nodeLabels map[string]string) corev1.Node {
+	return corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   name,
 			Labels: nodeLabels,
