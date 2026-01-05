@@ -104,7 +104,7 @@ func newAgent(workloadEnabled, clusterEnabled, admissionEnabled bool) *v2alpha1.
 
 func testRBACResources(t testing.TB, store store.StoreClient) {
 	// RBAC
-	rbacName := fmt.Sprintf("%s-%s", ddaName, "cluster-agent-autoscaling")
+	rbacName := fmt.Sprintf("%s-%s-%s", ddaNamespace, ddaName, "cluster-agent-autoscaling")
 
 	// validate clusterRole policy rules
 	crObj, found := store.Get(kubernetes.ClusterRolesKind, "", rbacName)

@@ -43,7 +43,7 @@ func GetClusterAgentVersion(dda metav1.Object) string {
 
 // GetClusterAgentRbacResourcesName return the Cluster-Agent RBAC resource name
 func GetClusterAgentRbacResourcesName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultClusterAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s-%s", dda.GetNamespace(), dda.GetName(), constants.DefaultClusterAgentResourceSuffix)
 }
 
 // getDefaultServiceAccountName return the default Cluster-Agent ServiceAccountName
