@@ -13,9 +13,6 @@ const (
 	securityAgentRuntimePoliciesDirVolumeName    = "runtimepoliciesdir"
 	securityAgentRuntimePoliciesDirVolumePath    = "/etc/datadog-agent/runtime-security.d"
 
-	tracefsVolumeName = "tracefs"
-	tracefsPath       = "/sys/kernel/tracing"
-
 	// DefaultCWSConf default CWS ConfigMap name
 	defaultCWSConf string = "cws-config"
 )
