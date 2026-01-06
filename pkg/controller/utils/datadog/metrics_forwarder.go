@@ -181,10 +181,17 @@ func (mf *metricsForwarder) start(wg *sync.WaitGroup) {
 
 	mf.logger.Info("Starting Datadog metrics forwarder")
 
-	// wait.PollImmediateUntil is blocking until mf.connectToDatadogAPI returns true or stopChan is closed
-	// wait.PollImmediateUntil keeps retrying to connect to the Datadog API without returning an error
-	// wait.PollImmediateUntil returns an error only when stopChan is closed
-	if err := wait.PollImmediateUntil(mf.retryInterval, mf.connectToDatadogAPI, mf.stopChan); errors.Is(err, wait.ErrWaitTimeout) {
+	// Create a context that gets cancelled when stopChan is closed
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		<-mf.stopChan
+		cancel()
+	}()
+
+	// wait.PollUntilContextCancel is blocking until mf.connectToDatadogAPI returns true or context is cancelled
+	// wait.PollUntilContextCancel keeps retrying to connect to the Datadog API without returning an error
+	// wait.PollUntilContextCancel returns an error only when context is cancelled
+	if err := wait.PollUntilContextCancel(ctx, mf.retryInterval, true, mf.connectToDatadogAPI); errors.Is(err, context.Canceled) {
 		// stopChan was closed while trying to connect to Datadog API
 		// The metrics forwarder stopped by the ForwardersManager
 		mf.logger.Info("Shutting down Datadog metrics forwarder")
@@ -372,8 +379,8 @@ func (mf *metricsForwarder) setupFromDDAI(ddai *v1alpha1.DatadogAgentInternal) e
 }
 
 // connectToDatadogAPI ensures the connection to the Datadog API is valid
-// implements wait.ConditionFunc and never returns error to keep retrying
-func (mf *metricsForwarder) connectToDatadogAPI() (bool, error) {
+// implements wait.ConditionWithContextFunc and never returns error to keep retrying
+func (mf *metricsForwarder) connectToDatadogAPI(ctx context.Context) (bool, error) {
 	var err error
 	err = mf.setup()
 
