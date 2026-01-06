@@ -27,6 +27,12 @@ func GetDCATokenChecksumAnnotationKey() string {
 	return object.GetChecksumAnnotationKey("dca-token")
 }
 
+// GetDCAServiceClusterIPChecksumAnnotationKey returns the annotation key for DCA service ClusterIP checksum.
+// This is used to trigger a DaemonSet rollout when the Cluster Agent service is recreated with a new ClusterIP.
+func GetDCAServiceClusterIPChecksumAnnotationKey() string {
+	return object.GetChecksumAnnotationKey("dca-service-clusterip")
+}
+
 func getURLEndpoint(ddaSpec *v2alpha1.DatadogAgentSpec) string {
 	if ddaSpec.Global.Endpoint != nil && ddaSpec.Global.Endpoint.URL != nil {
 		return *ddaSpec.Global.Endpoint.URL

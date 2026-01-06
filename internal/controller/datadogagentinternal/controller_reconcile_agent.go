@@ -32,7 +32,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature,
+func (r *Reconciler) reconcileV2Agent(ctx context.Context, logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature,
 	ddai *datadoghqv1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus) (reconcile.Result, error) {
 	var result reconcile.Result
 	var eds *edsv1alpha1.ExtendedDaemonSet
@@ -60,6 +60,9 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 		// Set Global setting on the default extendeddaemonset
 		global.ApplyGlobalSettingsNodeAgent(logger, podManagers, ddai.GetObjectMeta(), &ddai.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
+
+		// Add Cluster Agent Service ClusterIP checksum to trigger rollout when service is recreated
+		global.AddDCAServiceClusterIPChecksum(ctx, logger, r.client, ddai.GetObjectMeta(), podManagers)
 
 		// Apply features changes on the Deployment.Spec.Template
 		for _, feat := range features {
@@ -111,6 +114,9 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 	// Set Global setting on the default daemonset
 	global.ApplyGlobalSettingsNodeAgent(logger, podManagers, ddai.GetObjectMeta(), &ddai.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
+
+	// Add Cluster Agent Service ClusterIP checksum to trigger rollout when service is recreated
+	global.AddDCAServiceClusterIPChecksum(ctx, logger, r.client, ddai.GetObjectMeta(), podManagers)
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
