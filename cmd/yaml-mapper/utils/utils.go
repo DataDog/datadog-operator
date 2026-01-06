@@ -82,3 +82,24 @@ func GetPathMap(obj interface{}, keys ...string) (map[string]interface{}, bool) 
 		return nil, false
 	}
 }
+
+// GetPathInt returns the int value at the nested path, if present.
+// Handles various numeric types (int, int32, int64, float64) that YAML parsers may produce.
+func GetPathInt(obj interface{}, keys ...string) (int, bool) {
+	v, ok := GetPathVal(obj, keys...)
+	if !ok {
+		return 0, false
+	}
+	switch typed := v.(type) {
+	case int:
+		return typed, true
+	case int32:
+		return int(typed), true
+	case int64:
+		return int(typed), true
+	case float64:
+		return int(typed), true
+	default:
+		return 0, false
+	}
+}

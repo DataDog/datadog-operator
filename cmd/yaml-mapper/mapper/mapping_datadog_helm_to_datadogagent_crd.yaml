@@ -8,7 +8,7 @@ agents.containers.agent.healthPort:
   newPath: spec.override.nodeAgent.containers.agent.healthPort
   args:
     - sourcePrefix: agents.containers.agent
-    - containerPath: spec.override.nodeAgent.containers.agent
+      containerPath: spec.override.nodeAgent.containers.agent
 agents.containers.agent.livenessProbe.failureThreshold: spec.override.nodeAgent.containers.agent.livenessProbe.failureThreshold
 agents.containers.agent.livenessProbe.initialDelaySeconds: spec.override.nodeAgent.containers.agent.livenessProbe.initialDelaySeconds
 agents.containers.agent.livenessProbe.periodSeconds: spec.override.nodeAgent.containers.agent.livenessProbe.periodSeconds
@@ -90,8 +90,6 @@ agents.containers.traceAgent.envFrom: ""
 agents.containers.traceAgent.livenessProbe:
   mapFunc: mapTraceAgentLivenessProbe
   newPath: spec.override.nodeAgent.containers.trace-agent.livenessProbe
-  args:
-    - apmPortPath: datadog.apm.port
 agents.containers.traceAgent.livenessProbe.initialDelaySeconds: ""
 agents.containers.traceAgent.livenessProbe.periodSeconds: ""
 agents.containers.traceAgent.livenessProbe.timeoutSeconds: ""
@@ -214,7 +212,7 @@ clusterAgent.healthPort:
   newPath: spec.override.clusterAgent.containers.cluster-agent.healthPort
   args:
     - sourcePrefix: clusterAgent
-    - containerPath: spec.override.clusterAgent.containers.cluster-agent
+      containerPath: spec.override.clusterAgent.containers.cluster-agent
 clusterAgent.image.digest: ""
 clusterAgent.image.doNotCheckTag: ""
 clusterAgent.image.name: spec.override.clusterAgent.image.name
@@ -281,7 +279,6 @@ clusterAgent.tokenExistingSecret:
   args:
     - keyName: token
       keyNamePath: spec.global.clusterAgentTokenSecret.keyName
-      skipEmpty: true
   mapFunc: mapSecretKeyName
   newPath: spec.global.clusterAgentTokenSecret.secretName
 clusterAgent.tolerations: spec.override.clusterAgent.tolerations
@@ -303,7 +300,7 @@ clusterChecksRunner.healthPort:
   newPath: spec.override.clusterChecksRunner.containers.agent.healthPort
   args:
     - sourcePrefix: clusterChecksRunner
-    - containerPath: spec.override.clusterChecksRunner.containers.agent
+      containerPath: spec.override.clusterChecksRunner.containers.agent
 clusterChecksRunner.image.digest: ""
 clusterChecksRunner.image.name: spec.override.clusterChecksRunner.image.name
 clusterChecksRunner.image.pullPolicy: spec.override.clusterChecksRunner.image.pullPolicy
@@ -379,7 +376,6 @@ datadog.apiKeyExistingSecret:
   args:
     - keyName: api-key
       keyNamePath: spec.global.credentials.apiSecret.keyName
-      skipEmpty: true
   mapFunc: mapSecretKeyName
   newPath: spec.global.credentials.apiSecret.secretName
 datadog.apm.enabled: spec.features.apm.hostPortConfig.enabled
@@ -404,7 +400,6 @@ datadog.appKeyExistingSecret:
   args:
     - keyName: app-key
       keyNamePath: spec.global.credentials.appSecret.keyName
-      skipEmpty: true
   mapFunc: mapSecretKeyName
   newPath: spec.global.credentials.appSecret.secretName
 datadog.asm.iast.enabled: spec.features.asm.iast.enabled
