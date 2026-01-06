@@ -40,7 +40,7 @@ func mapFuncRegistry() map[string]MappingRunFunc {
 		mapAppendEnvVar,
 		mapMergeEnvs,
 		mapOverrideType,
-		mapConditionalServiceAccountName,
+		mapServiceAccountName,
 		mapHealthPortWithProbes,
 		mapTraceAgentLivenessProbe,
 	} {
@@ -329,26 +329,25 @@ var mapOverrideType = MappingProcessor{
 	},
 }
 
-// mapConditionalServiceAccountName maps serviceAccountName when rbac.create is false
+// mapServiceAccountName maps serviceAccountName when rbac.create is false
 //
 // args:
 //   - rbacCreatePath: path to the rbac.create value (e.g., "spec.override.clusterAgent.createRbac")
-var mapConditionalServiceAccountName = MappingProcessor{
-	name: "mapConditionalServiceAccountName",
+var mapServiceAccountName = MappingProcessor{
+	name: "mapServiceAccountName",
 	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}, _ chartutil.Values) {
 		if len(args) != 1 {
-			log.Printf("Warning: mapConditionalServiceAccountName requires exactly 1 argument (rbacCreatePath)")
+			log.Printf("Warning: mapServiceAccountName requires exactly 1 argument (rbacCreatePath)")
 			return
 		}
 
 		rbacCreatePath, ok := utils.GetPathString(args[0], "rbacCreatePath")
 		if !ok || rbacCreatePath == "" {
-			log.Printf("Warning: mapConditionalServiceAccountName missing 'rbacCreatePath' argument")
+			log.Printf("Warning: mapServiceAccountName missing 'rbacCreatePath' argument")
 			return
 		}
 
-		// Only map serviceAccountName if rbac.create is explicitly false.
-		// If not set or true, the operator creates its own ServiceAccount.
+		// Only map serviceAccountName if rbac.create is explicitly false
 		rbacCreate, exists := utils.GetPathBool(interim, rbacCreatePath)
 		if !exists || rbacCreate {
 			return

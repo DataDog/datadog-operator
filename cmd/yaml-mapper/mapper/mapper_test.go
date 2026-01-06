@@ -961,7 +961,7 @@ func TestApplyDeprecationRules(t *testing.T) {
 func TestMappingProcessors(t *testing.T) {
 	// Test that all mapping processors are properly registered
 	t.Run("mapFuncRegistry_dict", func(t *testing.T) {
-		expectedFuncs := []string{"mapSecretKeyName", "mapSeccompProfile", "mapSystemProbeAppArmor", "mapLocalServiceName", "mapAppendEnvVar", "mapMergeEnvs", "mapOverrideType", "mapConditionalServiceAccountName", "mapHealthPortWithProbes", "mapTraceAgentLivenessProbe"}
+		expectedFuncs := []string{"mapSecretKeyName", "mapSeccompProfile", "mapSystemProbeAppArmor", "mapLocalServiceName", "mapAppendEnvVar", "mapMergeEnvs", "mapOverrideType", "mapServiceAccountName", "mapHealthPortWithProbes", "mapTraceAgentLivenessProbe"}
 		mapFuncs := mapFuncRegistry()
 
 		for _, funcName := range expectedFuncs {
@@ -1628,10 +1628,10 @@ func TestMappingProcessors(t *testing.T) {
 				},
 			},
 		},
-		// mapConditionalServiceAccountName tests
+		// mapServiceAccountName tests
 		{
-			name:     "mapConditionalServiceAccountName_rbac_create_false_should_map",
-			funcName: "mapConditionalServiceAccountName",
+			name:     "mapServiceAccountName_rbac_create_false_should_map",
+			funcName: "mapServiceAccountName",
 			interim: map[string]interface{}{
 				"spec.override.clusterAgent.createRbac": false,
 			},
@@ -1648,8 +1648,8 @@ func TestMappingProcessors(t *testing.T) {
 			},
 		},
 		{
-			name:     "mapConditionalServiceAccountName_rbac_create_true_should_not_map",
-			funcName: "mapConditionalServiceAccountName",
+			name:     "mapServiceAccountName_rbac_create_true_should_not_map",
+			funcName: "mapServiceAccountName",
 			interim: map[string]interface{}{
 				"spec.override.clusterAgent.createRbac": true,
 			},
@@ -1666,8 +1666,8 @@ func TestMappingProcessors(t *testing.T) {
 			},
 		},
 		{
-			name:     "mapConditionalServiceAccountName_rbac_create_not_set_should_not_map",
-			funcName: "mapConditionalServiceAccountName",
+			name:     "mapServiceAccountName_rbac_create_not_set_should_not_map",
+			funcName: "mapServiceAccountName",
 			interim:  map[string]interface{}{},
 			newPath:  "spec.override.clusterAgent.serviceAccountName",
 			pathVal:  "default",
@@ -1679,8 +1679,8 @@ func TestMappingProcessors(t *testing.T) {
 			expectedMap: map[string]interface{}{}, // Neither createRbac nor serviceAccountName should be set
 		},
 		{
-			name:     "mapConditionalServiceAccountName_nodeAgent_rbac_create_false",
-			funcName: "mapConditionalServiceAccountName",
+			name:     "mapServiceAccountName_nodeAgent_rbac_create_false",
+			funcName: "mapServiceAccountName",
 			interim: map[string]interface{}{
 				"spec.override.nodeAgent.createRbac": false,
 			},

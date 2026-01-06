@@ -149,7 +149,7 @@ agents.rbac.automountServiceAccountToken: ""
 agents.rbac.create: spec.override.nodeAgent.createRbac
 agents.rbac.serviceAccountAnnotations: spec.override.nodeAgent.serviceAccountAnnotations
 agents.rbac.serviceAccountName:
-  mapFunc: mapConditionalServiceAccountName
+  mapFunc: mapServiceAccountName
   newPath: spec.override.nodeAgent.serviceAccountName
   args:
     - rbacCreatePath: spec.override.nodeAgent.createRbac
@@ -252,7 +252,7 @@ clusterAgent.rbac.create: spec.override.clusterAgent.createRbac
 clusterAgent.rbac.flareAdditionalPermissions: ""
 clusterAgent.rbac.serviceAccountAnnotations: spec.override.clusterAgent.serviceAccountAnnotations
 clusterAgent.rbac.serviceAccountName:
-  mapFunc: mapConditionalServiceAccountName
+  mapFunc: mapServiceAccountName
   newPath: spec.override.clusterAgent.serviceAccountName
   args:
     - rbacCreatePath: spec.override.clusterAgent.createRbac
@@ -330,7 +330,7 @@ clusterChecksRunner.rbac.create: spec.override.clusterChecksRunner.createRbac
 clusterChecksRunner.rbac.dedicated: ""
 clusterChecksRunner.rbac.serviceAccountAnnotations: spec.override.clusterChecksRunner.serviceAccountAnnotations
 clusterChecksRunner.rbac.serviceAccountName:
-  mapFunc: mapConditionalServiceAccountName
+  mapFunc: mapServiceAccountName
   newPath: spec.override.clusterChecksRunner.serviceAccountName
   args:
     - rbacCreatePath: spec.override.clusterChecksRunner.createRbac
