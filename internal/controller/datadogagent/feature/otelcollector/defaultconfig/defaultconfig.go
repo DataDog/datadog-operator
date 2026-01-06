@@ -28,6 +28,14 @@ processors:
     cardinality: 2
   batch:
     timeout: 10s
+  filter/drop-prometheus-internal-metrics:
+    metrics:
+      exclude:
+        match_type: regexp
+        metric_names:
+          - ^scrape_.*$
+          - ^up$
+          - ^promhttp_metric_handler_errors_total$
 connectors:
   datadog/connector:
     traces:
@@ -41,8 +49,12 @@ service:
       processors: [infraattributes, batch]
       exporters: [datadog, datadog/connector]
     metrics:
-      receivers: [otlp, datadog/connector, prometheus]
+      receivers: [otlp, datadog/connector]
       processors: [infraattributes, batch]
+      exporters: [datadog]    
+    metrics/prometheus:
+      receivers: [prometheus]
+      processors: [filter/drop-prometheus-internal-metrics, infraattributes, batch]
       exporters: [datadog]
     logs:
       receivers: [otlp]
