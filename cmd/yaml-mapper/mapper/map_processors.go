@@ -546,4 +546,3 @@ func hasDuplicateEnv(existingEnvs []interface{}, newEnvName string) bool {
 	}
 	return false
 }
-
