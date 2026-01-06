@@ -72,6 +72,12 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		if err = r.overrideDependencies(logger, resourceManagers, instance); err != nil {
 			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 		}
+		// Apply dependencies BEFORE reconciling components to ensure ServiceAccounts exist
+		// before DaemonSets/Deployments reference them. This prevents race conditions where
+		// the DaemonSet controller fails to create pods due to missing ServiceAccounts.
+		if err = r.applyAndCleanupDependencies(ctx, logger, depsStore); err != nil {
+			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
+		}
 	}
 
 	// 2. Reconcile each component using the component registry
@@ -103,11 +109,13 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	}
 
-	// 4. Apply and cleanup dependencies.
+	// 4. Cleanup stale dependencies.
+	// Dependencies were already applied in step 1. This step handles cleanup of
+	// resources that are no longer needed (e.g., when features are disabled).
 	// only manage dependencies for default DDAIs
 	if !isDDAILabeledWithProfile(instance) {
-		if err = r.applyAndCleanupDependencies(ctx, logger, depsStore); err != nil {
-			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
+		if cleanupErrs := depsStore.Cleanup(ctx, r.client, true); len(cleanupErrs) > 0 {
+			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, cleanupErrs[0], now)
 		}
 	}
 
