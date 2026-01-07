@@ -186,9 +186,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 	}
 
-	// Apply dependencies BEFORE reconciling components to ensure ServiceAccounts exist
-	// before DaemonSets/Deployments reference them. This prevents race conditions where
-	// the DaemonSet controller fails to create pods due to missing ServiceAccounts.
+	// 1. Apply and cleanup dependencies before reconciling components to ensure deps exist at reconciliation time.
 	if err = r.applyAndCleanupDependencies(ctx, logger, depsStore); err != nil {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 	}
@@ -228,9 +226,6 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		logger.Error(err, "Error cleaning up extraneous resources")
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	}
-
-	// Note: Dependencies were already applied before component reconciliation.
-	// The cleanup of stale dependencies happens as part of applyAndCleanupDependencies above.
 
 	// Always requeue
 	if !result.Requeue && result.RequeueAfter == 0 {

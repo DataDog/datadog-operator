@@ -101,7 +101,7 @@ func (cmf *CRDMetadataForwarder) Start() {
 	go func() {
 		for range ticker.C {
 			if err := cmf.sendMetadata(); err != nil {
-				cmf.logger.Error(err, "Error while sending metadata")
+				cmf.logger.V(1).Info("Error while sending metadata", "error", err)
 			}
 		}
 	}()
@@ -121,7 +121,7 @@ func (cmf *CRDMetadataForwarder) sendMetadata() error {
 	// Send individual payloads for each changed CRD
 	for _, crd := range changedCRDs {
 		if err := cmf.sendCRDMetadata(crd); err != nil {
-			cmf.logger.Error(err, "Failed to send metadata",
+			cmf.logger.V(1).Info("Failed to send metadata", "error", err,
 				"kind", crd.Kind, "name", crd.Name, "namespace", crd.Namespace)
 		}
 	}
@@ -175,7 +175,7 @@ func (cmf *CRDMetadataForwarder) marshalToJSON(data interface{}, fieldName strin
 
 	jsonBytes, err := json.Marshal(data)
 	if err != nil {
-		cmf.logger.Error(err, "Error marshaling CRD field to JSON",
+		cmf.logger.V(1).Info("Error marshaling CRD field to JSON", "error", err,
 			"field", fieldName,
 			"kind", crdInstance.Kind,
 			"name", crdInstance.Name)
@@ -214,7 +214,7 @@ func (cmf *CRDMetadataForwarder) buildPayload(clusterUID string, crdInstance CRD
 
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
-		cmf.logger.Error(err, "Error marshaling payload to json")
+		cmf.logger.V(1).Info("Error marshaling payload to json", "error", err)
 	}
 
 	return jsonPayload
@@ -250,7 +250,7 @@ func (cmf *CRDMetadataForwarder) getAllActiveCRDs() ([]CRDInstance, map[string]b
 				})
 			}
 		} else {
-			cmf.logger.Error(err, "Error listing DatadogAgents")
+			cmf.logger.V(1).Info("Error listing DatadogAgents", "error", err)
 		}
 	}
 
@@ -275,7 +275,7 @@ func (cmf *CRDMetadataForwarder) getAllActiveCRDs() ([]CRDInstance, map[string]b
 				})
 			}
 		} else {
-			cmf.logger.Error(err, "Error listing DatadogAgentInternals")
+			cmf.logger.V(1).Info("Error listing DatadogAgentInternals", "error", err)
 		}
 	}
 
@@ -300,7 +300,7 @@ func (cmf *CRDMetadataForwarder) getAllActiveCRDs() ([]CRDInstance, map[string]b
 				})
 			}
 		} else {
-			cmf.logger.Error(err, "Error listing DatadogAgentProfiles")
+			cmf.logger.V(1).Info("Error listing DatadogAgentProfiles", "error", err)
 		}
 	}
 
@@ -317,7 +317,7 @@ func (cmf *CRDMetadataForwarder) getChangedCRDs(crds []CRDInstance) []CRDInstanc
 		key := buildCacheKey(crd)
 		newHash, err := hashCRD(crd)
 		if err != nil {
-			cmf.logger.Error(err, "Failed to hash CRD", "key", key)
+			cmf.logger.V(1).Info("Failed to hash CRD", "error", err, "key", key)
 			continue
 		}
 

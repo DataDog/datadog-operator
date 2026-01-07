@@ -308,71 +308,34 @@ func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) (
 
 	namespacesToSearch := getWatchNamespacesForHelm(hmf.logger)
 	for _, namespace := range namespacesToSearch {
-		for chartName := range allowedCharts {
-			listOpts := []client.ListOption{
-				client.MatchingLabels{
-					"owner": "helm",
-					"name":  chartName,
-				},
+		listOpts := []client.ListOption{
+			client.MatchingLabels{
+				"owner": "helm",
+			},
+		}
+		if namespace != "" {
+			listOpts = append(listOpts, client.InNamespace(namespace))
+		}
+
+		secretList := &corev1.SecretList{}
+		if err := hmf.k8sClient.List(ctx, secretList, listOpts...); err != nil {
+			hmf.logger.Info("Error listing Secrets for Helm releases", "error", err, "namespace", namespace)
+			allErrors = append(allErrors, fmt.Errorf("secrets in namespace %s: %w", namespace, err))
+		} else {
+			hmf.logger.V(1).Info("Scanning Secrets for Helm releases", "namespace", namespace, "total_secrets", len(secretList.Items))
+			for _, secret := range secretList.Items {
+				hmf.processHelmResource(secret.Name, secret.Namespace, string(secret.UID), secret.Data["release"], latestReleases)
 			}
-			if namespace != "" {
-				listOpts = append(listOpts, client.InNamespace(namespace))
-			}
+		}
 
-			secretList := &corev1.SecretList{}
-			if err := hmf.k8sClient.List(ctx, secretList, listOpts...); err != nil {
-				hmf.logger.Info("Error listing Secrets for Helm releases", "error", err, "namespace", namespace, "chart", chartName)
-				allErrors = append(allErrors, fmt.Errorf("secrets in namespace %s for chart %s: %w", namespace, chartName, err))
-			} else {
-				hmf.logger.V(1).Info("Scanning Secrets for Helm releases", "namespace", namespace, "chart", chartName, "total_secrets", len(secretList.Items))
-				for _, secret := range secretList.Items {
-					if !strings.HasPrefix(secret.Name, releasePrefix) {
-						continue
-					}
-
-					if release, releaseName, revision, ok := hmf.parseHelmResource(secret.Name, secret.Data["release"]); ok {
-						key := fmt.Sprintf("%s/%s", secret.Namespace, releaseName)
-						if existing, exists := latestReleases[key]; !exists || revision > existing.revision {
-							latestReleases[key] = struct {
-								release  HelmReleaseMinimal
-								uid      string
-								revision int
-							}{
-								release:  *release,
-								uid:      string(secret.UID),
-								revision: revision,
-							}
-						}
-					}
-				}
-			}
-
-			cmList := &corev1.ConfigMapList{}
-			if err := hmf.k8sClient.List(ctx, cmList, listOpts...); err != nil {
-				hmf.logger.Info("Error listing ConfigMaps for Helm releases", "error", err, "namespace", namespace, "chart", chartName)
-				allErrors = append(allErrors, fmt.Errorf("configmaps in namespace %s for chart %s: %w", namespace, chartName, err))
-			} else {
-				hmf.logger.V(1).Info("Scanning ConfigMaps for Helm releases", "namespace", namespace, "chart", chartName, "total_configmaps", len(cmList.Items))
-				for _, cm := range cmList.Items {
-					if !strings.HasPrefix(cm.Name, releasePrefix) {
-						continue
-					}
-
-					if release, releaseName, revision, ok := hmf.parseHelmResource(cm.Name, []byte(cm.Data["release"])); ok {
-						key := fmt.Sprintf("%s/%s", cm.Namespace, releaseName)
-						if existing, exists := latestReleases[key]; !exists || revision > existing.revision {
-							latestReleases[key] = struct {
-								release  HelmReleaseMinimal
-								uid      string
-								revision int
-							}{
-								release:  *release,
-								uid:      string(cm.UID),
-								revision: revision,
-							}
-						}
-					}
-				}
+		cmList := &corev1.ConfigMapList{}
+		if err := hmf.k8sClient.List(ctx, cmList, listOpts...); err != nil {
+			hmf.logger.Info("Error listing ConfigMaps for Helm releases", "error", err, "namespace", namespace)
+			allErrors = append(allErrors, fmt.Errorf("configmaps in namespace %s: %w", namespace, err))
+		} else {
+			hmf.logger.V(1).Info("Scanning ConfigMaps for Helm releases", "namespace", namespace, "total_configmaps", len(cmList.Items))
+			for _, cm := range cmList.Items {
+				hmf.processHelmResource(cm.Name, cm.Namespace, string(cm.UID), []byte(cm.Data["release"]), latestReleases)
 			}
 		}
 	}
@@ -415,6 +378,36 @@ func (hmf *HelmMetadataForwarder) discoverAllHelmReleases(ctx context.Context) (
 	hmf.allHelmReleasesCache.setCache(releases)
 
 	return releases, nil
+}
+
+// processHelmResource processes a helm release and updates latestReleases if it's the latest revision
+func (hmf *HelmMetadataForwarder) processHelmResource(name, namespace, uid string, data []byte, latestReleases map[string]struct {
+	release  HelmReleaseMinimal
+	uid      string
+	revision int
+}) {
+	release, releaseName, revision, ok := hmf.parseHelmResource(name, data)
+	if !ok {
+		return
+	}
+
+	// Filter for allowedCharts
+	if _, allowed := allowedCharts[release.Chart.Metadata.Name]; !allowed {
+		return
+	}
+
+	key := fmt.Sprintf("%s/%s", namespace, releaseName)
+	if existing, exists := latestReleases[key]; !exists || revision > existing.revision {
+		latestReleases[key] = struct {
+			release  HelmReleaseMinimal
+			uid      string
+			revision int
+		}{
+			release:  *release,
+			uid:      uid,
+			revision: revision,
+		}
+	}
 }
 
 // parseHelmResource extracts release information from a Helm Secret or ConfigMap

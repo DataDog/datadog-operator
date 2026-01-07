@@ -44,7 +44,7 @@ func Test_handleFinalizer(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:  "foo",
 			Name:       "bar",
-			Finalizers: []string{datadogAgentInternalFinalizer},
+			Finalizers: []string{constants.DatadogAgentInternalFinalizer},
 		},
 		Spec: datadoghqv2alpha1.DatadogAgentSpec{
 			Global: &datadoghqv2alpha1.GlobalConfig{
