@@ -22,7 +22,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -36,11 +35,11 @@ const (
 	patchSucceeded  = "PatchSucceeded"
 )
 
-type updateDepStatusComponentFunc func(deployment *appsv1.Deployment, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
-type updateDSStatusComponentFunc func(daemonsetName string, daemonset *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
-type updateEDSStatusComponentFunc func(eds *edsv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
+type updateDepStatusComponentFunc func(deployment *appsv1.Deployment, newStatus *v1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
+type updateDSStatusComponentFunc func(daemonsetName string, daemonset *appsv1.DaemonSet, newStatus *v1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
+type updateEDSStatusComponentFunc func(eds *edsv1alpha1.ExtendedDaemonSet, newStatus *v1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
 
-func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, ddai *datadoghqv1alpha1.DatadogAgentInternal, deployment *appsv1.Deployment, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateDepStatusComponentFunc) (reconcile.Result, error) {
+func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, deployment *appsv1.Deployment, newStatus *v1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateDepStatusComponentFunc) (reconcile.Result, error) {
 	logger := parentLogger.WithValues("deployment.Namespace", deployment.Namespace, "deployment.Name", deployment.Name)
 
 	var result reconcile.Result
@@ -146,7 +145,7 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, ddai *da
 	return result, err
 }
 
-func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, ddai *datadoghqv1alpha1.DatadogAgentInternal, daemonset *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateDSStatusComponentFunc) (reconcile.Result, error) {
+func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, daemonset *appsv1.DaemonSet, newStatus *v1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateDSStatusComponentFunc) (reconcile.Result, error) {
 	logger := parentLogger.WithValues("daemonset.Namespace", daemonset.Namespace, "daemonset.Name", daemonset.Name)
 
 	var result reconcile.Result
@@ -293,7 +292,7 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, ddai *dat
 	return result, err
 }
 
-func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, ddai *datadoghqv1alpha1.DatadogAgentInternal, eds *edsv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateEDSStatusComponentFunc) (reconcile.Result, error) {
+func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, eds *edsv1alpha1.ExtendedDaemonSet, newStatus *v1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateEDSStatusComponentFunc) (reconcile.Result, error) {
 	logger := parentLogger.WithValues("ExtendedDaemonSet.Namespace", eds.Namespace, "ExtendedDaemonSet.Name", eds.Name)
 
 	var result reconcile.Result
