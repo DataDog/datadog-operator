@@ -73,6 +73,8 @@ const (
 	MD5DDAIDeploymentAnnotationKey = "agent.datadoghq.com/ddaispechash"
 	// MD5ChecksumAnnotationKey annotation key is used to identify customConfig configurations
 	MD5ChecksumAnnotationKey = "checksum/%s-custom-config"
+	// MD5DCAServiceClusterIPAnnotationKey annotation key is used to identify if DCA Service ClusterIP has been changed
+	MD5DCAServiceClusterIPAnnotationKey = "agent.datadoghq.com/dca-service-clusterip-hash"
 )
 
 // Profiles

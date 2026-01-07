@@ -10,6 +10,8 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
+	featurefake "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -2028,6 +2030,172 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_addDCAServiceClusterIPChecksum(t *testing.T) {
+	sch := runtime.NewScheme()
+	_ = scheme.AddToScheme(sch)
+	_ = corev1.AddToScheme(sch)
+	_ = datadoghqv2alpha1.AddToScheme(sch)
+	ctx := context.Background()
+
+	testCases := []struct {
+		name                   string
+		existingService        *corev1.Service
+		wantPodTemplateHasHash bool
+	}{
+		{
+			name:        "DCA service exists with ClusterIP: should have ClusterIP hash annotation",
+			existingService: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "dda-foo-cluster-agent",
+					Namespace: "ns-1",
+				},
+				Spec: corev1.ServiceSpec{
+					ClusterIP: "10.96.0.100",
+				},
+			},
+			wantPodTemplateHasHash: true,
+		},
+		{
+			name:                   "DCA service does not exist: should not have ClusterIP hash annotation",
+			existingService:        nil,
+			wantPodTemplateHasHash: false,
+		},
+		{
+			name:        "DCA service is headless (ClusterIP=None): should not have ClusterIP hash annotation",
+			existingService: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "dda-foo-cluster-agent",
+					Namespace: "ns-1",
+				},
+				Spec: corev1.ServiceSpec{
+					ClusterIP: "None",
+				},
+			},
+			wantPodTemplateHasHash: false,
+		},
+		{
+			name:        "DCA service has empty ClusterIP: should not have ClusterIP hash annotation",
+			existingService: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "dda-foo-cluster-agent",
+					Namespace: "ns-1",
+				},
+				Spec: corev1.ServiceSpec{
+					ClusterIP: "",
+				},
+			},
+			wantPodTemplateHasHash: false,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			logger := logf.Log.WithName("test_addDCAServiceClusterIPChecksum")
+
+			// DDA with helm-migration annotation
+			dda := datadoghqv2alpha1.DatadogAgent{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "DatadogAgent",
+					APIVersion: "datadoghq.com/v2alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "dda-foo",
+					Namespace: "ns-1",
+					Annotations: map[string]string{
+						apicommon.HelmMigrationAnnotationKey: "true",
+					},
+				},
+			}
+
+			clientBuilder := fake.NewClientBuilder().WithScheme(sch)
+			if tt.existingService != nil {
+				tt.existingService.Name = componentdca.GetClusterAgentServiceName(&dda)
+				clientBuilder = clientBuilder.WithObjects(tt.existingService)
+			}
+			fakeClient := clientBuilder.Build()
+
+			r := &Reconciler{
+				client: fakeClient,
+			}
+
+			podTemplateManager := featurefake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+
+			r.addDCAServiceClusterIPChecksum(ctx, logger, &dda, podTemplateManager)
+
+			// Check if pod template has the ClusterIP hash annotation
+			annotations := podTemplateManager.AnnotationMgr.Annotations
+			_, hasHashAnnotation := annotations[constants.MD5DCAServiceClusterIPAnnotationKey]
+
+			assert.Equal(t, tt.wantPodTemplateHasHash, hasHashAnnotation)
+		})
+	}
+}
+
+func Test_addDCAServiceClusterIPChecksum_DifferentClusterIPs(t *testing.T) {
+	sch := runtime.NewScheme()
+	_ = scheme.AddToScheme(sch)
+	_ = corev1.AddToScheme(sch)
+	_ = datadoghqv2alpha1.AddToScheme(sch)
+	ctx := context.Background()
+	logger := logf.Log.WithName("test_addDCAServiceClusterIPChecksum_DifferentClusterIPs")
+
+	// DDA with helm-migration annotation
+	dda := datadoghqv2alpha1.DatadogAgent{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "DatadogAgent",
+			APIVersion: "datadoghq.com/v2alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "dda-foo",
+			Namespace: "ns-1",
+			Annotations: map[string]string{
+				apicommon.HelmMigrationAnnotationKey: "true",
+			},
+		},
+	}
+
+	// Simulate first ClusterIP (before helm uninstall)
+	service1 := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      componentdca.GetClusterAgentServiceName(&dda),
+			Namespace: "ns-1",
+		},
+		Spec: corev1.ServiceSpec{
+			ClusterIP: "10.96.0.100",
+		},
+	}
+
+	fakeClient1 := fake.NewClientBuilder().WithScheme(sch).WithObjects(service1).Build()
+	r1 := &Reconciler{client: fakeClient1}
+	podTemplateManager1 := featurefake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+	r1.addDCAServiceClusterIPChecksum(ctx, logger, &dda, podTemplateManager1)
+
+	hash1 := podTemplateManager1.AnnotationMgr.Annotations[constants.MD5DCAServiceClusterIPAnnotationKey]
+
+	// Simulate different ClusterIP (after service recreation post-helm uninstall)
+	service2 := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      componentdca.GetClusterAgentServiceName(&dda),
+			Namespace: "ns-1",
+		},
+		Spec: corev1.ServiceSpec{
+			ClusterIP: "10.96.0.200", // Different IP after service recreation
+		},
+	}
+
+	fakeClient2 := fake.NewClientBuilder().WithScheme(sch).WithObjects(service2).Build()
+	r2 := &Reconciler{client: fakeClient2}
+	podTemplateManager2 := featurefake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+	r2.addDCAServiceClusterIPChecksum(ctx, logger, &dda, podTemplateManager2)
+
+	hash2 := podTemplateManager2.AnnotationMgr.Annotations[constants.MD5DCAServiceClusterIPAnnotationKey]
+
+	// The hashes should be different for different ClusterIPs
+	assert.NotEmpty(t, hash1, "First hash should not be empty")
+	assert.NotEmpty(t, hash2, "Second hash should not be empty")
+	assert.NotEqual(t, hash1, hash2, "Hashes should be different for different ClusterIPs, triggering DaemonSet rollout")
 }
 
 // func Test_cleanupPodsForProfilesThatNoLongerApply(t *testing.T) {
