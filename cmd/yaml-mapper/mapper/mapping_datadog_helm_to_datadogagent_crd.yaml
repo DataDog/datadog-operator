@@ -8,7 +8,7 @@ agents.containers.agent.healthPort:
   newPath: spec.override.nodeAgent.containers.agent.healthPort
   args:
     - sourcePrefix: agents.containers.agent
-    - containerPath: spec.override.nodeAgent.containers.agent
+      containerPath: spec.override.nodeAgent.containers.agent
 agents.containers.agent.livenessProbe.failureThreshold: spec.override.nodeAgent.containers.agent.livenessProbe.failureThreshold
 agents.containers.agent.livenessProbe.initialDelaySeconds: spec.override.nodeAgent.containers.agent.livenessProbe.initialDelaySeconds
 agents.containers.agent.livenessProbe.periodSeconds: spec.override.nodeAgent.containers.agent.livenessProbe.periodSeconds
@@ -90,8 +90,6 @@ agents.containers.traceAgent.envFrom: ""
 agents.containers.traceAgent.livenessProbe:
   mapFunc: mapTraceAgentLivenessProbe
   newPath: spec.override.nodeAgent.containers.trace-agent.livenessProbe
-  args:
-    - apmPortPath: datadog.apm.port
 agents.containers.traceAgent.livenessProbe.initialDelaySeconds: ""
 agents.containers.traceAgent.livenessProbe.periodSeconds: ""
 agents.containers.traceAgent.livenessProbe.timeoutSeconds: ""
@@ -214,7 +212,7 @@ clusterAgent.healthPort:
   newPath: spec.override.clusterAgent.containers.cluster-agent.healthPort
   args:
     - sourcePrefix: clusterAgent
-    - containerPath: spec.override.clusterAgent.containers.cluster-agent
+      containerPath: spec.override.clusterAgent.containers.cluster-agent
 clusterAgent.image.digest: ""
 clusterAgent.image.doNotCheckTag: ""
 clusterAgent.image.name: spec.override.clusterAgent.image.name
@@ -223,7 +221,11 @@ clusterAgent.image.pullSecrets: spec.override.clusterAgent.image.pullSecrets
 clusterAgent.image.repository: ""
 clusterAgent.image.tag: spec.override.clusterAgent.image.tag
 clusterAgent.kubernetesApiserverCheck.disableUseComponentStatus: ""
-clusterAgent.livenessProbe: spec.override.clusterAgent.containers.cluster-agent.livenessProbe
+# Probe mappings are handled by mapHealthPortWithProbes to ensure all ports match healthPort.
+# Suppress direct mapping of probe objects - only map when healthPort validation passes.
+clusterAgent.livenessProbe: ""
+clusterAgent.livenessProbe.httpGet: ""
+clusterAgent.livenessProbe.httpGet.port: ""
 clusterAgent.livenessProbe.failureThreshold: spec.override.clusterAgent.containers.cluster-agent.livenessProbe.failureThreshold
 clusterAgent.livenessProbe.initialDelaySeconds: spec.override.clusterAgent.containers.cluster-agent.livenessProbe.initialDelaySeconds
 clusterAgent.livenessProbe.periodSeconds: spec.override.clusterAgent.containers.cluster-agent.livenessProbe.periodSeconds
@@ -256,7 +258,9 @@ clusterAgent.rbac.serviceAccountName:
   newPath: spec.override.clusterAgent.serviceAccountName
   args:
     - rbacCreatePath: spec.override.clusterAgent.createRbac
-clusterAgent.readinessProbe: spec.override.clusterAgent.containers.cluster-agent.readinessProbe
+clusterAgent.readinessProbe: ""
+clusterAgent.readinessProbe.httpGet: ""
+clusterAgent.readinessProbe.httpGet.port: ""
 clusterAgent.readinessProbe.failureThreshold: spec.override.clusterAgent.containers.cluster-agent.readinessProbe.failureThreshold
 clusterAgent.readinessProbe.initialDelaySeconds: spec.override.clusterAgent.containers.cluster-agent.readinessProbe.initialDelaySeconds
 clusterAgent.readinessProbe.periodSeconds: spec.override.clusterAgent.containers.cluster-agent.readinessProbe.periodSeconds
@@ -267,6 +271,9 @@ clusterAgent.resources: spec.override.clusterAgent.containers.cluster-agent.reso
 clusterAgent.revisionHistoryLimit: ""
 clusterAgent.securityContext: spec.override.clusterAgent.securityContext
 clusterAgent.shareProcessNamespace: ""
+clusterAgent.startupProbe: ""
+clusterAgent.startupProbe.httpGet: ""
+clusterAgent.startupProbe.httpGet.port: ""
 clusterAgent.startupProbe.failureThreshold: spec.override.clusterAgent.containers.cluster-agent.startupProbe.failureThreshold
 clusterAgent.startupProbe.initialDelaySeconds: spec.override.clusterAgent.containers.cluster-agent.startupProbe.initialDelaySeconds
 clusterAgent.startupProbe.periodSeconds: spec.override.clusterAgent.containers.cluster-agent.startupProbe.periodSeconds
@@ -281,7 +288,6 @@ clusterAgent.tokenExistingSecret:
   args:
     - keyName: token
       keyNamePath: spec.global.clusterAgentTokenSecret.keyName
-      skipEmpty: true
   mapFunc: mapSecretKeyName
   newPath: spec.global.clusterAgentTokenSecret.secretName
 clusterAgent.tolerations: spec.override.clusterAgent.tolerations
@@ -303,7 +309,7 @@ clusterChecksRunner.healthPort:
   newPath: spec.override.clusterChecksRunner.containers.agent.healthPort
   args:
     - sourcePrefix: clusterChecksRunner
-    - containerPath: spec.override.clusterChecksRunner.containers.agent
+      containerPath: spec.override.clusterChecksRunner.containers.agent
 clusterChecksRunner.image.digest: ""
 clusterChecksRunner.image.name: spec.override.clusterChecksRunner.image.name
 clusterChecksRunner.image.pullPolicy: spec.override.clusterChecksRunner.image.pullPolicy
@@ -379,7 +385,6 @@ datadog.apiKeyExistingSecret:
   args:
     - keyName: api-key
       keyNamePath: spec.global.credentials.apiSecret.keyName
-      skipEmpty: true
   mapFunc: mapSecretKeyName
   newPath: spec.global.credentials.apiSecret.secretName
 datadog.apm.enabled: spec.features.apm.hostPortConfig.enabled
@@ -393,7 +398,9 @@ datadog.apm.instrumentation.language_detection.enabled: spec.features.apm.instru
 datadog.apm.instrumentation.libVersions: spec.features.apm.instrumentation.libVersions
 datadog.apm.instrumentation.skipKPITelemetry: ""
 datadog.apm.instrumentation.targets: spec.features.apm.instrumentation.targets
-datadog.apm.port: spec.features.apm.hostPortConfig.hostPort
+datadog.apm.port:
+  mapFunc: mapApmPortToContainerPort
+  newPath: spec.features.apm.hostPortConfig.hostPort
 datadog.apm.portEnabled: spec.features.apm.hostPortConfig.enabled
 datadog.apm.socketEnabled: spec.features.apm.unixDomainSocketConfig.enabled
 datadog.apm.socketPath: spec.features.apm.unixDomainSocketConfig.path
@@ -404,7 +411,6 @@ datadog.appKeyExistingSecret:
   args:
     - keyName: app-key
       keyNamePath: spec.global.credentials.appSecret.keyName
-      skipEmpty: true
   mapFunc: mapSecretKeyName
   newPath: spec.global.credentials.appSecret.secretName
 datadog.asm.iast.enabled: spec.features.asm.iast.enabled

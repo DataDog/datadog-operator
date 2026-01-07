@@ -43,6 +43,7 @@ func mapFuncRegistry() map[string]MappingRunFunc {
 		mapServiceAccountName,
 		mapHealthPortWithProbes,
 		mapTraceAgentLivenessProbe,
+		mapApmPortToContainerPort,
 	} {
 		registry[p.name] = p.runFunc
 	}
@@ -50,10 +51,10 @@ func mapFuncRegistry() map[string]MappingRunFunc {
 }
 
 // mapSecretKeyName adds the secret `keyName` field for mapping k8s secrets.
+// Skips mapping when pathVal is an empty string (let operator handle defaults).
 // args:
 //   - keyName: the key name in the secret (e.g., "api-key", "token")
 //   - keyNamePath: the DDA path for the key name
-//   - skipEmpty: (optional) if true, skip mapping when pathVal is an empty string (for optional secrets)
 var mapSecretKeyName = MappingProcessor{
 	name: "mapSecretKeyName",
 	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}, _ chartutil.Values) {
@@ -73,20 +74,14 @@ var mapSecretKeyName = MappingProcessor{
 			return
 		}
 
-		// Check for optional skipEmpty flag
-		skipEmpty, _ := utils.GetPathBool(args[0], "skipEmpty")
-
-		// If skipEmpty is true, validate that pathVal is a non-empty string
-		if skipEmpty {
-			secretName, isString := pathVal.(string)
-			if !isString {
-				log.Printf("Warning: mapSecretKeyName with skipEmpty expected string value, got %T", pathVal)
-				return
-			}
-			if secretName == "" {
-				// Skip mapping - let operator handle default behavior
-				return
-			}
+		// Skip empty secret names - let operator handle defaults
+		secretName, isString := pathVal.(string)
+		if !isString {
+			log.Printf("Warning: mapSecretKeyName expected string value, got %T", pathVal)
+			return
+		}
+		if secretName == "" {
+			return
 		}
 
 		utils.MergeOrSet(interim, newPath, pathVal)
@@ -360,17 +355,18 @@ var mapServiceAccountName = MappingProcessor{
 	},
 }
 
-// mapHealthPortWithProbes maps healthPort and probe ports if probe httpGet.port is explicitly
-// defined in the Helm source values. This matches Helm chart behavior where probes use healthPort.
+// mapHealthPortWithProbes maps healthPort and validates that probe httpGet.ports match.
+// In the Helm chart, users MUST set livenessProbe, startupProbe, and readinessProbe ports
+// if they are setting healthPort, and all ports must match. Otherwise, don't map anything (let operator handle defaults).
 //
 // args:
-//   - sourcePrefix: the Helm source path prefix (e.g., "clusterAgent" or "agents.containers.agent")
+//   - sourcePrefix: the Helm values prefix for checking probe ports (e.g., "agents.containers.agent", "clusterAgent")
 //   - containerPath: the DDA container path for setting probe ports (e.g., "spec.override.clusterAgent.containers.cluster-agent")
 var mapHealthPortWithProbes = MappingProcessor{
 	name: "mapHealthPortWithProbes",
 	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}, sourceValues chartutil.Values) {
-		if len(args) != 2 {
-			log.Printf("Warning: mapHealthPortWithProbes requires exactly 2 arguments (sourcePrefix and containerPath)")
+		if len(args) != 1 {
+			log.Printf("Warning: mapHealthPortWithProbes requires exactly 1 argument")
 			return
 		}
 
@@ -380,97 +376,76 @@ var mapHealthPortWithProbes = MappingProcessor{
 			return
 		}
 
-		containerPath, ok := utils.GetPathString(args[1], "containerPath")
+		containerPath, ok := utils.GetPathString(args[0], "containerPath")
 		if !ok || containerPath == "" {
 			log.Printf("Warning: mapHealthPortWithProbes missing 'containerPath' argument")
 			return
 		}
 
-		// Get the port value as int
-		portValue, ok := normalizeToInt(pathVal)
+		// Get the healthPort value as int
+		healthPort, ok := normalizeToInt(pathVal)
 		if !ok {
 			log.Printf("Warning: mapHealthPortWithProbes expected numeric value, got %T", pathVal)
 			return
 		}
 
-		// Check which probe ports are defined in the Helm source values and match healthPort
+		// Check if ALL probe ports are explicitly set in sourceValues and match healthPort
 		probeTypes := []string{"livenessProbe", "readinessProbe", "startupProbe"}
-		var definedProbes []string
+		allProbesMatch := true
+		probesCount := 0
 
 		for _, probeType := range probeTypes {
 			helmPath := sourcePrefix + "." + probeType + ".httpGet.port"
-			if val, _ := sourceValues.PathValue(helmPath); val != nil {
-				// Normalize the probe port value to int for comparison
-				probePortValue, ok := normalizeToInt(val)
-				if !ok {
-					continue // Skip if not a numeric type
-				}
-				// Only include if probe port matches healthPort
-				if probePortValue == portValue {
-					definedProbes = append(definedProbes, probeType)
-				} else {
-					// Log warning for mismatched probe port (similar to Helm chart's NOTES.txt error)
-					log.Printf("Warning: %s.httpGet.port (%d) is different from healthPort (%d). This is a misconfiguration - probe port will not be mapped.", helmPath, probePortValue, portValue)
-				}
+			probePortVal, err := sourceValues.PathValue(helmPath)
+			if err != nil || probePortVal == nil {
+				// Probe port not set by user - can't validate, don't map
+				allProbesMatch = false
+				break
 			}
+
+			probePort, ok := normalizeToInt(probePortVal)
+			if !ok {
+				log.Printf("Warning: mapHealthPortWithProbes probe port at %s is not numeric: %T", helmPath, probePortVal)
+				allProbesMatch = false
+				break
+			}
+
+			if probePort != healthPort {
+				log.Printf("Warning: mapHealthPortWithProbes probe port mismatch at %s: expected %d, got %d", helmPath, healthPort, probePort)
+				allProbesMatch = false
+				break
+			}
+			probesCount++
 		}
 
-		// Only map if at least one probe port is explicitly defined in Helm values
-		if len(definedProbes) == 0 {
+		// Only map if all probes are set and match
+		if !allProbesMatch || probesCount < 3 {
 			return
 		}
 
 		// Set healthPort
-		utils.MergeOrSet(interim, newPath, portValue)
+		utils.MergeOrSet(interim, newPath, healthPort)
 
-		// Set probe ports for each defined probe
-		for _, probeType := range definedProbes {
+		// Set all probe ports (they've been validated to match)
+		for _, probeType := range probeTypes {
 			ddaPath := containerPath + "." + probeType + ".httpGet.port"
-			utils.MergeOrSet(interim, ddaPath, portValue)
+			utils.MergeOrSet(interim, ddaPath, healthPort)
 		}
 	},
 }
 
-// mapTraceAgentLivenessProbe maps the trace agent liveness probe.
-// In the Helm chart, the trace agent uses a TCP probe with datadog.apm.port when APM is enabled.
-// The probe is only set when datadog.apm.portEnabled or datadog.apm.socketEnabled is true.
-// If the user has set a custom probe type (httpGet, tcpSocket, exec), the probe is mapped as-is.
-//
+// mapTraceAgentLivenessProbe maps the trace agent liveness probe with tcpSocket.port.
+// Deduces port from datadog.apm.port or default 8126 if not set.
+// Validates that explicit tcpSocket.port matches apm.port or default; skips mapping on mismatch.
 // args:
-//   - apmPortPath: path to the apm port value in source values (e.g., "datadog.apm.port")
+//   - newPath: the DDA path for the trace agent liveness probe
 var mapTraceAgentLivenessProbe = MappingProcessor{
 	name: "mapTraceAgentLivenessProbe",
 	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}, sourceValues chartutil.Values) {
-		if len(args) != 1 {
-			log.Printf("Warning: mapTraceAgentLivenessProbe requires exactly 1 argument (apmPortPath)")
+		if pathVal == nil {
 			return
 		}
 
-		apmPortPath, ok := utils.GetPathString(args[0], "apmPortPath")
-		if !ok || apmPortPath == "" {
-			log.Printf("Warning: mapTraceAgentLivenessProbe missing 'apmPortPath' argument")
-			return
-		}
-
-		// Check if APM is enabled (portEnabled or socketEnabled)
-		portEnabled, _ := sourceValues.PathValue("datadog.apm.portEnabled")
-		socketEnabled, _ := sourceValues.PathValue("datadog.apm.socketEnabled")
-
-		apmEnabled := false
-		if pe, peOk := portEnabled.(bool); peOk && pe {
-			apmEnabled = true
-		}
-		if se, seOk := socketEnabled.(bool); seOk && se {
-			apmEnabled = true
-		}
-
-		// APM is not enabled, skip mapping
-		if !apmEnabled {
-			return
-		}
-
-		// Check if custom probe type (httpGet, tcpSocket, exec)
-		// pathVal can be either map[string]interface{} or chartutil.Values
 		var probeSettings map[string]interface{}
 		switch v := pathVal.(type) {
 		case map[string]interface{}:
@@ -481,40 +456,34 @@ var mapTraceAgentLivenessProbe = MappingProcessor{
 			return
 		}
 
-		// If explicitly set httpGet, tcpSocket, or exec, map probe as-is
-		if _, hasHttpGet := probeSettings["httpGet"]; hasHttpGet {
-			utils.MergeOrSet(interim, newPath, pathVal)
-			return
-		}
-		if _, hasTcpSocket := probeSettings["tcpSocket"]; hasTcpSocket {
-			utils.MergeOrSet(interim, newPath, pathVal)
-			return
-		}
-		if _, hasExec := probeSettings["exec"]; hasExec {
-			utils.MergeOrSet(interim, newPath, pathVal)
+		const defaultPort = 8126
+
+		// Get user's explicit apm.port if set
+		userApmPort, hasUserApmPort := utils.GetPathInt(sourceValues, "datadog", "apm", "port")
+
+		// Check if tcpSocket.port is set
+		tcpSocketPort, hasTcpSocketPort := utils.GetPathInt(probeSettings, "tcpSocket", "port")
+
+		if !hasTcpSocketPort {
+			// tcpSocket.port not set - deduce from apm.port or use default
+			port := defaultPort
+			if hasUserApmPort {
+				port = userApmPort
+			}
+			// Map all existing probe settings plus tcpSocket.port
+			for key, val := range probeSettings {
+				utils.MergeOrSet(interim, newPath+"."+key, val)
+			}
+			utils.MergeOrSet(interim, newPath+".tcpSocket.port", port)
 			return
 		}
 
-		// Get APM port from source values
-		apmPort, _ := sourceValues.PathValue(apmPortPath)
-		if apmPort == nil {
-			return
+		// tcpSocket.port is set - validate it matches apm.port or default
+		if tcpSocketPort == defaultPort || (hasUserApmPort && tcpSocketPort == userApmPort) {
+			utils.MergeOrSet(interim, newPath, pathVal)
+		} else {
+			log.Printf("Warning: mapTraceAgentLivenessProbe tcpSocket.port %d doesn't match apm.port or default 8126", tcpSocketPort)
 		}
-
-		// Normalize port value to int
-		portValue, ok := normalizeToInt(apmPort)
-		if !ok {
-			log.Printf("Warning: mapTraceAgentLivenessProbe expected numeric apm port, got %T", apmPort)
-			return
-		}
-
-		// Merge the probe settings with tcpSocket.port
-		// First, map any existing probe settings (initialDelaySeconds, periodSeconds, etc.)
-		for key, val := range probeSettings {
-			utils.MergeOrSet(interim, newPath+"."+key, val)
-		}
-		// Then set the tcpSocket.port
-		utils.MergeOrSet(interim, newPath+".tcpSocket.port", portValue)
 	},
 }
 
@@ -547,3 +516,36 @@ func hasDuplicateEnv(existingEnvs []interface{}, newEnvName string) bool {
 	return false
 }
 
+// mapApmPortToContainerPort maps datadog.apm.port to both hostPort and containerPort for trace-agent.
+// The Helm chart always sets containerPort = hostPort = datadog.apm.port, but the operator only
+// syncs them when hostNetwork is enabled on the pod. This processor preserves Helm behavior.
+var mapApmPortToContainerPort = MappingProcessor{
+	name: "mapApmPortToContainerPort",
+	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}, sourceValues chartutil.Values) {
+		port, ok := normalizeToInt(pathVal)
+		if !ok {
+			log.Printf("Warning: mapApmPortToContainerPort expected numeric value, got %T", pathVal)
+			return
+		}
+
+		// Default APM port is 8126 - only map if user has set a different value
+		if port == 8126 {
+			return
+		}
+
+		// Set hostPort
+		utils.MergeOrSet(interim, newPath, port)
+
+		// Set matching containerPort
+		containerPortPath := "spec.override.nodeAgent.containers.trace-agent.ports"
+		portEntry := []interface{}{
+			map[string]interface{}{
+				"name":          "traceport",
+				"containerPort": port,
+				"hostPort":      port,
+				"protocol":      "TCP",
+			},
+		}
+		utils.MergeOrSet(interim, containerPortPath, portEntry)
+	},
+}
