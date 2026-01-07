@@ -178,7 +178,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.datadogGenericResourceEnabled, "datadogGenericResourceEnabled", false, "Enable the DatadogGenericResource controller")
 
 	// DatadogAgentInternal
-	flag.BoolVar(&opts.datadogAgentInternalEnabled, "datadogAgentInternalEnabled", false, "Enable the DatadogAgentInternal controller")
+	flag.BoolVar(&opts.datadogAgentInternalEnabled, "datadogAgentInternalEnabled", true, "Enable the DatadogAgentInternal controller")
 
 	// ExtendedDaemonset configuration
 	flag.BoolVar(&opts.supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")

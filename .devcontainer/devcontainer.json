@@ -1,30 +1,40 @@
 {
-  "image": "mcr.microsoft.com/devcontainers/go:dev-1.25",
-  "features": {
-    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
-      "moby": false
-    }
-  },
-  "runArgs": [
-    "--name",
-    "datadog-operator-devenv",
-    "-w",
-    "/workspaces/datadog-operator"
-  ],
-  "postStartCommand": "git config --global --add safe.directory /workspaces/datadog-operator && make install-tools",
-  "customizations": {
-    "vscode": {
-      "settings": {
-        "go.lintTool": "golangci-lint",
-        "go.lintOnSave": "package",
-        "go.lintFlags": [
-          "--config=/workspaces/datadog-operator/.golangci.toml"
-        ],
-        "[go]": {
-          "editor.formatOnSave": true
+    "image": "mcr.microsoft.com/devcontainers/go:dev-1.25",
+    "features": {
+        "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+            "moby": false
+        },
+        "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {},
+        "ghcr.io/devcontainers-extra/features/kind:1": {},
+        "ghcr.io/devcontainers/features/node:1": {},
+        "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+    },
+    "mounts": [
+        "source=${localWorkspaceFolder}/.devcontainer/claude-data/,target=/home/vscode/.claude,type=bind"
+    ],
+    "runArgs": [
+        "--name",
+        "datadog-operator-devenv",
+        "-w",
+        "/workspaces/datadog-operator",
+        "--network=host"
+    ],
+    "postStartCommand": "git config --global --add safe.directory /workspaces/datadog-operator && make install-tools",
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "go.lintTool": "golangci-lint",
+                "go.lintOnSave": "package",
+                "go.lintFlags": [
+                    "--config=/workspaces/datadog-operator/.golangci.toml"
+                ],
+                "[go]": {
+                    "editor.formatOnSave": true
+                }
+            },
+            "extensions": [
+                "golang.Go"
+            ]
         }
-      },
-      "extensions": ["golang.Go"]
     }
-  }
 }
