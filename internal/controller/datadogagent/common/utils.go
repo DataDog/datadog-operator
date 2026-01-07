@@ -82,9 +82,15 @@ func GetDefaultLabels(owner metav1.Object, componentKind, instanceName, version 
 	return labels
 }
 
-// GetAgentVersion returns the agent version for the node agent based on the DDA spec.
-// It returns the default latest version if no override is specified.
+// GetAgentVersion return the Agent version based on the DatadogAgent info
 func GetAgentVersion(dda metav1.Object) string {
+	// TODO implement this method
+	return ""
+}
+
+// GetComponentVersion returns the component version based on the DDA spec.
+// It returns the default latest version if no override is specified.
+func GetComponentVersion(dda metav1.Object, componentName v2alpha1.ComponentName) string {
 	var spec *v2alpha1.DatadogAgentSpec
 	switch d := dda.(type) {
 	case *v2alpha1.DatadogAgent:
@@ -95,9 +101,9 @@ func GetAgentVersion(dda metav1.Object) string {
 		return images.AgentLatestVersion
 	}
 
-	if nodeAgent, ok := spec.Override[v2alpha1.NodeAgentComponentName]; ok {
-		if nodeAgent.Image != nil {
-			return GetAgentVersionFromImage(*nodeAgent.Image)
+	if componentOverride, ok := spec.Override[componentName]; ok {
+		if componentOverride.Image != nil {
+			return GetAgentVersionFromImage(*componentOverride.Image)
 		}
 	}
 	return images.AgentLatestVersion

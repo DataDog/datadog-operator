@@ -16,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
@@ -426,7 +427,7 @@ func traceAgentContainer(dda metav1.Object) corev1.Container {
 
 	const traceAgentLoaderMinVersion = "7.75.0-0"
 	defaultIfVersionUnknown := false
-	if utils.IsAboveMinVersion(common.GetAgentVersion(dda), traceAgentLoaderMinVersion, &defaultIfVersionUnknown) {
+	if utils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName), traceAgentLoaderMinVersion, &defaultIfVersionUnknown) {
 		command = append([]string{"trace-loader", agentCustomConfigVolumePath}, command...)
 	}
 	return corev1.Container{
