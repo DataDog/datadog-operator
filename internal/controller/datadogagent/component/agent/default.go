@@ -89,9 +89,9 @@ func DefaultCapabilitiesForSystemProbe() []corev1.Capability {
 	}
 }
 
-// DefaultSeccompConfigDataForSystemProbe returns configmap data for the default seccomp profile
-func DefaultSeccompConfigDataForSystemProbe(ddaSpec *v2alpha1.DatadogAgentSpec) map[string]string {
-	syscalls := []string{
+// DefaultSyscallsForSystemProbe returns the default syscalls for the System Probe
+func DefaultSyscallsForSystemProbe() []string {
+	return []string{
 		"accept4",
 		"access",
 		"arch_prctl",
@@ -279,12 +279,22 @@ func DefaultSeccompConfigDataForSystemProbe(ddaSpec *v2alpha1.DatadogAgentSpec) 
 		"waitpid",
 		"write",
 	}
+}
 
-	if ddaSpec.Features.CWS.Enforcement != nil && *ddaSpec.Features.CWS.Enforcement.Enabled {
+func syscallsForSystemProbe(ddaSpec *v2alpha1.DatadogAgentSpec) []string {
+	syscalls := DefaultSyscallsForSystemProbe()
+
+	if ddaSpec.Features.CWS != nil &&
+		ddaSpec.Features.CWS.Enabled != nil && *ddaSpec.Features.CWS.Enabled &&
+		ddaSpec.Features.CWS.Enforcement != nil && *ddaSpec.Features.CWS.Enforcement.Enabled {
 		syscalls = append(syscalls, "kill")
 	}
+	return syscalls
+}
 
-	syscallsJSON := fmt.Sprintf(`["%s"]`, strings.Join(syscalls, `","`))
+// DefaultSeccompConfigDataForSystemProbe returns configmap data for the default seccomp profile
+func DefaultSeccompConfigDataForSystemProbe(ddaSpec *v2alpha1.DatadogAgentSpec) map[string]string {
+	syscalls := fmt.Sprintf(`["%s"]`, strings.Join(syscallsForSystemProbe(ddaSpec), `","`))
 
 	return map[string]string{
 		"system-probe-seccomp.json": fmt.Sprintf(`{
@@ -330,7 +340,7 @@ func DefaultSeccompConfigDataForSystemProbe(ddaSpec *v2alpha1.DatadogAgentSpec) 
 				}
 			]
 		}
-		`, syscallsJSON),
+		`, syscalls),
 	}
 }
 
