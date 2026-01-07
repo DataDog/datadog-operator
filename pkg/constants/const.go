@@ -81,3 +81,8 @@ const (
 const (
 	ProfileLabelKey = "agent.datadoghq.com/datadogagentprofile"
 )
+
+// DDAI finalizer
+const (
+	DatadogAgentInternalFinalizer = "finalizer.datadoghq.com/datadogagentinternal"
+)

@@ -22,10 +22,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-const (
-	datadogAgentInternalFinalizer = "finalizer.datadoghq.com/datadogagentinternal"
-)
-
 type finalizerDDAIFunc func(reqLogger logr.Logger, dda client.Object) error
 
 func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, ddai client.Object, finalizerDDAI finalizerDDAIFunc) (reconcile.Result, error) {
@@ -33,7 +29,7 @@ func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, ddai client.Object, 
 	// indicated by the deletion timestamp being set.
 	isDDAIMarkedToBeDeleted := ddai.GetDeletionTimestamp() != nil
 	if isDDAIMarkedToBeDeleted {
-		if controllerutil.ContainsFinalizer(ddai, datadogAgentInternalFinalizer) {
+		if controllerutil.ContainsFinalizer(ddai, constants.DatadogAgentInternalFinalizer) {
 			// Run finalization logic for datadogAgentFinalizer. If the
 			// finalization logic fails, don't remove the finalizer so
 			// that we can retry during the next reconciliation.
@@ -43,7 +39,7 @@ func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, ddai client.Object, 
 
 			// Remove datadogAgentFinalizer. Once all finalizers have been
 			// removed, the object will be deleted.
-			controllerutil.RemoveFinalizer(ddai, datadogAgentInternalFinalizer)
+			controllerutil.RemoveFinalizer(ddai, constants.DatadogAgentInternalFinalizer)
 			err := r.client.Update(context.TODO(), ddai)
 			if err != nil {
 				return reconcile.Result{}, err
@@ -53,7 +49,7 @@ func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, ddai client.Object, 
 	}
 
 	// Add finalizer for this CR
-	if !controllerutil.ContainsFinalizer(ddai, datadogAgentInternalFinalizer) {
+	if !controllerutil.ContainsFinalizer(ddai, constants.DatadogAgentInternalFinalizer) {
 		if err := r.addFinalizer(reqLogger, ddai); err != nil {
 			return reconcile.Result{}, err
 		}
@@ -84,7 +80,7 @@ func (r *Reconciler) finalizeDDAI(reqLogger logr.Logger, obj client.Object) erro
 
 func (r *Reconciler) addFinalizer(reqLogger logr.Logger, ddai client.Object) error {
 	reqLogger.Info("Adding Finalizer for the DatadogAgentInternal")
-	controllerutil.AddFinalizer(ddai, datadogAgentInternalFinalizer)
+	controllerutil.AddFinalizer(ddai, constants.DatadogAgentInternalFinalizer)
 
 	// Update CR
 	err := r.client.Update(context.TODO(), ddai)
