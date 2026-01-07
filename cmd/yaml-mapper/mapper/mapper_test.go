@@ -961,7 +961,7 @@ func TestApplyDeprecationRules(t *testing.T) {
 func TestMappingProcessors(t *testing.T) {
 	// Test that all mapping processors are properly registered
 	t.Run("mapFuncRegistry_dict", func(t *testing.T) {
-		expectedFuncs := []string{"mapSecretKeyName", "mapSeccompProfile", "mapSystemProbeAppArmor", "mapLocalServiceName", "mapAppendEnvVar", "mapMergeEnvs", "mapOverrideType", "mapServiceAccountName", "mapHealthPortWithProbes", "mapTraceAgentLivenessProbe"}
+		expectedFuncs := []string{"mapSecretKeyName", "mapSeccompProfile", "mapSystemProbeAppArmor", "mapLocalServiceName", "mapAppendEnvVar", "mapMergeEnvs", "mapOverrideType", "mapServiceAccountName", "mapHealthPortWithProbes", "mapTraceAgentLivenessProbe", "mapApmPortToContainerPort"}
 		mapFuncs := mapFuncRegistry()
 
 		for _, funcName := range expectedFuncs {
@@ -1592,9 +1592,7 @@ func TestMappingProcessors(t *testing.T) {
 			newPath:  "spec.override.clusterAgent.containers.cluster-agent.healthPort",
 			mapFuncArgs: []interface{}{
 				map[string]interface{}{
-					"sourcePrefix": "clusterAgent",
-				},
-				map[string]interface{}{
+					"sourcePrefix":  "clusterAgent",
 					"containerPath": "spec.override.clusterAgent.containers.cluster-agent",
 				},
 			},
@@ -1669,6 +1667,36 @@ func TestMappingProcessors(t *testing.T) {
 				},
 			},
 			// No mapping since not all probes are defined
+			expectedMap: map[string]interface{}{},
+		},
+		{
+			name:     "mapHealthPortWithProbes_all_probes_defined_one_mismatch",
+			funcName: "mapHealthPortWithProbes",
+			interim:  map[string]interface{}{},
+			newPath:  "spec.override.clusterAgent.containers.cluster-agent.healthPort",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"sourcePrefix":  "clusterAgent",
+					"containerPath": "spec.override.clusterAgent.containers.cluster-agent",
+				},
+			},
+			pathVal: 8888,
+			sourceValues: chartutil.Values{
+				"clusterAgent": map[string]interface{}{
+					"healthPort": 8888,
+					"livenessProbe": map[string]interface{}{
+						"httpGet": map[string]interface{}{"port": 8888},
+					},
+					"readinessProbe": map[string]interface{}{
+						"httpGet": map[string]interface{}{"port": 8888},
+					},
+					"startupProbe": map[string]interface{}{
+						// Mismatched port - doesn't match healthPort
+						"httpGet": map[string]interface{}{"port": 8877},
+					},
+				},
+			},
+			// No mapping since startupProbe.httpGet.port (8877) doesn't match healthPort (8888)
 			expectedMap: map[string]interface{}{},
 		},
 		// mapTraceAgentLivenessProbe tests

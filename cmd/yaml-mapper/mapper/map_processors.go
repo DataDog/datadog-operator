@@ -43,6 +43,7 @@ func mapFuncRegistry() map[string]MappingRunFunc {
 		mapServiceAccountName,
 		mapHealthPortWithProbes,
 		mapTraceAgentLivenessProbe,
+		mapApmPortToContainerPort,
 	} {
 		registry[p.name] = p.runFunc
 	}
@@ -391,6 +392,7 @@ var mapHealthPortWithProbes = MappingProcessor{
 		// Check if ALL probe ports are explicitly set in sourceValues and match healthPort
 		probeTypes := []string{"livenessProbe", "readinessProbe", "startupProbe"}
 		allProbesMatch := true
+		probesCount := 0
 
 		for _, probeType := range probeTypes {
 			helmPath := sourcePrefix + "." + probeType + ".httpGet.port"
@@ -413,10 +415,11 @@ var mapHealthPortWithProbes = MappingProcessor{
 				allProbesMatch = false
 				break
 			}
+			probesCount++
 		}
 
 		// Only map if all probes are set and match
-		if !allProbesMatch {
+		if !allProbesMatch || probesCount < 3 {
 			return
 		}
 
@@ -511,4 +514,38 @@ func hasDuplicateEnv(existingEnvs []interface{}, newEnvName string) bool {
 		}
 	}
 	return false
+}
+
+// mapApmPortToContainerPort maps datadog.apm.port to both hostPort and containerPort for trace-agent.
+// The Helm chart always sets containerPort = hostPort = datadog.apm.port, but the operator only
+// syncs them when hostNetwork is enabled on the pod. This processor preserves Helm behavior.
+var mapApmPortToContainerPort = MappingProcessor{
+	name: "mapApmPortToContainerPort",
+	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}, sourceValues chartutil.Values) {
+		port, ok := normalizeToInt(pathVal)
+		if !ok {
+			log.Printf("Warning: mapApmPortToContainerPort expected numeric value, got %T", pathVal)
+			return
+		}
+
+		// Default APM port is 8126 - only map if user has set a different value
+		if port == 8126 {
+			return
+		}
+
+		// Set hostPort
+		utils.MergeOrSet(interim, newPath, port)
+
+		// Set matching containerPort
+		containerPortPath := "spec.override.nodeAgent.containers.trace-agent.ports"
+		portEntry := []interface{}{
+			map[string]interface{}{
+				"name":          "traceport",
+				"containerPort": port,
+				"hostPort":      port,
+				"protocol":      "TCP",
+			},
+		}
+		utils.MergeOrSet(interim, containerPortPath, portEntry)
+	},
 }
