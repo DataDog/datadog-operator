@@ -16,34 +16,24 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
-// ObjectPreprocessor defines an interface for preprocessing objects before apply
-type ObjectPreprocessor interface {
-	// Preprocess modifies objStore based on objAPIServer before create/update
-	// where objStore is the object from the store and objAPIServer is the
-	// object from the API server (if it exists)
-	// objAPIServer will be nil for creates, non-nil for updates
-	Preprocess(objStore, objAPIServer client.Object) (client.Object, error)
-}
-
+// preprocessorFunc defines a function type for preprocessing objects before apply.
+// objStore is the object from the store and objAPIServer is the object from the API server (if it exists).
+// objAPIServer will be nil for creates, non-nil for updates.
 type preprocessorFunc func(objStore, objAPIServer client.Object) (client.Object, error)
 
-func (f preprocessorFunc) Preprocess(objStore, objAPIServer client.Object) (client.Object, error) {
-	return f(objStore, objAPIServer)
-}
-
-var preprocessorRegistry = map[kubernetes.ObjectKind]ObjectPreprocessor{
-	kubernetes.ClusterRolesKind:          preprocessorFunc(preprocessClusterRole),
-	kubernetes.RolesKind:                 preprocessorFunc(preprocessRole),
-	kubernetes.ServicesKind:              preprocessorFunc(preprocessService),
-	kubernetes.APIServiceKind:            preprocessorFunc(preprocessResourceVersion),
-	kubernetes.CiliumNetworkPoliciesKind: preprocessorFunc(preprocessResourceVersion),
-	kubernetes.PodDisruptionBudgetsKind:  preprocessorFunc(preprocessResourceVersion),
+var preprocessorRegistry = map[kubernetes.ObjectKind]preprocessorFunc{
+	kubernetes.ClusterRolesKind:          preprocessClusterRole,
+	kubernetes.RolesKind:                 preprocessRole,
+	kubernetes.ServicesKind:              preprocessService,
+	kubernetes.APIServiceKind:            preprocessResourceVersion,
+	kubernetes.CiliumNetworkPoliciesKind: preprocessResourceVersion,
+	kubernetes.PodDisruptionBudgetsKind:  preprocessResourceVersion,
 }
 
 // applyPreprocessing applies registered preprocessor for the given kind, if any
 func (ds *Store) applyPreprocessing(kind kubernetes.ObjectKind, objStore, objAPIServer client.Object) (client.Object, error) {
 	if preprocessor, exists := preprocessorRegistry[kind]; exists {
-		return preprocessor.Preprocess(objStore, objAPIServer)
+		return preprocessor(objStore, objAPIServer)
 	}
 	return objStore, nil
 }

@@ -129,6 +129,7 @@ func getRBACPolicyRules(logger logr.Logger, crs []string) []rbacv1.PolicyRule {
 		for _, cr := range crs {
 			crSplit := strings.Split(cr, "/")
 			if len(crSplit) == 3 {
+				// use ToLower as rbac resource names are lowercase but input may not be
 				rbacRules = append(rbacRules, rbacv1.PolicyRule{
 					APIGroups: []string{crSplit[0]},
 					Resources: []string{strings.ToLower(crSplit[2])},
