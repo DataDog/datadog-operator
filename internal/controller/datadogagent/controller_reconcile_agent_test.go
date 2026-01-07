@@ -2045,7 +2045,7 @@ func Test_addDCAServiceClusterIPChecksum(t *testing.T) {
 		wantPodTemplateHasHash bool
 	}{
 		{
-			name:        "DCA service exists with ClusterIP: should have ClusterIP hash annotation",
+			name: "DCA service exists with ClusterIP: should have ClusterIP hash annotation",
 			existingService: &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "dda-foo-cluster-agent",
@@ -2063,7 +2063,7 @@ func Test_addDCAServiceClusterIPChecksum(t *testing.T) {
 			wantPodTemplateHasHash: false,
 		},
 		{
-			name:        "DCA service is headless (ClusterIP=None): should not have ClusterIP hash annotation",
+			name: "DCA service is headless (ClusterIP=None): should not have ClusterIP hash annotation",
 			existingService: &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "dda-foo-cluster-agent",
@@ -2076,7 +2076,7 @@ func Test_addDCAServiceClusterIPChecksum(t *testing.T) {
 			wantPodTemplateHasHash: false,
 		},
 		{
-			name:        "DCA service has empty ClusterIP: should not have ClusterIP hash annotation",
+			name: "DCA service has empty ClusterIP: should not have ClusterIP hash annotation",
 			existingService: &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "dda-foo-cluster-agent",
