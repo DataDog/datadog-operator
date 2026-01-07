@@ -27,6 +27,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
@@ -35,12 +36,13 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/helm"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature,
+func (r *Reconciler) reconcileV2Agent(ctx context.Context, logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature,
 	dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus,
 	provider string, providerList map[string]struct{}, profile *v1alpha1.DatadogAgentProfile) (reconcile.Result, error) {
 	var result reconcile.Result
@@ -72,6 +74,9 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 		// Set Global setting on the default extendeddaemonset
 		global.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda.GetObjectMeta(), &dda.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
+
+		// Add Cluster Agent Service ClusterIP checksum to trigger rollout when service is recreated
+		global.AddDCAServiceClusterIPChecksum(ctx, logger, r.client, dda.GetObjectMeta(), podManagers)
 
 		// Apply features changes on the Deployment.Spec.Template
 		for _, feat := range features {
@@ -162,10 +167,15 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 				daemonset.Labels[constants.MD5AgentDeploymentMigratedLabelKey] = "true"
 				logger.Info("Adding migration label to new operator daemonset as Helm migration has completed")
 			}
+			// Add Cluster Agent Service ClusterIP checksum to trigger rollout when service is recreated
+			r.addDCAServiceClusterIPChecksum(ctx, logger, dda, podManagers)
 		}
 	}
 	// Set Global setting on the default daemonset
 	global.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda.GetObjectMeta(), &dda.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
+
+	// Add Cluster Agent Service ClusterIP checksum to trigger rollout when service is recreated
+	global.AddDCAServiceClusterIPChecksum(ctx, logger, r.client, dda.GetObjectMeta(), podManagers)
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
@@ -597,4 +607,38 @@ func GetAgentInstanceLabelValue(dda, profile metav1.Object) string {
 	}
 	// Use default daemonset name
 	return component.GetAgentName(dda)
+}
+
+// addDCAServiceClusterIPChecksum reads the live Cluster Agent Service ClusterIP from the API server
+// and adds a checksum annotation to the pod template. This ensures that when the Service is recreated
+// with a new ClusterIP (e.g., after helm uninstall during migration), a DaemonSet rollout will be triggered
+// so that the agent pods pick up the new IP via Kubernetes-injected environment variables.
+func (r *Reconciler) addDCAServiceClusterIPChecksum(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, podManagers feature.PodTemplateManagers) {
+	serviceName := componentdca.GetClusterAgentServiceName(dda)
+	serviceNsName := types.NamespacedName{
+		Namespace: dda.GetNamespace(),
+		Name:      serviceName,
+	}
+
+	// Read the live Service from the API server to get the actual ClusterIP
+	liveService := &corev1.Service{}
+	if err := r.client.Get(ctx, serviceNsName, liveService); err != nil {
+		logger.V(1).Info("Could not read Cluster Agent Service for ClusterIP checksum, skipping annotation", "error", err)
+		return
+	}
+
+	clusterIP := liveService.Spec.ClusterIP
+	if clusterIP == "" || clusterIP == "None" {
+		logger.V(1).Info("Cluster Agent Service has no ClusterIP, skipping annotation")
+		return
+	}
+
+	hash, err := comparison.GenerateMD5ForSpec(map[string]string{"clusterIP": clusterIP})
+	if err != nil {
+		logger.Error(err, "Failed to generate hash for Cluster Agent Service ClusterIP")
+		return
+	}
+
+	podManagers.Annotation().AddAnnotation(constants.MD5DCAServiceClusterIPAnnotationKey, hash)
+	logger.V(2).Info("Added Cluster Agent Service ClusterIP checksum annotation", "clusterIP", clusterIP, "hash", hash)
 }

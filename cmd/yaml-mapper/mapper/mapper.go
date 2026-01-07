@@ -190,7 +190,7 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 				pathVal = mapVal
 				defaultVal, _ = utils.GetPathMap(defaultValues[sourceKey])
 
-			} else if tableVal, err := sourceValues.Table(sourceKey); err == nil && len(tableVal) == 1 {
+			} else if tableVal, err := sourceValues.Table(sourceKey); err == nil && len(tableVal) >= 1 {
 				pathVal = tableVal
 				defaultVal, _ = defaultValues.Table(sourceKey)
 			} else {
@@ -241,7 +241,7 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 			if mapFuncName, mOk := utils.GetPathString(typedDestKey, "mapFunc"); mOk {
 				args, _ := utils.GetPathSlice(typedDestKey, "args")
 				if run := m.MapProcessors[mapFuncName]; run != nil {
-					run(interim, newPath, pathVal, args)
+					run(interim, newPath, pathVal, args, sourceValues)
 				} else {
 					log.Printf("Warning: unknown mapFunc %q for %q", mapFuncName, sourceKey)
 				}

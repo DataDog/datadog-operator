@@ -72,6 +72,10 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		if err = r.overrideDependencies(logger, resourceManagers, instance); err != nil {
 			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 		}
+		// 1. Apply and cleanup dependencies before reconciling components to ensure deps exist at reconciliation time.
+		if err = r.applyAndCleanupDependencies(ctx, logger, depsStore); err != nil {
+			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
+		}
 	}
 
 	// 2. Reconcile each component using the component registry
@@ -91,7 +95,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	}
 
 	// 2.b. Node Agent
-	result, err = r.reconcileV2Agent(logger, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus)
+	result, err = r.reconcileV2Agent(ctx, logger, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus)
 	if utils.ShouldReturn(result, err) {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	}
@@ -103,11 +107,10 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	}
 
-	// 4. Apply and cleanup dependencies.
-	// only manage dependencies for default DDAIs
+	// 4. Cleanup stale dependencies (only for default DDAIs).
 	if !isDDAILabeledWithProfile(instance) {
-		if err = r.applyAndCleanupDependencies(ctx, logger, depsStore); err != nil {
-			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
+		if cleanupErrs := depsStore.Cleanup(ctx, r.client, true); len(cleanupErrs) > 0 {
+			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, cleanupErrs[0], now)
 		}
 	}
 

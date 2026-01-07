@@ -6,6 +6,7 @@
 package global
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -22,13 +23,17 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 
+	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -1124,4 +1129,158 @@ func checkFIPSImages(t testing.TB, mgr *fake.PodTemplateManagers) {
 	for _, container := range mgr.PodTemplateSpec().Spec.InitContainers {
 		assert.True(t, strings.HasSuffix(container.Image, "-fips"), "Container %s has image %s", container.Name, container.Image)
 	}
+}
+
+func TestAddDCAServiceClusterIPChecksum(t *testing.T) {
+	logger := logf.Log.WithName("TestAddDCAServiceClusterIPChecksum")
+
+	tests := []struct {
+		name              string
+		dda               *v2alpha1.DatadogAgent
+		service           *corev1.Service
+		wantAnnotation    bool
+		wantAnnotationKey string
+	}{
+		{
+			name: "Service exists with ClusterIP - annotation added",
+			dda: &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "datadog",
+					Namespace: "default",
+				},
+			},
+			service: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "datadog-cluster-agent",
+					Namespace: "default",
+				},
+				Spec: corev1.ServiceSpec{
+					ClusterIP: "10.96.0.100",
+				},
+			},
+			wantAnnotation:    true,
+			wantAnnotationKey: GetDCAServiceClusterIPChecksumAnnotationKey(),
+		},
+		{
+			name: "Service does not exist - no annotation added",
+			dda: &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "datadog",
+					Namespace: "default",
+				},
+			},
+			service:        nil,
+			wantAnnotation: false,
+		},
+		{
+			name: "Service has no ClusterIP (headless) - no annotation added",
+			dda: &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "datadog",
+					Namespace: "default",
+				},
+			},
+			service: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "datadog-cluster-agent",
+					Namespace: "default",
+				},
+				Spec: corev1.ServiceSpec{
+					ClusterIP: "None",
+				},
+			},
+			wantAnnotation: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Build fake client
+			scheme := runtime.NewScheme()
+			_ = corev1.AddToScheme(scheme)
+			_ = v2alpha1.AddToScheme(scheme)
+
+			var k8sClient client.Client
+			if tt.service != nil {
+				// Ensure service name matches what the operator expects
+				tt.service.Name = componentdca.GetClusterAgentServiceName(tt.dda)
+				k8sClient = fakeclient.NewClientBuilder().WithScheme(scheme).WithObjects(tt.service).Build()
+			} else {
+				k8sClient = fakeclient.NewClientBuilder().WithScheme(scheme).Build()
+			}
+
+			podTemplateManager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+
+			// Call the function under test
+			AddDCAServiceClusterIPChecksum(context.Background(), logger, k8sClient, tt.dda.GetObjectMeta(), podTemplateManager)
+
+			// Check annotations
+			annotations := podTemplateManager.AnnotationMgr.Annotations
+
+			if tt.wantAnnotation {
+				assert.NotEmpty(t, annotations, "Expected annotation to be added")
+				_, found := annotations[tt.wantAnnotationKey]
+				assert.True(t, found, "Expected annotation key %s to be present", tt.wantAnnotationKey)
+			} else {
+				if tt.wantAnnotationKey != "" {
+					_, found := annotations[tt.wantAnnotationKey]
+					assert.False(t, found, "Did not expect annotation key %s to be present", tt.wantAnnotationKey)
+				}
+			}
+		})
+	}
+}
+
+func TestAddDCAServiceClusterIPChecksum_DifferentClusterIPs(t *testing.T) {
+	logger := logf.Log.WithName("TestAddDCAServiceClusterIPChecksum_DifferentClusterIPs")
+
+	dda := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "datadog",
+			Namespace: "default",
+		},
+	}
+
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+	_ = v2alpha1.AddToScheme(scheme)
+
+	// Create service with first ClusterIP
+	service1 := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      componentdca.GetClusterAgentServiceName(dda),
+			Namespace: "default",
+		},
+		Spec: corev1.ServiceSpec{
+			ClusterIP: "10.96.0.100",
+		},
+	}
+
+	k8sClient1 := fakeclient.NewClientBuilder().WithScheme(scheme).WithObjects(service1).Build()
+	podTemplateManager1 := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+	AddDCAServiceClusterIPChecksum(context.Background(), logger, k8sClient1, dda.GetObjectMeta(), podTemplateManager1)
+
+	hash1 := podTemplateManager1.AnnotationMgr.Annotations[GetDCAServiceClusterIPChecksumAnnotationKey()]
+
+	// Create service with different ClusterIP (simulating service recreation)
+	service2 := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      componentdca.GetClusterAgentServiceName(dda),
+			Namespace: "default",
+		},
+		Spec: corev1.ServiceSpec{
+			ClusterIP: "10.96.0.200", // Different IP
+		},
+	}
+
+	k8sClient2 := fakeclient.NewClientBuilder().WithScheme(scheme).WithObjects(service2).Build()
+	podTemplateManager2 := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+	AddDCAServiceClusterIPChecksum(context.Background(), logger, k8sClient2, dda.GetObjectMeta(), podTemplateManager2)
+
+	hash2 := podTemplateManager2.AnnotationMgr.Annotations[GetDCAServiceClusterIPChecksumAnnotationKey()]
+
+	// The hashes should be different for different ClusterIPs
+	assert.NotEmpty(t, hash1, "First hash should not be empty")
+	assert.NotEmpty(t, hash2, "Second hash should not be empty")
+	assert.NotEqual(t, hash1, hash2, "Hashes should be different for different ClusterIPs")
 }

@@ -126,14 +126,14 @@ func (r *Reconciler) reconcileAgentProfiles(ctx context.Context, logger logr.Log
 	for _, profile := range profiles {
 		if r.options.IntrospectionEnabled && r.useDefaultDaemonset(providerList) {
 			// Use legacy provider if EKS or OpenShift providers are present to prevent daemonset overrides
-			res, err := r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, kubernetes.DefaultProvider, providerList, &profile)
+			res, err := r.reconcileV2Agent(ctx, logger, requiredComponents, features, instance, resourceManagers, newStatus, kubernetes.DefaultProvider, providerList, &profile)
 			if utils.ShouldReturn(res, err) {
 				errs = append(errs, err)
 			}
 		} else {
 			// Create one DaemonSet per provider (for GKE, etc.)
 			for provider := range providerList {
-				res, err := r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, provider, providerList, &profile)
+				res, err := r.reconcileV2Agent(ctx, logger, requiredComponents, features, instance, resourceManagers, newStatus, provider, providerList, &profile)
 				if utils.ShouldReturn(res, err) {
 					errs = append(errs, err)
 				}
@@ -223,6 +223,7 @@ func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, logger logr
 
 // applyAndCleanupDependencies applies pending changes and cleans up unused dependencies.
 func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, logger logr.Logger, depsStore *store.Store) error {
+	logger.V(1).Info("Applying pending dependencies and cleaning up unused dependencies")
 	var errs []error
 	errs = append(errs, depsStore.Apply(ctx, r.client)...)
 	if len(errs) > 0 {

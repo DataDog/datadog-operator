@@ -961,7 +961,7 @@ func TestApplyDeprecationRules(t *testing.T) {
 func TestMappingProcessors(t *testing.T) {
 	// Test that all mapping processors are properly registered
 	t.Run("mapFuncRegistry_dict", func(t *testing.T) {
-		expectedFuncs := []string{"mapSecretKeyName", "mapSeccompProfile", "mapSystemProbeAppArmor", "mapLocalServiceName", "mapAppendEnvVar", "mapMergeEnvs", "mapOverrideType"}
+		expectedFuncs := []string{"mapSecretKeyName", "mapSeccompProfile", "mapSystemProbeAppArmor", "mapLocalServiceName", "mapAppendEnvVar", "mapMergeEnvs", "mapOverrideType", "mapServiceAccountName", "mapHealthPortWithProbes", "mapTraceAgentLivenessProbe", "mapApmPortToContainerPort"}
 		mapFuncs := mapFuncRegistry()
 
 		for _, funcName := range expectedFuncs {
@@ -976,17 +976,18 @@ func TestMappingProcessors(t *testing.T) {
 
 	// Test individual functions through the dictionary
 	tests := []struct {
-		name        string
-		funcName    string
-		interim     map[string]interface{}
-		newPath     string
-		pathVal     interface{}
-		mapFuncArgs []interface{}
-		expectedMap map[string]interface{}
+		name         string
+		funcName     string
+		interim      map[string]interface{}
+		newPath      string
+		pathVal      interface{}
+		mapFuncArgs  []interface{}
+		sourceValues chartutil.Values // Helm source values for processors that need them
+		expectedMap  map[string]interface{}
 	}{
 		// mapSecretKeyName tests
 		{
-			name:     "mapSecretKeyName_apiSecret_empty_map",
+			name:     "mapSecretKeyName_apiKey_maps_non_empty",
 			funcName: "mapSecretKeyName",
 			interim:  map[string]interface{}{},
 			newPath:  "spec.global.credentials.apiSecret.secretName",
@@ -1003,49 +1004,21 @@ func TestMappingProcessors(t *testing.T) {
 			},
 		},
 		{
-			name:     "mapSecretKeyName_apiSecret_existing_map",
+			name:     "mapSecretKeyName_apiKey_skips_empty",
 			funcName: "mapSecretKeyName",
-			interim: map[string]interface{}{
-				"spec.global.site":      "datadoghq.com",
-				"spec.agent.image.name": "datadog/agent",
-			},
-			newPath: "spec.global.credentials.apiSecret.secretName",
-			pathVal: "datadog-api-secret",
+			interim:  map[string]interface{}{},
+			newPath:  "spec.global.credentials.apiSecret.secretName",
+			pathVal:  "",
 			mapFuncArgs: []interface{}{
 				map[string]interface{}{
 					"keyName":     "api-key",
 					"keyNamePath": "spec.global.credentials.apiSecret.keyName",
 				},
 			},
-			expectedMap: map[string]interface{}{
-				"spec.global.site":                             "datadoghq.com",
-				"spec.agent.image.name":                        "datadog/agent",
-				"spec.global.credentials.apiSecret.secretName": "datadog-api-secret",
-				"spec.global.credentials.apiSecret.keyName":    "api-key",
-			},
+			expectedMap: map[string]interface{}{},
 		},
 		{
-			name:     "mapSecretKeyName_apiSecret_overwrite",
-			funcName: "mapSecretKeyName",
-			interim: map[string]interface{}{
-				"spec.global.credentials.apiSecret.secretName": "old-secret",
-				"spec.global.credentials.apiSecret.keyName":    "old-key",
-			},
-			newPath: "spec.global.credentials.apiSecret.secretName",
-			pathVal: "new-api-secret",
-			mapFuncArgs: []interface{}{
-				map[string]interface{}{
-					"keyName":     "api-key",
-					"keyNamePath": "spec.global.credentials.apiSecret.keyName",
-				},
-			},
-			expectedMap: map[string]interface{}{
-				"spec.global.credentials.apiSecret.secretName": "new-api-secret",
-				"spec.global.credentials.apiSecret.keyName":    "api-key",
-			},
-		},
-		{
-			name:     "mapSecretKeyName_appSecret_empty_map",
+			name:     "mapSecretKeyName_appKey_maps_non_empty",
 			funcName: "mapSecretKeyName",
 			interim:  map[string]interface{}{},
 			newPath:  "spec.global.credentials.appSecret.secretName",
@@ -1062,49 +1035,21 @@ func TestMappingProcessors(t *testing.T) {
 			},
 		},
 		{
-			name:     "mapSecretKeyName_app_secret_with_existing_api_secret",
+			name:     "mapSecretKeyName_appKey_skips_empty",
 			funcName: "mapSecretKeyName",
-			interim: map[string]interface{}{
-				"spec.global.credentials.apiSecret.secretName": "api-secret",
-				"spec.global.credentials.apiSecret.keyName":    "api-key",
-			},
-			newPath: "spec.global.credentials.appSecret.secretName",
-			pathVal: "datadog-app-secret",
+			interim:  map[string]interface{}{},
+			newPath:  "spec.global.credentials.appSecret.secretName",
+			pathVal:  "",
 			mapFuncArgs: []interface{}{
 				map[string]interface{}{
 					"keyName":     "app-key",
 					"keyNamePath": "spec.global.credentials.appSecret.keyName",
 				},
 			},
-			expectedMap: map[string]interface{}{
-				"spec.global.credentials.apiSecret.secretName": "api-secret",
-				"spec.global.credentials.apiSecret.keyName":    "api-key",
-				"spec.global.credentials.appSecret.secretName": "datadog-app-secret",
-				"spec.global.credentials.appSecret.keyName":    "app-key",
-			},
+			expectedMap: map[string]interface{}{},
 		},
 		{
-			name:     "mapSecretKeyName_appSecret_overwrite",
-			funcName: "mapSecretKeyName",
-			interim: map[string]interface{}{
-				"spec.global.credentials.appSecret.secretName": "old-app-secret",
-				"spec.global.credentials.appSecret.keyName":    "old-app-key",
-			},
-			newPath: "spec.global.credentials.appSecret.secretName",
-			pathVal: "new-app-secret",
-			mapFuncArgs: []interface{}{
-				map[string]interface{}{
-					"keyName":     "app-key",
-					"keyNamePath": "spec.global.credentials.appSecret.keyName",
-				},
-			},
-			expectedMap: map[string]interface{}{
-				"spec.global.credentials.appSecret.secretName": "new-app-secret",
-				"spec.global.credentials.appSecret.keyName":    "app-key",
-			},
-		},
-		{
-			name:     "mapSecretKeyName_tokenSecret_empty_map",
+			name:     "mapSecretKeyName_token_maps_non_empty",
 			funcName: "mapSecretKeyName",
 			interim:  map[string]interface{}{},
 			newPath:  "spec.global.clusterAgentTokenSecret.secretName",
@@ -1121,46 +1066,18 @@ func TestMappingProcessors(t *testing.T) {
 			},
 		},
 		{
-			name:     "mapSecretKeyName_tokenSecret_with_existing_secrets",
+			name:     "mapSecretKeyName_token_skips_empty",
 			funcName: "mapSecretKeyName",
-			interim: map[string]interface{}{
-				"spec.global.credentials.apiSecret.secretName": "api-secret",
-				"spec.global.credentials.appSecret.secretName": "app-secret",
-			},
-			newPath: "spec.global.clusterAgentTokenSecret.secretName",
+			interim:  map[string]interface{}{},
+			newPath:  "spec.global.clusterAgentTokenSecret.secretName",
+			pathVal:  "",
 			mapFuncArgs: []interface{}{
 				map[string]interface{}{
 					"keyName":     "token",
 					"keyNamePath": "spec.global.clusterAgentTokenSecret.keyName",
 				},
 			},
-			pathVal: "cluster-agent-token",
-			expectedMap: map[string]interface{}{
-				"spec.global.credentials.apiSecret.secretName":   "api-secret",
-				"spec.global.credentials.appSecret.secretName":   "app-secret",
-				"spec.global.clusterAgentTokenSecret.secretName": "cluster-agent-token",
-				"spec.global.clusterAgentTokenSecret.keyName":    "token",
-			},
-		},
-		{
-			name:     "mapSecretKeyName_tokenSecret_Key_overwrite",
-			funcName: "mapSecretKeyName",
-			interim: map[string]interface{}{
-				"spec.global.clusterAgentTokenSecret.secretName": "old-token-secret",
-				"spec.global.clusterAgentTokenSecret.keyName":    "old-token",
-			},
-			newPath: "spec.global.clusterAgentTokenSecret.secretName",
-			pathVal: "new-token-secret",
-			mapFuncArgs: []interface{}{
-				map[string]interface{}{
-					"keyName":     "token",
-					"keyNamePath": "spec.global.clusterAgentTokenSecret.keyName",
-				},
-			},
-			expectedMap: map[string]interface{}{
-				"spec.global.clusterAgentTokenSecret.secretName": "new-token-secret",
-				"spec.global.clusterAgentTokenSecret.keyName":    "token",
-			},
+			expectedMap: map[string]interface{}{},
 		},
 		// mapSeccompProfile tests
 		{
@@ -1559,6 +1476,75 @@ func TestMappingProcessors(t *testing.T) {
 				},
 			},
 		},
+		// mapServiceAccountName tests
+		{
+			name:     "mapServiceAccountName_rbac_create_false_should_map",
+			funcName: "mapServiceAccountName",
+			interim: map[string]interface{}{
+				"spec.override.clusterAgent.createRbac": false,
+			},
+			newPath: "spec.override.clusterAgent.serviceAccountName",
+			pathVal: "my-custom-sa",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"rbacCreatePath": "spec.override.clusterAgent.createRbac",
+				},
+			},
+			expectedMap: map[string]interface{}{
+				"spec.override.clusterAgent.createRbac":         false,
+				"spec.override.clusterAgent.serviceAccountName": "my-custom-sa",
+			},
+		},
+		{
+			name:     "mapServiceAccountName_rbac_create_true_should_not_map",
+			funcName: "mapServiceAccountName",
+			interim: map[string]interface{}{
+				"spec.override.clusterAgent.createRbac": true,
+			},
+			newPath: "spec.override.clusterAgent.serviceAccountName",
+			pathVal: "default",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"rbacCreatePath": "spec.override.clusterAgent.createRbac",
+				},
+			},
+			expectedMap: map[string]interface{}{
+				"spec.override.clusterAgent.createRbac": true,
+				// serviceAccountName should NOT be set when rbac.create is true
+			},
+		},
+		{
+			name:     "mapServiceAccountName_rbac_create_not_set_should_not_map",
+			funcName: "mapServiceAccountName",
+			interim:  map[string]interface{}{},
+			newPath:  "spec.override.clusterAgent.serviceAccountName",
+			pathVal:  "default",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"rbacCreatePath": "spec.override.clusterAgent.createRbac",
+				},
+			},
+			expectedMap: map[string]interface{}{}, // Neither createRbac nor serviceAccountName should be set
+		},
+		{
+			name:     "mapServiceAccountName_nodeAgent_rbac_create_false",
+			funcName: "mapServiceAccountName",
+			interim: map[string]interface{}{
+				"spec.override.nodeAgent.createRbac": false,
+			},
+			newPath: "spec.override.nodeAgent.serviceAccountName",
+			pathVal: "custom-node-agent-sa",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"rbacCreatePath": "spec.override.nodeAgent.createRbac",
+				},
+			},
+			expectedMap: map[string]interface{}{
+				"spec.override.nodeAgent.createRbac":         false,
+				"spec.override.nodeAgent.serviceAccountName": "custom-node-agent-sa",
+			},
+		},
+		// mapOverrideType tests
 		{
 			name:     "mapOverrideType_slice_to_string",
 			funcName: "mapOverrideType",
@@ -1599,6 +1585,288 @@ func TestMappingProcessors(t *testing.T) {
 				"spec.features.foo.bar": 8080,
 			},
 		},
+		{
+			name:     "mapHealthPortWithProbes_no_probes_defined_in_source",
+			funcName: "mapHealthPortWithProbes",
+			interim:  map[string]interface{}{},
+			newPath:  "spec.override.clusterAgent.containers.cluster-agent.healthPort",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"sourcePrefix":  "clusterAgent",
+					"containerPath": "spec.override.clusterAgent.containers.cluster-agent",
+				},
+			},
+			pathVal: 9999,
+			sourceValues: chartutil.Values{
+				// No probe ports defined in Helm source
+				"clusterAgent": map[string]interface{}{
+					"healthPort": 9999,
+				},
+			},
+			expectedMap: map[string]interface{}{},
+		},
+		{
+			name:     "mapHealthPortWithProbes_all_probes_match",
+			funcName: "mapHealthPortWithProbes",
+			interim:  map[string]interface{}{},
+			newPath:  "spec.override.clusterAgent.containers.cluster-agent.healthPort",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"sourcePrefix":  "clusterAgent",
+					"containerPath": "spec.override.clusterAgent.containers.cluster-agent",
+				},
+			},
+			pathVal: 9999,
+			sourceValues: chartutil.Values{
+				"clusterAgent": map[string]interface{}{
+					"healthPort": 9999,
+					"livenessProbe": map[string]interface{}{
+						"httpGet": map[string]interface{}{"port": 9999},
+					},
+					"readinessProbe": map[string]interface{}{
+						"httpGet": map[string]interface{}{"port": 9999},
+					},
+					"startupProbe": map[string]interface{}{
+						"httpGet": map[string]interface{}{"port": 9999},
+					},
+				},
+			},
+			expectedMap: map[string]interface{}{
+				// All probes match healthPort - map everything
+				"spec.override.clusterAgent.containers.cluster-agent.healthPort":                  9999,
+				"spec.override.clusterAgent.containers.cluster-agent.livenessProbe.httpGet.port":  9999,
+				"spec.override.clusterAgent.containers.cluster-agent.readinessProbe.httpGet.port": 9999,
+				"spec.override.clusterAgent.containers.cluster-agent.startupProbe.httpGet.port":   9999,
+			},
+		},
+		{
+			name:     "mapHealthPortWithProbes_partial_probes_no_mapping",
+			funcName: "mapHealthPortWithProbes",
+			interim:  map[string]interface{}{},
+			newPath:  "spec.override.nodeAgent.containers.agent.healthPort",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"sourcePrefix":  "agents.containers.agent",
+					"containerPath": "spec.override.nodeAgent.containers.agent",
+				},
+			},
+			pathVal: float64(8888), // YAML often parses numbers as float64
+			sourceValues: chartutil.Values{
+				"agents": map[string]interface{}{
+					"containers": map[string]interface{}{
+						"agent": map[string]interface{}{
+							"healthPort": 8888,
+							// Only readinessProbe defined - missing livenessProbe and startupProbe
+							"readinessProbe": map[string]interface{}{
+								"httpGet": map[string]interface{}{
+									"port": 8888,
+								},
+							},
+						},
+					},
+				},
+			},
+			// No mapping since not all probes are defined
+			expectedMap: map[string]interface{}{},
+		},
+		{
+			name:     "mapHealthPortWithProbes_all_probes_defined_one_mismatch",
+			funcName: "mapHealthPortWithProbes",
+			interim:  map[string]interface{}{},
+			newPath:  "spec.override.clusterAgent.containers.cluster-agent.healthPort",
+			mapFuncArgs: []interface{}{
+				map[string]interface{}{
+					"sourcePrefix":  "clusterAgent",
+					"containerPath": "spec.override.clusterAgent.containers.cluster-agent",
+				},
+			},
+			pathVal: 8888,
+			sourceValues: chartutil.Values{
+				"clusterAgent": map[string]interface{}{
+					"healthPort": 8888,
+					"livenessProbe": map[string]interface{}{
+						"httpGet": map[string]interface{}{"port": 8888},
+					},
+					"readinessProbe": map[string]interface{}{
+						"httpGet": map[string]interface{}{"port": 8888},
+					},
+					"startupProbe": map[string]interface{}{
+						// Mismatched port - doesn't match healthPort
+						"httpGet": map[string]interface{}{"port": 8877},
+					},
+				},
+			},
+			// No mapping since startupProbe.httpGet.port (8877) doesn't match healthPort (8888)
+			expectedMap: map[string]interface{}{},
+		},
+		// mapTraceAgentLivenessProbe tests
+		{
+			name:        "mapTraceAgentLivenessProbe_no_custom_probe_type_socket_enabled",
+			funcName:    "mapTraceAgentLivenessProbe",
+			interim:     map[string]interface{}{},
+			newPath:     "spec.override.nodeAgent.containers.trace-agent.livenessProbe",
+			mapFuncArgs: []interface{}{},
+			pathVal: map[string]interface{}{
+				"initialDelaySeconds": 15,
+				"periodSeconds":       15,
+				"timeoutSeconds":      5,
+			},
+			sourceValues: chartutil.Values{
+				"datadog": map[string]interface{}{
+					"apm": map[string]interface{}{
+						"port":          8126,
+						"socketEnabled": true,
+					},
+				},
+			},
+			expectedMap: map[string]interface{}{
+				// Should add tcpSocket.port from apmPort, plus probe settings
+				"spec.override.nodeAgent.containers.trace-agent.livenessProbe.initialDelaySeconds": 15,
+				"spec.override.nodeAgent.containers.trace-agent.livenessProbe.periodSeconds":       15,
+				"spec.override.nodeAgent.containers.trace-agent.livenessProbe.timeoutSeconds":      5,
+				"spec.override.nodeAgent.containers.trace-agent.livenessProbe.tcpSocket.port":      8126,
+			},
+		},
+		{
+			name:        "mapTraceAgentLivenessProbe_no_custom_probe_type_port_enabled",
+			funcName:    "mapTraceAgentLivenessProbe",
+			interim:     map[string]interface{}{},
+			newPath:     "spec.override.nodeAgent.containers.trace-agent.livenessProbe",
+			mapFuncArgs: []interface{}{},
+			pathVal: map[string]interface{}{
+				"initialDelaySeconds": 15,
+			},
+			sourceValues: chartutil.Values{
+				"datadog": map[string]interface{}{
+					"apm": map[string]interface{}{
+						"port":        8126,
+						"portEnabled": true,
+					},
+				},
+			},
+			expectedMap: map[string]interface{}{
+				// Should add tcpSocket.port from apmPort, plus probe settings
+				"spec.override.nodeAgent.containers.trace-agent.livenessProbe.initialDelaySeconds": 15,
+				"spec.override.nodeAgent.containers.trace-agent.livenessProbe.tcpSocket.port":      8126,
+			},
+		},
+		{
+			name:        "mapTraceAgentLivenessProbe_tcpSocket_default_port",
+			funcName:    "mapTraceAgentLivenessProbe",
+			interim:     map[string]interface{}{},
+			newPath:     "spec.override.nodeAgent.containers.trace-agent.livenessProbe",
+			mapFuncArgs: []interface{}{},
+			pathVal: map[string]interface{}{
+				"tcpSocket": map[string]interface{}{
+					"port": 8126,
+				},
+			},
+			sourceValues: chartutil.Values{
+				"datadog": map[string]interface{}{
+					"apm": map[string]interface{}{
+						"port": 8126,
+					},
+				},
+			},
+			expectedMap: map[string]interface{}{
+				// tcpSocket.port matches default - map directly
+				"spec.override.nodeAgent.containers.trace-agent.livenessProbe": map[string]interface{}{
+					"tcpSocket": map[string]interface{}{
+						"port": 8126,
+					},
+				},
+			},
+		},
+		{
+			name:        "mapTraceAgentLivenessProbe_tcpSocket_custom_port_matches_apm",
+			funcName:    "mapTraceAgentLivenessProbe",
+			interim:     map[string]interface{}{},
+			newPath:     "spec.override.nodeAgent.containers.trace-agent.livenessProbe",
+			mapFuncArgs: []interface{}{},
+			pathVal: map[string]interface{}{
+				"tcpSocket": map[string]interface{}{
+					"port": 9090,
+				},
+			},
+			sourceValues: chartutil.Values{
+				"datadog": map[string]interface{}{
+					"apm": map[string]interface{}{
+						"port": 9090, // Explicit apm.port matches tcpSocket.port
+					},
+				},
+			},
+			expectedMap: map[string]interface{}{
+				// tcpSocket.port matches explicit apm.port - map directly
+				"spec.override.nodeAgent.containers.trace-agent.livenessProbe": map[string]interface{}{
+					"tcpSocket": map[string]interface{}{
+						"port": 9090,
+					},
+				},
+			},
+		},
+		{
+			name:        "mapTraceAgentLivenessProbe_tcpSocket_mismatch_no_mapping",
+			funcName:    "mapTraceAgentLivenessProbe",
+			interim:     map[string]interface{}{},
+			newPath:     "spec.override.nodeAgent.containers.trace-agent.livenessProbe",
+			mapFuncArgs: []interface{}{},
+			pathVal: map[string]interface{}{
+				"tcpSocket": map[string]interface{}{
+					"port": 9999, // Doesn't match apm.port or default
+				},
+			},
+			sourceValues: chartutil.Values{
+				"datadog": map[string]interface{}{
+					"apm": map[string]interface{}{
+						"port": 8126,
+					},
+				},
+			},
+			// No mapping - tcpSocket.port doesn't match apm.port or default
+			expectedMap: map[string]interface{}{},
+		},
+		{
+			name:        "mapTraceAgentLivenessProbe_no_tcpSocket_deduce_from_apm_port",
+			funcName:    "mapTraceAgentLivenessProbe",
+			interim:     map[string]interface{}{},
+			newPath:     "spec.override.nodeAgent.containers.trace-agent.livenessProbe",
+			mapFuncArgs: []interface{}{},
+			pathVal: map[string]interface{}{
+				"initialDelaySeconds": 15,
+			},
+			sourceValues: chartutil.Values{
+				"datadog": map[string]interface{}{
+					"apm": map[string]interface{}{
+						"port": 9000, // Custom apm.port
+					},
+				},
+			},
+			expectedMap: map[string]interface{}{
+				// tcpSocket.port not set - deduce from apm.port
+				"spec.override.nodeAgent.containers.trace-agent.livenessProbe.initialDelaySeconds": 15,
+				"spec.override.nodeAgent.containers.trace-agent.livenessProbe.tcpSocket.port":      9000,
+			},
+		},
+		{
+			name:        "mapTraceAgentLivenessProbe_no_tcpSocket_use_default",
+			funcName:    "mapTraceAgentLivenessProbe",
+			interim:     map[string]interface{}{},
+			newPath:     "spec.override.nodeAgent.containers.trace-agent.livenessProbe",
+			mapFuncArgs: []interface{}{},
+			pathVal: map[string]interface{}{
+				"initialDelaySeconds": 15,
+			},
+			sourceValues: chartutil.Values{
+				"datadog": map[string]interface{}{
+					"apm": map[string]interface{}{}, // port not set - use default 8126
+				},
+			},
+			expectedMap: map[string]interface{}{
+				// tcpSocket.port not set and no apm.port - use default 8126
+				"spec.override.nodeAgent.containers.trace-agent.livenessProbe.initialDelaySeconds": 15,
+				"spec.override.nodeAgent.containers.trace-agent.livenessProbe.tcpSocket.port":      8126,
+			},
+		},
 	}
 
 	mapFuncs := mapFuncRegistry()
@@ -1606,7 +1874,12 @@ func TestMappingProcessors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mapFunc := mapFuncs[tt.funcName]
 			require.NotNil(t, mapFunc, "Mapping function %s should exist in registry", tt.funcName)
-			mapFunc(tt.interim, tt.newPath, tt.pathVal, tt.mapFuncArgs)
+			// Pass sourceValues (may be nil for processors that don't use it)
+			sourceVals := tt.sourceValues
+			if sourceVals == nil {
+				sourceVals = chartutil.Values{}
+			}
+			mapFunc(tt.interim, tt.newPath, tt.pathVal, tt.mapFuncArgs, sourceVals)
 
 			assert.Equal(t, tt.expectedMap, tt.interim)
 		})
