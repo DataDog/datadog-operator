@@ -151,12 +151,10 @@ func (hmf *HelmMetadataForwarder) Start() {
 	_, err = cmInformer.AddEventHandler(toolscache.FilteringResourceEventHandler{
 		FilterFunc: func(obj any) bool {
 			cm, ok := obj.(*corev1.ConfigMap)
-			if ok && cm.Labels["owner"] == "helm" {
-				// Filter by allowed charts
-				chartName := cm.Labels["name"]
-				return allowedCharts[chartName]
-			}
-			return false
+			return ok &&
+				cm.Labels["owner"] == "helm" &&
+				strings.HasPrefix(cm.Name, releasePrefix)
+			// Chart name filtering happens after decoding in handler
 		},
 		Handler: toolscache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj any) {
@@ -184,12 +182,10 @@ func (hmf *HelmMetadataForwarder) Start() {
 	_, err = secretInformer.AddEventHandler(toolscache.FilteringResourceEventHandler{
 		FilterFunc: func(obj any) bool {
 			secret, ok := obj.(*corev1.Secret)
-			if ok && secret.Labels["owner"] == "helm" {
-				// Filter by allowed charts
-				chartName := secret.Labels["name"]
-				return allowedCharts[chartName]
-			}
-			return false
+			return ok &&
+				secret.Labels["owner"] == "helm" &&
+				strings.HasPrefix(secret.Name, releasePrefix)
+			// Chart name filtering happens after decoding in handler
 		},
 		Handler: toolscache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj any) {
@@ -310,6 +306,15 @@ func (hmf *HelmMetadataForwarder) processHelmSecret(secret *corev1.Secret) {
 		return
 	}
 
+	// Filter for allowed charts (after decoding)
+	if !allowedCharts[release.Chart.Metadata.Name] {
+		hmf.logger.V(1).Info("Skipping non-allowed chart",
+			"chart", release.Chart.Metadata.Name,
+			"release", releaseName,
+			"namespace", secret.Namespace)
+		return
+	}
+
 	if !hmf.shouldProcessRevision(secret.Namespace, releaseName, revision) {
 		return
 	}
@@ -330,6 +335,15 @@ func (hmf *HelmMetadataForwarder) processHelmConfigMap(cm *corev1.ConfigMap) {
 
 	release, releaseName, revision, ok := hmf.parseHelmResource(cm.Name, []byte(cm.Data["release"]))
 	if !ok {
+		return
+	}
+
+	// Filter for allowed charts (after decoding)
+	if !allowedCharts[release.Chart.Metadata.Name] {
+		hmf.logger.V(1).Info("Skipping non-allowed chart",
+			"chart", release.Chart.Metadata.Name,
+			"release", releaseName,
+			"namespace", cm.Namespace)
 		return
 	}
 
