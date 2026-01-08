@@ -1,0 +1,21 @@
+nameOverride: "datadog-errors"
+datadog:
+  site: "datadoghq.com"
+  logLevel: "info"
+
+  kubelet:
+    tlsVerify: false
+  
+  apiKeyExistingSecret: datadog-secret
+  appKeyExistingSecret: datadog-secret
+
+clusterAgent:
+  containerExclude: "something:tag"
+
+unmappedTopLevelKey:
+  someValue: true
+
+fakeKey:
+  fake: true
+
+anotherUnmappedKey: "this will error"
