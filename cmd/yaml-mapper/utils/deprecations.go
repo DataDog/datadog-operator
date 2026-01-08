@@ -6,7 +6,7 @@
 package utils
 
 import (
-	"log"
+	"log/slog"
 
 	"helm.sh/helm/v3/pkg/chartutil"
 )
@@ -153,7 +153,7 @@ func ApplyDeprecationRules(sourceValues chartutil.Values) chartutil.Values {
 
 			if c != stdKey {
 				removeAtPath(root, c)
-				log.Printf("Mapped deprecated helm key '%v' to '%v'", c, stdKey)
+				slog.Info("mapped deprecated helm key", "deprecatedKey", c, "newKey", stdKey)
 			}
 			seen = true
 		}

@@ -7,8 +7,9 @@ package mapper
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -22,11 +23,16 @@ import (
 	_ "embed"
 )
 
-var (
-	// defaultDDAMap Embedded Helm-to-DDA mapping file
-	//go:embed mapping_datadog_helm_to_datadogagent_crd.yaml
-	defaultDDAMap []byte
-)
+// defaultDDAMap Embedded Helm-to-DDA mapping file
+//
+//go:embed mapping_datadog_helm_to_datadogagent_crd.yaml
+var defaultDDAMap []byte
+
+// skipMappingKeys Keys that should be skipped during mapping. Supports regex matching.
+var skipMappingKeys = []string{
+	`datadog\.operator\..*`,
+	`operator\..*`,
+}
 
 const defaultDDAMapUrl = "https://raw.githubusercontent.com/DataDog/helm-charts/main/tools/yaml-mapper/mapping_datadog_helm_to_datadogagent_crd.yaml"
 
@@ -201,9 +207,8 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 		utils.MergeOrSet(sourceKeysRef, sourceKey, map[string]interface{}{"visited": true})
 
 		destKey, _ := mappingValues[sourceKey]
-		if (destKey == "" || destKey == nil) && !apiutils.IsEqualStruct(pathVal, defaultVal) {
-			log.Printf("Warning: DDA destination key not found. Could not map: %s\n", sourceKey)
-			continue
+		if (destKey == "" || destKey == nil) && !apiutils.IsEqualStruct(pathVal, defaultVal) && !shouldSkipMappingKey(sourceKey) {
+			return nil, fmt.Errorf("DDA destination key not found. Could not map: %s", sourceKey)
 		}
 
 		switch typedDestKey := destKey.(type) {
@@ -214,7 +219,7 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 			if destKey == "metadata.name" {
 				name := pathVal
 				if ddaName != "" {
-					log.Printf("Warning: found conflicting name for DDA. Mapper config provided: %s. Helm key %s provided: %v. Using Helm-provided value.", ddaName, sourceKey, name)
+					slog.Warn("found conflicting name for DDA, using Helm-provided value", "configName", ddaName, "helmKey", sourceKey, "helmValue", name)
 				}
 				if s, sOk := name.(string); sOk && len(s) > 63 {
 					name = s[:63]
@@ -230,7 +235,7 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 				if s, sOk := val.(string); sOk {
 					utils.MergeOrSet(interim, s, pathVal)
 				} else {
-					log.Printf("Warning: expected string in dest slice for %q, got %T", sourceKey, val)
+					return nil, fmt.Errorf("expected string in dest slice for %q, got %T", sourceKey, val)
 				}
 			}
 
@@ -243,7 +248,7 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 				if run := m.MapProcessors[mapFuncName]; run != nil {
 					run(interim, newPath, pathVal, args)
 				} else {
-					log.Printf("Warning: unknown mapFunc %q for %q", mapFuncName, sourceKey)
+					return nil, fmt.Errorf("unknown mapFunc %q for %q", mapFuncName, sourceKey)
 				}
 			}
 		default:
@@ -256,8 +261,8 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 	// Log warnings for source values keys that aren't present in mapping file.
 	for k, v := range sourceKeysRef {
 		visited, ok := utils.GetPathBool(v, "visited")
-		if ok && !visited {
-			log.Printf("Warning: source value key %s was not found in mapping.", k)
+		if ok && !visited && !shouldSkipMappingKey(k) {
+			return nil, fmt.Errorf("source value key %s was not found in mapping.", k)
 		}
 	}
 
@@ -303,8 +308,7 @@ func (m *Mapper) writeDDA(dda map[string]interface{}, cfg MapConfig) error {
 	}
 
 	if cfg.PrintOutput {
-		log.Println("")
-		log.Println(out)
+		os.Stdout.WriteString("\nMapped DatadogAgent custom resource:\n\n" + out + "\n")
 	}
 
 	// Create destination file if it doesn't exist
@@ -313,14 +317,14 @@ func (m *Mapper) writeDDA(dda map[string]interface{}, cfg MapConfig) error {
 		if destPath != "" {
 			file, e := os.Create(destPath)
 			if e != nil {
-				return fmt.Errorf("error creating destination file: %v; %w", destPath, e)
+				return fmt.Errorf("failed to create destination file %s: %w", destPath, e)
 			}
 			destPath = file.Name()
 		} else {
 			newDestPath := fmt.Sprintf("dda.yaml.%v", time.Now().Format("20060102-150405"))
 			file, e := os.Create(newDestPath)
 			if e != nil {
-				return fmt.Errorf("error creating new destination file: %v; %w", newDestPath, e)
+				return fmt.Errorf("failed to create new destination file %s: %w", newDestPath, e)
 			}
 			destPath = file.Name()
 		}
@@ -328,10 +332,10 @@ func (m *Mapper) writeDDA(dda map[string]interface{}, cfg MapConfig) error {
 
 	err = os.WriteFile(destPath, []byte(out), 0660)
 	if err != nil {
-		return fmt.Errorf("error writing to destination file %v; %w", destPath, err)
+		return fmt.Errorf("failed to write to destination file %s: %w", destPath, err)
 	}
 
-	log.Printf("YAML file successfully written to: %v", destPath)
+	slog.Info("YAML file successfully written", "path", destPath)
 
 	return nil
 }
@@ -356,17 +360,16 @@ func (m *Mapper) updateMapping(sourceValues chartutil.Values, mappingValues char
 	}
 
 	if m.MapConfig.PrintOutput {
-		log.Println("")
-		log.Println(newMapYaml)
+		os.Stdout.WriteString("\nUpdated mapping file:\n" + newMapYaml)
 	}
 
 	e = os.WriteFile(m.MapConfig.MappingPath, []byte(newMapYaml), 0660)
 	if e != nil {
-		log.Printf("Error updating mapping yaml. %v", e)
+		slog.Error("failed to update mapping yaml", "error", e)
 		return e
 	}
 
-	log.Printf("Mapping file, %s, successfully updated", m.MapConfig.MappingPath)
+	slog.Info("mapping file successfully updated", "path", m.MapConfig.MappingPath)
 
 	return nil
 }
@@ -400,4 +403,14 @@ func getDefaultValues() (chartutil.Values, error) {
 	}
 
 	return defaultValues, nil
+}
+
+// shouldSkipMappingKey Returns true if the key should be skipped during mapping. Supports regex matching.
+func shouldSkipMappingKey(key string) bool {
+	for _, skipKey := range skipMappingKeys {
+		if match, _ := regexp.MatchString("^"+skipKey+"$", key); match {
+			return true
+		}
+	}
+	return false
 }
