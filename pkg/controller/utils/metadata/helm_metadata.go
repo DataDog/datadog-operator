@@ -33,8 +33,8 @@ import (
 const (
 	// releasePrefix is the prefix for Helm release ConfigMaps and Secrets
 	releasePrefix = "sh.helm.release.v1."
-	// revisionSeparator separates release name from revision in tracking keys
-	revisionSeparator = "/rev-"
+	// tickerInterval is how often the ticker sends all snapshots
+	tickerInterval = 1 * time.Minute
 )
 
 var (
@@ -50,9 +50,25 @@ type HelmMetadataForwarder struct {
 
 	mgr manager.Manager
 
-	// Track processed releases to avoid duplicate sends
-	// Key: namespace/releaseName/rev-N
-	processedReleases sync.Map
+	// Track latest snapshot of each release
+	// Key: "namespace/releaseName"
+	// Value: *ReleaseSnapshot
+	releaseSnapshots sync.Map
+}
+
+// ReleaseSnapshot holds a snapshot of a Helm release
+type ReleaseSnapshot struct {
+	Release            *HelmReleaseMinimal
+	ReleaseName        string
+	Namespace          string
+	ChartName          string
+	ChartVersion       string
+	AppVersion         string
+	ConfigMapUID       string
+	ProvidedValuesYAML string
+	FullValuesYAML     string
+	Revision           int
+	Status             string
 }
 
 type HelmMetadataPayload struct {
@@ -159,17 +175,18 @@ func (hmf *HelmMetadataForwarder) Start() {
 		Handler: toolscache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj any) {
 				cm, _ := obj.(*corev1.ConfigMap)
-				hmf.logger.V(1).Info("ConfigMap added", "name", cm.GetName(), "namespace", cm.GetNamespace())
-				hmf.processHelmConfigMap(cm)
+				hmf.handleHelmResource(cm.Name, cm.Namespace, string(cm.UID), []byte(cm.Data["release"]))
 			},
 			UpdateFunc: func(oldObj, newObj any) {
 				cm, _ := newObj.(*corev1.ConfigMap)
-				hmf.logger.V(1).Info("ConfigMap updated", "name", cm.GetName(), "namespace", cm.GetNamespace())
-				hmf.processHelmConfigMap(cm)
+				hmf.handleHelmResource(cm.Name, cm.Namespace, string(cm.UID), []byte(cm.Data["release"]))
 			},
 			DeleteFunc: func(obj any) {
 				cm, _ := obj.(*corev1.ConfigMap)
-				hmf.logger.V(1).Info("ConfigMap deleted", "name", cm.GetName(), "namespace", cm.GetNamespace())
+				_, releaseName, _, _ := hmf.parseHelmResource(cm.Name, nil)
+				key := fmt.Sprintf("%s/%s", cm.Namespace, releaseName)
+				hmf.releaseSnapshots.Delete(key)
+				hmf.logger.V(1).Info("Removed deleted release", "key", key)
 			},
 		},
 	})
@@ -190,7 +207,18 @@ func (hmf *HelmMetadataForwarder) Start() {
 		Handler: toolscache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj any) {
 				secret, _ := obj.(*corev1.Secret)
-				hmf.processHelmSecret(secret)
+				hmf.handleHelmResource(secret.Name, secret.Namespace, string(secret.UID), secret.Data["release"])
+			},
+			UpdateFunc: func(oldObj, newObj any) {
+				secret, _ := newObj.(*corev1.Secret)
+				hmf.handleHelmResource(secret.Name, secret.Namespace, string(secret.UID), secret.Data["release"])
+			},
+			DeleteFunc: func(obj any) {
+				secret, _ := obj.(*corev1.Secret)
+				_, releaseName, _, _ := hmf.parseHelmResource(secret.Name, nil)
+				key := fmt.Sprintf("%s/%s", secret.Namespace, releaseName)
+				hmf.releaseSnapshots.Delete(key)
+				hmf.logger.V(1).Info("Removed deleted release", "key", key)
 			},
 		},
 	})
@@ -210,98 +238,15 @@ func (hmf *HelmMetadataForwarder) Start() {
 		return
 	}
 
-	hmf.logger.Info("Starting metadata forwarder with informers")
+	// Start ticker for periodic sends
+	go hmf.tickerLoop()
+
+	hmf.logger.Info("Started Helm metadata forwarder with informer + ticker")
 }
 
-// buildRevisionTrackingKey creates a key for tracking processed revisions: "namespace/releaseName/rev-N"
-func buildRevisionTrackingKey(namespace, releaseName string, revision int) string {
-	return fmt.Sprintf("%s/%s%s%d", namespace, releaseName, revisionSeparator, revision)
-}
-
-// shouldProcessRevision checks if we should process this revision
-func (hmf *HelmMetadataForwarder) shouldProcessRevision(namespace, releaseName string, revision int) bool {
-	trackingKey := buildRevisionTrackingKey(namespace, releaseName, revision)
-
-	// Check if we've already processed this exact revision
-	if _, alreadyProcessed := hmf.processedReleases.LoadOrStore(trackingKey, true); alreadyProcessed {
-		hmf.logger.V(1).Info("Skipping Helm revision",
-			"release", releaseName,
-			"revision", revision,
-			"namespace", namespace,
-			"reason", "already processed")
-		return false
-	}
-
-	if hmf.hasNewerRevision(namespace, releaseName, revision) {
-		hmf.processedReleases.Delete(trackingKey)
-		hmf.logger.V(1).Info("Skipping Helm revision",
-			"release", releaseName,
-			"revision", revision,
-			"namespace", namespace,
-			"reason", "newer revision exists")
-		return false
-	}
-
-	return true
-}
-
-// hasNewerRevision checks if a newer revision of this release has already been processed
-func (hmf *HelmMetadataForwarder) hasNewerRevision(namespace, releaseName string, currentRevision int) bool {
-	var hasNewer bool
-	hmf.processedReleases.Range(func(key, value interface{}) bool {
-		keyStr, ok := key.(string)
-		if !ok {
-			return true // continue iteration
-		}
-
-		// Check if this key matches our release (namespace/releaseName/rev-*)
-		prefix := fmt.Sprintf("%s/%s%s", namespace, releaseName, revisionSeparator)
-		if !strings.HasPrefix(keyStr, prefix) {
-			return true // continue iteration
-		}
-
-		// Extract revision number from key
-		revisionStr := strings.TrimPrefix(keyStr, prefix)
-		if rev, err := strconv.Atoi(revisionStr); err == nil && rev > currentRevision {
-			hasNewer = true
-			return false // stop iteration
-		}
-
-		return true // continue iteration
-	})
-	return hasNewer
-}
-
-// processAndSendRelease builds release data and sends it, with proper error handling
-func (hmf *HelmMetadataForwarder) processAndSendRelease(release *HelmReleaseMinimal, releaseName string, revision int, uid, namespace string) {
-	releaseData := hmf.buildReleaseData(release, releaseName, revision, uid, namespace)
-	if releaseData == nil {
-		return
-	}
-
-	trackingKey := buildRevisionTrackingKey(namespace, releaseName, revision)
-
-	if err := hmf.sendSingleReleasePayload(*releaseData); err != nil {
-		hmf.logger.V(1).Info("Failed to send metadata for Helm release",
-			"error", err,
-			"release", releaseName,
-			"namespace", namespace)
-		hmf.processedReleases.Delete(trackingKey)
-	} else {
-		hmf.logger.V(1).Info("Successfully sent metadata for Helm release",
-			"release", releaseName,
-			"namespace", namespace,
-			"revision", revision)
-	}
-}
-
-// processHelmSecret processes a Helm release Secret and sends metadata if it's new
-func (hmf *HelmMetadataForwarder) processHelmSecret(secret *corev1.Secret) {
-	if !strings.HasPrefix(secret.Name, releasePrefix) {
-		return
-	}
-
-	release, releaseName, revision, ok := hmf.parseHelmResource(secret.Name, secret.Data["release"])
+// handleHelmResource processes a Helm resource event and updates the snapshot
+func (hmf *HelmMetadataForwarder) handleHelmResource(name, namespace, uid string, data []byte) {
+	release, releaseName, revision, ok := hmf.parseHelmResource(name, data)
 	if !ok {
 		return
 	}
@@ -310,57 +255,59 @@ func (hmf *HelmMetadataForwarder) processHelmSecret(secret *corev1.Secret) {
 	if !allowedCharts[release.Chart.Metadata.Name] {
 		hmf.logger.V(1).Info("Skipping non-allowed chart",
 			"chart", release.Chart.Metadata.Name,
-			"release", releaseName,
-			"namespace", secret.Namespace)
+			"release", releaseName)
 		return
 	}
 
-	if !hmf.shouldProcessRevision(secret.Namespace, releaseName, revision) {
+	key := fmt.Sprintf("%s/%s", namespace, releaseName)
+
+	// Check if we should update (prevent old revisions)
+	if existing, loaded := hmf.releaseSnapshots.Load(key); loaded {
+		existingSnapshot := existing.(*ReleaseSnapshot)
+		if existingSnapshot.Revision >= revision {
+			hmf.logger.V(1).Info("Skipping old/same revision",
+				"key", key,
+				"existing", existingSnapshot.Revision,
+				"new", revision)
+			return
+		}
+		hmf.logger.V(1).Info("Updating to newer revision",
+			"key", key,
+			"old", existingSnapshot.Revision,
+			"new", revision)
+	}
+
+	// Build snapshot
+	snapshot := hmf.buildSnapshot(release, releaseName, namespace, uid, revision)
+	if snapshot == nil {
 		return
 	}
 
-	hmf.logger.V(1).Info("Processing new/updated Helm release from Secret",
-		"release", releaseName,
-		"namespace", secret.Namespace,
-		"revision", revision)
+	// Send immediately
+	releaseData := hmf.snapshotToReleaseData(snapshot)
+	if err := hmf.sendSingleReleasePayload(releaseData); err != nil {
+		hmf.logger.V(1).Info("Failed to send release",
+			"key", key,
+			"error", err)
+		// Don't store in map if send failed
+		return
+	}
 
-	hmf.processAndSendRelease(release, releaseName, revision, string(secret.UID), secret.Namespace)
+	// Store in map after successful send
+	hmf.releaseSnapshots.Store(key, snapshot)
+
+	hmf.logger.V(1).Info("Updated release snapshot",
+		"key", key,
+		"revision", revision,
+		"chart", release.Chart.Metadata.Name)
 }
 
-// processHelmConfigMap processes a Helm release ConfigMap and sends metadata if new or updated
-func (hmf *HelmMetadataForwarder) processHelmConfigMap(cm *corev1.ConfigMap) {
-	if !strings.HasPrefix(cm.Name, releasePrefix) {
-		return
-	}
-
-	release, releaseName, revision, ok := hmf.parseHelmResource(cm.Name, []byte(cm.Data["release"]))
-	if !ok {
-		return
-	}
-
-	// Filter for allowed charts (after decoding)
-	if !allowedCharts[release.Chart.Metadata.Name] {
-		hmf.logger.V(1).Info("Skipping non-allowed chart",
-			"chart", release.Chart.Metadata.Name,
-			"release", releaseName,
-			"namespace", cm.Namespace)
-		return
-	}
-
-	if !hmf.shouldProcessRevision(cm.Namespace, releaseName, revision) {
-		return
-	}
-
-	hmf.logger.V(1).Info("Processing new/updated Helm release from ConfigMap",
-		"release", releaseName,
-		"namespace", cm.Namespace,
-		"revision", revision)
-
-	hmf.processAndSendRelease(release, releaseName, revision, string(cm.UID), cm.Namespace)
-}
-
-// buildReleaseData constructs HelmReleaseData from a parsed release
-func (hmf *HelmMetadataForwarder) buildReleaseData(release *HelmReleaseMinimal, releaseName string, revision int, uid, namespace string) *HelmReleaseData {
+// buildSnapshot constructs a ReleaseSnapshot from a parsed release
+func (hmf *HelmMetadataForwarder) buildSnapshot(
+	release *HelmReleaseMinimal,
+	releaseName, namespace, uid string,
+	revision int,
+) *ReleaseSnapshot {
 	providedValuesYAML, err := yaml.Marshal(release.Config)
 	if err != nil {
 		hmf.logger.V(1).Info("Failed to marshal Helm provided values", "release", releaseName, "error", err)
@@ -374,7 +321,8 @@ func (hmf *HelmMetadataForwarder) buildReleaseData(release *HelmReleaseMinimal, 
 		fullValuesYAML = providedValuesYAML
 	}
 
-	return &HelmReleaseData{
+	return &ReleaseSnapshot{
+		Release:            release,
 		ReleaseName:        releaseName,
 		Namespace:          namespace,
 		ChartName:          release.Chart.Metadata.Name,
@@ -385,6 +333,62 @@ func (hmf *HelmMetadataForwarder) buildReleaseData(release *HelmReleaseMinimal, 
 		FullValuesYAML:     string(fullValuesYAML),
 		Revision:           revision,
 		Status:             release.Info.Status,
+	}
+}
+
+// snapshotToReleaseData converts a ReleaseSnapshot to HelmReleaseData
+func (hmf *HelmMetadataForwarder) snapshotToReleaseData(snapshot *ReleaseSnapshot) HelmReleaseData {
+	return HelmReleaseData{
+		ReleaseName:        snapshot.ReleaseName,
+		Namespace:          snapshot.Namespace,
+		ChartName:          snapshot.ChartName,
+		ChartVersion:       snapshot.ChartVersion,
+		AppVersion:         snapshot.AppVersion,
+		ConfigMapUID:       snapshot.ConfigMapUID,
+		ProvidedValuesYAML: snapshot.ProvidedValuesYAML,
+		FullValuesYAML:     snapshot.FullValuesYAML,
+		Revision:           snapshot.Revision,
+		Status:             snapshot.Status,
+	}
+}
+
+// tickerLoop runs the periodic ticker to send all snapshots
+func (hmf *HelmMetadataForwarder) tickerLoop() {
+	ticker := time.NewTicker(tickerInterval)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		hmf.sendAllSnapshots()
+	}
+}
+
+// sendAllSnapshots sends all release snapshots
+func (hmf *HelmMetadataForwarder) sendAllSnapshots() {
+	hmf.logger.V(1).Info("Ticker: sending all Helm release snapshots")
+
+	count := 0
+	errors := 0
+
+	hmf.releaseSnapshots.Range(func(key, value interface{}) bool {
+		snapshot := value.(*ReleaseSnapshot)
+
+		releaseData := hmf.snapshotToReleaseData(snapshot)
+		if err := hmf.sendSingleReleasePayload(releaseData); err != nil {
+			hmf.logger.V(1).Info("Failed to send snapshot",
+				"key", key,
+				"error", err)
+			errors++
+		} else {
+			count++
+		}
+
+		return true
+	})
+
+	if count > 0 {
+		hmf.logger.V(1).Info("Ticker: sent Helm release snapshots",
+			"sent", count,
+			"errors", errors)
 	}
 }
 
