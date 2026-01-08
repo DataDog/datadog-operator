@@ -16,16 +16,43 @@ import (
 )
 
 func TestRun(t *testing.T) {
-	mapper := NewMapper(MapConfig{
-		MappingPath: "mapping_datadog_helm_to_datadogagent_crd.yaml",
-		SourcePath:  "../examples/example_source.yaml",
-		DestPath:    "../examples/destination.yaml",
-	})
+	tests := []struct {
+		name          string
+		sourcePath    string
+		destPath      string
+		expectedError string
+	}{
+		{
+			name:          "source_values_no_mapping_errors",
+			sourcePath:    "testdata/values_no_errors.yaml",
+			destPath:      "testdata/dda_no_errors.yaml",
+			expectedError: "",
+		},
+		{
+			name:          "source_values_with_mapping_errors",
+			sourcePath:    "testdata/values_errors.yaml",
+			destPath:      "testdata/dda_errors.yaml",
+			expectedError: "mapping completed with 4 error(s): the mapped DDA may contain misconfigurations",
+		},
+	}
 
-	err := mapper.Run()
-	require.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mapper := NewMapper(MapConfig{
+				MappingPath: "mapping_datadog_helm_to_datadogagent_crd.yaml",
+				SourcePath:  tt.sourcePath,
+				DestPath:    tt.destPath,
+			})
 
-	// TODO: add validations against the v2alpha1.DatadogAgent struct
+			err := mapper.Run()
+			if tt.expectedError != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestMergeMapDeep(t *testing.T) {
