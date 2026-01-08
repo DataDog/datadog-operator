@@ -186,6 +186,11 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 	}
 
+	// 1. Apply and cleanup dependencies before reconciling components to ensure deps exist at reconciliation time.
+	if err = r.applyAndCleanupDependencies(ctx, logger, depsStore); err != nil {
+		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
+	}
+
 	// 2. Reconcile each component using the component registry
 	params := &ReconcileComponentParams{
 		Logger:             logger,
@@ -219,11 +224,6 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// 3. Cleanup extraneous resources.
 	if err = r.cleanupExtraneousResources(ctx, logger, instance, newStatus, resourceManagers); err != nil {
 		logger.Error(err, "Error cleaning up extraneous resources")
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
-	}
-
-	// 4. Apply and cleanup dependencies.
-	if err = r.applyAndCleanupDependencies(ctx, logger, depsStore); err != nil {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	}
 
