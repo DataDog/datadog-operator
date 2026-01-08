@@ -188,7 +188,7 @@ func UpdateDeploymentStatus(dep *appsv1.Deployment, depStatus *v2alpha1.Deployme
 
 	depStatus.State = fmt.Sprintf("%v", deploymentState)
 	depStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, depStatus.Replicas, depStatus.ReadyReplicas, depStatus.UpdatedReplicas)
-	depStatus.DeploymentName = dep.ObjectMeta.Name
+	depStatus.DeploymentName = dep.Name
 	return depStatus
 }
 
@@ -212,7 +212,7 @@ func UpdateDaemonSetStatus(dsName string, ds *appsv1.DaemonSet, dsStatus []*v2al
 			Ready:         ds.Status.NumberReady,
 			Available:     ds.Status.NumberAvailable,
 			UpToDate:      ds.Status.UpdatedNumberScheduled,
-			DaemonsetName: ds.ObjectMeta.Name,
+			DaemonsetName: ds.Name,
 		}
 		if updateTime != nil {
 			newStatus.LastUpdate = updateTime
@@ -266,7 +266,7 @@ func UpdateDaemonSetStatusDDAI(dsName string, ds *appsv1.DaemonSet, dsStatus *v2
 		dsStatus.Ready = ds.Status.NumberReady
 		dsStatus.Available = ds.Status.NumberAvailable
 		dsStatus.UpToDate = ds.Status.UpdatedNumberScheduled
-		dsStatus.DaemonsetName = ds.ObjectMeta.Name
+		dsStatus.DaemonsetName = ds.Name
 		if updateTime != nil {
 			dsStatus.LastUpdate = updateTime
 		}
@@ -303,7 +303,7 @@ func UpdateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, 
 		Ready:         eds.Status.Ready,
 		Available:     eds.Status.Available,
 		UpToDate:      eds.Status.UpToDate,
-		DaemonsetName: eds.ObjectMeta.Name,
+		DaemonsetName: eds.Name,
 	}
 
 	if updateTime != nil {
@@ -354,7 +354,7 @@ func UpdateExtendedDaemonSetStatusDDAI(eds *edsdatadoghqv1alpha1.ExtendedDaemonS
 	dsStatus.Ready = eds.Status.Ready
 	dsStatus.Available = eds.Status.Available
 	dsStatus.UpToDate = eds.Status.UpToDate
-	dsStatus.DaemonsetName = eds.ObjectMeta.Name
+	dsStatus.DaemonsetName = eds.Name
 
 	if updateTime != nil {
 		dsStatus.LastUpdate = updateTime

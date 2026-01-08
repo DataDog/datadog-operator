@@ -356,7 +356,7 @@ func (ds *Store) DeleteAll(ctx context.Context, k8sClient client.Client) []error
 						Namespace: objMeta.GetNamespace(),
 					},
 				}
-				partialObj.TypeMeta.SetGroupVersionKind(objAPIServer.GetObjectKind().GroupVersionKind())
+				partialObj.SetGroupVersionKind(objAPIServer.GetObjectKind().GroupVersionKind())
 				objsToDelete = append(objsToDelete, partialObj)
 			}
 		}
@@ -403,7 +403,7 @@ func (ds *Store) listObjectToDelete(objList client.ObjectList, cacheObjects map[
 							Namespace: objMeta.GetNamespace(),
 						},
 					}
-					partialObj.TypeMeta.SetGroupVersionKind(objAPIServer.GetObjectKind().GroupVersionKind())
+					partialObj.SetGroupVersionKind(objAPIServer.GetObjectKind().GroupVersionKind())
 					objsToDelete = append(objsToDelete, partialObj)
 				}
 			}
