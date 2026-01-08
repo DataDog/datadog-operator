@@ -169,7 +169,9 @@ func (o *Options) Run() {
 	err := newMapper.Run()
 	if err != nil {
 		slog.Error("mapper run failed", "error", err)
+		os.Exit(1)
 	}
+	os.Exit(0)
 }
 
 // ResolveFilePath validates and returns absolute filepath.

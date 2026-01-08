@@ -82,12 +82,17 @@ func (m *Mapper) Run() error {
 		return m.updateMapping(sourceValues, mappingValues)
 	}
 
-	dda, err := m.mapValues(sourceValues, mappingValues)
-	if err != nil {
+	dda, errCount := m.mapValues(sourceValues, mappingValues)
+
+	if err := m.writeDDA(dda, config); err != nil {
 		return err
 	}
 
-	return m.writeDDA(dda, config)
+	if errCount > 0 {
+		return fmt.Errorf("mapping completed with %d error(s): the mapped DDA may contain misconfigurations", errCount)
+	}
+
+	return nil
 }
 
 // loadInputs builds the mapping and Helm source Values from the inputted mapping and Helm source filepaths, respectively.
@@ -156,7 +161,8 @@ func (m *Mapper) loadInputs() (mappingValues chartutil.Values, sourceValues char
 }
 
 // mapValues maps the Helm source Values to a DDA custom resource based on the provided mapping Values.
-func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartutil.Values) (map[string]interface{}, error) {
+func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartutil.Values) (map[string]interface{}, int) {
+	var errorCount int
 	var ddaName = m.MapConfig.DDAName
 	var interim = map[string]interface{}{}
 	defaultValues, _ := getDefaultValues()
@@ -208,7 +214,9 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 
 		destKey, _ := mappingValues[sourceKey]
 		if (destKey == "" || destKey == nil) && !apiutils.IsEqualStruct(pathVal, defaultVal) && !shouldSkipMappingKey(sourceKey) {
-			return nil, fmt.Errorf("DDA destination key not found. Could not map: %s", sourceKey)
+			slog.Error("DDA destination key not found", "sourceKey", sourceKey)
+			errorCount++
+			continue
 		}
 
 		switch typedDestKey := destKey.(type) {
@@ -235,7 +243,8 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 				if s, sOk := val.(string); sOk {
 					utils.MergeOrSet(interim, s, pathVal)
 				} else {
-					return nil, fmt.Errorf("expected string in dest slice for %q, got %T", sourceKey, val)
+					slog.Error("expected string in dest slice", "sourceKey", sourceKey, "gotType", fmt.Sprintf("%T", val))
+					errorCount++
 				}
 			}
 
@@ -248,7 +257,8 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 				if run := m.MapProcessors[mapFuncName]; run != nil {
 					run(interim, newPath, pathVal, args)
 				} else {
-					return nil, fmt.Errorf("unknown mapFunc %q for %q", mapFuncName, sourceKey)
+					slog.Error("unknown mapFunc", "mapFunc", mapFuncName, "sourceKey", sourceKey)
+					errorCount++
 				}
 			}
 		default:
@@ -262,7 +272,8 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 	for k, v := range sourceKeysRef {
 		visited, ok := utils.GetPathBool(v, "visited")
 		if ok && !visited && !shouldSkipMappingKey(k) {
-			return nil, fmt.Errorf("source value key %s was not found in mapping.", k)
+			slog.Error("source value key was not found in mapping", "key", k)
+			errorCount++
 		}
 	}
 
@@ -279,7 +290,7 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 		v := interim[k]
 		dda = utils.InsertAtPath(k, v, dda)
 	}
-	return dda, nil
+	return dda, errorCount
 }
 
 // writeDDA writes a DDA map[string]interface{} object to a configured destination filepath.
