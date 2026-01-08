@@ -16,8 +16,10 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/helm"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
@@ -260,6 +262,14 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	// Apply FIPS proxy settings - UseFIPSAgent must be false
 	if !*config.UseFIPSAgent && config.FIPS != nil && apiutils.BoolValue(config.FIPS.Enabled) {
 		applyFIPSConfig(logger, manager, ddaMeta, ddaSpec, resourcesManager)
+	}
+
+	// If Helm migration is enabled, set the ClusterAgent URL
+	if helm.IsHelmMigration(ddaMeta) {
+		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  common.DDClusterAgentURL,
+			Value: componentdca.GetClusterAgentServiceURL(ddaMeta),
+		})
 	}
 }
 

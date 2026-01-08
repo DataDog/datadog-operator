@@ -30,6 +30,11 @@ func GetClusterAgentServiceName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", constants.GetDDAName(dda), constants.DefaultClusterAgentResourceSuffix)
 }
 
+// GetClusterAgentServiceURL return the Cluster-Agent service URL based on the ClusterAgentServiceName
+func GetClusterAgentServiceURL(dda metav1.Object) string {
+	return fmt.Sprintf("https://%s.%s.svc.cluster.local:%d", GetClusterAgentServiceName(dda), dda.GetNamespace(), common.DefaultClusterAgentServicePort)
+}
+
 // GetClusterAgentPodDisruptionBudgetName return the Cluster-Agent PodDisruptionBudget name based on the DatadogAgent name
 func GetClusterAgentPodDisruptionBudgetName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s-pdb", dda.GetName(), constants.DefaultClusterAgentResourceSuffix)
