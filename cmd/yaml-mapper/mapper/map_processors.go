@@ -11,12 +11,19 @@ import (
 	"strconv"
 	"strings"
 
+	"helm.sh/helm/v3/pkg/chartutil"
 	"sigs.k8s.io/yaml"
 
 	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/utils"
 )
 
-type MappingRunFunc = func(values map[string]interface{}, newPath string, pathVal interface{}, args []interface{})
+// MappingRunFunc is the function signature for mapping processors
+// - interim: the DDA spec being built
+// - newPath: the DDA target path
+// - pathVal: the value from Helm at the current source path
+// - args: custom arguments from the mapping config
+// - sourceValues: the original Helm values
+type MappingRunFunc = func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}, sourceValues chartutil.Values)
 type MappingProcessor struct {
 	name    string
 	runFunc MappingRunFunc
@@ -33,27 +40,50 @@ func mapFuncRegistry() map[string]MappingRunFunc {
 		mapAppendEnvVar,
 		mapMergeEnvs,
 		mapOverrideType,
+		mapServiceAccountName,
+		mapHealthPortWithProbes,
+		mapTraceAgentLivenessProbe,
+		mapApmPortToContainerPort,
 	} {
 		registry[p.name] = p.runFunc
 	}
 	return registry
 }
 
-// mapSecretKeyName adds the secret `keyName` field for mapping k8s secrets
+// mapSecretKeyName adds the secret `keyName` field for mapping k8s secrets.
+// Skips mapping when pathVal is an empty string (let operator handle defaults).
+// args:
+//   - keyName: the key name in the secret (e.g., "api-key", "token")
+//   - keyNamePath: the DDA path for the key name
 var mapSecretKeyName = MappingProcessor{
 	name: "mapSecretKeyName",
-	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
+	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}, _ chartutil.Values) {
 		if len(args) != 1 {
+			log.Printf("Warning: mapSecretKeyName requires exactly 1 argument")
 			return
 		}
+
 		keyName, ok := utils.GetPathString(args[0], "keyName")
 		if !ok {
+			log.Printf("Warning: mapSecretKeyName missing 'keyName' argument")
 			return
 		}
 		keyNamePath, ok := utils.GetPathString(args[0], "keyNamePath")
 		if !ok {
+			log.Printf("Warning: mapSecretKeyName missing 'keyNamePath' argument")
 			return
 		}
+
+		// Skip empty secret names - let operator handle defaults
+		secretName, isString := pathVal.(string)
+		if !isString {
+			log.Printf("Warning: mapSecretKeyName expected string value, got %T", pathVal)
+			return
+		}
+		if secretName == "" {
+			return
+		}
+
 		utils.MergeOrSet(interim, newPath, pathVal)
 		utils.MergeOrSet(interim, keyNamePath, keyName)
 	},
@@ -62,9 +92,9 @@ var mapSecretKeyName = MappingProcessor{
 // mapSeccompProfile Maps the seccompProfile
 var mapSeccompProfile = MappingProcessor{
 	name: "mapSeccompProfile",
-	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
-		seccompValue, err := pathVal.(string)
-		if !err {
+	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}, _ chartutil.Values) {
+		seccompValue, ok := pathVal.(string)
+		if !ok {
 			return
 		}
 
@@ -84,9 +114,9 @@ var mapSeccompProfile = MappingProcessor{
 // mapSystemProbeAppArmor Maps the systemProbe appArmor profile name
 var mapSystemProbeAppArmor = MappingProcessor{
 	name: "mapSystemProbeAppArmor",
-	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
-		appArmorValue, err := pathVal.(string)
-		if !err || appArmorValue == "" {
+	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}, _ chartutil.Values) {
+		appArmorValue, ok := pathVal.(string)
+		if !ok || appArmorValue == "" {
 			// must be set to non-empty string
 			return
 		}
@@ -125,7 +155,7 @@ var mapSystemProbeAppArmor = MappingProcessor{
 // mapLocalServiceName maps the localService name
 var mapLocalServiceName = MappingProcessor{
 	name: "mapLocalServiceName",
-	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
+	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}, _ chartutil.Values) {
 		nameOverride, ok := pathVal.(string)
 		if !ok || nameOverride == "" {
 			return
@@ -140,7 +170,7 @@ var mapLocalServiceName = MappingProcessor{
 //   - name: DD_ENV_VAR
 var mapAppendEnvVar = MappingProcessor{
 	name: "mapAppendEnvVar",
-	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
+	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}, _ chartutil.Values) {
 		if len(args) != 1 {
 			return
 		}
@@ -202,7 +232,7 @@ var mapAppendEnvVar = MappingProcessor{
 // environment variables at the target path.
 var mapMergeEnvs = MappingProcessor{
 	name: "mapMergeEnvs",
-	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
+	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}, _ chartutil.Values) {
 		newEnvs, ok := pathVal.([]interface{})
 		if !ok {
 			log.Printf("Warning: expected []interface{} for pathVal, got %T", pathVal)
@@ -259,40 +289,219 @@ var mapMergeEnvs = MappingProcessor{
 // Supports mapping slice -> string and string -> int.
 var mapOverrideType = MappingProcessor{
 	name: "mapOverrideType",
-	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
-		{
-			if len(args) != 1 {
+	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}, _ chartutil.Values) {
+		if len(args) != 1 {
+			return
+		}
+		newType, ok := utils.GetPathString(args[0], "newType")
+		if !ok {
+			return
+		}
+
+		// if values type is different from new type, convert it
+		pathValType := reflect.TypeOf(pathVal).Kind().String()
+		if pathValType == newType {
+			return
+		}
+
+		switch {
+		case newType == "string" && pathValType == "slice":
+			newPathVal, err := yaml.Marshal(pathVal)
+			if err != nil {
+				log.Println(err)
 				return
 			}
-			newType, ok := utils.GetPathString(args[0], "newType")
+			utils.MergeOrSet(interim, newPath, string(newPathVal))
 
-			// if values type is different from new type, convert it
-			pathValType := reflect.TypeOf(pathVal).Kind().String()
-			var newPathVal []byte
-			var err error
-			if ok && pathValType != newType {
-				switch {
-				case newType == "string" && pathValType == "slice":
-					newPathVal, err = yaml.Marshal(pathVal)
-					if err != nil {
-						log.Println(err)
-					}
-					utils.MergeOrSet(interim, newPath, string(newPathVal))
-
-				case newType == "int":
-					switch {
-					case pathValType == "string":
-						convertedInt, convErr := strconv.Atoi(pathVal.(string))
-						if convErr != nil {
-							log.Println(convErr)
-						} else {
-							utils.MergeOrSet(interim, newPath, convertedInt)
-						}
-					}
-				}
+		case newType == "int" && pathValType == "string":
+			convertedInt, err := strconv.Atoi(pathVal.(string))
+			if err != nil {
+				log.Println(err)
+				return
 			}
+			utils.MergeOrSet(interim, newPath, convertedInt)
 		}
 	},
+}
+
+// mapServiceAccountName maps serviceAccountName when rbac.create is false
+//
+// args:
+//   - rbacCreatePath: path to the rbac.create value (e.g., "spec.override.clusterAgent.createRbac")
+var mapServiceAccountName = MappingProcessor{
+	name: "mapServiceAccountName",
+	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}, _ chartutil.Values) {
+		if len(args) != 1 {
+			log.Printf("Warning: mapServiceAccountName requires exactly 1 argument (rbacCreatePath)")
+			return
+		}
+
+		rbacCreatePath, ok := utils.GetPathString(args[0], "rbacCreatePath")
+		if !ok || rbacCreatePath == "" {
+			log.Printf("Warning: mapServiceAccountName missing 'rbacCreatePath' argument")
+			return
+		}
+
+		// Only map serviceAccountName if rbac.create is explicitly false
+		rbacCreate, exists := utils.GetPathBool(interim, rbacCreatePath)
+		if !exists || rbacCreate {
+			return
+		}
+
+		saName, ok := pathVal.(string)
+		if ok && saName != "" {
+			utils.MergeOrSet(interim, newPath, saName)
+		}
+	},
+}
+
+// mapHealthPortWithProbes maps healthPort and validates that probe httpGet.ports match.
+// In the Helm chart, users MUST set livenessProbe, startupProbe, and readinessProbe ports
+// if they are setting healthPort, and all ports must match. Otherwise, don't map anything (let operator handle defaults).
+//
+// args:
+//   - sourcePrefix: the Helm values prefix for checking probe ports (e.g., "agents.containers.agent", "clusterAgent")
+//   - containerPath: the DDA container path for setting probe ports (e.g., "spec.override.clusterAgent.containers.cluster-agent")
+var mapHealthPortWithProbes = MappingProcessor{
+	name: "mapHealthPortWithProbes",
+	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}, sourceValues chartutil.Values) {
+		if len(args) != 1 {
+			log.Printf("Warning: mapHealthPortWithProbes requires exactly 1 argument")
+			return
+		}
+
+		sourcePrefix, ok := utils.GetPathString(args[0], "sourcePrefix")
+		if !ok || sourcePrefix == "" {
+			log.Printf("Warning: mapHealthPortWithProbes missing 'sourcePrefix' argument")
+			return
+		}
+
+		containerPath, ok := utils.GetPathString(args[0], "containerPath")
+		if !ok || containerPath == "" {
+			log.Printf("Warning: mapHealthPortWithProbes missing 'containerPath' argument")
+			return
+		}
+
+		// Get the healthPort value as int
+		healthPort, ok := normalizeToInt(pathVal)
+		if !ok {
+			log.Printf("Warning: mapHealthPortWithProbes expected numeric value, got %T", pathVal)
+			return
+		}
+
+		// Check if ALL probe ports are explicitly set in sourceValues and match healthPort
+		probeTypes := []string{"livenessProbe", "readinessProbe", "startupProbe"}
+		allProbesMatch := true
+		probesCount := 0
+
+		for _, probeType := range probeTypes {
+			helmPath := sourcePrefix + "." + probeType + ".httpGet.port"
+			probePortVal, err := sourceValues.PathValue(helmPath)
+			if err != nil || probePortVal == nil {
+				// Probe port not set by user - can't validate, don't map
+				allProbesMatch = false
+				break
+			}
+
+			probePort, ok := normalizeToInt(probePortVal)
+			if !ok {
+				log.Printf("Warning: mapHealthPortWithProbes probe port at %s is not numeric: %T", helmPath, probePortVal)
+				allProbesMatch = false
+				break
+			}
+
+			if probePort != healthPort {
+				log.Printf("Warning: mapHealthPortWithProbes probe port mismatch at %s: expected %d, got %d", helmPath, healthPort, probePort)
+				allProbesMatch = false
+				break
+			}
+			probesCount++
+		}
+
+		// Only map if all probes are set and match
+		if !allProbesMatch || probesCount < 3 {
+			return
+		}
+
+		// Set healthPort
+		utils.MergeOrSet(interim, newPath, healthPort)
+
+		// Set all probe ports (they've been validated to match)
+		for _, probeType := range probeTypes {
+			ddaPath := containerPath + "." + probeType + ".httpGet.port"
+			utils.MergeOrSet(interim, ddaPath, healthPort)
+		}
+	},
+}
+
+// mapTraceAgentLivenessProbe maps the trace agent liveness probe with tcpSocket.port.
+// Deduces port from datadog.apm.port or default 8126 if not set.
+// Validates that explicit tcpSocket.port matches apm.port or default; skips mapping on mismatch.
+// args:
+//   - newPath: the DDA path for the trace agent liveness probe
+var mapTraceAgentLivenessProbe = MappingProcessor{
+	name: "mapTraceAgentLivenessProbe",
+	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}, sourceValues chartutil.Values) {
+		if pathVal == nil {
+			return
+		}
+
+		var probeSettings map[string]interface{}
+		switch v := pathVal.(type) {
+		case map[string]interface{}:
+			probeSettings = v
+		case chartutil.Values:
+			probeSettings = map[string]interface{}(v)
+		default:
+			return
+		}
+
+		const defaultPort = 8126
+
+		// Get user's explicit apm.port if set
+		userApmPort, hasUserApmPort := utils.GetPathInt(sourceValues, "datadog", "apm", "port")
+
+		// Check if tcpSocket.port is set
+		tcpSocketPort, hasTcpSocketPort := utils.GetPathInt(probeSettings, "tcpSocket", "port")
+
+		if !hasTcpSocketPort {
+			// tcpSocket.port not set - deduce from apm.port or use default
+			port := defaultPort
+			if hasUserApmPort {
+				port = userApmPort
+			}
+			// Map all existing probe settings plus tcpSocket.port
+			for key, val := range probeSettings {
+				utils.MergeOrSet(interim, newPath+"."+key, val)
+			}
+			utils.MergeOrSet(interim, newPath+".tcpSocket.port", port)
+			return
+		}
+
+		// tcpSocket.port is set - validate it matches apm.port or default
+		if tcpSocketPort == defaultPort || (hasUserApmPort && tcpSocketPort == userApmPort) {
+			utils.MergeOrSet(interim, newPath, pathVal)
+		} else {
+			log.Printf("Warning: mapTraceAgentLivenessProbe tcpSocket.port %d doesn't match apm.port or default 8126", tcpSocketPort)
+		}
+	},
+}
+
+// normalizeToInt converts various numeric types to int.
+// Returns (0, false) if the value is not a recognized numeric type.
+func normalizeToInt(val interface{}) (int, bool) {
+	switch v := val.(type) {
+	case int:
+		return v, true
+	case int32:
+		return int(v), true
+	case int64:
+		return int(v), true
+	case float64:
+		return int(v), true
+	default:
+		return 0, false
+	}
 }
 
 // hasDuplicateEnv checks if a given env var name is already present in the given list of env vars.
@@ -305,4 +514,38 @@ func hasDuplicateEnv(existingEnvs []interface{}, newEnvName string) bool {
 		}
 	}
 	return false
+}
+
+// mapApmPortToContainerPort maps datadog.apm.port to both hostPort and containerPort for trace-agent.
+// The Helm chart always sets containerPort = hostPort = datadog.apm.port, but the operator only
+// syncs them when hostNetwork is enabled on the pod. This processor preserves Helm behavior.
+var mapApmPortToContainerPort = MappingProcessor{
+	name: "mapApmPortToContainerPort",
+	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}, sourceValues chartutil.Values) {
+		port, ok := normalizeToInt(pathVal)
+		if !ok {
+			log.Printf("Warning: mapApmPortToContainerPort expected numeric value, got %T", pathVal)
+			return
+		}
+
+		// Default APM port is 8126 - only map if user has set a different value
+		if port == 8126 {
+			return
+		}
+
+		// Set hostPort
+		utils.MergeOrSet(interim, newPath, port)
+
+		// Set matching containerPort
+		containerPortPath := "spec.override.nodeAgent.containers.trace-agent.ports"
+		portEntry := []interface{}{
+			map[string]interface{}{
+				"name":          "traceport",
+				"containerPort": port,
+				"hostPort":      port,
+				"protocol":      "TCP",
+			},
+		}
+		utils.MergeOrSet(interim, containerPortPath, portEntry)
+	},
 }
