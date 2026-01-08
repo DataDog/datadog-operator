@@ -31,6 +31,8 @@ func GetClusterAgentServiceName(dda metav1.Object) string {
 }
 
 // GetClusterAgentServiceURL return the Cluster-Agent service URL based on the ClusterAgentServiceName
+// Note: If https://<DCA_service_name>.<namespace>.svc.cluster.local:5005 is not available in a cluster, https://<DCA_service_name>.<namespace>:5005 may work.
+// https://kubernetes.io/docs/tasks/debug/debug-application/debug-service/#does-any-service-exist-in-dns
 func GetClusterAgentServiceURL(dda metav1.Object) string {
 	return fmt.Sprintf("https://%s.%s.svc.cluster.local:%d", GetClusterAgentServiceName(dda), dda.GetNamespace(), common.DefaultClusterAgentServicePort)
 }
