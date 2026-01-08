@@ -8,8 +8,10 @@ package utils
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -27,14 +29,22 @@ var httpClient = &http.Client{
 	Timeout: defaultHttpTimeout,
 }
 
-var retryableClient = func() *retryablehttp.Client {
-	c := retryablehttp.NewClient()
-	c.HTTPClient = httpClient
-	c.RetryWaitMin = defaultHttpRetryWaitMin
-	c.RetryWaitMax = defaultHttpRetryWaitMax
-	c.RetryMax = defaultHttpMaxRetries
-	return c
-}()
+var (
+	retryableClient     *retryablehttp.Client
+	retryableClientOnce sync.Once
+)
+
+func getRetryableClient() *retryablehttp.Client {
+	retryableClientOnce.Do(func() {
+		retryableClient = retryablehttp.NewClient()
+		retryableClient.HTTPClient = httpClient
+		retryableClient.RetryWaitMin = defaultHttpRetryWaitMin
+		retryableClient.RetryWaitMax = defaultHttpRetryWaitMax
+		retryableClient.RetryMax = defaultHttpMaxRetries
+		retryableClient.Logger = slog.NewLogLogger(slog.Default().Handler(), slog.LevelDebug)
+	})
+	return retryableClient
+}
 
 // FetchLatestValues fetches the latest Datadog Helm chart values.yaml and writes it to a temp file.
 func FetchLatestValues() (string, error) {
@@ -68,7 +78,7 @@ func fetchURL(url string) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	return retryableClient.Do(req)
+	return getRetryableClient().Do(req)
 }
 
 // FetchYAMLFile fetches YAML file at URL and writes it to a temp file.

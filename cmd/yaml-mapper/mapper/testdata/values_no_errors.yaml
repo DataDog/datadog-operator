@@ -1,0 +1,36 @@
+nameOverride: "datadog-no-errors"
+datadog:
+  site: "datadoghq.com"
+  logLevel: "info"
+  kubelet:
+    tlsVerify: false
+  
+  apiKeyExistingSecret: datadog-secret
+  appKeyExistingSecret: datadog-secret
+  
+  apm:
+    portEnabled: true
+    socketEnabled: true
+    port: 8126
+  
+  logs:
+    enabled: true
+    containerCollectAll: true
+
+  clusterChecks:
+    enabled: true
+
+agents:
+  image:
+    name: "agent"
+    tag: "7.50.0"
+  tolerations:
+    - key: "node-role.kubernetes.io/master"
+      effect: "NoSchedule"
+
+clusterAgent:
+  enabled: true
+  replicas: 2
+  image:
+    name: "cluster-agent"
+    tag: "7.50.0"

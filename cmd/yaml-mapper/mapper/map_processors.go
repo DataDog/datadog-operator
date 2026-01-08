@@ -6,7 +6,8 @@
 package mapper
 
 import (
-	"log"
+	"fmt"
+	"log/slog"
 	"reflect"
 	"strconv"
 	"strings"
@@ -147,14 +148,14 @@ var mapAppendEnvVar = MappingProcessor{
 
 		envMap, ok := utils.GetPathMap(args[0])
 		if !ok {
-			log.Printf("expected map[string]interface{} for env var map definition, got %T", args[0])
+			slog.Warn("expected map[string]interface{} for env var map definition", "got", fmt.Sprintf("%T", args[0]))
 			return
 		}
 
 		// Build new env var
 		newEnvName, ok := utils.GetPathString(envMap, "name")
 		if !ok || newEnvName == "" {
-			log.Printf("expected 'name' in env var map, got: %v", envMap)
+			slog.Warn("expected 'name' in env var map", "got", envMap)
 			return
 		}
 		// Base env var
@@ -187,7 +188,7 @@ var mapAppendEnvVar = MappingProcessor{
 
 		existingEnvs, ok := interim[newPath].([]interface{})
 		if !ok {
-			log.Printf("Error: expected []interface{} at path %s, got %T", newPath, interim[newPath])
+			slog.Error("expected []interface{} at path", "path", newPath, "got", fmt.Sprintf("%T", interim[newPath]))
 			return
 		}
 
@@ -205,7 +206,7 @@ var mapMergeEnvs = MappingProcessor{
 	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
 		newEnvs, ok := pathVal.([]interface{})
 		if !ok {
-			log.Printf("Warning: expected []interface{} for pathVal, got %T", pathVal)
+			slog.Warn("expected []interface{} for pathVal", "got", fmt.Sprintf("%T", pathVal))
 			return
 		}
 
@@ -222,13 +223,13 @@ var mapMergeEnvs = MappingProcessor{
 		for _, newEnv := range newEnvs {
 			newEnvMap, ok := utils.GetPathMap(newEnv)
 			if !ok {
-				log.Printf("Warning: expected map[string]interface{} in newEnvs, got %T", newEnv)
+				slog.Warn("expected map[string]interface{} in newEnvs", "got", fmt.Sprintf("%T", newEnv))
 				continue
 			}
 
 			newName, ok := utils.GetPathString(newEnvMap, "name")
 			if !ok || newName == "" {
-				log.Printf("Warning: missing or invalid 'name' field in environment variable: %v", newEnvMap)
+				slog.Warn("missing or invalid 'name' field in environment variable", "envMap", newEnvMap)
 				continue
 			}
 
@@ -275,7 +276,7 @@ var mapOverrideType = MappingProcessor{
 				case newType == "string" && pathValType == "slice":
 					newPathVal, err = yaml.Marshal(pathVal)
 					if err != nil {
-						log.Println(err)
+						slog.Error("failed to marshal pathVal", "error", err)
 					}
 					utils.MergeOrSet(interim, newPath, string(newPathVal))
 
@@ -284,7 +285,7 @@ var mapOverrideType = MappingProcessor{
 					case pathValType == "string":
 						convertedInt, convErr := strconv.Atoi(pathVal.(string))
 						if convErr != nil {
-							log.Println(convErr)
+							slog.Error("failed to convert string to int", "error", convErr)
 						} else {
 							utils.MergeOrSet(interim, newPath, convertedInt)
 						}
