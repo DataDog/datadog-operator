@@ -7,6 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/stretchr/testify/assert"
@@ -62,7 +63,7 @@ func TestVolumesForAgent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			volumes := volumesForAgent(tt.dda, tt.requiredContainers)
+			volumes := volumesForAgent(tt.dda, &datadoghqv2alpha1.DatadogAgentSpec{}, tt.requiredContainers)
 
 			// Check install-info volume
 			var installInfoVolume *corev1.Volume

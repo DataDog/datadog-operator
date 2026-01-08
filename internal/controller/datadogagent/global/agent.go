@@ -126,5 +126,4 @@ func applyNodeAgentResources(manager feature.PodTemplateManagers, ddaSpec *v2alp
 			manager.Volume().AddVolume(&runtimeVol)
 		}
 	}
-
 }
