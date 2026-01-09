@@ -182,11 +182,7 @@ func (mf *metricsForwarder) start(wg *sync.WaitGroup) {
 	mf.logger.Info("Starting Datadog metrics forwarder")
 
 	// Create a context that gets cancelled when stopChan is closed
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		<-mf.stopChan
-		cancel()
-	}()
+	ctx := wait.ContextForChannel(mf.stopChan)
 
 	// wait.PollUntilContextCancel is blocking until mf.connectToDatadogAPI returns true or context is cancelled
 	// wait.PollUntilContextCancel keeps retrying to connect to the Datadog API without returning an error
