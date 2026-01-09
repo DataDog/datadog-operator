@@ -124,17 +124,25 @@ func (omf *OperatorMetadataForwarder) GetPayload(clusterUID string) []byte {
 	now := time.Now().Unix()
 
 	omf.mutex.RLock()
-	defer omf.mutex.RUnlock()
+	// Copy metadata while holding the lock to avoid data races
+	operatorMetadata := omf.OperatorMetadata
+	if omf.OperatorMetadata.ResourceCounts != nil {
+		operatorMetadata.ResourceCounts = make(map[string]int, len(omf.OperatorMetadata.ResourceCounts))
+		for k, v := range omf.OperatorMetadata.ResourceCounts {
+			operatorMetadata.ResourceCounts[k] = v
+		}
+	}
+	omf.mutex.RUnlock()
 
-	omf.OperatorMetadata.ClusterID = clusterUID
-	omf.OperatorMetadata.OperatorVersion = omf.operatorVersion
-	omf.OperatorMetadata.KubernetesVersion = omf.kubernetesVersion
+	operatorMetadata.ClusterID = clusterUID
+	operatorMetadata.OperatorVersion = omf.operatorVersion
+	operatorMetadata.KubernetesVersion = omf.kubernetesVersion
 
 	payload := OperatorMetadataPayload{
 		Hostname:  omf.hostName,
 		Timestamp: now,
 		ClusterID: clusterUID,
-		Metadata:  omf.OperatorMetadata,
+		Metadata:  operatorMetadata,
 	}
 
 	jsonPayload, err := json.Marshal(payload)
