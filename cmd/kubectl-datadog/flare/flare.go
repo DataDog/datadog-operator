@@ -168,6 +168,7 @@ func (o *options) validate() error {
 
 // run runs the flare command
 func (o *options) run(cmd *cobra.Command) error {
+	ctx := cmd.Context()
 	// Prepare base directory
 	baseDir := filepath.Join(os.TempDir(), "datadog-operator")
 	if err := os.MkdirAll(baseDir, os.ModePerm); err != nil {
@@ -206,7 +207,7 @@ func (o *options) run(cmd *cobra.Command) error {
 	}
 
 	// Collect operator version
-	if err = o.createVersionFile(leaderPod, baseDir, cmd); err != nil {
+	if err = o.createVersionFile(ctx, leaderPod, baseDir, cmd); err != nil {
 		cmd.Println(fmt.Sprintf("Couldn't collect operator version: %v", err))
 	}
 
@@ -217,7 +218,7 @@ func (o *options) run(cmd *cobra.Command) error {
 	}
 
 	// Get the operator version
-	version, err := o.getVersion(leaderPod)
+	version, err := o.getVersion(ctx, leaderPod)
 	if err != nil {
 		cmd.Println(fmt.Sprintf("Couldn't get operator version: %v", err))
 
@@ -358,14 +359,14 @@ func (o *options) createStatusFile(pod *corev1.Pod, dir string, cmd *cobra.Comma
 }
 
 // createVersionFile gets the version from the operator pod and stores it in a file
-func (o *options) createVersionFile(pod *corev1.Pod, dir string, cmd *cobra.Command) error {
+func (o *options) createVersionFile(ctx context.Context, pod *corev1.Pod, dir string, cmd *cobra.Command) error {
 	if pod == nil {
 		return errors.New("nil leader pod")
 	}
 
 	// Prepare command and execute it
 	versionCmd := []string{"bash", "-c", "/usr/local/bin/datadog-operator --version --version-format text"}
-	version, err := o.execInPod(versionCmd, pod)
+	version, err := o.execInPod(ctx, versionCmd, pod)
 	if err != nil {
 		return err
 	}
@@ -374,14 +375,14 @@ func (o *options) createVersionFile(pod *corev1.Pod, dir string, cmd *cobra.Comm
 }
 
 // getOperatorVersion gets the version from the operator pod
-func (o *options) getVersion(pod *corev1.Pod) (string, error) {
+func (o *options) getVersion(ctx context.Context, pod *corev1.Pod) (string, error) {
 	if pod == nil {
 		return "", errors.New("nil leader pod")
 	}
 
 	// Prepare command and execute it
 	versionCmd := []string{"bash", "-c", "/usr/local/bin/datadog-operator --version --version-format json"}
-	versionJSON, err := o.execInPod(versionCmd, pod)
+	versionJSON, err := o.execInPod(ctx, versionCmd, pod)
 	if err != nil {
 		return "", err
 	}
@@ -425,7 +426,7 @@ func (o *options) getLeader() (*corev1.Pod, error) {
 }
 
 // execInPod execs a given command in a given pod
-func (o *options) execInPod(command []string, pod *corev1.Pod) ([]byte, error) {
+func (o *options) execInPod(ctx context.Context, command []string, pod *corev1.Pod) ([]byte, error) {
 	req := o.Clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(pod.Name).
@@ -458,7 +459,7 @@ func (o *options) execInPod(command []string, pod *corev1.Pod) ([]byte, error) {
 	}
 
 	var stdout bytes.Buffer
-	if err := exec.StreamWithContext(context.TODO(), remotecommand.StreamOptions{Stdout: &stdout}); err != nil {
+	if err := exec.StreamWithContext(ctx, remotecommand.StreamOptions{Stdout: &stdout}); err != nil {
 		return []byte{}, err
 	}
 
