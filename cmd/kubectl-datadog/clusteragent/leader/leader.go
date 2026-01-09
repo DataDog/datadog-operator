@@ -131,12 +131,22 @@ func (o *options) run(cmd *cobra.Command) error {
 }
 
 func (o *options) getLeaderFromLease(objKey client.ObjectKey) (string, error) {
+	return GetLeaderFromLease(o.Client, objKey)
+}
+
+func (o *options) getLeaderFromConfigMap(objKey client.ObjectKey) (string, error) {
+	return GetLeaderFromConfigMap(o.Client, objKey)
+}
+
+// GetLeaderFromLease retrieves the leader pod name from a Lease resource
+// This is a public function that can be reused by other packages
+func GetLeaderFromLease(c client.Client, objKey client.ObjectKey) (string, error) {
 	lease := &coordv1.Lease{}
-	err := o.Client.Get(context.TODO(), objKey, lease)
+	err := c.Get(context.TODO(), objKey, lease)
 	if err != nil && apierrors.IsNotFound(err) {
 		return "", fmt.Errorf("lease %s/%s not found", objKey.Namespace, objKey.Name)
 	} else if err != nil {
-		return "", fmt.Errorf("unable to get leader election config map: %w", err)
+		return "", fmt.Errorf("unable to get leader election lease: %w", err)
 	}
 
 	// get the info from the lease
@@ -147,10 +157,12 @@ func (o *options) getLeaderFromLease(objKey client.ObjectKey) (string, error) {
 	return *lease.Spec.HolderIdentity, nil
 }
 
-func (o *options) getLeaderFromConfigMap(objKey client.ObjectKey) (string, error) {
+// GetLeaderFromConfigMap retrieves the leader pod name from a ConfigMap annotation
+// This is a public function that can be reused by other packages
+func GetLeaderFromConfigMap(c client.Client, objKey client.ObjectKey) (string, error) {
 	// Get the config map holding the leader identity.
 	cm := &corev1.ConfigMap{}
-	err := o.Client.Get(context.TODO(), objKey, cm)
+	err := c.Get(context.TODO(), objKey, cm)
 	if err != nil && apierrors.IsNotFound(err) {
 		return "", fmt.Errorf("config map %s/%s not found", objKey.Namespace, objKey.Name)
 	} else if err != nil {
@@ -172,7 +184,13 @@ func (o *options) getLeaderFromConfigMap(objKey client.ObjectKey) (string, error
 }
 
 func isLeaseSupported(client discovery.DiscoveryInterface) (bool, error) {
-	apiGroupList, err := client.ServerGroups()
+	return IsLeaseSupported(client)
+}
+
+// IsLeaseSupported checks if the Kubernetes cluster supports Lease resources
+// This is a public function that can be reused by other packages
+func IsLeaseSupported(discoveryClient discovery.DiscoveryInterface) (bool, error) {
+	apiGroupList, err := discoveryClient.ServerGroups()
 	if err != nil {
 		return false, fmt.Errorf("unable to discover APIGroups, err:%w", err)
 	}
