@@ -79,4 +79,6 @@ const (
 	GPUIDType = "gpu"
 	// ControlPlaneMonitoringIDType Control Plane Monitoring feature.
 	ControlPlaneMonitoringIDType = "control_plane_monitoring"
+	// AutodiscoveryIDType Autodiscovery global feature.
+	AutodiscoveryIDType = "autodiscovery"
 )
