@@ -147,6 +147,9 @@ spec:
 `features.cws.enabled`
 : Enables Cloud Workload Security. Default: false
 
+`features.cws.enforcement.enabled`
+: Enables Enforcement for Cloud Workload Security. Default: true
+
 `features.cws.network.enabled`
 : Enables Cloud Workload Security Network detections. Default: true
 

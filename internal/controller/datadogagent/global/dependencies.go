@@ -93,7 +93,7 @@ func addComponentDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpec
 				}
 				if seccompConfigData == nil {
 					if !useSystemProbeCustomSeccomp(ddaSpec) {
-						seccompConfigData = agent.DefaultSeccompConfigDataForSystemProbe()
+						seccompConfigData = agent.DefaultSeccompConfigDataForSystemProbe(ddaSpec)
 					}
 				}
 				if seccompConfigData != nil {
