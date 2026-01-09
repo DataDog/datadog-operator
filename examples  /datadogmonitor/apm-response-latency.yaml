@@ -1,0 +1,29 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogMonitor
+metadata:
+   name: apm-error-rate-monitor
+spec:
+   query: avg(last_5m):anomalies(p95:trace.http.server.request{service:my-service,span.kind:server} by {http.status_code}, 'basic', 2, direction='above', alert_window='last_5m', interval=20) > 0.05
+   # This query detects latency anomalies in HTTP server requests for the specified service, using the 95th percentile (p95) of response times.
+   # It groups results by HTTP status code and triggers if latency exceeds the threshold over the last 5 minutes.
+  # Adjust the threshold and time window as needed for your monitoring requirements.
+   type: "query alert"
+   name: DatadogMonitor for {{ .Release.Namespace }} APM response Latency in Prod
+   message: "my-app-namespace APM response latency is above 0.05% for the last 5 minutes. Please investigate."
+   tags:
+      - "environment:prod"
+      - "kube_cluster_name:my-cluster"
+      - "namespace:my-app-namespace"
+      - "type:apmresponseLatency"
+   priority: 1
+   options:
+      thresholds: 
+         critical: "0.05"
+         warning: "0.03"
+      evaluationDelay: 300
+      includeTags: true
+      locked: false
+      newGroupDelay: 300
+      notifyNoData: true
+      noDataTimeframe: 30
+      renotifyInterval: 1440
