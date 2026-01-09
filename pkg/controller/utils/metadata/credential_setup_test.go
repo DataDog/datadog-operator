@@ -58,7 +58,6 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 			setupEnv: func() {
 				os.Setenv(constants.DDAPIKey, "operator-api-key")
 				os.Setenv(constants.DDAppKey, "operator-app-key")
-				os.Setenv(constants.DDHostName, "test-hostname")
 				os.Setenv(constants.DDClusterName, "test-cluster")
 			},
 			setupDDA: func() []client.Object {
@@ -107,7 +106,6 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 		{
 			name: "DDA with plaintext API key and default site",
 			setupEnv: func() {
-				os.Setenv(constants.DDHostName, "test-hostname")
 				// No operator credentials
 			},
 			setupDDA: func() []client.Object {
@@ -136,7 +134,6 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 		{
 			name: "DDA with API key and custom site",
 			setupEnv: func() {
-				os.Setenv(constants.DDHostName, "test-hostname")
 				// No operator credentials
 			},
 			setupDDA: func() []client.Object {
@@ -166,7 +163,6 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 		{
 			name: "DDA with secret reference",
 			setupEnv: func() {
-				os.Setenv(constants.DDHostName, "test-hostname")
 				// No operator credentials
 			},
 			setupDDA: func() []client.Object {
@@ -211,7 +207,6 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 		{
 			name: "DDA with encrypted API key",
 			setupEnv: func() {
-				os.Setenv(constants.DDHostName, "test-hostname")
 				// No operator credentials
 			},
 			setupDDA: func() []client.Object {
@@ -243,7 +238,6 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 			setupEnv: func() {
 				os.Setenv(constants.DDAPIKey, "operator-api-key")
 				os.Setenv(constants.DDAppKey, "operator-app-key")
-				os.Setenv(constants.DDHostName, "test-hostname")
 				// Note: No DD_CLUSTER_NAME set to trigger fallback
 			},
 			setupDDA: func() []client.Object {
@@ -271,22 +265,8 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 		},
 		// Error cases
 		{
-			name: "missing hostname should fail",
-			setupEnv: func() {
-				os.Setenv(constants.DDAPIKey, "operator-api-key")
-				os.Setenv(constants.DDAppKey, "operator-app-key")
-				// No DDHostName set
-			},
-			setupDDA: func() []client.Object {
-				return []client.Object{} // No DDA
-			},
-			wantClusterName: "", // Not relevant for error case
-			wantErr:         true,
-		},
-		{
 			name: "no credentials anywhere should fail",
 			setupEnv: func() {
-				os.Setenv(constants.DDHostName, "test-hostname")
 				// No operator credentials
 			},
 			setupDDA: func() []client.Object {

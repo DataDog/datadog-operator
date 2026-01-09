@@ -90,11 +90,6 @@ func NewCRDMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubern
 
 // Start starts the CRD metadata forwarder
 func (cmf *CRDMetadataForwarder) Start() {
-	if cmf.hostName == "" {
-		cmf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting metadata forwarder")
-		return
-	}
-
 	cmf.logger.Info("Starting metadata forwarder")
 
 	ticker := time.NewTicker(crdMetadataInterval)

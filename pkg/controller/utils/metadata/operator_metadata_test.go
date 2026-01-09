@@ -36,7 +36,6 @@ func Test_getURL(t *testing.T) {
 				os.Setenv("DD_CLUSTER_NAME", "cluster")
 				os.Setenv("DD_API_KEY", "api-key")
 				os.Setenv("DD_APP_KEY", "app-key")
-				os.Setenv("DD_HOSTNAME", "host-name")
 			},
 			wantURL: "https://app.datadoghq.com/api/v1/metadata",
 		},
@@ -47,7 +46,6 @@ func Test_getURL(t *testing.T) {
 				os.Setenv("DD_SITE", "datad0g.com")
 				os.Setenv("DD_API_KEY", "api-key")
 				os.Setenv("DD_APP_KEY", "app-key")
-				os.Setenv("DD_HOSTNAME", "host-name")
 			},
 			wantURL: "https://app.datad0g.com/api/v1/metadata",
 		},
@@ -58,7 +56,6 @@ func Test_getURL(t *testing.T) {
 				os.Setenv("DD_URL", "https://app.datad0g.com")
 				os.Setenv("DD_API_KEY", "api-key")
 				os.Setenv("DD_APP_KEY", "app-key")
-				os.Setenv("DD_HOSTNAME", "host-name")
 			},
 			wantURL: "https://app.datad0g.com/api/v1/metadata",
 		},
@@ -116,7 +113,6 @@ func Test_setup(t *testing.T) {
 				os.Setenv("DD_API_KEY", fakeAPIKeyOperator)
 				os.Setenv("DD_APP_KEY", fakeAPPKeyDDA)
 				os.Setenv("DD_CLUSTER_NAME", fakeClusterNameOperator)
-				os.Setenv("DD_HOSTNAME", "host-name")
 			},
 			dda:             &v2alpha1.DatadogAgent{},
 			wantClusterName: "fake_cluster_name_operator",
@@ -128,7 +124,6 @@ func Test_setup(t *testing.T) {
 			loadFunc: func() {
 				os.Clearenv()
 				os.Setenv("DD_CLUSTER_NAME", fakeClusterNameOperator)
-				os.Setenv("DD_HOSTNAME", "host-name")
 
 			},
 			dda: &v2alpha1.DatadogAgent{
@@ -149,7 +144,6 @@ func Test_setup(t *testing.T) {
 			name: "credentials and site set in DDA",
 			loadFunc: func() {
 				os.Clearenv()
-				os.Setenv("DD_HOSTNAME", "host-name")
 			},
 			dda: &v2alpha1.DatadogAgent{
 				Spec: v2alpha1.DatadogAgentSpec{
@@ -209,7 +203,6 @@ func Test_GetPayload(t *testing.T) {
 	expectedKubernetesVersion := "v1.28.0"
 	expectedOperatorVersion := "v1.19.0"
 	expectedClusterUID := "test-cluster-uid-12345"
-	expectedHostname := "test-host"
 
 	s := testutils_test.TestScheme()
 	kubeSystem := &corev1.Namespace{
@@ -227,9 +220,6 @@ func Test_GetPayload(t *testing.T) {
 		},
 	}
 
-	// Set hostname in SharedMetadata to simulate it being populated
-	omf.hostName = expectedHostname
-
 	payload := omf.GetPayload(expectedClusterUID)
 
 	// Verify payload is valid JSON
@@ -244,10 +234,6 @@ func Test_GetPayload(t *testing.T) {
 	}
 
 	// Validate top-level fields
-	if hostname, ok := parsed["hostname"].(string); !ok || hostname != expectedHostname {
-		t.Errorf("GetPayload() hostname = %v, want %v", hostname, expectedHostname)
-	}
-
 	if timestamp, ok := parsed["timestamp"].(float64); !ok || timestamp <= 0 {
 		t.Errorf("GetPayload() timestamp = %v, want positive number", timestamp)
 	}
