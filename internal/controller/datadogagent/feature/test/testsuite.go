@@ -43,6 +43,7 @@ type FeatureTest struct {
 	Agent               *ComponentTest
 	ClusterAgent        *ComponentTest
 	ClusterChecksRunner *ComponentTest
+	OtelAgentGateway    *ComponentTest
 	// Want
 	WantConfigure             bool
 	WantManageDependenciesErr bool
@@ -167,6 +168,12 @@ func runTest(t *testing.T, tt FeatureTest) {
 			tplManager, _ := tt.ClusterChecksRunner.CreateFunc(t)
 			_ = feat.ManageClusterChecksRunner(tplManager, "")
 			tt.ClusterChecksRunner.WantFunc(t, tplManager)
+		}
+
+		if tt.OtelAgentGateway != nil {
+			tplManager, _ := tt.OtelAgentGateway.CreateFunc(t)
+			_ = feat.ManageOtelAgentGateway(tplManager, "")
+			tt.OtelAgentGateway.WantFunc(t, tplManager)
 		}
 	}
 }
