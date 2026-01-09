@@ -75,7 +75,6 @@ func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Dat
 
 	o.owner = dda
 	if value, ok := featureutils.HasHostProfilerConfigAnnotion(dda, featureutils.HostProfilerConfigDataAnnotion); ok {
-		fmt.Println("CONFIG::: ", value)
 		o.customConfig = &v2alpha1.CustomConfig{
 			ConfigData: apiutils.NewStringPointer(value),
 		}
@@ -83,7 +82,6 @@ func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Dat
 	}
 
 	if value, ok := featureutils.HasHostProfilerConfigAnnotion(dda, featureutils.HostProfilerConfigMapNameAnnotion); ok {
-		fmt.Println("CONFIG::: ", value)
 		o.customConfig = &v2alpha1.CustomConfig{
 			ConfigMap: &v2alpha1.ConfigMapConfig{
 				Name: value,
