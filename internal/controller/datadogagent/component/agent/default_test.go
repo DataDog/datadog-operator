@@ -7,6 +7,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/stretchr/testify/assert"
@@ -142,6 +144,54 @@ func TestCommonEnvVars(t *testing.T) {
 
 			assert.Equal(t, tt.expectedServiceName, clusterAgentServiceName)
 			assert.Equal(t, tt.expectedSecretName, clusterAgentTokenName)
+		})
+	}
+}
+
+func TestDefaultSyscallsForSystemProbe(t *testing.T) {
+	tests := []struct {
+		name             string
+		ddaSpec          *v2alpha1.DatadogAgentSpec
+		expectedSyscalls []string
+	}{
+		{
+			name: "default syscalls",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{},
+			},
+			expectedSyscalls: DefaultSyscallsForSystemProbe(),
+		},
+		{
+			name: "cws enabled and enforcement disabled",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					CWS: &v2alpha1.CWSFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(true),
+					},
+				},
+			},
+			expectedSyscalls: DefaultSyscallsForSystemProbe(),
+		},
+		{
+			name: "cws enabled and enforcement enabled",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					CWS: &v2alpha1.CWSFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(true),
+						Enforcement: &v2alpha1.CWSEnforcementConfig{
+							Enabled: apiutils.NewBoolPointer(true),
+						},
+					},
+				},
+			},
+			expectedSyscalls: append(DefaultSyscallsForSystemProbe(), "kill"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			syscalls := syscallsForSystemProbe(tt.ddaSpec)
+			assert.Equal(t, tt.expectedSyscalls, syscalls)
 		})
 	}
 }

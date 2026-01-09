@@ -550,6 +550,7 @@ datadog.securityAgent.runtime.activityDump.pathMerge.enabled: ""
 datadog.securityAgent.runtime.activityDump.tracedCgroupsCount: ""
 datadog.securityAgent.runtime.containerExclude: ""
 datadog.securityAgent.runtime.containerInclude: ""
+datadog.securityAgent.runtime.enforcement.enabled: spec.features.cws.enforcement.enabled
 datadog.securityAgent.runtime.enabled: spec.features.cws.enabled
 datadog.securityAgent.runtime.fimEnabled: ""
 datadog.securityAgent.runtime.network.enabled: spec.features.cws.network.enabled

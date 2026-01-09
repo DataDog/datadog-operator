@@ -32,6 +32,9 @@ func Test_cwsFeature_Configure(t *testing.T) {
 			Features: &v2alpha1.DatadogFeatures{
 				CWS: &v2alpha1.CWSFeatureConfig{
 					Enabled: apiutils.NewBoolPointer(false),
+					Enforcement: &v2alpha1.CWSEnforcementConfig{
+						Enabled: apiutils.NewBoolPointer(false),
+					},
 				},
 				RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 					Enabled: apiutils.NewBoolPointer(false),
@@ -83,6 +86,11 @@ func Test_cwsFeature_Configure(t *testing.T) {
 		ddaCWSLiteDirectSendEnabled.Spec.Features.CWS.DirectSendFromSystemProbe = apiutils.NewBoolPointer(true)
 	}
 
+	ddaCWSLiteEnforcementEnabled := ddaCWSLiteEnabled.DeepCopy()
+	{
+		ddaCWSLiteEnforcementEnabled.Spec.Features.CWS.Enforcement.Enabled = apiutils.NewBoolPointer(true)
+	}
+
 	tests := test.FeatureTestSuite{
 		{
 			Name:          "v2alpha1 CWS not enabled",
@@ -93,33 +101,44 @@ func Test_cwsFeature_Configure(t *testing.T) {
 			Name:          "v2alpha1 CWS enabled",
 			DDA:           ddaCWSLiteEnabled,
 			WantConfigure: true,
-			Agent:         cwsAgentNodeWantFunc(false, false),
+			Agent:         cwsAgentNodeWantFunc(false, false, false),
 		},
 		{
 			Name:          "v2alpha1 CWS enabled (with network, security profiles and remote configuration)",
 			DDA:           ddaCWSFullEnabled,
 			WantConfigure: true,
-			Agent:         cwsAgentNodeWantFunc(true, false),
+			Agent:         cwsAgentNodeWantFunc(true, false, false),
 		},
 		{
 			Name:          "v2alpha1 CWS enabled in direct sender mode",
 			DDA:           ddaCWSLiteDirectSendEnabled,
 			WantConfigure: true,
-			Agent:         cwsAgentNodeWantFunc(false, true),
+			Agent:         cwsAgentNodeWantFunc(false, true, false),
+		},
+		{
+			Name:          "v2alpha1 CWS enabled with enforcement",
+			DDA:           ddaCWSLiteEnforcementEnabled,
+			WantConfigure: true,
+			Agent:         cwsAgentNodeWantFunc(false, false, true),
 		},
 	}
 
 	tests.Run(t, buildCWSFeature)
 }
 
-func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool) *test.ComponentTest {
+func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool, enforcementEnabled bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
 			// check security context capabilities
 			sysProbeCapabilities := mgr.SecurityContextMgr.CapabilitiesByC[apicommon.SystemProbeContainerName]
-			assert.True(t, apiutils.IsEqualStruct(sysProbeCapabilities, agent.DefaultCapabilitiesForSystemProbe()), "System Probe security context capabilities \ndiff = %s", cmp.Diff(sysProbeCapabilities, agent.DefaultCapabilitiesForSystemProbe()))
+
+			capabilitiesWant := agent.DefaultCapabilitiesForSystemProbe()
+			if enforcementEnabled {
+				capabilitiesWant = append(capabilitiesWant, "KILL")
+			}
+			assert.True(t, apiutils.IsEqualStruct(sysProbeCapabilities, capabilitiesWant), "System Probe security context capabilities \ndiff = %s", cmp.Diff(sysProbeCapabilities, capabilitiesWant))
 
 			securityWant := []*corev1.EnvVar{
 				{
@@ -207,11 +226,6 @@ func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool) *te
 					ReadOnly:  false,
 				},
 				{
-					Name:      tracefsVolumeName,
-					MountPath: tracefsPath,
-					ReadOnly:  false,
-				},
-				{
 					Name:      common.SystemProbeSocketVolumeName,
 					MountPath: common.SystemProbeSocketVolumePath,
 					ReadOnly:  false,
@@ -269,14 +283,6 @@ func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool) *te
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
 							Path: common.DebugfsPath,
-						},
-					},
-				},
-				{
-					Name: tracefsVolumeName,
-					VolumeSource: corev1.VolumeSource{
-						HostPath: &corev1.HostPathVolumeSource{
-							Path: tracefsPath,
 						},
 					},
 				},

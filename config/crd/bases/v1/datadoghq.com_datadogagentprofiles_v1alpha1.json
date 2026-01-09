@@ -1233,6 +1233,16 @@
                       "description": "Enabled enables Cloud Workload Security.\nDefault: false",
                       "type": "boolean"
                     },
+                    "enforcement": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables Enforcement for Cloud Workload Security.\nDefault: true",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    },
                     "network": {
                       "additionalProperties": false,
                       "properties": {
