@@ -38,13 +38,15 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/aws"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/helm"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/guess"
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/helm"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/k8s"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 	"github.com/DataDog/datadog-operator/pkg/version"
@@ -222,6 +224,7 @@ func (o *options) run(cmd *cobra.Command) error {
 	defer stop()
 
 	log.SetOutput(cmd.OutOrStderr())
+	ctrl.SetLogger(zap.New(zap.UseDevMode(false), zap.WriteTo(cmd.ErrOrStderr())))
 
 	if clusterName == "" {
 		if name, err := o.getClusterNameFromKubeconfig(ctx); err != nil {
@@ -378,25 +381,28 @@ func updateAwsAuthConfigMap(ctx context.Context, clients *clients, clusterName s
 		return fmt.Errorf("failed to check if aws-auth ConfigMap is present: %w", err)
 	}
 
-	if awsAuthConfigMapPresent {
-		// Get AWS account ID
-		callerIdentity, err := clients.sts.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
-		if err != nil {
-			return fmt.Errorf("failed to get identity caller: %w", err)
-		}
-		if callerIdentity.Account == nil {
-			return errors.New("unable to determine AWS account ID from STS GetCallerIdentity")
-		}
-		accountID := *callerIdentity.Account
+	if !awsAuthConfigMapPresent {
+		log.Println("aws-auth ConfigMap not present, skipping role addition.")
+		return nil
+	}
 
-		// Add role mapping in the `aws-auth` ConfigMap
-		if err = aws.EnsureAwsAuthRole(ctx, clients.k8sClientset, aws.RoleMapping{
-			RoleArn:  "arn:aws:iam::" + accountID + ":role/KarpenterNodeRole-" + clusterName,
-			Username: "system:node:{{EC2PrivateDNSName}}",
-			Groups:   []string{"system:bootstrappers", "system:nodes"},
-		}); err != nil {
-			return fmt.Errorf("failed to update aws-auth ConfigMap: %w", err)
-		}
+	// Get AWS account ID
+	callerIdentity, err := clients.sts.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
+	if err != nil {
+		return fmt.Errorf("failed to get identity caller: %w", err)
+	}
+	if callerIdentity.Account == nil {
+		return errors.New("unable to determine AWS account ID from STS GetCallerIdentity")
+	}
+	accountID := *callerIdentity.Account
+
+	// Add role mapping in the `aws-auth` ConfigMap
+	if err = aws.EnsureAwsAuthRole(ctx, clients.k8sClientset, aws.RoleMapping{
+		RoleArn:  "arn:aws:iam::" + accountID + ":role/KarpenterNodeRole-" + clusterName,
+		Username: "system:node:{{EC2PrivateDNSName}}",
+		Groups:   []string{"system:bootstrappers", "system:nodes"},
+	}); err != nil {
+		return fmt.Errorf("failed to update aws-auth ConfigMap: %w", err)
 	}
 
 	return nil
