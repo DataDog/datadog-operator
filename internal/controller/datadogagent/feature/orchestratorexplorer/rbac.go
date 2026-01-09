@@ -109,7 +109,11 @@ func getRBACPolicyRules(logger logr.Logger, crs []string) []rbacv1.PolicyRule {
 		},
 		{
 			APIGroups: []string{rbac.ArgoProjAPIGroup},
-			Resources: []string{rbac.Rollout},
+			Resources: []string{rbac.Rollout, rbac.Applications, rbac.Applicationsets},
+		},
+		{
+			APIGroups: []string{rbac.FluxAPIGroup},
+			Resources: []string{rbac.Rollout, rbac.Buckets, rbac.Helmcharts, rbac.Externalartifacts, rbac.Gitrepositories, rbac.Helmrepositories, rbac.Ocirepositories, rbac.Kustomizations},
 		},
 		{
 			APIGroups: []string{rbac.KarpenterAPIGroup},
