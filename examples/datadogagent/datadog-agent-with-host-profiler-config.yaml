@@ -2,18 +2,9 @@ apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
   name: datadog
-spec:
-  global:
-    credentials:
-      apiKey: <DATADOG_API_KEY>
-  features:
-    hostProfiler:
-      enabled: true
-  features:
-    hostProfiler:
-      enabled: true
-      conf: 
-        configData: |-
+  annotations:
+    agent.datadoghq.com/host-profiler: "true"
+    agent.datadoghq.com/host-profiler/configData: |-
           extensions:
             ddprofiling/default:
             hpflare/default:
@@ -54,3 +45,7 @@ spec:
                 receivers: [otlp]
                 processors: [cumulativetodelta, infraattributes/default]
                 exporters: [otlphttp]
+spec:
+  global:
+    credentials:
+      apiKey: <DATADOG_API_KEY>

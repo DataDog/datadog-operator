@@ -47,8 +47,6 @@ type DatadogFeatures struct {
 	// OtelCollector configuration.
 	// +doc-gen:link=https://docs.datadoghq.com/opentelemetry/setup/ddot_collector/install/kubernetes_daemonset/?tab=datadogoperator#overview
 	OtelCollector *OtelCollectorFeatureConfig `json:"otelCollector,omitempty"`
-	// HostProfiler configuration.
-	HostProfiler *HostProfilerFeatureConfig `json:"hostProfiler,omitempty"`
 	// OtelAgentGateway configuration.
 	OtelAgentGateway *OtelAgentGatewayFeatureConfig `json:"otelAgentGateway,omitempty"`
 	// LogCollection configuration.
@@ -1010,21 +1008,6 @@ type OtelCollectorFeatureConfig struct {
 	// OTelCollector Config Relevant to the Core agent
 	// +optional
 	CoreConfig *CoreConfig `json:"coreConfig,omitempty"`
-}
-
-// HostProfilerFeatureConfig contains the configuration for the host profiler.
-// +k8s:openapi-gen=true
-type HostProfilerFeatureConfig struct {
-	// Enabled enables the Host Profiler.
-	// Default: false
-	// +optional
-	Enabled *bool `json:"enabled,omitempty"`
-
-	// Conf overrides the configuration for the default Kubernetes State Metrics Core check.
-	// This must point to a ConfigMap containing a valid cluster check configuration.
-	// When passing a configmap, file name *must* be otel-config.yaml.
-	// +optional
-	Conf *CustomConfig `json:"conf,omitempty"`
 }
 
 // OtelAgentGatewayFeatureConfig contains the configuration for the OTel Agent Gateway.

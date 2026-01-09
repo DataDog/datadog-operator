@@ -2,19 +2,13 @@ apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
   name: datadog
+  annotations:
+    agent.datadoghq.com/host-profiler: "true"
+    agent.datadoghq.com/host-profiler-configmap-name: "custom-config-map"
 spec:
   global:
     credentials:
       apiKey: <DATADOG_API_KEY>
-  features:
-    hostProfiler:
-      enabled: true
-  features:
-    hostProfiler:
-      enabled: true
-      conf: 
-        configMap: 
-          name: custom-config-map
 ---
 apiVersion: v1
 kind: ConfigMap

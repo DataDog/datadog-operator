@@ -249,12 +249,6 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OtelCollector.Enabled, defaultOtelCollectorEnabled)
 
-	// HostProfiler Feature
-	if ddaSpec.Features.HostProfiler == nil {
-		ddaSpec.Features.HostProfiler = &v2alpha1.HostProfilerFeatureConfig{}
-	}
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.HostProfiler.Enabled, defaultHostProfilerEnabled)
-
 	// LiveProcessCollection Feature
 	if ddaSpec.Features.LiveProcessCollection == nil {
 		ddaSpec.Features.LiveProcessCollection = &v2alpha1.LiveProcessCollectionFeatureConfig{}

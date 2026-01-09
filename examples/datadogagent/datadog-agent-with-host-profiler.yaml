@@ -2,10 +2,9 @@ apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
   name: datadog
+  annotations:
+    agent.datadoghq.com/host-profiler: "true"
 spec:
   global:
     credentials:
       apiKey: <DATADOG_API_KEY>
-  features:
-    hostProfiler:
-      enabled: true

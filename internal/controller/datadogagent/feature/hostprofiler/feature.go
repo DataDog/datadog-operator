@@ -2,6 +2,7 @@ package hostprofiler
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -13,6 +14,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/hostprofiler/defaultconfig"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
@@ -29,6 +31,7 @@ type hostProfilerFeature struct {
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
 	configMapName               string
+	hostProfilerEnabled         bool
 
 	hostPIDDisabledManually bool
 
@@ -58,6 +61,7 @@ func (o *hostProfilerFeature) ID() feature.IDType {
 }
 
 func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
+	o.hostProfilerEnabled = featureutils.HasHostProfilerAnnotation(dda)
 	o.logger.Info("The host profiler feature is experimental and subject to change")
 
 	// If a user disabled HostPID manually, error out rather than enabling it for them.
@@ -70,13 +74,26 @@ func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Dat
 	}
 
 	o.owner = dda
-	if ddaSpec.Features.HostProfiler.Conf != nil {
-		o.customConfig = ddaSpec.Features.HostProfiler.Conf
+	if value, ok := featureutils.HasHostProfilerConfigAnnotion(dda, featureutils.HostProfilerConfigDataAnnotion); ok {
+		fmt.Println("CONFIG::: ", value)
+		o.customConfig = &v2alpha1.CustomConfig{
+			ConfigData: apiutils.NewStringPointer(value),
+		}
+
+	}
+
+	if value, ok := featureutils.HasHostProfilerConfigAnnotion(dda, featureutils.HostProfilerConfigMapNameAnnotion); ok {
+		fmt.Println("CONFIG::: ", value)
+		o.customConfig = &v2alpha1.CustomConfig{
+			ConfigMap: &v2alpha1.ConfigMapConfig{
+				Name: value,
+			},
+		}
 	}
 	o.configMapName = constants.GetConfName(dda, o.customConfig, defaultHostProfilerConf)
 
 	var reqComp feature.RequiredComponents
-	if apiutils.BoolValue(ddaSpec.Features.HostProfiler.Enabled) {
+	if o.hostProfilerEnabled {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
