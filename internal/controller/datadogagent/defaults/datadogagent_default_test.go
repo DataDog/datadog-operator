@@ -2384,6 +2384,9 @@ func Test_defaultFeatures(t *testing.T) {
 						SecurityProfiles: &v2alpha1.CWSSecurityProfilesConfig{
 							Enabled: apiutils.NewBoolPointer(defaultCWSSecurityProfilesEnabled),
 						},
+						Enforcement: &v2alpha1.CWSEnforcementConfig{
+							Enabled: apiutils.NewBoolPointer(defaultCWSEnforcementEnabled),
+						},
 					},
 					NPM: &v2alpha1.NPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultNPMEnabled),

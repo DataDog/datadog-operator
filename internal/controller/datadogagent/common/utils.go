@@ -16,9 +16,11 @@ import (
 	"k8s.io/apimachinery/pkg/version"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
@@ -84,6 +86,27 @@ func GetDefaultLabels(owner metav1.Object, componentKind, instanceName, version 
 func GetAgentVersion(dda metav1.Object) string {
 	// TODO implement this method
 	return ""
+}
+
+// GetComponentVersion returns the component version based on the DDA spec.
+// It returns the default latest version if no override is specified.
+func GetComponentVersion(dda metav1.Object, componentName v2alpha1.ComponentName) string {
+	var spec *v2alpha1.DatadogAgentSpec
+	switch d := dda.(type) {
+	case *v2alpha1.DatadogAgent:
+		spec = &d.Spec
+	case *v1alpha1.DatadogAgentInternal:
+		spec = &d.Spec
+	default:
+		return images.AgentLatestVersion
+	}
+
+	if componentOverride, ok := spec.Override[componentName]; ok {
+		if componentOverride.Image != nil {
+			return GetAgentVersionFromImage(*componentOverride.Image)
+		}
+	}
+	return images.AgentLatestVersion
 }
 
 // GetDefaultSeccompConfigMapName returns the default seccomp configmap name based on the DatadogAgent name
