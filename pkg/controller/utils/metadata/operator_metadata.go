@@ -6,12 +6,10 @@
 package metadata
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
+	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -20,7 +18,6 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
-	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 const (
@@ -32,17 +29,15 @@ const (
 type OperatorMetadataForwarder struct {
 	*SharedMetadata
 
-	// Operator-specific fields
-	payloadHeader    http.Header
+	mutex            sync.RWMutex
 	OperatorMetadata OperatorMetadata
 }
 
 type OperatorMetadataPayload struct {
-	Hostname    string           `json:"hostname"`
-	Timestamp   int64            `json:"timestamp"`
-	ClusterID   string           `json:"cluster_id"`
-	ClusterName string           `json:"clustername"`
-	Metadata    OperatorMetadata `json:"datadog_operator_metadata"`
+	Hostname  string           `json:"hostname"`
+	Timestamp int64            `json:"timestamp"`
+	ClusterID string           `json:"cluster_id"`
+	Metadata  OperatorMetadata `json:"datadog_operator_metadata"`
 }
 
 type OperatorMetadata struct {
@@ -63,44 +58,35 @@ type OperatorMetadata struct {
 	RemoteConfigEnabled           bool           `json:"remote_config_enabled"`
 	IntrospectionEnabled          bool           `json:"introspection_enabled"`
 	ClusterID                     string         `json:"cluster_id"`
-	ClusterName                   string         `json:"cluster_name"`
 	ConfigDDURL                   string         `json:"config_dd_url"`
 	ConfigDDSite                  string         `json:"config_site"`
 	ResourceCounts                map[string]int `json:"resource_count"`
 }
 
 // NewOperatorMetadataForwarder creates a new instance of the operator metadata forwarder
-func NewOperatorMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string, credsManager *config.CredentialManager) *OperatorMetadataForwarder {
+func NewOperatorMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion, operatorVersion string, credsManager *config.CredentialManager) *OperatorMetadataForwarder {
+	forwarderLogger := logger.WithName("operator")
 	return &OperatorMetadataForwarder{
-		SharedMetadata:   NewSharedMetadata(logger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
+		SharedMetadata:   NewSharedMetadata(forwarderLogger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
 		OperatorMetadata: OperatorMetadata{},
 	}
 }
 
 // Start starts the operator metadata forwarder
 func (omf *OperatorMetadataForwarder) Start() {
-	err := omf.setCredentials()
-	if err != nil {
-		omf.logger.Error(err, "Could not set credentials; not starting operator metadata forwarder")
-		return
-	}
-
 	if omf.hostName == "" {
-		omf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting operator metadata forwarder")
+		omf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting metadata forwarder")
 		return
 	}
-
-	omf.payloadHeader = omf.getHeaders()
-
 	omf.updateResourceCounts()
 
-	omf.logger.Info("Starting operator metadata forwarder")
+	omf.logger.Info("Starting metadata forwarder")
 
 	ticker := time.NewTicker(defaultInterval)
 	go func() {
 		for range ticker.C {
 			if err := omf.sendMetadata(); err != nil {
-				omf.logger.Error(err, "Error while sending operator metadata")
+				omf.logger.V(1).Info("Error while sending metadata", "error", err)
 			}
 		}
 	}()
@@ -116,70 +102,47 @@ func (omf *OperatorMetadataForwarder) Start() {
 func (omf *OperatorMetadataForwarder) sendMetadata() error {
 	clusterUID, err := omf.GetOrCreateClusterUID()
 	if err != nil {
-		omf.logger.Error(err, "Failed to get cluster UID")
-		return err
+		return fmt.Errorf("error getting cluster UID: %w", err)
 	}
 	payload := omf.GetPayload(clusterUID)
-
-	omf.logger.Info("Operator metadata payload", "payload", string(payload))
-
-	omf.logger.V(1).Info("Sending operator metadata to URL", "url", omf.requestURL)
-
-	reader := bytes.NewReader(payload)
-	req, err := http.NewRequestWithContext(context.TODO(), "POST", omf.requestURL, reader)
+	req, err := omf.createRequest(payload)
 	if err != nil {
-		omf.logger.Error(err, "Error creating request", "url", omf.requestURL, "reader", reader)
-		return err
+		return fmt.Errorf("error creating request: %w", err)
 	}
-	req.Header = omf.payloadHeader
-
 	resp, err := omf.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("error sending operator metadata request: %w", err)
+		return fmt.Errorf("error sending metadata request: %w", err)
 	}
 
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read operator metadata response body: %w", err)
-	}
 
-	omf.logger.V(1).Info("Read operator metadata response", "status code", resp.StatusCode, "body", string(body))
+	omf.logger.V(1).Info("Sent metadata", "status code", resp.StatusCode)
 	return nil
 }
 
 func (omf *OperatorMetadataForwarder) GetPayload(clusterUID string) []byte {
 	now := time.Now().Unix()
 
+	omf.mutex.RLock()
+	defer omf.mutex.RUnlock()
+
 	omf.OperatorMetadata.ClusterID = clusterUID
-	omf.OperatorMetadata.ClusterName = omf.clusterName
 	omf.OperatorMetadata.OperatorVersion = omf.operatorVersion
 	omf.OperatorMetadata.KubernetesVersion = omf.kubernetesVersion
 
 	payload := OperatorMetadataPayload{
-		Hostname:    omf.hostName,
-		Timestamp:   now,
-		ClusterID:   clusterUID,
-		ClusterName: omf.clusterName,
-		Metadata:    omf.OperatorMetadata,
+		Hostname:  omf.hostName,
+		Timestamp: now,
+		ClusterID: clusterUID,
+		Metadata:  omf.OperatorMetadata,
 	}
 
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
-		omf.logger.Error(err, "Error marshaling payload to json")
+		omf.logger.V(1).Info("Error marshaling payload to json", "error", err)
 	}
 
 	return jsonPayload
-}
-
-func (omf *OperatorMetadataForwarder) setCredentials() error {
-	return omf.SharedMetadata.setCredentials()
-}
-
-func (omf *OperatorMetadataForwarder) getHeaders() http.Header {
-	headers := omf.GetBaseHeaders()
-	headers.Set(userAgentHTTPHeaderKey, fmt.Sprintf("Datadog Operator/%s", version.GetVersion()))
-	return headers
 }
 
 // updateResourceCounts refreshes resource counts and stores them in OperatorMetadata.ResourceCounts
@@ -189,6 +152,9 @@ func (omf *OperatorMetadataForwarder) updateResourceCounts() {
 	if omf.k8sClient == nil {
 		return
 	}
+
+	omf.mutex.Lock()
+	defer omf.mutex.Unlock()
 
 	// Only list resources that are enabled
 	// For each resource type: if fetch succeeds, update count; if fails, keep old value

@@ -13,13 +13,13 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-operator/pkg/config"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 func Test_HelmMetadataForwarder_getPayload(t *testing.T) {
 	expectedKubernetesVersion := "v1.28.0"
 	expectedOperatorVersion := "v1.19.0"
-	expectedClusterName := "test-cluster"
 	expectedHostname := "test-host"
 	expectedClusterUID := "test-cluster-uid-123"
 	expectedReleaseName := "my-release"
@@ -28,11 +28,10 @@ func Test_HelmMetadataForwarder_getPayload(t *testing.T) {
 	expectedChartVersion := "3.10.0"
 	expectedAppVersion := "7.50.0"
 
-	hmf := NewHelmMetadataForwarder(zap.New(zap.UseDevMode(true)), nil, expectedKubernetesVersion, expectedOperatorVersion, config.NewCredentialManager())
+	hmf := NewHelmMetadataForwarder(zap.New(zap.UseDevMode(true)), nil, expectedKubernetesVersion, expectedOperatorVersion, config.NewCredentialManager(fake.NewFakeClient()))
 
 	// Set required fields
 	hmf.hostName = expectedHostname
-	hmf.clusterName = expectedClusterName
 
 	release := HelmReleaseData{
 		ReleaseName:        expectedReleaseName,
@@ -88,10 +87,6 @@ func Test_HelmMetadataForwarder_getPayload(t *testing.T) {
 		t.Errorf("buildPayload() cluster_id = %v, want %v", clusterID, expectedClusterUID)
 	}
 
-	if clusterName, ok := metadata["cluster_name"].(string); !ok || clusterName != expectedClusterName {
-		t.Errorf("buildPayload() cluster_name = %v, want %v", clusterName, expectedClusterName)
-	}
-
 	if chartName, ok := metadata["chart_name"].(string); !ok || chartName != expectedChartName {
 		t.Errorf("buildPayload() chart_name = %v, want %v", chartName, expectedChartName)
 	}
@@ -113,7 +108,6 @@ func Test_HelmMetadataForwarder_getPayload(t *testing.T) {
 		"operator_version",
 		"kubernetes_version",
 		"cluster_id",
-		"cluster_name",
 		"chart_name",
 		"chart_release_name",
 		"chart_app_version",
@@ -132,7 +126,7 @@ func Test_HelmMetadataForwarder_getPayload(t *testing.T) {
 }
 
 func Test_parseHelmResource(t *testing.T) {
-	hmf := NewHelmMetadataForwarder(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0", config.NewCredentialManager())
+	hmf := NewHelmMetadataForwarder(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0", config.NewCredentialManager(fake.NewFakeClient()))
 
 	// Create a minimal valid Helm release JSON
 	releaseData := HelmReleaseMinimal{
@@ -278,7 +272,7 @@ func Test_allHelmReleasesCache(t *testing.T) {
 }
 
 func Test_mergeValues(t *testing.T) {
-	hmf := NewHelmMetadataForwarder(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0", config.NewCredentialManager())
+	hmf := NewHelmMetadataForwarder(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0", config.NewCredentialManager(fake.NewFakeClient()))
 
 	tests := []struct {
 		name      string

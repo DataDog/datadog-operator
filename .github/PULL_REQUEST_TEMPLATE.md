@@ -25,3 +25,6 @@ Write there any instructions and details you may have to test your PR.
 
 - [ ] PR has at least one valid label: `bug`, `enhancement`, `refactoring`, `documentation`, `tooling`, and/or `dependencies`
 - [ ] PR has a milestone or the `qa/skip-qa` label
+- [ ] All commits are signed (see: [signing commits][1])
+
+[1]: https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits

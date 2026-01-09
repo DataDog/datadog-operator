@@ -2,11 +2,12 @@ name: validation
 on: [push, pull_request]
 # Permission forced by repo-level setting; only elevate on job-level
 permissions:
+  id-token: write # needed for codecov, allows the action to get a JWT signed by GitHub
   contents: read
   # packages: read
 env:
   PROJECTNAME: "datadog-operator"
-  GO_VERSION: 1.25.3
+  GO_VERSION: 1.25.5
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -33,6 +34,6 @@ jobs:
           make test
       - uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
           files: cover.out,cover_integration.out
           flags: unittests

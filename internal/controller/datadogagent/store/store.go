@@ -32,6 +32,10 @@ import (
 const (
 	// OperatorStoreLabelKey used to identified which resource is managed by the store.
 	OperatorStoreLabelKey = "operator.datadoghq.com/managed-by-store"
+	// ManagedByDDAControllerLabelKey used to identify resources managed by the DDA controller
+	// when DatadogAgentInternalEnabled is true. These resources should not be cleaned up
+	// by the DDAI controller to avoid competition between the two controllers.
+	ManagedByDDAControllerLabelKey = "operator.datadoghq.com/managed-by-dda-controller"
 )
 
 // StoreClient dependencies store client interface
@@ -56,6 +60,7 @@ func NewStore(owner metav1.Object, options *StoreOptions) *Store {
 		store.platformInfo = options.PlatformInfo
 		store.logger = options.Logger
 		store.scheme = options.Scheme
+		store.isDDAControllerStore = options.IsDDAControllerStore
 	}
 
 	return store
@@ -67,8 +72,9 @@ type Store struct {
 	deps  map[kubernetes.ObjectKind]map[string]client.Object
 	mutex sync.RWMutex
 
-	supportCilium bool
-	platformInfo  kubernetes.PlatformInfo
+	supportCilium        bool
+	platformInfo         kubernetes.PlatformInfo
+	isDDAControllerStore bool
 
 	scheme *runtime.Scheme
 	logger logr.Logger
@@ -82,6 +88,12 @@ type StoreOptions struct {
 
 	Scheme *runtime.Scheme
 	Logger logr.Logger
+
+	// IsDDAControllerStore indicates that this store is used by the DDA controller
+	// to manage dependencies when DatadogAgentInternalEnabled is true.
+	// Resources created by this store will be labeled with ManagedByDDAControllerLabelKey
+	// so they won't be cleaned up by the DDAI controller.
+	IsDDAControllerStore bool
 }
 
 // AddOrUpdate used to add or update an object in the Store
@@ -100,6 +112,13 @@ func (ds *Store) AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) erro
 		obj.SetLabels(map[string]string{})
 	}
 	obj.GetLabels()[OperatorStoreLabelKey] = "true"
+
+	// Add the DDA controller label when this store is used by the DDA controller
+	// with DatadogAgentInternalEnabled. This prevents DDAI controller from cleaning
+	// up these resources.
+	if ds.isDDAControllerStore {
+		obj.GetLabels()[ManagedByDDAControllerLabelKey] = "true"
+	}
 
 	if ds.owner != nil {
 		defaultLabels := object.GetDefaultLabels(ds.owner, ds.owner.GetName(), common.GetAgentVersion(ds.owner))
@@ -247,16 +266,34 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 	return errs
 }
 
-// Cleanup use to cleanup resources that are not needed anymore
-func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client) []error {
+// Cleanup use to cleanup resources that are not needed anymore.
+// If excludeDDAManagedResources is true, resources managed by the DDA controller
+// (marked with ManagedByDDAControllerLabelKey) will be excluded from cleanup.
+// This is used when the DDAI controller performs cleanup to avoid deleting
+// resources managed by the DDA controller.
+//
+// If the store is a DDA controller store (isDDAControllerStore is true), cleanup
+// will ONLY delete resources that have the ManagedByDDAControllerLabelKey label.
+// This prevents the DDA controller from accidentally deleting DDAI-managed resources.
+func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client, excludeDDAManagedResources bool) []error {
 	ds.mutex.RLock()
 	defer ds.mutex.RUnlock()
 
 	var errs []error
 
-	requirementLabel, _ := labels.NewRequirement(OperatorStoreLabelKey, selection.Exists, nil)
+	selector := labels.NewSelector()
+	requirementStore, _ := labels.NewRequirement(OperatorStoreLabelKey, selection.Exists, nil)
+	selector = selector.Add(*requirementStore)
+
+	// If this is a DDA controller store, only list resources that have the DDA controller label.
+	// This ensures the DDA controller only cleans up its own resources, not DDAI resources.
+	if ds.isDDAControllerStore {
+		requirementDDA, _ := labels.NewRequirement(ManagedByDDAControllerLabelKey, selection.Exists, nil)
+		selector = selector.Add(*requirementDDA)
+	}
+
 	listOptions := &client.ListOptions{
-		LabelSelector: labels.NewSelector().Add(*requirementLabel),
+		LabelSelector: selector,
 	}
 	for _, kind := range ds.platformInfo.GetAgentResourcesKind(ds.supportCilium) {
 		objList := kubernetes.ObjectListFromKind(kind, ds.platformInfo)
@@ -265,7 +302,7 @@ func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client) []error {
 			continue
 		}
 
-		objsToDelete, err := ds.listObjectToDelete(objList, ds.deps[kind])
+		objsToDelete, err := ds.listObjectToDelete(objList, ds.deps[kind], excludeDDAManagedResources)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -328,7 +365,7 @@ func (ds *Store) DeleteAll(ctx context.Context, k8sClient client.Client) []error
 	return deleteObjects(ctx, k8sClient, objsToDelete)
 }
 
-func (ds *Store) listObjectToDelete(objList client.ObjectList, cacheObjects map[string]client.Object) ([]client.Object, error) {
+func (ds *Store) listObjectToDelete(objList client.ObjectList, cacheObjects map[string]client.Object, excludeDDAManagedResources bool) ([]client.Object, error) {
 	items, err := apimeta.ExtractList(objList)
 	if err != nil {
 		return nil, err
@@ -340,9 +377,19 @@ func (ds *Store) listObjectToDelete(objList client.ObjectList, cacheObjects map[
 
 		idObj := buildID(objMeta.GetNamespace(), objMeta.GetName())
 		if _, found := cacheObjects[idObj]; !found {
-			labels := objMeta.GetLabels()
+			objLabels := objMeta.GetLabels()
+
+			// Skip resources managed by the DDA controller when excludeDDAManagedResources is true.
+			// This prevents the DDAI controller from deleting resources that are managed
+			// by the DDA controller (manageDDADependenciesWithDDAI).
+			if excludeDDAManagedResources {
+				if _, isDDAManaged := objLabels[ManagedByDDAControllerLabelKey]; isDDAManaged {
+					continue
+				}
+			}
+
 			// only delete dependencies associated with the currently reconciled dda
-			if partOfValue, found := labels[kubernetes.AppKubernetesPartOfLabelKey]; found {
+			if partOfValue, found := objLabels[kubernetes.AppKubernetesPartOfLabelKey]; found {
 				partialDDA := &metav1.PartialObjectMetadata{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      ds.owner.GetName(),
