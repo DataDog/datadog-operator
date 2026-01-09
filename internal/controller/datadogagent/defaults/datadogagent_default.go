@@ -28,6 +28,7 @@ const (
 	defaultLogContainerSymlinksPath      string = "/var/log/containers"
 
 	defaultOtelCollectorEnabled           bool = false
+	defaultHostProfilerEnabled            bool = false
 	defaultLiveProcessCollectionEnabled   bool = false
 	defaultLiveContainerCollectionEnabled bool = true
 	defaultProcessDiscoveryEnabled        bool = true
