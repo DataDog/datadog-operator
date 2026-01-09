@@ -161,28 +161,45 @@ func (o *options) run(cmd *cobra.Command) error {
 		return fmt.Errorf("failed to build clients: %w", err)
 	}
 
+	// Accumulate errors from cleanup steps - continue on failure to clean up as much as possible
+	var errs []error
+
 	if err = deleteKarpenterNodePools(ctx, clients); err != nil {
 		log.Printf("Warning: failed to delete NodePools: %v", err)
+		errs = append(errs, fmt.Errorf("NodePool deletion: %w", err))
 	}
 
 	if err = deleteKarpenterEC2NodeClasses(ctx, clients); err != nil {
 		log.Printf("Warning: failed to delete EC2NodeClasses: %v", err)
+		errs = append(errs, fmt.Errorf("EC2NodeClass deletion: %w", err))
 	}
 
 	if err = waitForKarpenterNodesToTerminate(ctx, clients, clusterName); err != nil {
 		log.Printf("Warning: failed to wait for Karpenter nodes to terminate: %v", err)
+		errs = append(errs, fmt.Errorf("node termination wait: %w", err))
 	}
 
 	if err = o.uninstallHelmChart(ctx, karpenterNamespace); err != nil {
 		log.Printf("Warning: failed to uninstall Helm chart: %v", err)
+		errs = append(errs, fmt.Errorf("Helm uninstall: %w", err))
 	}
 
 	if err = removeAwsAuthConfigMapRole(ctx, clients, clusterName); err != nil {
 		log.Printf("Warning: failed to remove aws-auth role: %v", err)
+		errs = append(errs, fmt.Errorf("aws-auth role removal: %w", err))
 	}
 
 	if err = deleteCloudFormationStacks(ctx, clients, clusterName); err != nil {
 		log.Printf("Warning: failed to delete CloudFormation stacks: %v", err)
+		errs = append(errs, fmt.Errorf("CloudFormation stack deletion: %w", err))
+	}
+
+	if len(errs) > 0 {
+		msg = "Uninstall completed with errors. Some resources may not have been cleaned up."
+		cmd.Println("╭─" + strings.Repeat("─", len(msg)) + "─╮")
+		cmd.Println("│ " + msg + " │")
+		cmd.Println("╰─" + strings.Repeat("─", len(msg)) + "─╯")
+		return fmt.Errorf("uninstall encountered %d error(s):\n%w", len(errs), errors.Join(errs...))
 	}
 
 	msg = "Karpenter uninstalled from cluster " + clusterName + "."
