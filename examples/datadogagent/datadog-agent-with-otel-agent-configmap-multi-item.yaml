@@ -14,8 +14,8 @@ spec:
           name: otel-grpc
         - containerPort: 4318
           name: otel-http
-      conf: 
-        configMap: 
+      conf:
+        configMap:
           name: custom-config-map
           items:
             - key: otel-config.yaml
@@ -39,27 +39,24 @@ data:
             endpoint: 0.0.0.0:4317
           http:
             endpoint: 0.0.0.0:4318
+  otel-config-two.yaml: |-
     exporters:
       debug:
         verbosity: detailed
       datadog:
         api:
           key: ${env:DD_API_KEY}
-  otel-config-two.yaml: |-
-    processors:
-      batch:
+        sending_queue:
+          batch:
   otel-config-three.yaml: |-
     service:
       pipelines:
         traces:
           receivers: [otlp]
-          processors: [batch]
           exporters: [datadog]
         metrics:
           receivers: [otlp]
-          processors: [batch]
           exporters: [datadog]
         logs:
           receivers: [otlp]
-          processors: [batch]
           exporters: [datadog]
