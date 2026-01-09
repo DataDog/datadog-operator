@@ -3,7 +3,7 @@ kind: DatadogAgent
 metadata:
   name: datadog
   annotations:
-    agent.datadoghq.com/host-profiler: "true"
+    agent.datadoghq.com/host-profiler-enabled: "true"
     agent.datadoghq.com/host-profiler-configmap-name: "custom-config-map"
 spec:
   global:

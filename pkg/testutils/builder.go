@@ -13,7 +13,6 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
-	hpdefaultconfig "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/hostprofiler/defaultconfig"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector/defaultconfig"
 	"github.com/DataDog/datadog-operator/pkg/images"
 )
@@ -464,51 +463,6 @@ func (builder *DatadogAgentBuilder) WithOTelCollectorPorts(grpcPort int32, httpP
 			Name:          "otel-grpc",
 			ContainerPort: grpcPort,
 			Protocol:      corev1.ProtocolTCP,
-		},
-	}
-	return builder
-}
-
-// Host Profiler
-func (builder *DatadogAgentBuilder) initHostProfiler() {
-	if builder.datadogAgent.Spec.Features.HostProfiler == nil {
-		builder.datadogAgent.Spec.Features.HostProfiler = &v2alpha1.HostProfilerFeatureConfig{}
-	}
-}
-
-func (builder *DatadogAgentBuilder) WithHostProfilerEnabled(enabled bool) *DatadogAgentBuilder {
-	builder.initHostProfiler()
-	builder.datadogAgent.Spec.Features.HostProfiler.Enabled = apiutils.NewBoolPointer(enabled)
-	return builder
-}
-
-func (builder *DatadogAgentBuilder) WithHostProfilerConfig() *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Features.HostProfiler.Conf = &v2alpha1.CustomConfig{}
-	builder.datadogAgent.Spec.Features.HostProfiler.Conf.ConfigData = apiutils.NewStringPointer(hpdefaultconfig.DefaultHostProfilerConfig)
-	return builder
-}
-
-func (builder *DatadogAgentBuilder) WithHostProfilerConfigMap() *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Features.HostProfiler.Conf = &v2alpha1.CustomConfig{}
-	builder.datadogAgent.Spec.Features.HostProfiler.Conf.ConfigMap = &v2alpha1.ConfigMapConfig{
-		Name: "user-provided-config-map",
-	}
-	return builder
-}
-
-func (builder *DatadogAgentBuilder) WithHostProfilerConfigMapMultipleItems() *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Features.HostProfiler.Conf = &v2alpha1.CustomConfig{}
-	builder.datadogAgent.Spec.Features.HostProfiler.Conf.ConfigMap = &v2alpha1.ConfigMapConfig{
-		Name: "user-provided-config-map",
-		Items: []corev1.KeyToPath{
-			{
-				Key:  "otel-config.yaml",
-				Path: "otel-config.yaml",
-			},
-			{
-				Key:  "otel-config-two.yaml",
-				Path: "otel-config-two.yaml",
-			},
 		},
 	}
 	return builder

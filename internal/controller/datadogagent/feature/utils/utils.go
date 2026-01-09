@@ -23,7 +23,7 @@ import (
 const ProcessConfigRunInCoreAgentMinVersion = "7.60.0-0"
 const EnableADPAnnotation = "agent.datadoghq.com/adp-enabled"
 const EnableFineGrainedKubeletAuthz = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
-const EnableHostProfilerAnnotion = "agent.datadoghq.com/host-profiler"
+const EnableHostProfilerAnnotion = "agent.datadoghq.com/host-profiler-enabled"
 const HostProfilerConfigDataAnnotion = "agent.datadoghq.com/host-profiler-configdata"
 // Config map item must be `host-profiler-config.yaml`
 const HostProfilerConfigMapNameAnnotion = "agent.datadoghq.com/host-profiler-configmap-name"

@@ -9,6 +9,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/hostprofiler/defaultconfig"
+	hpdefaultconfig "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/hostprofiler/defaultconfig"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -68,15 +69,17 @@ func Test_hostProfilerFeature_Configure(t *testing.T) {
 		{
 			Name: "host profiler disabled without config",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithHostProfilerEnabled(false).
+				WithAnnotations(map[string]string{"agent.datadoghq.com/host-profiler-enabled": "false"}).
 				Build(),
 			WantConfigure: false,
 		},
 		{
 			Name: "host profiler disabled with config",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithHostProfilerEnabled(false).
-				WithHostProfilerConfig().
+				WithAnnotations(map[string]string{
+					"agent.datadoghq.com/host-profiler-enabled":    "false",
+					"agent.datadoghq.com/host-profiler-configdata": hpdefaultconfig.DefaultHostProfilerConfig,
+				}).
 				Build(),
 			WantConfigure: false,
 		},
@@ -84,8 +87,10 @@ func Test_hostProfilerFeature_Configure(t *testing.T) {
 		{
 			Name: "host profiler enabled with config",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithHostProfilerEnabled(true).
-				WithHostProfilerConfig().
+				WithAnnotations(map[string]string{
+					"agent.datadoghq.com/host-profiler-enabled":    "true",
+					"agent.datadoghq.com/host-profiler-configdata": hpdefaultconfig.DefaultHostProfilerConfig,
+				}).
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
@@ -94,56 +99,19 @@ func Test_hostProfilerFeature_Configure(t *testing.T) {
 		{
 			Name: "host profiler enabled with configMap",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithHostProfilerEnabled(true).
-				WithHostProfilerConfigMap().
+				WithAnnotations(map[string]string{
+					"agent.datadoghq.com/host-profiler-enabled":        "true",
+					"agent.datadoghq.com/host-profiler-configmap-name": "user-provided-config-map",
+				}).
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
 			Agent:                testExpectedAgent(apicommon.HostProfiler, map[string]string{}, defaultVolumeMounts, defaultVolumes("user-provided-config-map")),
 		},
 		{
-			Name: "host profiler enabled with configMap multi items",
-			DDA: testutils.NewDatadogAgentBuilder().
-				WithHostProfilerEnabled(true).
-				WithHostProfilerConfigMapMultipleItems().
-				Build(),
-			WantConfigure:        true,
-			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent: testExpectedAgent(apicommon.HostProfiler, map[string]string{}, []corev1.VolumeMount{
-				tracingfsVolumeMount,
-				{
-					Name:      hostProfilerVolumeName,
-					MountPath: common.ConfigVolumePath + "/otel/",
-				},
-			},
-				[]corev1.Volume{
-					tracingfsVolume,
-					{
-						Name: hostProfilerVolumeName,
-						VolumeSource: corev1.VolumeSource{
-							ConfigMap: &corev1.ConfigMapVolumeSource{
-								LocalObjectReference: corev1.LocalObjectReference{
-									Name: "user-provided-config-map",
-								},
-								Items: []corev1.KeyToPath{
-									{
-										Key:  "otel-config.yaml",
-										Path: "otel-config.yaml",
-									},
-									{
-										Key:  "otel-config-two.yaml",
-										Path: "otel-config-two.yaml",
-									},
-								},
-							},
-						},
-					},
-				}),
-		},
-		{
 			Name: "host profiler enabled without config",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithHostProfilerEnabled(true).
+				WithAnnotations(map[string]string{"agent.datadoghq.com/host-profiler-enabled": "true"}).
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,

@@ -210,7 +210,7 @@ func TestBuilder(t *testing.T) {
 		{
 			name: "Default DDA, host profiler feature enabled",
 			dda: testutils.NewDatadogAgentBuilder().
-				WithHostProfilerEnabled(true).
+				WithAnnotations(map[string]string{"agent.datadoghq.com/host-profiler-enabled": "true"}).
 				BuildWithDefaults(),
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: false,
@@ -227,7 +227,7 @@ func TestBuilder(t *testing.T) {
 		{
 			name: "Default DDA, host profiler feature disabled",
 			dda: testutils.NewDatadogAgentBuilder().
-				WithHostProfilerEnabled(false).
+				WithAnnotations(map[string]string{"agent.datadoghq.com/host-profiler-enabled": "false"}).
 				BuildWithDefaults(),
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: false,
