@@ -56,6 +56,7 @@ const (
 	defaultCWSDirectSendFromSystemProbe bool   = false
 	defaultCWSNetworkEnabled            bool   = true
 	defaultCWSSecurityProfilesEnabled   bool   = true
+	defaultCWSEnforcementEnabled        bool   = true
 	defaultAPMErrorTrackingStandalone   bool   = false
 
 	defaultNPMEnabled         bool = false
@@ -391,11 +392,15 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		if ddaSpec.Features.CWS.SecurityProfiles == nil {
 			ddaSpec.Features.CWS.SecurityProfiles = &v2alpha1.CWSSecurityProfilesConfig{}
 		}
+		if ddaSpec.Features.CWS.Enforcement == nil {
+			ddaSpec.Features.CWS.Enforcement = &v2alpha1.CWSEnforcementConfig{}
+		}
 
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.SyscallMonitorEnabled, defaultCWSSyscallMonitorEnabled)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.Network.Enabled, defaultCWSNetworkEnabled)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.SecurityProfiles.Enabled, defaultCWSSecurityProfilesEnabled)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.DirectSendFromSystemProbe, defaultCWSDirectSendFromSystemProbe)
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.Enforcement.Enabled, defaultCWSEnforcementEnabled)
 	}
 
 	// NPM (Network Performance Monitoring) Feature

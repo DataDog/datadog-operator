@@ -17,17 +17,16 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
 exporters:
-  debug:
-    verbosity: detailed
   datadog:
     api:
       key: ${env:DD_API_KEY}
       site: ${env:DD_SITE}
+    sending_queue:
+      batch:
+       flush_timeout: 10s
 processors:
   infraattributes:
     cardinality: 2
-  batch:
-    timeout: 10s
   filter/drop-prometheus-internal-metrics:
     metrics:
       exclude:
@@ -46,17 +45,17 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [infraattributes, batch]
+      processors: [infraattributes]
       exporters: [datadog, datadog/connector]
     metrics:
       receivers: [otlp, datadog/connector]
-      processors: [infraattributes, batch]
-      exporters: [datadog]    
+      processors: [infraattributes]
+      exporters: [datadog]
     metrics/prometheus:
       receivers: [prometheus]
-      processors: [filter/drop-prometheus-internal-metrics, infraattributes, batch]
+      processors: [filter/drop-prometheus-internal-metrics, infraattributes]
       exporters: [datadog]
     logs:
       receivers: [otlp]
-      processors: [infraattributes, batch]
+      processors: [infraattributes]
       exporters: [datadog]`

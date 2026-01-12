@@ -7,7 +7,7 @@ package mapper
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path"
 	"path/filepath"
@@ -19,6 +19,11 @@ import (
 
 	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/constants"
 )
+
+func init() {
+	// initialize logging handler
+	slog.SetLogLoggerLevel(slog.LevelInfo)
+}
 
 // Options provides information required to manage the map command.
 type Options struct {
@@ -163,8 +168,10 @@ func (o *Options) Run() {
 	newMapper := NewMapper(mapperConfig)
 	err := newMapper.Run()
 	if err != nil {
-		log.Print(err)
+		slog.Error("mapper run failed", "error", err)
+		os.Exit(1)
 	}
+	os.Exit(0)
 }
 
 // ResolveFilePath validates and returns absolute filepath.
