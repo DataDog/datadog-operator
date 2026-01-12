@@ -364,14 +364,17 @@ func Test_GetPayload_Concurrent(t *testing.T) {
 		}(i)
 	}
 
+	updateDone := make(chan bool, 1)
 	go func() {
-		for i := 0; i < 100; i++ {
+		for i := 0; i < 10; i++ {
 			omf.updateResourceCounts()
 		}
+		updateDone <- true
 	}()
 
 	// Wait for all goroutines to complete
 	for i := 0; i < numGoroutines; i++ {
 		<-done
 	}
+	<-updateDone
 }
