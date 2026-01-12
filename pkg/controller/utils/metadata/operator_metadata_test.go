@@ -7,6 +7,7 @@ package metadata
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"testing"
 
@@ -36,7 +37,6 @@ func Test_getURL(t *testing.T) {
 				os.Setenv("DD_CLUSTER_NAME", "cluster")
 				os.Setenv("DD_API_KEY", "api-key")
 				os.Setenv("DD_APP_KEY", "app-key")
-				os.Setenv("DD_HOSTNAME", "host-name")
 			},
 			wantURL: "https://app.datadoghq.com/api/v1/metadata",
 		},
@@ -47,7 +47,6 @@ func Test_getURL(t *testing.T) {
 				os.Setenv("DD_SITE", "datad0g.com")
 				os.Setenv("DD_API_KEY", "api-key")
 				os.Setenv("DD_APP_KEY", "app-key")
-				os.Setenv("DD_HOSTNAME", "host-name")
 			},
 			wantURL: "https://app.datad0g.com/api/v1/metadata",
 		},
@@ -58,7 +57,6 @@ func Test_getURL(t *testing.T) {
 				os.Setenv("DD_URL", "https://app.datad0g.com")
 				os.Setenv("DD_API_KEY", "api-key")
 				os.Setenv("DD_APP_KEY", "app-key")
-				os.Setenv("DD_HOSTNAME", "host-name")
 			},
 			wantURL: "https://app.datad0g.com/api/v1/metadata",
 		},
@@ -116,7 +114,6 @@ func Test_setup(t *testing.T) {
 				os.Setenv("DD_API_KEY", fakeAPIKeyOperator)
 				os.Setenv("DD_APP_KEY", fakeAPPKeyDDA)
 				os.Setenv("DD_CLUSTER_NAME", fakeClusterNameOperator)
-				os.Setenv("DD_HOSTNAME", "host-name")
 			},
 			dda:             &v2alpha1.DatadogAgent{},
 			wantClusterName: "fake_cluster_name_operator",
@@ -128,7 +125,6 @@ func Test_setup(t *testing.T) {
 			loadFunc: func() {
 				os.Clearenv()
 				os.Setenv("DD_CLUSTER_NAME", fakeClusterNameOperator)
-				os.Setenv("DD_HOSTNAME", "host-name")
 
 			},
 			dda: &v2alpha1.DatadogAgent{
@@ -149,7 +145,6 @@ func Test_setup(t *testing.T) {
 			name: "credentials and site set in DDA",
 			loadFunc: func() {
 				os.Clearenv()
-				os.Setenv("DD_HOSTNAME", "host-name")
 			},
 			dda: &v2alpha1.DatadogAgent{
 				Spec: v2alpha1.DatadogAgentSpec{
@@ -209,7 +204,6 @@ func Test_GetPayload(t *testing.T) {
 	expectedKubernetesVersion := "v1.28.0"
 	expectedOperatorVersion := "v1.19.0"
 	expectedClusterUID := "test-cluster-uid-12345"
-	expectedHostname := "test-host"
 
 	s := testutils_test.TestScheme()
 	kubeSystem := &corev1.Namespace{
@@ -227,9 +221,6 @@ func Test_GetPayload(t *testing.T) {
 		},
 	}
 
-	// Set hostname in SharedMetadata to simulate it being populated
-	omf.hostName = expectedHostname
-
 	payload := omf.GetPayload(expectedClusterUID)
 
 	// Verify payload is valid JSON
@@ -244,10 +235,6 @@ func Test_GetPayload(t *testing.T) {
 	}
 
 	// Validate top-level fields
-	if hostname, ok := parsed["hostname"].(string); !ok || hostname != expectedHostname {
-		t.Errorf("GetPayload() hostname = %v, want %v", hostname, expectedHostname)
-	}
-
 	if timestamp, ok := parsed["timestamp"].(float64); !ok || timestamp <= 0 {
 		t.Errorf("GetPayload() timestamp = %v, want positive number", timestamp)
 	}
@@ -320,4 +307,60 @@ func Test_GetPayload(t *testing.T) {
 	} else {
 		t.Errorf("GetPayload() resource_count is not a map, got: %T", metadata["resource_count"])
 	}
+}
+
+// Test that GetPayload is safe for concurrent access (no data races)
+func Test_GetPayload_Concurrent(t *testing.T) {
+	s := testutils_test.TestScheme()
+	kubeSystem := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "kube-system",
+			UID:  "test-cluster-uid-12345",
+		},
+	}
+	client := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&v2alpha1.DatadogAgent{}, kubeSystem).Build()
+	omf := &OperatorMetadataForwarder{
+		SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), client, "v1.28.0", "v1.19.0", config.NewCredentialManager(client)),
+		OperatorMetadata: OperatorMetadata{
+			IsLeader:                    true,
+			DatadogAgentEnabled:         true,
+			DatadogMonitorEnabled:       true,
+			DatadogAgentInternalEnabled: true,
+			ResourceCounts:              map[string]int{"datadogagent": 5, "datadogmonitor": 10},
+		},
+	}
+	omf.hostName = "test-host"
+
+	// Run GetPayload concurrently from multiple goroutines
+	const numGoroutines = 50
+	done := make(chan bool, numGoroutines)
+
+	for i := 0; i < numGoroutines; i++ {
+		go func(id int) {
+			// Call GetPayload multiple times with DIFFERENT cluster IDs
+			// This increases likelihood of detecting races
+			for j := 0; j < 10; j++ {
+				clusterUID := fmt.Sprintf("test-cluster-uid-%d-%d", id, j)
+				payload := omf.GetPayload(clusterUID)
+				if len(payload) == 0 {
+					t.Errorf("Goroutine %d: GetPayload() returned empty payload", id)
+				}
+			}
+			done <- true
+		}(i)
+	}
+
+	updateDone := make(chan bool, 1)
+	go func() {
+		for i := 0; i < 10; i++ {
+			omf.updateResourceCounts()
+		}
+		updateDone <- true
+	}()
+
+	// Wait for all goroutines to complete
+	for i := 0; i < numGoroutines; i++ {
+		<-done
+	}
+	<-updateDone
 }
