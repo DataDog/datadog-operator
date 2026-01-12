@@ -6,15 +6,11 @@
 package merger
 
 import (
-	"cmp"
-	"encoding/json"
 	"fmt"
 	"maps"
-	"slices"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/util/errors"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
@@ -114,7 +110,6 @@ func (m *rbacManagerImpl) AddPolicyRules(namespace string, roleName string, saNa
 		return fmt.Errorf("unable to get from the store the Role %s/%s", namespace, roleName)
 	}
 	role.Rules = append(role.Rules, policies...)
-	role.Rules = normalizePolicyRules(role.Rules)
 
 	if err := m.store.AddOrUpdate(kubernetes.RolesKind, role); err != nil {
 		return err
@@ -172,7 +167,6 @@ func (m *rbacManagerImpl) AddClusterPolicyRules(namespace string, roleName strin
 	}
 
 	clusterRole.Rules = append(clusterRole.Rules, policies...)
-	clusterRole.Rules = normalizePolicyRules(clusterRole.Rules)
 
 	if err := m.store.AddOrUpdate(kubernetes.ClusterRolesKind, clusterRole); err != nil {
 		return err
@@ -273,43 +267,4 @@ func (m *rbacManagerImpl) AddClusterRoleBinding(namespace string, roleName strin
 	}
 
 	return nil
-}
-
-func asKey(rule rbacv1.PolicyRule) string {
-	b, _ := json.Marshal(rule)
-	return string(b)
-}
-
-func normalizePolicyRules(rules []rbacv1.PolicyRule) []rbacv1.PolicyRule {
-	if len(rules) == 0 {
-		return nil
-	}
-
-	// deep copy to avoid modifying the original slice
-	normalized := make([]rbacv1.PolicyRule, 0, len(rules))
-	for _, rule := range rules {
-		normalized = append(normalized, *rule.DeepCopy())
-	}
-
-	for i := range normalized {
-		slices.Sort(normalized[i].Verbs)
-		slices.Sort(normalized[i].APIGroups)
-		slices.Sort(normalized[i].Resources)
-		slices.Sort(normalized[i].ResourceNames)
-		slices.Sort(normalized[i].NonResourceURLs)
-	}
-
-	slices.SortStableFunc(normalized, func(a, b rbacv1.PolicyRule) int {
-		return cmp.Compare(asKey(a), asKey(b))
-	})
-
-	// remove duplicates
-	j := 0
-	for i := 1; i < len(normalized); i++ {
-		if !apiequality.Semantic.DeepEqual(normalized[j], normalized[i]) {
-			j++
-			normalized[j] = normalized[i]
-		}
-	}
-	return normalized[:j+1]
 }
