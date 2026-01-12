@@ -21,7 +21,9 @@ import (
 	"github.com/fatih/color"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -128,27 +130,16 @@ func (o *options) run(cmd *cobra.Command) error {
 
 	display.PrintBox(cmd.OutOrStdout(), "Uninstalling Karpenter from cluster "+clusterName+".")
 
-	// Confirmation prompt
-	if !yes {
-		cmd.Println("\nThis will delete:")
-		cmd.Println("  - All Karpenter NodePool and EC2NodeClass resources")
-		cmd.Println("  - The Karpenter Helm release")
-		cmd.Println("  - CloudFormation stacks for Karpenter infrastructure")
-		cmd.Println("  - aws-auth ConfigMap role mappings (if applicable)")
-		cmd.Println("\nWARNING: Nodes created by Karpenter will be drained and terminated.")
-		cmd.Print("\nContinue? (y/N): ")
-
-		var response string
-		fmt.Fscanln(cmd.InOrStdin(), &response)
-		if strings.ToLower(response) != "y" && strings.ToLower(response) != "yes" {
-			cmd.Println("Uninstall cancelled.")
-			return nil
-		}
-	}
-
 	cli, err := clients.Build(ctx, o.ConfigFlags, o.Clientset)
 	if err != nil {
 		return fmt.Errorf("failed to build clients: %w", err)
+	}
+
+	nodes := displayResourceSummary(ctx, cmd, cli, clusterName)
+	if len(nodes) > 0 && !yes {
+		if promptConfirmation(cmd) != nil {
+			return nil // User cancelled
+		}
 	}
 
 	// Accumulate errors from cleanup steps - continue on failure to clean up as much as possible
@@ -194,6 +185,82 @@ func (o *options) run(cmd *cobra.Command) error {
 
 	display.PrintBox(cmd.OutOrStdout(), "✅ Karpenter uninstalled from cluster "+clusterName+".")
 
+	return nil
+}
+
+func displayResourceSummary(ctx context.Context, cmd *cobra.Command, cli *clients.Clients, clusterName string) []string {
+	cmd.Println("\nThis will delete:")
+
+	if nodePools, err := listKarpenterNodePools(ctx, cli); err != nil {
+		cmd.Printf("  - NodePools: (unable to list: %v)\n", err)
+	} else if len(nodePools) == 0 {
+		cmd.Println("  - NodePools: none found")
+	} else {
+		cmd.Printf("  - %d NodePool(s):\n", len(nodePools))
+		for _, np := range nodePools {
+			cmd.Printf("      • %s\n", np)
+		}
+	}
+
+	nodeClasses, err := listKarpenterEC2NodeClasses(ctx, cli)
+	if err != nil {
+		cmd.Printf("  - EC2NodeClasses: (unable to list: %v)\n", err)
+	} else if len(nodeClasses) == 0 {
+		cmd.Println("  - EC2NodeClasses: none found")
+	} else {
+		cmd.Printf("  - %d EC2NodeClass(es):\n", len(nodeClasses))
+		for _, nc := range nodeClasses {
+			cmd.Printf("      • %s\n", nc)
+		}
+	}
+
+	var nodes []string
+	if err != nil {
+		cmd.Println("  - Karpenter nodes: (unable to list - depends on EC2NodeClasses)")
+	} else if n, err := listKarpenterNodes(ctx, cli, nodeClasses); err != nil {
+		cmd.Printf("  - Karpenter nodes: (unable to list: %v)\n", err)
+	} else if len(n) == 0 {
+		cmd.Println("  - Karpenter nodes: none found")
+	} else {
+		nodes = n
+		cmd.Printf("  - %d Karpenter-managed node(s):\n", len(nodes))
+		for _, node := range nodes {
+			cmd.Printf("      • %s\n", node)
+		}
+	}
+
+	cmd.Println("  - The Karpenter Helm release")
+
+	if stacks, err := listCloudFormationStacks(ctx, cli, clusterName); err != nil {
+		cmd.Printf("  - CloudFormation stacks: (unable to list: %v)\n", err)
+	} else if len(stacks) == 0 {
+		cmd.Println("  - CloudFormation stacks: none found")
+	} else {
+		cmd.Printf("  - %d CloudFormation stack(s):\n", len(stacks))
+		for _, stack := range stacks {
+			cmd.Printf("      • %s\n", stack)
+		}
+	}
+
+	cmd.Println("  - aws-auth ConfigMap role mappings (if applicable)")
+
+	if len(nodes) > 0 {
+		cmd.Println()
+		cmd.Println(color.YellowString("⚠ WARNING: %d Karpenter node(s) will be drained and terminated.", len(nodes)))
+	}
+
+	return nodes
+}
+
+func promptConfirmation(cmd *cobra.Command) error {
+	cmd.Print("\nContinue? (y/N): ")
+
+	var response string
+	fmt.Fscanln(cmd.InOrStdin(), &response)
+	if strings.ToLower(response) != "y" && strings.ToLower(response) != "yes" {
+		cmd.Println("Uninstall cancelled.")
+		return fmt.Errorf("cancelled")
+	}
 	return nil
 }
 
@@ -369,4 +436,94 @@ func deleteCloudFormationStacks(ctx context.Context, cli *clients.Clients, clust
 	}
 
 	return nil
+}
+
+func listKarpenterNodePools(ctx context.Context, cli *clients.Clients) ([]string, error) {
+	nodePoolList := &karpv1.NodePoolList{}
+	nodePoolList.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "karpenter.sh",
+		Version: "v1",
+		Kind:    "NodePoolList",
+	})
+
+	if err := cli.K8sClient.List(ctx, nodePoolList, client.MatchingLabels{
+		"app.kubernetes.io/managed-by":      "kubectl-datadog",
+		"autoscaling.datadoghq.com/created": "true",
+	}); err != nil {
+		if meta.IsNoMatchError(err) {
+			return nil, nil // CRD not installed, no NodePools
+		}
+		return nil, err
+	}
+
+	return lo.Map(nodePoolList.Items, func(np karpv1.NodePool, _ int) string {
+		return np.Name
+	}), nil
+}
+
+func listKarpenterEC2NodeClasses(ctx context.Context, cli *clients.Clients) ([]string, error) {
+	ec2NodeClassList := &karpawsv1.EC2NodeClassList{}
+	ec2NodeClassList.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "karpenter.k8s.aws",
+		Version: "v1",
+		Kind:    "EC2NodeClassList",
+	})
+
+	if err := cli.K8sClient.List(ctx, ec2NodeClassList, client.MatchingLabels{
+		"app.kubernetes.io/managed-by":      "kubectl-datadog",
+		"autoscaling.datadoghq.com/created": "true",
+	}); err != nil {
+		if meta.IsNoMatchError(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return lo.Map(ec2NodeClassList.Items, func(nc karpawsv1.EC2NodeClass, _ int) string {
+		return nc.Name
+	}), nil
+}
+
+func listKarpenterNodes(ctx context.Context, cli *clients.Clients, ec2NodeClassNames []string) ([]string, error) {
+	if len(ec2NodeClassNames) == 0 {
+		return nil, nil // No EC2NodeClasses to match
+	}
+
+	// List all Karpenter-managed nodes
+	nodesList, err := cli.K8sClientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{
+		LabelSelector: "karpenter.k8s.aws/ec2nodeclass",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter nodes that belong to our EC2NodeClasses
+	nodeClassSet := lo.SliceToMap(ec2NodeClassNames, func(name string) (string, struct{}) {
+		return name, struct{}{}
+	})
+
+	return lo.FilterMap(nodesList.Items, func(node corev1.Node, _ int) (string, bool) {
+		nodeClass := node.Labels["karpenter.k8s.aws/ec2nodeclass"]
+		_, matches := nodeClassSet[nodeClass]
+		return node.Name, matches
+	}), nil
+}
+
+func listCloudFormationStacks(ctx context.Context, cli *clients.Clients, clusterName string) ([]string, error) {
+	stackNames := []string{
+		"dd-karpenter-" + clusterName + "-karpenter",
+		"dd-karpenter-" + clusterName + "-dd-karpenter",
+	}
+
+	var existing []string
+	for _, name := range stackNames {
+		exists, err := aws.DoesStackExist(ctx, cli.CloudFormation, name)
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			existing = append(existing, name)
+		}
+	}
+	return existing, nil
 }

@@ -23,7 +23,7 @@ const (
 )
 
 func CreateOrUpdateStack(ctx context.Context, client *cloudformation.Client, stackName string, templateBody string, params map[string]string) error {
-	exist, err := doesStackExist(ctx, client, stackName)
+	exist, err := DoesStackExist(ctx, client, stackName)
 	if err != nil {
 		return err
 	}
@@ -43,7 +43,8 @@ func CreateOrUpdateStack(ctx context.Context, client *cloudformation.Client, sta
 	}
 }
 
-func doesStackExist(ctx context.Context, client *cloudformation.Client, stackName string) (bool, error) {
+// DoesStackExist checks if a CloudFormation stack exists.
+func DoesStackExist(ctx context.Context, client *cloudformation.Client, stackName string) (bool, error) {
 	_, err := client.DescribeStacks(
 		ctx,
 		&cloudformation.DescribeStacksInput{
@@ -166,7 +167,7 @@ func updateStack(ctx context.Context, client *cloudformation.Client, stackName s
 }
 
 func DeleteStack(ctx context.Context, client *cloudformation.Client, stackName string) error {
-	exist, err := doesStackExist(ctx, client, stackName)
+	exist, err := DoesStackExist(ctx, client, stackName)
 	if err != nil {
 		return err
 	}
