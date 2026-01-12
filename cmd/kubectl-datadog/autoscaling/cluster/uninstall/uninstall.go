@@ -18,6 +18,7 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	karpawsv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/fatih/color"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -184,11 +185,14 @@ func (o *options) run(cmd *cobra.Command) error {
 	}
 
 	if len(errs) > 0 {
-		display.PrintBox(cmd.OutOrStdout(), "Uninstall completed with errors. Some resources may not have been cleaned up.")
+		display.PrintBox(cmd.OutOrStdout(),
+			color.RedString("❌ Uninstall completed with %d errors.", len(errs)),
+			color.RedString("Some resources may not have been cleaned up."),
+		)
 		return fmt.Errorf("uninstall encountered %d error(s):\n%w", len(errs), errors.Join(errs...))
 	}
 
-	display.PrintBox(cmd.OutOrStdout(), "Karpenter uninstalled from cluster "+clusterName+".")
+	display.PrintBox(cmd.OutOrStdout(), "✅ Karpenter uninstalled from cluster "+clusterName+".")
 
 	return nil
 }

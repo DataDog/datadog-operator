@@ -408,7 +408,7 @@ func displaySuccessMessage(cmd *cobra.Command, clusterName string, createResourc
 	switch createResources {
 	case CreateKarpenterResourcesNone:
 		display.PrintBox(cmd.OutOrStdout(),
-			"Datadog cluster autoscaling is partially configured.",
+			"✅ Datadog cluster autoscaling is partially configured.",
 			"",
 			"No Karpenter resources were created.",
 			"Use --create-karpenter-resources=ec2nodeclass or =all",
@@ -419,7 +419,7 @@ func displaySuccessMessage(cmd *cobra.Command, clusterName string, createResourc
 		)
 	case CreateKarpenterResourcesEC2NodeClass, CreateKarpenterResourcesAll:
 		display.PrintBox(cmd.OutOrStdout(),
-			"Datadog cluster autoscaling is now ready to be enabled.",
+			"✅ Datadog cluster autoscaling is now ready to be enabled.",
 			"",
 			"Navigate to the Autoscaling settings page",
 			"and select cluster to start generating recommendations:",
