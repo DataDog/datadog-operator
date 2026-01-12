@@ -214,6 +214,10 @@ func deleteKarpenterNodePools(ctx context.Context, cli *clients.Clients) error {
 		"app.kubernetes.io/managed-by":      "kubectl-datadog",
 		"autoscaling.datadoghq.com/created": "true",
 	}); err != nil {
+		if meta.IsNoMatchError(err) {
+			log.Println("NodePool CRD not found, skipping deletion.")
+			return nil
+		}
 		return fmt.Errorf("failed to list NodePools: %w", err)
 	}
 
@@ -242,6 +246,10 @@ func deleteKarpenterEC2NodeClasses(ctx context.Context, cli *clients.Clients) er
 		"app.kubernetes.io/managed-by":      "kubectl-datadog",
 		"autoscaling.datadoghq.com/created": "true",
 	}); err != nil {
+		if meta.IsNoMatchError(err) {
+			log.Println("EC2NodeClass CRD not found, skipping deletion.")
+			return nil
+		}
 		return fmt.Errorf("failed to list EC2NodeClasses: %w", err)
 	}
 
