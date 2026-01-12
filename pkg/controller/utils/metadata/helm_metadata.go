@@ -23,7 +23,6 @@ import (
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	toolscache "k8s.io/client-go/tools/cache"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -132,23 +131,6 @@ func NewHelmMetadataForwarderWithManager(logger logr.Logger, mgr manager.Manager
 		SharedMetadata: NewSharedMetadata(forwarderLogger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
 		mgr:            mgr,
 	}
-}
-
-// getWatchNamespacesForHelm retrieves the list of namespaces to watch from environment variables
-func getWatchNamespacesForHelm(logger logr.Logger) []string {
-	nsMap := config.GetWatchNamespacesFromEnv(logger, config.AgentWatchNamespaceEnvVar)
-
-	namespaces := make([]string, 0, len(nsMap))
-	for ns := range nsMap {
-		if ns == cache.AllNamespaces {
-			logger.V(1).Info("Watching all namespaces")
-			return []string{""}
-		}
-		namespaces = append(namespaces, ns)
-	}
-
-	logger.V(1).Info("Watching specific namespaces", "namespaces", namespaces)
-	return namespaces
 }
 
 // Start starts the helm metadata forwarder with informer-based event handling
