@@ -336,8 +336,11 @@ func Test_GetPayload_Concurrent(t *testing.T) {
 	omf := &OperatorMetadataForwarder{
 		SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), client, "v1.28.0", "v1.19.0", config.NewCredentialManager(client)),
 		OperatorMetadata: OperatorMetadata{
-			IsLeader:       true,
-			ResourceCounts: map[string]int{"datadogagent": 5, "datadogmonitor": 10},
+			IsLeader:                    true,
+			DatadogAgentEnabled:         true,
+			DatadogMonitorEnabled:       true,
+			DatadogAgentInternalEnabled: true,
+			ResourceCounts:              map[string]int{"datadogagent": 5, "datadogmonitor": 10},
 		},
 	}
 	omf.hostName = "test-host"
@@ -361,15 +364,9 @@ func Test_GetPayload_Concurrent(t *testing.T) {
 		}(i)
 	}
 
-	// Also write to ResourceCounts map concurrently
 	go func() {
-		for i := 0; i < 1000; i++ {
-			omf.mutex.Lock()
-			if omf.OperatorMetadata.ResourceCounts == nil {
-				omf.OperatorMetadata.ResourceCounts = make(map[string]int)
-			}
-			omf.OperatorMetadata.ResourceCounts["test-resource"] = i
-			omf.mutex.Unlock()
+		for i := 0; i < 100; i++ {
+			omf.updateResourceCounts()
 		}
 	}()
 

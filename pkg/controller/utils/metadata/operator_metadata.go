@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"sync"
 	"time"
 
@@ -128,9 +129,7 @@ func (omf *OperatorMetadataForwarder) GetPayload(clusterUID string) []byte {
 	operatorMetadata := omf.OperatorMetadata
 	if omf.OperatorMetadata.ResourceCounts != nil {
 		operatorMetadata.ResourceCounts = make(map[string]int, len(omf.OperatorMetadata.ResourceCounts))
-		for k, v := range omf.OperatorMetadata.ResourceCounts {
-			operatorMetadata.ResourceCounts[k] = v
-		}
+		maps.Copy(operatorMetadata.ResourceCounts, omf.OperatorMetadata.ResourceCounts)
 	}
 	omf.mutex.RUnlock()
 
