@@ -20,6 +20,7 @@ import (
 	karpawsv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -29,6 +30,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clients"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/display"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/helm"
 	commonk8s "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/k8s"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/guess"
@@ -123,10 +125,7 @@ func (o *options) run(cmd *cobra.Command) error {
 		}
 	}
 
-	msg := "Uninstalling Karpenter from cluster " + clusterName + "."
-	cmd.Println("╭─" + strings.Repeat("─", len(msg)) + "─╮")
-	cmd.Println("│ " + msg + " │")
-	cmd.Println("╰─" + strings.Repeat("─", len(msg)) + "─╯")
+	display.PrintBox(cmd.OutOrStdout(), "Uninstalling Karpenter from cluster "+clusterName+".")
 
 	// Confirmation prompt
 	if !yes {
@@ -185,17 +184,11 @@ func (o *options) run(cmd *cobra.Command) error {
 	}
 
 	if len(errs) > 0 {
-		msg = "Uninstall completed with errors. Some resources may not have been cleaned up."
-		cmd.Println("╭─" + strings.Repeat("─", len(msg)) + "─╮")
-		cmd.Println("│ " + msg + " │")
-		cmd.Println("╰─" + strings.Repeat("─", len(msg)) + "─╯")
+		display.PrintBox(cmd.OutOrStdout(), "Uninstall completed with errors. Some resources may not have been cleaned up.")
 		return fmt.Errorf("uninstall encountered %d error(s):\n%w", len(errs), errors.Join(errs...))
 	}
 
-	msg = "Karpenter uninstalled from cluster " + clusterName + "."
-	cmd.Println("╭─" + strings.Repeat("─", len(msg)) + "─╮")
-	cmd.Println("│ " + msg + " │")
-	cmd.Println("╰─" + strings.Repeat("─", len(msg)) + "─╯")
+	display.PrintBox(cmd.OutOrStdout(), "Karpenter uninstalled from cluster "+clusterName+".")
 
 	return nil
 }

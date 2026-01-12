@@ -12,14 +12,12 @@ import (
 	"os/signal"
 	"slices"
 	"strconv"
-	"strings"
 	"syscall"
 
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/fatih/color"
 	"github.com/pkg/browser"
-	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"helm.sh/helm/v3/pkg/registry"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -28,6 +26,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clients"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/display"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/helm"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/guess"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/k8s"
@@ -219,10 +218,7 @@ func (o *options) run(cmd *cobra.Command) error {
 		}
 	}
 
-	msg := "Installing Karpenter on cluster " + clusterName + "."
-	cmd.Println("╭─" + strings.Repeat("─", len(msg)) + "─╮")
-	cmd.Println("│ " + msg + " │")
-	cmd.Println("╰─" + strings.Repeat("─", len(msg)) + "─╯")
+	display.PrintBox(cmd.OutOrStdout(), "Installing Karpenter on cluster "+clusterName+".")
 
 	cli, err := clients.Build(ctx, o.ConfigFlags, o.Clientset)
 	if err != nil {
@@ -407,11 +403,11 @@ func displaySuccessMessage(cmd *cobra.Command, clusterName string, createResourc
 		log.Printf("Failed to open URL in browser: %v", err)
 	}
 
-	var lines []string
+	coloredURL := color.New(color.Bold, color.Underline, color.FgBlue).Sprint(autoscalingSettingsURL)
 
 	switch createResources {
 	case CreateKarpenterResourcesNone:
-		lines = []string{
+		display.PrintBox(cmd.OutOrStdout(),
 			"Datadog cluster autoscaling is partially configured.",
 			"",
 			"No Karpenter resources were created.",
@@ -419,28 +415,17 @@ func displaySuccessMessage(cmd *cobra.Command, clusterName string, createResourc
 			"to create EC2NodeClass and/or NodePool resources.",
 			"",
 			"Navigate to the Autoscaling settings page:",
-			autoscalingSettingsURL,
-		}
-	case CreateKarpenterResourcesEC2NodeClass:
-		fallthrough
-	case CreateKarpenterResourcesAll:
-		lines = []string{
+			coloredURL,
+		)
+	case CreateKarpenterResourcesEC2NodeClass, CreateKarpenterResourcesAll:
+		display.PrintBox(cmd.OutOrStdout(),
 			"Datadog cluster autoscaling is now ready to be enabled.",
 			"",
 			"Navigate to the Autoscaling settings page",
 			"and select cluster to start generating recommendations:",
-			autoscalingSettingsURL,
-		}
+			coloredURL,
+		)
 	}
-
-	maxLength := slices.Max(lo.Map(lines, func(s string, _ int) int { return len(s) }))
-	lines[len(lines)-1] = color.New(color.Bold, color.Underline, color.FgBlue).Sprint(autoscalingSettingsURL)
-
-	cmd.Println("╭─" + strings.Repeat("─", maxLength) + "─╮")
-	for _, line := range lines {
-		cmd.Printf("│ %-*s │\n", maxLength, line)
-	}
-	cmd.Println("╰─" + strings.Repeat("─", maxLength) + "─╯")
 
 	return nil
 }
