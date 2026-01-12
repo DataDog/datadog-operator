@@ -68,7 +68,7 @@ func GetClusterChecksRunnerServiceAccount(objName string, ddaSpec *v2alpha1.Data
 	return saDefault
 }
 
-// GetOtelAgentGatewayServiceAccount return the otel-collector-gateway service account name
+// GetOtelAgentGatewayServiceAccount return the otel-agent-gateway service account name
 func GetOtelAgentGatewayServiceAccount(objName string, ddaSpec *v2alpha1.DatadogAgentSpec) string {
 	saDefault := fmt.Sprintf("%s-%s", objName, DefaultOtelAgentGatewayResourceSuffix)
 	if ddaSpec.Override[v2alpha1.OtelAgentGatewayComponentName] != nil && ddaSpec.Override[v2alpha1.OtelAgentGatewayComponentName].ServiceAccountName != nil {

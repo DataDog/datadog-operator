@@ -30,7 +30,7 @@ func GetOtelAgentGatewayRbacResourcesName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultOtelAgentGatewayResourceSuffix)
 }
 
-// NewDefaultOtelAgentGatewayDeployment return a new default otel-collector-gateway deployment
+// NewDefaultOtelAgentGatewayDeployment return a new default otel-agent-gateway deployment
 func NewDefaultOtelAgentGatewayDeployment(dda metav1.Object) *appsv1.Deployment {
 	deployment := common.NewDeployment(dda, constants.DefaultOtelAgentGatewayResourceSuffix, GetOtelAgentGatewayName(dda), common.GetAgentVersion(dda), nil)
 
@@ -44,7 +44,7 @@ func NewDefaultOtelAgentGatewayDeployment(dda metav1.Object) *appsv1.Deployment 
 	return deployment
 }
 
-// NewDefaultOtelAgentGatewayPodTemplateSpec returns a default otel-collector-gateway pod template spec
+// NewDefaultOtelAgentGatewayPodTemplateSpec returns a default otel-agent-gateway pod template spec
 func NewDefaultOtelAgentGatewayPodTemplateSpec(dda metav1.Object) *corev1.PodTemplateSpec {
 	template := &corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
