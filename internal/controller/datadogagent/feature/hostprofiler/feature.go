@@ -61,7 +61,6 @@ func (o *hostProfilerFeature) ID() feature.IDType {
 
 func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	o.hostProfilerEnabled = featureutils.HasHostProfilerAnnotation(dda)
-	o.logger.Info("The host profiler feature is experimental and subject to change")
 
 	// If a user disabled HostPID manually, error out rather than enabling it for them.
 	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
