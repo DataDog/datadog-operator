@@ -9,42 +9,25 @@ import (
 	"fmt"
 	"log"
 	"net/url"
-	"os"
 	"os/signal"
 	"slices"
 	"strconv"
 	"strings"
 	"syscall"
 
-	awssdk "github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
-	karpawsv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/fatih/color"
 	"github.com/pkg/browser"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
-	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/kube"
 	"helm.sh/helm/v3/pkg/registry"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clients"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/helm"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/guess"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/k8s"
@@ -227,7 +210,7 @@ func (o *options) run(cmd *cobra.Command) error {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(false), zap.WriteTo(cmd.ErrOrStderr())))
 
 	if clusterName == "" {
-		if name, err := o.getClusterNameFromKubeconfig(ctx); err != nil {
+		if name, err := clients.GetClusterNameFromKubeconfig(ctx, o.ConfigFlags); err != nil {
 			return err
 		} else if name != "" {
 			clusterName = name
@@ -241,16 +224,16 @@ func (o *options) run(cmd *cobra.Command) error {
 	cmd.Println("│ " + msg + " │")
 	cmd.Println("╰─" + strings.Repeat("─", len(msg)) + "─╯")
 
-	clients, err := o.buildClients(ctx)
+	cli, err := clients.Build(ctx, o.ConfigFlags, o.Clientset)
 	if err != nil {
 		return fmt.Errorf("failed to build clients: %w", err)
 	}
 
-	if err = createCloudFormationStacks(ctx, clients, clusterName, karpenterNamespace); err != nil {
+	if err = createCloudFormationStacks(ctx, cli, clusterName, karpenterNamespace); err != nil {
 		return err
 	}
 
-	if err = updateAwsAuthConfigMap(ctx, clients, clusterName); err != nil {
+	if err = updateAwsAuthConfigMap(ctx, cli, clusterName); err != nil {
 		return err
 	}
 
@@ -258,113 +241,26 @@ func (o *options) run(cmd *cobra.Command) error {
 		return err
 	}
 
-	if err = createNodePoolResources(ctx, cmd, clients, clusterName, createKarpenterResources, inferenceMethod, debug); err != nil {
+	if err = createNodePoolResources(ctx, cmd, cli, clusterName, createKarpenterResources, inferenceMethod, debug); err != nil {
 		return err
 	}
 
 	return displaySuccessMessage(cmd, clusterName, createKarpenterResources)
 }
 
-type clients struct {
-	// AWS clients
-	config         awssdk.Config
-	cloudFormation *cloudformation.Client
-	ec2            *ec2.Client
-	eks            *eks.Client
-	sts            *sts.Client
-
-	// Kubernetes clients
-	k8sClient    client.Client         // controller-runtime client
-	k8sClientset *kubernetes.Clientset // typed Kubernetes client
-}
-
-func (o *options) getClusterNameFromKubeconfig(ctx context.Context) (string, error) {
-	kubeRawConfig, err := o.ConfigFlags.ToRawKubeConfigLoader().RawConfig()
-	if err != nil {
-		return "", fmt.Errorf("failed to get raw kubeconfig: %w", err)
-	}
-
-	kubeContext := ""
-	if o.ConfigFlags.Context != nil {
-		kubeContext = *o.ConfigFlags.Context
-	}
-
-	return guess.GetClusterNameFromKubeconfig(ctx, kubeRawConfig, kubeContext), nil
-}
-
-func (o *options) buildClients(ctx context.Context) (*clients, error) {
-	awsConfig, err := config.LoadDefaultConfig(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load AWS config: %w", err)
-	}
-
-	sch := runtime.NewScheme()
-
-	if err = scheme.AddToScheme(sch); err != nil {
-		return nil, fmt.Errorf("failed to add base scheme: %w", err)
-	}
-
-	sch.AddKnownTypes(
-		schema.GroupVersion{Group: "karpenter.sh", Version: "v1"},
-		&karpv1.NodePool{},
-		&karpv1.NodePoolList{},
-	)
-	metav1.AddToGroupVersion(sch, schema.GroupVersion{Group: "karpenter.sh", Version: "v1"})
-
-	sch.AddKnownTypes(
-		schema.GroupVersion{Group: "karpenter.k8s.aws", Version: "v1"},
-		&karpawsv1.EC2NodeClass{},
-		&karpawsv1.EC2NodeClassList{},
-	)
-	metav1.AddToGroupVersion(sch, schema.GroupVersion{Group: "karpenter.k8s.aws", Version: "v1"})
-
-	restConfig, err := o.ConfigFlags.ToRESTConfig()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get REST config: %w", err)
-	}
-
-	httpClient, err := rest.HTTPClientFor(restConfig)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create http client: %w", err)
-	}
-
-	mapper, err := apiutil.NewDynamicRESTMapper(restConfig, httpClient)
-	if err != nil {
-		return nil, fmt.Errorf("unable to instantiate mapper: %w", err)
-	}
-
-	k8sClient, err := client.New(restConfig, client.Options{
-		Scheme: sch,
-		Mapper: mapper,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Karpenter client: %w", err)
-	}
-
-	return &clients{
-		config:         awsConfig,
-		cloudFormation: cloudformation.NewFromConfig(awsConfig),
-		ec2:            ec2.NewFromConfig(awsConfig),
-		eks:            eks.NewFromConfig(awsConfig),
-		sts:            sts.NewFromConfig(awsConfig),
-		k8sClient:      k8sClient, // o.Client,
-		k8sClientset:   o.Clientset,
-	}, nil
-}
-
-func createCloudFormationStacks(ctx context.Context, clients *clients, clusterName string, karpenterNamespace string) error {
-	if err := aws.CreateOrUpdateStack(ctx, clients.cloudFormation, "dd-karpenter-"+clusterName+"-karpenter", KarpenterCfn, map[string]string{
+func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, clusterName string, karpenterNamespace string) error {
+	if err := aws.CreateOrUpdateStack(ctx, cli.CloudFormation, "dd-karpenter-"+clusterName+"-karpenter", KarpenterCfn, map[string]string{
 		"ClusterName": clusterName,
 	}); err != nil {
 		return fmt.Errorf("failed to create or update Cloud Formation stack: %w", err)
 	}
 
-	isUnmanagedEKSPIAInstalled, err := guess.IsThereUnmanagedEKSPodIdentityAgentInstalled(ctx, clients.eks, clusterName)
+	isUnmanagedEKSPIAInstalled, err := guess.IsThereUnmanagedEKSPodIdentityAgentInstalled(ctx, cli.EKS, clusterName)
 	if err != nil {
 		return fmt.Errorf("failed to check if EKS pod identity agent is installed: %w", err)
 	}
 
-	if err := aws.CreateOrUpdateStack(ctx, clients.cloudFormation, "dd-karpenter-"+clusterName+"-dd-karpenter", DdKarpenterCfn, map[string]string{
+	if err := aws.CreateOrUpdateStack(ctx, cli.CloudFormation, "dd-karpenter-"+clusterName+"-dd-karpenter", DdKarpenterCfn, map[string]string{
 		"ClusterName":            clusterName,
 		"KarpenterNamespace":     karpenterNamespace,
 		"DeployPodIdentityAddon": strconv.FormatBool(!isUnmanagedEKSPIAInstalled),
@@ -375,8 +271,8 @@ func createCloudFormationStacks(ctx context.Context, clients *clients, clusterNa
 	return nil
 }
 
-func updateAwsAuthConfigMap(ctx context.Context, clients *clients, clusterName string) error {
-	awsAuthConfigMapPresent, err := guess.IsAwsAuthConfigMapPresent(ctx, clients.k8sClientset)
+func updateAwsAuthConfigMap(ctx context.Context, cli *clients.Clients, clusterName string) error {
+	awsAuthConfigMapPresent, err := guess.IsAwsAuthConfigMapPresent(ctx, cli.K8sClientset)
 	if err != nil {
 		return fmt.Errorf("failed to check if aws-auth ConfigMap is present: %w", err)
 	}
@@ -387,7 +283,7 @@ func updateAwsAuthConfigMap(ctx context.Context, clients *clients, clusterName s
 	}
 
 	// Get AWS account ID
-	callerIdentity, err := clients.sts.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
+	callerIdentity, err := cli.STS.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
 	if err != nil {
 		return fmt.Errorf("failed to get identity caller: %w", err)
 	}
@@ -397,7 +293,7 @@ func updateAwsAuthConfigMap(ctx context.Context, clients *clients, clusterName s
 	accountID := *callerIdentity.Account
 
 	// Add role mapping in the `aws-auth` ConfigMap
-	if err = aws.EnsureAwsAuthRole(ctx, clients.k8sClientset, aws.RoleMapping{
+	if err = aws.EnsureAwsAuthRole(ctx, cli.K8sClientset, aws.RoleMapping{
 		RoleArn:  "arn:aws:iam::" + accountID + ":role/KarpenterNodeRole-" + clusterName,
 		Username: "system:node:{{EC2PrivateDNSName}}",
 		Groups:   []string{"system:bootstrappers", "system:nodes"},
@@ -409,22 +305,11 @@ func updateAwsAuthConfigMap(ctx context.Context, clients *clients, clusterName s
 }
 
 func (o *options) installHelmChart(ctx context.Context, clusterName string, karpenterNamespace string, karpenterVersion string, debug bool) error {
-	kubeConfig := ""
-	if o.ConfigFlags.KubeConfig != nil {
-		kubeConfig = *o.ConfigFlags.KubeConfig
-	}
-	kubeContext := ""
-	if o.ConfigFlags.Context != nil {
-		kubeContext = *o.ConfigFlags.Context
-	}
-	restClientGetter := kube.GetConfig(kubeConfig, kubeContext, karpenterNamespace)
-	actionConfig := new(action.Configuration)
-
-	if err := actionConfig.Init(restClientGetter, karpenterNamespace, os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
-		return fmt.Errorf("failed to initialize Helm configuration: %w", err)
+	actionConfig, err := helm.NewActionConfig(o.ConfigFlags, karpenterNamespace)
+	if err != nil {
+		return err
 	}
 
-	var err error
 	if actionConfig.RegistryClient, err = registry.NewClient(
 		registry.ClientOptDebug(debug),
 		registry.ClientOptEnableCache(true),
@@ -463,7 +348,7 @@ func (o *options) installHelmChart(ctx context.Context, clusterName string, karp
 	return nil
 }
 
-func createNodePoolResources(ctx context.Context, cmd *cobra.Command, clients *clients, clusterName string, createResources CreateKarpenterResources, inferenceMethod InferenceMethod, debug bool) error {
+func createNodePoolResources(ctx context.Context, cmd *cobra.Command, cli *clients.Clients, clusterName string, createResources CreateKarpenterResources, inferenceMethod InferenceMethod, debug bool) error {
 	if createResources == CreateKarpenterResourcesNone {
 		return nil
 	}
@@ -473,13 +358,13 @@ func createNodePoolResources(ctx context.Context, cmd *cobra.Command, clients *c
 
 	switch inferenceMethod {
 	case InferenceMethodNodes:
-		nodePoolsSet, err = guess.GetNodesProperties(ctx, clients.k8sClientset, clients.ec2)
+		nodePoolsSet, err = guess.GetNodesProperties(ctx, cli.K8sClientset, cli.EC2)
 		if err != nil {
 			return fmt.Errorf("failed to gather nodes properties: %w", err)
 		}
 
 	case InferenceMethodNodeGroups:
-		nodePoolsSet, err = guess.GetNodeGroupsProperties(ctx, clients.eks, clients.ec2, clusterName)
+		nodePoolsSet, err = guess.GetNodeGroupsProperties(ctx, cli.EKS, cli.EC2, clusterName)
 		if err != nil {
 			return fmt.Errorf("failed to gather node groups properties: %w", err)
 		}
@@ -491,7 +376,7 @@ func createNodePoolResources(ctx context.Context, cmd *cobra.Command, clients *c
 
 	if createResources == CreateKarpenterResourcesEC2NodeClass || createResources == CreateKarpenterResourcesAll {
 		for _, nc := range nodePoolsSet.GetEC2NodeClasses() {
-			if err = k8s.CreateOrUpdateEC2NodeClass(ctx, clients.k8sClient, clusterName, nc); err != nil {
+			if err = k8s.CreateOrUpdateEC2NodeClass(ctx, cli.K8sClient, clusterName, nc); err != nil {
 				return fmt.Errorf("failed to create or update EC2NodeClass %s: %w", nc.GetName(), err)
 			}
 		}
@@ -499,7 +384,7 @@ func createNodePoolResources(ctx context.Context, cmd *cobra.Command, clients *c
 
 	if createResources == CreateKarpenterResourcesAll {
 		for _, np := range nodePoolsSet.GetNodePools() {
-			if err = k8s.CreateOrUpdateNodePool(ctx, clients.k8sClient, np); err != nil {
+			if err = k8s.CreateOrUpdateNodePool(ctx, cli.K8sClient, np); err != nil {
 				return fmt.Errorf("failed to create or update NodePool %s: %w", np.GetName(), err)
 			}
 		}
