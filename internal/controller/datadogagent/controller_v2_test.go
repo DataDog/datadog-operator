@@ -1866,6 +1866,7 @@ func getBaseDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 					BlockOwnerDeletion: apiutils.NewBoolPointer(true),
 				},
 			},
+			Finalizers: []string{constants.DatadogAgentInternalFinalizer},
 		},
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: dda.Spec.Features,

@@ -49,6 +49,7 @@ type cwsFeature struct {
 	activityDumpEnabled        bool
 	remoteConfigurationEnabled bool
 	directSendFromSystemProbe  bool
+	enforcementEnabled         bool
 
 	owner  metav1.Object
 	logger logr.Logger
@@ -90,6 +91,9 @@ func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		}
 		f.configMapName = constants.GetConfName(dda, f.customConfig, defaultCWSConf)
 
+		if cwsConfig.Enforcement != nil {
+			f.enforcementEnabled = apiutils.BoolValue(cwsConfig.Enforcement.Enabled)
+		}
 		if cwsConfig.Network != nil {
 			f.networkEnabled = apiutils.BoolValue(cwsConfig.Network.Enabled)
 		}
@@ -191,6 +195,10 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	// security context capabilities
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommon.SystemProbeContainerName)
 
+	if f.enforcementEnabled {
+		managers.SecurityContext().AddCapabilitiesToContainer([]corev1.Capability{"KILL"}, apicommon.SystemProbeContainerName)
+	}
+
 	// envvars
 
 	// env vars for Core Agent, Security Agent and System Probe
@@ -268,11 +276,6 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	debugfsVol, debugfsVolMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false)
 	volMountMgr.AddVolumeMountToContainer(&debugfsVolMount, apicommon.SystemProbeContainerName)
 	volMgr.AddVolume(&debugfsVol)
-
-	// tracefs volume mount
-	tracefsVol, tracefsVolMount := volume.GetVolumes(tracefsVolumeName, tracefsPath, tracefsPath, false)
-	volMountMgr.AddVolumeMountToContainer(&tracefsVolMount, apicommon.SystemProbeContainerName)
-	volMgr.AddVolume(&tracefsVol)
 
 	// socket volume mount (needs write perms for the system probe container but not the others)
 	socketVol, socketVolMount := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, false)

@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -28,15 +29,15 @@ const (
 type OperatorMetadataForwarder struct {
 	*SharedMetadata
 
+	mutex            sync.RWMutex
 	OperatorMetadata OperatorMetadata
 }
 
 type OperatorMetadataPayload struct {
-	Hostname    string           `json:"hostname"`
-	Timestamp   int64            `json:"timestamp"`
-	ClusterID   string           `json:"cluster_id"`
-	ClusterName string           `json:"clustername"`
-	Metadata    OperatorMetadata `json:"datadog_operator_metadata"`
+	Hostname  string           `json:"hostname"`
+	Timestamp int64            `json:"timestamp"`
+	ClusterID string           `json:"cluster_id"`
+	Metadata  OperatorMetadata `json:"datadog_operator_metadata"`
 }
 
 type OperatorMetadata struct {
@@ -57,14 +58,13 @@ type OperatorMetadata struct {
 	RemoteConfigEnabled           bool           `json:"remote_config_enabled"`
 	IntrospectionEnabled          bool           `json:"introspection_enabled"`
 	ClusterID                     string         `json:"cluster_id"`
-	ClusterName                   string         `json:"cluster_name"`
 	ConfigDDURL                   string         `json:"config_dd_url"`
 	ConfigDDSite                  string         `json:"config_site"`
 	ResourceCounts                map[string]int `json:"resource_count"`
 }
 
 // NewOperatorMetadataForwarder creates a new instance of the operator metadata forwarder
-func NewOperatorMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string, credsManager *config.CredentialManager) *OperatorMetadataForwarder {
+func NewOperatorMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion, operatorVersion string, credsManager *config.CredentialManager) *OperatorMetadataForwarder {
 	forwarderLogger := logger.WithName("operator")
 	return &OperatorMetadataForwarder{
 		SharedMetadata:   NewSharedMetadata(forwarderLogger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
@@ -123,17 +123,18 @@ func (omf *OperatorMetadataForwarder) sendMetadata() error {
 func (omf *OperatorMetadataForwarder) GetPayload(clusterUID string) []byte {
 	now := time.Now().Unix()
 
+	omf.mutex.RLock()
+	defer omf.mutex.RUnlock()
+
 	omf.OperatorMetadata.ClusterID = clusterUID
-	omf.OperatorMetadata.ClusterName = omf.GetOrCreateClusterName()
 	omf.OperatorMetadata.OperatorVersion = omf.operatorVersion
 	omf.OperatorMetadata.KubernetesVersion = omf.kubernetesVersion
 
 	payload := OperatorMetadataPayload{
-		Hostname:    omf.hostName,
-		Timestamp:   now,
-		ClusterID:   clusterUID,
-		ClusterName: omf.GetOrCreateClusterName(),
-		Metadata:    omf.OperatorMetadata,
+		Hostname:  omf.hostName,
+		Timestamp: now,
+		ClusterID: clusterUID,
+		Metadata:  omf.OperatorMetadata,
 	}
 
 	jsonPayload, err := json.Marshal(payload)
@@ -151,6 +152,9 @@ func (omf *OperatorMetadataForwarder) updateResourceCounts() {
 	if omf.k8sClient == nil {
 		return
 	}
+
+	omf.mutex.Lock()
+	defer omf.mutex.Unlock()
 
 	// Only list resources that are enabled
 	// For each resource type: if fetch succeeds, update count; if fails, keep old value

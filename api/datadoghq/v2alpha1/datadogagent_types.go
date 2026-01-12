@@ -478,6 +478,7 @@ type CWSFeatureConfig struct {
 	// +optional
 	DirectSendFromSystemProbe *bool `json:"directSendFromSystemProbe,omitempty"`
 
+	Enforcement         *CWSEnforcementConfig         `json:"enforcement,omitempty"`
 	Network             *CWSNetworkConfig             `json:"network,omitempty"`
 	SecurityProfiles    *CWSSecurityProfilesConfig    `json:"securityProfiles,omitempty"`
 	RemoteConfiguration *CWSRemoteConfigurationConfig `json:"remoteConfiguration,omitempty"`
@@ -487,6 +488,13 @@ type CWSFeatureConfig struct {
 	// Any policies with the same name as those existing in the agent will take precedence.
 	// +optional
 	CustomPolicies *CustomConfig `json:"customPolicies,omitempty"`
+}
+
+type CWSEnforcementConfig struct {
+	// Enabled enables Enforcement for Cloud Workload Security.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 type CWSNetworkConfig struct {
