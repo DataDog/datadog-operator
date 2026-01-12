@@ -22,7 +22,9 @@ import (
 	"github.com/go-logr/logr"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	toolscache "k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -34,6 +36,8 @@ const (
 	releasePrefix = "sh.helm.release.v1."
 	// tickerInterval is how often the ticker sends all snapshots
 	tickerInterval = 1 * time.Minute
+	// numWorkers is the number of worker goroutines processing the queue
+	numWorkers = 1
 )
 
 var (
@@ -48,6 +52,9 @@ type HelmMetadataForwarder struct {
 	*SharedMetadata
 
 	mgr manager.Manager
+
+	// Workqueue for processing Helm releases
+	queue workqueue.TypedRateLimitingInterface[string]
 
 	// Track latest snapshot of each release
 	// Key: "namespace/releaseName"
@@ -127,9 +134,11 @@ type HelmReleaseMinimal struct {
 // NewHelmMetadataForwarderWithManager creates a new instance of the helm metadata forwarder
 func NewHelmMetadataForwarderWithManager(logger logr.Logger, mgr manager.Manager, k8sClient client.Reader, kubernetesVersion string, operatorVersion string, credsManager *config.CredentialManager) *HelmMetadataForwarder {
 	forwarderLogger := logger.WithName("helm")
+
 	return &HelmMetadataForwarder{
 		SharedMetadata: NewSharedMetadata(forwarderLogger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
 		mgr:            mgr,
+		queue:          workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[string]()),
 	}
 }
 
@@ -152,23 +161,21 @@ func (hmf *HelmMetadataForwarder) Start() {
 			return ok &&
 				cm.Labels["owner"] == "helm" &&
 				strings.HasPrefix(cm.Name, releasePrefix)
-			// Chart name filtering happens after decoding in handler
 		},
 		Handler: toolscache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj any) {
-				cm, _ := obj.(*corev1.ConfigMap)
-				hmf.handleHelmResource(cm.Name, cm.Namespace, string(cm.UID), []byte(cm.Data["release"]))
-			},
-			UpdateFunc: func(oldObj, newObj any) {
-				cm, _ := newObj.(*corev1.ConfigMap)
-				hmf.handleHelmResource(cm.Name, cm.Namespace, string(cm.UID), []byte(cm.Data["release"]))
+				key, err := toolscache.MetaNamespaceKeyFunc(obj)
+				if err == nil {
+					hmf.queue.Add(key)
+					hmf.logger.V(1).Info("Enqueued ConfigMap for processing", "key", key)
+				}
 			},
 			DeleteFunc: func(obj any) {
-				cm, _ := obj.(*corev1.ConfigMap)
-				_, releaseName, _, _ := hmf.parseHelmResource(cm.Name, nil)
-				key := fmt.Sprintf("%s/%s", cm.Namespace, releaseName)
-				hmf.releaseSnapshots.Delete(key)
-				hmf.logger.V(1).Info("Removed deleted release", "key", key)
+				key, err := toolscache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+				if err == nil {
+					hmf.queue.Add(key)
+					hmf.logger.V(1).Info("Enqueued ConfigMap deletion for processing", "key", key)
+				}
 			},
 		},
 	})
@@ -184,23 +191,21 @@ func (hmf *HelmMetadataForwarder) Start() {
 			return ok &&
 				secret.Labels["owner"] == "helm" &&
 				strings.HasPrefix(secret.Name, releasePrefix)
-			// Chart name filtering happens after decoding in handler
 		},
 		Handler: toolscache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj any) {
-				secret, _ := obj.(*corev1.Secret)
-				hmf.handleHelmResource(secret.Name, secret.Namespace, string(secret.UID), secret.Data["release"])
-			},
-			UpdateFunc: func(oldObj, newObj any) {
-				secret, _ := newObj.(*corev1.Secret)
-				hmf.handleHelmResource(secret.Name, secret.Namespace, string(secret.UID), secret.Data["release"])
+				key, err := toolscache.MetaNamespaceKeyFunc(obj)
+				if err == nil {
+					hmf.queue.Add(key)
+					hmf.logger.V(2).Info("Enqueued Secret for processing", "key", key)
+				}
 			},
 			DeleteFunc: func(obj any) {
-				secret, _ := obj.(*corev1.Secret)
-				_, releaseName, _, _ := hmf.parseHelmResource(secret.Name, nil)
-				key := fmt.Sprintf("%s/%s", secret.Namespace, releaseName)
-				hmf.releaseSnapshots.Delete(key)
-				hmf.logger.V(1).Info("Removed deleted release", "key", key)
+				key, err := toolscache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+				if err == nil {
+					hmf.queue.Add(key)
+					hmf.logger.V(2).Info("Enqueued Secret deletion for processing", "key", key)
+				}
 			},
 		},
 	})
@@ -220,16 +225,114 @@ func (hmf *HelmMetadataForwarder) Start() {
 		return
 	}
 
+	// Start worker goroutines
+	for i := 0; i < numWorkers; i++ {
+		go hmf.runWorker(i)
+	}
+
 	// Start ticker for periodic sends
 	go hmf.tickerLoop()
 
-	hmf.logger.Info("Started Helm metadata forwarder with informer + ticker")
+	hmf.logger.Info("Started Helm metadata forwarder with workqueue", "workers", numWorkers)
+}
+
+// runWorker is a long-running function that will continually process items from the workqueue
+func (hmf *HelmMetadataForwarder) runWorker(workerID int) {
+	hmf.logger.V(1).Info("Starting worker", "workerID", workerID)
+
+	for {
+		key, shutdown := hmf.queue.Get()
+		if shutdown {
+			break
+		}
+
+		if err := hmf.processKey(key); err != nil {
+			hmf.queue.AddRateLimited(key)
+			hmf.logger.V(1).Info("Error processing key, will retry", "key", key, "error", err)
+		} else {
+			hmf.queue.Forget(key)
+		}
+		hmf.queue.Done(key)
+	}
+
+	hmf.logger.V(1).Info("Stopping worker", "workerID", workerID)
+}
+
+// processKey processes a single Helm release by its namespaced key
+func (hmf *HelmMetadataForwarder) processKey(key string) error {
+	namespace, name, err := toolscache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		return fmt.Errorf("invalid key format: %w", err)
+	}
+
+	hmf.logger.V(2).Info("Processing key", "key", key)
+
+	// Try to get as ConfigMap first
+	cm := &corev1.ConfigMap{}
+	err = hmf.k8sClient.Get(context.Background(), client.ObjectKey{Namespace: namespace, Name: name}, cm)
+	if err == nil && cm.Labels["owner"] == "helm" {
+		// Check if data exists (might be empty during deletion)
+		if releaseData, exists := cm.Data["release"]; exists && len(releaseData) > 0 {
+			hmf.handleHelmResource(cm.Name, cm.Namespace, string(cm.UID), []byte(releaseData))
+			return nil
+		}
+		// Empty data - treat as deletion
+		hmf.logger.V(2).Info("ConfigMap has no data, treating as deletion", "key", key)
+		hmf.handleDelete(key)
+		return nil
+	}
+
+	// Try as Secret
+	secret := &corev1.Secret{}
+	err = hmf.k8sClient.Get(context.Background(), client.ObjectKey{Namespace: namespace, Name: name}, secret)
+	if err == nil && secret.Labels["owner"] == "helm" {
+		// Check if data exists (might be empty during deletion)
+		if releaseData, exists := secret.Data["release"]; exists && len(releaseData) > 0 {
+			hmf.handleHelmResource(secret.Name, secret.Namespace, string(secret.UID), releaseData)
+			return nil
+		}
+		// Empty data - treat as deletion
+		hmf.logger.V(2).Info("Secret has no data, treating as deletion", "key", key)
+		hmf.handleDelete(key)
+		return nil
+	}
+
+	// If not found, it was likely deleted
+	if errors.IsNotFound(err) {
+		hmf.handleDelete(key)
+		return nil
+	}
+
+	return fmt.Errorf("failed to get resource: %w", err)
+}
+
+// handleDelete handles deletion of a Helm release
+func (hmf *HelmMetadataForwarder) handleDelete(key string) {
+	// Extract namespace and name from key
+	namespace, name, _ := toolscache.SplitMetaNamespaceKey(key)
+
+	// Parse the release name from the resource name
+	_, releaseName, _, ok := hmf.parseHelmResource(name, nil)
+	if !ok || releaseName == "" {
+		hmf.logger.Info("Failed to parse release name from key", "key", key, "name", name)
+		return
+	}
+
+	releaseKey := fmt.Sprintf("%s/%s", namespace, releaseName)
+
+	// Check if it exists before deleting
+	if _, exists := hmf.releaseSnapshots.Load(releaseKey); exists {
+		hmf.releaseSnapshots.Delete(releaseKey)
+		hmf.logger.Info("Deleted release snapshot", "releaseKey", releaseKey)
+	} else {
+		hmf.logger.Info("Release snapshot already deleted or never existed", "releaseKey", releaseKey)
+	}
 }
 
 // handleHelmResource processes a Helm resource event and updates the snapshot
 func (hmf *HelmMetadataForwarder) handleHelmResource(name, namespace, uid string, data []byte) {
 	release, releaseName, revision, ok := hmf.parseHelmResource(name, data)
-	if !ok {
+	if !ok || release == nil {
 		return
 	}
 
@@ -461,6 +564,11 @@ func (hmf *HelmMetadataForwarder) parseHelmResource(name string, data []byte) (*
 	}
 
 	releaseName := strings.TrimSuffix(parts, match[0])
+
+	// If no data provided (e.g., during deletion), return name and revision only
+	if len(data) == 0 {
+		return nil, releaseName, revision, true
+	}
 
 	release, err := hmf.decodeHelmReleaseFromBytes(data)
 	if err != nil {
