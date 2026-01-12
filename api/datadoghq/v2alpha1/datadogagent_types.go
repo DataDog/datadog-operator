@@ -448,6 +448,12 @@ type CSPMFeatureConfig struct {
 	// HostBenchmarks contains configuration for host benchmarks.
 	// +optional
 	HostBenchmarks *CSPMHostBenchmarksConfig `json:"hostBenchmarks,omitempty"`
+
+	// RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent.
+	// This is an experimental feature. Contact support before using.
+	// Default: false
+	// +optional
+	RunInSystemProbe *bool `json:"runInSystemProbe,omitempty"`
 }
 
 // CSPMHostBenchmarksConfig contains configuration for host benchmarks.
