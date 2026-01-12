@@ -329,7 +329,6 @@ func Test_GetPayload_Concurrent(t *testing.T) {
 			ResourceCounts:              map[string]int{"datadogagent": 5, "datadogmonitor": 10},
 		},
 	}
-	omf.hostName = "test-host"
 
 	// Run GetPayload concurrently from multiple goroutines
 	const numGoroutines = 50
