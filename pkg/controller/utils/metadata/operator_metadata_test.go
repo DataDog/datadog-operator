@@ -7,6 +7,7 @@ package metadata
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"testing"
 
@@ -306,4 +307,60 @@ func Test_GetPayload(t *testing.T) {
 	} else {
 		t.Errorf("GetPayload() resource_count is not a map, got: %T", metadata["resource_count"])
 	}
+}
+
+// Test that GetPayload is safe for concurrent access (no data races)
+func Test_GetPayload_Concurrent(t *testing.T) {
+	s := testutils_test.TestScheme()
+	kubeSystem := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "kube-system",
+			UID:  "test-cluster-uid-12345",
+		},
+	}
+	client := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&v2alpha1.DatadogAgent{}, kubeSystem).Build()
+	omf := &OperatorMetadataForwarder{
+		SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), client, "v1.28.0", "v1.19.0", config.NewCredentialManager(client)),
+		OperatorMetadata: OperatorMetadata{
+			IsLeader:                    true,
+			DatadogAgentEnabled:         true,
+			DatadogMonitorEnabled:       true,
+			DatadogAgentInternalEnabled: true,
+			ResourceCounts:              map[string]int{"datadogagent": 5, "datadogmonitor": 10},
+		},
+	}
+	omf.hostName = "test-host"
+
+	// Run GetPayload concurrently from multiple goroutines
+	const numGoroutines = 50
+	done := make(chan bool, numGoroutines)
+
+	for i := 0; i < numGoroutines; i++ {
+		go func(id int) {
+			// Call GetPayload multiple times with DIFFERENT cluster IDs
+			// This increases likelihood of detecting races
+			for j := 0; j < 10; j++ {
+				clusterUID := fmt.Sprintf("test-cluster-uid-%d-%d", id, j)
+				payload := omf.GetPayload(clusterUID)
+				if len(payload) == 0 {
+					t.Errorf("Goroutine %d: GetPayload() returned empty payload", id)
+				}
+			}
+			done <- true
+		}(i)
+	}
+
+	updateDone := make(chan bool, 1)
+	go func() {
+		for i := 0; i < 10; i++ {
+			omf.updateResourceCounts()
+		}
+		updateDone <- true
+	}()
+
+	// Wait for all goroutines to complete
+	for i := 0; i < numGoroutines; i++ {
+		<-done
+	}
+	<-updateDone
 }
