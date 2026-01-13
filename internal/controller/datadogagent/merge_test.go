@@ -236,3 +236,140 @@ func Test_ssaMergeCRD(t *testing.T) {
 		})
 	}
 }
+
+func Test_ssaMergeCRD_OutdatedCRD_IgnoresUnknownFields(t *testing.T) {
+	sch := k8sruntime.NewScheme()
+	_ = scheme.AddToScheme(sch)
+	_ = v1alpha1.AddToScheme(sch)
+	_ = v2alpha1.AddToScheme(sch)
+	_ = corev1.AddToScheme(sch)
+	_ = apiextensionsv1.AddToScheme(sch)
+
+	// Load CRD from config folder, then simulate an older CRD that doesn't have
+	// .spec.features.cws.enforcement in its schema.
+	crd, err := getDDAICRDFromConfig(sch)
+	assert.NoError(t, err)
+	removeCwsEnforcementFromDDAISchema(t, crd)
+
+	ddai := v1alpha1.DatadogAgentInternal{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "bar",
+			ManagedFields: []metav1.ManagedFieldsEntry{
+				{
+					Manager:    "datadog-operator",
+					Operation:  metav1.ManagedFieldsOperationApply,
+					FieldsType: "FieldsV1",
+					APIVersion: "datadoghq.com/v1alpha1",
+				},
+			},
+		},
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "datadoghq.com/v1alpha1",
+			Kind:       "DatadogAgentInternal",
+		},
+		Spec: v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				CWS: &v2alpha1.CWSFeatureConfig{
+					Enabled: apiutils.NewBoolPointer(true),
+					Enforcement: &v2alpha1.CWSEnforcementConfig{
+						Enabled: apiutils.NewBoolPointer(true),
+					},
+				},
+			},
+			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {
+					Env: []corev1.EnvVar{
+						{Name: "EXISTING", Value: "value"},
+					},
+				},
+			},
+		},
+	}
+
+	profile := v1alpha1.DatadogAgentInternal{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "bar",
+		},
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "datadoghq.com/v1alpha1",
+			Kind:       "DatadogAgentInternal",
+		},
+		Spec: v2alpha1.DatadogAgentSpec{
+			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {
+					Env: []corev1.EnvVar{
+						{Name: "NEW", Value: "newvalue"},
+					},
+				},
+			},
+		},
+	}
+
+	fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(&ddai, crd).Build()
+	logger := logf.Log.WithName("Test_ssaMergeCRD_OutdatedCRD_IgnoresUnknownFields")
+	eventBroadcaster := record.NewBroadcaster()
+	recorder := eventBroadcaster.NewRecorder(sch, corev1.EventSource{Component: "Test_ssaMergeCRD_OutdatedCRD_IgnoresUnknownFields"})
+	fieldManager, err := newFieldManager(fakeClient, sch, v1alpha1.GroupVersion.WithKind("DatadogAgentInternal"))
+	assert.NoError(t, err)
+
+	r := &Reconciler{
+		client:       fakeClient,
+		log:          logger,
+		scheme:       sch,
+		recorder:     recorder,
+		fieldManager: fieldManager,
+	}
+
+	merged, err := r.ssaMergeCRD(&ddai, &profile)
+	assert.NoError(t, err)
+	obj, ok := merged.(*v1alpha1.DatadogAgentInternal)
+	assert.True(t, ok)
+
+	// Ensure we still merged other fields.
+	assert.Equal(t, []corev1.EnvVar{
+		{Name: "EXISTING", Value: "value"},
+		{Name: "NEW", Value: "newvalue"},
+	}, obj.Spec.Override[v2alpha1.NodeAgentComponentName].Env)
+
+	// Because the CRD schema doesn't declare cws.enforcement, the merge should not fail;
+	// the unknown field is stripped from the merge inputs.
+	if obj.Spec.Features != nil && obj.Spec.Features.CWS != nil {
+		assert.Nil(t, obj.Spec.Features.CWS.Enforcement)
+	}
+}
+
+func removeCwsEnforcementFromDDAISchema(t *testing.T, crd *apiextensionsv1.CustomResourceDefinition) {
+	t.Helper()
+	found := false
+	for i := range crd.Spec.Versions {
+		v := &crd.Spec.Versions[i]
+		if v.Schema == nil || v.Schema.OpenAPIV3Schema == nil {
+			continue
+		}
+
+		s := v.Schema.OpenAPIV3Schema
+		spec, ok := s.Properties["spec"]
+		if !ok {
+			continue
+		}
+		features, ok := spec.Properties["features"]
+		if !ok {
+			continue
+		}
+		cws, ok := features.Properties["cws"]
+		if !ok {
+			continue
+		}
+		if _, ok := cws.Properties["enforcement"]; ok {
+			delete(cws.Properties, "enforcement")
+			features.Properties["cws"] = cws
+			spec.Properties["features"] = features
+			s.Properties["spec"] = spec
+			v.Schema.OpenAPIV3Schema = s
+			found = true
+		}
+	}
+	assert.True(t, found, "expected to find and delete cws.enforcement schema")
+}
