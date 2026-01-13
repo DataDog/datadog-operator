@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"sync"
 	"time"
 
@@ -34,15 +35,18 @@ type OperatorMetadataForwarder struct {
 }
 
 type OperatorMetadataPayload struct {
-	Hostname  string           `json:"hostname"`
+	UUID      string           `json:"uuid"`
 	Timestamp int64            `json:"timestamp"`
 	ClusterID string           `json:"cluster_id"`
 	Metadata  OperatorMetadata `json:"datadog_operator_metadata"`
 }
 
 type OperatorMetadata struct {
-	OperatorVersion               string         `json:"operator_version"`
-	KubernetesVersion             string         `json:"kubernetes_version"`
+	// Shared
+	OperatorVersion   string `json:"operator_version"`
+	KubernetesVersion string `json:"kubernetes_version"`
+	ClusterID         string `json:"cluster_id"`
+
 	InstallMethodTool             string         `json:"install_method_tool"`
 	InstallMethodToolVersion      string         `json:"install_method_tool_version"`
 	IsLeader                      bool           `json:"is_leader"`
@@ -57,7 +61,6 @@ type OperatorMetadata struct {
 	ExtendedDaemonSetEnabled      bool           `json:"extendeddaemonset_enabled"`
 	RemoteConfigEnabled           bool           `json:"remote_config_enabled"`
 	IntrospectionEnabled          bool           `json:"introspection_enabled"`
-	ClusterID                     string         `json:"cluster_id"`
 	ConfigDDURL                   string         `json:"config_dd_url"`
 	ConfigDDSite                  string         `json:"config_site"`
 	ResourceCounts                map[string]int `json:"resource_count"`
@@ -74,10 +77,6 @@ func NewOperatorMetadataForwarder(logger logr.Logger, k8sClient client.Reader, k
 
 // Start starts the operator metadata forwarder
 func (omf *OperatorMetadataForwarder) Start() {
-	if omf.hostName == "" {
-		omf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting metadata forwarder")
-		return
-	}
 	omf.updateResourceCounts()
 
 	omf.logger.Info("Starting metadata forwarder")
@@ -124,17 +123,23 @@ func (omf *OperatorMetadataForwarder) GetPayload(clusterUID string) []byte {
 	now := time.Now().Unix()
 
 	omf.mutex.RLock()
-	defer omf.mutex.RUnlock()
+	// Copy metadata while holding the lock to avoid data races
+	operatorMetadata := omf.OperatorMetadata
+	if omf.OperatorMetadata.ResourceCounts != nil {
+		operatorMetadata.ResourceCounts = make(map[string]int, len(omf.OperatorMetadata.ResourceCounts))
+		maps.Copy(operatorMetadata.ResourceCounts, omf.OperatorMetadata.ResourceCounts)
+	}
+	omf.mutex.RUnlock()
 
-	omf.OperatorMetadata.ClusterID = clusterUID
-	omf.OperatorMetadata.OperatorVersion = omf.operatorVersion
-	omf.OperatorMetadata.KubernetesVersion = omf.kubernetesVersion
+	operatorMetadata.ClusterID = clusterUID
+	operatorMetadata.OperatorVersion = omf.operatorVersion
+	operatorMetadata.KubernetesVersion = omf.kubernetesVersion
 
 	payload := OperatorMetadataPayload{
-		Hostname:  omf.hostName,
+		UUID:      clusterUID,
 		Timestamp: now,
 		ClusterID: clusterUID,
-		Metadata:  omf.OperatorMetadata,
+		Metadata:  operatorMetadata,
 	}
 
 	jsonPayload, err := json.Marshal(payload)
