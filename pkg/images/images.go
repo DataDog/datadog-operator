@@ -45,8 +45,6 @@ const (
 	DefaultAgentImageName                string = "agent"
 	DefaultClusterAgentImageName         string = "cluster-agent"
 	DefaultDdotCollectorImageName        string = "ddot-collector"
-	DefaultHostProfilerDevImageName      string = "ddot-ebpf-dev"
-	DefaultHostProfilerDevImageLatestTag string = "nightly-latest"
 )
 
 // imageHasTag identifies whether an image string contains a tag suffix
@@ -130,12 +128,6 @@ func GetLatestAgentImage() string {
 // GetLatestAgentImage returns the latest ddot collector image
 func GetLatestDdotCollectorImage() string {
 	image := newImage(DefaultImageRegistry, DefaultDdotCollectorImageName, DdotCollectorLatestVersion, false, false, false)
-	return image.ToString()
-}
-
-// GetLatestAgentImage returns the latest host profiler image
-func GetLatestHostProfilerImage() string {
-	image := newImage(DockerHubContainerRegistry, DefaultHostProfilerDevImageName, DefaultHostProfilerDevImageLatestTag, false, false, false)
 	return image.ToString()
 }
 

@@ -61,15 +61,8 @@ func (o *hostProfilerFeature) ID() feature.IDType {
 
 func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	o.hostProfilerEnabled = featureutils.HasHostProfilerAnnotation(dda)
-
-	// If a user disabled HostPID manually, error out rather than enabling it for them.
-	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
-		if nodeAgent.HostPID != nil && apiutils.BoolValue(nodeAgent.HostPID) == false {
-			o.logger.Error(errHostPIDDisabledManually, "Host PID is required to run the host profiler. Please enable host PID or disable the host profiler")
-			o.hostPIDDisabledManually = true
-			return feature.RequiredComponents{}
-		}
-	}
+	// o.logger.Info("IN HEREEEEEEEE")
+	// fmt.Println("IN HEREEEEEEEE ", o.hostProfilerEnabled)
 
 	o.owner = dda
 	if value, ok := featureutils.HasHostProfilerConfigAnnotion(dda, featureutils.HostProfilerConfigDataAnnotion); ok {
