@@ -35,7 +35,7 @@ const (
 	// releasePrefix is the prefix for Helm release ConfigMaps and Secrets
 	releasePrefix = "sh.helm.release.v1."
 	// tickerInterval is how often the ticker sends all snapshots
-	tickerInterval = 1 * time.Minute
+	tickerInterval = 5 * time.Minute
 )
 
 var (
