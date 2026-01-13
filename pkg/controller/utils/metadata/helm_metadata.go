@@ -36,8 +36,6 @@ const (
 	releasePrefix = "sh.helm.release.v1."
 	// tickerInterval is how often the ticker sends all snapshots
 	tickerInterval = 1 * time.Minute
-	// numWorkers is the number of worker goroutines processing the queue
-	numWorkers = 1
 )
 
 var (
@@ -146,12 +144,12 @@ func NewHelmMetadataForwarderWithManager(logger logr.Logger, mgr manager.Manager
 func (hmf *HelmMetadataForwarder) Start() {
 	cmInformer, err := hmf.mgr.GetCache().GetInformer(context.Background(), &corev1.ConfigMap{})
 	if err != nil {
-		hmf.logger.Error(err, "Error getting ConfigMap informer")
+		hmf.logger.Info("Error getting ConfigMap informer", "error", err)
 		return
 	}
 	secretInformer, err := hmf.mgr.GetCache().GetInformer(context.Background(), &corev1.Secret{})
 	if err != nil {
-		hmf.logger.Error(err, "Error getting Secret informer")
+		hmf.logger.Info("Error getting Secret informer", "error", err)
 		return
 	}
 
@@ -181,7 +179,7 @@ func (hmf *HelmMetadataForwarder) Start() {
 	})
 
 	if err != nil {
-		hmf.logger.Error(err, "Error adding event handler to ConfigMap informer")
+		hmf.logger.Info("Error adding event handler to ConfigMap informer", "error", err)
 		return
 	}
 
@@ -225,21 +223,17 @@ func (hmf *HelmMetadataForwarder) Start() {
 		return
 	}
 
-	// Start worker goroutines
-	for i := 0; i < numWorkers; i++ {
-		go hmf.runWorker(i)
-	}
+	// Start worker goroutine
+	go hmf.runWorker()
 
 	// Start ticker for periodic sends
 	go hmf.tickerLoop()
 
-	hmf.logger.Info("Started Helm metadata forwarder with workqueue", "workers", numWorkers)
+	hmf.logger.Info("Started Helm metadata forwarder with workqueue")
 }
 
 // runWorker is a long-running function that will continually process items from the workqueue
-func (hmf *HelmMetadataForwarder) runWorker(workerID int) {
-	hmf.logger.V(1).Info("Starting worker", "workerID", workerID)
-
+func (hmf *HelmMetadataForwarder) runWorker() {
 	for {
 		key, shutdown := hmf.queue.Get()
 		if shutdown {
@@ -271,14 +265,7 @@ func (hmf *HelmMetadataForwarder) processKey(key string) error {
 	cm := &corev1.ConfigMap{}
 	err = hmf.k8sClient.Get(context.Background(), client.ObjectKey{Namespace: namespace, Name: name}, cm)
 	if err == nil && cm.Labels["owner"] == "helm" {
-		// Check if data exists (might be empty during deletion)
-		if releaseData, exists := cm.Data["release"]; exists && len(releaseData) > 0 {
-			hmf.handleHelmResource(cm.Name, cm.Namespace, string(cm.UID), []byte(releaseData))
-			return nil
-		}
-		// Empty data - treat as deletion
-		hmf.logger.V(2).Info("ConfigMap has no data, treating as deletion", "key", key)
-		hmf.handleDelete(key)
+		hmf.handleHelmResource(cm.Name, cm.Namespace, string(cm.UID), []byte(cm.Data["release"]))
 		return nil
 	}
 
@@ -286,14 +273,7 @@ func (hmf *HelmMetadataForwarder) processKey(key string) error {
 	secret := &corev1.Secret{}
 	err = hmf.k8sClient.Get(context.Background(), client.ObjectKey{Namespace: namespace, Name: name}, secret)
 	if err == nil && secret.Labels["owner"] == "helm" {
-		// Check if data exists (might be empty during deletion)
-		if releaseData, exists := secret.Data["release"]; exists && len(releaseData) > 0 {
-			hmf.handleHelmResource(secret.Name, secret.Namespace, string(secret.UID), releaseData)
-			return nil
-		}
-		// Empty data - treat as deletion
-		hmf.logger.V(2).Info("Secret has no data, treating as deletion", "key", key)
-		hmf.handleDelete(key)
+		hmf.handleHelmResource(secret.Name, secret.Namespace, string(secret.UID), secret.Data["release"])
 		return nil
 	}
 
@@ -308,7 +288,6 @@ func (hmf *HelmMetadataForwarder) processKey(key string) error {
 
 // handleDelete handles deletion of a Helm release
 func (hmf *HelmMetadataForwarder) handleDelete(key string) {
-	// Extract namespace and name from key
 	namespace, name, _ := toolscache.SplitMetaNamespaceKey(key)
 
 	// Parse the release name from the resource name
@@ -319,13 +298,9 @@ func (hmf *HelmMetadataForwarder) handleDelete(key string) {
 	}
 
 	releaseKey := fmt.Sprintf("%s/%s", namespace, releaseName)
-
-	// Check if it exists before deleting
 	if _, exists := hmf.releaseSnapshots.Load(releaseKey); exists {
 		hmf.releaseSnapshots.Delete(releaseKey)
-		hmf.logger.Info("Deleted release snapshot", "releaseKey", releaseKey)
-	} else {
-		hmf.logger.Info("Release snapshot already deleted or never existed", "releaseKey", releaseKey)
+		hmf.logger.Info("Deleted release snapshot for release", "releaseKey", releaseKey)
 	}
 }
 
