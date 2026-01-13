@@ -264,6 +264,29 @@ func promptConfirmation(cmd *cobra.Command) error {
 	return nil
 }
 
+func listKarpenterNodePools(ctx context.Context, cli *clients.Clients) ([]string, error) {
+	nodePoolList := &karpv1.NodePoolList{}
+	nodePoolList.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "karpenter.sh",
+		Version: "v1",
+		Kind:    "NodePoolList",
+	})
+
+	if err := cli.K8sClient.List(ctx, nodePoolList, client.MatchingLabels{
+		"app.kubernetes.io/managed-by":      "kubectl-datadog",
+		"autoscaling.datadoghq.com/created": "true",
+	}); err != nil {
+		if meta.IsNoMatchError(err) {
+			return nil, nil // CRD not installed, no NodePools
+		}
+		return nil, err
+	}
+
+	return lo.Map(nodePoolList.Items, func(np karpv1.NodePool, _ int) string {
+		return np.Name
+	}), nil
+}
+
 func deleteKarpenterNodePools(ctx context.Context, cli *clients.Clients) error {
 	log.Println("Deleting Karpenter NodePool resources…")
 
@@ -296,6 +319,29 @@ func deleteKarpenterNodePools(ctx context.Context, cli *clients.Clients) error {
 	return nil
 }
 
+func listKarpenterEC2NodeClasses(ctx context.Context, cli *clients.Clients) ([]string, error) {
+	ec2NodeClassList := &karpawsv1.EC2NodeClassList{}
+	ec2NodeClassList.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "karpenter.k8s.aws",
+		Version: "v1",
+		Kind:    "EC2NodeClassList",
+	})
+
+	if err := cli.K8sClient.List(ctx, ec2NodeClassList, client.MatchingLabels{
+		"app.kubernetes.io/managed-by":      "kubectl-datadog",
+		"autoscaling.datadoghq.com/created": "true",
+	}); err != nil {
+		if meta.IsNoMatchError(err) {
+			return nil, nil // CRD not installed, no EC2NodeClasses
+		}
+		return nil, err
+	}
+
+	return lo.Map(ec2NodeClassList.Items, func(nc karpawsv1.EC2NodeClass, _ int) string {
+		return nc.Name
+	}), nil
+}
+
 func deleteKarpenterEC2NodeClasses(ctx context.Context, cli *clients.Clients) error {
 	log.Println("Deleting Karpenter EC2NodeClass resources…")
 
@@ -326,6 +372,31 @@ func deleteKarpenterEC2NodeClasses(ctx context.Context, cli *clients.Clients) er
 	}
 
 	return nil
+}
+
+func listKarpenterNodes(ctx context.Context, cli *clients.Clients, ec2NodeClassNames []string) ([]string, error) {
+	if len(ec2NodeClassNames) == 0 {
+		return nil, nil // No EC2NodeClasses to match
+	}
+
+	// List all Karpenter-managed nodes
+	nodesList, err := cli.K8sClientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{
+		LabelSelector: "karpenter.k8s.aws/ec2nodeclass",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter nodes that belong to our EC2NodeClasses
+	nodeClassSet := lo.SliceToMap(ec2NodeClassNames, func(name string) (string, struct{}) {
+		return name, struct{}{}
+	})
+
+	return lo.FilterMap(nodesList.Items, func(node corev1.Node, _ int) (string, bool) {
+		nodeClass := node.Labels["karpenter.k8s.aws/ec2nodeclass"]
+		_, matches := nodeClassSet[nodeClass]
+		return node.Name, matches
+	}), nil
 }
 
 func waitForKarpenterNodesToTerminate(ctx context.Context, cli *clients.Clients, clusterName string) error {
@@ -426,89 +497,6 @@ func removeAwsAuthConfigMapRole(ctx context.Context, cli *clients.Clients, clust
 	return nil
 }
 
-func deleteCloudFormationStacks(ctx context.Context, cli *clients.Clients, clusterName string) error {
-	if err := aws.DeleteStack(ctx, cli.CloudFormation, "dd-karpenter-"+clusterName+"-dd-karpenter"); err != nil {
-		return fmt.Errorf("failed to delete dd-karpenter CloudFormation stack: %w", err)
-	}
-
-	if err := aws.DeleteStack(ctx, cli.CloudFormation, "dd-karpenter-"+clusterName+"-karpenter"); err != nil {
-		return fmt.Errorf("failed to delete karpenter CloudFormation stack: %w", err)
-	}
-
-	return nil
-}
-
-func listKarpenterNodePools(ctx context.Context, cli *clients.Clients) ([]string, error) {
-	nodePoolList := &karpv1.NodePoolList{}
-	nodePoolList.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "karpenter.sh",
-		Version: "v1",
-		Kind:    "NodePoolList",
-	})
-
-	if err := cli.K8sClient.List(ctx, nodePoolList, client.MatchingLabels{
-		"app.kubernetes.io/managed-by":      "kubectl-datadog",
-		"autoscaling.datadoghq.com/created": "true",
-	}); err != nil {
-		if meta.IsNoMatchError(err) {
-			return nil, nil // CRD not installed, no NodePools
-		}
-		return nil, err
-	}
-
-	return lo.Map(nodePoolList.Items, func(np karpv1.NodePool, _ int) string {
-		return np.Name
-	}), nil
-}
-
-func listKarpenterEC2NodeClasses(ctx context.Context, cli *clients.Clients) ([]string, error) {
-	ec2NodeClassList := &karpawsv1.EC2NodeClassList{}
-	ec2NodeClassList.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "karpenter.k8s.aws",
-		Version: "v1",
-		Kind:    "EC2NodeClassList",
-	})
-
-	if err := cli.K8sClient.List(ctx, ec2NodeClassList, client.MatchingLabels{
-		"app.kubernetes.io/managed-by":      "kubectl-datadog",
-		"autoscaling.datadoghq.com/created": "true",
-	}); err != nil {
-		if meta.IsNoMatchError(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	return lo.Map(ec2NodeClassList.Items, func(nc karpawsv1.EC2NodeClass, _ int) string {
-		return nc.Name
-	}), nil
-}
-
-func listKarpenterNodes(ctx context.Context, cli *clients.Clients, ec2NodeClassNames []string) ([]string, error) {
-	if len(ec2NodeClassNames) == 0 {
-		return nil, nil // No EC2NodeClasses to match
-	}
-
-	// List all Karpenter-managed nodes
-	nodesList, err := cli.K8sClientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{
-		LabelSelector: "karpenter.k8s.aws/ec2nodeclass",
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// Filter nodes that belong to our EC2NodeClasses
-	nodeClassSet := lo.SliceToMap(ec2NodeClassNames, func(name string) (string, struct{}) {
-		return name, struct{}{}
-	})
-
-	return lo.FilterMap(nodesList.Items, func(node corev1.Node, _ int) (string, bool) {
-		nodeClass := node.Labels["karpenter.k8s.aws/ec2nodeclass"]
-		_, matches := nodeClassSet[nodeClass]
-		return node.Name, matches
-	}), nil
-}
-
 func listCloudFormationStacks(ctx context.Context, cli *clients.Clients, clusterName string) ([]string, error) {
 	stackNames := []string{
 		"dd-karpenter-" + clusterName + "-karpenter",
@@ -526,4 +514,16 @@ func listCloudFormationStacks(ctx context.Context, cli *clients.Clients, cluster
 		}
 	}
 	return existing, nil
+}
+
+func deleteCloudFormationStacks(ctx context.Context, cli *clients.Clients, clusterName string) error {
+	if err := aws.DeleteStack(ctx, cli.CloudFormation, "dd-karpenter-"+clusterName+"-dd-karpenter"); err != nil {
+		return fmt.Errorf("failed to delete dd-karpenter CloudFormation stack: %w", err)
+	}
+
+	if err := aws.DeleteStack(ctx, cli.CloudFormation, "dd-karpenter-"+clusterName+"-karpenter"); err != nil {
+		return fmt.Errorf("failed to delete karpenter CloudFormation stack: %w", err)
+	}
+
+	return nil
 }
