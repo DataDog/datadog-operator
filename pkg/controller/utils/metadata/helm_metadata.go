@@ -195,26 +195,24 @@ func (hmf *HelmMetadataForwarder) Start() {
 				key, err := toolscache.MetaNamespaceKeyFunc(obj)
 				if err == nil {
 					hmf.queue.Add(key)
-					hmf.logger.V(2).Info("Enqueued Secret for processing", "key", key)
 				}
 			},
 			DeleteFunc: func(obj any) {
 				key, err := toolscache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 				if err == nil {
 					hmf.queue.Add(key)
-					hmf.logger.V(2).Info("Enqueued Secret deletion for processing", "key", key)
 				}
 			},
 		},
 	})
 
 	if err != nil {
-		hmf.logger.Error(err, "Error adding event handler to Secret informer")
+		hmf.logger.Info("Error adding event handler to Secret informer", "error", err)
 		return
 	}
 
 	if !hmf.mgr.GetCache().WaitForCacheSync(context.Background()) {
-		hmf.logger.Error(err, "Error waiting for cache sync")
+		hmf.logger.Info("Error waiting for cache sync", "error", err)
 		return
 	}
 
@@ -248,8 +246,6 @@ func (hmf *HelmMetadataForwarder) runWorker() {
 		}
 		hmf.queue.Done(key)
 	}
-
-	hmf.logger.V(1).Info("Stopping worker", "workerID", workerID)
 }
 
 // processKey processes a single Helm release by its namespaced key
@@ -258,8 +254,6 @@ func (hmf *HelmMetadataForwarder) processKey(key string) error {
 	if err != nil {
 		return fmt.Errorf("invalid key format: %w", err)
 	}
-
-	hmf.logger.V(2).Info("Processing key", "key", key)
 
 	// Try to get as ConfigMap first
 	cm := &corev1.ConfigMap{}
@@ -293,7 +287,6 @@ func (hmf *HelmMetadataForwarder) handleDelete(key string) {
 	// Parse the release name from the resource name
 	_, releaseName, _, ok := hmf.parseHelmResource(name, nil)
 	if !ok || releaseName == "" {
-		hmf.logger.Info("Failed to parse release name from key", "key", key, "name", name)
 		return
 	}
 
@@ -469,10 +462,6 @@ func (hmf *HelmMetadataForwarder) sendSingleReleasePayload(release HelmReleaseDa
 		return fmt.Errorf("error sending metadata request: %w", err)
 	}
 	defer resp.Body.Close()
-
-	hmf.logger.V(1).Info("Received HTTP response for metadata",
-		"release", release.ReleaseName,
-		"status_code", resp.StatusCode)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
