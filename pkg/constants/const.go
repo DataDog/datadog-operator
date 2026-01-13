@@ -75,6 +75,10 @@ const (
 	MD5DDAIDeploymentAnnotationKey = "agent.datadoghq.com/ddaispechash"
 	// MD5ChecksumAnnotationKey annotation key is used to identify customConfig configurations
 	MD5ChecksumAnnotationKey = "checksum/%s-custom-config"
+	// OperatorComponentLabelKey is used to identify the component of the resource
+	OperatorComponentLabelKeyPrefix = "operator.datadoghq.com/component."
+	// ConfigIDLabelKey stores a config ID for dependencies to generate a MD5 checksum annotation key
+	ConfigIDLabelKey = "operator.datadoghq.com/config-id"
 )
 
 // Profiles

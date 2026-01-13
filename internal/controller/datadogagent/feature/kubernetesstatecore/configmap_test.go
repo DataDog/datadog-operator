@@ -10,10 +10,34 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+// buildExpectedConfigMap creates the expected ConfigMap for testing
+func buildExpectedConfigMap(namespace, name string, opts collectorOptions, runInClusterChecksRunner bool, customContent string) *corev1.ConfigMap {
+	content := customContent
+	if content == "" {
+		content = ksmCheckConfig(runInClusterChecksRunner, opts)
+	}
+
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels: map[string]string{
+				constants.ConfigIDLabelKey: string(feature.KubernetesStateCoreIDType),
+				constants.GetOperatorComponentLabelKey(v2alpha1.ClusterAgentComponentName): "true",
+			},
+		},
+		Data: map[string]string{
+			ksmCoreCheckName: content,
+		},
+	}
+}
 
 func Test_ksmFeature_buildKSMCoreConfigMap(t *testing.T) {
 	owner := &metav1.ObjectMeta{
@@ -102,7 +126,7 @@ instances:
 				runInClusterChecksRunner: true,
 				configConfigMapName:      defaultKubeStateMetricsCoreConf,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, defaultOptions)),
+			want: buildExpectedConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, defaultOptions, true, ""),
 		},
 		{
 			name: "override",
@@ -115,7 +139,7 @@ instances:
 					ConfigData: &overrideConf,
 				},
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, overrideConf),
+			want: buildExpectedConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, collectorOptions{}, true, overrideConf),
 		},
 		{
 			name: "no cluster check runners",
@@ -125,7 +149,7 @@ instances:
 				runInClusterChecksRunner: false,
 				configConfigMapName:      defaultKubeStateMetricsCoreConf,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(false, defaultOptions)),
+			want: buildExpectedConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, defaultOptions, false, ""),
 		},
 		{
 			name: "with vpa",
@@ -136,7 +160,7 @@ instances:
 				configConfigMapName:      defaultKubeStateMetricsCoreConf,
 				collectorOpts:            optionsWithVPA,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithVPA)),
+			want: buildExpectedConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, optionsWithVPA, true, ""),
 		},
 		{
 			name: "with CRDs",
@@ -147,7 +171,7 @@ instances:
 				configConfigMapName:      defaultKubeStateMetricsCoreConf,
 				collectorOpts:            optionsWithCRD,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithCRD)),
+			want: buildExpectedConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, optionsWithCRD, true, ""),
 		},
 		{
 			name: "with APIServices",
@@ -158,7 +182,7 @@ instances:
 				configConfigMapName:      defaultKubeStateMetricsCoreConf,
 				collectorOpts:            optionsWithAPIService,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithAPIService)),
+			want: buildExpectedConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, optionsWithAPIService, true, ""),
 		},
 		{
 			name: "with ControllerRevisions",
@@ -169,7 +193,7 @@ instances:
 				configConfigMapName:      defaultKubeStateMetricsCoreConf,
 				collectorOpts:            optionsWithControllerRevisions,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithControllerRevisions)),
+			want: buildExpectedConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, optionsWithControllerRevisions, true, ""),
 		},
 		{
 			name: "with custom resources",
@@ -180,7 +204,7 @@ instances:
 				configConfigMapName:      defaultKubeStateMetricsCoreConf,
 				collectorOpts:            optionsWithCustomResources,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithCustomResources)),
+			want: buildExpectedConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, optionsWithCustomResources, true, ""),
 		},
 		{
 			name: "with multiple custom resources",
@@ -191,7 +215,7 @@ instances:
 				configConfigMapName:      defaultKubeStateMetricsCoreConf,
 				collectorOpts:            optionsWithMultipleCustomResources,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithMultipleCustomResources)),
+			want: buildExpectedConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, optionsWithMultipleCustomResources, true, ""),
 		},
 		{
 			name: "with VPA and custom resources",
@@ -202,7 +226,7 @@ instances:
 				configConfigMapName:      defaultKubeStateMetricsCoreConf,
 				collectorOpts:            optionsWithVPAAndCustomResources,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithVPAAndCustomResources)),
+			want: buildExpectedConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, optionsWithVPAAndCustomResources, true, ""),
 		},
 		{
 			name: "with custom resources and no cluster check",
@@ -213,7 +237,7 @@ instances:
 				configConfigMapName:      defaultKubeStateMetricsCoreConf,
 				collectorOpts:            optionsWithCustomResources,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(false, optionsWithCustomResources)),
+			want: buildExpectedConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, optionsWithCustomResources, false, ""),
 		},
 	}
 	for _, tt := range tests {

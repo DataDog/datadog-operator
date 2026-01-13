@@ -13,18 +13,32 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 func (f *ksmFeature) buildKSMCoreConfigMap(collectorOpts collectorOptions) (*corev1.ConfigMap, error) {
 	if f.customConfig != nil && f.customConfig.ConfigMap != nil {
 		return nil, nil
 	}
+
+	var configMap *corev1.ConfigMap
 	if f.customConfig != nil && f.customConfig.ConfigData != nil {
-		return configmap.BuildConfigMapConfigData(f.owner.GetNamespace(), f.customConfig.ConfigData, f.configConfigMapName, ksmCoreCheckName)
+		var err error
+		configMap, err = configmap.BuildConfigMapConfigData(f.owner.GetNamespace(), f.customConfig.ConfigData, f.configConfigMapName, ksmCoreCheckName)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		configMap = buildDefaultConfigMap(f.owner.GetNamespace(), f.configConfigMapName, ksmCheckConfig(f.runInClusterChecksRunner, collectorOpts))
 	}
 
-	configMap := buildDefaultConfigMap(f.owner.GetNamespace(), f.configConfigMapName, ksmCheckConfig(f.runInClusterChecksRunner, collectorOpts))
+	configMap.Labels = map[string]string{
+		constants.ConfigIDLabelKey: string(f.ID()),
+		constants.GetOperatorComponentLabelKey(v2alpha1.ClusterAgentComponentName): "true",
+	}
+
 	return configMap, nil
 }
 

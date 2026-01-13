@@ -59,6 +59,8 @@ const (
 	ServicesKind = "services"
 	// ValidatingWebhookConfigurationsKind is the ValidatingWebhookConfigurations resource kind
 	ValidatingWebhookConfigurationsKind = "validatingwebhookconfigurations"
+	// ConfigMapsKind is the ConfigMaps resource kind
+	ConfigMapsKind = "configmaps"
 )
 
 // getResourcesKind return the list of all possible ObjectKind supported as DatadogAgent dependencies
@@ -77,6 +79,7 @@ func getResourcesKind(withCiliumResources bool) []ObjectKind {
 		ServiceAccountsKind,
 		ServicesKind,
 		ValidatingWebhookConfigurationsKind,
+		ConfigMapsKind,
 	}
 
 	if withCiliumResources {

@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/equality"
@@ -46,13 +47,15 @@ type StoreClient interface {
 	Delete(kind kubernetes.ObjectKind, namespace string, name string) bool
 	DeleteAll(ctx context.Context, k8sClient client.Client) []error
 	Logger() logr.Logger
+	GetComponentAnnotations(componentName v2alpha1.ComponentName) map[string]string
 }
 
 // NewStore returns a new Store instance
 func NewStore(owner metav1.Object, options *StoreOptions) *Store {
 	store := &Store{
-		deps:  make(map[kubernetes.ObjectKind]map[string]client.Object),
-		owner: owner,
+		deps:                 make(map[kubernetes.ObjectKind]map[string]client.Object),
+		owner:                owner,
+		componentAnnotations: make(map[v2alpha1.ComponentName]map[string]string),
 	}
 	if options != nil {
 		store.supportCilium = options.SupportCilium
@@ -74,6 +77,8 @@ type Store struct {
 	supportCilium        bool
 	platformInfo         kubernetes.PlatformInfo
 	isDDAControllerStore bool
+
+	componentAnnotations map[v2alpha1.ComponentName]map[string]string
 
 	scheme *runtime.Scheme
 	logger logr.Logger
@@ -208,8 +213,8 @@ func (ds *Store) Delete(kind kubernetes.ObjectKind, namespace string, name strin
 
 // Apply use to create/update resources in the api-server
 func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
-	ds.mutex.RLock()
-	defer ds.mutex.RUnlock()
+	ds.mutex.Lock()
+	defer ds.mutex.Unlock()
 
 	var errs []error
 	var objsToCreate []client.Object
@@ -232,6 +237,9 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 				errs = append(errs, err)
 				continue
 			}
+
+			// Update object in store after preprocessing for equality check
+			ds.deps[kind][objID] = objStore
 
 			if objAPIServer == nil {
 				ds.logger.V(2).Info("store.store Add object to create", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
@@ -464,4 +472,13 @@ func shouldSetOwnerReference(kind kubernetes.ObjectKind, objNamespace, ownerName
 	}
 
 	return true
+}
+
+// GetComponentAnnotations retrieves all annotations for a component
+// Returns a copy to prevent external modifications to internal state
+func (ds *Store) GetComponentAnnotations(componentName v2alpha1.ComponentName) map[string]string {
+	ds.mutex.RLock()
+	defer ds.mutex.RUnlock()
+
+	return maps.Clone(ds.componentAnnotations[componentName])
 }
