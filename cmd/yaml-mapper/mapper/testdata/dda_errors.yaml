@@ -1,0 +1,42 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-errors
+spec:
+  features:
+    apm:
+      hostPortConfig:
+        enabled: true
+        hostPort: 8126
+      unixDomainSocketConfig:
+        enabled: true
+    clusterChecks:
+      enabled: true
+    logCollection:
+      containerCollectAll: true
+      enabled: true
+  global:
+    credentials:
+      apiSecret:
+        keyName: api-key
+        secretName: datadog-secret
+      appSecret:
+        keyName: app-key
+        secretName: datadog-secret
+    kubelet:
+      tlsVerify: false
+    logLevel: info
+    site: datadoghq.com
+  override:
+    clusterAgent:
+      image:
+        name: cluster-agent
+        tag: 7.50.0
+      replicas: 2
+    nodeAgent:
+      image:
+        name: agent
+        tag: 7.50.0
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master

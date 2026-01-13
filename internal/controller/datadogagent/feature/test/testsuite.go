@@ -10,7 +10,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
@@ -44,6 +43,7 @@ type FeatureTest struct {
 	Agent               *ComponentTest
 	ClusterAgent        *ComponentTest
 	ClusterChecksRunner *ComponentTest
+	OtelAgentGateway    *ComponentTest
 	// Want
 	WantConfigure             bool
 	WantManageDependenciesErr bool
@@ -69,7 +69,7 @@ func NewDefaultComponentTest() *ComponentTest {
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
 						{
-							Name:    string(apicommon.CoreAgentContainerName),
+							Name:    string(common.CoreAgentContainerName),
 							Image:   images.GetLatestAgentImage(),
 							Command: []string{"agent", "run"},
 						},
@@ -168,6 +168,12 @@ func runTest(t *testing.T, tt FeatureTest) {
 			tplManager, _ := tt.ClusterChecksRunner.CreateFunc(t)
 			_ = feat.ManageClusterChecksRunner(tplManager, "")
 			tt.ClusterChecksRunner.WantFunc(t, tplManager)
+		}
+
+		if tt.OtelAgentGateway != nil {
+			tplManager, _ := tt.OtelAgentGateway.CreateFunc(t)
+			_ = feat.ManageOtelAgentGateway(tplManager, "")
+			tt.OtelAgentGateway.WantFunc(t, tplManager)
 		}
 	}
 }

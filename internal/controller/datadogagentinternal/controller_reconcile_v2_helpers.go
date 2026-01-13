@@ -119,6 +119,7 @@ func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, logger logr
 // It excludes DDA-managed resources from cleanup to avoid competition between the DDA
 // and DDAI controllers when DatadogAgentInternalEnabled is true.
 func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, logger logr.Logger, depsStore *store.Store) error {
+	logger.V(1).Info("Applying pending dependencies and cleaning up unused dependencies")
 	var errs []error
 	errs = append(errs, depsStore.Apply(ctx, r.client)...)
 	if len(errs) > 0 {
