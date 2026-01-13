@@ -164,15 +164,13 @@ func (hmf *HelmMetadataForwarder) Start() {
 		},
 		Handler: toolscache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj any) {
-				key, err := toolscache.MetaNamespaceKeyFunc(obj)
-				if err == nil {
+				if key, keyErr := toolscache.MetaNamespaceKeyFunc(obj); keyErr == nil {
 					hmf.queue.Add(key)
 					hmf.logger.V(1).Info("Enqueued ConfigMap for processing", "key", key)
 				}
 			},
 			DeleteFunc: func(obj any) {
-				key, err := toolscache.DeletionHandlingMetaNamespaceKeyFunc(obj)
-				if err == nil {
+				if key, keyErr := toolscache.DeletionHandlingMetaNamespaceKeyFunc(obj); keyErr == nil {
 					hmf.queue.Add(key)
 					hmf.logger.V(1).Info("Enqueued ConfigMap deletion for processing", "key", key)
 				}
@@ -194,14 +192,12 @@ func (hmf *HelmMetadataForwarder) Start() {
 		},
 		Handler: toolscache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj any) {
-				key, err := toolscache.MetaNamespaceKeyFunc(obj)
-				if err == nil {
+				if key, keyErr := toolscache.MetaNamespaceKeyFunc(obj); keyErr == nil {
 					hmf.queue.Add(key)
 				}
 			},
 			DeleteFunc: func(obj any) {
-				key, err := toolscache.DeletionHandlingMetaNamespaceKeyFunc(obj)
-				if err == nil {
+				if key, keyErr := toolscache.DeletionHandlingMetaNamespaceKeyFunc(obj); keyErr == nil {
 					hmf.queue.Add(key)
 				}
 			},
