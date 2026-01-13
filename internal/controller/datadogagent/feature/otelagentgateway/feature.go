@@ -44,6 +44,7 @@ type otelAgentGatewayFeature struct {
 	configMapName               string
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
+	featureGates                *string
 }
 
 func buildOtelAgentGatewayFeature(options *feature.Options) feature.Feature {
@@ -95,6 +96,9 @@ func (f *otelAgentGatewayFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1
 		f.customConfig = ddaSpec.Features.OtelAgentGateway.Conf
 	}
 	f.configMapName = constants.GetConfName(dda, f.customConfig, defaultOTelAgentGatewayConf)
+
+	// Extract feature gates configuration
+	f.featureGates = ddaSpec.Features.OtelAgentGateway.FeatureGates
 
 	return reqComp
 }
@@ -249,5 +253,20 @@ func (f *otelAgentGatewayFeature) ManageOtelAgentGateway(managers feature.PodTem
 	for _, port := range f.ports {
 		managers.Port().AddPortToContainer(apicommon.OtelAgent, port)
 	}
+
+	// Apply FeatureGates as command argument
+	if f.featureGates != nil && *f.featureGates != "" {
+		podSpec := &managers.PodTemplateSpec().Spec
+		for i := range podSpec.Containers {
+			if podSpec.Containers[i].Name == string(apicommon.OtelAgent) {
+				// Add --feature-gates argument to the command
+				featureGatesArg := "--feature-gates=" + *f.featureGates
+				f.logger.Info("Adding feature gates to command", "container", podSpec.Containers[i].Name, "currentCommand", podSpec.Containers[i].Command, "featureGatesArg", featureGatesArg)
+				podSpec.Containers[i].Command = append(podSpec.Containers[i].Command, featureGatesArg)
+				break
+			}
+		}
+	}
+
 	return nil
 }

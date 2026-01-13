@@ -87,6 +87,11 @@ func defaultPodSpec(dda metav1.Object) corev1.PodSpec {
 						ReadOnly:  false,
 					},
 					common.GetVolumeMountForConfig(),
+					{
+						Name:      "datadog-agent-auth",
+						MountPath: "/etc/datadog-agent/auth",
+						ReadOnly:  false,
+					},
 				},
 				Ports: []corev1.ContainerPort{
 					{
@@ -111,6 +116,12 @@ func defaultPodSpec(dda metav1.Object) corev1.PodSpec {
 				},
 			},
 			common.GetVolumeForConfig(),
+			{
+				Name: "datadog-agent-auth",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
 		},
 	}
 }

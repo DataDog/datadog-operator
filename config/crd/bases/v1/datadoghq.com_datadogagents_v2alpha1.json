@@ -2107,6 +2107,10 @@
                   "description": "Enabled enables the OTel Agent Gateway.\nDefault: false",
                   "type": "boolean"
                 },
+                "featureGates": {
+                  "description": "FeatureGates to pass to the OTel collector as a comma-separated list.\nExample: \"component.UseLocalHostAsDefaultHost,connector.datadogconnector.NativeIngest\"",
+                  "type": "string"
+                },
                 "ports": {
                   "description": "Ports contains the ports that the OTel Collector is listening on.\nDefaults: otel-grpc:4317 / otel-http:4318.",
                   "items": {
@@ -10022,6 +10026,10 @@
                     "enabled": {
                       "description": "Enabled enables the OTel Agent Gateway.\nDefault: false",
                       "type": "boolean"
+                    },
+                    "featureGates": {
+                      "description": "FeatureGates to pass to the OTel collector as a comma-separated list.\nExample: \"component.UseLocalHostAsDefaultHost,connector.datadogconnector.NativeIngest\"",
+                      "type": "string"
                     },
                     "ports": {
                       "description": "Ports contains the ports that the OTel Collector is listening on.\nDefaults: otel-grpc:4317 / otel-http:4318.",

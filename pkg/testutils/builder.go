@@ -530,6 +530,12 @@ func (builder *DatadogAgentBuilder) WithOTelAgentGatewayPorts(grpcPort int32, ht
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithOTelAgentGatewayFeatureGates(featureGates string) *DatadogAgentBuilder {
+	builder.initOtelAgentGateway()
+	builder.datadogAgent.Spec.Features.OtelAgentGateway.FeatureGates = &featureGates
+	return builder
+}
+
 // Log Collection
 func (builder *DatadogAgentBuilder) initLogCollection() {
 	if builder.datadogAgent.Spec.Features.LogCollection == nil {

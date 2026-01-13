@@ -196,6 +196,50 @@ func Test_otelAgentGatewayFeature_Configure(t *testing.T) {
 				defaultVolumes(defaultLocalObjectReferenceName),
 			),
 		},
+		{
+			Name: "otel agent gateway enabled with featureGates",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelAgentGatewayEnabled(true).
+				WithOTelAgentGatewayFeatureGates("component.UseLocalHostAsDefaultHost,connector.datadogconnector.NativeIngest").
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: testExpectedDepsCreatedCM,
+			OtelAgentGateway: test.NewDefaultComponentTest().
+				WithCreateFunc(func(t testing.TB) (feature.PodTemplateManagers, string) {
+					// Create a PodTemplateSpec with otel-agent container
+					newPTS := corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:    string(apicommon.OtelAgent),
+									Command: []string{"otelcol", "--config=/etc/otel/otel-config.yaml"},
+								},
+							},
+						},
+					}
+					return fake.NewPodTemplateManagers(t, newPTS), ""
+				}).
+				WithWantFunc(
+					func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+						mgr := mgrInterface.(*fake.PodTemplateManagers)
+						podSpec := mgr.PodTemplateSpec().Spec
+
+						// Check that featureGates is added to command
+						found := false
+						for _, container := range podSpec.Containers {
+							if container.Name == string(apicommon.OtelAgent) {
+								for _, cmd := range container.Command {
+									if strings.Contains(cmd, "--feature-gates=component.UseLocalHostAsDefaultHost,connector.datadogconnector.NativeIngest") {
+										found = true
+										break
+									}
+								}
+							}
+						}
+						assert.True(t, found, "Expected --feature-gates argument in container command")
+					},
+				),
+		},
 	}
 	tests.Run(t, buildOtelAgentGatewayFeature)
 }

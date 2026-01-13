@@ -1,7 +1,11 @@
 # datadog-agent-with-otelagentgateway.yaml
-# This example shows how to enable the OTel Agent Gateway component
+# This example shows how to enable and configure the OTel Agent Gateway component.
 # The OTel Agent Gateway runs as a separate deployment and can be used
 # to collect and forward OpenTelemetry data.
+#
+# This example demonstrates all available configuration options including:
+# - Feature-level configuration (feature gates)
+# - Override configuration (replicas, resources, security contexts, node selectors, affinity, tolerations, env, etc.)
 
 apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
@@ -15,12 +19,123 @@ spec:
         keyName: api-key
 
   features:
-    # Enable OTel Agent Gateway
+    # Enable OTel Agent Gateway with feature-level configuration
     otelAgentGateway:
       enabled: true
 
+      # Feature gates to pass to OTel collector as a comma-separated list
+      # These gates enable/disable specific features in the OpenTelemetry Collector
+      featureGates: "telemetry.UseLocalHostAsDefaultMetricsAddress,logs.jsonParserArray"
+
   override:
-    # Optional: Configure the OTel Agent Gateway deployment
+    # Override configuration for fine-grained control over the OTel Agent Gateway deployment
     otelAgentGateway:
-      # Number of replicas for the gateway
+      # Number of replicas for the gateway deployment
       replicas: 2
+
+      # Node selector to schedule gateway pods on specific nodes (commented out for local testing)
+      # nodeSelector:
+      #   kubernetes.io/os: linux
+      #   node-type: observability
+
+      # Affinity configuration for pod scheduling (commented out for local testing)
+      # affinity:
+      #   podAntiAffinity:
+      #     preferredDuringSchedulingIgnoredDuringExecution:
+      #     - weight: 100
+      #       podAffinityTerm:
+      #         labelSelector:
+      #           matchExpressions:
+      #           - key: app
+      #             operator: In
+      #             values:
+      #             - datadog-otel-agent-gateway
+      #         topologyKey: kubernetes.io/hostname
+
+      # Tolerations for scheduling on tainted nodes (commented out for local testing)
+      # tolerations:
+      # - key: "dedicated"
+      #   operator: "Equal"
+      #   value: "otel-gateway"
+      #   effect: "NoSchedule"
+
+      # Priority class for pod scheduling (commented out for local testing)
+      # priorityClassName: high-priority
+
+      # Additional environment variables for all containers in this component
+      env:
+      - name: OTEL_LOG_LEVEL
+        value: "debug"
+      - name: CUSTOM_VAR
+        value: "custom-value"
+
+      # Environment variables from ConfigMaps or Secrets
+      envFrom:
+      - configMapRef:
+          name: otel-gateway-config
+      - secretRef:
+          name: otel-gateway-secrets
+
+      # Custom image configuration (optional)
+      image:
+        name: ddot-collector
+        tag: "7.74.1"
+        pullPolicy: IfNotPresent
+      # Pod-level security context to ensure volumes are writable by non-root user
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: "OnRootMismatch"
+
+      # Configure containers (both init and regular containers use the same map)
+      containers:
+        # Configure the init-volume init container
+        init-volume:
+          resources:
+            requests:
+              cpu: 50m
+              memory: 100Mi
+            limits:
+              cpu: 100m
+              memory: 200Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop:
+                - ALL
+
+        # Configure the otel-agent container
+        otel-agent:
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop:
+                - ALL
+          # Additional environment variables specific to this container
+          env:
+          - name: CONTAINER_SPECIFIC_VAR
+            value: "container-value"
+
+      # Additional labels for pods
+      labels:
+        team: observability
+        environment: production
+
+      # Additional annotations for pods
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8888"
