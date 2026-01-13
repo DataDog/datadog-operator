@@ -88,7 +88,8 @@ func (r *Reconciler) ssaMergeCRD(original, modified runtime.Object) (runtime.Obj
 			_ = stripDottedFieldPath(mod, p)
 		}
 
-		newObj, retryErr := r.fieldManager.Apply(orig, mod, defaultOperatorManager, true)
+		var retryErr error
+		newObj, retryErr = r.fieldManager.Apply(orig, mod, defaultOperatorManager, true)
 		if retryErr != nil {
 			// If we still fail, return the original error to avoid masking other issues.
 			return nil, fmt.Errorf("failed to apply merge: %w", err)
