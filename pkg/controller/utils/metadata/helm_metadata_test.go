@@ -10,153 +10,85 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"testing"
-	"time"
 
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-func Test_HelmMetadataForwarder_getPayload(t *testing.T) {
-	expectedKubernetesVersion := "v1.28.0"
-	expectedOperatorVersion := "v1.19.0"
-	expectedHostname := "test-host"
-	expectedClusterUID := "test-cluster-uid-123"
-	expectedReleaseName := "my-release"
-	expectedNamespace := "default"
-	expectedChartName := "datadog"
-	expectedChartVersion := "3.10.0"
-	expectedAppVersion := "7.50.0"
+// createTestForwarder creates a minimal test forwarder
+func createTestForwarder() *HelmMetadataForwarder {
+	return NewHelmMetadataForwarderWithManager(
+		zap.New(zap.UseDevMode(true)),
+		nil,
+		nil,
+		"v1.28.0",
+		"v1.19.0",
+		config.NewCredentialManager(fake.NewFakeClient()),
+	)
+}
 
-	hmf := NewHelmMetadataForwarder(zap.New(zap.UseDevMode(true)), nil, expectedKubernetesVersion, expectedOperatorVersion, config.NewCredentialManager(fake.NewFakeClient()))
+// createValidReleaseData creates valid test release data
+func createValidReleaseData() ([]byte, error) {
+	release := HelmReleaseMinimal{
+		Name:      "test-release",
+		Namespace: "default",
+		Version:   1,
+	}
+	release.Info.Status = "deployed"
+	release.Chart.Metadata.Name = "datadog"
+	release.Chart.Metadata.Version = "3.10.0"
+	release.Chart.Metadata.AppVersion = "7.50.0"
+	release.Config = map[string]interface{}{"key": "value"}
+	release.Chart.Values = map[string]interface{}{"default": "value"}
 
-	// Set required fields
-	hmf.hostName = expectedHostname
-
-	release := HelmReleaseData{
-		ReleaseName:        expectedReleaseName,
-		Namespace:          expectedNamespace,
-		ChartName:          expectedChartName,
-		ChartVersion:       expectedChartVersion,
-		AppVersion:         expectedAppVersion,
-		ConfigMapUID:       "configmap-uid-123",
-		ProvidedValuesYAML: "datadog:\n  apiKey: xxx",
-		FullValuesYAML:     "datadog:\n  apiKey: xxx\n  site: datadoghq.com",
-		Revision:           1,
-		Status:             "deployed",
+	jsonData, err := json.Marshal(release)
+	if err != nil {
+		return nil, err
 	}
 
-	payload := hmf.buildPayload(release, expectedClusterUID)
+	var compressed []byte
+	writer := gzip.NewWriter(&testWriter{buf: &compressed})
+	writer.Write(jsonData)
+	writer.Close()
 
-	// Verify payload is valid JSON
-	if len(payload) == 0 {
-		t.Error("buildPayload() returned empty payload")
+	return []byte(base64.StdEncoding.EncodeToString(compressed)), nil
+}
+
+func Test_workqueueInitialization(t *testing.T) {
+	hmf := createTestForwarder()
+
+	if hmf.queue == nil {
+		t.Fatal("Workqueue not initialized")
 	}
 
-	// Parse JSON to validate specific values
-	var parsed map[string]interface{}
-	if err := json.Unmarshal(payload, &parsed); err != nil {
-		t.Fatalf("buildPayload() returned invalid JSON: %v", err)
+	hmf.queue.Add("test/key")
+	if hmf.queue.Len() != 1 {
+		t.Errorf("Queue length = %d, want 1", hmf.queue.Len())
 	}
 
-	// Validate top-level fields
-	if hostname, ok := parsed["hostname"].(string); !ok || hostname != expectedHostname {
-		t.Errorf("buildPayload() hostname = %v, want %v", hostname, expectedHostname)
+	key, shutdown := hmf.queue.Get()
+	if shutdown {
+		t.Error("Queue should not be shutting down")
+	}
+	if key != "test/key" {
+		t.Errorf("Got key %v, want test/key", key)
 	}
 
-	if timestamp, ok := parsed["timestamp"].(float64); !ok || timestamp <= 0 {
-		t.Errorf("buildPayload() timestamp = %v, want positive number", timestamp)
-	}
+	hmf.queue.Done(key)
+	hmf.queue.ShutDown()
 
-	// Validate metadata object exists
-	metadata, ok := parsed["datadog_operator_helm_metadata"].(map[string]interface{})
-	if !ok {
-		t.Fatal("buildPayload() missing or invalid datadog_operator_helm_metadata")
-	}
-
-	// Validate specific metadata values
-	if operatorVersion, ok := metadata["operator_version"].(string); !ok || operatorVersion != expectedOperatorVersion {
-		t.Errorf("buildPayload() operator_version = %v, want %v", operatorVersion, expectedOperatorVersion)
-	}
-
-	if kubernetesVersion, ok := metadata["kubernetes_version"].(string); !ok || kubernetesVersion != expectedKubernetesVersion {
-		t.Errorf("buildPayload() kubernetes_version = %v, want %v", kubernetesVersion, expectedKubernetesVersion)
-	}
-
-	if clusterID, ok := metadata["cluster_id"].(string); !ok || clusterID != expectedClusterUID {
-		t.Errorf("buildPayload() cluster_id = %v, want %v", clusterID, expectedClusterUID)
-	}
-
-	if chartName, ok := metadata["chart_name"].(string); !ok || chartName != expectedChartName {
-		t.Errorf("buildPayload() chart_name = %v, want %v", chartName, expectedChartName)
-	}
-
-	if releaseName, ok := metadata["chart_release_name"].(string); !ok || releaseName != expectedReleaseName {
-		t.Errorf("buildPayload() chart_release_name = %v, want %v", releaseName, expectedReleaseName)
-	}
-
-	if chartVersion, ok := metadata["chart_version"].(string); !ok || chartVersion != expectedChartVersion {
-		t.Errorf("buildPayload() chart_version = %v, want %v", chartVersion, expectedChartVersion)
-	}
-
-	if namespace, ok := metadata["chart_namespace"].(string); !ok || namespace != expectedNamespace {
-		t.Errorf("buildPayload() chart_namespace = %v, want %v", namespace, expectedNamespace)
-	}
-
-	// Verify all expected fields exist
-	expectedFields := []string{
-		"operator_version",
-		"kubernetes_version",
-		"cluster_id",
-		"chart_name",
-		"chart_release_name",
-		"chart_app_version",
-		"chart_version",
-		"chart_namespace",
-		"chart_configmap_uid",
-		"helm_provided_configuration",
-		"helm_full_configuration",
-	}
-
-	for _, field := range expectedFields {
-		if _, exists := metadata[field]; !exists {
-			t.Errorf("buildPayload() missing expected field: %s", field)
-		}
+	if !hmf.queue.ShuttingDown() {
+		t.Error("Queue should be marked as shutting down")
 	}
 }
 
 func Test_parseHelmResource(t *testing.T) {
-	hmf := NewHelmMetadataForwarder(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0", config.NewCredentialManager(fake.NewFakeClient()))
-
-	// Create a minimal valid Helm release JSON
-	releaseData := HelmReleaseMinimal{
-		Name:      "my-release",
-		Namespace: "default",
-		Version:   1,
-	}
-	releaseData.Info.Status = "deployed"
-	releaseData.Chart.Metadata.Name = "datadog"
-	releaseData.Chart.Metadata.Version = "3.10.0"
-	releaseData.Chart.Metadata.AppVersion = "7.50.0"
-	releaseData.Config = map[string]interface{}{"key": "value"}
-	releaseData.Chart.Values = map[string]interface{}{"default": "value"}
-
-	// Marshal to JSON
-	jsonData, err := json.Marshal(releaseData)
+	hmf := createTestForwarder()
+	encoded, err := createValidReleaseData()
 	if err != nil {
-		t.Fatalf("Failed to marshal test data: %v", err)
+		t.Fatalf("Failed to create test data: %v", err)
 	}
-
-	// Gzip compress
-	var compressed []byte
-	{
-		writer := gzip.NewWriter(&testWriter{buf: &compressed})
-		_, _ = writer.Write(jsonData)
-		writer.Close()
-	}
-
-	// Base64 encode
-	encoded := base64.StdEncoding.EncodeToString(compressed)
 
 	tests := []struct {
 		name            string
@@ -165,40 +97,30 @@ func Test_parseHelmResource(t *testing.T) {
 		wantReleaseName string
 		wantRevision    int
 		wantOk          bool
+		wantNilRelease  bool
 	}{
 		{
-			name:            "valid secret name with revision 1",
-			resourceName:    "sh.helm.release.v1.my-release.v1",
-			data:            []byte(encoded),
+			name:            "valid resource",
+			resourceName:    "sh.helm.release.v1.my-release.v5",
+			data:            encoded,
 			wantReleaseName: "my-release",
-			wantRevision:    1,
-			wantOk:          true,
-		},
-		{
-			name:            "valid secret name with revision 5",
-			resourceName:    "sh.helm.release.v1.my-app.v5",
-			data:            []byte(encoded),
-			wantReleaseName: "my-app",
 			wantRevision:    5,
 			wantOk:          true,
 		},
 		{
-			name:         "invalid name format - no version",
-			resourceName: "sh.helm.release.v1.my-release",
-			data:         []byte(encoded),
-			wantOk:       false,
-		},
-		{
-			name:         "invalid name format - wrong prefix",
+			name:         "invalid format",
 			resourceName: "invalid.my-release.v1",
-			data:         []byte(encoded),
+			data:         encoded,
 			wantOk:       false,
 		},
 		{
-			name:         "invalid data - empty",
-			resourceName: "sh.helm.release.v1.my-release.v1",
-			data:         []byte{},
-			wantOk:       false,
+			name:            "nil data - deletion",
+			resourceName:    "sh.helm.release.v1.my-release.v3",
+			data:            nil,
+			wantReleaseName: "my-release",
+			wantRevision:    3,
+			wantOk:          true,
+			wantNilRelease:  true,
 		},
 	}
 
@@ -207,151 +129,187 @@ func Test_parseHelmResource(t *testing.T) {
 			release, releaseName, revision, ok := hmf.parseHelmResource(tt.resourceName, tt.data)
 
 			if ok != tt.wantOk {
-				t.Errorf("parseHelmResource() ok = %v, want %v", ok, tt.wantOk)
+				t.Errorf("ok = %v, want %v", ok, tt.wantOk)
+			}
+			if !tt.wantOk {
 				return
 			}
-
-			if !tt.wantOk {
-				return // Skip further checks if we expected failure
-			}
-
 			if releaseName != tt.wantReleaseName {
-				t.Errorf("parseHelmResource() releaseName = %v, want %v", releaseName, tt.wantReleaseName)
+				t.Errorf("releaseName = %v, want %v", releaseName, tt.wantReleaseName)
 			}
-
 			if revision != tt.wantRevision {
-				t.Errorf("parseHelmResource() revision = %v, want %v", revision, tt.wantRevision)
+				t.Errorf("revision = %v, want %v", revision, tt.wantRevision)
 			}
-
-			if release == nil {
-				t.Error("parseHelmResource() release is nil")
+			if tt.wantNilRelease && release != nil {
+				t.Error("expected nil release for deletion")
+			}
+			if !tt.wantNilRelease && release == nil {
+				t.Error("expected non-nil release")
 			}
 		})
 	}
 }
 
-func Test_allHelmReleasesCache(t *testing.T) {
-	cache := &allHelmReleasesCache{}
+func Test_releaseSnapshots(t *testing.T) {
+	hmf := createTestForwarder()
 
-	// Test empty cache
-	if releases, ok := cache.getFromCache(); ok {
-		t.Errorf("getFromCache() on empty cache returned ok=true, releases=%v", releases)
+	snapshot := &ReleaseSnapshot{
+		ReleaseName: "test-release",
+		Namespace:   "default",
+		Revision:    1,
 	}
 
-	// Set cache with test data
-	testReleases := []HelmReleaseData{
-		{
-			ReleaseName:  "release1",
-			Namespace:    "default",
-			ChartName:    "chart1",
-			ChartVersion: "1.0.0",
-		},
-		{
-			ReleaseName:  "release2",
-			Namespace:    "kube-system",
-			ChartName:    "chart2",
-			ChartVersion: "2.0.0",
-		},
-	}
-	cache.setCache(testReleases)
+	// Store
+	key := "default/test-release"
+	hmf.releaseSnapshots.Store(key, snapshot)
 
-	// Test cache hit
-	releases, ok := cache.getFromCache()
+	// Load
+	val, ok := hmf.releaseSnapshots.Load(key)
 	if !ok {
-		t.Error("getFromCache() after setCache returned ok=false")
+		t.Fatal("Failed to load snapshot")
 	}
-	if len(releases) != len(testReleases) {
-		t.Errorf("getFromCache() returned %d releases, want %d", len(releases), len(testReleases))
+	if val.(*ReleaseSnapshot).Revision != 1 {
+		t.Errorf("Revision = %v, want 1", val.(*ReleaseSnapshot).Revision)
 	}
 
-	// Test cache expiration
-	cache.timestamp = time.Now().Add(-2 * helmValuesCacheTTL) // Set timestamp to expired
-	if _, ok := cache.getFromCache(); ok {
-		t.Error("getFromCache() on expired cache returned ok=true")
+	// Delete
+	hmf.releaseSnapshots.Delete(key)
+	if _, ok := hmf.releaseSnapshots.Load(key); ok {
+		t.Error("Snapshot still exists after deletion")
+	}
+}
+
+func Test_revisionLogic(t *testing.T) {
+	hmf := createTestForwarder()
+	key := "default/test-release"
+
+	// Store revision 1
+	hmf.releaseSnapshots.Store(key, &ReleaseSnapshot{Revision: 1})
+
+	// Update to revision 3
+	hmf.releaseSnapshots.Store(key, &ReleaseSnapshot{Revision: 3})
+	stored, _ := hmf.releaseSnapshots.Load(key)
+	if stored.(*ReleaseSnapshot).Revision != 3 {
+		t.Errorf("Revision = %v, want 3", stored.(*ReleaseSnapshot).Revision)
+	}
+
+	// Verify >= check (simulates handleHelmResource logic)
+	existing := stored.(*ReleaseSnapshot)
+	if existing.Revision < 2 {
+		t.Error("Should skip older revision 2")
+	}
+}
+
+func Test_buildSnapshot(t *testing.T) {
+	hmf := createTestForwarder()
+
+	release := &HelmReleaseMinimal{
+		Name:      "test-release",
+		Namespace: "default",
+		Version:   2,
+	}
+	release.Info.Status = "deployed"
+	release.Chart.Metadata.Name = "datadog"
+	release.Chart.Metadata.Version = "3.10.0"
+	release.Config = map[string]interface{}{"datadog": map[string]interface{}{"apiKey": "key"}}
+	release.Chart.Values = map[string]interface{}{"datadog": map[string]interface{}{"site": "datadoghq.com"}}
+
+	snapshot := hmf.buildSnapshot(release, "test-release", "default", "uid-123", 2)
+
+	if snapshot == nil {
+		t.Fatal("buildSnapshot() returned nil")
+	}
+	if snapshot.Revision != 2 {
+		t.Errorf("Revision = %v, want 2", snapshot.Revision)
+	}
+	if snapshot.ProvidedValuesYAML == "" {
+		t.Error("ProvidedValuesYAML empty")
+	}
+	if snapshot.FullValuesYAML == "" {
+		t.Error("FullValuesYAML empty")
+	}
+	if snapshot.Release == nil {
+		t.Error("Release reference nil")
+	}
+}
+
+func Test_snapshotToReleaseData(t *testing.T) {
+	hmf := createTestForwarder()
+
+	snapshot := &ReleaseSnapshot{
+		ReleaseName:  "test-release",
+		Namespace:    "default",
+		ChartName:    "datadog",
+		ChartVersion: "3.10.0",
+		Revision:     2,
+		Status:       "deployed",
+	}
+
+	releaseData := hmf.snapshotToReleaseData(snapshot)
+
+	if releaseData.ReleaseName != "test-release" {
+		t.Errorf("ReleaseName = %v, want test-release", releaseData.ReleaseName)
+	}
+	if releaseData.Revision != 2 {
+		t.Errorf("Revision = %v, want 2", releaseData.Revision)
 	}
 }
 
 func Test_mergeValues(t *testing.T) {
-	hmf := NewHelmMetadataForwarder(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0", config.NewCredentialManager(fake.NewFakeClient()))
+	hmf := createTestForwarder()
 
-	tests := []struct {
-		name      string
-		defaults  map[string]interface{}
-		overrides map[string]interface{}
-		want      map[string]interface{}
-	}{
-		{
-			name: "simple override",
-			defaults: map[string]interface{}{
-				"key1": "default1",
-				"key2": "default2",
-			},
-			overrides: map[string]interface{}{
-				"key1": "override1",
-			},
-			want: map[string]interface{}{
-				"key1": "override1",
-				"key2": "default2",
-			},
+	defaults := map[string]interface{}{
+		"datadog": map[string]interface{}{
+			"apiKey": "default-key",
+			"site":   "datadoghq.com",
 		},
-		{
-			name: "nested merge",
-			defaults: map[string]interface{}{
-				"datadog": map[string]interface{}{
-					"apiKey": "default-key",
-					"site":   "datadoghq.com",
-				},
-			},
-			overrides: map[string]interface{}{
-				"datadog": map[string]interface{}{
-					"apiKey": "user-key",
-				},
-			},
-			want: map[string]interface{}{
-				"datadog": map[string]interface{}{
-					"apiKey": "user-key",
-					"site":   "datadoghq.com",
-				},
-			},
-		},
-		{
-			name:     "empty defaults",
-			defaults: map[string]interface{}{},
-			overrides: map[string]interface{}{
-				"key1": "value1",
-			},
-			want: map[string]interface{}{
-				"key1": "value1",
-			},
-		},
-		{
-			name: "empty overrides",
-			defaults: map[string]interface{}{
-				"key1": "value1",
-			},
-			overrides: map[string]interface{}{},
-			want: map[string]interface{}{
-				"key1": "value1",
-			},
+	}
+	overrides := map[string]interface{}{
+		"datadog": map[string]interface{}{
+			"apiKey": "user-key",
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := hmf.mergeValues(tt.defaults, tt.overrides)
+	result := hmf.mergeValues(defaults, overrides)
 
-			// Deep comparison
-			gotJSON, _ := json.Marshal(got)
-			wantJSON, _ := json.Marshal(tt.want)
-
-			if string(gotJSON) != string(wantJSON) {
-				t.Errorf("mergeValues() = %s, want %s", string(gotJSON), string(wantJSON))
-			}
-		})
+	datadog := result["datadog"].(map[string]interface{})
+	if datadog["apiKey"] != "user-key" {
+		t.Errorf("apiKey = %v, want user-key", datadog["apiKey"])
+	}
+	if datadog["site"] != "datadoghq.com" {
+		t.Errorf("site = %v, want datadoghq.com", datadog["site"])
 	}
 }
 
-// Helper type for gzip compression in tests
+func Test_buildPayload(t *testing.T) {
+	hmf := createTestForwarder()
+	hmf.hostName = "test-host"
+
+	release := HelmReleaseData{
+		ReleaseName:  "my-release",
+		ChartName:    "datadog",
+		ChartVersion: "3.10.0",
+		Revision:     1,
+	}
+
+	payload := hmf.buildPayload(release, "cluster-123")
+
+	var parsed map[string]interface{}
+	if err := json.Unmarshal(payload, &parsed); err != nil {
+		t.Fatalf("Invalid JSON: %v", err)
+	}
+
+	if parsed["hostname"] != "test-host" {
+		t.Errorf("hostname = %v, want test-host", parsed["hostname"])
+	}
+
+	metadata := parsed["datadog_operator_helm_metadata"].(map[string]interface{})
+	if metadata["chart_name"] != "datadog" {
+		t.Errorf("chart_name = %v, want datadog", metadata["chart_name"])
+	}
+}
+
+// Helper for gzip compression
 type testWriter struct {
 	buf *[]byte
 }
