@@ -29,11 +29,12 @@ type expectedPorts struct {
 }
 
 type expectedEnvVars struct {
-	agent_ipc_port    expectedEnvVar
-	agent_ipc_refresh expectedEnvVar
-	enabled           expectedEnvVar
-	extension_timeout expectedEnvVar
-	extension_url     expectedEnvVar
+	agent_ipc_port      expectedEnvVar
+	agent_ipc_refresh   expectedEnvVar
+	enabled             expectedEnvVar
+	extension_timeout   expectedEnvVar
+	extension_url       expectedEnvVar
+	converter_features  expectedEnvVar
 }
 
 type expectedEnvVar struct {
@@ -60,8 +61,9 @@ var (
 			present: true,
 			value:   "true",
 		},
-		extension_timeout: expectedEnvVar{},
-		extension_url:     expectedEnvVar{},
+		extension_timeout:  expectedEnvVar{},
+		extension_url:      expectedEnvVar{},
+		converter_features: expectedEnvVar{},
 	}
 
 	onlyIpcEnvVars = expectedEnvVars{
@@ -213,7 +215,26 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
 			Agent: testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts,
-				defaultExpectedEnvVars,
+				expectedEnvVars{
+					agent_ipc_port: expectedEnvVar{
+						present: true,
+						value:   "5009",
+					},
+					agent_ipc_refresh: expectedEnvVar{
+						present: true,
+						value:   "60",
+					},
+					enabled: expectedEnvVar{
+						present: true,
+						value:   "true",
+					},
+					extension_timeout: expectedEnvVar{},
+					extension_url:     expectedEnvVar{},
+					converter_features: expectedEnvVar{
+						present: true,
+						value:   "health_check,zpages,pprof,ddflare",
+					},
+				},
 				map[string]string{"checksum/otel_agent-custom-config": "b4ea5ecc5c7901d3b48c58622379ecfb"},
 				defaultVolumeMounts,
 				defaultVolumes(defaultLocalObjectReferenceName),
@@ -232,7 +253,26 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				grpcPort: 4444,
 				httpPort: 5555,
 			},
-				defaultExpectedEnvVars,
+				expectedEnvVars{
+					agent_ipc_port: expectedEnvVar{
+						present: true,
+						value:   "5009",
+					},
+					agent_ipc_refresh: expectedEnvVar{
+						present: true,
+						value:   "60",
+					},
+					enabled: expectedEnvVar{
+						present: true,
+						value:   "true",
+					},
+					extension_timeout: expectedEnvVar{},
+					extension_url:     expectedEnvVar{},
+					converter_features: expectedEnvVar{
+						present: true,
+						value:   "health_check,zpages,pprof,ddflare",
+					},
+				},
 				map[string]string{"checksum/otel_agent-custom-config": "d9c73c9017a4fcb811da0e51f5044b3c"},
 				defaultVolumeMounts,
 				defaultVolumes(defaultLocalObjectReferenceName),
@@ -497,6 +537,13 @@ func testExpectedAgent(
 				wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
 					Name:  DDOtelCollectorCoreConfigExtensionURL,
 					Value: expectedEnvVars.extension_url.value,
+				})
+			}
+
+			if expectedEnvVars.converter_features.present {
+				wantEnvVarsOTel = append(wantEnvVarsOTel, &corev1.EnvVar{
+					Name:  DDOtelCollectorConverterFeatures,
+					Value: expectedEnvVars.converter_features.value,
 				})
 			}
 

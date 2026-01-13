@@ -389,6 +389,15 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 		})
 	}
 
+	// Exclude infraattributes and prometheus when gateway is enabled to avoid duplication.
+	// Users must explicitly add infraattributes and prometheus if needed.
+	if o.otelGatewayEnabled {
+		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.OtelAgent}, &corev1.EnvVar{
+			Name:  DDOtelCollectorConverterFeatures,
+			Value: "health_check,zpages,pprof,ddflare",
+		})
+	}
+
 	return nil
 }
 
