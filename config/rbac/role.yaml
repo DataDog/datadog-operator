@@ -131,6 +131,14 @@ rules:
 - apiGroups:
   - argoproj.io
   resources:
+  - applications
+  - applicationsets
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - argoproj.io
+  resources:
   - rollouts
   verbs:
   - list
@@ -310,6 +318,19 @@ rules:
   - '*'
   verbs:
   - get
+  - list
+  - watch
+- apiGroups:
+  - fluxcd.io
+  resources:
+  - buckets.source.toolkit
+  - externalartifacts.source.toolkit
+  - gitrepositories.source.toolkit
+  - helmcharts.source.toolkit
+  - helmrepositories.source.toolkit
+  - kustomizations.kustomize.toolkit
+  - ocirepositories.source.toolkit
+  verbs:
   - list
   - watch
 - apiGroups:
