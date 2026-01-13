@@ -76,16 +76,18 @@ type ReleaseSnapshot struct {
 }
 
 type HelmMetadataPayload struct {
-	Hostname  string       `json:"hostname"`
+	UUID      string       `json:"uuid"`
 	Timestamp int64        `json:"timestamp"`
 	ClusterID string       `json:"cluster_id"`
 	Metadata  HelmMetadata `json:"datadog_operator_helm_metadata"`
 }
 
 type HelmMetadata struct {
-	OperatorVersion           string `json:"operator_version"`
-	KubernetesVersion         string `json:"kubernetes_version"`
-	ClusterID                 string `json:"cluster_id"`
+	// Shared
+	OperatorVersion   string `json:"operator_version"`
+	KubernetesVersion string `json:"kubernetes_version"`
+	ClusterID         string `json:"cluster_id"`
+
 	ChartName                 string `json:"chart_name"`
 	ChartReleaseName          string `json:"chart_release_name"`
 	ChartAppVersion           string `json:"chart_app_version"`
@@ -213,11 +215,6 @@ func (hmf *HelmMetadataForwarder) Start() {
 
 	if !hmf.mgr.GetCache().WaitForCacheSync(context.Background()) {
 		hmf.logger.Info("Error waiting for cache sync", "error", err)
-		return
-	}
-
-	if hmf.hostName == "" {
-		hmf.logger.Error(ErrEmptyHostName, "Could not set host name; not starting metadata forwarder")
 		return
 	}
 
@@ -493,7 +490,7 @@ func (hmf *HelmMetadataForwarder) buildPayload(release HelmReleaseData, clusterU
 	}
 
 	payload := HelmMetadataPayload{
-		Hostname:  hmf.hostName,
+		UUID:      clusterUID,
 		Timestamp: now,
 		ClusterID: clusterUID,
 		Metadata:  helmMetadata,

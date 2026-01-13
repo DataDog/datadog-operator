@@ -15,11 +15,11 @@ import (
 
 const (
 	// AgentLatestVersion corresponds to the latest stable agent release
-	AgentLatestVersion = "7.73.3"
+	AgentLatestVersion = "7.74.0"
 	// ClusterAgentLatestVersion corresponds to the latest stable cluster-agent release
-	ClusterAgentLatestVersion = "7.73.3"
+	ClusterAgentLatestVersion = "7.74.0"
 	// DdotCollectorLatestVersion corresponds to the latest stable ddot-collector release
-	DdotCollectorLatestVersion = "7.73.3"
+	DdotCollectorLatestVersion = "7.74.0"
 	// FIPSProxyLatestVersion corresponds to the latest stable fips-proxy release
 	FIPSProxyLatestVersion = "1.1.17"
 	// GCRContainerRegistry corresponds to the datadoghq GCR registry
@@ -42,9 +42,11 @@ const (
 	// FullTagSuffix tag suffix for full agent images
 	FullTagSuffix = "-full"
 	// Default Image names
-	DefaultAgentImageName         string = "agent"
-	DefaultClusterAgentImageName  string = "cluster-agent"
-	DefaultDdotCollectorImageName string = "ddot-collector"
+	DefaultAgentImageName                string = "agent"
+	DefaultClusterAgentImageName         string = "cluster-agent"
+	DefaultDdotCollectorImageName        string = "ddot-collector"
+	DefaultHostProfilerDevImageName      string = "ddot-ebpf-dev"
+	DefaultHostProfilerDevImageLatestTag string = "nightly-latest"
 )
 
 // imageHasTag identifies whether an image string contains a tag suffix
@@ -128,6 +130,12 @@ func GetLatestAgentImage() string {
 // GetLatestAgentImage returns the latest ddot collector image
 func GetLatestDdotCollectorImage() string {
 	image := newImage(DefaultImageRegistry, DefaultDdotCollectorImageName, DdotCollectorLatestVersion, false, false, false)
+	return image.ToString()
+}
+
+// GetLatestAgentImage returns the latest host profiler image
+func GetLatestHostProfilerImage() string {
+	image := newImage(DockerHubContainerRegistry, DefaultHostProfilerDevImageName, DefaultHostProfilerDevImageLatestTag, false, false, false)
 	return image.ToString()
 }
 

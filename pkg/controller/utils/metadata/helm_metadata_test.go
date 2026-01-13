@@ -283,7 +283,6 @@ func Test_mergeValues(t *testing.T) {
 
 func Test_buildPayload(t *testing.T) {
 	hmf := createTestForwarder()
-	hmf.hostName = "test-host"
 
 	release := HelmReleaseData{
 		ReleaseName:  "my-release",
@@ -297,10 +296,6 @@ func Test_buildPayload(t *testing.T) {
 	var parsed map[string]interface{}
 	if err := json.Unmarshal(payload, &parsed); err != nil {
 		t.Fatalf("Invalid JSON: %v", err)
-	}
-
-	if parsed["hostname"] != "test-host" {
-		t.Errorf("hostname = %v, want test-host", parsed["hostname"])
 	}
 
 	metadata := parsed["datadog_operator_helm_metadata"].(map[string]interface{})

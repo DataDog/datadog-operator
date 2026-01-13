@@ -22,6 +22,8 @@ const (
 	ClusterAgentComponentName ComponentName = "clusterAgent"
 	// ClusterChecksRunnerComponentName is the name of the Cluster Check Runner
 	ClusterChecksRunnerComponentName ComponentName = "clusterChecksRunner"
+	// OtelAgentGatewayComponentName is the name of the OTel Agent Gateway
+	OtelAgentGatewayComponentName ComponentName = "otelAgentGateway"
 )
 
 // DatadogAgentSpec defines the desired state of DatadogAgent
@@ -476,6 +478,7 @@ type CWSFeatureConfig struct {
 	// +optional
 	DirectSendFromSystemProbe *bool `json:"directSendFromSystemProbe,omitempty"`
 
+	Enforcement         *CWSEnforcementConfig         `json:"enforcement,omitempty"`
 	Network             *CWSNetworkConfig             `json:"network,omitempty"`
 	SecurityProfiles    *CWSSecurityProfilesConfig    `json:"securityProfiles,omitempty"`
 	RemoteConfiguration *CWSRemoteConfigurationConfig `json:"remoteConfiguration,omitempty"`
@@ -485,6 +488,13 @@ type CWSFeatureConfig struct {
 	// Any policies with the same name as those existing in the agent will take precedence.
 	// +optional
 	CustomPolicies *CustomConfig `json:"customPolicies,omitempty"`
+}
+
+type CWSEnforcementConfig struct {
+	// Enabled enables Enforcement for Cloud Workload Security.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 type CWSNetworkConfig struct {
@@ -2245,6 +2255,9 @@ type DatadogAgentStatus struct {
 	// The actual state of the Cluster Checks Runner as a deployment.
 	// +optional
 	ClusterChecksRunner *DeploymentStatus `json:"clusterChecksRunner,omitempty"`
+	// The actual state of the OTel Agent Gateway as a deployment.
+	// +optional
+	OtelAgentGateway *DeploymentStatus `json:"otelAgentGateway,omitempty"`
 	// RemoteConfigConfiguration stores the configuration received from RemoteConfig.
 	// +optional
 	RemoteConfigConfiguration *RemoteConfigConfiguration `json:"remoteConfigConfiguration,omitempty"`
