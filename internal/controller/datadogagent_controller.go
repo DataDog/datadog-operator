@@ -164,6 +164,15 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=list;watch
 // +kubebuilder:rbac:groups=datadoghq.com,resources="*",verbs=list;watch
 // +kubebuilder:rbac:groups=argoproj.io,resources=rollouts,verbs=list;watch
+// +kubebuilder:rbac:groups=argoproj.io,resources=applications,verbs=list;watch
+// +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=list;watch
+// +kubebuilder:rbac:groups=fluxcd.io,resources=buckets.source.toolkit,verbs=list;watch
+// +kubebuilder:rbac:groups=fluxcd.io,resources=helmcharts.source.toolkit,verbs=list;watch
+// +kubebuilder:rbac:groups=fluxcd.io,resources=externalartifacts.source.toolkit,verbs=list;watch
+// +kubebuilder:rbac:groups=fluxcd.io,resources=gitrepositories.source.toolkit,verbs=list;watch
+// +kubebuilder:rbac:groups=fluxcd.io,resources=helmrepositories.source.toolkit,verbs=list;watch
+// +kubebuilder:rbac:groups=fluxcd.io,resources=ocirepositories.source.toolkit,verbs=list;watch
+// +kubebuilder:rbac:groups=fluxcd.io,resources=kustomizations.kustomize.toolkit,verbs=list;watch
 // +kubebuilder:rbac:groups=karpenter.sh,resources="*",verbs=get;list;watch;create;patch;update;delete
 // +kubebuilder:rbac:groups=karpenter.k8s.aws,resources="*",verbs=get;list;watch
 // +kubebuilder:rbac:groups=karpenter.azure.com,resources="*",verbs=list;watch
