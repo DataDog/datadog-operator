@@ -2,6 +2,7 @@ package datadogagent
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -372,4 +373,134 @@ func removeCwsEnforcementFromDDAISchema(t *testing.T, crd *apiextensionsv1.Custo
 		}
 	}
 	assert.True(t, found, "expected to find and delete cws.enforcement schema")
+}
+
+func Test_extractMissingSchemaPaths(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want []string
+	}{
+		{
+			name: "nil error",
+			err:  nil,
+			want: nil,
+		},
+		{
+			name: "no match",
+			err:  errors.New("some other error"),
+			want: nil,
+		},
+		{
+			name: "single match",
+			err:  errors.New(".spec.features.cws.enforcement: field not declared in schema"),
+			want: []string{".spec.features.cws.enforcement"},
+		},
+		{
+			name: "multiple matches with duplicates preserves first-seen order",
+			err: errors.New(
+				".spec.features.cws.enforcement: field not declared in schema; " +
+					".spec.features.foo_bar-1: field not declared in schema; " +
+					".spec.features.cws.enforcement: field not declared in schema",
+			),
+			want: []string{".spec.features.cws.enforcement", ".spec.features.foo_bar-1"},
+		},
+		{
+			name: "does not match single-segment path",
+			err:  errors.New(".spec: field not declared in schema"),
+			want: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractMissingSchemaPaths(tt.err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+type badRuntimeObject struct {
+	metav1.TypeMeta `json:",inline"`
+	Bad             func()
+}
+
+func (b *badRuntimeObject) DeepCopyObject() k8sruntime.Object {
+	return &badRuntimeObject{TypeMeta: b.TypeMeta}
+}
+
+func Test_stripDottedFieldPath(t *testing.T) {
+	t.Run("nil object", func(t *testing.T) {
+		assert.NoError(t, stripDottedFieldPath(nil, ".spec.features.cws.enforcement"))
+	})
+
+	t.Run("empty path is no-op", func(t *testing.T) {
+		o := &v1alpha1.DatadogAgentInternal{}
+		assert.NoError(t, stripDottedFieldPath(o, ""))
+	})
+
+	t.Run("invalid path without leading dot", func(t *testing.T) {
+		o := &v1alpha1.DatadogAgentInternal{}
+		assert.Error(t, stripDottedFieldPath(o, "spec.features.cws.enforcement"))
+	})
+
+	t.Run("invalid path with empty segment", func(t *testing.T) {
+		o := &v1alpha1.DatadogAgentInternal{}
+		assert.Error(t, stripDottedFieldPath(o, ".spec..features"))
+	})
+
+	t.Run("conversion error bubbles up", func(t *testing.T) {
+		o := &badRuntimeObject{Bad: func() {}}
+		assert.Error(t, stripDottedFieldPath(o, ".spec.features.cws.enforcement"))
+	})
+
+	t.Run("removes only the targeted nested field", func(t *testing.T) {
+		ddai := &v1alpha1.DatadogAgentInternal{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "datadoghq.com/v1alpha1",
+				Kind:       "DatadogAgentInternal",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "foo",
+				Namespace: "bar",
+			},
+			Spec: v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					CWS: &v2alpha1.CWSFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(true),
+						Network: &v2alpha1.CWSNetworkConfig{
+							Enabled: apiutils.NewBoolPointer(true),
+						},
+						Enforcement: &v2alpha1.CWSEnforcementConfig{
+							Enabled: apiutils.NewBoolPointer(true),
+						},
+					},
+				},
+			},
+		}
+
+		err := stripDottedFieldPath(ddai, ".spec.features.cws.enforcement")
+		assert.NoError(t, err)
+		assert.NotNil(t, ddai.Spec.Features)
+		assert.NotNil(t, ddai.Spec.Features.CWS)
+		assert.NotNil(t, ddai.Spec.Features.CWS.Network, "sibling fields should remain")
+		assert.Nil(t, ddai.Spec.Features.CWS.Enforcement, "targeted field should be removed")
+	})
+
+	t.Run("removing non-existent field is a no-op", func(t *testing.T) {
+		ddai := &v1alpha1.DatadogAgentInternal{
+			Spec: v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					CWS: &v2alpha1.CWSFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(true),
+					},
+				},
+			},
+		}
+
+		assert.NoError(t, stripDottedFieldPath(ddai, ".spec.features.cws.doesNotExist"))
+		assert.NotNil(t, ddai.Spec.Features)
+		assert.NotNil(t, ddai.Spec.Features.CWS)
+		assert.Equal(t, true, apiutils.BoolValue(ddai.Spec.Features.CWS.Enabled))
+	})
 }
