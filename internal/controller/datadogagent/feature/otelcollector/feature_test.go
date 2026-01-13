@@ -203,6 +203,41 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				defaultVolumes(defaultLocalObjectReferenceName),
 			),
 		},
+		// gateway enabled
+		{
+			Name: "otel agent with gateway enabled default ports",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelAgentGatewayEnabled(true).
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: testExpectedDepsCreatedCM,
+			Agent: testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts,
+				defaultExpectedEnvVars,
+				map[string]string{"checksum/otel_agent-custom-config": "b4ea5ecc5c7901d3b48c58622379ecfb"},
+				defaultVolumeMounts,
+				defaultVolumes(defaultLocalObjectReferenceName),
+			),
+		},
+		{
+			Name: "otel agent with gateway enabled non default ports",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelAgentGatewayEnabled(true).
+				WithOTelCollectorPorts(4444, 5555).
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: testExpectedDepsCreatedCM,
+			Agent: testExpectedAgent(apicommon.OtelAgent, expectedPorts{
+				grpcPort: 4444,
+				httpPort: 5555,
+			},
+				defaultExpectedEnvVars,
+				map[string]string{"checksum/otel_agent-custom-config": "d9c73c9017a4fcb811da0e51f5044b3c"},
+				defaultVolumeMounts,
+				defaultVolumes(defaultLocalObjectReferenceName),
+			),
+		},
 		// coreconfig
 		{
 			Name: "otel agent coreconfig enabled",
@@ -517,6 +552,30 @@ func testExpectedDepsCreatedCM(t testing.TB, store store.StoreClient) {
 		)
 		return
 	}
+
+	// validate gateway-enabled tests use the gateway config
+	if t.Name() == "Test_otelCollectorFeature_Configure/otel_agent_with_gateway_enabled_default_ports" {
+		expectedCM["otel-config.yaml"] = defaultconfig.DefaultOtelCollectorConfigInGateway("")
+		assert.True(
+			t,
+			apiutils.IsEqualStruct(configMap.Data, expectedCM),
+			"ConfigMap \ndiff = %s", cmp.Diff(configMap.Data, expectedCM),
+		)
+		return
+	}
+
+	if t.Name() == "Test_otelCollectorFeature_Configure/otel_agent_with_gateway_enabled_non_default_ports" {
+		expectedCM["otel-config.yaml"] = defaultconfig.DefaultOtelCollectorConfigInGateway("")
+		expectedCM["otel-config.yaml"] = strings.Replace(expectedCM["otel-config.yaml"], "4317", "4444", 1)
+		expectedCM["otel-config.yaml"] = strings.Replace(expectedCM["otel-config.yaml"], "4318", "5555", 1)
+		assert.True(
+			t,
+			apiutils.IsEqualStruct(configMap.Data, expectedCM),
+			"ConfigMap \ndiff = %s", cmp.Diff(configMap.Data, expectedCM),
+		)
+		return
+	}
+
 	assert.True(
 		t,
 		apiutils.IsEqualStruct(configMap.Data, expectedCM),
