@@ -29,12 +29,12 @@ type expectedPorts struct {
 }
 
 type expectedEnvVars struct {
-	agent_ipc_port      expectedEnvVar
-	agent_ipc_refresh   expectedEnvVar
-	enabled             expectedEnvVar
-	extension_timeout   expectedEnvVar
-	extension_url       expectedEnvVar
-	converter_features  expectedEnvVar
+	agent_ipc_port     expectedEnvVar
+	agent_ipc_refresh  expectedEnvVar
+	enabled            expectedEnvVar
+	extension_timeout  expectedEnvVar
+	extension_url      expectedEnvVar
+	converter_features expectedEnvVar
 }
 
 type expectedEnvVar struct {
