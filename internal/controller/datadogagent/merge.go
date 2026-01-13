@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -146,10 +147,8 @@ func stripDottedFieldPath(obj runtime.Object, dottedPath string) error {
 	if len(parts) == 0 {
 		return nil
 	}
-	for _, s := range parts {
-		if s == "" {
-			return field.Invalid(field.NewPath("path"), dottedPath, "invalid empty path segment")
-		}
+	if slices.Contains(parts, "") {
+		return field.Invalid(field.NewPath("path"), dottedPath, "invalid empty path segment")
 	}
 
 	m, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
