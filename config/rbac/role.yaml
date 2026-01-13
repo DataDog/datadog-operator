@@ -321,19 +321,6 @@ rules:
   - list
   - watch
 - apiGroups:
-  - fluxcd.io
-  resources:
-  - buckets.source.toolkit
-  - externalartifacts.source.toolkit
-  - gitrepositories.source.toolkit
-  - helmcharts.source.toolkit
-  - helmrepositories.source.toolkit
-  - kustomizations.kustomize.toolkit
-  - ocirepositories.source.toolkit
-  verbs:
-  - list
-  - watch
-- apiGroups:
   - gateway.envoyproxy.io
   resources:
   - envoyextensionpolicies
@@ -372,6 +359,13 @@ rules:
   - list
   - patch
   - update
+  - watch
+- apiGroups:
+  - kustomize.toolkit.fluxcd.io
+  resources:
+  - kustomizations
+  verbs:
+  - list
   - watch
 - apiGroups:
   - metrics.eks.amazonaws.com
@@ -463,6 +457,18 @@ rules:
   - securitycontextconstraints
   verbs:
   - use
+- apiGroups:
+  - source.toolkit.fluxcd.io
+  resources:
+  - buckets
+  - externalartifacts
+  - gitrepositories
+  - helmcharts
+  - helmrepositories
+  - ocirepositories
+  verbs:
+  - list
+  - watch
 - apiGroups:
   - storage.k8s.io
   resources:

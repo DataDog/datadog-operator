@@ -112,8 +112,19 @@ func getRBACPolicyRules(logger logr.Logger, crs []string) []rbacv1.PolicyRule {
 			Resources: []string{rbac.Rollout, rbac.Applications, rbac.Applicationsets},
 		},
 		{
-			APIGroups: []string{rbac.FluxAPIGroup},
-			Resources: []string{rbac.Rollout, rbac.Buckets, rbac.Helmcharts, rbac.Externalartifacts, rbac.Gitrepositories, rbac.Helmrepositories, rbac.Ocirepositories, rbac.Kustomizations},
+			APIGroups: []string{rbac.FluxSourceToolkitAPIGroup},
+			Resources: []string{
+				rbac.Buckets,
+				rbac.Helmcharts,
+				rbac.Externalartifacts,
+				rbac.Gitrepositories,
+				rbac.Helmrepositories,
+				rbac.Ocirepositories,
+			},
+		},
+		{
+			APIGroups: []string{rbac.FluxKustomizeToolkitAPIGroup},
+			Resources: []string{rbac.Kustomizations},
 		},
 		{
 			APIGroups: []string{rbac.KarpenterAPIGroup},
