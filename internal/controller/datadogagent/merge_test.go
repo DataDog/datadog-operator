@@ -2,7 +2,6 @@ package datadogagent
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -18,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	testutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -341,6 +341,181 @@ func Test_ssaMergeCRD_OutdatedCRD_IgnoresUnknownFields(t *testing.T) {
 	}
 }
 
+func Test_pruneObjectsAgainstSchema(t *testing.T) {
+	sch := testutils.TestScheme()
+
+	t.Run("prunes unknown fields from both objects", func(t *testing.T) {
+		// Load CRD and remove cws.enforcement field to simulate older schema
+		crd, err := getDDAICRDFromConfig(sch)
+		assert.NoError(t, err)
+		removeCwsEnforcementFromDDAISchema(t, crd)
+
+		original := &v1alpha1.DatadogAgentInternal{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "datadoghq.com/v1alpha1",
+				Kind:       "DatadogAgentInternal",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "foo",
+				Namespace: "bar",
+			},
+			Spec: v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					CWS: &v2alpha1.CWSFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(true),
+						Network: &v2alpha1.CWSNetworkConfig{
+							Enabled: apiutils.NewBoolPointer(true),
+						},
+						Enforcement: &v2alpha1.CWSEnforcementConfig{
+							Enabled: apiutils.NewBoolPointer(true),
+						},
+					},
+				},
+			},
+		}
+
+		modified := &v1alpha1.DatadogAgentInternal{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "datadoghq.com/v1alpha1",
+				Kind:       "DatadogAgentInternal",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "foo",
+				Namespace: "bar",
+			},
+			Spec: v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					CWS: &v2alpha1.CWSFeatureConfig{
+						Enforcement: &v2alpha1.CWSEnforcementConfig{
+							Enabled: apiutils.NewBoolPointer(false),
+						},
+					},
+				},
+			},
+		}
+
+		prunedOrig, prunedMod, err := pruneObjectsAgainstSchema(original, modified, crd)
+		assert.NoError(t, err)
+		assert.NotNil(t, prunedOrig)
+		assert.NotNil(t, prunedMod)
+
+		// Check that enforcement was pruned from original
+		origDDAI, ok := prunedOrig.(*v1alpha1.DatadogAgentInternal)
+		assert.True(t, ok)
+		assert.NotNil(t, origDDAI.Spec.Features)
+		assert.NotNil(t, origDDAI.Spec.Features.CWS)
+		assert.NotNil(t, origDDAI.Spec.Features.CWS.Network, "known fields should remain")
+		assert.Nil(t, origDDAI.Spec.Features.CWS.Enforcement, "unknown field should be pruned")
+
+		// Check that enforcement was pruned from modified
+		modDDAI, ok := prunedMod.(*v1alpha1.DatadogAgentInternal)
+		assert.True(t, ok)
+		assert.NotNil(t, modDDAI.Spec.Features)
+		assert.NotNil(t, modDDAI.Spec.Features.CWS)
+		assert.Nil(t, modDDAI.Spec.Features.CWS.Enforcement, "unknown field should be pruned")
+	})
+
+	t.Run("returns error for nil original", func(t *testing.T) {
+		crd, err := getDDAICRDFromConfig(sch)
+		assert.NoError(t, err)
+
+		modified := &v1alpha1.DatadogAgentInternal{}
+		_, _, err = pruneObjectsAgainstSchema(nil, modified, crd)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "must not be nil")
+	})
+
+	t.Run("returns error for nil modified", func(t *testing.T) {
+		crd, err := getDDAICRDFromConfig(sch)
+		assert.NoError(t, err)
+
+		original := &v1alpha1.DatadogAgentInternal{}
+		_, _, err = pruneObjectsAgainstSchema(original, nil, crd)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "must not be nil")
+	})
+
+	t.Run("returns error for invalid version", func(t *testing.T) {
+		crd, err := getDDAICRDFromConfig(sch)
+		assert.NoError(t, err)
+
+		original := &v1alpha1.DatadogAgentInternal{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "datadoghq.com/v999alpha999",
+				Kind:       "DatadogAgentInternal",
+			},
+		}
+		modified := &v1alpha1.DatadogAgentInternal{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "datadoghq.com/v999alpha999",
+				Kind:       "DatadogAgentInternal",
+			},
+		}
+
+		_, _, err = pruneObjectsAgainstSchema(original, modified, crd)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "version v999alpha999 not found")
+	})
+
+	t.Run("preserves known fields while pruning unknown ones", func(t *testing.T) {
+		crd, err := getDDAICRDFromConfig(sch)
+		assert.NoError(t, err)
+		removeCwsEnforcementFromDDAISchema(t, crd)
+
+		original := &v1alpha1.DatadogAgentInternal{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "datadoghq.com/v1alpha1",
+				Kind:       "DatadogAgentInternal",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test",
+				Namespace: "default",
+			},
+			Spec: v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					APM: &v2alpha1.APMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(true),
+					},
+					CWS: &v2alpha1.CWSFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(true),
+						Enforcement: &v2alpha1.CWSEnforcementConfig{
+							Enabled: apiutils.NewBoolPointer(true),
+						},
+					},
+				},
+			},
+		}
+
+		modified := &v1alpha1.DatadogAgentInternal{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "datadoghq.com/v1alpha1",
+				Kind:       "DatadogAgentInternal",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test",
+				Namespace: "default",
+			},
+			Spec: v2alpha1.DatadogAgentSpec{},
+		}
+
+		prunedOrig, prunedMod, err := pruneObjectsAgainstSchema(original, modified, crd)
+		assert.NoError(t, err)
+
+		origDDAI, ok := prunedOrig.(*v1alpha1.DatadogAgentInternal)
+		assert.True(t, ok)
+		assert.NotNil(t, origDDAI.Spec.Features)
+		assert.NotNil(t, origDDAI.Spec.Features.APM, "known field should be preserved")
+		assert.True(t, *origDDAI.Spec.Features.APM.Enabled)
+		assert.NotNil(t, origDDAI.Spec.Features.CWS, "known field should be preserved")
+		assert.True(t, *origDDAI.Spec.Features.CWS.Enabled)
+		assert.Nil(t, origDDAI.Spec.Features.CWS.Enforcement, "unknown field should be pruned")
+
+		modDDAI, ok := prunedMod.(*v1alpha1.DatadogAgentInternal)
+		assert.True(t, ok)
+		assert.Nil(t, modDDAI.Spec.Features)
+	})
+}
+
 func removeCwsEnforcementFromDDAISchema(t *testing.T, crd *apiextensionsv1.CustomResourceDefinition) {
 	t.Helper()
 	found := false
@@ -373,134 +548,4 @@ func removeCwsEnforcementFromDDAISchema(t *testing.T, crd *apiextensionsv1.Custo
 		}
 	}
 	assert.True(t, found, "expected to find and delete cws.enforcement schema")
-}
-
-func Test_extractMissingSchemaPaths(t *testing.T) {
-	tests := []struct {
-		name string
-		err  error
-		want []string
-	}{
-		{
-			name: "nil error",
-			err:  nil,
-			want: nil,
-		},
-		{
-			name: "no match",
-			err:  errors.New("some other error"),
-			want: nil,
-		},
-		{
-			name: "single match",
-			err:  errors.New(".spec.features.cws.enforcement: field not declared in schema"),
-			want: []string{".spec.features.cws.enforcement"},
-		},
-		{
-			name: "multiple matches with duplicates preserves first-seen order",
-			err: errors.New(
-				".spec.features.cws.enforcement: field not declared in schema; " +
-					".spec.features.foo_bar-1: field not declared in schema; " +
-					".spec.features.cws.enforcement: field not declared in schema",
-			),
-			want: []string{".spec.features.cws.enforcement", ".spec.features.foo_bar-1"},
-		},
-		{
-			name: "does not match single-segment path",
-			err:  errors.New(".spec: field not declared in schema"),
-			want: nil,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := extractMissingSchemaPaths(tt.err)
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
-type badRuntimeObject struct {
-	metav1.TypeMeta `json:",inline"`
-	Bad             func()
-}
-
-func (b *badRuntimeObject) DeepCopyObject() k8sruntime.Object {
-	return &badRuntimeObject{TypeMeta: b.TypeMeta}
-}
-
-func Test_stripDottedFieldPath(t *testing.T) {
-	t.Run("nil object", func(t *testing.T) {
-		assert.NoError(t, stripDottedFieldPath(nil, ".spec.features.cws.enforcement"))
-	})
-
-	t.Run("empty path is no-op", func(t *testing.T) {
-		o := &v1alpha1.DatadogAgentInternal{}
-		assert.NoError(t, stripDottedFieldPath(o, ""))
-	})
-
-	t.Run("invalid path without leading dot", func(t *testing.T) {
-		o := &v1alpha1.DatadogAgentInternal{}
-		assert.Error(t, stripDottedFieldPath(o, "spec.features.cws.enforcement"))
-	})
-
-	t.Run("invalid path with empty segment", func(t *testing.T) {
-		o := &v1alpha1.DatadogAgentInternal{}
-		assert.Error(t, stripDottedFieldPath(o, ".spec..features"))
-	})
-
-	t.Run("conversion error bubbles up", func(t *testing.T) {
-		o := &badRuntimeObject{Bad: func() {}}
-		assert.Error(t, stripDottedFieldPath(o, ".spec.features.cws.enforcement"))
-	})
-
-	t.Run("removes only the targeted nested field", func(t *testing.T) {
-		ddai := &v1alpha1.DatadogAgentInternal{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "datadoghq.com/v1alpha1",
-				Kind:       "DatadogAgentInternal",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "foo",
-				Namespace: "bar",
-			},
-			Spec: v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{
-					CWS: &v2alpha1.CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(true),
-						Network: &v2alpha1.CWSNetworkConfig{
-							Enabled: apiutils.NewBoolPointer(true),
-						},
-						Enforcement: &v2alpha1.CWSEnforcementConfig{
-							Enabled: apiutils.NewBoolPointer(true),
-						},
-					},
-				},
-			},
-		}
-
-		err := stripDottedFieldPath(ddai, ".spec.features.cws.enforcement")
-		assert.NoError(t, err)
-		assert.NotNil(t, ddai.Spec.Features)
-		assert.NotNil(t, ddai.Spec.Features.CWS)
-		assert.NotNil(t, ddai.Spec.Features.CWS.Network, "sibling fields should remain")
-		assert.Nil(t, ddai.Spec.Features.CWS.Enforcement, "targeted field should be removed")
-	})
-
-	t.Run("removing non-existent field is a no-op", func(t *testing.T) {
-		ddai := &v1alpha1.DatadogAgentInternal{
-			Spec: v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{
-					CWS: &v2alpha1.CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(true),
-					},
-				},
-			},
-		}
-
-		assert.NoError(t, stripDottedFieldPath(ddai, ".spec.features.cws.doesNotExist"))
-		assert.NotNil(t, ddai.Spec.Features)
-		assert.NotNil(t, ddai.Spec.Features.CWS)
-		assert.Equal(t, true, apiutils.BoolValue(ddai.Spec.Features.CWS.Enabled))
-	})
 }
