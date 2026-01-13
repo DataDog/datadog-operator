@@ -61,8 +61,6 @@ func (o *hostProfilerFeature) ID() feature.IDType {
 
 func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	o.hostProfilerEnabled = featureutils.HasHostProfilerAnnotation(dda)
-	// o.logger.Info("IN HEREEEEEEEE")
-	// fmt.Println("IN HEREEEEEEEE ", o.hostProfilerEnabled)
 
 	o.owner = dda
 	if value, ok := featureutils.HasHostProfilerConfigAnnotion(dda, featureutils.HostProfilerConfigDataAnnotion); ok {
