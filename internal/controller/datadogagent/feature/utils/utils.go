@@ -19,6 +19,11 @@ import (
 const ProcessConfigRunInCoreAgentMinVersion = "7.60.0-0"
 const EnableADPAnnotation = "agent.datadoghq.com/adp-enabled"
 const EnableFineGrainedKubeletAuthz = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
+const EnableHostProfilerAnnotion = "agent.datadoghq.com/host-profiler-enabled"
+const HostProfilerConfigDataAnnotion = "agent.datadoghq.com/host-profiler-configdata"
+
+// Config map item must be `host-profiler-config.yaml`
+const HostProfilerConfigMapNameAnnotion = "agent.datadoghq.com/host-profiler-configmap-name"
 
 func agentSupportsRunInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	// Agent version must >= 7.60.0 to run feature in core agent
@@ -64,6 +69,17 @@ func hasFeatureEnableAnnotation(dda metav1.Object, annotation string) bool {
 // HasAgentDataPlaneAnnotation returns true if the Agent Data Plane is enabled via the dedicated `agent.datadoghq.com/adp-enabled` annotation
 func HasAgentDataPlaneAnnotation(dda metav1.Object) bool {
 	return hasFeatureEnableAnnotation(dda, EnableADPAnnotation)
+}
+
+// HasHostProfilerAnnotation returns true if the Host Profiler is enabled via the dedicated `agent.datadoghq.com/host-profiler` annotation
+func HasHostProfilerAnnotation(dda metav1.Object) bool {
+	return hasFeatureEnableAnnotation(dda, EnableHostProfilerAnnotion)
+}
+
+// HasHostProfilerConfigAnnotion returns true if the Host Profiler has a config annotation, and returns the config.
+func HasHostProfilerConfigAnnotion(dda metav1.Object, annotationName string) (string, bool) {
+	value, ok := dda.GetAnnotations()[annotationName]
+	return value, ok
 }
 
 // HasFineGrainedKubeletAuthz returns true if the feature is enabled via the dedicated `agent.datadoghq.com/fine-grained-kubelet-authorization-enabled` annotation
