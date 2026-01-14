@@ -12,7 +12,6 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 )
 
-
 // spec:
 //   targetRef:
 //     apiVersion: apps/v1
