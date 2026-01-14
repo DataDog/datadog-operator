@@ -44,7 +44,16 @@ func (s *k8sSuite) TestGenericK8s() {
 	defaultOperatorOpts := []operatorparams.Option{
 		operatorparams.WithNamespace(common.NamespaceName),
 		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
-		operatorparams.WithHelmValues("installCRDs: false"),
+		// RBAC/CRDs are installed via our e2e kustomize (`config/new-e2e`, namePrefix: datadog-operator-e2e-).
+		// Ensure the Helm-installed operator uses the same ServiceAccount (and doesn't create its own RBAC),
+		// otherwise it may run under a different SA (e.g. datadog-operator-linux) lacking new permissions.
+		operatorparams.WithHelmValues(`installCRDs: false
+rbac:
+  create: false
+serviceAccount:
+  create: false
+  name: datadog-operator-e2e-controller-manager
+`),
 	}
 
 	defaultProvisionerOpts := []provisioners.KubernetesProvisionerOption{
