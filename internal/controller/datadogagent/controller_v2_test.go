@@ -18,7 +18,6 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	common "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/condition"
@@ -32,7 +31,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/record"
@@ -44,22 +42,24 @@ import (
 )
 
 type testCase struct {
-	name            string
-	clientBuilder   *fake.ClientBuilder
-	loadFunc        func(c client.Client) *v2alpha1.DatadogAgent
-	dda             *v2alpha1.DatadogAgent
-	nodes           []client.Object
-	want            reconcile.Result
-	wantErr         bool
-	wantFunc        func(t *testing.T, c client.Client)
-	profile         *v1alpha1.DatadogAgentProfile // For DDAI tests
-	profilesEnabled bool                          // For DDAI tests
-	focus           bool                          // For debugging: run only focused tests if any are focused
+	name                 string
+	clientBuilder        *fake.ClientBuilder
+	loadFunc             func(c client.Client) *v2alpha1.DatadogAgent
+	dda                  *v2alpha1.DatadogAgent
+	nodes                []client.Object
+	want                 reconcile.Result
+	wantErr              bool
+	wantFunc             func(t *testing.T, c client.Client)
+	profile              *v1alpha1.DatadogAgentProfile // For DDAI tests
+	profilesEnabled      bool                          // For DDAI tests
+	ddaiEnabled          bool                          // For DDAI tests
+	introspectionEnabled bool                          // For introspection tests
+	focus                bool                          // For debugging: run only focused tests if any are focused
 }
 
 // runTestCases runs test cases, respecting the focus field for debugging.
 // If any test has focus=true, only focused tests run. Otherwise all tests run.
-func runTestCases(t *testing.T, tests []testCase, s *runtime.Scheme, opts ReconcilerOptions) {
+func runTestCases(t *testing.T, tests []testCase) {
 	// Check if any test is focused
 	hasFocused := false
 	for _, tt := range tests {
@@ -78,19 +78,23 @@ func runTestCases(t *testing.T, tests []testCase, s *runtime.Scheme, opts Reconc
 
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a copy of opts for this test
-			testOpts := opts
-			// Apply test-specific profile setting if needed (for DDAI tests)
-			if tt.profilesEnabled {
-				testOpts.DatadogAgentProfileEnabled = true
+			testOpts := ReconcilerOptions{
+				DatadogAgentInternalEnabled: tt.ddaiEnabled,
+				DatadogAgentProfileEnabled:  tt.profilesEnabled,
+				IntrospectionEnabled:        tt.introspectionEnabled,
 			}
-			runReconcilerTest(t, tt, s, testOpts)
+
+			runReconcilerTest(t, tt, testOpts)
 		})
 	}
 }
 
 // runReconcilerTest is a common test runner that executes reconciliation tests
-func runReconcilerTest(t *testing.T, tt testCase, s *runtime.Scheme, opts ReconcilerOptions) {
+func runReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	t.Helper()
+
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	s := agenttestutils.TestScheme()
 
 	// Create test event recorder and forwarders
 	eventBroadcaster := record.NewBroadcaster()
@@ -111,6 +115,13 @@ func runReconcilerTest(t *testing.T, tt testCase, s *runtime.Scheme, opts Reconc
 	// Add nodes if provided
 	if tt.nodes != nil {
 		builder = builder.WithObjects(tt.nodes...)
+	}
+
+	// Add DDAI CRD from file if DDAI is enabled
+	if tt.ddaiEnabled {
+		crd, err := getDDAICRDFromConfig(s)
+		assert.NoError(t, err)
+		builder = builder.WithObjects(crd)
 	}
 
 	c := builder.Build()
@@ -159,11 +170,6 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 	const resourcesName = "foo"
 	const resourcesNamespace = "bar"
 	const dsName = "foo-agent"
-
-	logf.SetLogger(zap.New(zap.UseDevMode(true)))
-
-	// Register operator types with the runtime scheme.
-	s := agenttestutils.TestScheme()
 
 	defaultRequeueDuration := 15 * time.Second
 
@@ -529,30 +535,19 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		},
 	}
 
-	opts := ReconcilerOptions{
-		ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
-			Enabled: false,
-		},
-		SupportCilium: false,
-	}
-
-	runTestCases(t, tests, s, opts)
+	runTestCases(t, tests)
 }
 
 func Test_Introspection(t *testing.T) {
 	const resourcesName = "foo"
 	const resourcesNamespace = "bar"
 
-	logf.SetLogger(zap.New(zap.UseDevMode(true)))
-
-	// Register operator types with the runtime scheme.
-	s := agenttestutils.TestScheme()
-
 	defaultRequeueDuration := 15 * time.Second
 
 	tests := []testCase{
 		{
-			name: "[introspection] Daemonset names with affinity override",
+			name:                 "[introspection] Daemonset names with affinity override",
+			introspectionEnabled: true,
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
@@ -606,23 +601,13 @@ func Test_Introspection(t *testing.T) {
 		},
 	}
 
-	opts := ReconcilerOptions{
-		ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
-			Enabled: false,
-		},
-		SupportCilium:        false,
-		IntrospectionEnabled: true,
-	}
-
-	runTestCases(t, tests, s, opts)
+	runTestCases(t, tests)
 }
 
 func Test_otelImageTags(t *testing.T) {
 	const resourcesName = "foo"
 	const resourcesNamespace = "bar"
 	const dsName = "foo-agent"
-
-	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	defaultRequeueDuration := 15 * time.Second
 
@@ -789,16 +774,7 @@ func Test_otelImageTags(t *testing.T) {
 		},
 	}
 
-	s := agenttestutils.TestScheme()
-
-	opts := ReconcilerOptions{
-		ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
-			Enabled: false,
-		},
-		SupportCilium: false,
-	}
-
-	runTestCases(t, tests, s, opts)
+	runTestCases(t, tests)
 }
 
 func getDsContainers(c client.Client, resourcesNamespace, dsName string) map[apicommon.AgentContainerName]corev1.Container {
@@ -965,11 +941,7 @@ func Test_AutopilotOverrides(t *testing.T) {
 		},
 	}
 
-	s := agenttestutils.TestScheme()
-
-	opts := ReconcilerOptions{} // Default options
-
-	runTestCases(t, tests, s, opts)
+	runTestCases(t, tests)
 }
 
 // Helper function for creating DatadogAgent with cluster checks enabled
@@ -988,16 +960,12 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 	const dcaName = "foo-cluster-agent"
 	const dsName = "foo-agent-default"
 
-	logf.SetLogger(zap.New(zap.UseDevMode(true)))
-
-	// Register operator types with the runtime scheme.
-	s := agenttestutils.TestScheme()
-
 	defaultRequeueDuration := 15 * time.Second
 
 	tests := []testCase{
 		{
-			name: "[introspection] Control Plane Monitoring for Openshift",
+			name:                 "[introspection] Control Plane Monitoring for Openshift",
+			introspectionEnabled: true,
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				return createDatadogAgentWithClusterChecks(c, resourcesNamespace, resourcesName)
 			},
@@ -1023,7 +991,8 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 			},
 		},
 		{
-			name: "[introspection] Control Plane Monitoring with EKS",
+			name:                 "[introspection] Control Plane Monitoring with EKS",
+			introspectionEnabled: true,
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				return createDatadogAgentWithClusterChecks(c, resourcesNamespace, resourcesName)
 			},
@@ -1056,7 +1025,8 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 			},
 		},
 		{
-			name: "[introspection] Control Plane Monitoring with multiple providers",
+			name:                 "[introspection] Control Plane Monitoring with multiple providers",
+			introspectionEnabled: true,
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				return createDatadogAgentWithClusterChecks(c, resourcesNamespace, resourcesName)
 			},
@@ -1091,7 +1061,8 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 		{
 			// This test verifies that when a node has a GKE provider label with an unsupported OS value,
 			// the system falls back to the "default" provider for control plane monitoring
-			name: "[introspection] Control Plane Monitoring with unsupported provider",
+			name:                 "[introspection] Control Plane Monitoring with unsupported provider",
+			introspectionEnabled: true,
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				return createDatadogAgentWithClusterChecks(c, resourcesNamespace, resourcesName)
 			},
@@ -1118,15 +1089,7 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 		},
 	}
 
-	opts := ReconcilerOptions{
-		ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
-			Enabled: false,
-		},
-		SupportCilium:        false,
-		IntrospectionEnabled: true,
-	}
-
-	runTestCases(t, tests, s, opts)
+	runTestCases(t, tests)
 }
 
 func verifyDCADeployment(t *testing.T, c client.Client, ddaName, resourcesNamespace, expectedName string, provider string) {
@@ -1332,14 +1295,6 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 	const resourcesName = "foo"
 	const resourcesNamespace = "bar"
 
-	// Register operator types with the runtime scheme.
-	s := agenttestutils.TestScheme()
-	// Load CRD from config folder
-	crd, err := getDDAICRDFromConfig(s)
-	assert.NoError(t, err)
-
-	logf.SetLogger(zap.New(zap.UseDevMode(true)))
-
 	defaultRequeueDuration := 15 * time.Second
 
 	dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).BuildWithDefaults()
@@ -1374,10 +1329,10 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 
 	tests := []testCase{
 		{
-			name: "[ddai] Create DDAI from minimal DDA",
+			name:        "[ddai] Create DDAI from minimal DDA",
+			ddaiEnabled: true,
 			clientBuilder: fake.NewClientBuilder().
-				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}).
-				WithObjects(crd),
+				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}),
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				_ = c.Create(context.TODO(), dda)
 				return dda
@@ -1394,10 +1349,10 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 			},
 		},
 		{
-			name: "[ddai] Create DDAI from customized DDA",
+			name:        "[ddai] Create DDAI from customized DDA",
+			ddaiEnabled: true,
 			clientBuilder: fake.NewClientBuilder().
-				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}).
-				WithObjects(crd),
+				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}),
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				ddaCustom := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithDCAToken("abcdefghijklmnopqrstuvwxyz").
@@ -1462,10 +1417,10 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 			},
 		},
 		{
-			name: "[ddai] Create DDAI from minimal DDA and default profile",
+			name:        "[ddai] Create DDAI from minimal DDA and default profile",
+			ddaiEnabled: true,
 			clientBuilder: fake.NewClientBuilder().
-				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}).
-				WithObjects(crd),
+				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}),
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				_ = c.Create(context.TODO(), dda)
 				return dda
@@ -1478,10 +1433,11 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 			},
 		},
 		{
-			name: "[ddai] Create DDAI from minimal DDA and user created profile",
+			name:        "[ddai] Create DDAI from minimal DDA and user created profile",
+			ddaiEnabled: true,
 			clientBuilder: fake.NewClientBuilder().
 				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}).
-				WithObjects(crd, fooProfile),
+				WithObjects(fooProfile),
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				_ = c.Create(context.TODO(), dda)
 				return dda
@@ -1560,11 +1516,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 		},
 	}
 
-	opts := ReconcilerOptions{
-		DatadogAgentInternalEnabled: true,
-	}
-
-	runTestCases(t, tests, s, opts)
+	runTestCases(t, tests)
 }
 
 func verifyDDAI(t *testing.T, c client.Client, expectedDDAI []v1alpha1.DatadogAgentInternal) {
