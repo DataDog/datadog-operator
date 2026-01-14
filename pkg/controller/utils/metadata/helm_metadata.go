@@ -41,8 +41,9 @@ const (
 var (
 	versionRegexp = regexp.MustCompile(`\.v(\d+)$`)
 	allowedCharts = map[string]bool{
-		"datadog":          true,
-		"datadog-operator": true,
+		"datadog":                     true,
+		"datadog-operator":            true,
+		"datadog-agent-with-operator": true,
 	}
 )
 
