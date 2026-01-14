@@ -1489,7 +1489,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 			profilesEnabled: true,
 			profile:         fooProfile,
 			want:            reconcile.Result{RequeueAfter: defaultRequeueDuration},
-			wantErr: false,
+			wantErr:         false,
 			wantFunc: func(t *testing.T, c client.Client) {
 				profileDDAI := getBaseDDAI(dda)
 				profileDDAI.Name = "foo-profile"
