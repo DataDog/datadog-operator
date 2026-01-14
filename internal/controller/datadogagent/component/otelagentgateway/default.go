@@ -64,8 +64,8 @@ func defaultPodSpec(dda metav1.Object) corev1.PodSpec {
 			{
 				Name:    "init-volume",
 				Image:   images.GetLatestDdotCollectorImage(),
-				Command: []string{"cp", "-r"},
-				Args:    []string{"/etc/datadog-agent", "/opt"},
+				Command: []string{"bash", "-c"},
+				Args:    []string{"cp -vnr /etc/datadog-agent /opt"},
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      common.ConfigVolumeName,

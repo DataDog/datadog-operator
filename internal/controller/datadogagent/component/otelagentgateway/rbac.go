@@ -8,6 +8,8 @@ package otelagentgateway
 import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
 // RBAC for OTel Agent Gateway
@@ -17,37 +19,26 @@ import (
 func GetDefaultOtelAgentGatewayClusterRolePolicyRules(dda metav1.Object, excludeNonResourceRules bool) []rbacv1.PolicyRule {
 	policyRule := []rbacv1.PolicyRule{
 		{
-			APIGroups: []string{""},
+			APIGroups: []string{rbac.CoreAPIGroup},
 			Resources: []string{
-				"pods",
-				"namespaces",
+				rbac.PodsResource,
+				rbac.NamespaceResource,
 			},
 			Verbs: []string{
-				"get",
-				"watch",
-				"list",
+				rbac.GetVerb,
+				rbac.WatchVerb,
+				rbac.ListVerb,
 			},
 		},
 		{
-			APIGroups: []string{"apps"},
+			APIGroups: []string{rbac.AppsAPIGroup},
 			Resources: []string{
-				"replicasets",
+				rbac.ReplicasetsResource,
 			},
 			Verbs: []string{
-				"get",
-				"list",
-				"watch",
-			},
-		},
-		{
-			APIGroups: []string{"extensions"},
-			Resources: []string{
-				"replicasets",
-			},
-			Verbs: []string{
-				"get",
-				"list",
-				"watch",
+				rbac.GetVerb,
+				rbac.ListVerb,
+				rbac.WatchVerb,
 			},
 		},
 	}

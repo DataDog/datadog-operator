@@ -99,22 +99,22 @@ func (f *otelAgentGatewayFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1
 	return reqComp
 }
 
-func (o *otelAgentGatewayFeature) buildOTelAgentCoreConfigMap() (*corev1.ConfigMap, error) {
-	if o.customConfig != nil && o.customConfig.ConfigData != nil {
-		cm, err := configmap.BuildConfigMapConfigData(o.owner.GetNamespace(), o.customConfig.ConfigData, o.configMapName, otelConfigFileName)
+func (f *otelAgentGatewayFeature) buildOTelAgentCoreConfigMap() (*corev1.ConfigMap, error) {
+	if f.customConfig != nil && f.customConfig.ConfigData != nil {
+		cm, err := configmap.BuildConfigMapConfigData(f.owner.GetNamespace(), f.customConfig.ConfigData, f.configMapName, otelConfigFileName)
 		if err != nil {
 			return nil, err
 		}
 
 		// Add md5 hash annotation for configMap
-		o.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.OtelAgentGatewayIDType)
-		o.customConfigAnnotationValue, err = comparison.GenerateMD5ForSpec(o.customConfig.ConfigData)
+		f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.OtelAgentGatewayIDType)
+		f.customConfigAnnotationValue, err = comparison.GenerateMD5ForSpec(f.customConfig.ConfigData)
 		if err != nil {
 			return cm, err
 		}
 
-		if o.customConfigAnnotationKey != "" && o.customConfigAnnotationValue != "" {
-			annotations := object.MergeAnnotationsLabels(o.logger, cm.Annotations, map[string]string{o.customConfigAnnotationKey: o.customConfigAnnotationValue}, "*")
+		if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
+			annotations := object.MergeAnnotationsLabels(f.logger, cm.Annotations, map[string]string{f.customConfigAnnotationKey: f.customConfigAnnotationValue}, "*")
 			cm.SetAnnotations(annotations)
 		}
 
@@ -176,13 +176,12 @@ func (f *otelAgentGatewayFeature) ManageDependencies(managers feature.ResourceMa
 		}
 	}
 
-	internalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
 	if err := managers.ServiceManager().AddService(
 		f.localServiceName,
 		f.owner.GetNamespace(),
 		common.GetOtelAgentGatewayServiceSelector(f.owner),
 		[]corev1.ServicePort{*otlpGrpcPort, *otlpHttpPort},
-		&internalTrafficPolicy,
+		nil, // No internal traffic policy for a Deployment-based component to allow the service to route traffic cluster-wide
 	); err != nil {
 		return err
 	}
