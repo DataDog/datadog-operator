@@ -325,6 +325,8 @@ serviceAccount:
 			// Verify traces collection ingestion by fakeintake
 			s.verifyAPITraces(c)
 		}, 600*time.Second, 15*time.Second, "could not validate traces on agent pod") // TODO: check duration
+		// Cleanup DDA before Pulumi cleans too fast the CRD preventing the deletion of DDA as the operator will CLBO without the CRD
+		s.UpdateEnv(provisioners.KubernetesProvisioner(withoutDDAProvisionerOptions...))
 	})
 }
 
