@@ -66,6 +66,33 @@ serviceAccount:
 		agentwithoperatorparams.WithNamespace(common.NamespaceName),
 	}
 
+	// --- Suite-level cleanup (registered before any subtests run) ---
+	//
+	// We need to ensure the final env of the suite is left without a DatadogAgent before the
+	// underlying Pulumi teardown happens; otherwise CRD deletion may race with DDA deletion.
+	//
+	// This runs ONCE, at the very end of the whole suite (not after each subtest).
+	t := s.T()
+	var lastTestName string
+	updateEnv := func(testName string, opts []provisioners.KubernetesProvisionerOption) {
+		lastTestName = testName
+		s.UpdateEnv(provisioners.KubernetesProvisioner(opts...))
+	}
+	t.Cleanup(func() {
+		if lastTestName == "" {
+			return
+		}
+
+		cleanupOpts := []provisioners.KubernetesProvisionerOption{
+			provisioners.WithTestName(lastTestName),
+			provisioners.WithK8sVersion(common.K8sVersion),
+			provisioners.WithOperatorOptions(defaultOperatorOpts...),
+			provisioners.WithoutDDA(),
+			provisioners.WithLocal(s.local),
+		}
+		s.UpdateEnv(provisioners.KubernetesProvisioner(cleanupOpts...))
+	})
+
 	s.T().Run("Verify Operator", func(t *testing.T) {
 		s.Assert().EventuallyWithT(func(c *assert.CollectT) {
 			utils.VerifyOperator(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client())
@@ -92,7 +119,7 @@ serviceAccount:
 			provisioners.WithLocal(s.local),
 		}
 
-		s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
+		updateEnv("e2e-operator-minimal-dda", provisionerOptions)
 
 		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 		s.Assert().NoError(err)
@@ -158,7 +185,7 @@ serviceAccount:
 			provisioners.WithLocal(s.local),
 		}
 
-		s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
+		updateEnv("e2e-operator-ksm-ccr", provisionerOptions)
 
 		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 		s.Assert().NoError(err)
@@ -199,7 +226,7 @@ serviceAccount:
 		provisionerOptions = append(provisionerOptions, defaultProvisionerOpts...)
 
 		// Add nginx with annotations
-		s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
+		updateEnv("e2e-operator-autodiscovery", provisionerOptions)
 
 		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 		s.Assert().NoError(err)
@@ -245,7 +272,7 @@ serviceAccount:
 			provisioners.WithLocal(s.local),
 		}
 
-		s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
+		updateEnv("e2e-operator-logs-collection", provisionerOptions)
 
 		// Verify logs collection on agent pod
 		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
@@ -274,7 +301,7 @@ serviceAccount:
 			provisioners.WithLocal(s.local),
 		}
 		withoutDDAProvisionerOptions = append(withoutDDAProvisionerOptions, defaultProvisionerOpts...)
-		s.UpdateEnv(provisioners.KubernetesProvisioner(withoutDDAProvisionerOptions...))
+		updateEnv("e2e-operator-apm", withoutDDAProvisionerOptions)
 
 		var apmAgentSelector = ",agent.datadoghq.com/name=datadog-agent-apm"
 		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "apm", "datadog-agent-apm.yaml"))
@@ -300,7 +327,7 @@ serviceAccount:
 		ddaProvisionerOptions = append(ddaProvisionerOptions, defaultProvisionerOpts...)
 
 		// Deploy APM DatadogAgent and tracegen
-		s.UpdateEnv(provisioners.KubernetesProvisioner(ddaProvisionerOptions...))
+		updateEnv("e2e-operator-apm", ddaProvisionerOptions)
 
 		// Verify traces collection on agent pod
 		s.EventuallyWithTf(func(c *assert.CollectT) {
@@ -325,8 +352,6 @@ serviceAccount:
 			// Verify traces collection ingestion by fakeintake
 			s.verifyAPITraces(c)
 		}, 600*time.Second, 15*time.Second, "could not validate traces on agent pod") // TODO: check duration
-		// Cleanup DDA before Pulumi cleans too fast the CRD preventing the deletion of DDA as the operator will CLBO without the CRD
-		s.UpdateEnv(provisioners.KubernetesProvisioner(withoutDDAProvisionerOptions...))
 	})
 }
 
