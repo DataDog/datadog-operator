@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-operator/pkg/config"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
@@ -27,7 +26,9 @@ func Test_HelmMetadataForwarder_getPayload(t *testing.T) {
 	expectedChartVersion := "3.10.0"
 	expectedAppVersion := "7.50.0"
 
-	hmf := NewHelmMetadataForwarder(zap.New(zap.UseDevMode(true)), nil, expectedKubernetesVersion, expectedOperatorVersion, config.NewCredentialManager(fake.NewFakeClient()))
+	client := newFakeClientWithKubeSystem("test-cluster-uid-123")
+
+	hmf := NewHelmMetadataForwarder(zap.New(zap.UseDevMode(true)), client, expectedKubernetesVersion, expectedOperatorVersion, config.NewCredentialManager(client))
 
 	release := HelmReleaseData{
 		ReleaseName:        expectedReleaseName,
@@ -118,7 +119,9 @@ func Test_HelmMetadataForwarder_getPayload(t *testing.T) {
 }
 
 func Test_parseHelmResource(t *testing.T) {
-	hmf := NewHelmMetadataForwarder(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0", config.NewCredentialManager(fake.NewFakeClient()))
+	client := newFakeClientWithKubeSystem("test-cluster-uid-123")
+
+	hmf := NewHelmMetadataForwarder(zap.New(zap.UseDevMode(true)), client, "v1.28.0", "v1.19.0", config.NewCredentialManager(client))
 
 	// Create a minimal valid Helm release JSON
 	releaseData := HelmReleaseMinimal{
@@ -264,7 +267,9 @@ func Test_allHelmReleasesCache(t *testing.T) {
 }
 
 func Test_mergeValues(t *testing.T) {
-	hmf := NewHelmMetadataForwarder(zap.New(zap.UseDevMode(true)), nil, "v1.28.0", "v1.19.0", config.NewCredentialManager(fake.NewFakeClient()))
+	client := newFakeClientWithKubeSystem("test-cluster-uid-123")
+
+	hmf := NewHelmMetadataForwarder(zap.New(zap.UseDevMode(true)), client, "v1.28.0", "v1.19.0", config.NewCredentialManager(client))
 
 	tests := []struct {
 		name      string

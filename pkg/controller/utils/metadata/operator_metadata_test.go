@@ -206,14 +206,7 @@ func Test_GetPayload(t *testing.T) {
 	expectedOperatorVersion := "v1.19.0"
 	expectedClusterUID := "test-cluster-uid-12345"
 
-	s := testutils_test.TestScheme()
-	kubeSystem := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "kube-system",
-			UID:  "test-cluster-uid-12345",
-		},
-	}
-	client := fake.NewClientBuilder().WithScheme(s).WithObjects(kubeSystem).WithStatusSubresource(&v2alpha1.DatadogAgent{}).Build()
+	client := newFakeClientWithKubeSystem("test-cluster-uid-12345")
 	sharedMetadata, _ := NewSharedMetadata(expectedOperatorVersion, expectedKubernetesVersion, client)
 	omf := &OperatorMetadataForwarder{
 		BaseForwarder:  NewBaseForwarder(zap.New(zap.UseDevMode(true)), client, config.NewCredentialManager(client)),
@@ -314,14 +307,7 @@ func Test_GetPayload(t *testing.T) {
 
 // Test that GetPayload is safe for concurrent access (no data races)
 func Test_GetPayload_Concurrent(t *testing.T) {
-	s := testutils_test.TestScheme()
-	kubeSystem := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "kube-system",
-			UID:  "test-cluster-uid-12345",
-		},
-	}
-	client := fake.NewClientBuilder().WithScheme(s).WithObjects(kubeSystem).WithStatusSubresource(&v2alpha1.DatadogAgent{}).Build()
+	client := newFakeClientWithKubeSystem("test-cluster-uid-12345")
 	sharedMetadata, _ := NewSharedMetadata("v1.19.0", "v1.28.0", client)
 	omf := &OperatorMetadataForwarder{
 		BaseForwarder:  NewBaseForwarder(zap.New(zap.UseDevMode(true)), client, config.NewCredentialManager(client)),
