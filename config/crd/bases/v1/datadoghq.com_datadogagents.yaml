@@ -2015,7 +2015,7 @@ spec:
                           type: boolean
                         featureGates:
                           description: |-
-                            FeatureGates to pass to the OTel collector as a comma-separated list.
+                            FeatureGates are the feature gates to pass to the OTel collector as a comma-separated list.
                             Example: "component.UseLocalHostAsDefaultHost,connector.datadogconnector.NativeIngest"
                           type: string
                         ports:
@@ -10058,7 +10058,7 @@ spec:
                               type: boolean
                             featureGates:
                               description: |-
-                                FeatureGates to pass to the OTel collector as a comma-separated list.
+                                FeatureGates are the feature gates to pass to the OTel collector as a comma-separated list.
                                 Example: "component.UseLocalHostAsDefaultHost,connector.datadogconnector.NativeIngest"
                               type: string
                             ports:

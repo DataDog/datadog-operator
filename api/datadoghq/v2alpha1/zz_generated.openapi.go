@@ -1591,7 +1591,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_OtelAgentGatewayFeatureConfi
 					},
 					"featureGates": {
 						SchemaProps: spec.SchemaProps{
-							Description: "FeatureGates to pass to the OTel collector as a comma-separated list. Example: \"component.UseLocalHostAsDefaultHost,connector.datadogconnector.NativeIngest\"",
+							Description: "FeatureGates are the feature gates to pass to the OTel collector as a comma-separated list. Example: \"component.UseLocalHostAsDefaultHost,connector.datadogconnector.NativeIngest\"",
 							Type:        []string{"string"},
 							Format:      "",
 						},

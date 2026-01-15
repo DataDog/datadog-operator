@@ -1040,7 +1040,7 @@ type OtelAgentGatewayFeatureConfig struct {
 	// +listType=atomic
 	Ports []*corev1.ContainerPort `json:"ports,omitempty"`
 
-	// FeatureGates to pass to the OTel collector as a comma-separated list.
+	// FeatureGates are the feature gates to pass to the OTel collector as a comma-separated list.
 	// Example: "component.UseLocalHostAsDefaultHost,connector.datadogconnector.NativeIngest"
 	// +optional
 	FeatureGates *string `json:"featureGates,omitempty"`
