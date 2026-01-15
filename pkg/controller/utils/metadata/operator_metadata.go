@@ -22,9 +22,8 @@ import (
 )
 
 const (
-	userAgentHTTPHeaderKey = "User-Agent"
-	defaultInterval        = 1 * time.Minute
-	resourceCountsTTL      = 5 * time.Minute // Refresh resource counts every 5 minutes
+	defaultInterval   = 1 * time.Minute
+	resourceCountsTTL = 5 * time.Minute // Refresh resource counts every 5 minutes
 )
 
 type OperatorMetadataForwarder struct {

@@ -25,9 +25,10 @@ import (
 )
 
 const (
-	apiHTTPHeaderKey     = "Dd-Api-Key"
-	contentTypeHeaderKey = "Content-Type"
-	acceptHeaderKey      = "Accept"
+	apiHTTPHeaderKey       = "Dd-Api-Key"
+	contentTypeHeaderKey   = "Content-Type"
+	acceptHeaderKey        = "Accept"
+	userAgentHTTPHeaderKey = "User-Agent"
 
 	// URL constants for metadata endpoints
 	defaultURLScheme     = "https"
