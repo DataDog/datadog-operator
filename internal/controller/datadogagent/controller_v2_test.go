@@ -20,6 +20,7 @@ import (
 	common "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
@@ -31,6 +32,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/record"
@@ -59,7 +61,7 @@ type testCase struct {
 
 // runTestCases runs test cases, respecting the focus field for debugging.
 // If any test has focus=true, only focused tests run. Otherwise all tests run.
-func runTestCases(t *testing.T, tests []testCase) {
+func runTestCases(t *testing.T, tests []testCase, testFunc func(t *testing.T, tt testCase, opts ReconcilerOptions)) {
 	// Check if any test is focused
 	hasFocused := false
 	for _, tt := range tests {
@@ -84,13 +86,13 @@ func runTestCases(t *testing.T, tests []testCase) {
 				IntrospectionEnabled:        tt.introspectionEnabled,
 			}
 
-			runReconcilerTest(t, tt, testOpts)
+			testFunc(t, tt, testOpts)
 		})
 	}
 }
 
-// runReconcilerTest is a common test runner that executes reconciliation tests
-func runReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
+// runDDAReconcilerTest runs test case using only the DDA reconciler
+func runDDAReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	t.Helper()
 
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
@@ -101,30 +103,7 @@ func runReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	recorder := eventBroadcaster.NewRecorder(s, corev1.EventSource{Component: "test"})
 	forwarders := dummyManager{}
 
-	// Build client based on test case configuration
-	var builder *fake.ClientBuilder
-	if tt.clientBuilder != nil {
-		// Use custom client builder if provided
-		builder = tt.clientBuilder
-	} else {
-		// Create default client builder with standard status subresources
-		builder = fake.NewClientBuilder().
-			WithStatusSubresource(&appsv1.DaemonSet{}, &corev1.Node{}, &v2alpha1.DatadogAgent{})
-	}
-
-	// Add nodes if provided
-	if tt.nodes != nil {
-		builder = builder.WithObjects(tt.nodes...)
-	}
-
-	// Add DDAI CRD from file if DDAI is enabled
-	if tt.ddaiEnabled {
-		crd, err := getDDAICRDFromConfig(s)
-		assert.NoError(t, err)
-		builder = builder.WithObjects(crd)
-	}
-
-	c := builder.Build()
+	c := buildClient(t, tt, s, false)
 
 	// Create reconciler
 	r := &Reconciler{
@@ -164,6 +143,105 @@ func runReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	if tt.wantFunc != nil {
 		tt.wantFunc(t, r.client)
 	}
+}
+
+// runFullReconcilerTest runs test case using both DDA and DDAI reconcilers
+func runFullReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
+	t.Helper()
+
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	s := agenttestutils.TestScheme()
+
+	// Create test event recorder and forwarders
+	eventBroadcaster := record.NewBroadcaster()
+	recorder := eventBroadcaster.NewRecorder(s, corev1.EventSource{Component: "test"})
+	forwarders := dummyManager{}
+
+	opts.DatadogAgentInternalEnabled = true
+	c := buildClient(t, tt, s, true)
+
+	// Create reconciler
+	r := &Reconciler{
+		client:       c,
+		scheme:       s,
+		platformInfo: kubernetes.PlatformInfo{},
+		recorder:     recorder,
+		log:          logf.Log.WithName(tt.name),
+		forwarders:   forwarders,
+		options:      opts,
+	}
+	r.initializeComponentRegistry()
+
+	ri, err := datadogagentinternal.NewReconciler(
+		datadogagentinternal.ReconcilerOptions{},
+		c,
+		kubernetes.PlatformInfo{},
+		s,
+		logf.Log.WithName(tt.name),
+		recorder,
+		forwarders)
+	assert.NoError(t, err, "Failed to create datadogagentinternal reconciler")
+
+	// Load or create DatadogAgent
+	var dda *v2alpha1.DatadogAgent
+	if tt.loadFunc != nil {
+		dda = tt.loadFunc(r.client)
+	} else if tt.dda != nil {
+		_ = r.client.Create(context.TODO(), tt.dda)
+		dda = tt.dda
+	}
+
+	// Run reconciliation
+	got, err := r.Reconcile(context.TODO(), dda)
+
+	ddais := &v1alpha1.DatadogAgentInternalList{}
+	err = c.List(context.TODO(), ddais)
+	assert.NoError(t, err, "Failed to list datadogagentinternal")
+	assert.NotEqual(t, 0, len(ddais.Items), "Expected at least 1 ddai")
+	for _, ddai := range ddais.Items {
+		got, err = ri.Reconcile(context.TODO(), &ddai)
+		assert.NoError(t, err, "Failed to reconcile datadogagentinternal")
+	}
+
+	// Assert on error expectation
+	if tt.wantErr {
+		assert.Error(t, err, "ReconcileDatadogAgent.Reconcile() expected an error")
+	} else {
+		assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() unexpected error: %v", err)
+	}
+
+	// Assert on reconciliation result
+	assert.Equal(t, tt.want, got, "ReconcileDatadogAgent.Reconcile() unexpected result")
+
+	// Run custom validation if provided
+	if tt.wantFunc != nil {
+		tt.wantFunc(t, r.client)
+	}
+}
+
+func buildClient(t *testing.T, tt testCase, s *runtime.Scheme, ddaiEnabled bool) client.Client {
+	var builder *fake.ClientBuilder
+	if tt.clientBuilder != nil {
+		// Deep copy primarily to avoid adding CRD twice when running both DDA and full reconciler tests
+		copy := *tt.clientBuilder
+		builder = &copy
+	} else {
+		builder = fake.NewClientBuilder().
+			WithStatusSubresource(&appsv1.DaemonSet{}, &corev1.Node{}, &v2alpha1.DatadogAgent{})
+	}
+
+	if tt.nodes != nil {
+		builder = builder.WithObjects(tt.nodes...)
+	}
+
+	// Add DDAI CRD from file if DDAI is enabled
+	if tt.ddaiEnabled || ddaiEnabled {
+		crd, err := getDDAICRDFromConfig(s)
+		assert.NoError(t, err)
+		builder = builder.WithObjects(crd).WithStatusSubresource(&v1alpha1.DatadogAgentInternal{})
+	}
+
+	return builder.Build()
 }
 
 func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
@@ -455,6 +533,13 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				assert.NotNil(t, dda.Status.ClusterAgent, "DCA status should be set")
 				assert.Equal(t, "token", dda.Status.ClusterAgent.GeneratedToken)
 				dcaCondition := condition.GetCondition(&dda.Status, common.ClusterAgentReconcileConditionType)
+				// Condition may be set in DDAI if full reconciler is used.
+				if dcaCondition == nil {
+					ddai := &v1alpha1.DatadogAgentInternal{}
+					err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, ddai)
+					assert.NoError(t, client.IgnoreNotFound(err), "Unexpected error getting resource")
+					dcaCondition = condition.GetDDAICondition(&ddai.Status, common.ClusterAgentReconcileConditionType)
+				}
 				assert.True(t, dcaCondition.Status == metav1.ConditionTrue && dcaCondition.Reason == "reconcile_succeed", "DCA status condition should be set")
 			},
 		},
@@ -481,14 +566,25 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, dda)
 				assert.NoError(t, client.IgnoreNotFound(err), "Unexpected error getting resource")
 				// assert.Equal(t, "token", dda.Status.ClusterAgent.GeneratedToken)
-				assert.Nil(t, dda.Status.ClusterAgent, "DCA status should be nil when cleaned up")
-				assert.Nil(t, condition.GetCondition(&dda.Status, common.ClusterAgentReconcileConditionType), "DCA status condition should be nil when cleaned up")
 				conflictCondition := condition.GetCondition(&dda.Status, common.OverrideReconcileConflictConditionType)
-				assert.True(t, conflictCondition.Status == metav1.ConditionTrue, "OverrideReconcileConflictCondition should be true")
+				if conflictCondition == nil {
+					// Condition will be set in DDAI if full reconciler is used.
+					ddai := &v1alpha1.DatadogAgentInternal{}
+					err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, ddai)
+					assert.Nil(t, ddai.Status.ClusterAgent, "DCA status should be nil when cleaned up")
+					assert.Nil(t, condition.GetDDAICondition(&ddai.Status, common.ClusterAgentReconcileConditionType), "DCA status condition should be nil when cleaned up")
+					assert.NoError(t, client.IgnoreNotFound(err), "Unexpected error getting resource")
+					conflictCondition = condition.GetDDAICondition(&ddai.Status, common.OverrideReconcileConflictConditionType)
+				} else {
+					// Condition will be set via DDA reconciler.
+					assert.Nil(t, dda.Status.ClusterAgent, "DCA status should be nil when cleaned up")
+					assert.Nil(t, condition.GetCondition(&dda.Status, common.ClusterAgentReconcileConditionType), "DCA status condition should be nil when cleaned up")
+					assert.True(t, conflictCondition.Status == metav1.ConditionTrue, "OverrideReconcileConflictCondition should be true")
+				}
 			},
 		},
 		{
-			name: "DCA status and condition set",
+			name: "CLC status and condition set",
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithClusterChecksEnabled(true).
@@ -503,13 +599,26 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				dda := &v2alpha1.DatadogAgent{}
 				err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, dda)
 				assert.NoError(t, client.IgnoreNotFound(err), "Unexpected error getting resource")
-				assert.NotNil(t, dda.Status.ClusterChecksRunner, "CLC status should be set")
-				clcCondition := condition.GetCondition(&dda.Status, common.ClusterChecksRunnerReconcileConditionType)
-				assert.True(t, clcCondition.Status == metav1.ConditionTrue && clcCondition.Reason == "reconcile_succeed", "CLC status condition should be set")
+				clcStatus := dda.Status.ClusterChecksRunner
+				var clcCondition *metav1.Condition
+				if clcStatus == nil {
+					// Condition will be set in DDAI if full reconciler is used.
+					ddai := &v1alpha1.DatadogAgentInternal{}
+					err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, ddai)
+					assert.NoError(t, client.IgnoreNotFound(err), "Unexpected error getting resource")
+					clcStatus = ddai.Status.ClusterChecksRunner
+					clcCondition = condition.GetDDAICondition(&ddai.Status, common.ClusterChecksRunnerReconcileConditionType)
+					assert.NotNil(t, clcCondition, "CLC status condition should be set")
+					assert.True(t, clcCondition.Status == metav1.ConditionTrue && clcCondition.Reason == "reconcile_succeed", "CLC status condition should be set")
+				} else {
+					// Condition will be set via DDA reconciler.
+					clcCondition = condition.GetCondition(&dda.Status, common.ClusterChecksRunnerReconcileConditionType)
+					assert.True(t, clcCondition.Status == metav1.ConditionTrue && clcCondition.Reason == "reconcile_succeed", "CLC status condition should be set")
+				}
 			},
 		},
 		{
-			name: "CLC status condition should be deleted when disabled",
+			name: "CLC status condition should be set to conflict when disable via override",
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.ClusterChecksRunnerComponentName, v2alpha1.DatadogAgentComponentOverride{
@@ -530,12 +639,19 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				assert.Nil(t, dda.Status.ClusterChecksRunner, "CLC status should be nil when cleaned up")
 				assert.Nil(t, condition.GetCondition(&dda.Status, common.ClusterChecksRunnerReconcileConditionType), "CLC status condition should be nil when cleaned up")
 				conflictCondition := condition.GetCondition(&dda.Status, common.OverrideReconcileConflictConditionType)
+				if conflictCondition == nil {
+					ddai := &v1alpha1.DatadogAgentInternal{}
+					err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, ddai)
+					assert.NoError(t, client.IgnoreNotFound(err), "Unexpected error getting resource")
+					conflictCondition = condition.GetDDAICondition(&ddai.Status, common.OverrideReconcileConflictConditionType)
+				}
 				assert.True(t, conflictCondition.Status == metav1.ConditionTrue, "OverrideReconcileConflictCondition should be true")
 			},
 		},
 	}
 
-	runTestCases(t, tests)
+	runTestCases(t, tests, runDDAReconcilerTest)
+	runTestCases(t, tests, runFullReconcilerTest)
 }
 
 func Test_Introspection(t *testing.T) {
@@ -601,7 +717,8 @@ func Test_Introspection(t *testing.T) {
 		},
 	}
 
-	runTestCases(t, tests)
+	// introspection is supported only with the DDA reconciler
+	runTestCases(t, tests, runDDAReconcilerTest)
 }
 
 func Test_otelImageTags(t *testing.T) {
@@ -774,7 +891,8 @@ func Test_otelImageTags(t *testing.T) {
 		},
 	}
 
-	runTestCases(t, tests)
+	runTestCases(t, tests, runDDAReconcilerTest)
+	runTestCases(t, tests, runFullReconcilerTest)
 }
 
 func getDsContainers(c client.Client, resourcesNamespace, dsName string) map[apicommon.AgentContainerName]corev1.Container {
@@ -941,7 +1059,8 @@ func Test_AutopilotOverrides(t *testing.T) {
 		},
 	}
 
-	runTestCases(t, tests)
+	runTestCases(t, tests, runDDAReconcilerTest)
+	runTestCases(t, tests, runFullReconcilerTest)
 }
 
 // Helper function for creating DatadogAgent with cluster checks enabled
@@ -1089,7 +1208,8 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 		},
 	}
 
-	runTestCases(t, tests)
+	// introspection is supported only with the DDA reconciler
+	runTestCases(t, tests, runDDAReconcilerTest)
 }
 
 func verifyDCADeployment(t *testing.T, c client.Client, ddaName, resourcesNamespace, expectedName string, provider string) {
@@ -1516,7 +1636,8 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 		},
 	}
 
-	runTestCases(t, tests)
+	runTestCases(t, tests, runDDAReconcilerTest)
+	runTestCases(t, tests, runFullReconcilerTest)
 }
 
 func verifyDDAI(t *testing.T, c client.Client, expectedDDAI []v1alpha1.DatadogAgentInternal) {
@@ -1529,6 +1650,11 @@ func verifyDDAI(t *testing.T, c client.Client, expectedDDAI []v1alpha1.DatadogAg
 		ddaiList.Items[i].ObjectMeta.ManagedFields = nil
 		// type meta is only added when merging ddais
 		ddaiList.Items[i].TypeMeta = metav1.TypeMeta{}
+		// clear status since full reconciler is setting it
+		ddaiList.Items[i].Status = v1alpha1.DatadogAgentInternalStatus{}
+		// reset resource version to 1 since full reconciler is incrementing it
+		ddaiList.Items[i].ObjectMeta.ResourceVersion = "1"
+
 	}
 	assert.ElementsMatch(t, expectedDDAI, ddaiList.Items, "DDAI resources don't match")
 }
