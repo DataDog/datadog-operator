@@ -127,7 +127,7 @@ func GetLatestAgentImage() string {
 	return image.ToString()
 }
 
-// GetLatestAgentImage returns the latest ddot collector image
+// GetLatestDdotCollectorImage returns the latest ddot collector image
 func GetLatestDdotCollectorImage() string {
 	image := newImage(DefaultImageRegistry, DefaultDdotCollectorImageName, DdotCollectorLatestVersion, false, false, false)
 	return image.ToString()

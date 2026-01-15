@@ -11,4 +11,5 @@ const (
 	DDOtelCollectorCoreConfigEnabled          = "DD_OTELCOLLECTOR_ENABLED"
 	DDOtelCollectorCoreConfigExtensionURL     = "DD_OTELCOLLECTOR_EXTENSION_URL"
 	DDOtelCollectorCoreConfigExtensionTimeout = "DD_OTELCOLLECTOR_EXTENSION_TIMEOUT"
+	DDOtelCollectorConverterFeatures          = "DD_OTELCOLLECTOR_CONVERTER_FEATURES"
 )
