@@ -23,7 +23,13 @@ func TestAWSKindSuite(t *testing.T) {
 	operatorOptions := []operatorparams.Option{
 		operatorparams.WithNamespace(common.NamespaceName),
 		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
-		operatorparams.WithHelmValues("installCRDs: false"),
+		operatorparams.WithHelmValues(`installCRDs: false
+rbac:
+  create: false
+serviceAccount:
+  create: false
+  name: datadog-operator-e2e-controller-manager
+`),
 	}
 
 	provisionerOptions := []provisioners.KubernetesProvisionerOption{
