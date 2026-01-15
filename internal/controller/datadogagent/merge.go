@@ -14,6 +14,7 @@ import (
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apiextensions-apiserver/pkg/controller/openapi/builder"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -22,6 +23,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 const (
@@ -95,11 +99,45 @@ func (r *Reconciler) ssaMergeCRD(original, modified runtime.Object) (runtime.Obj
 			return nil, fmt.Errorf("failed to apply merge: %w", err)
 		}
 
-		r.log.V(1).Info("SSA merge failed due to missing CRD schema fields; retried after stripping unknown fields", "paths", paths)
+		kv := []any{"paths", paths}
+		kv = append(kv, objectIdentityKV("original", original)...)
+		kv = append(kv, objectIdentityKV("modified", modified)...)
+		r.log.V(1).Info("SSA merge failed due to missing CRD schema fields; retried after stripping unknown fields", kv...)
 		return newObj, nil
 	}
 
 	return newObj, nil
+}
+
+func objectIdentityKV(prefix string, obj runtime.Object) []any {
+	if obj == nil {
+		return []any{prefix + "_nil", true}
+	}
+
+	kv := []any{prefix + "_gvk", obj.GetObjectKind().GroupVersionKind().String()}
+
+	accessor, err := meta.Accessor(obj)
+	if err != nil {
+		return append(kv, prefix+"_metaError", err.Error())
+	}
+
+	kv = append(kv,
+		prefix+"_namespace", accessor.GetNamespace(),
+		prefix+"_name", accessor.GetName(),
+		prefix+"_uid", string(accessor.GetUID()),
+	)
+
+	labels := accessor.GetLabels()
+	if labels != nil {
+		if val, ok := labels[constants.ProfileLabelKey]; ok && val != "" {
+			kv = append(kv, prefix+"_profile", val)
+		}
+		if val, ok := labels[apicommon.DatadogAgentNameLabelKey]; ok && val != "" {
+			kv = append(kv, prefix+"_datadogAgent", val)
+		}
+	}
+
+	return kv
 }
 
 var missingSchemaPathRe = regexp.MustCompile(`(\.[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+): field not declared in schema`)

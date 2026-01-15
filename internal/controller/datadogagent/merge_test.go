@@ -7,6 +7,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -15,9 +16,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -502,5 +505,54 @@ func Test_stripDottedFieldPath(t *testing.T) {
 		assert.NotNil(t, ddai.Spec.Features)
 		assert.NotNil(t, ddai.Spec.Features.CWS)
 		assert.Equal(t, true, apiutils.BoolValue(ddai.Spec.Features.CWS.Enabled))
+	})
+}
+
+func Test_objectIdentityKV(t *testing.T) {
+	t.Run("nil object", func(t *testing.T) {
+		kv := objectIdentityKV("original", nil)
+		assert.Equal(t, []any{"original_nil", true}, kv)
+	})
+
+	t.Run("meta accessor error", func(t *testing.T) {
+		// runtime.Object but not metav1.Object, so meta.Accessor should fail
+		o := &badRuntimeObject{}
+		_, accessorErr := meta.Accessor(o)
+		assert.Error(t, accessorErr)
+
+		kv := objectIdentityKV("obj", o)
+		assert.Equal(t, []any{
+			"obj_gvk", o.GetObjectKind().GroupVersionKind().String(),
+			"obj_metaError", accessorErr.Error(),
+		}, kv)
+	})
+
+	t.Run("includes name/namespace/uid and selected labels", func(t *testing.T) {
+		ddai := &v1alpha1.DatadogAgentInternal{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "datadoghq.com/v1alpha1",
+				Kind:       "DatadogAgentInternal",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "ddai-name",
+				Namespace: "ddai-ns",
+				UID:       types.UID("uid-123"),
+				Labels: map[string]string{
+					constants.ProfileLabelKey:          "profile-a",
+					apicommon.DatadogAgentNameLabelKey: "dda-name",
+				},
+			},
+		}
+		ddai.GetObjectKind().SetGroupVersionKind(getDDAIGVK())
+
+		kv := objectIdentityKV("ddai", ddai)
+		assert.Equal(t, []any{
+			"ddai_gvk", getDDAIGVK().String(),
+			"ddai_namespace", "ddai-ns",
+			"ddai_name", "ddai-name",
+			"ddai_uid", "uid-123",
+			"ddai_profile", "profile-a",
+			"ddai_datadogAgent", "dda-name",
+		}, kv)
 	})
 }
