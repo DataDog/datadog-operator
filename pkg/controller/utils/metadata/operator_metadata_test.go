@@ -224,17 +224,17 @@ func Test_GetPayload(t *testing.T) {
 		},
 	}
 
-	payload := omf.GetPayload()
+	payload := omf.buildPayload()
 
 	// Verify payload is valid JSON
 	if len(payload) == 0 {
-		t.Error("GetPayload() returned empty payload")
+		t.Error("buildPayload() returned empty payload")
 	}
 
 	// Parse JSON to validate specific values
 	var parsed map[string]interface{}
 	if err := json.Unmarshal(payload, &parsed); err != nil {
-		t.Fatalf("GetPayload() returned invalid JSON: %v", err)
+		t.Fatalf("buildPayload() returned invalid JSON: %v", err)
 	}
 
 	// Validate top-level fields
@@ -341,11 +341,11 @@ func Test_GetPayload_Concurrent(t *testing.T) {
 
 	for i := 0; i < numGoroutines; i++ {
 		go func(id int) {
-			// Call GetPayload multiple times
+			// Call buildPayload multiple times
 			for j := 0; j < 10; j++ {
-				payload := omf.GetPayload()
+				payload := omf.buildPayload()
 				if len(payload) == 0 {
-					t.Errorf("Goroutine %d: GetPayload() returned empty payload", id)
+					t.Errorf("Goroutine %d: buildPayload() returned empty payload", id)
 				}
 			}
 			done <- true

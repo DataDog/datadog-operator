@@ -107,7 +107,7 @@ func (omf *OperatorMetadataForwarder) Start() {
 }
 
 func (omf *OperatorMetadataForwarder) sendMetadata() error {
-	payload := omf.GetPayload()
+	payload := omf.buildPayload()
 	req, err := omf.createRequest(payload)
 	if err != nil {
 		return fmt.Errorf("error creating request: %w", err)
@@ -123,7 +123,7 @@ func (omf *OperatorMetadataForwarder) sendMetadata() error {
 	return nil
 }
 
-func (omf *OperatorMetadataForwarder) GetPayload() []byte {
+func (omf *OperatorMetadataForwarder) buildPayload() []byte {
 	now := time.Now().Unix()
 
 	omf.mutex.RLock()
