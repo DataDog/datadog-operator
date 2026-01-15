@@ -117,12 +117,14 @@ func NewHelmMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kuber
 
 	sharedMetadata, err := NewSharedMetadata(operatorVersion, kubernetesVersion, k8sClient)
 	if err != nil {
-		forwarderLogger.Error(err, "Failed to initialize shared metadata - helm metadata forwarder cannot be initialized")
+		forwarderLogger.Info("Failed to initialize shared metadata", "error", err)
 		return nil
 	}
 
+	baseForwarder := NewBaseForwarder(forwarderLogger, k8sClient, credsManager)
+
 	return &HelmMetadataForwarder{
-		BaseForwarder:  NewBaseForwarder(forwarderLogger, k8sClient, credsManager),
+		BaseForwarder:  baseForwarder,
 		SharedMetadata: sharedMetadata,
 	}
 }
