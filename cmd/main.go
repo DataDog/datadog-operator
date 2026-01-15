@@ -12,6 +12,7 @@ import (
 	"os"
 	goruntime "runtime"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -494,18 +495,42 @@ func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
 
 func customSetupHealthChecks(logger logr.Logger, mgr manager.Manager, maximumGoroutines *int) {
 	setupLog.Info("configuring manager health check", "maximumGoroutines", *maximumGoroutines)
-	err := mgr.AddHealthzCheck("goroutines-number", func(req *http.Request) error {
-		if goruntime.NumGoroutine() > *maximumGoroutines {
-			return fmt.Errorf("too many goroutines: %d > limit: %d", goruntime.NumGoroutine(), *maximumGoroutines)
-		}
-		return nil
-	})
+	err := mgr.AddHealthzCheck("goroutines-number", newGoroutinesNumberHealthzCheck(logger, maximumGoroutines))
 	if err != nil {
 		setupErrorf(setupLog, err, "Unable to add healthchecks")
 	}
 }
 
-func setupErrorf(logger logr.Logger, err error, msg string, keysAndValues ...any) error {
+func newGoroutinesNumberHealthzCheck(logger logr.Logger, maximumGoroutines *int) func(req *http.Request) error {
+	healthzLog := logger.WithName("healthz").WithValues("checker", "goroutines-number")
+	// The healthz checker runs in the manager's HTTP server (net/http), so it may be invoked
+	// concurrently by multiple callers/probes. We keep a tiny piece of concurrency-safe state
+	// to log the transition to failing/recovered only once (avoid log spam on every probe).
+	var wasFailing atomic.Uint32
+
+	return func(req *http.Request) error {
+		current := goruntime.NumGoroutine()
+		limit := *maximumGoroutines
+
+		if current > limit {
+			checkErr := fmt.Errorf("too many goroutines: %d > limit: %d", current, limit)
+			// controller-runtime logs health check failures at debug; emit a single error-level log
+			// on transition to failing to ensure visibility without log spam from probes.
+			if wasFailing.CompareAndSwap(0, 1) {
+				healthzLog.Error(checkErr, "healthz check entering failing state", "goroutines", current, "limit", limit)
+			}
+			return checkErr
+		}
+
+		// If we were previously failing, log recovery once.
+		if wasFailing.CompareAndSwap(1, 0) {
+			healthzLog.Info("healthz check recovered", "goroutines", current, "limit", limit)
+		}
+		return nil
+	}
+}
+
+func setupErrorf(_ logr.Logger, err error, msg string, keysAndValues ...any) error {
 	setupLog.Error(err, msg, keysAndValues...)
 	return fmt.Errorf("%s, err:%w", msg, err)
 }
