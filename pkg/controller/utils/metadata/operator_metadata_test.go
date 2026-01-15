@@ -7,7 +7,6 @@ package metadata
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"testing"
 
@@ -78,7 +77,7 @@ func Test_getURL(t *testing.T) {
 
 			client := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&v2alpha1.DatadogAgent{}).WithObjects(clientObjects...).Build()
 			// Create BaseForwarder to test URL generation
-			sm := NewBaseForwarder(zap.New(zap.UseDevMode(true)), client, "v1.28.0", "v1.19.0", config.NewCredentialManager(client))
+			sm := NewBaseForwarder(zap.New(zap.UseDevMode(true)), client, config.NewCredentialManager(client))
 			request, err := sm.createRequest([]byte("test"))
 			assert.Nil(t, err)
 
@@ -181,8 +180,10 @@ func Test_setup(t *testing.T) {
 				WithObjects(tt.dda, kubeSystem).
 				Build()
 			// Create OperatorMetadataForwarder with the new structure
+			sharedMetadata, _ := NewSharedMetadata("v1.19.0", "v1.28.0", client)
 			omf := &OperatorMetadataForwarder{
-				BaseForwarder: NewBaseForwarder(zap.New(zap.UseDevMode(true)), client, "v1.28.0", "v1.19.0", config.NewCredentialManager(client)),
+				BaseForwarder:  NewBaseForwarder(zap.New(zap.UseDevMode(true)), client, config.NewCredentialManager(client)),
+				SharedMetadata: sharedMetadata,
 				OperatorMetadata: OperatorMetadata{
 					ResourceCounts: make(map[string]int),
 				},
@@ -213,15 +214,17 @@ func Test_GetPayload(t *testing.T) {
 		},
 	}
 	client := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&v2alpha1.DatadogAgent{}, kubeSystem).Build()
+	sharedMetadata, _ := NewSharedMetadata(expectedOperatorVersion, expectedKubernetesVersion, client)
 	omf := &OperatorMetadataForwarder{
-		BaseForwarder: NewBaseForwarder(zap.New(zap.UseDevMode(true)), client, expectedKubernetesVersion, expectedOperatorVersion, config.NewCredentialManager(client)),
+		BaseForwarder:  NewBaseForwarder(zap.New(zap.UseDevMode(true)), client, config.NewCredentialManager(client)),
+		SharedMetadata: sharedMetadata,
 		OperatorMetadata: OperatorMetadata{
 			IsLeader:       true,
 			ResourceCounts: make(map[string]int),
 		},
 	}
 
-	payload := omf.GetPayload(expectedClusterUID)
+	payload := omf.GetPayload()
 
 	// Verify payload is valid JSON
 	if len(payload) == 0 {
@@ -319,8 +322,10 @@ func Test_GetPayload_Concurrent(t *testing.T) {
 		},
 	}
 	client := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&v2alpha1.DatadogAgent{}, kubeSystem).Build()
+	sharedMetadata, _ := NewSharedMetadata("v1.19.0", "v1.28.0", client)
 	omf := &OperatorMetadataForwarder{
-		BaseForwarder: NewBaseForwarder(zap.New(zap.UseDevMode(true)), client, "v1.28.0", "v1.19.0", config.NewCredentialManager(client)),
+		BaseForwarder:  NewBaseForwarder(zap.New(zap.UseDevMode(true)), client, config.NewCredentialManager(client)),
+		SharedMetadata: sharedMetadata,
 		OperatorMetadata: OperatorMetadata{
 			IsLeader:                    true,
 			DatadogAgentEnabled:         true,
@@ -336,11 +341,9 @@ func Test_GetPayload_Concurrent(t *testing.T) {
 
 	for i := 0; i < numGoroutines; i++ {
 		go func(id int) {
-			// Call GetPayload multiple times with DIFFERENT cluster IDs
-			// This increases likelihood of detecting races
+			// Call GetPayload multiple times
 			for j := 0; j < 10; j++ {
-				clusterUID := fmt.Sprintf("test-cluster-uid-%d-%d", id, j)
-				payload := omf.GetPayload(clusterUID)
+				payload := omf.GetPayload()
 				if len(payload) == 0 {
 					t.Errorf("Goroutine %d: GetPayload() returned empty payload", id)
 				}

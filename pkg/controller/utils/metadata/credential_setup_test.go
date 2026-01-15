@@ -297,14 +297,14 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 			client := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&v2alpha1.DatadogAgent{}).WithObjects(clientObjects...).Build()
 
 			credsManager := config.NewCredentialManagerWithDecryptor(client, &mockDecryptor{})
+			sharedMetadata, _ := NewSharedMetadata("v1.0.0", "v1.28.0", client)
 			omf := &OperatorMetadataForwarder{
 				BaseForwarder: NewBaseForwarder(
 					zap.New(zap.UseDevMode(true)),
 					client,
-					"v1.28.0",
-					"v1.0.0",
 					credsManager,
 				),
+				SharedMetadata:   sharedMetadata,
 				OperatorMetadata: OperatorMetadata{},
 			}
 
@@ -334,9 +334,7 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 			assert.Equal(t, "application/json", req.Header.Get("Accept"), "Accept header should be set")
 
 			// Verify cluster UID is set
-			clusterUID, err := omf.GetOrCreateClusterUID()
-			assert.NoError(t, err)
-			assert.NotEmpty(t, clusterUID, "Cluster UID should be set")
+			assert.NotEmpty(t, omf.SharedMetadata.ClusterID, "Cluster UID should be set")
 		})
 	}
 }

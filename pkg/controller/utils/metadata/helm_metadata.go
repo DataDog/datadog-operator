@@ -45,6 +45,7 @@ var (
 
 type HelmMetadataForwarder struct {
 	*BaseForwarder
+	*SharedMetadata
 
 	allHelmReleasesCache allHelmReleasesCache
 }
@@ -57,10 +58,7 @@ type HelmMetadataPayload struct {
 }
 
 type HelmMetadata struct {
-	// Shared
-	OperatorVersion   string `json:"operator_version"`
-	KubernetesVersion string `json:"kubernetes_version"`
-	ClusterID         string `json:"cluster_id"`
+	SharedMetadata
 
 	ChartName                 string `json:"chart_name"`
 	ChartReleaseName          string `json:"chart_release_name"`
@@ -113,10 +111,19 @@ type HelmReleaseMinimal struct {
 }
 
 // NewHelmMetadataForwarder creates a new instance of the helm metadata forwarder
+// Returns nil if shared metadata cannot be initialized
 func NewHelmMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string, credsManager *config.CredentialManager) *HelmMetadataForwarder {
 	forwarderLogger := logger.WithName("helm")
+
+	sharedMetadata, err := NewSharedMetadata(operatorVersion, kubernetesVersion, k8sClient)
+	if err != nil {
+		forwarderLogger.Error(err, "Failed to initialize shared metadata - helm metadata forwarder cannot be initialized")
+		return nil
+	}
+
 	return &HelmMetadataForwarder{
-		BaseForwarder: NewBaseForwarder(forwarderLogger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
+		BaseForwarder:  NewBaseForwarder(forwarderLogger, k8sClient, credsManager),
+		SharedMetadata: sharedMetadata,
 	}
 }
 
@@ -188,11 +195,7 @@ func (hmf *HelmMetadataForwarder) sendMetadata() error {
 }
 
 func (hmf *HelmMetadataForwarder) sendSingleReleasePayload(release HelmReleaseData) error {
-	clusterUID, err := hmf.GetOrCreateClusterUID()
-	if err != nil {
-		return fmt.Errorf("error getting cluster UID: %w", err)
-	}
-	payload := hmf.buildPayload(release, clusterUID)
+	payload := hmf.buildPayload(release)
 
 	hmf.logger.V(1).Info("Built metadata payload",
 		"release", release.ReleaseName,
@@ -231,13 +234,11 @@ func (hmf *HelmMetadataForwarder) sendSingleReleasePayload(release HelmReleaseDa
 	return nil
 }
 
-func (hmf *HelmMetadataForwarder) buildPayload(release HelmReleaseData, clusterUID string) []byte {
+func (hmf *HelmMetadataForwarder) buildPayload(release HelmReleaseData) []byte {
 	now := time.Now().Unix()
 
 	helmMetadata := HelmMetadata{
-		OperatorVersion:           hmf.operatorVersion,
-		KubernetesVersion:         hmf.kubernetesVersion,
-		ClusterID:                 clusterUID,
+		SharedMetadata:            *hmf.SharedMetadata,
 		ChartName:                 release.ChartName,
 		ChartReleaseName:          release.ReleaseName,
 		ChartAppVersion:           release.AppVersion,
@@ -249,9 +250,9 @@ func (hmf *HelmMetadataForwarder) buildPayload(release HelmReleaseData, clusterU
 	}
 
 	payload := HelmMetadataPayload{
-		UUID:      clusterUID,
+		UUID:      hmf.SharedMetadata.ClusterID,
 		Timestamp: now,
-		ClusterID: clusterUID,
+		ClusterID: hmf.SharedMetadata.ClusterID,
 		Metadata:  helmMetadata,
 	}
 

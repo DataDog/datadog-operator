@@ -66,7 +66,7 @@ func Test_CRDBuildPayload(t *testing.T) {
 		Annotations: testAnnotations,
 	}
 
-	payload := cmf.buildPayload(expectedClusterUID, crdInstance)
+	payload := cmf.buildPayload(crdInstance)
 
 	// Verify payload is valid JSON
 	if len(payload) == 0 {

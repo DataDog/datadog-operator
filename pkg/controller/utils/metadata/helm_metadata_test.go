@@ -42,7 +42,7 @@ func Test_HelmMetadataForwarder_getPayload(t *testing.T) {
 		Status:             "deployed",
 	}
 
-	payload := hmf.buildPayload(release, expectedClusterUID)
+	payload := hmf.buildPayload(release)
 
 	// Verify payload is valid JSON
 	if len(payload) == 0 {

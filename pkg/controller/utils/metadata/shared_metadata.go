@@ -36,28 +36,50 @@ const (
 	defaultURLPath       = "api/v1/metadata"
 )
 
+// SharedMetadata contains metadata values shared across all forwarders
+type SharedMetadata struct {
+	OperatorVersion   string `json:"operator_version"`
+	KubernetesVersion string `json:"kubernetes_version"`
+	ClusterID         string `json:"cluster_id"`
+}
+
+// NewSharedMetadata creates a new instance of shared metadata by fetching cluster UID
+func NewSharedMetadata(operatorVersion, kubernetesVersion string, k8sClient client.Reader) (*SharedMetadata, error) {
+	clusterUID, err := getClusterUID(k8sClient)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cluster UID: %w", err)
+	}
+
+	return &SharedMetadata{
+		OperatorVersion:   operatorVersion,
+		KubernetesVersion: kubernetesVersion,
+		ClusterID:         clusterUID,
+	}, nil
+}
+
+// getClusterUID retrieves the cluster UID from kube-system namespace
+func getClusterUID(k8sClient client.Reader) (string, error) {
+	kubeSystemNS := &corev1.Namespace{}
+	err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: "kube-system"}, kubeSystemNS)
+	if err != nil {
+		return "", fmt.Errorf("failed to get kube-system namespace: %w", err)
+	}
+	return string(kubeSystemNS.UID), nil
+}
+
 // BaseForwarder contains the common infrastructure shared across all forwarders
 type BaseForwarder struct {
-	k8sClient client.Reader
-	logger    logr.Logger
-
-	// Shared metadata fields
-	clusterUID        string
-	operatorVersion   string
-	kubernetesVersion string
-	httpClient        *http.Client
-
-	// Shared credential management
+	k8sClient    client.Reader
+	logger       logr.Logger
+	httpClient   *http.Client
 	credsManager *config.CredentialManager
 }
 
-// NewBaseForwarder creates a new instance of shared forwarder components
-func NewBaseForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string, credsManager *config.CredentialManager) *BaseForwarder {
+// NewBaseForwarder creates a new instance of base forwarder
+func NewBaseForwarder(logger logr.Logger, k8sClient client.Reader, credsManager *config.CredentialManager) *BaseForwarder {
 	return &BaseForwarder{
-		k8sClient:         k8sClient,
-		logger:            logger,
-		operatorVersion:   operatorVersion,
-		kubernetesVersion: kubernetesVersion,
+		k8sClient: k8sClient,
+		logger:    logger,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -83,22 +105,6 @@ func (sfc *BaseForwarder) createRequest(payload []byte) (*http.Request, error) {
 	}
 	req.Header = payloadHeader
 	return req, nil
-}
-
-// GetOrCreateClusterUID retrieves the cluster UID from kube-system namespace
-func (sfc *BaseForwarder) GetOrCreateClusterUID() (string, error) {
-	if sfc.clusterUID != "" {
-		return sfc.clusterUID, nil
-	}
-
-	kubeSystemNS := &corev1.Namespace{}
-	err := sfc.k8sClient.Get(context.TODO(), types.NamespacedName{Name: "kube-system"}, kubeSystemNS)
-	if err != nil {
-		return "", fmt.Errorf("failed to get kube-system namespace: %w", err)
-	}
-
-	sfc.clusterUID = string(kubeSystemNS.UID)
-	return sfc.clusterUID, nil
 }
 
 // getApiKeyAndURL retrieves the API key and request URL from the operator or DDA

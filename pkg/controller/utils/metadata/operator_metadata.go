@@ -29,6 +29,7 @@ const (
 
 type OperatorMetadataForwarder struct {
 	*BaseForwarder
+	*SharedMetadata
 
 	mutex            sync.RWMutex
 	OperatorMetadata OperatorMetadata
@@ -42,10 +43,7 @@ type OperatorMetadataPayload struct {
 }
 
 type OperatorMetadata struct {
-	// Shared
-	OperatorVersion   string `json:"operator_version"`
-	KubernetesVersion string `json:"kubernetes_version"`
-	ClusterID         string `json:"cluster_id"`
+	SharedMetadata
 
 	InstallMethodTool             string         `json:"install_method_tool"`
 	InstallMethodToolVersion      string         `json:"install_method_tool_version"`
@@ -67,10 +65,19 @@ type OperatorMetadata struct {
 }
 
 // NewOperatorMetadataForwarder creates a new instance of the operator metadata forwarder
+// Returns nil if shared metadata cannot be initialized
 func NewOperatorMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion, operatorVersion string, credsManager *config.CredentialManager) *OperatorMetadataForwarder {
 	forwarderLogger := logger.WithName("operator")
+
+	sharedMetadata, err := NewSharedMetadata(operatorVersion, kubernetesVersion, k8sClient)
+	if err != nil {
+		forwarderLogger.Error(err, "Failed to initialize shared metadata - operator metadata forwarder cannot be initialized")
+		return nil
+	}
+
 	return &OperatorMetadataForwarder{
-		BaseForwarder:    NewBaseForwarder(forwarderLogger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
+		BaseForwarder:    NewBaseForwarder(forwarderLogger, k8sClient, credsManager),
+		SharedMetadata:   sharedMetadata,
 		OperatorMetadata: OperatorMetadata{},
 	}
 }
@@ -99,11 +106,7 @@ func (omf *OperatorMetadataForwarder) Start() {
 }
 
 func (omf *OperatorMetadataForwarder) sendMetadata() error {
-	clusterUID, err := omf.GetOrCreateClusterUID()
-	if err != nil {
-		return fmt.Errorf("error getting cluster UID: %w", err)
-	}
-	payload := omf.GetPayload(clusterUID)
+	payload := omf.GetPayload()
 	req, err := omf.createRequest(payload)
 	if err != nil {
 		return fmt.Errorf("error creating request: %w", err)
@@ -119,7 +122,7 @@ func (omf *OperatorMetadataForwarder) sendMetadata() error {
 	return nil
 }
 
-func (omf *OperatorMetadataForwarder) GetPayload(clusterUID string) []byte {
+func (omf *OperatorMetadataForwarder) GetPayload() []byte {
 	now := time.Now().Unix()
 
 	omf.mutex.RLock()
@@ -131,14 +134,12 @@ func (omf *OperatorMetadataForwarder) GetPayload(clusterUID string) []byte {
 	}
 	omf.mutex.RUnlock()
 
-	operatorMetadata.ClusterID = clusterUID
-	operatorMetadata.OperatorVersion = omf.operatorVersion
-	operatorMetadata.KubernetesVersion = omf.kubernetesVersion
+	operatorMetadata.SharedMetadata = *omf.SharedMetadata
 
 	payload := OperatorMetadataPayload{
-		UUID:      clusterUID,
+		UUID:      omf.SharedMetadata.ClusterID,
 		Timestamp: now,
-		ClusterID: clusterUID,
+		ClusterID: omf.SharedMetadata.ClusterID,
 		Metadata:  operatorMetadata,
 	}
 
