@@ -213,7 +213,7 @@ func Test_GetPayload(t *testing.T) {
 			UID:  "test-cluster-uid-12345",
 		},
 	}
-	client := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&v2alpha1.DatadogAgent{}, kubeSystem).Build()
+	client := fake.NewClientBuilder().WithScheme(s).WithObjects(kubeSystem).WithStatusSubresource(&v2alpha1.DatadogAgent{}).Build()
 	sharedMetadata, _ := NewSharedMetadata(expectedOperatorVersion, expectedKubernetesVersion, client)
 	omf := &OperatorMetadataForwarder{
 		BaseForwarder:  NewBaseForwarder(zap.New(zap.UseDevMode(true)), client, config.NewCredentialManager(client)),
@@ -321,7 +321,7 @@ func Test_GetPayload_Concurrent(t *testing.T) {
 			UID:  "test-cluster-uid-12345",
 		},
 	}
-	client := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&v2alpha1.DatadogAgent{}, kubeSystem).Build()
+	client := fake.NewClientBuilder().WithScheme(s).WithObjects(kubeSystem).WithStatusSubresource(&v2alpha1.DatadogAgent{}).Build()
 	sharedMetadata, _ := NewSharedMetadata("v1.19.0", "v1.28.0", client)
 	omf := &OperatorMetadataForwarder{
 		BaseForwarder:  NewBaseForwarder(zap.New(zap.UseDevMode(true)), client, config.NewCredentialManager(client)),

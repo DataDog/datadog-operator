@@ -135,6 +135,7 @@ func (omf *OperatorMetadataForwarder) buildPayload() []byte {
 	}
 	omf.mutex.RUnlock()
 
+	// Populate shared metadata fields from the forwarder's SharedMetadata
 	operatorMetadata.SharedMetadata = *omf.SharedMetadata
 
 	payload := OperatorMetadataPayload{

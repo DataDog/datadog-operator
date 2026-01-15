@@ -88,6 +88,7 @@ func NewBaseForwarder(logger logr.Logger, k8sClient client.Reader, credsManager 
 	}
 }
 
+// createRequest creates an HTTP request with the appropriate API key and URL
 func (sfc *BaseForwarder) createRequest(payload []byte) (*http.Request, error) {
 	apiKey, requestURL, err := sfc.getApiKeyAndURL()
 	if err != nil {
