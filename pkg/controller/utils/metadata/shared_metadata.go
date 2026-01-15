@@ -36,8 +36,8 @@ const (
 	defaultURLPath       = "api/v1/metadata"
 )
 
-// SharedMetadata contains the common metadata shared across all forwarders
-type SharedMetadata struct {
+// BaseForwarder contains the common infrastructure shared across all forwarders
+type BaseForwarder struct {
 	k8sClient client.Reader
 	logger    logr.Logger
 
@@ -51,9 +51,9 @@ type SharedMetadata struct {
 	credsManager *config.CredentialManager
 }
 
-// NewSharedMetadata creates a new instance of shared metadata
-func NewSharedMetadata(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string, credsManager *config.CredentialManager) *SharedMetadata {
-	return &SharedMetadata{
+// NewBaseForwarder creates a new instance of shared forwarder components
+func NewBaseForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string, credsManager *config.CredentialManager) *BaseForwarder {
+	return &BaseForwarder{
 		k8sClient:         k8sClient,
 		logger:            logger,
 		operatorVersion:   operatorVersion,
@@ -65,20 +65,20 @@ func NewSharedMetadata(logger logr.Logger, k8sClient client.Reader, kubernetesVe
 	}
 }
 
-func (sm *SharedMetadata) createRequest(payload []byte) (*http.Request, error) {
-	apiKey, requestURL, err := sm.getApiKeyAndURL()
+func (sfc *BaseForwarder) createRequest(payload []byte) (*http.Request, error) {
+	apiKey, requestURL, err := sfc.getApiKeyAndURL()
 	if err != nil {
-		sm.logger.V(1).Info("Could not get credentials", "error", err)
+		sfc.logger.V(1).Info("Could not get credentials", "error", err)
 		return nil, err
 	}
-	payloadHeader := sm.GetHeaders(*apiKey)
+	payloadHeader := sfc.GetHeaders(*apiKey)
 
-	sm.logger.V(1).Info("Sending metadata to URL", "url", *requestURL)
+	sfc.logger.V(1).Info("Sending metadata to URL", "url", *requestURL)
 
 	reader := bytes.NewReader(payload)
 	req, err := http.NewRequestWithContext(context.TODO(), "POST", *requestURL, reader)
 	if err != nil {
-		sm.logger.V(1).Info("Error creating request", "error", err, "url", *requestURL)
+		sfc.logger.V(1).Info("Error creating request", "error", err, "url", *requestURL)
 		return nil, err
 	}
 	req.Header = payloadHeader
@@ -86,25 +86,25 @@ func (sm *SharedMetadata) createRequest(payload []byte) (*http.Request, error) {
 }
 
 // GetOrCreateClusterUID retrieves the cluster UID from kube-system namespace
-func (sm *SharedMetadata) GetOrCreateClusterUID() (string, error) {
-	if sm.clusterUID != "" {
-		return sm.clusterUID, nil
+func (sfc *BaseForwarder) GetOrCreateClusterUID() (string, error) {
+	if sfc.clusterUID != "" {
+		return sfc.clusterUID, nil
 	}
 
 	kubeSystemNS := &corev1.Namespace{}
-	err := sm.k8sClient.Get(context.TODO(), types.NamespacedName{Name: "kube-system"}, kubeSystemNS)
+	err := sfc.k8sClient.Get(context.TODO(), types.NamespacedName{Name: "kube-system"}, kubeSystemNS)
 	if err != nil {
 		return "", fmt.Errorf("failed to get kube-system namespace: %w", err)
 	}
 
-	sm.clusterUID = string(kubeSystemNS.UID)
-	return sm.clusterUID, nil
+	sfc.clusterUID = string(kubeSystemNS.UID)
+	return sfc.clusterUID, nil
 }
 
 // getApiKeyAndURL retrieves the API key and request URL from the operator or DDA
-// and sets the cluster name from the operator or DDA in the SharedMetadata struct
-func (sm *SharedMetadata) getApiKeyAndURL() (*string, *string, error) {
-	creds, err := sm.credsManager.GetCredsWithDDAFallback(sm.getDatadogAgent)
+// and sets the cluster name from the operator or DDA in the BaseForwarder struct
+func (sfc *BaseForwarder) getApiKeyAndURL() (*string, *string, error) {
+	creds, err := sfc.credsManager.GetCredsWithDDAFallback(sfc.getDatadogAgent)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -130,10 +130,10 @@ func (sm *SharedMetadata) getApiKeyAndURL() (*string, *string, error) {
 }
 
 // getDatadogAgent retrieves the DatadogAgent using Get client method
-func (sm *SharedMetadata) getDatadogAgent() (*v2alpha1.DatadogAgent, error) {
+func (sfc *BaseForwarder) getDatadogAgent() (*v2alpha1.DatadogAgent, error) {
 	ddaList := v2alpha1.DatadogAgentList{}
 
-	if err := sm.k8sClient.List(context.TODO(), &ddaList); err != nil {
+	if err := sfc.k8sClient.List(context.TODO(), &ddaList); err != nil {
 		return nil, err
 	}
 
@@ -145,7 +145,7 @@ func (sm *SharedMetadata) getDatadogAgent() (*v2alpha1.DatadogAgent, error) {
 }
 
 // GetBaseHeaders returns the common HTTP headers for API requests
-func (sm *SharedMetadata) GetHeaders(apiKey string) http.Header {
+func (sfc *BaseForwarder) GetHeaders(apiKey string) http.Header {
 	header := http.Header{}
 	header.Set(apiHTTPHeaderKey, apiKey)
 	header.Set(contentTypeHeaderKey, "application/json")

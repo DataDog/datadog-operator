@@ -44,7 +44,7 @@ var (
 )
 
 type HelmMetadataForwarder struct {
-	*SharedMetadata
+	*BaseForwarder
 
 	allHelmReleasesCache allHelmReleasesCache
 }
@@ -116,7 +116,7 @@ type HelmReleaseMinimal struct {
 func NewHelmMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string, credsManager *config.CredentialManager) *HelmMetadataForwarder {
 	forwarderLogger := logger.WithName("helm")
 	return &HelmMetadataForwarder{
-		SharedMetadata: NewSharedMetadata(forwarderLogger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
+		BaseForwarder: NewBaseForwarder(forwarderLogger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
 	}
 }
 

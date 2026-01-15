@@ -77,8 +77,8 @@ func Test_getURL(t *testing.T) {
 			clientObjects = append(clientObjects, kubeSystem)
 
 			client := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&v2alpha1.DatadogAgent{}).WithObjects(clientObjects...).Build()
-			// Create SharedMetadata to test URL generation
-			sm := NewSharedMetadata(zap.New(zap.UseDevMode(true)), client, "v1.28.0", "v1.19.0", config.NewCredentialManager(client))
+			// Create BaseForwarder to test URL generation
+			sm := NewBaseForwarder(zap.New(zap.UseDevMode(true)), client, "v1.28.0", "v1.19.0", config.NewCredentialManager(client))
 			request, err := sm.createRequest([]byte("test"))
 			assert.Nil(t, err)
 
@@ -182,7 +182,7 @@ func Test_setup(t *testing.T) {
 				Build()
 			// Create OperatorMetadataForwarder with the new structure
 			omf := &OperatorMetadataForwarder{
-				SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), client, "v1.28.0", "v1.19.0", config.NewCredentialManager(client)),
+				BaseForwarder: NewBaseForwarder(zap.New(zap.UseDevMode(true)), client, "v1.28.0", "v1.19.0", config.NewCredentialManager(client)),
 				OperatorMetadata: OperatorMetadata{
 					ResourceCounts: make(map[string]int),
 				},
@@ -214,7 +214,7 @@ func Test_GetPayload(t *testing.T) {
 	}
 	client := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&v2alpha1.DatadogAgent{}, kubeSystem).Build()
 	omf := &OperatorMetadataForwarder{
-		SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), client, expectedKubernetesVersion, expectedOperatorVersion, config.NewCredentialManager(client)),
+		BaseForwarder: NewBaseForwarder(zap.New(zap.UseDevMode(true)), client, expectedKubernetesVersion, expectedOperatorVersion, config.NewCredentialManager(client)),
 		OperatorMetadata: OperatorMetadata{
 			IsLeader:       true,
 			ResourceCounts: make(map[string]int),
@@ -320,7 +320,7 @@ func Test_GetPayload_Concurrent(t *testing.T) {
 	}
 	client := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&v2alpha1.DatadogAgent{}, kubeSystem).Build()
 	omf := &OperatorMetadataForwarder{
-		SharedMetadata: NewSharedMetadata(zap.New(zap.UseDevMode(true)), client, "v1.28.0", "v1.19.0", config.NewCredentialManager(client)),
+		BaseForwarder: NewBaseForwarder(zap.New(zap.UseDevMode(true)), client, "v1.28.0", "v1.19.0", config.NewCredentialManager(client)),
 		OperatorMetadata: OperatorMetadata{
 			IsLeader:                    true,
 			DatadogAgentEnabled:         true,

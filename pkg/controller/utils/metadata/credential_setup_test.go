@@ -298,7 +298,7 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 
 			credsManager := config.NewCredentialManagerWithDecryptor(client, &mockDecryptor{})
 			omf := &OperatorMetadataForwarder{
-				SharedMetadata: NewSharedMetadata(
+				BaseForwarder: NewBaseForwarder(
 					zap.New(zap.UseDevMode(true)),
 					client,
 					"v1.28.0",

@@ -28,7 +28,7 @@ const (
 )
 
 type OperatorMetadataForwarder struct {
-	*SharedMetadata
+	*BaseForwarder
 
 	mutex            sync.RWMutex
 	OperatorMetadata OperatorMetadata
@@ -70,7 +70,7 @@ type OperatorMetadata struct {
 func NewOperatorMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion, operatorVersion string, credsManager *config.CredentialManager) *OperatorMetadataForwarder {
 	forwarderLogger := logger.WithName("operator")
 	return &OperatorMetadataForwarder{
-		SharedMetadata:   NewSharedMetadata(forwarderLogger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
+		BaseForwarder:    NewBaseForwarder(forwarderLogger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
 		OperatorMetadata: OperatorMetadata{},
 	}
 }

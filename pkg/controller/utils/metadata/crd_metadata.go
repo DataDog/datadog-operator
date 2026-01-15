@@ -29,7 +29,7 @@ const (
 )
 
 type CRDMetadataForwarder struct {
-	*SharedMetadata
+	*BaseForwarder
 
 	enabledCRDs EnabledCRDKindsConfig
 
@@ -82,9 +82,9 @@ type EnabledCRDKindsConfig struct {
 func NewCRDMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string, credsManager *config.CredentialManager, config EnabledCRDKindsConfig) *CRDMetadataForwarder {
 	forwarderLogger := logger.WithName("crd")
 	return &CRDMetadataForwarder{
-		SharedMetadata: NewSharedMetadata(forwarderLogger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
-		enabledCRDs:    config,
-		crdCache:       make(map[string]string),
+		BaseForwarder: NewBaseForwarder(forwarderLogger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
+		enabledCRDs:   config,
+		crdCache:      make(map[string]string),
 	}
 }
 
