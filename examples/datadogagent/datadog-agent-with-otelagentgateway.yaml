@@ -4,9 +4,74 @@
 # to collect and forward OpenTelemetry data.
 #
 # This example demonstrates all available configuration options including:
+# - Custom ConfigMap with OTel collector configuration
 # - Feature-level configuration (feature gates)
 # - Override configuration (replicas, resources, security contexts, node selectors, affinity, tolerations, env, etc.)
 
+# Optional: ConfigMap with custom OTel Agent Gateway configuration
+# When provided, this will be used instead of the default gateway configuration
+# The ConfigMap key MUST be named "otel-gateway-config.yaml"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: custom-otel-gateway-config
+data:
+  otel-gateway-config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: "0.0.0.0:4317"
+          http:
+            endpoint: "0.0.0.0:4318"
+    processors:
+      batch:
+        timeout: 10s
+        send_batch_size: 1024
+        send_batch_max_size: 2048
+      # Add custom processors here, e.g., filtering, sampling, etc.
+      attributes:
+        actions:
+          - key: deployment.environment
+            value: production
+            action: insert
+    exporters:
+      debug:
+        verbosity: detailed
+      datadog:
+        api:
+          key: ${env:DD_API_KEY}
+    extensions:
+      datadog:
+        api:
+          key: ${env:DD_API_KEY}
+    service:
+      extensions: [datadog]
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [attributes, batch]
+          exporters: [datadog, debug]
+        metrics:
+          receivers: [otlp]
+          processors: [attributes, batch]
+          exporters: [datadog, debug]
+        logs:
+          receivers: [otlp]
+          processors: [attributes, batch]
+          exporters: [datadog, debug]
+---
+# Optional: ConfigMap for additional environment variables
+# This demonstrates using envFrom to inject environment variables into the gateway pods
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-gateway-env-config
+data:
+  OTEL_RESOURCE_ATTRIBUTES: "service.name=my-gateway,deployment.environment=production"
+  CUSTOM_GATEWAY_SETTING: "example-value"
+---
 apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
@@ -22,6 +87,12 @@ spec:
     # Enable OTel Agent Gateway with feature-level configuration
     otelAgentGateway:
       enabled: true
+
+      # Optional: Reference the custom ConfigMap created above
+      # Comment this out to use the default gateway configuration
+      conf:
+        configMap:
+          name: custom-otel-gateway-config
 
       # Feature gates to pass to OTel collector as a comma-separated list
       # These gates enable/disable specific features in the OpenTelemetry Collector
@@ -70,11 +141,10 @@ spec:
         value: "custom-value"
 
       # Environment variables from ConfigMaps or Secrets
+      # This loads all key-value pairs from the ConfigMap as environment variables
       envFrom:
       - configMapRef:
-          name: otel-gateway-config
-      - secretRef:
-          name: otel-gateway-secrets
+          name: otel-gateway-env-config
 
       # Custom image configuration (optional)
       image:

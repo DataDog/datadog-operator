@@ -502,8 +502,8 @@ func (builder *DatadogAgentBuilder) WithOTelAgentGatewayConfigMapMultipleItems()
 		Name: "user-provided-config-map",
 		Items: []corev1.KeyToPath{
 			{
-				Key:  "otel-config.yaml",
-				Path: "otel-config.yaml",
+				Key:  "otel-gateway-config.yaml",
+				Path: "otel-gateway-config.yaml",
 			},
 			{
 				Key:  "otel-config-two.yaml",

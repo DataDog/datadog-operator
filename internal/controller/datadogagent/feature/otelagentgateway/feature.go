@@ -237,9 +237,9 @@ func (f *otelAgentGatewayFeature) ManageOtelAgentGateway(managers feature.PodTem
 		managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.OtelAgent)
 	} else {
 		// This part is used in three paths:
-		// - no conf.ConfigMap.Items provided, but conf.ConfigMap.Name provided. We assume only one item/ name otel-config.yaml
+		// - no conf.ConfigMap.Items provided, but conf.ConfigMap.Name provided. We assume only one item/ name otel-gateway-config.yaml
 		// - when configData is used
-		// - when no config is passed (we use DefaultOtelCollectorConfig)
+		// - when no config is passed (we use DefaultOtelAgentGatewayConfig)
 		volMount := volume.GetVolumeMountWithSubPath(otelAgentVolumeName, common.ConfigVolumePath+"/"+otelConfigFileName, otelConfigFileName)
 		managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.OtelAgent)
 	}
@@ -261,7 +261,6 @@ func (f *otelAgentGatewayFeature) ManageOtelAgentGateway(managers feature.PodTem
 			if podSpec.Containers[i].Name == string(apicommon.OtelAgent) {
 				// Add --feature-gates argument to the command
 				featureGatesArg := "--feature-gates=" + *f.featureGates
-				f.logger.Info("Adding feature gates to command", "container", podSpec.Containers[i].Name, "currentCommand", podSpec.Containers[i].Command, "featureGatesArg", featureGatesArg)
 				podSpec.Containers[i].Command = append(podSpec.Containers[i].Command, featureGatesArg)
 				break
 			}
