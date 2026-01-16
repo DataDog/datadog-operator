@@ -135,7 +135,10 @@ func (o *options) run(cmd *cobra.Command) error {
 		return fmt.Errorf("failed to build clients: %w", err)
 	}
 
-	nodes := displayResourceSummary(ctx, cmd, cli, clusterName)
+	nodePoolNames, nodes, err := displayResourceSummary(ctx, cmd, cli, clusterName)
+	if err != nil {
+		return err
+	}
 	if len(nodes) > 0 && !yes {
 		if promptConfirmation(cmd) != nil {
 			return nil // User cancelled
@@ -155,7 +158,7 @@ func (o *options) run(cmd *cobra.Command) error {
 		errs = append(errs, fmt.Errorf("EC2NodeClass deletion: %w", err))
 	}
 
-	if err = waitForKarpenterNodesToTerminate(ctx, cli, clusterName); err != nil {
+	if err = waitForKarpenterNodesToTerminate(ctx, cli, clusterName, nodePoolNames); err != nil {
 		log.Printf("Warning: failed to wait for Karpenter nodes to terminate: %v", err)
 		errs = append(errs, fmt.Errorf("node termination wait: %w", err))
 	}
@@ -188,11 +191,11 @@ func (o *options) run(cmd *cobra.Command) error {
 	return nil
 }
 
-func displayResourceSummary(ctx context.Context, cmd *cobra.Command, cli *clients.Clients, clusterName string) []string {
+func displayResourceSummary(ctx context.Context, cmd *cobra.Command, cli *clients.Clients, clusterName string) (nodePools []string, nodes []string, err error) {
 	cmd.Println("\nThis will delete:")
 
-	if nodePools, err := listKarpenterNodePools(ctx, cli); err != nil {
-		cmd.Printf("  - NodePools: (unable to list: %v)\n", err)
+	if nodePools, err = listKarpenterNodePools(ctx, cli); err != nil {
+		return nil, nil, fmt.Errorf("failed to list NodePools: %w", err)
 	} else if len(nodePools) == 0 {
 		cmd.Println("  - NodePools: none found")
 	} else {
@@ -204,7 +207,7 @@ func displayResourceSummary(ctx context.Context, cmd *cobra.Command, cli *client
 
 	nodeClasses, err := listKarpenterEC2NodeClasses(ctx, cli)
 	if err != nil {
-		cmd.Printf("  - EC2NodeClasses: (unable to list: %v)\n", err)
+		return nil, nil, fmt.Errorf("failed to list EC2NodeClasses: %w", err)
 	} else if len(nodeClasses) == 0 {
 		cmd.Println("  - EC2NodeClasses: none found")
 	} else {
@@ -214,15 +217,11 @@ func displayResourceSummary(ctx context.Context, cmd *cobra.Command, cli *client
 		}
 	}
 
-	var nodes []string
-	if err != nil {
-		cmd.Println("  - Karpenter nodes: (unable to list - depends on EC2NodeClasses)")
-	} else if n, err := listKarpenterNodes(ctx, cli, nodeClasses); err != nil {
-		cmd.Printf("  - Karpenter nodes: (unable to list: %v)\n", err)
-	} else if len(n) == 0 {
+	if nodes, err = listKarpenterNodes(ctx, cli, nodeClasses); err != nil {
+		return nil, nil, fmt.Errorf("failed to list Karpenter nodes: %w", err)
+	} else if len(nodes) == 0 {
 		cmd.Println("  - Karpenter nodes: none found")
 	} else {
-		nodes = n
 		cmd.Printf("  - %d Karpenter-managed node(s):\n", len(nodes))
 		for _, node := range nodes {
 			cmd.Printf("      • %s\n", node)
@@ -232,7 +231,7 @@ func displayResourceSummary(ctx context.Context, cmd *cobra.Command, cli *client
 	cmd.Println("  - The Karpenter Helm release")
 
 	if stacks, err := listCloudFormationStacks(ctx, cli, clusterName); err != nil {
-		cmd.Printf("  - CloudFormation stacks: (unable to list: %v)\n", err)
+		return nil, nil, fmt.Errorf("failed to list CloudFormation stacks: %w", err)
 	} else if len(stacks) == 0 {
 		cmd.Println("  - CloudFormation stacks: none found")
 	} else {
@@ -249,7 +248,7 @@ func displayResourceSummary(ctx context.Context, cmd *cobra.Command, cli *client
 		cmd.Println(color.YellowString("⚠ WARNING: %d Karpenter node(s) will be drained and terminated.", len(nodes)))
 	}
 
-	return nodes
+	return nodePools, nodes, nil
 }
 
 func promptConfirmation(cmd *cobra.Command) error {
@@ -399,7 +398,12 @@ func listKarpenterNodes(ctx context.Context, cli *clients.Clients, ec2NodeClassN
 	}), nil
 }
 
-func waitForKarpenterNodesToTerminate(ctx context.Context, cli *clients.Clients, clusterName string) error {
+func waitForKarpenterNodesToTerminate(ctx context.Context, cli *clients.Clients, clusterName string, nodePoolNames []string) error {
+	if len(nodePoolNames) == 0 {
+		log.Println("No managed NodePools to wait for.")
+		return nil
+	}
+
 	log.Println("Waiting for Karpenter-managed nodes to terminate…")
 
 	ticker := time.NewTicker(10 * time.Second)
@@ -421,8 +425,8 @@ func waitForKarpenterNodesToTerminate(ctx context.Context, cli *clients.Clients,
 						Values: []string{"owned"},
 					},
 					{
-						Name:   awssdk.String("tag-key"),
-						Values: []string{"karpenter.sh/nodepool"},
+						Name:   awssdk.String("tag:karpenter.sh/nodepool"),
+						Values: nodePoolNames,
 					},
 					{
 						Name: awssdk.String("instance-state-name"),

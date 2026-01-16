@@ -13,7 +13,6 @@ import (
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/cli"
-	"helm.sh/helm/v3/pkg/kube"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -158,19 +157,9 @@ func Uninstall(ctx context.Context, ac *action.Configuration, releaseName string
 
 // NewActionConfig creates a new Helm action configuration from kubeconfig flags.
 func NewActionConfig(configFlags *genericclioptions.ConfigFlags, namespace string) (*action.Configuration, error) {
-	kubeConfig := ""
-	if configFlags.KubeConfig != nil {
-		kubeConfig = *configFlags.KubeConfig
-	}
-	kubeContext := ""
-	if configFlags.Context != nil {
-		kubeContext = *configFlags.Context
-	}
-
-	restClientGetter := kube.GetConfig(kubeConfig, kubeContext, namespace)
 	actionConfig := new(action.Configuration)
 
-	if err := actionConfig.Init(restClientGetter, namespace, os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
+	if err := actionConfig.Init(configFlags, namespace, os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
 		return nil, fmt.Errorf("failed to initialize Helm configuration: %w", err)
 	}
 

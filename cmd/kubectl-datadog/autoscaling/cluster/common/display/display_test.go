@@ -93,14 +93,16 @@ func TestPrintBox(t *testing.T) {
 		{
 			name:  "single line",
 			lines: []string{"Hello"},
-			expected: "╭───────╮\n" +
+			expected: "" +
+				"╭───────╮\n" +
 				"│ Hello │\n" +
 				"╰───────╯\n",
 		},
 		{
 			name:  "multiple lines same length",
 			lines: []string{"Hello", "World"},
-			expected: "╭───────╮\n" +
+			expected: "" +
+				"╭───────╮\n" +
 				"│ Hello │\n" +
 				"│ World │\n" +
 				"╰───────╯\n",
@@ -108,7 +110,8 @@ func TestPrintBox(t *testing.T) {
 		{
 			name:  "multiple lines different lengths",
 			lines: []string{"Hi", "Hello", "Hey"},
-			expected: "╭───────╮\n" +
+			expected: "" +
+				"╭───────╮\n" +
 				"│ Hi    │\n" +
 				"│ Hello │\n" +
 				"│ Hey   │\n" +
@@ -117,7 +120,8 @@ func TestPrintBox(t *testing.T) {
 		{
 			name:  "empty line",
 			lines: []string{"Hello", "", "World"},
-			expected: "╭───────╮\n" +
+			expected: "" +
+				"╭───────╮\n" +
 				"│ Hello │\n" +
 				"│       │\n" +
 				"│ World │\n" +
@@ -126,7 +130,8 @@ func TestPrintBox(t *testing.T) {
 		{
 			name:  "line with ANSI color codes",
 			lines: []string{"\x1b[31mRed\x1b[0m", "Normal"},
-			expected: "╭────────╮\n" +
+			expected: "" +
+				"╭────────╮\n" +
 				"│ \x1b[31mRed\x1b[0m    │\n" +
 				"│ Normal │\n" +
 				"╰────────╯\n",
@@ -134,7 +139,8 @@ func TestPrintBox(t *testing.T) {
 		{
 			name:  "line with emoji",
 			lines: []string{"Hello 🎉", "World"},
-			expected: "╭──────────╮\n" +
+			expected: "" +
+				"╭──────────╮\n" +
 				"│ Hello 🎉 │\n" +
 				"│ World    │\n" +
 				"╰──────────╯\n",
@@ -142,7 +148,8 @@ func TestPrintBox(t *testing.T) {
 		{
 			name:  "line with wide CJK characters",
 			lines: []string{"日本語", "Hello"},
-			expected: "╭────────╮\n" +
+			expected: "" +
+				"╭────────╮\n" +
 				"│ 日本語 │\n" +
 				"│ Hello  │\n" +
 				"╰────────╯\n",
@@ -150,7 +157,8 @@ func TestPrintBox(t *testing.T) {
 		{
 			name:  "mixed ANSI and emoji",
 			lines: []string{"\x1b[1;34mBlue 🔵\x1b[0m", "Normal text"},
-			expected: "╭─────────────╮\n" +
+			expected: "" +
+				"╭─────────────╮\n" +
 				"│ \x1b[1;34mBlue 🔵\x1b[0m     │\n" +
 				"│ Normal text │\n" +
 				"╰─────────────╯\n",

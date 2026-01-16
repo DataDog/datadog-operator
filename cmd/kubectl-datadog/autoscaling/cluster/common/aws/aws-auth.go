@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"slices"
 
 	"gopkg.in/yaml.v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -72,22 +73,17 @@ func RemoveAwsAuthRole(ctx context.Context, clientset kubernetes.Interface, role
 		return nil
 	}
 
-	found := false
-	updatedRoles := make([]RoleMapping, 0, len(roles))
-	for _, role := range roles {
-		if role.RoleArn == roleArn {
-			found = true
-			continue
-		}
-		updatedRoles = append(updatedRoles, role)
-	}
+	oldLen := len(roles)
+	roles = slices.DeleteFunc(roles, func(role RoleMapping) bool {
+		return role.RoleArn == roleArn
+	})
 
-	if !found {
+	if len(roles) == oldLen {
 		log.Printf("Role %s not found in aws-auth ConfigMap, skipping removal.", roleArn)
 		return nil
 	}
 
-	updated, err := yaml.Marshal(updatedRoles)
+	updated, err := yaml.Marshal(roles)
 	if err != nil {
 		return fmt.Errorf("failed to marshal updated mapRoles: %w", err)
 	}
