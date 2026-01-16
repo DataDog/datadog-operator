@@ -135,10 +135,7 @@ func (o *options) run(cmd *cobra.Command) error {
 		return fmt.Errorf("failed to build clients: %w", err)
 	}
 
-	nodePoolNames, nodes, err := displayResourceSummary(ctx, cmd, cli, clusterName)
-	if err != nil {
-		return err
-	}
+	nodePoolNames, nodes := displayResourceSummary(ctx, cmd, cli, clusterName)
 	if len(nodes) > 0 && !yes {
 		if promptConfirmation(cmd) != nil {
 			return nil // User cancelled
@@ -191,14 +188,15 @@ func (o *options) run(cmd *cobra.Command) error {
 	return nil
 }
 
-func displayResourceSummary(ctx context.Context, cmd *cobra.Command, cli *clients.Clients, clusterName string) (nodePools []string, nodes []string, err error) {
+func displayResourceSummary(ctx context.Context, cmd *cobra.Command, cli *clients.Clients, clusterName string) (nodePools []string, nodes []string) {
 	cmd.Println("\nThis will delete:")
 
-	if nodePools, err = listKarpenterNodePools(ctx, cli); err != nil {
-		return nil, nil, fmt.Errorf("failed to list NodePools: %w", err)
-	} else if len(nodePools) == 0 {
+	if n, err := listKarpenterNodePools(ctx, cli); err != nil {
+		cmd.Printf("  - NodePools: (unable to list: %v)\n", err)
+	} else if len(n) == 0 {
 		cmd.Println("  - NodePools: none found")
 	} else {
+		nodePools = n
 		cmd.Printf("  - %d NodePool(s):\n", len(nodePools))
 		for _, np := range nodePools {
 			cmd.Printf("      • %s\n", np)
@@ -207,7 +205,7 @@ func displayResourceSummary(ctx context.Context, cmd *cobra.Command, cli *client
 
 	nodeClasses, err := listKarpenterEC2NodeClasses(ctx, cli)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to list EC2NodeClasses: %w", err)
+		cmd.Printf("  - EC2NodeClasses: (unable to list: %v)\n", err)
 	} else if len(nodeClasses) == 0 {
 		cmd.Println("  - EC2NodeClasses: none found")
 	} else {
@@ -217,11 +215,14 @@ func displayResourceSummary(ctx context.Context, cmd *cobra.Command, cli *client
 		}
 	}
 
-	if nodes, err = listKarpenterNodes(ctx, cli, nodeClasses); err != nil {
-		return nil, nil, fmt.Errorf("failed to list Karpenter nodes: %w", err)
-	} else if len(nodes) == 0 {
+	if err != nil {
+		cmd.Println("  - Karpenter nodes: (unable to list - depends on EC2NodeClasses)")
+	} else if n, err := listKarpenterNodes(ctx, cli, nodeClasses); err != nil {
+		cmd.Printf("  - Karpenter nodes: (unable to list: %v)\n", err)
+	} else if len(n) == 0 {
 		cmd.Println("  - Karpenter nodes: none found")
 	} else {
+		nodes = n
 		cmd.Printf("  - %d Karpenter-managed node(s):\n", len(nodes))
 		for _, node := range nodes {
 			cmd.Printf("      • %s\n", node)
@@ -231,7 +232,7 @@ func displayResourceSummary(ctx context.Context, cmd *cobra.Command, cli *client
 	cmd.Println("  - The Karpenter Helm release")
 
 	if stacks, err := listCloudFormationStacks(ctx, cli, clusterName); err != nil {
-		return nil, nil, fmt.Errorf("failed to list CloudFormation stacks: %w", err)
+		cmd.Printf("  - CloudFormation stacks: (unable to list: %v)\n", err)
 	} else if len(stacks) == 0 {
 		cmd.Println("  - CloudFormation stacks: none found")
 	} else {
@@ -248,7 +249,7 @@ func displayResourceSummary(ctx context.Context, cmd *cobra.Command, cli *client
 		cmd.Println(color.YellowString("⚠ WARNING: %d Karpenter node(s) will be drained and terminated.", len(nodes)))
 	}
 
-	return nodePools, nodes, nil
+	return nodePools, nodes
 }
 
 func promptConfirmation(cmd *cobra.Command) error {
