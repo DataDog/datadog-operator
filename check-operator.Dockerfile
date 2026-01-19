@@ -30,7 +30,7 @@ COPY pkg/ pkg/
 # Build
 ARG LDFLAGS
 ARG GOARCH
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GO111MODULE=on go build -a -ldflags "${LDFLAGS}" -o check-operator cmd/check-operator/main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GO111MODULE=on GOWORK=off go build -a -ldflags "${LDFLAGS}" -o check-operator cmd/check-operator/main.go
 
 FROM registry.access.redhat.com/ubi9/ubi-micro:latest
 WORKDIR /

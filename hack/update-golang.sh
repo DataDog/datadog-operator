@@ -100,10 +100,6 @@ else
     echo "Warning: $actions_directory not found, skipping."
 fi
 
-# Run go work sync
-echo "Running go work sync..."
-go work sync
-
 # Update go.mod files
 go_mod_files="$ROOT/go.mod $ROOT/test/e2e/go.mod $ROOT/api/go.mod"
 for file in $go_mod_files; do

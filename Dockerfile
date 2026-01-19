@@ -39,14 +39,14 @@ ARG GOARCH
 ARG FIPS_ENABLED
 RUN echo "FIPS_ENABLED is: $FIPS_ENABLED"
 RUN if [ "$FIPS_ENABLED" = "true" ]; then \
-      CGO_ENABLED=1 GOEXPERIMENT=boringcrypto GOOS=linux GOARCH=${GOARCH} GO111MODULE=on go build -tags fips -a -ldflags "${LDFLAGS}" -o manager cmd/main.go; \
+      CGO_ENABLED=1 GOEXPERIMENT=boringcrypto GOOS=linux GOARCH=${GOARCH} GO111MODULE=on GOWORK=off go build -tags fips -a -ldflags "${LDFLAGS}" -o manager cmd/main.go; \
     else \
-      CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GO111MODULE=on go build -a -ldflags "${LDFLAGS}" -o manager cmd/main.go; \
+      CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GO111MODULE=on GOWORK=off go build -a -ldflags "${LDFLAGS}" -o manager cmd/main.go; \
     fi
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GO111MODULE=on go build -a -ldflags "${LDFLAGS}" -o helpers cmd/helpers/main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GO111MODULE=on GOWORK=off go build -a -ldflags "${LDFLAGS}" -o helpers cmd/helpers/main.go
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GO111MODULE=on go build -a -ldflags "${LDFLAGS}" -o yaml-mapper cmd/yaml-mapper/main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GO111MODULE=on GOWORK=off go build -a -ldflags "${LDFLAGS}" -o yaml-mapper cmd/yaml-mapper/main.go
 
 FROM registry.access.redhat.com/ubi9/ubi-minimal:latest AS certs
 
