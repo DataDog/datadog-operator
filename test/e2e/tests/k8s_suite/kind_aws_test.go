@@ -7,10 +7,10 @@ package k8ssuite
 
 import (
 	"fmt"
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/e2e"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
-	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/operatorparams"
 	"strings"
 	"testing"
 )

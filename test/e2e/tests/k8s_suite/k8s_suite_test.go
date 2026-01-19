@@ -11,7 +11,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/test/fakeintake/aggregator"
 	"github.com/DataDog/datadog-agent/test/fakeintake/client"
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/environments"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
 	"github.com/DataDog/datadog-operator/test/e2e/tests/utils"
@@ -22,11 +22,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/test-infra-definitions/components/datadog/agentwithoperatorparams"
-	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/agentwithoperatorparams"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/operatorparams"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/e2e"
 	"github.com/stretchr/testify/assert"
 )
 
