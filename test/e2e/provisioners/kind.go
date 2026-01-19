@@ -90,8 +90,8 @@ func newKindVMRunOpts(params *KubernetesProvisionerParams) []kindvm.RunOption {
 		runOpts = append(runOpts, kindvm.WithOperatorOptions(params.operatorOptions...))
 	}
 
-	// Add DDA options if provided
-	if params.ddaOptions != nil {
+	// Add DDA options if provided (only when operator is deployed)
+	if params.ddaOptions != nil && params.operatorOptions != nil {
 		runOpts = append(runOpts, kindvm.WithOperatorDDAOptions(params.ddaOptions...))
 	}
 
