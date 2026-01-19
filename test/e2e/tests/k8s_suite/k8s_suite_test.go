@@ -9,9 +9,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/environments"
 	"github.com/DataDog/datadog-agent/test/fakeintake/aggregator"
 	"github.com/DataDog/datadog-agent/test/fakeintake/client"
-	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/environments"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
 	"github.com/DataDog/datadog-operator/test/e2e/tests/utils"
