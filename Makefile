@@ -74,14 +74,12 @@ build: manager kubectl-datadog ## Builds manager + kubectl plugin
 
 .PHONY: fmt
 fmt: bin/$(PLATFORM)/golangci-lint ## Run formatters against code
-	GOWORK=off go fmt ./...
-	GOWORK=off bin/$(PLATFORM)/golangci-lint run ./... --fix
-	cd api && GOWORK=off go fmt ./... && GOWORK=off ../bin/$(PLATFORM)/golangci-lint run ./... --fix
-	cd test/e2e && go fmt ./... && ../../bin/$(PLATFORM)/golangci-lint run ./... --fix
+	go fmt ./...
+	bin/$(PLATFORM)/golangci-lint run ./... ./api/... ./test/e2e/... --fix
 
 .PHONY: vet
 vet: ## Run go vet against code
-	GOWORK=off go vet ./...
+	go vet ./...
 
 .PHONY: echo-img
 echo-img: ## Use `make -s echo-img` to get image string for other shell commands
@@ -117,10 +115,10 @@ endef
 ##@ Deploy
 
 .PHONY: manager
-manager: generate lint managergobuild ## Build manager binary
-	GOWORK=off go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
+manager: sync generate lint managergobuild ## Build manager binary
+	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
 managergobuild: ## Builds only manager go binary
-	GOWORK=off go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
+	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
 
 .PHONY: run
 run: generate lint manifests ## Run against the configured Kubernetes cluster in ~/.kube/config
@@ -315,9 +313,7 @@ patch-crds: bin/$(PLATFORM)/yq ## Patch-crds
 
 .PHONY: lint
 lint: bin/$(PLATFORM)/golangci-lint vet ## Lint
-	GOWORK=off bin/$(PLATFORM)/golangci-lint run ./...
-	cd api && GOWORK=off ../bin/$(PLATFORM)/golangci-lint run ./...
-	cd test/e2e && ../../bin/$(PLATFORM)/golangci-lint run ./...
+	bin/$(PLATFORM)/golangci-lint run ./... ./api/... ./test/e2e/...
 
 .PHONY: licenses
 licenses: bin/$(PLATFORM)/go-licenses
