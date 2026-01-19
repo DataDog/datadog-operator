@@ -79,7 +79,7 @@ fmt: bin/$(PLATFORM)/golangci-lint ## Run formatters against code
 
 .PHONY: vet
 vet: ## Run go vet against code
-	go vet ./...
+	GOWORK=off go vet ./...
 
 .PHONY: echo-img
 echo-img: ## Use `make -s echo-img` to get image string for other shell commands
@@ -115,10 +115,10 @@ endef
 ##@ Deploy
 
 .PHONY: manager
-manager: sync generate lint managergobuild ## Build manager binary
-	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
+manager: generate lint managergobuild ## Build manager binary
+	GOWORK=off go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
 managergobuild: ## Builds only manager go binary
-	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
+	GOWORK=off go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
 
 .PHONY: run
 run: generate lint manifests ## Run against the configured Kubernetes cluster in ~/.kube/config
