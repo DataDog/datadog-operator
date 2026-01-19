@@ -116,9 +116,9 @@ endef
 
 .PHONY: manager
 manager: sync generate lint managergobuild ## Build manager binary
-	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
+	GOWORK=off go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
 managergobuild: ## Builds only manager go binary
-	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
+	GOWORK=off go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
 
 .PHONY: run
 run: generate lint manifests ## Run against the configured Kubernetes cluster in ~/.kube/config
@@ -339,15 +339,15 @@ sync: ## Run go work sync
 	go work sync
 
 kubectl-datadog: lint
-	go build -ldflags '${LDFLAGS}' -o bin/kubectl-datadog ./cmd/kubectl-datadog/main.go
+	GOWORK=off go build -ldflags '${LDFLAGS}' -o bin/kubectl-datadog ./cmd/kubectl-datadog/main.go
 
 .PHONY: yaml-mapper
 yaml-mapper: fmt vet lint
-	go build -ldflags '${LDFLAGS}' -o bin/yaml-mapper ./cmd/yaml-mapper/main.go
+	GOWORK=off go build -ldflags '${LDFLAGS}' -o bin/yaml-mapper ./cmd/yaml-mapper/main.go
 
 .PHONY: check-operator
 check-operator: fmt vet lint
-	go build -ldflags '${LDFLAGS}' -o bin/check-operator ./cmd/check-operator/main.go
+	GOWORK=off go build -ldflags '${LDFLAGS}' -o bin/check-operator ./cmd/check-operator/main.go
 
 .PHONY: publish-community-bundles
 publish-community-bundles: ## Publish bundles to community repositories
@@ -355,7 +355,7 @@ publish-community-bundles: ## Publish bundles to community repositories
 
 .PHONY: annotate-gcp-manifest
 annotate-gcp-manifest: ## Annotate manifest for GCP marketplace
-	go build -o bin/$(PLATFORM)/annotate-manifest ./marketplaces/charts/google-marketplace/cmd/annotate-manifest/main.go
+	GOWORK=off go build -o bin/$(PLATFORM)/annotate-manifest ./marketplaces/charts/google-marketplace/cmd/annotate-manifest/main.go
 
 bin/$(PLATFORM)/yq: Makefile
 	hack/install-yq.sh v4.31.2
