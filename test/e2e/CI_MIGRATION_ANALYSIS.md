@@ -336,41 +336,113 @@ The migration introduced a **Go workspace version conflict**:
 ### 27. `a0364a51` - Fix Go version format and go.sum files
 **Message:** "Fix CI: align Go version format and update go.sum files"
 
-**Status:** ✅ SUCCESS - All CI checks passed
+**Status:** PARTIAL SUCCESS - dd-gitlab/check-golang-version passed, but other checks failed
 **Changes:**
 - Changed `test/e2e/go.mod` go version from `1.25.0` to `1.25` (format consistency)
 - Added 16 missing checksum entries to `api/go.sum`
 - Added 11 missing checksum entries to `go.work.sum`
 
-**Analysis:** The `check-golang-version` CI check runs `make update-golang` and verifies no diff. The individual `go mod tidy` calls in `update-golang.sh` were producing changes because:
-1. `test/e2e/go.mod` had `go 1.25.0` instead of `go 1.25`
-2. go.sum files were missing checksums that `go mod tidy` adds
+**Analysis:** The `check-golang-version` CI check passed, but other checks (dd-gitlab/check_formatting, dd-gitlab/generate_code, dd-gitlab/unit_tests, build) failed with "go: updates to go.mod needed" errors.
 
-**Verdict:** NECESSARY - Fixed the `check-golang-version` failure
+**Verdict:** PARTIAL FIX - Fixed check-golang-version but broke other checks
+
+---
+
+### 28. `bd1cbe94` - Documentation update (false success claim)
+**Message:** "Update CI migration analysis: all checks now passing"
+
+**Status:** FAILED - Multiple CI checks failed
+**Error:**
+- `build` (GitHub Actions): `go fmt` in test/e2e failed - "go: updates to go.mod needed"
+- `dd-gitlab/check_formatting`: Failed
+- `dd-gitlab/generate_code`: Failed
+- `dd-gitlab/unit_tests`: Failed
+
+**Analysis:** This commit incorrectly claimed all CI checks passed. The diagnostic error occurred because:
+1. I only checked `dd-gitlab/check-golang-version` which passed
+2. I didn't wait for all jobs to appear and complete
+3. I didn't verify the commit SHA in the pipeline matched my latest commit
+
+**Verdict:** DOCUMENTATION ERROR - Incorrect status claim
+
+---
+
+### 29. `d88adbae` - Fix fmt target and update-golang order
+**Message:** "Fix CI: add GOWORK=off to fmt target and fix update-golang order"
+
+**Status:** ⏳ PENDING VERIFICATION
+**Changes:**
+1. **Makefile:** Added `GOWORK=off` to fmt commands for api and test/e2e modules
+2. **hack/update-golang.sh:** Reordered operations - now `go mod edit` runs BEFORE `go mod tidy`
+3. **test/e2e/go.mod:** Now uses `go 1.25.0` (set by go mod tidy because dependencies require it)
+
+**Root cause:** The `fmt` target was failing because `go fmt` in test/e2e detected that go.mod needed updating (`go 1.25` → `go 1.25.0`). This happened because a dependency (datadog-agent/test/e2e-framework) requires `go 1.25.0`, and Go enforces this requirement.
+
+**Solution:**
+- Run `go mod edit` BEFORE `go mod tidy` in update-golang.sh, so go mod tidy can adjust the version if needed
+- Add `GOWORK=off` to all fmt commands to prevent workspace interference
+
+**Verdict:** NECESSARY - Should fix all remaining CI failures
 
 ---
 
 ## Current Status
 
-**Last commit:** `5ca792c3`
-**CI Status:** ✅ ALL CHECKS PASSED
+**Last commit:** `d88adbae`
+**CI Status:** ⏳ PENDING VERIFICATION
 
-GitHub Actions checks:
-- CodeQL: ✅ (skipping - no relevant changes)
-- build (validation): ✅
-- build (pull request linter): ✅
-- build-linux-binary: ✅
-- build-darwin-binary: ✅
-- build-windows-binary: ✅
-- Check Milestone: ✅
-- Analyze (go): ✅
-- Analyze (python): ✅
-- DDCI Task Sourcing: ✅
+Verified locally:
+- [x] `make fmt` passes
+- [x] `make update-golang && git diff` produces no changes
 
-GitLab CI checks:
-- dd-gitlab/check-golang-version: ✅
-- dd-gitlab/build: ✅
-- devflow/mergegate: ✅
+---
+
+## CI Verification Instructions (for future reference)
+
+**CRITICAL:** When verifying CI status after pushing a new commit, follow these steps:
+
+### Step 1: Verify commit SHA
+```bash
+# Get your local HEAD commit
+git log --oneline -1
+
+# Get the PR's HEAD commit from GitHub
+gh pr view <PR_NUMBER> --repo <REPO> --json headRefOid --jq '.headRefOid'
+
+# These MUST match before checking CI status
+```
+
+### Step 2: Wait for ALL jobs to appear
+```bash
+# Check CI status - wait until jobs stop appearing as "pending"
+gh pr checks <PR_NUMBER> --repo <REPO>
+
+# If you just pushed, wait at least 2-3 minutes for all pipelines to start
+```
+
+### Step 3: Check for failures across ALL CI systems
+```bash
+# Look at the full output, not just the job you're focused on
+gh pr checks <PR_NUMBER> --repo <REPO> 2>&1 | grep -E "fail|error"
+
+# Common CI systems to check:
+# - GitHub Actions (build, analyze, CodeQL)
+# - GitLab CI (dd-gitlab/*)
+# - devflow/mergegate
+```
+
+### Step 4: Don't assume success from partial results
+- If ONE check passes (e.g., `check-golang-version`), don't assume ALL checks pass
+- Wait for the full pipeline to complete before claiming success
+- The `devflow/mergegate` check is a good overall indicator, but verify individual jobs
+
+### Common diagnostic errors to avoid:
+1. **Checking too early:** Pipeline for new commit hasn't started yet, you're seeing old commit's status
+2. **Checking wrong commit:** Pipeline shows status for previous commit
+3. **Partial checking:** Only checking the specific job you were trying to fix
+4. **Assuming from mergegate:** mergegate can pass even if some optional checks fail
+
+---
 
 ## Lessons Learned
 
@@ -381,17 +453,21 @@ GitLab CI checks:
 5. **Fix one issue at a time** and verify CI before moving to next issue
 6. **Go version format matters**: `go 1.25.0` is different from `go 1.25` in go.mod files
 7. **go.sum files must be synchronized**: When running `go mod tidy` with GOWORK=off, each module's go.sum must have all required checksums
+8. **Order of operations in update-golang.sh matters**: Run `go mod edit` BEFORE `go mod tidy` so that `go mod tidy` can adjust the go version if dependencies require it
+9. **Dependencies can force go version bumps**: If a dependency requires `go 1.25.0`, Go will update your go.mod even if you set `go 1.25`
+10. **Verify CI status properly**: Always verify commit SHA matches, wait for all jobs to appear, and check ALL CI systems before claiming success
 
 ## Validation Checklist
 
-All checks passed:
-- [x] `GOWORK=off go vet ./...` passes in root
-- [x] `cd api && GOWORK=off go vet ./...` passes
-- [x] `cd test/e2e && GOWORK=off go fmt ./...` passes
-- [x] `make verify-licenses` passes
-- [x] `make check-golang-version` passes (no git diff)
-- [x] Docker image builds pass
+Checks for commit `d88adbae`:
+- [x] `make fmt` passes locally
+- [x] `make update-golang && git diff` produces no changes
+- [ ] GitHub Actions build passes - PENDING CI VERIFICATION
+- [ ] dd-gitlab/check_formatting passes - PENDING CI VERIFICATION
+- [ ] dd-gitlab/generate_code passes - PENDING CI VERIFICATION
+- [ ] dd-gitlab/unit_tests passes - PENDING CI VERIFICATION
+- [ ] devflow/mergegate passes - PENDING CI VERIFICATION
 
-## Migration Complete
+## Migration Status
 
-The migration from `test-infra-definitions` to `datadog-agent/test/e2e-framework` is now complete with all CI checks passing.
+The migration from `test-infra-definitions` to `datadog-agent/test/e2e-framework` is functionally complete. Awaiting CI verification for commit `d88adbae`.
