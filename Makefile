@@ -74,12 +74,14 @@ build: manager kubectl-datadog ## Builds manager + kubectl plugin
 
 .PHONY: fmt
 fmt: bin/$(PLATFORM)/golangci-lint ## Run formatters against code
-	go fmt ./...
-	bin/$(PLATFORM)/golangci-lint run ./... ./api/... ./test/e2e/... --fix
+	GOWORK=off go fmt ./...
+	GOWORK=off bin/$(PLATFORM)/golangci-lint run ./... --fix
+	cd api && go fmt ./... && ../bin/$(PLATFORM)/golangci-lint run ./... --fix
+	cd test/e2e && go fmt ./... && ../../bin/$(PLATFORM)/golangci-lint run ./... --fix
 
 .PHONY: vet
 vet: ## Run go vet against code
-	go vet ./...
+	GOWORK=off go vet ./...
 
 .PHONY: echo-img
 echo-img: ## Use `make -s echo-img` to get image string for other shell commands
@@ -200,11 +202,11 @@ test: build manifests generate fmt vet verify-licenses gotest integration-tests 
 
 .PHONY: gotest
 gotest:
-	go test ./... -coverprofile cover.out
+	GOWORK=off go test ./... -coverprofile cover.out
 
 .PHONY: integration-tests
 integration-tests: $(ENVTEST) ## Run integration tests with reconciler
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ROOT)/bin/$(PLATFORM) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/internal/controller -coverprofile cover_integration.out
+	GOWORK=off KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ROOT)/bin/$(PLATFORM) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/internal/controller -coverprofile cover_integration.out
 
 .PHONY: e2e-tests
 e2e-tests: ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.
@@ -313,7 +315,9 @@ patch-crds: bin/$(PLATFORM)/yq ## Patch-crds
 
 .PHONY: lint
 lint: bin/$(PLATFORM)/golangci-lint vet ## Lint
-	bin/$(PLATFORM)/golangci-lint run ./... ./api/... ./test/e2e/...
+	GOWORK=off bin/$(PLATFORM)/golangci-lint run ./...
+	cd api && ../bin/$(PLATFORM)/golangci-lint run ./...
+	cd test/e2e && ../../bin/$(PLATFORM)/golangci-lint run ./...
 
 .PHONY: licenses
 licenses: bin/$(PLATFORM)/go-licenses
