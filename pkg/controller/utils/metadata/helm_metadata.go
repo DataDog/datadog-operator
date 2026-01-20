@@ -143,17 +143,19 @@ func NewHelmMetadataForwarderWithManager(logger logr.Logger, mgr manager.Manager
 	}
 }
 
-// Start starts the helm metadata forwarder with informer-based event handling
-func (hmf *HelmMetadataForwarder) Start() {
-	cmInformer, err := hmf.mgr.GetCache().GetInformer(context.Background(), &corev1.ConfigMap{})
+// Start implements manager.Runnable interface
+// It is called by the manager after the cache is synced
+// Errors are logged but do not prevent the operator from starting
+func (hmf *HelmMetadataForwarder) Start(ctx context.Context) error {
+	cmInformer, err := hmf.mgr.GetCache().GetInformer(ctx, &corev1.ConfigMap{})
 	if err != nil {
-		hmf.logger.Info("Error getting ConfigMap informer", "error", err)
-		return
+		hmf.logger.Info("Unable to get ConfigMap informer, Helm metadata collection will be disabled", "error", err)
+		return nil
 	}
-	secretInformer, err := hmf.mgr.GetCache().GetInformer(context.Background(), &corev1.Secret{})
+	secretInformer, err := hmf.mgr.GetCache().GetInformer(ctx, &corev1.Secret{})
 	if err != nil {
-		hmf.logger.Info("Error getting Secret informer", "error", err)
-		return
+		hmf.logger.Info("Unable to get Secret informer, Helm metadata collection will be disabled", "error", err)
+		return nil
 	}
 
 	_, err = cmInformer.AddEventHandler(toolscache.FilteringResourceEventHandler{
@@ -180,8 +182,8 @@ func (hmf *HelmMetadataForwarder) Start() {
 	})
 
 	if err != nil {
-		hmf.logger.Info("Error adding event handler to ConfigMap informer", "error", err)
-		return
+		hmf.logger.Info("Unable to add ConfigMap event handler, Helm metadata collection will be disabled", "error", err)
+		return nil
 	}
 
 	_, err = secretInformer.AddEventHandler(toolscache.FilteringResourceEventHandler{
@@ -206,39 +208,52 @@ func (hmf *HelmMetadataForwarder) Start() {
 	})
 
 	if err != nil {
-		hmf.logger.Info("Error adding event handler to Secret informer", "error", err)
-		return
+		hmf.logger.Info("Unable to add Secret event handler, Helm metadata collection will be disabled", "error", err)
+		return nil
 	}
 
-	if !hmf.mgr.GetCache().WaitForCacheSync(context.Background()) {
-		hmf.logger.Info("Error waiting for cache sync", "error", err)
-		return
-	}
+	// Cache is already synced by the manager before Start() is called
+	hmf.logger.Info("Starting Helm metadata forwarder with workqueue")
 
 	// Start worker goroutine
-	go hmf.runWorker()
+	go hmf.runWorker(ctx)
 
 	// Start ticker for periodic sends
-	go hmf.tickerLoop()
+	go hmf.tickerLoop(ctx)
 
-	hmf.logger.Info("Started Helm metadata forwarder with workqueue")
+	// Block until context is cancelled
+	<-ctx.Done()
+	hmf.logger.Info("Shutting down Helm metadata forwarder")
+	hmf.queue.ShutDown()
+
+	return nil
+}
+
+// NeedLeaderElection implements manager.LeaderElectionRunnable
+func (hmf *HelmMetadataForwarder) NeedLeaderElection() bool {
+	return true
 }
 
 // runWorker is a long-running function that will continually process items from the workqueue
-func (hmf *HelmMetadataForwarder) runWorker() {
+func (hmf *HelmMetadataForwarder) runWorker(ctx context.Context) {
 	for {
-		key, shutdown := hmf.queue.Get()
-		if shutdown {
-			break
-		}
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			key, shutdown := hmf.queue.Get()
+			if shutdown {
+				return
+			}
 
-		if err := hmf.processKey(key); err != nil {
-			hmf.queue.AddRateLimited(key)
-			hmf.logger.V(1).Info("Error processing key, will retry", "key", key, "error", err)
-		} else {
-			hmf.queue.Forget(key)
+			if err := hmf.processKey(key); err != nil {
+				hmf.queue.AddRateLimited(key)
+				hmf.logger.V(1).Info("Error processing key, will retry", "key", key, "error", err)
+			} else {
+				hmf.queue.Forget(key)
+			}
+			hmf.queue.Done(key)
 		}
-		hmf.queue.Done(key)
 	}
 }
 
@@ -400,12 +415,17 @@ func (hmf *HelmMetadataForwarder) snapshotToReleaseData(snapshot *ReleaseSnapsho
 }
 
 // tickerLoop runs the periodic ticker to send all snapshots
-func (hmf *HelmMetadataForwarder) tickerLoop() {
+func (hmf *HelmMetadataForwarder) tickerLoop(ctx context.Context) {
 	ticker := time.NewTicker(tickerInterval)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		hmf.sendAllSnapshots()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			hmf.sendAllSnapshots()
+		}
 	}
 }
 

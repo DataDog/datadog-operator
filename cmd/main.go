@@ -395,12 +395,17 @@ func run(opts *options) error {
 		return setupErrorf(setupLog, err, "Unable to start controllers")
 	}
 
+	// Register Helm metadata forwarder as a manager Runnable
+	// This ensures it starts after cache sync and respects leader election
+	if err = setupAndStartHelmMetadataForwarder(metadataLog, mgr, mgr.GetAPIReader(), versionInfo.String(), options.CredsManager); err != nil {
+		return setupErrorf(setupLog, err, "Unable to setup Helm metadata forwarder")
+	}
+
+	// Start ticker-based metadata forwarders after leader election
 	go func() {
-		// Block until this controller manager is elected leader
 		<-mgr.Elected()
 		setupLog.Info("Starting metadata forwarders")
 		setupAndStartOperatorMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
-		setupAndStartHelmMetadataForwarder(metadataLog, mgr, mgr.GetAPIReader(), versionInfo.String(), options.CredsManager)
 		setupAndStartCRDMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
 	}()
 
@@ -571,7 +576,8 @@ func setupAndStartCRDMetadataForwarder(logger logr.Logger, client client.Reader,
 	cmf.Start()
 }
 
-func setupAndStartHelmMetadataForwarder(logger logr.Logger, mgr manager.Manager, client client.Reader, kubernetesVersion string, credsManager *config.CredentialManager) {
+func setupAndStartHelmMetadataForwarder(logger logr.Logger, mgr manager.Manager, client client.Reader, kubernetesVersion string, credsManager *config.CredentialManager) error {
 	hmf := metadata.NewHelmMetadataForwarderWithManager(logger, mgr, client, kubernetesVersion, version.GetVersion(), credsManager)
-	hmf.Start()
+	// Register as a runnable with the manager - will be started after cache sync
+	return mgr.Add(hmf)
 }
