@@ -15,6 +15,7 @@ const (
 	DDAPMInstrumentationDisabledNamespaces = "DD_APM_INSTRUMENTATION_DISABLED_NAMESPACES"
 	DDAPMInstrumentationTargets            = "DD_APM_INSTRUMENTATION_TARGETS"
 	DDAPMInstrumentationLibVersions        = "DD_APM_INSTRUMENTATION_LIB_VERSIONS"
+	DDAPMInstrumentationInjectionMode      = "DD_APM_INSTRUMENTATION_INJECTION_MODE"
 	DDLanguageDetectionEnabled             = "DD_LANGUAGE_DETECTION_ENABLED"
 	DDLanguageDetectionReportingEnabled    = "DD_LANGUAGE_DETECTION_REPORTING_ENABLED"
 )

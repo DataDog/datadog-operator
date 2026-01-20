@@ -689,6 +689,15 @@
                           "type": "array",
                           "x-kubernetes-list-type": "set"
                         },
+                        "injectionMode": {
+                          "description": "InjectionMode defines the injection mode for APM libraries.\nValid values are: \"auto\", \"init_container\", \"csi\" (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver).\nDefault: \"auto\"",
+                          "enum": [
+                            "auto",
+                            "init_container",
+                            "csi"
+                          ],
+                          "type": "string"
+                        },
                         "injector": {
                           "additionalProperties": false,
                           "description": "Injector configures the APM Injector.",
