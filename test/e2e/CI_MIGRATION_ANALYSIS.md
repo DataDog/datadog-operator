@@ -382,18 +382,53 @@ The migration introduced a **Go workspace version conflict**:
 - Run `go mod edit` BEFORE `go mod tidy` in update-golang.sh, so go mod tidy can adjust the version if needed
 - Add `GOWORK=off` to all fmt commands to prevent workspace interference
 
-**Verdict:** NECESSARY - Should fix all remaining CI failures
+**Verdict:** NECESSARY - Fixed fmt and check-golang-version failures
+
+---
+
+### 30. `0719b295` - Documentation update with diagnostic error analysis
+**Message:** "Update CI migration analysis: add diagnostic error documentation"
+
+**Status:** FAILED - dd-gitlab/generate_code failed
+**Changes:**
+- Added CI verification instructions for future reference
+- Documented diagnostic errors and how to avoid them
+
+**Analysis:** The documentation-only commit revealed that `dd-gitlab/generate_code` was failing because generated CRDs and docs were outdated.
+
+**Verdict:** DOCUMENTATION - Revealed need to regenerate CRDs
+
+---
+
+### 31. `2bec7c4a` - Regenerate CRDs and docs
+**Message:** "Regenerate CRDs and docs with updated Kubernetes API types"
+
+**Status:** ⏳ PENDING VERIFICATION
+**Changes:**
+- Updated CRDs with new Kubernetes API documentation strings
+- Added new fileKeyRef fields for kubelet host configuration
+- Updated affinity-related documentation
+- Updated DynamicResourceAllocation feature gate descriptions
+
+**Analysis:** The controller-gen tool picked up updated Kubernetes API documentation strings from the k8s.io/apimachinery library. These are legitimate updates that need to be committed.
+
+**Verdict:** NECESSARY - Required for dd-gitlab/generate_code to pass
 
 ---
 
 ## Current Status
 
-**Last commit:** `d88adbae`
+**Last commit:** `2bec7c4a`
 **CI Status:** ⏳ PENDING VERIFICATION
 
-Verified locally:
-- [x] `make fmt` passes
-- [x] `make update-golang && git diff` produces no changes
+Previous commit results (`d88adbae`):
+- ✅ GitHub Actions build: pass (all 3 builds)
+- ✅ dd-gitlab/build: pass
+- ✅ dd-gitlab/check-golang-version: pass
+- ✅ devflow/mergegate: pass
+- ❌ dd-gitlab/generate_code: fail (fixed by commit `2bec7c4a`)
+- ⏳ dd-gitlab/check_formatting: pending (before failure detected)
+- ⏳ dd-gitlab/unit_tests: pending (before failure detected)
 
 ---
 
@@ -459,9 +494,10 @@ gh pr checks <PR_NUMBER> --repo <REPO> 2>&1 | grep -E "fail|error"
 
 ## Validation Checklist
 
-Checks for commit `d88adbae`:
+Checks for commit `2bec7c4a`:
 - [x] `make fmt` passes locally
 - [x] `make update-golang && git diff` produces no changes
+- [x] `make generate && git diff` produces no changes
 - [ ] GitHub Actions build passes - PENDING CI VERIFICATION
 - [ ] dd-gitlab/check_formatting passes - PENDING CI VERIFICATION
 - [ ] dd-gitlab/generate_code passes - PENDING CI VERIFICATION
@@ -470,4 +506,4 @@ Checks for commit `d88adbae`:
 
 ## Migration Status
 
-The migration from `test-infra-definitions` to `datadog-agent/test/e2e-framework` is functionally complete. Awaiting CI verification for commit `d88adbae`.
+The migration from `test-infra-definitions` to `datadog-agent/test/e2e-framework` is functionally complete. Awaiting CI verification for commit `2bec7c4a`.
