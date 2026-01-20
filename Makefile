@@ -117,7 +117,7 @@ endef
 ##@ Deploy
 
 .PHONY: manager
-manager: sync generate lint managergobuild ## Build manager binary
+manager: generate lint managergobuild ## Build manager binary
 	GOWORK=off go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
 managergobuild: ## Builds only manager go binary
 	GOWORK=off go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
