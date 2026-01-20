@@ -35,7 +35,7 @@ These changes may affect other Kubernetes resources that rely on matching these 
 
 Due to the immutability of label selectors in Kubernetes, the Operator cannot update DaemonSets in place. Instead, it must delete and recreate them potentially leading to Agent downtime or undesired disruption.
 
-In order to minimize downtime, the Operator can [orphan its dependent pods](2). This method keeps Agent Pods running while the Operator deletes and recreates DaemonSets with the necessary selector and name changes. This process is fully decoupled from the Operator upgrade and other DaemonSet updates and enables a zero-downtime migration.
+In order to minimize downtime, the Operator can [orphan its dependent pods][2]. This method keeps Agent Pods running while the Operator deletes and recreates DaemonSets with the necessary selector and name changes. This process is fully decoupled from the Operator upgrade and other DaemonSet updates and enables a zero-downtime migration.
 
 For control over when label and name changes are applied, you can use following annotation (introduced for the DatadogAgent in `v1.18`) that allows you to apply the changes coming in `v1.21` ahead of time:
    ```yaml
