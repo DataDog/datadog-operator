@@ -672,11 +672,191 @@ The migration requires `GOWORK=off` in many places because:
 
 ## Migration Status
 
-The migration from `test-infra-definitions` to `datadog-agent/test/e2e-framework` is **functionally complete** but has a **known issue**:
+The migration from `test-infra-definitions` to `datadog-agent/test/e2e-framework` is **functionally complete** but has **two known issues**:
 
 **⚠️ CRD Content Bug**: The CRDs contain v0.35.0-alpha.0 schemas instead of v0.33.3. This should be fixed by:
 1. Adding `GOWORK=off` to `generate-manifests` target in Makefile
 2. Regenerating CRDs with `GOWORK=off make generate manifests`
 3. Committing the corrected CRDs
 
+**❌ E2E Test Failures**: All e2e tests fail with namespace configuration issue.
+
 The e2e runner image has been updated to use the same `datadog-agent-buildimages/linux` image that the datadog-agent repository uses.
+
+---
+
+## E2E Test Failure Analysis (2026-01-20)
+
+### Current Status
+
+All 8 e2e test jobs (K8s versions 1.19, 1.22, 1.24, 1.25, 1.26, 1.29, 1.30, 1.32) are failing with the same error:
+
+```
+Failed to create Kubernetes secret 'datadog-credentials'. Error: namespaces "datadog" not found
+```
+
+### Root Cause Analysis
+
+The error indicates that the operator component is trying to create a Kubernetes secret in namespace **"datadog"** (the default) instead of **"e2e-operator"** (the intended namespace).
+
+#### Code Flow Verification
+
+1. **Test configuration** (`test/e2e/tests/k8s_suite/kind_aws_test.go`):
+   ```go
+   operatorOptions := []operatorparams.Option{
+       operatorparams.WithNamespace(common.NamespaceName),  // "e2e-operator"
+       operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
+       operatorparams.WithHelmValues(`installCRDs: false...`),
+   }
+   ```
+
+2. **Namespace constant** (`test/e2e/common/common.go`):
+   ```go
+   NamespaceName = "e2e-operator"
+   ```
+
+3. **E2E Framework default** (`operatorparams/params.go` in e2e-framework):
+   ```go
+   func NewParams(e config.Env, options ...Option) (*Params, error) {
+       version := &Params{
+           Namespace:     "datadog",  // DEFAULT VALUE
+           HelmRepoURL:   DatadogHelmRepo,
+           HelmChartPath: "datadog-operator",
+       }
+       // ... options should override default ...
+       return common.ApplyOption(version, options)
+   }
+   ```
+
+#### Key Finding: E2E Framework Bug (CONFIRMED)
+
+**IMPORTANT UPDATE (2026-01-20)**: After detailed analysis of the CI logs and Pulumi URN, the root cause has been identified.
+
+#### Pulumi Error Analysis
+
+The Pulumi URN from the error shows:
+```
+urn:pulumi:...::pulumi:providers:kubernetes$dd:agent-with-operator$kubernetes:core/v1:Secret::datadog-credentials
+```
+
+The secret is being created under the `dd:agent-with-operator` component, which is the **DDA (DatadogAgent)** deployment, NOT the operator Helm deployment.
+
+#### Root Cause: Bug in e2e-framework v0.75.0-rc.7
+
+The bug is in `test/e2e-framework/scenarios/aws/kindvm/run.go` at line 265:
+
+```go
+if params.deployOperator && params.operatorDDAOptions != nil {
+    // Deploy the datadog CSI driver
+    if err := csidriver.NewDatadogCSIDriver(&awsEnv, kubeProvider, csiDriverCommitSHA); err != nil {
+        return err
+    }
+    ddaWithOperatorComp, err := agent.NewDDAWithOperator(&awsEnv, awsEnv.CommonNamer().ResourceName("kind-with-operator"), kubeProvider, params.operatorDDAOptions...)
+```
+
+**The Problem:**
+1. In `GetRunParams()`, `operatorDDAOptions` is initialized as `[]agentwithoperatorparams.Option{}` (empty slice, NOT nil)
+2. The test calls `provisioners.WithoutDDA()` which sets `params.ddaOptions = nil`
+3. Because `params.ddaOptions == nil`, the provisioner doesn't add `kindvm.WithOperatorDDAOptions`
+4. BUT `operatorDDAOptions` in the e2e-framework remains as an empty slice (not nil)
+5. The check `params.operatorDDAOptions != nil` passes (empty slice != nil)
+6. DDA deployment proceeds with default options, which has `Namespace: "datadog"`
+7. Secret creation fails because namespace "datadog" doesn't exist
+
+**The check should be `len(params.operatorDDAOptions) > 0` instead of `params.operatorDDAOptions != nil`.**
+
+#### Code Flow with Bug
+
+```
+Test: WithoutDDA()
+  ↓
+Provisioner: params.ddaOptions = nil
+  ↓
+newKindVMRunOpts: skips kindvm.WithOperatorDDAOptions because ddaOptions == nil
+  ↓
+e2e-framework GetRunParams: operatorDDAOptions = []Option{} (empty slice, NOT nil)
+  ↓
+e2e-framework RunWithEnv: check "operatorDDAOptions != nil" → PASSES (empty slice != nil)
+  ↓
+DDA deployment with default Namespace: "datadog"
+  ↓
+ERROR: namespaces "datadog" not found
+```
+
+### Recommended Fix
+
+**Option A: Fix in e2e-framework (Proper Fix)**
+
+Change line 265 in `test/e2e-framework/scenarios/aws/kindvm/run.go`:
+```go
+// Before (buggy):
+if params.deployOperator && params.operatorDDAOptions != nil {
+
+// After (fixed):
+if params.deployOperator && len(params.operatorDDAOptions) > 0 {
+```
+
+Or add a `WithoutOperatorDDA` option that explicitly sets `operatorDDAOptions = nil`.
+
+**Option B: Workaround in operator provisioner (Temporary)**
+
+Instead of using `WithoutDDA()`, pass DDA options with the correct namespace:
+```go
+provisionerOptions := []provisioners.KubernetesProvisionerOption{
+    provisioners.WithTestName("e2e-operator"),
+    provisioners.WithOperatorOptions(operatorOptions...),
+    provisioners.WithDDAOptions(
+        agentwithoperatorparams.WithNamespace(common.NamespaceName),
+        // Minimal DDA config...
+    ),
+}
+```
+
+This accepts that DDA will be deployed but uses the correct namespace.
+
+### Action Items
+
+1. **File a bug report** against the datadog-agent e2e-framework repository
+2. **Submit a PR** to fix the nil check (change to `len() > 0`)
+3. ✅ **IMPLEMENTED**: Temporary workaround by removing `WithoutDDA()` and passing DDA options with the correct namespace
+   - Modified `test/e2e/tests/k8s_suite/kind_aws_test.go`
+   - Replaced `provisioners.WithoutDDA()` with `provisioners.WithDDAOptions(agentwithoperatorparams.WithNamespace(common.NamespaceName))`
+   - This ensures DDA is deployed in the "e2e-operator" namespace instead of the default "datadog" namespace
+
+### Files Involved
+
+| File | Role |
+|------|------|
+| `test/e2e/tests/k8s_suite/kind_aws_test.go` | Test setup with namespace option |
+| `test/e2e/common/common.go` | NamespaceName constant |
+| `test/e2e/provisioners/kind.go` | Provisioner wrapper |
+| `test/e2e/go.mod` | E2E framework dependency |
+| (e2e-framework) `operatorparams/params.go` | Default namespace definition |
+| (e2e-framework) `operator/helm.go` | Secret creation in namespace |
+
+### Kustomize Configuration Note
+
+The `config/new-e2e/kustomization.yaml` sets namespace as `e2e-operator`:
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namePrefix: datadog-operator-e2e-
+namespace: e2e-operator
+resources:
+- ../crd
+- ../rbac
+```
+
+However, this only affects the kustomize-deployed resources (CRDs, RBAC), NOT the operator component created by the e2e-framework.
+
+The `config/e2e/e2e-manager.yaml` does include a Namespace resource:
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: e2e-operator
+```
+
+But `config/new-e2e/kustomization.yaml` does NOT include `../e2e`, so this namespace is NOT created by the kustomize deployment.
+
+---
