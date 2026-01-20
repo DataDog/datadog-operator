@@ -336,7 +336,7 @@ The migration introduced a **Go workspace version conflict**:
 ### 27. `a0364a51` - Fix Go version format and go.sum files
 **Message:** "Fix CI: align Go version format and update go.sum files"
 
-**Status:** PENDING VERIFICATION
+**Status:** ✅ SUCCESS - All CI checks passed
 **Changes:**
 - Changed `test/e2e/go.mod` go version from `1.25.0` to `1.25` (format consistency)
 - Added 16 missing checksum entries to `api/go.sum`
@@ -346,17 +346,17 @@ The migration introduced a **Go workspace version conflict**:
 1. `test/e2e/go.mod` had `go 1.25.0` instead of `go 1.25`
 2. go.sum files were missing checksums that `go mod tidy` adds
 
-**Verdict:** NECESSARY - Should fix the `check-golang-version` failure
+**Verdict:** NECESSARY - Fixed the `check-golang-version` failure
 
 ---
 
 ## Current Status
 
-**Last commit:** `a0364a51`
-**CI Status:** ⏳ PENDING VERIFICATION
+**Last commit:** `5ca792c3`
+**CI Status:** ✅ ALL CHECKS PASSED
 
-GitHub Actions checks (expected to pass):
-- CodeQL: ✅
+GitHub Actions checks:
+- CodeQL: ✅ (skipping - no relevant changes)
 - build (validation): ✅
 - build (pull request linter): ✅
 - build-linux-binary: ✅
@@ -365,10 +365,12 @@ GitHub Actions checks (expected to pass):
 - Check Milestone: ✅
 - Analyze (go): ✅
 - Analyze (python): ✅
+- DDCI Task Sourcing: ✅
 
 GitLab CI checks:
-- dd-gitlab/check-golang-version: ⏳ (this commit should fix it)
-- devflow/mergegate: ⏳
+- dd-gitlab/check-golang-version: ✅
+- dd-gitlab/build: ✅
+- devflow/mergegate: ✅
 
 ## Lessons Learned
 
@@ -382,14 +384,14 @@ GitLab CI checks:
 
 ## Validation Checklist
 
-Checks for commit `a0364a51`:
+All checks passed:
 - [x] `GOWORK=off go vet ./...` passes in root
 - [x] `cd api && GOWORK=off go vet ./...` passes
 - [x] `cd test/e2e && GOWORK=off go fmt ./...` passes
 - [x] `make verify-licenses` passes
-- [ ] `make check-golang-version` passes (no git diff) - PENDING CI VERIFICATION
+- [x] `make check-golang-version` passes (no git diff)
 - [x] Docker image builds pass
 
-## Migration Status
+## Migration Complete
 
-The migration from `test-infra-definitions` to `datadog-agent/test/e2e-framework` is functionally complete. Awaiting CI verification for commit `a0364a51`.
+The migration from `test-infra-definitions` to `datadog-agent/test/e2e-framework` is now complete with all CI checks passing.
