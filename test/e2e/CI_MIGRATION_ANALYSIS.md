@@ -507,6 +507,8 @@ gh pr checks <PR_NUMBER> --repo <REPO> 2>&1 | grep -E "fail|error"
 9. **Dependencies can force go version bumps**: If a dependency requires `go 1.25.0`, Go will update your go.mod even if you set `go 1.25`
 10. **Verify CI status properly**: Always verify commit SHA matches, wait for all jobs to appear, and check ALL CI systems before claiming success
 11. **Use existing build images**: For e2e testing, use the `datadog-agent-buildimages/linux` image from the datadog-agent repository instead of creating custom images. This ensures all required tooling (Pulumi, AWS CLI, Go, etc.) is available and maintained
+12. **CRD generation must use GOWORK=off**: When a workspace has modules with different K8s versions, `controller-gen` will pick up the highest version's type definitions. Always use `GOWORK=off` for CRD generation to ensure consistency with the main module's dependencies
+13. **Verify generated artifacts after dependency changes**: After any dependency update, run `GOWORK=off make generate manifests && git diff` to verify generated files match expected versions
 
 ## Validation Checklist
 
@@ -558,8 +560,123 @@ image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux$CI_IMAGE_LINUX_SUF
 
 ---
 
+---
+
+## Retrospective Analysis - Critical Findings
+
+### CRD Regeneration Bug Discovery
+
+**Date:** 2026-01-20
+**Discovered during:** Comprehensive PR review
+
+#### The Problem
+
+The CRDs in `config/crd/bases/v1/` contain **incorrect content** from k8s.io/api v0.35.0-alpha.0 schemas, even though the main module uses v0.33.3.
+
+**Evidence:**
+```bash
+# With GOWORK=off (correct - uses main module's K8s v0.33.3):
+$ GOWORK=off make generate
+# Result: CRDs have "Name of the environment variable. Must be a C_IDENTIFIER."
+# Result: No fileKeyRef field
+
+# Without GOWORK=off (incorrect - uses test/e2e's K8s v0.35.0-alpha.0):
+$ make generate
+# Result: CRDs have "Name of the environment variable. May consist of any printable ASCII characters except '='."
+# Result: fileKeyRef field present (new in K8s 1.35)
+```
+
+#### Root Cause
+
+The `generate-manifests` target in `Makefile` (line 151) does NOT use `GOWORK=off`:
+```makefile
+generate-manifests: $(CONTROLLER_GEN)
+	$(CONTROLLER_GEN) crd:crdVersions=v1 ...  # Missing GOWORK=off!
+```
+
+In Go workspace mode, the k8s.io/api dependency is resolved to the **highest version** across all modules:
+- Main module: `k8s.io/api v0.33.3`
+- test/e2e module: `k8s.io/api v0.35.0-alpha.0`
+- Resolved in workspace: **v0.35.0-alpha.0** ❌
+
+This causes controller-gen to use v0.35.0-alpha.0 type definitions, embedding their documentation strings into CRDs.
+
+#### Timeline of CRD Changes
+
+| Commit | K8s Version | CRD Action | Result |
+|--------|-------------|------------|--------|
+| `41c587d6` | v0.35.0-alpha.0 | First regeneration | CRDs with v0.35 schemas |
+| `3e1d3371` | v0.33.3 | Reverted CRDs | Back to original |
+| `2bec7c4a` | v0.33.3 | Re-added CRDs | v0.35 schemas again (BUG) |
+
+#### Impact
+
+The CRDs include:
+1. **New `fileKeyRef` field** - From K8s 1.35 EnvFiles feature (alpha)
+2. **Changed documentation** - EnvVar name description updated
+3. **DynamicResourceAllocation** - Description wording changed
+
+These are technically valid schemas but inconsistent with the operator's actual K8s dependency (v0.33.3).
+
+#### Recommended Fix
+
+Add `GOWORK=off` to the `generate-manifests` target in Makefile:
+```makefile
+generate-manifests: $(CONTROLLER_GEN)
+	GOWORK=off $(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=manager-role paths="./api/..." paths="./internal/controller/..." output:crd:artifacts:config=config/crd/bases/v1
+```
+
+Then regenerate CRDs:
+```bash
+GOWORK=off make generate manifests
+git diff config/crd/  # Should show removal of v0.35 content
+```
+
+---
+
+### Files Changed - Necessity Analysis
+
+| Category | Files | Strictly Necessary? | Notes |
+|----------|-------|---------------------|-------|
+| **Core Migration** | `test/e2e/*.go`, `test/e2e/go.mod`, `test/e2e/go.sum` | ✅ YES | Heart of the migration |
+| **CI Configuration** | `.gitlab-ci.yml` | ✅ YES | E2E runner image |
+| **Build Workarounds** | `Makefile`, `Dockerfile`, `check-operator.Dockerfile` | ⚠️ WORKAROUND | Required due to workspace version conflicts |
+| **Script Workarounds** | `hack/update-golang.sh` | ⚠️ WORKAROUND | Avoids go work sync |
+| **Module Config** | `go.mod` (replace directive) | ⚠️ WORKAROUND | Required for GOWORK=off builds |
+| **CRDs** | `config/crd/bases/v1/*` | ❌ **BUG** | Should NOT contain v0.35 content |
+| **Docs** | `docs/configuration*.md` | ❌ SIDE EFFECT | Generated from incorrect CRDs |
+| **License** | `LICENSE-3rdparty.csv` | ✅ YES | New dependencies require license tracking |
+| **Go Sums** | `go.sum`, `api/go.sum`, `go.work.sum` | ⚠️ SIDE EFFECT | Updated during dependency resolution |
+
+---
+
+### Why GOWORK=off is Everywhere
+
+The migration requires `GOWORK=off` in many places because:
+
+1. **Version Divergence by Design**:
+   - Main module: `k8s.io/api v0.33.3` (stable, required by controller-runtime)
+   - test/e2e module: `k8s.io/api v0.35.0-alpha.0` (required by e2e-framework v0.75.0-rc.7)
+
+2. **Go Workspace Behavior**:
+   - Without `GOWORK=off`, Go unifies to highest version across all modules
+   - This causes type incompatibilities (`sets.Set[string]` vs `[]string`)
+   - Breaks compilation of main module code
+
+3. **Alternative Approaches Not Used**:
+   - Remove go.work entirely (loses local development convenience)
+   - Pin test/e2e to same K8s version (breaks e2e-framework compatibility)
+   - Separate repositories (breaks monorepo pattern)
+
+---
+
 ## Migration Status
 
-The migration from `test-infra-definitions` to `datadog-agent/test/e2e-framework` is **functionally complete**.
+The migration from `test-infra-definitions` to `datadog-agent/test/e2e-framework` is **functionally complete** but has a **known issue**:
 
-The e2e runner image has been updated to use the same `datadog-agent-buildimages/linux` image that the datadog-agent repository uses. This ensures compatibility and availability of all required e2e testing tools.
+**⚠️ CRD Content Bug**: The CRDs contain v0.35.0-alpha.0 schemas instead of v0.33.3. This should be fixed by:
+1. Adding `GOWORK=off` to `generate-manifests` target in Makefile
+2. Regenerating CRDs with `GOWORK=off make generate manifests`
+3. Committing the corrected CRDs
+
+The e2e runner image has been updated to use the same `datadog-agent-buildimages/linux` image that the datadog-agent repository uses.

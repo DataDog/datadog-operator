@@ -148,11 +148,11 @@ manifests: generate-manifests patch-crds ## Generate manifestcd s e.g. CRD, RBAC
 
 .PHONY: generate-manifests
 generate-manifests: $(CONTROLLER_GEN)
-	$(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=manager-role paths="./api/..." paths="./internal/controller/..." output:crd:artifacts:config=config/crd/bases/v1
+	GOWORK=off $(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=manager-role paths="./api/..." paths="./internal/controller/..." output:crd:artifacts:config=config/crd/bases/v1
 
 .PHONY: generate
 generate: $(CONTROLLER_GEN) generate-openapi generate-docs ## Generate code
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./api/..."
+	GOWORK=off $(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./api/..."
 
 .PHONY: generate-docs
 generate-docs: manifests
