@@ -309,24 +309,53 @@ The migration introduced a **Go workspace version conflict**:
 ### 25. `3841b450` - Update LICENSE-3rdparty.csv
 **Message:** "Fix CI: update LICENSE-3rdparty.csv with dependency changes"
 
-**Status:** ✅ SUCCESS - All CI checks passed
+**Status:** PARTIAL SUCCESS - GitHub Actions passed, GitLab CI failed
 **Changes:**
 - Removed obsolete dependencies (viper, hcl, mapstructure, etc.)
 - Added new dependency (aws-sdk-go-v2/service/signin)
 - Updated license for cyphar/filepath-securejoin (BSD-3-Clause -> MPL-2.0)
 - Added sigs.k8s.io/structured-merge-diff/v6
 
-**Analysis:** License file was outdated due to dependency changes from the migration
-**Verdict:** NECESSARY - Final fix that made all CI checks pass
+**Analysis:** License file was outdated due to dependency changes from the migration. GitHub Actions passed but GitLab CI `check-golang-version` still failing.
+**Verdict:** NECESSARY but incomplete
+
+---
+
+### 26. `51e073a9` - Update CI_MIGRATION_ANALYSIS.md
+**Message:** "Update CI migration analysis: all CI checks now passing"
+
+**Status:** FAILED - GitLab CI `check-golang-version` still failing
+**Changes:**
+- Updated CI_MIGRATION_ANALYSIS.md with status
+
+**Analysis:** Status update commit. The `dd-gitlab/check-golang-version` was still failing.
+**Verdict:** DOCUMENTATION ONLY
+
+---
+
+### 27. `a0364a51` - Fix Go version format and go.sum files
+**Message:** "Fix CI: align Go version format and update go.sum files"
+
+**Status:** PENDING VERIFICATION
+**Changes:**
+- Changed `test/e2e/go.mod` go version from `1.25.0` to `1.25` (format consistency)
+- Added 16 missing checksum entries to `api/go.sum`
+- Added 11 missing checksum entries to `go.work.sum`
+
+**Analysis:** The `check-golang-version` CI check runs `make update-golang` and verifies no diff. The individual `go mod tidy` calls in `update-golang.sh` were producing changes because:
+1. `test/e2e/go.mod` had `go 1.25.0` instead of `go 1.25`
+2. go.sum files were missing checksums that `go mod tidy` adds
+
+**Verdict:** NECESSARY - Should fix the `check-golang-version` failure
 
 ---
 
 ## Current Status
 
-**Last commit:** `3841b450`
-**CI Status:** ✅ ALL CHECKS PASSED
+**Last commit:** `a0364a51`
+**CI Status:** ⏳ PENDING VERIFICATION
 
-All CI checks are now passing:
+GitHub Actions checks (expected to pass):
 - CodeQL: ✅
 - build (validation): ✅
 - build (pull request linter): ✅
@@ -336,7 +365,10 @@ All CI checks are now passing:
 - Check Milestone: ✅
 - Analyze (go): ✅
 - Analyze (python): ✅
-- devflow/mergegate: ✅
+
+GitLab CI checks:
+- dd-gitlab/check-golang-version: ⏳ (this commit should fix it)
+- devflow/mergegate: ⏳
 
 ## Lessons Learned
 
@@ -345,17 +377,19 @@ All CI checks are now passing:
 3. **Each module needs replace directives** to reference local modules when GOWORK=off
 4. **Don't regenerate CRDs/docs** when dependency versions are in flux
 5. **Fix one issue at a time** and verify CI before moving to next issue
+6. **Go version format matters**: `go 1.25.0` is different from `go 1.25` in go.mod files
+7. **go.sum files must be synchronized**: When running `go mod tidy` with GOWORK=off, each module's go.sum must have all required checksums
 
 ## Validation Checklist
 
-All checks passed on commit `3841b450`:
+Checks for commit `a0364a51`:
 - [x] `GOWORK=off go vet ./...` passes in root
 - [x] `cd api && GOWORK=off go vet ./...` passes
 - [x] `cd test/e2e && GOWORK=off go fmt ./...` passes
 - [x] `make verify-licenses` passes
-- [x] `make check-golang-version` passes (no git diff)
+- [ ] `make check-golang-version` passes (no git diff) - PENDING CI VERIFICATION
 - [x] Docker image builds pass
 
-## Migration Complete
+## Migration Status
 
-The migration from `test-infra-definitions` to `datadog-agent/test/e2e-framework` is now complete with all CI checks passing.
+The migration from `test-infra-definitions` to `datadog-agent/test/e2e-framework` is functionally complete. Awaiting CI verification for commit `a0364a51`.
