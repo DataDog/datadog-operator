@@ -100,9 +100,11 @@ else
     echo "Warning: $actions_directory not found, skipping."
 fi
 
-# Run go work sync
-echo "Running go work sync..."
-go work sync
+# Run go mod tidy for each module (without workspace to avoid version sync)
+echo "Running go mod tidy for each module..."
+(cd "$ROOT" && GOWORK=off go mod tidy)
+(cd "$ROOT/api" && GOWORK=off go mod tidy)
+(cd "$ROOT/test/e2e" && GOWORK=off go mod tidy)
 
 # Update go.mod files
 go_mod_files="$ROOT/go.mod $ROOT/test/e2e/go.mod $ROOT/api/go.mod"
