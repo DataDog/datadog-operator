@@ -64,19 +64,19 @@ func TestRunConsecutive(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		inputContent string
 		namespace    string
-		expected     map[string]interface{}
+		inputValues  string
+		expectedDDA  map[string]interface{}
 		missingPaths []string
 	}{
 		{
 			name: "run_1: no namespace",
-			inputContent: `nameOverride: "first-dda-name"
+			inputValues: `nameOverride: "first-dda-name"
 datadog:
   site: "datadoghq.com"
 `,
 			namespace: "namespace-one",
-			expected: map[string]interface{}{
+			expectedDDA: map[string]interface{}{
 				"metadata.name":      "first-dda-name",
 				"metadata.namespace": "namespace-one",
 				"spec.global.site":   "datadoghq.com",
@@ -84,11 +84,11 @@ datadog:
 		},
 		{
 			name: "run_2: namespace",
-			inputContent: `nameOverride: "second-dda-name"
+			inputValues: `nameOverride: "second-dda-name"
 datadog:
   site: "datadoghq.eu"
 `,
-			expected: map[string]interface{}{
+			expectedDDA: map[string]interface{}{
 				"metadata.name":    "second-dda-name",
 				"spec.global.site": "datadoghq.eu",
 			},
@@ -96,13 +96,13 @@ datadog:
 		},
 		{
 			name: "run_3: namespace and overrides",
-			inputContent: `nameOverride: "third-dda-name"
+			inputValues: `nameOverride: "third-dda-name"
 datadog:
   site: "us5.datadoghq.com"
   logLevel: "debug"
 `,
 			namespace: "namespace-three",
-			expected: map[string]interface{}{
+			expectedDDA: map[string]interface{}{
 				"metadata.name":        "third-dda-name",
 				"metadata.namespace":   "namespace-three",
 				"spec.global.site":     "us5.datadoghq.com",
@@ -112,23 +112,23 @@ datadog:
 	}
 
 	for i, tt := range tests {
-		inputPath := filepath.Join(tempDir, fmt.Sprintf("values-%d.yaml", i+1))
-		outputPath := filepath.Join(tempDir, fmt.Sprintf("dda-%d.yaml", i+1))
+		valuesPath := filepath.Join(tempDir, fmt.Sprintf("values-%d.yaml", i+1))
+		ddaPath := filepath.Join(tempDir, fmt.Sprintf("dda-%d.yaml", i+1))
 
-		writeTestFile(t, inputPath, tt.inputContent)
+		writeTestFile(t, valuesPath, tt.inputValues)
 
 		mapper := NewMapper(MapConfig{
 			MappingPath: "mapping_datadog_helm_to_datadogagent_crd.yaml",
-			SourcePath:  inputPath,
-			DestPath:    outputPath,
+			SourcePath:  valuesPath,
+			DestPath:    ddaPath,
 			Namespace:   tt.namespace,
 		})
 		err := mapper.Run()
 		require.NoError(t, err, "run %s failed", tt.name)
 
-		dda, err := chartutil.ReadValuesFile(outputPath)
+		dda, err := chartutil.ReadValuesFile(ddaPath)
 		require.NoError(t, err, "run %s failed to read output", tt.name)
-		assertValues(t, dda, tt.expected)
+		assertValues(t, dda, tt.expectedDDA)
 		for _, missingPath := range tt.missingPaths {
 			assertMissingPath(t, dda, missingPath, "run %s should not contain %s", tt.name, missingPath)
 		}
