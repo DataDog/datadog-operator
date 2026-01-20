@@ -76,8 +76,8 @@ build: manager kubectl-datadog ## Builds manager + kubectl plugin
 fmt: bin/$(PLATFORM)/golangci-lint ## Run formatters against code
 	GOWORK=off go fmt ./...
 	GOWORK=off bin/$(PLATFORM)/golangci-lint run ./... --fix
-	cd api && go fmt ./... && ../bin/$(PLATFORM)/golangci-lint run ./... --fix
-	cd test/e2e && go fmt ./... && ../../bin/$(PLATFORM)/golangci-lint run ./... --fix
+	cd api && GOWORK=off go fmt ./... && GOWORK=off ../bin/$(PLATFORM)/golangci-lint run ./... --fix
+	cd test/e2e && GOWORK=off go fmt ./... && GOWORK=off ../../bin/$(PLATFORM)/golangci-lint run ./... --fix
 
 .PHONY: vet
 vet: ## Run go vet against code

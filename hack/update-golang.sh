@@ -100,22 +100,23 @@ else
     echo "Warning: $actions_directory not found, skipping."
 fi
 
-# Run go mod tidy for each module (without workspace to avoid version sync)
-echo "Running go mod tidy for each module..."
-(cd "$ROOT" && GOWORK=off go mod tidy)
-(cd "$ROOT/api" && GOWORK=off go mod tidy)
-(cd "$ROOT/test/e2e" && GOWORK=off go mod tidy)
-
-# Update go.mod files
+# Update go.mod files with base go version and toolchain
+# Note: go mod tidy runs AFTER this to allow it to bump the go version if dependencies require it
 go_mod_files="$ROOT/go.mod $ROOT/test/e2e/go.mod $ROOT/api/go.mod"
 for file in $go_mod_files; do
     if [[ -f $file ]]; then
         echo "Processing $file..."
         go mod edit -go $new_minor_version $file
         go mod edit -toolchain go$GOVERSION $file
-        parent_dir=$(dirname "$file")
-        cd $parent_dir; cd $ROOT
     else
         echo "Warning: $file not found, skipping."
     fi
 done
+
+# Run go mod tidy for each module (without workspace to avoid version sync)
+# This runs AFTER go mod edit so that go mod tidy can adjust the go version
+# if any dependency requires a higher version (e.g., 1.25.0 instead of 1.25)
+echo "Running go mod tidy for each module..."
+(cd "$ROOT" && GOWORK=off go mod tidy)
+(cd "$ROOT/api" && GOWORK=off go mod tidy)
+(cd "$ROOT/test/e2e" && GOWORK=off go mod tidy)
