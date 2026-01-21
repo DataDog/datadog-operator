@@ -1188,6 +1188,30 @@ func (builder *DatadogAgentBuilder) WithControlPlaneMonitoring(enabled bool) *Da
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) initDataPlane() {
+	if builder.datadogAgent.Spec.Features == nil {
+		builder.datadogAgent.Spec.Features = &v2alpha1.DatadogFeatures{}
+	}
+	if builder.datadogAgent.Spec.Features.DataPlane == nil {
+		builder.datadogAgent.Spec.Features.DataPlane = &v2alpha1.DataPlaneFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithDataPlaneEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initDataPlane()
+	builder.datadogAgent.Spec.Features.DataPlane.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithDataPlaneDogstatsdEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initDataPlane()
+	if builder.datadogAgent.Spec.Features.DataPlane.Dogstatsd == nil {
+		builder.datadogAgent.Spec.Features.DataPlane.Dogstatsd = &v2alpha1.DataPlaneDogstatsdConfig{}
+	}
+	builder.datadogAgent.Spec.Features.DataPlane.Dogstatsd.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
 func (builder *DatadogAgentBuilder) WithStatus(status v2alpha1.DatadogAgentStatus) *DatadogAgentBuilder {
 	builder.datadogAgent.Status = status
 	return builder

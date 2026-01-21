@@ -28,7 +28,10 @@ const (
 	DDSystemProbeEnabled                = "DD_SYSTEM_PROBE_ENABLED"
 	DDSystemProbeExternal               = "DD_SYSTEM_PROBE_EXTERNAL"
 	DDSystemProbeSocket                 = "DD_SYSPROBE_SOCKET"
-	DDADPEnabled                        = "DD_ADP_ENABLED"
+	DDADPEnabled                        = "DD_ADP_ENABLED" // Deprecated: Use DDDataPlaneEnabled instead
+	DDDataPlaneEnabled                  = "DD_DATA_PLANE_ENABLED"
+	DDDataPlaneDogstatsdEnabled         = "DD_DATA_PLANE_DOGSTATSD_ENABLED"
+	DDDataPlaneOTLPEnabled              = "DD_DATA_PLANE_OTLP_ENABLED"
 	DDKubernetesPodResourcesSocket      = "DD_KUBERNETES_KUBELET_PODRESOURCES_SOCKET"
 	DDCELWorkloadExclude                = "DD_CEL_WORKLOAD_EXCLUDE"
 

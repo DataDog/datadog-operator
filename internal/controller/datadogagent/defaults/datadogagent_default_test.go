@@ -217,6 +217,9 @@ func Test_defaultFeatures(t *testing.T) {
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
 					},
+					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
+					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
@@ -363,6 +366,9 @@ func Test_defaultFeatures(t *testing.T) {
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
 					},
+					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
+					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
@@ -458,6 +464,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+					},
+					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
 					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
@@ -591,6 +600,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+					},
+					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
 					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
@@ -750,6 +762,9 @@ func Test_defaultFeatures(t *testing.T) {
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
 					},
+					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
+					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
@@ -903,6 +918,9 @@ func Test_defaultFeatures(t *testing.T) {
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
 					},
+					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
+					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueTrue),
 						HostPortConfig: &v2alpha1.HostPortConfig{
@@ -1055,6 +1073,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+					},
+					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
 					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
@@ -1218,6 +1239,9 @@ func Test_defaultFeatures(t *testing.T) {
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
 					},
+					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
+					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
@@ -1370,6 +1394,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+					},
+					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
 					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
@@ -1526,6 +1553,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+					},
+					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
 					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
@@ -1726,6 +1756,9 @@ func Test_defaultFeatures(t *testing.T) {
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
 					},
+					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
+					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -1847,6 +1880,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+					},
+					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
 					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
@@ -2001,6 +2037,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+					},
+					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
 					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
@@ -2179,6 +2218,9 @@ func Test_defaultFeatures(t *testing.T) {
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
 					},
+					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
+					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
@@ -2334,6 +2376,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+					},
+					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
 					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
@@ -2506,6 +2551,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+					},
+					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
 					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
