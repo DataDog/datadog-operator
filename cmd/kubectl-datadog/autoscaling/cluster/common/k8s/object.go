@@ -9,7 +9,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func createOrUpdate(ctx context.Context, cli client.Client, object client.Object) error {
+func CreateOrUpdate(ctx context.Context, cli client.Client, object client.Object) error {
 	resourceVersion, err := getResourceVersion(ctx, cli, object)
 	if err != nil {
 		return err
@@ -55,6 +55,22 @@ func update(ctx context.Context, cli client.Client, object client.Object) error 
 	}
 
 	log.Printf("Updated %s %s.", object.GetObjectKind().GroupVersionKind().Kind, object.GetName())
+
+	return nil
+}
+
+func Delete(ctx context.Context, cli client.Client, object client.Object) error {
+	log.Printf("Deleting %s %s…", object.GetObjectKind().GroupVersionKind().Kind, object.GetName())
+
+	if err := cli.Delete(ctx, object); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Printf("%s %s not found, skipping deletion.", object.GetObjectKind().GroupVersionKind().Kind, object.GetName())
+			return nil
+		}
+		return fmt.Errorf("failed to delete %s %s: %w", object.GetObjectKind().GroupVersionKind().Kind, object.GetName(), err)
+	}
+
+	log.Printf("Deleted %s %s.", object.GetObjectKind().GroupVersionKind().Kind, object.GetName())
 
 	return nil
 }
