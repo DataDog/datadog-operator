@@ -818,10 +818,63 @@ This accepts that DDA will be deployed but uses the correct namespace.
 
 1. **File a bug report** against the datadog-agent e2e-framework repository
 2. **Submit a PR** to fix the nil check (change to `len() > 0`)
-3. ✅ **IMPLEMENTED**: Temporary workaround by removing `WithoutDDA()` and passing DDA options with the correct namespace
-   - Modified `test/e2e/tests/k8s_suite/kind_aws_test.go`
-   - Replaced `provisioners.WithoutDDA()` with `provisioners.WithDDAOptions(agentwithoperatorparams.WithNamespace(common.NamespaceName))`
-   - This ensures DDA is deployed in the "e2e-operator" namespace instead of the default "datadog" namespace
+3. ✅ **IMPLEMENTED v2**: Robust workaround in the provisioner layer
+   - Modified `test/e2e/provisioners/kind.go` to ALWAYS pass namespace when operator is deployed
+   - This handles ALL cases where `WithoutDDA()` is called, including from subtests in `k8s_suite_test.go`
+
+### Why Initial Fix Didn't Work (Commit 575b82f7)
+
+The initial fix modified `kind_aws_test.go` to use `WithDDAOptions()` instead of `WithoutDDA()`. However, this only fixed the INITIAL test setup. The subtests in `k8s_suite_test.go` also call `WithoutDDA()` in several places:
+
+1. **Line 90**: Cleanup function at end of suite
+   ```go
+   cleanupOpts := []provisioners.KubernetesProvisionerOption{
+       provisioners.WithoutDDA(),
+       // ...
+   }
+   ```
+
+2. **Line 300**: "APM hostPort k8s service UDP works" test
+   ```go
+   withoutDDAProvisionerOptions := []provisioners.KubernetesProvisionerOption{
+       provisioners.WithoutDDA(),
+       // ...
+   }
+   ```
+
+When these called `UpdateEnv()` with `WithoutDDA()`, the bug still triggered because:
+- `params.ddaOptions = nil` in our provisioner
+- `kindvm.WithOperatorDDAOptions` was not called
+- `operatorDDAOptions` in e2e-framework remained as empty slice `[]`
+- The check `!= nil` passed, deploying DDA with default namespace "datadog"
+
+### Robust Fix (Commit <pending>)
+
+Instead of modifying every test that uses `WithoutDDA()`, we fixed the provisioner itself:
+
+**In `test/e2e/provisioners/kind.go`:**
+```go
+// Before:
+if params.ddaOptions != nil && params.operatorOptions != nil {
+    runOpts = append(runOpts, kindvm.WithOperatorDDAOptions(params.ddaOptions...))
+}
+
+// After:
+if params.operatorOptions != nil {
+    if len(params.ddaOptions) > 0 {
+        // User provided DDA options - use them directly
+        runOpts = append(runOpts, kindvm.WithOperatorDDAOptions(params.ddaOptions...))
+    } else {
+        // No DDA options provided (WithoutDDA was called or no DDA options set)
+        // We still need to pass namespace to avoid the framework bug
+        runOpts = append(runOpts, kindvm.WithOperatorDDAOptions(
+            agentwithoperatorparams.WithNamespace(common.NamespaceName),
+        ))
+    }
+}
+```
+
+This ensures that whenever the operator is deployed, the DDA (if accidentally deployed due to the framework bug) will at least be in the correct namespace "e2e-operator".
 
 ### Files Involved
 

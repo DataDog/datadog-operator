@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/agentwithoperatorparams"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/operatorparams"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/e2e"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
@@ -34,19 +33,13 @@ serviceAccount:
 `),
 	}
 
-	// NOTE: We use WithDDAOptions with the correct namespace instead of WithoutDDA() due to a bug
-	// in the e2e-framework v0.75.0-rc.7 where WithoutDDA() doesn't properly disable DDA deployment.
-	// The e2e-framework checks `operatorDDAOptions != nil` instead of `len(operatorDDAOptions) > 0`,
-	// causing DDA deployment with default namespace "datadog" even when WithoutDDA() is called.
-	// See CI_MIGRATION_ANALYSIS.md for details.
-	ddaOptions := []agentwithoperatorparams.Option{
-		agentwithoperatorparams.WithNamespace(common.NamespaceName),
-	}
-
+	// NOTE: We don't use WithDDAOptions here - the initial setup doesn't deploy a DDA.
+	// The DDA is deployed by individual subtests in k8s_suite_test.go via UpdateEnv().
+	// The provisioner handles the e2e-framework namespace bug automatically - see kind.go.
 	provisionerOptions := []provisioners.KubernetesProvisionerOption{
 		provisioners.WithTestName("e2e-operator"),
 		provisioners.WithOperatorOptions(operatorOptions...),
-		provisioners.WithDDAOptions(ddaOptions...),
+		provisioners.WithoutDDA(),
 	}
 
 	e2eOpts := []e2e.SuiteOption{

@@ -91,8 +91,22 @@ func newKindVMRunOpts(params *KubernetesProvisionerParams) []kindvm.RunOption {
 	}
 
 	// Add DDA options if provided (only when operator is deployed)
-	if params.ddaOptions != nil && params.operatorOptions != nil {
-		runOpts = append(runOpts, kindvm.WithOperatorDDAOptions(params.ddaOptions...))
+	// NOTE: Due to a bug in e2e-framework v0.75.0-rc.7, we MUST always pass at least the
+	// namespace option when the operator is deployed. The framework checks `operatorDDAOptions != nil`
+	// instead of `len(operatorDDAOptions) > 0`, causing DDA deployment with default namespace
+	// "datadog" even when no options are provided (empty slice is not nil).
+	// See CI_MIGRATION_ANALYSIS.md for details.
+	if params.operatorOptions != nil {
+		if len(params.ddaOptions) > 0 {
+			// User provided DDA options - use them directly
+			runOpts = append(runOpts, kindvm.WithOperatorDDAOptions(params.ddaOptions...))
+		} else {
+			// No DDA options provided (WithoutDDA was called or no DDA options set)
+			// We still need to pass namespace to avoid the framework bug deploying DDA in "datadog" namespace
+			runOpts = append(runOpts, kindvm.WithOperatorDDAOptions(
+				agentwithoperatorparams.WithNamespace(common.NamespaceName),
+			))
+		}
 	}
 
 	// Add fakeintake options if provided
