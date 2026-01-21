@@ -648,7 +648,7 @@ type GPUFeatureConfig struct {
 	// If the value is an empty string, the runtime class is not set.
 	// Default: nvidia
 	// +optional
-	PodRuntimeClassName *string `json:"requiredRuntimeClassName"`
+	PodRuntimeClassName *string `json:"requiredRuntimeClassName,omitempty"`
 
 	// PatchCgroupPermissions enables the patch of cgroup permissions for GPU monitoring, in case
 	// the container runtime is not properly configured and the Agent containers lose access to GPU devices.
@@ -1149,7 +1149,7 @@ type AgentSidecarInjectionConfig struct {
 	// Enabled enables Sidecar injections.
 	// Default: false
 	// +optional
-	Enabled *bool `json:"enabled"`
+	Enabled *bool `json:"enabled,omitempty"`
 
 	// ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.
 	// Default : true
