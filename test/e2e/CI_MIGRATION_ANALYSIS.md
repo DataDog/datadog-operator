@@ -913,3 +913,124 @@ metadata:
 But `config/new-e2e/kustomization.yaml` does NOT include `../e2e`, so this namespace is NOT created by the kustomize deployment.
 
 ---
+
+## E2E Cleanup Timeout Fix Analysis (2026-01-21)
+
+### Problem Statement
+
+After implementing the namespace bug workaround (commit `ece5d304`), all e2e tests pass but fail during cleanup with CRD deletion timeout:
+
+```
+warning: finalizers might be preventing deletion (customresourcecleanup.apiextensions.k8s.io)
+error: timed out waiting for the condition
+```
+
+### Why Previous Fix (commit `70b3c13f`) Didn't Work
+
+The previous fix attempted to delete DDAs manually before `UpdateEnv(WithoutDDA())`:
+
+```go
+t.Cleanup(func() {
+    // Delete DDAs manually
+    utils.DeleteAllDatadogAgentsWithKubeConfig(ctx, kubeConfig, namespace, timeout)
+    // Then call UpdateEnv
+    s.UpdateEnv(provisioners.KubernetesProvisioner(
+        provisioners.WithoutDDA(),
+        ...
+    ))
+})
+```
+
+**The Problem:** The namespace workaround in `kind.go:99-110` ALWAYS passes `kindvm.WithOperatorDDAOptions()` when operator is deployed, even when `WithoutDDA()` is called:
+
+```go
+if params.operatorOptions != nil {
+    if len(params.ddaOptions) > 0 {
+        runOpts = append(runOpts, kindvm.WithOperatorDDAOptions(params.ddaOptions...))
+    } else {
+        // This ALWAYS runs when WithoutDDA() is called!
+        runOpts = append(runOpts, kindvm.WithOperatorDDAOptions(
+            agentwithoperatorparams.WithNamespace(common.NamespaceName),
+        ))
+    }
+}
+```
+
+**Sequence of events:**
+1. Cleanup starts, manual DDA deletion succeeds
+2. `UpdateEnv(WithoutDDA())` is called
+3. Provisioner passes `WithOperatorDDAOptions(WithNamespace(...))` due to the workaround
+4. e2e-framework REDEPLOYS a new DDA in namespace `e2e-operator`
+5. New DDA has finalizers
+6. Pulumi destroy tries to delete CRDs
+7. CRDs blocked by the newly deployed DDA's finalizers
+8. TIMEOUT
+
+### Solution (commit `<pending>`)
+
+**1. Add `disableDDA` flag to provisioner params:**
+
+```go
+type KubernetesProvisionerParams struct {
+    // ...
+    disableDDA bool // Explicitly disable DDA deployment (for cleanup)
+}
+```
+
+**2. Modify `WithoutDDA()` to set the flag:**
+
+```go
+func WithoutDDA() KubernetesProvisionerOption {
+    return func(params *KubernetesProvisionerParams) error {
+        params.ddaOptions = nil
+        params.disableDDA = true  // NEW: prevent DDA redeployment
+        return nil
+    }
+}
+```
+
+**3. Check the flag before passing DDA options:**
+
+```go
+if params.operatorOptions != nil && !params.disableDDA {
+    // Only pass DDA options if not explicitly disabled
+    if len(params.ddaOptions) > 0 {
+        runOpts = append(runOpts, kindvm.WithOperatorDDAOptions(params.ddaOptions...))
+    } else {
+        runOpts = append(runOpts, kindvm.WithOperatorDDAOptions(
+            agentwithoperatorparams.WithNamespace(common.NamespaceName),
+        ))
+    }
+}
+```
+
+**4. Delete DatadogAgentInternals in addition to DatadogAgents:**
+
+The CRD `datadogagentinternals.datadoghq.com` also has finalizers. Added `DeleteAllDatadogResourcesWithKubeConfig()` function that deletes both:
+- DatadogAgents (v2alpha1)
+- DatadogAgentInternals (v1alpha1)
+
+### Expected Behavior After Fix
+
+1. Tests run and pass
+2. `t.Cleanup()` is called
+3. `DeleteAllDatadogResourcesWithKubeConfig()` deletes all DDAs and DDAIs
+4. Wait for finalizers to complete (operator processes deletions)
+5. `UpdateEnv(WithoutDDA())` is called
+6. Provisioner sees `disableDDA=true`, does NOT pass `WithOperatorDDAOptions()`
+7. e2e-framework bug triggers, tries to deploy DDA in namespace "datadog"
+8. Deployment may fail (namespace doesn't exist) - this is acceptable during cleanup
+9. Pulumi destroy runs
+10. No DDAs/DDAIs with finalizers exist
+11. CRDs delete successfully
+12. Stack destroy completes
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `test/e2e/provisioners/kind.go` | Added `disableDDA` field and logic |
+| `test/e2e/tests/utils/cleanup.go` | Added `DeleteAllDatadogResourcesWithKubeConfig()` and `DatadogAgentInternalGVR` |
+| `test/e2e/tests/k8s_suite/k8s_suite_test.go` | Updated cleanup to use new function |
+
+---

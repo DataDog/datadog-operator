@@ -26,7 +26,44 @@ var (
 		Version:  "v2alpha1",
 		Resource: "datadogagents",
 	}
+
+	// DatadogAgentInternalGVR is the GroupVersionResource for DatadogAgentInternal CRD
+	DatadogAgentInternalGVR = schema.GroupVersionResource{
+		Group:    "datadoghq.com",
+		Version:  "v1alpha1",
+		Resource: "datadogagentinternals",
+	}
 )
+
+// DeleteAllDatadogResourcesWithKubeConfig deletes all DatadogAgent and DatadogAgentInternal resources
+// in the specified namespace using a kubeconfig string to create the client.
+// This is useful for cleanup before Pulumi stack destroy to avoid CRD deletion timeout
+// caused by finalizers blocking deletion.
+func DeleteAllDatadogResourcesWithKubeConfig(ctx context.Context, kubeConfig string, namespace string, timeout time.Duration) error {
+	// Parse kubeconfig string to create rest.Config
+	restConfig, err := clientcmd.RESTConfigFromKubeConfig([]byte(kubeConfig))
+	if err != nil {
+		return fmt.Errorf("failed to parse kubeconfig: %w", err)
+	}
+
+	// Create dynamic client
+	dynamicClient, err := dynamic.NewForConfig(restConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create dynamic client: %w", err)
+	}
+
+	// Delete DatadogAgents first (they create DatadogAgentInternals)
+	if err := deleteAllDatadogAgentsWithClient(ctx, dynamicClient, namespace, timeout); err != nil {
+		return fmt.Errorf("failed to delete DatadogAgents: %w", err)
+	}
+
+	// Delete DatadogAgentInternals (in case any remain)
+	if err := deleteAllDatadogAgentInternalsWithClient(ctx, dynamicClient, namespace, timeout); err != nil {
+		return fmt.Errorf("failed to delete DatadogAgentInternals: %w", err)
+	}
+
+	return nil
+}
 
 // DeleteAllDatadogAgentsWithKubeConfig deletes all DatadogAgent resources in the specified namespace
 // using a kubeconfig string to create the client.
@@ -94,6 +131,40 @@ func deleteAllDatadogAgentsWithClient(ctx context.Context, dynamicClient dynamic
 
 	// Wait for all DatadogAgents to be fully deleted
 	return waitForDatadogAgentsDeletion(ctx, ddaClient, ddaList.Items, timeout)
+}
+
+func deleteAllDatadogAgentInternalsWithClient(ctx context.Context, dynamicClient dynamic.Interface, namespace string, timeout time.Duration) error {
+	ddaiClient := dynamicClient.Resource(DatadogAgentInternalGVR).Namespace(namespace)
+
+	// List all DatadogAgentInternals
+	ddaiList, err := ddaiClient.List(ctx, metav1.ListOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// CRD doesn't exist, nothing to delete
+			return nil
+		}
+		// If we get a "no matches" error, it means the CRD isn't installed
+		if errors.IsNotFound(err) || isNoMatchError(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to list DatadogAgentInternals: %w", err)
+	}
+
+	if len(ddaiList.Items) == 0 {
+		return nil
+	}
+
+	// Delete each DatadogAgentInternal
+	for _, ddai := range ddaiList.Items {
+		name := ddai.GetName()
+		err := ddaiClient.Delete(ctx, name, metav1.DeleteOptions{})
+		if err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("failed to delete DatadogAgentInternal %s: %w", name, err)
+		}
+	}
+
+	// Wait for all DatadogAgentInternals to be fully deleted
+	return waitForDatadogAgentsDeletion(ctx, ddaiClient, ddaiList.Items, timeout)
 }
 
 // isNoMatchError checks if the error indicates the resource type doesn't exist

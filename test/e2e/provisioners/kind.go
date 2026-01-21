@@ -49,6 +49,7 @@ type KubernetesProvisionerParams struct {
 	testName           string
 	operatorOptions    []operatorparams.Option
 	ddaOptions         []agentwithoperatorparams.Option
+	disableDDA         bool // Explicitly disable DDA deployment (for cleanup)
 	k8sVersion         string
 	kustomizeResources []string
 
@@ -90,19 +91,23 @@ func newKindVMRunOpts(params *KubernetesProvisionerParams) []kindvm.RunOption {
 		runOpts = append(runOpts, kindvm.WithOperatorOptions(params.operatorOptions...))
 	}
 
-	// Add DDA options if provided (only when operator is deployed)
-	// NOTE: Due to a bug in e2e-framework v0.75.0-rc.7, we MUST always pass at least the
-	// namespace option when the operator is deployed. The framework checks `operatorDDAOptions != nil`
+	// Add DDA options if provided (only when operator is deployed and DDA is not explicitly disabled)
+	// NOTE: Due to a bug in e2e-framework v0.75.0-rc.7, the framework checks `operatorDDAOptions != nil`
 	// instead of `len(operatorDDAOptions) > 0`, causing DDA deployment with default namespace
 	// "datadog" even when no options are provided (empty slice is not nil).
 	// See CI_MIGRATION_ANALYSIS.md for details.
-	if params.operatorOptions != nil {
+	//
+	// When disableDDA is true (set by WithoutDDA()), we explicitly skip passing any DDA options.
+	// This is used during cleanup to prevent re-deploying a DDA before Pulumi stack destroy.
+	// The e2e-framework bug may still try to deploy a DDA in namespace "datadog", but that's
+	// acceptable during cleanup as long as we manually delete DDAs before destroy.
+	if params.operatorOptions != nil && !params.disableDDA {
 		if len(params.ddaOptions) > 0 {
 			// User provided DDA options - use them directly
 			runOpts = append(runOpts, kindvm.WithOperatorDDAOptions(params.ddaOptions...))
 		} else {
-			// No DDA options provided (WithoutDDA was called or no DDA options set)
-			// We still need to pass namespace to avoid the framework bug deploying DDA in "datadog" namespace
+			// No DDA options provided but DDA not disabled - use default namespace
+			// to avoid the framework bug deploying DDA in "datadog" namespace
 			runOpts = append(runOpts, kindvm.WithOperatorDDAOptions(
 				agentwithoperatorparams.WithNamespace(common.NamespaceName),
 			))
@@ -190,10 +195,12 @@ func WithDDAOptions(opts ...agentwithoperatorparams.Option) KubernetesProvisione
 	}
 }
 
-// WithoutDDA removes the DatadogAgent resource
+// WithoutDDA removes the DatadogAgent resource and prevents DDA deployment.
+// This is used during cleanup to avoid deploying a new DDA before Pulumi stack destroy.
 func WithoutDDA() KubernetesProvisionerOption {
 	return func(params *KubernetesProvisionerParams) error {
 		params.ddaOptions = nil
+		params.disableDDA = true
 		return nil
 	}
 }
@@ -362,8 +369,8 @@ func localKindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params 
 		}
 	}
 
-	// Setup DDA options
-	if params.ddaOptions != nil && params.operatorOptions != nil {
+	// Setup DDA options (skip if DDA is explicitly disabled)
+	if params.ddaOptions != nil && params.operatorOptions != nil && !params.disableDDA {
 		ddaResourceOpts := []pulumi.ResourceOption{
 			pulumi.DependsOn([]pulumi.Resource{e2eKustomize, operatorComp}),
 		}

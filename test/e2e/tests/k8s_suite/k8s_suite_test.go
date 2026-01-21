@@ -83,17 +83,18 @@ serviceAccount:
 			return
 		}
 
-		// Explicitly delete all DatadogAgent resources and wait for finalizers to complete.
-		// This prevents CRD deletion timeout during Pulumi stack destroy.
+		// Explicitly delete all DatadogAgent and DatadogAgentInternal resources and wait for
+		// finalizers to complete. This prevents CRD deletion timeout during Pulumi stack destroy.
 		// The DDA has a finalizer that the operator needs to process before the resource is fully deleted.
+		// DatadogAgentInternals are created by the operator and also need to be deleted.
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
 
 		kubeConfig := s.Env().KubernetesCluster.KubeConfig
 		if kubeConfig != "" {
-			if err := utils.DeleteAllDatadogAgentsWithKubeConfig(ctx, kubeConfig, common.NamespaceName, 5*time.Minute); err != nil {
-				t.Logf("Warning: failed to delete DatadogAgents during cleanup: %v", err)
-				// Continue with cleanup even if DDA deletion fails - Pulumi will attempt to delete anyway
+			if err := utils.DeleteAllDatadogResourcesWithKubeConfig(ctx, kubeConfig, common.NamespaceName, 5*time.Minute); err != nil {
+				t.Logf("Warning: failed to delete Datadog resources during cleanup: %v", err)
+				// Continue with cleanup even if deletion fails - Pulumi will attempt to delete anyway
 			}
 		}
 
