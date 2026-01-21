@@ -49,7 +49,6 @@ type KubernetesProvisionerParams struct {
 	testName           string
 	operatorOptions    []operatorparams.Option
 	ddaOptions         []agentwithoperatorparams.Option
-	disableDDA         bool // explicitly disable DDA deployment (set by WithoutDDA)
 	k8sVersion         string
 	kustomizeResources []string
 
@@ -98,15 +97,12 @@ func newKindVMRunOpts(params *KubernetesProvisionerParams) []kindvm.RunOption {
 	// "datadog" even when no options are provided (empty slice is not nil).
 	// See CI_MIGRATION_ANALYSIS.md for details.
 	if params.operatorOptions != nil {
-		if params.disableDDA {
-			// User explicitly disabled DDA via WithoutDDA() - don't pass any options
-			// This avoids deploying DDA entirely (workaround for e2e-framework bug)
-		} else if len(params.ddaOptions) > 0 {
+		if len(params.ddaOptions) > 0 {
 			// User provided DDA options - use them directly
 			runOpts = append(runOpts, kindvm.WithOperatorDDAOptions(params.ddaOptions...))
 		} else {
-			// No DDA options provided but not explicitly disabled
-			// Pass namespace to avoid the framework bug deploying DDA in "datadog" namespace
+			// No DDA options provided (WithoutDDA was called or no DDA options set)
+			// We still need to pass namespace to avoid the framework bug deploying DDA in "datadog" namespace
 			runOpts = append(runOpts, kindvm.WithOperatorDDAOptions(
 				agentwithoperatorparams.WithNamespace(common.NamespaceName),
 			))
@@ -198,7 +194,6 @@ func WithDDAOptions(opts ...agentwithoperatorparams.Option) KubernetesProvisione
 func WithoutDDA() KubernetesProvisionerOption {
 	return func(params *KubernetesProvisionerParams) error {
 		params.ddaOptions = nil
-		params.disableDDA = true
 		return nil
 	}
 }
