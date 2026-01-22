@@ -26,7 +26,7 @@ func Test_buildOtelAgentGatewayConfigMap(t *testing.T) {
 			},
 		},
 		Data: map[string]string{
-			"otel-config.yaml": defaultconfig.DefaultOtelAgentGatewayConfig,
+			"otel-gateway-config.yaml": defaultconfig.DefaultOtelAgentGatewayConfig,
 		},
 	}
 

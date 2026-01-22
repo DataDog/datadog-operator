@@ -121,8 +121,8 @@ func Test_otelAgentGatewayFeature_Configure(t *testing.T) {
 								},
 								Items: []corev1.KeyToPath{
 									{
-										Key:  "otel-config.yaml",
-										Path: "otel-config.yaml",
+										Key:  "otel-gateway-config.yaml",
+										Path: "otel-gateway-config.yaml",
 									},
 									{
 										Key:  "otel-config-two.yaml",
@@ -196,6 +196,50 @@ func Test_otelAgentGatewayFeature_Configure(t *testing.T) {
 				defaultVolumes(defaultLocalObjectReferenceName),
 			),
 		},
+		{
+			Name: "otel agent gateway enabled with featureGates",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelAgentGatewayEnabled(true).
+				WithOTelAgentGatewayFeatureGates("component.UseLocalHostAsDefaultHost,connector.datadogconnector.NativeIngest").
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: testExpectedDepsCreatedCM,
+			OtelAgentGateway: test.NewDefaultComponentTest().
+				WithCreateFunc(func(t testing.TB) (feature.PodTemplateManagers, string) {
+					// Create a PodTemplateSpec with otel-agent container
+					newPTS := corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:    string(apicommon.OtelAgent),
+									Command: []string{"otelcol", "--config=/etc/otel/otel-gateway-config.yaml"},
+								},
+							},
+						},
+					}
+					return fake.NewPodTemplateManagers(t, newPTS), ""
+				}).
+				WithWantFunc(
+					func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+						mgr := mgrInterface.(*fake.PodTemplateManagers)
+						podSpec := mgr.PodTemplateSpec().Spec
+
+						// Check that featureGates is added to command
+						found := false
+						for _, container := range podSpec.Containers {
+							if container.Name == string(apicommon.OtelAgent) {
+								for _, cmd := range container.Command {
+									if strings.Contains(cmd, "--feature-gates=component.UseLocalHostAsDefaultHost,connector.datadogconnector.NativeIngest") {
+										found = true
+										break
+									}
+								}
+							}
+						}
+						assert.True(t, found, "Expected --feature-gates argument in container command")
+					},
+				),
+		},
 	}
 	tests.Run(t, buildOtelAgentGatewayFeature)
 }
@@ -260,13 +304,13 @@ func testExpectedDepsCreatedCM(t testing.TB, store store.StoreClient) {
 
 	configMap := configMapObject.(*corev1.ConfigMap)
 	expectedCM := map[string]string{
-		"otel-config.yaml": defaultconfig.DefaultOtelAgentGatewayConfig}
+		"otel-gateway-config.yaml": defaultconfig.DefaultOtelAgentGatewayConfig}
 
 	// validate that default ports were overriden by user provided ports in default config. hacky to need to
 	// hardcode test name but unaware of a better approach that doesn't require modifying WantDependenciesFunc definition.
 	if t.Name() == "Test_otelAgentGatewayFeature_Configure/otel_agent_gateway_enabled_without_config_non_default_ports" {
-		expectedCM["otel-config.yaml"] = strings.Replace(expectedCM["otel-config.yaml"], "4317", "4444", 1)
-		expectedCM["otel-config.yaml"] = strings.Replace(expectedCM["otel-config.yaml"], "4318", "5555", 1)
+		expectedCM["otel-gateway-config.yaml"] = strings.Replace(expectedCM["otel-gateway-config.yaml"], "4317", "4444", 1)
+		expectedCM["otel-gateway-config.yaml"] = strings.Replace(expectedCM["otel-gateway-config.yaml"], "4318", "5555", 1)
 		assert.True(
 			t,
 			apiutils.IsEqualStruct(configMap.Data, expectedCM),

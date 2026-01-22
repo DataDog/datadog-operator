@@ -330,6 +330,9 @@ spec:
 `features.otelAgentGateway.enabled`
 : Enables the OTel Agent Gateway. Default: false
 
+`features.otelAgentGateway.featureGates`
+: FeatureGates are the feature gates to pass to the OTel collector as a comma-separated list. Example: "component.UseLocalHostAsDefaultHost,connector.datadogconnector.NativeIngest"
+
 `features.otelAgentGateway.ports`
 : Contains the ports that the OTel Collector is listening on. Defaults: otel-grpc:4317 / otel-http:4318.
 
