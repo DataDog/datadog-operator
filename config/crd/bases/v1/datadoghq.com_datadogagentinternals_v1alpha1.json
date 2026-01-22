@@ -1159,6 +1159,10 @@
                     }
                   },
                   "type": "object"
+                },
+                "runInSystemProbe": {
+                  "description": "RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent.\nThis is an experimental feature. Contact support before using.\nDefault: false",
+                  "type": "boolean"
                 }
               },
               "type": "object"
@@ -9014,6 +9018,10 @@
                         }
                       },
                       "type": "object"
+                    },
+                    "runInSystemProbe": {
+                      "description": "RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent.\nThis is an experimental feature. Contact support before using.\nDefault: false",
+                      "type": "boolean"
                     }
                   },
                   "type": "object"

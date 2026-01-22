@@ -90,6 +90,7 @@ func getDCAClusterPolicyRules(workloadEnabled, clusterEnabled bool) []rbacv1.Pol
 				Verbs: []string{
 					rbac.GetVerb,
 					rbac.ListVerb,
+					rbac.WatchVerb,
 					rbac.CreateVerb,
 					rbac.PatchVerb,
 					rbac.DeleteVerb,
