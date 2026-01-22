@@ -44,6 +44,7 @@ type otelAgentGatewayFeature struct {
 	configMapName               string
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
+	featureGates                *string
 }
 
 func buildOtelAgentGatewayFeature(options *feature.Options) feature.Feature {
@@ -95,6 +96,9 @@ func (f *otelAgentGatewayFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1
 		f.customConfig = ddaSpec.Features.OtelAgentGateway.Conf
 	}
 	f.configMapName = constants.GetConfName(dda, f.customConfig, defaultOTelAgentGatewayConf)
+
+	// Extract feature gates configuration
+	f.featureGates = ddaSpec.Features.OtelAgentGateway.FeatureGates
 
 	return reqComp
 }
@@ -233,9 +237,9 @@ func (f *otelAgentGatewayFeature) ManageOtelAgentGateway(managers feature.PodTem
 		managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.OtelAgent)
 	} else {
 		// This part is used in three paths:
-		// - no conf.ConfigMap.Items provided, but conf.ConfigMap.Name provided. We assume only one item/ name otel-config.yaml
+		// - no conf.ConfigMap.Items provided, but conf.ConfigMap.Name provided. We assume only one item/ name otel-gateway-config.yaml
 		// - when configData is used
-		// - when no config is passed (we use DefaultOtelCollectorConfig)
+		// - when no config is passed (we use DefaultOtelAgentGatewayConfig)
 		volMount := volume.GetVolumeMountWithSubPath(otelAgentVolumeName, common.ConfigVolumePath+"/"+otelConfigFileName, otelConfigFileName)
 		managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.OtelAgent)
 	}
@@ -249,5 +253,19 @@ func (f *otelAgentGatewayFeature) ManageOtelAgentGateway(managers feature.PodTem
 	for _, port := range f.ports {
 		managers.Port().AddPortToContainer(apicommon.OtelAgent, port)
 	}
+
+	// Apply FeatureGates as command argument
+	if f.featureGates != nil && *f.featureGates != "" {
+		podSpec := &managers.PodTemplateSpec().Spec
+		for i := range podSpec.Containers {
+			if podSpec.Containers[i].Name == string(apicommon.OtelAgent) {
+				// Add --feature-gates argument to the command
+				featureGatesArg := "--feature-gates=" + *f.featureGates
+				podSpec.Containers[i].Command = append(podSpec.Containers[i].Command, featureGatesArg)
+				break
+			}
+		}
+	}
+
 	return nil
 }

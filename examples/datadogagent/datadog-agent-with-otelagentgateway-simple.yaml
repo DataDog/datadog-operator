@@ -1,0 +1,39 @@
+# datadog-agent-with-otelagentgateway-simple.yaml
+# This is a simple example showing how to enable the OTel Agent Gateway
+# with basic configuration options.
+#
+# For a comprehensive example with all available options, see:
+# datadog-agent-with-otelagentgateway.yaml
+
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  global:
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+
+  features:
+    # Enable OTel Agent Gateway with basic configuration
+    otelAgentGateway:
+      enabled: true
+      # Feature gates to enable specific OTel collector features
+      featureGates: "telemetry.UseLocalHostAsDefaultMetricsAddress"
+
+  override:
+    # Optional: Configure resources, replicas, and security for the gateway
+    otelAgentGateway:
+      # Number of gateway replicas
+      replicas: 2
+      containers:
+        otel-agent:
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
