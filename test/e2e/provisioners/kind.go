@@ -49,7 +49,7 @@ type KubernetesProvisionerParams struct {
 	testName           string
 	operatorOptions    []operatorparams.Option
 	ddaOptions         []agentwithoperatorparams.Option
-	disableDDA         bool // Explicitly disable DDA deployment (for cleanup)
+	disableDDA         bool // Explicitly disable DDA deployment (will use kindvm.WithoutDDA() when framework bug is fixed)
 	k8sVersion         string
 	kustomizeResources []string
 
@@ -90,7 +90,7 @@ func newKindVMRunOpts(params *KubernetesProvisionerParams) []kindvm.RunOption {
 		runOpts = append(runOpts, kindvm.WithDeployOperator())
 		runOpts = append(runOpts, kindvm.WithOperatorOptions(params.operatorOptions...))
 
-		// CRITICAL: Always pass DDA options with correct namespace when operator is deployed.
+		// WORKAROUND: Always pass DDA options with correct namespace when operator is deployed.
 		//
 		// Due to a bug in e2e-framework v0.75.0-rc.7 (run_args.go:55), the framework initializes
 		// operatorDDAOptions as an empty slice `[]Option{}` (not nil). In run.go:265, the check
@@ -99,8 +99,12 @@ func newKindVMRunOpts(params *KubernetesProvisionerParams) []kindvm.RunOption {
 		//
 		// We MUST always pass namespace options to ensure the buggy DDA deployment uses the
 		// correct namespace "e2e-operator" instead of the non-existent "datadog" namespace.
-		// This applies even when WithoutDDA() is called, because the framework bug will still
-		// attempt to deploy a DDA.
+		//
+		// FIX SUBMITTED: This bug has been fixed in the e2e-framework (PR pending).
+		// Once the fix is released:
+		// 1. Update the e2e-framework dependency to the fixed version
+		// 2. Replace this workaround with: kindvm.WithoutDDA() when disableDDA is true
+		// 3. Only pass DDA options when len(params.ddaOptions) > 0
 		//
 		// See CI_MIGRATION_ANALYSIS.md for details on the full investigation.
 		if len(params.ddaOptions) > 0 {

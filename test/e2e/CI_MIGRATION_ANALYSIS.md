@@ -1309,26 +1309,92 @@ if params.operatorOptions != nil {
 |------|--------|
 | `test/e2e/provisioners/kind.go` | Removed `&& !params.disableDDA` condition, always pass namespace |
 
-### Framework Bug Fix (Recommended)
+### Framework Bug Fix (IMPLEMENTED)
 
-The proper fix should be submitted to the e2e-framework:
+The proper fix has been implemented in the e2e-framework (PR pending to datadog-agent repository).
 
-**In `scenarios/aws/kindvm/run_args.go`:**
+**Changes made to `datadog-agent/test/e2e-framework`:**
+
+#### 1. `scenarios/aws/kindvm/run_args.go`
+
+**Changed initialization (line 55):**
 ```go
-// Change:
+// Before (buggy):
 operatorDDAOptions: []agentwithoperatorparams.Option{},
-// To:
-operatorDDAOptions: nil,
+
+// After (fixed):
+operatorDDAOptions: nil, // nil by default - DDA is only deployed when options are explicitly provided
 ```
 
-**In `scenarios/aws/kindvm/run.go:265`:**
+**Added `WithoutDDA()` function (new):**
 ```go
-// Change:
+// WithoutDDA removes the DatadogAgent custom resource deployment.
+// Use this to deploy only the operator without a DDA instance.
+func WithoutDDA() RunOption {
+    return func(p *RunParams) error {
+        p.operatorDDAOptions = nil
+        return nil
+    }
+}
+```
+
+**Updated `WithOperatorDDAOptions()` to handle nil initialization:**
+```go
+func WithOperatorDDAOptions(opts ...agentwithoperatorparams.Option) RunOption {
+    return func(p *RunParams) error {
+        if p.operatorDDAOptions == nil {
+            p.operatorDDAOptions = opts
+        } else {
+            p.operatorDDAOptions = append(p.operatorDDAOptions, opts...)
+        }
+        return nil
+    }
+}
+```
+
+#### 2. `scenarios/aws/kindvm/run.go`
+
+**Changed condition check (line 265):**
+```go
+// Before (buggy):
 if params.deployOperator && params.operatorDDAOptions != nil {
-// To:
+
+// After (fixed):
 if params.deployOperator && len(params.operatorDDAOptions) > 0 {
 ```
 
-Or add a `WithoutOperatorDDA()` function (like EKS scenario has).
+**Changed env.Agent nil check (line 281):**
+```go
+// Before:
+if params.agentOptions == nil || (params.operatorDDAOptions == nil) {
+
+// After:
+if params.agentOptions == nil || len(params.operatorDDAOptions) == 0 {
+```
+
+### EKS vs kindvm Comparison
+
+The EKS scenario already had a proper `WithoutDDA()` function:
+
+| Feature | EKS Scenario | kindvm Scenario (before fix) | kindvm Scenario (after fix) |
+|---------|--------------|-----------------------------|-----------------------------|
+| `WithoutDDA()` | ✅ Yes | ❌ No | ✅ Yes |
+| Default `operatorDDAOptions` | `[]Option{}` | `[]Option{}` | `nil` |
+| DDA deployment check | N/A (different pattern) | `!= nil` (buggy) | `len() > 0` |
+
+### Next Steps
+
+1. **Submit PR to datadog-agent** with the e2e-framework fix
+2. **Wait for merge and release** (new RC or patch version)
+3. **Update datadog-operator** to use the fixed e2e-framework version
+4. **Simplify workaround** in `test/e2e/provisioners/kind.go`:
+   - Replace "always pass namespace" workaround with proper `kindvm.WithoutDDA()` usage
+   - Only pass `WithOperatorDDAOptions()` when user explicitly provides DDA options
+
+### Current Workaround (Temporary)
+
+Until the e2e-framework fix is released, the workaround in `test/e2e/provisioners/kind.go` ensures:
+- Namespace "e2e-operator" is always passed when operator is deployed
+- This works around the framework bug by ensuring DDA (if deployed due to bug) uses correct namespace
 
 ---
