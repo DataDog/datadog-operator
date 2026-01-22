@@ -149,7 +149,6 @@ func startDatadogAgentInternal(logger logr.Logger, mgr manager.Manager, pInfo ku
 	return (&DatadogAgentInternalReconciler{
 		Client:       mgr.GetClient(),
 		PlatformInfo: pInfo,
-		Log:          ctrl.Log.WithName("controllers").WithName(agentInternalControllerName),
 		Scheme:       mgr.GetScheme(),
 		Recorder:     mgr.GetEventRecorderFor(agentInternalControllerName),
 		Options: datadogagentinternal.ReconcilerOptions{

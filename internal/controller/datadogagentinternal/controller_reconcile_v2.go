@@ -12,6 +12,7 @@ import (
 	"github.com/go-logr/logr"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -20,12 +21,11 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
-	pkgutils "github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 )
 
 func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *v1alpha1.DatadogAgentInternal) (reconcile.Result, error) {
-	reqLogger := r.log.WithValues("datadogagent", pkgutils.GetNamespacedName(instance))
-	reqLogger.Info("Reconciling DatadogAgentInternal")
+	logger := ctrl.LoggerFrom(ctx)
+	logger.Info("Reconciling DatadogAgentInternal")
 	// var result reconcile.Result
 
 	// TODO: validate the resource
@@ -35,7 +35,7 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *v1alpha1
 	// }
 
 	// 2. Handle finalizer logic.
-	if result, err := r.handleFinalizer(reqLogger, instance, r.finalizeDDAI); utils.ShouldReturn(result, err) {
+	if result, err := r.handleFinalizer(logger, instance, r.finalizeDDAI); utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
@@ -44,15 +44,16 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *v1alpha1
 	defaults.DefaultDatadogAgentSpec(&instanceCopy.Spec)
 
 	// 4. Delegate to the main reconcile function.
-	return r.reconcileInstanceV2(ctx, reqLogger, instanceCopy)
+	return r.reconcileInstanceV2(ctx, instanceCopy)
 }
 
-func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger, instance *v1alpha1.DatadogAgentInternal) (reconcile.Result, error) {
+func (r *Reconciler) reconcileInstanceV2(ctx context.Context, instance *v1alpha1.DatadogAgentInternal) (reconcile.Result, error) {
+	logger := ctrl.LoggerFrom(ctx)
 	var result reconcile.Result
 	newStatus := instance.Status.DeepCopy()
 	now := metav1.NewTime(time.Now())
 
-	configuredFeatures, enabledFeatures, requiredComponents := feature.BuildFeatures(instance, &instance.Spec, instance.Status.RemoteConfigConfiguration, reconcilerOptionsToFeatureOptions(&r.options, r.log))
+	configuredFeatures, enabledFeatures, requiredComponents := feature.BuildFeatures(instance, &instance.Spec, instance.Status.RemoteConfigConfiguration, reconcilerOptionsToFeatureOptions(&r.options, logger))
 	// update list of enabled features for metrics forwarder
 	r.updateMetricsForwardersFeatures(instance, enabledFeatures)
 
@@ -73,7 +74,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 		}
 		// 1. Apply and cleanup dependencies before reconciling components to ensure deps exist at reconciliation time.
-		if err = r.applyAndCleanupDependencies(ctx, logger, depsStore); err != nil {
+		if err = r.applyAndCleanupDependencies(ctx, depsStore); err != nil {
 			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 		}
 	}
@@ -102,7 +103,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.AgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 
 	// 3. Cleanup extraneous resources.
-	if err = r.cleanupExtraneousResources(ctx, logger, instance, newStatus, resourceManagers); err != nil {
+	if err = r.cleanupExtraneousResources(ctx, instance, newStatus, resourceManagers); err != nil {
 		logger.Error(err, "Error cleaning up extraneous resources")
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	}
