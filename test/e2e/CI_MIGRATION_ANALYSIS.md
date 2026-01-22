@@ -1034,3 +1034,137 @@ The CRD `datadogagentinternals.datadoghq.com` also has finalizers. Added `Delete
 | `test/e2e/tests/k8s_suite/k8s_suite_test.go` | Updated cleanup to use new function |
 
 ---
+
+## E2E Cleanup Fix - Second Iteration (2026-01-22)
+
+### Why Commit `f0c103a7` (disableDDA Flag) Didn't Work
+
+The `disableDDA` flag approach failed with a new error:
+
+```
+Failed to create Kubernetes secret 'datadog-credentials'. Error: namespaces "datadog" not found
+```
+
+**Root Cause Analysis:**
+
+When `disableDDA=true` is set:
+1. Our provisioner does NOT call `kindvm.WithOperatorDDAOptions()`
+2. BUT the e2e-framework has an internal bug:
+   - `operatorDDAOptions` is initialized as an empty slice `[]Option{}` (NOT nil)
+   - See: `scenarios/aws/kindvm/run_args.go:55`
+3. The check `params.operatorDDAOptions != nil` at `scenarios/aws/kindvm/run.go:265` returns TRUE for empty slice
+4. e2e-framework proceeds to deploy DDA with **default options** (Namespace: "datadog")
+5. Namespace "datadog" doesn't exist → ERROR
+
+**Code Flow:**
+
+```
+WithoutDDA() called in cleanup
+    ↓
+Provisioner: disableDDA = true, ddaOptions = nil
+    ↓
+newKindVMRunOpts(): skips kindvm.WithOperatorDDAOptions() because disableDDA=true
+    ↓
+e2e-framework params: operatorDDAOptions = []Option{} (empty slice from initialization)
+    ↓
+e2e-framework check: operatorDDAOptions != nil → TRUE (empty slice != nil in Go)
+    ↓
+DDA deployment with default options (Namespace: "datadog")
+    ↓
+ERROR: namespaces "datadog" not found
+```
+
+### E2E Framework Bug Reference
+
+**Bug Location:** `datadog-agent/test/e2e-framework/scenarios/aws/kindvm/`
+
+**File 1:** `run_args.go:55`
+```go
+func GetRunParams(options ...VMRunOpts) (*Params, error) {
+    params := &Params{
+        // ...
+        operatorDDAOptions: []agentwithoperatorparams.Option{}, // BUG: empty slice, not nil
+    }
+}
+```
+
+**File 2:** `run.go:265`
+```go
+// BUG: should be len(params.operatorDDAOptions) > 0
+if params.deployOperator && params.operatorDDAOptions != nil {
+    // Deploy DDA...
+}
+```
+
+**Note:** The EKS scenario has a proper `WithoutDDA()` function that sets `operatorDDAOptions = nil`:
+```go
+// scenarios/aws/eks/run_args.go:226-228
+func WithoutDDA() VMRunOpts {
+    return func(p *Params) error {
+        p.operatorDDAOptions = nil
+        return nil
+    }
+}
+```
+
+But the kindvm scenario does NOT have this option.
+
+### Solution (commit `<pending>`)
+
+**Approach: Remove UpdateEnv() call entirely from cleanup**
+
+Since we cannot prevent the e2e-framework from deploying a DDA (due to the bug), and since we've already manually deleted all DDAs and DDAIs before cleanup, we simply **remove the `UpdateEnv(WithoutDDA())` call**.
+
+**Before:**
+```go
+t.Cleanup(func() {
+    // Delete DDAs and DDAIs manually
+    utils.DeleteAllDatadogResourcesWithKubeConfig(ctx, kubeConfig, namespace, timeout)
+
+    // This triggers the e2e-framework bug!
+    s.UpdateEnv(provisioners.KubernetesProvisioner(
+        provisioners.WithoutDDA(),
+        // ...
+    ))
+})
+```
+
+**After:**
+```go
+t.Cleanup(func() {
+    // Delete DDAs and DDAIs manually - wait for finalizers to complete
+    utils.DeleteAllDatadogResourcesWithKubeConfig(ctx, kubeConfig, namespace, timeout)
+
+    // NOTE: We intentionally do NOT call UpdateEnv(WithoutDDA()) here.
+    // The e2e-framework has a bug where operatorDDAOptions is initialized as an empty slice
+    // (not nil), causing DDA deployment even when no options are passed. This would deploy
+    // a DDA in the default "datadog" namespace which doesn't exist.
+    // Since we've already manually deleted all DDAs and DDAIs above and waited for
+    // finalizers to complete, Pulumi can proceed with CRD deletion during stack destroy.
+})
+```
+
+**Why This Works:**
+
+1. We manually delete all DDAs and DDAIs before Pulumi destroy
+2. We wait for operator finalizers to complete (up to 5 minutes)
+3. When Pulumi destroy runs, it finds:
+   - No DDA/DDAI resources blocking CRD deletion
+   - CRDs can be deleted immediately
+4. Stack destroy completes successfully
+
+**What Happens Without UpdateEnv():**
+
+- Pulumi's internal state still thinks DDA is deployed
+- During destroy, Pulumi tries to delete the DDA
+- DDA is already gone (we deleted it manually)
+- Pulumi sees "resource not found" - this is fine, continues with destroy
+- CRDs delete because no resources with finalizers exist
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `test/e2e/tests/k8s_suite/k8s_suite_test.go` | Removed `UpdateEnv(WithoutDDA())` call from cleanup |
+
+---

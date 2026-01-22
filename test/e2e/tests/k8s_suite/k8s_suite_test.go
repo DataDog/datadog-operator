@@ -98,14 +98,15 @@ serviceAccount:
 			}
 		}
 
-		cleanupOpts := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName(lastTestName),
-			provisioners.WithK8sVersion(common.K8sVersion),
-			provisioners.WithOperatorOptions(defaultOperatorOpts...),
-			provisioners.WithoutDDA(),
-			provisioners.WithLocal(s.local),
-		}
-		s.UpdateEnv(provisioners.KubernetesProvisioner(cleanupOpts...))
+		// NOTE: We intentionally do NOT call UpdateEnv(WithoutDDA()) here.
+		// The e2e-framework has a bug where operatorDDAOptions is initialized as an empty slice
+		// (not nil), causing DDA deployment even when no options are passed. This would deploy
+		// a DDA in the default "datadog" namespace which doesn't exist.
+		// See: datadog-agent/test/e2e-framework/scenarios/aws/kindvm/run_args.go:55
+		//      datadog-agent/test/e2e-framework/scenarios/aws/kindvm/run.go:265
+		//
+		// Since we've already manually deleted all DDAs and DDAIs above and waited for
+		// finalizers to complete, Pulumi can proceed with CRD deletion during stack destroy.
 	})
 
 	s.T().Run("Verify Operator", func(t *testing.T) {
