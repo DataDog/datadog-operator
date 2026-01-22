@@ -78,15 +78,12 @@ func defaultPodSpec(dda metav1.Object) corev1.PodSpec {
 			{
 				Name:    string(apicommon.OtelAgent),
 				Image:   images.GetLatestDdotCollectorImage(),
-				Command: []string{"otel-agent", "--sync-delay=30s", "--config=file:/etc/datadog-agent/otel-config.yaml"},
+				Command: []string{"otel-agent", "--sync-delay=30s", "--config=file:/etc/datadog-agent/otel-gateway-config.yaml"},
 				VolumeMounts: []corev1.VolumeMount{
 					common.GetVolumeMountForLogs(),
-					{
-						Name:      "tmpdir",
-						MountPath: "/tmp",
-						ReadOnly:  false,
-					},
+					common.GetVolumeMountForTmp(),
 					common.GetVolumeMountForConfig(),
+					common.GetVolumeMountForAuth(false),
 				},
 				Ports: []corev1.ContainerPort{
 					{
@@ -104,13 +101,9 @@ func defaultPodSpec(dda metav1.Object) corev1.PodSpec {
 		},
 		Volumes: []corev1.Volume{
 			common.GetVolumeForLogs(),
-			{
-				Name: "tmpdir",
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
-			},
+			common.GetVolumeForTmp(),
 			common.GetVolumeForConfig(),
+			common.GetVolumeForAuth(),
 		},
 	}
 }

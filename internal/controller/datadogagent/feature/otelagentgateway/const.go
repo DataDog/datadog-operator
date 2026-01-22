@@ -6,8 +6,8 @@
 package otelagentgateway
 
 const (
-	otelAgentVolumeName = "otel-agent-config-volume"
-	otelConfigFileName  = "otel-config.yaml"
+	otelAgentVolumeName = "otel-agent-gateway-config-volume"
+	otelConfigFileName  = "otel-gateway-config.yaml"
 	// DefaultOTelAgentConf default otel agent gateway ConfigMap name
 	defaultOTelAgentGatewayConf string = "otel-agent-gateway-config"
 )
