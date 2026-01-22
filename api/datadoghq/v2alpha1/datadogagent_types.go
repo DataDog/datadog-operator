@@ -22,6 +22,8 @@ const (
 	ClusterAgentComponentName ComponentName = "clusterAgent"
 	// ClusterChecksRunnerComponentName is the name of the Cluster Check Runner
 	ClusterChecksRunnerComponentName ComponentName = "clusterChecksRunner"
+	// OtelAgentGatewayComponentName is the name of the OTel Agent Gateway
+	OtelAgentGatewayComponentName ComponentName = "otelAgentGateway"
 )
 
 // DatadogAgentSpec defines the desired state of DatadogAgent
@@ -446,6 +448,12 @@ type CSPMFeatureConfig struct {
 	// HostBenchmarks contains configuration for host benchmarks.
 	// +optional
 	HostBenchmarks *CSPMHostBenchmarksConfig `json:"hostBenchmarks,omitempty"`
+
+	// RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent.
+	// This is an experimental feature. Contact support before using.
+	// Default: false
+	// +optional
+	RunInSystemProbe *bool `json:"runInSystemProbe,omitempty"`
 }
 
 // CSPMHostBenchmarksConfig contains configuration for host benchmarks.
@@ -476,6 +484,7 @@ type CWSFeatureConfig struct {
 	// +optional
 	DirectSendFromSystemProbe *bool `json:"directSendFromSystemProbe,omitempty"`
 
+	Enforcement         *CWSEnforcementConfig         `json:"enforcement,omitempty"`
 	Network             *CWSNetworkConfig             `json:"network,omitempty"`
 	SecurityProfiles    *CWSSecurityProfilesConfig    `json:"securityProfiles,omitempty"`
 	RemoteConfiguration *CWSRemoteConfigurationConfig `json:"remoteConfiguration,omitempty"`
@@ -485,6 +494,13 @@ type CWSFeatureConfig struct {
 	// Any policies with the same name as those existing in the agent will take precedence.
 	// +optional
 	CustomPolicies *CustomConfig `json:"customPolicies,omitempty"`
+}
+
+type CWSEnforcementConfig struct {
+	// Enabled enables Enforcement for Cloud Workload Security.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 type CWSNetworkConfig struct {
@@ -632,7 +648,7 @@ type GPUFeatureConfig struct {
 	// If the value is an empty string, the runtime class is not set.
 	// Default: nvidia
 	// +optional
-	PodRuntimeClassName *string `json:"requiredRuntimeClassName"`
+	PodRuntimeClassName *string `json:"requiredRuntimeClassName,omitempty"`
 
 	// PatchCgroupPermissions enables the patch of cgroup permissions for GPU monitoring, in case
 	// the container runtime is not properly configured and the Agent containers lose access to GPU devices.
@@ -1133,7 +1149,7 @@ type AgentSidecarInjectionConfig struct {
 	// Enabled enables Sidecar injections.
 	// Default: false
 	// +optional
-	Enabled *bool `json:"enabled"`
+	Enabled *bool `json:"enabled,omitempty"`
 
 	// ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.
 	// Default : true
@@ -2245,6 +2261,9 @@ type DatadogAgentStatus struct {
 	// The actual state of the Cluster Checks Runner as a deployment.
 	// +optional
 	ClusterChecksRunner *DeploymentStatus `json:"clusterChecksRunner,omitempty"`
+	// The actual state of the OTel Agent Gateway as a deployment.
+	// +optional
+	OtelAgentGateway *DeploymentStatus `json:"otelAgentGateway,omitempty"`
 	// RemoteConfigConfiguration stores the configuration received from RemoteConfig.
 	// +optional
 	RemoteConfigConfiguration *RemoteConfigConfiguration `json:"remoteConfigConfiguration,omitempty"`

@@ -762,6 +762,59 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			want:                      assertAll,
 			wantDependency:            assertClusterRolesFineGrainedAuthz,
 		},
+		{
+			name:                           "Helm Migration enabled, DD_CLUSTER_AGENT_URL set",
+			singleContainerStrategyEnabled: false,
+			dda: addNameNamespaceToDDA(
+				ddaName,
+				ddaNamespace,
+				testutils.NewDatadogAgentBuilder().
+					WithCredentials("apiKey", "appKey").
+					WithAnnotations(map[string]string{apicommon.HelmMigrationAnnotationKey: "true"}).
+					BuildWithDefaults(),
+			),
+			wantCoreAgentEnvVars: nil,
+			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
+				{
+					Name: constants.DDAPIKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: ddaName + "-secret",
+							},
+							Key: v2alpha1.DefaultAPIKeyKey,
+						},
+					},
+				},
+				{
+					Name: constants.DDAppKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: ddaName + "-secret",
+							},
+							Key: v2alpha1.DefaultAPPKeyKey,
+						},
+					},
+				},
+				{
+					Name: DDClusterAgentAuthToken,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: ddaName + "-token",
+							},
+							Key: common.DefaultTokenKey,
+						},
+					},
+				},
+				{
+					Name:  common.DDClusterAgentURL,
+					Value: fmt.Sprintf("https://%s-%s.%s.svc.cluster.local:%d", ddaName, constants.DefaultClusterAgentResourceSuffix, ddaNamespace, common.DefaultClusterAgentServicePort),
+				},
+			}...),
+			want: assertAll,
+		},
 	}
 
 	for _, tt := range tests {

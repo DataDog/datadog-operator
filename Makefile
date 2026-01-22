@@ -52,6 +52,10 @@ IMG_CHECK ?= gcr.io/datadoghq/operator-check:latest
 
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.30
+# Default timeout for `go test` when running E2E tests.
+# (E2E provisioning can hang; having a finite timeout ensures we get goroutine dumps
+# instead of the CI job timing out with no actionable logs.)
+E2E_GO_TEST_TIMEOUT ?= 55m
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -205,10 +209,10 @@ integration-tests: $(ENVTEST) ## Run integration tests with reconciler
 .PHONY: e2e-tests
 e2e-tests: ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.
 	@if [ -z "$(E2E_RUN_REGEX)" ]; then \
-		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -v -run TestAWSKindSuite -timeout 0s -coverprofile cover_e2e.out; \
+		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -v -run TestAWSKindSuite -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out; \
 	else \
 	    echo "Running e2e test: $(E2E_RUN_REGEX)"; \
-		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -v -run $(E2E_RUN_REGEX) -timeout 0s -coverprofile cover_e2e.out; \
+		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -v -run $(E2E_RUN_REGEX) -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out; \
 	fi
 
 .PHONY: yaml-mapper-tests

@@ -351,6 +351,12 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentInternalStatus(r
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DeploymentStatus"),
 						},
 					},
+					"otelAgentGateway": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The actual state of the OTel Agent Gateway as a deployment.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DeploymentStatus"),
+						},
+					},
 					"remoteConfigConfiguration": {
 						SchemaProps: spec.SchemaProps{
 							Description: "RemoteConfigConfiguration stores the configuration received from RemoteConfig.",

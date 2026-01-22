@@ -7,8 +7,9 @@ package mapper
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -22,19 +23,26 @@ import (
 	_ "embed"
 )
 
-var (
-	// defaultDDAMap Embedded Helm-to-DDA mapping file
-	//go:embed mapping_datadog_helm_to_datadogagent_crd.yaml
-	defaultDDAMap []byte
-)
+// defaultDDAMap Embedded Helm-to-DDA mapping file
+//
+//go:embed mapping_datadog_helm_to_datadogagent_crd.yaml
+var defaultDDAMap []byte
+
+// skipMappingKeys Keys that should be skipped during mapping. Supports regex matching.
+var skipMappingKeys = []string{
+	`datadog\.operator\..*`,
+	`operator\..*`,
+}
 
 const defaultDDAMapUrl = "https://raw.githubusercontent.com/DataDog/helm-charts/main/tools/yaml-mapper/mapping_datadog_helm_to_datadogagent_crd.yaml"
 
-// defaultFileHeader Default file header for the mapped DDA custom resource output
-var defaultFileHeader = map[string]interface{}{
-	"apiVersion": "datadoghq.com/v2alpha1",
-	"kind":       "DatadogAgent",
-	"metadata":   map[string]interface{}{},
+// newDefaultFileHeader returns a new default file header for the mapped DDA custom resource output.
+func newDefaultFileHeader() map[string]interface{} {
+	return map[string]interface{}{
+		"apiVersion": "datadoghq.com/v2alpha1",
+		"kind":       "DatadogAgent",
+		"metadata":   map[string]interface{}{},
+	}
 }
 
 // MapConfig Configuration for the yaml mapper.
@@ -76,12 +84,17 @@ func (m *Mapper) Run() error {
 		return m.updateMapping(sourceValues, mappingValues)
 	}
 
-	dda, err := m.mapValues(sourceValues, mappingValues)
-	if err != nil {
+	dda, errCount := m.mapValues(sourceValues, mappingValues)
+
+	if err := m.writeDDA(dda, config); err != nil {
 		return err
 	}
 
-	return m.writeDDA(dda, config)
+	if errCount > 0 {
+		return fmt.Errorf("mapping completed with %d error(s): the mapped DDA may contain misconfigurations", errCount)
+	}
+
+	return nil
 }
 
 // loadInputs builds the mapping and Helm source Values from the inputted mapping and Helm source filepaths, respectively.
@@ -150,13 +163,14 @@ func (m *Mapper) loadInputs() (mappingValues chartutil.Values, sourceValues char
 }
 
 // mapValues maps the Helm source Values to a DDA custom resource based on the provided mapping Values.
-func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartutil.Values) (map[string]interface{}, error) {
+func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartutil.Values) (map[string]interface{}, int) {
+	var errorCount int
 	var ddaName = m.MapConfig.DDAName
 	var interim = map[string]interface{}{}
 	defaultValues, _ := getDefaultValues()
 
 	if m.MapConfig.HeaderPath == "" {
-		interim = defaultFileHeader
+		interim = newDefaultFileHeader()
 		if ddaName == "" {
 			ddaName = "datadog"
 		}
@@ -201,8 +215,9 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 		utils.MergeOrSet(sourceKeysRef, sourceKey, map[string]interface{}{"visited": true})
 
 		destKey, _ := mappingValues[sourceKey]
-		if (destKey == "" || destKey == nil) && !apiutils.IsEqualStruct(pathVal, defaultVal) {
-			log.Printf("Warning: DDA destination key not found. Could not map: %s\n", sourceKey)
+		if (destKey == "" || destKey == nil) && !apiutils.IsEqualStruct(pathVal, defaultVal) && !shouldSkipMappingKey(sourceKey) {
+			slog.Error("DDA destination key not found", "sourceKey", sourceKey)
+			errorCount++
 			continue
 		}
 
@@ -214,7 +229,7 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 			if destKey == "metadata.name" {
 				name := pathVal
 				if ddaName != "" {
-					log.Printf("Warning: found conflicting name for DDA. Mapper config provided: %s. Helm key %s provided: %v. Using Helm-provided value.", ddaName, sourceKey, name)
+					slog.Warn("found conflicting name for DDA, using Helm-provided value", "configName", ddaName, "helmKey", sourceKey, "helmValue", name)
 				}
 				if s, sOk := name.(string); sOk && len(s) > 63 {
 					name = s[:63]
@@ -230,7 +245,8 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 				if s, sOk := val.(string); sOk {
 					utils.MergeOrSet(interim, s, pathVal)
 				} else {
-					log.Printf("Warning: expected string in dest slice for %q, got %T", sourceKey, val)
+					slog.Error("expected string in dest slice", "sourceKey", sourceKey, "gotType", fmt.Sprintf("%T", val))
+					errorCount++
 				}
 			}
 
@@ -243,7 +259,8 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 				if run := m.MapProcessors[mapFuncName]; run != nil {
 					run(interim, newPath, pathVal, args)
 				} else {
-					log.Printf("Warning: unknown mapFunc %q for %q", mapFuncName, sourceKey)
+					slog.Error("unknown mapFunc", "mapFunc", mapFuncName, "sourceKey", sourceKey)
+					errorCount++
 				}
 			}
 		default:
@@ -256,8 +273,9 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 	// Log warnings for source values keys that aren't present in mapping file.
 	for k, v := range sourceKeysRef {
 		visited, ok := utils.GetPathBool(v, "visited")
-		if ok && !visited {
-			log.Printf("Warning: source value key %s was not found in mapping.", k)
+		if ok && !visited && !shouldSkipMappingKey(k) {
+			slog.Error("source value key was not found in mapping", "key", k)
+			errorCount++
 		}
 	}
 
@@ -274,7 +292,7 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 		v := interim[k]
 		dda = utils.InsertAtPath(k, v, dda)
 	}
-	return dda, nil
+	return dda, errorCount
 }
 
 // writeDDA writes a DDA map[string]interface{} object to a configured destination filepath.
@@ -303,8 +321,7 @@ func (m *Mapper) writeDDA(dda map[string]interface{}, cfg MapConfig) error {
 	}
 
 	if cfg.PrintOutput {
-		log.Println("")
-		log.Println(out)
+		os.Stdout.WriteString("\nMapped DatadogAgent custom resource:\n\n" + out + "\n")
 	}
 
 	// Create destination file if it doesn't exist
@@ -313,14 +330,14 @@ func (m *Mapper) writeDDA(dda map[string]interface{}, cfg MapConfig) error {
 		if destPath != "" {
 			file, e := os.Create(destPath)
 			if e != nil {
-				return fmt.Errorf("error creating destination file: %v; %w", destPath, e)
+				return fmt.Errorf("failed to create destination file %s: %w", destPath, e)
 			}
 			destPath = file.Name()
 		} else {
 			newDestPath := fmt.Sprintf("dda.yaml.%v", time.Now().Format("20060102-150405"))
 			file, e := os.Create(newDestPath)
 			if e != nil {
-				return fmt.Errorf("error creating new destination file: %v; %w", newDestPath, e)
+				return fmt.Errorf("failed to create new destination file %s: %w", newDestPath, e)
 			}
 			destPath = file.Name()
 		}
@@ -328,10 +345,10 @@ func (m *Mapper) writeDDA(dda map[string]interface{}, cfg MapConfig) error {
 
 	err = os.WriteFile(destPath, []byte(out), 0660)
 	if err != nil {
-		return fmt.Errorf("error writing to destination file %v; %w", destPath, err)
+		return fmt.Errorf("failed to write to destination file %s: %w", destPath, err)
 	}
 
-	log.Printf("YAML file successfully written to: %v", destPath)
+	slog.Info("YAML file successfully written", "path", destPath)
 
 	return nil
 }
@@ -356,17 +373,16 @@ func (m *Mapper) updateMapping(sourceValues chartutil.Values, mappingValues char
 	}
 
 	if m.MapConfig.PrintOutput {
-		log.Println("")
-		log.Println(newMapYaml)
+		os.Stdout.WriteString("\nUpdated mapping file:\n" + newMapYaml)
 	}
 
 	e = os.WriteFile(m.MapConfig.MappingPath, []byte(newMapYaml), 0660)
 	if e != nil {
-		log.Printf("Error updating mapping yaml. %v", e)
+		slog.Error("failed to update mapping yaml", "error", e)
 		return e
 	}
 
-	log.Printf("Mapping file, %s, successfully updated", m.MapConfig.MappingPath)
+	slog.Info("mapping file successfully updated", "path", m.MapConfig.MappingPath)
 
 	return nil
 }
@@ -400,4 +416,14 @@ func getDefaultValues() (chartutil.Values, error) {
 	}
 
 	return defaultValues, nil
+}
+
+// shouldSkipMappingKey Returns true if the key should be skipped during mapping. Supports regex matching.
+func shouldSkipMappingKey(key string) bool {
+	for _, skipKey := range skipMappingKeys {
+		if match, _ := regexp.MatchString("^"+skipKey+"$", key); match {
+			return true
+		}
+	}
+	return false
 }

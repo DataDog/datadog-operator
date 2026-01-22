@@ -132,6 +132,9 @@ spec:
 `features.cspm.hostBenchmarks.enabled`
 : Enables host benchmarks. Default: true
 
+`features.cspm.runInSystemProbe`
+: RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent. This is an experimental feature. Contact support before using. Default: false
+
 `features.cws.customPolicies.configData`
 : ConfigData corresponds to the configuration file content.
 
@@ -146,6 +149,9 @@ spec:
 
 `features.cws.enabled`
 : Enables Cloud Workload Security. Default: false
+
+`features.cws.enforcement.enabled`
+: Enables Enforcement for Cloud Workload Security. Default: true
 
 `features.cws.network.enabled`
 : Enables Cloud Workload Security Network detections. Default: true

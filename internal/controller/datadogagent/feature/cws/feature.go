@@ -49,6 +49,7 @@ type cwsFeature struct {
 	activityDumpEnabled        bool
 	remoteConfigurationEnabled bool
 	directSendFromSystemProbe  bool
+	enforcementEnabled         bool
 
 	owner  metav1.Object
 	logger logr.Logger
@@ -90,6 +91,9 @@ func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		}
 		f.configMapName = constants.GetConfName(dda, f.customConfig, defaultCWSConf)
 
+		if cwsConfig.Enforcement != nil {
+			f.enforcementEnabled = apiutils.BoolValue(cwsConfig.Enforcement.Enabled)
+		}
 		if cwsConfig.Network != nil {
 			f.networkEnabled = apiutils.BoolValue(cwsConfig.Network.Enabled)
 		}
@@ -190,6 +194,10 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 
 	// security context capabilities
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommon.SystemProbeContainerName)
+
+	if f.enforcementEnabled {
+		managers.SecurityContext().AddCapabilitiesToContainer([]corev1.Capability{"KILL"}, apicommon.SystemProbeContainerName)
+	}
 
 	// envvars
 

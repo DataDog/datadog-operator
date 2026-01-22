@@ -166,7 +166,10 @@ func (f *ForwardersManager) unregisterForwarder(id string) error {
 	f.Lock()
 	defer f.Unlock()
 	if _, found := f.metricsForwarders[id]; !found {
-		return fmt.Errorf("%s not found", id)
+		// Idempotency: deletion/finalization paths can call Unregister multiple times due to requeues.
+		// If the forwarder is already removed, treat it as a success to avoid noisy error logs.
+		log.V(1).Info("Metrics forwarder already unregistered", "ID", id)
+		return nil
 	}
 	f.metricsForwarders[id].stop()
 	delete(f.metricsForwarders, id)

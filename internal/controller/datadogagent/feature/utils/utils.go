@@ -6,12 +6,8 @@
 package utils
 
 import (
-	"maps"
-	"slices"
 	"strconv"
-	"strings"
 
-	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -89,99 +85,4 @@ func HasHostProfilerConfigAnnotion(dda metav1.Object, annotationName string) (st
 // HasFineGrainedKubeletAuthz returns true if the feature is enabled via the dedicated `agent.datadoghq.com/fine-grained-kubelet-authorization-enabled` annotation
 func HasFineGrainedKubeletAuthz(dda metav1.Object) bool {
 	return hasFeatureEnableAnnotation(dda, EnableFineGrainedKubeletAuthz)
-}
-
-// resourceSet represents a set of resources with their verbs
-type resourceSet map[string][]string
-
-// groupedResources maps API groups to their resource sets
-type groupedResources map[string]resourceSet
-
-// RBACBuilder provides a simple builder for creating RBAC policy rules for custom resources
-type RBACBuilder struct {
-	// groupedResources stores resources grouped by API group
-	groupedResources groupedResources
-	// verbs stores the verbs to apply to all rules
-	verbs []string
-}
-
-// NewRBACBuilder creates a new RBACBuilder instance with the specified verbs
-func NewRBACBuilder(verbs ...string) *RBACBuilder {
-	return &RBACBuilder{
-		groupedResources: make(groupedResources),
-		verbs:            verbs,
-	}
-}
-
-// AddGroupKind adds a custom resource by group and resource name with optional verbs
-// If no verbs are provided, uses the default verbs from NewRBACBuilder
-func (rb *RBACBuilder) AddGroupKind(group, resource string, verbs ...string) *RBACBuilder {
-	if _, exists := rb.groupedResources[group]; !exists {
-		rb.groupedResources[group] = make(resourceSet)
-	}
-
-	// Use provided verbs or fall back to default verbs
-	resourceVerbs := verbs
-	if len(verbs) == 0 {
-		resourceVerbs = rb.verbs
-	}
-
-	existingVerbs := rb.groupedResources[group][resource]
-	allVerbs := append(existingVerbs, resourceVerbs...)
-	verbSet := make(map[string]struct{})
-	var uniqueVerbs []string
-	for _, verb := range allVerbs {
-		if _, exists := verbSet[verb]; !exists {
-			verbSet[verb] = struct{}{}
-			uniqueVerbs = append(uniqueVerbs, verb)
-		}
-	}
-
-	rb.groupedResources[group][resource] = uniqueVerbs
-	return rb
-}
-
-// Build creates the final RBAC policy rules
-func (rb *RBACBuilder) Build() []rbacv1.PolicyRule {
-	if len(rb.groupedResources) == 0 {
-		return nil
-	}
-
-	var rbacRules []rbacv1.PolicyRule
-
-	// Sort API groups for deterministic output
-	apiGroups := slices.Sorted(maps.Keys(rb.groupedResources))
-
-	// Create RBAC rules for each API group
-	for _, apiGroup := range apiGroups {
-		resourceSet := rb.groupedResources[apiGroup]
-
-		// Group resources by their verbs to minimize the number of rules
-		verbToResources := make(map[string][]string)
-		verbsKeyToActualVerbs := make(map[string][]string)
-
-		for resource, verbs := range resourceSet {
-			verbsKey := strings.Join(verbs, ",")
-			verbToResources[verbsKey] = append(verbToResources[verbsKey], resource)
-			verbsKeyToActualVerbs[verbsKey] = verbs
-		}
-
-		// Create one rule per verb combination
-		// Sort verbsKeys for deterministic output
-		verbsKeys := slices.Sorted(maps.Keys(verbToResources))
-		for _, verbsKey := range verbsKeys {
-			resources := verbToResources[verbsKey]
-			slices.Sort(resources)
-
-			rule := rbacv1.PolicyRule{
-				APIGroups: []string{apiGroup},
-				Resources: resources,
-				Verbs:     verbsKeyToActualVerbs[verbsKey],
-			}
-
-			rbacRules = append(rbacRules, rule)
-		}
-	}
-
-	return rbacRules
 }

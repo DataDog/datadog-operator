@@ -7,6 +7,8 @@ package mapper
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/utils"
@@ -16,16 +18,141 @@ import (
 )
 
 func TestRun(t *testing.T) {
-	mapper := NewMapper(MapConfig{
-		MappingPath: "mapping_datadog_helm_to_datadogagent_crd.yaml",
-		SourcePath:  "../examples/example_source.yaml",
-		DestPath:    "../examples/destination.yaml",
-	})
+	tests := []struct {
+		name          string
+		sourcePath    string
+		destPath      string
+		expectedError string
+	}{
+		{
+			name:          "source_values_no_mapping_errors",
+			sourcePath:    "testdata/values_no_errors.yaml",
+			destPath:      "testdata/dda_no_errors.yaml",
+			expectedError: "",
+		},
+		{
+			name:          "source_values_with_mapping_errors",
+			sourcePath:    "testdata/values_errors.yaml",
+			destPath:      "testdata/dda_errors.yaml",
+			expectedError: "mapping completed with 4 error(s): the mapped DDA may contain misconfigurations",
+		},
+	}
 
-	err := mapper.Run()
-	require.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mapper := NewMapper(MapConfig{
+				MappingPath: "mapping_datadog_helm_to_datadogagent_crd.yaml",
+				SourcePath:  tt.sourcePath,
+				DestPath:    tt.destPath,
+			})
 
-	// TODO: add validations against the v2alpha1.DatadogAgent struct
+			err := mapper.Run()
+			if tt.expectedError != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestRunConsecutive verifies that running the mapper consecutively
+// with different YAML inputs does not pollute state between runs.
+func TestRunConsecutive(t *testing.T) {
+	tempDir := t.TempDir()
+
+	tests := []struct {
+		name         string
+		namespace    string
+		inputValues  string
+		expectedDDA  map[string]interface{}
+		missingPaths []string
+	}{
+		{
+			name: "run_1: no namespace",
+			inputValues: `nameOverride: "first-dda-name"
+datadog:
+  site: "datadoghq.com"
+`,
+			namespace: "namespace-one",
+			expectedDDA: map[string]interface{}{
+				"metadata.name":      "first-dda-name",
+				"metadata.namespace": "namespace-one",
+				"spec.global.site":   "datadoghq.com",
+			},
+		},
+		{
+			name: "run_2: namespace",
+			inputValues: `nameOverride: "second-dda-name"
+datadog:
+  site: "datadoghq.eu"
+`,
+			expectedDDA: map[string]interface{}{
+				"metadata.name":    "second-dda-name",
+				"spec.global.site": "datadoghq.eu",
+			},
+			missingPaths: []string{"metadata.namespace"},
+		},
+		{
+			name: "run_3: namespace and overrides",
+			inputValues: `nameOverride: "third-dda-name"
+datadog:
+  site: "us5.datadoghq.com"
+  logLevel: "debug"
+`,
+			namespace: "namespace-three",
+			expectedDDA: map[string]interface{}{
+				"metadata.name":        "third-dda-name",
+				"metadata.namespace":   "namespace-three",
+				"spec.global.site":     "us5.datadoghq.com",
+				"spec.global.logLevel": "debug",
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		valuesPath := filepath.Join(tempDir, fmt.Sprintf("values-%d.yaml", i+1))
+		ddaPath := filepath.Join(tempDir, fmt.Sprintf("dda-%d.yaml", i+1))
+
+		writeTestFile(t, valuesPath, tt.inputValues)
+
+		mapper := NewMapper(MapConfig{
+			MappingPath: "mapping_datadog_helm_to_datadogagent_crd.yaml",
+			SourcePath:  valuesPath,
+			DestPath:    ddaPath,
+			Namespace:   tt.namespace,
+		})
+		err := mapper.Run()
+		require.NoError(t, err, "run %s failed", tt.name)
+
+		dda, err := chartutil.ReadValuesFile(ddaPath)
+		require.NoError(t, err, "run %s failed to read output", tt.name)
+		assertValues(t, dda, tt.expectedDDA)
+		for _, missingPath := range tt.missingPaths {
+			assertMissingPath(t, dda, missingPath, "run %s should not contain %s", tt.name, missingPath)
+		}
+	}
+}
+
+func writeTestFile(t *testing.T, path, content string) {
+	t.Helper()
+	require.NoError(t, os.WriteFile(path, []byte(content), 0644))
+}
+
+func assertValues(t *testing.T, values chartutil.Values, expected map[string]interface{}) {
+	t.Helper()
+	for path, want := range expected {
+		got, err := values.PathValue(path)
+		require.NoError(t, err, "expected path %q to exist", path)
+		assert.Equal(t, want, got, "unexpected value at path %q", path)
+	}
+}
+
+func assertMissingPath(t *testing.T, values chartutil.Values, path string, msgAndArgs ...interface{}) {
+	t.Helper()
+	_, err := values.PathValue(path)
+	assert.Error(t, err, msgAndArgs...)
 }
 
 func TestMergeMapDeep(t *testing.T) {

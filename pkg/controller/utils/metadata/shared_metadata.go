@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -22,7 +21,6 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
-	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
@@ -38,11 +36,6 @@ const (
 	defaultURLPath       = "api/v1/metadata"
 )
 
-var (
-	// ErrEmptyHostName empty HostName error
-	ErrEmptyHostName = errors.New("empty host name")
-)
-
 // SharedMetadata contains the common metadata shared across all forwarders
 type SharedMetadata struct {
 	k8sClient client.Reader
@@ -52,7 +45,6 @@ type SharedMetadata struct {
 	clusterUID        string
 	operatorVersion   string
 	kubernetesVersion string
-	hostName          string
 	httpClient        *http.Client
 
 	// Shared credential management
@@ -66,7 +58,6 @@ func NewSharedMetadata(logger logr.Logger, k8sClient client.Reader, kubernetesVe
 		logger:            logger,
 		operatorVersion:   operatorVersion,
 		kubernetesVersion: kubernetesVersion,
-		hostName:          os.Getenv(constants.DDHostName),
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -75,11 +66,6 @@ func NewSharedMetadata(logger logr.Logger, k8sClient client.Reader, kubernetesVe
 }
 
 func (sm *SharedMetadata) createRequest(payload []byte) (*http.Request, error) {
-	if sm.hostName == "" {
-		sm.logger.Error(ErrEmptyHostName, "Could not set host name; not starting metadata forwarder")
-		return nil, ErrEmptyHostName
-	}
-
 	apiKey, requestURL, err := sm.getApiKeyAndURL()
 	if err != nil {
 		sm.logger.V(1).Info("Could not get credentials", "error", err)
