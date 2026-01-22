@@ -83,6 +83,7 @@ spec:
 | features.cspm.customBenchmarks.configMap.name | Is the name of the ConfigMap. |
 | features.cspm.enabled | Enables Cloud Security Posture Management. Default: false |
 | features.cspm.hostBenchmarks.enabled | Enables host benchmarks. Default: true |
+| features.cspm.runInSystemProbe | RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent. This is an experimental feature. Contact support before using. Default: false |
 | features.cws.customPolicies.configData | ConfigData corresponds to the configuration file content. |
 | features.cws.customPolicies.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | features.cws.customPolicies.configMap.name | Is the name of the ConfigMap. |

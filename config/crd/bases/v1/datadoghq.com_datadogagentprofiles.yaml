@@ -1154,6 +1154,12 @@ spec:
                                     Default: true
                                   type: boolean
                               type: object
+                            runInSystemProbe:
+                              description: |-
+                                RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent.
+                                This is an experimental feature. Contact support before using.
+                                Default: false
+                              type: boolean
                           type: object
                         cws:
                           description: CWS (Cloud Workload Security) configuration.

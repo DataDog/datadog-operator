@@ -8,6 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
+	commonk8s "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/k8s"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/guess"
 	"github.com/DataDog/datadog-operator/pkg/version"
 )
@@ -55,7 +56,7 @@ func CreateOrUpdateNodePool(ctx context.Context, client client.Client, np guess.
 		})
 	}
 
-	return createOrUpdate(ctx, client, &karpv1.NodePool{
+	return commonk8s.CreateOrUpdate(ctx, client, &karpv1.NodePool{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "karpenter.sh/v1",
 			Kind:       "NodePool",
