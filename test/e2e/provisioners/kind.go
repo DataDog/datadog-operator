@@ -89,25 +89,25 @@ func newKindVMRunOpts(params *KubernetesProvisionerParams) []kindvm.RunOption {
 	if params.operatorOptions != nil {
 		runOpts = append(runOpts, kindvm.WithDeployOperator())
 		runOpts = append(runOpts, kindvm.WithOperatorOptions(params.operatorOptions...))
-	}
 
-	// Add DDA options if provided (only when operator is deployed and DDA is not explicitly disabled)
-	// NOTE: Due to a bug in e2e-framework v0.75.0-rc.7, the framework checks `operatorDDAOptions != nil`
-	// instead of `len(operatorDDAOptions) > 0`, causing DDA deployment with default namespace
-	// "datadog" even when no options are provided (empty slice is not nil).
-	// See CI_MIGRATION_ANALYSIS.md for details.
-	//
-	// When disableDDA is true (set by WithoutDDA()), we explicitly skip passing any DDA options.
-	// This is used during cleanup to prevent re-deploying a DDA before Pulumi stack destroy.
-	// The e2e-framework bug may still try to deploy a DDA in namespace "datadog", but that's
-	// acceptable during cleanup as long as we manually delete DDAs before destroy.
-	if params.operatorOptions != nil && !params.disableDDA {
+		// CRITICAL: Always pass DDA options with correct namespace when operator is deployed.
+		//
+		// Due to a bug in e2e-framework v0.75.0-rc.7 (run_args.go:55), the framework initializes
+		// operatorDDAOptions as an empty slice `[]Option{}` (not nil). In run.go:265, the check
+		// `params.operatorDDAOptions != nil` passes for empty slice (Go: empty slice != nil).
+		// This causes DDA deployment with default namespace "datadog" from params.go:28.
+		//
+		// We MUST always pass namespace options to ensure the buggy DDA deployment uses the
+		// correct namespace "e2e-operator" instead of the non-existent "datadog" namespace.
+		// This applies even when WithoutDDA() is called, because the framework bug will still
+		// attempt to deploy a DDA.
+		//
+		// See CI_MIGRATION_ANALYSIS.md for details on the full investigation.
 		if len(params.ddaOptions) > 0 {
 			// User provided DDA options - use them directly
 			runOpts = append(runOpts, kindvm.WithOperatorDDAOptions(params.ddaOptions...))
 		} else {
-			// No DDA options provided but DDA not disabled - use default namespace
-			// to avoid the framework bug deploying DDA in "datadog" namespace
+			// No DDA options provided - pass just the namespace to work around the framework bug
 			runOpts = append(runOpts, kindvm.WithOperatorDDAOptions(
 				agentwithoperatorparams.WithNamespace(common.NamespaceName),
 			))
