@@ -597,7 +597,7 @@ func initVolumeContainer() corev1.Container {
 		Name:    "init-volume",
 		Image:   agentImage(),
 		Command: []string{"bash", "-c"},
-		Args:    []string{"cp -vnr /etc/datadog-agent /opt"},
+		Args:    []string{"cp -r /etc/datadog-agent /opt"},
 		VolumeMounts: []corev1.VolumeMount{
 			{
 				Name:      common.ConfigVolumeName,
