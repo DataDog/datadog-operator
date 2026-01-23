@@ -1242,7 +1242,7 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "eks-standard-node",
 						Labels: map[string]string{
-							kubernetes.EKSProviderLabel: "ami-0e7f88829f3d06e29",
+							kubernetes.EKSProviderLabel:   "ami-0e7f88829f3d06e29",
 							"eks.amazonaws.com/nodegroup": "standard-nodes",
 						},
 					},
@@ -1251,7 +1251,7 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "eks-bottlerocket-node",
 						Labels: map[string]string{
-							kubernetes.EKSProviderLabel: "ami-0fa9d45aa38272f15",
+							kubernetes.EKSProviderLabel:   "ami-0fa9d45aa38272f15",
 							"eks.amazonaws.com/nodegroup": "bottlerocket-nodes",
 						},
 					},
