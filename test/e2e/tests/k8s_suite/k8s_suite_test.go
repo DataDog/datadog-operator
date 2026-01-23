@@ -83,10 +83,8 @@ serviceAccount:
 			return
 		}
 
-		// Explicitly delete all DatadogAgent and DatadogAgentInternal resources and wait for
-		// finalizers to complete. This prevents CRD deletion timeout during Pulumi stack destroy.
-		// The DDA has a finalizer that the operator needs to process before the resource is fully deleted.
-		// DatadogAgentInternals are created by the operator and also need to be deleted.
+		// Delete all Datadog custom resources before Pulumi stack destroy
+		// to avoid CRD deletion timeout due to finalizers.
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
 
@@ -94,19 +92,8 @@ serviceAccount:
 		if kubeConfig != "" {
 			if err := utils.DeleteAllDatadogResourcesWithKubeConfig(ctx, kubeConfig, common.NamespaceName, 5*time.Minute); err != nil {
 				t.Logf("Warning: failed to delete Datadog resources during cleanup: %v", err)
-				// Continue with cleanup even if deletion fails - Pulumi will attempt to delete anyway
 			}
 		}
-
-		// NOTE: We intentionally do NOT call UpdateEnv(WithoutDDA()) here.
-		// The e2e-framework has a bug where operatorDDAOptions is initialized as an empty slice
-		// (not nil), causing DDA deployment even when no options are passed. This would deploy
-		// a DDA in the default "datadog" namespace which doesn't exist.
-		// See: datadog-agent/test/e2e-framework/scenarios/aws/kindvm/run_args.go:55
-		//      datadog-agent/test/e2e-framework/scenarios/aws/kindvm/run.go:265
-		//
-		// Since we've already manually deleted all DDAs and DDAIs above and waited for
-		// finalizers to complete, Pulumi can proceed with CRD deletion during stack destroy.
 	})
 
 	s.T().Run("Verify Operator", func(t *testing.T) {

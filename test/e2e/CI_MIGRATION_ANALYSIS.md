@@ -1391,10 +1391,38 @@ The EKS scenario already had a proper `WithoutDDA()` function:
    - Replace "always pass namespace" workaround with proper `kindvm.WithoutDDA()` usage
    - Only pass `WithOperatorDDAOptions()` when user explicitly provides DDA options
 
-### Current Workaround (Temporary)
+### Fix Applied (2026-01-23)
 
-Until the e2e-framework fix is released, the workaround in `test/e2e/provisioners/kind.go` ensures:
-- Namespace "e2e-operator" is always passed when operator is deployed
-- This works around the framework bug by ensuring DDA (if deployed due to bug) uses correct namespace
+The e2e-framework fix (PR #45390) has been applied. The datadog-operator e2e tests now use the fixed version:
+
+**Dependency update in `test/e2e/go.mod`:**
+```go
+// Before (buggy):
+github.com/DataDog/datadog-agent/test/e2e-framework v0.75.0-rc.7
+
+// After (fixed):
+github.com/DataDog/datadog-agent/test/e2e-framework v0.76.0-devel.0.20260122212456-47e4bc157670
+```
+
+**How to update the dependency:**
+```bash
+cd test/e2e
+GOWORK=off GOPROXY=direct go get github.com/DataDog/datadog-agent/test/e2e-framework@<commit-sha>
+GOWORK=off go mod tidy
+```
+
+**IMPORTANT:** Do NOT run `go work sync` after updating dependencies. This would unify K8s versions across modules (main module uses v0.33.3, test/e2e uses v0.35.0-alpha.0), breaking the build.
+
+**Workarounds removed in `test/e2e/provisioners/kind.go`:**
+1. Removed `disableDDA` field from `KubernetesProvisionerParams`
+2. Simplified `newKindVMRunOpts()` - no longer needs to always pass namespace
+3. Simplified `WithoutDDA()` - just sets `ddaOptions = nil`
+4. Updated `localKindRunFunc()` - uses `len(params.ddaOptions) > 0` check
+
+**Cleanup simplified in `test/e2e/tests/k8s_suite/k8s_suite_test.go`:**
+- Removed verbose workaround comments
+- Cleanup still manually deletes DDAs/DDAIs before Pulumi destroy (this is still necessary to avoid finalizer timeouts)
+
+**Note:** Once PR #45390 is merged and a new e2e-framework release is available (e.g., v0.76.0), update the dependency to the official version and remove the pseudo-version.
 
 ---

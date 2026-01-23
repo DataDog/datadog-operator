@@ -49,7 +49,6 @@ type KubernetesProvisionerParams struct {
 	testName           string
 	operatorOptions    []operatorparams.Option
 	ddaOptions         []agentwithoperatorparams.Option
-	disableDDA         bool // Explicitly disable DDA deployment (will use kindvm.WithoutDDA() when framework bug is fixed)
 	k8sVersion         string
 	kustomizeResources []string
 
@@ -90,32 +89,13 @@ func newKindVMRunOpts(params *KubernetesProvisionerParams) []kindvm.RunOption {
 		runOpts = append(runOpts, kindvm.WithDeployOperator())
 		runOpts = append(runOpts, kindvm.WithOperatorOptions(params.operatorOptions...))
 
-		// WORKAROUND: Always pass DDA options with correct namespace when operator is deployed.
-		//
-		// Due to a bug in e2e-framework v0.75.0-rc.7 (run_args.go:55), the framework initializes
-		// operatorDDAOptions as an empty slice `[]Option{}` (not nil). In run.go:265, the check
-		// `params.operatorDDAOptions != nil` passes for empty slice (Go: empty slice != nil).
-		// This causes DDA deployment with default namespace "datadog" from params.go:28.
-		//
-		// We MUST always pass namespace options to ensure the buggy DDA deployment uses the
-		// correct namespace "e2e-operator" instead of the non-existent "datadog" namespace.
-		//
-		// FIX SUBMITTED: This bug has been fixed in the e2e-framework (PR pending).
-		// Once the fix is released:
-		// 1. Update the e2e-framework dependency to the fixed version
-		// 2. Replace this workaround with: kindvm.WithoutDDA() when disableDDA is true
-		// 3. Only pass DDA options when len(params.ddaOptions) > 0
-		//
-		// See CI_MIGRATION_ANALYSIS.md for details on the full investigation.
+		// Pass DDA options only when explicitly provided
 		if len(params.ddaOptions) > 0 {
-			// User provided DDA options - use them directly
 			runOpts = append(runOpts, kindvm.WithOperatorDDAOptions(params.ddaOptions...))
-		} else {
-			// No DDA options provided - pass just the namespace to work around the framework bug
-			runOpts = append(runOpts, kindvm.WithOperatorDDAOptions(
-				agentwithoperatorparams.WithNamespace(common.NamespaceName),
-			))
 		}
+		// Note: When WithoutDDA() is called, no DDA options are passed.
+		// The e2e-framework (fixed in PR #45390) now correctly handles this case
+		// by not deploying a DDA when operatorDDAOptions is nil or empty.
 	}
 
 	// Add fakeintake options if provided
@@ -204,7 +184,6 @@ func WithDDAOptions(opts ...agentwithoperatorparams.Option) KubernetesProvisione
 func WithoutDDA() KubernetesProvisionerOption {
 	return func(params *KubernetesProvisionerParams) error {
 		params.ddaOptions = nil
-		params.disableDDA = true
 		return nil
 	}
 }
@@ -373,8 +352,8 @@ func localKindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params 
 		}
 	}
 
-	// Setup DDA options (skip if DDA is explicitly disabled)
-	if params.ddaOptions != nil && params.operatorOptions != nil && !params.disableDDA {
+	// Setup DDA options (only if DDA options are explicitly provided)
+	if len(params.ddaOptions) > 0 && params.operatorOptions != nil {
 		ddaResourceOpts := []pulumi.ResourceOption{
 			pulumi.DependsOn([]pulumi.Resource{e2eKustomize, operatorComp}),
 		}

@@ -33,9 +33,8 @@ serviceAccount:
 `),
 	}
 
-	// NOTE: We don't use WithDDAOptions here - the initial setup doesn't deploy a DDA.
+	// Initial test setup deploys the operator without a DDA.
 	// The DDA is deployed by individual subtests in k8s_suite_test.go via UpdateEnv().
-	// The provisioner handles the e2e-framework namespace bug automatically - see kind.go.
 	provisionerOptions := []provisioners.KubernetesProvisionerOption{
 		provisioners.WithTestName("e2e-operator"),
 		provisioners.WithOperatorOptions(operatorOptions...),
