@@ -64,6 +64,8 @@ const (
 	HostProfiler AgentContainerName = "host-profiler"
 	// AgentDataPlaneContainerName is the name of the Agent Data Plane container
 	AgentDataPlaneContainerName AgentContainerName = "agent-data-plane"
+	// PrivateActionRunnerContainerName is the name of the Private Action Runner container
+	PrivateActionRunnerContainerName AgentContainerName = "private-action-runner"
 	// AllContainers is used internally to reference all containers in the pod
 	AllContainers AgentContainerName = "all"
 	// ClusterAgentContainerName is the name of the Cluster Agent container
