@@ -5,7 +5,7 @@ go 1.25.0
 toolchain go1.25.5
 
 require (
-	github.com/DataDog/datadog-agent/test/e2e-framework v0.76.0-devel.0.20260123162216-ef30aab44a3e
+	github.com/DataDog/datadog-agent/test/e2e-framework v0.76.0-devel.0.20260123184249-8b71a5b8b2db
 	github.com/DataDog/datadog-agent/test/fakeintake v0.75.0-rc.7
 	github.com/DataDog/datadog-api-client-go/v2 v2.54.0 // indirect
 	github.com/pulumi/pulumi-kubernetes/sdk/v4 v4.23.0

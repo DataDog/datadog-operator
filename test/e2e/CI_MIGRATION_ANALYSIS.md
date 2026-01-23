@@ -1553,3 +1553,71 @@ GOWORK=off go mod tidy
 ```
 
 ---
+
+### agentOptions Initialization Bug Fix (2026-01-23)
+
+**Commit in datadog-agent:** `8b71a5b8b2`
+**Updated dependency in datadog-operator:** `v0.76.0-devel.0.20260123184249-8b71a5b8b2db`
+
+**The Issue:**
+
+The previous fix (commit `ef30aab44a`) correctly refreshed field values after provisioning and changed the DDA deployment check to use `len()` instead of `!= nil`. However, the CI still failed with:
+
+```
+resource named Agent has no import key set and no annotation
+```
+
+**Root Cause:**
+
+The condition in `run.go` line 281 was:
+```go
+if params.agentOptions == nil && len(params.operatorDDAOptions) == 0 {
+    env.Agent = nil
+}
+```
+
+**The bug:** `params.agentOptions` was initialized as an **empty slice** `[]kubernetesagentparams.Option{}` in `run_args.go` line 50, **NOT** as `nil`. In Go, an empty slice is **NOT equal to nil**:
+
+```go
+var emptySlice []int = []int{}
+var nilSlice []int = nil
+
+emptySlice == nil  // FALSE (empty slice is NOT nil!)
+nilSlice == nil    // TRUE
+```
+
+So the condition `params.agentOptions == nil` was always **FALSE**, and `env.Agent = nil` was **NEVER** executed.
+
+**The Fix:**
+
+Changed line 50 in `run_args.go` from:
+```go
+agentOptions:        []kubernetesagentparams.Option{},
+```
+
+To:
+```go
+agentOptions:        nil, // nil by default - Agent is only deployed when options are explicitly provided
+```
+
+This is the same pattern used to fix `operatorDDAOptions` in commit `47e4bc1576`, but that commit missed `agentOptions`.
+
+**Summary of All e2e-framework Fixes:**
+
+| Commit | File | Change |
+|--------|------|--------|
+| `47e4bc1576` | `run_args.go:55` | Initialize `operatorDDAOptions` as `nil` instead of `[]Option{}` |
+| `47e4bc1576` | `run_args.go` | Add `WithoutDDA()` function |
+| `47e4bc1576` | `run.go:265` | Change check from `!= nil` to `len() > 0` |
+| `47e4bc1576` | `run.go:281` | Change check from `\|\|` to `&&` |
+| `ef30aab44a` | `suite.go:447-452` | Refresh field values after provisioning |
+| **`8b71a5b8b2`** | **`run_args.go:50`** | **Initialize `agentOptions` as `nil` instead of `[]Option{}`** |
+
+**Update command:**
+```bash
+cd test/e2e
+GOWORK=off GOPROXY=direct GONOSUMDB='github.com/DataDog/*' go get github.com/DataDog/datadog-agent/test/e2e-framework@8b71a5b8b2
+GOWORK=off go mod tidy
+```
+
+---
