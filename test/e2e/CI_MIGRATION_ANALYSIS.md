@@ -1384,12 +1384,17 @@ The EKS scenario already had a proper `WithoutDDA()` function:
 
 ### Next Steps
 
-1. **Submit PR to datadog-agent** with the e2e-framework fix
-2. **Wait for merge and release** (new RC or patch version)
-3. **Update datadog-operator** to use the fixed e2e-framework version
-4. **Simplify workaround** in `test/e2e/provisioners/kind.go`:
-   - Replace "always pass namespace" workaround with proper `kindvm.WithoutDDA()` usage
-   - Only pass `WithOperatorDDAOptions()` when user explicitly provides DDA options
+1. ~~**Submit PR to datadog-agent** with the e2e-framework fix~~ ✅ Done (PR #45390)
+2. ~~**Wait for merge and release** (new RC or patch version)~~
+3. ~~**Update datadog-operator** to use the fixed e2e-framework version~~
+4. ~~**Simplify workaround** in `test/e2e/provisioners/kind.go`~~
+
+**Update (2026-01-23):** The e2e-framework fix (PR #45390) is **incomplete**. See "CI Failure Analysis" section below. The workaround is still required.
+
+**New Next Steps:**
+1. **Update e2e-framework PR #45390** to properly handle missing Agent export in stack output parsing
+2. Once the complete fix is released, update datadog-operator to use it
+3. Then remove the workaround from `kind.go`
 
 ### Fix Applied (2026-01-23)
 
@@ -1424,5 +1429,127 @@ GOWORK=off go mod tidy
 - Cleanup still manually deletes DDAs/DDAIs before Pulumi destroy (this is still necessary to avoid finalizer timeouts)
 
 **Note:** Once PR #45390 is merged and a new e2e-framework release is available (e.g., v0.76.0), update the dependency to the official version and remove the pseudo-version.
+
+---
+
+### CI Failure Analysis (2026-01-23) - Fix Incomplete
+
+**Commit:** `3928e1c5`
+**CI Status:** All 8 e2e jobs failed
+
+**Error Types:**
+1. **7 jobs**: GitHub rate limit exceeded (infrastructure issue, not code)
+2. **1 job (K8s 1.32)**: Actual test failure
+
+**Actual Test Error (K8s 1.32):**
+```
+unable to build env: *environments.Kubernetes from resources for stack: operator-awskind-1-32,
+err: resource named Agent has no import key set and no annotation
+```
+
+**Root Cause Analysis:**
+
+The e2e-framework fix (PR #45390) is **incomplete**. The fix correctly prevents DDA deployment when no options are passed, but it doesn't properly handle the `env.Agent` export:
+
+1. When `len(params.operatorDDAOptions) == 0`:
+   - DDA is NOT deployed (fix works ✓)
+   - `env.Agent.KubernetesAgentOutput` is NEVER exported (bug)
+   - Stack output parsing expects "Agent" export → FAILS
+
+2. The fix changes at line 281:
+   ```go
+   // Before: Agent is nil if EITHER agentOptions OR operatorDDAOptions is nil
+   if params.agentOptions == nil || (params.operatorDDAOptions == nil) {
+       env.Agent = nil
+   }
+
+   // After: Agent is nil only if BOTH conditions are true
+   if params.agentOptions == nil && len(params.operatorDDAOptions) == 0 {
+       env.Agent = nil
+   }
+   ```
+
+3. But the issue is that `env.Agent = nil` happens AFTER the Pulumi stack runs. The stack output parsing (which happens after `ctx.Run()`) still expects an "Agent" export that was never created.
+
+**Missing Fix in e2e-framework:**
+
+The stack output parsing code needs to handle the case where the "Agent" resource is not exported. The current code likely does something like:
+
+```go
+// Pseudo-code in e2e-framework
+outputs := stack.Outputs()
+agentOutput := outputs["Agent"] // This fails when Agent wasn't exported
+env.Agent.Import(agentOutput)
+```
+
+It should be:
+```go
+if agentOutput, ok := outputs["Agent"]; ok {
+    env.Agent.Import(agentOutput)
+} else {
+    env.Agent = nil
+}
+```
+
+**Conclusion:**
+
+The workaround in `kind.go` (always passing namespace when operator is deployed) was actually necessary because the e2e-framework fix is incomplete. We need to either:
+
+1. **Fix the e2e-framework properly** - Handle missing Agent export in stack output parsing
+2. **Revert to the workaround** - Always pass DDA options with namespace to ensure Agent export exists
+
+**Action Required:**
+
+~~Revert commit `3928e1c5` and restore the workaround until the e2e-framework fix is complete.~~
+
+**UPDATE (2026-01-23):** The e2e-framework fix has been completed. See section below.
+
+---
+
+### Complete e2e-framework Fix (2026-01-23)
+
+**The Issue:**
+
+The original e2e-framework fix (commit `47e4bc1576`) addressed the DDA deployment check but didn't properly handle the `env.Agent = nil` assignment. The issue was in `buildEnvFromResources()` which uses cached `reflect.Value` objects that were created **before** the Pulumi program ran.
+
+When the Pulumi program sets `env.Agent = nil`, the cached reflect.Value doesn't see this change because:
+1. `CreateEnv()` initializes nil pointer fields to non-nil zero values
+2. The `reflect.Value` objects are cached at this point
+3. The Pulumi program runs and sets `env.Agent = nil`
+4. `buildEnvFromResources()` uses the cached reflect.Values which still see the non-nil zero value
+5. It tries to import the Agent but fails because the key was never set (no export happened)
+
+**The Fix:**
+
+Added code in `reconcileEnv()` to refresh field values after provisioning:
+
+```go
+// After provisioning, refresh field values from newEnv to capture any changes made by provisioners
+// (e.g., setting fields to nil when certain components aren't deployed)
+envValue := reflect.ValueOf(newEnv)
+for idx, field := range newEnvFields {
+    newEnvValues[idx] = envValue.Elem().FieldByIndex(field.Index)
+}
+```
+
+**Commits in datadog-agent (PR #45390):**
+1. `47e4bc1576` - Original fix: DDA deployment check with `len() > 0` and `&&` instead of `||`
+2. `ef30aab44a` - Complete fix: Refresh field values after provisioning
+
+**Updated dependency in datadog-operator (`test/e2e/go.mod`):**
+```go
+// Previous (incomplete fix):
+github.com/DataDog/datadog-agent/test/e2e-framework v0.76.0-devel.0.20260122212456-47e4bc157670
+
+// Current (complete fix):
+github.com/DataDog/datadog-agent/test/e2e-framework v0.76.0-devel.0.20260123162216-ef30aab44a3e
+```
+
+**Update command:**
+```bash
+cd test/e2e
+GOWORK=off GOPROXY=direct GONOSUMDB='github.com/DataDog/*' go get github.com/DataDog/datadog-agent/test/e2e-framework@ef30aab44a
+GOWORK=off go mod tidy
+```
 
 ---
