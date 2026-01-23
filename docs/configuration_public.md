@@ -132,6 +132,9 @@ spec:
 `features.cspm.hostBenchmarks.enabled`
 : Enables host benchmarks. Default: true
 
+`features.cspm.runInSystemProbe`
+: RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent. This is an experimental feature. Contact support before using. Default: false
+
 `features.cws.customPolicies.configData`
 : ConfigData corresponds to the configuration file content.
 
@@ -146,6 +149,9 @@ spec:
 
 `features.cws.enabled`
 : Enables Cloud Workload Security. Default: false
+
+`features.cws.enforcement.enabled`
+: Enables Enforcement for Cloud Workload Security. Default: true
 
 `features.cws.network.enabled`
 : Enables Cloud Workload Security Network detections. Default: true
@@ -326,6 +332,9 @@ spec:
 
 `features.otelAgentGateway.enabled`
 : Enables the OTel Agent Gateway. Default: false
+
+`features.otelAgentGateway.featureGates`
+: FeatureGates are the feature gates to pass to the OTel collector as a comma-separated list. Example: "component.UseLocalHostAsDefaultHost,connector.datadogconnector.NativeIngest"
 
 `features.otelAgentGateway.ports`
 : Contains the ports that the OTel Collector is listening on. Defaults: otel-grpc:4317 / otel-http:4318.

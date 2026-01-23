@@ -13,6 +13,7 @@ const (
 	DDAPMErrorTrackingStandaloneEnabled = "DD_APM_ERROR_TRACKING_STANDALONE_ENABLED"
 	DDClusterAgentEnabled               = "DD_CLUSTER_AGENT_ENABLED"
 	DDClusterAgentKubeServiceName       = "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME"
+	DDClusterAgentURL                   = "DD_CLUSTER_AGENT_URL"
 	DDClusterAgentTokenName             = "DD_CLUSTER_AGENT_TOKEN_NAME"
 	DDAuthTokenFilePath                 = "DD_AUTH_TOKEN_FILE_PATH"
 	DDContainerCollectionEnabled        = "DD_PROCESS_CONFIG_CONTAINER_COLLECTION_ENABLED"

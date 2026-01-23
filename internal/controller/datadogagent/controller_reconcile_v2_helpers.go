@@ -56,6 +56,9 @@ func (r *Reconciler) manageGlobalDependencies(logger logr.Logger, dda *datadoghq
 	if err := global.ApplyGlobalComponentDependencies(logger, dda.GetObjectMeta(), &dda.Spec, &dda.Status, resourceManagers, datadoghqv2alpha1.ClusterChecksRunnerComponentName, requiredComponents.ClusterChecksRunner, false); len(err) > 0 {
 		errs = append(errs, err...)
 	}
+	if err := global.ApplyGlobalComponentDependencies(logger, dda.GetObjectMeta(), &dda.Spec, &dda.Status, resourceManagers, datadoghqv2alpha1.OtelAgentGatewayComponentName, requiredComponents.OtelAgentGateway, false); len(err) > 0 {
+		errs = append(errs, err...)
+	}
 
 	if len(errs) > 0 {
 		return errors.NewAggregate(errs)
@@ -223,6 +226,7 @@ func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, logger logr
 
 // applyAndCleanupDependencies applies pending changes and cleans up unused dependencies.
 func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, logger logr.Logger, depsStore *store.Store) error {
+	logger.V(1).Info("Applying pending dependencies and cleaning up unused dependencies")
 	var errs []error
 	errs = append(errs, depsStore.Apply(ctx, r.client)...)
 	if len(errs) > 0 {

@@ -16,9 +16,11 @@ import (
 	"k8s.io/apimachinery/pkg/version"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
@@ -86,6 +88,27 @@ func GetAgentVersion(dda metav1.Object) string {
 	return ""
 }
 
+// GetComponentVersion returns the component version based on the DDA spec.
+// It returns the default latest version if no override is specified.
+func GetComponentVersion(dda metav1.Object, componentName v2alpha1.ComponentName) string {
+	var spec *v2alpha1.DatadogAgentSpec
+	switch d := dda.(type) {
+	case *v2alpha1.DatadogAgent:
+		spec = &d.Spec
+	case *v1alpha1.DatadogAgentInternal:
+		spec = &d.Spec
+	default:
+		return images.AgentLatestVersion
+	}
+
+	if componentOverride, ok := spec.Override[componentName]; ok {
+		if componentOverride.Image != nil {
+			return GetAgentVersionFromImage(*componentOverride.Image)
+		}
+	}
+	return images.AgentLatestVersion
+}
+
 // GetDefaultSeccompConfigMapName returns the default seccomp configmap name based on the DatadogAgent name
 func GetDefaultSeccompConfigMapName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", constants.GetDDAName(dda), SystemProbeAgentSecurityConfigMapSuffixName)
@@ -133,6 +156,13 @@ func GetAgentLocalServiceSelector(dda metav1.Object) map[string]string {
 	return map[string]string{
 		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
 		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+	}
+}
+
+func GetOtelAgentGatewayServiceSelector(dda metav1.Object) map[string]string {
+	return map[string]string{
+		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
+		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultOtelAgentGatewayResourceSuffix,
 	}
 }
 

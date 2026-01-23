@@ -58,6 +58,7 @@ func generateObjMetaFromDDA(dda *v2alpha1.DatadogAgent, ddai *v1alpha1.DatadogAg
 		Namespace:   dda.Namespace,
 		Labels:      getDDAILabels(dda),
 		Annotations: ddaiAnnotations,
+		Finalizers:  []string{constants.DatadogAgentInternalFinalizer},
 	}
 	if err := object.SetOwnerReference(dda, ddai, scheme); err != nil {
 		return err

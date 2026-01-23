@@ -1,0 +1,17 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-errors
+spec:
+  global:
+    credentials:
+      apiSecret:
+        keyName: api-key
+        secretName: datadog-secret
+      appSecret:
+        keyName: app-key
+        secretName: datadog-secret
+    kubelet:
+      tlsVerify: false
+    logLevel: info
+    site: datadoghq.com
