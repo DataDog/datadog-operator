@@ -90,6 +90,8 @@ type DatadogFeatures struct {
 	ServiceDiscovery *ServiceDiscoveryFeatureConfig `json:"serviceDiscovery,omitempty"`
 	// GPU monitoring
 	GPU *GPUFeatureConfig `json:"gpu,omitempty"`
+	// PrivateActionRunner configuration.
+	PrivateActionRunner *PrivateActionRunnerFeatureConfig `json:"privateActionRunner,omitempty"`
 
 	// Cluster-level features
 
@@ -655,6 +657,19 @@ type GPUFeatureConfig struct {
 	// Default: false
 	// +optional
 	PatchCgroupPermissions *bool `json:"patchCgroupPermissions,omitempty"`
+}
+
+// PrivateActionRunnerFeatureConfig contains configuration for the Private Action Runner.
+type PrivateActionRunnerFeatureConfig struct {
+	// Enabled enables Private Action Runner.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// CustomConfig allows custom configuration for the Private Action Runner.
+	// This will be merged with the default configuration.
+	// +optional
+	CustomConfig *CustomConfig `json:"customConfig,omitempty"`
 }
 
 // DogstatsdFeatureConfig contains the Dogstatsd configuration parameters.

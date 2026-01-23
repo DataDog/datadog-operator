@@ -179,6 +179,10 @@ spec:
 | features.otlp.receiver.protocols.http.endpoint | For OTLP/HTTP. Default: '0.0.0.0:4318'. |
 | features.otlp.receiver.protocols.http.hostPortConfig.enabled | Enables host port configuration |
 | features.otlp.receiver.protocols.http.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
+| features.privateActionRunner.customConfig.configData | ConfigData corresponds to the configuration file content. |
+| features.privateActionRunner.customConfig.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
+| features.privateActionRunner.customConfig.configMap.name | Is the name of the ConfigMap. |
+| features.privateActionRunner.enabled | Enables Private Action Runner. Default: false |
 | features.processDiscovery.enabled | Enables the Process Discovery check in the Agent. Default: true |
 | features.prometheusScrape.additionalConfigs | AdditionalConfigs allows adding advanced Prometheus check configurations with custom discovery rules. |
 | features.prometheusScrape.enableServiceEndpoints | EnableServiceEndpoints enables generating dedicated checks for service endpoints. Default: false |

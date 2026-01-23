@@ -345,6 +345,18 @@ spec:
 `features.otlp`
 : OTLP ingest configuration See [link](https://docs.datadoghq.com/opentelemetry/setup/otlp_ingest_in_the_agent/?tab=kubernetesoperator) for more information.
 
+`features.privateActionRunner.customConfig.configData`
+: ConfigData corresponds to the configuration file content.
+
+`features.privateActionRunner.customConfig.configMap.items`
+: Maps a ConfigMap data `key` to a file `path` mount.
+
+`features.privateActionRunner.customConfig.configMap.name`
+: Is the name of the ConfigMap.
+
+`features.privateActionRunner.enabled`
+: Enables Private Action Runner. Default: false
+
 `features.processDiscovery.enabled`
 : Enables the Process Discovery check in the Agent. Default: true
 
