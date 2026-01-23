@@ -62,8 +62,8 @@ require (
 	github.com/google/go-containerregistry v0.6.0
 	github.com/google/jsonschema-go v0.3.0
 	github.com/hashicorp/go-retryablehttp v0.7.7
-	github.com/modelcontextprotocol/go-sdk v1.2.0
 	github.com/mattn/go-runewidth v0.0.16
+	github.com/modelcontextprotocol/go-sdk v1.2.0
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/prometheus/client_golang v1.22.0
 	github.com/samber/lo v1.49.1
