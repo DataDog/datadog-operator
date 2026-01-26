@@ -1621,3 +1621,73 @@ GOWORK=off go mod tidy
 ```
 
 ---
+
+### Complete `len()` Checks Fix (2026-01-26)
+
+**Commit in datadog-agent:** `8f43b93ebe`
+**Updated dependency in datadog-operator:** `v0.76.0-devel.0.20260126103706-8f43b93ebebb`
+
+**The Issue:**
+
+The previous fix (commit `8b71a5b8b2`) changed `agentOptions` initialization from empty slice to `nil`, but the CI still failed because there were 3 places in `run.go` that still used `!= nil` checks instead of `len() > 0`:
+
+- Line 79: `if params.agentOptions != nil {` - FakeIntake setup
+- Line 159: `if params.agentOptions != nil && !params.deployOperator {` - Agent deployment
+- Line 228: `if params.agentOptions != nil {` - Test workload deployment
+- Line 281: `if params.agentOptions == nil && ...` - env.Agent nil check
+
+**CI Failure Evidence:**
+
+```
+--- FAIL: TestMyKindSuite/TestClusterAgentInstalled (0.01s)
+    kind_test.go:54:
+        Error:      Should be true
+        Messages:   Cluster Agent not found
+```
+
+The cluster agent was NOT deployed because:
+1. `agentOptions` was now `nil` (correct)
+2. The check `params.agentOptions != nil` returned FALSE (nil == nil)
+3. Agent deployment was skipped
+4. Test expected cluster-agent pods but found none
+
+**The Fix:**
+
+Changed all `!= nil` checks to `len() > 0` and `== nil` to `len() == 0`:
+
+| Line | Before | After |
+|------|--------|-------|
+| 79 | `if params.agentOptions != nil {` | `if len(params.agentOptions) > 0 {` |
+| 159 | `if params.agentOptions != nil && !params.deployOperator {` | `if len(params.agentOptions) > 0 && !params.deployOperator {` |
+| 228 | `if params.agentOptions != nil {` | `if len(params.agentOptions) > 0 {` |
+| 281 | `if params.agentOptions == nil && len(...) == 0 {` | `if len(params.agentOptions) == 0 && len(...) == 0 {` |
+
+Also updated `kind_test.go` to explicitly request agent deployment:
+```go
+scenariokindvm.WithAgentOptions(kubernetesagentparams.WithClusterName("kind-test")),
+```
+
+**Summary of All e2e-framework Fixes (Complete):**
+
+| Commit | File | Change |
+|--------|------|--------|
+| `47e4bc1576` | `run_args.go:55` | Initialize `operatorDDAOptions` as `nil` instead of `[]Option{}` |
+| `47e4bc1576` | `run_args.go` | Add `WithoutDDA()` function |
+| `47e4bc1576` | `run.go:265` | Change check from `!= nil` to `len() > 0` for `operatorDDAOptions` |
+| `47e4bc1576` | `run.go:281` | Change check from `\|\|` to `&&` |
+| `ef30aab44a` | `suite.go:447-452` | Refresh field values after provisioning |
+| `8b71a5b8b2` | `run_args.go:50` | Initialize `agentOptions` as `nil` instead of `[]Option{}` |
+| **`8f43b93ebe`** | **`run.go:79,159,228`** | **Change `agentOptions != nil` to `len(params.agentOptions) > 0`** |
+| **`8f43b93ebe`** | **`run.go:281`** | **Change `agentOptions == nil` to `len(params.agentOptions) == 0`** |
+| **`8f43b93ebe`** | **`kind_test.go`** | **Add explicit `WithAgentOptions()` call** |
+
+**Update command:**
+```bash
+cd test/e2e
+GOWORK=off GOPROXY=direct GONOSUMDB='github.com/DataDog/*' go get github.com/DataDog/datadog-agent/test/e2e-framework@8f43b93ebe
+GOWORK=off go mod tidy
+```
+
+**Current Status:** ⏳ PENDING VERIFICATION
+
+---
