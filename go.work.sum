@@ -374,6 +374,7 @@ github.com/DataDog/datadog-api-client-go v1.16.0/go.mod h1:PgrP2ABuJWL3Auw2iEkem
 github.com/DataDog/datadog-go/v5 v5.8.1/go.mod h1:K9kcYBlxkcPP8tvvjZZKs/m1edNAUFzBbdpTUKfCsuw=
 github.com/DataDog/datadog-go/v5 v5.8.2 h1:9IEfH1Mw9AjWwhAMqCAkhbxjuJeMxm2ARX2VdgL+ols=
 github.com/DataDog/datadog-go/v5 v5.8.2/go.mod h1:K9kcYBlxkcPP8tvvjZZKs/m1edNAUFzBbdpTUKfCsuw=
+github.com/DataDog/datadog-operator/api v0.0.0-20250130131115-7f198adcc856/go.mod h1:Ef4llzn4c4p6FPZNjeYgIQFHa2va2JPC8Wf/kivrF2E=
 github.com/DataDog/dd-trace-go/v2 v2.4.1/go.mod h1:EEOkhOJlb37u+k07/9cwKCvtDC/mWjWnHrGkkk/iZCo=
 github.com/DataDog/extendeddaemonset v0.10.0-rc.4 h1:m88E+emuRHIqKgi7kHMd9N0S/NtruCCOISp3cjB7DNs=
 github.com/DataDog/go-libddwaf/v4 v4.6.1/go.mod h1:/AZqP6zw3qGJK5mLrA0PkfK3UQDk1zCI2fUNCt4xftE=
@@ -496,6 +497,7 @@ github.com/bitly/go-simplejson v0.5.0 h1:6IH+V8/tVMab511d5bn4M7EwGXZf9Hj6i2xSwkN
 github.com/bits-and-blooms/bitset v1.22.0/go.mod h1:7hO7Gc7Pp1vODcmWvKMRA9BNmbv6a/7QIWpPxHddWR8=
 github.com/bketelsen/crypt v0.0.4 h1:w/jqZtC9YD4DS/Vp9GhWfWcCpuAL58oTnLoI8vE9YHU=
 github.com/blakesmith/ar v0.0.0-20190502131153-809d4375e1fb/go.mod h1:PkYb9DJNAwrSvRx5DYA+gUcOIgTGVMNkfSCbZM8cWpI=
+github.com/blang/semver v3.5.1+incompatible h1:cQNTCjp13qL8KC3Nbxr/y2Bqb63oX6wdnnjpJbkM4JQ=
 github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 h1:DDGfHa7BWjL4YnC6+E63dPcxHo2sUxDIu8g3QgEJdRY=
 github.com/bradfitz/gomemcache v0.0.0-20230611145640-acc696258285 h1:Dr+ezPI5ivhMn/3WOoB86XzMhie146DNaBbhaQWZHMY=
 github.com/bradfitz/gomemcache v0.0.0-20230611145640-acc696258285/go.mod h1:H0wQNHz2YrLsuXOZozoeDmnHXkNCRmMW0gwFWDfEZDA=

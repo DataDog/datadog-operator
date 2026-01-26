@@ -74,14 +74,13 @@ build: manager kubectl-datadog ## Builds manager + kubectl plugin
 
 .PHONY: fmt
 fmt: bin/$(PLATFORM)/golangci-lint ## Run formatters against code
-	GOWORK=off go fmt ./...
-	GOWORK=off bin/$(PLATFORM)/golangci-lint run ./... --fix
-	cd api && GOWORK=off go fmt ./... && GOWORK=off ../bin/$(PLATFORM)/golangci-lint run ./... --fix
+	go fmt ./... ./api/...
+	bin/$(PLATFORM)/golangci-lint run ./... ./api/... --fix
 	cd test/e2e && GOWORK=off go fmt ./... && GOWORK=off ../../bin/$(PLATFORM)/golangci-lint run ./... --fix
 
 .PHONY: vet
 vet: ## Run go vet against code
-	GOWORK=off go vet ./...
+	go vet ./... ./api/...
 
 .PHONY: echo-img
 echo-img: ## Use `make -s echo-img` to get image string for other shell commands
@@ -118,9 +117,9 @@ endef
 
 .PHONY: manager
 manager: generate lint managergobuild ## Build manager binary
-	GOWORK=off go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
+	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
 managergobuild: ## Builds only manager go binary
-	GOWORK=off go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
+	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
 
 .PHONY: run
 run: generate lint manifests ## Run against the configured Kubernetes cluster in ~/.kube/config
@@ -148,11 +147,11 @@ manifests: generate-manifests patch-crds ## Generate manifestcd s e.g. CRD, RBAC
 
 .PHONY: generate-manifests
 generate-manifests: $(CONTROLLER_GEN)
-	GOWORK=off $(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=manager-role paths="./api/..." paths="./internal/controller/..." output:crd:artifacts:config=config/crd/bases/v1
+	$(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=manager-role paths="./api/..." paths="./internal/controller/..." output:crd:artifacts:config=config/crd/bases/v1
 
 .PHONY: generate
 generate: $(CONTROLLER_GEN) generate-openapi generate-docs ## Generate code
-	GOWORK=off $(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./api/..."
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./api/..."
 
 .PHONY: generate-docs
 generate-docs: manifests
@@ -202,11 +201,11 @@ test: build manifests generate fmt vet verify-licenses gotest integration-tests 
 
 .PHONY: gotest
 gotest:
-	GOWORK=off go test ./... -coverprofile cover.out
+	go test ./... -coverprofile cover.out
 
 .PHONY: integration-tests
 integration-tests: $(ENVTEST) ## Run integration tests with reconciler
-	GOWORK=off KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ROOT)/bin/$(PLATFORM) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/internal/controller -coverprofile cover_integration.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ROOT)/bin/$(PLATFORM) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/internal/controller -coverprofile cover_integration.out
 
 .PHONY: e2e-tests
 e2e-tests: ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.
@@ -315,9 +314,8 @@ patch-crds: bin/$(PLATFORM)/yq ## Patch-crds
 
 .PHONY: lint
 lint: bin/$(PLATFORM)/golangci-lint vet ## Lint
-	GOWORK=off bin/$(PLATFORM)/golangci-lint run ./...
-	cd api && ../bin/$(PLATFORM)/golangci-lint run ./...
-	cd test/e2e && ../../bin/$(PLATFORM)/golangci-lint run ./...
+	bin/$(PLATFORM)/golangci-lint run ./... ./api/...
+	cd test/e2e && GOWORK=off ../../bin/$(PLATFORM)/golangci-lint run ./...
 
 .PHONY: licenses
 licenses: bin/$(PLATFORM)/go-licenses
@@ -343,15 +341,15 @@ sync: ## Run go work sync
 	go work sync
 
 kubectl-datadog: lint
-	GOWORK=off go build -ldflags '${LDFLAGS}' -o bin/kubectl-datadog ./cmd/kubectl-datadog/main.go
+	go build -ldflags '${LDFLAGS}' -o bin/kubectl-datadog ./cmd/kubectl-datadog/main.go
 
 .PHONY: yaml-mapper
 yaml-mapper: fmt vet lint
-	GOWORK=off go build -ldflags '${LDFLAGS}' -o bin/yaml-mapper ./cmd/yaml-mapper/main.go
+	go build -ldflags '${LDFLAGS}' -o bin/yaml-mapper ./cmd/yaml-mapper/main.go
 
 .PHONY: check-operator
 check-operator: fmt vet lint
-	GOWORK=off go build -ldflags '${LDFLAGS}' -o bin/check-operator ./cmd/check-operator/main.go
+	go build -ldflags '${LDFLAGS}' -o bin/check-operator ./cmd/check-operator/main.go
 
 .PHONY: publish-community-bundles
 publish-community-bundles: ## Publish bundles to community repositories
@@ -359,7 +357,7 @@ publish-community-bundles: ## Publish bundles to community repositories
 
 .PHONY: annotate-gcp-manifest
 annotate-gcp-manifest: ## Annotate manifest for GCP marketplace
-	GOWORK=off go build -o bin/$(PLATFORM)/annotate-manifest ./marketplaces/charts/google-marketplace/cmd/annotate-manifest/main.go
+	go build -o bin/$(PLATFORM)/annotate-manifest ./marketplaces/charts/google-marketplace/cmd/annotate-manifest/main.go
 
 bin/$(PLATFORM)/yq: Makefile
 	hack/install-yq.sh v4.31.2

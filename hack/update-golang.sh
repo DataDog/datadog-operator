@@ -113,10 +113,11 @@ for file in $go_mod_files; do
     fi
 done
 
-# Run go mod tidy for each module (without workspace to avoid version sync)
+# Run go mod tidy for each module
 # This runs AFTER go mod edit so that go mod tidy can adjust the go version
 # if any dependency requires a higher version (e.g., 1.25.0 instead of 1.25)
 echo "Running go mod tidy for each module..."
-(cd "$ROOT" && GOWORK=off go mod tidy)
-(cd "$ROOT/api" && GOWORK=off go mod tidy)
+(cd "$ROOT" && go mod tidy)
+(cd "$ROOT/api" && go mod tidy)
+# test/e2e is not in go.work, so we need GOWORK=off
 (cd "$ROOT/test/e2e" && GOWORK=off go mod tidy)
