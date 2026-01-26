@@ -7,12 +7,13 @@ package k8ssuite
 
 import (
 	"fmt"
+	"strings"
+	"testing"
+
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
 	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
-	"strings"
-	"testing"
 )
 
 type localKindSuite struct {
@@ -29,7 +30,13 @@ func TestLocalKindSuite(t *testing.T) {
 	operatorOptions := []operatorparams.Option{
 		operatorparams.WithNamespace(common.NamespaceName),
 		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
-		operatorparams.WithHelmValues("installCRDs: false"),
+		operatorparams.WithHelmValues(`installCRDs: false
+rbac:
+  create: false
+serviceAccount:
+  create: false
+  name: datadog-operator-e2e-controller-manager
+`),
 	}
 
 	provisionerOptions := []provisioners.KubernetesProvisionerOption{

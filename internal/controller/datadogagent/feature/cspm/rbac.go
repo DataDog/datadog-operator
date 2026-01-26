@@ -28,7 +28,7 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 				rbac.ClusterRoleBindingResource,
 				rbac.RoleBindingResource,
 			},
-			Verbs: []string{rbac.ListVerb},
+			Verbs: []string{rbac.ListVerb, rbac.WatchVerb},
 		},
 		{
 			APIGroups: []string{rbac.NetworkingAPIGroup},

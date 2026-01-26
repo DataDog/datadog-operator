@@ -1342,7 +1342,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 			wantFunc: func(t *testing.T, c client.Client) {
 				expectedDDAI := getBaseDDAI(dda)
 				expectedDDAI.Annotations = map[string]string{
-					constants.MD5DDAIDeploymentAnnotationKey: "c7280f85b8590dcaa3668ea3b789053e",
+					constants.MD5DDAIDeploymentAnnotationKey: "14de5261867acd747eed18156cfec05e",
 				}
 
 				verifyDDAI(t, c, []v1alpha1.DatadogAgentInternal{expectedDDAI})
@@ -1374,7 +1374,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 				baseDDAI := getBaseDDAI(dda)
 				expectedDDAI := baseDDAI.DeepCopy()
 				expectedDDAI.Annotations = map[string]string{
-					constants.MD5DDAIDeploymentAnnotationKey: "5c83da6fcf791a4865951949af039537",
+					constants.MD5DDAIDeploymentAnnotationKey: "8a67dcccc7c2aa6a9bded5f2625d5611",
 				}
 				expectedDDAI.Spec.Features.ClusterChecks.UseClusterChecksRunners = apiutils.NewBoolPointer(true)
 				expectedDDAI.Spec.Global.Credentials = &v2alpha1.DatadogCredentials{
@@ -1450,7 +1450,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 				profileDDAI := getBaseDDAI(dda)
 				profileDDAI.Name = "foo-profile"
 				profileDDAI.Annotations = map[string]string{
-					constants.MD5DDAIDeploymentAnnotationKey: "74ddba33da89fb703cbe43718cb78e1e",
+					constants.MD5DDAIDeploymentAnnotationKey: "579deacef04ebeb98d0c521df83bd6c4",
 				}
 				profileDDAI.Labels[constants.ProfileLabelKey] = "foo-profile"
 				profileDDAI.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -1588,7 +1588,7 @@ func getBaseDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 func getDefaultDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 	expectedDDAI := getBaseDDAI(dda)
 	expectedDDAI.Annotations = map[string]string{
-		constants.MD5DDAIDeploymentAnnotationKey: "a79dfe841c72f0e71dea9cb26f3eb2a7",
+		constants.MD5DDAIDeploymentAnnotationKey: "106a6d5bc739891eac15a46435073cc4",
 	}
 	expectedDDAI.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 		v2alpha1.NodeAgentComponentName: {

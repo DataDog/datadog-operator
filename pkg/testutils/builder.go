@@ -13,6 +13,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
+	otelagentgatewaydefaultconfig "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelagentgateway/defaultconfig"
 	otelcollectordefaultconfig "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector/defaultconfig"
 	"github.com/DataDog/datadog-operator/pkg/images"
 )
@@ -478,6 +479,60 @@ func (builder *DatadogAgentBuilder) initOtelAgentGateway() {
 func (builder *DatadogAgentBuilder) WithOTelAgentGatewayEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initOtelAgentGateway()
 	builder.datadogAgent.Spec.Features.OtelAgentGateway.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTelAgentGatewayConfig() *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.OtelAgentGateway.Conf = &v2alpha1.CustomConfig{}
+	builder.datadogAgent.Spec.Features.OtelAgentGateway.Conf.ConfigData = apiutils.NewStringPointer(otelagentgatewaydefaultconfig.DefaultOtelAgentGatewayConfig)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTelAgentGatewayConfigMap() *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.OtelAgentGateway.Conf = &v2alpha1.CustomConfig{}
+	builder.datadogAgent.Spec.Features.OtelAgentGateway.Conf.ConfigMap = &v2alpha1.ConfigMapConfig{
+		Name: "user-provided-config-map",
+	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTelAgentGatewayConfigMapMultipleItems() *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.OtelAgentGateway.Conf = &v2alpha1.CustomConfig{}
+	builder.datadogAgent.Spec.Features.OtelAgentGateway.Conf.ConfigMap = &v2alpha1.ConfigMapConfig{
+		Name: "user-provided-config-map",
+		Items: []corev1.KeyToPath{
+			{
+				Key:  "otel-gateway-config.yaml",
+				Path: "otel-gateway-config.yaml",
+			},
+			{
+				Key:  "otel-config-two.yaml",
+				Path: "otel-config-two.yaml",
+			},
+		},
+	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTelAgentGatewayPorts(grpcPort int32, httpPort int32) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.OtelAgentGateway.Ports = []*corev1.ContainerPort{
+		{
+			Name:          "otel-grpc",
+			ContainerPort: grpcPort,
+			Protocol:      corev1.ProtocolTCP,
+		},
+		{
+			Name:          "otel-http",
+			ContainerPort: httpPort,
+			Protocol:      corev1.ProtocolTCP,
+		},
+	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTelAgentGatewayFeatureGates(featureGates string) *DatadogAgentBuilder {
+	builder.initOtelAgentGateway()
+	builder.datadogAgent.Spec.Features.OtelAgentGateway.FeatureGates = &featureGates
 	return builder
 }
 

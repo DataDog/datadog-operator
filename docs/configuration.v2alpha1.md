@@ -83,6 +83,7 @@ spec:
 | features.cspm.customBenchmarks.configMap.name | Is the name of the ConfigMap. |
 | features.cspm.enabled | Enables Cloud Security Posture Management. Default: false |
 | features.cspm.hostBenchmarks.enabled | Enables host benchmarks. Default: true |
+| features.cspm.runInSystemProbe | RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent. This is an experimental feature. Contact support before using. Default: false |
 | features.cws.customPolicies.configData | ConfigData corresponds to the configuration file content. |
 | features.cws.customPolicies.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | features.cws.customPolicies.configMap.name | Is the name of the ConfigMap. |
@@ -160,6 +161,7 @@ spec:
 | features.otelAgentGateway.conf.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | features.otelAgentGateway.conf.configMap.name | Is the name of the ConfigMap. |
 | features.otelAgentGateway.enabled | Enables the OTel Agent Gateway. Default: false |
+| features.otelAgentGateway.featureGates | FeatureGates are the feature gates to pass to the OTel collector as a comma-separated list. Example: "component.UseLocalHostAsDefaultHost,connector.datadogconnector.NativeIngest" |
 | features.otelAgentGateway.ports | Contains the ports that the OTel Collector is listening on. Defaults: otel-grpc:4317 / otel-http:4318. |
 | features.otelCollector.conf.configData | ConfigData corresponds to the configuration file content. |
 | features.otelCollector.conf.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |

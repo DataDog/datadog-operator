@@ -8,6 +8,7 @@ package datadogagentinternal
 import (
 	"context"
 	"fmt"
+	"maps"
 	"time"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -21,9 +22,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -96,6 +99,14 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, ddai *v1
 			}
 			logger.Info("Deployment owner reference patched")
 		}
+
+		if restartDeployment(deployment, currentDeployment) {
+			if err = deleteObjectAndOrphanDependents(context.TODO(), logger, r.client, deployment, deployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
+				return result, err
+			}
+			return result, nil
+		}
+
 		// check if same hash
 		needUpdate := !comparison.IsSameSpecMD5Hash(hash, currentDeployment.GetAnnotations())
 		if !needUpdate {
@@ -195,6 +206,14 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, ddai *v1a
 			}
 			logger.Info("Daemonset owner reference patched")
 		}
+
+		if restartDaemonset(daemonset, currentDaemonset) {
+			if err = deleteObjectAndOrphanDependents(context.TODO(), logger, r.client, daemonset, constants.DefaultAgentResourceSuffix); err != nil {
+				return result, err
+			}
+			return result, nil
+		}
+
 		now := metav1.Now()
 
 		// When overriding node labels in <1.7.0, the hash could be updated
@@ -442,4 +461,32 @@ func IsEqualStatus(current *v1alpha1.DatadogAgentInternalStatus, newStatus *v1al
 	}
 
 	return condition.IsEqualConditions(current.Conditions, newStatus.Conditions)
+}
+
+func restartDaemonset(daemonset, currentDaemonset *appsv1.DaemonSet) bool {
+	// name change
+	if daemonset.Name != currentDaemonset.Name {
+		return true
+	}
+
+	// selectors are immutable
+	if !maps.Equal(daemonset.Spec.Selector.MatchLabels, currentDaemonset.Spec.Selector.MatchLabels) {
+		return true
+	}
+
+	return false
+}
+
+func restartDeployment(deployment, currentDeployment *appsv1.Deployment) bool {
+	// name change
+	if deployment.Name != currentDeployment.Name {
+		return true
+	}
+
+	// selectors are immutable
+	if !maps.Equal(deployment.Spec.Selector.MatchLabels, currentDeployment.Spec.Selector.MatchLabels) {
+		return true
+	}
+
+	return false
 }

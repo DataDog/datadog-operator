@@ -1154,6 +1154,12 @@ spec:
                                     Default: true
                                   type: boolean
                               type: object
+                            runInSystemProbe:
+                              description: |-
+                                RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent.
+                                This is an experimental feature. Contact support before using.
+                                Default: false
+                              type: boolean
                           type: object
                         cws:
                           description: CWS (Cloud Workload Security) configuration.
@@ -2013,6 +2019,11 @@ spec:
                                 Enabled enables the OTel Agent Gateway.
                                 Default: false
                               type: boolean
+                            featureGates:
+                              description: |-
+                                FeatureGates are the feature gates to pass to the OTel collector as a comma-separated list.
+                                Example: "component.UseLocalHostAsDefaultHost,connector.datadogconnector.NativeIngest"
+                              type: string
                             ports:
                               description: |-
                                 Ports contains the ports that the OTel Collector is listening on.

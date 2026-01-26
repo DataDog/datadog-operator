@@ -18,6 +18,9 @@ import (
 //     kind: Deployment
 //     name: test
 //   owner: local
+//   options:
+//     outOfMemory:
+//       bumpUpRatio: "1.2"
 //   remoteVersion: 1
 //   applyPolicy:
 //     mode: Apply | Preview
@@ -121,6 +124,10 @@ type DatadogPodAutoscalerSpec struct {
 
 	// Constraints defines constraints that should always be respected.
 	Constraints *common.DatadogPodAutoscalerConstraints `json:"constraints,omitempty"`
+
+	// Options defines optional behavior modifications for the autoscaler.
+	// +optional
+	Options *common.DatadogPodAutoscalerOptions `json:"options,omitempty"`
 }
 
 // DatadogPodAutoscalerApplyMode specifies if the controller should apply recommendations.
