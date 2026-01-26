@@ -1688,6 +1688,81 @@ GOWORK=off GOPROXY=direct GONOSUMDB='github.com/DataDog/*' go get github.com/Dat
 GOWORK=off go mod tidy
 ```
 
+**Status:** ❌ FAILED - Lint errors (see next section)
+
+---
+
+### Fix WithClusterName Type (2026-01-26)
+
+**Commit in datadog-agent:** `8cd1089fae`
+**Updated dependency in datadog-operator:** `v0.76.0-devel.0.20260126111401-8cd1089faecf`
+
+**The Issue:**
+
+The previous commit (`8f43b93ebe`) added `kubernetesagentparams.WithClusterName("kind-test")` to `kind_test.go`, but the lint CI failed with:
+
+```
+cannot use "kind-test" (untyped string constant) as pulumi.StringOutput value in argument to kubernetesagentparams.WithClusterName
+```
+
+**Root Cause:**
+
+`WithClusterName` was defined to accept `pulumi.StringOutput`:
+```go
+func WithClusterName(clusterName pulumi.StringOutput) func(*Params) error {
+```
+
+But we passed a plain string `"kind-test"`. In Go, a plain string cannot be implicitly converted to `pulumi.StringOutput`.
+
+**The Fix:**
+
+Changed `WithClusterName` to accept the more flexible `pulumi.StringInput` type, which accepts:
+- `pulumi.String("value")` for plain strings
+- `pulumi.StringOutput` for dynamic values
+
+**Changes:**
+
+1. **params.go (line 102):**
+   ```go
+   // Before:
+   func WithClusterName(clusterName pulumi.StringOutput) func(*Params) error {
+
+   // After:
+   func WithClusterName(clusterName pulumi.StringInput) func(*Params) error {
+   ```
+
+2. **kind_test.go (line 38):**
+   ```go
+   // Before:
+   kubernetesagentparams.WithClusterName("kind-test")
+
+   // After:
+   kubernetesagentparams.WithClusterName(pulumi.String("kind-test"))
+   ```
+
+**Summary of All e2e-framework Fixes (Complete):**
+
+| Commit | File | Change |
+|--------|------|--------|
+| `47e4bc1576` | `run_args.go:55` | Initialize `operatorDDAOptions` as `nil` instead of `[]Option{}` |
+| `47e4bc1576` | `run_args.go` | Add `WithoutDDA()` function |
+| `47e4bc1576` | `run.go:265` | Change check from `!= nil` to `len() > 0` for `operatorDDAOptions` |
+| `47e4bc1576` | `run.go:281` | Change check from `\|\|` to `&&` |
+| `ef30aab44a` | `suite.go:447-452` | Refresh field values after provisioning |
+| `8b71a5b8b2` | `run_args.go:50` | Initialize `agentOptions` as `nil` instead of `[]Option{}` |
+| `8f43b93ebe` | `run.go:79,159,228` | Change `agentOptions != nil` to `len(params.agentOptions) > 0` |
+| `8f43b93ebe` | `run.go:281` | Change `agentOptions == nil` to `len(params.agentOptions) == 0` |
+| `8f43b93ebe` | `kind_test.go` | Add explicit `WithAgentOptions()` call |
+| **`8cd1089fae`** | **`params.go:102`** | **Change `WithClusterName` param from `StringOutput` to `StringInput`** |
+| **`8cd1089fae`** | **`kind_test.go`** | **Use `pulumi.String("kind-test")` instead of plain string** |
+
+**Update command:**
+```bash
+cd test/e2e
+GOWORK=off GOPROXY=direct GONOSUMDB='github.com/DataDog/*' go get github.com/DataDog/datadog-agent/test/e2e-framework@8cd1089fae
+GOWORK=off go mod tidy
+```
+
 **Current Status:** ⏳ PENDING VERIFICATION
 
 ---
