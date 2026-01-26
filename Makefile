@@ -74,13 +74,13 @@ build: manager kubectl-datadog ## Builds manager + kubectl plugin
 
 .PHONY: fmt
 fmt: bin/$(PLATFORM)/golangci-lint ## Run formatters against code
-	go fmt ./... ./api/...
+	go fmt ./...
 	bin/$(PLATFORM)/golangci-lint run ./... ./api/... --fix
 	cd test/e2e && GOWORK=off go fmt ./... && GOWORK=off ../../bin/$(PLATFORM)/golangci-lint run ./... --fix
 
 .PHONY: vet
 vet: ## Run go vet against code
-	go vet ./... ./api/...
+	go vet ./...
 
 .PHONY: echo-img
 echo-img: ## Use `make -s echo-img` to get image string for other shell commands
