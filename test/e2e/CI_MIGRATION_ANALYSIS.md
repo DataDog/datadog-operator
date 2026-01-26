@@ -1763,6 +1763,98 @@ GOWORK=off GOPROXY=direct GONOSUMDB='github.com/DataDog/*' go get github.com/Dat
 GOWORK=off go mod tidy
 ```
 
-**Current Status:** ⏳ PENDING VERIFICATION
+**Current Status:** ✅ VERIFIED - e2e tests pass with commit `65f01c1c`
+
+---
+
+## 2026-01-26: Simplification - Removing `./test/e2e` from `go.work`
+
+### Motivation
+
+The original PR required many `GOWORK=off` workarounds because `go.work` included modules with conflicting Kubernetes versions:
+
+| Module | k8s.io/api version |
+|--------|-------------------|
+| `.` (main) | v0.33.3 |
+| `./api` | v0.33.3 |
+| `./test/e2e` | **v0.35.0-alpha.0** ← Conflict |
+
+Go workspace mode unifies to the highest version, causing type incompatibilities.
+
+### Solution: Remove `./test/e2e` from `go.work`
+
+**Simplified go.work:**
+```go
+go 1.25.5
+toolchain go1.25.5
+
+use (
+    .
+    ./api
+)
+// Note: ./test/e2e removed to avoid K8s version conflicts
+```
+
+### Commits
+
+| Commit | Description |
+|--------|-------------|
+| `2dcdcc6b` | Initial simplification - remove test/e2e from go.work |
+| `1fbe59cf` | Incorrect fix - added api replace directive (reverted) |
+| `7c7aad01` | Restore `go work sync` in update-golang.sh |
+| `4f0d6fab` | Update go.sum after `go work sync` |
+| `fb515eb2` | Fix: go fmt/vet only work on single module |
+
+### CI Errors Encountered and Fixed
+
+#### Error 1: check-golang-version - go.sum changes
+
+**Error:**
+```
+Git diff failed. Exit code 1 indicates changes in go.sum
+```
+
+**Root Cause:** `go work sync` behavior changed when test/e2e was removed from workspace. It now adds checksums for api module to go.sum.
+
+**Fix:** Run `go work sync` locally and commit the updated go.sum.
+
+#### Error 2: check_formatting - go fmt across modules
+
+**Error:**
+```
+pattern ./api/...: directory prefix api does not contain main module
+```
+
+**Root Cause:** Changed `go fmt ./...` to `go fmt ./... ./api/...` but `go fmt` cannot work across module boundaries. Only `golangci-lint` can handle multiple modules.
+
+**Fix:** Revert to `go fmt ./...` and `go vet ./...` (single module only).
+
+### Final Diff Comparison with Main
+
+| File | Insertions | Deletions | Net |
+|------|------------|-----------|-----|
+| Dockerfile | +0 | -4 | -4 |
+| check-operator.Dockerfile | +0 | -4 | -4 |
+| Makefile | +9 | -4 | +5 |
+| hack/update-golang.sh | +6 | -4 | +2 |
+| go.sum | +1 | -0 | +1 (api checksum) |
+| **Total** | **+16** | **-16** | **0** |
+
+**Infrastructure files net change: ~0 lines** (excluding test/e2e directory changes)
+
+### What Was Simplified
+
+1. **Dockerfiles** - No longer need to handle test/e2e module
+2. **hack/update-golang.sh** - Restored `go work sync`, only added GOWORK=off for test/e2e
+3. **go.mod** - No `api => ./api` replace directive needed (workspace handles it)
+
+### What Still Requires GOWORK=off
+
+Only test/e2e specific commands need `GOWORK=off`:
+- `cd test/e2e && GOWORK=off go fmt ./...`
+- `cd test/e2e && GOWORK=off golangci-lint run ./...`
+- `cd test/e2e && GOWORK=off go mod tidy`
+
+### Current Status: ⏳ CI IN PROGRESS (commit `fb515eb2`)
 
 ---
