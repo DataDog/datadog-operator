@@ -37,6 +37,11 @@ func GetDefaultClusterAgentRolePolicyRules(dda metav1.Object) []rbacv1.PolicyRul
 		},
 		Verbs: []string{rbac.GetVerb},
 	})
+	rules = append(rules, rbacv1.PolicyRule{
+		APIGroups: []string{rbac.DatadogAPIGroup},
+		Resources: []string{rbac.DatadogServiceMonitorsResource},
+		Verbs:     []string{rbac.GetVerb, rbac.ListVerb, rbac.WatchVerb, rbac.CreateVerb, rbac.UpdateVerb, rbac.PatchVerb, rbac.DeleteVerb},
+	})
 	return rules
 }
 
@@ -93,6 +98,10 @@ func GetDefaultClusterAgentClusterRolePolicyRules(_ metav1.Object) []rbacv1.Poli
 				rbac.GetVerb,
 				rbac.ListVerb,
 				rbac.WatchVerb,
+				rbac.CreateVerb,
+				rbac.UpdateVerb,
+				rbac.PatchVerb,
+				rbac.DeleteVerb,
 			},
 		},
 		{
@@ -117,6 +126,12 @@ func GetDefaultClusterAgentClusterRolePolicyRules(_ metav1.Object) []rbacv1.Poli
 				common.KubeSystemResourceName,
 			},
 			Verbs: []string{rbac.GetVerb},
+		},
+		{
+			// DatadogServiceMonitors for APM auto-instrumentation
+			APIGroups: []string{rbac.DatadogAPIGroup},
+			Resources: []string{rbac.DatadogServiceMonitorsResource},
+			Verbs:     []string{rbac.GetVerb, rbac.ListVerb, rbac.WatchVerb, rbac.CreateVerb, rbac.UpdateVerb, rbac.PatchVerb, rbac.DeleteVerb},
 		},
 	}
 }
