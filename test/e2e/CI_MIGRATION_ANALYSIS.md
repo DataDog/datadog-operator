@@ -1871,10 +1871,25 @@ Only test/e2e specific commands need `GOWORK=off`:
 - `cd test/e2e && GOWORK=off go fmt ./...`
 - `cd test/e2e && GOWORK=off golangci-lint run ./...`
 - `cd test/e2e && GOWORK=off go mod tidy`
+- `GOWORK=off go test -C test/e2e/ ./...` (e2e-tests target)
 
-### Current Status: ✅ ALL CORE CI CHECKS PASSED (commit `e38c71b0`)
+### CI Errors (continued)
 
-**GitLab CI Results:**
+#### Error 4: e2e tests - go.work module not found
+
+**Error:**
+```
+pattern ./...: directory prefix . does not contain modules listed in go.work or their selected dependencies
+make: *** [Makefile:212: e2e-tests] Error 1
+```
+
+**Root Cause:** The `e2e-tests` Makefile target runs `go test -C test/e2e/ ./...`, but since `test/e2e` was removed from `go.work`, Go workspace mode fails because the current directory is not part of the workspace.
+
+**Fix:** Add `GOWORK=off` to the `go test` commands in the `e2e-tests` target (commit `TBD`).
+
+### Current Status: ⏳ CI IN PROGRESS - fixing e2e-tests (commit `369e22df`)
+
+**Previous GitLab CI Results (core checks):**
 | Job | Status |
 |-----|--------|
 | build | ✅ PASS |
@@ -1882,9 +1897,8 @@ Only test/e2e specific commands need `GOWORK=off`:
 | check_formatting | ✅ PASS |
 | generate_code | ✅ PASS |
 | unit_tests | ✅ PASS |
+| e2e: [all versions] | ❌ FAIL (Error 4) |
 
 **GitHub Actions:** All checks passed (Build, CodeQL, validation, pull request linter)
-
-**Remaining:** Image build jobs (build_operator_image_*, etc.) - these are infrastructure jobs not affected by code changes.
 
 ---
