@@ -100,8 +100,11 @@ else
     echo "Warning: $actions_directory not found, skipping."
 fi
 
+# Run go work sync for workspace modules
+echo "Running go work sync..."
+go work sync
+
 # Update go.mod files with base go version and toolchain
-# Note: go mod tidy runs AFTER this to allow it to bump the go version if dependencies require it
 go_mod_files="$ROOT/go.mod $ROOT/test/e2e/go.mod $ROOT/api/go.mod"
 for file in $go_mod_files; do
     if [[ -f $file ]]; then
@@ -113,11 +116,6 @@ for file in $go_mod_files; do
     fi
 done
 
-# Run go mod tidy for each module
-# This runs AFTER go mod edit so that go mod tidy can adjust the go version
-# if any dependency requires a higher version (e.g., 1.25.0 instead of 1.25)
-echo "Running go mod tidy for each module..."
-(cd "$ROOT" && go mod tidy)
-(cd "$ROOT/api" && go mod tidy)
-# test/e2e is not in go.work, so we need GOWORK=off
+# test/e2e is not in go.work, so we need to run go mod tidy separately
+echo "Running go mod tidy for test/e2e module..."
 (cd "$ROOT/test/e2e" && GOWORK=off go mod tidy)
