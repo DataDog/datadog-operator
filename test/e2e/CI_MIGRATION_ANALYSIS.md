@@ -1829,6 +1829,23 @@ pattern ./api/...: directory prefix api does not contain main module
 
 **Fix:** Revert to `go fmt ./...` and `go vet ./...` (single module only).
 
+#### Error 3: verify-licenses - LICENSE-3rdparty.csv outdated
+
+**Error:**
+```
+License outdated:
+diff --git a/LICENSE-3rdparty.csv b/LICENSE-3rdparty.csv
+```
+
+**Root Cause:** The branch had an outdated `LICENSE-3rdparty.csv` that didn't match what `make licenses` generates. This happens because dependencies changed and the license file was not updated.
+
+**Changes needed:**
+- Add: `github.com/DataDog/viper`, `github.com/google/go-cmp/cmp`, `github.com/google/shlex`, etc.
+- Remove: `github.com/aws/aws-sdk-go-v2/service/signin`, `sigs.k8s.io/structured-merge-diff/v6`
+- Update: `github.com/cyphar/filepath-securejoin` license from MPL-2.0 to BSD-3-Clause
+
+**Fix:** Sync `LICENSE-3rdparty.csv` from main branch which has the updated version (commit `c4261eef`).
+
 ### Final Diff Comparison with Main
 
 | File | Insertions | Deletions | Net |
@@ -1855,6 +1872,6 @@ Only test/e2e specific commands need `GOWORK=off`:
 - `cd test/e2e && GOWORK=off golangci-lint run ./...`
 - `cd test/e2e && GOWORK=off go mod tidy`
 
-### Current Status: ⏳ CI IN PROGRESS (commit `fb515eb2`)
+### Current Status: ⏳ CI IN PROGRESS (commit `c4261eef`)
 
 ---
