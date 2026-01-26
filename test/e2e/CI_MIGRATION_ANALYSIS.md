@@ -1885,20 +1885,51 @@ make: *** [Makefile:212: e2e-tests] Error 1
 
 **Root Cause:** The `e2e-tests` Makefile target runs `go test -C test/e2e/ ./...`, but since `test/e2e` was removed from `go.work`, Go workspace mode fails because the current directory is not part of the workspace.
 
-**Fix:** Add `GOWORK=off` to the `go test` commands in the `e2e-tests` target (commit `TBD`).
+**Fix:** Add `GOWORK=off` to the `go test` commands in the `e2e-tests` target.
 
-### Current Status: ⏳ CI IN PROGRESS - fixing e2e-tests (commit `369e22df`)
+**Commit:** `a33afe9e`
 
-**Previous GitLab CI Results (core checks):**
-| Job | Status |
-|-----|--------|
-| build | ✅ PASS |
-| check-golang-version | ✅ PASS |
-| check_formatting | ✅ PASS |
-| generate_code | ✅ PASS |
-| unit_tests | ✅ PASS |
-| e2e: [all versions] | ❌ FAIL (Error 4) |
+**Status:** ✅ FIXED
+
+---
+
+### Current Status: ✅ CODE COMPLETE - Infrastructure issue pending
+
+**Latest Commit:** `a33afe9e` (Fix CI: add GOWORK=off to e2e-tests Makefile target)
+
+**CI Results (2026-01-26):**
+
+| Job | Status | Notes |
+|-----|--------|-------|
+| build | ✅ PASS | |
+| check-golang-version | ✅ PASS | |
+| check_formatting | ✅ PASS | |
+| generate_code | ✅ PASS | |
+| unit_tests | ✅ PASS | |
+| e2e: [1.19] | ✅ PASS | |
+| e2e: [1.22] | ✅ PASS | |
+| e2e: [1.24] | ✅ PASS | |
+| e2e: [1.25] | ✅ PASS | |
+| e2e: [1.26] | ✅ PASS | |
+| e2e: [1.29] | ✅ PASS | |
+| e2e: [1.30] | ✅ PASS | |
+| e2e: [1.32] | ❌ FAIL | Docker Hub rate limit (infrastructure) |
+| devflow/mergegate | ✅ PASS | |
 
 **GitHub Actions:** All checks passed (Build, CodeQL, validation, pull request linter)
+
+#### K8s 1.32 Failure Analysis
+
+**Error:**
+```
+ImagePullBackOff error: Unable to pull nginx:1.14.2. Encountered 429 Too Many Requests due to unauthenticated pull rate limit.
+```
+
+**Root Cause:** Docker Hub rate limiting for unauthenticated image pulls. This is an **infrastructure issue**, NOT a code problem.
+
+**Verdict:** The code fix is complete. The e2e test failure on K8s 1.32 is due to Docker Hub rate limiting, which is a transient infrastructure issue that can be resolved by:
+1. Retrying the CI job after rate limit window passes
+2. Using authenticated Docker Hub pulls (requires infrastructure configuration)
+3. Mirroring the nginx image to an internal registry
 
 ---
