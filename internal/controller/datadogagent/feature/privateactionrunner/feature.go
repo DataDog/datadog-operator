@@ -6,6 +6,8 @@
 package privateactionrunner
 
 import (
+	"strings"
+
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,7 +15,9 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 func init() {
@@ -32,8 +36,10 @@ func buildPrivateActionRunnerFeature(options *feature.Options) feature.Feature {
 }
 
 type privateActionRunnerFeature struct {
-	owner  metav1.Object
-	logger logr.Logger
+	owner            metav1.Object
+	logger           logr.Logger
+	selfEnroll       *bool
+	actionsAllowlist []string
 }
 
 // ID returns the ID of the Feature
@@ -49,6 +55,11 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 	if ddaSpec.Features != nil &&
 		ddaSpec.Features.PrivateActionRunner != nil &&
 		apiutils.BoolValue(ddaSpec.Features.PrivateActionRunner.Enabled) {
+
+		// Store configuration properties
+		parConfig := ddaSpec.Features.PrivateActionRunner
+		f.selfEnroll = parConfig.SelfEnroll
+		f.actionsAllowlist = parConfig.ActionsAllowlist
 
 		return feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
@@ -79,11 +90,40 @@ func (f *privateActionRunnerFeature) ManageClusterAgent(managers feature.PodTemp
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// Add environment variable to enable private action runner
-	enableEnvVar := &corev1.EnvVar{
-		Name:  "DD_PRIVATE_ACTION_RUNNER_ENABLED",
+	managers.EnvVar().AddEnvVarToContainer(apicommon.PrivateActionRunnerContainerName, &corev1.EnvVar{
+		Name:  "DD_PRIVATEACTIONRUNNER_ENABLED",
 		Value: "true",
+	})
+	
+	// Configure self enroll if specified
+	if f.selfEnroll != nil {
+		selfEnroll := "false"
+		if *f.selfEnroll {
+			selfEnroll = "true"
+		}
+		managers.EnvVar().AddEnvVarToContainer(apicommon.PrivateActionRunnerContainerName, &corev1.EnvVar{
+			Name:  "DD_PRIVATEACTIONRUNNER_SELF_ENROLL",
+			Value: selfEnroll,
+		})
 	}
-	managers.EnvVar().AddEnvVarToContainer(apicommon.PrivateActionRunnerContainerName, enableEnvVar)
+
+	// Configure actions allowlist if specified
+	if len(f.actionsAllowlist) > 0 {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.PrivateActionRunnerContainerName, &corev1.EnvVar{
+			Name:  "DD_PRIVATEACTIONRUNNER_ACTIONS_ALLOWLIST",
+			Value: strings.Join(f.actionsAllowlist, ","),
+		})
+	}
+
+	// Add DD_HOSTNAME with fieldRef to spec.nodeName for hostname detection
+	managers.EnvVar().AddEnvVarToContainer(apicommon.PrivateActionRunnerContainerName, &corev1.EnvVar{
+		Name: constants.DDHostName,
+		ValueFrom: &corev1.EnvVarSource{
+			FieldRef: &corev1.ObjectFieldSelector{
+				FieldPath: common.FieldPathSpecNodeName,
+			},
+		},
+	})
 
 	return nil
 }

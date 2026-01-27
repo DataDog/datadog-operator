@@ -2252,6 +2252,11 @@ spec:
                     privateActionRunner:
                       description: PrivateActionRunner configuration.
                       properties:
+                        actionsAllowlist:
+                          description: ActionsAllowlist specifies the list of actions that are allowed to be executed.
+                          items:
+                            type: string
+                          type: array
                         customConfig:
                           description: |-
                             CustomConfig allows custom configuration for the Private Action Runner.
@@ -2305,6 +2310,9 @@ spec:
                           description: |-
                             Enabled enables Private Action Runner.
                             Default: false
+                          type: boolean
+                        selfEnroll:
+                          description: SelfEnroll enables automatic self-enrollment for the Private Action Runner.
                           type: boolean
                       type: object
                     processDiscovery:
@@ -10354,6 +10362,11 @@ spec:
                         privateActionRunner:
                           description: PrivateActionRunner configuration.
                           properties:
+                            actionsAllowlist:
+                              description: ActionsAllowlist specifies the list of actions that are allowed to be executed.
+                              items:
+                                type: string
+                              type: array
                             customConfig:
                               description: |-
                                 CustomConfig allows custom configuration for the Private Action Runner.
@@ -10407,6 +10420,9 @@ spec:
                               description: |-
                                 Enabled enables Private Action Runner.
                                 Default: false
+                              type: boolean
+                            selfEnroll:
+                              description: SelfEnroll enables automatic self-enrollment for the Private Action Runner.
                               type: boolean
                           type: object
                         processDiscovery:

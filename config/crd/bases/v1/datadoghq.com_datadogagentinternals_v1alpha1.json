@@ -2361,6 +2361,13 @@
               "additionalProperties": false,
               "description": "PrivateActionRunner configuration.",
               "properties": {
+                "actionsAllowlist": {
+                  "description": "ActionsAllowlist specifies the list of actions that are allowed to be executed.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
                 "customConfig": {
                   "additionalProperties": false,
                   "description": "CustomConfig allows custom configuration for the Private Action Runner.\nThis will be merged with the default configuration.",
@@ -2417,6 +2424,10 @@
                 },
                 "enabled": {
                   "description": "Enabled enables Private Action Runner.\nDefault: false",
+                  "type": "boolean"
+                },
+                "selfEnroll": {
+                  "description": "SelfEnroll enables automatic self-enrollment for the Private Action Runner.",
                   "type": "boolean"
                 }
               },
@@ -10281,6 +10292,13 @@
                   "additionalProperties": false,
                   "description": "PrivateActionRunner configuration.",
                   "properties": {
+                    "actionsAllowlist": {
+                      "description": "ActionsAllowlist specifies the list of actions that are allowed to be executed.",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
                     "customConfig": {
                       "additionalProperties": false,
                       "description": "CustomConfig allows custom configuration for the Private Action Runner.\nThis will be merged with the default configuration.",
@@ -10337,6 +10355,10 @@
                     },
                     "enabled": {
                       "description": "Enabled enables Private Action Runner.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "selfEnroll": {
+                      "description": "SelfEnroll enables automatic self-enrollment for the Private Action Runner.",
                       "type": "boolean"
                     }
                   },
