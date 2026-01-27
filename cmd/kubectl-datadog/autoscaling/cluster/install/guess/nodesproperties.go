@@ -23,7 +23,7 @@ const nodeListChunkSize = 100
 // Format: aws:///ZONE/INSTANCE_ID (e.g., aws:///us-east-1a/i-0abc123def456789)
 var awsProviderIDRegexp = regexp.MustCompile(`^aws:///[^/]+/(i-[0-9a-f]+)$`)
 
-func GetNodesProperties(ctx context.Context, clientset *kubernetes.Clientset, ec2Client *ec2.Client) (*NodePoolsSet, error) {
+func GetNodesProperties(ctx context.Context, clientset kubernetes.Interface, ec2Client *ec2.Client) (*NodePoolsSet, error) {
 	nps := NewNodePoolsSet()
 
 	var cont string
