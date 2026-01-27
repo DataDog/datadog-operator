@@ -860,7 +860,7 @@ func volumeMountsForSystemProbe() []corev1.VolumeMount {
 func volumeMountsForPrivateActionRunner() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		common.GetVolumeMountForLogs(),
-		common.GetVolumeMountForAuth(true),
+		common.GetVolumeMountForAuth(false),
 		common.GetVolumeMountForConfig(),
 		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForTmp(),
