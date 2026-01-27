@@ -8,6 +8,10 @@ package npm
 import (
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -16,10 +20,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
-
-	"github.com/google/go-cmp/cmp"
-	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
 )
 
 func Test_npmFeature_Configure(t *testing.T) {
@@ -38,6 +38,9 @@ func Test_npmFeature_Configure(t *testing.T) {
 	ddaNPMEnabledConfig := ddaNPMEnabled.DeepCopy()
 	ddaNPMEnabledConfig.Spec.Features.NPM.CollectDNSStats = apiutils.NewBoolPointer(true)
 	ddaNPMEnabledConfig.Spec.Features.NPM.EnableConntrack = apiutils.NewBoolPointer(false)
+
+	ddaCNMDirectSendEnabledConfig := ddaNPMEnabled.DeepCopy()
+	ddaCNMDirectSendEnabledConfig.Spec.Features.NPM.DirectSend = apiutils.NewBoolPointer(true)
 
 	npmFeatureEnvVarWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -202,6 +205,51 @@ func Test_npmFeature_Configure(t *testing.T) {
 		processAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ProcessAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(processAgentEnvVars, processWantEnvVars), "Process Agent envvars \ndiff = %s", cmp.Diff(processAgentEnvVars, processWantEnvVars))
 	}
+	cnmDirectSendWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+		mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+		for _, c := range mgr.Tpl.Spec.Containers {
+			if c.Name == string(apicommon.ProcessAgentContainerName) {
+				assert.Fail(t, "process-agent should not have a container")
+			}
+		}
+
+		processEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ProcessAgentContainerName]
+		assert.True(t, apiutils.IsEqualStruct(processEnvVars, nil), "Process agent envvars \ndiff = %s", cmp.Diff(processEnvVars, nil))
+
+		processAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.ProcessAgentContainerName]
+		assert.True(t, apiutils.IsEqualStruct(processAgentMounts, nil), "Process Agent volume mounts \ndiff = %s", cmp.Diff(processAgentMounts, nil))
+
+		// check env vars
+		sysProbeWantEnvVars := []*corev1.EnvVar{
+			{
+				Name:  DDSystemProbeNPMEnabled,
+				Value: "true",
+			},
+			{
+				Name:  common.DDSystemProbeEnabled,
+				Value: "true",
+			},
+			{
+				Name:  common.DDSystemProbeSocket,
+				Value: common.DefaultSystemProbeSocketPath,
+			},
+			{
+				Name:  DDSystemProbeCollectDNSStatsEnabled,
+				Value: "false",
+			},
+			{
+				Name:  DDSystemProbeConntrackEnabled,
+				Value: "false",
+			},
+			{
+				Name:  DDSystemProbeCNMDirectSend,
+				Value: "true",
+			},
+		}
+		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
+		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, sysProbeWantEnvVars), "4. System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, sysProbeWantEnvVars))
+	}
 
 	tests := test.FeatureTestSuite{
 		{
@@ -220,6 +268,12 @@ func Test_npmFeature_Configure(t *testing.T) {
 			DDA:           ddaNPMEnabledConfig,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(npmFeatureEnvVarWantFunc),
+		},
+		{
+			Name:          "CNM enabled, Direct Send enabled",
+			DDA:           ddaCNMDirectSendEnabledConfig,
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(cnmDirectSendWantFunc),
 		},
 	}
 

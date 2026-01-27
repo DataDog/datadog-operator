@@ -63,7 +63,9 @@ func (f *usmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			},
 		}
 
-		f.directSend = apiutils.BoolValue(ddaSpec.Features.NPM.DirectSend)
+		if ddaSpec.Features.NPM != nil {
+			f.directSend = apiutils.BoolValue(ddaSpec.Features.NPM.DirectSend)
+		}
 	}
 
 	return reqComp
