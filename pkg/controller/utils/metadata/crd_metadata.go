@@ -29,6 +29,7 @@ const (
 )
 
 type CRDMetadataForwarder struct {
+	*BaseForwarder
 	*SharedMetadata
 
 	enabledCRDs EnabledCRDKindsConfig
@@ -45,10 +46,7 @@ type CRDMetadataPayload struct {
 }
 
 type CRDMetadata struct {
-	// Shared
-	OperatorVersion   string `json:"operator_version"`
-	KubernetesVersion string `json:"kubernetes_version"`
-	ClusterID         string `json:"cluster_id"`
+	SharedMetadata
 
 	CRDKind            string `json:"crd_kind"`
 	CRDName            string `json:"crd_name"`
@@ -79,10 +77,21 @@ type EnabledCRDKindsConfig struct {
 }
 
 // NewCRDMetadataForwarder creates a new instance of the CRD metadata forwarder
+// Returns nil if shared metadata cannot be initialized
 func NewCRDMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string, credsManager *config.CredentialManager, config EnabledCRDKindsConfig) *CRDMetadataForwarder {
 	forwarderLogger := logger.WithName("crd")
+
+	sharedMetadata, err := NewSharedMetadata(operatorVersion, kubernetesVersion, k8sClient)
+	if err != nil {
+		forwarderLogger.Info("Failed to initialize shared metadata", "error", err)
+		return nil
+	}
+
+	baseForwarder := NewBaseForwarder(forwarderLogger, k8sClient, credsManager)
+
 	return &CRDMetadataForwarder{
-		SharedMetadata: NewSharedMetadata(forwarderLogger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
+		BaseForwarder:  baseForwarder,
+		SharedMetadata: sharedMetadata,
 		enabledCRDs:    config,
 		crdCache:       make(map[string]string),
 	}
@@ -126,12 +135,7 @@ func (cmf *CRDMetadataForwarder) sendMetadata() error {
 }
 
 func (cmf *CRDMetadataForwarder) sendCRDMetadata(crdInstance CRDInstance) error {
-	clusterUID, err := cmf.GetOrCreateClusterUID()
-	if err != nil {
-		return fmt.Errorf("error getting cluster UID: %w", err)
-	}
-
-	payload := cmf.buildPayload(clusterUID, crdInstance)
+	payload := cmf.buildPayload(crdInstance)
 
 	cmf.logger.V(1).Info("Sending metadata HTTP request",
 		"kind", crdInstance.Kind,
@@ -179,7 +183,7 @@ func (cmf *CRDMetadataForwarder) marshalToJSON(data interface{}, fieldName strin
 	return jsonBytes
 }
 
-func (cmf *CRDMetadataForwarder) buildPayload(clusterUID string, crdInstance CRDInstance) []byte {
+func (cmf *CRDMetadataForwarder) buildPayload(crdInstance CRDInstance) []byte {
 	now := time.Now().Unix()
 
 	specJSON := cmf.marshalToJSON(crdInstance.Spec, "spec", crdInstance)
@@ -187,9 +191,7 @@ func (cmf *CRDMetadataForwarder) buildPayload(clusterUID string, crdInstance CRD
 	annotationsJSON := cmf.marshalToJSON(crdInstance.Annotations, "annotations", crdInstance)
 
 	crdMetadata := CRDMetadata{
-		OperatorVersion:    cmf.operatorVersion,
-		KubernetesVersion:  cmf.kubernetesVersion,
-		ClusterID:          clusterUID,
+		SharedMetadata:     *cmf.SharedMetadata,
 		CRDKind:            crdInstance.Kind,
 		CRDName:            crdInstance.Name,
 		CRDNamespace:       crdInstance.Namespace,
@@ -201,9 +203,9 @@ func (cmf *CRDMetadataForwarder) buildPayload(clusterUID string, crdInstance CRD
 	}
 
 	payload := CRDMetadataPayload{
-		UUID:      clusterUID,
+		UUID:      cmf.SharedMetadata.ClusterID,
 		Timestamp: now,
-		ClusterID: clusterUID,
+		ClusterID: cmf.SharedMetadata.ClusterID,
 		Metadata:  crdMetadata,
 	}
 
