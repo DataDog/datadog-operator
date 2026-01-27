@@ -197,7 +197,7 @@ func runFullReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	ddais := &v1alpha1.DatadogAgentInternalList{}
 	err = c.List(context.TODO(), ddais)
 	assert.NoError(t, err, "Failed to list datadogagentinternal")
-	assert.NotEqual(t, 0, len(ddais.Items), "Expected at least 1 ddai")
+	assert.NotEmpty(t, ddais.Items, "Expected at least 1 ddai")
 	for _, ddai := range ddais.Items {
 		got, err = ri.Reconcile(context.TODO(), &ddai)
 		assert.NoError(t, err, "Failed to reconcile datadogagentinternal")
