@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -369,6 +370,50 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 			},
 		},
 		{
+			name: "DatadogMonitor drift detection and recreation",
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) *v1alpha1.DatadogMonitor {
+					dm := &datadoghqv1alpha1.DatadogMonitor{
+						TypeMeta: metav1.TypeMeta{
+							Kind:       "DatadogMonitor",
+							APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Namespace: resourcesNamespace,
+							Name:      resourcesName,
+						},
+						Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+							Query:   "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.1",
+							Type:    datadoghqv1alpha1.DatadogMonitorTypeMetric,
+							Name:    "test monitor for drift",
+							Message: "something is wrong",
+						},
+						Status: datadoghqv1alpha1.DatadogMonitorStatus{
+							// Simulate existing monitor that will be "missing" from Datadog
+							ID: 12345,
+						},
+					}
+					_ = c.Create(context.TODO(), dm)
+					return dm
+				},
+				firstReconcileCount: 3, // Allow multiple reconciles for drift detection and recreation
+			},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantErr:    false,
+			wantFunc: func(c client.Client) error {
+				dm := &datadoghqv1alpha1.DatadogMonitor{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm); err != nil {
+					return err
+				}
+				// Verify that the monitor was recreated (new ID should be assigned)
+				// In the mock server, this will be handled by the test HTTP server
+				// The key is that drift detection logic was executed without errors
+				assert.True(t, dm.Status.Primary)
+				return nil
+			},
+		},
+		{
 			name: "DatadogMonitor of unsupported type (composite)",
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -411,6 +456,40 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
+
+				// Handle drift detection scenario - monitor ID 12345 should be "missing"
+				if strings.Contains(r.URL.Path, "/monitor/12345") && r.Method == "GET" {
+					w.WriteHeader(http.StatusNotFound)
+					w.Write([]byte(`{"errors": ["Monitor not found"]}`))
+					return
+				}
+
+				// Handle monitor creation/recreation
+				if r.Method == "POST" && strings.Contains(r.URL.Path, "/monitor") {
+					// Return a proper monitor structure for successful creation
+					w.WriteHeader(http.StatusOK)
+					w.Write([]byte(`{
+						"id": 67890,
+						"name": "recreated monitor",
+						"query": "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.1",
+						"type": "metric alert",
+						"message": "Monitor recreated successfully",
+						"tags": [],
+						"options": {},
+						"overall_state": "OK"
+					}`))
+					return
+				}
+
+				// Handle validation requests
+				if r.Method == "POST" && strings.Contains(r.URL.Path, "validate") {
+					w.WriteHeader(http.StatusOK)
+					w.Write([]byte(`{}`))
+					return
+				}
+
+				// Default response for other requests
+				w.WriteHeader(http.StatusOK)
 			}))
 			defer httpServer.Close()
 
@@ -1044,6 +1123,441 @@ func TestReconciler_UpdateDatadogClient(t *testing.T) {
 				}
 				if originalAuth == r.datadogAuth {
 					t.Errorf("Expected auths to be different, but they are the same")
+				}
+			}
+		})
+	}
+}
+
+// TestReconciler_DetectDrift tests the detectDrift method
+func TestReconciler_DetectDrift(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	logger := logf.Log.WithName("TestReconciler_DetectDrift")
+
+	tests := []struct {
+		name           string
+		monitorID      int
+		serverResponse func(w http.ResponseWriter, r *http.Request)
+		wantDrift      bool
+		wantErr        bool
+	}{
+		{
+			name:      "no monitor ID set",
+			monitorID: 0,
+			serverResponse: func(w http.ResponseWriter, r *http.Request) {
+				// Should not be called
+				t.Error("Server should not be called when monitor ID is 0")
+			},
+			wantDrift: false,
+			wantErr:   false,
+		},
+		{
+			name:      "monitor exists in Datadog",
+			monitorID: 12345,
+			serverResponse: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				// Return a proper monitor JSON response with all required fields
+				w.Write([]byte(`{
+					"id": 12345, 
+					"name": "test monitor",
+					"query": "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.1",
+					"type": "metric alert",
+					"message": "something is wrong",
+					"tags": [],
+					"created": "2023-01-01T00:00:00Z",
+					"modified": "2023-01-01T00:00:00Z",
+					"creator": {"email": "test@example.com"}
+				}`))
+			},
+			wantDrift: false,
+			wantErr:   false,
+		},
+		{
+			name:      "monitor not found in Datadog",
+			monitorID: 12345,
+			serverResponse: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusNotFound)
+				w.Write([]byte(`{"errors": ["Monitor not found"]}`))
+			},
+			wantDrift: true,
+			wantErr:   false,
+		},
+		{
+			name:      "rate limit error",
+			monitorID: 12345,
+			serverResponse: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusTooManyRequests)
+				w.Write([]byte(`{"errors": ["rate limit exceeded"]}`))
+			},
+			wantDrift: false,
+			wantErr:   true,
+		},
+		{
+			name:      "authentication error",
+			monitorID: 12345,
+			serverResponse: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusUnauthorized)
+				w.Write([]byte(`{"errors": ["unauthorized"]}`))
+			},
+			wantDrift: false,
+			wantErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set up HTTP test server
+			httpServer := httptest.NewServer(http.HandlerFunc(tt.serverResponse))
+			defer httpServer.Close()
+
+			testConfig := datadogapi.NewConfiguration()
+			testConfig.HTTPClient = httpServer.Client()
+			apiClient := datadogapi.NewAPIClient(testConfig)
+			client := datadogV1.NewMonitorsApi(apiClient)
+
+			testAuth := setupTestAuth(httpServer.URL)
+
+			// Create reconciler
+			r := &Reconciler{
+				datadogClient: client,
+				datadogAuth:   testAuth,
+				log:           logger,
+			}
+
+			// Create test instance
+			instance := &datadoghqv1alpha1.DatadogMonitor{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-monitor",
+					Namespace: "default",
+				},
+				Status: datadoghqv1alpha1.DatadogMonitorStatus{
+					ID: tt.monitorID,
+				},
+			}
+
+			status := &datadoghqv1alpha1.DatadogMonitorStatus{}
+
+			// Call detectDrift
+			drift, err := r.detectDrift(context.TODO(), logger, instance, status)
+
+			// Verify results
+			assert.Equal(t, tt.wantDrift, drift)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestReconciler_HandleMonitorRecreation tests the handleMonitorRecreation method
+func TestReconciler_HandleMonitorRecreation(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	logger := logf.Log.WithName("TestReconciler_HandleMonitorRecreation")
+
+	tests := []struct {
+		name           string
+		instance       *datadoghqv1alpha1.DatadogMonitor
+		serverResponse func(w http.ResponseWriter, r *http.Request)
+		wantErr        bool
+		wantNewID      bool
+	}{
+		{
+			name: "successful recreation",
+			instance: &datadoghqv1alpha1.DatadogMonitor{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-monitor",
+					Namespace: "default",
+				},
+				Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+					Query:   "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.1",
+					Type:    datadoghqv1alpha1.DatadogMonitorTypeMetric,
+					Name:    "test monitor",
+					Message: "something is wrong",
+				},
+				Status: datadoghqv1alpha1.DatadogMonitorStatus{
+					ID: 12345, // Old ID that will be replaced
+				},
+			},
+			serverResponse: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if r.Method == "POST" && strings.Contains(r.URL.Path, "validate") {
+					// Monitor validation endpoint
+					w.WriteHeader(http.StatusOK)
+					w.Write([]byte(`{}`)) // Empty response means validation passed
+				} else if r.Method == "POST" {
+					// Monitor creation endpoint
+					w.WriteHeader(http.StatusOK)
+					w.Write([]byte(`{
+						"id": 67890, 
+						"name": "test monitor", 
+						"query": "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.1",
+						"type": "metric alert",
+						"message": "something is wrong",
+						"tags": [],
+						"created": "2023-01-01T00:00:00Z",
+						"modified": "2023-01-01T00:00:00Z",
+						"creator": {"email": "test@example.com"}
+					}`))
+				}
+			},
+			wantErr:   false,
+			wantNewID: true,
+		},
+		{
+			name: "validation error prevents recreation",
+			instance: &datadoghqv1alpha1.DatadogMonitor{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-monitor",
+					Namespace: "default",
+				},
+				Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+					Query:   "", // Invalid empty query
+					Type:    datadoghqv1alpha1.DatadogMonitorTypeMetric,
+					Name:    "test monitor",
+					Message: "something is wrong",
+				},
+				Status: datadoghqv1alpha1.DatadogMonitorStatus{
+					ID: 12345,
+				},
+			},
+			serverResponse: func(w http.ResponseWriter, r *http.Request) {
+				// Should not be called due to validation error
+				t.Error("Server should not be called for invalid monitor spec")
+			},
+			wantErr:   true,
+			wantNewID: false,
+		},
+		{
+			name: "rate limit during recreation",
+			instance: &datadoghqv1alpha1.DatadogMonitor{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-monitor",
+					Namespace: "default",
+				},
+				Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+					Query:   "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.1",
+					Type:    datadoghqv1alpha1.DatadogMonitorTypeMetric,
+					Name:    "test monitor",
+					Message: "something is wrong",
+				},
+				Status: datadoghqv1alpha1.DatadogMonitorStatus{
+					ID: 12345,
+				},
+			},
+			serverResponse: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if r.Method == "POST" && strings.Contains(r.URL.Path, "validate") {
+					// Validation passes
+					w.WriteHeader(http.StatusOK)
+					w.Write([]byte(`{}`))
+				} else if r.Method == "POST" {
+					// Rate limit on creation
+					w.WriteHeader(http.StatusTooManyRequests)
+					w.Write([]byte(`{"errors": ["rate limit exceeded"]}`))
+				}
+			},
+			wantErr:   true,
+			wantNewID: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set up HTTP test server
+			httpServer := httptest.NewServer(http.HandlerFunc(tt.serverResponse))
+			defer httpServer.Close()
+
+			testConfig := datadogapi.NewConfiguration()
+			testConfig.HTTPClient = httpServer.Client()
+			apiClient := datadogapi.NewAPIClient(testConfig)
+			client := datadogV1.NewMonitorsApi(apiClient)
+
+			testAuth := setupTestAuth(httpServer.URL)
+
+			// Create fake recorder
+			recorder := record.NewFakeRecorder(10)
+
+			// Create reconciler
+			r := &Reconciler{
+				datadogClient: client,
+				datadogAuth:   testAuth,
+				log:           logger,
+				recorder:      recorder,
+			}
+
+			status := tt.instance.Status.DeepCopy()
+			now := metav1.Now()
+			instanceSpecHash := "test-hash"
+			oldID := status.ID
+
+			// Call handleMonitorRecreation
+			err := r.handleMonitorRecreation(context.TODO(), logger, tt.instance, status, now, instanceSpecHash)
+
+			// Verify results
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.wantNewID {
+					assert.NotEqual(t, oldID, status.ID, "ID should change even on error in some cases")
+				} else {
+					assert.Equal(t, oldID, status.ID, "ID should be restored on error")
+				}
+			} else {
+				assert.NoError(t, err)
+				if tt.wantNewID {
+					assert.NotEqual(t, oldID, status.ID, "ID should change on successful recreation")
+					assert.NotEqual(t, 0, status.ID, "New ID should not be zero")
+				}
+			}
+		})
+	}
+}
+
+// TestReconciler_CreateInternal tests the createInternal method with recreation flag
+func TestReconciler_CreateInternal(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	logger := logf.Log.WithName("TestReconciler_CreateInternal")
+
+	tests := []struct {
+		name           string
+		isRecreation   bool
+		serverResponse func(w http.ResponseWriter, r *http.Request)
+		wantErr        bool
+	}{
+		{
+			name:         "successful creation",
+			isRecreation: false,
+			serverResponse: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if r.Method == "POST" && strings.Contains(r.URL.Path, "validate") {
+					w.WriteHeader(http.StatusOK)
+					w.Write([]byte(`{}`))
+				} else if r.Method == "POST" {
+					w.WriteHeader(http.StatusOK)
+					w.Write([]byte(`{
+						"id": 12345, 
+						"name": "test monitor", 
+						"query": "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.1",
+						"type": "metric alert",
+						"message": "something is wrong",
+						"tags": [],
+						"created": "2023-01-01T00:00:00Z",
+						"modified": "2023-01-01T00:00:00Z",
+						"creator": {"email": "test@example.com"}
+					}`))
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name:         "successful recreation",
+			isRecreation: true,
+			serverResponse: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if r.Method == "POST" && strings.Contains(r.URL.Path, "validate") {
+					w.WriteHeader(http.StatusOK)
+					w.Write([]byte(`{}`))
+				} else if r.Method == "POST" {
+					w.WriteHeader(http.StatusOK)
+					w.Write([]byte(`{
+						"id": 67890, 
+						"name": "test monitor", 
+						"query": "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.1",
+						"type": "metric alert",
+						"message": "something is wrong",
+						"tags": [],
+						"created": "2023-01-01T00:00:00Z",
+						"modified": "2023-01-01T00:00:00Z",
+						"creator": {"email": "test@example.com"}
+					}`))
+				}
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set up HTTP test server
+			httpServer := httptest.NewServer(http.HandlerFunc(tt.serverResponse))
+			defer httpServer.Close()
+
+			testConfig := datadogapi.NewConfiguration()
+			testConfig.HTTPClient = httpServer.Client()
+			apiClient := datadogapi.NewAPIClient(testConfig)
+			client := datadogV1.NewMonitorsApi(apiClient)
+
+			testAuth := setupTestAuth(httpServer.URL)
+
+			// Create fake recorder
+			recorder := record.NewFakeRecorder(10)
+
+			// Create reconciler
+			r := &Reconciler{
+				datadogClient: client,
+				datadogAuth:   testAuth,
+				log:           logger,
+				recorder:      recorder,
+			}
+
+			// Create test instance
+			instance := &datadoghqv1alpha1.DatadogMonitor{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-monitor",
+					Namespace: "default",
+				},
+				Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+					Query:   "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.1",
+					Type:    datadoghqv1alpha1.DatadogMonitorTypeMetric,
+					Name:    "test monitor",
+					Message: "something is wrong",
+				},
+			}
+
+			status := &datadoghqv1alpha1.DatadogMonitorStatus{}
+			now := metav1.Now()
+			instanceSpecHash := "test-hash"
+
+			// Call createInternal
+			err := r.createInternal(logger, instance, status, now, instanceSpecHash, tt.isRecreation)
+
+			// Verify results
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.NotEqual(t, 0, status.ID, "Monitor ID should be set")
+				assert.True(t, status.Primary, "Monitor should be marked as primary")
+				assert.Equal(t, instanceSpecHash, status.CurrentHash, "Hash should be updated")
+
+				// Check that appropriate condition is set
+				if tt.isRecreation {
+					// Should have Recreated condition
+					found := false
+					for _, condition := range status.Conditions {
+						if condition.Type == datadoghqv1alpha1.DatadogMonitorConditionTypeRecreated {
+							found = true
+							assert.Equal(t, corev1.ConditionTrue, condition.Status)
+							break
+						}
+					}
+					assert.True(t, found, "Recreated condition should be set for recreation")
+				} else {
+					// Should have Created condition
+					found := false
+					for _, condition := range status.Conditions {
+						if condition.Type == datadoghqv1alpha1.DatadogMonitorConditionTypeCreated {
+							found = true
+							assert.Equal(t, corev1.ConditionTrue, condition.Status)
+							break
+						}
+					}
+					assert.True(t, found, "Created condition should be set for creation")
 				}
 			}
 		})

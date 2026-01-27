@@ -303,6 +303,10 @@ const (
 	DatadogMonitorConditionTypeUpdated DatadogMonitorConditionType = "Updated"
 	// DatadogMonitorConditionTypeError means the DatadogMonitor has an error
 	DatadogMonitorConditionTypeError DatadogMonitorConditionType = "Error"
+	// DatadogMonitorConditionTypeDriftDetected means drift was detected between the resource and Datadog
+	DatadogMonitorConditionTypeDriftDetected DatadogMonitorConditionType = "DriftDetected"
+	// DatadogMonitorConditionTypeRecreated means the DatadogMonitor was recreated due to drift
+	DatadogMonitorConditionTypeRecreated DatadogMonitorConditionType = "Recreated"
 )
 
 // DatadogMonitorState represents the overall DatadogMonitor state
