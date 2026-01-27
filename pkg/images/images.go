@@ -45,8 +45,6 @@ const (
 	DefaultAgentImageName                string = "agent"
 	DefaultClusterAgentImageName         string = "cluster-agent"
 	DefaultDdotCollectorImageName        string = "ddot-collector"
-	DefaultHostProfilerDevImageName      string = "ddot-ebpf-dev"
-	DefaultHostProfilerDevImageLatestTag string = "nightly-latest"
 )
 
 // imageHasTag identifies whether an image string contains a tag suffix
