@@ -88,9 +88,8 @@ serviceAccount:
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
 
-		kubeConfig := s.Env().KubernetesCluster.KubeConfig
-		if kubeConfig != "" {
-			if err := utils.DeleteAllDatadogResourcesWithKubeConfig(ctx, kubeConfig, common.NamespaceName, 5*time.Minute); err != nil {
+		if k8sConfig := s.Env().KubernetesCluster.KubernetesClient.K8sConfig; k8sConfig != nil {
+			if err := utils.DeleteAllDatadogResources(ctx, k8sConfig, common.NamespaceName); err != nil {
 				t.Logf("Warning: failed to delete Datadog resources during cleanup: %v", err)
 			}
 		}

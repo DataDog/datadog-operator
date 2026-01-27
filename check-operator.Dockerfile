@@ -11,10 +11,14 @@ COPY go.work.sum go.work.sum
 COPY api/go.mod api/go.mod
 COPY api/go.sum api/go.sum
 
+COPY test/e2e/go.mod test/e2e/go.mod
+COPY test/e2e/go.sum test/e2e/go.sum
 # cache deps before building and copying source so that we don't need to re-download as much
 # and so that source changes don't invalidate our downloaded layer
 RUN go mod download
 WORKDIR /workspace/api
+RUN go mod download
+WORKDIR /workspace/test/e2e
 RUN go mod download
 WORKDIR /workspace
 

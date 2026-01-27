@@ -33,8 +33,6 @@ serviceAccount:
 `),
 	}
 
-	// Initial test setup deploys the operator without a DDA.
-	// The DDA is deployed by individual subtests in k8s_suite_test.go via UpdateEnv().
 	provisionerOptions := []provisioners.KubernetesProvisionerOption{
 		provisioners.WithTestName("e2e-operator"),
 		provisioners.WithOperatorOptions(operatorOptions...),

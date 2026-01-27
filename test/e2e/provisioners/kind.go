@@ -179,8 +179,7 @@ func WithDDAOptions(opts ...agentwithoperatorparams.Option) KubernetesProvisione
 	}
 }
 
-// WithoutDDA removes the DatadogAgent resource and prevents DDA deployment.
-// This is used during cleanup to avoid deploying a new DDA before Pulumi stack destroy.
+// WithoutDDA removes the DatadogAgent resource
 func WithoutDDA() KubernetesProvisionerOption {
 	return func(params *KubernetesProvisionerParams) error {
 		params.ddaOptions = nil
@@ -352,7 +351,7 @@ func localKindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params 
 		}
 	}
 
-	// Setup DDA options (only if DDA options are explicitly provided)
+	// Setup DDA options
 	if len(params.ddaOptions) > 0 && params.operatorOptions != nil {
 		ddaResourceOpts := []pulumi.ResourceOption{
 			pulumi.DependsOn([]pulumi.Resource{e2eKustomize, operatorComp}),
