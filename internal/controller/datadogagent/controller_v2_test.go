@@ -198,10 +198,11 @@ func runFullReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	err = c.List(context.TODO(), ddais)
 	assert.NoError(t, err, "Failed to list datadogagentinternal")
 	assert.NotEmpty(t, ddais.Items, "Expected at least 1 ddai")
-	for _, ddai := range ddais.Items {
-		got, err = ri.Reconcile(context.TODO(), &ddai)
-		assert.NoError(t, err, "Failed to reconcile datadogagentinternal")
-	}
+		for i := range ddais.Items {
+			ddai := &ddais.Items[i]
+			_, err := ri.Reconcile(context.TODO(), ddai)
+			assert.NoError(t, err, "Failed to reconcile datadogagentinternal")
+		}
 
 	// Assert on error expectation
 	if tt.wantErr {
@@ -571,9 +572,9 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 					// Condition will be set in DDAI if full reconciler is used.
 					ddai := &v1alpha1.DatadogAgentInternal{}
 					err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, ddai)
+					assert.NoError(t, client.IgnoreNotFound(err), "Unexpected error getting resource")
 					assert.Nil(t, ddai.Status.ClusterAgent, "DCA status should be nil when cleaned up")
 					assert.Nil(t, condition.GetDDAICondition(&ddai.Status, common.ClusterAgentReconcileConditionType), "DCA status condition should be nil when cleaned up")
-					assert.NoError(t, client.IgnoreNotFound(err), "Unexpected error getting resource")
 					conflictCondition = condition.GetDDAICondition(&ddai.Status, common.OverrideReconcileConflictConditionType)
 				} else {
 					// Condition will be set via DDA reconciler.
