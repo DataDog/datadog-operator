@@ -666,6 +666,7 @@ type DogstatsdFeatureConfig struct {
 	OriginDetectionEnabled *bool `json:"originDetectionEnabled,omitempty"`
 
 	// TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`).
+	// This setting only applies when OriginDetectionEnabled is true.
 	// See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables
 	// Cardinality default: low
 	// +optional
