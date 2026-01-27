@@ -2935,6 +2935,16 @@ func (in *PrivateActionRunnerFeatureConfig) DeepCopyInto(out *PrivateActionRunne
 		*out = new(bool)
 		**out = **in
 	}
+	if in.SelfEnroll != nil {
+		in, out := &in.SelfEnroll, &out.SelfEnroll
+		*out = new(bool)
+		**out = **in
+	}
+	if in.ActionsAllowlist != nil {
+		in, out := &in.ActionsAllowlist, &out.ActionsAllowlist
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.CustomConfig != nil {
 		in, out := &in.CustomConfig, &out.CustomConfig
 		*out = new(CustomConfig)

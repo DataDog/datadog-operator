@@ -666,6 +666,14 @@ type PrivateActionRunnerFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
+	// SelfEnroll enables automatic self-enrollment for the Private Action Runner.
+	// +optional
+	SelfEnroll *bool `json:"selfEnroll,omitempty"`
+
+	// ActionsAllowlist specifies the list of actions that are allowed to be executed.
+	// +optional
+	ActionsAllowlist []string `json:"actionsAllowlist,omitempty"`
+
 	// CustomConfig allows custom configuration for the Private Action Runner.
 	// This will be merged with the default configuration.
 	// +optional
