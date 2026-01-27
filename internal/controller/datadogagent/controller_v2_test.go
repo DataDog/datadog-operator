@@ -122,8 +122,9 @@ func runDDAReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	if tt.loadFunc != nil {
 		dda = tt.loadFunc(r.client)
 	} else if tt.dda != nil {
-		_ = r.client.Create(context.TODO(), tt.dda)
-		dda = tt.dda
+		// Need deep copy to avoid mutating the original object used in other test function
+		dda = tt.dda.DeepCopy()
+		_ = r.client.Create(context.TODO(), dda)
 	}
 
 	// Run reconciliation
@@ -187,32 +188,31 @@ func runFullReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	if tt.loadFunc != nil {
 		dda = tt.loadFunc(r.client)
 	} else if tt.dda != nil {
-		_ = r.client.Create(context.TODO(), tt.dda)
-		dda = tt.dda
+		// Need deep copy to avoid mutating the original object used in other test function
+		dda = tt.dda.DeepCopy()
+		_ = r.client.Create(context.TODO(), dda)
 	}
 
 	// Run reconciliation
-	got, err := r.Reconcile(context.TODO(), dda)
+	ddaGot, ddaErr := r.Reconcile(context.TODO(), dda)
+	// Assert on error expectation
+	if tt.wantErr {
+		assert.Error(t, ddaErr, "ReconcileDatadogAgent.Reconcile() expected an error")
+	} else {
+		assert.NoError(t, ddaErr, "ReconcileDatadogAgent.Reconcile() unexpected error: %v", err)
+	}
+	// Assert on reconciliation result
+	assert.Equal(t, tt.want, ddaGot, "ReconcileDatadogAgent.Reconcile() unexpected result")
 
 	ddais := &v1alpha1.DatadogAgentInternalList{}
 	err = c.List(context.TODO(), ddais)
 	assert.NoError(t, err, "Failed to list datadogagentinternal")
 	assert.NotEmpty(t, ddais.Items, "Expected at least 1 ddai")
-		for i := range ddais.Items {
-			ddai := &ddais.Items[i]
-			_, err := ri.Reconcile(context.TODO(), ddai)
-			assert.NoError(t, err, "Failed to reconcile datadogagentinternal")
-		}
-
-	// Assert on error expectation
-	if tt.wantErr {
-		assert.Error(t, err, "ReconcileDatadogAgent.Reconcile() expected an error")
-	} else {
-		assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() unexpected error: %v", err)
+	for i := range ddais.Items {
+		ddai := &ddais.Items[i]
+		_, ddaiErr := ri.Reconcile(context.TODO(), ddai)
+		assert.NoError(t, ddaiErr, "Failed to reconcile datadogagentinternal")
 	}
-
-	// Assert on reconciliation result
-	assert.Equal(t, tt.want, got, "ReconcileDatadogAgent.Reconcile() unexpected result")
 
 	// Run custom validation if provided
 	if tt.wantFunc != nil {
