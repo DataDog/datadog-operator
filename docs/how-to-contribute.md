@@ -99,7 +99,7 @@ $ make integration-tests
 
 ### End-to-End Tests
 
-The Datadog Operator end-to-end (E2E) tests run on [Pulumi][pulumi]-deployed test infrastructures, defined as "stacks". The test infrastructures are deployed using the [`test-infra-definitions`][test-infra-repo] and [`datadog-agent`][agent-e2e-source] E2E frameworks.
+The Datadog Operator end-to-end (E2E) tests run on [Pulumi][pulumi]-deployed test infrastructures, defined as "stacks". The test infrastructures are deployed using the [`e2e-framework`][e2e-framework-source] and [`datadog-agent`][agent-e2e-source] E2E frameworks.
 
 **Prerequisites**
 
@@ -108,7 +108,7 @@ Internal Datadog users may run E2E locally after completing the following prereq
 * Access to the AWS `agent-sandbox` account
 * AWS keypair with your public SSH key created in the `agent-sandbox` account
 * Set environment variable `PULUMI_CONFIG_PASSPHRASE`
-* Complete steps 1-4 of the `test-infra-definitions` [Quick start guide][test-infra-quickstart]
+* Complete steps 1-4 of the `e2e-framework` [Quick start guide][e2e-framework-quickstart]
 * Add `go.work` file to root directory:
 
 ```shell
@@ -139,6 +139,6 @@ $ K8S_VERSION=1.25 IMG=your-private-registry/operator:PIPELINE_ID-COMMIT_HASH IM
 
 
 [pulumi]:https://www.pulumi.com/
-[test-infra-repo]:https://github.com/DataDog/test-infra-definitions
+[e2e-framework-source]:https://github.com/DataDog/datadog-agent/tree/main/test/e2e-framework
 [agent-e2e-source]:https://github.com/DataDog/datadog-agent/tree/main/test/new-e2e
-[test-infra-quickstart]:https://github.com/DataDog/test-infra-definitions#quick-start-guide
+[e2e-framework-quickstart]:https://github.com/DataDog/datadog-agent/tree/main/test/e2e-framework#quick-start-guide

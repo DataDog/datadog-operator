@@ -14,7 +14,9 @@ variables:
   RH_PARTNER_REGISTRY_USER: "redhat-isv-containers+5e7c8ebc1c86a3163d1a69be-robot"
   RH_PARTNER_REGISTRY_KEY_SSM_KEY: redhat_registry_key
   RH_PARTNER_API_KEY_SSM_KEY: redhat_api_key
-  TEST_INFRA_DEFINITIONS_BUILDIMAGES: b324348d0857
+  # Image version from datadog-agent-buildimages (same as datadog-agent main branch)
+  CI_IMAGE_LINUX: v88930157-ef91d52f
+  CI_IMAGE_LINUX_SUFFIX: ""
   PUSH_IMAGES_TO_STAGING:
     description: "Set PUSH_IMAGE_TO_STAGING to 'true' if you want to push the operator to internal staging registry."
   FIPS_ENABLED: false
@@ -293,7 +295,7 @@ e2e:
     TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
     # Temporary workaround from https://github.com/golang/go/issues/75031
     GOTOOLCHAIN: go1.25.0+auto
-  image: $BUILD_DOCKER_REGISTRY/test-infra-definitions/runner:$TEST_INFRA_DEFINITIONS_BUILDIMAGES
+  image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux$CI_IMAGE_LINUX_SUFFIX:$CI_IMAGE_LINUX
   before_script:
     # Setup AWS Credentials
     - echo "Starting setup for E2E testing..."

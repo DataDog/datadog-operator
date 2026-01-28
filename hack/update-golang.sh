@@ -111,9 +111,11 @@ for file in $go_mod_files; do
         echo "Processing $file..."
         go mod edit -go $new_minor_version $file
         go mod edit -toolchain go$GOVERSION $file
-        parent_dir=$(dirname "$file")
-        cd $parent_dir; cd $ROOT
     else
         echo "Warning: $file not found, skipping."
     fi
 done
+
+# test/e2e is not in go.work, so we need to run go mod tidy separately
+echo "Running go mod tidy for test/e2e module..."
+(cd "$ROOT/test/e2e" && GOWORK=off go mod tidy)
