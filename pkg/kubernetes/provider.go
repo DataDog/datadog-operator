@@ -41,8 +41,17 @@ const (
 	// EKSCloudProvider is the Amazon EKS CloudProvider name
 	EKSCloudProvider = "eks"
 
-	// EKSProviderLabel is the EKS node label used to determine the node's provider
+	// EKSProviderLabel is a common EKS node label containing the AMI ID
 	EKSProviderLabel = "eks.amazonaws.com/nodegroup-image"
+
+	// EKS label prefixes for provider detection
+	eksLabelPrefix    = "eks.amazonaws.com/"
+	eksctlLabelPrefix = "alpha.eksctl.io/"
+
+	// Common EKS labels used for node affinity
+	eksNodeGroupLabel      = "eks.amazonaws.com/nodegroup"
+	eksComputeTypeLabel    = "eks.amazonaws.com/compute-type"
+	eksctlClusterNameLabel = "alpha.eksctl.io/cluster-name"
 )
 
 // ProviderValue allowlist
@@ -63,13 +72,32 @@ func determineProvider(labels map[string]string) string {
 		if val, ok := labels[OpenShiftProviderLabel]; ok {
 			return generateValidProviderName(OpenshiftProvider, val)
 		}
-		// EKS
-		if val, ok := labels[EKSProviderLabel]; ok {
-			return generateValidProviderName(EKSCloudProvider, val)
+		// EKS - check for any EKS-related labels
+		if isEKSProvider(labels) {
+			return EKSCloudProvider
 		}
 	}
 
 	return DefaultProvider
+}
+
+// isEKSProvider checks if a node is an EKS node by looking for EKS-specific labels
+func isEKSProvider(labels map[string]string) bool {
+	// Check for any eks.amazonaws.com/* labels
+	for key := range labels {
+		if strings.HasPrefix(key, eksLabelPrefix) {
+			return true
+		}
+	}
+
+	// Secondary check for eksctl labels
+	for key := range labels {
+		if strings.HasPrefix(key, eksctlLabelPrefix) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // getProviderNodeAffinity creates NodeSelectorTerms based on the provider
@@ -82,6 +110,11 @@ func getProviderNodeAffinity(provider string, providerList map[string]struct{}) 
 		return nil
 	}
 
+	// Special handling for EKS provider
+	if provider == EKSCloudProvider {
+		return getEKSProviderNodeAffinity()
+	}
+
 	// default provider has NodeAffinity to NOT match provider-specific labels
 	// build NodeSelectorRequirement list with negative (`OpNotIn`) operator
 	nsrList := []corev1.NodeSelectorRequirement{}
@@ -89,6 +122,12 @@ func getProviderNodeAffinity(provider string, providerList map[string]struct{}) 
 		// sort providers to get consistently ordered affinity
 		sortedProviders := sortProviders(providerList)
 		for _, providerDef := range sortedProviders {
+			// Special handling for EKS in the default provider's exclusion list
+			if providerDef == EKSCloudProvider {
+				nsrList = append(nsrList, getEKSExclusionNodeSelectorRequirements()...)
+				continue
+			}
+
 			key, value := GetProviderLabelKeyValue(providerDef)
 			if key != "" && value != "" {
 				nsrList = append(nsrList, corev1.NodeSelectorRequirement{
@@ -127,6 +166,78 @@ func getProviderNodeAffinity(provider string, providerList map[string]struct{}) 
 	}
 }
 
+// getEKSProviderNodeAffinity creates node affinity for EKS provider
+// Uses multiple NodeSelectorTerms with OR logic to match any EKS node
+func getEKSProviderNodeAffinity() *corev1.Affinity {
+	// Create multiple NodeSelectorTerms (OR logic between terms)
+	// Each term checks for existence of a different EKS label
+	nodeSelectorTerms := []corev1.NodeSelectorTerm{
+		{
+			MatchExpressions: []corev1.NodeSelectorRequirement{
+				{
+					Key:      eksNodeGroupLabel,
+					Operator: corev1.NodeSelectorOpExists,
+				},
+			},
+		},
+		{
+			MatchExpressions: []corev1.NodeSelectorRequirement{
+				{
+					Key:      EKSProviderLabel,
+					Operator: corev1.NodeSelectorOpExists,
+				},
+			},
+		},
+		{
+			MatchExpressions: []corev1.NodeSelectorRequirement{
+				{
+					Key:      eksComputeTypeLabel,
+					Operator: corev1.NodeSelectorOpExists,
+				},
+			},
+		},
+		{
+			MatchExpressions: []corev1.NodeSelectorRequirement{
+				{
+					Key:      eksctlClusterNameLabel,
+					Operator: corev1.NodeSelectorOpExists,
+				},
+			},
+		},
+	}
+
+	return &corev1.Affinity{
+		NodeAffinity: &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+				NodeSelectorTerms: nodeSelectorTerms,
+			},
+		},
+	}
+}
+
+// getEKSExclusionNodeSelectorRequirements creates node selector requirements
+// to exclude EKS nodes from the default provider
+func getEKSExclusionNodeSelectorRequirements() []corev1.NodeSelectorRequirement {
+	return []corev1.NodeSelectorRequirement{
+		{
+			Key:      eksNodeGroupLabel,
+			Operator: corev1.NodeSelectorOpDoesNotExist,
+		},
+		{
+			Key:      EKSProviderLabel,
+			Operator: corev1.NodeSelectorOpDoesNotExist,
+		},
+		{
+			Key:      eksComputeTypeLabel,
+			Operator: corev1.NodeSelectorOpDoesNotExist,
+		},
+		{
+			Key:      eksctlClusterNameLabel,
+			Operator: corev1.NodeSelectorOpDoesNotExist,
+		},
+	}
+}
+
 // generateValidProviderName creates a provider name from the cloud provider
 // and provider value. NOTE: this should not be used to create a resource name
 // as it may contain underscores
@@ -153,10 +264,15 @@ func isProviderValueAllowed(value string) bool {
 
 // GetProviderLabelKeyValue gets the corresponding cloud provider label key and value from a provider name
 func GetProviderLabelKeyValue(provider string) (string, string) {
+	// For EKS, this returns empty values since EKS provider has no suffix.
+	// Use direct comparison (provider == EKSCloudProvider) to check for EKS instead.
+	if provider == EKSCloudProvider {
+		return "", ""
+	}
+
 	// cloud provider to label mapping
 	providerMapping := map[string]string{
 		GKECloudProvider:  GKEProviderLabel,
-		EKSCloudProvider:  EKSProviderLabel,
 		OpenshiftProvider: OpenShiftProviderLabel,
 	}
 

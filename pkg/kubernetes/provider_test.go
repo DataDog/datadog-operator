@@ -16,7 +16,7 @@ var (
 	defaultProvider   = DefaultProvider
 	gkeCosProvider    = generateValidProviderName(GKECloudProvider, GKECosType)
 	openshiftProvider = generateValidProviderName(OpenshiftProvider, "test")
-	eksProvider       = generateValidProviderName(EKSCloudProvider, "test")
+	eksProvider       = EKSCloudProvider // EKS provider is now just "eks" without suffix
 )
 
 func Test_determineProvider(t *testing.T) {
@@ -54,20 +54,54 @@ func Test_determineProvider(t *testing.T) {
 			provider: generateValidProviderName(OpenshiftProvider, "rhcos"),
 		},
 		{
-			name: "eks provider with amazon linux 2 ami",
+			name: "eks provider with nodegroup-image label",
 			labels: map[string]string{
 				"foo":            "bar",
 				EKSProviderLabel: "ami-0c7217cdde317cfec", // Example Amazon Linux 2 AMI
 			},
-			provider: generateValidProviderName(EKSCloudProvider, "ami-0c7217cdde317cfec"),
+			provider: EKSCloudProvider,
 		},
 		{
-			name: "eks provider with bottlerocket ami",
+			name: "eks provider with different ami (bottlerocket)",
 			labels: map[string]string{
 				"foo":            "bar",
 				EKSProviderLabel: "ami-0c2b8ca1dad447f8a", // Example Bottlerocket AMI
 			},
-			provider: generateValidProviderName(EKSCloudProvider, "ami-0c2b8ca1dad447f8a"),
+			provider: EKSCloudProvider,
+		},
+		{
+			name: "eks provider with nodegroup label",
+			labels: map[string]string{
+				"foo":                         "bar",
+				"eks.amazonaws.com/nodegroup": "my-nodegroup",
+			},
+			provider: EKSCloudProvider,
+		},
+		{
+			name: "eks fargate provider with compute-type label",
+			labels: map[string]string{
+				"foo":                               "bar",
+				"eks.amazonaws.com/compute-type":    "fargate",
+				"eks.amazonaws.com/fargate-profile": "my-profile",
+			},
+			provider: EKSCloudProvider,
+		},
+		{
+			name: "eks provider with eksctl label",
+			labels: map[string]string{
+				"foo":                          "bar",
+				"alpha.eksctl.io/cluster-name": "my-cluster",
+			},
+			provider: EKSCloudProvider,
+		},
+		{
+			name: "eks provider with multiple eks labels",
+			labels: map[string]string{
+				"eks.amazonaws.com/nodegroup":       "my-nodegroup",
+				"eks.amazonaws.com/nodegroup-image": "ami-0c7217cdde317cfec",
+				"alpha.eksctl.io/cluster-name":      "my-cluster",
+			},
+			provider: EKSCloudProvider,
 		},
 	}
 
@@ -106,6 +140,95 @@ func Test_isProviderValueAllowed(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			allowed := isProviderValueAllowed(tt.value)
 			assert.Equal(t, tt.want, allowed)
+		})
+	}
+}
+
+func Test_isEKSProvider(t *testing.T) {
+	tests := []struct {
+		name   string
+		labels map[string]string
+		want   bool
+	}{
+		{
+			name:   "empty labels",
+			labels: map[string]string{},
+			want:   false,
+		},
+		{
+			name: "no eks labels",
+			labels: map[string]string{
+				"foo": "bar",
+				"baz": "qux",
+			},
+			want: false,
+		},
+		{
+			name: "eks nodegroup-image label",
+			labels: map[string]string{
+				"eks.amazonaws.com/nodegroup-image": "ami-0c7217cdde317cfec",
+			},
+			want: true,
+		},
+		{
+			name: "eks nodegroup label",
+			labels: map[string]string{
+				"eks.amazonaws.com/nodegroup": "my-nodegroup",
+			},
+			want: true,
+		},
+		{
+			name: "eks compute-type label (fargate)",
+			labels: map[string]string{
+				"eks.amazonaws.com/compute-type": "fargate",
+			},
+			want: true,
+		},
+		{
+			name: "eks fargate-profile label",
+			labels: map[string]string{
+				"eks.amazonaws.com/fargate-profile": "my-profile",
+			},
+			want: true,
+		},
+		{
+			name: "eksctl cluster-name label",
+			labels: map[string]string{
+				"alpha.eksctl.io/cluster-name": "my-cluster",
+			},
+			want: true,
+		},
+		{
+			name: "eksctl nodegroup-name label",
+			labels: map[string]string{
+				"alpha.eksctl.io/nodegroup-name": "my-nodegroup",
+			},
+			want: true,
+		},
+		{
+			name: "multiple eks labels",
+			labels: map[string]string{
+				"eks.amazonaws.com/nodegroup":       "my-nodegroup",
+				"eks.amazonaws.com/nodegroup-image": "ami-0c7217cdde317cfec",
+				"alpha.eksctl.io/cluster-name":      "my-cluster",
+			},
+			want: true,
+		},
+		{
+			name: "eks label with other labels",
+			labels: map[string]string{
+				"foo":                               "bar",
+				"eks.amazonaws.com/nodegroup-image": "ami-0c7217cdde317cfec",
+				"baz":                               "qux",
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isEKSProvider(tt.labels)
+			assert.Equal(t, tt.want, result)
 		})
 	}
 }
@@ -340,6 +463,138 @@ func Test_getProviderNodeAffinity(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "single eks provider",
+			existingProviders: map[string]struct{}{
+				eksProvider: {},
+			},
+			provider: eksProvider,
+			wantAffinity: &corev1.Affinity{
+				NodeAffinity: &corev1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      "eks.amazonaws.com/nodegroup",
+										Operator: corev1.NodeSelectorOpExists,
+									},
+								},
+							},
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      "eks.amazonaws.com/nodegroup-image",
+										Operator: corev1.NodeSelectorOpExists,
+									},
+								},
+							},
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      "eks.amazonaws.com/compute-type",
+										Operator: corev1.NodeSelectorOpExists,
+									},
+								},
+							},
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      "alpha.eksctl.io/cluster-name",
+										Operator: corev1.NodeSelectorOpExists,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "default provider with eks",
+			existingProviders: map[string]struct{}{
+				defaultProvider: {},
+				eksProvider:     {},
+			},
+			provider: defaultProvider,
+			wantAffinity: &corev1.Affinity{
+				NodeAffinity: &corev1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      "eks.amazonaws.com/nodegroup",
+										Operator: corev1.NodeSelectorOpDoesNotExist,
+									},
+									{
+										Key:      "eks.amazonaws.com/nodegroup-image",
+										Operator: corev1.NodeSelectorOpDoesNotExist,
+									},
+									{
+										Key:      "eks.amazonaws.com/compute-type",
+										Operator: corev1.NodeSelectorOpDoesNotExist,
+									},
+									{
+										Key:      "alpha.eksctl.io/cluster-name",
+										Operator: corev1.NodeSelectorOpDoesNotExist,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "multiple providers with eks",
+			existingProviders: map[string]struct{}{
+				defaultProvider: {},
+				eksProvider:     {},
+				gkeCosProvider:  {},
+			},
+			provider: eksProvider,
+			wantAffinity: &corev1.Affinity{
+				NodeAffinity: &corev1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      "eks.amazonaws.com/nodegroup",
+										Operator: corev1.NodeSelectorOpExists,
+									},
+								},
+							},
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      "eks.amazonaws.com/nodegroup-image",
+										Operator: corev1.NodeSelectorOpExists,
+									},
+								},
+							},
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      "eks.amazonaws.com/compute-type",
+										Operator: corev1.NodeSelectorOpExists,
+									},
+								},
+							},
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      "alpha.eksctl.io/cluster-name",
+										Operator: corev1.NodeSelectorOpExists,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -402,8 +657,8 @@ func Test_GetProviderLabelKeyValue(t *testing.T) {
 		{
 			name:      "eks provider",
 			provider:  eksProvider,
-			wantLabel: EKSProviderLabel,
-			wantValue: "test",
+			wantLabel: "", // EKS returns empty - use direct comparison (provider == EKSCloudProvider) instead
+			wantValue: "",
 		},
 	}
 
