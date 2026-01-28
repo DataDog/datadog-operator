@@ -425,6 +425,32 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
+			name: "DatadogAgent with Private Action Runner enabled on node, create Daemonset with core, trace, and private-action-runner containers",
+			fields: fields{
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}, &appsv1.Deployment{}).Build(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithPrivateActionRunnerEnabled(true).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				expectedContainers := []string{
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+					string(apicommon.PrivateActionRunnerContainerName),
+				}
+
+				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
+			},
+		},
+		{
 			name: "[single container] DatadogAgent with APM and OOMKill enabled, create Daemonset with core, trace, and system-probe",
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
@@ -1300,6 +1326,25 @@ func verifyDaemonsetContainers(t *testing.T, c client.Client, resourcesNamespace
 	sort.Strings(dsContainers)
 	sort.Strings(expectedContainers)
 	assert.Equal(t, expectedContainers, dsContainers, "Container names don't match")
+}
+
+func verifyDeploymentContainers(c client.Client, resourcesNamespace, deploymentName string, expectedContainers []string) error {
+	deployment := &appsv1.Deployment{}
+	if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: deploymentName}, deployment); err != nil {
+		return err
+	}
+	deploymentContainers := []string{}
+	for _, container := range deployment.Spec.Template.Spec.Containers {
+		deploymentContainers = append(deploymentContainers, container.Name)
+	}
+
+	sort.Strings(deploymentContainers)
+	sort.Strings(expectedContainers)
+	if reflect.DeepEqual(expectedContainers, deploymentContainers) {
+		return nil
+	} else {
+		return fmt.Errorf("Container don't match, expected %s, actual %s", expectedContainers, deploymentContainers)
+	}
 }
 
 func verifyDaemonsetNames(t *testing.T, c client.Client, resourcesNamespace string, expectedDSNames []string) {

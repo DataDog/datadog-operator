@@ -2258,19 +2258,30 @@ spec:
                     privateActionRunner:
                       description: PrivateActionRunner configuration.
                       properties:
-                        actionsAllowlist:
-                          description: ActionsAllowlist specifies the list of actions that are allowed to be executed.
-                          items:
-                            type: string
-                          type: array
                         enabled:
                           description: |-
-                            Enabled enables Private Action Runner.
+                            Enabled is the main switch for Private Action Runner feature.
                             Default: false
                           type: boolean
-                        selfEnroll:
-                          description: SelfEnroll enables automatic self-enrollment for the Private Action Runner.
-                          type: boolean
+                        nodeAgent:
+                          description: |-
+                            NodeAgent configures Private Action Runner on the Node Agent.
+                            Runs one instance per node for node-level actions.
+                          properties:
+                            actionsAllowlist:
+                              description: ActionsAllowlist specifies the list of actions that are allowed to be executed.
+                              items:
+                                type: string
+                              type: array
+                            enabled:
+                              description: |-
+                                Enabled enables Private Action Runner on the Node Agent.
+                                Default: true (when parent Enabled is true)
+                              type: boolean
+                            selfEnroll:
+                              description: SelfEnroll enables automatic self-enrollment for the node-level runner.
+                              type: boolean
+                          type: object
                       type: object
                     processDiscovery:
                       description: ProcessDiscovery configuration.
@@ -10325,19 +10336,30 @@ spec:
                         privateActionRunner:
                           description: PrivateActionRunner configuration.
                           properties:
-                            actionsAllowlist:
-                              description: ActionsAllowlist specifies the list of actions that are allowed to be executed.
-                              items:
-                                type: string
-                              type: array
                             enabled:
                               description: |-
-                                Enabled enables Private Action Runner.
+                                Enabled is the main switch for Private Action Runner feature.
                                 Default: false
                               type: boolean
-                            selfEnroll:
-                              description: SelfEnroll enables automatic self-enrollment for the Private Action Runner.
-                              type: boolean
+                            nodeAgent:
+                              description: |-
+                                NodeAgent configures Private Action Runner on the Node Agent.
+                                Runs one instance per node for node-level actions.
+                              properties:
+                                actionsAllowlist:
+                                  description: ActionsAllowlist specifies the list of actions that are allowed to be executed.
+                                  items:
+                                    type: string
+                                  type: array
+                                enabled:
+                                  description: |-
+                                    Enabled enables Private Action Runner on the Node Agent.
+                                    Default: true (when parent Enabled is true)
+                                  type: boolean
+                                selfEnroll:
+                                  description: SelfEnroll enables automatic self-enrollment for the node-level runner.
+                                  type: boolean
+                              type: object
                           type: object
                         processDiscovery:
                           description: ProcessDiscovery configuration.

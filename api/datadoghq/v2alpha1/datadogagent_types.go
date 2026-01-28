@@ -661,12 +661,25 @@ type GPUFeatureConfig struct {
 
 // PrivateActionRunnerFeatureConfig contains configuration for the Private Action Runner.
 type PrivateActionRunnerFeatureConfig struct {
-	// Enabled enables Private Action Runner.
+	// Enabled is the main switch for Private Action Runner feature.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// SelfEnroll enables automatic self-enrollment for the Private Action Runner.
+	// NodeAgent configures Private Action Runner on the Node Agent.
+	// Runs one instance per node for node-level actions.
+	// +optional
+	NodeAgent *PrivateActionRunnerNodeConfig `json:"nodeAgent,omitempty"`
+}
+
+// PrivateActionRunnerNodeConfig contains configuration for Private Action Runner on the Node Agent.
+type PrivateActionRunnerNodeConfig struct {
+	// Enabled enables Private Action Runner on the Node Agent.
+	// Default: true (when parent Enabled is true)
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// SelfEnroll enables automatic self-enrollment for the node-level runner.
 	// +optional
 	SelfEnroll *bool `json:"selfEnroll,omitempty"`
 

@@ -36,10 +36,11 @@ func buildPrivateActionRunnerFeature(options *feature.Options) feature.Feature {
 }
 
 type privateActionRunnerFeature struct {
-	owner            metav1.Object
-	logger           logr.Logger
-	selfEnroll       *bool
-	actionsAllowlist []string
+	owner                metav1.Object
+	logger               logr.Logger
+	nodeSelfEnroll       *bool
+	nodeActionsAllowlist []string
+	nodeEnabled          bool
 }
 
 // ID returns the ID of the Feature
@@ -52,27 +53,35 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 	f.owner = dda
 
 	// Check if feature is enabled
-	if ddaSpec.Features != nil &&
-		ddaSpec.Features.PrivateActionRunner != nil &&
-		apiutils.BoolValue(ddaSpec.Features.PrivateActionRunner.Enabled) {
+	if ddaSpec.Features == nil ||
+		ddaSpec.Features.PrivateActionRunner == nil ||
+		!apiutils.BoolValue(ddaSpec.Features.PrivateActionRunner.Enabled) {
+		return feature.RequiredComponents{}
+	}
 
-		// Store configuration properties
-		parConfig := ddaSpec.Features.PrivateActionRunner
-		f.selfEnroll = parConfig.SelfEnroll
-		f.actionsAllowlist = parConfig.ActionsAllowlist
+	parConfig := ddaSpec.Features.PrivateActionRunner
 
-		return feature.RequiredComponents{
-			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommon.AgentContainerName{
-					apicommon.CoreAgentContainerName,
-					apicommon.PrivateActionRunnerContainerName,
-				},
+	// Determine node deployment
+	// Default: enabled if parent enabled and not explicitly disabled
+	f.nodeEnabled = parConfig.NodeAgent == nil || parConfig.NodeAgent.Enabled == nil || apiutils.BoolValue(parConfig.NodeAgent.Enabled)
+
+	if f.nodeEnabled && parConfig.NodeAgent != nil {
+		f.nodeSelfEnroll = parConfig.NodeAgent.SelfEnroll
+		f.nodeActionsAllowlist = parConfig.NodeAgent.ActionsAllowlist
+	}
+
+	// Build required components (only node for now)
+	if f.nodeEnabled {
+		reqComp.Agent = feature.RequiredComponent{
+			IsRequired: apiutils.NewBoolPointer(true),
+			Containers: []apicommon.AgentContainerName{
+				apicommon.CoreAgentContainerName,
+				apicommon.PrivateActionRunnerContainerName,
 			},
 		}
 	}
 
-	return feature.RequiredComponents{}
+	return reqComp
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
@@ -83,12 +92,16 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 func (f *privateActionRunnerFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
-	// Private Action Runner doesn't run in cluster agent
+	// Cluster Agent support not yet implemented
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	if !f.nodeEnabled {
+		return nil
+	}
+
 	// Add environment variable to enable private action runner
 	managers.EnvVar().AddEnvVarToContainer(apicommon.PrivateActionRunnerContainerName, &corev1.EnvVar{
 		Name:  "DD_PRIVATEACTIONRUNNER_ENABLED",
@@ -96,18 +109,18 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	})
 
 	// Configure self enroll if specified
-	if f.selfEnroll != nil {
+	if f.nodeSelfEnroll != nil {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.PrivateActionRunnerContainerName, &corev1.EnvVar{
 			Name:  "DD_PRIVATEACTIONRUNNER_SELF_ENROLL",
-			Value: apiutils.BoolToString(f.selfEnroll),
+			Value: apiutils.BoolToString(f.nodeSelfEnroll),
 		})
 	}
 
 	// Configure actions allowlist if specified
-	if len(f.actionsAllowlist) > 0 {
+	if len(f.nodeActionsAllowlist) > 0 {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.PrivateActionRunnerContainerName, &corev1.EnvVar{
 			Name:  "DD_PRIVATEACTIONRUNNER_ACTIONS_ALLOWLIST",
-			Value: strings.Join(f.actionsAllowlist, ","),
+			Value: strings.Join(f.nodeActionsAllowlist, ","),
 		})
 	}
 
