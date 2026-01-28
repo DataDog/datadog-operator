@@ -180,9 +180,6 @@ spec:
 | features.otlp.receiver.protocols.http.hostPortConfig.enabled | Enables host port configuration |
 | features.otlp.receiver.protocols.http.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
 | features.privateActionRunner.actionsAllowlist | ActionsAllowlist specifies the list of actions that are allowed to be executed. |
-| features.privateActionRunner.customConfig.configData | ConfigData corresponds to the configuration file content. |
-| features.privateActionRunner.customConfig.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
-| features.privateActionRunner.customConfig.configMap.name | Is the name of the ConfigMap. |
 | features.privateActionRunner.enabled | Enables Private Action Runner. Default: false |
 | features.privateActionRunner.selfEnroll | SelfEnroll enables automatic self-enrollment for the Private Action Runner. |
 | features.processDiscovery.enabled | Enables the Process Discovery check in the Agent. Default: true |

@@ -348,15 +348,6 @@ spec:
 `features.privateActionRunner.actionsAllowlist`
 : ActionsAllowlist specifies the list of actions that are allowed to be executed.
 
-`features.privateActionRunner.customConfig.configData`
-: ConfigData corresponds to the configuration file content.
-
-`features.privateActionRunner.customConfig.configMap.items`
-: Maps a ConfigMap data `key` to a file `path` mount.
-
-`features.privateActionRunner.customConfig.configMap.name`
-: Is the name of the ConfigMap.
-
 `features.privateActionRunner.enabled`
 : Enables Private Action Runner. Default: false
 
