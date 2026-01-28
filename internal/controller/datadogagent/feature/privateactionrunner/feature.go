@@ -94,16 +94,12 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 		Name:  "DD_PRIVATEACTIONRUNNER_ENABLED",
 		Value: "true",
 	})
-	
+
 	// Configure self enroll if specified
 	if f.selfEnroll != nil {
-		selfEnroll := "false"
-		if *f.selfEnroll {
-			selfEnroll = "true"
-		}
 		managers.EnvVar().AddEnvVarToContainer(apicommon.PrivateActionRunnerContainerName, &corev1.EnvVar{
 			Name:  "DD_PRIVATEACTIONRUNNER_SELF_ENROLL",
-			Value: selfEnroll,
+			Value: apiutils.BoolToString(f.selfEnroll),
 		})
 	}
 
