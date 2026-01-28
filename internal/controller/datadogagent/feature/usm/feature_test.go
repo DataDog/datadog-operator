@@ -168,6 +168,10 @@ func Test_usmFeature_Configure(t *testing.T) {
 				Name:  common.DDSystemProbeSocket,
 				Value: common.DefaultSystemProbeSocketPath,
 			},
+			{
+				Name:  DDSystemProbeCNMDirectSend,
+				Value: "false",
+			},
 		}
 
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]

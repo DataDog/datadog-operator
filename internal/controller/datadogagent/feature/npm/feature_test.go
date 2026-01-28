@@ -66,6 +66,10 @@ func Test_npmFeature_Configure(t *testing.T) {
 				Name:  DDSystemProbeConntrackEnabled,
 				Value: "false",
 			},
+			{
+				Name:  DDSystemProbeCNMDirectSend,
+				Value: "false",
+			},
 		}
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
 		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, sysProbeWantEnvVars), "4. System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, sysProbeWantEnvVars))
@@ -190,6 +194,10 @@ func Test_npmFeature_Configure(t *testing.T) {
 			},
 			{
 				Name:  DDSystemProbeCollectDNSStatsEnabled,
+				Value: "false",
+			},
+			{
+				Name:  DDSystemProbeCNMDirectSend,
 				Value: "false",
 			},
 		}
