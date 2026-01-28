@@ -31,7 +31,9 @@ func buildUSMFeature(options *feature.Options) feature.Feature {
 	return usmFeat
 }
 
-type usmFeature struct{}
+type usmFeature struct {
+	directSend bool
+}
 
 // ID returns the ID of the Feature
 func (f *usmFeature) ID() feature.IDType {
@@ -46,15 +48,23 @@ func (f *usmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 	usmConfig := ddaSpec.Features.USM
 
 	if usmConfig != nil && apiutils.BoolValue(usmConfig.Enabled) {
+		containers := []apicommon.AgentContainerName{
+			apicommon.CoreAgentContainerName,
+			apicommon.SystemProbeContainerName,
+		}
+		if ddaSpec.Features.NPM == nil || !apiutils.BoolValue(ddaSpec.Features.NPM.DirectSend) {
+			containers = append(containers, apicommon.ProcessAgentContainerName)
+		}
+
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommon.AgentContainerName{
-					apicommon.CoreAgentContainerName,
-					apicommon.ProcessAgentContainerName,
-					apicommon.SystemProbeContainerName,
-				},
+				Containers: containers,
 			},
+		}
+
+		if ddaSpec.Features.NPM != nil {
+			f.directSend = apiutils.BoolValue(ddaSpec.Features.NPM.DirectSend)
 		}
 	}
 
@@ -169,6 +179,13 @@ func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 		Value: "true",
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, sysProbeExternalEnvVar)
+
+	// env vars for System Probe only
+	cnmDirectSendEnvVar := &corev1.EnvVar{
+		Name:  DDSystemProbeCNMDirectSend,
+		Value: apiutils.BoolToString(&f.directSend),
+	}
+	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, cnmDirectSendEnvVar)
 
 	return nil
 }

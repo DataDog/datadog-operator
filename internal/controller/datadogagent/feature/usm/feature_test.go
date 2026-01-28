@@ -8,6 +8,10 @@ package usm
 import (
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -16,9 +20,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
-	"github.com/google/go-cmp/cmp"
-	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
 )
 
 func Test_usmFeature_Configure(t *testing.T) {
@@ -35,6 +36,10 @@ func Test_usmFeature_Configure(t *testing.T) {
 	ddaUSMEnabled := ddaUSMDisabled.DeepCopy()
 	{
 		ddaUSMEnabled.Spec.Features.USM.Enabled = apiutils.NewBoolPointer(true)
+	}
+	ddaUSMDirectSendEnabled := ddaUSMEnabled.DeepCopy()
+	{
+		ddaUSMDirectSendEnabled.Spec.Features.NPM = &v2alpha1.NPMFeatureConfig{DirectSend: apiutils.NewBoolPointer(true)}
 	}
 
 	usmAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -163,6 +168,43 @@ func Test_usmFeature_Configure(t *testing.T) {
 				Name:  common.DDSystemProbeSocket,
 				Value: common.DefaultSystemProbeSocketPath,
 			},
+			{
+				Name:  DDSystemProbeCNMDirectSend,
+				Value: "false",
+			},
+		}
+
+		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
+		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, wantEnvVars), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, wantEnvVars))
+	}
+
+	usmDirectSendNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+		mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+		for _, c := range mgr.Tpl.Spec.Containers {
+			if c.Name == string(apicommon.ProcessAgentContainerName) {
+				assert.Fail(t, "process-agent should not have a container")
+			}
+		}
+
+		// check env vars
+		wantEnvVars := []*corev1.EnvVar{
+			{
+				Name:  DDSystemProbeServiceMonitoringEnabled,
+				Value: "true",
+			},
+			{
+				Name:  common.DDSystemProbeEnabled,
+				Value: "true",
+			},
+			{
+				Name:  common.DDSystemProbeSocket,
+				Value: common.DefaultSystemProbeSocketPath,
+			},
+			{
+				Name:  DDSystemProbeCNMDirectSend,
+				Value: "true",
+			},
 		}
 
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
@@ -180,6 +222,12 @@ func Test_usmFeature_Configure(t *testing.T) {
 			DDA:           ddaUSMEnabled,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(usmAgentNodeWantFunc),
+		},
+		{
+			Name:          "USM enabled, Direct Send enabled",
+			DDA:           ddaUSMDirectSendEnabled,
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(usmDirectSendNodeWantFunc),
 		},
 	}
 

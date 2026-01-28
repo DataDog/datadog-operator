@@ -34,6 +34,7 @@ func buildNPMFeature(options *feature.Options) feature.Feature {
 type npmFeature struct {
 	collectDNSStats bool
 	enableConntrack bool
+	directSend      bool
 }
 
 // ID returns the ID of the Feature
@@ -48,19 +49,24 @@ func (f *npmFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSp
 	}
 
 	if ddaSpec.Features.NPM != nil && apiutils.BoolValue(ddaSpec.Features.NPM.Enabled) {
+		containers := []apicommon.AgentContainerName{
+			apicommon.CoreAgentContainerName,
+			apicommon.SystemProbeContainerName,
+		}
+		if !apiutils.BoolValue(ddaSpec.Features.NPM.DirectSend) {
+			containers = append(containers, apicommon.ProcessAgentContainerName)
+		}
+
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommon.AgentContainerName{
-					apicommon.CoreAgentContainerName,
-					apicommon.ProcessAgentContainerName,
-					apicommon.SystemProbeContainerName,
-				},
+				Containers: containers,
 			},
 		}
 		npm := ddaSpec.Features.NPM
 		f.collectDNSStats = apiutils.BoolValue(npm.CollectDNSStats)
 		f.enableConntrack = apiutils.BoolValue(npm.EnableConntrack)
+		f.directSend = apiutils.BoolValue(npm.DirectSend)
 	}
 
 	return reqComp
@@ -171,6 +177,13 @@ func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 		Value: "true",
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, sysProbeExternalEnvVar)
+
+	// env vars for System Probe only
+	cnmDirectSendEnvVar := &corev1.EnvVar{
+		Name:  DDSystemProbeCNMDirectSend,
+		Value: apiutils.BoolToString(&f.directSend),
+	}
+	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, cnmDirectSendEnvVar)
 
 	return nil
 }

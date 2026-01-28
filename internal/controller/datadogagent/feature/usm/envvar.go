@@ -5,4 +5,7 @@
 
 package usm
 
-const DDSystemProbeServiceMonitoringEnabled = "DD_SYSTEM_PROBE_SERVICE_MONITORING_ENABLED"
+const (
+	DDSystemProbeServiceMonitoringEnabled = "DD_SYSTEM_PROBE_SERVICE_MONITORING_ENABLED"
+	DDSystemProbeCNMDirectSend            = "DD_NETWORK_CONFIG_DIRECT_SEND"
+)

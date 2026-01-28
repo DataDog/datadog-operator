@@ -9,4 +9,5 @@ const (
 	DDSystemProbeNPMEnabled             = "DD_SYSTEM_PROBE_NETWORK_ENABLED"
 	DDSystemProbeCollectDNSStatsEnabled = "DD_COLLECT_DNS_STATS"
 	DDSystemProbeConntrackEnabled       = "DD_SYSTEM_PROBE_CONFIG_ENABLE_CONNTRACK"
+	DDSystemProbeCNMDirectSend          = "DD_NETWORK_CONFIG_DIRECT_SEND"
 )
