@@ -52,7 +52,7 @@ func (f *usmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			apicommon.CoreAgentContainerName,
 			apicommon.SystemProbeContainerName,
 		}
-		if !apiutils.BoolValue(ddaSpec.Features.NPM.DirectSend) {
+		if ddaSpec.Features.NPM == nil || !apiutils.BoolValue(ddaSpec.Features.NPM.DirectSend) {
 			containers = append(containers, apicommon.ProcessAgentContainerName)
 		}
 
