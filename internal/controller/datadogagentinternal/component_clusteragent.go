@@ -15,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -69,10 +70,11 @@ func (c *ClusterAgentComponent) Reconcile(ctx context.Context, params *Reconcile
 
 	// Start by creating the Default Cluster-Agent deployment
 	deployment := componentdca.NewDefaultClusterAgentDeployment(params.DDAI.GetObjectMeta(), &params.DDAI.Spec)
+	objLogger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
-	global.ApplyGlobalSettingsClusterAgent(params.Logger, podManagers, params.DDAI.GetObjectMeta(), &params.DDAI.Spec, params.ResourceManagers, params.RequiredComponents)
+	global.ApplyGlobalSettingsClusterAgent(objLogger, podManagers, params.DDAI.GetObjectMeta(), &params.DDAI.Spec, params.ResourceManagers, params.RequiredComponents)
 
 	// Apply features changes on the Deployment.Spec.Template
 	var featErrors []error
@@ -93,23 +95,24 @@ func (c *ClusterAgentComponent) Reconcile(ctx context.Context, params *Reconcile
 			// This case is handled by the registry, but we double-check here
 			return c.Cleanup(ctx, params)
 		}
-		override.PodTemplateSpec(params.Logger, podManagers, componentOverride, c.Name(), params.DDAI.Name)
+		override.PodTemplateSpec(objLogger, podManagers, componentOverride, c.Name(), params.DDAI.Name)
 		override.Deployment(deployment, componentOverride)
 	}
 
-	return c.reconciler.createOrUpdateDeployment(params.Logger, params.DDAI, deployment, params.Status, updateStatusV2WithClusterAgent)
+	return c.reconciler.createOrUpdateDeployment(objLogger, params.DDAI, deployment, params.Status, updateStatusV2WithClusterAgent)
 }
 
 // Cleanup removes the Cluster Agent deployment and associated resources
 func (c *ClusterAgentComponent) Cleanup(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error) {
 	deployment := componentdca.NewDefaultClusterAgentDeployment(params.DDAI.GetObjectMeta(), &params.DDAI.Spec)
-	return c.reconciler.cleanupV2ClusterAgent(params.Logger, params.DDAI, deployment, params.ResourceManagers, params.Status)
+	objLogger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
+	return c.reconciler.cleanupV2ClusterAgent(objLogger, params.DDAI, deployment, params.ResourceManagers, params.Status)
 }
 
 // The following functions are kept for backward compatibility with existing code
 
 // cleanupOldDCADeployments deletes DCA deployments when a DCA Deployment's name is changed using clusterAgent name override
-func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers, newStatus *v1alpha1.DatadogAgentInternalStatus) error {
+func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers, newStatus *v1alpha1.DatadogAgentInternalStatus) error {
 	matchLabels := client.MatchingLabels{
 		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterAgentResourceSuffix,
 		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
@@ -122,7 +125,8 @@ func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, logger logr.L
 	}
 	for _, deployment := range deploymentList.Items {
 		if deploymentName != deployment.Name {
-			if _, err := r.cleanupV2ClusterAgent(logger, ddai, &deployment, resourcesManager, newStatus); err != nil {
+			objLogger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
+			if _, err := r.cleanupV2ClusterAgent(objLogger, ddai, &deployment, resourcesManager, newStatus); err != nil {
 				return err
 			}
 		}
@@ -147,7 +151,7 @@ func (r *Reconciler) cleanupV2ClusterAgent(logger logr.Logger, ddai *v1alpha1.Da
 		}
 		return reconcile.Result{}, err
 	}
-	logger.Info("Deleting Cluster Agent Deployment", "deployment.Namespace", clusterAgentDeployment.Namespace, "deployment.Name", clusterAgentDeployment.Name)
+	logger.Info("Deleting Cluster Agent Deployment")
 	event := buildEventInfo(clusterAgentDeployment.Name, clusterAgentDeployment.Namespace, kubernetes.ClusterRoleBindingKind, datadog.DeletionEvent)
 	r.recordEvent(ddai, event)
 	if err := r.client.Delete(context.TODO(), clusterAgentDeployment); err != nil {

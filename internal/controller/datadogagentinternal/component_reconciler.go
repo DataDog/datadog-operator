@@ -9,8 +9,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -41,7 +41,6 @@ type ComponentReconciler interface {
 
 // ReconcileComponentParams bundles common parameters needed by all components
 type ReconcileComponentParams struct {
-	Logger             logr.Logger
 	DDAI               *v1alpha1.DatadogAgentInternal
 	RequiredComponents feature.RequiredComponents
 	Features           []feature.Feature
@@ -75,9 +74,8 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 	now := metav1.NewTime(time.Now())
 
 	for _, comp := range r.components {
-		componentLogger := params.Logger.WithValues("component", comp.Name())
-		compParams := *params
-		compParams.Logger = componentLogger
+		componentLogger := ctrl.LoggerFrom(ctx).WithValues("component", comp.Name())
+		componentCtx := ctrl.LoggerInto(ctx, componentLogger)
 
 		// Check if component is enabled based on required components
 		enabled := comp.IsEnabled(params.RequiredComponents)
@@ -106,7 +104,7 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 			}
 
 			componentLogger.V(1).Info("Component disabled, cleaning up")
-			res, err := comp.Cleanup(ctx, &compParams)
+			res, err := comp.Cleanup(componentCtx, params)
 			if utils.ShouldReturn(res, err) {
 				return res, err
 			}
@@ -115,7 +113,7 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 
 		// Reconcile the component
 		componentLogger.V(1).Info("Reconciling component")
-		res, err := comp.Reconcile(ctx, &compParams)
+		res, err := comp.Reconcile(componentCtx, params)
 		if utils.ShouldReturn(res, err) {
 			return res, err
 		}

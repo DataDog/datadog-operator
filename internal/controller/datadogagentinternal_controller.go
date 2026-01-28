@@ -9,7 +9,6 @@ import (
 	"context"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
-	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -38,7 +37,6 @@ import (
 type DatadogAgentInternalReconciler struct {
 	client.Client
 	PlatformInfo kubernetes.PlatformInfo
-	Log          logr.Logger
 	Scheme       *runtime.Scheme
 	Recorder     record.EventRecorder
 	Options      datadogagentinternal.ReconcilerOptions
@@ -51,6 +49,10 @@ type DatadogAgentInternalReconciler struct {
 
 // Reconcile loop for DatadogAgent.
 func (r *DatadogAgentInternalReconciler) Reconcile(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal) (ctrl.Result, error) {
+	// Get the logger from context (already has namespace, name, reconcileID from controller-runtime)
+	// Add our controller name and kind - this enriched logger will be available to all downstream functions
+	logger := ctrl.LoggerFrom(ctx).WithName("controllers").WithName("DatadogAgentInternal").WithValues("kind", ddai.Kind)
+	ctx = ctrl.LoggerInto(ctx, logger)
 	return r.internal.Reconcile(ctx, ddai)
 }
 
@@ -105,7 +107,7 @@ func (r *DatadogAgentInternalReconciler) SetupWithManager(mgr ctrl.Manager, metr
 		return err
 	}
 
-	internal, err := datadogagentinternal.NewReconciler(r.Options, r.Client, r.PlatformInfo, r.Scheme, r.Log, r.Recorder, metricForwardersMgr)
+	internal, err := datadogagentinternal.NewReconciler(r.Options, r.Client, r.PlatformInfo, r.Scheme, r.Recorder, metricForwardersMgr)
 	if err != nil {
 		return err
 	}

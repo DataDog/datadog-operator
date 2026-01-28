@@ -169,6 +169,5 @@ func reconcilerForFinalizerTest(initialKubeObjects []client.Object) Reconciler {
 		recorder:   record.NewBroadcaster().NewRecorder(s, corev1.EventSource{}),
 		forwarders: dummyManager{},
 		options:    ReconcilerOptions{},
-		log:        logf.Log.WithName("reconciler"),
 	}
 }
