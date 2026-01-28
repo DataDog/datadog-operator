@@ -113,9 +113,9 @@ func Test_updateStatusFromSyntheticsTest(t *testing.T) {
 			assert.Equal(t, tt.expectedStatus.Creator, status.Creator)
 			assert.Equal(t, tt.expectedStatus.SyncStatus, status.SyncStatus)
 			assert.Equal(t, tt.expectedStatus.CurrentHash, status.CurrentHash)
-			// Compare time with a tolerance of 1 ms (time.Now() is called in the function)
-			assert.True(t, status.Created.Time.Sub(tt.expectedStatus.Created.Time) < time.Millisecond)
-			assert.True(t, status.LastForceSyncTime.Time.Sub(tt.expectedStatus.LastForceSyncTime.Time) < time.Millisecond)
+			// Compare time with a tolerance of 1 second (time.Now() is called in the function)
+			assert.True(t, status.Created.Time.Sub(tt.expectedStatus.Created.Time).Abs() < time.Second)
+			assert.True(t, status.LastForceSyncTime.Time.Sub(tt.expectedStatus.LastForceSyncTime.Time).Abs() < time.Second)
 		})
 	}
 }

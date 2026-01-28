@@ -30,7 +30,7 @@ spec:
     spec:
       containers:
       - name: nginx
-        image: nginx:1.14.2
+        image: public.ecr.aws/nginx/nginx:1.27-alpine
         ports:
         - containerPort: 80
           protocol: TCP

@@ -8,12 +8,40 @@ package otelagentgateway
 import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
 // RBAC for OTel Agent Gateway
 
 // GetDefaultOtelAgentGatewayClusterRolePolicyRules returns the default Cluster Role Policy Rules for the OTel Agent Gateway
+// These rules support the k8sattributes processor for enriching telemetry with Kubernetes metadata
 func GetDefaultOtelAgentGatewayClusterRolePolicyRules(dda metav1.Object, excludeNonResourceRules bool) []rbacv1.PolicyRule {
-	// TODO(OTAGENT-512): add RBAC for OTel load balancing exporter & k8s attributes processor
-	return []rbacv1.PolicyRule{}
+	policyRule := []rbacv1.PolicyRule{
+		{
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{
+				rbac.PodsResource,
+				rbac.NamespaceResource,
+			},
+			Verbs: []string{
+				rbac.GetVerb,
+				rbac.WatchVerb,
+				rbac.ListVerb,
+			},
+		},
+		{
+			APIGroups: []string{rbac.AppsAPIGroup},
+			Resources: []string{
+				rbac.ReplicasetsResource,
+			},
+			Verbs: []string{
+				rbac.GetVerb,
+				rbac.ListVerb,
+				rbac.WatchVerb,
+			},
+		},
+	}
+
+	return policyRule
 }
