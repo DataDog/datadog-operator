@@ -61,6 +61,7 @@ require (
 	github.com/gobuffalo/flect v1.0.3
 	github.com/google/go-containerregistry v0.6.0
 	github.com/hashicorp/go-retryablehttp v0.7.7
+	github.com/mattn/go-runewidth v0.0.16
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/prometheus/client_golang v1.22.0
 	github.com/samber/lo v1.49.1
@@ -185,7 +186,6 @@ require (
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect

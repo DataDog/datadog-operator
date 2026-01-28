@@ -36,11 +36,13 @@ var skipMappingKeys = []string{
 
 const defaultDDAMapUrl = "https://raw.githubusercontent.com/DataDog/helm-charts/main/tools/yaml-mapper/mapping_datadog_helm_to_datadogagent_crd.yaml"
 
-// defaultFileHeader Default file header for the mapped DDA custom resource output
-var defaultFileHeader = map[string]interface{}{
-	"apiVersion": "datadoghq.com/v2alpha1",
-	"kind":       "DatadogAgent",
-	"metadata":   map[string]interface{}{},
+// newDefaultFileHeader returns a new default file header for the mapped DDA custom resource output.
+func newDefaultFileHeader() map[string]interface{} {
+	return map[string]interface{}{
+		"apiVersion": "datadoghq.com/v2alpha1",
+		"kind":       "DatadogAgent",
+		"metadata":   map[string]interface{}{},
+	}
 }
 
 // MapConfig Configuration for the yaml mapper.
@@ -168,7 +170,7 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 	defaultValues, _ := getDefaultValues()
 
 	if m.MapConfig.HeaderPath == "" {
-		interim = defaultFileHeader
+		interim = newDefaultFileHeader()
 		if ddaName == "" {
 			ddaName = "datadog"
 		}

@@ -276,6 +276,9 @@ serviceAccount:
 
 		updateEnv("e2e-operator-logs-collection", provisionerOptions)
 
+		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
+		s.Assert().NoError(err)
+
 		// Verify logs collection on agent pod
 		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
 			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), "app.kubernetes.io/instance=datadog-agent-logs-agent")
@@ -289,7 +292,7 @@ serviceAccount:
 				utils.VerifyAgentPodLogs(c, output)
 			}
 
-			s.verifyAPILogs()
+			s.verifyAPILogs(c)
 		}, 900*time.Second, 15*time.Second, "could not validate logs collection in time")
 	})
 
@@ -344,7 +347,6 @@ serviceAccount:
 			// This works because we have a single Agent pod (so located on same node as tracegen)
 			// Otherwise, we would need to deploy tracegen on the same node as the Agent pod / as a DaemonSet
 			for _, pod := range agentPods.Items {
-
 				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "apm agent", "-j"})
 				assert.NoError(c, err)
 
@@ -357,10 +359,10 @@ serviceAccount:
 	})
 }
 
-func (s *k8sSuite) verifyAPILogs() {
+func (s *k8sSuite) verifyAPILogs(t assert.TestingT) {
 	logs, err := s.Env().FakeIntake.Client().FilterLogs("agent")
-	s.Assert().NoError(err)
-	s.Assert().NotEmptyf(logs, fmt.Sprintf("Expected fake intake-ingested logs to not be empty: %s", err))
+	assert.NoError(t, err)
+	assert.NotEmptyf(t, logs, "Expected fake intake-ingested logs to not be empty")
 }
 
 func (s *k8sSuite) verifyAPITraces(c *assert.CollectT) {

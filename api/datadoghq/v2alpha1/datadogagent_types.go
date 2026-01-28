@@ -448,6 +448,12 @@ type CSPMFeatureConfig struct {
 	// HostBenchmarks contains configuration for host benchmarks.
 	// +optional
 	HostBenchmarks *CSPMHostBenchmarksConfig `json:"hostBenchmarks,omitempty"`
+
+	// RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent.
+	// This is an experimental feature. Contact support before using.
+	// Default: false
+	// +optional
+	RunInSystemProbe *bool `json:"runInSystemProbe,omitempty"`
 }
 
 // CSPMHostBenchmarksConfig contains configuration for host benchmarks.
@@ -660,6 +666,7 @@ type DogstatsdFeatureConfig struct {
 	OriginDetectionEnabled *bool `json:"originDetectionEnabled,omitempty"`
 
 	// TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`).
+	// This setting only applies when OriginDetectionEnabled is true.
 	// See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables
 	// Cardinality default: low
 	// +optional
@@ -1039,6 +1046,11 @@ type OtelAgentGatewayFeatureConfig struct {
 	// +optional
 	// +listType=atomic
 	Ports []*corev1.ContainerPort `json:"ports,omitempty"`
+
+	// FeatureGates are the feature gates to pass to the OTel collector as a comma-separated list.
+	// Example: "component.UseLocalHostAsDefaultHost,connector.datadogconnector.NativeIngest"
+	// +optional
+	FeatureGates *string `json:"featureGates,omitempty"`
 }
 
 // ControlPlaneMonitoringFeatureConfig contains the configuration for the control plane monitoring.
