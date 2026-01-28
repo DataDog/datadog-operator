@@ -44,7 +44,16 @@ func (s *k8sSuite) TestGenericK8s() {
 	defaultOperatorOpts := []operatorparams.Option{
 		operatorparams.WithNamespace(common.NamespaceName),
 		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
-		operatorparams.WithHelmValues("installCRDs: false"),
+		// RBAC/CRDs are installed via our e2e kustomize (`config/new-e2e`, namePrefix: datadog-operator-e2e-).
+		// Ensure the Helm-installed operator uses the same ServiceAccount (and doesn't create its own RBAC),
+		// otherwise it may run under a different SA (e.g. datadog-operator-linux) lacking new permissions.
+		operatorparams.WithHelmValues(`installCRDs: false
+rbac:
+  create: false
+serviceAccount:
+  create: false
+  name: datadog-operator-e2e-controller-manager
+`),
 	}
 
 	defaultProvisionerOpts := []provisioners.KubernetesProvisionerOption{
@@ -56,6 +65,33 @@ func (s *k8sSuite) TestGenericK8s() {
 	defaultDDAOpts := []agentwithoperatorparams.Option{
 		agentwithoperatorparams.WithNamespace(common.NamespaceName),
 	}
+
+	// --- Suite-level cleanup (registered before any subtests run) ---
+	//
+	// We need to ensure the final env of the suite is left without a DatadogAgent before the
+	// underlying Pulumi teardown happens; otherwise CRD deletion may race with DDA deletion.
+	//
+	// This runs ONCE, at the very end of the whole suite (not after each subtest).
+	t := s.T()
+	var lastTestName string
+	updateEnv := func(testName string, opts []provisioners.KubernetesProvisionerOption) {
+		lastTestName = testName
+		s.UpdateEnv(provisioners.KubernetesProvisioner(opts...))
+	}
+	t.Cleanup(func() {
+		if lastTestName == "" {
+			return
+		}
+
+		cleanupOpts := []provisioners.KubernetesProvisionerOption{
+			provisioners.WithTestName(lastTestName),
+			provisioners.WithK8sVersion(common.K8sVersion),
+			provisioners.WithOperatorOptions(defaultOperatorOpts...),
+			provisioners.WithoutDDA(),
+			provisioners.WithLocal(s.local),
+		}
+		s.UpdateEnv(provisioners.KubernetesProvisioner(cleanupOpts...))
+	})
 
 	s.T().Run("Verify Operator", func(t *testing.T) {
 		s.Assert().EventuallyWithT(func(c *assert.CollectT) {
@@ -83,7 +119,7 @@ func (s *k8sSuite) TestGenericK8s() {
 			provisioners.WithLocal(s.local),
 		}
 
-		s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
+		updateEnv("e2e-operator-minimal-dda", provisionerOptions)
 
 		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 		s.Assert().NoError(err)
@@ -149,7 +185,7 @@ func (s *k8sSuite) TestGenericK8s() {
 			provisioners.WithLocal(s.local),
 		}
 
-		s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
+		updateEnv("e2e-operator-ksm-ccr", provisionerOptions)
 
 		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 		s.Assert().NoError(err)
@@ -190,7 +226,7 @@ func (s *k8sSuite) TestGenericK8s() {
 		provisionerOptions = append(provisionerOptions, defaultProvisionerOpts...)
 
 		// Add nginx with annotations
-		s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
+		updateEnv("e2e-operator-autodiscovery", provisionerOptions)
 
 		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 		s.Assert().NoError(err)
@@ -236,7 +272,10 @@ func (s *k8sSuite) TestGenericK8s() {
 			provisioners.WithLocal(s.local),
 		}
 
-		s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
+		updateEnv("e2e-operator-logs-collection", provisionerOptions)
+
+		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
+		s.Assert().NoError(err)
 
 		// Verify logs collection on agent pod
 		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
@@ -251,7 +290,7 @@ func (s *k8sSuite) TestGenericK8s() {
 				utils.VerifyAgentPodLogs(c, output)
 			}
 
-			s.verifyAPILogs()
+			s.verifyAPILogs(c)
 		}, 900*time.Second, 15*time.Second, "could not validate logs collection in time")
 	})
 
@@ -265,7 +304,7 @@ func (s *k8sSuite) TestGenericK8s() {
 			provisioners.WithLocal(s.local),
 		}
 		withoutDDAProvisionerOptions = append(withoutDDAProvisionerOptions, defaultProvisionerOpts...)
-		s.UpdateEnv(provisioners.KubernetesProvisioner(withoutDDAProvisionerOptions...))
+		updateEnv("e2e-operator-apm", withoutDDAProvisionerOptions)
 
 		var apmAgentSelector = ",agent.datadoghq.com/name=datadog-agent-apm"
 		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "apm", "datadog-agent-apm.yaml"))
@@ -291,7 +330,7 @@ func (s *k8sSuite) TestGenericK8s() {
 		ddaProvisionerOptions = append(ddaProvisionerOptions, defaultProvisionerOpts...)
 
 		// Deploy APM DatadogAgent and tracegen
-		s.UpdateEnv(provisioners.KubernetesProvisioner(ddaProvisionerOptions...))
+		updateEnv("e2e-operator-apm", ddaProvisionerOptions)
 
 		// Verify traces collection on agent pod
 		s.EventuallyWithTf(func(c *assert.CollectT) {
@@ -306,7 +345,6 @@ func (s *k8sSuite) TestGenericK8s() {
 			// This works because we have a single Agent pod (so located on same node as tracegen)
 			// Otherwise, we would need to deploy tracegen on the same node as the Agent pod / as a DaemonSet
 			for _, pod := range agentPods.Items {
-
 				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "apm agent", "-j"})
 				assert.NoError(c, err)
 
@@ -319,10 +357,10 @@ func (s *k8sSuite) TestGenericK8s() {
 	})
 }
 
-func (s *k8sSuite) verifyAPILogs() {
+func (s *k8sSuite) verifyAPILogs(t assert.TestingT) {
 	logs, err := s.Env().FakeIntake.Client().FilterLogs("agent")
-	s.Assert().NoError(err)
-	s.Assert().NotEmptyf(logs, fmt.Sprintf("Expected fake intake-ingested logs to not be empty: %s", err))
+	assert.NoError(t, err)
+	assert.NotEmptyf(t, logs, "Expected fake intake-ingested logs to not be empty")
 }
 
 func (s *k8sSuite) verifyAPITraces(c *assert.CollectT) {

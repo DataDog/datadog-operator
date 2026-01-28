@@ -47,6 +47,9 @@ func (r *Reconciler) manageGlobalDependencies(logger logr.Logger, ddai *datadogh
 	if err := global.ApplyGlobalComponentDependencies(logger, ddai.GetObjectMeta(), &ddai.Spec, nil, resourceManagers, datadoghqv2alpha1.ClusterChecksRunnerComponentName, requiredComponents.ClusterChecksRunner, true); len(err) > 0 {
 		errs = append(errs, err...)
 	}
+	if err := global.ApplyGlobalComponentDependencies(logger, ddai.GetObjectMeta(), &ddai.Spec, nil, resourceManagers, datadoghqv2alpha1.OtelAgentGatewayComponentName, requiredComponents.OtelAgentGateway, true); len(err) > 0 {
+		errs = append(errs, err...)
+	}
 
 	if len(errs) > 0 {
 		return errors.NewAggregate(errs)
@@ -58,7 +61,6 @@ func (r *Reconciler) manageGlobalDependencies(logger logr.Logger, ddai *datadogh
 func (r *Reconciler) manageFeatureDependencies(logger logr.Logger, features []feature.Feature, resourceManagers feature.ResourceManagers) error {
 	var errs []error
 	for _, feat := range features {
-		logger.V(1).Info("Managing dependencies", "featureID", feat.ID())
 		if err := feat.ManageDependencies(resourceManagers, ""); err != nil {
 			errs = append(errs, err)
 		}

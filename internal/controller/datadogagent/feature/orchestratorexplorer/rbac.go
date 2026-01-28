@@ -14,7 +14,6 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
@@ -110,7 +109,22 @@ func getRBACPolicyRules(logger logr.Logger, crs []string) []rbacv1.PolicyRule {
 		},
 		{
 			APIGroups: []string{rbac.ArgoProjAPIGroup},
-			Resources: []string{rbac.Rollout},
+			Resources: []string{rbac.Rollout, rbac.Applications, rbac.Applicationsets},
+		},
+		{
+			APIGroups: []string{rbac.FluxSourceToolkitAPIGroup},
+			Resources: []string{
+				rbac.Buckets,
+				rbac.Helmcharts,
+				rbac.Externalartifacts,
+				rbac.Gitrepositories,
+				rbac.Helmrepositories,
+				rbac.Ocirepositories,
+			},
+		},
+		{
+			APIGroups: []string{rbac.FluxKustomizeToolkitAPIGroup},
+			Resources: []string{rbac.Kustomizations},
 		},
 		{
 			APIGroups: []string{rbac.KarpenterAPIGroup},
@@ -127,16 +141,18 @@ func getRBACPolicyRules(logger logr.Logger, crs []string) []rbacv1.PolicyRule {
 	}
 
 	if len(crs) > 0 {
-		rbacBuilder := utils.NewRBACBuilder()
 		for _, cr := range crs {
 			crSplit := strings.Split(cr, "/")
 			if len(crSplit) == 3 {
-				rbacBuilder.AddGroupKind(crSplit[0], crSplit[2])
+				// use ToLower as rbac resource names are lowercase but input may not be
+				rbacRules = append(rbacRules, rbacv1.PolicyRule{
+					APIGroups: []string{crSplit[0]},
+					Resources: []string{strings.ToLower(crSplit[2])},
+				})
 			} else {
-				logger.Error(fmt.Errorf("unable to create cluster role for %s, skipping", cr), "correct format should be group/version/kind")
+				logger.Error(fmt.Errorf("unable to create cluster role for %s, skipping", cr), "correct format should be group/version/resource")
 			}
 		}
-		rbacRules = append(rbacRules, rbacBuilder.Build()...)
 	}
 
 	defaultVerbs := []string{

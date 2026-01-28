@@ -40,6 +40,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/externalmetrics"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/gpu"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/helmcheck"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/hostprofiler"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kubernetesstatecore"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/livecontainer"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/liveprocess"
@@ -47,6 +48,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/npm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/oomkill"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/orchestratorexplorer"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelagentgateway"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otlp"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/processdiscovery"
@@ -90,6 +92,7 @@ func (r *Reconciler) initializeComponentRegistry() {
 	// Register all components
 	r.componentRegistry.Register(NewClusterAgentComponent(r))
 	r.componentRegistry.Register(NewClusterChecksRunnerComponent(r))
+	r.componentRegistry.Register(NewOtelAgentGatewayComponent(r))
 }
 
 // NewReconciler returns a reconciler for DatadogAgent

@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	commonk8s "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/k8s"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/guess"
 	"github.com/DataDog/datadog-operator/pkg/version"
 )
@@ -38,7 +39,7 @@ func CreateOrUpdateEC2NodeClass(ctx context.Context, client client.Client, clust
 		}
 	}
 
-	return createOrUpdate(ctx, client, &karpawsv1.EC2NodeClass{
+	return commonk8s.CreateOrUpdate(ctx, client, &karpawsv1.EC2NodeClass{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "karpenter.k8s.aws/v1",
 			Kind:       "EC2NodeClass",
