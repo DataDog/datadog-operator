@@ -70,7 +70,6 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 		f.nodeActionsAllowlist = parConfig.NodeAgent.ActionsAllowlist
 	}
 
-	// Build required components (only node for now)
 	if f.nodeEnabled {
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(true),
@@ -102,13 +101,11 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 		return nil
 	}
 
-	// Add environment variable to enable private action runner
 	managers.EnvVar().AddEnvVarToContainer(apicommon.PrivateActionRunnerContainerName, &corev1.EnvVar{
 		Name:  "DD_PRIVATEACTIONRUNNER_ENABLED",
 		Value: "true",
 	})
 
-	// Configure self enroll if specified
 	if f.nodeSelfEnroll != nil {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.PrivateActionRunnerContainerName, &corev1.EnvVar{
 			Name:  "DD_PRIVATEACTIONRUNNER_SELF_ENROLL",
@@ -116,7 +113,6 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 		})
 	}
 
-	// Configure actions allowlist if specified
 	if len(f.nodeActionsAllowlist) > 0 {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.PrivateActionRunnerContainerName, &corev1.EnvVar{
 			Name:  "DD_PRIVATEACTIONRUNNER_ACTIONS_ALLOWLIST",
@@ -124,7 +120,6 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 		})
 	}
 
-	// Add DD_HOSTNAME with fieldRef to spec.nodeName for hostname detection
 	managers.EnvVar().AddEnvVarToContainer(apicommon.PrivateActionRunnerContainerName, &corev1.EnvVar{
 		Name: constants.DDHostName,
 		ValueFrom: &corev1.EnvVarSource{
