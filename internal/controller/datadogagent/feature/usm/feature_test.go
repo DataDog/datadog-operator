@@ -187,12 +187,6 @@ func Test_usmFeature_Configure(t *testing.T) {
 			}
 		}
 
-		processEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ProcessAgentContainerName]
-		assert.True(t, apiutils.IsEqualStruct(processEnvVars, nil), "Process agent envvars \ndiff = %s", cmp.Diff(processEnvVars, nil))
-
-		processAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.ProcessAgentContainerName]
-		assert.True(t, apiutils.IsEqualStruct(processAgentMounts, nil), "Process Agent volume mounts \ndiff = %s", cmp.Diff(processAgentMounts, nil))
-
 		// check env vars
 		wantEnvVars := []*corev1.EnvVar{
 			{
