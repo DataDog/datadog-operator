@@ -163,6 +163,7 @@ properties:
             resources:
             - customresourcedefinitions
             verbs:
+            - get
             - list
             - watch
           - apiGroups:
@@ -370,9 +371,9 @@ properties:
             - list
             - watch
           - apiGroups:
-              - discovery.k8s.io
+            - discovery.k8s.io
             resources:
-              - endpointslices
+            - endpointslices
             verbs:
             - list
             - watch
@@ -386,6 +387,34 @@ properties:
             - list
             - watch
           - apiGroups:
+            - gateway.envoyproxy.io
+            resources:
+            - envoyextensionpolicies
+            verbs:
+            - create
+            - delete
+            - get
+          - apiGroups:
+            - gateway.networking.k8s.io
+            resources:
+            - gatewayclasses
+            - gateways
+            - httproutes
+            verbs:
+            - get
+            - list
+            - patch
+            - watch
+          - apiGroups:
+            - gateway.networking.k8s.io
+            resources:
+            - referencegrants
+            verbs:
+            - create
+            - delete
+            - get
+            - patch
+          - apiGroups:
             - karpenter.sh
             resources:
             - '*'
@@ -398,11 +427,21 @@ properties:
             - update
             - watch
           - apiGroups:
+            - networking.istio.io
+            resources:
+            - envoyfilters
+            verbs:
+            - create
+            - delete
+            - get
+          - apiGroups:
             - networking.k8s.io
             resources:
             - ingresses
             verbs:
+            - get
             - list
+            - patch
             - watch
           - apiGroups:
             - networking.k8s.io
@@ -438,30 +477,30 @@ properties:
           - apiGroups:
             - rbac.authorization.k8s.io
             resources:
-              - clusterrolebindings
-              - clusterroles
+            - clusterrolebindings
+            - clusterroles
             verbs:
-              - create
-              - delete
-              - deletecollection
-              - get
-              - list
-              - patch
-              - update
-              - watch
+            - create
+            - delete
+            - deletecollection
+            - get
+            - list
+            - patch
+            - update
+            - watch
           - apiGroups:
-              - rbac.authorization.k8s.io
+            - rbac.authorization.k8s.io
             resources:
-              - rolebindings
-              - roles
+            - rolebindings
+            - roles
             verbs:
-              - create
-              - delete
-              - get
-              - list
-              - patch
-              - update
-              - watch
+            - create
+            - delete
+            - get
+            - list
+            - patch
+            - update
+            - watch
           - apiGroups:
             - security.openshift.io
             resourceNames:
