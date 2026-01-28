@@ -1367,7 +1367,7 @@
                       "type": "boolean"
                     },
                     "tagCardinality": {
-                      "description": "TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`).\nSee also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables\nCardinality default: low",
+                      "description": "TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`).\nThis setting only applies when OriginDetectionEnabled is true.\nSee also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables\nCardinality default: low",
                       "type": "string"
                     },
                     "unixDomainSocketConfig": {
