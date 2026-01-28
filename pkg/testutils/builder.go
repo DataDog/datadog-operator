@@ -1188,6 +1188,45 @@ func (builder *DatadogAgentBuilder) WithControlPlaneMonitoring(enabled bool) *Da
 	return builder
 }
 
+// Private Action Runner
+
+func (builder *DatadogAgentBuilder) initPrivateActionRunner() {
+	if builder.datadogAgent.Spec.Features.PrivateActionRunner == nil {
+		builder.datadogAgent.Spec.Features.PrivateActionRunner = &v2alpha1.PrivateActionRunnerFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) initPrivateActionRunnerNode() {
+	builder.initPrivateActionRunner()
+	if builder.datadogAgent.Spec.Features.PrivateActionRunner.NodeAgent == nil {
+		builder.datadogAgent.Spec.Features.PrivateActionRunner.NodeAgent = &v2alpha1.PrivateActionRunnerNodeConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithPrivateActionRunnerEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initPrivateActionRunner()
+	builder.datadogAgent.Spec.Features.PrivateActionRunner.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithPrivateActionRunnerNodeEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initPrivateActionRunnerNode()
+	builder.datadogAgent.Spec.Features.PrivateActionRunner.NodeAgent.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithPrivateActionRunnerNodeSelfEnroll(enabled bool) *DatadogAgentBuilder {
+	builder.initPrivateActionRunnerNode()
+	builder.datadogAgent.Spec.Features.PrivateActionRunner.NodeAgent.SelfEnroll = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithPrivateActionRunnerNodeActionsAllowlist(actions []string) *DatadogAgentBuilder {
+	builder.initPrivateActionRunnerNode()
+	builder.datadogAgent.Spec.Features.PrivateActionRunner.NodeAgent.ActionsAllowlist = actions
+	return builder
+}
+
 func (builder *DatadogAgentBuilder) WithStatus(status v2alpha1.DatadogAgentStatus) *DatadogAgentBuilder {
 	builder.datadogAgent.Status = status
 	return builder
