@@ -364,6 +364,12 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 	}
 	managers.EnvVar().AddEnvVarToContainer(targetContainer, hostBenchmarksEnabledEnvVar)
 
+	runInSystemProbeEnvVar := &corev1.EnvVar{
+		Name:  DDComplianceConfigRunInSystemProbe,
+		Value: apiutils.BoolToString(&f.runInSystemProbe),
+	}
+	managers.EnvVar().AddEnvVarToContainer(targetContainer, runInSystemProbeEnvVar)
+
 	return nil
 }
 
