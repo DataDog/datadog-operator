@@ -62,12 +62,12 @@ type testCase struct {
 func runTestCases(t *testing.T, tests []testCase) {
 	// Check if any test is focused
 	hasFocused := false
-	for _, tt := range tests {
-		if tt.focus {
-			hasFocused = true
-			break
-		}
-	}
+	// for _, tt := range tests {
+	// 	if tt.focus {
+	// 		hasFocused = true
+	// 		break
+	// 	}
+	// }
 
 	// Run tests
 	for _, tt := range tests {
