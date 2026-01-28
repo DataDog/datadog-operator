@@ -62,6 +62,7 @@ func Test_privateActionRunnerFeature_Configure(t *testing.T) {
 			},
 			wantFunc: func(t *testing.T, reqComp feature.RequiredComponents) {
 				assert.False(t, reqComp.Agent.IsEnabled())
+				assert.False(t, reqComp.ClusterAgent.IsEnabled())
 			},
 		},
 	}
@@ -114,8 +115,10 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					PrivateActionRunner: &v2alpha1.PrivateActionRunnerFeatureConfig{
-						Enabled:    apiutils.NewBoolPointer(true),
-						SelfEnroll: apiutils.NewBoolPointer(true),
+						Enabled: apiutils.NewBoolPointer(true),
+						NodeAgent: &v2alpha1.PrivateActionRunnerNodeConfig{
+							SelfEnroll: apiutils.NewBoolPointer(true),
+						},
 					},
 				},
 			},
@@ -144,12 +147,14 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 				Features: &v2alpha1.DatadogFeatures{
 					PrivateActionRunner: &v2alpha1.PrivateActionRunnerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(true),
-						ActionsAllowlist: []string{
-							"com.datadoghq.script.testConnection",
-							"com.datadoghq.script.enrichScript",
-							"com.datadoghq.script.runPredefinedScript",
-							"com.datadoghq.kubernetes.core.listPod",
-							"com.datadoghq.kubernetes.core.testConnection",
+						NodeAgent: &v2alpha1.PrivateActionRunnerNodeConfig{
+							ActionsAllowlist: []string{
+								"com.datadoghq.script.testConnection",
+								"com.datadoghq.script.enrichScript",
+								"com.datadoghq.script.runPredefinedScript",
+								"com.datadoghq.kubernetes.core.listPod",
+								"com.datadoghq.kubernetes.core.testConnection",
+							},
 						},
 					},
 				},
@@ -199,16 +204,6 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 func Test_privateActionRunnerFeature_ID(t *testing.T) {
 	f := buildPrivateActionRunnerFeature(nil)
 	assert.Equal(t, string(feature.PrivateActionRunnerIDType), string(f.ID()))
-}
-
-func Test_privateActionRunnerFeature_ManageClusterAgent(t *testing.T) {
-	f := buildPrivateActionRunnerFeature(nil)
-	podTmpl := corev1.PodTemplateSpec{}
-	managers := fake.NewPodTemplateManagers(t, podTmpl)
-
-	err := f.ManageClusterAgent(managers, "")
-	assert.NoError(t, err)
-	// Verify no changes were made (private action runner doesn't run in cluster agent)
 }
 
 func Test_privateActionRunnerFeature_ManageSingleContainerNodeAgent(t *testing.T) {
