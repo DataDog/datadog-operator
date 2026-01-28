@@ -233,3 +233,7 @@ func GetDDAName(dda metav1.Object) string {
 	}
 	return dda.GetName()
 }
+
+func GetOperatorComponentLabelKey(component v2alpha1.ComponentName) string {
+	return OperatorComponentLabelKeyPrefix + string(component)
+}

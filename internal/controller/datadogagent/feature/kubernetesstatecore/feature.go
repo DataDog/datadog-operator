@@ -18,10 +18,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
@@ -145,30 +143,6 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 
 		if ddaSpec.Features.KubeStateMetricsCore.Conf != nil {
 			f.customConfig = ddaSpec.Features.KubeStateMetricsCore.Conf
-			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
-			if err != nil {
-				f.logger.Error(err, "couldn't generate hash for ksm core custom config")
-			} else {
-				f.logger.V(2).Info("built ksm core from custom config", "hash", hash)
-			}
-			f.customConfigAnnotationValue = hash
-			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.KubernetesStateCoreIDType)
-		} else {
-			// Generate dynamic checksum for default configuration (based on user provided collectCrMetrics field and whether or not APIServices/CRD metrics are collected)
-			defaultConfigData := map[string]any{
-				"collect_crds":        f.collectCRDMetrics,
-				"collect_apiservices": f.collectAPIServiceMetrics,
-				"collect_cr_metrics":  f.collectCrMetrics,
-			}
-
-			hash, err := comparison.GenerateMD5ForSpec(defaultConfigData)
-			if err != nil {
-				f.logger.Error(err, "couldn't generate hash for default ksm core config")
-			} else {
-				f.logger.V(2).Info("generated default ksm core config hash", "hash", hash, "config", defaultConfigData)
-			}
-			f.customConfigAnnotationValue = hash
-			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.KubernetesStateCoreIDType)
 		}
 
 		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, defaultKubeStateMetricsCoreConf)
@@ -203,11 +177,6 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, provi
 		return err
 	}
 	if configCM != nil {
-		// Add md5 hash annotation for custom config
-		if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-			annotations := object.MergeAnnotationsLabels(f.logger, configCM.GetAnnotations(), map[string]string{f.customConfigAnnotationKey: f.customConfigAnnotationValue}, "*")
-			configCM.SetAnnotations(annotations)
-		}
 		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, configCM); err != nil {
 			return err
 		}
