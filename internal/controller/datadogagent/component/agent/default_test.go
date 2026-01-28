@@ -3,6 +3,7 @@ package agent
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -11,7 +12,6 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestVolumesForAgent(t *testing.T) {
@@ -194,4 +194,38 @@ func TestDefaultSyscallsForSystemProbe(t *testing.T) {
 			assert.Equal(t, tt.expectedSyscalls, syscalls)
 		})
 	}
+}
+
+func TestPrivateActionRunnerContainer(t *testing.T) {
+	dda := &metav1.ObjectMeta{
+		Name:      "test-dda",
+		Namespace: "default",
+	}
+
+	containers := agentOptimizedContainers(dda, []apicommon.AgentContainerName{
+		apicommon.CoreAgentContainerName,
+		apicommon.PrivateActionRunnerContainerName,
+	})
+
+	assert.Len(t, containers, 2)
+
+	parContainer := containers[1]
+	assert.Equal(t, string(apicommon.PrivateActionRunnerContainerName), parContainer.Name)
+	assert.Equal(t, agentImage(), parContainer.Image)
+	assert.Equal(t, []string{
+		"/opt/datadog-agent/embedded/bin/privateactionrunner",
+		"run",
+		"-c=/etc/datadog-agent/datadog.yaml",
+	}, parContainer.Command)
+
+	assert.True(t, *parContainer.SecurityContext.ReadOnlyRootFilesystem)
+	mountNames := make(map[string]bool)
+	for _, m := range parContainer.VolumeMounts {
+		mountNames[m.Name] = true
+	}
+	assert.True(t, mountNames[common.LogDatadogVolumeName])
+	assert.True(t, mountNames[common.AuthVolumeName])
+	assert.True(t, mountNames[common.ConfigVolumeName])
+	assert.True(t, mountNames[common.DogstatsdSocketVolumeName])
+	assert.True(t, mountNames[common.TmpVolumeName])
 }
