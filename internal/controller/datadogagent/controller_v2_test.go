@@ -822,7 +822,8 @@ func Test_AutopilotOverrides(t *testing.T) {
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 
 				ds := &appsv1.DaemonSet{}
-				c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds)
+				err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds)
+				assert.NoError(t, err, "Failed to get DaemonSet %s/%s", resourcesNamespace, dsName)
 
 				forbiddenVolumes := map[string]struct{}{
 					common.AuthVolumeName:            {},
@@ -904,7 +905,8 @@ func Test_AutopilotOverrides(t *testing.T) {
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 
 				ds := &appsv1.DaemonSet{}
-				c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds)
+				err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds)
+				assert.NoError(t, err, "Failed to get DaemonSet %s/%s", resourcesNamespace, dsName)
 
 				traceAgentFound := false
 				for _, ctn := range ds.Spec.Template.Spec.Containers {
