@@ -13,20 +13,6 @@ import (
 	"testing"
 	"time"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	common "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
-	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
-	"github.com/DataDog/datadog-operator/pkg/condition"
-	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/images"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-	"github.com/DataDog/datadog-operator/pkg/testutils"
-
 	assert "github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -41,6 +27,20 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	common "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
+	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
+	"github.com/DataDog/datadog-operator/pkg/condition"
+	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/images"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 )
 
 type testCase struct {
@@ -426,11 +426,6 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		},
 		{
 			name: "DatadogAgent with Private Action Runner enabled on node, create Daemonset with core, trace, and private-action-runner containers",
-			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}, &appsv1.Deployment{}).Build(),
-				scheme:   s,
-				recorder: recorder,
-			},
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithPrivateActionRunnerEnabled(true).
@@ -440,14 +435,14 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
-			wantFunc: func(c client.Client) error {
+			wantFunc: func(t *testing.T, c client.Client) {
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 					string(apicommon.PrivateActionRunnerContainerName),
 				}
 
-				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 			},
 		},
 		{
@@ -1326,25 +1321,6 @@ func verifyDaemonsetContainers(t *testing.T, c client.Client, resourcesNamespace
 	sort.Strings(dsContainers)
 	sort.Strings(expectedContainers)
 	assert.Equal(t, expectedContainers, dsContainers, "Container names don't match")
-}
-
-func verifyDeploymentContainers(c client.Client, resourcesNamespace, deploymentName string, expectedContainers []string) error {
-	deployment := &appsv1.Deployment{}
-	if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: deploymentName}, deployment); err != nil {
-		return err
-	}
-	deploymentContainers := []string{}
-	for _, container := range deployment.Spec.Template.Spec.Containers {
-		deploymentContainers = append(deploymentContainers, container.Name)
-	}
-
-	sort.Strings(deploymentContainers)
-	sort.Strings(expectedContainers)
-	if reflect.DeepEqual(expectedContainers, deploymentContainers) {
-		return nil
-	} else {
-		return fmt.Errorf("Container don't match, expected %s, actual %s", expectedContainers, deploymentContainers)
-	}
 }
 
 func verifyDaemonsetNames(t *testing.T, c client.Client, resourcesNamespace string, expectedDSNames []string) {
