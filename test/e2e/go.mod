@@ -32,7 +32,7 @@ require (
 	sigs.k8s.io/yaml v1.5.0
 )
 
-require github.com/DataDog/datadog-operator v1.11.1
+require github.com/DataDog/datadog-operator v1.22.0
 
 require (
 	dario.cat/mergo v1.0.2 // indirect
@@ -45,7 +45,7 @@ require (
 	github.com/DataDog/datadog-agent/pkg/util/pointer v0.63.0-rc.1 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.63.0-rc.1 // indirect
 	github.com/DataDog/datadog-agent/pkg/version v0.63.0-rc.1 // indirect
-	github.com/DataDog/extendeddaemonset/api v0.0.0-20250108205105-6c4d337b78a1 // indirect
+	github.com/DataDog/datadog-operator/api v0.0.0-20250130131115-7f198adcc856 // indirect
 	github.com/DataDog/mmh3 v0.0.0-20210722141835-012dc69a9e49 // indirect
 	github.com/DataDog/zstd v1.5.6 // indirect
 	github.com/DataDog/zstd_0 v0.0.0-20210310093942-586c1286621f // indirect
@@ -169,7 +169,6 @@ require (
 	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
 	github.com/nxadm/tail v1.4.11 // indirect
 	github.com/onsi/ginkgo/v2 v2.23.3 // indirect
-	github.com/onsi/gomega v1.36.3 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/opentracing/basictracer-go v1.1.0 // indirect
