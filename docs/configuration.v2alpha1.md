@@ -182,7 +182,7 @@ spec:
 | features.privateActionRunner.enabled | Enables Private Action Runner. Default: false |
 | features.privateActionRunner.nodeAgent.actionsAllowlist | Specifies the list of actions that are allowed to be executed. |
 | features.privateActionRunner.nodeAgent.enabled | Enables Private Action Runner on the Node Agent. Default: true |
-| features.privateActionRunner.nodeAgent.selfEnroll | Enables automatic self-enrollment for the node-level runner. |
+| features.privateActionRunner.nodeAgent.selfEnroll | Enables automatic self-enrollment for the Node Agent runner. |
 | features.processDiscovery.enabled | Enables the Process Discovery check in the Agent. Default: true |
 | features.prometheusScrape.additionalConfigs | AdditionalConfigs allows adding advanced Prometheus check configurations with custom discovery rules. |
 | features.prometheusScrape.enableServiceEndpoints | EnableServiceEndpoints enables generating dedicated checks for service endpoints. Default: false |

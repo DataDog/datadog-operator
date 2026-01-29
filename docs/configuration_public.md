@@ -355,7 +355,7 @@ spec:
 : Enables Private Action Runner on the Node Agent. Default: true
 
 `features.privateActionRunner.nodeAgent.selfEnroll`
-: Enables automatic self-enrollment for the node-level runner.
+: Enables automatic self-enrollment for the Node Agent runner.
 
 `features.processDiscovery.enabled`
 : Enables the Process Discovery check in the Agent. Default: true

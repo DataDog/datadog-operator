@@ -666,7 +666,7 @@ type PrivateActionRunnerFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// NodeAgent configures Private Action Runner on the node Agent.
+	// NodeAgent configures Private Action Runner on the Node Agent.
 	// Runs one instance per node for node-level actions.
 	// +optional
 	NodeAgent *PrivateActionRunnerNodeConfig `json:"nodeAgent,omitempty"`
@@ -679,7 +679,7 @@ type PrivateActionRunnerNodeConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// Enables automatic self-enrollment for the node-level runner.
+	// Enables automatic self-enrollment for the Node Agent runner.
 	// +optional
 	SelfEnroll *bool `json:"selfEnroll,omitempty"`
 

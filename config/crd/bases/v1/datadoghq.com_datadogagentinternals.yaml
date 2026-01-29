@@ -2265,7 +2265,7 @@ spec:
                           type: boolean
                         nodeAgent:
                           description: |-
-                            NodeAgent configures Private Action Runner on the node Agent.
+                            NodeAgent configures Private Action Runner on the Node Agent.
                             Runs one instance per node for node-level actions.
                           properties:
                             actionsAllowlist:
@@ -2279,7 +2279,7 @@ spec:
                                 Default: true
                               type: boolean
                             selfEnroll:
-                              description: Enables automatic self-enrollment for the node-level runner.
+                              description: Enables automatic self-enrollment for the Node Agent runner.
                               type: boolean
                           type: object
                       type: object
@@ -10293,7 +10293,7 @@ spec:
                               type: boolean
                             nodeAgent:
                               description: |-
-                                NodeAgent configures Private Action Runner on the node Agent.
+                                NodeAgent configures Private Action Runner on the Node Agent.
                                 Runs one instance per node for node-level actions.
                               properties:
                                 actionsAllowlist:
@@ -10307,7 +10307,7 @@ spec:
                                     Default: true
                                   type: boolean
                                 selfEnroll:
-                                  description: Enables automatic self-enrollment for the node-level runner.
+                                  description: Enables automatic self-enrollment for the Node Agent runner.
                                   type: boolean
                               type: object
                           type: object
