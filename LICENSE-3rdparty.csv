@@ -102,7 +102,6 @@ core,github.com/golang/snappy,BSD-3-Clause
 core,github.com/google/btree,Apache-2.0
 core,github.com/google/cel-go,Apache-2.0
 core,github.com/google/gnostic-models,Apache-2.0
-core,github.com/google/go-cmp/cmp,BSD-3-Clause
 core,github.com/google/pprof/profile,Apache-2.0
 core,github.com/google/shlex,Apache-2.0
 core,github.com/google/uuid,BSD-3-Clause
@@ -249,6 +248,7 @@ core,k8s.io/client-go,Apache-2.0
 core,k8s.io/client-go/third_party/forked/golang/template,BSD-3-Clause
 core,k8s.io/cloud-provider/api,Apache-2.0
 core,k8s.io/component-base,Apache-2.0
+core,k8s.io/component-helpers/resource,Apache-2.0
 core,k8s.io/csi-translation-lib,Apache-2.0
 core,k8s.io/klog/v2,Apache-2.0
 core,k8s.io/kube-aggregator/pkg/apis/apiregistration,Apache-2.0
@@ -270,5 +270,5 @@ core,sigs.k8s.io/karpenter/pkg,Apache-2.0
 core,sigs.k8s.io/kustomize/api,Apache-2.0
 core,sigs.k8s.io/kustomize/kyaml,Apache-2.0
 core,sigs.k8s.io/randfill,Apache-2.0
-core,sigs.k8s.io/structured-merge-diff/v4,Apache-2.0
+core,sigs.k8s.io/structured-merge-diff/v6,Apache-2.0
 core,sigs.k8s.io/yaml,Apache-2.0
