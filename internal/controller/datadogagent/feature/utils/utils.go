@@ -38,24 +38,10 @@ func agentSupportsRunInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 // ShouldRunProcessChecksInCoreAgent determines whether allow process checks to run in core agent based on
 // environment variables and the agent version.
 func ShouldRunProcessChecksInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
-
-	// Prioritize env var override
-	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
-		for _, env := range nodeAgent.Env {
-			if env.Name == common.DDProcessConfigRunInCoreAgent {
-				val, err := strconv.ParseBool(env.Value)
-				if err == nil {
-					return val
-				}
-			}
-		}
-	}
-
 	// Check if agent version supports process checks running in core agent
 	if !agentSupportsRunInCoreAgent(ddaSpec) {
 		return false
 	}
-
 	return true
 }
 
