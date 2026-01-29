@@ -1859,7 +1859,7 @@ spec:
                               type: boolean
                             directSend:
                               description: |-
-                                DirectSend enables CNM/USM sending data directly to the backend
+                                DirectSend enables CNM/USM to send data directly to the backend
                                 Default: false
                               type: boolean
                             enableConntrack:

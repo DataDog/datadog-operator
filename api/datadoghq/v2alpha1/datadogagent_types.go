@@ -600,7 +600,7 @@ type NPMFeatureConfig struct {
 	// +optional
 	CollectDNSStats *bool `json:"collectDNSStats,omitempty"`
 
-	// DirectSend enables CNM/USM sending data directly to the backend
+	// DirectSend enables CNM/USM to send data directly to the backend
 	// Default: false
 	// +optional
 	DirectSend *bool `json:"directSend,omitempty"`
