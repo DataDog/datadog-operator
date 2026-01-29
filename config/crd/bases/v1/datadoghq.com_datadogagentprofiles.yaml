@@ -2260,26 +2260,26 @@ spec:
                           properties:
                             enabled:
                               description: |-
-                                Enabled is the main switch for Private Action Runner feature.
+                                Enables Private Action Runner.
                                 Default: false
                               type: boolean
                             nodeAgent:
                               description: |-
-                                NodeAgent configures Private Action Runner on the Node Agent.
+                                NodeAgent configures Private Action Runner on the node Agent.
                                 Runs one instance per node for node-level actions.
                               properties:
                                 actionsAllowlist:
-                                  description: ActionsAllowlist specifies the list of actions that are allowed to be executed.
+                                  description: Specifies the list of actions that are allowed to be executed.
                                   items:
                                     type: string
                                   type: array
                                 enabled:
                                   description: |-
-                                    Enabled enables Private Action Runner on the Node Agent.
-                                    Default: true (when parent Enabled is true)
+                                    Enables Private Action Runner on the Node Agent.
+                                    Default: true
                                   type: boolean
                                 selfEnroll:
-                                  description: SelfEnroll enables automatic self-enrollment for the node-level runner.
+                                  description: Enables automatic self-enrollment for the node-level runner.
                                   type: boolean
                               type: object
                           type: object

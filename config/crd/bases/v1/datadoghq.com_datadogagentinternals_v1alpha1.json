@@ -2366,26 +2366,26 @@
               "description": "PrivateActionRunner configuration.",
               "properties": {
                 "enabled": {
-                  "description": "Enabled is the main switch for Private Action Runner feature.\nDefault: false",
+                  "description": "Enables Private Action Runner.\nDefault: false",
                   "type": "boolean"
                 },
                 "nodeAgent": {
                   "additionalProperties": false,
-                  "description": "NodeAgent configures Private Action Runner on the Node Agent.\nRuns one instance per node for node-level actions.",
+                  "description": "NodeAgent configures Private Action Runner on the node Agent.\nRuns one instance per node for node-level actions.",
                   "properties": {
                     "actionsAllowlist": {
-                      "description": "ActionsAllowlist specifies the list of actions that are allowed to be executed.",
+                      "description": "Specifies the list of actions that are allowed to be executed.",
                       "items": {
                         "type": "string"
                       },
                       "type": "array"
                     },
                     "enabled": {
-                      "description": "Enabled enables Private Action Runner on the Node Agent.\nDefault: true (when parent Enabled is true)",
+                      "description": "Enables Private Action Runner on the Node Agent.\nDefault: true",
                       "type": "boolean"
                     },
                     "selfEnroll": {
-                      "description": "SelfEnroll enables automatic self-enrollment for the node-level runner.",
+                      "description": "Enables automatic self-enrollment for the node-level runner.",
                       "type": "boolean"
                     }
                   },
@@ -10258,26 +10258,26 @@
                   "description": "PrivateActionRunner configuration.",
                   "properties": {
                     "enabled": {
-                      "description": "Enabled is the main switch for Private Action Runner feature.\nDefault: false",
+                      "description": "Enables Private Action Runner.\nDefault: false",
                       "type": "boolean"
                     },
                     "nodeAgent": {
                       "additionalProperties": false,
-                      "description": "NodeAgent configures Private Action Runner on the Node Agent.\nRuns one instance per node for node-level actions.",
+                      "description": "NodeAgent configures Private Action Runner on the node Agent.\nRuns one instance per node for node-level actions.",
                       "properties": {
                         "actionsAllowlist": {
-                          "description": "ActionsAllowlist specifies the list of actions that are allowed to be executed.",
+                          "description": "Specifies the list of actions that are allowed to be executed.",
                           "items": {
                             "type": "string"
                           },
                           "type": "array"
                         },
                         "enabled": {
-                          "description": "Enabled enables Private Action Runner on the Node Agent.\nDefault: true (when parent Enabled is true)",
+                          "description": "Enables Private Action Runner on the Node Agent.\nDefault: true",
                           "type": "boolean"
                         },
                         "selfEnroll": {
-                          "description": "SelfEnroll enables automatic self-enrollment for the node-level runner.",
+                          "description": "Enables automatic self-enrollment for the node-level runner.",
                           "type": "boolean"
                         }
                       },

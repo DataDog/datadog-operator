@@ -179,10 +179,10 @@ spec:
 | features.otlp.receiver.protocols.http.endpoint | For OTLP/HTTP. Default: '0.0.0.0:4318'. |
 | features.otlp.receiver.protocols.http.hostPortConfig.enabled | Enables host port configuration |
 | features.otlp.receiver.protocols.http.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
-| features.privateActionRunner.enabled | Is the main switch for Private Action Runner feature. Default: false |
-| features.privateActionRunner.nodeAgent.actionsAllowlist | ActionsAllowlist specifies the list of actions that are allowed to be executed. |
-| features.privateActionRunner.nodeAgent.enabled | Enables Private Action Runner on the Node Agent. Default: true (when parent Enabled is true) |
-| features.privateActionRunner.nodeAgent.selfEnroll | SelfEnroll enables automatic self-enrollment for the node-level runner. |
+| features.privateActionRunner.enabled | Enables Private Action Runner. Default: false |
+| features.privateActionRunner.nodeAgent.actionsAllowlist | Specifies the list of actions that are allowed to be executed. |
+| features.privateActionRunner.nodeAgent.enabled | Enables Private Action Runner on the Node Agent. Default: true |
+| features.privateActionRunner.nodeAgent.selfEnroll | Enables automatic self-enrollment for the node-level runner. |
 | features.processDiscovery.enabled | Enables the Process Discovery check in the Agent. Default: true |
 | features.prometheusScrape.additionalConfigs | AdditionalConfigs allows adding advanced Prometheus check configurations with custom discovery rules. |
 | features.prometheusScrape.enableServiceEndpoints | EnableServiceEndpoints enables generating dedicated checks for service endpoints. Default: false |
