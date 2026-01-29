@@ -199,6 +199,10 @@ func cspmAgentNodeWantFunc(runInSystemProbe bool) *test.ComponentTest {
 					Name:  DDComplianceHostBenchmarksEnabled,
 					Value: "true",
 				},
+				{
+					Name:  DDComplianceConfigRunInSystemProbe,
+					Value: apiutils.BoolToString(&runInSystemProbe),
+				},
 			}
 
 			targetContainerEnvVars := mgr.EnvVarMgr.EnvVarsByC[targetContainer]
