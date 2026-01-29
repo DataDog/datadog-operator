@@ -397,12 +397,6 @@ publish_redhat_public_tag:
     IMG_SIGNING: "false"
     IMG_MERGE_STRATEGY: "index_oci"
 
-publish_redhat_public_tag_fips:
-  extends: publish_redhat_public_tag
-  variables:
-    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
-    IMG_DESTINATIONS: $RH_PARTNER_PROJECT_ID:$CI_COMMIT_TAG-fips
-
 publish_public_latest:
   stage: release-latest
   rules:
@@ -441,12 +435,6 @@ publish_redhat_public_latest:
     IMG_REGISTRIES: redhat-operator
     IMG_SIGNING: "false"
     IMG_MERGE_STRATEGY: "index_oci"
-
-publish_redhat_public_latest_fips:
-  extends: publish_redhat_public_latest
-  variables:
-    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
-    IMG_DESTINATIONS: $RH_PARTNER_PROJECT_ID:latest-fips
 
 trigger_internal_operator_image:
   stage: release
