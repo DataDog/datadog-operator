@@ -24,7 +24,10 @@ func TestEKSAutoscalingSuite(t *testing.T) {
 	}
 
 	e2eOpts := []e2e.SuiteOption{
-		e2e.WithStackName("operator-eks-autoscaling"),
+		// Keep the stack name short to avoid exceeding IAM policy size limits.
+		// The cluster name (derived from stack name) appears 20+ times in the
+		// KarpenterControllerPolicy, which has a 6144 char limit.
+		e2e.WithStackName("eks-as"),
 		e2e.WithProvisioner(provisioners.EKSProvisioner(provisionerOptions...)),
 	}
 
