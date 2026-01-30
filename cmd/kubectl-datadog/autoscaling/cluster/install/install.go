@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/davecgh/go-spew/spew"
@@ -20,7 +21,10 @@ import (
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 	"helm.sh/helm/v3/pkg/registry"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
@@ -233,6 +237,12 @@ func (o *options) run(cmd *cobra.Command) error {
 		return err
 	}
 
+	// Wait for EKS Pod Identity Agent to be ready before installing Karpenter
+	// This ensures the webhook can inject credentials into Karpenter pods
+	if err = waitForPodIdentityAgent(ctx, cli.K8sClientset, 5*time.Minute); err != nil {
+		return err
+	}
+
 	if err = o.installHelmChart(ctx, clusterName, karpenterNamespace, karpenterVersion, debug); err != nil {
 		return err
 	}
@@ -256,10 +266,20 @@ func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, clust
 		return fmt.Errorf("failed to check if EKS pod identity agent is installed: %w", err)
 	}
 
+	// Check if cluster supports API authentication mode (required for EKS Access Entries)
+	supportsAPIAuth, err := guess.SupportsAPIAuthenticationMode(ctx, cli.EKS, clusterName)
+	if err != nil {
+		return fmt.Errorf("failed to check cluster authentication mode: %w", err)
+	}
+	if !supportsAPIAuth {
+		log.Println("Cluster authentication mode does not support EKS Access Entries. Using aws-auth ConfigMap for node authentication.")
+	}
+
 	if err := aws.CreateOrUpdateStack(ctx, cli.CloudFormation, "dd-karpenter-"+clusterName+"-dd-karpenter", DdKarpenterCfn, map[string]string{
 		"ClusterName":            clusterName,
 		"KarpenterNamespace":     karpenterNamespace,
 		"DeployPodIdentityAddon": strconv.FormatBool(!isUnmanagedEKSPIAInstalled),
+		"DeployNodeAccessEntry":  strconv.FormatBool(supportsAPIAuth),
 	}); err != nil {
 		return fmt.Errorf("failed to create or update Cloud Formation stack: %w", err)
 	}
@@ -298,6 +318,64 @@ func updateAwsAuthConfigMap(ctx context.Context, cli *clients.Clients, clusterNa
 	}
 
 	return nil
+}
+
+// waitForPodIdentityAgent waits for the EKS Pod Identity Agent pods to be running.
+// This ensures the Pod Identity webhook is ready to inject credentials before Karpenter starts.
+func waitForPodIdentityAgent(ctx context.Context, k8sClientset *kubernetes.Clientset, timeout time.Duration) error {
+	log.Println("Waiting for EKS Pod Identity Agent to be ready…")
+
+	deadline := time.Now().Add(timeout)
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			if time.Now().After(deadline) {
+				return fmt.Errorf("timeout waiting for EKS Pod Identity Agent pods to be ready after %v", timeout)
+			}
+
+			ready, err := arePodIdentityAgentPodsReady(ctx, k8sClientset)
+			if err != nil {
+				log.Printf("Warning: failed to check Pod Identity Agent status: %v", err)
+				continue
+			}
+			if ready {
+				log.Println("EKS Pod Identity Agent is ready.")
+				return nil
+			}
+		}
+	}
+}
+
+// arePodIdentityAgentPodsReady checks if at least one eks-pod-identity-agent pod is running and ready.
+func arePodIdentityAgentPodsReady(ctx context.Context, k8sClientset *kubernetes.Clientset) (bool, error) {
+	pods, err := k8sClientset.CoreV1().Pods("kube-system").List(ctx, metav1.ListOptions{
+		LabelSelector: "app.kubernetes.io/instance=eks-pod-identity-agent",
+	})
+	if err != nil {
+		return false, fmt.Errorf("failed to list eks-pod-identity-agent pods: %w", err)
+	}
+
+	if len(pods.Items) == 0 {
+		return false, nil
+	}
+
+	// Check if at least one pod is running and ready
+	for _, pod := range pods.Items {
+		if pod.Status.Phase == corev1.PodRunning {
+			for _, condition := range pod.Status.Conditions {
+				if condition.Type == corev1.PodReady && condition.Status == corev1.ConditionTrue {
+					return true, nil
+				}
+			}
+		}
+	}
+
+	return false, nil
 }
 
 func (o *options) installHelmChart(ctx context.Context, clusterName string, karpenterNamespace string, karpenterVersion string, debug bool) error {

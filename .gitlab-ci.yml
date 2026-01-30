@@ -332,6 +332,51 @@ e2e_mq:
     # Don't run otherwise
     - when: never
 
+e2e_autoscaling:
+  stage: e2e
+  tags:
+    - "arch:amd64"
+  needs: []
+  timeout: 60m
+  rules:
+    # Run automatically on changes to autoscaling code
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        paths:
+          - "cmd/kubectl-datadog/autoscaling/**"
+          - "test/e2e/tests/autoscaling_suite/**"
+          - "test/e2e/provisioners/eks.go"
+          - "test/e2e/common/autoscaling.go"
+      when: on_success
+    # Allow manual run otherwise
+    - when: manual
+      allow_failure: true
+  variables:
+    <<: *resource_variables
+    E2E_AWS_PUBLIC_KEY_PATH: /tmp/agent-qa-ssh-key.pub
+    E2E_AWS_PRIVATE_KEY_PATH: /tmp/agent-qa-ssh-key
+    E2E_KEY_PAIR_NAME: ci.datadog-operator
+    # Temporary workaround from https://github.com/golang/go/issues/75031
+    GOTOOLCHAIN: go1.25.0+auto
+  image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux$CI_IMAGE_LINUX_SUFFIX:$CI_IMAGE_LINUX
+  before_script:
+    # Setup AWS Credentials
+    - echo "Starting setup for E2E autoscaling testing..."
+    - mkdir -p ~/.aws
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.agent-qa-profile --with-decryption --query "Parameter.Value" --out text >> ~/.aws/config
+    - export AWS_PROFILE=agent-qa-ci
+    # Now all `aws` commands target the agent-qa profile
+    - echo "Retrieving SSH keys from AWS..."
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_public_key --with-decryption --query "Parameter.Value" --out text > $E2E_AWS_PUBLIC_KEY_PATH
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_private_key --with-decryption --query "Parameter.Value" --out text > $E2E_AWS_PRIVATE_KEY_PATH
+    # Use S3 backend to store stack status
+    - echo "Logging in to Pulumi with S3 backend..."
+    - pulumi login "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE"
+  script:
+    - echo "Running autoscaling e2e tests"
+    - make e2e-autoscaling-tests
+  retry: 1
+
 publish_public_main:
   stage: release
   rules:
