@@ -1,5 +1,3 @@
-//go:build e2e
-
 // Unless explicitly stated otherwise all files in this repository are licensed
 // under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
@@ -10,7 +8,6 @@ package autoscalingsuite
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/e2e"
@@ -33,7 +30,6 @@ func (s *autoscalingSuite) SetupSuite() {
 	s.BaseSuite.SetupSuite()
 	s.extractClusterInfo()
 
-	// Register cleanup at suite level to ensure resources are cleaned up
 	s.T().Cleanup(func() {
 		s.cleanupKarpenterResources()
 	})
@@ -41,32 +37,23 @@ func (s *autoscalingSuite) SetupSuite() {
 
 // extractClusterInfo extracts kubeconfig, cluster name, and AWS credentials from the EKS environment
 func (s *autoscalingSuite) extractClusterInfo() {
-	// Get kubeconfig from the environment
-	kubeConfig := s.Env().KubernetesCluster.KubeConfig
-	if kubeConfig == "" {
-		s.T().Fatal("Failed to get kubeconfig from environment")
-	}
+	kubeconfigFile, err := os.CreateTemp("", "autoscaling-e2e-kubeconfig-*")
+	require.NoError(s.T(), err)
 
-	// Write kubeconfig to a temp file
-	tmpDir := os.TempDir()
-	kubeconfigPath := filepath.Join(tmpDir, "autoscaling-e2e-kubeconfig")
-	err := os.WriteFile(kubeconfigPath, []byte(kubeConfig), 0600)
-	require.NoError(s.T(), err, "Failed to write kubeconfig to file")
-	s.kubeconfigPath = kubeconfigPath
+	_, err = kubeconfigFile.WriteString(s.Env().KubernetesCluster.KubeConfig)
+	require.NoError(s.T(), err, "Failed to write kubeconfig to file %s", kubeconfigFile.Name())
 
-	// Get cluster name from environment
-	clusterName := s.Env().KubernetesCluster.ClusterName
-	if clusterName == "" {
-		s.T().Fatal("Failed to get cluster name from environment")
-	}
-	s.clusterName = clusterName
+	err = kubeconfigFile.Close()
+	require.NoError(s.T(), err, "Failed to close kubeconfig to file %s", kubeconfigFile.Name())
 
-	// Load AWS credentials using SDK's default credential chain
-	ctx := context.Background()
-	cfg, err := config.LoadDefaultConfig(ctx)
+	s.kubeconfigPath = kubeconfigFile.Name()
+
+	s.clusterName = s.Env().KubernetesCluster.ClusterName
+
+	cfg, err := config.LoadDefaultConfig(s.T().Context())
 	require.NoError(s.T(), err, "Failed to load AWS config")
 
-	creds, err := cfg.Credentials.Retrieve(ctx)
+	creds, err := cfg.Credentials.Retrieve(s.T().Context())
 	require.NoError(s.T(), err, "Failed to retrieve AWS credentials")
 
 	s.awsCreds = common.AWSCredentials{
@@ -86,7 +73,7 @@ func (s *autoscalingSuite) extractClusterInfo() {
 
 // cleanupKarpenterResources ensures Karpenter resources are cleaned up at the end of the suite
 func (s *autoscalingSuite) cleanupKarpenterResources() {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
+	ctx, cancel := context.WithTimeout(s.T().Context(), 20*time.Minute)
 	defer cancel()
 
 	s.T().Log("Cleaning up Karpenter resources...")
@@ -99,7 +86,7 @@ func (s *autoscalingSuite) cleanupKarpenterResources() {
 
 	// Clean up kubeconfig file
 	if s.kubeconfigPath != "" {
-		_ = os.Remove(s.kubeconfigPath)
+		os.Remove(s.kubeconfigPath)
 	}
 }
 
@@ -110,10 +97,14 @@ func (s *autoscalingSuite) TestAutoscaling() {
 	})
 
 	s.Run("Install is idempotent", func() {
-		s.testInstallIsIdempotent()
+		s.testInstallWithDefaults()
 	})
 
 	s.Run("Uninstall cleans up resources", func() {
+		s.testUninstallCleansUp()
+	})
+
+	s.Run("Uninstall is idempotent", func() {
 		s.testUninstallCleansUp()
 	})
 
@@ -128,7 +119,7 @@ func (s *autoscalingSuite) TestAutoscaling() {
 
 // testInstallWithDefaults tests the default install flow
 func (s *autoscalingSuite) testInstallWithDefaults() {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	ctx, cancel := context.WithTimeout(s.T().Context(), 15*time.Minute)
 	defer cancel()
 
 	// Run install
@@ -140,23 +131,9 @@ func (s *autoscalingSuite) testInstallWithDefaults() {
 	s.verifyKarpenterInstalled(ctx)
 }
 
-// testInstallIsIdempotent tests that running install twice succeeds
-func (s *autoscalingSuite) testInstallIsIdempotent() {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
-	defer cancel()
-
-	// Run install again
-	output, err := common.RunAutoscalingInstall(ctx, s.kubeconfigPath, s.awsCreds, s.clusterName)
-	require.NoError(s.T(), err, "Second install command failed. Output: %s", output)
-	s.T().Logf("Second install output: %s", output)
-
-	// Verify installation still works
-	s.verifyKarpenterInstalled(ctx)
-}
-
 // testUninstallCleansUp tests that uninstall removes all resources
 func (s *autoscalingSuite) testUninstallCleansUp() {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
+	ctx, cancel := context.WithTimeout(s.T().Context(), 20*time.Minute)
 	defer cancel()
 
 	// Run uninstall
@@ -170,7 +147,7 @@ func (s *autoscalingSuite) testUninstallCleansUp() {
 
 // testInstallWithNoResources tests install with --create-karpenter-resources=none
 func (s *autoscalingSuite) testInstallWithNoResources() {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	ctx, cancel := context.WithTimeout(s.T().Context(), 15*time.Minute)
 	defer cancel()
 
 	// Run install with --create-karpenter-resources=none
@@ -202,7 +179,7 @@ func (s *autoscalingSuite) testInstallWithNoResources() {
 
 // testInstallWithNodesInference tests install with --inference-method=nodes
 func (s *autoscalingSuite) testInstallWithNodesInference() {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	ctx, cancel := context.WithTimeout(s.T().Context(), 15*time.Minute)
 	defer cancel()
 
 	// Run install with --inference-method=nodes
