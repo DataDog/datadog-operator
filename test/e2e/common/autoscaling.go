@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	cftypes "github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	"github.com/aws/smithy-go"
@@ -29,44 +31,62 @@ const (
 	KarpenterNamespace = "dd-karpenter"
 )
 
+// AWSCredentials holds AWS credentials loaded from the SDK's default credential chain
+type AWSCredentials struct {
+	AccessKeyID     string
+	SecretAccessKey string
+	SessionToken    string // may be empty for static credentials
+	Region          string
+}
+
 // KubectlDatadogPath returns the path to the kubectl-datadog binary
 func KubectlDatadogPath() string {
 	return filepath.Join(ProjectRootPath, "bin", "kubectl-datadog")
 }
 
-// RunKubectlDatadog executes kubectl-datadog command with the specified kubeconfig, AWS profile and region
-func RunKubectlDatadog(ctx context.Context, kubeconfigPath, awsProfile, awsRegion string, args ...string) (string, error) {
+// RunKubectlDatadog executes kubectl-datadog with explicit AWS credentials
+func RunKubectlDatadog(ctx context.Context, kubeconfigPath string, awsCreds AWSCredentials, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, KubectlDatadogPath(), args...)
-	cmd.Env = append(cmd.Environ(), "KUBECONFIG="+kubeconfigPath)
-	if awsProfile != "" {
-		cmd.Env = append(cmd.Env, "AWS_PROFILE="+awsProfile)
+
+	// Set minimal environment with explicit credentials
+	cmd.Env = []string{
+		"PATH=" + os.Getenv("PATH"),
+		"HOME=" + os.Getenv("HOME"),
+		"KUBECONFIG=" + kubeconfigPath,
+		"AWS_ACCESS_KEY_ID=" + awsCreds.AccessKeyID,
+		"AWS_SECRET_ACCESS_KEY=" + awsCreds.SecretAccessKey,
+		"AWS_REGION=" + awsCreds.Region,
 	}
-	if awsRegion != "" {
-		cmd.Env = append(cmd.Env, "AWS_REGION="+awsRegion)
+	if awsCreds.SessionToken != "" {
+		cmd.Env = append(cmd.Env, "AWS_SESSION_TOKEN="+awsCreds.SessionToken)
 	}
+
 	output, err := cmd.CombinedOutput()
 	return string(output), err
 }
 
 // RunAutoscalingInstall runs kubectl datadog autoscaling cluster install
-func RunAutoscalingInstall(ctx context.Context, kubeconfigPath, awsProfile, awsRegion, clusterName string, extraArgs ...string) (string, error) {
+func RunAutoscalingInstall(ctx context.Context, kubeconfigPath string, awsCreds AWSCredentials, clusterName string, extraArgs ...string) (string, error) {
 	args := []string{"autoscaling", "cluster", "install", "--cluster-name", clusterName}
 	args = append(args, extraArgs...)
-	return RunKubectlDatadog(ctx, kubeconfigPath, awsProfile, awsRegion, args...)
+	return RunKubectlDatadog(ctx, kubeconfigPath, awsCreds, args...)
 }
 
 // RunAutoscalingUninstall runs kubectl datadog autoscaling cluster uninstall
-func RunAutoscalingUninstall(ctx context.Context, kubeconfigPath, awsProfile, awsRegion, clusterName string) (string, error) {
-	return RunKubectlDatadog(ctx, kubeconfigPath, awsProfile, awsRegion, "autoscaling", "cluster", "uninstall", "--cluster-name", clusterName, "--yes")
+func RunAutoscalingUninstall(ctx context.Context, kubeconfigPath string, awsCreds AWSCredentials, clusterName string) (string, error) {
+	return RunKubectlDatadog(ctx, kubeconfigPath, awsCreds, "autoscaling", "cluster", "uninstall", "--cluster-name", clusterName, "--yes")
 }
 
-// CloudFormationClient creates a CloudFormation client using the default AWS config
-func CloudFormationClient(ctx context.Context, region string) (*cloudformation.Client, error) {
-	var opts []func(*config.LoadOptions) error
-	if region != "" {
-		opts = append(opts, config.WithRegion(region))
-	}
-	cfg, err := config.LoadDefaultConfig(ctx, opts...)
+// CloudFormationClient creates a CloudFormation client using explicit credentials
+func CloudFormationClient(ctx context.Context, awsCreds AWSCredentials) (*cloudformation.Client, error) {
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithRegion(awsCreds.Region),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+			awsCreds.AccessKeyID,
+			awsCreds.SecretAccessKey,
+			awsCreds.SessionToken,
+		)),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}

@@ -16,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/e2e"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/environments"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,8 +26,7 @@ type autoscalingSuite struct {
 	e2e.BaseSuite[environments.Kubernetes]
 	kubeconfigPath string
 	clusterName    string
-	awsProfile     string
-	awsRegion      string
+	awsCreds       common.AWSCredentials
 }
 
 func (s *autoscalingSuite) SetupSuite() {
@@ -39,7 +39,7 @@ func (s *autoscalingSuite) SetupSuite() {
 	})
 }
 
-// extractClusterInfo extracts kubeconfig, cluster name, and AWS profile from the EKS environment
+// extractClusterInfo extracts kubeconfig, cluster name, and AWS credentials from the EKS environment
 func (s *autoscalingSuite) extractClusterInfo() {
 	// Get kubeconfig from the environment
 	kubeConfig := s.Env().KubernetesCluster.KubeConfig
@@ -61,18 +61,27 @@ func (s *autoscalingSuite) extractClusterInfo() {
 	}
 	s.clusterName = clusterName
 
-	// Get AWS profile and region from environment variables
-	s.awsProfile = os.Getenv("AWS_PROFILE")
-	s.awsRegion = os.Getenv("AWS_REGION")
-	if s.awsRegion == "" {
-		// Default to us-east-1 which is the typical e2e environment
-		s.awsRegion = "us-east-1"
+	// Load AWS credentials using SDK's default credential chain
+	ctx := context.Background()
+	cfg, err := config.LoadDefaultConfig(ctx)
+	require.NoError(s.T(), err, "Failed to load AWS config")
+
+	creds, err := cfg.Credentials.Retrieve(ctx)
+	require.NoError(s.T(), err, "Failed to retrieve AWS credentials")
+
+	s.awsCreds = common.AWSCredentials{
+		AccessKeyID:     creds.AccessKeyID,
+		SecretAccessKey: creds.SecretAccessKey,
+		SessionToken:    creds.SessionToken,
+		Region:          cfg.Region,
+	}
+	if s.awsCreds.Region == "" {
+		s.awsCreds.Region = "us-east-1" // Fallback default
 	}
 
 	s.T().Logf("EKS cluster name: %s", s.clusterName)
 	s.T().Logf("Kubeconfig path: %s", s.kubeconfigPath)
-	s.T().Logf("AWS profile: %s", s.awsProfile)
-	s.T().Logf("AWS region: %s", s.awsRegion)
+	s.T().Logf("AWS region: %s", s.awsCreds.Region)
 }
 
 // cleanupKarpenterResources ensures Karpenter resources are cleaned up at the end of the suite
@@ -83,7 +92,7 @@ func (s *autoscalingSuite) cleanupKarpenterResources() {
 	s.T().Log("Cleaning up Karpenter resources...")
 
 	// Run uninstall to clean up
-	output, err := common.RunAutoscalingUninstall(ctx, s.kubeconfigPath, s.awsProfile, s.awsRegion, s.clusterName)
+	output, err := common.RunAutoscalingUninstall(ctx, s.kubeconfigPath, s.awsCreds, s.clusterName)
 	if err != nil {
 		s.T().Logf("Warning: cleanup uninstall failed (may be expected if already cleaned): %v\nOutput: %s", err, output)
 	}
@@ -123,7 +132,7 @@ func (s *autoscalingSuite) testInstallWithDefaults() {
 	defer cancel()
 
 	// Run install
-	output, err := common.RunAutoscalingInstall(ctx, s.kubeconfigPath, s.awsProfile, s.awsRegion, s.clusterName)
+	output, err := common.RunAutoscalingInstall(ctx, s.kubeconfigPath, s.awsCreds, s.clusterName)
 	require.NoError(s.T(), err, "Install command failed. Output: %s", output)
 	s.T().Logf("Install output: %s", output)
 
@@ -137,7 +146,7 @@ func (s *autoscalingSuite) testInstallIsIdempotent() {
 	defer cancel()
 
 	// Run install again
-	output, err := common.RunAutoscalingInstall(ctx, s.kubeconfigPath, s.awsProfile, s.awsRegion, s.clusterName)
+	output, err := common.RunAutoscalingInstall(ctx, s.kubeconfigPath, s.awsCreds, s.clusterName)
 	require.NoError(s.T(), err, "Second install command failed. Output: %s", output)
 	s.T().Logf("Second install output: %s", output)
 
@@ -151,7 +160,7 @@ func (s *autoscalingSuite) testUninstallCleansUp() {
 	defer cancel()
 
 	// Run uninstall
-	output, err := common.RunAutoscalingUninstall(ctx, s.kubeconfigPath, s.awsProfile, s.awsRegion, s.clusterName)
+	output, err := common.RunAutoscalingUninstall(ctx, s.kubeconfigPath, s.awsCreds, s.clusterName)
 	require.NoError(s.T(), err, "Uninstall command failed. Output: %s", output)
 	s.T().Logf("Uninstall output: %s", output)
 
@@ -165,7 +174,7 @@ func (s *autoscalingSuite) testInstallWithNoResources() {
 	defer cancel()
 
 	// Run install with --create-karpenter-resources=none
-	output, err := common.RunAutoscalingInstall(ctx, s.kubeconfigPath, s.awsProfile, s.awsRegion, s.clusterName, "--create-karpenter-resources=none")
+	output, err := common.RunAutoscalingInstall(ctx, s.kubeconfigPath, s.awsCreds, s.clusterName, "--create-karpenter-resources=none")
 	require.NoError(s.T(), err, "Install with --create-karpenter-resources=none failed. Output: %s", output)
 	s.T().Logf("Install output: %s", output)
 
@@ -174,7 +183,7 @@ func (s *autoscalingSuite) testInstallWithNoResources() {
 	require.NoError(s.T(), err, "Karpenter pods not running")
 
 	// Verify CloudFormation stacks exist
-	cfnClient, err := common.CloudFormationClient(ctx, s.awsRegion)
+	cfnClient, err := common.CloudFormationClient(ctx, s.awsCreds)
 	require.NoError(s.T(), err, "Failed to create CloudFormation client")
 
 	err = common.VerifyCloudFormationStacks(ctx, cfnClient, s.clusterName)
@@ -184,7 +193,7 @@ func (s *autoscalingSuite) testInstallWithNoResources() {
 	// The actual behavior depends on whether previous test runs left CRs
 
 	// Cleanup for next test
-	output, err = common.RunAutoscalingUninstall(ctx, s.kubeconfigPath, s.awsProfile, s.awsRegion, s.clusterName)
+	output, err = common.RunAutoscalingUninstall(ctx, s.kubeconfigPath, s.awsCreds, s.clusterName)
 	require.NoError(s.T(), err, "Cleanup uninstall failed. Output: %s", output)
 
 	// Wait for cleanup to complete
@@ -197,7 +206,7 @@ func (s *autoscalingSuite) testInstallWithNodesInference() {
 	defer cancel()
 
 	// Run install with --inference-method=nodes
-	output, err := common.RunAutoscalingInstall(ctx, s.kubeconfigPath, s.awsProfile, s.awsRegion, s.clusterName, "--inference-method=nodes")
+	output, err := common.RunAutoscalingInstall(ctx, s.kubeconfigPath, s.awsCreds, s.clusterName, "--inference-method=nodes")
 	require.NoError(s.T(), err, "Install with --inference-method=nodes failed. Output: %s", output)
 	s.T().Logf("Install output: %s", output)
 
@@ -205,7 +214,7 @@ func (s *autoscalingSuite) testInstallWithNodesInference() {
 	s.verifyKarpenterInstalled(ctx)
 
 	// Cleanup
-	output, err = common.RunAutoscalingUninstall(ctx, s.kubeconfigPath, s.awsProfile, s.awsRegion, s.clusterName)
+	output, err = common.RunAutoscalingUninstall(ctx, s.kubeconfigPath, s.awsCreds, s.clusterName)
 	require.NoError(s.T(), err, "Cleanup uninstall failed. Output: %s", output)
 }
 
@@ -214,7 +223,7 @@ func (s *autoscalingSuite) verifyKarpenterInstalled(ctx context.Context) {
 	s.T().Log("Verifying Karpenter installation...")
 
 	// Create CloudFormation client
-	cfnClient, err := common.CloudFormationClient(ctx, s.awsRegion)
+	cfnClient, err := common.CloudFormationClient(ctx, s.awsCreds)
 	require.NoError(s.T(), err, "Failed to create CloudFormation client")
 
 	// Verify CloudFormation stacks
@@ -244,7 +253,7 @@ func (s *autoscalingSuite) verifyCleanUninstall(ctx context.Context) {
 	s.T().Log("Verifying clean uninstall...")
 
 	// Create CloudFormation client
-	cfnClient, err := common.CloudFormationClient(ctx, s.awsRegion)
+	cfnClient, err := common.CloudFormationClient(ctx, s.awsCreds)
 	require.NoError(s.T(), err, "Failed to create CloudFormation client")
 
 	// Verify CloudFormation stacks are deleted
