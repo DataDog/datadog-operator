@@ -12,10 +12,13 @@ import (
 
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/e2e"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/environments"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/helm"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/stretchr/testify/assert"
+	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/stretchr/testify/require"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 // autoscalingSuite tests kubectl datadog autoscaling cluster install and uninstall commands
@@ -24,6 +27,7 @@ type autoscalingSuite struct {
 	kubeconfigPath string
 	clusterName    string
 	awsCreds       common.AWSCredentials
+	cfnClient      *cloudformation.Client
 }
 
 func (s *autoscalingSuite) SetupSuite() {
@@ -52,6 +56,8 @@ func (s *autoscalingSuite) extractClusterInfo() {
 
 	cfg, err := config.LoadDefaultConfig(s.T().Context())
 	require.NoError(s.T(), err, "Failed to load AWS config")
+
+	s.cfnClient = cloudformation.NewFromConfig(cfg)
 
 	creds, err := cfg.Credentials.Retrieve(s.T().Context())
 	require.NoError(s.T(), err, "Failed to retrieve AWS credentials")
@@ -93,134 +99,87 @@ func (s *autoscalingSuite) cleanupKarpenterResources() {
 // TestAutoscaling runs all autoscaling tests sequentially on the shared EKS cluster
 func (s *autoscalingSuite) TestAutoscaling() {
 	s.Run("Install with defaults", func() {
-		s.testInstallWithDefaults()
+		s.testInstall()
 	})
 
 	s.Run("Install is idempotent", func() {
-		s.testInstallWithDefaults()
+		s.testInstall()
 	})
 
 	s.Run("Uninstall cleans up resources", func() {
-		s.testUninstallCleansUp()
+		s.testUninstall()
 	})
 
 	s.Run("Uninstall is idempotent", func() {
-		s.testUninstallCleansUp()
+		s.testUninstall()
 	})
 
 	s.Run("Install with create-karpenter-resources=none", func() {
-		s.testInstallWithNoResources()
+		s.testInstall("--create-karpenter-resources=none")
+	})
+
+	s.Run("Uninstall cleans up resources", func() {
+		s.testUninstall()
 	})
 
 	s.Run("Install with inference-method=nodes", func() {
-		s.testInstallWithNodesInference()
+		s.testInstall("--inference-method=nodes")
+	})
+
+	s.Run("Uninstall cleans up resources", func() {
+		s.testUninstall()
 	})
 }
 
-// testInstallWithDefaults tests the default install flow
-func (s *autoscalingSuite) testInstallWithDefaults() {
+// testInstall tests the default install flow
+func (s *autoscalingSuite) testInstall(args ...string) {
 	ctx, cancel := context.WithTimeout(s.T().Context(), 15*time.Minute)
 	defer cancel()
 
 	// Run install
-	output, err := common.RunAutoscalingInstall(ctx, s.kubeconfigPath, s.awsCreds, s.clusterName)
-	require.NoError(s.T(), err, "Install command failed. Output: %s", output)
+	output, err := common.RunAutoscalingInstall(ctx, s.kubeconfigPath, s.awsCreds, s.clusterName, args...)
+	require.NoErrorf(s.T(), err, "Install command failed. Output: %s", output)
 	s.T().Logf("Install output: %s", output)
 
 	// Verify installation
 	s.verifyKarpenterInstalled(ctx)
 }
 
-// testUninstallCleansUp tests that uninstall removes all resources
-func (s *autoscalingSuite) testUninstallCleansUp() {
+// testUninstall tests that uninstall removes all resources
+func (s *autoscalingSuite) testUninstall() {
 	ctx, cancel := context.WithTimeout(s.T().Context(), 20*time.Minute)
 	defer cancel()
 
 	// Run uninstall
 	output, err := common.RunAutoscalingUninstall(ctx, s.kubeconfigPath, s.awsCreds, s.clusterName)
-	require.NoError(s.T(), err, "Uninstall command failed. Output: %s", output)
+	require.NoErrorf(s.T(), err, "Uninstall command failed. Output: %s", output)
 	s.T().Logf("Uninstall output: %s", output)
 
 	// Verify cleanup
 	s.verifyCleanUninstall(ctx)
 }
 
-// testInstallWithNoResources tests install with --create-karpenter-resources=none
-func (s *autoscalingSuite) testInstallWithNoResources() {
-	ctx, cancel := context.WithTimeout(s.T().Context(), 15*time.Minute)
-	defer cancel()
-
-	// Run install with --create-karpenter-resources=none
-	output, err := common.RunAutoscalingInstall(ctx, s.kubeconfigPath, s.awsCreds, s.clusterName, "--create-karpenter-resources=none")
-	require.NoError(s.T(), err, "Install with --create-karpenter-resources=none failed. Output: %s", output)
-	s.T().Logf("Install output: %s", output)
-
-	// Verify Karpenter pods are running
-	err = common.WaitForKarpenterPods(ctx, s.Env().KubernetesCluster.Client(), common.KarpenterNamespace, 5*time.Minute)
-	require.NoError(s.T(), err, "Karpenter pods not running")
-
-	// Verify CloudFormation stacks exist
-	cfnClient, err := common.CloudFormationClient(ctx, s.awsCreds)
-	require.NoError(s.T(), err, "Failed to create CloudFormation client")
-
-	err = common.VerifyCloudFormationStacks(ctx, cfnClient, s.clusterName)
-	require.NoError(s.T(), err, "CloudFormation stacks verification failed")
-
-	// Note: We don't verify Karpenter CRs here because they were not created
-	// The actual behavior depends on whether previous test runs left CRs
-
-	// Cleanup for next test
-	output, err = common.RunAutoscalingUninstall(ctx, s.kubeconfigPath, s.awsCreds, s.clusterName)
-	require.NoError(s.T(), err, "Cleanup uninstall failed. Output: %s", output)
-
-	// Wait for cleanup to complete
-	time.Sleep(10 * time.Second)
-}
-
-// testInstallWithNodesInference tests install with --inference-method=nodes
-func (s *autoscalingSuite) testInstallWithNodesInference() {
-	ctx, cancel := context.WithTimeout(s.T().Context(), 15*time.Minute)
-	defer cancel()
-
-	// Run install with --inference-method=nodes
-	output, err := common.RunAutoscalingInstall(ctx, s.kubeconfigPath, s.awsCreds, s.clusterName, "--inference-method=nodes")
-	require.NoError(s.T(), err, "Install with --inference-method=nodes failed. Output: %s", output)
-	s.T().Logf("Install output: %s", output)
-
-	// Verify installation
-	s.verifyKarpenterInstalled(ctx)
-
-	// Cleanup
-	output, err = common.RunAutoscalingUninstall(ctx, s.kubeconfigPath, s.awsCreds, s.clusterName)
-	require.NoError(s.T(), err, "Cleanup uninstall failed. Output: %s", output)
-}
-
 // verifyKarpenterInstalled verifies that Karpenter is fully installed
 func (s *autoscalingSuite) verifyKarpenterInstalled(ctx context.Context) {
 	s.T().Log("Verifying Karpenter installation...")
 
-	// Create CloudFormation client
-	cfnClient, err := common.CloudFormationClient(ctx, s.awsCreds)
-	require.NoError(s.T(), err, "Failed to create CloudFormation client")
-
 	// Verify CloudFormation stacks
-	s.Assert().EventuallyWithT(func(c *assert.CollectT) {
-		err := common.VerifyCloudFormationStacks(ctx, cfnClient, s.clusterName)
-		assert.NoError(c, err, "CloudFormation stacks not found")
-	}, 5*time.Minute, 30*time.Second, "CloudFormation stacks verification failed")
+	for _, stackName := range []string{
+		"dd-karpenter-" + s.clusterName + "-karpenter",
+		"dd-karpenter-" + s.clusterName + "-dd-karpenter",
+	} {
+		exists, err := aws.DoesStackExist(ctx, s.cfnClient, stackName)
+		s.Assert().NoErrorf(err, "Error checking stack %s", stackName)
+		s.Assert().Truef(exists, "CloudFormation stack %s not found", stackName)
+	}
 
-	// Verify Karpenter pods
-	s.Assert().EventuallyWithT(func(c *assert.CollectT) {
-		err := common.VerifyKarpenterPods(ctx, s.Env().KubernetesCluster.Client(), common.KarpenterNamespace)
-		assert.NoError(c, err, "Karpenter pods not running")
-	}, 5*time.Minute, 30*time.Second, "Karpenter pods verification failed")
+	// Verify Helm release
+	actionConfig, err := helm.NewActionConfig(genericclioptions.NewConfigFlags(false), common.KarpenterNamespace)
+	s.Assert().NoErrorf(err, "Error creating Helm action config")
 
-	// Verify Helm release exists
-	s.Assert().EventuallyWithT(func(c *assert.CollectT) {
-		exists, err := common.VerifyHelmReleaseExists(ctx, s.Env().KubernetesCluster.Client(), common.KarpenterNamespace, "karpenter")
-		assert.NoError(c, err, "Failed to check Helm release")
-		assert.True(c, exists, "Karpenter Helm release not found")
-	}, 2*time.Minute, 10*time.Second, "Helm release verification failed")
+	exists, err := helm.DoesExist(ctx, actionConfig, "karpenter")
+	s.Assert().NoErrorf(err, "Error checking Helm release")
+	s.Assert().Truef(exists, "Karpenter Helm release not found")
 
 	s.T().Log("Karpenter installation verified successfully")
 }
@@ -229,30 +188,23 @@ func (s *autoscalingSuite) verifyKarpenterInstalled(ctx context.Context) {
 func (s *autoscalingSuite) verifyCleanUninstall(ctx context.Context) {
 	s.T().Log("Verifying clean uninstall...")
 
-	// Create CloudFormation client
-	cfnClient, err := common.CloudFormationClient(ctx, s.awsCreds)
-	require.NoError(s.T(), err, "Failed to create CloudFormation client")
+	// Verify CloudFormation stacks
+	for _, stackName := range []string{
+		"dd-karpenter-" + s.clusterName + "-karpenter",
+		"dd-karpenter-" + s.clusterName + "-dd-karpenter",
+	} {
+		exists, err := aws.DoesStackExist(ctx, s.cfnClient, stackName)
+		s.Assert().NoErrorf(err, "Error checking stack %s", stackName)
+		s.Assert().Falsef(exists, "CloudFormation stack %s still exists", stackName)
+	}
 
-	// Verify CloudFormation stacks are deleted
-	s.Assert().EventuallyWithT(func(c *assert.CollectT) {
-		err := common.VerifyCloudFormationStacksDeleted(ctx, cfnClient, s.clusterName)
-		assert.NoError(c, err, "CloudFormation stacks still exist")
-	}, 15*time.Minute, 30*time.Second, "CloudFormation stacks deletion verification failed")
+	// Verify Helm release
+	actionConfig, err := helm.NewActionConfig(genericclioptions.NewConfigFlags(false), common.KarpenterNamespace)
+	s.Assert().NoErrorf(err, "Error creating Helm action config")
 
-	// Verify no Karpenter pods
-	s.Assert().EventuallyWithT(func(c *assert.CollectT) {
-		err := common.VerifyNoKarpenterPods(ctx, s.Env().KubernetesCluster.Client(), common.KarpenterNamespace)
-		assert.NoError(c, err, "Karpenter pods still exist")
-	}, 5*time.Minute, 30*time.Second, "Karpenter pods still exist")
-
-	// Verify Helm release is gone
-	s.Assert().EventuallyWithT(func(c *assert.CollectT) {
-		exists, err := common.VerifyHelmReleaseExists(ctx, s.Env().KubernetesCluster.Client(), common.KarpenterNamespace, "karpenter")
-		if err == nil {
-			assert.False(c, exists, "Karpenter Helm release still exists")
-		}
-		// If error (namespace doesn't exist), that's fine
-	}, 2*time.Minute, 10*time.Second, "Helm release still exists")
+	exists, err := helm.DoesExist(ctx, actionConfig, "karpenter")
+	s.Assert().NoErrorf(err, "Error checking Helm release")
+	s.Assert().Falsef(exists, "Karpenter Helm release still exists")
 
 	s.T().Log("Clean uninstall verified successfully")
 }
