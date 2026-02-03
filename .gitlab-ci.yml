@@ -696,7 +696,7 @@ publish_community_operators:
 publish_nightly_workflow:
   stage: deploy
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main" && $CONDUCTOR_TARGET == "nightly-build"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $CONDUCTOR_TARGET == "operator-nightly-build"'
       when: on_success
     - when: never
   needs:
