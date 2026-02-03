@@ -301,14 +301,6 @@ func run(opts *options) error {
 	// Client is needed when Creds should be resolved from DDA so cached client is fine
 	credsManager := config.NewCredentialManagerWithDecryptor(mgr.GetClient(), secrets.NewSecretBackend())
 	creds, err := credsManager.GetCredentials()
-	if err != nil && opts.datadogMonitorEnabled {
-		return setupErrorf(setupLog, err, "Unable to get credentials for DatadogMonitor")
-	}
-
-	// Checks if credentials are mandatory due to a resource controller being enabled
-	if checkErr := checkRequiredCredentials(opts, err); checkErr != nil {
-		return checkErr
-	}
 
 	if opts.secretRefreshInterval > 0 && opts.secretBackendCommand == "" {
 		setupLog.Error(nil, "secretRefreshInterval is set but secretBackendCommand is not configured")
@@ -592,24 +584,6 @@ func newGoroutinesNumberHealthzCheck(logger logr.Logger, maximumGoroutines *int)
 func setupErrorf(_ logr.Logger, err error, msg string, keysAndValues ...any) error {
 	setupLog.Error(err, msg, keysAndValues...)
 	return fmt.Errorf("%s, err:%w", msg, err)
-}
-
-// checkRequiredCredentials checks if credentials are required by any enabled controllers
-// and returns an error if they are required but the provided error indicates they
-// could not be obtained.
-func checkRequiredCredentials(opts *options, credErr error) error {
-	// Check if credentials are required by any enabled controllers
-	requireCreds := opts.datadogMonitorEnabled || opts.datadogDashboardEnabled || opts.datadogSLOEnabled || opts.datadogGenericResourceEnabled
-
-	if requireCreds && credErr != nil {
-		return setupErrorf(setupLog, credErr, "Unable to retrieve Datadog API credentials required by one or more enabled controllers",
-			"DatadogMonitor", opts.datadogMonitorEnabled,
-			"DatadogDashboard", opts.datadogDashboardEnabled,
-			"DatadogSLO", opts.datadogSLOEnabled,
-			"DatadogGenericResource", opts.datadogGenericResourceEnabled)
-	}
-
-	return nil
 }
 
 func setupAndStartOperatorMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options, credsManager *config.CredentialManager) {

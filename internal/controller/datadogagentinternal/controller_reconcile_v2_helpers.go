@@ -62,7 +62,6 @@ func (r *Reconciler) manageGlobalDependencies(logger logr.Logger, ddai *datadogh
 func (r *Reconciler) manageFeatureDependencies(logger logr.Logger, features []feature.Feature, resourceManagers feature.ResourceManagers) error {
 	var errs []error
 	for _, feat := range features {
-		logger.V(1).Info("Managing dependencies", "featureID", feat.ID())
 		if err := feat.ManageDependencies(resourceManagers, ""); err != nil {
 			errs = append(errs, err)
 		}

@@ -40,6 +40,8 @@ func BuildFeatures(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCS
 	var configuredFeatures []Feature
 	var enabledFeatures []Feature
 	var requiredComponents RequiredComponents
+	var enabledFeatureIDs []IDType
+	var configuredFeatureIDs []IDType
 
 	// to always return in feature in the same order we need to sort the map keys
 	sortedkeys := make([]IDType, 0, len(featureBuilders))
@@ -50,19 +52,21 @@ func BuildFeatures(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCS
 
 	for _, id := range sortedkeys {
 		feat := featureBuilders[id](options)
-		featureID := feat.ID()
 		reqComponents := feat.Configure(dda, ddaSpec, ddaRCStatus)
 		if reqComponents.IsEnabled() {
 			// enabled features
 			enabledFeatures = append(enabledFeatures, feat)
-			options.Logger.V(1).Info("Feature enabled", "featureID", featureID)
+			enabledFeatureIDs = append(enabledFeatureIDs, feat.ID())
 		} else if reqComponents.IsConfigured() {
 			// disabled, but still possibly needing configuration features
 			configuredFeatures = append(configuredFeatures, feat)
-			options.Logger.V(1).Info("Feature configured", "featureID", featureID)
+			configuredFeatureIDs = append(configuredFeatureIDs, feat.ID())
 		}
 		requiredComponents.Merge(&reqComponents)
 	}
+
+	options.Logger.V(1).Info("Enabled features", "features", enabledFeatureIDs)
+	options.Logger.V(1).Info("Configured features", "features", configuredFeatureIDs)
 
 	if ddaSpec.Global != nil &&
 		ddaSpec.Global.ContainerStrategy != nil &&
