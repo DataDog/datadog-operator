@@ -295,3 +295,67 @@ func Test_refresh(t *testing.T) {
 		})
 	}
 }
+
+func Test_getCredentialsForMetadata(t *testing.T) {
+	tests := []struct {
+		name      string
+		setupFunc func(*CredentialManager) *secrets.DummyDecryptor
+		want      Creds
+		wantErr   bool
+		resetFunc func(*CredentialManager)
+	}{
+		{
+			name: "API key only (app key optional for metadata)",
+			setupFunc: func(*CredentialManager) *secrets.DummyDecryptor {
+				os.Setenv("DD_API_KEY", "test-api-key")
+				// DD_APP_KEY intentionally not set
+				return secrets.NewDummyDecryptor(0)
+			},
+			want:    Creds{APIKey: "test-api-key", AppKey: ""},
+			wantErr: false,
+			resetFunc: func(cm *CredentialManager) {
+				os.Unsetenv("DD_API_KEY")
+			},
+		},
+		{
+			name: "both API key and app key set",
+			setupFunc: func(*CredentialManager) *secrets.DummyDecryptor {
+				os.Setenv("DD_API_KEY", "test-api-key")
+				os.Setenv("DD_APP_KEY", "test-app-key")
+				return secrets.NewDummyDecryptor(0)
+			},
+			want:    Creds{APIKey: "test-api-key", AppKey: "test-app-key"},
+			wantErr: false,
+			resetFunc: func(cm *CredentialManager) {
+				os.Unsetenv("DD_API_KEY")
+				os.Unsetenv("DD_APP_KEY")
+			},
+		},
+		{
+			name: "missing API key should error",
+			setupFunc: func(*CredentialManager) *secrets.DummyDecryptor {
+				os.Setenv("DD_APP_KEY", "test-app-key")
+				// DD_API_KEY intentionally not set
+				return secrets.NewDummyDecryptor(0)
+			},
+			want:    Creds{},
+			wantErr: true,
+			resetFunc: func(cm *CredentialManager) {
+				os.Unsetenv("DD_APP_KEY")
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := testutils_test.TestScheme()
+			client := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&v2alpha1.DatadogAgent{}).Build()
+			credsManager := NewCredentialManager(client)
+			decryptor := tt.setupFunc(credsManager)
+			credsManager.secretBackend = decryptor
+			got, err := credsManager.GetCredentialsForMetadata()
+			assert.Equal(t, tt.wantErr, err != nil)
+			assert.EqualValues(t, tt.want, got)
+			tt.resetFunc(credsManager)
+		})
+	}
+}
