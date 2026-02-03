@@ -8,6 +8,8 @@ package autoscalingsuite
 import (
 	"context"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"time"
 
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/e2e"
@@ -21,12 +23,22 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
+const karpenterNamespace = "dd-karpenter"
+
+// awsCredentials holds AWS credentials loaded from the SDK's default credential chain
+type awsCredentials struct {
+	AccessKeyID     string
+	SecretAccessKey string
+	SessionToken    string // may be empty for static credentials
+	Region          string
+}
+
 // autoscalingSuite tests kubectl datadog autoscaling cluster install and uninstall commands
 type autoscalingSuite struct {
 	e2e.BaseSuite[environments.Kubernetes]
 	kubeconfigPath string
 	clusterName    string
-	awsCreds       common.AWSCredentials
+	awsCreds       awsCredentials
 	cfnClient      *cloudformation.Client
 }
 
@@ -62,7 +74,7 @@ func (s *autoscalingSuite) extractClusterInfo() {
 	creds, err := cfg.Credentials.Retrieve(s.T().Context())
 	require.NoError(s.T(), err, "Failed to retrieve AWS credentials")
 
-	s.awsCreds = common.AWSCredentials{
+	s.awsCreds = awsCredentials{
 		AccessKeyID:     creds.AccessKeyID,
 		SecretAccessKey: creds.SecretAccessKey,
 		SessionToken:    creds.SessionToken,
@@ -85,7 +97,7 @@ func (s *autoscalingSuite) cleanupKarpenterResources() {
 	s.T().Log("Cleaning up Karpenter resources...")
 
 	// Run uninstall to clean up
-	output, err := common.RunAutoscalingUninstall(ctx, s.kubeconfigPath, s.awsCreds, s.clusterName)
+	output, err := s.runKubectlDatadog(ctx, "autoscaling", "cluster", "uninstall", "--cluster-name", s.clusterName, "--yes")
 	if err != nil {
 		s.T().Logf("Warning: cleanup uninstall failed (may be expected if already cleaned): %v\nOutput: %s", err, output)
 	}
@@ -132,12 +144,13 @@ func (s *autoscalingSuite) TestAutoscaling() {
 }
 
 // testInstall tests the default install flow
-func (s *autoscalingSuite) testInstall(args ...string) {
+func (s *autoscalingSuite) testInstall(extraArgs ...string) {
 	ctx, cancel := context.WithTimeout(s.T().Context(), 15*time.Minute)
 	defer cancel()
 
 	// Run install
-	output, err := common.RunAutoscalingInstall(ctx, s.kubeconfigPath, s.awsCreds, s.clusterName, args...)
+	args := append([]string{"autoscaling", "cluster", "install", "--cluster-name", s.clusterName}, extraArgs...)
+	output, err := s.runKubectlDatadog(ctx, args...)
 	require.NoErrorf(s.T(), err, "Install command failed. Output: %s", output)
 	s.T().Logf("Install output: %s", output)
 
@@ -151,12 +164,33 @@ func (s *autoscalingSuite) testUninstall() {
 	defer cancel()
 
 	// Run uninstall
-	output, err := common.RunAutoscalingUninstall(ctx, s.kubeconfigPath, s.awsCreds, s.clusterName)
+	output, err := s.runKubectlDatadog(ctx, "autoscaling", "cluster", "uninstall", "--cluster-name", s.clusterName, "--yes")
 	require.NoErrorf(s.T(), err, "Uninstall command failed. Output: %s", output)
 	s.T().Logf("Uninstall output: %s", output)
 
 	// Verify cleanup
 	s.verifyCleanUninstall(ctx)
+}
+
+// runKubectlDatadog executes kubectl-datadog with the suite's AWS credentials
+func (s *autoscalingSuite) runKubectlDatadog(ctx context.Context, args ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, filepath.Join(common.ProjectRootPath, "bin", "kubectl-datadog"), args...)
+
+	// Set minimal environment with explicit credentials
+	cmd.Env = []string{
+		"PATH=" + os.Getenv("PATH"),
+		"HOME=" + os.Getenv("HOME"),
+		"KUBECONFIG=" + s.kubeconfigPath,
+		"AWS_ACCESS_KEY_ID=" + s.awsCreds.AccessKeyID,
+		"AWS_SECRET_ACCESS_KEY=" + s.awsCreds.SecretAccessKey,
+		"AWS_REGION=" + s.awsCreds.Region,
+	}
+	if s.awsCreds.SessionToken != "" {
+		cmd.Env = append(cmd.Env, "AWS_SESSION_TOKEN="+s.awsCreds.SessionToken)
+	}
+
+	output, err := cmd.CombinedOutput()
+	return string(output), err
 }
 
 // verifyKarpenterInstalled verifies that Karpenter is fully installed
@@ -174,7 +208,7 @@ func (s *autoscalingSuite) verifyKarpenterInstalled(ctx context.Context) {
 	}
 
 	// Verify Helm release
-	actionConfig, err := helm.NewActionConfig(genericclioptions.NewConfigFlags(false), common.KarpenterNamespace)
+	actionConfig, err := helm.NewActionConfig(genericclioptions.NewConfigFlags(false), karpenterNamespace)
 	s.Assert().NoErrorf(err, "Error creating Helm action config")
 
 	exists, err := helm.DoesExist(ctx, actionConfig, "karpenter")
@@ -199,7 +233,7 @@ func (s *autoscalingSuite) verifyCleanUninstall(ctx context.Context) {
 	}
 
 	// Verify Helm release
-	actionConfig, err := helm.NewActionConfig(genericclioptions.NewConfigFlags(false), common.KarpenterNamespace)
+	actionConfig, err := helm.NewActionConfig(genericclioptions.NewConfigFlags(false), karpenterNamespace)
 	s.Assert().NoErrorf(err, "Error creating Helm action config")
 
 	exists, err := helm.DoesExist(ctx, actionConfig, "karpenter")
