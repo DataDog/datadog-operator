@@ -143,8 +143,63 @@ func (cm *CredentialManager) GetCredentials() (Creds, error) {
 	return creds, nil
 }
 
+// GetCredentialsForMetadata retrieves credentials for metadata endpoints.
+// Only DD_API_KEY is required; DD_APP_KEY is optional since metadata endpoints
+// don't require application keys for authentication.
+func (cm *CredentialManager) GetCredentialsForMetadata() (Creds, error) {
+	if creds, found := cm.getCredsFromCache(); found {
+		return creds, nil
+	}
+
+	apiKey := os.Getenv(constants.DDAPIKey)
+	appKey := os.Getenv(constants.DDAppKey)
+
+	if apiKey == "" {
+		return Creds{}, errors.New("empty API key")
+	}
+
+	var encrypted []string
+	if secrets.IsEnc(apiKey) {
+		encrypted = append(encrypted, apiKey)
+	}
+
+	if appKey != "" && secrets.IsEnc(appKey) {
+		encrypted = append(encrypted, appKey)
+	}
+
+	if len(encrypted) > 0 {
+		decrypted := map[string]string{}
+		var decErr error
+		if err := retry.OnError(cm.decryptorBackoff, secrets.Retriable, func() error {
+			decrypted, decErr = cm.secretBackend.Decrypt(encrypted)
+
+			return decErr
+		}); err != nil {
+			return Creds{}, err
+		}
+
+		if val, found := decrypted[apiKey]; found {
+			apiKey = val
+		}
+
+		if appKey != "" {
+			if val, found := decrypted[appKey]; found {
+				appKey = val
+			}
+		}
+	}
+
+	creds := Creds{APIKey: apiKey, AppKey: appKey}
+	cm.cacheCreds(creds)
+
+	return creds, nil
+}
+
+// GetCredsWithDDAFallback retrieves credentials for metadata endpoints.
+// Only DD_API_KEY is required; DD_APP_KEY is optional since this is exclusively
+// used for metadata endpoints (/api/v1/metadata) which don't require application keys.
 func (cm *CredentialManager) GetCredsWithDDAFallback(getDDA func() (*v2alpha1.DatadogAgent, error)) (Creds, error) {
-	creds, err := cm.GetCredentials()
+	creds, err := cm.GetCredentialsForMetadata()
 	if err == nil {
 		if os.Getenv("DD_SITE") != "" {
 			site := os.Getenv("DD_SITE")
