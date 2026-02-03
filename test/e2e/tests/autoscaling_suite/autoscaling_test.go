@@ -20,10 +20,20 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
-const karpenterNamespace = "dd-karpenter"
+const (
+	karpenterNamespace    = "dd-karpenter"
+	testWorkloadName      = "karpenter-test-workload"
+	testWorkloadNamespace = "default"
+	testWorkloadReplicas  = 5 // Must be > initial number of nodes to force Pending pods
+)
 
 // awsCredentials holds AWS credentials loaded from the SDK's default credential chain
 type awsCredentials struct {
@@ -46,7 +56,15 @@ func (s *autoscalingSuite) SetupSuite() {
 	s.BaseSuite.SetupSuite()
 	s.extractClusterInfo()
 
+	ctx, cancel := context.WithTimeout(s.T().Context(), 5*time.Minute)
+	defer cancel()
+	s.deployTestWorkload(ctx)
+
 	s.T().Cleanup(func() {
+		ctx, cancel := context.WithTimeout(s.T().Context(), 5*time.Minute)
+		defer cancel()
+		s.deleteTestWorkload(ctx)
+
 		s.cleanupKarpenterResources()
 	})
 }
@@ -106,6 +124,104 @@ func (s *autoscalingSuite) cleanupKarpenterResources() {
 	if s.kubeconfigPath != "" {
 		os.Remove(s.kubeconfigPath)
 	}
+}
+
+// deployTestWorkload creates a Deployment with anti-affinity to force 1 pod per node
+func (s *autoscalingSuite) deployTestWorkload(ctx context.Context) {
+	replicas := int32(testWorkloadReplicas)
+	deployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testWorkloadName,
+			Namespace: testWorkloadNamespace,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"app": testWorkloadName},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": testWorkloadName},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Name:  "pause",
+						Image: "registry.k8s.io/pause:3.9",
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("100m"),
+								corev1.ResourceMemory: resource.MustParse("128Mi"),
+							},
+						},
+					}},
+					Affinity: &corev1.Affinity{
+						PodAntiAffinity: &corev1.PodAntiAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{{
+								LabelSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{"app": testWorkloadName},
+								},
+								TopologyKey: "kubernetes.io/hostname",
+							}},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	client := s.Env().KubernetesCluster.Client()
+	_, err := client.AppsV1().Deployments(testWorkloadNamespace).Create(ctx, deployment, metav1.CreateOptions{})
+	if err != nil && !errors.IsAlreadyExists(err) {
+		require.NoError(s.T(), err, "Failed to create test workload")
+	}
+}
+
+// deleteTestWorkload removes the test workload
+func (s *autoscalingSuite) deleteTestWorkload(ctx context.Context) {
+	client := s.Env().KubernetesCluster.Client()
+	err := client.AppsV1().Deployments(testWorkloadNamespace).Delete(ctx, testWorkloadName, metav1.DeleteOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		s.T().Logf("Warning: failed to delete test workload: %v", err)
+	}
+}
+
+// countPodsByPhase counts pods of the test workload by phase
+func (s *autoscalingSuite) countPodsByPhase(ctx context.Context) (running, pending int) {
+	client := s.Env().KubernetesCluster.Client()
+	pods, err := client.CoreV1().Pods(testWorkloadNamespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "app=" + testWorkloadName,
+	})
+	require.NoError(s.T(), err, "Failed to list pods")
+
+	for _, pod := range pods.Items {
+		switch pod.Status.Phase {
+		case corev1.PodRunning:
+			running++
+		case corev1.PodPending:
+			pending++
+		}
+	}
+	return running, pending
+}
+
+// waitForPendingPods waits until at least minPending pods are in Pending state
+func (s *autoscalingSuite) waitForPendingPods(ctx context.Context, minPending int) {
+	s.T().Logf("Waiting for at least %d pending pods...", minPending)
+	require.Eventually(s.T(), func() bool {
+		_, pending := s.countPodsByPhase(ctx)
+		s.T().Logf("Current state: pending=%d", pending)
+		return pending >= minPending
+	}, 2*time.Minute, 5*time.Second, "Expected at least %d pending pods", minPending)
+}
+
+// waitForAllPodsRunning waits until all pods are Running
+func (s *autoscalingSuite) waitForAllPodsRunning(ctx context.Context) {
+	s.T().Log("Waiting for all pods to be running...")
+	require.Eventually(s.T(), func() bool {
+		running, pending := s.countPodsByPhase(ctx)
+		s.T().Logf("Current state: running=%d, pending=%d", running, pending)
+		return running == testWorkloadReplicas && pending == 0
+	}, 10*time.Minute, 10*time.Second, "Expected all %d pods to be running", testWorkloadReplicas)
 }
 
 // TestAutoscaling runs all autoscaling tests sequentially on the shared EKS cluster
@@ -215,6 +331,9 @@ func (s *autoscalingSuite) verifyKarpenterInstalled(ctx context.Context) {
 	s.Assert().NoErrorf(err, "Error checking Helm release")
 	s.Assert().Truef(exists, "Karpenter Helm release not found")
 
+	// Verify that Karpenter scheduled all pods (proves it can create nodes)
+	s.waitForAllPodsRunning(ctx)
+
 	s.T().Log("Karpenter installation verified successfully")
 }
 
@@ -239,6 +358,9 @@ func (s *autoscalingSuite) verifyCleanUninstall(ctx context.Context) {
 	exists, err := helm.DoesExist(ctx, actionConfig, "karpenter")
 	s.Assert().NoErrorf(err, "Error checking Helm release")
 	s.Assert().Falsef(exists, "Karpenter Helm release still exists")
+
+	// Verify that some pods became Pending (no Karpenter to scale up nodes)
+	s.waitForPendingPods(ctx, 1)
 
 	s.T().Log("Clean uninstall verified successfully")
 }
