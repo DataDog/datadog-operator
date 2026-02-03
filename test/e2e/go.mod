@@ -24,6 +24,7 @@ require (
 
 require (
 	github.com/DataDog/datadog-operator v1.11.1
+	k8s.io/api v0.35.0-alpha.0
 	k8s.io/cli-runtime v0.34.1
 )
 
@@ -280,7 +281,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gopkg.in/zorkian/go-datadog-api.v2 v2.30.0 // indirect
 	helm.sh/helm/v3 v3.18.5 // indirect
-	k8s.io/api v0.35.0-alpha.0 // indirect
 	k8s.io/apiextensions-apiserver v0.33.3 // indirect
 	k8s.io/apiserver v0.33.3 // indirect
 	k8s.io/component-base v0.35.0-alpha.0 // indirect
