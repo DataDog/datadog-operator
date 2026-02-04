@@ -23,6 +23,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/privateactionrunner"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
@@ -583,6 +584,7 @@ func privateActionRunnerContainer(dda metav1.Object) corev1.Container {
 			"/opt/datadog-agent/embedded/bin/privateactionrunner",
 			"run",
 			fmt.Sprintf("-c=%s", agentCustomConfigVolumePath),
+			fmt.Sprintf("-c=%s", privateactionrunner.PrivateActionRunnerConfigPath),
 		},
 		Env:          commonEnvVars(dda),
 		VolumeMounts: volumeMountsForPrivateActionRunner(),

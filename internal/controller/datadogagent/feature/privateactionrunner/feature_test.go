@@ -16,10 +16,8 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
-	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 func Test_privateActionRunnerFeature_Configure(t *testing.T) {
@@ -96,20 +94,7 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 					},
 				},
 			},
-			expectedEnvVars: []*corev1.EnvVar{
-				{
-					Name:  "DD_PRIVATEACTIONRUNNER_ENABLED",
-					Value: "true",
-				},
-				{
-					Name: constants.DDHostName,
-					ValueFrom: &corev1.EnvVarSource{
-						FieldRef: &corev1.ObjectFieldSelector{
-							FieldPath: common.FieldPathSpecNodeName,
-						},
-					},
-				},
-			},
+			expectedEnvVars: nil,
 		},
 		{
 			name: "with self-enrollment enabled",
@@ -125,20 +110,8 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 			},
 			expectedEnvVars: []*corev1.EnvVar{
 				{
-					Name:  "DD_PRIVATEACTIONRUNNER_ENABLED",
-					Value: "true",
-				},
-				{
 					Name:  "DD_PRIVATEACTIONRUNNER_SELF_ENROLL",
 					Value: "true",
-				},
-				{
-					Name: constants.DDHostName,
-					ValueFrom: &corev1.EnvVarSource{
-						FieldRef: &corev1.ObjectFieldSelector{
-							FieldPath: common.FieldPathSpecNodeName,
-						},
-					},
 				},
 			},
 		},
@@ -160,24 +133,7 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 					},
 				},
 			},
-			expectedEnvVars: []*corev1.EnvVar{
-				{
-					Name:  "DD_PRIVATEACTIONRUNNER_ENABLED",
-					Value: "true",
-				},
-				{
-					Name:  "DD_PRIVATEACTIONRUNNER_ACTIONS_ALLOWLIST",
-					Value: "com.datadoghq.script.testConnection,com.datadoghq.script.enrichScript,com.datadoghq.script.runPredefinedScript,com.datadoghq.kubernetes.core.listPod,com.datadoghq.kubernetes.core.testConnection",
-				},
-				{
-					Name: constants.DDHostName,
-					ValueFrom: &corev1.EnvVarSource{
-						FieldRef: &corev1.ObjectFieldSelector{
-							FieldPath: common.FieldPathSpecNodeName,
-						},
-					},
-				},
-			},
+			expectedEnvVars: nil,
 		},
 	}
 

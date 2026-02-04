@@ -6,18 +6,19 @@
 package privateactionrunner
 
 import (
-	"strings"
+	"fmt"
 
 	"github.com/go-logr/logr"
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -83,10 +84,61 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 	return reqComp
 }
 
+type agentConfig struct {
+	privateActionRunnerConfig privateActionRunnerConfig `yaml:"privateactionrunner"`
+}
+
+// privateActionRunnerConfig represents the YAML configuration structure for Private Action Runner
+type privateActionRunnerConfig struct {
+	Enabled          bool     `yaml:"enabled"`
+	ActionsAllowlist []string `yaml:"actions_allowlist,omitempty"`
+	SelfEnroll       *bool    `yaml:"self_enroll,omitempty"`
+}
+
+const (
+	PrivateActionRunnerConfigPath = "/etc/datadog-agent/privateactionrunner.yaml"
+	privateActionRunnerVolumeName = "privateactionrunner-config"
+)
+
 // ManageDependencies allows a feature to manage its dependencies.
 func (f *privateActionRunnerFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
-	// No external dependencies needed for now
+	if !f.nodeEnabled {
+		return nil
+	}
+
+	config := agentConfig{
+		privateActionRunnerConfig: privateActionRunnerConfig{
+			Enabled:          f.nodeEnabled,
+			ActionsAllowlist: f.nodeActionsAllowlist,
+			SelfEnroll:       f.nodeSelfEnroll,
+		},
+	}
+
+	yamlContent, err := yaml.Marshal(&config)
+	if err != nil {
+		return fmt.Errorf("failed to marshal Private Action Runner config: %w", err)
+	}
+
+	// Create ConfigMap with the YAML content
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      f.getConfigMapName(),
+			Namespace: f.owner.GetNamespace(),
+		},
+		Data: map[string]string{
+			"privateactionrunner.yaml": string(yamlContent),
+		},
+	}
+
+	if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func (f *privateActionRunnerFeature) getConfigMapName() string {
+	return fmt.Sprintf("%s-privateactionrunner", f.owner.GetName())
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
@@ -101,33 +153,21 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 		return nil
 	}
 
-	managers.EnvVar().AddEnvVarToContainer(apicommon.PrivateActionRunnerContainerName, &corev1.EnvVar{
-		Name:  "DD_PRIVATEACTIONRUNNER_ENABLED",
-		Value: "true",
-	})
+	configMapName := f.getConfigMapName()
 
-	if f.nodeSelfEnroll != nil {
-		managers.EnvVar().AddEnvVarToContainer(apicommon.PrivateActionRunnerContainerName, &corev1.EnvVar{
-			Name:  "DD_PRIVATEACTIONRUNNER_SELF_ENROLL",
-			Value: apiutils.BoolToString(f.nodeSelfEnroll),
-		})
+	cmConfig := &v2alpha1.ConfigMapConfig{
+		Name: configMapName,
 	}
+	vol := volume.GetVolumeFromConfigMap(cmConfig, configMapName, privateActionRunnerVolumeName)
+	managers.Volume().AddVolume(&vol)
 
-	if len(f.nodeActionsAllowlist) > 0 {
-		managers.EnvVar().AddEnvVarToContainer(apicommon.PrivateActionRunnerContainerName, &corev1.EnvVar{
-			Name:  "DD_PRIVATEACTIONRUNNER_ACTIONS_ALLOWLIST",
-			Value: strings.Join(f.nodeActionsAllowlist, ","),
-		})
+	volMount := corev1.VolumeMount{
+		Name:      privateActionRunnerVolumeName,
+		MountPath: PrivateActionRunnerConfigPath,
+		SubPath:   "privateactionrunner.yaml",
+		ReadOnly:  true,
 	}
-
-	managers.EnvVar().AddEnvVarToContainer(apicommon.PrivateActionRunnerContainerName, &corev1.EnvVar{
-		Name: constants.DDHostName,
-		ValueFrom: &corev1.EnvVarSource{
-			FieldRef: &corev1.ObjectFieldSelector{
-				FieldPath: common.FieldPathSpecNodeName,
-			},
-		},
-	})
+	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.PrivateActionRunnerContainerName)
 
 	return nil
 }
