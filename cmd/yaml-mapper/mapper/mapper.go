@@ -32,6 +32,7 @@ var skipMappingKeys = []string{
 	`datadog\.operator\..*`,
 	`operator\..*`,
 	`clusterAgent\.enabled`,
+	`agents\.enabled`,
 }
 
 const defaultDDAMapUrl = "https://raw.githubusercontent.com/DataDog/helm-charts/main/tools/yaml-mapper/mapping_datadog_helm_to_datadogagent_crd.yaml"
