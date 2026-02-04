@@ -195,20 +195,24 @@ func (cm *CredentialManager) GetCredentialsForMetadata() (Creds, error) {
 	return creds, nil
 }
 
-// GetCredsWithDDAFallback retrieves credentials for metadata endpoints.
+// GetCredsWithDDAFallback retrieves credentials for metadata endpoints with a three-tier fallback:
+// 1. Operator environment variables (DD_API_KEY, DD_APP_KEY, DD_SITE, DD_URL)
+// 2. ConfigMap-based credentials (Helm deployment with endpoint-config ConfigMap)
+// 3. DatadogAgent custom resource
 // Only DD_API_KEY is required; DD_APP_KEY is optional since this is exclusively
 // used for metadata endpoints (/api/v1/metadata) which don't require application keys.
 func (cm *CredentialManager) GetCredsWithDDAFallback(getDDA func() (*v2alpha1.DatadogAgent, error)) (Creds, error) {
-	creds, err := cm.GetCredentialsForMetadata()
-	if err == nil {
-		if os.Getenv("DD_SITE") != "" {
-			site := os.Getenv("DD_SITE")
+	if creds, err := cm.GetCredentialsForMetadata(); err == nil {
+		if site := os.Getenv("DD_SITE"); site != "" {
 			creds.Site = &site
 		}
-		if os.Getenv("DD_URL") != "" {
-			url := os.Getenv("DD_URL")
+		if url := os.Getenv("DD_URL"); url != "" {
 			creds.URL = &url
 		}
+		return creds, nil
+	}
+
+	if creds, err := cm.getCredentialsFromConfigMap(); err == nil {
 		return creds, nil
 	}
 
@@ -217,11 +221,78 @@ func (cm *CredentialManager) GetCredsWithDDAFallback(getDDA func() (*v2alpha1.Da
 		return Creds{}, err
 	}
 
-	creds, err = cm.getCredentialsFromDDA(dda)
-	if err != nil {
+	return cm.getCredentialsFromDDA(dda)
+}
+
+// getCredentialsFromConfigMap retrieves credentials by reading the endpoint-config ConfigMap
+// and the secrets it references
+func (cm *CredentialManager) getCredentialsFromConfigMap() (Creds, error) {
+	podName := os.Getenv("POD_NAME")
+	namespace := os.Getenv("POD_NAMESPACE")
+	if namespace == "" {
+		namespace = os.Getenv("WATCH_NAMESPACE")
+	}
+
+	if podName == "" || namespace == "" {
+		return Creds{}, fmt.Errorf("POD_NAME and POD_NAMESPACE/WATCH_NAMESPACE must be set")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	pod := &corev1.Pod{}
+	if err := cm.client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: podName}, pod); err != nil {
+		return Creds{}, fmt.Errorf("failed to get operator pod: %w", err)
+	}
+
+	releaseName := pod.Labels["app.kubernetes.io/instance"]
+	if releaseName == "" {
+		return Creds{}, fmt.Errorf("app.kubernetes.io/instance label not found on pod (Helm deployment required)")
+	}
+
+	configMap := &corev1.ConfigMap{}
+	configMapName := fmt.Sprintf("%s-endpoint-config", releaseName)
+	if err := cm.client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: configMapName}, configMap); err != nil {
 		return Creds{}, err
 	}
 
+	apiKeySecretName := configMap.Data["api-key-secret-name"]
+	if apiKeySecretName == "" {
+		return Creds{}, fmt.Errorf("api-key-secret-name not found in endpoint-config ConfigMap")
+	}
+
+	apiKey, err := cm.getKeyFromSecret(namespace, apiKeySecretName, "api-key")
+	if err != nil {
+		return Creds{}, fmt.Errorf("failed to get API key from secret %s: %w", apiKeySecretName, err)
+	}
+	if apiKey == "" {
+		return Creds{}, ErrEmptyAPIKey
+	}
+
+	apiKey, err = cm.resolveSecretsIfNeeded(apiKey)
+	if err != nil {
+		return Creds{}, fmt.Errorf("failed to decrypt API key: %w", err)
+	}
+
+	creds := Creds{APIKey: apiKey}
+
+	if appKeySecretName := configMap.Data["app-key-secret-name"]; appKeySecretName != "" {
+		if appKey, err := cm.getKeyFromSecret(namespace, appKeySecretName, "app-key"); err == nil && appKey != "" {
+			if appKey, err = cm.resolveSecretsIfNeeded(appKey); err == nil {
+				creds.AppKey = appKey
+			}
+		}
+	}
+
+	if site := configMap.Data["dd-site"]; site != "" {
+		creds.Site = &site
+	}
+
+	if url := configMap.Data["dd-url"]; url != "" {
+		creds.URL = &url
+	}
+
+	cm.cacheCreds(creds)
 	return creds, nil
 }
 
@@ -234,7 +305,7 @@ func (cm *CredentialManager) cacheCreds(creds Creds) {
 func (cm *CredentialManager) getCredsFromCache() (Creds, bool) {
 	cm.credsMutex.Lock()
 	defer cm.credsMutex.Unlock()
-	if cm.creds.APIKey != "" && cm.creds.AppKey != "" {
+	if cm.creds.APIKey != "" {
 		return cm.creds, true
 	}
 
@@ -244,8 +315,8 @@ func (cm *CredentialManager) getCredsFromCache() (Creds, bool) {
 func (cm *CredentialManager) refresh(logger logr.Logger) error {
 	cm.credsMutex.Lock()
 	oldCreds := cm.creds
-	cm.credsMutex.Unlock()
 	cm.creds = Creds{}
+	cm.credsMutex.Unlock()
 
 	newCreds, err := cm.GetCredentials()
 
