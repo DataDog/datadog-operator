@@ -85,7 +85,7 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 }
 
 type agentConfig struct {
-	privateActionRunnerConfig privateActionRunnerConfig `yaml:"privateactionrunner"`
+	PrivateActionRunnerConfig privateActionRunnerConfig `yaml:"privateactionrunner"`
 }
 
 // privateActionRunnerConfig represents the YAML configuration structure for Private Action Runner
@@ -107,7 +107,7 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 	}
 
 	config := agentConfig{
-		privateActionRunnerConfig: privateActionRunnerConfig{
+		PrivateActionRunnerConfig: privateActionRunnerConfig{
 			Enabled:          f.nodeEnabled,
 			ActionsAllowlist: f.nodeActionsAllowlist,
 			SelfEnroll:       f.nodeSelfEnroll,

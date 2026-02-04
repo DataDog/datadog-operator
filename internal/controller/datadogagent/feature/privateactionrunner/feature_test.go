@@ -9,9 +9,9 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr"
-	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -81,9 +81,8 @@ func Test_privateActionRunnerFeature_Configure(t *testing.T) {
 
 func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 	tests := []struct {
-		name            string
-		ddaSpec         *v2alpha1.DatadogAgentSpec
-		expectedEnvVars []*corev1.EnvVar
+		name    string
+		ddaSpec *v2alpha1.DatadogAgentSpec
 	}{
 		{
 			name: "basic configuration",
@@ -92,26 +91,6 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 					PrivateActionRunner: &v2alpha1.PrivateActionRunnerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(true),
 					},
-				},
-			},
-			expectedEnvVars: nil,
-		},
-		{
-			name: "with self-enrollment enabled",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{
-					PrivateActionRunner: &v2alpha1.PrivateActionRunnerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(true),
-						NodeAgent: &v2alpha1.PrivateActionRunnerNodeConfig{
-							SelfEnroll: apiutils.NewBoolPointer(true),
-						},
-					},
-				},
-			},
-			expectedEnvVars: []*corev1.EnvVar{
-				{
-					Name:  "DD_PRIVATEACTIONRUNNER_SELF_ENROLL",
-					Value: "true",
 				},
 			},
 		},
@@ -133,14 +112,19 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 					},
 				},
 			},
-			expectedEnvVars: nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := buildPrivateActionRunnerFeature(nil)
-			f.Configure(&v2alpha1.DatadogAgent{}, tt.ddaSpec, nil)
+			dda := &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dda",
+					Namespace: "default",
+				},
+			}
+			f.Configure(dda, tt.ddaSpec, nil)
 
 			// Create test managers
 			podTmpl := corev1.PodTemplateSpec{}
@@ -150,10 +134,22 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 			err := f.ManageNodeAgent(managers, "")
 			assert.NoError(t, err)
 
-			// Verify environment variables
-			privateActionRunnerEnvVars := managers.EnvVarMgr.EnvVarsByC[apicommon.PrivateActionRunnerContainerName]
-			assert.True(t, apiutils.IsEqualStruct(privateActionRunnerEnvVars, tt.expectedEnvVars),
-				"Private action runner envvars \ndiff = %s", cmp.Diff(privateActionRunnerEnvVars, tt.expectedEnvVars))
+			// Verify volume is mounted
+			volumes := managers.VolumeMgr.Volumes
+			assert.Len(t, volumes, 1, "Should have exactly one volume")
+			vol := volumes[0]
+			assert.Equal(t, "privateactionrunner-config", vol.Name, "Volume name should match")
+			assert.NotNil(t, vol.VolumeSource.ConfigMap, "Volume should be a ConfigMap volume")
+			assert.Equal(t, "test-dda-privateactionrunner", vol.VolumeSource.ConfigMap.Name, "ConfigMap name should match")
+
+			// Verify volume mount
+			volumeMounts := managers.VolumeMountMgr.VolumeMountsByC[apicommon.PrivateActionRunnerContainerName]
+			assert.Len(t, volumeMounts, 1, "Should have exactly one volume mount")
+			mount := volumeMounts[0]
+			assert.Equal(t, "privateactionrunner-config", mount.Name, "Mount name should match")
+			assert.Equal(t, "/etc/datadog-agent/privateactionrunner.yaml", mount.MountPath, "Mount path should be the hardcoded path")
+			assert.Equal(t, "privateactionrunner.yaml", mount.SubPath, "SubPath should mount the file directly")
+			assert.True(t, mount.ReadOnly, "Mount should be read-only")
 		})
 	}
 }
