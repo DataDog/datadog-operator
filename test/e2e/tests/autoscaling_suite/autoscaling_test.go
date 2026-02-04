@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/e2e"
@@ -271,7 +272,7 @@ func (s *autoscalingSuite) testInstall(extraArgs ...string) {
 	s.T().Logf("Install output:\n%s", output)
 
 	// Verify installation
-	s.verifyKarpenterInstalled(ctx)
+	s.verifyKarpenterInstalled(ctx, !slices.Contains(extraArgs, "--create-karpenter-resources=none"))
 }
 
 // testUninstall tests that uninstall removes all resources
@@ -310,7 +311,7 @@ func (s *autoscalingSuite) runKubectlDatadog(ctx context.Context, args ...string
 }
 
 // verifyKarpenterInstalled verifies that Karpenter is fully installed
-func (s *autoscalingSuite) verifyKarpenterInstalled(ctx context.Context) {
+func (s *autoscalingSuite) verifyKarpenterInstalled(ctx context.Context, waitForAllPodsRunning bool) {
 	s.T().Log("Verifying Karpenter installation...")
 
 	// Verify CloudFormation stacks
@@ -334,7 +335,9 @@ func (s *autoscalingSuite) verifyKarpenterInstalled(ctx context.Context) {
 	s.Assert().Truef(exists, "Karpenter Helm release not found")
 
 	// Verify that Karpenter scheduled all pods (proves it can create nodes)
-	s.waitForAllPodsRunning(ctx)
+	if waitForAllPodsRunning {
+		s.waitForAllPodsRunning(ctx)
+	}
 
 	s.T().Log("Karpenter installation verified successfully")
 }
