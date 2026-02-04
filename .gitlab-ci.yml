@@ -277,6 +277,9 @@ e2e:
   needs:
     - "trigger_e2e_operator_image"
   rules: !reference [.on_run_e2e]
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
   parallel:
     matrix:
       - K8S_VERSION:
@@ -298,6 +301,10 @@ e2e:
     GOTOOLCHAIN: go1.25.0+auto
   image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux$CI_IMAGE_LINUX_SUFFIX:$CI_IMAGE_LINUX
   before_script:
+    # Generate GitHub token to avoid rate limiting when downloading Pulumi plugins
+    - dd-octo-sts version
+    - dd-octo-sts debug --scope DataDog/datadog-operator --policy self.gitlab.e2e
+    - export GITHUB_TOKEN=$(dd-octo-sts token --scope DataDog/datadog-operator --policy self.gitlab.e2e)
     # Setup AWS Credentials
     - echo "Starting setup for E2E testing..."
     - mkdir -p ~/.aws
