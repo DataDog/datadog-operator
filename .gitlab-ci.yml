@@ -1,5 +1,6 @@
 image: registry.ddbuild.io/images/mirror/library/golang:1.25.6
 variables:
+  NIGHTLY_BUILD_CONDUCTOR_NAME: "operator-nightly-build"
   PROJECTNAME: "datadog-operator"
   PROJECTNAME_CHECK: "datadog-operator-check"
   BUILD_DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
@@ -505,7 +506,7 @@ trigger_internal_operator_check_image:
 trigger_internal_operator_nightly_image:
   stage: release
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main" && $DDR == "true" && $CONDUCTOR_TARGET == "nightly-build"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $DDR == "true" && $CONDUCTOR_TARGET == $NIGHTLY_BUILD_CONDUCTOR_NAME'
       when: on_success
     - when: never
   trigger:
@@ -524,7 +525,7 @@ trigger_internal_operator_nightly_image:
 trigger_internal_operator_check_nightly_image:
   stage: release
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main" && $DDR == "true" && $CONDUCTOR_TARGET == "nightly-build"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $DDR == "true" && $CONDUCTOR_TARGET == $NIGHTLY_BUILD_CONDUCTOR_NAME'
       when: on_success
     - when: never
   trigger:
@@ -696,7 +697,7 @@ publish_community_operators:
 publish_nightly_workflow:
   stage: deploy
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main" && $CONDUCTOR_TARGET == "operator-nightly-build"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $CONDUCTOR_TARGET == $NIGHTLY_BUILD_CONDUCTOR_NAME'
       when: on_success
     - when: never
   needs:
