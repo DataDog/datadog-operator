@@ -324,7 +324,9 @@ func (s *autoscalingSuite) verifyKarpenterInstalled(ctx context.Context) {
 	}
 
 	// Verify Helm release
-	actionConfig, err := helm.NewActionConfig(genericclioptions.NewConfigFlags(false), karpenterNamespace)
+	configFlags := genericclioptions.NewConfigFlags(false)
+	configFlags.KubeConfig = &s.kubeconfigPath
+	actionConfig, err := helm.NewActionConfig(configFlags, karpenterNamespace)
 	s.Assert().NoErrorf(err, "Error creating Helm action config")
 
 	exists, err := helm.DoesExist(ctx, actionConfig, "karpenter")
@@ -352,7 +354,9 @@ func (s *autoscalingSuite) verifyCleanUninstall(ctx context.Context) {
 	}
 
 	// Verify Helm release
-	actionConfig, err := helm.NewActionConfig(genericclioptions.NewConfigFlags(false), karpenterNamespace)
+	configFlags := genericclioptions.NewConfigFlags(false)
+	configFlags.KubeConfig = &s.kubeconfigPath
+	actionConfig, err := helm.NewActionConfig(configFlags, karpenterNamespace)
 	s.Assert().NoErrorf(err, "Error creating Helm action config")
 
 	exists, err := helm.DoesExist(ctx, actionConfig, "karpenter")
