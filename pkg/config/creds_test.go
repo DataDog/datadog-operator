@@ -383,7 +383,7 @@ func Test_getCredentialsFromConfigMap(t *testing.T) {
 			name: "all fields present",
 			setupFunc: func() *CredentialManager {
 				os.Setenv("POD_NAME", "test-operator-pod")
-				os.Setenv("WATCH_NAMESPACE", "test-namespace")
+				os.Setenv("POD_NAMESPACE", "test-namespace")
 
 				pod := &corev1.Pod{}
 				pod.Name = "test-operator-pod"
@@ -429,58 +429,14 @@ func Test_getCredentialsFromConfigMap(t *testing.T) {
 			wantErr: false,
 			resetFunc: func() {
 				os.Unsetenv("POD_NAME")
-				os.Unsetenv("WATCH_NAMESPACE")
-			},
-		},
-		{
-			name: "POD_NAMESPACE takes precedence over WATCH_NAMESPACE",
-			setupFunc: func() *CredentialManager {
-				os.Setenv("POD_NAME", "test-operator-pod")
-				os.Setenv("POD_NAMESPACE", "correct-namespace")
-				os.Setenv("WATCH_NAMESPACE", "wrong-namespace")
-
-				pod := &corev1.Pod{}
-				pod.Name = "test-operator-pod"
-				pod.Namespace = "correct-namespace"
-				pod.Labels = map[string]string{
-					"app.kubernetes.io/instance": "my-release",
-				}
-
-				configMap := &corev1.ConfigMap{}
-				configMap.Name = "my-release-endpoint-config"
-				configMap.Namespace = "correct-namespace"
-				configMap.Data = map[string]string{
-					"api-key-secret-name": "api-key-secret",
-					"dd-site":             "datadoghq.eu",
-				}
-
-				apiKeySecret := &corev1.Secret{}
-				apiKeySecret.Name = "api-key-secret"
-				apiKeySecret.Namespace = "correct-namespace"
-				apiKeySecret.Data = map[string][]byte{
-					"api-key": []byte("test-api-key"),
-				}
-
-				s := testutils_test.TestScheme()
-				client := fake.NewClientBuilder().WithScheme(s).WithObjects(pod, configMap, apiKeySecret).Build()
-				return NewCredentialManager(client)
-			},
-			want: Creds{
-				APIKey: "test-api-key",
-				Site:   strPtr("datadoghq.eu"),
-			},
-			wantErr: false,
-			resetFunc: func() {
-				os.Unsetenv("POD_NAME")
 				os.Unsetenv("POD_NAMESPACE")
-				os.Unsetenv("WATCH_NAMESPACE")
 			},
 		},
 		{
 			name: "only required fields (api-key-secret-name)",
 			setupFunc: func() *CredentialManager {
 				os.Setenv("POD_NAME", "test-operator-pod")
-				os.Setenv("WATCH_NAMESPACE", "test-namespace")
+				os.Setenv("POD_NAMESPACE", "test-namespace")
 
 				pod := &corev1.Pod{}
 				pod.Name = "test-operator-pod"
@@ -514,14 +470,14 @@ func Test_getCredentialsFromConfigMap(t *testing.T) {
 			wantErr: false,
 			resetFunc: func() {
 				os.Unsetenv("POD_NAME")
-				os.Unsetenv("WATCH_NAMESPACE")
+				os.Unsetenv("POD_NAMESPACE")
 			},
 		},
 		{
-			name: "WATCH_NAMESPACE explicitly empty should error",
+			name: "missing POD_NAMESPACE should error",
 			setupFunc: func() *CredentialManager {
 				os.Setenv("POD_NAME", "test-operator-pod")
-				os.Setenv("WATCH_NAMESPACE", "")
+				// POD_NAMESPACE not set
 
 				s := testutils_test.TestScheme()
 				client := fake.NewClientBuilder().WithScheme(s).Build()
@@ -531,14 +487,13 @@ func Test_getCredentialsFromConfigMap(t *testing.T) {
 			wantErr: true,
 			resetFunc: func() {
 				os.Unsetenv("POD_NAME")
-				os.Unsetenv("WATCH_NAMESPACE")
 			},
 		},
 		{
 			name: "missing api-key-secret-name in ConfigMap",
 			setupFunc: func() *CredentialManager {
 				os.Setenv("POD_NAME", "test-operator-pod")
-				os.Setenv("WATCH_NAMESPACE", "test-namespace")
+				os.Setenv("POD_NAMESPACE", "test-namespace")
 
 				pod := &corev1.Pod{}
 				pod.Name = "test-operator-pod"
@@ -562,14 +517,14 @@ func Test_getCredentialsFromConfigMap(t *testing.T) {
 			wantErr: true,
 			resetFunc: func() {
 				os.Unsetenv("POD_NAME")
-				os.Unsetenv("WATCH_NAMESPACE")
+				os.Unsetenv("POD_NAMESPACE")
 			},
 		},
 		{
 			name: "API key secret not found",
 			setupFunc: func() *CredentialManager {
 				os.Setenv("POD_NAME", "test-operator-pod")
-				os.Setenv("WATCH_NAMESPACE", "test-namespace")
+				os.Setenv("POD_NAMESPACE", "test-namespace")
 
 				pod := &corev1.Pod{}
 				pod.Name = "test-operator-pod"
@@ -593,14 +548,14 @@ func Test_getCredentialsFromConfigMap(t *testing.T) {
 			wantErr: true,
 			resetFunc: func() {
 				os.Unsetenv("POD_NAME")
-				os.Unsetenv("WATCH_NAMESPACE")
+				os.Unsetenv("POD_NAMESPACE")
 			},
 		},
 		{
 			name: "empty API key in secret",
 			setupFunc: func() *CredentialManager {
 				os.Setenv("POD_NAME", "test-operator-pod")
-				os.Setenv("WATCH_NAMESPACE", "test-namespace")
+				os.Setenv("POD_NAMESPACE", "test-namespace")
 
 				pod := &corev1.Pod{}
 				pod.Name = "test-operator-pod"
@@ -631,14 +586,14 @@ func Test_getCredentialsFromConfigMap(t *testing.T) {
 			wantErr: true,
 			resetFunc: func() {
 				os.Unsetenv("POD_NAME")
-				os.Unsetenv("WATCH_NAMESPACE")
+				os.Unsetenv("POD_NAMESPACE")
 			},
 		},
 		{
 			name: "app key secret missing (should not error)",
 			setupFunc: func() *CredentialManager {
 				os.Setenv("POD_NAME", "test-operator-pod")
-				os.Setenv("WATCH_NAMESPACE", "test-namespace")
+				os.Setenv("POD_NAMESPACE", "test-namespace")
 
 				pod := &corev1.Pod{}
 				pod.Name = "test-operator-pod"
@@ -673,7 +628,7 @@ func Test_getCredentialsFromConfigMap(t *testing.T) {
 			wantErr: false,
 			resetFunc: func() {
 				os.Unsetenv("POD_NAME")
-				os.Unsetenv("WATCH_NAMESPACE")
+				os.Unsetenv("POD_NAMESPACE")
 			},
 		},
 	}
@@ -721,7 +676,7 @@ func Test_GetCredsWithDDAFallback_withConfigMapTier(t *testing.T) {
 
 				// Setup ConfigMap (should be ignored)
 				os.Setenv("POD_NAME", "test-operator-pod")
-				os.Setenv("WATCH_NAMESPACE", "test-namespace")
+				os.Setenv("POD_NAMESPACE", "test-namespace")
 
 				pod := &corev1.Pod{}
 				pod.Name = "test-operator-pod"
@@ -751,7 +706,7 @@ func Test_GetCredsWithDDAFallback_withConfigMapTier(t *testing.T) {
 				os.Unsetenv("DD_APP_KEY")
 				os.Unsetenv("DD_SITE")
 				os.Unsetenv("POD_NAME")
-				os.Unsetenv("WATCH_NAMESPACE")
+				os.Unsetenv("POD_NAMESPACE")
 			},
 		},
 		{
@@ -759,7 +714,7 @@ func Test_GetCredsWithDDAFallback_withConfigMapTier(t *testing.T) {
 			setupFunc: func() (*CredentialManager, func() (*v2alpha1.DatadogAgent, error)) {
 				// No env vars set
 				os.Setenv("POD_NAME", "test-operator-pod")
-				os.Setenv("WATCH_NAMESPACE", "test-namespace")
+				os.Setenv("POD_NAMESPACE", "test-namespace")
 
 				pod := &corev1.Pod{}
 				pod.Name = "test-operator-pod"
@@ -800,7 +755,7 @@ func Test_GetCredsWithDDAFallback_withConfigMapTier(t *testing.T) {
 			wantErr: false,
 			resetFunc: func() {
 				os.Unsetenv("POD_NAME")
-				os.Unsetenv("WATCH_NAMESPACE")
+				os.Unsetenv("POD_NAMESPACE")
 			},
 		},
 		{
@@ -808,7 +763,7 @@ func Test_GetCredsWithDDAFallback_withConfigMapTier(t *testing.T) {
 			setupFunc: func() (*CredentialManager, func() (*v2alpha1.DatadogAgent, error)) {
 				// No env vars, no ConfigMap setup
 				os.Setenv("POD_NAME", "test-operator-pod")
-				os.Setenv("WATCH_NAMESPACE", "test-namespace")
+				os.Setenv("POD_NAMESPACE", "test-namespace")
 
 				s := testutils_test.TestScheme()
 				client := fake.NewClientBuilder().WithScheme(s).Build()
@@ -835,7 +790,7 @@ func Test_GetCredsWithDDAFallback_withConfigMapTier(t *testing.T) {
 			wantErr: false,
 			resetFunc: func() {
 				os.Unsetenv("POD_NAME")
-				os.Unsetenv("WATCH_NAMESPACE")
+				os.Unsetenv("POD_NAMESPACE")
 			},
 		},
 	}

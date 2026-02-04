@@ -229,12 +229,9 @@ func (cm *CredentialManager) GetCredsWithDDAFallback(getDDA func() (*v2alpha1.Da
 func (cm *CredentialManager) getCredentialsFromConfigMap() (Creds, error) {
 	podName := os.Getenv("POD_NAME")
 	namespace := os.Getenv("POD_NAMESPACE")
-	if namespace == "" {
-		namespace = os.Getenv("WATCH_NAMESPACE")
-	}
 
 	if podName == "" || namespace == "" {
-		return Creds{}, fmt.Errorf("POD_NAME and POD_NAMESPACE/WATCH_NAMESPACE must be set")
+		return Creds{}, fmt.Errorf("POD_NAME and POD_NAMESPACE must be set")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
