@@ -696,7 +696,7 @@ publish_community_operators:
 publish_nightly_workflow:
   stage: deploy
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main" && $CONDUCTOR_TARGET == "nightly-build"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $CONDUCTOR_TARGET == "operator-nightly-build"'
       when: on_success
     - when: never
   needs:
@@ -710,11 +710,8 @@ publish_nightly_workflow:
       pipeline_variables: true
   variables:
     OPERATOR_NIGHTLY: "true"
-    SKIP_PLAN_CHECK: "true"
-    ENVIRONMENTS: "experimental,staging"
-    CHART: "datadog-operator"
-    OPTION_AUTOMATIC_ROLLOUT: "true"
-    EXPLICIT_WORKFLOWS: "//workflows:deploy_operator_nightly.operator_nightly.publish"
+    # Conductor-related variables
+    APPS: $APPS
     BAZEL_TARGET: $BAZEL_TARGET
     DDR: $DDR
     TARGET_ENV: $TARGET_ENV
