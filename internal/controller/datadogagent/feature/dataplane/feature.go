@@ -102,6 +102,16 @@ func (f *dataPlaneFeature) ManageNodeAgent(managers feature.PodTemplateManagers,
 			Value: "true",
 		})
 
+		// Configure the ADP container to fetch configuration from the Core Agent.
+		managers.EnvVar().AddEnvVarToContainer(apicommon.AgentDataPlaneContainerName, &corev1.EnvVar{
+			Name:  common.DDDataPlaneRemoteAgentEnabled,
+			Value: "true",
+		})
+		managers.EnvVar().AddEnvVarToContainer(apicommon.AgentDataPlaneContainerName, &corev1.EnvVar{
+			Name:  common.DDDataPlaneUseNewConfigStreamEndpoint,
+			Value: "true",
+		})
+
 		if f.dogstatsdEnabled {
 			managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 				Name:  common.DDDataPlaneDogstatsdEnabled,
