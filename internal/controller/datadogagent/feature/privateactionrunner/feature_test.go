@@ -10,14 +10,18 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func Test_privateActionRunnerFeature_Configure(t *testing.T) {
@@ -80,78 +84,54 @@ func Test_privateActionRunnerFeature_Configure(t *testing.T) {
 }
 
 func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
-	tests := []struct {
-		name    string
-		ddaSpec *v2alpha1.DatadogAgentSpec
-	}{
-		{
-			name: "basic configuration",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{
-					PrivateActionRunner: &v2alpha1.PrivateActionRunnerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(true),
+	f := buildPrivateActionRunnerFeature(nil)
+	dda := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-dda",
+			Namespace: "default",
+		},
+	}
+	f.Configure(dda, &v2alpha1.DatadogAgentSpec{
+		Features: &v2alpha1.DatadogFeatures{
+			PrivateActionRunner: &v2alpha1.PrivateActionRunnerFeatureConfig{
+				Enabled: apiutils.NewBoolPointer(true),
+				NodeAgent: &v2alpha1.PrivateActionRunnerNodeConfig{
+					ActionsAllowlist: []string{
+						"com.datadoghq.script.testConnection",
+						"com.datadoghq.script.enrichScript",
+						"com.datadoghq.script.runPredefinedScript",
+						"com.datadoghq.kubernetes.core.listPod",
+						"com.datadoghq.kubernetes.core.testConnection",
 					},
 				},
 			},
 		},
-		{
-			name: "with actions allowlist",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{
-					PrivateActionRunner: &v2alpha1.PrivateActionRunnerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(true),
-						NodeAgent: &v2alpha1.PrivateActionRunnerNodeConfig{
-							ActionsAllowlist: []string{
-								"com.datadoghq.script.testConnection",
-								"com.datadoghq.script.enrichScript",
-								"com.datadoghq.script.runPredefinedScript",
-								"com.datadoghq.kubernetes.core.listPod",
-								"com.datadoghq.kubernetes.core.testConnection",
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+	}, nil)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			f := buildPrivateActionRunnerFeature(nil)
-			dda := &v2alpha1.DatadogAgent{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-dda",
-					Namespace: "default",
-				},
-			}
-			f.Configure(dda, tt.ddaSpec, nil)
+	// Create test managers
+	podTmpl := corev1.PodTemplateSpec{}
+	managers := fake.NewPodTemplateManagers(t, podTmpl)
 
-			// Create test managers
-			podTmpl := corev1.PodTemplateSpec{}
-			managers := fake.NewPodTemplateManagers(t, podTmpl)
+	// Call ManageNodeAgent
+	err := f.ManageNodeAgent(managers, "")
+	assert.NoError(t, err)
 
-			// Call ManageNodeAgent
-			err := f.ManageNodeAgent(managers, "")
-			assert.NoError(t, err)
+	// Verify volume is mounted
+	volumes := managers.VolumeMgr.Volumes
+	assert.Len(t, volumes, 1, "Should have exactly one volume")
+	vol := volumes[0]
+	assert.Equal(t, "privateactionrunner-config", vol.Name, "Volume name should match")
+	assert.NotNil(t, vol.VolumeSource.ConfigMap, "Volume should be a ConfigMap volume")
+	assert.Equal(t, "test-dda-privateactionrunner", vol.VolumeSource.ConfigMap.Name, "ConfigMap name should match")
 
-			// Verify volume is mounted
-			volumes := managers.VolumeMgr.Volumes
-			assert.Len(t, volumes, 1, "Should have exactly one volume")
-			vol := volumes[0]
-			assert.Equal(t, "privateactionrunner-config", vol.Name, "Volume name should match")
-			assert.NotNil(t, vol.VolumeSource.ConfigMap, "Volume should be a ConfigMap volume")
-			assert.Equal(t, "test-dda-privateactionrunner", vol.VolumeSource.ConfigMap.Name, "ConfigMap name should match")
-
-			// Verify volume mount
-			volumeMounts := managers.VolumeMountMgr.VolumeMountsByC[apicommon.PrivateActionRunnerContainerName]
-			assert.Len(t, volumeMounts, 1, "Should have exactly one volume mount")
-			mount := volumeMounts[0]
-			assert.Equal(t, "privateactionrunner-config", mount.Name, "Mount name should match")
-			assert.Equal(t, "/etc/datadog-agent/privateactionrunner.yaml", mount.MountPath, "Mount path should be the hardcoded path")
-			assert.Equal(t, "privateactionrunner.yaml", mount.SubPath, "SubPath should mount the file directly")
-			assert.True(t, mount.ReadOnly, "Mount should be read-only")
-		})
-	}
+	// Verify volume mount
+	volumeMounts := managers.VolumeMountMgr.VolumeMountsByC[apicommon.PrivateActionRunnerContainerName]
+	assert.Len(t, volumeMounts, 1, "Should have exactly one volume mount")
+	mount := volumeMounts[0]
+	assert.Equal(t, "privateactionrunner-config", mount.Name, "Mount name should match")
+	assert.Equal(t, "/etc/datadog-agent/privateactionrunner.yaml", mount.MountPath, "Mount path should be the hardcoded path")
+	assert.Equal(t, "privateactionrunner.yaml", mount.SubPath, "SubPath should mount the file directly")
+	assert.True(t, mount.ReadOnly, "Mount should be read-only")
 }
 
 func Test_privateActionRunnerFeature_ID(t *testing.T) {
@@ -207,64 +187,109 @@ func Test_buildPrivateActionRunnerFeature_WithLogger(t *testing.T) {
 	assert.NotNil(t, parFeat)
 }
 
-func Test_privateActionRunnerFeature_NodeAgentConfig(t *testing.T) {
+func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
+	testScheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(testScheme)
+	_ = v2alpha1.AddToScheme(testScheme)
+
 	tests := []struct {
-		name      string
-		ddaSpec   *v2alpha1.DatadogAgentSpec
-		wantAgent bool
+		name            string
+		ddaSpec         *v2alpha1.DatadogAgentSpec
+		expectConfigMap bool
+		expectedYAML    string
 	}{
 		{
-			name: "disabled",
+			name: "feature disabled",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					PrivateActionRunner: &v2alpha1.PrivateActionRunnerFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(false),
+					},
+				},
+			},
+			expectConfigMap: false,
+		},
+		{
+			name: "basic configuration - enabled only",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					PrivateActionRunner: &v2alpha1.PrivateActionRunnerFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(true),
+					},
+				},
+			},
+			expectConfigMap: true,
+			expectedYAML: `privateactionrunner:
+    enabled: true
+`,
+		},
+		{
+			name: "with actions allowlist",
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					PrivateActionRunner: &v2alpha1.PrivateActionRunnerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(true),
 						NodeAgent: &v2alpha1.PrivateActionRunnerNodeConfig{
-							Enabled: apiutils.NewBoolPointer(false),
+							ActionsAllowlist: []string{
+								"com.datadoghq.script.testConnection",
+								"com.datadoghq.script.enrichScript",
+							},
 						},
 					},
 				},
 			},
-		},
-		{
-			name: "node agent enabled if feature is enabled",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{
-					PrivateActionRunner: &v2alpha1.PrivateActionRunnerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(true),
-					},
-				},
-			},
-			wantAgent: true,
-		},
-		{
-			name: "explicitly enabled",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{
-					PrivateActionRunner: &v2alpha1.PrivateActionRunnerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(true),
-						NodeAgent: &v2alpha1.PrivateActionRunnerNodeConfig{
-							Enabled: apiutils.NewBoolPointer(true),
-						},
-					},
-				},
-			},
-			wantAgent: true,
+			expectConfigMap: true,
+			expectedYAML: `privateactionrunner:
+    enabled: true
+    actions_allowlist:
+        - com.datadoghq.script.testConnection
+        - com.datadoghq.script.enrichScript
+`,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := buildPrivateActionRunnerFeature(nil)
-			reqComp := f.Configure(&v2alpha1.DatadogAgent{}, tt.ddaSpec, nil)
-
-			if tt.wantAgent {
-				assert.True(t, reqComp.Agent.IsEnabled())
-				assert.Contains(t, reqComp.Agent.Containers, apicommon.CoreAgentContainerName)
-				assert.Contains(t, reqComp.Agent.Containers, apicommon.PrivateActionRunnerContainerName)
-			} else {
-				assert.False(t, reqComp.Agent.IsEnabled())
+			dda := &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dda",
+					Namespace: "default",
+				},
 			}
+			f.Configure(dda, tt.ddaSpec, nil)
+
+			storeOptions := &store.StoreOptions{
+				Scheme: testScheme,
+			}
+			resourceManagers := feature.NewResourceManagers(store.NewStore(dda, storeOptions))
+
+			err := f.ManageDependencies(resourceManagers, "")
+			require.NoError(t, err)
+
+			if !tt.expectConfigMap {
+				// Verify no ConfigMap was created
+				_, found := resourceManagers.Store().Get(kubernetes.ConfigMapKind, "default", "test-dda-privateactionrunner")
+				assert.False(t, found, "ConfigMap should not be created when feature is disabled")
+				return
+			}
+
+			// Verify ConfigMap was created
+			configMapName := "test-dda-privateactionrunner"
+			cm, found := resourceManagers.Store().Get(kubernetes.ConfigMapKind, "default", configMapName)
+			require.True(t, found, "ConfigMap should be created")
+			require.NotNil(t, cm)
+
+			configMap, ok := cm.(*corev1.ConfigMap)
+			require.True(t, ok, "Object should be a ConfigMap")
+			assert.Equal(t, configMapName, configMap.Name, "ConfigMap name should match")
+			assert.Equal(t, "default", configMap.Namespace, "Namespace should match")
+			require.Contains(t, configMap.Data, "privateactionrunner.yaml", "ConfigMap must contain privateactionrunner.yaml")
+
+			yamlContent := configMap.Data["privateactionrunner.yaml"]
+
+			// Verify exact YAML content matches expected
+			assert.Equal(t, tt.expectedYAML, yamlContent, "YAML content should exactly match expected output")
 		})
 	}
 }
