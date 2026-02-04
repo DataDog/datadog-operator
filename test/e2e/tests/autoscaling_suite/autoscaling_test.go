@@ -267,8 +267,8 @@ func (s *autoscalingSuite) testInstall(extraArgs ...string) {
 	// Run install
 	args := append([]string{"autoscaling", "cluster", "install", "--cluster-name", s.clusterName}, extraArgs...)
 	output, err := s.runKubectlDatadog(ctx, args...)
-	require.NoErrorf(s.T(), err, "Install command failed. Output: %s", output)
-	s.T().Logf("Install output: %s", output)
+	require.NoErrorf(s.T(), err, "Install command failed. Output:\n%s", output)
+	s.T().Logf("Install output:\n%s", output)
 
 	// Verify installation
 	s.verifyKarpenterInstalled(ctx)
@@ -281,8 +281,8 @@ func (s *autoscalingSuite) testUninstall() {
 
 	// Run uninstall
 	output, err := s.runKubectlDatadog(ctx, "autoscaling", "cluster", "uninstall", "--cluster-name", s.clusterName, "--yes")
-	require.NoErrorf(s.T(), err, "Uninstall command failed. Output: %s", output)
-	s.T().Logf("Uninstall output: %s", output)
+	require.NoErrorf(s.T(), err, "Uninstall command failed. Output:\n%s", output)
+	s.T().Logf("Uninstall output:\n%s", output)
 
 	// Verify cleanup
 	s.verifyCleanUninstall(ctx)
