@@ -178,7 +178,6 @@ func runFullReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 		c,
 		kubernetes.PlatformInfo{},
 		s,
-		logf.Log.WithName(tt.name),
 		recorder,
 		forwarders)
 	assert.NoError(t, err, "Failed to create datadogagentinternal reconciler")
