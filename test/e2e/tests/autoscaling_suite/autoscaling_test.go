@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/utils/ptr"
 )
 
 const (
@@ -72,7 +73,7 @@ func (s *autoscalingSuite) SetupSuite() {
 
 // extractClusterInfo extracts kubeconfig, cluster name, and AWS credentials from the EKS environment
 func (s *autoscalingSuite) extractClusterInfo() {
-	kubeconfigFile, err := os.CreateTemp("", "autoscaling-e2e-kubeconfig-*")
+	kubeconfigFile, err := os.CreateTemp("", "kubeconfig.autoscaling-e2e.*")
 	require.NoError(s.T(), err)
 
 	_, err = kubeconfigFile.WriteString(s.Env().KubernetesCluster.KubeConfig)
@@ -129,14 +130,13 @@ func (s *autoscalingSuite) cleanupKarpenterResources() {
 
 // deployTestWorkload creates a Deployment with anti-affinity to force 1 pod per node
 func (s *autoscalingSuite) deployTestWorkload(ctx context.Context) {
-	replicas := int32(testWorkloadReplicas)
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      testWorkloadName,
 			Namespace: testWorkloadNamespace,
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: &replicas,
+			Replicas: ptr.To(int32(testWorkloadReplicas)),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"app": testWorkloadName},
 			},
@@ -147,7 +147,7 @@ func (s *autoscalingSuite) deployTestWorkload(ctx context.Context) {
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
 						Name:  "pause",
-						Image: "registry.k8s.io/pause:3.9",
+						Image: "registry.k8s.io/pause",
 						Resources: corev1.ResourceRequirements{
 							Requests: corev1.ResourceList{
 								corev1.ResourceCPU:    resource.MustParse("100m"),
@@ -170,8 +170,7 @@ func (s *autoscalingSuite) deployTestWorkload(ctx context.Context) {
 		},
 	}
 
-	client := s.Env().KubernetesCluster.Client()
-	_, err := client.AppsV1().Deployments(testWorkloadNamespace).Create(ctx, deployment, metav1.CreateOptions{})
+	_, err := s.Env().KubernetesCluster.Client().AppsV1().Deployments(testWorkloadNamespace).Create(ctx, deployment, metav1.CreateOptions{})
 	if err != nil && !errors.IsAlreadyExists(err) {
 		require.NoError(s.T(), err, "Failed to create test workload")
 	}
@@ -179,8 +178,7 @@ func (s *autoscalingSuite) deployTestWorkload(ctx context.Context) {
 
 // deleteTestWorkload removes the test workload
 func (s *autoscalingSuite) deleteTestWorkload(ctx context.Context) {
-	client := s.Env().KubernetesCluster.Client()
-	err := client.AppsV1().Deployments(testWorkloadNamespace).Delete(ctx, testWorkloadName, metav1.DeleteOptions{})
+	err := s.Env().KubernetesCluster.Client().AppsV1().Deployments(testWorkloadNamespace).Delete(ctx, testWorkloadName, metav1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		s.T().Logf("Warning: failed to delete test workload: %v", err)
 	}
@@ -188,8 +186,7 @@ func (s *autoscalingSuite) deleteTestWorkload(ctx context.Context) {
 
 // countPodsByPhase counts pods of the test workload by phase
 func (s *autoscalingSuite) countPodsByPhase(ctx context.Context) (running, pending int) {
-	client := s.Env().KubernetesCluster.Client()
-	pods, err := client.CoreV1().Pods(testWorkloadNamespace).List(ctx, metav1.ListOptions{
+	pods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(testWorkloadNamespace).List(ctx, metav1.ListOptions{
 		LabelSelector: "app=" + testWorkloadName,
 	})
 	require.NoError(s.T(), err, "Failed to list pods")

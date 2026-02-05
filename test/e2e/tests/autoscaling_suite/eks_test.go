@@ -13,7 +13,6 @@ import (
 )
 
 // TestEKSAutoscalingSuite runs the autoscaling E2E tests on an EKS cluster.
-// The EKS cluster is provisioned once and shared across all tests in the suite.
 func TestEKSAutoscalingSuite(t *testing.T) {
 	provisionerOptions := []provisioners.EKSProvisionerOption{
 		provisioners.WithEKSName("autoscaling-e2e"),
