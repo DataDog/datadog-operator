@@ -187,7 +187,7 @@ spec:
 : OriginDetectionEnabled enables origin detection for container tagging. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging
 
 `features.dogstatsd.tagCardinality`
-: TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`). See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables Cardinality default: low
+: TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`). This setting only applies when OriginDetectionEnabled is true. See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables Cardinality default: low
 
 `features.dogstatsd.unixDomainSocketConfig.enabled`
 : Enables Unix Domain Socket. Default: true
@@ -287,6 +287,9 @@ spec:
 
 `features.npm.collectDNSStats`
 : CollectDNSStats enables DNS stat collection. Default: false
+
+`features.npm.directSend`
+: DirectSend enables CNM/USM to send data directly to the backend Default: false
 
 `features.npm.enableConntrack`
 : EnableConntrack enables the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data. See also: http://conntrack-tools.netfilter.org/ Default: false

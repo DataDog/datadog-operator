@@ -9,9 +9,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/environments"
 	"github.com/DataDog/datadog-agent/test/fakeintake/aggregator"
 	"github.com/DataDog/datadog-agent/test/fakeintake/client"
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
 	"github.com/DataDog/datadog-operator/test/e2e/tests/utils"
@@ -22,11 +22,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/test-infra-definitions/components/datadog/agentwithoperatorparams"
-	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/agentwithoperatorparams"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/operatorparams"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/e2e"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -83,14 +83,16 @@ serviceAccount:
 			return
 		}
 
-		cleanupOpts := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName(lastTestName),
-			provisioners.WithK8sVersion(common.K8sVersion),
-			provisioners.WithOperatorOptions(defaultOperatorOpts...),
-			provisioners.WithoutDDA(),
-			provisioners.WithLocal(s.local),
+		// Delete all Datadog custom resources before Pulumi stack destroy
+		// to avoid CRD deletion timeout due to finalizers.
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+
+		if k8sConfig := s.Env().KubernetesCluster.KubernetesClient.K8sConfig; k8sConfig != nil {
+			if err := utils.DeleteAllDatadogResources(ctx, k8sConfig, common.NamespaceName); err != nil {
+				t.Logf("Warning: failed to delete Datadog resources during cleanup: %v", err)
+			}
 		}
-		s.UpdateEnv(provisioners.KubernetesProvisioner(cleanupOpts...))
 	})
 
 	s.T().Run("Verify Operator", func(t *testing.T) {
@@ -274,6 +276,9 @@ serviceAccount:
 
 		updateEnv("e2e-operator-logs-collection", provisionerOptions)
 
+		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
+		s.Assert().NoError(err)
+
 		// Verify logs collection on agent pod
 		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
 			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), "app.kubernetes.io/instance=datadog-agent-logs-agent")
@@ -287,7 +292,7 @@ serviceAccount:
 				utils.VerifyAgentPodLogs(c, output)
 			}
 
-			s.verifyAPILogs()
+			s.verifyAPILogs(c)
 		}, 900*time.Second, 15*time.Second, "could not validate logs collection in time")
 	})
 
@@ -342,7 +347,6 @@ serviceAccount:
 			// This works because we have a single Agent pod (so located on same node as tracegen)
 			// Otherwise, we would need to deploy tracegen on the same node as the Agent pod / as a DaemonSet
 			for _, pod := range agentPods.Items {
-
 				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "apm agent", "-j"})
 				assert.NoError(c, err)
 
@@ -355,10 +359,10 @@ serviceAccount:
 	})
 }
 
-func (s *k8sSuite) verifyAPILogs() {
+func (s *k8sSuite) verifyAPILogs(t assert.TestingT) {
 	logs, err := s.Env().FakeIntake.Client().FilterLogs("agent")
-	s.Assert().NoError(err)
-	s.Assert().NotEmptyf(logs, fmt.Sprintf("Expected fake intake-ingested logs to not be empty: %s", err))
+	assert.NoError(t, err)
+	assert.NotEmptyf(t, logs, "Expected fake intake-ingested logs to not be empty")
 }
 
 func (s *k8sSuite) verifyAPITraces(c *assert.CollectT) {

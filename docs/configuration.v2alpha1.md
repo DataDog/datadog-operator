@@ -101,7 +101,7 @@ spec:
 | features.dogstatsd.mapperProfiles.configMap.name | Is the name of the ConfigMap. |
 | features.dogstatsd.nonLocalTraffic | NonLocalTraffic enables non-local traffic for Dogstatsd. Default: true |
 | features.dogstatsd.originDetectionEnabled | OriginDetectionEnabled enables origin detection for container tagging. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging |
-| features.dogstatsd.tagCardinality | TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`). See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables Cardinality default: low |
+| features.dogstatsd.tagCardinality | TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`). This setting only applies when OriginDetectionEnabled is true. See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables Cardinality default: low |
 | features.dogstatsd.unixDomainSocketConfig.enabled | Enables Unix Domain Socket. Default: true |
 | features.dogstatsd.unixDomainSocketConfig.path | Defines the socket path used when enabled. |
 | features.ebpfCheck.enabled | Enables the eBPF check. Default: false |
@@ -146,6 +146,7 @@ spec:
 | features.logCollection.podLogsPath | PodLogsPath allows log collection from a pod log path. Default: `/var/log/pods` |
 | features.logCollection.tempStoragePath | TempStoragePath (always mounted from the host) is used by the Agent to store information about processed log files. If the Agent is restarted, it starts tailing the log files immediately. Default: `/var/lib/datadog-agent/logs` |
 | features.npm.collectDNSStats | CollectDNSStats enables DNS stat collection. Default: false |
+| features.npm.directSend | DirectSend enables CNM/USM to send data directly to the backend Default: false |
 | features.npm.enableConntrack | EnableConntrack enables the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data. See also: http://conntrack-tools.netfilter.org/ Default: false |
 | features.npm.enabled | Enables Network Performance Monitoring. Default: false |
 | features.oomKill.enabled | Enables the OOMKill eBPF-based check. Default: false |
