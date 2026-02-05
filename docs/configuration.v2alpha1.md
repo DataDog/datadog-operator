@@ -146,6 +146,7 @@ spec:
 | features.logCollection.podLogsPath | PodLogsPath allows log collection from a pod log path. Default: `/var/log/pods` |
 | features.logCollection.tempStoragePath | TempStoragePath (always mounted from the host) is used by the Agent to store information about processed log files. If the Agent is restarted, it starts tailing the log files immediately. Default: `/var/lib/datadog-agent/logs` |
 | features.npm.collectDNSStats | CollectDNSStats enables DNS stat collection. Default: false |
+| features.npm.directSend | DirectSend enables CNM/USM to send data directly to the backend Default: false |
 | features.npm.enableConntrack | EnableConntrack enables the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data. See also: http://conntrack-tools.netfilter.org/ Default: false |
 | features.npm.enabled | Enables Network Performance Monitoring. Default: false |
 | features.oomKill.enabled | Enables the OOMKill eBPF-based check. Default: false |
