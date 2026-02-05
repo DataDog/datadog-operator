@@ -723,10 +723,4 @@ publish_release_candidate_workflow:
     forward:
       pipeline_variables: true
   variables:
-    OPERATOR_RC: "true"
-    SKIP_PLAN_CHECK: "true"
-    ENVIRONMENTS: "experimental,staging"
-    CHART: "datadog-operator"
-    OPTION_AUTOMATIC_ROLLOUT: "true"
-    EXPLICIT_WORKFLOWS: "//workflows:deploy_operator_rc.operator_rc"
     OPERATOR_IMAGE_TAG: $CI_COMMIT_REF_SLUG
