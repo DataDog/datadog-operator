@@ -99,6 +99,12 @@ func (c *ClusterChecksRunnerComponent) Reconcile(ctx context.Context, params *Re
 		override.Deployment(deployment, componentOverride)
 	}
 
+	// Apply MD5 hashes for ConfigMaps
+	cmAnnotations := params.ResourceManagers.Store().GetComponentAnnotations(c.Name())
+	for key, value := range cmAnnotations {
+		podManagers.Annotation().AddAnnotation(key, value)
+	}
+
 	return c.reconciler.createOrUpdateDeployment(params.Logger, params.DDA, deployment, params.Status, updateStatusV2WithClusterChecksRunner)
 }
 

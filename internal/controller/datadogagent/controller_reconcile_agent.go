@@ -135,6 +135,12 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 			return reconcile.Result{}, nil
 		}
 
+		// Apply MD5 hashes for ConfigMaps
+		cmAnnotations := resourcesManager.Store().GetComponentAnnotations(datadoghqv2alpha1.NodeAgentComponentName)
+		for key, value := range cmAnnotations {
+			podManagers.Annotation().AddAnnotation(key, value)
+		}
+
 		return r.createOrUpdateExtendedDaemonset(daemonsetLogger, dda, eds, newStatus, updateEDSStatusV2WithAgent)
 	}
 
@@ -234,6 +240,12 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		}
 		deleteStatusWithAgent(newStatus)
 		return reconcile.Result{}, nil
+	}
+
+	// Apply MD5 hashes for ConfigMaps
+	cmAnnotations := resourcesManager.Store().GetComponentAnnotations(datadoghqv2alpha1.NodeAgentComponentName)
+	for key, value := range cmAnnotations {
+		podManagers.Annotation().AddAnnotation(key, value)
 	}
 
 	return r.createOrUpdateDaemonset(daemonsetLogger, dda, daemonset, newStatus, updateDSStatusV2WithAgent, profile)

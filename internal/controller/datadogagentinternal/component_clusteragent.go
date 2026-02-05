@@ -97,6 +97,12 @@ func (c *ClusterAgentComponent) Reconcile(ctx context.Context, params *Reconcile
 		override.Deployment(deployment, componentOverride)
 	}
 
+	// Apply MD5 hashes for ConfigMaps
+	cmAnnotations := params.ResourceManagers.Store().GetComponentAnnotations(c.Name())
+	for key, value := range cmAnnotations {
+		podManagers.Annotation().AddAnnotation(key, value)
+	}
+
 	return c.reconciler.createOrUpdateDeployment(params.Logger, params.DDAI, deployment, params.Status, updateStatusV2WithClusterAgent)
 }
 
