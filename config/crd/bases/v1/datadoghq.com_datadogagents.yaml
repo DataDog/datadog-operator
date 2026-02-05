@@ -1857,6 +1857,11 @@ spec:
                             CollectDNSStats enables DNS stat collection.
                             Default: false
                           type: boolean
+                        directSend:
+                          description: |-
+                            DirectSend enables CNM/USM to send data directly to the backend
+                            Default: false
+                          type: boolean
                         enableConntrack:
                           description: |-
                             EnableConntrack enables the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data.
@@ -9933,6 +9938,11 @@ spec:
                             collectDNSStats:
                               description: |-
                                 CollectDNSStats enables DNS stat collection.
+                                Default: false
+                              type: boolean
+                            directSend:
+                              description: |-
+                                DirectSend enables CNM/USM to send data directly to the backend
                                 Default: false
                               type: boolean
                             enableConntrack:

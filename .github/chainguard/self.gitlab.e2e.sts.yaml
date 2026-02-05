@@ -1,0 +1,11 @@
+issuer: https://gitlab.ddbuild.io
+
+subject_pattern: "project_path:DataDog/.*"
+
+claim_pattern:
+  project_id: "1094"
+
+# This token is used by e2e tests to make authenticated requests to download Pulumi plugins
+# It doesn't read from the datadog-operator repo but this is our only way to get a token
+permissions:
+  contents: read

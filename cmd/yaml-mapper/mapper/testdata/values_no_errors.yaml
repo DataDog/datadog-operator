@@ -29,7 +29,6 @@ agents:
       effect: "NoSchedule"
 
 clusterAgent:
-  enabled: true
   replicas: 2
   image:
     name: "cluster-agent"

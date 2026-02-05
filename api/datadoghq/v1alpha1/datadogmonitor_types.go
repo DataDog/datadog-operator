@@ -376,7 +376,7 @@ type DatadogMonitorDowntimeStatus struct {
 // +kubebuilder:printcolumn:name="monitor state",type="string",JSONPath=".status.monitorState"
 // +kubebuilder:printcolumn:name="last state transition",type="string",JSONPath=".status.monitorStateLastTransitionTime"
 // +kubebuilder:printcolumn:name="last state sync",type="string",format="date",JSONPath=".status.monitorStateLastUpdateTime"
-// +kubebuilder:printcolumn:name="sync status",type="string",JSONPath=".status.syncStatus"
+// +kubebuilder:printcolumn:name="sync status",type="string",JSONPath=".status.monitorStateSyncStatus"
 // +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
 // +k8s:openapi-gen=true
 // +genclient

@@ -9,9 +9,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/environments"
 	"github.com/DataDog/datadog-agent/test/fakeintake/aggregator"
 	"github.com/DataDog/datadog-agent/test/fakeintake/client"
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
 	"github.com/DataDog/datadog-operator/test/e2e/tests/utils"
@@ -22,11 +22,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/test-infra-definitions/components/datadog/agentwithoperatorparams"
-	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/agentwithoperatorparams"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/operatorparams"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/e2e"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -83,14 +83,16 @@ serviceAccount:
 			return
 		}
 
-		cleanupOpts := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName(lastTestName),
-			provisioners.WithK8sVersion(common.K8sVersion),
-			provisioners.WithOperatorOptions(defaultOperatorOpts...),
-			provisioners.WithoutDDA(),
-			provisioners.WithLocal(s.local),
+		// Delete all Datadog custom resources before Pulumi stack destroy
+		// to avoid CRD deletion timeout due to finalizers.
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+
+		if k8sConfig := s.Env().KubernetesCluster.KubernetesClient.K8sConfig; k8sConfig != nil {
+			if err := utils.DeleteAllDatadogResources(ctx, k8sConfig, common.NamespaceName); err != nil {
+				t.Logf("Warning: failed to delete Datadog resources during cleanup: %v", err)
+			}
 		}
-		s.UpdateEnv(provisioners.KubernetesProvisioner(cleanupOpts...))
 	})
 
 	s.T().Run("Verify Operator", func(t *testing.T) {

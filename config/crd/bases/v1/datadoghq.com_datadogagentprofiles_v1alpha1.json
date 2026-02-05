@@ -1942,6 +1942,10 @@
                       "description": "CollectDNSStats enables DNS stat collection.\nDefault: false",
                       "type": "boolean"
                     },
+                    "directSend": {
+                      "description": "DirectSend enables CNM/USM to send data directly to the backend\nDefault: false",
+                      "type": "boolean"
+                    },
                     "enableConntrack": {
                       "description": "EnableConntrack enables the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data.\nSee also: http://conntrack-tools.netfilter.org/\nDefault: false",
                       "type": "boolean"
