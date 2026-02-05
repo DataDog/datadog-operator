@@ -237,7 +237,7 @@ go_e2e_deps:
       if [ ! -f pulumi_plugins.tar.xz ]; then
         # Pre-download Pulumi plugins used by e2e scenarios and components
         pushd test/e2e
-        PULUMI_CONFIG_PASSPHRASE=dummy pulumi --non-interactive plugin install
+        GOWORK=off PULUMI_CONFIG_PASSPHRASE=dummy pulumi --non-interactive plugin install
         popd
         tar c -I "xz -T${KUBERNETES_CPU_REQUEST}" -f $CI_PROJECT_DIR/pulumi_plugins.tar.xz -C ~/.pulumi plugins
       fi
