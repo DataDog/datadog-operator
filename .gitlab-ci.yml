@@ -229,6 +229,7 @@ go_e2e_deps:
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
+  needs: []
   before_script:
     - export GITHUB_TOKEN=$(dd-octo-sts token --scope DataDog/datadog-operator --policy self.gitlab.deps-fetch)
   script:
