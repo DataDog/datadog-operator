@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"time"
 
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/e2e"
@@ -26,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/utils/ptr"
 )
@@ -35,6 +35,10 @@ const (
 	testWorkloadName      = "karpenter-test-workload"
 	testWorkloadNamespace = "default"
 	testWorkloadReplicas  = 5 // Must be > initial number of nodes to force Pending pods
+)
+
+var (
+	testWorkloadSelector = map[string]string{"app": testWorkloadName}
 )
 
 // awsCredentials holds AWS credentials loaded from the SDK's default credential chain
@@ -55,15 +59,17 @@ type autoscalingSuite struct {
 }
 
 func (s *autoscalingSuite) SetupSuite() {
+	t := s.T()
+
 	s.BaseSuite.SetupSuite()
 	s.extractClusterInfo()
 
-	ctx, cancel := context.WithTimeout(s.T().Context(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Minute)
 	defer cancel()
 	s.deployTestWorkload(ctx)
 
-	s.T().Cleanup(func() {
-		ctx, cancel := context.WithTimeout(s.T().Context(), 5*time.Minute)
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Minute)
 		defer cancel()
 		s.deleteTestWorkload(ctx)
 
@@ -73,26 +79,28 @@ func (s *autoscalingSuite) SetupSuite() {
 
 // extractClusterInfo extracts kubeconfig, cluster name, and AWS credentials from the EKS environment
 func (s *autoscalingSuite) extractClusterInfo() {
+	t := s.T()
+
 	kubeconfigFile, err := os.CreateTemp("", "kubeconfig.autoscaling-e2e.*")
-	require.NoError(s.T(), err)
+	require.NoError(t, err)
 
 	_, err = kubeconfigFile.WriteString(s.Env().KubernetesCluster.KubeConfig)
-	require.NoError(s.T(), err, "Failed to write kubeconfig to file %s", kubeconfigFile.Name())
+	require.NoError(t, err, "Failed to write kubeconfig to file %s", kubeconfigFile.Name())
 
 	err = kubeconfigFile.Close()
-	require.NoError(s.T(), err, "Failed to close kubeconfig to file %s", kubeconfigFile.Name())
+	require.NoError(t, err, "Failed to close kubeconfig to file %s", kubeconfigFile.Name())
 
 	s.kubeconfigPath = kubeconfigFile.Name()
 
 	s.clusterName = s.Env().KubernetesCluster.ClusterName
 
-	cfg, err := config.LoadDefaultConfig(s.T().Context())
-	require.NoError(s.T(), err, "Failed to load AWS config")
+	cfg, err := config.LoadDefaultConfig(t.Context())
+	require.NoError(t, err, "Failed to load AWS config")
 
 	s.cfnClient = cloudformation.NewFromConfig(cfg)
 
-	creds, err := cfg.Credentials.Retrieve(s.T().Context())
-	require.NoError(s.T(), err, "Failed to retrieve AWS credentials")
+	creds, err := cfg.Credentials.Retrieve(t.Context())
+	require.NoError(t, err, "Failed to retrieve AWS credentials")
 
 	s.awsCreds = awsCredentials{
 		AccessKeyID:     creds.AccessKeyID,
@@ -104,22 +112,24 @@ func (s *autoscalingSuite) extractClusterInfo() {
 		s.awsCreds.Region = "us-east-1" // Fallback default
 	}
 
-	s.T().Logf("EKS cluster name: %s", s.clusterName)
-	s.T().Logf("Kubeconfig path: %s", s.kubeconfigPath)
-	s.T().Logf("AWS region: %s", s.awsCreds.Region)
+	t.Logf("EKS cluster name: %s", s.clusterName)
+	t.Logf("Kubeconfig path: %s", s.kubeconfigPath)
+	t.Logf("AWS region: %s", s.awsCreds.Region)
 }
 
 // cleanupKarpenterResources ensures Karpenter resources are cleaned up at the end of the suite
 func (s *autoscalingSuite) cleanupKarpenterResources() {
-	ctx, cancel := context.WithTimeout(s.T().Context(), 20*time.Minute)
+	t := s.T()
+
+	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Minute)
 	defer cancel()
 
-	s.T().Log("Cleaning up Karpenter resources...")
+	t.Log("Cleaning up Karpenter resources...")
 
 	// Run uninstall to clean up
 	output, err := s.runKubectlDatadog(ctx, "autoscaling", "cluster", "uninstall", "--cluster-name", s.clusterName, "--yes")
 	if err != nil {
-		s.T().Logf("Warning: cleanup uninstall failed (may be expected if already cleaned): %v\nOutput: %s", err, output)
+		t.Logf("Warning: cleanup uninstall failed (may be expected if already cleaned): %v\nOutput: %s", err, output)
 	}
 
 	// Clean up kubeconfig file
@@ -138,11 +148,11 @@ func (s *autoscalingSuite) deployTestWorkload(ctx context.Context) {
 		Spec: appsv1.DeploymentSpec{
 			Replicas: ptr.To(int32(testWorkloadReplicas)),
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"app": testWorkloadName},
+				MatchLabels: testWorkloadSelector,
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": testWorkloadName},
+					Labels: testWorkloadSelector,
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
@@ -159,7 +169,7 @@ func (s *autoscalingSuite) deployTestWorkload(ctx context.Context) {
 						PodAntiAffinity: &corev1.PodAntiAffinity{
 							RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{{
 								LabelSelector: &metav1.LabelSelector{
-									MatchLabels: map[string]string{"app": testWorkloadName},
+									MatchLabels: testWorkloadSelector,
 								},
 								TopologyKey: "kubernetes.io/hostname",
 							}},
@@ -187,7 +197,7 @@ func (s *autoscalingSuite) deleteTestWorkload(ctx context.Context) {
 // countPodsByPhase counts pods of the test workload by phase
 func (s *autoscalingSuite) countPodsByPhase(ctx context.Context) (running, pending int) {
 	pods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(testWorkloadNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: "app=" + testWorkloadName,
+		LabelSelector: labels.FormatLabels(testWorkloadSelector),
 	})
 	require.NoError(s.T(), err, "Failed to list pods")
 
@@ -204,83 +214,121 @@ func (s *autoscalingSuite) countPodsByPhase(ctx context.Context) (running, pendi
 
 // waitForPendingPods waits until at least minPending pods are in Pending state
 func (s *autoscalingSuite) waitForPendingPods(ctx context.Context, minPending int) {
-	s.T().Logf("Waiting for at least %d pending pods...", minPending)
-	require.Eventually(s.T(), func() bool {
+	t := s.T()
+	t.Logf("Waiting for at least %d pending pods...", minPending)
+
+	require.Eventually(t, func() bool {
 		_, pending := s.countPodsByPhase(ctx)
-		s.T().Logf("Current state: pending=%d", pending)
+		t.Logf("Current state: pending=%d", pending)
 		return pending >= minPending
 	}, 2*time.Minute, 5*time.Second, "Expected at least %d pending pods", minPending)
 }
 
 // waitForAllPodsRunning waits until all pods are Running
 func (s *autoscalingSuite) waitForAllPodsRunning(ctx context.Context) {
-	s.T().Log("Waiting for all pods to be running...")
-	require.Eventually(s.T(), func() bool {
+	t := s.T()
+	t.Log("Waiting for all pods to be running...")
+
+	require.Eventually(t, func() bool {
 		running, pending := s.countPodsByPhase(ctx)
-		s.T().Logf("Current state: running=%d, pending=%d", running, pending)
+		t.Logf("Current state: running=%d, pending=%d", running, pending)
 		return running == testWorkloadReplicas && pending == 0
 	}, 10*time.Minute, 10*time.Second, "Expected all %d pods to be running", testWorkloadReplicas)
 }
 
 // TestAutoscaling runs all autoscaling tests sequentially on the shared EKS cluster
-func (s *autoscalingSuite) TestAutoscaling() {
+func (s *autoscalingSuite) TestAutoscalingDefault() {
+	ctx := s.T().Context()
+
 	s.Run("Install with defaults", func() {
 		s.testInstall()
+		s.waitForAllPodsRunning(ctx)
 	})
 
 	s.Run("Install is idempotent", func() {
 		s.testInstall()
+		s.waitForAllPodsRunning(ctx)
 	})
 
 	s.Run("Uninstall cleans up resources", func() {
 		s.testUninstall()
+		s.waitForPendingPods(ctx, 1)
 	})
 
 	s.Run("Uninstall is idempotent", func() {
 		s.testUninstall()
+		s.waitForPendingPods(ctx, 1)
 	})
+}
+
+func (s *autoscalingSuite) TestAutoscalingNoNodePool() {
+	ctx := s.T().Context()
 
 	s.Run("Install with create-karpenter-resources=none", func() {
 		s.testInstall("--create-karpenter-resources=none")
+		// Without EC2NodeClass and NodePools, pods will remain pending
 	})
 
 	s.Run("Uninstall cleans up resources", func() {
 		s.testUninstall()
+		s.waitForPendingPods(ctx, 1)
 	})
+}
+
+func (s *autoscalingSuite) TestAutoscalingInferenceMethodNodeGroup() {
+	ctx := s.T().Context()
+
+	s.Run("Install with inference-method=nodegroups", func() {
+		s.testInstall("--inference-method=nodegroups")
+		s.waitForAllPodsRunning(ctx)
+	})
+
+	s.Run("Uninstall cleans up resources", func() {
+		s.testUninstall()
+		s.waitForPendingPods(ctx, 1)
+	})
+}
+
+func (s *autoscalingSuite) TestAutoscalingInferenceMethodNodes() {
+	ctx := s.T().Context()
 
 	s.Run("Install with inference-method=nodes", func() {
 		s.testInstall("--inference-method=nodes")
+		s.waitForAllPodsRunning(ctx)
 	})
 
 	s.Run("Uninstall cleans up resources", func() {
 		s.testUninstall()
+		s.waitForPendingPods(ctx, 1)
 	})
 }
 
 // testInstall tests the default install flow
 func (s *autoscalingSuite) testInstall(extraArgs ...string) {
-	ctx, cancel := context.WithTimeout(s.T().Context(), 15*time.Minute)
+	t := s.T()
+	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Minute)
 	defer cancel()
 
 	// Run install
 	args := append([]string{"autoscaling", "cluster", "install", "--cluster-name", s.clusterName}, extraArgs...)
 	output, err := s.runKubectlDatadog(ctx, args...)
-	require.NoErrorf(s.T(), err, "Install command failed. Output:\n%s", output)
-	s.T().Logf("Install output:\n%s", output)
+	require.NoErrorf(t, err, "Install command failed. Output:\n%s", output)
+	t.Logf("Install output:\n%s", output)
 
 	// Verify installation
-	s.verifyKarpenterInstalled(ctx, !slices.Contains(extraArgs, "--create-karpenter-resources=none"))
+	s.verifyKarpenterInstalled(ctx)
 }
 
 // testUninstall tests that uninstall removes all resources
 func (s *autoscalingSuite) testUninstall() {
-	ctx, cancel := context.WithTimeout(s.T().Context(), 20*time.Minute)
+	t := s.T()
+	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Minute)
 	defer cancel()
 
 	// Run uninstall
 	output, err := s.runKubectlDatadog(ctx, "autoscaling", "cluster", "uninstall", "--cluster-name", s.clusterName, "--yes")
-	require.NoErrorf(s.T(), err, "Uninstall command failed. Output:\n%s", output)
-	s.T().Logf("Uninstall output:\n%s", output)
+	require.NoErrorf(t, err, "Uninstall command failed. Output:\n%s", output)
+	t.Logf("Uninstall output:\n%s", output)
 
 	// Verify cleanup
 	s.verifyCleanUninstall(ctx)
@@ -308,8 +356,9 @@ func (s *autoscalingSuite) runKubectlDatadog(ctx context.Context, args ...string
 }
 
 // verifyKarpenterInstalled verifies that Karpenter is fully installed
-func (s *autoscalingSuite) verifyKarpenterInstalled(ctx context.Context, waitForAllPodsRunning bool) {
-	s.T().Log("Verifying Karpenter installation...")
+func (s *autoscalingSuite) verifyKarpenterInstalled(ctx context.Context) {
+	t := s.T()
+	t.Log("Verifying Karpenter installation...")
 
 	// Verify CloudFormation stacks
 	for _, stackName := range []string{
@@ -327,21 +376,17 @@ func (s *autoscalingSuite) verifyKarpenterInstalled(ctx context.Context, waitFor
 	actionConfig, err := helm.NewActionConfig(configFlags, karpenterNamespace)
 	s.Assert().NoErrorf(err, "Error creating Helm action config")
 
-	exists, err := helm.DoesExist(ctx, actionConfig, "karpenter")
+	exists, err := helm.Exists(ctx, actionConfig, "karpenter")
 	s.Assert().NoErrorf(err, "Error checking Helm release")
 	s.Assert().Truef(exists, "Karpenter Helm release not found")
 
-	// Verify that Karpenter scheduled all pods (proves it can create nodes)
-	if waitForAllPodsRunning {
-		s.waitForAllPodsRunning(ctx)
-	}
-
-	s.T().Log("Karpenter installation verified successfully")
+	t.Log("Karpenter installation verified successfully")
 }
 
 // verifyCleanUninstall verifies that all Karpenter resources have been cleaned up
 func (s *autoscalingSuite) verifyCleanUninstall(ctx context.Context) {
-	s.T().Log("Verifying clean uninstall...")
+	t := s.T()
+	t.Log("Verifying clean uninstall...")
 
 	// Verify CloudFormation stacks
 	for _, stackName := range []string{
@@ -359,12 +404,9 @@ func (s *autoscalingSuite) verifyCleanUninstall(ctx context.Context) {
 	actionConfig, err := helm.NewActionConfig(configFlags, karpenterNamespace)
 	s.Assert().NoErrorf(err, "Error creating Helm action config")
 
-	exists, err := helm.DoesExist(ctx, actionConfig, "karpenter")
+	exists, err := helm.Exists(ctx, actionConfig, "karpenter")
 	s.Assert().NoErrorf(err, "Error checking Helm release")
 	s.Assert().Falsef(exists, "Karpenter Helm release still exists")
 
-	// Verify that some pods became Pending (no Karpenter to scale up nodes)
-	s.waitForPendingPods(ctx, 1)
-
-	s.T().Log("Clean uninstall verified successfully")
+	t.Log("Clean uninstall verified successfully")
 }
