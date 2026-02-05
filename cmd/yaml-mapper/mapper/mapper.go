@@ -16,7 +16,6 @@ import (
 
 	"helm.sh/helm/v3/pkg/chartutil"
 
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/constants"
 	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/utils"
 
@@ -32,6 +31,8 @@ var defaultDDAMap []byte
 var skipMappingKeys = []string{
 	`datadog\.operator\..*`,
 	`operator\..*`,
+	`clusterAgent\.enabled`,
+	`agents\.enabled`,
 }
 
 const defaultDDAMapUrl = "https://raw.githubusercontent.com/DataDog/helm-charts/main/tools/yaml-mapper/mapping_datadog_helm_to_datadogagent_crd.yaml"
@@ -167,7 +168,6 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 	var errorCount int
 	var ddaName = m.MapConfig.DDAName
 	var interim = map[string]interface{}{}
-	defaultValues, _ := getDefaultValues()
 
 	if m.MapConfig.HeaderPath == "" {
 		interim = newDefaultFileHeader()
@@ -198,15 +198,11 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 	// Map values.yaml => DDA
 	for _, sourceKey := range mappingKeys {
 		pathVal, _ := sourceValues.PathValue(sourceKey)
-		defaultVal, _ := defaultValues.PathValue(sourceKey)
 		if pathVal == nil {
 			if mapVal, ok := utils.GetPathMap(sourceValues[sourceKey]); ok && mapVal != nil {
 				pathVal = mapVal
-				defaultVal, _ = utils.GetPathMap(defaultValues[sourceKey])
-
 			} else if tableVal, err := sourceValues.Table(sourceKey); err == nil && len(tableVal) == 1 {
 				pathVal = tableVal
-				defaultVal, _ = defaultValues.Table(sourceKey)
 			} else {
 				continue
 			}
@@ -215,7 +211,7 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 		utils.MergeOrSet(sourceKeysRef, sourceKey, map[string]interface{}{"visited": true})
 
 		destKey, _ := mappingValues[sourceKey]
-		if (destKey == "" || destKey == nil) && !apiutils.IsEqualStruct(pathVal, defaultVal) && !shouldSkipMappingKey(sourceKey) {
+		if (destKey == "" || destKey == nil) && !shouldSkipMappingKey(sourceKey) {
 			slog.Error("DDA destination key not found", "sourceKey", sourceKey)
 			errorCount++
 			continue
@@ -399,23 +395,6 @@ func flattenValues(sourceValues chartutil.Values, valuesMap map[string]interface
 		}
 	}
 	return valuesMap
-}
-
-func getDefaultValues() (chartutil.Values, error) {
-	defaultValsPath, err := utils.FetchLatestValues()
-	if err != nil {
-		return nil, err
-	}
-	defaultValsFile, err := os.ReadFile(defaultValsPath)
-	if err != nil {
-		return nil, err
-	}
-	defaultValues, err := chartutil.ReadValues(defaultValsFile)
-	if err != nil {
-		return nil, err
-	}
-
-	return defaultValues, nil
 }
 
 // shouldSkipMappingKey Returns true if the key should be skipped during mapping. Supports regex matching.
