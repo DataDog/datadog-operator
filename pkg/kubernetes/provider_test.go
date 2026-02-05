@@ -233,6 +233,81 @@ func Test_isEKSProvider(t *testing.T) {
 	}
 }
 
+func Test_ContainsEKSOrOpenShift(t *testing.T) {
+	tests := []struct {
+		name         string
+		providerList map[string]struct{}
+		want         bool
+	}{
+		{
+			name:         "empty provider list",
+			providerList: map[string]struct{}{},
+			want:         false,
+		},
+		{
+			name: "only default provider",
+			providerList: map[string]struct{}{
+				"default": {},
+			},
+			want: false,
+		},
+		{
+			name: "only GKE provider",
+			providerList: map[string]struct{}{
+				"gke-cos": {},
+			},
+			want: false,
+		},
+		{
+			name: "only EKS provider",
+			providerList: map[string]struct{}{
+				eksProvider: {},
+			},
+			want: true,
+		},
+		{
+			name: "only OpenShift provider",
+			providerList: map[string]struct{}{
+				"openshift-rhcos": {},
+			},
+			want: true,
+		},
+		{
+			name: "EKS with other providers",
+			providerList: map[string]struct{}{
+				eksProvider: {},
+				"default":   {},
+				"gke-cos":   {},
+			},
+			want: true,
+		},
+		{
+			name: "OpenShift with other providers",
+			providerList: map[string]struct{}{
+				"openshift-rhcos": {},
+				"default":         {},
+				"gke-cos":         {},
+			},
+			want: true,
+		},
+		{
+			name: "both EKS and OpenShift",
+			providerList: map[string]struct{}{
+				eksProvider:       {},
+				"openshift-rhcos": {},
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ContainsEKSOrOpenShift(tt.providerList)
+			assert.Equal(t, tt.want, result)
+		})
+	}
+}
+
 func Test_sortProviders(t *testing.T) {
 	tests := []struct {
 		name                string
@@ -468,47 +543,8 @@ func Test_getProviderNodeAffinity(t *testing.T) {
 			existingProviders: map[string]struct{}{
 				eksProvider: {},
 			},
-			provider: eksProvider,
-			wantAffinity: &corev1.Affinity{
-				NodeAffinity: &corev1.NodeAffinity{
-					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-						NodeSelectorTerms: []corev1.NodeSelectorTerm{
-							{
-								MatchExpressions: []corev1.NodeSelectorRequirement{
-									{
-										Key:      "eks.amazonaws.com/nodegroup",
-										Operator: corev1.NodeSelectorOpExists,
-									},
-								},
-							},
-							{
-								MatchExpressions: []corev1.NodeSelectorRequirement{
-									{
-										Key:      "eks.amazonaws.com/nodegroup-image",
-										Operator: corev1.NodeSelectorOpExists,
-									},
-								},
-							},
-							{
-								MatchExpressions: []corev1.NodeSelectorRequirement{
-									{
-										Key:      "eks.amazonaws.com/compute-type",
-										Operator: corev1.NodeSelectorOpExists,
-									},
-								},
-							},
-							{
-								MatchExpressions: []corev1.NodeSelectorRequirement{
-									{
-										Key:      "alpha.eksctl.io/cluster-name",
-										Operator: corev1.NodeSelectorOpExists,
-									},
-								},
-							},
-						},
-					},
-				},
-			},
+			provider:     eksProvider,
+			wantAffinity: nil,
 		},
 		{
 			name: "default provider with eks",
@@ -516,35 +552,27 @@ func Test_getProviderNodeAffinity(t *testing.T) {
 				defaultProvider: {},
 				eksProvider:     {},
 			},
-			provider: defaultProvider,
-			wantAffinity: &corev1.Affinity{
-				NodeAffinity: &corev1.NodeAffinity{
-					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-						NodeSelectorTerms: []corev1.NodeSelectorTerm{
-							{
-								MatchExpressions: []corev1.NodeSelectorRequirement{
-									{
-										Key:      "eks.amazonaws.com/nodegroup",
-										Operator: corev1.NodeSelectorOpDoesNotExist,
-									},
-									{
-										Key:      "eks.amazonaws.com/nodegroup-image",
-										Operator: corev1.NodeSelectorOpDoesNotExist,
-									},
-									{
-										Key:      "eks.amazonaws.com/compute-type",
-										Operator: corev1.NodeSelectorOpDoesNotExist,
-									},
-									{
-										Key:      "alpha.eksctl.io/cluster-name",
-										Operator: corev1.NodeSelectorOpDoesNotExist,
-									},
-								},
-							},
-						},
-					},
-				},
+			provider:     defaultProvider,
+			wantAffinity: nil,
+		},
+		{
+			name: "default provider with openshift",
+			existingProviders: map[string]struct{}{
+				defaultProvider:   {},
+				openshiftProvider: {},
 			},
+			provider:     defaultProvider,
+			wantAffinity: nil,
+		},
+		{
+			name: "default provider with eks and gke",
+			existingProviders: map[string]struct{}{
+				defaultProvider: {},
+				eksProvider:     {},
+				gkeCosProvider:  {},
+			},
+			provider:     defaultProvider,
+			wantAffinity: nil,
 		},
 		{
 			name: "multiple providers with eks",

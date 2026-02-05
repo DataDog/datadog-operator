@@ -100,6 +100,21 @@ func isEKSProvider(labels map[string]string) bool {
 	return false
 }
 
+// ContainsEKSOrOpenShift checks if the provider list contains EKS or OpenShift
+func ContainsEKSOrOpenShift(providerList map[string]struct{}) bool {
+	for provider := range providerList {
+		// Check for EKS directly (has no suffix)
+		if provider == EKSCloudProvider {
+			return true
+		}
+		// Check for OpenShift (has format "openshift-{value}")
+		if strings.HasPrefix(provider, OpenshiftProvider+"-") {
+			return true
+		}
+	}
+	return false
+}
+
 // getProviderNodeAffinity creates NodeSelectorTerms based on the provider
 func getProviderNodeAffinity(provider string, providerList map[string]struct{}) *corev1.Affinity {
 	if provider == "" || providerList == nil || len(providerList) == 0 {
@@ -110,7 +125,20 @@ func getProviderNodeAffinity(provider string, providerList map[string]struct{}) 
 		return nil
 	}
 
-	// Special handling for EKS provider
+	// If EKS or OpenShift is present and we're using the default provider,
+	// don't apply affinity rules. We don't support provider-specific daemonsets
+	// for these platforms, so a single daemonset runs on all nodes without affinity.
+	if provider == DefaultProvider && ContainsEKSOrOpenShift(providerList) {
+		return nil
+	}
+
+	// if only EKS provider exists, there should be no affinity override
+	// This prevents issues when AWS adds new EKS labels
+	if provider == EKSCloudProvider && len(providerList) == 1 {
+		return nil
+	}
+
+	// Special handling for EKS provider when multiple providers exist
 	if provider == EKSCloudProvider {
 		return getEKSProviderNodeAffinity()
 	}
