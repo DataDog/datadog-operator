@@ -394,7 +394,8 @@ e2e_mq:
 e2e_autoscaling:
   extends: .e2e_aws_base
   stage: e2e
-  needs: []
+  needs:
+    - "go_e2e_deps"
   timeout: 60m
   rules:
     # Run automatically on changes to autoscaling code
