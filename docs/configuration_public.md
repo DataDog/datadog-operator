@@ -348,18 +348,6 @@ spec:
 `features.otlp`
 : OTLP ingest configuration See [link](https://docs.datadoghq.com/opentelemetry/setup/otlp_ingest_in_the_agent/?tab=kubernetesoperator) for more information.
 
-`features.privateActionRunner.enabled`
-: Enables Private Action Runner. Default: false
-
-`features.privateActionRunner.nodeAgent.actionsAllowlist`
-: Specifies the list of actions that are allowed to be executed.
-
-`features.privateActionRunner.nodeAgent.enabled`
-: Enables Private Action Runner on the Node Agent. Default: true
-
-`features.privateActionRunner.nodeAgent.selfEnroll`
-: Enables automatic self-enrollment for the Node Agent runner.
-
 `features.processDiscovery.enabled`
 : Enables the Process Discovery check in the Agent. Default: true
 

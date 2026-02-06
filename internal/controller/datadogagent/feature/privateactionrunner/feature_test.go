@@ -17,36 +17,30 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func Test_privateActionRunnerFeature_Configure(t *testing.T) {
 	tests := []struct {
-		name     string
-		ddaSpec  *v2alpha1.DatadogAgentSpec
-		wantFunc func(t *testing.T, reqComp feature.RequiredComponents)
+		name        string
+		annotations map[string]string
+		wantFunc    func(t *testing.T, reqComp feature.RequiredComponents)
 	}{
 		{
-			name: "feature not enabled",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{},
-			},
+			name:        "feature not enabled (no annotation)",
+			annotations: nil,
 			wantFunc: func(t *testing.T, reqComp feature.RequiredComponents) {
 				assert.False(t, reqComp.Agent.IsEnabled())
 			},
 		},
 		{
-			name: "feature enabled",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{
-					PrivateActionRunner: &v2alpha1.PrivateActionRunnerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(true),
-					},
-				},
+			name: "feature enabled via annotation",
+			annotations: map[string]string{
+				featureutils.EnablePrivateActionRunnerAnnotation: "true",
 			},
 			wantFunc: func(t *testing.T, reqComp feature.RequiredComponents) {
 				assert.True(t, reqComp.Agent.IsEnabled())
@@ -55,13 +49,9 @@ func Test_privateActionRunnerFeature_Configure(t *testing.T) {
 			},
 		},
 		{
-			name: "feature explicitly disabled",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{
-					PrivateActionRunner: &v2alpha1.PrivateActionRunnerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(false),
-					},
-				},
+			name: "feature explicitly disabled via annotation",
+			annotations: map[string]string{
+				featureutils.EnablePrivateActionRunnerAnnotation: "false",
 			},
 			wantFunc: func(t *testing.T, reqComp feature.RequiredComponents) {
 				assert.False(t, reqComp.Agent.IsEnabled())
@@ -73,9 +63,14 @@ func Test_privateActionRunnerFeature_Configure(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := buildPrivateActionRunnerFeature(nil)
+			dda := &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: tt.annotations,
+				},
+			}
 			reqComp := f.Configure(
-				&v2alpha1.DatadogAgent{},
-				tt.ddaSpec,
+				dda,
+				&v2alpha1.DatadogAgentSpec{},
 				nil,
 			)
 			tt.wantFunc(t, reqComp)
@@ -89,24 +84,18 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-dda",
 			Namespace: "default",
-		},
-	}
-	f.Configure(dda, &v2alpha1.DatadogAgentSpec{
-		Features: &v2alpha1.DatadogFeatures{
-			PrivateActionRunner: &v2alpha1.PrivateActionRunnerFeatureConfig{
-				Enabled: apiutils.NewBoolPointer(true),
-				NodeAgent: &v2alpha1.PrivateActionRunnerNodeConfig{
-					ActionsAllowlist: []string{
-						"com.datadoghq.script.testConnection",
-						"com.datadoghq.script.enrichScript",
-						"com.datadoghq.script.runPredefinedScript",
-						"com.datadoghq.kubernetes.core.listPod",
-						"com.datadoghq.kubernetes.core.testConnection",
-					},
-				},
+			Annotations: map[string]string{
+				featureutils.EnablePrivateActionRunnerAnnotation: "true",
+				featureutils.PrivateActionRunnerConfigDataAnnotation: `privateactionrunner:
+    private_key: some-key
+    urn: urn:dd:apps:on-prem-runner:us1:1:runner-abc
+    actions_allowlist:
+        - com.datadoghq.script.testConnection
+        - com.datadoghq.kubernetes.core.listPod`,
 			},
 		},
-	}, nil)
+	}
+	f.Configure(dda, &v2alpha1.DatadogAgentSpec{}, nil)
 
 	// Create test managers
 	podTmpl := corev1.PodTemplateSpec{}
@@ -194,57 +183,45 @@ func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
 
 	tests := []struct {
 		name            string
-		ddaSpec         *v2alpha1.DatadogAgentSpec
+		annotations     map[string]string
 		expectConfigMap bool
 		expectedYAML    string
 	}{
 		{
 			name: "feature disabled",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{
-					PrivateActionRunner: &v2alpha1.PrivateActionRunnerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(false),
-					},
-				},
+			annotations: map[string]string{
+				featureutils.EnablePrivateActionRunnerAnnotation: "false",
 			},
 			expectConfigMap: false,
 		},
 		{
-			name: "basic configuration - enabled only",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{
-					PrivateActionRunner: &v2alpha1.PrivateActionRunnerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(true),
-					},
-				},
+			name: "enabled without configdata - uses default",
+			annotations: map[string]string{
+				featureutils.EnablePrivateActionRunnerAnnotation: "true",
 			},
 			expectConfigMap: true,
-			expectedYAML: `privateactionrunner:
-    enabled: true
-`,
+			expectedYAML:    defaultConfigData,
 		},
 		{
-			name: "with actions allowlist",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{
-					PrivateActionRunner: &v2alpha1.PrivateActionRunnerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(true),
-						NodeAgent: &v2alpha1.PrivateActionRunnerNodeConfig{
-							ActionsAllowlist: []string{
-								"com.datadoghq.script.testConnection",
-								"com.datadoghq.script.enrichScript",
-							},
-						},
-					},
-				},
+			name: "enabled with configdata - passes through directly",
+			annotations: map[string]string{
+				featureutils.EnablePrivateActionRunnerAnnotation: "true",
+				featureutils.PrivateActionRunnerConfigDataAnnotation: `privateactionrunner:
+    private_key: some-key
+    urn: urn:dd:apps:on-prem-runner:us1:1:runner-abc
+    self_enroll: false
+    actions_allowlist:
+        - com.datadoghq.script.testConnection
+        - com.datadoghq.script.enrichScript`,
 			},
 			expectConfigMap: true,
 			expectedYAML: `privateactionrunner:
-    enabled: true
+    private_key: some-key
+    urn: urn:dd:apps:on-prem-runner:us1:1:runner-abc
+    self_enroll: false
     actions_allowlist:
         - com.datadoghq.script.testConnection
-        - com.datadoghq.script.enrichScript
-`,
+        - com.datadoghq.script.enrichScript`,
 		},
 	}
 
@@ -253,11 +230,12 @@ func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
 			f := buildPrivateActionRunnerFeature(nil)
 			dda := &v2alpha1.DatadogAgent{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-dda",
-					Namespace: "default",
+					Name:        "test-dda",
+					Namespace:   "default",
+					Annotations: tt.annotations,
 				},
 			}
-			f.Configure(dda, tt.ddaSpec, nil)
+			f.Configure(dda, &v2alpha1.DatadogAgentSpec{}, nil)
 
 			storeOptions := &store.StoreOptions{
 				Scheme: testScheme,
@@ -288,8 +266,8 @@ func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
 
 			yamlContent := configMap.Data["privateactionrunner.yaml"]
 
-			// Verify exact YAML content matches expected
-			assert.Equal(t, tt.expectedYAML, yamlContent, "YAML content should exactly match expected output")
+			// Verify content matches expected
+			assert.Equal(t, tt.expectedYAML, yamlContent, "ConfigMap content should match expected output")
 		})
 	}
 }

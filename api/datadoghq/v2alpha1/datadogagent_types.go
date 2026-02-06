@@ -90,9 +90,6 @@ type DatadogFeatures struct {
 	ServiceDiscovery *ServiceDiscoveryFeatureConfig `json:"serviceDiscovery,omitempty"`
 	// GPU monitoring
 	GPU *GPUFeatureConfig `json:"gpu,omitempty"`
-	// PrivateActionRunner configuration.
-	PrivateActionRunner *PrivateActionRunnerFeatureConfig `json:"privateActionRunner,omitempty"`
-
 	// Cluster-level features
 
 	// EventCollection configuration.
@@ -662,35 +659,6 @@ type GPUFeatureConfig struct {
 	// Default: false
 	// +optional
 	PatchCgroupPermissions *bool `json:"patchCgroupPermissions,omitempty"`
-}
-
-// PrivateActionRunnerFeatureConfig contains configuration for the Private Action Runner.
-type PrivateActionRunnerFeatureConfig struct {
-	// Enables Private Action Runner.
-	// Default: false
-	// +optional
-	Enabled *bool `json:"enabled,omitempty"`
-
-	// NodeAgent configures Private Action Runner on the Node Agent.
-	// Runs one instance per node for node-level actions.
-	// +optional
-	NodeAgent *PrivateActionRunnerNodeConfig `json:"nodeAgent,omitempty"`
-}
-
-// PrivateActionRunnerNodeConfig contains configuration for Private Action Runner on the Node Agent.
-type PrivateActionRunnerNodeConfig struct {
-	// Enables Private Action Runner on the Node Agent.
-	// Default: true
-	// +optional
-	Enabled *bool `json:"enabled,omitempty"`
-
-	// Enables automatic self-enrollment for the Node Agent runner.
-	// +optional
-	SelfEnroll *bool `json:"selfEnroll,omitempty"`
-
-	// Specifies the list of actions that are allowed to be executed.
-	// +optional
-	ActionsAllowlist []string `json:"actionsAllowlist,omitempty"`
 }
 
 // DogstatsdFeatureConfig contains the Dogstatsd configuration parameters.

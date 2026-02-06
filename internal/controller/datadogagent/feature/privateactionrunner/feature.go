@@ -9,7 +9,6 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -37,11 +37,10 @@ func buildPrivateActionRunnerFeature(options *feature.Options) feature.Feature {
 }
 
 type privateActionRunnerFeature struct {
-	owner                metav1.Object
-	logger               logr.Logger
-	nodeSelfEnroll       *bool
-	nodeActionsAllowlist []string
-	nodeEnabled          bool
+	owner       metav1.Object
+	logger      logr.Logger
+	nodeEnabled bool
+	configData  string
 }
 
 // ID returns the ID of the Feature
@@ -49,50 +48,35 @@ func (f *privateActionRunnerFeature) ID() feature.IDType {
 	return feature.PrivateActionRunnerIDType
 }
 
-// Configure configures the feature from a v2alpha1.DatadogAgent instance.
+const defaultConfigData = "privateactionrunner:\n    enabled: true\n"
+
+// Configure configures the feature from annotations on the DatadogAgent object.
 func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
-	// Check if feature is enabled
-	if ddaSpec.Features == nil ||
-		ddaSpec.Features.PrivateActionRunner == nil ||
-		!apiutils.BoolValue(ddaSpec.Features.PrivateActionRunner.Enabled) {
+	// Check if feature is enabled via annotation
+	if !featureutils.HasPrivateActionRunnerAnnotation(dda) {
 		return feature.RequiredComponents{}
 	}
 
-	parConfig := ddaSpec.Features.PrivateActionRunner
+	f.nodeEnabled = true
 
-	// Determine node deployment
-	// Default: enabled if parent enabled and not explicitly disabled
-	f.nodeEnabled = parConfig.NodeAgent == nil || parConfig.NodeAgent.Enabled == nil || apiutils.BoolValue(parConfig.NodeAgent.Enabled)
-
-	if f.nodeEnabled && parConfig.NodeAgent != nil {
-		f.nodeSelfEnroll = parConfig.NodeAgent.SelfEnroll
-		f.nodeActionsAllowlist = parConfig.NodeAgent.ActionsAllowlist
+	// Use config data from annotation directly, or fall back to default
+	if configData, ok := featureutils.HasPrivateActionRunnerConfigAnnotation(dda, featureutils.PrivateActionRunnerConfigDataAnnotation); ok {
+		f.configData = configData
+	} else {
+		f.configData = defaultConfigData
 	}
 
-	if f.nodeEnabled {
-		reqComp.Agent = feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
-			Containers: []apicommon.AgentContainerName{
-				apicommon.CoreAgentContainerName,
-				apicommon.PrivateActionRunnerContainerName,
-			},
-		}
+	reqComp.Agent = feature.RequiredComponent{
+		IsRequired: apiutils.NewBoolPointer(true),
+		Containers: []apicommon.AgentContainerName{
+			apicommon.CoreAgentContainerName,
+			apicommon.PrivateActionRunnerContainerName,
+		},
 	}
 
 	return reqComp
-}
-
-type agentConfig struct {
-	PrivateActionRunnerConfig privateActionRunnerConfig `yaml:"privateactionrunner"`
-}
-
-// privateActionRunnerConfig represents the YAML configuration structure for Private Action Runner
-type privateActionRunnerConfig struct {
-	Enabled          bool     `yaml:"enabled"`
-	ActionsAllowlist []string `yaml:"actions_allowlist,omitempty"`
-	SelfEnroll       *bool    `yaml:"self_enroll,omitempty"`
 }
 
 const (
@@ -106,27 +90,14 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 		return nil
 	}
 
-	config := agentConfig{
-		PrivateActionRunnerConfig: privateActionRunnerConfig{
-			Enabled:          f.nodeEnabled,
-			ActionsAllowlist: f.nodeActionsAllowlist,
-			SelfEnroll:       f.nodeSelfEnroll,
-		},
-	}
-
-	yamlContent, err := yaml.Marshal(&config)
-	if err != nil {
-		return fmt.Errorf("failed to marshal Private Action Runner config: %w", err)
-	}
-
-	// Create ConfigMap with the YAML content
+	// Create ConfigMap with the config content (either from annotation or default)
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      f.getConfigMapName(),
 			Namespace: f.owner.GetNamespace(),
 		},
 		Data: map[string]string{
-			"privateactionrunner.yaml": string(yamlContent),
+			"privateactionrunner.yaml": f.configData,
 		},
 	}
 

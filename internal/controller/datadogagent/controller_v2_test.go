@@ -428,7 +428,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			name: "DatadogAgent with Private Action Runner enabled on node, create Daemonset with core, trace, and private-action-runner containers",
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-					WithPrivateActionRunnerEnabled(true).
+					WithAnnotations(map[string]string{"agent.datadoghq.com/private-action-runner-enabled": "true"}).
 					Build()
 				_ = c.Create(context.TODO(), dda)
 				return dda

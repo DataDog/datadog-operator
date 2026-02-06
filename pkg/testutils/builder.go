@@ -1188,20 +1188,6 @@ func (builder *DatadogAgentBuilder) WithControlPlaneMonitoring(enabled bool) *Da
 	return builder
 }
 
-// Private Action Runner
-
-func (builder *DatadogAgentBuilder) initPrivateActionRunner() {
-	if builder.datadogAgent.Spec.Features.PrivateActionRunner == nil {
-		builder.datadogAgent.Spec.Features.PrivateActionRunner = &v2alpha1.PrivateActionRunnerFeatureConfig{}
-	}
-}
-
-func (builder *DatadogAgentBuilder) WithPrivateActionRunnerEnabled(enabled bool) *DatadogAgentBuilder {
-	builder.initPrivateActionRunner()
-	builder.datadogAgent.Spec.Features.PrivateActionRunner.Enabled = apiutils.NewBoolPointer(enabled)
-	return builder
-}
-
 func (builder *DatadogAgentBuilder) WithStatus(status v2alpha1.DatadogAgentStatus) *DatadogAgentBuilder {
 	builder.datadogAgent.Status = status
 	return builder
