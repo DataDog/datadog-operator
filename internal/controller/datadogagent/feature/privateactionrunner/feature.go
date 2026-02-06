@@ -87,7 +87,7 @@ func (f *privateActionRunnerFeature) ManageClusterAgent(managers feature.PodTemp
 	managers.EnvVar().AddEnvVarToContainer(
 		apicommon.ClusterAgentContainerName,
 		&corev1.EnvVar{
-			Name:  "DD_PRIVATE_ACTION_RUNNER_ENABLED",
+			Name:  "DD_PRIVATEACTIONRUNNER_ENABLED",
 			Value: "true",
 		},
 	)
@@ -96,7 +96,7 @@ func (f *privateActionRunnerFeature) ManageClusterAgent(managers feature.PodTemp
 	managers.EnvVar().AddEnvVarToContainer(
 		apicommon.ClusterAgentContainerName,
 		&corev1.EnvVar{
-			Name:  "DD_PRIVATE_ACTION_RUNNER_SELF_ENROLL",
+			Name:  "DD_PRIVATEACTIONRUNNER_SELF_ENROLL",
 			Value: apiutils.BoolToString(&f.selfEnroll),
 		},
 	)
@@ -107,7 +107,7 @@ func (f *privateActionRunnerFeature) ManageClusterAgent(managers feature.PodTemp
 		managers.EnvVar().AddEnvVarToContainer(
 			apicommon.ClusterAgentContainerName,
 			&corev1.EnvVar{
-				Name:  "DD_PRIVATE_ACTION_RUNNER_ACTIONS_ALLOWLIST",
+				Name:  "DD_PRIVATEACTIONRUNNER_ACTIONS_ALLOWLIST",
 				Value: allowlist,
 			},
 		)
