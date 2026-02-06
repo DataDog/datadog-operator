@@ -92,24 +92,24 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 		return nil
 	}
 
+	checksumKey, checksumValue, err := checksumAnnotation(f)
+	if err != nil {
+		return err
+	}
+
 	// Create ConfigMap with the config content (either from annotation or default)
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      f.getConfigMapName(),
 			Namespace: f.owner.GetNamespace(),
+			Annotations: map[string]string{
+				checksumKey: checksumValue,
+			},
 		},
 		Data: map[string]string{
 			"privateactionrunner.yaml": f.configData,
 		},
 	}
-
-	checksumKey, checksumValue, err := checksumAnnotation(f)
-	if err != nil {
-		return err
-	}
-	cm.SetAnnotations(object.MergeAnnotationsLabels(f.logger, cm.Annotations, map[string]string{
-		checksumKey: checksumValue,
-	}, "*"))
 
 	if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
 		return err
