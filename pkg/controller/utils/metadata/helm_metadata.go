@@ -36,6 +36,8 @@ const (
 	releasePrefix = "sh.helm.release.v1."
 	// tickerInterval is how often the ticker sends all snapshots
 	tickerInterval = 5 * time.Minute
+	// deletePrefix is prepended to queue keys to signal a deletion
+	deletePrefix = "delete:"
 )
 
 var (
@@ -174,7 +176,7 @@ func (hmf *HelmMetadataForwarder) Start(ctx context.Context) error {
 			},
 			DeleteFunc: func(obj any) {
 				if key, keyErr := toolscache.DeletionHandlingMetaNamespaceKeyFunc(obj); keyErr == nil {
-					hmf.queue.Add(key)
+					hmf.queue.Add(deletePrefix + key)
 					hmf.logger.V(1).Info("Enqueued ConfigMap deletion for processing", "key", key)
 				}
 			},
@@ -201,7 +203,7 @@ func (hmf *HelmMetadataForwarder) Start(ctx context.Context) error {
 			},
 			DeleteFunc: func(obj any) {
 				if key, keyErr := toolscache.DeletionHandlingMetaNamespaceKeyFunc(obj); keyErr == nil {
-					hmf.queue.Add(key)
+					hmf.queue.Add(deletePrefix + key)
 				}
 			},
 		},
@@ -246,7 +248,14 @@ func (hmf *HelmMetadataForwarder) runWorker(ctx context.Context) {
 				return
 			}
 
-			if err := hmf.processKey(key); err != nil {
+			var err error
+			if strings.HasPrefix(key, deletePrefix) {
+				hmf.handleDelete(strings.TrimPrefix(key, deletePrefix))
+			} else {
+				err = hmf.processKey(key)
+			}
+
+			if err != nil {
 				hmf.queue.AddRateLimited(key)
 				hmf.logger.V(1).Info("Error processing key, will retry", "key", key, "error", err)
 			} else {
@@ -280,9 +289,8 @@ func (hmf *HelmMetadataForwarder) processKey(key string) error {
 		return nil
 	}
 
-	// If not found, it was likely deleted
+	// If not found, likely a race condition with deletion - ignore it
 	if errors.IsNotFound(err) {
-		hmf.handleDelete(key)
 		return nil
 	}
 
@@ -293,16 +301,27 @@ func (hmf *HelmMetadataForwarder) processKey(key string) error {
 func (hmf *HelmMetadataForwarder) handleDelete(key string) {
 	namespace, name, _ := toolscache.SplitMetaNamespaceKey(key)
 
-	// Parse the release name from the resource name
-	_, releaseName, _, ok := hmf.parseHelmResource(name, nil)
+	// Parse the release name and revision from the resource name
+	_, releaseName, revision, ok := hmf.parseHelmResource(name, nil)
 	if !ok || releaseName == "" {
 		return
 	}
 
 	releaseKey := fmt.Sprintf("%s/%s", namespace, releaseName)
-	if _, exists := hmf.releaseSnapshots.Load(releaseKey); exists {
-		hmf.releaseSnapshots.Delete(releaseKey)
-		hmf.logger.Info("Deleted release snapshot for release", "releaseKey", releaseKey)
+
+	// Only delete if the snapshot is for this specific revision
+	// This prevents deleting a newer snapshot when Helm cleans up old revisions
+	if existing, loaded := hmf.releaseSnapshots.Load(releaseKey); loaded {
+		existingSnapshot := existing.(*ReleaseSnapshot)
+		if existingSnapshot.Revision == revision {
+			hmf.releaseSnapshots.Delete(releaseKey)
+			hmf.logger.V(1).Info("Deleted release snapshot", "releaseKey", releaseKey, "revision", revision)
+		} else {
+			hmf.logger.V(1).Info("Skipping delete - snapshot is for different revision",
+				"releaseKey", releaseKey,
+				"deletedRevision", revision,
+				"currentRevision", existingSnapshot.Revision)
+		}
 	}
 }
 
