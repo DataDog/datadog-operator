@@ -18,8 +18,7 @@ variables:
   # Image version from datadog-agent-buildimages (same as datadog-agent main branch)
   CI_IMAGE_LINUX: v88930157-ef91d52f
   CI_IMAGE_LINUX_SUFFIX: ""
-  PUSH_IMAGES_TO_STAGING:
-    description: "Set PUSH_IMAGE_TO_STAGING to 'true' if you want to push the operator to internal staging registry."
+  PUSH_IMAGES_TO_STAGING: true
   FIPS_ENABLED: false
   FF_TIMESTAMPS: true
 
