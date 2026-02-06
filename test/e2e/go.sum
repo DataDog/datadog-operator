@@ -36,8 +36,8 @@ github.com/DataDog/datadog-agent/pkg/version v0.75.0-rc.7 h1:FpdG56O1A4XEa9X9dpu
 github.com/DataDog/datadog-agent/pkg/version v0.75.0-rc.7/go.mod h1:jpO4VwD4Y1F1b/Pb9gdbiv3Ks/7UAIOD7MPYyK14gv8=
 github.com/DataDog/datadog-agent/test/e2e-framework v0.77.0-devel.0.20260128103425-05ec94f73895 h1:umzd5HSwSlmsSFQgsmtQhuJviE7YiOL+MF4Xk2tJNYE=
 github.com/DataDog/datadog-agent/test/e2e-framework v0.77.0-devel.0.20260128103425-05ec94f73895/go.mod h1:nNVXYpkYocpjE6mfzkqf3GSBtaVaZXqvZFz3ZqRS4rE=
-github.com/DataDog/datadog-agent/test/fakeintake v0.75.0-rc.7 h1:xHbl8SKYBgL1P3AW2ngyVT9uDc9KQAh6bWkFBL501q0=
-github.com/DataDog/datadog-agent/test/fakeintake v0.75.0-rc.7/go.mod h1:J19cFU6BQN0lBsmqcXvu6kpg74s7/fABERYPY0gMoEs=
+github.com/DataDog/datadog-agent/test/fakeintake v0.77.0-devel h1:tag/3LQ2kRhvoqjpoahw6/Y/Zqi3VHti303oqonc0pM=
+github.com/DataDog/datadog-agent/test/fakeintake v0.77.0-devel/go.mod h1:T0Skm2Va9ycJUunwDdPFthr/mSZIvTeVBHZ8yMvXVtA=
 github.com/DataDog/datadog-agent/test/new-e2e v0.75.0-rc.7 h1:ZRXgijKE4/gdHVbpFI07aNOe3YZTJ4wc5yck+QamexE=
 github.com/DataDog/datadog-agent/test/new-e2e v0.75.0-rc.7/go.mod h1:mWZDUr0hau8iKUgapDj34xF3bIqXb97mRXMnn+cuWws=
 github.com/DataDog/datadog-api-client-go/v2 v2.54.0 h1:bLSwX1D7JA7hAHxpo8Aa2+d8F2wzD8sNOJszL89yGyU=
