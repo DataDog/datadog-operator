@@ -2260,6 +2260,26 @@ spec:
                               type: object
                           type: object
                       type: object
+                    privateActionRunner:
+                      description: PrivateActionRunner configuration.
+                      properties:
+                        actionsAllowlist:
+                          description: ActionsAllowlist is a list of action patterns that the Private Action Runner is allowed to execute.
+                          items:
+                            type: string
+                          type: array
+                          x-kubernetes-list-type: set
+                        enabled:
+                          description: |-
+                            Enabled enables the Private Action Runner in the Cluster Agent.
+                            Default: false
+                          type: boolean
+                        selfEnroll:
+                          description: |-
+                            SelfEnroll enables the Private Action Runner to automatically enroll with the Datadog backend.
+                            Default: true
+                          type: boolean
+                      type: object
                     processDiscovery:
                       description: ProcessDiscovery configuration.
                       properties:
@@ -10314,6 +10334,26 @@ spec:
                                       type: object
                                   type: object
                               type: object
+                          type: object
+                        privateActionRunner:
+                          description: PrivateActionRunner configuration.
+                          properties:
+                            actionsAllowlist:
+                              description: ActionsAllowlist is a list of action patterns that the Private Action Runner is allowed to execute.
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: set
+                            enabled:
+                              description: |-
+                                Enabled enables the Private Action Runner in the Cluster Agent.
+                                Default: false
+                              type: boolean
+                            selfEnroll:
+                              description: |-
+                                SelfEnroll enables the Private Action Runner to automatically enroll with the Datadog backend.
+                                Default: true
+                              type: boolean
                           type: object
                         processDiscovery:
                           description: ProcessDiscovery configuration.

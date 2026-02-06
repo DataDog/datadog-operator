@@ -81,4 +81,6 @@ const (
 	GPUIDType = "gpu"
 	// ControlPlaneMonitoringIDType Control Plane Monitoring feature.
 	ControlPlaneMonitoringIDType = "control_plane_monitoring"
+	// PrivateActionRunnerIDType Private Action Runner feature.
+	PrivateActionRunnerIDType = "private_action_runner"
 )

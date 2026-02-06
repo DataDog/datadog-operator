@@ -348,6 +348,15 @@ spec:
 `features.otlp`
 : OTLP ingest configuration See [link](https://docs.datadoghq.com/opentelemetry/setup/otlp_ingest_in_the_agent/?tab=kubernetesoperator) for more information.
 
+`features.privateActionRunner.actionsAllowlist`
+: ActionsAllowlist is a list of action patterns that the Private Action Runner is allowed to execute.
+
+`features.privateActionRunner.enabled`
+: Enables the Private Action Runner in the Cluster Agent. Default: false
+
+`features.privateActionRunner.selfEnroll`
+: SelfEnroll enables the Private Action Runner to automatically enroll with the Datadog backend. Default: true
+
 `features.processDiscovery.enabled`
 : Enables the Process Discovery check in the Agent. Default: true
 

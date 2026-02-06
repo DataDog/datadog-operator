@@ -2369,6 +2369,29 @@
                   },
                   "type": "object"
                 },
+                "privateActionRunner": {
+                  "additionalProperties": false,
+                  "description": "PrivateActionRunner configuration.",
+                  "properties": {
+                    "actionsAllowlist": {
+                      "description": "ActionsAllowlist is a list of action patterns that the Private Action Runner is allowed to execute.",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array",
+                      "x-kubernetes-list-type": "set"
+                    },
+                    "enabled": {
+                      "description": "Enabled enables the Private Action Runner in the Cluster Agent.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "selfEnroll": {
+                      "description": "SelfEnroll enables the Private Action Runner to automatically enroll with the Datadog backend.\nDefault: true",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
                 "processDiscovery": {
                   "additionalProperties": false,
                   "description": "ProcessDiscovery configuration.",

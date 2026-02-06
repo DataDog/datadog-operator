@@ -180,6 +180,9 @@ spec:
 | features.otlp.receiver.protocols.http.endpoint | For OTLP/HTTP. Default: '0.0.0.0:4318'. |
 | features.otlp.receiver.protocols.http.hostPortConfig.enabled | Enables host port configuration |
 | features.otlp.receiver.protocols.http.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
+| features.privateActionRunner.actionsAllowlist | ActionsAllowlist is a list of action patterns that the Private Action Runner is allowed to execute. |
+| features.privateActionRunner.enabled | Enables the Private Action Runner in the Cluster Agent. Default: false |
+| features.privateActionRunner.selfEnroll | SelfEnroll enables the Private Action Runner to automatically enroll with the Datadog backend. Default: true |
 | features.processDiscovery.enabled | Enables the Process Discovery check in the Agent. Default: true |
 | features.prometheusScrape.additionalConfigs | AdditionalConfigs allows adding advanced Prometheus check configurations with custom discovery rules. |
 | features.prometheusScrape.enableServiceEndpoints | EnableServiceEndpoints enables generating dedicated checks for service endpoints. Default: false |
