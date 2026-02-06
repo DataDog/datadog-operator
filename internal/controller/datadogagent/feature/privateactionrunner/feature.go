@@ -17,7 +17,9 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -101,6 +103,14 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 		},
 	}
 
+	checksumKey, checksumValue, err := checksumAnnotation(f)
+	if err != nil {
+		return err
+	}
+	cm.SetAnnotations(object.MergeAnnotationsLabels(f.logger, cm.Annotations, map[string]string{
+		checksumKey: checksumValue,
+	}, "*"))
+
 	if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
 		return err
 	}
@@ -140,6 +150,12 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	}
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.PrivateActionRunnerContainerName)
 
+	checksumKey, checksumValue, err := checksumAnnotation(f)
+	if err != nil {
+		return err
+	}
+	managers.Annotation().AddAnnotation(checksumKey, checksumValue)
+
 	return nil
 }
 
@@ -159,4 +175,12 @@ func (f *privateActionRunnerFeature) ManageClusterChecksRunner(managers feature.
 func (f *privateActionRunnerFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	// Private Action Runner doesn't run in OTel Agent Gateway
 	return nil
+}
+
+func checksumAnnotation(f *privateActionRunnerFeature) (string, string, error) {
+	checksum, err := comparison.GenerateMD5ForSpec(f.configData)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to generate MD5 for Private Action Runner config: %w", err)
+	}
+	return object.GetChecksumAnnotationKey(feature.PrivateActionRunnerIDType), checksum, nil
 }

@@ -87,6 +87,7 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 			Annotations: map[string]string{
 				featureutils.EnablePrivateActionRunnerAnnotation: "true",
 				featureutils.PrivateActionRunnerConfigDataAnnotation: `privateactionrunner:
+	enabled: true
     private_key: some-key
     urn: urn:dd:apps:on-prem-runner:us1:1:runner-abc
     actions_allowlist:
@@ -121,6 +122,11 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 	assert.Equal(t, "/etc/datadog-agent/privateactionrunner.yaml", mount.MountPath, "Mount path should be the hardcoded path")
 	assert.Equal(t, "privateactionrunner.yaml", mount.SubPath, "SubPath should mount the file directly")
 	assert.True(t, mount.ReadOnly, "Mount should be read-only")
+
+	// Verify hash
+	assert.NotEmpty(t, managers.AnnotationMgr.Annotations)
+	assert.NotEmpty(t, managers.AnnotationMgr.Annotations["checksum/private_action_runner-custom-config"])
+	assert.Equal(t, managers.AnnotationMgr.Annotations["checksum/private_action_runner-custom-config"], "749c842cefd79ebc309b2b329b28e3fe")
 }
 
 func Test_privateActionRunnerFeature_ID(t *testing.T) {
@@ -186,6 +192,7 @@ func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
 		annotations     map[string]string
 		expectConfigMap bool
 		expectedYAML    string
+		expectedHash    string
 	}{
 		{
 			name: "feature disabled",
@@ -201,6 +208,7 @@ func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
 			},
 			expectConfigMap: true,
 			expectedYAML:    defaultConfigData,
+			expectedHash:    "b7fc921bd4d0b4a60ef4fd8ea98e65a1",
 		},
 		{
 			name: "enabled with configdata - passes through directly",
@@ -222,6 +230,7 @@ func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
     actions_allowlist:
         - com.datadoghq.script.testConnection
         - com.datadoghq.script.enrichScript`,
+			expectedHash: "5d4b4b221b5bcc3b92792558d6f6bc58",
 		},
 	}
 
@@ -268,6 +277,11 @@ func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
 
 			// Verify content matches expected
 			assert.Equal(t, tt.expectedYAML, yamlContent, "ConfigMap content should match expected output")
+
+			// Verify hash
+			assert.NotEmpty(t, configMap.Annotations)
+			assert.NotEmpty(t, configMap.Annotations["checksum/private_action_runner-custom-config"])
+			assert.Equal(t, configMap.Annotations["checksum/private_action_runner-custom-config"], tt.expectedHash)
 		})
 	}
 }
