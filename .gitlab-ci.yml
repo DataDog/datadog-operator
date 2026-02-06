@@ -298,48 +298,15 @@ go_e2e_deps:
   # Run automatically otherwise
   - when: on_success
 
-trigger_e2e_operator_image:
-  stage: e2e
-  rules: !reference [.on_run_e2e_base]
-  needs:
-    - build_operator_image_amd64
-  trigger:
-    project: DataDog/public-images
-    branch: main
-    strategy: depend
-  variables:
-    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
-    IMG_DESTINATIONS: operator:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
-    IMG_REGISTRIES: agent-qa
-
-e2e:
-  stage: e2e
+# Base configuration for E2E jobs requiring AWS/Pulumi setup
+.e2e_aws_base:
   tags:
     - "arch:amd64"
-  needs:
-    - "trigger_e2e_operator_image"
-    - "go_e2e_deps"
-  rules: !reference [.on_run_e2e]
-  id_tokens:
-    DDOCTOSTS_ID_TOKEN:
-      aud: dd-octo-sts
-  parallel:
-    matrix:
-      - K8S_VERSION:
-          - "1.19"
-          - "1.22"
-          - "1.24"
-          - "1.25"
-          - "1.26"
-          - "1.29"
-          - "1.30"
-          - "1.32"
   variables:
     <<: *resource_variables
     E2E_AWS_PUBLIC_KEY_PATH: /tmp/agent-qa-ssh-key.pub
     E2E_AWS_PRIVATE_KEY_PATH: /tmp/agent-qa-ssh-key
     E2E_KEY_PAIR_NAME: ci.datadog-operator
-    TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
     # Temporary workaround from https://github.com/golang/go/issues/75031
     GOTOOLCHAIN: go1.25.0+auto
   image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux$CI_IMAGE_LINUX_SUFFIX:$CI_IMAGE_LINUX
@@ -363,6 +330,44 @@ e2e:
     # Use S3 backend to store stack status
     - echo "Logging in to Pulumi with S3 backend..."
     - pulumi login "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE"
+
+trigger_e2e_operator_image:
+  stage: e2e
+  rules: !reference [.on_run_e2e_base]
+  needs:
+    - build_operator_image_amd64
+  trigger:
+    project: DataDog/public-images
+    branch: main
+    strategy: depend
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
+    IMG_DESTINATIONS: operator:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    IMG_REGISTRIES: agent-qa
+
+e2e:
+  extends: .e2e_aws_base
+  stage: e2e
+  needs:
+    - "trigger_e2e_operator_image"
+    - "go_e2e_deps"
+  rules: !reference [.on_run_e2e]
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  parallel:
+    matrix:
+      - K8S_VERSION:
+          - "1.19"
+          - "1.22"
+          - "1.24"
+          - "1.25"
+          - "1.26"
+          - "1.29"
+          - "1.30"
+          - "1.32"
+  variables:
+    TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
   script:
     - echo "Running e2e test with target image $TARGET_IMAGE"
     - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-tests
@@ -385,6 +390,30 @@ e2e_mq:
       allow_failure: true
     # Don't run otherwise
     - when: never
+
+e2e_autoscaling:
+  extends: .e2e_aws_base
+  stage: e2e
+  needs:
+    - "go_e2e_deps"
+  timeout: 60m
+  rules:
+    # Run automatically on changes to autoscaling code
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        paths:
+          - "cmd/kubectl-datadog/autoscaling/**"
+          - "test/e2e/tests/autoscaling_suite/**"
+          - "test/e2e/provisioners/eks.go"
+          - "test/e2e/common/autoscaling.go"
+      when: on_success
+    # Allow manual run otherwise
+    - when: manual
+      allow_failure: true
+  script:
+    - echo "Running autoscaling e2e tests"
+    - make e2e-autoscaling-tests
+  retry: 2
 
 publish_public_main:
   stage: release
