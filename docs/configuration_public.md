@@ -288,6 +288,9 @@ spec:
 `features.npm.collectDNSStats`
 : CollectDNSStats enables DNS stat collection. Default: false
 
+`features.npm.directSend`
+: DirectSend enables CNM/USM to send data directly to the backend Default: false
+
 `features.npm.enableConntrack`
 : EnableConntrack enables the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data. See also: http://conntrack-tools.netfilter.org/ Default: false
 
