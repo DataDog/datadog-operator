@@ -397,7 +397,7 @@ func run(opts *options) error {
 
 	// Register Helm metadata forwarder as a manager Runnable
 	// This ensures it starts after cache sync and respects leader election
-	if err = setupAndStartHelmMetadataForwarder(metadataLog, mgr, mgr.GetAPIReader(), versionInfo.String(), options.CredsManager); err != nil {
+	if err = setupAndStartHelmMetadataForwarder(metadataLog, mgr, mgr.GetClient(), versionInfo.String(), options.CredsManager); err != nil {
 		return setupErrorf(setupLog, err, "Unable to setup Helm metadata forwarder")
 	}
 
@@ -405,8 +405,8 @@ func run(opts *options) error {
 	go func() {
 		<-mgr.Elected()
 		setupLog.Info("Starting metadata forwarders")
-		setupAndStartOperatorMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
-		setupAndStartCRDMetadataForwarder(metadataLog, mgr.GetAPIReader(), versionInfo.String(), opts, options.CredsManager)
+		setupAndStartOperatorMetadataForwarder(metadataLog, mgr.GetClient(), versionInfo.String(), opts, options.CredsManager)
+		setupAndStartCRDMetadataForwarder(metadataLog, mgr.GetClient(), versionInfo.String(), opts, options.CredsManager)
 	}()
 
 	// +kubebuilder:scaffold:builder
