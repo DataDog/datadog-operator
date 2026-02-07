@@ -114,6 +114,8 @@ type DatadogFeatures struct {
 	HelmCheck *HelmCheckFeatureConfig `json:"helmCheck,omitempty"`
 	// ControlPlaneMonitoring configuration.
 	ControlPlaneMonitoring *ControlPlaneMonitoringFeatureConfig `json:"controlPlaneMonitoring,omitempty"`
+	// PrivateActionRunner configuration.
+	PrivateActionRunner *PrivateActionRunnerFeatureConfig `json:"privateActionRunner,omitempty"`
 }
 
 // Configuration structs for each feature in DatadogFeatures. All parameters are optional and have default values when necessary.
@@ -1065,6 +1067,26 @@ type ControlPlaneMonitoringFeatureConfig struct {
 	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// PrivateActionRunnerFeatureConfig contains the Private Action Runner feature configuration.
+// The Private Action Runner runs in the Cluster Agent.
+// +k8s:openapi-gen=true
+type PrivateActionRunnerFeatureConfig struct {
+	// Enabled enables the Private Action Runner in the Cluster Agent.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// SelfEnroll enables the Private Action Runner to automatically enroll with the Datadog backend.
+	// Default: true
+	// +optional
+	SelfEnroll *bool `json:"selfEnroll,omitempty"`
+
+	// ActionsAllowlist is a list of action patterns that the Private Action Runner is allowed to execute.
+	// +optional
+	// +listType=set
+	ActionsAllowlist []string `json:"actionsAllowlist,omitempty"`
 }
 
 // CoreConfig exposes the otel collector configs relevant to the core agent.
