@@ -132,17 +132,6 @@ func getProviderNodeAffinity(provider string, providerList map[string]struct{}) 
 		return nil
 	}
 
-	// if only EKS provider exists, there should be no affinity override
-	// This prevents issues when AWS adds new EKS labels
-	if provider == EKSCloudProvider && len(providerList) == 1 {
-		return nil
-	}
-
-	// Special handling for EKS provider when multiple providers exist
-	if provider == EKSCloudProvider {
-		return getEKSProviderNodeAffinity()
-	}
-
 	// default provider has NodeAffinity to NOT match provider-specific labels
 	// build NodeSelectorRequirement list with negative (`OpNotIn`) operator
 	nsrList := []corev1.NodeSelectorRequirement{}
@@ -150,12 +139,6 @@ func getProviderNodeAffinity(provider string, providerList map[string]struct{}) 
 		// sort providers to get consistently ordered affinity
 		sortedProviders := sortProviders(providerList)
 		for _, providerDef := range sortedProviders {
-			// Special handling for EKS in the default provider's exclusion list
-			if providerDef == EKSCloudProvider {
-				nsrList = append(nsrList, getEKSExclusionNodeSelectorRequirements()...)
-				continue
-			}
-
 			key, value := GetProviderLabelKeyValue(providerDef)
 			if key != "" && value != "" {
 				nsrList = append(nsrList, corev1.NodeSelectorRequirement{
@@ -190,78 +173,6 @@ func getProviderNodeAffinity(provider string, providerList map[string]struct{}) 
 					},
 				},
 			},
-		},
-	}
-}
-
-// getEKSProviderNodeAffinity creates node affinity for EKS provider
-// Uses multiple NodeSelectorTerms with OR logic to match any EKS node
-func getEKSProviderNodeAffinity() *corev1.Affinity {
-	// Create multiple NodeSelectorTerms (OR logic between terms)
-	// Each term checks for existence of a different EKS label
-	nodeSelectorTerms := []corev1.NodeSelectorTerm{
-		{
-			MatchExpressions: []corev1.NodeSelectorRequirement{
-				{
-					Key:      eksNodeGroupLabel,
-					Operator: corev1.NodeSelectorOpExists,
-				},
-			},
-		},
-		{
-			MatchExpressions: []corev1.NodeSelectorRequirement{
-				{
-					Key:      EKSProviderLabel,
-					Operator: corev1.NodeSelectorOpExists,
-				},
-			},
-		},
-		{
-			MatchExpressions: []corev1.NodeSelectorRequirement{
-				{
-					Key:      eksComputeTypeLabel,
-					Operator: corev1.NodeSelectorOpExists,
-				},
-			},
-		},
-		{
-			MatchExpressions: []corev1.NodeSelectorRequirement{
-				{
-					Key:      eksctlClusterNameLabel,
-					Operator: corev1.NodeSelectorOpExists,
-				},
-			},
-		},
-	}
-
-	return &corev1.Affinity{
-		NodeAffinity: &corev1.NodeAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-				NodeSelectorTerms: nodeSelectorTerms,
-			},
-		},
-	}
-}
-
-// getEKSExclusionNodeSelectorRequirements creates node selector requirements
-// to exclude EKS nodes from the default provider
-func getEKSExclusionNodeSelectorRequirements() []corev1.NodeSelectorRequirement {
-	return []corev1.NodeSelectorRequirement{
-		{
-			Key:      eksNodeGroupLabel,
-			Operator: corev1.NodeSelectorOpDoesNotExist,
-		},
-		{
-			Key:      EKSProviderLabel,
-			Operator: corev1.NodeSelectorOpDoesNotExist,
-		},
-		{
-			Key:      eksComputeTypeLabel,
-			Operator: corev1.NodeSelectorOpDoesNotExist,
-		},
-		{
-			Key:      eksctlClusterNameLabel,
-			Operator: corev1.NodeSelectorOpDoesNotExist,
 		},
 	}
 }

@@ -539,14 +539,6 @@ func Test_getProviderNodeAffinity(t *testing.T) {
 			},
 		},
 		{
-			name: "single eks provider",
-			existingProviders: map[string]struct{}{
-				eksProvider: {},
-			},
-			provider:     eksProvider,
-			wantAffinity: nil,
-		},
-		{
 			name: "default provider with eks",
 			existingProviders: map[string]struct{}{
 				defaultProvider: {},
@@ -573,55 +565,6 @@ func Test_getProviderNodeAffinity(t *testing.T) {
 			},
 			provider:     defaultProvider,
 			wantAffinity: nil,
-		},
-		{
-			name: "multiple providers with eks",
-			existingProviders: map[string]struct{}{
-				defaultProvider: {},
-				eksProvider:     {},
-				gkeCosProvider:  {},
-			},
-			provider: eksProvider,
-			wantAffinity: &corev1.Affinity{
-				NodeAffinity: &corev1.NodeAffinity{
-					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-						NodeSelectorTerms: []corev1.NodeSelectorTerm{
-							{
-								MatchExpressions: []corev1.NodeSelectorRequirement{
-									{
-										Key:      "eks.amazonaws.com/nodegroup",
-										Operator: corev1.NodeSelectorOpExists,
-									},
-								},
-							},
-							{
-								MatchExpressions: []corev1.NodeSelectorRequirement{
-									{
-										Key:      "eks.amazonaws.com/nodegroup-image",
-										Operator: corev1.NodeSelectorOpExists,
-									},
-								},
-							},
-							{
-								MatchExpressions: []corev1.NodeSelectorRequirement{
-									{
-										Key:      "eks.amazonaws.com/compute-type",
-										Operator: corev1.NodeSelectorOpExists,
-									},
-								},
-							},
-							{
-								MatchExpressions: []corev1.NodeSelectorRequirement{
-									{
-										Key:      "alpha.eksctl.io/cluster-name",
-										Operator: corev1.NodeSelectorOpExists,
-									},
-								},
-							},
-						},
-					},
-				},
-			},
 		},
 	}
 
