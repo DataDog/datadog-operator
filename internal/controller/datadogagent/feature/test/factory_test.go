@@ -18,6 +18,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/livecontainer"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/npm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/privateactionrunner"
 )
 
 func TestBuilder(t *testing.T) {
@@ -43,6 +44,7 @@ func TestBuilder(t *testing.T) {
 				common.OtelAgent:                            false,
 				common.HostProfiler:                         false,
 				common.AgentDataPlaneContainerName:          false,
+				common.PrivateActionRunnerContainerName:     false,
 			},
 		},
 		{
@@ -60,6 +62,7 @@ func TestBuilder(t *testing.T) {
 				common.OtelAgent:                            false,
 				common.HostProfiler:                         false,
 				common.AgentDataPlaneContainerName:          false,
+				common.PrivateActionRunnerContainerName:     false,
 			},
 		},
 		{
@@ -77,6 +80,7 @@ func TestBuilder(t *testing.T) {
 				common.OtelAgent:                            false,
 				common.HostProfiler:                         false,
 				common.AgentDataPlaneContainerName:          false,
+				common.PrivateActionRunnerContainerName:     false,
 			},
 		},
 		{
@@ -95,6 +99,7 @@ func TestBuilder(t *testing.T) {
 				common.OtelAgent:                            false,
 				common.HostProfiler:                         false,
 				common.AgentDataPlaneContainerName:          false,
+				common.PrivateActionRunnerContainerName:     false,
 			},
 		},
 		{
@@ -113,6 +118,7 @@ func TestBuilder(t *testing.T) {
 				common.OtelAgent:                            false,
 				common.HostProfiler:                         false,
 				common.AgentDataPlaneContainerName:          false,
+				common.PrivateActionRunnerContainerName:     false,
 			},
 		},
 		{
@@ -132,6 +138,7 @@ func TestBuilder(t *testing.T) {
 				common.OtelAgent:                            false,
 				common.HostProfiler:                         false,
 				common.AgentDataPlaneContainerName:          false,
+				common.PrivateActionRunnerContainerName:     false,
 			},
 		},
 		{
@@ -151,6 +158,7 @@ func TestBuilder(t *testing.T) {
 				common.OtelAgent:                            false,
 				common.HostProfiler:                         false,
 				common.AgentDataPlaneContainerName:          false,
+				common.PrivateActionRunnerContainerName:     false,
 			},
 		},
 		{
@@ -171,6 +179,7 @@ func TestBuilder(t *testing.T) {
 				common.OtelAgent:                            false,
 				common.HostProfiler:                         false,
 				common.AgentDataPlaneContainerName:          false,
+				common.PrivateActionRunnerContainerName:     false,
 			},
 		},
 		{
@@ -188,6 +197,7 @@ func TestBuilder(t *testing.T) {
 				common.OtelAgent:                            true,
 				common.HostProfiler:                         false,
 				common.AgentDataPlaneContainerName:          false,
+				common.PrivateActionRunnerContainerName:     false,
 			},
 		},
 		{
@@ -205,6 +215,7 @@ func TestBuilder(t *testing.T) {
 				common.OtelAgent:                            false,
 				common.HostProfiler:                         false,
 				common.AgentDataPlaneContainerName:          false,
+				common.PrivateActionRunnerContainerName:     false,
 			},
 		},
 		{
@@ -222,6 +233,7 @@ func TestBuilder(t *testing.T) {
 				common.OtelAgent:                            false,
 				common.HostProfiler:                         true,
 				common.AgentDataPlaneContainerName:          false,
+				common.PrivateActionRunnerContainerName:     false,
 			},
 		},
 		{
@@ -239,6 +251,7 @@ func TestBuilder(t *testing.T) {
 				common.OtelAgent:                            false,
 				common.HostProfiler:                         false,
 				common.AgentDataPlaneContainerName:          false,
+				common.PrivateActionRunnerContainerName:     false,
 			},
 		},
 		{
@@ -256,6 +269,7 @@ func TestBuilder(t *testing.T) {
 				common.OtelAgent:                            false,
 				common.HostProfiler:                         false,
 				common.AgentDataPlaneContainerName:          true,
+				common.PrivateActionRunnerContainerName:     false,
 			},
 		},
 		{
@@ -273,6 +287,7 @@ func TestBuilder(t *testing.T) {
 				common.OtelAgent:                            false,
 				common.HostProfiler:                         false,
 				common.AgentDataPlaneContainerName:          false,
+				common.PrivateActionRunnerContainerName:     false,
 			},
 		},
 		{
@@ -290,6 +305,43 @@ func TestBuilder(t *testing.T) {
 				common.OtelAgent:                            false,
 				common.HostProfiler:                         false,
 				common.AgentDataPlaneContainerName:          false,
+				common.PrivateActionRunnerContainerName:     false,
+			},
+		},
+		{
+			name: "Default DDA, private action runner feature enabled",
+			dda: testutils.NewDatadogAgentBuilder().
+				WithAnnotations(map[string]string{"agent.datadoghq.com/private-action-runner-enabled": "true"}).
+				BuildWithDefaults(),
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: false,
+				common.CoreAgentContainerName:               true,
+				common.ProcessAgentContainerName:            false,
+				common.TraceAgentContainerName:              true,
+				common.SystemProbeContainerName:             false,
+				common.SecurityAgentContainerName:           false,
+				common.OtelAgent:                            false,
+				common.HostProfiler:                         false,
+				common.AgentDataPlaneContainerName:          false,
+				common.PrivateActionRunnerContainerName:     true,
+			},
+		},
+		{
+			name: "Default DDA, private action runner feature disabled",
+			dda: testutils.NewDatadogAgentBuilder().
+				WithAnnotations(map[string]string{"agent.datadoghq.com/private-action-runner-enabled": "false"}).
+				BuildWithDefaults(),
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: false,
+				common.CoreAgentContainerName:               true,
+				common.ProcessAgentContainerName:            false,
+				common.TraceAgentContainerName:              true,
+				common.SystemProbeContainerName:             false,
+				common.SecurityAgentContainerName:           false,
+				common.OtelAgent:                            false,
+				common.HostProfiler:                         false,
+				common.AgentDataPlaneContainerName:          false,
+				common.PrivateActionRunnerContainerName:     false,
 			},
 		},
 	}
