@@ -424,6 +424,27 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
+			name: "DatadogAgent with Private Action Runner enabled on node, create Daemonset with core, trace, and private-action-runner containers",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithAnnotations(map[string]string{"agent.datadoghq.com/private-action-runner-enabled": "true"}).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				expectedContainers := []string{
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+					string(apicommon.PrivateActionRunnerContainerName),
+				}
+
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
+			},
+		},
+		{
 			name: "[single container] DatadogAgent with APM and OOMKill enabled, create Daemonset with core, trace, and system-probe",
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
