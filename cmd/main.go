@@ -173,7 +173,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.operatorMetricsEnabled, "operatorMetricsEnabled", true, "Enable sending operator metrics to Datadog")
 	flag.IntVar(&opts.maximumGoroutines, "maximumGoroutines", defaultMaximumGoroutines, "Override health check threshold for maximum number of goroutines.")
 	flag.BoolVar(&opts.introspectionEnabled, "introspectionEnabled", false, "Enable introspection (beta)")
-	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller (beta)")
+	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller")
 	flag.BoolVar(&opts.remoteConfigEnabled, "remoteConfigEnabled", false, "Enable RemoteConfig capabilities in the Operator (beta)")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
 	flag.BoolVar(&opts.datadogGenericResourceEnabled, "datadogGenericResourceEnabled", false, "Enable the DatadogGenericResource controller")
@@ -440,20 +440,79 @@ func getServerGroupsAndResources(log logr.Logger, discoveryClient *discovery.Dis
 	return groups, resources, nil
 }
 
+// filteringEncoder wraps a zapcore.Encoder and filters out specific fields
+type filteringEncoder struct {
+	zapcore.Encoder
+	fieldsToSkip map[string]bool
+}
+
+// newFilteringEncoder creates an encoder that skips specified fields
+func newFilteringEncoder(base zapcore.Encoder, fieldsToSkip []string) zapcore.Encoder {
+	skipMap := make(map[string]bool, len(fieldsToSkip))
+	for _, field := range fieldsToSkip {
+		skipMap[field] = true
+	}
+	return &filteringEncoder{
+		Encoder:      base,
+		fieldsToSkip: skipMap,
+	}
+}
+
+// AddObject filters out unwanted object fields
+func (f *filteringEncoder) AddObject(key string, marshaler zapcore.ObjectMarshaler) error {
+	if f.fieldsToSkip[key] {
+		return nil // skip this field
+	}
+	return f.Encoder.AddObject(key, marshaler)
+}
+
+// AddString filters out unwanted string fields
+func (f *filteringEncoder) AddString(key, val string) {
+	if f.fieldsToSkip[key] {
+		return // skip this field
+	}
+	f.Encoder.AddString(key, val)
+}
+
+// AddReflected filters out unwanted reflected fields (used for complex objects)
+func (f *filteringEncoder) AddReflected(key string, obj interface{}) error {
+	if f.fieldsToSkip[key] {
+		return nil // skip this field
+	}
+	return f.Encoder.AddReflected(key, obj)
+}
+
+// Clone creates a copy of the filtering encoder
+func (f *filteringEncoder) Clone() zapcore.Encoder {
+	return &filteringEncoder{
+		Encoder:      f.Encoder.Clone(),
+		fieldsToSkip: f.fieldsToSkip,
+	}
+}
+
 func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
 	encoderConfig := zap.NewProductionEncoderConfig()
 	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 
-	var encoder zapcore.Encoder
+	var baseEncoder zapcore.Encoder
 	switch logEncoder {
 	case "console":
-		encoder = zapcore.NewConsoleEncoder(encoderConfig)
+		baseEncoder = zapcore.NewConsoleEncoder(encoderConfig)
 	case "json":
-		encoder = zapcore.NewJSONEncoder(encoderConfig)
+		baseEncoder = zapcore.NewJSONEncoder(encoderConfig)
 	default:
-		return fmt.Errorf("unknow log encoder: %s", logEncoder)
+		return fmt.Errorf("unknown log encoder: %s", logEncoder)
 	}
+
+	// Wrap the encoder to filter out certain controller-runtime fields
+	fieldsToSkip := []string{
+		"controller",           // "datadogagentinternal", present in log name
+		"controllerGroup",      // "datadoghq.com", unnecessary
+		"controllerKind",       // "DatadogAgentInternal", use `kind` instead since it's shorter
+		"DatadogAgentInternal", // {"name":"datadog-agent","namespace":"default"}, duplicate of namespace and name
+	}
+	encoder := newFilteringEncoder(baseEncoder, fieldsToSkip)
 
 	zapOpts := ctrlzap.Options{}
 	zapOpts.BindFlags(flag.CommandLine)

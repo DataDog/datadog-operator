@@ -23,6 +23,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/privateactionrunner"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
@@ -415,6 +416,8 @@ func agentOptimizedContainers(dda metav1.Object, requiredContainers []apicommon.
 			containers = append(containers, securityAgentContainer(dda))
 		case apicommon.SystemProbeContainerName:
 			containers = append(containers, systemProbeContainer(dda))
+		case apicommon.PrivateActionRunnerContainerName:
+			containers = append(containers, privateActionRunnerContainer(dda))
 		case apicommon.OtelAgent:
 			containers = append(containers, otelAgentContainer(dda))
 		case apicommon.HostProfiler:
@@ -569,6 +572,24 @@ func systemProbeContainer(dda metav1.Object) corev1.Container {
 				Type:             corev1.SeccompProfileTypeLocalhost,
 				LocalhostProfile: apiutils.NewStringPointer(common.SystemProbeSeccompProfileName),
 			},
+		},
+	}
+}
+
+func privateActionRunnerContainer(dda metav1.Object) corev1.Container {
+	return corev1.Container{
+		Name:  string(apicommon.PrivateActionRunnerContainerName),
+		Image: agentImage(),
+		Command: []string{
+			"/opt/datadog-agent/embedded/bin/privateactionrunner",
+			"run",
+			fmt.Sprintf("-c=%s", agentCustomConfigVolumePath),
+			fmt.Sprintf("-c=%s", privateactionrunner.PrivateActionRunnerConfigPath),
+		},
+		Env:          commonEnvVars(dda),
+		VolumeMounts: volumeMountsForPrivateActionRunner(),
+		SecurityContext: &corev1.SecurityContext{
+			ReadOnlyRootFilesystem: apiutils.NewBoolPointer(true),
 		},
 	}
 }
@@ -834,6 +855,16 @@ func volumeMountsForSystemProbe() []corev1.VolumeMount {
 		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForProc(),
 		common.GetVolumeMountForRunPath(),
+		common.GetVolumeMountForTmp(),
+	}
+}
+
+func volumeMountsForPrivateActionRunner() []corev1.VolumeMount {
+	return []corev1.VolumeMount{
+		common.GetVolumeMountForLogs(),
+		common.GetVolumeMountForAuth(false),
+		common.GetVolumeMountForConfig(),
+		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForTmp(),
 	}
 }

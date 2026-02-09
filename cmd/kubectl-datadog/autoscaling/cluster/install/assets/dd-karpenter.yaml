@@ -2,6 +2,7 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: IAM role for pod identity association
 Conditions:
   ShouldDeployPodIdentityAddon: !Equals [!Ref DeployPodIdentityAddon, "true"]
+  ShouldDeployNodeAccessEntry: !Equals [!Ref DeployNodeAccessEntry, "true"]
 Parameters:
   ClusterName:
     Type: String
@@ -12,6 +13,13 @@ Parameters:
   DeployPodIdentityAddon:
     Type: String
     Description: "Whether to deploy the eks-pod-identity-agent EKS addon"
+    Default: "true"
+    AllowedValues:
+      - "true"
+      - "false"
+  DeployNodeAccessEntry:
+    Type: String
+    Description: "Whether to deploy the EKS Access Entry for Karpenter nodes. Requires cluster authentication mode to be API or API_AND_CONFIG_MAP."
     Default: "true"
     AllowedValues:
       - "true"
@@ -52,6 +60,7 @@ Resources:
       RoleArn: !GetAtt Role.Arn
   NodeAccessEntry:
     Type: AWS::EKS::AccessEntry
+    Condition: ShouldDeployNodeAccessEntry
     Properties:
       ClusterName: !Ref ClusterName
       PrincipalArn: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-${ClusterName}"
