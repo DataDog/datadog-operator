@@ -23,6 +23,7 @@ import (
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	toolscache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,6 +39,8 @@ const (
 	tickerInterval = 5 * time.Minute
 	// deletePrefix is prepended to queue keys to signal a deletion
 	deletePrefix = "delete:"
+	// numWorkers is the number of concurrent workers
+	numWorkers = 3
 )
 
 var (
@@ -221,18 +224,12 @@ func (hmf *HelmMetadataForwarder) Start(ctx context.Context) error {
 	}
 
 	// Cache is already synced by the manager before Start() is called
-	hmf.logger.Info("Starting Helm metadata forwarder with workqueue")
 
-	// Start worker goroutine
-	go hmf.runWorker(ctx)
+	// Start worker pool
+	go hmf.runWorkers(ctx, numWorkers)
 
 	// Start ticker for periodic sends
 	go hmf.tickerLoop(ctx)
-
-	// Block until context is cancelled
-	<-ctx.Done()
-	hmf.logger.Info("Shutting down Helm metadata forwarder")
-	hmf.queue.ShutDown()
 
 	return nil
 }
@@ -242,33 +239,44 @@ func (hmf *HelmMetadataForwarder) NeedLeaderElection() bool {
 	return true
 }
 
-// runWorker is a long-running function that will continually process items from the workqueue
-func (hmf *HelmMetadataForwarder) runWorker(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			key, shutdown := hmf.queue.Get()
-			if shutdown {
-				return
-			}
+// runWorkers spawns multiple worker goroutines to process items from the workqueue concurrently
+func (hmf *HelmMetadataForwarder) runWorkers(ctx context.Context, numWorkers int) {
+	go func() {
+		<-ctx.Done()
+		hmf.logger.Info("Context cancelled, shutting down Helm metadata forwarder")
+		hmf.queue.ShutDown()
+	}()
 
-			var err error
-			if strings.HasPrefix(key, deletePrefix) {
-				hmf.handleDelete(strings.TrimPrefix(key, deletePrefix))
-			} else {
-				err = hmf.processKey(key)
-			}
+	for i := 0; i < numWorkers; i++ {
+		go func(workerID int) {
+			// Recover from panics to prevent one worker crash from affecting others
+			defer utilruntime.HandleCrash()
 
-			if err != nil {
-				hmf.queue.AddRateLimited(key)
-				hmf.logger.V(1).Info("Error processing key, will retry", "key", key, "error", err)
-			} else {
-				hmf.queue.Forget(key)
+			for {
+				key, shutdown := hmf.queue.Get()
+				if shutdown {
+					return
+				}
+
+				// Process item with deferred cleanup
+				func() {
+					defer hmf.queue.Done(key)
+
+					var err error
+					if strings.HasPrefix(key, deletePrefix) {
+						hmf.handleDelete(strings.TrimPrefix(key, deletePrefix))
+					} else {
+						err = hmf.processKey(key)
+					}
+
+					if err != nil {
+						hmf.queue.AddRateLimited(key)
+					} else {
+						hmf.queue.Forget(key)
+					}
+				}()
 			}
-			hmf.queue.Done(key)
-		}
+		}(i)
 	}
 }
 
