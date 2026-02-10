@@ -59,8 +59,14 @@ type HelmMetadataForwarder struct {
 
 	// Track latest snapshot of each release
 	// Key: "namespace/releaseName"
-	// Value: *ReleaseSnapshot
+	// Value: *ReleaseEntry
 	releaseSnapshots sync.Map
+}
+
+// ReleaseEntry wraps a ReleaseSnapshot with a mutex for safe concurrent access
+type ReleaseEntry struct {
+	mu       sync.Mutex
+	snapshot *ReleaseSnapshot
 }
 
 // ReleaseSnapshot holds a snapshot of a Helm release
@@ -312,15 +318,18 @@ func (hmf *HelmMetadataForwarder) handleDelete(key string) {
 	// Only delete if the snapshot is for this specific revision
 	// This prevents deleting a newer snapshot when Helm cleans up old revisions
 	if existing, loaded := hmf.releaseSnapshots.Load(releaseKey); loaded {
-		existingSnapshot := existing.(*ReleaseSnapshot)
-		if existingSnapshot.Revision == revision {
+		entry := existing.(*ReleaseEntry)
+		entry.mu.Lock()
+		defer entry.mu.Unlock()
+
+		if entry.snapshot != nil && entry.snapshot.Revision == revision {
 			hmf.releaseSnapshots.Delete(releaseKey)
 			hmf.logger.V(1).Info("Deleted release snapshot", "releaseKey", releaseKey, "revision", revision)
-		} else {
+		} else if entry.snapshot != nil {
 			hmf.logger.V(1).Info("Skipping delete - snapshot is for different revision",
 				"releaseKey", releaseKey,
 				"deletedRevision", revision,
-				"currentRevision", existingSnapshot.Revision)
+				"currentRevision", entry.snapshot.Revision)
 		}
 	}
 }
@@ -342,20 +351,20 @@ func (hmf *HelmMetadataForwarder) handleHelmResource(name, namespace, uid string
 
 	key := fmt.Sprintf("%s/%s", namespace, releaseName)
 
+	// Get or create entry for this release
+	value, _ := hmf.releaseSnapshots.LoadOrStore(key, &ReleaseEntry{})
+	entry := value.(*ReleaseEntry)
+
+	entry.mu.Lock()
+	defer entry.mu.Unlock()
+
 	// Check if we should update (prevent old revisions)
-	if existing, loaded := hmf.releaseSnapshots.Load(key); loaded {
-		existingSnapshot := existing.(*ReleaseSnapshot)
-		if existingSnapshot.Revision >= revision {
-			hmf.logger.V(1).Info("Skipping old/same revision",
-				"key", key,
-				"existing", existingSnapshot.Revision,
-				"new", revision)
-			return
-		}
-		hmf.logger.V(1).Info("Updating to newer revision",
+	if entry.snapshot != nil && entry.snapshot.Revision >= revision {
+		hmf.logger.V(1).Info("Skipping old/same revision",
 			"key", key,
-			"old", existingSnapshot.Revision,
+			"existing", entry.snapshot.Revision,
 			"new", revision)
+		return
 	}
 
 	// Build snapshot
@@ -370,12 +379,11 @@ func (hmf *HelmMetadataForwarder) handleHelmResource(name, namespace, uid string
 		hmf.logger.V(1).Info("Failed to send release",
 			"key", key,
 			"error", err)
-		// Don't store in map if send failed
+		// Don't update snapshot if send failed
 		return
 	}
 
-	// Store in map after successful send
-	hmf.releaseSnapshots.Store(key, snapshot)
+	entry.snapshot = snapshot
 
 	hmf.logger.V(1).Info("Updated release snapshot",
 		"key", key,
@@ -456,7 +464,16 @@ func (hmf *HelmMetadataForwarder) sendAllSnapshots() {
 	errors := 0
 
 	hmf.releaseSnapshots.Range(func(key, value interface{}) bool {
-		snapshot := value.(*ReleaseSnapshot)
+		entry := value.(*ReleaseEntry)
+
+		entry.mu.Lock()
+		snapshot := entry.snapshot
+		entry.mu.Unlock()
+
+		// Skip if no snapshot exists yet
+		if snapshot == nil {
+			return true
+		}
 
 		releaseData := hmf.snapshotToReleaseData(snapshot)
 		if err := hmf.sendSingleReleasePayload(releaseData); err != nil {
