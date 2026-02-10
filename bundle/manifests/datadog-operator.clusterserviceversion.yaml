@@ -194,7 +194,7 @@ metadata:
       ]
     capabilities: Full Lifecycle
     categories: Monitoring, Logging & Tracing
-    createdAt: "2025-12-16 22:23:39"
+    createdAt: "2026-02-10 17:40:32"
     description: |-
       Datadog provides a modern monitoring and analytics platform. Gather metrics, logs and traces for full observability of your Kubernetes cluster with Datadog Operator.
 
@@ -202,7 +202,7 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.34.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/DataDog/datadog-operator
-    containerImage: gcr.io/datadoghq/operator:1.21.0
+    containerImage: gcr.io/datadoghq/operator:1.23.0
     support: Datadog, Inc.
     features.operators.openshift.io/disconnected: "true"
     features.operators.openshift.io/fips-compliant: "false"
@@ -211,12 +211,12 @@ metadata:
     features.operators.openshift.io/token-auth-aws: "false"
     features.operators.openshift.io/token-auth-azure: "false"
     features.operators.openshift.io/token-auth-gcp: "false"
-    olm.skipRange: '>=1.7.0 <1.21.0'
+    olm.skipRange: '>=1.7.0 <1.23.0'
   labels:
     operatorframework.io/arch.amd64: supported
     operatorframework.io/arch.arm64: supported
     operatorframework.io/os.linux: supported
-  name: datadog-operator.v1.21.0
+  name: datadog-operator.v1.23.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -232,7 +232,7 @@ spec:
         kind: DatadogAgentProfile
         name: datadogagentprofiles.datadoghq.com
         version: v1alpha1
-      - description: DatadogAgent Deployment with the Datadog Operator.
+      - description: DatadogAgent defines Agent configuration, see reference https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md
         displayName: Datadog Agent
         kind: DatadogAgent
         name: datadogagents.datadoghq.com
@@ -367,6 +367,7 @@ spec:
               resources:
                 - customresourcedefinitions
               verbs:
+                - get
                 - list
                 - watch
             - apiGroups:
@@ -590,6 +591,34 @@ spec:
                 - list
                 - watch
             - apiGroups:
+                - gateway.envoyproxy.io
+              resources:
+                - envoyextensionpolicies
+              verbs:
+                - create
+                - delete
+                - get
+            - apiGroups:
+                - gateway.networking.k8s.io
+              resources:
+                - gatewayclasses
+                - gateways
+                - httproutes
+              verbs:
+                - get
+                - list
+                - patch
+                - watch
+            - apiGroups:
+                - gateway.networking.k8s.io
+              resources:
+                - referencegrants
+              verbs:
+                - create
+                - delete
+                - get
+                - patch
+            - apiGroups:
                 - karpenter.sh
               resources:
                 - '*'
@@ -609,11 +638,21 @@ spec:
               verbs:
                 - get
             - apiGroups:
+                - networking.istio.io
+              resources:
+                - envoyfilters
+              verbs:
+                - create
+                - delete
+                - get
+            - apiGroups:
                 - networking.k8s.io
               resources:
                 - ingresses
               verbs:
+                - get
                 - list
+                - patch
                 - watch
             - apiGroups:
                 - networking.k8s.io
@@ -753,7 +792,7 @@ spec:
                             fieldPath: metadata.namespace
                       - name: DD_TOOL_VERSION
                         value: redhat-community-operators
-                    image: gcr.io/datadoghq/operator:1.21.0
+                    image: gcr.io/datadoghq/operator:1.23.0
                     imagePullPolicy: IfNotPresent
                     livenessProbe:
                       httpGet:
@@ -851,5 +890,5 @@ spec:
   minKubeVersion: 1.16.0
   provider:
     name: Datadog
-  version: 1.21.0
-  replaces: datadog-operator.v1.20.0
+  version: 1.23.0
+  replaces: datadog-operator.v1.22.0
