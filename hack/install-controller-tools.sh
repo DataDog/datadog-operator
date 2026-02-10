@@ -25,13 +25,13 @@ fi
 OS=$(go env GOOS)
 ARCH=$(go env GOARCH)
 
-curl -L https://storage.googleapis.com/kubebuilder-tools/kubebuilder-tools-${VERSION}-${OS}-${ARCH}.tar.gz | tar -xz -C $WORK_DIR 
+curl -L https://github.com/kubernetes-sigs/controller-tools/releases/download/envtest-v${VERSION}/envtest-v${VERSION}-${OS}-${ARCH}.tar.gz | tar -xz -C $WORK_DIR
 
 # move to repo_path/bin/kubebuilder - you'll need to set the KUBEBUILDER_ASSETS env var with
 rm -rf ${TEST_DEPS_PATH}/etcd
 rm -rf ${TEST_DEPS_PATH}/kube-apiserver
 rm -rf ${TEST_DEPS_PATH}/kubectl
 mkdir -p ${TEST_DEPS_PATH}
-mv $WORK_DIR/kubebuilder/bin/etcd ${TEST_DEPS_PATH}/etcd
-mv $WORK_DIR/kubebuilder/bin/kube-apiserver ${TEST_DEPS_PATH}/kube-apiserver
-mv $WORK_DIR/kubebuilder/bin/kubectl ${TEST_DEPS_PATH}/kubectl
+mv $WORK_DIR/controller-tools/envtest/etcd ${TEST_DEPS_PATH}/etcd
+mv $WORK_DIR/controller-tools/envtest/kube-apiserver ${TEST_DEPS_PATH}/kube-apiserver
+mv $WORK_DIR/controller-tools/envtest/kubectl ${TEST_DEPS_PATH}/kubectl

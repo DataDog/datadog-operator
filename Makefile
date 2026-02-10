@@ -294,7 +294,7 @@ catalog-push: ## Push a catalog image.
 
 ##@ Datadog Custom part
 .PHONY: install-tools
-install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq bin/$(PLATFORM)/jq bin/$(PLATFORM)/kubebuilder bin/$(PLATFORM)/kubebuilder-tools bin/$(PLATFORM)/go-licenses bin/$(PLATFORM)/openapi-gen
+install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq bin/$(PLATFORM)/jq bin/$(PLATFORM)/kubebuilder bin/$(PLATFORM)/controller-tools bin/$(PLATFORM)/go-licenses bin/$(PLATFORM)/openapi-gen
 
 .PHONY: generate-openapi
 generate-openapi: bin/$(PLATFORM)/openapi-gen
@@ -392,8 +392,8 @@ bin/$(PLATFORM)/openapi-gen:
 bin/$(PLATFORM)/kubebuilder:
 	./hack/install-kubebuilder.sh 4.1.1 ./bin/$(PLATFORM)
 
-bin/$(PLATFORM)/kubebuilder-tools:
-	./hack/install-kubebuilder-tools.sh 1.28.3 ./bin/$(PLATFORM)
+bin/$(PLATFORM)/controller-tools:
+	./hack/install-controller-tools.sh 1.28.3 ./bin/$(PLATFORM)
 
 .DEFAULT_GOAL := help
 .PHONY: help
