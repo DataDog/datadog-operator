@@ -103,7 +103,10 @@ func (cmf *CRDMetadataForwarder) Start() {
 }
 
 func (cmf *CRDMetadataForwarder) sendMetadata() error {
-	allCRDs, listSuccess := cmf.getAllActiveCRDs()
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultOperationTimeout)
+	defer cancel()
+
+	allCRDs, listSuccess := cmf.getAllActiveCRDs(ctx)
 	changedCRDs := cmf.getChangedCRDs(allCRDs)
 
 	if len(changedCRDs) == 0 {
@@ -115,7 +118,7 @@ func (cmf *CRDMetadataForwarder) sendMetadata() error {
 
 	// Send individual payloads for each changed CRD
 	for _, crd := range changedCRDs {
-		if err := cmf.sendCRDMetadata(crd); err != nil {
+		if err := cmf.sendCRDMetadata(ctx, crd); err != nil {
 			cmf.logger.V(1).Info("Failed to send metadata", "error", err,
 				"kind", crd.Kind, "name", crd.Name, "namespace", crd.Namespace)
 		}
@@ -125,8 +128,8 @@ func (cmf *CRDMetadataForwarder) sendMetadata() error {
 	return nil
 }
 
-func (cmf *CRDMetadataForwarder) sendCRDMetadata(crdInstance CRDInstance) error {
-	clusterUID, err := cmf.GetOrCreateClusterUID()
+func (cmf *CRDMetadataForwarder) sendCRDMetadata(ctx context.Context, crdInstance CRDInstance) error {
+	clusterUID, err := cmf.GetOrCreateClusterUID(ctx)
 	if err != nil {
 		return fmt.Errorf("error getting cluster UID: %w", err)
 	}
@@ -141,6 +144,8 @@ func (cmf *CRDMetadataForwarder) sendCRDMetadata(crdInstance CRDInstance) error 
 	if err != nil {
 		return fmt.Errorf("error creating request: %w", err)
 	}
+
+	req = req.WithContext(ctx)
 
 	resp, err := cmf.httpClient.Do(req)
 	if err != nil {
@@ -217,7 +222,7 @@ func (cmf *CRDMetadataForwarder) buildPayload(clusterUID string, crdInstance CRD
 
 // getAllActiveCRDs returns all active CRDs and a map of list successes for each CRD type
 // Currently only DatadogAgent, DatadogAgentInternal, and DatadogAgentProfile are collected
-func (cmf *CRDMetadataForwarder) getAllActiveCRDs() ([]CRDInstance, map[string]bool) {
+func (cmf *CRDMetadataForwarder) getAllActiveCRDs(ctx context.Context) ([]CRDInstance, map[string]bool) {
 	var crds []CRDInstance
 	listSuccess := make(map[string]bool)
 
@@ -227,7 +232,7 @@ func (cmf *CRDMetadataForwarder) getAllActiveCRDs() ([]CRDInstance, map[string]b
 	// DDA
 	if cmf.enabledCRDs.DatadogAgentEnabled {
 		ddaList := &v2alpha1.DatadogAgentList{}
-		if err := cmf.k8sClient.List(context.TODO(), ddaList); err == nil {
+		if err := cmf.k8sClient.List(ctx, ddaList); err == nil {
 			listSuccess["DatadogAgent"] = true
 			for _, dda := range ddaList.Items {
 				annotations := maps.Clone(dda.Annotations)
@@ -252,7 +257,7 @@ func (cmf *CRDMetadataForwarder) getAllActiveCRDs() ([]CRDInstance, map[string]b
 	// DDAI
 	if cmf.enabledCRDs.DatadogAgentInternalEnabled {
 		ddaiList := &v1alpha1.DatadogAgentInternalList{}
-		if err := cmf.k8sClient.List(context.TODO(), ddaiList); err == nil {
+		if err := cmf.k8sClient.List(ctx, ddaiList); err == nil {
 			listSuccess["DatadogAgentInternal"] = true
 			for _, ddai := range ddaiList.Items {
 				annotations := maps.Clone(ddai.Annotations)
@@ -277,7 +282,7 @@ func (cmf *CRDMetadataForwarder) getAllActiveCRDs() ([]CRDInstance, map[string]b
 	// DAP
 	if cmf.enabledCRDs.DatadogAgentProfileEnabled {
 		dapList := &v1alpha1.DatadogAgentProfileList{}
-		if err := cmf.k8sClient.List(context.TODO(), dapList); err == nil {
+		if err := cmf.k8sClient.List(ctx, dapList); err == nil {
 			listSuccess["DatadogAgentProfile"] = true
 			for _, dap := range dapList.Items {
 				annotations := maps.Clone(dap.Annotations)

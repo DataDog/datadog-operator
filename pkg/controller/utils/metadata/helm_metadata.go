@@ -262,11 +262,14 @@ func (hmf *HelmMetadataForwarder) runWorkers(ctx context.Context, numWorkers int
 				func() {
 					defer hmf.queue.Done(key)
 
+					ctx, cancel := context.WithTimeout(context.Background(), DefaultOperationTimeout)
+					defer cancel()
+
 					var err error
 					if strings.HasPrefix(key, deletePrefix) {
 						hmf.handleDelete(strings.TrimPrefix(key, deletePrefix))
 					} else {
-						err = hmf.processKey(key)
+						err = hmf.processKey(ctx, key)
 					}
 
 					if err != nil {
@@ -281,7 +284,7 @@ func (hmf *HelmMetadataForwarder) runWorkers(ctx context.Context, numWorkers int
 }
 
 // processKey processes a single Helm release by its namespaced key
-func (hmf *HelmMetadataForwarder) processKey(key string) error {
+func (hmf *HelmMetadataForwarder) processKey(ctx context.Context, key string) error {
 	namespace, name, err := toolscache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return fmt.Errorf("invalid key format: %w", err)
@@ -289,17 +292,17 @@ func (hmf *HelmMetadataForwarder) processKey(key string) error {
 
 	// Try to get as ConfigMap first
 	cm := &corev1.ConfigMap{}
-	err = hmf.k8sClient.Get(context.Background(), client.ObjectKey{Namespace: namespace, Name: name}, cm)
+	err = hmf.k8sClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, cm)
 	if err == nil && cm.Labels["owner"] == "helm" {
-		hmf.handleHelmResource(cm.Name, cm.Namespace, string(cm.UID), []byte(cm.Data["release"]))
+		hmf.handleHelmResource(ctx, cm.Name, cm.Namespace, string(cm.UID), []byte(cm.Data["release"]))
 		return nil
 	}
 
 	// Try as Secret
 	secret := &corev1.Secret{}
-	err = hmf.k8sClient.Get(context.Background(), client.ObjectKey{Namespace: namespace, Name: name}, secret)
+	err = hmf.k8sClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, secret)
 	if err == nil && secret.Labels["owner"] == "helm" {
-		hmf.handleHelmResource(secret.Name, secret.Namespace, string(secret.UID), secret.Data["release"])
+		hmf.handleHelmResource(ctx, secret.Name, secret.Namespace, string(secret.UID), secret.Data["release"])
 		return nil
 	}
 
@@ -343,7 +346,7 @@ func (hmf *HelmMetadataForwarder) handleDelete(key string) {
 }
 
 // handleHelmResource processes a Helm resource event and updates the snapshot
-func (hmf *HelmMetadataForwarder) handleHelmResource(name, namespace, uid string, data []byte) {
+func (hmf *HelmMetadataForwarder) handleHelmResource(ctx context.Context, name, namespace, uid string, data []byte) {
 	release, releaseName, revision, ok := hmf.parseHelmResource(name, data)
 	if !ok || release == nil {
 		return
@@ -383,7 +386,7 @@ func (hmf *HelmMetadataForwarder) handleHelmResource(name, namespace, uid string
 
 	// Send immediately
 	releaseData := hmf.snapshotToReleaseData(snapshot)
-	if err := hmf.sendSingleReleasePayload(releaseData); err != nil {
+	if err := hmf.sendSingleReleasePayload(ctx, releaseData); err != nil {
 		hmf.logger.V(1).Info("Failed to send release",
 			"key", key,
 			"error", err)
@@ -483,8 +486,11 @@ func (hmf *HelmMetadataForwarder) sendAllSnapshots() {
 			return true
 		}
 
+		ctx, cancel := context.WithTimeout(context.Background(), DefaultOperationTimeout)
+		defer cancel()
+
 		releaseData := hmf.snapshotToReleaseData(snapshot)
-		if err := hmf.sendSingleReleasePayload(releaseData); err != nil {
+		if err := hmf.sendSingleReleasePayload(ctx, releaseData); err != nil {
 			hmf.logger.V(1).Info("Failed to send snapshot",
 				"key", key,
 				"error", err)
@@ -503,8 +509,8 @@ func (hmf *HelmMetadataForwarder) sendAllSnapshots() {
 	}
 }
 
-func (hmf *HelmMetadataForwarder) sendSingleReleasePayload(release HelmReleaseData) error {
-	clusterUID, err := hmf.GetOrCreateClusterUID()
+func (hmf *HelmMetadataForwarder) sendSingleReleasePayload(ctx context.Context, release HelmReleaseData) error {
+	clusterUID, err := hmf.GetOrCreateClusterUID(ctx)
 	if err != nil {
 		return fmt.Errorf("error getting cluster UID: %w", err)
 	}
@@ -514,6 +520,8 @@ func (hmf *HelmMetadataForwarder) sendSingleReleasePayload(release HelmReleaseDa
 	if err != nil {
 		return fmt.Errorf("error creating request: %w", err)
 	}
+
+	req = req.WithContext(ctx)
 
 	resp, err := hmf.httpClient.Do(req)
 	if err != nil {
