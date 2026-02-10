@@ -60,13 +60,30 @@ func NewDefaultOtelAgentGatewayPodTemplateSpec(dda metav1.Object) *corev1.PodTem
 func defaultPodSpec(dda metav1.Object) corev1.PodSpec {
 	return corev1.PodSpec{
 		ServiceAccountName: GetOtelAgentGatewayRbacResourcesName(dda),
+		InitContainers: []corev1.Container{
+			{
+				Name:    "init-volume",
+				Image:   images.GetLatestDdotCollectorImage(),
+				Command: []string{"bash", "-c"},
+				Args:    []string{"cp -vnr /etc/datadog-agent /opt"},
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						Name:      common.ConfigVolumeName,
+						MountPath: "/opt/datadog-agent",
+					},
+				},
+			},
+		},
 		Containers: []corev1.Container{
 			{
 				Name:    string(apicommon.OtelAgent),
 				Image:   images.GetLatestDdotCollectorImage(),
-				Command: []string{"otel-agent", "--sync-delay=30s", "--config=file:/etc/datadog-agent/otel-config.yaml"},
+				Command: []string{"otel-agent", "--sync-delay=30s", "--config=file:/etc/datadog-agent/otel-gateway-config.yaml"},
 				VolumeMounts: []corev1.VolumeMount{
 					common.GetVolumeMountForLogs(),
+					common.GetVolumeMountForTmp(),
+					common.GetVolumeMountForConfig(),
+					common.GetVolumeMountForAuth(false),
 				},
 				Ports: []corev1.ContainerPort{
 					{
@@ -84,6 +101,9 @@ func defaultPodSpec(dda metav1.Object) corev1.PodSpec {
 		},
 		Volumes: []corev1.Volume{
 			common.GetVolumeForLogs(),
+			common.GetVolumeForTmp(),
+			common.GetVolumeForConfig(),
+			common.GetVolumeForAuth(),
 		},
 	}
 }

@@ -364,6 +364,24 @@ type DatadogPodAutoscalerContainerResourceConstraints struct {
 	MaxAllowed corev1.ResourceList `json:"maxAllowed,omitempty"`
 }
 
+// DatadogPodAutoscalerOptions defines optional behavior modifications for the autoscaler.
+// +kubebuilder:object:generate=true
+type DatadogPodAutoscalerOptions struct {
+	// OutOfMemory configures behavior when OOM events are detected.
+	// +optional
+	OutOfMemory *DatadogPodAutoscalerOutOfMemoryOptions `json:"outOfMemory,omitempty"`
+}
+
+// DatadogPodAutoscalerOutOfMemoryOptions configures the behavior when out-of-memory events are detected.
+// +kubebuilder:object:generate=true
+type DatadogPodAutoscalerOutOfMemoryOptions struct {
+	// BumpUpRatio defines the ratio to multiply memory by when OOM is detected.
+	// For example, "1.2" means increase memory by 20%.
+	// Represented as a resource.Quantity to avoid floating point in CRDs.
+	// +optional
+	BumpUpRatio *resource.Quantity `json:"bumpUpRatio,omitempty"`
+}
+
 // DatadogPodAutoscalerStatus defines the observed state of DatadogPodAutoscaler
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerStatus struct {

@@ -70,6 +70,8 @@ type otelCollectorFeature struct {
 
 	incompatibleImage bool
 
+	otelGatewayEnabled bool
+
 	logger logr.Logger
 }
 
@@ -160,6 +162,11 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 		}
 
 	}
+
+	if ddaSpec.Features.OtelAgentGateway != nil {
+		o.otelGatewayEnabled = apiutils.BoolValue(ddaSpec.Features.OtelAgentGateway.Enabled)
+	}
+
 	return reqComp
 }
 
@@ -208,7 +215,12 @@ func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManag
 	}
 
 	if o.customConfig.ConfigData == nil && o.customConfig.ConfigMap == nil {
-		var defaultConfig = defaultconfig.DefaultOtelCollectorConfig
+		var defaultConfig string
+		if o.otelGatewayEnabled {
+			defaultConfig = defaultconfig.DefaultOtelCollectorConfigInGateway(o.owner.GetName())
+		} else {
+			defaultConfig = defaultconfig.DefaultOtelCollectorConfig
+		}
 		if grpcPort != 4317 {
 			defaultConfig = strings.Replace(defaultConfig, "4317", strconv.Itoa(grpcPort), 1)
 		}
@@ -374,6 +386,15 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
 			Name:  DDOtelCollectorCoreConfigExtensionURL,
 			Value: *o.coreAgentConfig.extension_url,
+		})
+	}
+
+	// Exclude infraattributes and prometheus when gateway is enabled to avoid duplication.
+	// Users must explicitly add infraattributes and prometheus if needed.
+	if o.otelGatewayEnabled {
+		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.OtelAgent}, &corev1.EnvVar{
+			Name:  DDOtelCollectorConverterFeatures,
+			Value: "health_check,zpages,pprof,ddflare",
 		})
 	}
 

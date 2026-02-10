@@ -12,6 +12,7 @@ import (
 	"os"
 	goruntime "runtime"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -172,7 +173,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.operatorMetricsEnabled, "operatorMetricsEnabled", true, "Enable sending operator metrics to Datadog")
 	flag.IntVar(&opts.maximumGoroutines, "maximumGoroutines", defaultMaximumGoroutines, "Override health check threshold for maximum number of goroutines.")
 	flag.BoolVar(&opts.introspectionEnabled, "introspectionEnabled", false, "Enable introspection (beta)")
-	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller (beta)")
+	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller")
 	flag.BoolVar(&opts.remoteConfigEnabled, "remoteConfigEnabled", false, "Enable RemoteConfig capabilities in the Operator (beta)")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
 	flag.BoolVar(&opts.datadogGenericResourceEnabled, "datadogGenericResourceEnabled", false, "Enable the DatadogGenericResource controller")
@@ -300,14 +301,6 @@ func run(opts *options) error {
 	// Client is needed when Creds should be resolved from DDA so cached client is fine
 	credsManager := config.NewCredentialManagerWithDecryptor(mgr.GetClient(), secrets.NewSecretBackend())
 	creds, err := credsManager.GetCredentials()
-	if err != nil && opts.datadogMonitorEnabled {
-		return setupErrorf(setupLog, err, "Unable to get credentials for DatadogMonitor")
-	}
-
-	// Checks if credentials are mandatory due to a resource controller being enabled
-	if checkErr := checkRequiredCredentials(opts, err); checkErr != nil {
-		return checkErr
-	}
 
 	if opts.secretRefreshInterval > 0 && opts.secretBackendCommand == "" {
 		setupLog.Error(nil, "secretRefreshInterval is set but secretBackendCommand is not configured")
@@ -452,20 +445,79 @@ func getServerGroupsAndResources(log logr.Logger, discoveryClient *discovery.Dis
 	return groups, resources, nil
 }
 
+// filteringEncoder wraps a zapcore.Encoder and filters out specific fields
+type filteringEncoder struct {
+	zapcore.Encoder
+	fieldsToSkip map[string]bool
+}
+
+// newFilteringEncoder creates an encoder that skips specified fields
+func newFilteringEncoder(base zapcore.Encoder, fieldsToSkip []string) zapcore.Encoder {
+	skipMap := make(map[string]bool, len(fieldsToSkip))
+	for _, field := range fieldsToSkip {
+		skipMap[field] = true
+	}
+	return &filteringEncoder{
+		Encoder:      base,
+		fieldsToSkip: skipMap,
+	}
+}
+
+// AddObject filters out unwanted object fields
+func (f *filteringEncoder) AddObject(key string, marshaler zapcore.ObjectMarshaler) error {
+	if f.fieldsToSkip[key] {
+		return nil // skip this field
+	}
+	return f.Encoder.AddObject(key, marshaler)
+}
+
+// AddString filters out unwanted string fields
+func (f *filteringEncoder) AddString(key, val string) {
+	if f.fieldsToSkip[key] {
+		return // skip this field
+	}
+	f.Encoder.AddString(key, val)
+}
+
+// AddReflected filters out unwanted reflected fields (used for complex objects)
+func (f *filteringEncoder) AddReflected(key string, obj interface{}) error {
+	if f.fieldsToSkip[key] {
+		return nil // skip this field
+	}
+	return f.Encoder.AddReflected(key, obj)
+}
+
+// Clone creates a copy of the filtering encoder
+func (f *filteringEncoder) Clone() zapcore.Encoder {
+	return &filteringEncoder{
+		Encoder:      f.Encoder.Clone(),
+		fieldsToSkip: f.fieldsToSkip,
+	}
+}
+
 func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
 	encoderConfig := zap.NewProductionEncoderConfig()
 	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 
-	var encoder zapcore.Encoder
+	var baseEncoder zapcore.Encoder
 	switch logEncoder {
 	case "console":
-		encoder = zapcore.NewConsoleEncoder(encoderConfig)
+		baseEncoder = zapcore.NewConsoleEncoder(encoderConfig)
 	case "json":
-		encoder = zapcore.NewJSONEncoder(encoderConfig)
+		baseEncoder = zapcore.NewJSONEncoder(encoderConfig)
 	default:
-		return fmt.Errorf("unknow log encoder: %s", logEncoder)
+		return fmt.Errorf("unknown log encoder: %s", logEncoder)
 	}
+
+	// Wrap the encoder to filter out certain controller-runtime fields
+	fieldsToSkip := []string{
+		"controller",           // "datadogagentinternal", present in log name
+		"controllerGroup",      // "datadoghq.com", unnecessary
+		"controllerKind",       // "DatadogAgentInternal", use `kind` instead since it's shorter
+		"DatadogAgentInternal", // {"name":"datadog-agent","namespace":"default"}, duplicate of namespace and name
+	}
+	encoder := newFilteringEncoder(baseEncoder, fieldsToSkip)
 
 	zapOpts := ctrlzap.Options{}
 	zapOpts.BindFlags(flag.CommandLine)
@@ -499,38 +551,44 @@ func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
 
 func customSetupHealthChecks(logger logr.Logger, mgr manager.Manager, maximumGoroutines *int) {
 	setupLog.Info("configuring manager health check", "maximumGoroutines", *maximumGoroutines)
-	err := mgr.AddHealthzCheck("goroutines-number", func(req *http.Request) error {
-		if goruntime.NumGoroutine() > *maximumGoroutines {
-			return fmt.Errorf("too many goroutines: %d > limit: %d", goruntime.NumGoroutine(), *maximumGoroutines)
-		}
-		return nil
-	})
+	err := mgr.AddHealthzCheck("goroutines-number", newGoroutinesNumberHealthzCheck(logger, maximumGoroutines))
 	if err != nil {
 		setupErrorf(setupLog, err, "Unable to add healthchecks")
 	}
 }
 
-func setupErrorf(logger logr.Logger, err error, msg string, keysAndValues ...any) error {
-	setupLog.Error(err, msg, keysAndValues...)
-	return fmt.Errorf("%s, err:%w", msg, err)
+func newGoroutinesNumberHealthzCheck(logger logr.Logger, maximumGoroutines *int) func(req *http.Request) error {
+	healthzLog := logger.WithName("healthz").WithValues("checker", "goroutines-number")
+	// The healthz checker runs in the manager's HTTP server (net/http), so it may be invoked
+	// concurrently by multiple callers/probes. We keep a tiny piece of concurrency-safe state
+	// to log the transition to failing/recovered only once (avoid log spam on every probe).
+	var wasFailing atomic.Uint32
+
+	return func(req *http.Request) error {
+		current := goruntime.NumGoroutine()
+		limit := *maximumGoroutines
+
+		if current > limit {
+			checkErr := fmt.Errorf("too many goroutines: %d > limit: %d", current, limit)
+			// controller-runtime logs health check failures at debug; emit a single error-level log
+			// on transition to failing to ensure visibility without log spam from probes.
+			if wasFailing.CompareAndSwap(0, 1) {
+				healthzLog.Error(checkErr, "healthz check entering failing state", "goroutines", current, "limit", limit)
+			}
+			return checkErr
+		}
+
+		// If we were previously failing, log recovery once.
+		if wasFailing.CompareAndSwap(1, 0) {
+			healthzLog.Info("healthz check recovered", "goroutines", current, "limit", limit)
+		}
+		return nil
+	}
 }
 
-// checkRequiredCredentials checks if credentials are required by any enabled controllers
-// and returns an error if they are required but the provided error indicates they
-// could not be obtained.
-func checkRequiredCredentials(opts *options, credErr error) error {
-	// Check if credentials are required by any enabled controllers
-	requireCreds := opts.datadogMonitorEnabled || opts.datadogDashboardEnabled || opts.datadogSLOEnabled || opts.datadogGenericResourceEnabled
-
-	if requireCreds && credErr != nil {
-		return setupErrorf(setupLog, credErr, "Unable to retrieve Datadog API credentials required by one or more enabled controllers",
-			"DatadogMonitor", opts.datadogMonitorEnabled,
-			"DatadogDashboard", opts.datadogDashboardEnabled,
-			"DatadogSLO", opts.datadogSLOEnabled,
-			"DatadogGenericResource", opts.datadogGenericResourceEnabled)
-	}
-
-	return nil
+func setupErrorf(_ logr.Logger, err error, msg string, keysAndValues ...any) error {
+	setupLog.Error(err, msg, keysAndValues...)
+	return fmt.Errorf("%s, err:%w", msg, err)
 }
 
 func setupAndStartOperatorMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options, credsManager *config.CredentialManager) {

@@ -952,7 +952,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DogstatsdFeatureConfig(ref c
 					},
 					"tagCardinality": {
 						SchemaProps: spec.SchemaProps{
-							Description: "TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`). See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables Cardinality default: low",
+							Description: "TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`). This setting only applies when OriginDetectionEnabled is true. See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables Cardinality default: low",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1587,6 +1587,13 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_OtelAgentGatewayFeatureConfi
 									},
 								},
 							},
+						},
+					},
+					"featureGates": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FeatureGates are the feature gates to pass to the OTel collector as a comma-separated list. Example: \"component.UseLocalHostAsDefaultHost,connector.datadogconnector.NativeIngest\"",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},

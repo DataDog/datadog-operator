@@ -47,6 +47,7 @@ type cspmFeature struct {
 	serviceAccountName    string
 	checkInterval         string
 	hostBenchmarksEnabled bool
+	runInSystemProbe      bool
 
 	owner  metav1.Object
 	logger logr.Logger
@@ -96,6 +97,16 @@ func (f *cspmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgen
 			f.hostBenchmarksEnabled = true
 		}
 
+		f.runInSystemProbe = apiutils.BoolValue(cspmConfig.RunInSystemProbe)
+
+		// Determine which container to use for CSPM on the node
+		var nodeContainer apicommon.AgentContainerName
+		if f.runInSystemProbe {
+			nodeContainer = apicommon.SystemProbeContainerName
+		} else {
+			nodeContainer = apicommon.SecurityAgentContainerName
+		}
+
 		reqComp = feature.RequiredComponents{
 			ClusterAgent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
@@ -104,7 +115,7 @@ func (f *cspmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgen
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
 				Containers: []apicommon.AgentContainerName{
-					apicommon.SecurityAgentContainerName,
+					nodeContainer,
 				},
 			},
 		}
@@ -230,12 +241,18 @@ func (f *cspmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplat
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	// Determine which container to use based on runInSystemProbe
+	targetContainer := apicommon.SecurityAgentContainerName
+	if f.runInSystemProbe {
+		targetContainer = apicommon.SystemProbeContainerName
+	}
+
 	// security context capabilities
 	capabilities := []corev1.Capability{
 		"AUDIT_CONTROL",
 		"AUDIT_READ",
 	}
-	managers.SecurityContext().AddCapabilitiesToContainer(capabilities, apicommon.SecurityAgentContainerName)
+	managers.SecurityContext().AddCapabilitiesToContainer(capabilities, targetContainer)
 
 	volMountMgr := managers.VolumeMount()
 	VolMgr := managers.Volume()
@@ -281,10 +298,10 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 			}
 		}
 
-		// Add empty volume to Security Agent
+		// Add empty volume to target container (Security Agent or System Probe)
 		benchmarksVol, benchmarksVolMount := volume.GetVolumesEmptyDir(securityAgentComplianceConfigDirVolumeName, securityAgentComplianceConfigDirVolumePath, true)
 		managers.Volume().AddVolume(&benchmarksVol)
-		managers.VolumeMount().AddVolumeMountToContainer(&benchmarksVolMount, apicommon.SecurityAgentContainerName)
+		managers.VolumeMount().AddVolumeMountToContainer(&benchmarksVolMount, targetContainer)
 
 		// Add compliance.d volume mount to init-volume container at different path
 		benchmarkVolMountInitVol := corev1.VolumeMount{
@@ -297,27 +314,27 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 
 	// cgroups volume mount
 	cgroupsVol, cgroupsVolMount := volume.GetVolumes(common.CgroupsVolumeName, common.CgroupsHostPath, common.CgroupsMountPath, true)
-	volMountMgr.AddVolumeMountToContainer(&cgroupsVolMount, apicommon.SecurityAgentContainerName)
+	volMountMgr.AddVolumeMountToContainer(&cgroupsVolMount, targetContainer)
 	VolMgr.AddVolume(&cgroupsVol)
 
 	// passwd volume mount
 	passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, common.PasswdMountPath, true)
-	volMountMgr.AddVolumeMountToContainer(&passwdVolMount, apicommon.SecurityAgentContainerName)
+	volMountMgr.AddVolumeMountToContainer(&passwdVolMount, targetContainer)
 	VolMgr.AddVolume(&passwdVol)
 
 	// procdir volume mount
 	procdirVol, procdirVolMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true)
-	volMountMgr.AddVolumeMountToContainer(&procdirVolMount, apicommon.SecurityAgentContainerName)
+	volMountMgr.AddVolumeMountToContainer(&procdirVolMount, targetContainer)
 	VolMgr.AddVolume(&procdirVol)
 
 	// host root volume mount
 	hostRootVol, hostRootVolMount := volume.GetVolumes(common.HostRootVolumeName, common.HostRootHostPath, common.HostRootMountPath, true)
-	volMountMgr.AddVolumeMountToContainer(&hostRootVolMount, apicommon.SecurityAgentContainerName)
+	volMountMgr.AddVolumeMountToContainer(&hostRootVolMount, targetContainer)
 	VolMgr.AddVolume(&hostRootVol)
 
 	// group volume mount
 	groupVol, groupVolMount := volume.GetVolumes(common.GroupVolumeName, common.GroupHostPath, common.GroupMountPath, true)
-	volMountMgr.AddVolumeMountToContainer(&groupVolMount, apicommon.SecurityAgentContainerName)
+	volMountMgr.AddVolumeMountToContainer(&groupVolMount, targetContainer)
 	VolMgr.AddVolume(&groupVol)
 
 	// env vars
@@ -325,27 +342,33 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 		Name:  DDComplianceConfigEnabled,
 		Value: "true",
 	}
-	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SecurityAgentContainerName}, enabledEnvVar)
+	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, targetContainer}, enabledEnvVar)
 
 	hostRootEnvVar := &corev1.EnvVar{
 		Name:  common.DDHostRootEnvVar,
 		Value: common.HostRootMountPath,
 	}
-	managers.EnvVar().AddEnvVarToContainer(apicommon.SecurityAgentContainerName, hostRootEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(targetContainer, hostRootEnvVar)
 
 	if f.checkInterval != "" {
 		intervalEnvVar := &corev1.EnvVar{
 			Name:  DDComplianceConfigCheckInterval,
 			Value: f.checkInterval,
 		}
-		managers.EnvVar().AddEnvVarToContainer(apicommon.SecurityAgentContainerName, intervalEnvVar)
+		managers.EnvVar().AddEnvVarToContainer(targetContainer, intervalEnvVar)
 	}
 
 	hostBenchmarksEnabledEnvVar := &corev1.EnvVar{
 		Name:  DDComplianceHostBenchmarksEnabled,
 		Value: apiutils.BoolToString(&f.hostBenchmarksEnabled),
 	}
-	managers.EnvVar().AddEnvVarToContainer(apicommon.SecurityAgentContainerName, hostBenchmarksEnabledEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(targetContainer, hostBenchmarksEnabledEnvVar)
+
+	runInSystemProbeEnvVar := &corev1.EnvVar{
+		Name:  DDComplianceConfigRunInSystemProbe,
+		Value: apiutils.BoolToString(&f.runInSystemProbe),
+	}
+	managers.EnvVar().AddEnvVarToContainer(targetContainer, runInSystemProbeEnvVar)
 
 	return nil
 }
