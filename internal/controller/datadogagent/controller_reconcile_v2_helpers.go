@@ -154,7 +154,7 @@ func (r *Reconciler) useDefaultDaemonset(providerList map[string]struct{}) bool 
 	if len(providerList) == 0 {
 		return false
 	}
-	return kubernetes.ContainsEKSOrOpenShift(providerList)
+	return kubernetes.ShouldUseDefaultDaemonset(providerList)
 }
 
 // *************************************

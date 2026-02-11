@@ -233,7 +233,7 @@ func Test_isEKSProvider(t *testing.T) {
 	}
 }
 
-func Test_ContainsEKSOrOpenShift(t *testing.T) {
+func Test_ShouldUseDefaultDaemonset(t *testing.T) {
 	tests := []struct {
 		name         string
 		providerList map[string]struct{}
@@ -302,7 +302,7 @@ func Test_ContainsEKSOrOpenShift(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ContainsEKSOrOpenShift(tt.providerList)
+			result := ShouldUseDefaultDaemonset(tt.providerList)
 			assert.Equal(t, tt.want, result)
 		})
 	}

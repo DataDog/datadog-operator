@@ -100,8 +100,10 @@ func isEKSProvider(labels map[string]string) bool {
 	return false
 }
 
-// ContainsEKSOrOpenShift checks if the provider list contains EKS or OpenShift
-func ContainsEKSOrOpenShift(providerList map[string]struct{}) bool {
+// ShouldUseDefaultDaemonset checks if the provider list contains providers that don't support
+// provider-specific daemonsets and should use a single default daemonset without node affinity.
+// Currently applies to EKS and OpenShift providers.
+func ShouldUseDefaultDaemonset(providerList map[string]struct{}) bool {
 	for provider := range providerList {
 		// Check for EKS directly (has no suffix)
 		if provider == EKSCloudProvider {
@@ -128,7 +130,7 @@ func getProviderNodeAffinity(provider string, providerList map[string]struct{}) 
 	// If EKS or OpenShift is present and we're using the default provider,
 	// don't apply affinity rules. We don't support provider-specific daemonsets
 	// for these platforms, so a single daemonset runs on all nodes without affinity.
-	if provider == DefaultProvider && ContainsEKSOrOpenShift(providerList) {
+	if provider == DefaultProvider && ShouldUseDefaultDaemonset(providerList) {
 		return nil
 	}
 
