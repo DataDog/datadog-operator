@@ -47,11 +47,6 @@ const (
 	// EKS label prefixes for provider detection
 	eksLabelPrefix    = "eks.amazonaws.com/"
 	eksctlLabelPrefix = "alpha.eksctl.io/"
-
-	// Common EKS labels used for node affinity
-	eksNodeGroupLabel      = "eks.amazonaws.com/nodegroup"
-	eksComputeTypeLabel    = "eks.amazonaws.com/compute-type"
-	eksctlClusterNameLabel = "alpha.eksctl.io/cluster-name"
 )
 
 // ProviderValue allowlist
@@ -83,16 +78,9 @@ func determineProvider(labels map[string]string) string {
 
 // isEKSProvider checks if a node is an EKS node by looking for EKS-specific labels
 func isEKSProvider(labels map[string]string) bool {
-	// Check for any eks.amazonaws.com/* labels
+	// Check for any eks.amazonaws.com/* or eksctl labels
 	for key := range labels {
-		if strings.HasPrefix(key, eksLabelPrefix) {
-			return true
-		}
-	}
-
-	// Secondary check for eksctl labels
-	for key := range labels {
-		if strings.HasPrefix(key, eksctlLabelPrefix) {
+		if strings.HasPrefix(key, eksLabelPrefix) || strings.HasPrefix(key, eksctlLabelPrefix) {
 			return true
 		}
 	}
