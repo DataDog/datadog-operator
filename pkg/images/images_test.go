@@ -316,7 +316,7 @@ func Test_ToString(t *testing.T) {
 				isFIPS:   true,
 				isFull:   true,
 			},
-			want: "gcr.io/datadoghq/agent:7.64.0-fips",
+			want: "gcr.io/datadoghq/agent:7.64.0-fips-full",
 		},
 		{
 			name: "with full, jmx and fips",
@@ -328,7 +328,7 @@ func Test_ToString(t *testing.T) {
 				isFIPS:   true,
 				isFull:   true,
 			},
-			want: "gcr.io/datadoghq/agent:7.64.0-fips-jmx",
+			want: "gcr.io/datadoghq/agent:7.64.0-fips-full",
 		},
 	}
 	for _, tt := range tests {
@@ -392,6 +392,17 @@ func Test_FromString(t *testing.T) {
 				registry: "gcr.io/datadoghq",
 				name:     "agent",
 				tag:      "7.64.0",
+				isFull:   true,
+			},
+		},
+		{
+			name:        "with fips and full",
+			imageString: "gcr.io/datadoghq/agent:7.64.0-fips-full",
+			want: &Image{
+				registry: "gcr.io/datadoghq",
+				name:     "agent",
+				tag:      "7.64.0",
+				isFIPS:   true,
 				isFull:   true,
 			},
 		},
@@ -552,7 +563,7 @@ func Test_OverrideAgentImage(t *testing.T) {
 			overrideImageSpec: &v2alpha1.AgentImageConfig{
 				Tag: "7.65.0",
 			},
-			want: "gcr.io/datadoghq/agent:7.65.0",
+			want: "gcr.io/datadoghq/agent:7.65.0-fips",
 		},
 		{
 			name:         "current image includes full suffix and override also includes full suffix",
@@ -594,7 +605,7 @@ func Test_OverrideAgentImage(t *testing.T) {
 			overrideImageSpec: &v2alpha1.AgentImageConfig{
 				Name: "agent:7.65.0-full",
 			},
-			want: "gcr.io/datadoghq/agent:7.65.0-full",
+			want: "gcr.io/datadoghq/agent:7.65.0-fips-full",
 		},
 		{
 			name:         "current image includes fips suffix and override tag includes full suffix",
@@ -602,7 +613,23 @@ func Test_OverrideAgentImage(t *testing.T) {
 			overrideImageSpec: &v2alpha1.AgentImageConfig{
 				Tag: "7.65.0-full",
 			},
-			want: "gcr.io/datadoghq/agent:7.65.0-full",
+			want: "gcr.io/datadoghq/agent:7.65.0-fips-full",
+		},
+		{
+			name:         "current image includes fips-full suffix and override tag does not include suffix",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0-fips-full",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Tag: "7.65.0",
+			},
+			want: "gcr.io/datadoghq/agent:7.65.0-fips-full",
+		},
+		{
+			name:         "current image is ddot-collector with fips and override tag preserves fips",
+			currentImage: "gcr.io/datadoghq/ddot-collector:7.64.0-fips",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Tag: "7.75.0",
+			},
+			want: "gcr.io/datadoghq/ddot-collector:7.75.0-fips",
 		},
 	}
 	for _, tt := range tests {
