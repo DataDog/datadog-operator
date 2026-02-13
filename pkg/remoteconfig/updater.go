@@ -20,7 +20,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config/remote/client"
 	"github.com/DataDog/datadog-agent/pkg/config/remote/service"
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
-	"github.com/cenkalti/backoff"
+	"github.com/cenkalti/backoff/v5"
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
