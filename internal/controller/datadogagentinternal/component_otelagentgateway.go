@@ -60,7 +60,7 @@ func (c *OtelAgentGatewayComponent) Reconcile(ctx context.Context, params *Recon
 	var result reconcile.Result
 
 	// Start by creating the Default OtelAgentGateway deployment
-	deployment := componentotelagentgateway.NewDefaultOtelAgentGatewayDeployment(params.DDAI)
+	deployment := componentotelagentgateway.NewDefaultOtelAgentGatewayDeployment(params.DDAI, &params.DDAI.Spec)
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
@@ -88,7 +88,7 @@ func (c *OtelAgentGatewayComponent) Reconcile(ctx context.Context, params *Recon
 
 // Cleanup removes the OtelAgentGateway deployment
 func (c *OtelAgentGatewayComponent) Cleanup(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error) {
-	deployment := componentotelagentgateway.NewDefaultOtelAgentGatewayDeployment(params.DDAI)
+	deployment := componentotelagentgateway.NewDefaultOtelAgentGatewayDeployment(params.DDAI, &params.DDAI.Spec)
 	return c.reconciler.cleanupV2OtelAgentGateway(params.Logger, params.DDAI, deployment, params.Status)
 }
 
