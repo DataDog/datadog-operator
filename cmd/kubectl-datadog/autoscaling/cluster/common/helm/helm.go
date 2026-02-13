@@ -19,7 +19,7 @@ import (
 )
 
 func CreateOrUpgrade(ctx context.Context, ac *action.Configuration, releaseName, namespace, chartRef, version string, values map[string]any) error {
-	exist, err := doesExist(ctx, ac, releaseName)
+	exist, err := Exists(ctx, ac, releaseName)
 	if err != nil {
 		return err
 	}
@@ -31,7 +31,7 @@ func CreateOrUpgrade(ctx context.Context, ac *action.Configuration, releaseName,
 	}
 }
 
-func doesExist(_ context.Context, ac *action.Configuration, releaseName string) (bool, error) {
+func Exists(_ context.Context, ac *action.Configuration, releaseName string) (bool, error) {
 	historyAction := action.NewHistory(ac)
 	historyAction.Max = 1
 	versions, err := historyAction.Run(releaseName)
@@ -129,7 +129,7 @@ func upgrade(ctx context.Context, ac *action.Configuration, releaseName, namespa
 }
 
 func Uninstall(ctx context.Context, ac *action.Configuration, releaseName string) error {
-	exist, err := doesExist(ctx, ac, releaseName)
+	exist, err := Exists(ctx, ac, releaseName)
 	if err != nil {
 		return err
 	}

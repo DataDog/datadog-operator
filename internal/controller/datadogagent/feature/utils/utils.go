@@ -6,8 +6,6 @@
 package utils
 
 import (
-	"strconv"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -25,6 +23,9 @@ const HostProfilerConfigDataAnnotion = "agent.datadoghq.com/host-profiler-config
 // Config map item must be `host-profiler-config.yaml`
 const HostProfilerConfigMapNameAnnotion = "agent.datadoghq.com/host-profiler-configmap-name"
 
+const EnablePrivateActionRunnerAnnotation = "agent.datadoghq.com/private-action-runner-enabled"
+const PrivateActionRunnerConfigDataAnnotation = "agent.datadoghq.com/private-action-runner-configdata"
+
 func agentSupportsRunInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	// Agent version must >= 7.60.0 to run feature in core agent
 	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
@@ -38,24 +39,10 @@ func agentSupportsRunInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 // ShouldRunProcessChecksInCoreAgent determines whether allow process checks to run in core agent based on
 // environment variables and the agent version.
 func ShouldRunProcessChecksInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
-
-	// Prioritize env var override
-	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
-		for _, env := range nodeAgent.Env {
-			if env.Name == common.DDProcessConfigRunInCoreAgent {
-				val, err := strconv.ParseBool(env.Value)
-				if err == nil {
-					return val
-				}
-			}
-		}
-	}
-
 	// Check if agent version supports process checks running in core agent
 	if !agentSupportsRunInCoreAgent(ddaSpec) {
 		return false
 	}
-
 	return true
 }
 
@@ -85,4 +72,15 @@ func HasHostProfilerConfigAnnotion(dda metav1.Object, annotationName string) (st
 // HasFineGrainedKubeletAuthz returns true if the feature is enabled via the dedicated `agent.datadoghq.com/fine-grained-kubelet-authorization-enabled` annotation
 func HasFineGrainedKubeletAuthz(dda metav1.Object) bool {
 	return hasFeatureEnableAnnotation(dda, EnableFineGrainedKubeletAuthz)
+}
+
+// HasPrivateActionRunnerAnnotation returns true if the Private Action Runner is enabled via the dedicated annotation
+func HasPrivateActionRunnerAnnotation(dda metav1.Object) bool {
+	return hasFeatureEnableAnnotation(dda, EnablePrivateActionRunnerAnnotation)
+}
+
+// HasPrivateActionRunnerConfigAnnotation returns the value and presence of a Private Action Runner config annotation
+func HasPrivateActionRunnerConfigAnnotation(dda metav1.Object, annotationName string) (string, bool) {
+	value, ok := dda.GetAnnotations()[annotationName]
+	return value, ok
 }

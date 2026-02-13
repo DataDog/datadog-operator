@@ -27,7 +27,7 @@ func (_m *EnvVarManager) AddEnvVar(newEnvVar *v1.EnvVar) {
 func (_m *EnvVarManager) AddEnvVarToContainer(containerName common.AgentContainerName, newEnvVar *v1.EnvVar) {
 	isInitContainer := slices.Contains(initContainerNames, containerName)
 	if !isInitContainer {
-		_m.t.Logf("AddEnvVar %s: %#v", newEnvVar.Name, newEnvVar.Value)
+		_m.t.Logf("AddEnvVar to container %s %s: %#v", containerName, newEnvVar.Name, newEnvVar.Value)
 		_m.EnvVarsByC[containerName] = append(_m.EnvVarsByC[containerName], newEnvVar)
 	}
 }

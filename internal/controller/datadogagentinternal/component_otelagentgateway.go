@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -61,10 +62,11 @@ func (c *OtelAgentGatewayComponent) Reconcile(ctx context.Context, params *Recon
 
 	// Start by creating the Default OtelAgentGateway deployment
 	deployment := componentotelagentgateway.NewDefaultOtelAgentGatewayDeployment(params.DDAI, &params.DDAI.Spec)
+	objLogger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
-	global.ApplyGlobalSettingsOtelAgentGateway(params.Logger, podManagers, params.DDAI.GetObjectMeta(), &params.DDAI.Spec, params.ResourceManagers, params.RequiredComponents)
+	global.ApplyGlobalSettingsOtelAgentGateway(objLogger, podManagers, params.DDAI.GetObjectMeta(), &params.DDAI.Spec, params.ResourceManagers, params.RequiredComponents)
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range params.Features {
@@ -79,17 +81,18 @@ func (c *OtelAgentGatewayComponent) Reconcile(ctx context.Context, params *Recon
 			// This case is handled by the registry, but we double-check here
 			return c.Cleanup(ctx, params)
 		}
-		override.PodTemplateSpec(params.Logger, podManagers, componentOverride, c.Name(), params.DDAI.Name)
+		override.PodTemplateSpec(objLogger, podManagers, componentOverride, c.Name(), params.DDAI.Name)
 		override.Deployment(deployment, componentOverride)
 	}
 
-	return c.reconciler.createOrUpdateDeployment(params.Logger, params.DDAI, deployment, params.Status, updateStatusV2WithOtelAgentGateway)
+	return c.reconciler.createOrUpdateDeployment(objLogger, params.DDAI, deployment, params.Status, updateStatusV2WithOtelAgentGateway)
 }
 
 // Cleanup removes the OtelAgentGateway deployment
 func (c *OtelAgentGatewayComponent) Cleanup(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error) {
 	deployment := componentotelagentgateway.NewDefaultOtelAgentGatewayDeployment(params.DDAI, &params.DDAI.Spec)
-	return c.reconciler.cleanupV2OtelAgentGateway(params.Logger, params.DDAI, deployment, params.Status)
+	objLogger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
+	return c.reconciler.cleanupV2OtelAgentGateway(objLogger, params.DDAI, deployment, params.Status)
 }
 
 func (r *Reconciler) cleanupV2OtelAgentGateway(logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, deployment *appsv1.Deployment, newStatus *v1alpha1.DatadogAgentInternalStatus) (reconcile.Result, error) {
@@ -105,7 +108,7 @@ func (r *Reconciler) cleanupV2OtelAgentGateway(logger logr.Logger, ddai *v1alpha
 			return reconcile.Result{}, err
 		}
 	} else {
-		logger.Info("Deleting OTel Agent Gateway Deployment", "deployment.Namespace", otelAgentGatewayDeployment.Namespace, "deployment.Name", otelAgentGatewayDeployment.Name)
+		logger.Info("Deleting OTel Agent Gateway Deployment")
 		event := buildEventInfo(otelAgentGatewayDeployment.Name, otelAgentGatewayDeployment.Namespace, kubernetes.DeploymentKind, datadog.DeletionEvent)
 		r.recordEvent(ddai, event)
 		if err := r.client.Delete(context.TODO(), otelAgentGatewayDeployment); err != nil {

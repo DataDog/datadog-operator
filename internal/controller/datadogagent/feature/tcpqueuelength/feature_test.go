@@ -132,10 +132,6 @@ func Test_tcpQueueLengthFeature_Configure(t *testing.T) {
 				Value: "true",
 			},
 			{
-				Name:  common.DDSystemProbeEnabled,
-				Value: "true",
-			},
-			{
 				Name:  common.DDSystemProbeSocket,
 				Value: common.DefaultSystemProbeSocketPath,
 			},
