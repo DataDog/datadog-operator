@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-operator/pkg/config"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
@@ -25,12 +24,14 @@ func Test_CRDBuildPayload(t *testing.T) {
 	expectedCRDAPIVersion := "datadoghq.com/v2alpha1"
 	expectedCRDUID := "crd-uid-67890"
 
+	client := newFakeClientWithKubeSystem("test-cluster-uid-12345")
+
 	cmf := NewCRDMetadataForwarder(
 		zap.New(zap.UseDevMode(true)),
-		nil,
+		client,
 		expectedKubernetesVersion,
 		expectedOperatorVersion,
-		config.NewCredentialManager(fake.NewFakeClient()),
+		config.NewCredentialManager(client),
 		EnabledCRDKindsConfig{
 			DatadogAgentEnabled:         true,
 			DatadogAgentInternalEnabled: true,
@@ -66,7 +67,7 @@ func Test_CRDBuildPayload(t *testing.T) {
 		Annotations: testAnnotations,
 	}
 
-	payload := cmf.buildPayload(expectedClusterUID, crdInstance)
+	payload := cmf.buildPayload(crdInstance)
 
 	// Verify payload is valid JSON
 	if len(payload) == 0 {
@@ -170,12 +171,14 @@ func Test_CRDBuildPayload(t *testing.T) {
 
 // Test that hash-based change detection works correctly
 func Test_CRDCacheDetection(t *testing.T) {
+	client := newFakeClientWithKubeSystem("test-cluster-uid-12345")
+
 	cmf := NewCRDMetadataForwarder(
 		zap.New(zap.UseDevMode(true)),
-		nil,
+		client,
 		"v1.28.0",
 		"v1.19.0",
-		config.NewCredentialManager(fake.NewFakeClient()),
+		config.NewCredentialManager(client),
 		EnabledCRDKindsConfig{
 			DatadogAgentEnabled:         true,
 			DatadogAgentInternalEnabled: true,
@@ -246,12 +249,14 @@ func Test_CRDCacheDetection(t *testing.T) {
 
 // Test that cache cleanup works correctly
 func Test_CRDCacheCleanup(t *testing.T) {
+	client := newFakeClientWithKubeSystem("test-cluster-uid-12345")
+
 	cmf := NewCRDMetadataForwarder(
 		zap.New(zap.UseDevMode(true)),
-		nil,
+		client,
 		"v1.28.0",
 		"v1.19.0",
-		config.NewCredentialManager(fake.NewFakeClient()),
+		config.NewCredentialManager(client),
 		EnabledCRDKindsConfig{DatadogAgentEnabled: true},
 	)
 
@@ -294,12 +299,14 @@ func Test_CRDCacheCleanup(t *testing.T) {
 
 // Test that per-kind error handling preserves cache correctly
 func Test_CRDPerKindErrorHandling(t *testing.T) {
+	client := newFakeClientWithKubeSystem("test-cluster-uid-12345")
+
 	cmf := NewCRDMetadataForwarder(
 		zap.New(zap.UseDevMode(true)),
-		nil,
+		client,
 		"v1.28.0",
 		"v1.19.0",
-		config.NewCredentialManager(fake.NewFakeClient()),
+		config.NewCredentialManager(client),
 		EnabledCRDKindsConfig{
 			DatadogAgentEnabled:         true,
 			DatadogAgentInternalEnabled: true,

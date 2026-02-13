@@ -588,9 +588,11 @@ func setupErrorf(_ logr.Logger, err error, msg string, keysAndValues ...any) err
 
 func setupAndStartOperatorMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options, credsManager *config.CredentialManager) {
 	omf := metadata.NewOperatorMetadataForwarder(logger, client, kubernetesVersion, version.GetVersion(), credsManager)
+	if omf == nil {
+		logger.Error(fmt.Errorf("operator metadata forwarder initialization failed"), "Continuing without metadata forwarding")
+		return
+	}
 	omf.OperatorMetadata = metadata.OperatorMetadata{
-		OperatorVersion:               version.GetVersion(),
-		KubernetesVersion:             kubernetesVersion,
 		InstallMethodTool:             "datadog-operator",
 		InstallMethodToolVersion:      version.GetVersion(),
 		IsLeader:                      true,
@@ -626,10 +628,18 @@ func setupAndStartCRDMetadataForwarder(logger logr.Logger, client client.Reader,
 			DatadogAgentProfileEnabled:  options.datadogAgentProfileEnabled,
 		},
 	)
+	if cmf == nil {
+		logger.Error(fmt.Errorf("CRD metadata forwarder initialization failed"), "Continuing without metadata forwarding")
+		return
+	}
 	cmf.Start()
 }
 
 func setupAndStartHelmMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, credsManager *config.CredentialManager) {
 	hmf := metadata.NewHelmMetadataForwarder(logger, client, kubernetesVersion, version.GetVersion(), credsManager)
+	if hmf == nil {
+		logger.Error(fmt.Errorf("helm metadata forwarder initialization failed"), "Continuing without metadata forwarding")
+		return
+	}
 	hmf.Start()
 }
