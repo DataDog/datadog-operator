@@ -58,7 +58,7 @@ func TestNewDatadogPodAutoscalerFromV1Alpha1(t *testing.T) {
 			},
 			Constraints: &common.DatadogPodAutoscalerConstraints{
 				MinReplicas: utils.NewPointer[int32](1),
-				MaxReplicas: 10,
+				MaxReplicas: utils.NewPointer[int32](10),
 				Containers: []common.DatadogPodAutoscalerContainerConstraints{
 					{
 						Name:    "foo",
@@ -126,7 +126,7 @@ func TestNewDatadogPodAutoscalerFromV1Alpha1(t *testing.T) {
 			},
 			Constraints: &common.DatadogPodAutoscalerConstraints{
 				MinReplicas: utils.NewPointer[int32](1),
-				MaxReplicas: 10,
+				MaxReplicas: utils.NewPointer[int32](10),
 				Containers: []common.DatadogPodAutoscalerContainerConstraints{
 					{
 						Name:    "foo",
@@ -199,7 +199,7 @@ func TestNewDatadogPodAutoscalerToV1Alpha1(t *testing.T) {
 			},
 			Constraints: &common.DatadogPodAutoscalerConstraints{
 				MinReplicas: utils.NewPointer[int32](1),
-				MaxReplicas: 10,
+				MaxReplicas: utils.NewPointer[int32](10),
 				Containers: []common.DatadogPodAutoscalerContainerConstraints{
 					{
 						Name:    "foo",
@@ -267,7 +267,7 @@ func TestNewDatadogPodAutoscalerToV1Alpha1(t *testing.T) {
 			},
 			Constraints: &common.DatadogPodAutoscalerConstraints{
 				MinReplicas: utils.NewPointer[int32](1),
-				MaxReplicas: 10,
+				MaxReplicas: utils.NewPointer[int32](10),
 				Containers: []common.DatadogPodAutoscalerContainerConstraints{
 					{
 						Name:    "foo",
