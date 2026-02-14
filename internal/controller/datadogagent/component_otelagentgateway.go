@@ -39,8 +39,8 @@ func (c *OtelAgentGatewayComponent) Name() datadoghqv2alpha1.ComponentName {
 }
 
 // IsEnabled checks if the OtelAgentGateway component should be reconciled
-func (c *OtelAgentGatewayComponent) IsEnabled(requiredComponents feature.RequiredComponents) bool {
-	return requiredComponents.OtelAgentGateway.IsEnabled()
+func (c *OtelAgentGatewayComponent) IsEnabled(requiredComponents feature.RequiredComponents, overrides map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride) (enabled bool, conflict bool) {
+	return checkComponentEnabledWithOverride(c.Name(), requiredComponents.OtelAgentGateway.IsEnabled(), overrides)
 }
 
 // GetConditionType returns the condition type for status updates

@@ -39,8 +39,8 @@ func (c *ClusterAgentComponent) Name() datadoghqv2alpha1.ComponentName {
 }
 
 // IsEnabled checks if the Cluster Agent component should be reconciled
-func (c *ClusterAgentComponent) IsEnabled(requiredComponents feature.RequiredComponents) bool {
-	return requiredComponents.ClusterAgent.IsEnabled()
+func (c *ClusterAgentComponent) IsEnabled(requiredComponents feature.RequiredComponents, overrides map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride) (enabled bool, conflict bool) {
+	return checkComponentEnabledWithOverride(c.Name(), requiredComponents.ClusterAgent.IsEnabled(), overrides)
 }
 
 // GetConditionType returns the condition type for status updates

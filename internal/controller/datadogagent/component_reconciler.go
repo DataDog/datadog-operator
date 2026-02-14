@@ -26,13 +26,51 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
+// checkComponentEnabledWithOverride is a helper function that determines if a component is enabled
+// based on both feature requirements and override settings. This is the default logic used by most components.
+// Returns (enabled, conflict) where:
+//   - enabled=true, conflict=false: component should be reconciled normally
+//   - enabled=true, conflict=true: component enabled in features but disabled via override (cleanup with conflict status)
+//   - enabled=false, conflict=true: component disabled in features but has override config (cleanup with conflict status)
+//   - enabled=false, conflict=false: component disabled (cleanup without conflict status)
+func checkComponentEnabledWithOverride(
+	componentName datadoghqv2alpha1.ComponentName,
+	componentRequired bool,
+	overrides map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride,
+) (enabled bool, conflict bool) {
+	// Check if there's an override for this component
+	if componentOverride, ok := overrides[componentName]; ok {
+		// If override explicitly disables the component
+		if apiutils.BoolValue(componentOverride.Disabled) {
+			// Conflict: component is enabled in features but disabled via override
+			if componentRequired {
+				return false, true
+			}
+			// No conflict: both features and override disable it
+			return false, false
+		}
+		// Override exists with configuration but doesn't disable
+		// If component is disabled in features, this is a conflict (user trying to configure disabled component)
+		if !componentRequired {
+			return false, true
+		}
+	}
+
+	// No override or override doesn't disable: use feature setting
+	return componentRequired, false
+}
+
 // ComponentReconciler defines the interface that all deployment/daemonset components must implement
 type ComponentReconciler interface {
 	// Name returns the component name (e.g., "clusterAgent", "clusterChecksRunner")
 	Name() datadoghqv2alpha1.ComponentName
 
-	// IsEnabled checks if this component should be reconciled based on requiredComponents
-	IsEnabled(requiredComponents feature.RequiredComponents) bool
+	// IsEnabled checks if this component should be reconciled based on requiredComponents and override settings
+	// Returns (enabled, conflict) where:
+	//   - enabled=true, conflict=false: component should be reconciled normally
+	//   - enabled=true, conflict=true: component enabled in features but disabled via override (cleanup with conflict status)
+	//   - enabled=false, conflict=*: component disabled (cleanup without conflict status if conflict=false)
+	IsEnabled(requiredComponents feature.RequiredComponents, overrides map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride) (enabled bool, conflict bool)
 
 	// GetConditionType returns the condition type used for status updates
 	GetConditionType() string
@@ -95,7 +133,32 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 	var result reconcile.Result
 
 	for _, comp := range r.components {
-		res, err := r.reconcileComponent(ctx, params, comp)
+		// Check if component is enabled and if there's a conflict
+		enabled, conflict := comp.IsEnabled(params.RequiredComponents, params.DDA.Spec.Override)
+
+		var res reconcile.Result
+		var err error
+
+		if !enabled {
+			// Component is disabled, clean it up
+			if conflict {
+				// Set conflict status condition
+				condition.UpdateDatadogAgentStatusConditions(
+					params.Status,
+					metav1.NewTime(time.Now()),
+					common.OverrideReconcileConflictConditionType,
+					metav1.ConditionTrue,
+					"OverrideConflict",
+					fmt.Sprintf("%s component is set to disabled", comp.Name()),
+					true,
+				)
+			}
+			res, err = r.Cleanup(ctx, params, comp)
+		} else {
+			// Component is enabled, reconcile it
+			res, err = r.reconcileComponent(ctx, params, comp)
+		}
+
 		if utils.ShouldReturn(res, err) {
 			return res, err
 		}
@@ -135,34 +198,15 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 		return result, err
 	}
 
-	// The requiredComponents can change depending on if updates to features result in disabled components
-	componentEnabled := component.IsEnabled(params.RequiredComponents)
-
+	// Check for force delete (e.g., CCR when ClusterAgent is disabled)
 	if component.ForceDeleteComponent(params.DDA, component.Name(), params.RequiredComponents) {
 		return r.Cleanup(ctx, params, component)
 	}
 
-	// If Override is defined for the component, apply the override on the PodTemplateSpec, it will cascade to container.
+	// Apply override if defined for the component
 	if componentOverride, ok := params.DDA.Spec.Override[component.Name()]; ok {
-		if apiutils.BoolValue(componentOverride.Disabled) {
-			if componentEnabled {
-				// The override supersedes what's set in requiredComponents; update status to reflect the conflict
-				condition.UpdateDatadogAgentStatusConditions(
-					params.Status,
-					metav1.NewTime(time.Now()),
-					common.OverrideReconcileConflictConditionType,
-					metav1.ConditionTrue,
-					"OverrideConflict",
-					fmt.Sprintf("%s component is set to disabled", component.Name()),
-					true,
-				)
-			}
-			return r.Cleanup(ctx, params, component)
-		}
-		override.PodTemplateSpec(params.Logger, podManagers, componentOverride, component.Name(), params.DDA.Name)
+		override.PodTemplateSpec(deploymentLogger, podManagers, componentOverride, component.Name(), params.DDA.Name)
 		override.Deployment(deployment, componentOverride)
-	} else if !componentEnabled {
-		return r.Cleanup(ctx, params, component)
 	}
 
 	if r.reconciler.options.IntrospectionEnabled {

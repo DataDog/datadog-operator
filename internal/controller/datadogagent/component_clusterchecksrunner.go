@@ -41,8 +41,8 @@ func (c *ClusterChecksRunnerComponent) Name() datadoghqv2alpha1.ComponentName {
 
 // IsEnabled checks if the ClusterChecksRunner component should be reconciled
 // CCR requires the Cluster Agent to be enabled as well
-func (c *ClusterChecksRunnerComponent) IsEnabled(requiredComponents feature.RequiredComponents) bool {
-	return requiredComponents.ClusterChecksRunner.IsEnabled()
+func (c *ClusterChecksRunnerComponent) IsEnabled(requiredComponents feature.RequiredComponents, overrides map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride) (enabled bool, conflict bool) {
+	return checkComponentEnabledWithOverride(c.Name(), requiredComponents.ClusterChecksRunner.IsEnabled(), overrides)
 }
 
 // GetConditionType returns the condition type for status updates

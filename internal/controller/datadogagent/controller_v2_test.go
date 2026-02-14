@@ -32,6 +32,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -65,12 +66,12 @@ type testCase struct {
 func runTestCases(t *testing.T, tests []testCase, testFunc func(t *testing.T, tt testCase, opts ReconcilerOptions)) {
 	// Check if any test is focused
 	hasFocused := false
-	// for _, tt := range tests {
-	// 	if tt.focus {
-	// 		hasFocused = true
-	// 		break
-	// 	}
-	// }
+	for _, tt := range tests {
+		if tt.focus {
+			hasFocused = true
+			break
+		}
+	}
 
 	// Run tests
 	for _, tt := range tests {
@@ -813,6 +814,56 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 					conflictCondition = condition.GetDDAICondition(&ddai.Status, common.OverrideReconcileConflictConditionType)
 				}
 				assert.True(t, conflictCondition.Status == metav1.ConditionTrue, "OverrideReconcileConflictCondition should be true")
+			},
+		},
+		{
+			name:  "CCR override with container resources when CCR disabled in features",
+			focus: true,
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithClusterChecksEnabled(true).
+					WithClusterChecksUseCLCEnabled(false).
+					WithComponentOverride(v2alpha1.ClusterChecksRunnerComponentName, v2alpha1.DatadogAgentComponentOverride{
+						Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+							apicommon.CoreAgentContainerName: {
+								Resources: &corev1.ResourceRequirements{
+									Requests: corev1.ResourceList{
+										corev1.ResourceMemory: resource.MustParse("256Mi"),
+									},
+								},
+							},
+						},
+					}).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				dda := &v2alpha1.DatadogAgent{}
+				err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, dda)
+				assert.NoError(t, client.IgnoreNotFound(err), "Unexpected error getting resource")
+
+				// Expected behavior: CCR should NOT be created when disabled in features,
+				// even if an override is present (without explicitly setting disabled: true)
+				// The override should be ignored since the component is disabled.
+				deployment := &appsv1.Deployment{}
+				err = c.Get(context.TODO(), types.NamespacedName{
+					Namespace: resourcesNamespace,
+					Name:      fmt.Sprintf("%s-cluster-checks-runner", resourcesName),
+				}, deployment)
+
+				// CCR deployment should NOT exist when disabled in features
+				assert.True(t, apierrors.IsNotFound(err), "CCR deployment should not exist when disabled in features")
+				assert.Nil(t, dda.Status.ClusterChecksRunner, "CCR status should be nil")
+
+				// Check DDAI status if full reconciler is being used
+				ddai := &v1alpha1.DatadogAgentInternal{}
+				ddaiErr := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, ddai)
+				if ddaiErr == nil {
+					assert.Nil(t, ddai.Status.ClusterChecksRunner, "CCR status should be nil in DDAI")
+				}
 			},
 		},
 	}
