@@ -163,6 +163,18 @@ type ErrorTrackingStandalone struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
+// InjectionMode represents the injection mode for APM libraries.
+type InjectionMode string
+
+const (
+	// InjectionModeAuto lets the agent decide the best injection method.
+	InjectionModeAuto InjectionMode = "auto"
+	// InjectionModeInitContainer uses init containers for library injection.
+	InjectionModeInitContainer InjectionMode = "init_container"
+	// InjectionModeCSI uses CSI driver for library injection (experimental).
+	InjectionModeCSI InjectionMode = "csi"
+)
+
 // SingleStepInstrumentation contains the config for the namespaces to target and the library to inject.
 type SingleStepInstrumentation struct {
 	// Enabled enables injecting the Datadog APM libraries into all pods in the cluster.
@@ -200,6 +212,13 @@ type SingleStepInstrumentation struct {
 	// (Requires Cluster Agent 7.64.0+)
 	// +optional
 	Targets []SSITarget `json:"targets,omitempty"`
+
+	// InjectionMode defines the injection mode for APM libraries.
+	// Valid values are: "auto", "init_container", "csi" (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver).
+	// Default: "auto"
+	// +kubebuilder:validation:Enum=auto;init_container;csi
+	// +optional
+	InjectionMode InjectionMode `json:"injectionMode,omitempty"`
 }
 
 // SSITarget is a rule to apply the auto instrumentation to a specific workload using the pod and namespace selectors.
