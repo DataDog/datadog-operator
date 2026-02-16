@@ -1,0 +1,25 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogSLO
+metadata:
+  name: example-time-slice-slo
+  namespace: system
+spec:
+  name: example-time-slice-slo
+  description: "This is an example time-slice SLO from datadog-operator"
+  type: "time_slice"
+  timeSliceSpec:
+    timeSliceCondition:
+      comparator: "<"
+      threshold: "5.0"
+    query:
+      formulas:
+        - formula: "query1"
+      queries:
+        - dataSource: "metrics"
+          name: "query1"
+          query: "avg:system.cpu.user{*}"
+  targetThreshold: "99.0"
+  timeframe: "7d"
+  tags:
+    - "team:infrastructure"
+    - "env:prod"
