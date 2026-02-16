@@ -131,6 +131,7 @@ func (r *ComponentRegistry) Register(component ComponentReconciler) {
 // ReconcileComponents reconciles all registered components in order
 func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error) {
 	var result reconcile.Result
+	now := metav1.NewTime(time.Now())
 
 	for _, comp := range r.components {
 		// Check if component is enabled and if there's a conflict
@@ -145,7 +146,7 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 				// Set conflict status condition
 				condition.UpdateDatadogAgentStatusConditions(
 					params.Status,
-					metav1.NewTime(time.Now()),
+					now,
 					common.OverrideReconcileConflictConditionType,
 					metav1.ConditionTrue,
 					"OverrideConflict",
