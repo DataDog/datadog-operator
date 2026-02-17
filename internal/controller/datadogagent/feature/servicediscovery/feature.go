@@ -31,6 +31,7 @@ func buildFeature(*feature.Options) feature.Feature {
 
 type serviceDiscoveryFeature struct {
 	networkStatsEnabled bool
+	useSdAgent          bool
 }
 
 // ID returns the ID of the Feature
@@ -50,6 +51,8 @@ func (f *serviceDiscoveryFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.D
 		if ddaSpec.Features.ServiceDiscovery.NetworkStats != nil {
 			f.networkStatsEnabled = apiutils.BoolValue(ddaSpec.Features.ServiceDiscovery.NetworkStats.Enabled)
 		}
+
+		f.useSdAgent = apiutils.BoolValue(ddaSpec.Features.ServiceDiscovery.UseSdAgent)
 	}
 
 	return reqComp
@@ -135,6 +138,30 @@ func (f *serviceDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMa
 
 	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, socketEnvVar)
 	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, socketEnvVar)
+
+	if f.useSdAgent {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, &corev1.EnvVar{
+			Name:  DDDiscoveryUseSdAgent,
+			Value: "true",
+		})
+
+		// Override system-probe command with sd-agent wrapper (runtime fallback if binary missing)
+		for i := range managers.PodTemplateSpec().Spec.Containers {
+			c := &managers.PodTemplateSpec().Spec.Containers[i]
+			if c.Name == string(apicommon.SystemProbeContainerName) {
+				c.Command = []string{"/bin/sh", "-c"}
+				c.Args = []string{
+					"if [ -x /opt/datadog-agent/embedded/bin/sd-agent ]; then " +
+						"exec /opt/datadog-agent/embedded/bin/sd-agent -- " +
+						"/opt/datadog-agent/embedded/bin/system-probe " +
+						"--config=/etc/datadog-agent/system-probe.yaml; " +
+						"else exec system-probe " +
+						"--config=/etc/datadog-agent/system-probe.yaml; fi",
+				}
+				break
+			}
+		}
+	}
 
 	return nil
 }

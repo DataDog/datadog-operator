@@ -8,4 +8,5 @@ package servicediscovery
 const (
 	DDServiceDiscoveryEnabled             = "DD_DISCOVERY_ENABLED"
 	DDServiceDiscoveryNetworkStatsEnabled = "DD_DISCOVERY_NETWORK_STATS_ENABLED"
+	DDDiscoveryUseSdAgent                 = "DD_DISCOVERY_USE_SD_AGENT"
 )
