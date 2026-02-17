@@ -44,6 +44,42 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 		ddaServiceDiscoveryEnabledWithNetStats.Spec.Features.ServiceDiscovery.NetworkStats.Enabled = apiutils.NewBoolPointer(true)
 	}
 
+	ddaWithNPM := v2alpha1.DatadogAgent{
+		Spec: v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
+					Enabled: apiutils.NewBoolPointer(true),
+				},
+				NPM: &v2alpha1.NPMFeatureConfig{
+					Enabled: apiutils.NewBoolPointer(true),
+				},
+			},
+		},
+	}
+
+	ddaWithCWS := v2alpha1.DatadogAgent{
+		Spec: v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
+					Enabled: apiutils.NewBoolPointer(true),
+				},
+				CWS: &v2alpha1.CWSFeatureConfig{
+					Enabled: apiutils.NewBoolPointer(true),
+				},
+			},
+		},
+	}
+
+	ddaEnabledByDefault := v2alpha1.DatadogAgent{
+		Spec: v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
+					EnabledByDefault: apiutils.NewBoolPointer(true),
+				},
+			},
+		},
+	}
+
 	tests := test.FeatureTestSuite{
 		{
 			Name:          "service discovery not enabled",
@@ -54,17 +90,150 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 			Name:          "service discovery enabled - no network stats",
 			DDA:           ddaServiceDiscoveryEnabledNoNetStats,
 			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(getWantFunc(noNetStats)),
+			Agent: test.NewDefaultComponentTest().
+				WithCreateFunc(createFuncWithSystemProbeContainer()).
+				WithWantFunc(getWantFunc(noNetStats, true, true)),
 		},
 		{
 			Name:          "service discovery enabled - with network stats",
 			DDA:           ddaServiceDiscoveryEnabledWithNetStats,
 			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(getWantFunc(withNetStats)),
+			Agent: test.NewDefaultComponentTest().
+				WithCreateFunc(createFuncWithSystemProbeContainer()).
+				WithWantFunc(getWantFunc(withNetStats, true, true)),
+		},
+		{
+			Name:          "system-probe-lite not used when NPM also enabled",
+			DDA:           &ddaWithNPM,
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().
+				WithCreateFunc(createFuncWithSystemProbeContainer()).
+				WithWantFunc(getWantFunc(withNetStats, false, true)),
+		},
+		{
+			Name:          "system-probe-lite not used when CWS also enabled",
+			DDA:           &ddaWithCWS,
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().
+				WithCreateFunc(createFuncWithSystemProbeContainer()).
+				WithWantFunc(getWantFunc(withNetStats, false, true)),
+		},
+		{
+			Name:          "system-probe-lite enabled by default - no system-probe fallback",
+			DDA:           &ddaEnabledByDefault,
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().
+				WithCreateFunc(createFuncWithSystemProbeContainer()).
+				WithWantFunc(getWantFunc(withNetStats, true, false)),
 		},
 	}
 
 	tests.Run(t, buildFeature)
+}
+
+func Test_hasOtherSystemProbeFeatures(t *testing.T) {
+	tests := []struct {
+		name     string
+		features *v2alpha1.DatadogFeatures
+		want     bool
+	}{
+		{
+			name:     "nil features",
+			features: nil,
+			want:     false,
+		},
+		{
+			name:     "no other features",
+			features: &v2alpha1.DatadogFeatures{},
+			want:     false,
+		},
+		{
+			name: "NPM enabled",
+			features: &v2alpha1.DatadogFeatures{
+				NPM: &v2alpha1.NPMFeatureConfig{Enabled: apiutils.NewBoolPointer(true)},
+			},
+			want: true,
+		},
+		{
+			name: "CWS enabled",
+			features: &v2alpha1.DatadogFeatures{
+				CWS: &v2alpha1.CWSFeatureConfig{Enabled: apiutils.NewBoolPointer(true)},
+			},
+			want: true,
+		},
+		{
+			name: "USM enabled",
+			features: &v2alpha1.DatadogFeatures{
+				USM: &v2alpha1.USMFeatureConfig{Enabled: apiutils.NewBoolPointer(true)},
+			},
+			want: true,
+		},
+		{
+			name: "OOMKill enabled",
+			features: &v2alpha1.DatadogFeatures{
+				OOMKill: &v2alpha1.OOMKillFeatureConfig{Enabled: apiutils.NewBoolPointer(true)},
+			},
+			want: true,
+		},
+		{
+			name: "TCPQueueLength enabled",
+			features: &v2alpha1.DatadogFeatures{
+				TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{Enabled: apiutils.NewBoolPointer(true)},
+			},
+			want: true,
+		},
+		{
+			name: "EBPFCheck enabled",
+			features: &v2alpha1.DatadogFeatures{
+				EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{Enabled: apiutils.NewBoolPointer(true)},
+			},
+			want: true,
+		},
+		{
+			name: "CSPM enabled with RunInSystemProbe",
+			features: &v2alpha1.DatadogFeatures{
+				CSPM: &v2alpha1.CSPMFeatureConfig{
+					Enabled:          apiutils.NewBoolPointer(true),
+					RunInSystemProbe: apiutils.NewBoolPointer(true),
+				},
+			},
+			want: true,
+		},
+		{
+			name: "CSPM enabled without RunInSystemProbe",
+			features: &v2alpha1.DatadogFeatures{
+				CSPM: &v2alpha1.CSPMFeatureConfig{
+					Enabled: apiutils.NewBoolPointer(true),
+				},
+			},
+			want: false,
+		},
+		{
+			name: "GPU enabled with PrivilegedMode",
+			features: &v2alpha1.DatadogFeatures{
+				GPU: &v2alpha1.GPUFeatureConfig{
+					Enabled:        apiutils.NewBoolPointer(true),
+					PrivilegedMode: apiutils.NewBoolPointer(true),
+				},
+			},
+			want: true,
+		},
+		{
+			name: "GPU enabled without PrivilegedMode",
+			features: &v2alpha1.DatadogFeatures{
+				GPU: &v2alpha1.GPUFeatureConfig{
+					Enabled: apiutils.NewBoolPointer(true),
+				},
+			},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, hasOtherSystemProbeFeatures(tt.features))
+		})
+	}
 }
 
 const (
@@ -72,7 +241,25 @@ const (
 	withNetStats = true
 )
 
-func getWantFunc(withNetStats bool) func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+func createFuncWithSystemProbeContainer() func(testing.TB) (feature.PodTemplateManagers, string) {
+	return func(t testing.TB) (feature.PodTemplateManagers, string) {
+		newPTS := corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name: string(apicommon.CoreAgentContainerName),
+					},
+					{
+						Name: string(apicommon.SystemProbeContainerName),
+					},
+				},
+			},
+		}
+		return fake.NewPodTemplateManagers(t, newPTS), ""
+	}
+}
+
+func getWantFunc(withNetStats bool, useSPL bool, userOptedIn bool) func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 
@@ -200,7 +387,6 @@ func getWantFunc(withNetStats bool) func(t testing.TB, mgrInterface feature.PodT
 			},
 		}
 
-		// check env vars
 		wantSPEnvVars := []*corev1.EnvVar{
 			{
 				Name:  DDServiceDiscoveryEnabled,
@@ -221,6 +407,20 @@ func getWantFunc(withNetStats bool) func(t testing.TB, mgrInterface feature.PodT
 
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
 		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, wantSPEnvVars), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, wantSPEnvVars))
+
+		// check system-probe container command override
+		for _, c := range mgr.PodTemplateSpec().Spec.Containers {
+			if c.Name == string(apicommon.SystemProbeContainerName) {
+				if useSPL {
+					assert.Equal(t, []string{"/bin/sh", "-c"}, c.Command, "System Probe command should be overridden for system-probe-lite")
+					assert.Equal(t, []string{systemProbeLiteCommand(common.DefaultSystemProbeSocketPath, userOptedIn)}, c.Args, "System Probe args mismatch")
+				} else {
+					assert.Empty(t, c.Command, "System Probe command should not be overridden")
+					assert.Empty(t, c.Args, "System Probe args should not be overridden")
+				}
+				break
+			}
+		}
 	}
 }
 

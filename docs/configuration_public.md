@@ -384,6 +384,9 @@ spec:
 `features.serviceDiscovery.enabled`
 : Enables the service discovery check. Default: false
 
+`features.serviceDiscovery.enabledByDefault`
+: EnabledByDefault is set by the operator when it enables this feature via default configuration, as opposed to an explicit user choice. When true, the system-probe binary is not used as a fallback if system-probe-lite is unavailable — the container falls back to sleep infinity instead, to avoid unexpected resource usage on older agent images. This field is managed by the operator and should not be set by users.
+
 `features.serviceDiscovery.networkStats.enabled`
 : Enables the Service Discovery Network Stats feature. Default: true
 

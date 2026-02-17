@@ -42,6 +42,7 @@ const (
 	defaultGPUMonitoringEnabled bool = false
 
 	defaultServiceDiscoveryEnabled             bool = false
+	defaultServiceDiscoveryEnabledByDefault    bool = false
 	defaultServiceDiscoveryNetworkStatsEnabled bool = true
 
 	defaultAPMEnabled                   bool   = true
@@ -304,8 +305,9 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		ddaSpec.Features.ServiceDiscovery = &v2alpha1.ServiceDiscoveryFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ServiceDiscovery.Enabled, defaultServiceDiscoveryEnabled)
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ServiceDiscovery.EnabledByDefault, defaultServiceDiscoveryEnabledByDefault)
 
-	if *ddaSpec.Features.ServiceDiscovery.Enabled {
+	if *ddaSpec.Features.ServiceDiscovery.Enabled || *ddaSpec.Features.ServiceDiscovery.EnabledByDefault {
 		if ddaSpec.Features.ServiceDiscovery.NetworkStats == nil {
 			ddaSpec.Features.ServiceDiscovery.NetworkStats = &v2alpha1.ServiceDiscoveryNetworkStatsConfig{}
 		}
