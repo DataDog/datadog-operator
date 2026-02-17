@@ -58,6 +58,11 @@ func (in *DatadogPodAutoscalerConstraints) DeepCopyInto(out *DatadogPodAutoscale
 		*out = new(int32)
 		**out = **in
 	}
+	if in.MaxReplicas != nil {
+		in, out := &in.MaxReplicas, &out.MaxReplicas
+		*out = new(int32)
+		**out = **in
+	}
 	if in.Containers != nil {
 		in, out := &in.Containers, &out.Containers
 		*out = make([]DatadogPodAutoscalerContainerConstraints, len(*in))
@@ -89,6 +94,30 @@ func (in *DatadogPodAutoscalerContainerConstraints) DeepCopyInto(out *DatadogPod
 		in, out := &in.Requests, &out.Requests
 		*out = new(DatadogPodAutoscalerContainerResourceConstraints)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.MinAllowed != nil {
+		in, out := &in.MinAllowed, &out.MinAllowed
+		*out = make(v1.ResourceList, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val.DeepCopy()
+		}
+	}
+	if in.MaxAllowed != nil {
+		in, out := &in.MaxAllowed, &out.MaxAllowed
+		*out = make(v1.ResourceList, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val.DeepCopy()
+		}
+	}
+	if in.ControlledResources != nil {
+		in, out := &in.ControlledResources, &out.ControlledResources
+		*out = make([]v1.ResourceName, len(*in))
+		copy(*out, *in)
+	}
+	if in.ControlledValues != nil {
+		in, out := &in.ControlledValues, &out.ControlledValues
+		*out = new(DatadogPodAutoscalerContainerControlledValues)
+		**out = **in
 	}
 }
 

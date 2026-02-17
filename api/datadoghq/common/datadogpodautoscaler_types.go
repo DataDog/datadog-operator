@@ -152,7 +152,7 @@ type DatadogPodAutoscalerObjective struct {
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerPodResourceObjective struct {
 	// Name is the name of the resource.
-	// +kubebuilder:validation:Enum:=cpu
+	// +kubebuilder:validation:Enum:=cpu;memory
 	Name corev1.ResourceName `json:"name"`
 
 	// Value is the value of the objective.
@@ -163,7 +163,7 @@ type DatadogPodAutoscalerPodResourceObjective struct {
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerContainerResourceObjective struct {
 	// Name is the name of the resource.
-	// +kubebuilder:validation:Enum:=cpu
+	// +kubebuilder:validation:Enum:=cpu;memory
 	Name corev1.ResourceName `json:"name"`
 
 	// Value is the value of the objective
@@ -332,11 +332,23 @@ type DatadogPodAutoscalerConstraints struct {
 	MinReplicas *int32 `json:"minReplicas,omitempty"`
 
 	// MaxReplicas is the upper limit for the number of POD replicas. Needs to be >= minReplicas.
-	MaxReplicas int32 `json:"maxReplicas"`
+	// +kubebuilder:validation:Minimum=1
+	MaxReplicas *int32 `json:"maxReplicas,omitempty"`
 
 	// Containers defines constraints for the containers.
+	// +patchMergeKey=name
+	// +patchStrategy=merge
 	Containers []DatadogPodAutoscalerContainerConstraints `json:"containers,omitempty"`
 }
+
+// DatadogPodAutoscalerContainerControlledValues specifies which resource values should be controlled.
+// +kubebuilder:validation:Enum:=RequestsAndLimits;RequestsOnly
+type DatadogPodAutoscalerContainerControlledValues string
+
+const (
+	DatadogPodAutoscalerContainerControlledValuesRequestsAndLimits DatadogPodAutoscalerContainerControlledValues = "RequestsAndLimits"
+	DatadogPodAutoscalerContainerControlledValuesRequestsOnly      DatadogPodAutoscalerContainerControlledValues = "RequestsOnly"
+)
 
 // DatadogPodAutoscalerContainerConstraints defines constraints that should always be respected for a container.
 // If no constraints are set, it enables resource scaling for all containers without any constraints.
@@ -349,7 +361,27 @@ type DatadogPodAutoscalerContainerConstraints struct {
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// Requests defines the constraints for the requests of the container.
+	// WARNING: Deprecated
+	// +deprecated: use MinAllowed and MaxAllowed instead
 	Requests *DatadogPodAutoscalerContainerResourceConstraints `json:"requests,omitempty"`
+
+	// MinAllowed is the lower limit for the requests of the container.
+	// +optional
+	MinAllowed corev1.ResourceList `json:"minAllowed,omitempty"`
+
+	// MaxAllowed is the upper limit for the requests of the container.
+	// +optional
+	MaxAllowed corev1.ResourceList `json:"maxAllowed,omitempty"`
+
+	// Specifies the resources for which recommendations will be computed.
+	// If not specified, it defaults to CPU and Memory.
+	// If an empty list is provided, no resource will be controlled (equivalent to Enabled=false).
+	// +patchStrategy=merge
+	ControlledResources []corev1.ResourceName `json:"controlledResources,omitempty"`
+
+	// Specifies whether recommendations are made to Requests and Limits (RequestsAndLimits) or Requests only (RequestsOnly).
+	// The default is "RequestsAndLimits".
+	ControlledValues *DatadogPodAutoscalerContainerControlledValues `json:"controlledValues,omitempty"`
 }
 
 // DatadogPodAutoscalerContainerResourceConstraints defines constraints for the resources recommended for a container.
@@ -563,6 +595,9 @@ const (
 
 	// DatadogPodAutoscalerVerticalAbleToApply is true when the targetRef can be rolled out to pick up new resources.
 	DatadogPodAutoscalerVerticalAbleToApply DatadogPodAutoscalerConditionType = "VerticalAbleToApply"
+
+	// DatadogPodAutoscalerVerticalScalingLimitedCondition is true when vertical scaling is limited by constraints.
+	DatadogPodAutoscalerVerticalScalingLimitedCondition DatadogPodAutoscalerConditionType = "VerticalScalingLimited"
 )
 
 // DatadogPodAutoscalerCondition describes the state of DatadogPodAutoscaler.
