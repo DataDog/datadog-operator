@@ -8,6 +8,7 @@ package datadogagentinternal
 import (
 	"context"
 	"fmt"
+	"maps"
 	"time"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -21,9 +22,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -39,9 +42,7 @@ type updateDepStatusComponentFunc func(deployment *appsv1.Deployment, newStatus 
 type updateDSStatusComponentFunc func(daemonsetName string, daemonset *appsv1.DaemonSet, newStatus *v1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
 type updateEDSStatusComponentFunc func(eds *edsv1alpha1.ExtendedDaemonSet, newStatus *v1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
 
-func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, deployment *appsv1.Deployment, newStatus *v1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateDepStatusComponentFunc) (reconcile.Result, error) {
-	logger := parentLogger.WithValues("deployment.Namespace", deployment.Namespace, "deployment.Name", deployment.Name)
-
+func (r *Reconciler) createOrUpdateDeployment(logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, deployment *appsv1.Deployment, newStatus *v1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateDepStatusComponentFunc) (reconcile.Result, error) {
 	var result reconcile.Result
 	var err error
 
@@ -96,6 +97,14 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, ddai *v1
 			}
 			logger.Info("Deployment owner reference patched")
 		}
+
+		if restartDeployment(deployment, currentDeployment) {
+			if err = deleteObjectAndOrphanDependents(context.TODO(), logger, r.client, deployment, deployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
+				return result, err
+			}
+			return result, nil
+		}
+
 		// check if same hash
 		needUpdate := !comparison.IsSameSpecMD5Hash(hash, currentDeployment.GetAnnotations())
 		if !needUpdate {
@@ -145,9 +154,7 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, ddai *v1
 	return result, err
 }
 
-func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, daemonset *appsv1.DaemonSet, newStatus *v1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateDSStatusComponentFunc) (reconcile.Result, error) {
-	logger := parentLogger.WithValues("daemonset.Namespace", daemonset.Namespace, "daemonset.Name", daemonset.Name)
-
+func (r *Reconciler) createOrUpdateDaemonset(logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, daemonset *appsv1.DaemonSet, newStatus *v1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateDSStatusComponentFunc) (reconcile.Result, error) {
 	var result reconcile.Result
 	var err error
 
@@ -195,6 +202,14 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, ddai *v1a
 			}
 			logger.Info("Daemonset owner reference patched")
 		}
+
+		if restartDaemonset(daemonset, currentDaemonset) {
+			if err = deleteObjectAndOrphanDependents(context.TODO(), logger, r.client, daemonset, constants.DefaultAgentResourceSuffix); err != nil {
+				return result, err
+			}
+			return result, nil
+		}
+
 		now := metav1.Now()
 
 		// When overriding node labels in <1.7.0, the hash could be updated
@@ -292,9 +307,7 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, ddai *v1a
 	return result, err
 }
 
-func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, eds *edsv1alpha1.ExtendedDaemonSet, newStatus *v1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateEDSStatusComponentFunc) (reconcile.Result, error) {
-	logger := parentLogger.WithValues("ExtendedDaemonSet.Namespace", eds.Namespace, "ExtendedDaemonSet.Name", eds.Name)
-
+func (r *Reconciler) createOrUpdateExtendedDaemonset(logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, eds *edsv1alpha1.ExtendedDaemonSet, newStatus *v1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateEDSStatusComponentFunc) (reconcile.Result, error) {
 	var result reconcile.Result
 	var err error
 
@@ -442,4 +455,32 @@ func IsEqualStatus(current *v1alpha1.DatadogAgentInternalStatus, newStatus *v1al
 	}
 
 	return condition.IsEqualConditions(current.Conditions, newStatus.Conditions)
+}
+
+func restartDaemonset(daemonset, currentDaemonset *appsv1.DaemonSet) bool {
+	// name change
+	if daemonset.Name != currentDaemonset.Name {
+		return true
+	}
+
+	// selectors are immutable
+	if !maps.Equal(daemonset.Spec.Selector.MatchLabels, currentDaemonset.Spec.Selector.MatchLabels) {
+		return true
+	}
+
+	return false
+}
+
+func restartDeployment(deployment, currentDeployment *appsv1.Deployment) bool {
+	// name change
+	if deployment.Name != currentDeployment.Name {
+		return true
+	}
+
+	// selectors are immutable
+	if !maps.Equal(deployment.Spec.Selector.MatchLabels, currentDeployment.Spec.Selector.MatchLabels) {
+		return true
+	}
+
+	return false
 }

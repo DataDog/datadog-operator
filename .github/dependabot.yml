@@ -5,14 +5,24 @@
 
 version: 2
 updates:
-  - package-ecosystem: "github-actions"
-    directory: "/"
+  - package-ecosystem: github-actions
+    directory: /
     schedule:
-      interval: "monthly"
+      interval: weekly
     labels:
       - tooling
       - qa/skip-qa
-    groups:
-      gh-actions-packages:
-        patterns:
-          - "*"
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - qa/skip-qa
+  - package-ecosystem: gomod
+    directory: /test/e2e
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - qa/skip-qa

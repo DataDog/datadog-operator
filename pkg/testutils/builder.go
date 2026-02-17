@@ -502,8 +502,8 @@ func (builder *DatadogAgentBuilder) WithOTelAgentGatewayConfigMapMultipleItems()
 		Name: "user-provided-config-map",
 		Items: []corev1.KeyToPath{
 			{
-				Key:  "otel-config.yaml",
-				Path: "otel-config.yaml",
+				Key:  "otel-gateway-config.yaml",
+				Path: "otel-gateway-config.yaml",
 			},
 			{
 				Key:  "otel-config-two.yaml",
@@ -527,6 +527,12 @@ func (builder *DatadogAgentBuilder) WithOTelAgentGatewayPorts(grpcPort int32, ht
 			Protocol:      corev1.ProtocolTCP,
 		},
 	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTelAgentGatewayFeatureGates(featureGates string) *DatadogAgentBuilder {
+	builder.initOtelAgentGateway()
+	builder.datadogAgent.Spec.Features.OtelAgentGateway.FeatureGates = &featureGates
 	return builder
 }
 

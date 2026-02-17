@@ -1345,6 +1345,7 @@ spec:
                         tagCardinality:
                           description: |-
                             TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`).
+                            This setting only applies when OriginDetectionEnabled is true.
                             See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables
                             Cardinality default: low
                           type: string
@@ -1856,6 +1857,11 @@ spec:
                             CollectDNSStats enables DNS stat collection.
                             Default: false
                           type: boolean
+                        directSend:
+                          description: |-
+                            DirectSend enables CNM/USM to send data directly to the backend
+                            Default: false
+                          type: boolean
                         enableConntrack:
                           description: |-
                             EnableConntrack enables the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data.
@@ -2019,6 +2025,11 @@ spec:
                             Enabled enables the OTel Agent Gateway.
                             Default: false
                           type: boolean
+                        featureGates:
+                          description: |-
+                            FeatureGates are the feature gates to pass to the OTel collector as a comma-separated list.
+                            Example: "component.UseLocalHostAsDefaultHost,connector.datadogconnector.NativeIngest"
+                          type: string
                         ports:
                           description: |-
                             Ports contains the ports that the OTel Collector is listening on.
@@ -9389,6 +9400,7 @@ spec:
                             tagCardinality:
                               description: |-
                                 TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`).
+                                This setting only applies when OriginDetectionEnabled is true.
                                 See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables
                                 Cardinality default: low
                               type: string
@@ -9900,6 +9912,11 @@ spec:
                                 CollectDNSStats enables DNS stat collection.
                                 Default: false
                               type: boolean
+                            directSend:
+                              description: |-
+                                DirectSend enables CNM/USM to send data directly to the backend
+                                Default: false
+                              type: boolean
                             enableConntrack:
                               description: |-
                                 EnableConntrack enables the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data.
@@ -10063,6 +10080,11 @@ spec:
                                 Enabled enables the OTel Agent Gateway.
                                 Default: false
                               type: boolean
+                            featureGates:
+                              description: |-
+                                FeatureGates are the feature gates to pass to the OTel collector as a comma-separated list.
+                                Example: "component.UseLocalHostAsDefaultHost,connector.datadogconnector.NativeIngest"
+                              type: string
                             ports:
                               description: |-
                                 Ports contains the ports that the OTel Collector is listening on.

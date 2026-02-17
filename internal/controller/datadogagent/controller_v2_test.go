@@ -7,7 +7,6 @@ package datadogagent
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -19,9 +18,9 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	common "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
@@ -36,7 +35,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -45,11 +43,205 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-type fields struct {
-	client       client.Client
-	scheme       *runtime.Scheme
-	platformInfo kubernetes.PlatformInfo
-	recorder     record.EventRecorder
+type testCase struct {
+	name                 string
+	clientBuilder        *fake.ClientBuilder
+	loadFunc             func(c client.Client) *v2alpha1.DatadogAgent
+	dda                  *v2alpha1.DatadogAgent
+	nodes                []client.Object
+	want                 reconcile.Result
+	wantErr              bool
+	wantFunc             func(t *testing.T, c client.Client)
+	profile              *v1alpha1.DatadogAgentProfile // For DDAI tests
+	profilesEnabled      bool                          // For DDAI tests
+	ddaiEnabled          bool                          // For DDAI tests
+	introspectionEnabled bool                          // For introspection tests
+	focus                bool                          // For debugging: run only focused tests if any are focused
+}
+
+// runTestCases runs test cases, respecting the focus field for debugging.
+// If any test has focus=true, only focused tests run. Otherwise all tests run.
+func runTestCases(t *testing.T, tests []testCase, testFunc func(t *testing.T, tt testCase, opts ReconcilerOptions)) {
+	// Check if any test is focused
+	hasFocused := false
+	// for _, tt := range tests {
+	// 	if tt.focus {
+	// 		hasFocused = true
+	// 		break
+	// 	}
+	// }
+
+	// Run tests
+	for _, tt := range tests {
+		// Skip non-focused tests if any test is focused
+		if hasFocused && !tt.focus {
+			continue
+		}
+
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a copy of opts for this test
+			testOpts := ReconcilerOptions{
+				DatadogAgentInternalEnabled: tt.ddaiEnabled,
+				DatadogAgentProfileEnabled:  tt.profilesEnabled,
+				IntrospectionEnabled:        tt.introspectionEnabled,
+			}
+
+			testFunc(t, tt, testOpts)
+		})
+	}
+}
+
+// runDDAReconcilerTest runs test case using only the DDA reconciler
+func runDDAReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
+	t.Helper()
+
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	s := agenttestutils.TestScheme()
+
+	// Create test event recorder and forwarders
+	eventBroadcaster := record.NewBroadcaster()
+	recorder := eventBroadcaster.NewRecorder(s, corev1.EventSource{Component: "test"})
+	forwarders := dummyManager{}
+
+	c := buildClient(t, tt, s, false)
+
+	// Create reconciler
+	r := &Reconciler{
+		client:       c,
+		scheme:       s,
+		platformInfo: kubernetes.PlatformInfo{},
+		recorder:     recorder,
+		log:          logf.Log.WithName(tt.name),
+		forwarders:   forwarders,
+		options:      opts,
+	}
+	r.initializeComponentRegistry()
+
+	// Load or create DatadogAgent
+	var dda *v2alpha1.DatadogAgent
+	if tt.loadFunc != nil {
+		dda = tt.loadFunc(r.client)
+	} else if tt.dda != nil {
+		// Need deep copy to avoid mutating the original object used in other test function
+		dda = tt.dda.DeepCopy()
+		_ = r.client.Create(context.TODO(), dda)
+	}
+
+	// Run reconciliation
+	got, err := r.Reconcile(context.TODO(), dda)
+
+	// Assert on error expectation
+	if tt.wantErr {
+		assert.Error(t, err, "ReconcileDatadogAgent.Reconcile() expected an error")
+	} else {
+		assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() unexpected error: %v", err)
+	}
+
+	// Assert on reconciliation result
+	assert.Equal(t, tt.want, got, "ReconcileDatadogAgent.Reconcile() unexpected result")
+
+	// Run custom validation if provided
+	if tt.wantFunc != nil {
+		tt.wantFunc(t, r.client)
+	}
+}
+
+// runFullReconcilerTest runs test case using both DDA and DDAI reconcilers
+func runFullReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
+	t.Helper()
+
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	s := agenttestutils.TestScheme()
+
+	// Create test event recorder and forwarders
+	eventBroadcaster := record.NewBroadcaster()
+	recorder := eventBroadcaster.NewRecorder(s, corev1.EventSource{Component: "test"})
+	forwarders := dummyManager{}
+
+	opts.DatadogAgentInternalEnabled = true
+	c := buildClient(t, tt, s, true)
+
+	// Create reconciler
+	r := &Reconciler{
+		client:       c,
+		scheme:       s,
+		platformInfo: kubernetes.PlatformInfo{},
+		recorder:     recorder,
+		log:          logf.Log.WithName(tt.name),
+		forwarders:   forwarders,
+		options:      opts,
+	}
+	r.initializeComponentRegistry()
+
+	ri, err := datadogagentinternal.NewReconciler(
+		datadogagentinternal.ReconcilerOptions{},
+		c,
+		kubernetes.PlatformInfo{},
+		s,
+		recorder,
+		forwarders)
+	assert.NoError(t, err, "Failed to create datadogagentinternal reconciler")
+
+	// Load or create DatadogAgent
+	var dda *v2alpha1.DatadogAgent
+	if tt.loadFunc != nil {
+		dda = tt.loadFunc(r.client)
+	} else if tt.dda != nil {
+		// Need deep copy to avoid mutating the original object used in other test function
+		dda = tt.dda.DeepCopy()
+		_ = r.client.Create(context.TODO(), dda)
+	}
+
+	// Run reconciliation
+	ddaGot, ddaErr := r.Reconcile(context.TODO(), dda)
+	// Assert on error expectation
+	if tt.wantErr {
+		assert.Error(t, ddaErr, "ReconcileDatadogAgent.Reconcile() expected an error")
+	} else {
+		assert.NoError(t, ddaErr, "ReconcileDatadogAgent.Reconcile() unexpected error: %v", err)
+	}
+	// Assert on reconciliation result
+	assert.Equal(t, tt.want, ddaGot, "ReconcileDatadogAgent.Reconcile() unexpected result")
+
+	ddais := &v1alpha1.DatadogAgentInternalList{}
+	err = c.List(context.TODO(), ddais)
+	assert.NoError(t, err, "Failed to list datadogagentinternal")
+	assert.NotEmpty(t, ddais.Items, "Expected at least 1 ddai")
+	for i := range ddais.Items {
+		ddai := &ddais.Items[i]
+		_, ddaiErr := ri.Reconcile(context.TODO(), ddai)
+		assert.NoError(t, ddaiErr, "Failed to reconcile datadogagentinternal")
+	}
+
+	// Run custom validation if provided
+	if tt.wantFunc != nil {
+		tt.wantFunc(t, r.client)
+	}
+}
+
+func buildClient(t *testing.T, tt testCase, s *runtime.Scheme, ddaiEnabled bool) client.Client {
+	var builder *fake.ClientBuilder
+	if tt.clientBuilder != nil {
+		// Deep copy primarily to avoid adding CRD twice when running both DDA and full reconciler tests
+		copy := *tt.clientBuilder
+		builder = &copy
+	} else {
+		builder = fake.NewClientBuilder().
+			WithStatusSubresource(&appsv1.DaemonSet{}, &corev1.Node{}, &v2alpha1.DatadogAgent{})
+	}
+
+	if tt.nodes != nil {
+		builder = builder.WithObjects(tt.nodes...)
+	}
+
+	// Add DDAI CRD from file if DDAI is enabled
+	if tt.ddaiEnabled || ddaiEnabled {
+		crd, err := getDDAICRDFromConfig(s)
+		assert.NoError(t, err)
+		builder = builder.WithObjects(crd).WithStatusSubresource(&v1alpha1.DatadogAgentInternal{})
+	}
+
+	return builder.Build()
 }
 
 func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
@@ -57,32 +249,11 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 	const resourcesNamespace = "bar"
 	const dsName = "foo-agent"
 
-	eventBroadcaster := record.NewBroadcaster()
-	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgent_Reconcile"})
-	forwarders := dummyManager{}
-
-	logf.SetLogger(zap.New(zap.UseDevMode(true)))
-
-	// Register operator types with the runtime scheme.
-	s := agenttestutils.TestScheme()
-
 	defaultRequeueDuration := 15 * time.Second
 
-	tests := []struct {
-		name     string
-		fields   fields
-		loadFunc func(c client.Client) *v2alpha1.DatadogAgent
-		want     reconcile.Result
-		wantErr  bool
-		wantFunc func(c client.Client) error
-	}{
+	tests := []testCase{
 		{
 			name: "DatadogAgent default, create Daemonset with core and trace agents",
-			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
-				scheme:   s,
-				recorder: recorder,
-			},
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					Build()
@@ -91,22 +262,17 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
-			wantFunc: func(c client.Client) error {
+			wantFunc: func(t *testing.T, c client.Client) {
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 				}
 
-				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 			},
 		},
 		{
 			name: "DatadogAgent singleProcessContainer, create Daemonset with core and agents",
-			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
-				scheme:   s,
-				recorder: recorder,
-			},
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithSingleContainerStrategy(false).
@@ -116,22 +282,17 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
-			wantFunc: func(c client.Client) error {
+			wantFunc: func(t *testing.T, c client.Client) {
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 				}
 
-				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 			},
 		},
 		{
 			name: "[single container] DatadogAgent default, create Daemonset with a single container",
-			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
-				scheme:   s,
-				recorder: recorder,
-			},
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithSingleContainerStrategy(true).
@@ -141,21 +302,16 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
-			wantFunc: func(c client.Client) error {
+			wantFunc: func(t *testing.T, c client.Client) {
 				expectedContainers := []string{
 					string(apicommon.UnprivilegedSingleAgentContainerName),
 				}
 
-				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 			},
 		},
 		{
 			name: "DatadogAgent with APM enabled, create Daemonset with core and process agents",
-			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
-				scheme:   s,
-				recorder: recorder,
-			},
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithAPMEnabled(true).
@@ -166,22 +322,17 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
-			wantFunc: func(c client.Client) error {
+			wantFunc: func(t *testing.T, c client.Client) {
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 				}
 
-				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 			},
 		},
 		{
 			name: "[single container] DatadogAgent with APM enabled, create Daemonset with a single container",
-			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
-				scheme:   s,
-				recorder: recorder,
-			},
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithAPMEnabled(true).
@@ -192,21 +343,16 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
-			wantFunc: func(c client.Client) error {
+			wantFunc: func(t *testing.T, c client.Client) {
 				expectedContainers := []string{
 					string(apicommon.UnprivilegedSingleAgentContainerName),
 				}
 
-				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 			},
 		},
 		{
 			name: "DatadogAgent with APM and CWS enables, create Daemonset with four agents",
-			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
-				scheme:   s,
-				recorder: recorder,
-			},
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithAPMEnabled(true).
@@ -218,7 +364,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
-			wantFunc: func(c client.Client) error {
+			wantFunc: func(t *testing.T, c client.Client) {
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
@@ -226,16 +372,11 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 					string(apicommon.SecurityAgentContainerName),
 				}
 
-				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 			},
 		},
 		{
 			name: "[single container] DatadogAgent with APM and CWS enables, create Daemonset with four agents",
-			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
-				scheme:   s,
-				recorder: recorder,
-			},
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithAPMEnabled(true).
@@ -248,7 +389,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
-			wantFunc: func(c client.Client) error {
+			wantFunc: func(t *testing.T, c client.Client) {
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
@@ -256,16 +397,11 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 					string(apicommon.SecurityAgentContainerName),
 				}
 
-				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 			},
 		},
 		{
 			name: "DatadogAgent with APM and OOMKill enabled, create Daemonset with core, trace, and system-probe",
-			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
-				scheme:   s,
-				recorder: recorder,
-			},
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithAPMEnabled(true).
@@ -277,23 +413,39 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
-			wantFunc: func(c client.Client) error {
+			wantFunc: func(t *testing.T, c client.Client) {
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 					string(apicommon.SystemProbeContainerName),
 				}
 
-				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
+			},
+		},
+		{
+			name: "DatadogAgent with Private Action Runner enabled on node, create Daemonset with core, trace, and private-action-runner containers",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithAnnotations(map[string]string{"agent.datadoghq.com/private-action-runner-enabled": "true"}).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				expectedContainers := []string{
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+					string(apicommon.PrivateActionRunnerContainerName),
+				}
+
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 			},
 		},
 		{
 			name: "[single container] DatadogAgent with APM and OOMKill enabled, create Daemonset with core, trace, and system-probe",
-			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
-				scheme:   s,
-				recorder: recorder,
-			},
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithAPMEnabled(true).
@@ -305,23 +457,18 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
-			wantFunc: func(c client.Client) error {
+			wantFunc: func(t *testing.T, c client.Client) {
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 					string(apicommon.SystemProbeContainerName),
 				}
 
-				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 			},
 		},
 		{
 			name: "DatadogAgent with FIPS enabled",
-			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
-				scheme:   s,
-				recorder: recorder,
-			},
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				fipsConfig := v2alpha1.FIPSConfig{
 					Enabled: apiutils.NewBoolPointer(true),
@@ -334,23 +481,19 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
-			wantFunc: func(c client.Client) error {
+			wantFunc: func(t *testing.T, c client.Client) {
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 					string(apicommon.FIPSProxyContainerName),
 				}
 
-				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 			},
 		},
 		{
-			name: "DatadogAgent with PDB enabled",
-			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}, &policyv1.PodDisruptionBudget{}).Build(),
-				scheme:   s,
-				recorder: recorder,
-			},
+			name:          "DatadogAgent with PDB enabled",
+			clientBuilder: fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}, &policyv1.PodDisruptionBudget{}),
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
@@ -366,17 +509,12 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
-			wantFunc: func(c client.Client) error {
-				return verifyPDB(t, c)
+			wantFunc: func(t *testing.T, c client.Client) {
+				verifyPDB(t, c)
 			},
 		},
 		{
 			name: "DatadogAgent with override.nodeAgent.disabled true",
-			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
-				scheme:   s,
-				recorder: recorder,
-			},
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
@@ -388,21 +526,14 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
-			wantFunc: func(c client.Client) error {
+			wantFunc: func(t *testing.T, c client.Client) {
 				ds := &appsv1.DaemonSet{}
-				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds); client.IgnoreNotFound(err) != nil {
-					return err
-				}
-				return nil
+				err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds)
+				assert.NoError(t, client.IgnoreNotFound(err), "Unexpected error getting resource")
 			},
 		},
 		{
 			name: "DCA status and condition set",
-			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
-				scheme:   s,
-				recorder: recorder,
-			},
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithStatus(v2alpha1.DatadogAgentStatus{
@@ -416,25 +547,25 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
-			wantFunc: func(c client.Client) error {
+			wantFunc: func(t *testing.T, c client.Client) {
 				dda := &v2alpha1.DatadogAgent{}
-				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, dda); client.IgnoreNotFound(err) != nil {
-					return err
-				}
+				err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, dda)
+				assert.NoError(t, client.IgnoreNotFound(err), "Unexpected error getting resource")
 				assert.NotNil(t, dda.Status.ClusterAgent, "DCA status should be set")
 				assert.Equal(t, "token", dda.Status.ClusterAgent.GeneratedToken)
 				dcaCondition := condition.GetCondition(&dda.Status, common.ClusterAgentReconcileConditionType)
+				// Condition may be set in DDAI if full reconciler is used.
+				if dcaCondition == nil {
+					ddai := &v1alpha1.DatadogAgentInternal{}
+					err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, ddai)
+					assert.NoError(t, client.IgnoreNotFound(err), "Unexpected error getting resource")
+					dcaCondition = condition.GetDDAICondition(&ddai.Status, common.ClusterAgentReconcileConditionType)
+				}
 				assert.True(t, dcaCondition.Status == metav1.ConditionTrue && dcaCondition.Reason == "reconcile_succeed", "DCA status condition should be set")
-				return nil
 			},
 		},
 		{
 			name: "DCA status condition should be deleted when disabled",
-			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
-				scheme:   s,
-				recorder: recorder,
-			},
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
@@ -451,26 +582,30 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
-			wantFunc: func(c client.Client) error {
+			wantFunc: func(t *testing.T, c client.Client) {
 				dda := &v2alpha1.DatadogAgent{}
-				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, dda); client.IgnoreNotFound(err) != nil {
-					return err
-				}
+				err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, dda)
+				assert.NoError(t, client.IgnoreNotFound(err), "Unexpected error getting resource")
 				// assert.Equal(t, "token", dda.Status.ClusterAgent.GeneratedToken)
-				assert.Nil(t, dda.Status.ClusterAgent, "DCA status should be nil when cleaned up")
-				assert.Nil(t, condition.GetCondition(&dda.Status, common.ClusterAgentReconcileConditionType), "DCA status condition should be nil when cleaned up")
 				conflictCondition := condition.GetCondition(&dda.Status, common.OverrideReconcileConflictConditionType)
-				assert.True(t, conflictCondition.Status == metav1.ConditionTrue, "OverrideReconcileConflictCondition should be true")
-				return nil
+				if conflictCondition == nil {
+					// Condition will be set in DDAI if full reconciler is used.
+					ddai := &v1alpha1.DatadogAgentInternal{}
+					err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, ddai)
+					assert.NoError(t, client.IgnoreNotFound(err), "Unexpected error getting resource")
+					assert.Nil(t, ddai.Status.ClusterAgent, "DCA status should be nil when cleaned up")
+					assert.Nil(t, condition.GetDDAICondition(&ddai.Status, common.ClusterAgentReconcileConditionType), "DCA status condition should be nil when cleaned up")
+					conflictCondition = condition.GetDDAICondition(&ddai.Status, common.OverrideReconcileConflictConditionType)
+				} else {
+					// Condition will be set via DDA reconciler.
+					assert.Nil(t, dda.Status.ClusterAgent, "DCA status should be nil when cleaned up")
+					assert.Nil(t, condition.GetCondition(&dda.Status, common.ClusterAgentReconcileConditionType), "DCA status condition should be nil when cleaned up")
+					assert.True(t, conflictCondition.Status == metav1.ConditionTrue, "OverrideReconcileConflictCondition should be true")
+				}
 			},
 		},
 		{
-			name: "DCA status and condition set",
-			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
-				scheme:   s,
-				recorder: recorder,
-			},
+			name: "CLC status and condition set",
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithClusterChecksEnabled(true).
@@ -481,24 +616,30 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
-			wantFunc: func(c client.Client) error {
+			wantFunc: func(t *testing.T, c client.Client) {
 				dda := &v2alpha1.DatadogAgent{}
-				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, dda); client.IgnoreNotFound(err) != nil {
-					return err
+				err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, dda)
+				assert.NoError(t, client.IgnoreNotFound(err), "Unexpected error getting resource")
+				clcStatus := dda.Status.ClusterChecksRunner
+				var clcCondition *metav1.Condition
+				if clcStatus == nil {
+					// Condition will be set in DDAI if full reconciler is used.
+					ddai := &v1alpha1.DatadogAgentInternal{}
+					err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, ddai)
+					assert.NoError(t, client.IgnoreNotFound(err), "Unexpected error getting resource")
+					clcStatus = ddai.Status.ClusterChecksRunner
+					clcCondition = condition.GetDDAICondition(&ddai.Status, common.ClusterChecksRunnerReconcileConditionType)
+					assert.NotNil(t, clcCondition, "CLC status condition should be set")
+					assert.True(t, clcCondition.Status == metav1.ConditionTrue && clcCondition.Reason == "reconcile_succeed", "CLC status condition should be set")
+				} else {
+					// Condition will be set via DDA reconciler.
+					clcCondition = condition.GetCondition(&dda.Status, common.ClusterChecksRunnerReconcileConditionType)
+					assert.True(t, clcCondition.Status == metav1.ConditionTrue && clcCondition.Reason == "reconcile_succeed", "CLC status condition should be set")
 				}
-				assert.NotNil(t, dda.Status.ClusterChecksRunner, "CLC status should be set")
-				clcCondition := condition.GetCondition(&dda.Status, common.ClusterChecksRunnerReconcileConditionType)
-				assert.True(t, clcCondition.Status == metav1.ConditionTrue && clcCondition.Reason == "reconcile_succeed", "CLC status condition should be set")
-				return nil
 			},
 		},
 		{
-			name: "CLC status condition should be deleted when disabled",
-			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
-				scheme:   s,
-				recorder: recorder,
-			},
+			name: "CLC status condition should be set to conflict when disable via override",
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.ClusterChecksRunnerComponentName, v2alpha1.DatadogAgentComponentOverride{
@@ -512,89 +653,38 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
-			wantFunc: func(c client.Client) error {
+			wantFunc: func(t *testing.T, c client.Client) {
 				dda := &v2alpha1.DatadogAgent{}
-				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, dda); client.IgnoreNotFound(err) != nil {
-					return err
-				}
+				err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, dda)
+				assert.NoError(t, client.IgnoreNotFound(err), "Unexpected error getting resource")
 				assert.Nil(t, dda.Status.ClusterChecksRunner, "CLC status should be nil when cleaned up")
 				assert.Nil(t, condition.GetCondition(&dda.Status, common.ClusterChecksRunnerReconcileConditionType), "CLC status condition should be nil when cleaned up")
 				conflictCondition := condition.GetCondition(&dda.Status, common.OverrideReconcileConflictConditionType)
+				if conflictCondition == nil {
+					ddai := &v1alpha1.DatadogAgentInternal{}
+					err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, ddai)
+					assert.NoError(t, client.IgnoreNotFound(err), "Unexpected error getting resource")
+					conflictCondition = condition.GetDDAICondition(&ddai.Status, common.OverrideReconcileConflictConditionType)
+				}
 				assert.True(t, conflictCondition.Status == metav1.ConditionTrue, "OverrideReconcileConflictCondition should be true")
-				return nil
 			},
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r := &Reconciler{
-				client:       tt.fields.client,
-				scheme:       tt.fields.scheme,
-				platformInfo: tt.fields.platformInfo,
-				recorder:     recorder,
-				log:          logf.Log.WithName(tt.name),
-				forwarders:   forwarders,
-				options: ReconcilerOptions{
-					ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
-						Enabled: false,
-					},
-					SupportCilium: false,
-				},
-			}
-			r.initializeComponentRegistry()
-
-			var dda *v2alpha1.DatadogAgent
-			if tt.loadFunc != nil {
-				dda = tt.loadFunc(r.client)
-			}
-			got, err := r.Reconcile(context.TODO(), dda)
-			if tt.wantErr {
-				assert.Error(t, err, "ReconcileDatadogAgent.Reconcile() expected an error")
-			} else {
-				assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() unexpected error: %v", err)
-			}
-
-			assert.Equal(t, tt.want, got, "ReconcileDatadogAgent.Reconcile() unexpected result")
-
-			if tt.wantFunc != nil {
-				err := tt.wantFunc(r.client)
-				assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() wantFunc validation error: %v", err)
-			}
-		})
-	}
+	runTestCases(t, tests, runDDAReconcilerTest)
+	runTestCases(t, tests, runFullReconcilerTest)
 }
 
 func Test_Introspection(t *testing.T) {
 	const resourcesName = "foo"
 	const resourcesNamespace = "bar"
 
-	eventBroadcaster := record.NewBroadcaster()
-	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgent_Reconcile"})
-	forwarders := dummyManager{}
-
-	logf.SetLogger(zap.New(zap.UseDevMode(true)))
-
-	// Register operator types with the runtime scheme.
-	s := agenttestutils.TestScheme()
-
 	defaultRequeueDuration := 15 * time.Second
 
-	tests := []struct {
-		name     string
-		fields   fields
-		loadFunc func(c client.Client) *v2alpha1.DatadogAgent
-		nodes    []client.Object
-		want     reconcile.Result
-		wantErr  bool
-		wantFunc func(t *testing.T, c client.Client) error
-	}{
+	tests := []testCase{
 		{
-			name: "[introspection] Daemonset names with affinity override",
-			fields: fields{
-				scheme:   s,
-				recorder: recorder,
-			},
+			name:                 "[introspection] Daemonset names with affinity override",
+			introspectionEnabled: true,
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
@@ -637,55 +727,19 @@ func Test_Introspection(t *testing.T) {
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
-			wantFunc: func(t *testing.T, c client.Client) error {
+			wantFunc: func(t *testing.T, c client.Client) {
 				expectedDaemonsets := []string{
 					string("foo-agent-default"),
 					string("foo-agent-gke-cos"),
 				}
 
-				return verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
+				verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
 			},
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r := &Reconciler{
-				client:       fake.NewClientBuilder().WithStatusSubresource(&corev1.Node{}, &v2alpha1.DatadogAgent{}).WithObjects(tt.nodes...).Build(),
-				scheme:       tt.fields.scheme,
-				platformInfo: tt.fields.platformInfo,
-				recorder:     recorder,
-				log:          logf.Log.WithName(tt.name),
-				forwarders:   forwarders,
-				options: ReconcilerOptions{
-					ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
-						Enabled: false,
-					},
-					SupportCilium:        false,
-					IntrospectionEnabled: true,
-				},
-			}
-			r.initializeComponentRegistry()
-
-			var dda *v2alpha1.DatadogAgent
-			if tt.loadFunc != nil {
-				dda = tt.loadFunc(r.client)
-			}
-			got, err := r.Reconcile(context.TODO(), dda)
-			if tt.wantErr {
-				assert.Error(t, err, "ReconcileDatadogAgent.Reconcile() expected an error")
-			} else {
-				assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() unexpected error: %v", err)
-			}
-
-			assert.Equal(t, tt.want, got, "ReconcileDatadogAgent.Reconcile() unexpected result")
-
-			if tt.wantFunc != nil {
-				err := tt.wantFunc(t, r.client)
-				assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() wantFunc validation error: %v", err)
-			}
-		})
-	}
+	// introspection is supported only with the DDA reconciler
+	runTestCases(t, tests, runDDAReconcilerTest)
 }
 
 func Test_otelImageTags(t *testing.T) {
@@ -693,35 +747,28 @@ func Test_otelImageTags(t *testing.T) {
 	const resourcesNamespace = "bar"
 	const dsName = "foo-agent"
 
-	logf.SetLogger(zap.New(zap.UseDevMode(true)))
-
 	defaultRequeueDuration := 15 * time.Second
 
-	tests := []struct {
-		name     string
-		fields   fields
-		dda      *v2alpha1.DatadogAgent
-		wantFunc func(c client.Client) error
-	}{
+	tests := []testCase{
 		{
 			name: "otelEnabled true, no override",
 			dda: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithOTelCollectorEnabled(true).
 				Build(),
-			wantFunc: func(c client.Client) error {
+			want: reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantFunc: func(t *testing.T, c client.Client) {
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 					string(apicommon.OtelAgent),
 				}
-				assert.NoError(t, verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers))
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
 				assert.Equal(t, fmt.Sprintf("gcr.io/datadoghq/agent:%s", images.AgentLatestVersion), agentContainer[apicommon.CoreAgentContainerName].Image)
 				assert.Equal(t, fmt.Sprintf("gcr.io/datadoghq/agent:%s", images.AgentLatestVersion), agentContainer[apicommon.TraceAgentContainerName].Image)
 				assert.Equal(t, fmt.Sprintf("gcr.io/datadoghq/ddot-collector:%s", images.AgentLatestVersion), agentContainer[apicommon.OtelAgent].Image)
 
-				return nil
 			},
 		},
 		{
@@ -734,20 +781,20 @@ func Test_otelImageTags(t *testing.T) {
 					},
 				}).
 				Build(),
-			wantFunc: func(c client.Client) error {
+			want: reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantFunc: func(t *testing.T, c client.Client) {
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 					string(apicommon.OtelAgent),
 				}
-				assert.NoError(t, verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers))
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
 				assert.Equal(t, "gcr.io/datadoghq/agent:7.71.0", agentContainer[apicommon.CoreAgentContainerName].Image)
 				assert.Equal(t, "gcr.io/datadoghq/agent:7.71.0", agentContainer[apicommon.TraceAgentContainerName].Image)
 				assert.Equal(t, "gcr.io/datadoghq/ddot-collector:7.71.0", agentContainer[apicommon.OtelAgent].Image)
 
-				return nil
 			},
 		},
 		{
@@ -760,14 +807,10 @@ func Test_otelImageTags(t *testing.T) {
 					},
 				}).
 				Build(),
-			wantFunc: func(c client.Client) error {
-				expectedContainers := []string{
-					string(apicommon.CoreAgentContainerName),
-					string(apicommon.TraceAgentContainerName),
-					string(apicommon.OtelAgent),
-				}
-				assert.Error(t, errors.New("Incompatible OTel Agent image"), verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers))
-				return nil
+			want: reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantFunc: func(t *testing.T, c client.Client) {
+				// With incompatible OTel agent image, OTel container should not be present
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, []string{string(apicommon.CoreAgentContainerName), string(apicommon.TraceAgentContainerName)})
 			},
 		},
 		{
@@ -780,14 +823,14 @@ func Test_otelImageTags(t *testing.T) {
 					},
 				}).
 				Build(),
-			wantFunc: func(c client.Client) error {
+			want: reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantFunc: func(t *testing.T, c client.Client) {
+				// With incompatible OTel agent image, OTel container should not be present
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
-					string(apicommon.OtelAgent),
 				}
-				assert.Error(t, errors.New("Incompatible OTel Agent image"), verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers))
-				return nil
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 			},
 		},
 		{
@@ -800,20 +843,20 @@ func Test_otelImageTags(t *testing.T) {
 						Tag:  "7.65.0-full",
 					},
 				}).Build(),
-			wantFunc: func(c client.Client) error {
+			want: reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantFunc: func(t *testing.T, c client.Client) {
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 					string(apicommon.OtelAgent),
 				}
-				assert.NoError(t, verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers))
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
 				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.CoreAgentContainerName].Image)
 				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.TraceAgentContainerName].Image)
 				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.OtelAgent].Image)
 
-				return nil
 			},
 		},
 		{
@@ -825,20 +868,20 @@ func Test_otelImageTags(t *testing.T) {
 						Name: "testagent:7.65.0-full",
 					},
 				}).Build(),
-			wantFunc: func(c client.Client) error {
+			want: reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantFunc: func(t *testing.T, c client.Client) {
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 					string(apicommon.OtelAgent),
 				}
-				assert.NoError(t, verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers))
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
 				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.CoreAgentContainerName].Image)
 				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.TraceAgentContainerName].Image)
 				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.OtelAgent].Image)
 
-				return nil
 			},
 		},
 		{
@@ -851,63 +894,26 @@ func Test_otelImageTags(t *testing.T) {
 						Tag:  "7.66.0",
 					},
 				}).Build(),
-			wantFunc: func(c client.Client) error {
+			want: reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantFunc: func(t *testing.T, c client.Client) {
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 					string(apicommon.OtelAgent),
 				}
-				assert.NoError(t, verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers))
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
 				assert.Equal(t, "gcr.io/datacat/testagent:latest", agentContainer[apicommon.CoreAgentContainerName].Image)
 				assert.Equal(t, "gcr.io/datacat/testagent:latest", agentContainer[apicommon.TraceAgentContainerName].Image)
 				assert.Equal(t, "gcr.io/datacat/testagent:latest", agentContainer[apicommon.OtelAgent].Image)
 
-				return nil
 			},
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			eventBroadcaster := record.NewBroadcaster()
-			recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgent_Reconcile"})
-			forwarders := dummyManager{}
-			s := agenttestutils.TestScheme()
-
-			client := fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build()
-			// Register operator types with the runtime scheme.
-
-			r := &Reconciler{
-				client:       client,
-				scheme:       s,
-				platformInfo: kubernetes.PlatformInfo{},
-				recorder:     recorder,
-				log:          logf.Log.WithName(tt.name),
-				forwarders:   forwarders,
-				options: ReconcilerOptions{
-					ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
-						Enabled: false,
-					},
-					SupportCilium: false,
-				},
-			}
-			r.initializeComponentRegistry()
-
-			client.Create(context.TODO(), tt.dda)
-
-			got, err := r.Reconcile(context.TODO(), tt.dda)
-
-			assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() unexpected error: %v", err)
-			assert.Equal(t, reconcile.Result{RequeueAfter: defaultRequeueDuration}, got, "ReconcileDatadogAgent.Reconcile() unexpected result")
-
-			if tt.wantFunc != nil {
-				err := tt.wantFunc(r.client)
-				assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() wantFunc validation error: %v", err)
-			}
-		})
-	}
+	runTestCases(t, tests, runDDAReconcilerTest)
+	runTestCases(t, tests, runFullReconcilerTest)
 }
 
 func getDsContainers(c client.Client, resourcesNamespace, dsName string) map[apicommon.AgentContainerName]corev1.Container {
@@ -927,13 +933,12 @@ func getDsContainers(c client.Client, resourcesNamespace, dsName string) map[api
 func Test_AutopilotOverrides(t *testing.T) {
 	const resourcesName, resourcesNamespace, dsName = "foo", "bar", "foo-agent"
 
-	tests := []struct {
-		name     string
-		loadFunc func(client.Client) *v2alpha1.DatadogAgent
-		wantFunc func(t *testing.T, c client.Client) error
-	}{
+	defaultRequeueDuration := 15 * time.Second
+
+	tests := []testCase{
 		{
 			name: "autopilot enabled with core-agent only",
+			want: reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				autopilotKey := experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotSubkey
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
@@ -951,16 +956,13 @@ func Test_AutopilotOverrides(t *testing.T) {
 				_ = c.Create(context.TODO(), dda)
 				return dda
 			},
-			wantFunc: func(t *testing.T, c client.Client) error {
+			wantFunc: func(t *testing.T, c client.Client) {
 				expectedContainers := []string{string(apicommon.CoreAgentContainerName)}
-				if err := verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers); err != nil {
-					return err
-				}
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 
 				ds := &appsv1.DaemonSet{}
-				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds); err != nil {
-					return err
-				}
+				err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds)
+				assert.NoError(t, err, "Failed to get DaemonSet %s/%s", resourcesNamespace, dsName)
 
 				forbiddenVolumes := map[string]struct{}{
 					common.AuthVolumeName:            {},
@@ -970,7 +972,7 @@ func Test_AutopilotOverrides(t *testing.T) {
 				}
 				for _, v := range ds.Spec.Template.Spec.Volumes {
 					if _, found := forbiddenVolumes[v.Name]; found {
-						return fmt.Errorf("forbidden volume %s is not allowed in GKE Autopilot", v.Name)
+						assert.Fail(t, "forbidden volume %s is not allowed in GKE Autopilot", v.Name)
 					}
 				}
 
@@ -978,7 +980,7 @@ func Test_AutopilotOverrides(t *testing.T) {
 				for _, ic := range ds.Spec.Template.Spec.InitContainers {
 					if ic.Name == "init-volume" {
 						if len(ic.Args) != 1 || ic.Args[0] != "cp -r /etc/datadog-agent /opt" {
-							return fmt.Errorf("init-volume args not patched correctly, got: %v", ic.Args)
+							assert.Fail(t, "init-volume args not patched correctly, got: %v", ic.Args)
 						}
 						initVolumePatchFound = true
 					}
@@ -989,12 +991,12 @@ func Test_AutopilotOverrides(t *testing.T) {
 					}
 					for _, m := range ic.VolumeMounts {
 						if _, found := forbiddenMounts[m.Name]; found {
-							return fmt.Errorf("forbidden mount %s in init container %s is not allowed in GKE Autopilot", m.Name, ic.Name)
+							assert.Fail(t, "forbidden mount %s in init container %s is not allowed in GKE Autopilot", m.Name, ic.Name)
 						}
 					}
 				}
 				if !initVolumePatchFound {
-					return fmt.Errorf("init-volume container not found or not patched")
+					assert.Fail(t, "init-volume container not found or not patched")
 				}
 
 				for _, ctn := range ds.Spec.Template.Spec.Containers {
@@ -1006,17 +1008,17 @@ func Test_AutopilotOverrides(t *testing.T) {
 						}
 						for _, m := range ctn.VolumeMounts {
 							if _, found := forbiddenMounts[m.Name]; found {
-								return fmt.Errorf("forbidden mount %s found in core agent is not allowed in GKE Autopilot", m.Name)
+								assert.Fail(t, "forbidden mount %s found in core agent is not allowed in GKE Autopilot", m.Name)
 							}
 						}
 					}
 				}
 
-				return nil
 			},
 		},
 		{
 			name: "autopilot enabled with core-agent and trace-agent",
+			want: reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				autopilotKey := experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotSubkey
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
@@ -1034,19 +1036,16 @@ func Test_AutopilotOverrides(t *testing.T) {
 				_ = c.Create(context.TODO(), dda)
 				return dda
 			},
-			wantFunc: func(t *testing.T, c client.Client) error {
+			wantFunc: func(t *testing.T, c client.Client) {
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 				}
-				if err := verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers); err != nil {
-					return err
-				}
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 
 				ds := &appsv1.DaemonSet{}
-				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds); err != nil {
-					return err
-				}
+				err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds)
+				assert.NoError(t, err, "Failed to get DaemonSet %s/%s", resourcesNamespace, dsName)
 
 				traceAgentFound := false
 				for _, ctn := range ds.Spec.Template.Spec.Containers {
@@ -1056,7 +1055,7 @@ func Test_AutopilotOverrides(t *testing.T) {
 							"-config=/etc/datadog-agent/datadog.yaml",
 						}
 						if !reflect.DeepEqual(ctn.Command, expectedCommand) {
-							return fmt.Errorf("trace-agent command incorrect, expected: %v, got: %v", expectedCommand, ctn.Command)
+							assert.Fail(t, "trace-agent command incorrect, expected: %v, got: %v", expectedCommand, ctn.Command)
 						}
 
 						forbiddenMounts := map[string]struct{}{
@@ -1069,45 +1068,22 @@ func Test_AutopilotOverrides(t *testing.T) {
 						}
 						for _, m := range ctn.VolumeMounts {
 							if _, found := forbiddenMounts[m.Name]; found {
-								return fmt.Errorf("forbidden mount %s should be removed from trace-agent", m.Name)
+								assert.Fail(t, "forbidden mount %s should be removed from trace-agent", m.Name)
 							}
 						}
 						traceAgentFound = true
 					}
 				}
 				if !traceAgentFound {
-					return fmt.Errorf("trace-agent container not found")
+					assert.Fail(t, "trace-agent container not found")
 				}
 
-				return nil
 			},
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := agenttestutils.TestScheme()
-			broadcaster := record.NewBroadcaster()
-			rec := broadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{})
-			fakeClient := fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build()
-			r := &Reconciler{client: fakeClient, scheme: s, recorder: rec}
-			r.initializeComponentRegistry()
-
-			var dda *v2alpha1.DatadogAgent
-			if tt.loadFunc != nil {
-				dda = tt.loadFunc(fakeClient)
-			}
-
-			res, err := r.Reconcile(context.TODO(), dda)
-			assert.NoError(t, err)
-			assert.Equal(t, 15*time.Second, res.RequeueAfter)
-
-			if tt.wantFunc != nil {
-				err := tt.wantFunc(t, fakeClient)
-				assert.NoError(t, err, "Test validation failed: %v", err)
-			}
-		})
-	}
+	runTestCases(t, tests, runDDAReconcilerTest)
+	runTestCases(t, tests, runFullReconcilerTest)
 }
 
 // Helper function for creating DatadogAgent with cluster checks enabled
@@ -1126,32 +1102,12 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 	const dcaName = "foo-cluster-agent"
 	const dsName = "foo-agent-default"
 
-	eventBroadcaster := record.NewBroadcaster()
-	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgent_Reconcile"})
-	forwarders := dummyManager{}
-
-	logf.SetLogger(zap.New(zap.UseDevMode(true)))
-
-	// Register operator types with the runtime scheme.
-	s := agenttestutils.TestScheme()
-
 	defaultRequeueDuration := 15 * time.Second
 
-	tests := []struct {
-		name     string
-		fields   fields
-		loadFunc func(c client.Client) *v2alpha1.DatadogAgent
-		nodes    []client.Object
-		want     reconcile.Result
-		wantErr  bool
-		wantFunc func(t *testing.T, c client.Client) error
-	}{
+	tests := []testCase{
 		{
-			name: "[introspection] Control Plane Monitoring for Openshift",
-			fields: fields{
-				scheme:   s,
-				recorder: recorder,
-			},
+			name:                 "[introspection] Control Plane Monitoring for Openshift",
+			introspectionEnabled: true,
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				return createDatadogAgentWithClusterChecks(c, resourcesNamespace, resourcesName)
 			},
@@ -1167,25 +1123,18 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
-			wantFunc: func(t *testing.T, c client.Client) error {
-				if err := verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "openshift"); err != nil {
-					return err
-				}
+			wantFunc: func(t *testing.T, c client.Client) {
+				verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "openshift")
 				expectedDaemonsets := []string{
 					dsName,
 				}
-				if err := verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets); err != nil {
-					return err
-				}
-				return verifyEtcdMountsOpenshift(t, c, resourcesNamespace, dsName, "openshift")
+				verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
+				verifyEtcdMountsOpenshift(t, c, resourcesNamespace, dsName, "openshift")
 			},
 		},
 		{
-			name: "[introspection] Control Plane Monitoring with EKS",
-			fields: fields{
-				scheme:   s,
-				recorder: recorder,
-			},
+			name:                 "[introspection] Control Plane Monitoring with EKS",
+			introspectionEnabled: true,
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				return createDatadogAgentWithClusterChecks(c, resourcesNamespace, resourcesName)
 			},
@@ -1209,22 +1158,17 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
-			wantFunc: func(t *testing.T, c client.Client) error {
-				if err := verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "eks"); err != nil {
-					return err
-				}
+			wantFunc: func(t *testing.T, c client.Client) {
+				verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "eks")
 				expectedDaemonsets := []string{
 					dsName,
 				}
-				return verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
+				verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
 			},
 		},
 		{
-			name: "[introspection] Control Plane Monitoring with multiple providers",
-			fields: fields{
-				scheme:   s,
-				recorder: recorder,
-			},
+			name:                 "[introspection] Control Plane Monitoring with multiple providers",
+			introspectionEnabled: true,
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				return createDatadogAgentWithClusterChecks(c, resourcesNamespace, resourcesName)
 			},
@@ -1248,24 +1192,19 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
-			wantFunc: func(t *testing.T, c client.Client) error {
-				if err := verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "default"); err != nil {
-					return err
-				}
+			wantFunc: func(t *testing.T, c client.Client) {
+				verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "default")
 				expectedDaemonsets := []string{
 					dsName,
 				}
-				return verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
+				verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
 			},
 		},
 		{
 			// This test verifies that when a node has a GKE provider label with an unsupported OS value,
 			// the system falls back to the "default" provider for control plane monitoring
-			name: "[introspection] Control Plane Monitoring with unsupported provider",
-			fields: fields{
-				scheme:   s,
-				recorder: recorder,
-			},
+			name:                 "[introspection] Control Plane Monitoring with unsupported provider",
+			introspectionEnabled: true,
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				return createDatadogAgentWithClusterChecks(c, resourcesNamespace, resourcesName)
 			},
@@ -1282,70 +1221,30 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
-			wantFunc: func(t *testing.T, c client.Client) error {
-				if err := verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "default"); err != nil {
-					return err
-				}
+			wantFunc: func(t *testing.T, c client.Client) {
+				verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "default")
 				expectedDaemonsets := []string{
 					dsName,
 				}
-				return verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
+				verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
 			},
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r := &Reconciler{
-				client:       fake.NewClientBuilder().WithStatusSubresource(&corev1.Node{}, &v2alpha1.DatadogAgent{}).WithObjects(tt.nodes...).Build(),
-				scheme:       tt.fields.scheme,
-				platformInfo: tt.fields.platformInfo,
-				recorder:     recorder,
-				log:          logf.Log.WithName(tt.name),
-				forwarders:   forwarders,
-				options: ReconcilerOptions{
-					ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
-						Enabled: false,
-					},
-					SupportCilium:        false,
-					IntrospectionEnabled: true,
-				},
-			}
-			r.initializeComponentRegistry()
-
-			var dda *v2alpha1.DatadogAgent
-			if tt.loadFunc != nil {
-				dda = tt.loadFunc(r.client)
-			}
-			got, err := r.Reconcile(context.TODO(), dda)
-			if tt.wantErr {
-				assert.Error(t, err, "ReconcileDatadogAgent.Reconcile() expected an error")
-			} else {
-				assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() unexpected error: %v", err)
-			}
-
-			assert.Equal(t, tt.want, got, "ReconcileDatadogAgent.Reconcile() unexpected result")
-
-			if tt.wantFunc != nil {
-				err := tt.wantFunc(t, r.client)
-				assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() wantFunc validation error: %v", err)
-			}
-		})
-	}
+	// introspection is supported only with the DDA reconciler
+	runTestCases(t, tests, runDDAReconcilerTest)
 }
 
-func verifyDCADeployment(t *testing.T, c client.Client, ddaName, resourcesNamespace, expectedName string, provider string) error {
+func verifyDCADeployment(t *testing.T, c client.Client, ddaName, resourcesNamespace, expectedName string, provider string) {
 	deploymentList := appsv1.DeploymentList{}
-	if err := c.List(context.TODO(), &deploymentList, client.HasLabels{constants.MD5AgentDeploymentProviderLabelKey}); err != nil {
-		return err
-	}
-	assert.Equal(t, 1, len(deploymentList.Items))
-	assert.Equal(t, expectedName, deploymentList.Items[0].ObjectMeta.Name)
+	err := c.List(context.TODO(), &deploymentList, client.HasLabels{constants.MD5AgentDeploymentProviderLabelKey})
+	assert.NoError(t, err, "Failed to list deployments")
+	assert.Equal(t, 1, len(deploymentList.Items), "Expected 1 deployment")
+	assert.Equal(t, expectedName, deploymentList.Items[0].ObjectMeta.Name, "Deployment name mismatch")
 
 	cms := corev1.ConfigMapList{}
-	if err := c.List(context.TODO(), &cms, client.InNamespace(resourcesNamespace)); err != nil {
-		return err
-	}
+	err = c.List(context.TODO(), &cms, client.InNamespace(resourcesNamespace))
+	assert.NoError(t, err, "Failed to list ConfigMaps")
 
 	dcaDeployment := deploymentList.Items[0]
 	if provider == kubernetes.DefaultProvider {
@@ -1365,25 +1264,16 @@ func verifyDCADeployment(t *testing.T, c client.Client, ddaName, resourcesNamesp
 		}, &cpCm)
 		assert.NoError(t, err, "Control plane monitoring ConfigMap should exist for provider %s", provider)
 
-		if err := verifyCheckMounts(t, dcaDeployment, provider, "kube-apiserver-metrics"); err != nil {
-			return err
-		}
-		if err := verifyCheckMounts(t, dcaDeployment, provider, "kube-controller-manager"); err != nil {
-			return err
-		}
-		if err := verifyCheckMounts(t, dcaDeployment, provider, "kube-scheduler"); err != nil {
-			return err
-		}
+		verifyCheckMounts(t, dcaDeployment, provider, "kube-apiserver-metrics")
+		verifyCheckMounts(t, dcaDeployment, provider, "kube-controller-manager")
+		verifyCheckMounts(t, dcaDeployment, provider, "kube-scheduler")
 	}
 	if provider == kubernetes.OpenshiftProvider {
-		if err := verifyCheckMounts(t, dcaDeployment, provider, "etcd"); err != nil {
-			return err
-		}
+		verifyCheckMounts(t, dcaDeployment, provider, "etcd")
 	}
-	return nil
 }
 
-func verifyCheckMounts(t *testing.T, dcaDeployment appsv1.Deployment, provider string, checkName string) error {
+func verifyCheckMounts(t *testing.T, dcaDeployment appsv1.Deployment, provider string, checkName string) {
 	volumeToKeyMap := map[string]string{
 		"kube-apiserver-metrics":  "kube_apiserver_metrics",
 		"kube-controller-manager": "kube_controller_manager",
@@ -1415,14 +1305,13 @@ func verifyCheckMounts(t *testing.T, dcaDeployment appsv1.Deployment, provider s
 		MountPath: fmt.Sprintf("/etc/datadog-agent/conf.d/%s.d", configMapKey),
 		ReadOnly:  true,
 	})
-	return nil
 }
 
-func verifyDaemonsetContainers(c client.Client, resourcesNamespace, dsName string, expectedContainers []string) error {
+func verifyDaemonsetContainers(t *testing.T, c client.Client, resourcesNamespace, dsName string, expectedContainers []string) {
 	ds := &appsv1.DaemonSet{}
-	if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds); err != nil {
-		return err
-	}
+	err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds)
+	assert.NoError(t, err, "Failed to get DaemonSet %s/%s", resourcesNamespace, dsName)
+
 	dsContainers := []string{}
 	for _, container := range ds.Spec.Template.Spec.Containers {
 		dsContainers = append(dsContainers, container.Name)
@@ -1430,18 +1319,13 @@ func verifyDaemonsetContainers(c client.Client, resourcesNamespace, dsName strin
 
 	sort.Strings(dsContainers)
 	sort.Strings(expectedContainers)
-	if reflect.DeepEqual(expectedContainers, dsContainers) {
-		return nil
-	} else {
-		return fmt.Errorf("Container don't match, expected %s, actual %s", expectedContainers, dsContainers)
-	}
+	assert.Equal(t, expectedContainers, dsContainers, "Container names don't match")
 }
 
-func verifyDaemonsetNames(t *testing.T, c client.Client, resourcesNamespace string, expectedDSNames []string) error {
+func verifyDaemonsetNames(t *testing.T, c client.Client, resourcesNamespace string, expectedDSNames []string) {
 	daemonSetList := appsv1.DaemonSetList{}
-	if err := c.List(context.TODO(), &daemonSetList, client.HasLabels{constants.MD5AgentDeploymentProviderLabelKey}); err != nil {
-		return err
-	}
+	err := c.List(context.TODO(), &daemonSetList, client.HasLabels{constants.MD5AgentDeploymentProviderLabelKey})
+	assert.NoError(t, err, "Failed to list DaemonSets")
 
 	actualDSNames := []string{}
 	for _, ds := range daemonSetList.Items {
@@ -1449,11 +1333,10 @@ func verifyDaemonsetNames(t *testing.T, c client.Client, resourcesNamespace stri
 	}
 	sort.Strings(actualDSNames)
 	sort.Strings(expectedDSNames)
-	assert.Equal(t, expectedDSNames, actualDSNames)
-	return nil
+	assert.Equal(t, expectedDSNames, actualDSNames, "DaemonSet names don't match")
 }
 
-func verifyEtcdMountsOpenshift(t *testing.T, c client.Client, resourcesNamespace, dsName string, provider string) error {
+func verifyEtcdMountsOpenshift(t *testing.T, c client.Client, resourcesNamespace, dsName string, provider string) {
 	expectedMounts := []corev1.VolumeMount{
 		{
 			Name:      "etcd-client-certs",
@@ -1469,9 +1352,8 @@ func verifyEtcdMountsOpenshift(t *testing.T, c client.Client, resourcesNamespace
 
 	// Node Agent
 	ds := &appsv1.DaemonSet{}
-	if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds); err != nil {
-		return err
-	}
+	err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds)
+	assert.NoError(t, err, "Failed to get DaemonSet %s/%s", resourcesNamespace, dsName)
 
 	var coreAgentContainer *corev1.Container
 	for _, container := range ds.Spec.Template.Spec.Containers {
@@ -1481,9 +1363,7 @@ func verifyEtcdMountsOpenshift(t *testing.T, c client.Client, resourcesNamespace
 		}
 	}
 
-	if coreAgentContainer == nil {
-		return fmt.Errorf("core agent container not found in DaemonSet %s", dsName)
-	}
+	assert.NotNil(t, coreAgentContainer, "core agent container not found in DaemonSet %s", dsName)
 
 	for _, expectedMount := range expectedMounts {
 		found := false
@@ -1500,9 +1380,8 @@ func verifyEtcdMountsOpenshift(t *testing.T, c client.Client, resourcesNamespace
 
 	// Cluster Checks Runner
 	deploymentList := appsv1.DeploymentList{}
-	if err := c.List(context.TODO(), &deploymentList, client.InNamespace(resourcesNamespace)); err != nil {
-		return err
-	}
+	err = c.List(context.TODO(), &deploymentList, client.InNamespace(resourcesNamespace))
+	assert.NoError(t, err, "Failed to list deployments")
 
 	var ccrDeployment *appsv1.Deployment
 	for _, deployment := range deploymentList.Items {
@@ -1512,9 +1391,7 @@ func verifyEtcdMountsOpenshift(t *testing.T, c client.Client, resourcesNamespace
 		}
 	}
 
-	if ccrDeployment == nil {
-		return fmt.Errorf("cluster-checks-runner deployment not found")
-	}
+	assert.NotNil(t, ccrDeployment, "cluster-checks-runner deployment not found")
 
 	var ccrContainer *corev1.Container
 	for _, container := range ccrDeployment.Spec.Template.Spec.Containers {
@@ -1524,9 +1401,7 @@ func verifyEtcdMountsOpenshift(t *testing.T, c client.Client, resourcesNamespace
 		}
 	}
 
-	if ccrContainer == nil {
-		return fmt.Errorf("cluster-checks-runner container not found in deployment")
-	}
+	assert.NotNil(t, ccrContainer, "cluster-checks-runner container not found in deployment")
 
 	for _, expectedMount := range expectedMounts {
 		found := false
@@ -1540,16 +1415,13 @@ func verifyEtcdMountsOpenshift(t *testing.T, c client.Client, resourcesNamespace
 		}
 		assert.True(t, found, "Expected volume mount %s not found in cluster-checks-runner container", expectedMount.Name)
 	}
-
-	return nil
 }
 
-func verifyPDB(t *testing.T, c client.Client) error {
+func verifyPDB(t *testing.T, c client.Client) {
 	pdbList := policyv1.PodDisruptionBudgetList{}
-	if err := c.List(context.TODO(), &pdbList); err != nil {
-		return err
-	}
-	assert.True(t, len(pdbList.Items) == 2)
+	err := c.List(context.TODO(), &pdbList)
+	assert.NoError(t, err, "Failed to list PodDisruptionBudgets")
+	assert.True(t, len(pdbList.Items) == 2, "Expected 2 PDBs, got %d", len(pdbList.Items))
 
 	dcaPDB := pdbList.Items[0]
 	assert.Equal(t, "foo-cluster-agent-pdb", dcaPDB.Name)
@@ -1560,56 +1432,70 @@ func verifyPDB(t *testing.T, c client.Client) error {
 	assert.Equal(t, "foo-cluster-checks-runner-pdb", ccrPDB.Name)
 	assert.Equal(t, intstr.FromInt(1), *ccrPDB.Spec.MaxUnavailable)
 	assert.Nil(t, ccrPDB.Spec.MinAvailable)
-	return nil
 }
 
 func Test_DDAI_ReconcileV3(t *testing.T) {
 	const resourcesName = "foo"
 	const resourcesNamespace = "bar"
 
-	// Register operator types with the runtime scheme.
-	s := agenttestutils.TestScheme()
-	// Load CRD from config folder
-	crd, err := getDDAICRDFromConfig(s)
-	assert.NoError(t, err)
-	eventBroadcaster := record.NewBroadcaster()
-	recorder := eventBroadcaster.NewRecorder(s, corev1.EventSource{Component: "Test_DDAI_ReconcileV3"})
-
-	forwarders := dummyManager{}
-	logf.SetLogger(zap.New(zap.UseDevMode(true)))
-
 	defaultRequeueDuration := 15 * time.Second
 
 	dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).BuildWithDefaults()
 
-	tests := []struct {
-		name            string
-		profilesEnabled bool
-		profile         *v1alpha1.DatadogAgentProfile
-		loadFunc        func(c client.Client) *v2alpha1.DatadogAgent
-		want            reconcile.Result
-		wantErr         bool
-		wantFunc        func(t *testing.T, c client.Client) error
-	}{
+	// Define profile for the test that needs it
+	fooProfile := &v1alpha1.DatadogAgentProfile{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo-profile",
+			Namespace: resourcesNamespace,
+		},
+		Spec: v1alpha1.DatadogAgentProfileSpec{
+			ProfileAffinity: &v1alpha1.ProfileAffinity{
+				ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
+					{
+						Key:      "foo",
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"foo-profile"},
+					},
+				},
+			},
+			Config: &v2alpha1.DatadogAgentSpec{
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {
+						Labels: map[string]string{
+							"foo": "bar",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	tests := []testCase{
 		{
-			name: "[ddai] Create DDAI from minimal DDA",
+			name:        "[ddai] Create DDAI from minimal DDA",
+			ddaiEnabled: true,
+			clientBuilder: fake.NewClientBuilder().
+				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}),
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				_ = c.Create(context.TODO(), dda)
 				return dda
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
-			wantFunc: func(t *testing.T, c client.Client) error {
+			wantFunc: func(t *testing.T, c client.Client) {
 				expectedDDAI := getBaseDDAI(dda)
 				expectedDDAI.Annotations = map[string]string{
 					constants.MD5DDAIDeploymentAnnotationKey: "14de5261867acd747eed18156cfec05e",
 				}
 
-				return verifyDDAI(t, c, []v1alpha1.DatadogAgentInternal{expectedDDAI})
+				verifyDDAI(t, c, []v1alpha1.DatadogAgentInternal{expectedDDAI})
 			},
 		},
 		{
-			name: "[ddai] Create DDAI from customized DDA",
+			name:        "[ddai] Create DDAI from customized DDA",
+			ddaiEnabled: true,
+			clientBuilder: fake.NewClientBuilder().
+				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}),
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				ddaCustom := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithDCAToken("abcdefghijklmnopqrstuvwxyz").
@@ -1627,7 +1513,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
-			wantFunc: func(t *testing.T, c client.Client) error {
+			wantFunc: func(t *testing.T, c client.Client) {
 				baseDDAI := getBaseDDAI(dda)
 				expectedDDAI := baseDDAI.DeepCopy()
 				expectedDDAI.Annotations = map[string]string{
@@ -1670,11 +1556,14 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 					},
 				}
 
-				return verifyDDAI(t, c, []v1alpha1.DatadogAgentInternal{*expectedDDAI})
+				verifyDDAI(t, c, []v1alpha1.DatadogAgentInternal{*expectedDDAI})
 			},
 		},
 		{
-			name: "[ddai] Create DDAI from minimal DDA and default profile",
+			name:        "[ddai] Create DDAI from minimal DDA and default profile",
+			ddaiEnabled: true,
+			clientBuilder: fake.NewClientBuilder().
+				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}),
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				_ = c.Create(context.TODO(), dda)
 				return dda
@@ -1682,46 +1571,25 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 			profilesEnabled: true,
 			want:            reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr:         false,
-			wantFunc: func(t *testing.T, c client.Client) error {
-				return verifyDDAI(t, c, []v1alpha1.DatadogAgentInternal{getDefaultDDAI(dda)})
+			wantFunc: func(t *testing.T, c client.Client) {
+				verifyDDAI(t, c, []v1alpha1.DatadogAgentInternal{getDefaultDDAI(dda)})
 			},
 		},
 		{
-			name: "[ddai] Create DDAI from minimal DDA and user created profile",
+			name:        "[ddai] Create DDAI from minimal DDA and user created profile",
+			ddaiEnabled: true,
+			clientBuilder: fake.NewClientBuilder().
+				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}).
+				WithObjects(fooProfile),
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				_ = c.Create(context.TODO(), dda)
 				return dda
 			},
 			profilesEnabled: true,
-			profile: &v1alpha1.DatadogAgentProfile{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo-profile",
-					Namespace: resourcesNamespace,
-				},
-				Spec: v1alpha1.DatadogAgentProfileSpec{
-					ProfileAffinity: &v1alpha1.ProfileAffinity{
-						ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
-							{
-								Key:      "foo",
-								Operator: corev1.NodeSelectorOpIn,
-								Values:   []string{"foo-profile"},
-							},
-						},
-					},
-					Config: &v2alpha1.DatadogAgentSpec{
-						Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-							v2alpha1.NodeAgentComponentName: {
-								Labels: map[string]string{
-									"foo": "bar",
-								},
-							},
-						},
-					},
-				},
-			},
-			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
-			wantErr: false,
-			wantFunc: func(t *testing.T, c client.Client) error {
+			profile:         fooProfile,
+			want:            reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr:         false,
+			wantFunc: func(t *testing.T, c client.Client) {
 				profileDDAI := getBaseDDAI(dda)
 				profileDDAI.Name = "foo-profile"
 				profileDDAI.Annotations = map[string]string{
@@ -1786,66 +1654,32 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 					},
 				}
 
-				return verifyDDAI(t, c, []v1alpha1.DatadogAgentInternal{getDefaultDDAI(dda), profileDDAI})
+				verifyDDAI(t, c, []v1alpha1.DatadogAgentInternal{getDefaultDDAI(dda), profileDDAI})
 			},
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			objs := []client.Object{crd}
-			if tt.profile != nil {
-				objs = append(objs, tt.profile)
-			}
-			r := &Reconciler{
-				client:     fake.NewClientBuilder().WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}).WithObjects(objs...).Build(),
-				scheme:     s,
-				recorder:   recorder,
-				log:        logf.Log.WithName(tt.name),
-				forwarders: forwarders,
-				options: ReconcilerOptions{
-					DatadogAgentInternalEnabled: true,
-					DatadogAgentProfileEnabled:  tt.profilesEnabled,
-				},
-			}
-			r.initializeComponentRegistry()
-
-			var dda *v2alpha1.DatadogAgent
-			if tt.loadFunc != nil {
-				dda = tt.loadFunc(r.client)
-			}
-
-			got, err := r.Reconcile(context.TODO(), dda)
-			if tt.wantErr {
-				assert.Error(t, err, "ReconcileDatadogAgent.Reconcile() expected an error")
-			} else {
-				assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() unexpected error: %v", err)
-			}
-
-			assert.Equal(t, tt.want, got, "ReconcileDatadogAgent.Reconcile() unexpected result")
-
-			if tt.wantFunc != nil {
-				err := tt.wantFunc(t, r.client)
-				assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() wantFunc validation error: %v", err)
-			}
-		})
-	}
+	runTestCases(t, tests, runDDAReconcilerTest)
+	runTestCases(t, tests, runFullReconcilerTest)
 }
 
-func verifyDDAI(t *testing.T, c client.Client, expectedDDAI []v1alpha1.DatadogAgentInternal) error {
+func verifyDDAI(t *testing.T, c client.Client, expectedDDAI []v1alpha1.DatadogAgentInternal) {
 	ddaiList := v1alpha1.DatadogAgentInternalList{}
-	if err := c.List(context.TODO(), &ddaiList); err != nil {
-		return err
-	}
-	assert.Equal(t, len(expectedDDAI), len(ddaiList.Items))
+	err := c.List(context.TODO(), &ddaiList)
+	assert.NoError(t, err, "Failed to list DatadogAgentInternal resources")
+	assert.Equal(t, len(expectedDDAI), len(ddaiList.Items), "DDAI count mismatch")
 	for i := range ddaiList.Items {
 		// clear managed fields
 		ddaiList.Items[i].ObjectMeta.ManagedFields = nil
 		// type meta is only added when merging ddais
 		ddaiList.Items[i].TypeMeta = metav1.TypeMeta{}
+		// clear status since full reconciler is setting it
+		ddaiList.Items[i].Status = v1alpha1.DatadogAgentInternalStatus{}
+		// reset resource version to 1 since full reconciler is incrementing it
+		ddaiList.Items[i].ObjectMeta.ResourceVersion = "1"
+
 	}
-	assert.ElementsMatch(t, expectedDDAI, ddaiList.Items)
-	return nil
+	assert.ElementsMatch(t, expectedDDAI, ddaiList.Items, "DDAI resources don't match")
 }
 
 func getBaseDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {

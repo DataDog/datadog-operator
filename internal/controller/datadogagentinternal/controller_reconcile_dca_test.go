@@ -187,7 +187,6 @@ func Test_cleanupOldDCADeployments(t *testing.T) {
 
 			r := &Reconciler{
 				client:   fakeClient,
-				log:      logger,
 				recorder: recorder,
 			}
 			storeOptions := &store.StoreOptions{
@@ -214,7 +213,7 @@ func Test_cleanupOldDCADeployments(t *testing.T) {
 			}
 			ddaiStatus := datadoghqv1alpha1.DatadogAgentInternalStatus{}
 
-			err := r.cleanupOldDCADeployments(ctx, logger, &ddai, resourcesManager, &ddaiStatus)
+			err := r.cleanupOldDCADeployments(ctx, &ddai, resourcesManager, &ddaiStatus)
 			assert.NoError(t, err)
 
 			deploymentList := &appsv1.DeploymentList{}

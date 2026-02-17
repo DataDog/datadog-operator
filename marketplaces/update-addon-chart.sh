@@ -68,3 +68,6 @@ datadog-operator                $OPERATOR_SUBCHART_VERSION
 datadog-operator appVersion     $OPERATOR_SUBCHART_APPVERSION
 datadog-crds                    $CRDS_SUBCHART_VERSION
 EOF
+
+# update the CHANGELOG.md with the new version
+sed -i '' $'s/# Changelog/# Changelog\\\n\\\n## '"$WRAPPER_CHART_VERSION"$'\\\n\\\n* Release for Operator '"$OPERATOR_SUBCHART_APPVERSION"$'/' ./charts/operator-eks-addon/CHANGELOG.md

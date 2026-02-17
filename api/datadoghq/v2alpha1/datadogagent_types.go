@@ -599,6 +599,11 @@ type NPMFeatureConfig struct {
 	// Default: false
 	// +optional
 	CollectDNSStats *bool `json:"collectDNSStats,omitempty"`
+
+	// DirectSend enables CNM/USM to send data directly to the backend
+	// Default: false
+	// +optional
+	DirectSend *bool `json:"directSend,omitempty"`
 }
 
 // USMFeatureConfig contains USM (Universal Service Monitoring) feature configuration.
@@ -666,6 +671,7 @@ type DogstatsdFeatureConfig struct {
 	OriginDetectionEnabled *bool `json:"originDetectionEnabled,omitempty"`
 
 	// TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`).
+	// This setting only applies when OriginDetectionEnabled is true.
 	// See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables
 	// Cardinality default: low
 	// +optional
@@ -1045,6 +1051,11 @@ type OtelAgentGatewayFeatureConfig struct {
 	// +optional
 	// +listType=atomic
 	Ports []*corev1.ContainerPort `json:"ports,omitempty"`
+
+	// FeatureGates are the feature gates to pass to the OTel collector as a comma-separated list.
+	// Example: "component.UseLocalHostAsDefaultHost,connector.datadogconnector.NativeIngest"
+	// +optional
+	FeatureGates *string `json:"featureGates,omitempty"`
 }
 
 // ControlPlaneMonitoringFeatureConfig contains the configuration for the control plane monitoring.

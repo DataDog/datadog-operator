@@ -256,10 +256,16 @@ func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, clust
 		return fmt.Errorf("failed to check if EKS pod identity agent is installed: %w", err)
 	}
 
+	supportsAPIAuth, err := guess.SupportsAPIAuthenticationMode(ctx, cli.EKS, clusterName)
+	if err != nil {
+		return fmt.Errorf("failed to check cluster authentication mode: %w", err)
+	}
+
 	if err := aws.CreateOrUpdateStack(ctx, cli.CloudFormation, "dd-karpenter-"+clusterName+"-dd-karpenter", DdKarpenterCfn, map[string]string{
 		"ClusterName":            clusterName,
 		"KarpenterNamespace":     karpenterNamespace,
 		"DeployPodIdentityAddon": strconv.FormatBool(!isUnmanagedEKSPIAInstalled),
+		"DeployNodeAccessEntry":  strconv.FormatBool(supportsAPIAuth),
 	}); err != nil {
 		return fmt.Errorf("failed to create or update Cloud Formation stack: %w", err)
 	}
