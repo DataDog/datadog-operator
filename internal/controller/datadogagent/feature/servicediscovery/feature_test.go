@@ -6,6 +6,7 @@
 package servicediscovery
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -44,6 +45,57 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 		ddaServiceDiscoveryEnabledWithNetStats.Spec.Features.ServiceDiscovery.NetworkStats.Enabled = apiutils.NewBoolPointer(true)
 	}
 
+	ddaEnabledByDefault := v2alpha1.DatadogAgent{
+		Spec: v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
+					EnabledByDefault: apiutils.NewBoolPointer(true),
+				},
+			},
+		},
+	}
+
+	ddaEnabledByDefaultOverriddenByFalse := v2alpha1.DatadogAgent{
+		Spec: v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
+					Enabled:          apiutils.NewBoolPointer(false),
+					EnabledByDefault: apiutils.NewBoolPointer(true),
+				},
+			},
+		},
+	}
+
+	ddaSPLExplicitEnable := ddaServiceDiscoveryEnabledWithNetStats.DeepCopy()
+	{
+		ddaSPLExplicitEnable.Spec.Features.ServiceDiscovery.UseSystemProbeLite = apiutils.NewBoolPointer(true)
+	}
+
+	ddaSPLEnabledByDefault := v2alpha1.DatadogAgent{
+		Spec: v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
+					EnabledByDefault:   apiutils.NewBoolPointer(true),
+					UseSystemProbeLite: apiutils.NewBoolPointer(true),
+				},
+			},
+		},
+	}
+
+	ddaSPLWithNPM := v2alpha1.DatadogAgent{
+		Spec: v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
+					Enabled:            apiutils.NewBoolPointer(true),
+					UseSystemProbeLite: apiutils.NewBoolPointer(true),
+				},
+				NPM: &v2alpha1.NPMFeatureConfig{
+					Enabled: apiutils.NewBoolPointer(true),
+				},
+			},
+		},
+	}
+
 	tests := test.FeatureTestSuite{
 		{
 			Name:          "service discovery not enabled",
@@ -54,13 +106,46 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 			Name:          "service discovery enabled - no network stats",
 			DDA:           ddaServiceDiscoveryEnabledNoNetStats,
 			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(getWantFunc(noNetStats)),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(getWantFunc(noNetStats, noSPL)),
 		},
 		{
 			Name:          "service discovery enabled - with network stats",
 			DDA:           ddaServiceDiscoveryEnabledWithNetStats,
 			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(getWantFunc(withNetStats)),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(getWantFunc(withNetStats, noSPL)),
+		},
+		{
+			Name:          "service discovery enabledByDefault",
+			DDA:           &ddaEnabledByDefault,
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(getWantFunc(withNetStats, noSPL)),
+		},
+		{
+			Name:          "enabledByDefault overridden by enabled=false",
+			DDA:           &ddaEnabledByDefaultOverriddenByFalse,
+			WantConfigure: false,
+		},
+		{
+			Name:          "system-probe-lite with explicit enable",
+			DDA:           ddaSPLExplicitEnable,
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().
+				WithCreateFunc(createFuncWithSystemProbeContainer()).
+				WithWantFunc(getWantFunc(withNetStats, withSPLExplicit)),
+		},
+		{
+			Name:          "system-probe-lite with enabledByDefault",
+			DDA:           &ddaSPLEnabledByDefault,
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().
+				WithCreateFunc(createFuncWithSystemProbeContainer()).
+				WithWantFunc(getWantFunc(withNetStats, withSPLDefault)),
+		},
+		{
+			Name:          "system-probe-lite auto-guard - NPM also enabled",
+			DDA:           &ddaSPLWithNPM,
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(getWantFunc(withNetStats, noSPL)),
 		},
 	}
 
@@ -72,7 +157,33 @@ const (
 	withNetStats = true
 )
 
-func getWantFunc(withNetStats bool) func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+type splMode int
+
+const (
+	noSPL splMode = iota
+	withSPLExplicit
+	withSPLDefault
+)
+
+func createFuncWithSystemProbeContainer() func(testing.TB) (feature.PodTemplateManagers, string) {
+	return func(t testing.TB) (feature.PodTemplateManagers, string) {
+		newPTS := corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name: string(apicommon.CoreAgentContainerName),
+					},
+					{
+						Name: string(apicommon.SystemProbeContainerName),
+					},
+				},
+			},
+		}
+		return fake.NewPodTemplateManagers(t, newPTS), ""
+	}
+}
+
+func getWantFunc(withNetStats bool, spl splMode) func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 
@@ -200,7 +311,6 @@ func getWantFunc(withNetStats bool) func(t testing.TB, mgrInterface feature.PodT
 			},
 		}
 
-		// check env vars
 		wantSPEnvVars := []*corev1.EnvVar{
 			{
 				Name:  DDServiceDiscoveryEnabled,
@@ -221,6 +331,27 @@ func getWantFunc(withNetStats bool) func(t testing.TB, mgrInterface feature.PodT
 
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
 		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, wantSPEnvVars), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, wantSPEnvVars))
+
+		// check system-probe container command override for system-probe-lite
+		if spl != noSPL {
+			for _, c := range mgr.PodTemplateSpec().Spec.Containers {
+				if c.Name == string(apicommon.SystemProbeContainerName) {
+					assert.Equal(t, []string{"/bin/sh", "-c"}, c.Command, "System Probe command should be overridden for system-probe-lite")
+					assert.Len(t, c.Args, 1, "System Probe args should have one element")
+					assert.Contains(t, c.Args[0], "system-probe-lite", "System Probe args should contain system-probe-lite")
+
+					expectedFallback := fmt.Sprintf("system-probe-lite --socket %s --log-level ${DD_LOG_LEVEL:-info} || ",
+						common.DefaultSystemProbeSocketPath)
+					if spl == withSPLExplicit {
+						expectedFallback += "system-probe --config=/etc/datadog-agent/system-probe.yaml"
+					} else {
+						expectedFallback += "sleep infinity"
+					}
+					assert.Equal(t, expectedFallback, c.Args[0], "System Probe args mismatch")
+					break
+				}
+			}
+		}
 	}
 }
 

@@ -384,8 +384,14 @@ spec:
 `features.serviceDiscovery.enabled`
 : Enables the service discovery check. Default: false
 
+`features.serviceDiscovery.enabledByDefault`
+: EnabledByDefault, when true, considers discovery enabled even if Enabled is not explicitly set. This distinguishes explicit opt-in (fallback: full system-probe) from default-on (fallback: sleep infinity). Ignored when Enabled is explicitly set to false. Default: false
+
 `features.serviceDiscovery.networkStats.enabled`
 : Enables the Service Discovery Network Stats feature. Default: true
+
+`features.serviceDiscovery.useSystemProbeLite`
+: UseSystemProbeLite, when true and discovery is the only system-probe feature enabled, uses the lightweight system-probe-lite binary instead of full system-probe. If other system-probe features are active (NPM, CWS, USM, etc.), this is silently ignored. Default: false
 
 `features.tcpQueueLength.enabled`
 : Enables the TCP queue length eBPF-based check. Default: false

@@ -6,6 +6,8 @@
 package servicediscovery
 
 import (
+	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -31,6 +33,8 @@ func buildFeature(*feature.Options) feature.Feature {
 
 type serviceDiscoveryFeature struct {
 	networkStatsEnabled bool
+	useSystemProbeLite  bool
+	explicitlyEnabled   bool
 }
 
 // ID returns the ID of the Feature
@@ -40,19 +44,50 @@ func (f *serviceDiscoveryFeature) ID() feature.IDType {
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *serviceDiscoveryFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
-	if ddaSpec.Features != nil && ddaSpec.Features.ServiceDiscovery != nil && apiutils.BoolValue(ddaSpec.Features.ServiceDiscovery.Enabled) {
-		reqComp.Agent = feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
-			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
-		}
-
-		f.networkStatsEnabled = true
-		if ddaSpec.Features.ServiceDiscovery.NetworkStats != nil {
-			f.networkStatsEnabled = apiutils.BoolValue(ddaSpec.Features.ServiceDiscovery.NetworkStats.Enabled)
-		}
+	if ddaSpec.Features == nil || ddaSpec.Features.ServiceDiscovery == nil {
+		return reqComp
 	}
 
+	sd := ddaSpec.Features.ServiceDiscovery
+	explicitlyEnabled := apiutils.BoolValue(sd.Enabled)
+	enabledByDefault := sd.Enabled == nil && apiutils.BoolValue(sd.EnabledByDefault)
+
+	if !explicitlyEnabled && !enabledByDefault {
+		return reqComp
+	}
+
+	reqComp.Agent = feature.RequiredComponent{
+		IsRequired: apiutils.NewBoolPointer(true),
+		Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
+	}
+
+	f.explicitlyEnabled = explicitlyEnabled
+
+	f.networkStatsEnabled = true
+	if sd.NetworkStats != nil {
+		f.networkStatsEnabled = apiutils.BoolValue(sd.NetworkStats.Enabled)
+	}
+
+	f.useSystemProbeLite = apiutils.BoolValue(sd.UseSystemProbeLite) &&
+		!hasOtherSystemProbeFeatures(ddaSpec.Features)
+
 	return reqComp
+}
+
+// hasOtherSystemProbeFeatures returns true if any feature besides service discovery
+// requires the full system-probe binary. When true, system-probe-lite cannot be used.
+func hasOtherSystemProbeFeatures(features *v2alpha1.DatadogFeatures) bool {
+	if features == nil {
+		return false
+	}
+	return (features.NPM != nil && apiutils.BoolValue(features.NPM.Enabled)) ||
+		(features.CWS != nil && apiutils.BoolValue(features.CWS.Enabled)) ||
+		(features.CSPM != nil && apiutils.BoolValue(features.CSPM.Enabled) && apiutils.BoolValue(features.CSPM.RunInSystemProbe)) ||
+		(features.USM != nil && apiutils.BoolValue(features.USM.Enabled)) ||
+		(features.OOMKill != nil && apiutils.BoolValue(features.OOMKill.Enabled)) ||
+		(features.TCPQueueLength != nil && apiutils.BoolValue(features.TCPQueueLength.Enabled)) ||
+		(features.EBPFCheck != nil && apiutils.BoolValue(features.EBPFCheck.Enabled)) ||
+		(features.GPU != nil && apiutils.BoolValue(features.GPU.Enabled) && apiutils.BoolValue(features.GPU.PrivilegedMode))
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
@@ -135,6 +170,24 @@ func (f *serviceDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMa
 
 	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, socketEnvVar)
 	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, socketEnvVar)
+
+	if f.useSystemProbeLite {
+		fallback := "system-probe --config=/etc/datadog-agent/system-probe.yaml"
+		if !f.explicitlyEnabled {
+			fallback = "sleep infinity"
+		}
+		for i := range managers.PodTemplateSpec().Spec.Containers {
+			c := &managers.PodTemplateSpec().Spec.Containers[i]
+			if c.Name == string(apicommon.SystemProbeContainerName) {
+				c.Command = []string{"/bin/sh", "-c"}
+				c.Args = []string{
+					fmt.Sprintf("system-probe-lite --socket %s --log-level ${DD_LOG_LEVEL:-info} || %s",
+						common.DefaultSystemProbeSocketPath, fallback),
+				}
+				break
+			}
+		}
+	}
 
 	return nil
 }

@@ -2592,6 +2592,10 @@
                       "description": "Enables the service discovery check.\nDefault: false",
                       "type": "boolean"
                     },
+                    "enabledByDefault": {
+                      "description": "EnabledByDefault, when true, considers discovery enabled even if Enabled is not explicitly set.\nThis distinguishes explicit opt-in (fallback: full system-probe) from default-on\n(fallback: sleep infinity). Ignored when Enabled is explicitly set to false.\nDefault: false",
+                      "type": "boolean"
+                    },
                     "networkStats": {
                       "additionalProperties": false,
                       "description": "Enables the service discovery network stats collection.\nDefault: true",
@@ -2602,6 +2606,10 @@
                         }
                       },
                       "type": "object"
+                    },
+                    "useSystemProbeLite": {
+                      "description": "UseSystemProbeLite, when true and discovery is the only system-probe feature enabled,\nuses the lightweight system-probe-lite binary instead of full system-probe.\nIf other system-probe features are active (NPM, CWS, USM, etc.), this is silently ignored.\nDefault: false",
+                      "type": "boolean"
                     }
                   },
                   "type": "object"
