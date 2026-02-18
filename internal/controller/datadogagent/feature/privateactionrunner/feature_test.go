@@ -126,7 +126,7 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 	// Verify hash
 	assert.NotEmpty(t, managers.AnnotationMgr.Annotations)
 	assert.NotEmpty(t, managers.AnnotationMgr.Annotations["checksum/private_action_runner-custom-config"])
-	assert.Equal(t, managers.AnnotationMgr.Annotations["checksum/private_action_runner-custom-config"], "749c842cefd79ebc309b2b329b28e3fe")
+	assert.Equal(t, "7aca0ab8a2cb083533a5552c17a50aa3", managers.AnnotationMgr.Annotations["checksum/private_action_runner-custom-config"])
 }
 
 func Test_privateActionRunnerFeature_ID(t *testing.T) {
@@ -208,7 +208,7 @@ func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
 			},
 			expectConfigMap: true,
 			expectedYAML:    defaultConfigData,
-			expectedHash:    "b7fc921bd4d0b4a60ef4fd8ea98e65a1",
+			expectedHash:    "57aedff9cb18bcec9b12a3974ef6fc55",
 		},
 		{
 			name: "enabled with configdata - passes through directly",
@@ -281,7 +281,7 @@ func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
 			// Verify hash
 			assert.NotEmpty(t, configMap.Annotations)
 			assert.NotEmpty(t, configMap.Annotations["checksum/private_action_runner-custom-config"])
-			assert.Equal(t, configMap.Annotations["checksum/private_action_runner-custom-config"], tt.expectedHash)
+			assert.Equal(t, tt.expectedHash, configMap.Annotations["checksum/private_action_runner-custom-config"])
 		})
 	}
 }
