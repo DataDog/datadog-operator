@@ -6,6 +6,7 @@
 package privateactionrunner
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/go-logr/logr"
@@ -282,6 +283,308 @@ func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
 			assert.NotEmpty(t, configMap.Annotations)
 			assert.NotEmpty(t, configMap.Annotations["checksum/private_action_runner-custom-config"])
 			assert.Equal(t, tt.expectedHash, configMap.Annotations["checksum/private_action_runner-custom-config"])
+		})
+	}
+}
+
+func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
+	tests := []struct {
+		name                      string
+		annotations               map[string]string
+		wantClusterAgentEnabled   bool
+		wantNodeAgentEnabled      bool
+		expectedClusterConfigData string
+	}{
+		{
+			name:                    "cluster agent not enabled (no annotation)",
+			annotations:             nil,
+			wantClusterAgentEnabled: false,
+			wantNodeAgentEnabled:    false,
+		},
+		{
+			name: "cluster agent enabled via annotation",
+			annotations: map[string]string{
+				featureutils.EnableClusterAgentPrivateActionRunnerAnnotation: "true",
+			},
+			wantClusterAgentEnabled:   true,
+			wantNodeAgentEnabled:      false,
+			expectedClusterConfigData: defaultConfigData,
+		},
+		{
+			name: "cluster agent enabled with custom config",
+			annotations: map[string]string{
+				featureutils.EnableClusterAgentPrivateActionRunnerAnnotation: "true",
+				featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation: `private_action_runner:
+  enabled: true
+  self_enroll: true
+  identity_secret_name: my-custom-secret`,
+			},
+			wantClusterAgentEnabled: true,
+			wantNodeAgentEnabled:    false,
+			expectedClusterConfigData: `private_action_runner:
+  enabled: true
+  self_enroll: true
+  identity_secret_name: my-custom-secret`,
+		},
+		{
+			name: "cluster agent explicitly disabled",
+			annotations: map[string]string{
+				featureutils.EnableClusterAgentPrivateActionRunnerAnnotation: "false",
+			},
+			wantClusterAgentEnabled: false,
+			wantNodeAgentEnabled:    false,
+		},
+		{
+			name: "both node and cluster agent enabled",
+			annotations: map[string]string{
+				featureutils.EnablePrivateActionRunnerAnnotation:             "true",
+				featureutils.EnableClusterAgentPrivateActionRunnerAnnotation: "true",
+				featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation: `private_action_runner:
+  enabled: true
+  self_enroll: false
+  urn: urn:dd:apps:on-prem-runner:us1:1:runner-xyz`,
+			},
+			wantClusterAgentEnabled: true,
+			wantNodeAgentEnabled:    true,
+			expectedClusterConfigData: `private_action_runner:
+  enabled: true
+  self_enroll: false
+  urn: urn:dd:apps:on-prem-runner:us1:1:runner-xyz`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := buildPrivateActionRunnerFeature(nil)
+			dda := &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: tt.annotations,
+				},
+			}
+			reqComp := f.Configure(dda, &v2alpha1.DatadogAgentSpec{}, nil)
+
+			assert.Equal(t, tt.wantClusterAgentEnabled, reqComp.ClusterAgent.IsEnabled())
+			assert.Equal(t, tt.wantNodeAgentEnabled, reqComp.Agent.IsEnabled())
+
+			parFeat, ok := f.(*privateActionRunnerFeature)
+			require.True(t, ok)
+			assert.Equal(t, tt.wantClusterAgentEnabled, parFeat.clusterEnabled)
+			if tt.wantClusterAgentEnabled && tt.expectedClusterConfigData != "" {
+				assert.Equal(t, tt.expectedClusterConfigData, parFeat.clusterConfigData)
+			}
+		})
+	}
+}
+
+func Test_privateActionRunnerFeature_ManageClusterAgentEnvVars(t *testing.T) {
+	tests := []struct {
+		name              string
+		configData        string
+		expectedEnvVars   map[string]string
+		validateAllowlist bool
+		expectedAllowlist []string
+	}{
+		{
+			name: "self-enroll with identity secret",
+			configData: `private_action_runner:
+  enabled: true
+  self_enroll: true
+  identity_secret_name: my-par-identity`,
+			expectedEnvVars: map[string]string{
+				"DD_PRIVATE_ACTION_RUNNER_ENABLED":              "true",
+				"DD_PRIVATE_ACTION_RUNNER_SELF_ENROLL":          "true",
+				"DD_PRIVATE_ACTION_RUNNER_IDENTITY_SECRET_NAME": "my-par-identity",
+			},
+			validateAllowlist: false,
+		},
+		{
+			name: "manual enrollment with URN and private key",
+			configData: `private_action_runner:
+  enabled: true
+  self_enroll: false
+  urn: urn:dd:apps:on-prem-runner:us1:1:runner-abc
+  private_key: my-secret-key
+  identity_secret_name: par-secret`,
+			expectedEnvVars: map[string]string{
+				"DD_PRIVATE_ACTION_RUNNER_ENABLED":              "true",
+				"DD_PRIVATE_ACTION_RUNNER_URN":                  "urn:dd:apps:on-prem-runner:us1:1:runner-abc",
+				"DD_PRIVATE_ACTION_RUNNER_PRIVATE_KEY":          "my-secret-key",
+				"DD_PRIVATE_ACTION_RUNNER_IDENTITY_SECRET_NAME": "par-secret",
+			},
+			validateAllowlist: false,
+		},
+		{
+			name: "with actions allowlist",
+			configData: `private_action_runner:
+  enabled: true
+  self_enroll: true
+  actions_allowlist:
+    - com.datadoghq.http.request
+    - com.datadoghq.kubernetes.core.listPod
+    - com.datadoghq.traceroute`,
+			expectedEnvVars: map[string]string{
+				"DD_PRIVATE_ACTION_RUNNER_ENABLED":     "true",
+				"DD_PRIVATE_ACTION_RUNNER_SELF_ENROLL": "true",
+			},
+			validateAllowlist: true,
+			expectedAllowlist: []string{
+				"com.datadoghq.http.request",
+				"com.datadoghq.kubernetes.core.listPod",
+				"com.datadoghq.traceroute",
+			},
+		},
+		{
+			name:       "default config (minimal)",
+			configData: defaultConfigData,
+			expectedEnvVars: map[string]string{
+				"DD_PRIVATE_ACTION_RUNNER_ENABLED": "true",
+			},
+			validateAllowlist: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := buildPrivateActionRunnerFeature(nil)
+			dda := &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dda",
+					Namespace: "default",
+					Annotations: map[string]string{
+						featureutils.EnableClusterAgentPrivateActionRunnerAnnotation:     "true",
+						featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation: tt.configData,
+					},
+				},
+			}
+			f.Configure(dda, &v2alpha1.DatadogAgentSpec{}, nil)
+
+			// Create test managers
+			podTmpl := corev1.PodTemplateSpec{}
+			managers := fake.NewPodTemplateManagers(t, podTmpl)
+
+			// Call ManageClusterAgent
+			err := f.ManageClusterAgent(managers, "")
+			assert.NoError(t, err)
+
+			// Verify environment variables
+			envVars := managers.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+			envVarMap := make(map[string]string)
+			for _, env := range envVars {
+				envVarMap[env.Name] = env.Value
+			}
+
+			for expectedKey, expectedValue := range tt.expectedEnvVars {
+				actualValue, found := envVarMap[expectedKey]
+				assert.True(t, found, "Expected env var %s not found", expectedKey)
+				assert.Equal(t, expectedValue, actualValue, "Env var %s has wrong value", expectedKey)
+			}
+
+			// Validate allowlist if specified
+			if tt.validateAllowlist {
+				allowlistJSON, found := envVarMap["DD_PRIVATE_ACTION_RUNNER_ACTIONS_ALLOWLIST"]
+				assert.True(t, found, "Expected DD_PRIVATE_ACTION_RUNNER_ACTIONS_ALLOWLIST not found")
+
+				var allowlist []string
+				err := json.Unmarshal([]byte(allowlistJSON), &allowlist)
+				assert.NoError(t, err, "Failed to unmarshal allowlist JSON")
+				assert.ElementsMatch(t, tt.expectedAllowlist, allowlist, "Allowlist doesn't match expected")
+			}
+		})
+	}
+}
+
+func Test_parsePrivateActionRunnerConfig(t *testing.T) {
+	tests := []struct {
+		name           string
+		configData     string
+		wantErr        bool
+		expectedConfig *PrivateActionRunnerConfig
+	}{
+		{
+			name: "valid config with self-enroll",
+			configData: `private_action_runner:
+  enabled: true
+  self_enroll: true
+  identity_secret_name: my-secret`,
+			wantErr: false,
+			expectedConfig: &PrivateActionRunnerConfig{
+				Enabled:            true,
+				SelfEnroll:         true,
+				IdentitySecretName: "my-secret",
+			},
+		},
+		{
+			name: "valid config with manual enrollment",
+			configData: `private_action_runner:
+  enabled: true
+  self_enroll: false
+  urn: urn:dd:apps:on-prem-runner:us1:1:runner-abc
+  private_key: secret-key
+  actions_allowlist:
+    - com.datadoghq.http.request
+    - com.datadoghq.traceroute`,
+			wantErr: false,
+			expectedConfig: &PrivateActionRunnerConfig{
+				Enabled:    true,
+				SelfEnroll: false,
+				URN:        "urn:dd:apps:on-prem-runner:us1:1:runner-abc",
+				PrivateKey: "secret-key",
+				ActionsAllowlist: []string{
+					"com.datadoghq.http.request",
+					"com.datadoghq.traceroute",
+				},
+			},
+		},
+		{
+			name:       "empty config",
+			configData: ``,
+			wantErr:    false,
+			expectedConfig: &PrivateActionRunnerConfig{
+				Enabled: false,
+			},
+		},
+		{
+			name:       "missing private_action_runner key",
+			configData: `some_other_key: value`,
+			wantErr:    false,
+			expectedConfig: &PrivateActionRunnerConfig{
+				Enabled: false,
+			},
+		},
+		{
+			name:       "invalid YAML",
+			configData: `private_action_runner:\n  invalid: [unclosed`,
+			wantErr:    true,
+		},
+		{
+			name:       "default config",
+			configData: defaultConfigData,
+			wantErr:    false,
+			expectedConfig: &PrivateActionRunnerConfig{
+				Enabled: true,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config, err := parsePrivateActionRunnerConfig(tt.configData)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			assert.NoError(t, err)
+			require.NotNil(t, config)
+			assert.Equal(t, tt.expectedConfig.Enabled, config.Enabled)
+			assert.Equal(t, tt.expectedConfig.SelfEnroll, config.SelfEnroll)
+			assert.Equal(t, tt.expectedConfig.URN, config.URN)
+			assert.Equal(t, tt.expectedConfig.PrivateKey, config.PrivateKey)
+			assert.Equal(t, tt.expectedConfig.IdentitySecretName, config.IdentitySecretName)
+			if len(tt.expectedConfig.ActionsAllowlist) > 0 {
+				assert.ElementsMatch(t, tt.expectedConfig.ActionsAllowlist, config.ActionsAllowlist)
+			}
 		})
 	}
 }

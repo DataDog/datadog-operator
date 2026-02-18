@@ -28,6 +28,9 @@ const HostProfilerConfigMapNameAnnotion = "agent.datadoghq.com/host-profiler-con
 const EnablePrivateActionRunnerAnnotation = "agent.datadoghq.com/private-action-runner-enabled"
 const PrivateActionRunnerConfigDataAnnotation = "agent.datadoghq.com/private-action-runner-configdata"
 
+const EnableClusterAgentPrivateActionRunnerAnnotation = "cluster-agent.datadoghq.com/private-action-runner-enabled"
+const ClusterAgentPrivateActionRunnerConfigDataAnnotation = "cluster-agent.datadoghq.com/private-action-runner-configdata"
+
 func agentSupportsRunInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	// Agent version must >= 7.60.0 to run feature in core agent
 	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
@@ -97,6 +100,17 @@ func HasPrivateActionRunnerAnnotation(dda metav1.Object) bool {
 
 // HasPrivateActionRunnerConfigAnnotation returns the value and presence of a Private Action Runner config annotation
 func HasPrivateActionRunnerConfigAnnotation(dda metav1.Object, annotationName string) (string, bool) {
+	value, ok := dda.GetAnnotations()[annotationName]
+	return value, ok
+}
+
+// HasClusterAgentPrivateActionRunnerAnnotation returns true if the Cluster Agent Private Action Runner is enabled via the dedicated annotation
+func HasClusterAgentPrivateActionRunnerAnnotation(dda metav1.Object) bool {
+	return hasFeatureEnableAnnotation(dda, EnableClusterAgentPrivateActionRunnerAnnotation)
+}
+
+// HasClusterAgentPrivateActionRunnerConfigAnnotation returns the value and presence of a Cluster Agent Private Action Runner config annotation
+func HasClusterAgentPrivateActionRunnerConfigAnnotation(dda metav1.Object, annotationName string) (string, bool) {
 	value, ok := dda.GetAnnotations()[annotationName]
 	return value, ok
 }
