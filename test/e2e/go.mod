@@ -13,7 +13,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/cloudformation v1.68.3
 	github.com/aws/smithy-go v1.24.0 // indirect
 	github.com/pulumi/pulumi-kubernetes/sdk/v4 v4.23.0
-	github.com/pulumi/pulumi/sdk/v3 v3.219.0
+	github.com/pulumi/pulumi/sdk/v3 v3.221.0
 	github.com/stretchr/testify v1.11.1
 	k8s.io/apimachinery v0.36.0-alpha.0
 	k8s.io/client-go v0.36.0-alpha.0
@@ -129,7 +129,7 @@ require (
 	github.com/go-errors/errors v1.5.1 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.6.2 // indirect
-	github.com/go-git/go-git/v5 v5.14.0 // indirect
+	github.com/go-git/go-git/v5 v5.16.5 // indirect
 	github.com/go-gorp/gorp/v3 v3.1.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
