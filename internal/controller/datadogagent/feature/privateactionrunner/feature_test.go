@@ -86,7 +86,7 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 			Namespace: "default",
 			Annotations: map[string]string{
 				featureutils.EnablePrivateActionRunnerAnnotation: "true",
-				featureutils.PrivateActionRunnerConfigDataAnnotation: `privateactionrunner:
+				featureutils.PrivateActionRunnerConfigDataAnnotation: `private_action_runner:
 	enabled: true
     private_key: some-key
     urn: urn:dd:apps:on-prem-runner:us1:1:runner-abc
@@ -214,7 +214,7 @@ func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
 			name: "enabled with configdata - passes through directly",
 			annotations: map[string]string{
 				featureutils.EnablePrivateActionRunnerAnnotation: "true",
-				featureutils.PrivateActionRunnerConfigDataAnnotation: `privateactionrunner:
+				featureutils.PrivateActionRunnerConfigDataAnnotation: `private_action_runner:
     private_key: some-key
     urn: urn:dd:apps:on-prem-runner:us1:1:runner-abc
     self_enroll: false
@@ -223,7 +223,7 @@ func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
         - com.datadoghq.script.enrichScript`,
 			},
 			expectConfigMap: true,
-			expectedYAML: `privateactionrunner:
+			expectedYAML: `private_action_runner:
     private_key: some-key
     urn: urn:dd:apps:on-prem-runner:us1:1:runner-abc
     self_enroll: false
