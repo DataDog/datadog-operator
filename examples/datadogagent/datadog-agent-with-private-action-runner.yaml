@@ -1,0 +1,117 @@
+# Private Action Runner (PAR) enables workflow automation capabilities in the Datadog Agent.
+# This example demonstrates how to configure PAR using annotations.
+#
+# For more information about Private Action Runner:
+# https://docs.datadoghq.com/workflows/private-actions
+
+---
+# Example 1: Node Agent with Private Action Runner (self-enrollment)
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-node-par
+  annotations:
+    # Enable Private Action Runner for Node Agent
+    agent.datadoghq.com/private-action-runner-enabled: "true"
+    # Configure PAR using YAML configuration
+    agent.datadoghq.com/private-action-runner-configdata: |
+      private_action_runner:
+        enabled: true
+        self_enroll: true
+        actions_allowlist:
+          - com.datadoghq.http.request
+          - com.datadoghq.kubernetes.core.listPod
+spec:
+  global:
+    clusterName: my-cluster
+    credentials:
+      apiKey: <DATADOG_API_KEY>
+      appKey: <DATADOG_APP_KEY>
+    site: datadoghq.com
+
+---
+# Example 2: Cluster Agent with Private Action Runner (self-enrollment)
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-cluster-par
+  annotations:
+    # Enable Private Action Runner for Cluster Agent
+    cluster-agent.datadoghq.com/private-action-runner-enabled: "true"
+    # Configure PAR using YAML configuration
+    cluster-agent.datadoghq.com/private-action-runner-configdata: |
+      private_action_runner:
+        enabled: true
+        self_enroll: true
+        identity_secret_name: datadog-par-identity
+        actions_allowlist:
+          - com.datadoghq.http.request
+          - com.datadoghq.kubernetes.core.listPod
+          - com.datadoghq.traceroute
+spec:
+  global:
+    clusterName: my-cluster
+    credentials:
+      apiKey: <DATADOG_API_KEY>
+      appKey: <DATADOG_APP_KEY>
+    site: datadoghq.com
+
+---
+# Example 3: Cluster Agent with manual enrollment (URN and private key)
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-cluster-par-manual
+  annotations:
+    cluster-agent.datadoghq.com/private-action-runner-enabled: "true"
+    cluster-agent.datadoghq.com/private-action-runner-configdata: |
+      private_action_runner:
+        enabled: true
+        self_enroll: false
+        urn: "urn:dd:apps:on-prem-runner:us1:123456:runner-abc123"
+        private_key: "<YOUR_PRIVATE_KEY>"
+        identity_secret_name: datadog-par-identity
+        actions_allowlist:
+          - com.datadoghq.http.request
+          - com.datadoghq.kubernetes.core.listPod
+spec:
+  global:
+    clusterName: my-cluster
+    credentials:
+      apiKey: <DATADOG_API_KEY>
+      appKey: <DATADOG_APP_KEY>
+    site: datadoghq.com
+
+---
+# Example 4: Both Node Agent and Cluster Agent with PAR
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-full-par
+  annotations:
+    # Enable PAR for Node Agent
+    agent.datadoghq.com/private-action-runner-enabled: "true"
+    agent.datadoghq.com/private-action-runner-configdata: |
+      private_action_runner:
+        enabled: true
+        self_enroll: true
+        actions_allowlist:
+          - com.datadoghq.script.testConnection
+          - com.datadoghq.kubernetes.core.listPod
+    # Enable PAR for Cluster Agent
+    cluster-agent.datadoghq.com/private-action-runner-enabled: "true"
+    cluster-agent.datadoghq.com/private-action-runner-configdata: |
+      private_action_runner:
+        enabled: true
+        self_enroll: true
+        identity_secret_name: datadog-cluster-par-identity
+        actions_allowlist:
+          - com.datadoghq.http.request
+          - com.datadoghq.traceroute
+spec:
+  global:
+    clusterName: my-cluster
+    credentials:
+      apiKey: <DATADOG_API_KEY>
+      appKey: <DATADOG_APP_KEY>
+    site: datadoghq.com

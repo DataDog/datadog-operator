@@ -1,0 +1,27 @@
+{
+    "languages": {
+        "YAML": {
+            "tab_size": 2,
+        },
+        "Helm": {
+            "tab_size": 2,
+        },
+    },
+    "lsp": {
+        "gopls": {
+            "initialization_options": {
+                "env": {
+                    "GOPACKAGESDRIVER": "",
+                },
+            },
+        },
+    },
+    "file_types": {
+        "Helm": [
+            "**/templates/*.yaml",
+            "**/templates/*.yml",
+            "**/templates/*.tpl",
+        ],
+    },
+}
+
