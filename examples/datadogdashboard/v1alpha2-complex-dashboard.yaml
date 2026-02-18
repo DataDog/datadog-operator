@@ -1,0 +1,229 @@
+apiVersion: datadoghq.com/v1alpha2
+kind: DatadogDashboard
+metadata:
+  name: complex-dashboard-v1alpha2
+  namespace: system
+spec:
+  title: Complex Dashboard v1alpha2 - Multi-Widget Example
+  description: "A comprehensive dashboard showcasing various widget types in v1alpha2 format"
+  layoutType: ordered
+  reflowType: auto
+  tags:
+    - "team:platform"
+    - "env:production"
+    - "service:monitoring"
+  templateVariables:
+    - name: environment
+      prefix: env
+      availableValues:
+        - production
+        - staging
+        - development
+      defaults:
+        - production
+    - name: service
+      prefix: service
+      availableValues:
+        - web
+        - api
+        - database
+  templateVariablePresets:
+    - name: "Production Web Services"
+      templateVariables:
+        - name: environment
+          values:
+            - production
+        - name: service
+          values:
+            - web
+            - api
+  notifyList:
+    - platform-team@example.com
+    - alerts@example.com
+  widgets:
+    # Timeseries widget for CPU metrics
+    - definition:
+        type: timeseries
+        title: "CPU Usage Over Time"
+        title_size: "16"
+        title_align: left
+        show_legend: true
+        legend_layout: horizontal
+        legend_columns:
+          - avg
+          - max
+          - current
+        requests:
+          - formulas:
+              - formula: cpu_user + cpu_system
+              - formula: cpu_idle
+            queries:
+              - name: cpu_user
+                data_source: metrics
+                query: "avg:system.cpu.user{env:$environment.value,service:$service.value} by {host}"
+              - name: cpu_system
+                data_source: metrics
+                query: "avg:system.cpu.system{env:$environment.value,service:$service.value} by {host}"
+              - name: cpu_idle
+                data_source: metrics
+                query: "avg:system.cpu.idle{env:$environment.value,service:$service.value} by {host}"
+            response_format: timeseries
+            style:
+              palette: dog_classic
+              line_type: solid
+              line_width: normal
+            display_type: line
+      layout:
+        x: 0
+        y: 0
+        width: 8
+        height: 4
+
+    # Query value widget for memory usage
+    - definition:
+        type: query_value
+        title: "Current Memory Usage"
+        title_size: "16"
+        title_align: center
+        requests:
+          - queries:
+              - name: memory_used
+                data_source: metrics
+                query: "avg:system.mem.used{env:$environment.value,service:$service.value}"
+            response_format: scalar
+            conditional_formats:
+              - comparator: ">"
+                value: 80
+                palette: red_on_white
+              - comparator: ">"
+                value: 60
+                palette: yellow_on_white
+              - comparator: "<="
+                value: 60
+                palette: green_on_white
+        autoscale: true
+        precision: 1
+        unit: "%"
+      layout:
+        x: 8
+        y: 0
+        width: 4
+        height: 2
+
+    # Toplist widget for disk usage
+    - definition:
+        type: toplist
+        title: "Top Hosts by Disk Usage"
+        title_size: "16"
+        title_align: left
+        requests:
+          - queries:
+              - name: disk_usage
+                data_source: metrics
+                query: "top(avg:system.disk.used{env:$environment.value,service:$service.value} by {host}, 10, 'mean', 'desc')"
+            response_format: scalar
+            conditional_formats:
+              - comparator: ">"
+                value: 90
+                palette: red_on_white
+              - comparator: ">"
+                value: 75
+                palette: yellow_on_white
+      layout:
+        x: 8
+        y: 2
+        width: 4
+        height: 2
+
+    # Heatmap widget for response times
+    - definition:
+        type: heatmap
+        title: "Response Time Distribution"
+        title_size: "16"
+        title_align: left
+        requests:
+          - queries:
+              - name: response_time
+                data_source: metrics
+                query: "avg:http.response_time{env:$environment.value,service:$service.value} by {endpoint}"
+            response_format: timeseries
+            style:
+              palette: dog_heat_map
+      layout:
+        x: 0
+        y: 4
+        width: 6
+        height: 3
+
+    # Table widget for service status
+    - definition:
+        type: table
+        title: "Service Health Status"
+        title_size: "16"
+        title_align: left
+        requests:
+          - queries:
+              - name: service_up
+                data_source: metrics
+                query: "avg:service.up{env:$environment.value} by {service,host}"
+              - name: error_rate
+                data_source: metrics
+                query: "avg:service.error_rate{env:$environment.value} by {service,host}"
+            response_format: scalar
+            conditional_formats:
+              - comparator: "<"
+                value: 1
+                palette: red_on_white
+              - comparator: ">="
+                value: 1
+                palette: green_on_white
+        has_search_bar: auto
+        live_span: "1h"
+      layout:
+        x: 6
+        y: 4
+        width: 6
+        height: 3
+
+    # Free text widget for notes
+    - definition:
+        type: free_text
+        text: |
+          ## Dashboard Notes
+          
+          This dashboard provides comprehensive monitoring for our services:
+          
+          - **CPU Usage**: Monitor system resource utilization
+          - **Memory Usage**: Track memory consumption with alerts
+          - **Disk Usage**: Top consumers by host
+          - **Response Times**: Distribution heatmap
+          - **Service Health**: Real-time status table
+          
+          **Alert Thresholds:**
+          - Memory > 80%: Critical
+          - Memory > 60%: Warning
+          - Disk > 90%: Critical
+          - Service Down: Critical
+        color: "#000000"
+        font_size: "14"
+        text_align: left
+      layout:
+        x: 0
+        y: 7
+        width: 12
+        height: 2
+
+    # Event stream widget
+    - definition:
+        type: event_stream
+        title: "Recent Deployment Events"
+        title_size: "16"
+        title_align: left
+        query: "tags:deployment,env:$environment.value"
+        event_size: s
+        live_span: "1d"
+      layout:
+        x: 0
+        y: 9
+        width: 12
+        height: 3
