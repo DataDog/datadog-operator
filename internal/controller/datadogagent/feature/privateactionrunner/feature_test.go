@@ -86,7 +86,7 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 			Namespace: "default",
 			Annotations: map[string]string{
 				featureutils.EnablePrivateActionRunnerAnnotation: "true",
-				featureutils.PrivateActionRunnerConfigDataAnnotation: `privateactionrunner:
+				featureutils.PrivateActionRunnerConfigDataAnnotation: `private_action_runner:
 	enabled: true
     private_key: some-key
     urn: urn:dd:apps:on-prem-runner:us1:1:runner-abc
@@ -126,7 +126,7 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 	// Verify hash
 	assert.NotEmpty(t, managers.AnnotationMgr.Annotations)
 	assert.NotEmpty(t, managers.AnnotationMgr.Annotations["checksum/private_action_runner-custom-config"])
-	assert.Equal(t, managers.AnnotationMgr.Annotations["checksum/private_action_runner-custom-config"], "749c842cefd79ebc309b2b329b28e3fe")
+	assert.Equal(t, managers.AnnotationMgr.Annotations["checksum/private_action_runner-custom-config"], "7aca0ab8a2cb083533a5552c17a50aa3")
 }
 
 func Test_privateActionRunnerFeature_ID(t *testing.T) {
@@ -208,13 +208,13 @@ func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
 			},
 			expectConfigMap: true,
 			expectedYAML:    defaultConfigData,
-			expectedHash:    "b7fc921bd4d0b4a60ef4fd8ea98e65a1",
+			expectedHash:    "57aedff9cb18bcec9b12a3974ef6fc55",
 		},
 		{
 			name: "enabled with configdata - passes through directly",
 			annotations: map[string]string{
 				featureutils.EnablePrivateActionRunnerAnnotation: "true",
-				featureutils.PrivateActionRunnerConfigDataAnnotation: `privateactionrunner:
+				featureutils.PrivateActionRunnerConfigDataAnnotation: `private_action_runner:
     private_key: some-key
     urn: urn:dd:apps:on-prem-runner:us1:1:runner-abc
     self_enroll: false
@@ -223,14 +223,14 @@ func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
         - com.datadoghq.script.enrichScript`,
 			},
 			expectConfigMap: true,
-			expectedYAML: `privateactionrunner:
+			expectedYAML: `private_action_runner:
     private_key: some-key
     urn: urn:dd:apps:on-prem-runner:us1:1:runner-abc
     self_enroll: false
     actions_allowlist:
         - com.datadoghq.script.testConnection
         - com.datadoghq.script.enrichScript`,
-			expectedHash: "5d4b4b221b5bcc3b92792558d6f6bc58",
+			expectedHash: "76f45ac891d62eb42272bbe26f32fb7c",
 		},
 	}
 

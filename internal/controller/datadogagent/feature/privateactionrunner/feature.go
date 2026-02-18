@@ -50,7 +50,7 @@ func (f *privateActionRunnerFeature) ID() feature.IDType {
 	return feature.PrivateActionRunnerIDType
 }
 
-const defaultConfigData = "privateactionrunner:\n    enabled: true\n"
+const defaultConfigData = "private_action_runner:\n    enabled: true\n"
 
 // Configure configures the feature from annotations on the DatadogAgent object.
 func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
