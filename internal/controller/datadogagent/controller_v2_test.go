@@ -1167,6 +1167,80 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 			},
 		},
 		{
+			name:                 "[introspection] Control Plane Monitoring with EKS multi-node (Fargate + Standard + Bottlerocket)",
+			introspectionEnabled: true,
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				return createDatadogAgentWithClusterChecks(c, resourcesNamespace, resourcesName)
+			},
+			nodes: []client.Object{
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "eks-fargate-node",
+						Labels: map[string]string{
+							"eks.amazonaws.com/compute-type":    "fargate",
+							"eks.amazonaws.com/fargate-profile": "my-profile",
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "eks-standard-node",
+						Labels: map[string]string{
+							kubernetes.EKSProviderLabel:   "ami-0e7f88829f3d06e29",
+							"eks.amazonaws.com/nodegroup": "standard-nodes",
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "eks-bottlerocket-node",
+						Labels: map[string]string{
+							kubernetes.EKSProviderLabel:   "ami-0fa9d45aa38272f15",
+							"eks.amazonaws.com/nodegroup": "bottlerocket-nodes",
+						},
+					},
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				// All EKS nodes should be detected as single "eks" provider
+				verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "eks")
+				// Should create single DaemonSet for all EKS node types
+				expectedDaemonsets := []string{
+					dsName,
+				}
+				verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
+			},
+		},
+		{
+			name:                 "[introspection] Control Plane Monitoring with EKS eksctl-provisioned cluster",
+			introspectionEnabled: true,
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				return createDatadogAgentWithClusterChecks(c, resourcesNamespace, resourcesName)
+			},
+			nodes: []client.Object{
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "eks-eksctl-node",
+						Labels: map[string]string{
+							"alpha.eksctl.io/cluster-name":   "my-cluster",
+							"alpha.eksctl.io/nodegroup-name": "my-nodegroup",
+						},
+					},
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "eks")
+				expectedDaemonsets := []string{
+					dsName,
+				}
+				verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
+			},
+		},
+		{
 			name:                 "[introspection] Control Plane Monitoring with multiple providers",
 			introspectionEnabled: true,
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
