@@ -154,14 +154,7 @@ func (r *Reconciler) useDefaultDaemonset(providerList map[string]struct{}) bool 
 	if len(providerList) == 0 {
 		return false
 	}
-
-	for provider := range providerList {
-		providerLabel, _ := kubernetes.GetProviderLabelKeyValue(provider)
-		if providerLabel == kubernetes.OpenShiftProviderLabel || providerLabel == kubernetes.EKSProviderLabel {
-			return true
-		}
-	}
-	return false
+	return kubernetes.ShouldUseDefaultDaemonset(providerList)
 }
 
 // *************************************

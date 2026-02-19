@@ -25,15 +25,22 @@ import (
 )
 
 const (
-	crdMetadataInterval = 1 * time.Minute
+	crdMetadataInterval     = 1 * time.Minute
+	crdMetadataHeartbeatTTL = 10 * time.Minute
 )
+
+// crdCacheEntry tracks both the hash and last sent time for heartbeat detection
+type crdCacheEntry struct {
+	hash     string
+	lastSent time.Time
+}
 
 type CRDMetadataForwarder struct {
 	*SharedMetadata
 
 	enabledCRDs EnabledCRDKindsConfig
 
-	crdCache   map[string]string // key: "kind/namespace/name", value: hash of spec
+	crdCache   map[string]*crdCacheEntry
 	cacheMutex sync.RWMutex
 }
 
@@ -84,7 +91,7 @@ func NewCRDMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubern
 	return &CRDMetadataForwarder{
 		SharedMetadata: NewSharedMetadata(forwarderLogger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
 		enabledCRDs:    config,
-		crdCache:       make(map[string]string),
+		crdCache:       make(map[string]*crdCacheEntry),
 	}
 }
 
@@ -106,19 +113,19 @@ func (cmf *CRDMetadataForwarder) sendMetadata() error {
 	ctx, cancel := context.WithTimeout(context.Background(), DefaultOperationTimeout)
 	defer cancel()
 
-	allCRDs, listSuccess := cmf.getAllActiveCRDs(ctx)
-	changedCRDs := cmf.getChangedCRDs(allCRDs)
+	allCRDs, listSuccess := cmf.getAllActiveCRDs()
+	crdsToSend := cmf.getCRDsToSend(allCRDs)
 
-	if len(changedCRDs) == 0 {
-		cmf.logger.V(1).Info("No changes detected")
+	if len(crdsToSend) == 0 {
+		cmf.logger.V(1).Info("No changes or heartbeats due")
 		return nil
 	}
 
-	cmf.logger.V(1).Info("Detected changes", "count", len(changedCRDs))
+	cmf.logger.V(1).Info("Sending metadata", "count", len(crdsToSend))
 
-	// Send individual payloads for each changed CRD
-	for _, crd := range changedCRDs {
-		if err := cmf.sendCRDMetadata(ctx, crd); err != nil {
+	// Send individual payloads for each CRD
+	for _, crd := range crdsToSend {
+		if err := cmf.sendCRDMetadata(crd); err != nil {
 			cmf.logger.V(1).Info("Failed to send metadata", "error", err,
 				"kind", crd.Kind, "name", crd.Name, "namespace", crd.Namespace)
 		}
@@ -307,12 +314,14 @@ func (cmf *CRDMetadataForwarder) getAllActiveCRDs(ctx context.Context) ([]CRDIns
 	return crds, listSuccess
 }
 
-// getChangedCRDs returns only CRDs whose specs have changed and updates the cache
-func (cmf *CRDMetadataForwarder) getChangedCRDs(crds []CRDInstance) []CRDInstance {
+// getCRDsToSend returns CRDs that need to be sent due to changes or heartbeat
+func (cmf *CRDMetadataForwarder) getCRDsToSend(crds []CRDInstance) []CRDInstance {
 	cmf.cacheMutex.Lock()
 	defer cmf.cacheMutex.Unlock()
 
-	var changed []CRDInstance
+	now := time.Now()
+	var toSend []CRDInstance
+
 	for _, crd := range crds {
 		key := buildCacheKey(crd)
 		newHash, err := hashCRD(crd)
@@ -321,13 +330,42 @@ func (cmf *CRDMetadataForwarder) getChangedCRDs(crds []CRDInstance) []CRDInstanc
 			continue
 		}
 
-		if oldHash, exists := cmf.crdCache[key]; !exists || oldHash != newHash {
-			changed = append(changed, crd)
-			cmf.crdCache[key] = newHash
+		cacheEntry, exists := cmf.crdCache[key]
+
+		// New CRD (never seen before)
+		if !exists {
+			toSend = append(toSend, crd)
+			cmf.crdCache[key] = &crdCacheEntry{
+				hash:     newHash,
+				lastSent: now,
+			}
+			cmf.logger.V(1).Info("New CRD detected", "key", key)
+			continue
+		}
+
+		// Hash changed (spec/labels/annotations modified)
+		if cacheEntry.hash != newHash {
+			toSend = append(toSend, crd)
+			cmf.crdCache[key] = &crdCacheEntry{
+				hash:     newHash,
+				lastSent: now,
+			}
+			cmf.logger.V(1).Info("CRD change detected", "key", key)
+			continue
+		}
+
+		// Heartbeat needed (unchanged but 10+ minutes since last send)
+		timeSinceLastSend := now.Sub(cacheEntry.lastSent)
+		if timeSinceLastSend >= crdMetadataHeartbeatTTL {
+			toSend = append(toSend, crd)
+			cmf.crdCache[key].lastSent = now
+			cmf.logger.V(1).Info("CRD heartbeat due", "key", key,
+				"time_since_last_send", timeSinceLastSend.Round(time.Second))
+			continue
 		}
 	}
 
-	return changed
+	return toSend
 }
 
 // cleanupDeletedCRDs removes cache entries for CRDs that got deleted
