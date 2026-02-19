@@ -407,6 +407,9 @@ e2e_autoscaling:
           - "test/e2e/provisioners/eks.go"
           - "test/e2e/common/autoscaling.go"
       when: on_success
+    # Disable on Conductor-triggered jobs (ex: nightly)
+    - if: '$DDR == "true"'
+      when: never
     # Allow manual run otherwise
     - when: manual
       allow_failure: true
