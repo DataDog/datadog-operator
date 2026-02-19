@@ -124,7 +124,7 @@ func getWantFunc(withNetStats bool) func(t testing.TB, mgrInterface feature.PodT
 				}, corev1.VolumeMount{
 					Name:      common.SrcVolumeName,
 					MountPath: common.SrcVolumePath,
-					ReadOnly:  true,
+					ReadOnly:  false,
 				})
 		}
 

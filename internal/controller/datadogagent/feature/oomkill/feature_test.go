@@ -67,7 +67,7 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 			{
 				Name:      common.SrcVolumeName,
 				MountPath: common.SrcVolumePath,
-				ReadOnly:  true,
+				ReadOnly:  false,
 			},
 			{
 				Name:      common.DebugfsVolumeName,

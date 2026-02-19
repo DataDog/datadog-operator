@@ -68,7 +68,7 @@ func Test_tcpQueueLengthFeature_Configure(t *testing.T) {
 			{
 				Name:      common.SrcVolumeName,
 				MountPath: common.SrcVolumePath,
-				ReadOnly:  true,
+				ReadOnly:  false,
 			},
 			{
 				Name:      common.DebugfsVolumeName,
