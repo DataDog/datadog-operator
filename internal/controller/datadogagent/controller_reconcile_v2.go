@@ -56,15 +56,6 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 }
 
 func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
-	// Set up field manager for crd apply
-	if r.fieldManager == nil {
-		f, err := newFieldManager(r.client, r.scheme, getDDAIGVK())
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-		r.fieldManager = f
-	}
-
 	var result reconcile.Result
 	now := metav1.NewTime(time.Now())
 	ddais := []*datadoghqv1alpha1.DatadogAgentInternal{}
@@ -97,7 +88,19 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 		if e != nil {
 			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
 		}
-		profileDDAIs, e := r.applyProfilesToDDAISpec(ddai, appliedProfiles)
+
+		// If default DDAI doesn't exist, skip user profile DDAIs and only apply default profile
+		profilesToApply := appliedProfiles
+		checkDDAI := &datadoghqv1alpha1.DatadogAgentInternal{}
+		if getErr := r.client.Get(ctx, types.NamespacedName{Name: ddai.Name, Namespace: ddai.Namespace}, checkDDAI); getErr != nil {
+			if !apierrors.IsNotFound(getErr) {
+				return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, getErr, now)
+			}
+			// Default DDAI not yet live; defer user profile DDAIs to the next reconcile.
+			logger.Info("default DDAI not yet created, skipping user profile DDAIs until next reconcile", "ddai", ddai.Name)
+			profilesToApply = appliedProfiles[:1]
+		}
+		profileDDAIs, e := r.applyProfilesToDDAISpec(ctx, ddai, profilesToApply)
 		if e != nil {
 			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
 		}

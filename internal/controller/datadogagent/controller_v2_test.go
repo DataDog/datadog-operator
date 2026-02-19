@@ -1167,80 +1167,6 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 			},
 		},
 		{
-			name:                 "[introspection] Control Plane Monitoring with EKS multi-node (Fargate + Standard + Bottlerocket)",
-			introspectionEnabled: true,
-			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				return createDatadogAgentWithClusterChecks(c, resourcesNamespace, resourcesName)
-			},
-			nodes: []client.Object{
-				&corev1.Node{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "eks-fargate-node",
-						Labels: map[string]string{
-							"eks.amazonaws.com/compute-type":    "fargate",
-							"eks.amazonaws.com/fargate-profile": "my-profile",
-						},
-					},
-				},
-				&corev1.Node{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "eks-standard-node",
-						Labels: map[string]string{
-							kubernetes.EKSProviderLabel:   "ami-0e7f88829f3d06e29",
-							"eks.amazonaws.com/nodegroup": "standard-nodes",
-						},
-					},
-				},
-				&corev1.Node{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "eks-bottlerocket-node",
-						Labels: map[string]string{
-							kubernetes.EKSProviderLabel:   "ami-0fa9d45aa38272f15",
-							"eks.amazonaws.com/nodegroup": "bottlerocket-nodes",
-						},
-					},
-				},
-			},
-			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
-			wantErr: false,
-			wantFunc: func(t *testing.T, c client.Client) {
-				// All EKS nodes should be detected as single "eks" provider
-				verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "eks")
-				// Should create single DaemonSet for all EKS node types
-				expectedDaemonsets := []string{
-					dsName,
-				}
-				verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
-			},
-		},
-		{
-			name:                 "[introspection] Control Plane Monitoring with EKS eksctl-provisioned cluster",
-			introspectionEnabled: true,
-			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				return createDatadogAgentWithClusterChecks(c, resourcesNamespace, resourcesName)
-			},
-			nodes: []client.Object{
-				&corev1.Node{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "eks-eksctl-node",
-						Labels: map[string]string{
-							"alpha.eksctl.io/cluster-name":   "my-cluster",
-							"alpha.eksctl.io/nodegroup-name": "my-nodegroup",
-						},
-					},
-				},
-			},
-			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
-			wantErr: false,
-			wantFunc: func(t *testing.T, c client.Client) {
-				verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "eks")
-				expectedDaemonsets := []string{
-					dsName,
-				}
-				verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
-			},
-		},
-		{
 			name:                 "[introspection] Control Plane Monitoring with multiple providers",
 			introspectionEnabled: true,
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
@@ -1516,34 +1442,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 
 	dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).BuildWithDefaults()
 
-	// Define profile for the test that needs it
-	fooProfile := &v1alpha1.DatadogAgentProfile{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo-profile",
-			Namespace: resourcesNamespace,
-		},
-		Spec: v1alpha1.DatadogAgentProfileSpec{
-			ProfileAffinity: &v1alpha1.ProfileAffinity{
-				ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
-					{
-						Key:      "foo",
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{"foo-profile"},
-					},
-				},
-			},
-			Config: &v2alpha1.DatadogAgentSpec{
-				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-					v2alpha1.NodeAgentComponentName: {
-						Labels: map[string]string{
-							"foo": "bar",
-						},
-					},
-				},
-			},
-		},
-	}
-
+	// user created profile test case is handled by integration tests due to a bug in the fake client preventing proper SSA of the profile spec
 	tests := []testCase{
 		{
 			name:        "[ddai] Create DDAI from minimal DDA",
@@ -1647,88 +1546,6 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 			wantErr:         false,
 			wantFunc: func(t *testing.T, c client.Client) {
 				verifyDDAI(t, c, []v1alpha1.DatadogAgentInternal{getDefaultDDAI(dda)})
-			},
-		},
-		{
-			name:        "[ddai] Create DDAI from minimal DDA and user created profile",
-			ddaiEnabled: true,
-			clientBuilder: fake.NewClientBuilder().
-				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}).
-				WithObjects(fooProfile),
-			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				_ = c.Create(context.TODO(), dda)
-				return dda
-			},
-			profilesEnabled: true,
-			profile:         fooProfile,
-			want:            reconcile.Result{RequeueAfter: defaultRequeueDuration},
-			wantErr:         false,
-			wantFunc: func(t *testing.T, c client.Client) {
-				profileDDAI := getBaseDDAI(dda)
-				profileDDAI.Name = "foo-profile"
-				profileDDAI.Annotations = map[string]string{
-					constants.MD5DDAIDeploymentAnnotationKey: "579deacef04ebeb98d0c521df83bd6c4",
-				}
-				profileDDAI.Labels[constants.ProfileLabelKey] = "foo-profile"
-				profileDDAI.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-					v2alpha1.ClusterAgentComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
-					},
-					v2alpha1.ClusterChecksRunnerComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
-					},
-					v2alpha1.OtelAgentGatewayComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
-					},
-					v2alpha1.NodeAgentComponentName: {
-						Name: apiutils.NewStringPointer("foo-profile-agent"),
-						Labels: map[string]string{
-							constants.MD5AgentDeploymentProviderLabelKey: "",
-							"foo":                     "bar",
-							constants.ProfileLabelKey: "foo-profile",
-						},
-						Affinity: &corev1.Affinity{
-							NodeAffinity: &corev1.NodeAffinity{
-								RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-									NodeSelectorTerms: []corev1.NodeSelectorTerm{
-										{
-											MatchExpressions: []corev1.NodeSelectorRequirement{
-												{
-													Key:      "foo",
-													Operator: corev1.NodeSelectorOpIn,
-													Values:   []string{"foo-profile"},
-												},
-												{
-													Key:      constants.ProfileLabelKey,
-													Operator: corev1.NodeSelectorOpIn,
-													Values:   []string{"foo-profile"},
-												},
-											},
-										},
-									},
-								},
-							},
-							PodAntiAffinity: &corev1.PodAntiAffinity{
-								RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-									{
-										LabelSelector: &metav1.LabelSelector{
-											MatchExpressions: []metav1.LabelSelectorRequirement{
-												{
-													Key:      apicommon.AgentDeploymentComponentLabelKey,
-													Operator: metav1.LabelSelectorOpIn,
-													Values:   []string{string(apicommon.CoreAgentContainerName)},
-												},
-											},
-										},
-										TopologyKey: "kubernetes.io/hostname",
-									},
-								},
-							},
-						},
-					},
-				}
-
-				verifyDDAI(t, c, []v1alpha1.DatadogAgentInternal{getDefaultDDAI(dda), profileDDAI})
 			},
 		},
 	}

@@ -258,7 +258,6 @@ core,k8s.io/kube-openapi/pkg/internal/third_party/govalidator,MIT
 core,k8s.io/kube-openapi/pkg/validation/errors,Apache-2.0
 core,k8s.io/kube-openapi/pkg/validation/spec,Apache-2.0
 core,k8s.io/kube-openapi/pkg/validation/strfmt,Apache-2.0
-core,k8s.io/kube-openapi/pkg/validation/validate,Apache-2.0
 core,k8s.io/kubectl/pkg,Apache-2.0
 core,k8s.io/utils,Apache-2.0
 core,k8s.io/utils/internal/third_party/forked/golang,BSD-3-Clause

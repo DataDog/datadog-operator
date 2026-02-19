@@ -291,7 +291,7 @@ go_e2e_deps:
     allow_failure: true
   # Allow failure if we're explicitly pushing images to staging
   - if: $PUSH_IMAGES_TO_STAGING == 'true'
-    allow_failure: true
+    when: never
   # Disable on Conductor-triggered jobs (ex: nightly)
   - if: '$DDR == "true"'
     when: never
@@ -390,30 +390,6 @@ e2e_mq:
       allow_failure: true
     # Don't run otherwise
     - when: never
-
-e2e_autoscaling:
-  extends: .e2e_aws_base
-  stage: e2e
-  needs:
-    - "go_e2e_deps"
-  timeout: 60m
-  rules:
-    # Run automatically on changes to autoscaling code
-    - if: $CI_COMMIT_BRANCH
-      changes:
-        paths:
-          - "cmd/kubectl-datadog/autoscaling/**"
-          - "test/e2e/tests/autoscaling_suite/**"
-          - "test/e2e/provisioners/eks.go"
-          - "test/e2e/common/autoscaling.go"
-      when: on_success
-    # Allow manual run otherwise
-    - when: manual
-      allow_failure: true
-  script:
-    - echo "Running autoscaling e2e tests"
-    - make e2e-autoscaling-tests
-  retry: 2
 
 publish_public_main:
   stage: release

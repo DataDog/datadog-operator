@@ -16,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -156,13 +157,16 @@ func (r *Reconciler) getProfileDaemonSet(ctx context.Context, profile *v1alpha1.
 	return nil, fmt.Errorf("no valid daemonset found")
 }
 
-func (r *Reconciler) applyProfilesToDDAISpec(ddai *v1alpha1.DatadogAgentInternal, profiles []*v1alpha1.DatadogAgentProfile) ([]*v1alpha1.DatadogAgentInternal, error) {
+func (r *Reconciler) applyProfilesToDDAISpec(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, profiles []*v1alpha1.DatadogAgentProfile) ([]*v1alpha1.DatadogAgentInternal, error) {
 	ddais := []*v1alpha1.DatadogAgentInternal{}
 
-	// For all profiles, create DDAI objects
-	// Note: profiles includes the default profile to allow the default affinity to be set
+	// Profiles includes the default profile so that default node-agent affinity is set.
 	for _, profile := range profiles {
-		mergedDDAI, err := r.computeProfileMerge(ddai, profile)
+		mergedSpec, err := r.mergeProfileSpec(ctx, ddai, profile)
+		if err != nil {
+			return nil, err
+		}
+		mergedDDAI, err := buildProfileDDAI(ddai, mergedSpec, profile)
 		if err != nil {
 			return nil, err
 		}
@@ -172,77 +176,95 @@ func (r *Reconciler) applyProfilesToDDAISpec(ddai *v1alpha1.DatadogAgentInternal
 	return ddais, nil
 }
 
-func (r *Reconciler) computeProfileMerge(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) (*v1alpha1.DatadogAgentInternal, error) {
-	// Copy the original DDAI and apply profile spec to create a fake "DDAI" to merge
-	profileDDAI := ddai.DeepCopy()
-	baseDDAI := ddai.DeepCopy()
+func (r *Reconciler) mergeProfileSpec(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) (*v2alpha1.DatadogAgentSpec, error) {
+	// Default profile: no API call needed
+	if agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
+		spec := ddai.Spec.DeepCopy()
+		affinity := setProfileDDAIAffinity(spec, profile)
+		ensureOverrideExists(spec, v2alpha1.NodeAgentComponentName)
+		spec.Override[v2alpha1.NodeAgentComponentName].Affinity = affinity
+		return spec, nil
+	}
 
-	// Add profile settings to "fake" DDAI
-	setProfileSpec(profileDDAI, profile)
-	if err := setProfileDDAIMeta(profileDDAI, profile); err != nil {
+	// User profile: SSA dry-run against the live default DDAI
+	patch := &v1alpha1.DatadogAgentInternal{
+		// TypeMeta required for SSA patch body
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "datadoghq.com/v1alpha1",
+			Kind:       "DatadogAgentInternal",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ddai.Name,
+			Namespace: ddai.Namespace,
+		},
+	}
+
+	setProfileSpec(&patch.Spec, &ddai.Spec, profile)
+
+	if err := r.ssaDryRunPatch(ctx, patch); err != nil {
+		return nil, fmt.Errorf("failed to merge profile spec: %w", err)
+	}
+	return &patch.Spec, nil
+}
+
+func buildProfileDDAI(base *v1alpha1.DatadogAgentInternal, spec *v2alpha1.DatadogAgentSpec, profile *v1alpha1.DatadogAgentProfile) (*v1alpha1.DatadogAgentInternal, error) {
+	ddai := &v1alpha1.DatadogAgentInternal{
+		ObjectMeta: *base.ObjectMeta.DeepCopy(),
+		Spec:       *spec,
+	}
+	setProfileDDAIMeta(ddai, profile)
+	if _, err := comparison.SetMD5GenerationAnnotation(&ddai.ObjectMeta, ddai.Spec, constants.MD5DDAIDeploymentAnnotationKey); err != nil {
 		return nil, err
 	}
-
-	// ensure gvk is set
-	baseDDAI.GetObjectKind().SetGroupVersionKind(getDDAIGVK())
-	profileDDAI.GetObjectKind().SetGroupVersionKind(getDDAIGVK())
-	// Server side apply to merge DDAIs
-	obj, err := r.ssaMergeCRD(baseDDAI, profileDDAI)
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert from runtime.Object back to DDAI
-	typedObj, ok := obj.(*v1alpha1.DatadogAgentInternal)
-	if !ok {
-		return nil, fmt.Errorf("unexpected type: %T", obj)
-	}
-
-	// Set spec hash
-	if _, err := comparison.SetMD5GenerationAnnotation(&typedObj.ObjectMeta, typedObj.Spec, constants.MD5DDAIDeploymentAnnotationKey); err != nil {
-		return nil, err
-	}
-	return typedObj, nil
+	return ddai, nil
 }
 
-func setProfileSpec(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) {
-	// create affinity from ddai and profile prior to re-set after replacing the ddai spec
-	affinity := setProfileDDAIAffinity(ddai, profile)
-	if !agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
-		ddai.Spec = *profile.Spec.Config
-		// DCA, CCR, and OtelAgentGateway are auto disabled for user created profiles
-		disableComponent(ddai, v2alpha1.ClusterAgentComponentName)
-		disableComponent(ddai, v2alpha1.ClusterChecksRunnerComponentName)
-		disableComponent(ddai, v2alpha1.OtelAgentGatewayComponentName)
-		setProfileNodeAgentOverride(ddai, profile)
-	}
-	ensureOverrideExists(ddai, v2alpha1.NodeAgentComponentName)
-	ddai.Spec.Override[v2alpha1.NodeAgentComponentName].Affinity = affinity
+// ssaDryRunPatch performs a server-side apply dry-run patch on obj.
+// The live object is unchanged by the patch
+func (r *Reconciler) ssaDryRunPatch(ctx context.Context, obj client.Object) error {
+	return r.client.Patch(ctx, obj, client.Apply,
+		client.DryRunAll,
+		client.ForceOwnership,
+		client.FieldOwner("datadog-operator"))
 }
 
-func ensureOverrideExists(ddai *v1alpha1.DatadogAgentInternal, componentName v2alpha1.ComponentName) {
-	if ddai.Spec.Override == nil {
-		ddai.Spec.Override = make(map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride)
+func setProfileSpec(spec *v2alpha1.DatadogAgentSpec, ddaSpec *v2alpha1.DatadogAgentSpec, profile *v1alpha1.DatadogAgentProfile) {
+	if profile.Spec.Config != nil {
+		*spec = *profile.Spec.Config.DeepCopy()
 	}
-	if ddai.Spec.Override[componentName] == nil {
-		ddai.Spec.Override[componentName] = &v2alpha1.DatadogAgentComponentOverride{}
+	// DCA, CCR, and OtelAgentGateway are auto-disabled for user-created profiles.
+	disableComponent(spec, v2alpha1.ClusterAgentComponentName)
+	disableComponent(spec, v2alpha1.ClusterChecksRunnerComponentName)
+	disableComponent(spec, v2alpha1.OtelAgentGatewayComponentName)
+	setProfileNodeAgentOverride(spec, profile)
+	// setProfileNodeAgentOverride guarantees node agent override is non-nil
+	// merge affinity from live DDA and profile
+	spec.Override[v2alpha1.NodeAgentComponentName].Affinity = setProfileDDAIAffinity(ddaSpec, profile)
+}
+
+func ensureOverrideExists(spec *v2alpha1.DatadogAgentSpec, componentName v2alpha1.ComponentName) {
+	if spec.Override == nil {
+		spec.Override = make(map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride)
+	}
+	if spec.Override[componentName] == nil {
+		spec.Override[componentName] = &v2alpha1.DatadogAgentComponentOverride{}
 	}
 }
 
-func disableComponent(ddai *v1alpha1.DatadogAgentInternal, componentName v2alpha1.ComponentName) {
-	ensureOverrideExists(ddai, componentName)
-	ddai.Spec.Override[componentName].Disabled = apiutils.NewBoolPointer(true)
+func disableComponent(spec *v2alpha1.DatadogAgentSpec, componentName v2alpha1.ComponentName) {
+	ensureOverrideExists(spec, componentName)
+	spec.Override[componentName].Disabled = apiutils.NewBoolPointer(true)
 }
 
-func setProfileDDAIAffinity(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) *corev1.Affinity {
-	override, ok := ddai.Spec.Override[v2alpha1.NodeAgentComponentName]
+func setProfileDDAIAffinity(spec *v2alpha1.DatadogAgentSpec, profile *v1alpha1.DatadogAgentProfile) *corev1.Affinity {
+	override, ok := spec.Override[v2alpha1.NodeAgentComponentName]
 	if !ok || override == nil {
 		override = &v2alpha1.DatadogAgentComponentOverride{}
 	}
 	return common.MergeAffinities(override.Affinity, agentprofile.AffinityOverride(profile))
 }
 
-func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) error {
+func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) {
 	// Name
 	ddai.Name = getProfileDDAIName(ddai.Name, profile.Name, profile.Namespace)
 	// Managed fields needs to be nil for server-side apply
@@ -257,7 +279,6 @@ func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.D
 		}
 		ddai.Labels[constants.ProfileLabelKey] = profile.Name
 	}
-	return nil
 }
 
 // getProfileDDAIName returns the name of the DDAI when profiles are used.
@@ -270,9 +291,9 @@ func getProfileDDAIName(ddaiName, profileName, profileNamespace string) string {
 }
 
 // The node agent component override is non-nil from the default DDAI creation
-func setProfileNodeAgentOverride(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) {
-	ensureOverrideExists(ddai, v2alpha1.NodeAgentComponentName)
-	setProfileDDAILabels(ddai.Spec.Override[v2alpha1.NodeAgentComponentName], profile)
+func setProfileNodeAgentOverride(spec *v2alpha1.DatadogAgentSpec, profile *v1alpha1.DatadogAgentProfile) {
+	ensureOverrideExists(spec, v2alpha1.NodeAgentComponentName)
+	setProfileDDAILabels(spec.Override[v2alpha1.NodeAgentComponentName], profile)
 
 	// Set the DaemonSet name override for profile DDAIs to prevent conflicts
 	if !agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
@@ -282,7 +303,7 @@ func setProfileNodeAgentOverride(ddai *v1alpha1.DatadogAgentInternal, profile *v
 		}, true) // Use v3 metadata naming
 
 		if dsName != "" {
-			ddai.Spec.Override[v2alpha1.NodeAgentComponentName].Name = &dsName
+			spec.Override[v2alpha1.NodeAgentComponentName].Name = &dsName
 		}
 	}
 }

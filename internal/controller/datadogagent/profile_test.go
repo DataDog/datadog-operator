@@ -7,7 +7,6 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -26,13 +25,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_computeProfileMerge(t *testing.T) {
+// Test_applyProfilesToDDAISpec_default only tests default profiles
+// user-created profiles require a real API server for SSA due to a bug in the fake client and are
+// covered by the integration tests in datadogagent_controller_profiles_test.go
+func Test_applyProfilesToDDAISpec_default(t *testing.T) {
 	sch := k8sruntime.NewScheme()
 	_ = scheme.AddToScheme(sch)
 	_ = v1alpha1.AddToScheme(sch)
 	_ = v2alpha1.AddToScheme(sch)
 	_ = corev1.AddToScheme(sch)
-	_ = apiextensionsv1.AddToScheme(sch)
 	ctx := context.Background()
 
 	testCases := []struct {
@@ -137,190 +138,7 @@ func Test_computeProfileMerge(t *testing.T) {
 			},
 		},
 		{
-			name: "user created profile",
-			ddai: v1alpha1.DatadogAgentInternal{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo",
-					Namespace: "bar",
-				},
-				Spec: v2alpha1.DatadogAgentSpec{
-					Features: &v2alpha1.DatadogFeatures{
-						APM: &v2alpha1.APMFeatureConfig{
-							Enabled: apiutils.NewBoolPointer(true),
-						},
-					},
-					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-						v2alpha1.NodeAgentComponentName: {
-							Env: []corev1.EnvVar{
-								{
-									Name:  "EXISTING",
-									Value: "value",
-								},
-							},
-							Labels: map[string]string{
-								constants.MD5AgentDeploymentProviderLabelKey: "",
-							},
-						},
-					},
-				},
-			},
-			profile: v1alpha1.DatadogAgentProfile{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo-profile",
-					Namespace: "bar",
-				},
-				Spec: v1alpha1.DatadogAgentProfileSpec{
-					ProfileAffinity: &v1alpha1.ProfileAffinity{
-						ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
-							{
-								Key:      "test",
-								Operator: corev1.NodeSelectorOpIn,
-								Values:   []string{"foo"},
-							},
-						},
-					},
-					Config: &v2alpha1.DatadogAgentSpec{
-						Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-							v2alpha1.NodeAgentComponentName: {
-								Env: []corev1.EnvVar{
-									{
-										Name:  "EXISTING",
-										Value: "newvalue",
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			want: v1alpha1.DatadogAgentInternal{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo-profile",
-					Namespace: "bar",
-					Annotations: map[string]string{
-						constants.MD5DDAIDeploymentAnnotationKey: "e160cdf078da13507876397e80bbe4e0",
-					},
-				},
-				Spec: v2alpha1.DatadogAgentSpec{
-					Features: &v2alpha1.DatadogFeatures{
-						APM: &v2alpha1.APMFeatureConfig{
-							Enabled: apiutils.NewBoolPointer(true),
-						},
-					},
-					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-						v2alpha1.NodeAgentComponentName: {
-							Name: apiutils.NewStringPointer("foo-profile-agent"),
-							Affinity: &corev1.Affinity{
-								NodeAffinity: &corev1.NodeAffinity{
-									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-										NodeSelectorTerms: []corev1.NodeSelectorTerm{
-											{
-												MatchExpressions: []corev1.NodeSelectorRequirement{
-													{
-														Key:      "test",
-														Operator: corev1.NodeSelectorOpIn,
-														Values:   []string{"foo"},
-													},
-													{
-														Key:      "agent.datadoghq.com/datadogagentprofile",
-														Operator: corev1.NodeSelectorOpIn,
-														Values:   []string{"foo-profile"},
-													},
-												},
-											},
-										},
-									},
-								},
-								PodAntiAffinity: &corev1.PodAntiAffinity{
-									RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-										{
-											LabelSelector: &metav1.LabelSelector{
-												MatchExpressions: []metav1.LabelSelectorRequirement{
-													{
-														Key:      "agent.datadoghq.com/component",
-														Operator: metav1.LabelSelectorOpIn,
-														Values:   []string{"agent"},
-													},
-												},
-											},
-											TopologyKey: "kubernetes.io/hostname",
-										},
-									},
-								},
-							},
-							Env: []corev1.EnvVar{
-								{
-									Name:  "EXISTING",
-									Value: "newvalue",
-								},
-							},
-							Labels: map[string]string{
-								constants.ProfileLabelKey:                    "foo-profile",
-								constants.MD5AgentDeploymentProviderLabelKey: "",
-							},
-						},
-						v2alpha1.ClusterAgentComponentName: {
-							Disabled: apiutils.NewBoolPointer(true),
-						},
-						v2alpha1.ClusterChecksRunnerComponentName: {
-							Disabled: apiutils.NewBoolPointer(true),
-						},
-						v2alpha1.OtelAgentGatewayComponentName: {
-							Disabled: apiutils.NewBoolPointer(true),
-						},
-					},
-				},
-			},
-		},
-	}
-
-	for _, tt := range testCases {
-		// Load CRD from config folder
-		crd, err := getDDAICRDFromConfig(sch)
-		assert.NoError(t, err)
-
-		fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(&tt.ddai, crd).Build()
-		logger := logf.Log.WithName("Test_computeProfileMerge")
-		eventBroadcaster := record.NewBroadcaster()
-		recorder := eventBroadcaster.NewRecorder(sch, corev1.EventSource{Component: "Test_computeProfileMerge"})
-		fieldManager, err := newFieldManager(fakeClient, sch, v1alpha1.GroupVersion.WithKind("DatadogAgentInternal"))
-		assert.NoError(t, err)
-
-		t.Run(tt.name, func(t *testing.T) {
-			r := &Reconciler{
-				client:       fakeClient,
-				log:          logger,
-				scheme:       sch,
-				recorder:     recorder,
-				fieldManager: fieldManager,
-			}
-
-			crd := &apiextensionsv1.CustomResourceDefinition{}
-			err := r.client.Get(ctx,
-				types.NamespacedName{
-					Name: "datadogagentinternals.datadoghq.com",
-				},
-				crd)
-			assert.NoError(t, err)
-
-			ddai, err := r.computeProfileMerge(&tt.ddai, &tt.profile)
-			assert.NoError(t, err)
-			assert.Equal(t, tt.want.Name, ddai.Name)
-			assert.Equal(t, tt.want.Annotations[constants.MD5DDAIDeploymentAnnotationKey], ddai.Annotations[constants.MD5DDAIDeploymentAnnotationKey])
-			assert.Equal(t, tt.want.Spec, ddai.Spec)
-		})
-	}
-}
-
-func Test_setProfileSpec(t *testing.T) {
-	testCases := []struct {
-		name    string
-		ddai    v1alpha1.DatadogAgentInternal
-		profile v1alpha1.DatadogAgentProfile
-		want    v1alpha1.DatadogAgentInternal
-	}{
-		{
-			name: "default profile",
+			name: "existing node affinity in DDAI is merged with default profile affinity",
 			ddai: v1alpha1.DatadogAgentInternal{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo",
@@ -362,6 +180,9 @@ func Test_setProfileSpec(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo",
 					Namespace: "bar",
+					Annotations: map[string]string{
+						constants.MD5DDAIDeploymentAnnotationKey: "71ca826c571ea6652155ab822d08b17a",
+					},
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -412,21 +233,30 @@ func Test_setProfileSpec(t *testing.T) {
 			},
 		},
 		{
-			name: "user created profile",
+			name: "nil node override map initialised with default affinity",
 			ddai: v1alpha1.DatadogAgentInternal{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo",
 					Namespace: "bar",
 				},
-				// DDAI spec is overridden to create the profile DDAI
-				// Therefore, the provider label will not be in the final profile DDAI spec
-				// This config will be merged with a copy of the original DDAI
+				Spec: v2alpha1.DatadogAgentSpec{},
+			},
+			profile: v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "default",
+				},
+			},
+			want: v1alpha1.DatadogAgentInternal{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+					Annotations: map[string]string{
+						constants.MD5DDAIDeploymentAnnotationKey: "b08db10f9aa1a54f0e7ce7d7aa038f40",
+					},
+				},
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Labels: map[string]string{
-								constants.MD5AgentDeploymentProviderLabelKey: "",
-							},
 							Affinity: &corev1.Affinity{
 								NodeAffinity: &corev1.NodeAffinity{
 									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -434,12 +264,27 @@ func Test_setProfileSpec(t *testing.T) {
 											{
 												MatchExpressions: []corev1.NodeSelectorRequirement{
 													{
-														Key:      "key",
-														Operator: corev1.NodeSelectorOpIn,
-														Values:   []string{"value"},
+														Key:      "agent.datadoghq.com/datadogagentprofile",
+														Operator: corev1.NodeSelectorOpDoesNotExist,
 													},
 												},
 											},
+										},
+									},
+								},
+								PodAntiAffinity: &corev1.PodAntiAffinity{
+									RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+										{
+											LabelSelector: &metav1.LabelSelector{
+												MatchExpressions: []metav1.LabelSelectorRequirement{
+													{
+														Key:      "agent.datadoghq.com/component",
+														Operator: metav1.LabelSelectorOpIn,
+														Values:   []string{"agent"},
+													},
+												},
+											},
+											TopologyKey: "kubernetes.io/hostname",
 										},
 									},
 								},
@@ -447,6 +292,55 @@ func Test_setProfileSpec(t *testing.T) {
 						},
 					},
 				},
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(&tt.ddai).Build()
+		logger := logf.Log.WithName("Test_applyProfilesToDDAISpec")
+		eventBroadcaster := record.NewBroadcaster()
+		recorder := eventBroadcaster.NewRecorder(sch, corev1.EventSource{Component: "Test_applyProfilesToDDAISpec"})
+
+		t.Run(tt.name, func(t *testing.T) {
+			r := &Reconciler{
+				client:   fakeClient,
+				log:      logger,
+				scheme:   sch,
+				recorder: recorder,
+			}
+
+			result, err := r.applyProfilesToDDAISpec(ctx, &tt.ddai, []*v1alpha1.DatadogAgentProfile{&tt.profile})
+			assert.NoError(t, err)
+			assert.Len(t, result, 1)
+
+			got := result[0]
+			assert.Equal(t, tt.want.Name, got.Name)
+			assert.Equal(t, tt.want.Spec, got.Spec)
+			assert.Equal(t, tt.want.Annotations[constants.MD5DDAIDeploymentAnnotationKey], got.Annotations[constants.MD5DDAIDeploymentAnnotationKey])
+		})
+	}
+}
+
+// Test_setProfileSpec covers non-default (user-created) profiles only.
+// Default-profile affinity is tested separately in Test_applyProfilesToDDAISpec_affinity.
+func Test_setProfileSpec(t *testing.T) {
+	testCases := []struct {
+		name    string
+		ddai    v1alpha1.DatadogAgentInternal
+		profile v1alpha1.DatadogAgentProfile
+		want    v1alpha1.DatadogAgentInternal
+	}{
+		{
+			name: "user created profile",
+			ddai: v1alpha1.DatadogAgentInternal{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+				},
+				// setProfileSpec overwrites the spec with profile.Spec.Config, so the
+				// initial DDAI spec content is irrelevant.
+				Spec: v2alpha1.DatadogAgentSpec{},
 			},
 			profile: v1alpha1.DatadogAgentProfile{
 				ObjectMeta: metav1.ObjectMeta{
@@ -492,11 +386,6 @@ func Test_setProfileSpec(t *testing.T) {
 										NodeSelectorTerms: []corev1.NodeSelectorTerm{
 											{
 												MatchExpressions: []corev1.NodeSelectorRequirement{
-													{
-														Key:      "key",
-														Operator: corev1.NodeSelectorOpIn,
-														Values:   []string{"value"},
-													},
 													{
 														Key:      "test",
 														Operator: corev1.NodeSelectorOpIn,
@@ -552,70 +441,11 @@ func Test_setProfileSpec(t *testing.T) {
 				},
 			},
 		},
-		{
-			name: "nil override map and component",
-			ddai: v1alpha1.DatadogAgentInternal{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo",
-					Namespace: "bar",
-				},
-				Spec: v2alpha1.DatadogAgentSpec{},
-			},
-			profile: v1alpha1.DatadogAgentProfile{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "default",
-				},
-			},
-			want: v1alpha1.DatadogAgentInternal{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo",
-					Namespace: "bar",
-				},
-				Spec: v2alpha1.DatadogAgentSpec{
-					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-						v2alpha1.NodeAgentComponentName: {
-							Affinity: &corev1.Affinity{
-								NodeAffinity: &corev1.NodeAffinity{
-									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-										NodeSelectorTerms: []corev1.NodeSelectorTerm{
-											{
-												MatchExpressions: []corev1.NodeSelectorRequirement{
-													{
-														Key:      "agent.datadoghq.com/datadogagentprofile",
-														Operator: corev1.NodeSelectorOpDoesNotExist,
-													},
-												},
-											},
-										},
-									},
-								},
-								PodAntiAffinity: &corev1.PodAntiAffinity{
-									RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-										{
-											LabelSelector: &metav1.LabelSelector{
-												MatchExpressions: []metav1.LabelSelectorRequirement{
-													{
-														Key:      "agent.datadoghq.com/component",
-														Operator: metav1.LabelSelectorOpIn,
-														Values:   []string{"agent"},
-													},
-												},
-											},
-											TopologyKey: "kubernetes.io/hostname",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			setProfileSpec(&tt.ddai, &tt.profile)
+			setProfileSpec(&tt.ddai.Spec, &tt.ddai.Spec, &tt.profile)
 			assert.Equal(t, tt.want, tt.ddai)
 		})
 	}
@@ -728,7 +558,7 @@ func Test_setProfileNodeAgentOverride(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			setProfileNodeAgentOverride(&tt.ddai, &tt.profile)
+			setProfileNodeAgentOverride(&tt.ddai.Spec, &tt.profile)
 
 			// Check that the override exists
 			override, ok := tt.ddai.Spec.Override[v2alpha1.NodeAgentComponentName]

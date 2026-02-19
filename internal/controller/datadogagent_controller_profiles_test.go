@@ -9,6 +9,7 @@
 package controller
 
 import (
+	"context"
 	"sort"
 	"strings"
 	"time"
@@ -27,6 +28,7 @@ import (
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -1269,3 +1271,231 @@ func podAntiAffinityForAgents() *v1.PodAntiAffinity {
 		},
 	}
 }
+
+// newSimpleProfile builds a DatadogAgentProfile that selects nodes with the
+// given label key (using Exists) and optionally includes a Config spec.
+func newSimpleProfile(namespace, name string, labelKey string, config *v2alpha1.DatadogAgentSpec) *v1alpha1.DatadogAgentProfile {
+	return &v1alpha1.DatadogAgentProfile{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Spec: v1alpha1.DatadogAgentProfileSpec{
+			ProfileAffinity: &v1alpha1.ProfileAffinity{
+				ProfileNodeAffinity: []v1.NodeSelectorRequirement{
+					{Key: labelKey, Operator: v1.NodeSelectorOpExists},
+				},
+			},
+			Config: config,
+		},
+	}
+}
+
+var _ = Describe("DDAI profile lifecycle", func() {
+	ctx := context.TODO()
+	namespace := "default"
+
+	Context("timing: base DDAI must exist before profile DDAIs are created", func() {
+		It("creates only the base DDAI on the first reconcile; profile DDAI appears after the base DDAI is live", func() {
+			agentName := randomKubernetesObjectName()
+			profileName := randomKubernetesObjectName()
+
+			agent := testutils.NewDatadogAgentWithoutFeatures(namespace, agentName)
+			// DatadogAgentInternalEnabled=true requires a non-nil Config.
+			profile := newSimpleProfile(namespace, profileName, "topology.kubernetes.io/zone", &v2alpha1.DatadogAgentSpec{})
+
+			// Create DDA first (no profile yet) and wait for the base DDAI.
+			createKubernetesObject(k8sClient, &agent)
+			defer deleteKubernetesObject(k8sClient, &agent)
+
+			baseDDAIKey := types.NamespacedName{Name: agentName, Namespace: namespace}
+			profileDDAIKey := types.NamespacedName{Name: profileName, Namespace: namespace}
+
+			By("waiting for the base DDAI to be created")
+			getObjectAndCheck(&v1alpha1.DatadogAgentInternal{}, baseDDAIKey, func() bool { return true })
+
+			By("verifying no profile DDAI exists before the profile is created")
+			Consistently(func() bool {
+				err := k8sClient.Get(ctx, profileDDAIKey, &v1alpha1.DatadogAgentInternal{})
+				return apierrors.IsNotFound(err)
+			}, 2*time.Second, 200*time.Millisecond).Should(BeTrue(),
+				"profile DDAI should not exist before the profile resource itself is created")
+
+			By("creating the profile")
+			createKubernetesObject(k8sClient, profile)
+			defer deleteKubernetesObject(k8sClient, profile)
+
+			By("waiting for the profile DDAI to be created after the base DDAI is live")
+			getObjectAndCheck(&v1alpha1.DatadogAgentInternal{}, profileDDAIKey, func() bool { return true })
+		})
+	})
+
+	Context("profile DDAI spec after SSA merge", func() {
+		It("has correct labels, credentials, affinity, feature overrides, and disabled components", func() {
+			agentName := randomKubernetesObjectName()
+			profileName := randomKubernetesObjectName()
+
+			// DDA: nodeAgent affinity (kubernetes.io/os=linux) + a custom label so we
+			// can verify the SSA granular-map merge later.
+			agent := testutils.NewDatadogAgentWithoutFeatures(namespace, agentName)
+			agent.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {
+					Labels: map[string]string{
+						"dda-label": "dda-val",
+					},
+					Affinity: &v1.Affinity{
+						NodeAffinity: &v1.NodeAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+								NodeSelectorTerms: []v1.NodeSelectorTerm{
+									{
+										MatchExpressions: []v1.NodeSelectorRequirement{
+											{
+												Key:      "kubernetes.io/os",
+												Operator: v1.NodeSelectorOpIn,
+												Values:   []string{"linux"},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+
+			// Profile Config covers:
+			//   - GPU feature: a feature override enabled entirely by the profile
+			//   - Labels: two merge scenarios —
+			//       merged map: profile's "profile-label" coexists with DDA's "dda-label"
+			//                   (both survive via SSA granular map merge)
+			//       new key:    profile's "profile-label" is a brand-new key that was not
+			//                   in the base DDAI's labels at all
+			//   - PriorityClassName: a general string override from the profile
+			//   - Container resources + env: container-level general overrides
+			profile := &v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{Name: profileName, Namespace: namespace},
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					ProfileAffinity: &v1alpha1.ProfileAffinity{
+						ProfileNodeAffinity: []v1.NodeSelectorRequirement{
+							{
+								Key:      "topology.kubernetes.io/zone",
+								Operator: v1.NodeSelectorOpIn,
+								Values:   []string{"us-east-1a"},
+							},
+						},
+					},
+					Config: &v2alpha1.DatadogAgentSpec{
+						Features: &v2alpha1.DatadogFeatures{
+							GPU: &v2alpha1.GPUFeatureConfig{
+								Enabled: utils.NewBoolPointer(true),
+							},
+						},
+						Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+							v2alpha1.NodeAgentComponentName: {
+								Labels: map[string]string{
+									"profile-label": "profile-val",
+								},
+								PriorityClassName: utils.NewStringPointer("high-priority"),
+								Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+									apicommon.CoreAgentContainerName: {
+										Env: []v1.EnvVar{
+											{Name: "PROFILE_ENV", Value: "from-profile"},
+										},
+										Resources: &v1.ResourceRequirements{
+											Limits: v1.ResourceList{
+												v1.ResourceCPU: resource.MustParse("2"),
+											},
+											Requests: v1.ResourceList{
+												v1.ResourceCPU: resource.MustParse("1"),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+
+			createKubernetesObject(k8sClient, &agent)
+			defer deleteKubernetesObject(k8sClient, &agent)
+			createKubernetesObject(k8sClient, profile)
+			defer deleteKubernetesObject(k8sClient, profile)
+
+			profileDDAIKey := types.NamespacedName{Name: profileName, Namespace: namespace}
+			profileDDAI := &v1alpha1.DatadogAgentInternal{}
+			getObjectAndCheck(profileDDAI, profileDDAIKey, func() bool { return true })
+
+			Expect(profileDDAI.Spec.Override).ToNot(BeNil())
+			nodeOverride := profileDDAI.Spec.Override[v2alpha1.NodeAgentComponentName]
+			Expect(nodeOverride).ToNot(BeNil())
+
+			By("checking nodeAgent labels: merged map and new-key introduction")
+			// Merged map: DDA's "dda-label" (in base DDAI) and profile's "profile-label"
+			// New key: "profile-label" did not exist in the base DDAI's labels at all
+			// Auto-added: ProfileLabelKey and MD5AgentDeploymentProviderLabelKey.
+			Expect(nodeOverride.Labels).To(SatisfyAll(
+				HaveKeyWithValue("dda-label", "dda-val"),
+				HaveKeyWithValue("profile-label", "profile-val"),
+				HaveKeyWithValue(constants.ProfileLabelKey, profileName),
+				HaveKey(constants.MD5AgentDeploymentProviderLabelKey),
+			))
+
+			By("checking PriorityClassName is a general string override from the profile Config")
+			Expect(nodeOverride.PriorityClassName).ToNot(BeNil())
+			Expect(*nodeOverride.PriorityClassName).To(Equal("high-priority"))
+
+			By("checking credentials are secret refs, not plain text")
+			// global.SetGlobalFromDDA converts the DDA's plain-text APIKey to an APISecret
+			// ref on the base DDAI; the profile DDAI inherits Global via SSA merge.
+			Expect(profileDDAI.Spec.Global).ToNot(BeNil())
+			Expect(profileDDAI.Spec.Global.Credentials).ToNot(BeNil())
+			Expect(profileDDAI.Spec.Global.Credentials.APISecret).ToNot(BeNil(),
+				"profile DDAI should use an APISecret ref, not a plain-text APIKey")
+			Expect(profileDDAI.Spec.Global.Credentials.APISecret.SecretName).ToNot(BeEmpty())
+			Expect(profileDDAI.Spec.Global.Credentials.APIKey).To(BeNil(),
+				"profile DDAI should not contain a plain-text APIKey")
+
+			By("checking affinity merges DDA nodeAgent affinity with profile affinity")
+			affinity := nodeOverride.Affinity
+			Expect(affinity).ToNot(BeNil())
+			Expect(affinity.NodeAffinity).ToNot(BeNil())
+			Expect(affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution).ToNot(BeNil())
+
+			allAffinityKeys := map[string]bool{}
+			for _, term := range affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+				for _, me := range term.MatchExpressions {
+					allAffinityKeys[me.Key] = true
+				}
+			}
+			Expect(allAffinityKeys["kubernetes.io/os"]).To(BeTrue(),
+				"affinity should include the DDA nodeAgent affinity (kubernetes.io/os)")
+			Expect(allAffinityKeys["topology.kubernetes.io/zone"]).To(BeTrue(),
+				"affinity should include the profile's nodeAffinity (topology.kubernetes.io/zone)")
+			Expect(allAffinityKeys[constants.ProfileLabelKey]).To(BeTrue(),
+				"affinity should include the auto-added profile label requirement")
+
+			By("checking profile Config GPU feature override is present")
+			Expect(profileDDAI.Spec.Features).ToNot(BeNil())
+			Expect(profileDDAI.Spec.Features.GPU).ToNot(BeNil())
+			Expect(profileDDAI.Spec.Features.GPU.Enabled).ToNot(BeNil())
+			Expect(*profileDDAI.Spec.Features.GPU.Enabled).To(BeTrue())
+
+			By("checking profile Config container overrides: env var and resources")
+			coreContainer := nodeOverride.Containers[apicommon.CoreAgentContainerName]
+			Expect(coreContainer).ToNot(BeNil())
+			Expect(coreContainer.Env).To(ContainElement(v1.EnvVar{Name: "PROFILE_ENV", Value: "from-profile"}))
+			Expect(coreContainer.Resources).ToNot(BeNil())
+			Expect(coreContainer.Resources.Limits[v1.ResourceCPU]).To(Equal(resource.MustParse("2")))
+			Expect(coreContainer.Resources.Requests[v1.ResourceCPU]).To(Equal(resource.MustParse("1")))
+
+			By("checking DCA and CCR are disabled")
+			dcaOverride := profileDDAI.Spec.Override[v2alpha1.ClusterAgentComponentName]
+			Expect(dcaOverride).ToNot(BeNil())
+			Expect(dcaOverride.Disabled).ToNot(BeNil())
+			Expect(*dcaOverride.Disabled).To(BeTrue(), "ClusterAgent should be disabled on profile DDAIs")
+
+			ccrOverride := profileDDAI.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName]
+			Expect(ccrOverride).ToNot(BeNil())
+			Expect(ccrOverride.Disabled).ToNot(BeNil())
+			Expect(*ccrOverride.Disabled).To(BeTrue(), "ClusterChecksRunner should be disabled on profile DDAIs")
+		})
+	})
+})
