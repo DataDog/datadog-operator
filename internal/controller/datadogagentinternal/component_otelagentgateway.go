@@ -61,7 +61,7 @@ func (c *OtelAgentGatewayComponent) Reconcile(ctx context.Context, params *Recon
 	var result reconcile.Result
 
 	// Start by creating the Default OtelAgentGateway deployment
-	deployment := componentotelagentgateway.NewDefaultOtelAgentGatewayDeployment(params.DDAI)
+	deployment := componentotelagentgateway.NewDefaultOtelAgentGatewayDeployment(params.DDAI, &params.DDAI.Spec)
 	objLogger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
@@ -90,7 +90,7 @@ func (c *OtelAgentGatewayComponent) Reconcile(ctx context.Context, params *Recon
 
 // Cleanup removes the OtelAgentGateway deployment
 func (c *OtelAgentGatewayComponent) Cleanup(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error) {
-	deployment := componentotelagentgateway.NewDefaultOtelAgentGatewayDeployment(params.DDAI)
+	deployment := componentotelagentgateway.NewDefaultOtelAgentGatewayDeployment(params.DDAI, &params.DDAI.Spec)
 	objLogger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
 	return c.reconciler.cleanupV2OtelAgentGateway(objLogger, params.DDAI, deployment, params.Status)
 }
