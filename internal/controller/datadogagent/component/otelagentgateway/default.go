@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -31,7 +32,7 @@ func GetOtelAgentGatewayRbacResourcesName(dda metav1.Object) string {
 }
 
 // NewDefaultOtelAgentGatewayDeployment return a new default otel-agent-gateway deployment
-func NewDefaultOtelAgentGatewayDeployment(dda metav1.Object) *appsv1.Deployment {
+func NewDefaultOtelAgentGatewayDeployment(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) *appsv1.Deployment {
 	deployment := common.NewDeployment(dda, constants.DefaultOtelAgentGatewayResourceSuffix, GetOtelAgentGatewayName(dda), common.GetAgentVersion(dda), nil)
 
 	podTemplate := NewDefaultOtelAgentGatewayPodTemplateSpec(dda)
