@@ -230,7 +230,7 @@ func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
     actions_allowlist:
         - com.datadoghq.script.testConnection
         - com.datadoghq.script.enrichScript`,
-			expectedHash: "5d4b4b221b5bcc3b92792558d6f6bc58",
+			expectedHash: "76f45ac891d62eb42272bbe26f32fb7c",
 		},
 	}
 
