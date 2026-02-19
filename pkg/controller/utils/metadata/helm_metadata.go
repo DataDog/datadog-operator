@@ -155,7 +155,7 @@ func NewHelmMetadataForwarderWithManager(logger logr.Logger, mgr manager.Manager
 }
 
 // Start implements manager.Runnable interface
-// It is called by the manager after the cache is synced but we don't need to initialize resources at start. 
+// It is called by the manager after the cache is synced but we don't need to initialize resources at start.
 // Cache sends synthetic 'Add' events to the newly registered handler, see
 // https://github.com/kubernetes/client-go/blob/v0.35.0/tools/cache/shared_informer.go#L693-L697
 // Errors are logged but do not prevent the operator from starting
