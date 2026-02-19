@@ -113,7 +113,7 @@ func (cmf *CRDMetadataForwarder) sendMetadata() error {
 	ctx, cancel := context.WithTimeout(context.Background(), DefaultOperationTimeout)
 	defer cancel()
 
-	allCRDs, listSuccess := cmf.getAllActiveCRDs()
+	allCRDs, listSuccess := cmf.getAllActiveCRDs(ctx)
 	crdsToSend := cmf.getCRDsToSend(allCRDs)
 
 	if len(crdsToSend) == 0 {
@@ -125,7 +125,7 @@ func (cmf *CRDMetadataForwarder) sendMetadata() error {
 
 	// Send individual payloads for each CRD
 	for _, crd := range crdsToSend {
-		if err := cmf.sendCRDMetadata(crd); err != nil {
+		if err := cmf.sendCRDMetadata(ctx, crd); err != nil {
 			cmf.logger.V(1).Info("Failed to send metadata", "error", err,
 				"kind", crd.Kind, "name", crd.Name, "namespace", crd.Namespace)
 		}
