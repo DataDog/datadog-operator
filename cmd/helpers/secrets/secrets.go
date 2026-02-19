@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -44,7 +43,7 @@ type secretsRequest struct {
 
 // ReadSecrets implements a secrets reader from a directory/mount
 func readSecrets(r io.Reader, w io.Writer, dir string) error {
-	in, err := ioutil.ReadAll(r)
+	in, err := io.ReadAll(r)
 	if err != nil {
 		return err
 	}
@@ -142,7 +141,7 @@ func readSecretFile(path string) (string, error) {
 	}
 
 	var bytes []byte
-	bytes, err = ioutil.ReadAll(file)
+	bytes, err = io.ReadAll(file)
 	if err != nil {
 		return "", err
 	}

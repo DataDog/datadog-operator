@@ -115,6 +115,7 @@ func (o *options) validate(cmd *cobra.Command) error {
 
 // run runs the check command
 func (o *options) run(cmd *cobra.Command) error {
+	ctx := cmd.Context()
 	var goRoutinesCount int
 	var pods []corev1.Pod
 
@@ -180,7 +181,7 @@ func (o *options) run(cmd *cobra.Command) error {
 				if isCLCRunner(pod) {
 					container = "cluster-checks-runner"
 				}
-				stdOut, stdErr, err := o.execInPod(&pod, statusCmd, container)
+				stdOut, stdErr, err := o.execInPod(ctx, &pod, statusCmd, container)
 				if err != nil {
 					cmd.Println(fmt.Sprintf("Ignoring pod: %s, error: %v", pod.Name, err))
 					continue
@@ -220,7 +221,7 @@ func (o *options) run(cmd *cobra.Command) error {
 }
 
 // execInPod exec a command in an Agent pod
-func (o *options) execInPod(pod *corev1.Pod, cmd []string, container string) (string, string, error) {
+func (o *options) execInPod(ctx context.Context, pod *corev1.Pod, command []string, container string) (string, string, error) {
 	req := o.Clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(pod.Name).
@@ -234,7 +235,7 @@ func (o *options) execInPod(pod *corev1.Pod, cmd []string, container string) (st
 
 	parameterCodec := runtime.NewParameterCodec(scheme)
 	req.VersionedParams(&corev1.PodExecOptions{
-		Command:   cmd,
+		Command:   command,
 		Container: container,
 		Stdin:     false,
 		Stdout:    true,
@@ -248,7 +249,7 @@ func (o *options) execInPod(pod *corev1.Pod, cmd []string, container string) (st
 	}
 
 	var stdout, stderr bytes.Buffer
-	err = exec.Stream(remotecommand.StreamOptions{
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:  nil,
 		Stdout: &stdout,
 		Stderr: &stderr,
