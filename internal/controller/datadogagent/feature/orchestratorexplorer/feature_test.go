@@ -107,6 +107,35 @@ instances:
 			},
 		},
 		{
+			Name: "orchestrator explorer enabled with Karpenter and EKS NodeClass CRs",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOrchestratorExplorerEnabled(true).
+				WithOrchestratorExplorerCustomResources([]string{"karpenter.k8s.aws/v1/nodeclasses", "eks.amazonaws.com/v1/nodeclasses"}).
+				Build(),
+			WantConfigure: true,
+			WantDependenciesFunc: func(t testing.TB, sc store.StoreClient) {
+				cm, found := sc.Get(kubernetes.ConfigMapKind, "", "-orchestrator-explorer-config")
+				assert.True(t, found)
+				assert.NotNil(t, cm)
+
+				cmData := cm.(*corev1.ConfigMap).Data["orchestrator.yaml"]
+				want := `---
+cluster_check: false
+ad_identifiers:
+  - _kube_orchestrator
+init_config:
+
+instances:
+  - skip_leader_election: false
+    crd_collectors:
+      - eks.amazonaws.com/v1/nodeclasses
+      - karpenter.k8s.aws/v1/nodeclasses
+`
+
+				assert.Equal(t, want, cmData)
+			},
+		},
+		{
 			Name: "orchestrator explorer enabled and runs on cluster checks runner",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithOrchestratorExplorerEnabled(true).
