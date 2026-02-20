@@ -3369,6 +3369,10 @@
                 "useFIPSAgent": {
                   "description": "UseFIPSAgent enables the FIPS flavor of the Agent. If 'true', the FIPS proxy will always be disabled.\nDefault: 'false'",
                   "type": "boolean"
+                },
+                "useVSock": {
+                  "description": "UseVSock allows the use of VSock communication between the Agent and containerized workloads.\nDefault: 'false'",
+                  "type": "boolean"
                 }
               },
               "type": "object"

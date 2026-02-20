@@ -22,7 +22,6 @@ import (
 const (
 	testDdaName      = "foo"
 	testDdaNamespace = "bar"
-	agentConfigFile  = "/etc/datadog-agent/datadog.yaml"
 )
 
 func defaultDatadogAgent() *datadoghqv2alpha1.DatadogAgent {

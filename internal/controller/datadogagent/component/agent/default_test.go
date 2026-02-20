@@ -64,7 +64,7 @@ func TestVolumesForAgent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			volumes := volumesForAgent(tt.dda, tt.requiredContainers)
+			volumes := volumesForAgent(tt.dda, &v2alpha1.DatadogAgentSpec{}, tt.requiredContainers)
 
 			// Check install-info volume
 			var installInfoVolume *corev1.Volume
