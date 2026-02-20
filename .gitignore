@@ -102,6 +102,8 @@ tags
 errors
 ### Cursor ###
 .cursor/*
+### Claude ###
+.claude/*
 
 # Exclude claude-data folder except readme.txt
 .devcontainer/claude-data/*

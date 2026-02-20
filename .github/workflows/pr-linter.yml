@@ -1,12 +1,15 @@
 name: pull request linter
 on:
   pull_request_target:
-   types: [opened, labeled, unlabeled, synchronize]
+    types: [opened, labeled, unlabeled, synchronize]
+  pull_request:
+    types: [opened, labeled, unlabeled, synchronize, milestoned, demilestoned]
 
 permissions: {}
 
 jobs:
   build:
+    if: github.event_name == 'pull_request_target'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -23,9 +26,19 @@ jobs:
         disable-reviews: true
   check-milestone:
     name: Check Milestone
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
     steps:
-      - if: github.event.pull_request.milestone == null && !contains(toJson(github.event.pull_request.labels.*.name), 'qa/skip-qa')
-        run: echo "::error::Missing milestone or \`qa/skip-qa\` label" && exit 1
+      - name: Check milestone and labels
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_JSON=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }})
+          MILESTONE=$(echo "$PR_JSON" | jq -r '.milestone.title // empty')
+          HAS_SKIP_QA=$(echo "$PR_JSON" | jq -r '[.labels[].name] | any(. == "qa/skip-qa")')
+          if [ -z "$MILESTONE" ] && [ "$HAS_SKIP_QA" != "true" ]; then
+            echo "::error::Missing milestone or \`qa/skip-qa\` label"
+            exit 1
+          fi
