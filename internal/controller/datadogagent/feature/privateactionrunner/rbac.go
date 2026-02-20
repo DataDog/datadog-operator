@@ -15,9 +15,9 @@ const (
 	defaultIdentitySecretName = "datadog-private-action-runner-identity"
 )
 
-// GetRBACPolicyRules returns the RBAC policy rules for the Private Action Runner
+// getClusterAgentRBACPolicyRules returns the RBAC policy rules for the Private Action Runner
 // This creates a Role (not ClusterRole) with permissions on the identity secret used during self enrollment
-func GetRBACPolicyRules(configData string) []rbacv1.PolicyRule {
+func getClusterAgentRBACPolicyRules(configData string) []rbacv1.PolicyRule {
 	identitySecretName := getIdentitySecretName(configData)
 
 	return []rbacv1.PolicyRule{

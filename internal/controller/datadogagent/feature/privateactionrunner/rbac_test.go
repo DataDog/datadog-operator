@@ -52,7 +52,7 @@ func TestGetRBACPolicyRules(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rules := GetRBACPolicyRules(tt.configData)
+			rules := getClusterAgentRBACPolicyRules(tt.configData)
 
 			assert.Len(t, rules, tt.expectedResourcesCount, "Should have exactly one policy rule")
 
