@@ -368,9 +368,23 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 
 			parFeat, ok := f.(*privateActionRunnerFeature)
 			require.True(t, ok)
-			assert.Equal(t, tt.wantClusterAgentEnabled, parFeat.clusterEnabled)
-			if tt.wantClusterAgentEnabled && tt.expectedClusterConfigData != "" {
-				assert.Equal(t, tt.expectedClusterConfigData, parFeat.clusterConfigData)
+
+			// Check if cluster config is set correctly
+			if tt.wantClusterAgentEnabled {
+				require.NotNil(t, parFeat.clusterConfig, "clusterConfig should not be nil when enabled")
+				assert.True(t, parFeat.clusterConfig.Enabled, "clusterConfig.Enabled should be true")
+
+				// If we have expected config data, parse it and validate key fields
+				if tt.expectedClusterConfigData != "" {
+					expectedConfig, err := parsePrivateActionRunnerConfig(tt.expectedClusterConfigData)
+					require.NoError(t, err)
+					assert.Equal(t, expectedConfig.Enabled, parFeat.clusterConfig.Enabled)
+					assert.Equal(t, expectedConfig.SelfEnroll, parFeat.clusterConfig.SelfEnroll)
+					assert.Equal(t, expectedConfig.URN, parFeat.clusterConfig.URN)
+					assert.Equal(t, expectedConfig.IdentitySecretName, parFeat.clusterConfig.IdentitySecretName)
+				}
+			} else {
+				assert.Nil(t, parFeat.clusterConfig, "clusterConfig should be nil when not enabled")
 			}
 		})
 	}
