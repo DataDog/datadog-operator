@@ -106,7 +106,7 @@ func (f *dogstatsdFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datado
 
 	f.nonLocalTraffic = apiutils.BoolValue(dogstatsd.NonLocalTraffic)
 
-	f.adpEnabled = featureutils.HasAgentDataPlaneAnnotation(dda)
+	f.adpEnabled = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableADPAnnotation)
 
 	reqComp = feature.RequiredComponents{
 		Agent: feature.RequiredComponent{

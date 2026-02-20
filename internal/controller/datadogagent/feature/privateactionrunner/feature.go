@@ -63,11 +63,11 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 	f.owner = dda
 
 	// Check for Node Agent configuration (annotation-based)
-	if featureutils.HasPrivateActionRunnerAnnotation(dda) {
+	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnablePrivateActionRunnerAnnotation) {
 		f.nodeEnabled = true
 
 		// Use config data from annotation directly, or fall back to default
-		if configData, ok := featureutils.HasPrivateActionRunnerConfigAnnotation(dda, featureutils.PrivateActionRunnerConfigDataAnnotation); ok {
+		if configData, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.PrivateActionRunnerConfigDataAnnotation); ok {
 			f.nodeConfigData = configData
 		} else {
 			f.nodeConfigData = defaultConfigData
@@ -83,11 +83,11 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 	}
 
 	// Check for Cluster Agent configuration (annotation-based)
-	if featureutils.HasClusterAgentPrivateActionRunnerAnnotation(dda) {
+	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableClusterAgentPrivateActionRunnerAnnotation) {
 		f.clusterEnabled = true
 
 		// Use config data from annotation directly, or fall back to default
-		if configData, ok := featureutils.HasClusterAgentPrivateActionRunnerConfigAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation); ok {
+		if configData, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation); ok {
 			f.clusterConfigData = configData
 		} else {
 			f.clusterConfigData = defaultConfigData

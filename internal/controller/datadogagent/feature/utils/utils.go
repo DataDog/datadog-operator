@@ -16,20 +16,22 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
-const ProcessConfigRunInCoreAgentMinVersion = "7.60.0-0"
-const EnableADPAnnotation = "agent.datadoghq.com/adp-enabled"
-const EnableFineGrainedKubeletAuthz = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
-const EnableHostProfilerAnnotion = "agent.datadoghq.com/host-profiler-enabled"
-const HostProfilerConfigDataAnnotion = "agent.datadoghq.com/host-profiler-configdata"
+const (
+	ProcessConfigRunInCoreAgentMinVersion = "7.60.0-0"
+	EnableADPAnnotation                   = "agent.datadoghq.com/adp-enabled"
+	EnableFineGrainedKubeletAuthz         = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
+	EnableHostProfilerAnnotation          = "agent.datadoghq.com/host-profiler-enabled"
+	HostProfilerConfigDataAnnotation      = "agent.datadoghq.com/host-profiler-configdata"
 
-// Config map item must be `host-profiler-config.yaml`
-const HostProfilerConfigMapNameAnnotion = "agent.datadoghq.com/host-profiler-configmap-name"
+	// Config map item must be `host-profiler-config.yaml`
+	HostProfilerConfigMapNameAnnotation = "agent.datadoghq.com/host-profiler-configmap-name"
 
-const EnablePrivateActionRunnerAnnotation = "agent.datadoghq.com/private-action-runner-enabled"
-const PrivateActionRunnerConfigDataAnnotation = "agent.datadoghq.com/private-action-runner-configdata"
+	EnablePrivateActionRunnerAnnotation     = "agent.datadoghq.com/private-action-runner-enabled"
+	PrivateActionRunnerConfigDataAnnotation = "agent.datadoghq.com/private-action-runner-configdata"
 
-const EnableClusterAgentPrivateActionRunnerAnnotation = "cluster-agent.datadoghq.com/private-action-runner-enabled"
-const ClusterAgentPrivateActionRunnerConfigDataAnnotation = "cluster-agent.datadoghq.com/private-action-runner-configdata"
+	EnableClusterAgentPrivateActionRunnerAnnotation     = "cluster-agent.datadoghq.com/private-action-runner-enabled"
+	ClusterAgentPrivateActionRunnerConfigDataAnnotation = "cluster-agent.datadoghq.com/private-action-runner-configdata"
+)
 
 func agentSupportsRunInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	// Agent version must >= 7.60.0 to run feature in core agent
@@ -65,52 +67,14 @@ func ShouldRunProcessChecksInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool 
 	return true
 }
 
-func hasFeatureEnableAnnotation(dda metav1.Object, annotation string) bool {
+func HasFeatureEnableAnnotation(dda metav1.Object, annotation string) bool {
 	if value, ok := dda.GetAnnotations()[annotation]; ok {
 		return value == "true"
 	}
 	return false
 }
 
-// HasAgentDataPlaneAnnotation returns true if the Agent Data Plane is enabled via the dedicated `agent.datadoghq.com/adp-enabled` annotation
-func HasAgentDataPlaneAnnotation(dda metav1.Object) bool {
-	return hasFeatureEnableAnnotation(dda, EnableADPAnnotation)
-}
-
-// HasHostProfilerAnnotation returns true if the Host Profiler is enabled via the dedicated `agent.datadoghq.com/host-profiler` annotation
-func HasHostProfilerAnnotation(dda metav1.Object) bool {
-	return hasFeatureEnableAnnotation(dda, EnableHostProfilerAnnotion)
-}
-
-// HasHostProfilerConfigAnnotion returns true if the Host Profiler has a config annotation, and returns the config.
-func HasHostProfilerConfigAnnotion(dda metav1.Object, annotationName string) (string, bool) {
-	value, ok := dda.GetAnnotations()[annotationName]
-	return value, ok
-}
-
-// HasFineGrainedKubeletAuthz returns true if the feature is enabled via the dedicated `agent.datadoghq.com/fine-grained-kubelet-authorization-enabled` annotation
-func HasFineGrainedKubeletAuthz(dda metav1.Object) bool {
-	return hasFeatureEnableAnnotation(dda, EnableFineGrainedKubeletAuthz)
-}
-
-// HasPrivateActionRunnerAnnotation returns true if the Private Action Runner is enabled via the dedicated annotation
-func HasPrivateActionRunnerAnnotation(dda metav1.Object) bool {
-	return hasFeatureEnableAnnotation(dda, EnablePrivateActionRunnerAnnotation)
-}
-
-// HasPrivateActionRunnerConfigAnnotation returns the value and presence of a Private Action Runner config annotation
-func HasPrivateActionRunnerConfigAnnotation(dda metav1.Object, annotationName string) (string, bool) {
-	value, ok := dda.GetAnnotations()[annotationName]
-	return value, ok
-}
-
-// HasClusterAgentPrivateActionRunnerAnnotation returns true if the Cluster Agent Private Action Runner is enabled via the dedicated annotation
-func HasClusterAgentPrivateActionRunnerAnnotation(dda metav1.Object) bool {
-	return hasFeatureEnableAnnotation(dda, EnableClusterAgentPrivateActionRunnerAnnotation)
-}
-
-// HasClusterAgentPrivateActionRunnerConfigAnnotation returns the value and presence of a Cluster Agent Private Action Runner config annotation
-func HasClusterAgentPrivateActionRunnerConfigAnnotation(dda metav1.Object, annotationName string) (string, bool) {
-	value, ok := dda.GetAnnotations()[annotationName]
+func GetFeatureConfigAnnotation(dda metav1.Object, annotation string) (string, bool) {
+	value, ok := dda.GetAnnotations()[annotation]
 	return value, ok
 }
