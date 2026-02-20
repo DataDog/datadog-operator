@@ -307,7 +307,7 @@ func nodeAgentDependencies(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 	var errs []error
 	serviceAccountName := constants.GetAgentServiceAccount(ddaMeta.GetName(), ddaSpec)
 	rbacResourcesName := agent.GetAgentRoleName(ddaMeta)
-	useFineGrainedAuthorization := featureutils.HasFineGrainedKubeletAuthz(ddaMeta)
+	useFineGrainedAuthorization := featureutils.HasFeatureEnableAnnotation(ddaMeta, featureutils.EnableFineGrainedKubeletAuthz)
 
 	// Service account
 	if err := manager.RBACManager().AddServiceAccountByComponent(ddaMeta.GetNamespace(), serviceAccountName, string(v2alpha1.NodeAgentComponentName)); err != nil {

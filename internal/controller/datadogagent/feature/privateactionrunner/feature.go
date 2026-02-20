@@ -6,9 +6,12 @@
 package privateactionrunner
 
 import (
+	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/go-logr/logr"
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -19,6 +22,7 @@ import (
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -38,11 +42,24 @@ func buildPrivateActionRunnerFeature(options *feature.Options) feature.Feature {
 	return parFeat
 }
 
+// PrivateActionRunnerConfig represents the parsed configuration from YAML
+type PrivateActionRunnerConfig struct {
+	Enabled              bool     `yaml:"enabled"`
+	SelfEnroll           bool     `yaml:"self_enroll"`
+	URN                  string   `yaml:"urn"`
+	PrivateKey           string   `yaml:"private_key"`
+	IdentityUseK8sSecret *bool    `yaml:"identity_use_k8s_secret"`
+	IdentitySecretName   string   `yaml:"identity_secret_name"`
+	ActionsAllowlist     []string `yaml:"actions_allowlist"`
+}
+
 type privateActionRunnerFeature struct {
-	owner       metav1.Object
-	logger      logr.Logger
-	nodeEnabled bool
-	configData  string
+	owner                     metav1.Object
+	logger                    logr.Logger
+	nodeEnabled               bool
+	nodeConfigData            string
+	clusterConfig             *PrivateActionRunnerConfig
+	clusterServiceAccountName string
 }
 
 // ID returns the ID of the Feature
@@ -56,26 +73,48 @@ const defaultConfigData = "private_action_runner:\n    enabled: true\n"
 func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
-	// Check if feature is enabled via annotation
-	if !featureutils.HasPrivateActionRunnerAnnotation(dda) {
-		return feature.RequiredComponents{}
+	// Check for Node Agent configuration (annotation-based)
+	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnablePrivateActionRunnerAnnotation) {
+		f.nodeEnabled = true
+
+		// Use config data from annotation directly, or fall back to default
+		if configData, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.PrivateActionRunnerConfigDataAnnotation); ok {
+			f.nodeConfigData = configData
+		} else {
+			f.nodeConfigData = defaultConfigData
+		}
+
+		reqComp.Agent = feature.RequiredComponent{
+			IsRequired: apiutils.NewBoolPointer(true),
+			Containers: []apicommon.AgentContainerName{
+				apicommon.CoreAgentContainerName,
+				apicommon.PrivateActionRunnerContainerName,
+			},
+		}
 	}
 
-	f.nodeEnabled = true
+	// Check for Cluster Agent configuration (annotation-based)
+	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableClusterAgentPrivateActionRunnerAnnotation) {
+		f.clusterConfig = &PrivateActionRunnerConfig{Enabled: true}
+		configData, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation)
+		if !ok {
+			configData = defaultConfigData
+		}
 
-	// Use config data from annotation directly, or fall back to default
-	if configData, ok := featureutils.HasPrivateActionRunnerConfigAnnotation(dda, featureutils.PrivateActionRunnerConfigDataAnnotation); ok {
-		f.configData = configData
-	} else {
-		f.configData = defaultConfigData
-	}
+		clusterConfig, err := parsePrivateActionRunnerConfig(configData)
+		if err != nil {
+			return reqComp
+		}
+		f.clusterConfig = clusterConfig
 
-	reqComp.Agent = feature.RequiredComponent{
-		IsRequired: apiutils.NewBoolPointer(true),
-		Containers: []apicommon.AgentContainerName{
-			apicommon.CoreAgentContainerName,
-			apicommon.PrivateActionRunnerContainerName,
-		},
+		f.clusterServiceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
+
+		reqComp.ClusterAgent = feature.RequiredComponent{
+			IsRequired: apiutils.NewBoolPointer(true),
+			Containers: []apicommon.AgentContainerName{
+				apicommon.ClusterAgentContainerName,
+			},
+		}
 	}
 
 	return reqComp
@@ -88,31 +127,42 @@ const (
 
 // ManageDependencies allows a feature to manage its dependencies.
 func (f *privateActionRunnerFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
-	if !f.nodeEnabled {
-		return nil
-	}
+	// Handle Node Agent dependencies (ConfigMap for annotation-based config)
+	if f.nodeEnabled {
+		checksumKey, checksumValue, err := checksumAnnotation(f.nodeConfigData)
+		if err != nil {
+			return err
+		}
 
-	checksumKey, checksumValue, err := checksumAnnotation(f)
-	if err != nil {
-		return err
-	}
-
-	// Create ConfigMap with the config content (either from annotation or default)
-	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      f.getConfigMapName(),
-			Namespace: f.owner.GetNamespace(),
-			Annotations: map[string]string{
-				checksumKey: checksumValue,
+		// Create ConfigMap with the config content (either from annotation or default)
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      f.getConfigMapName(),
+				Namespace: f.owner.GetNamespace(),
+				Annotations: map[string]string{
+					checksumKey: checksumValue,
+				},
 			},
-		},
-		Data: map[string]string{
-			"privateactionrunner.yaml": f.configData,
-		},
+			Data: map[string]string{
+				"privateactionrunner.yaml": f.nodeConfigData,
+			},
+		}
+
+		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
+			return err
+		}
 	}
 
-	if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
-		return err
+	// Handle Cluster Agent dependencies (RBAC for secret access)
+	if f.clusterConfig != nil && f.clusterConfig.Enabled {
+		rbacResourcesName := getPrivateActionRunnerRbacResourcesName(f.owner)
+
+		return managers.RBACManager().AddPolicyRules(
+			f.owner.GetNamespace(),
+			rbacResourcesName,
+			f.clusterServiceAccountName,
+			getClusterAgentRBACPolicyRules(f.clusterConfig),
+		)
 	}
 
 	return nil
@@ -124,7 +174,73 @@ func (f *privateActionRunnerFeature) getConfigMapName() string {
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 func (f *privateActionRunnerFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
-	// Cluster Agent support not yet implemented
+	if f.clusterConfig == nil || !f.clusterConfig.Enabled {
+		return nil
+	}
+
+	managers.EnvVar().AddEnvVarToContainer(
+		apicommon.ClusterAgentContainerName,
+		&corev1.EnvVar{
+			Name:  "DD_PRIVATE_ACTION_RUNNER_ENABLED",
+			Value: "true",
+		},
+	)
+
+	identityUseK8sSecret := f.clusterConfig.IdentityUseK8sSecret == nil || *f.clusterConfig.IdentityUseK8sSecret
+	managers.EnvVar().AddEnvVarToContainer(
+		apicommon.ClusterAgentContainerName,
+		&corev1.EnvVar{
+			Name:  "DD_PRIVATE_ACTION_RUNNER_IDENTITY_USE_K8S_SECRET",
+			Value: strconv.FormatBool(identityUseK8sSecret),
+		},
+	)
+
+	managers.EnvVar().AddEnvVarToContainer(
+		apicommon.ClusterAgentContainerName,
+		&corev1.EnvVar{
+			Name:  "DD_PRIVATE_ACTION_RUNNER_SELF_ENROLL",
+			Value: strconv.FormatBool(f.clusterConfig.SelfEnroll),
+		},
+	)
+
+	managers.EnvVar().AddEnvVarToContainer(
+		apicommon.ClusterAgentContainerName,
+		&corev1.EnvVar{
+			Name:  "DD_PRIVATE_ACTION_RUNNER_IDENTITY_SECRET_NAME",
+			Value: f.clusterConfig.IdentitySecretName,
+		},
+	)
+
+	managers.EnvVar().AddEnvVarToContainer(
+		apicommon.ClusterAgentContainerName,
+		&corev1.EnvVar{
+			Name:  "DD_PRIVATE_ACTION_RUNNER_URN",
+			Value: f.clusterConfig.URN,
+		},
+	)
+
+	managers.EnvVar().AddEnvVarToContainer(
+		apicommon.ClusterAgentContainerName,
+		&corev1.EnvVar{
+			Name:  "DD_PRIVATE_ACTION_RUNNER_PRIVATE_KEY",
+			Value: f.clusterConfig.PrivateKey,
+		},
+	)
+
+	if len(f.clusterConfig.ActionsAllowlist) > 0 {
+		allowlistJSON, err := json.Marshal(f.clusterConfig.ActionsAllowlist)
+		if err != nil {
+			return fmt.Errorf("failed to marshal actions allowlist: %w", err)
+		}
+		managers.EnvVar().AddEnvVarToContainer(
+			apicommon.ClusterAgentContainerName,
+			&corev1.EnvVar{
+				Name:  "DD_PRIVATE_ACTION_RUNNER_ACTIONS_ALLOWLIST",
+				Value: string(allowlistJSON),
+			},
+		)
+	}
+
 	return nil
 }
 
@@ -150,7 +266,7 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	}
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.PrivateActionRunnerContainerName)
 
-	checksumKey, checksumValue, err := checksumAnnotation(f)
+	checksumKey, checksumValue, err := checksumAnnotation(f.nodeConfigData)
 	if err != nil {
 		return err
 	}
@@ -177,8 +293,21 @@ func (f *privateActionRunnerFeature) ManageOtelAgentGateway(managers feature.Pod
 	return nil
 }
 
-func checksumAnnotation(f *privateActionRunnerFeature) (string, string, error) {
-	checksum, err := comparison.GenerateMD5ForSpec(f.configData)
+// parsePrivateActionRunnerConfig parses the YAML config data and returns a PrivateActionRunnerConfig
+func parsePrivateActionRunnerConfig(configData string) (*PrivateActionRunnerConfig, error) {
+	config := struct {
+		PrivateActionRunner *PrivateActionRunnerConfig `yaml:"private_action_runner"`
+	}{
+		PrivateActionRunner: &PrivateActionRunnerConfig{},
+	}
+	if err := yaml.Unmarshal([]byte(configData), &config); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal config data: %w", err)
+	}
+	return config.PrivateActionRunner, nil
+}
+
+func checksumAnnotation(configData string) (string, string, error) {
+	checksum, err := comparison.GenerateMD5ForSpec(configData)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate MD5 for Private Action Runner config: %w", err)
 	}
