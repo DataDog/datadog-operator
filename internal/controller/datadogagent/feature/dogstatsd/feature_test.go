@@ -330,11 +330,12 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			),
 		},
 		{
-			Name: "adp enabled",
+			Name: "data plane enabled via annotation (deprecated) with dogstatsd routed to ADP",
 			DDA: testutils.NewDefaultDatadogAgentBuilder().
 				WithAnnotations(map[string]string{
 					utils.EnableADPAnnotation: "true",
 				}).
+				WithDataPlaneDogstatsdEnabled(true).
 				BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
@@ -346,7 +347,85 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
-					assert.Contains(t, agentEnvVars, dsdDisabledEnvVar, "DD_USE_DOGSTATSD should be set to false")
+					assert.Contains(t, agentEnvVars, dsdDisabledEnvVar, "DD_USE_DOGSTATSD should be set to false when Data Plane DogStatsD is enabled")
+
+					// Verify DogStatsD config is applied to ADP container
+					adpEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AgentDataPlaneContainerName]
+					assert.NotEmpty(t, adpEnvVars, "ADP container should have DogStatsD env vars")
+				},
+			),
+		},
+		{
+			Name: "data plane enabled via CRD with dogstatsd routed to ADP",
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
+				WithDataPlaneEnabled(true).
+				WithDataPlaneDogstatsdEnabled(true).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					dsdDisabledEnvVar := &corev1.EnvVar{
+						Name:  common.DDDogstatsdEnabled,
+						Value: "false",
+					}
+
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+					assert.Contains(t, agentEnvVars, dsdDisabledEnvVar, "DD_USE_DOGSTATSD should be set to false when Data Plane DogStatsD is enabled")
+
+					// Verify DogStatsD config is applied to ADP container
+					adpEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AgentDataPlaneContainerName]
+					assert.NotEmpty(t, adpEnvVars, "ADP container should have DogStatsD env vars")
+				},
+			),
+		},
+		{
+			Name: "data plane enabled but dogstatsd subsection not enabled - DSD stays on Core Agent",
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
+				WithDataPlaneEnabled(true).
+				WithDataPlaneDogstatsdEnabled(false).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					dsdDisabledEnvVar := &corev1.EnvVar{
+						Name:  common.DDDogstatsdEnabled,
+						Value: "false",
+					}
+
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+					// DSD should NOT be disabled when Data Plane DogStatsD is not enabled
+					assert.NotContains(t, agentEnvVars, dsdDisabledEnvVar, "DD_USE_DOGSTATSD should not be set to false when Data Plane DogStatsD is not enabled")
+
+					// Verify DogStatsD config is NOT applied to ADP container
+					adpEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AgentDataPlaneContainerName]
+					assert.Empty(t, adpEnvVars, "ADP container should not have DogStatsD env vars when Data Plane DogStatsD is not enabled")
+				},
+			),
+		},
+		{
+			Name: "data plane dogstatsd enabled but data plane itself not enabled - DSD stays on Core Agent",
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
+				WithDataPlaneEnabled(false).
+				WithDataPlaneDogstatsdEnabled(true).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					dsdDisabledEnvVar := &corev1.EnvVar{
+						Name:  common.DDDogstatsdEnabled,
+						Value: "false",
+					}
+
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+					// DSD should NOT be disabled when Data Plane itself is not enabled
+					assert.NotContains(t, agentEnvVars, dsdDisabledEnvVar, "DD_USE_DOGSTATSD should not be set to false when Data Plane is not enabled")
+
+					// Verify DogStatsD config is NOT applied to ADP container
+					adpEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AgentDataPlaneContainerName]
+					assert.Empty(t, adpEnvVars, "ADP container should not have DogStatsD env vars when Data Plane is not enabled")
 				},
 			),
 		},

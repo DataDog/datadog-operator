@@ -1263,6 +1263,27 @@ spec:
                             Default: false
                           type: boolean
                       type: object
+                    dataPlane:
+                      description: |-
+                        DataPlane configuration for the Agent Data Plane.
+                        Agent Data Plane is a high-performance sidecar that handles data ingestion.
+                      properties:
+                        dogstatsd:
+                          description: Dogstatsd configures DogStatsD handling by the Data Plane.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled configures the Data Plane to handle DogStatsD traffic.
+                                When enabled, DogStatsD is disabled in the Core Agent.
+                                Default: false
+                              type: boolean
+                          type: object
+                        enabled:
+                          description: |-
+                            Enabled enables the Data Plane.
+                            Default: false
+                          type: boolean
+                      type: object
                     dogstatsd:
                       description: Dogstatsd configuration.
                       properties:
@@ -9265,6 +9286,27 @@ spec:
                             syscallMonitorEnabled:
                               description: |-
                                 SyscallMonitorEnabled enables Syscall Monitoring (recommended for troubleshooting only).
+                                Default: false
+                              type: boolean
+                          type: object
+                        dataPlane:
+                          description: |-
+                            DataPlane configuration for the Agent Data Plane.
+                            Agent Data Plane is a high-performance sidecar that handles data ingestion.
+                          properties:
+                            dogstatsd:
+                              description: Dogstatsd configures DogStatsD handling by the Data Plane.
+                              properties:
+                                enabled:
+                                  description: |-
+                                    Enabled configures the Data Plane to handle DogStatsD traffic.
+                                    When enabled, DogStatsD is disabled in the Core Agent.
+                                    Default: false
+                                  type: boolean
+                              type: object
+                            enabled:
+                              description: |-
+                                Enabled enables the Data Plane.
                                 Default: false
                               type: boolean
                           type: object

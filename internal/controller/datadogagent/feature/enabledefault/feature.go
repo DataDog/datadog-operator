@@ -7,14 +7,11 @@ package enabledefault
 
 import (
 	"github.com/go-logr/logr"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 )
 
 func init() {
@@ -35,10 +32,8 @@ func buildDefaultFeature(options *feature.Options) feature.Feature {
 }
 
 type defaultFeature struct {
-	owner metav1.Object
-
-	logger     logr.Logger
-	adpEnabled bool
+	owner  metav1.Object
+	logger logr.Logger
 }
 
 // ID returns the ID of the Feature
@@ -50,17 +45,6 @@ func (f *defaultFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogA
 	trueValue := true
 	f.owner = dda
 
-	if dda.GetAnnotations() != nil {
-		f.adpEnabled = featureutils.HasAgentDataPlaneAnnotation(dda)
-	}
-
-	agentContainers := make([]apicommon.AgentContainerName, 0)
-
-	// If Agent Data Plane is enabled, add the ADP container to the list of required containers for the Agent feature.
-	if f.adpEnabled {
-		agentContainers = append(agentContainers, apicommon.AgentDataPlaneContainerName)
-	}
-
 	return feature.RequiredComponents{
 		ClusterAgent: feature.RequiredComponent{
 			IsRequired: &trueValue,
@@ -68,7 +52,7 @@ func (f *defaultFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogA
 		},
 		Agent: feature.RequiredComponent{
 			IsRequired: &trueValue,
-			Containers: agentContainers,
+			Containers: []apicommon.AgentContainerName{},
 		},
 	}
 }
@@ -89,22 +73,12 @@ func (f *defaultFeature) ManageClusterAgent(managers feature.PodTemplateManagers
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
 func (f *defaultFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.ManageNodeAgent(managers, provider)
-
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *defaultFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	if f.adpEnabled {
-		// When ADP is enabled, we signal this to the Core Agent by setting an environment variable.
-		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-			Name:  common.DDADPEnabled,
-			Value: "true",
-		})
-	}
-
 	return nil
 }
 

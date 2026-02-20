@@ -94,6 +94,8 @@ spec:
 | features.cws.remoteConfiguration.enabled | Enables Remote Configuration for Cloud Workload Security. Default: true |
 | features.cws.securityProfiles.enabled | Enables Security Profiles collection for Cloud Workload Security. Default: true |
 | features.cws.syscallMonitorEnabled | SyscallMonitorEnabled enables Syscall Monitoring (recommended for troubleshooting only). Default: false |
+| features.dataPlane.dogstatsd.enabled | Configures the Data Plane to handle DogStatsD traffic. When enabled, DogStatsD is disabled in the Core Agent. Default: false |
+| features.dataPlane.enabled | Enables the Data Plane. Default: false |
 | features.dogstatsd.hostPortConfig.enabled | Enables host port configuration |
 | features.dogstatsd.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
 | features.dogstatsd.mapperProfiles.configData | ConfigData corresponds to the configuration file content. |

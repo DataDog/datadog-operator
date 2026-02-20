@@ -137,6 +137,8 @@ const (
 	defaultFIPSUseHTTPS     bool   = false
 
 	defaultControlPlaneMonitoringEnabled bool = true
+
+	defaultDataPlaneDogstatsdEnabled bool = false
 )
 
 // DefaultDatadogAgentSpec defaults the DatadogAgentSpec GlobalConfig and Features.
@@ -621,4 +623,17 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		ddaSpec.Features.ControlPlaneMonitoring = &v2alpha1.ControlPlaneMonitoringFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ControlPlaneMonitoring.Enabled, defaultControlPlaneMonitoringEnabled)
+
+	// DataPlane Feature
+	// Note: We intentionally do NOT default DataPlane.Enabled to allow the annotation fallback
+	// to work when the user hasn't explicitly configured Data Plane via the CRD.
+	// See IsDataPlaneEnabled() in feature/utils/utils.go for the precedence logic.
+	if ddaSpec.Features.DataPlane == nil {
+		ddaSpec.Features.DataPlane = &v2alpha1.DataPlaneFeatureConfig{}
+	}
+
+	if ddaSpec.Features.DataPlane.Dogstatsd == nil {
+		ddaSpec.Features.DataPlane.Dogstatsd = &v2alpha1.DataPlaneDogstatsdConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.DataPlane.Dogstatsd.Enabled, defaultDataPlaneDogstatsdEnabled)
 }
