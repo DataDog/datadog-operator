@@ -153,7 +153,7 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 			f.owner.GetNamespace(),
 			rbacResourcesName,
 			serviceAccountName,
-			GetRBACPolicyRules(f.clusterConfigData),
+			getClusterAgentRBACPolicyRules(f.clusterConfigData),
 		)
 	}
 
@@ -182,6 +182,13 @@ func (f *privateActionRunnerFeature) ManageClusterAgent(managers feature.PodTemp
 			Value: "true",
 		},
 	)
+	managers.EnvVar().AddEnvVarToContainer(
+		apicommon.ClusterAgentContainerName,
+		&corev1.EnvVar{
+			Name:  "DD_PRIVATE_ACTION_RUNNER_IDENTITY_USE_K8S_SECRET",
+			Value: "true",
+		},
+	)
 
 	if config.SelfEnroll {
 		managers.EnvVar().AddEnvVarToContainer(
@@ -189,6 +196,16 @@ func (f *privateActionRunnerFeature) ManageClusterAgent(managers feature.PodTemp
 			&corev1.EnvVar{
 				Name:  "DD_PRIVATE_ACTION_RUNNER_SELF_ENROLL",
 				Value: "true",
+			},
+		)
+	}
+
+	if !config.IdentityUseK8sSecret {
+		managers.EnvVar().AddEnvVarToContainer(
+			apicommon.ClusterAgentContainerName,
+			&corev1.EnvVar{
+				Name:  "DD_PRIVATE_ACTION_RUNNER_IDENTITY_USE_K8S_SECRET",
+				Value: "false",
 			},
 		)
 	}
@@ -291,12 +308,13 @@ func (f *privateActionRunnerFeature) ManageOtelAgentGateway(managers feature.Pod
 
 // PrivateActionRunnerConfig represents the parsed configuration from YAML
 type PrivateActionRunnerConfig struct {
-	Enabled            bool     `yaml:"enabled"`
-	SelfEnroll         bool     `yaml:"self_enroll"`
-	URN                string   `yaml:"urn"`
-	PrivateKey         string   `yaml:"private_key"`
-	IdentitySecretName string   `yaml:"identity_secret_name"`
-	ActionsAllowlist   []string `yaml:"actions_allowlist"`
+	Enabled              bool     `yaml:"enabled"`
+	SelfEnroll           bool     `yaml:"self_enroll"`
+	URN                  string   `yaml:"urn"`
+	PrivateKey           string   `yaml:"private_key"`
+	IdentityUseK8sSecret bool     `yaml:"identity_use_k8s_secret"`
+	IdentitySecretName   string   `yaml:"identity_secret_name"`
+	ActionsAllowlist     []string `yaml:"actions_allowlist"`
 }
 
 // parsePrivateActionRunnerConfig parses the YAML config data and returns a PrivateActionRunnerConfig
