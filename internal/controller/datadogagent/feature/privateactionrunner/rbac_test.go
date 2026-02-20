@@ -9,42 +9,57 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
 func TestGetRBACPolicyRules(t *testing.T) {
 	tests := []struct {
 		name                   string
-		configData             string
+		config                 *PrivateActionRunnerConfig
 		expectedSecretName     string
 		expectedResourcesCount int
 	}{
 		{
 			name: "default identity secret name",
-			configData: `private_action_runner:
-  enabled: true
-  self_enroll: true`,
+			config: &PrivateActionRunnerConfig{
+				Enabled:    true,
+				SelfEnroll: true,
+			},
 			expectedSecretName:     "datadog-private-action-runner-identity",
 			expectedResourcesCount: 1,
 		},
 		{
 			name: "custom identity secret name",
-			configData: `private_action_runner:
-  enabled: true
-  self_enroll: true
-  identity_secret_name: custom-par-secret`,
+			config: &PrivateActionRunnerConfig{
+				Enabled:            true,
+				SelfEnroll:         true,
+				IdentitySecretName: "custom-par-secret",
+			},
 			expectedSecretName:     "custom-par-secret",
 			expectedResourcesCount: 1,
 		},
 		{
-			name: "with URN and private key",
-			configData: `private_action_runner:
-  enabled: true
-  self_enroll: false
-  urn: "urn:dd:apps:on-prem-runner:us1:1:runner-abc"
-  private_key: "secret-key"
-  identity_secret_name: my-identity-secret`,
+			name: "with URN and private key but self_enroll disabled",
+			config: &PrivateActionRunnerConfig{
+				Enabled:            true,
+				SelfEnroll:         false,
+				URN:                "urn:dd:apps:on-prem-runner:us1:1:runner-abc",
+				PrivateKey:         "secret-key",
+				IdentitySecretName: "my-identity-secret",
+			},
+			expectedSecretName:     "",
+			expectedResourcesCount: 0,
+		},
+		{
+			name: "self_enroll enabled with custom secret name",
+			config: &PrivateActionRunnerConfig{
+				Enabled:            true,
+				SelfEnroll:         true,
+				IdentitySecretName: "my-identity-secret",
+			},
 			expectedSecretName:     "my-identity-secret",
 			expectedResourcesCount: 1,
 		},
@@ -52,50 +67,47 @@ func TestGetRBACPolicyRules(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rules := getClusterAgentRBACPolicyRules(tt.configData)
+			rules := getClusterAgentRBACPolicyRules(tt.config)
 
-			assert.Len(t, rules, tt.expectedResourcesCount, "Should have exactly one policy rule")
+			assert.Len(t, rules, tt.expectedResourcesCount, "Should have expected number of policy rules")
 
-			rule := rules[0]
-			assert.Equal(t, []string{rbac.CoreAPIGroup}, rule.APIGroups, "APIGroups should be core")
-			assert.Equal(t, []string{rbac.SecretsResource}, rule.Resources, "Resources should be secrets")
-			assert.Equal(t, []string{tt.expectedSecretName}, rule.ResourceNames, "ResourceNames should match expected secret name")
-			assert.ElementsMatch(t, []string{rbac.GetVerb, rbac.UpdateVerb, rbac.CreateVerb}, rule.Verbs, "Verbs should include get, update, and create")
+			if tt.expectedResourcesCount > 0 {
+				rule := rules[0]
+				assert.Equal(t, []string{rbac.CoreAPIGroup}, rule.APIGroups, "APIGroups should be core")
+				assert.Equal(t, []string{rbac.SecretsResource}, rule.Resources, "Resources should be secrets")
+				assert.Equal(t, []string{tt.expectedSecretName}, rule.ResourceNames, "ResourceNames should match expected secret name")
+				assert.ElementsMatch(t, []string{rbac.GetVerb, rbac.UpdateVerb, rbac.CreateVerb}, rule.Verbs, "Verbs should include get, update, and create")
+			}
 		})
 	}
 }
 
-func TestGetIdentitySecretName(t *testing.T) {
+func TestGetPrivateActionRunnerRbacResourcesName(t *testing.T) {
 	tests := []struct {
 		name         string
-		configData   string
+		ownerName    string
 		expectedName string
 	}{
 		{
-			name:         "empty config",
-			configData:   ``,
-			expectedName: "datadog-private-action-runner-identity",
+			name:         "standard owner name",
+			ownerName:    "test-dda",
+			expectedName: "test-dda-private-action-runner",
 		},
 		{
-			name: "config without identity_secret_name",
-			configData: `private_action_runner:
-  enabled: true
-  self_enroll: true`,
-			expectedName: "datadog-private-action-runner-identity",
-		},
-		{
-			name: "config with custom identity_secret_name",
-			configData: `private_action_runner:
-  enabled: true
-  self_enroll: true
-  identity_secret_name: my-custom-secret`,
-			expectedName: "my-custom-secret",
+			name:         "owner with dashes",
+			ownerName:    "my-datadog-agent",
+			expectedName: "my-datadog-agent-private-action-runner",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			name := getIdentitySecretName(tt.configData)
+			owner := &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: tt.ownerName,
+				},
+			}
+			name := getPrivateActionRunnerRbacResourcesName(owner)
 			assert.Equal(t, tt.expectedName, name)
 		})
 	}
