@@ -2,7 +2,7 @@
 # This example demonstrates how to configure PAR using annotations.
 #
 # For more information about Private Action Runner:
-# https://docs.datadoghq.com/workflows/private-actions
+# https://docs.datadoghq.com/actions/private_actions/
 
 ---
 # Example 1: Node Agent with Private Action Runner (self-enrollment)
