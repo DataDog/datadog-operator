@@ -21,6 +21,7 @@ import (
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -41,12 +42,13 @@ func buildPrivateActionRunnerFeature(options *feature.Options) feature.Feature {
 }
 
 type privateActionRunnerFeature struct {
-	owner             metav1.Object
-	logger            logr.Logger
-	nodeEnabled       bool
-	nodeConfigData    string
-	clusterEnabled    bool
-	clusterConfigData string
+	owner                     metav1.Object
+	logger                    logr.Logger
+	nodeEnabled               bool
+	nodeConfigData            string
+	clusterEnabled            bool
+	clusterConfigData         string
+	clusterServiceAccountName string
 }
 
 // ID returns the ID of the Feature
@@ -90,6 +92,8 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 		} else {
 			f.clusterConfigData = defaultConfigData
 		}
+
+		f.clusterServiceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 		reqComp.ClusterAgent = feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(true),
@@ -139,20 +143,11 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 	if f.clusterEnabled {
 		rbacResourcesName := getPrivateActionRunnerRbacResourcesName(f.owner)
 
-		// Get the DatadogAgent for RBAC rules
-		dda, ok := f.owner.(*v2alpha1.DatadogAgent)
-		if !ok {
-			return fmt.Errorf("owner is not a DatadogAgent")
-		}
-
-		// Get service account name
-		serviceAccountName := getClusterAgentServiceAccount(dda)
-
 		// Add Role (namespaced) for secret access - parse config to get identity_secret_name
 		return managers.RBACManager().AddPolicyRules(
 			f.owner.GetNamespace(),
 			rbacResourcesName,
-			serviceAccountName,
+			f.clusterServiceAccountName,
 			getClusterAgentRBACPolicyRules(f.clusterConfigData),
 		)
 	}
@@ -340,15 +335,4 @@ func checksumAnnotation(configData string) (string, string, error) {
 
 func getPrivateActionRunnerRbacResourcesName(owner metav1.Object) string {
 	return owner.GetName() + "-private-action-runner"
-}
-
-func getClusterAgentServiceAccount(dda *v2alpha1.DatadogAgent) string {
-	if dda.Spec.Override != nil {
-		if override, ok := dda.Spec.Override[v2alpha1.ClusterAgentComponentName]; ok {
-			if override.ServiceAccountName != nil && *override.ServiceAccountName != "" {
-				return *override.ServiceAccountName
-			}
-		}
-	}
-	return dda.GetName() + "-cluster-agent"
 }
