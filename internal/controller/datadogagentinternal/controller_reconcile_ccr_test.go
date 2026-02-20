@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/go-logr/logr"
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -257,7 +258,9 @@ func Test_cleanupOldCCRDeployments(t *testing.T) {
 			}
 			ddaiStatus := datadoghqv1alpha1.DatadogAgentInternalStatus{}
 
-			err := r.cleanupOldCCRDeployments(ctx, &ddai, &ddaiStatus)
+			logger := logr.Discard()
+			_, resourceManagers := r.setupDependencies(&ddai, logger)
+			err := r.cleanupOldCCRDeployments(ctx, &ddai, resourceManagers, &ddaiStatus)
 			assert.NoError(t, err)
 
 			deploymentList := &appsv1.DeploymentList{}
