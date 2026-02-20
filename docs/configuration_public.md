@@ -393,6 +393,9 @@ spec:
 `features.serviceDiscovery.networkStats.enabled`
 : Enables the Service Discovery Network Stats feature. Default: true
 
+`features.serviceDiscovery.useSdAgent`
+: UseSdAgent enables the sd-agent wrapper for system-probe when running service discovery. When enabled, the system-probe container uses sd-agent as a lightweight wrapper, falling back to plain system-probe if the binary is not available. Default: false
+
 `features.tcpQueueLength.enabled`
 : Enables the TCP queue length eBPF-based check. Default: false
 
