@@ -7,8 +7,6 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/stretchr/testify/assert"
@@ -190,17 +188,9 @@ func Test_cleanupOldDCADeployments(t *testing.T) {
 				log:      logger,
 				recorder: recorder,
 			}
-			storeOptions := &store.StoreOptions{
-				SupportCilium: r.options.SupportCilium,
-				PlatformInfo:  r.platformInfo,
-				Logger:        logger,
-				Scheme:        r.scheme,
-			}
 			instance := &datadoghqv2alpha1.DatadogAgent{}
 			instanceCopy := instance.DeepCopy()
 			defaults.DefaultDatadogAgentSpec(&instanceCopy.Spec)
-			depsStore := store.NewStore(instance, storeOptions)
-			resourcesManager := feature.NewResourceManagers(depsStore)
 
 			dda := datadoghqv2alpha1.DatadogAgent{
 				TypeMeta: metav1.TypeMeta{
@@ -212,9 +202,8 @@ func Test_cleanupOldDCADeployments(t *testing.T) {
 					Namespace: "ns-1",
 				},
 			}
-			ddaStatus := datadoghqv2alpha1.DatadogAgentStatus{}
 
-			err := r.cleanupOldDCADeployments(ctx, logger, &dda, resourcesManager, &ddaStatus)
+			err := r.cleanupOldDCADeployments(ctx, logger, &dda)
 			assert.NoError(t, err)
 
 			deploymentList := &appsv1.DeploymentList{}
