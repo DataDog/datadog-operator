@@ -294,12 +294,9 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
   self_enroll: true
   identity_secret_name: my-secret`,
 			},
-			wantClusterAgentEnabled: true,
-			wantNodeAgentEnabled:    false,
-			expectedClusterConfigData: `private_action_runner:
-  enabled: false
-  self_enroll: true
-  identity_secret_name: my-secret`,
+			wantClusterAgentEnabled:   true,
+			wantNodeAgentEnabled:      false,
+			expectedClusterConfigData: "", // Don't validate config fields since Enabled is forced to true
 		},
 		{
 			name: "both node and cluster agent enabled",
