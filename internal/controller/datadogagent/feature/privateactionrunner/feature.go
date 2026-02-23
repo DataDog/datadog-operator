@@ -95,7 +95,6 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 
 	// Check for Cluster Agent configuration (annotation-based)
 	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableClusterAgentPrivateActionRunnerAnnotation) {
-		f.clusterConfig = &PrivateActionRunnerConfig{Enabled: true}
 		configData, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation)
 		if !ok {
 			configData = defaultConfigData
@@ -103,6 +102,7 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 
 		clusterConfig, err := parsePrivateActionRunnerConfig(configData)
 		if err != nil {
+			f.logger.Error(err, "failed to parse private action runner config")
 			return reqComp
 		}
 		f.clusterConfig = clusterConfig
@@ -203,29 +203,35 @@ func (f *privateActionRunnerFeature) ManageClusterAgent(managers feature.PodTemp
 		},
 	)
 
-	managers.EnvVar().AddEnvVarToContainer(
-		apicommon.ClusterAgentContainerName,
-		&corev1.EnvVar{
-			Name:  "DD_PRIVATE_ACTION_RUNNER_IDENTITY_SECRET_NAME",
-			Value: f.clusterConfig.IdentitySecretName,
-		},
-	)
+	if f.clusterConfig.IdentitySecretName != "" {
+		managers.EnvVar().AddEnvVarToContainer(
+			apicommon.ClusterAgentContainerName,
+			&corev1.EnvVar{
+				Name:  "DD_PRIVATE_ACTION_RUNNER_IDENTITY_SECRET_NAME",
+				Value: f.clusterConfig.IdentitySecretName,
+			},
+		)
+	}
 
-	managers.EnvVar().AddEnvVarToContainer(
-		apicommon.ClusterAgentContainerName,
-		&corev1.EnvVar{
-			Name:  "DD_PRIVATE_ACTION_RUNNER_URN",
-			Value: f.clusterConfig.URN,
-		},
-	)
+	if f.clusterConfig.URN != "" {
+		managers.EnvVar().AddEnvVarToContainer(
+			apicommon.ClusterAgentContainerName,
+			&corev1.EnvVar{
+				Name:  "DD_PRIVATE_ACTION_RUNNER_URN",
+				Value: f.clusterConfig.URN,
+			},
+		)
+	}
 
-	managers.EnvVar().AddEnvVarToContainer(
-		apicommon.ClusterAgentContainerName,
-		&corev1.EnvVar{
-			Name:  "DD_PRIVATE_ACTION_RUNNER_PRIVATE_KEY",
-			Value: f.clusterConfig.PrivateKey,
-		},
-	)
+	if f.clusterConfig.PrivateKey != "" {
+		managers.EnvVar().AddEnvVarToContainer(
+			apicommon.ClusterAgentContainerName,
+			&corev1.EnvVar{
+				Name:  "DD_PRIVATE_ACTION_RUNNER_PRIVATE_KEY",
+				Value: f.clusterConfig.PrivateKey,
+			},
+		)
+	}
 
 	if len(f.clusterConfig.ActionsAllowlist) > 0 {
 		allowlistJSON, err := json.Marshal(f.clusterConfig.ActionsAllowlist)

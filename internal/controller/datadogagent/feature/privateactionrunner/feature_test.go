@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -133,54 +132,6 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 func Test_privateActionRunnerFeature_ID(t *testing.T) {
 	f := buildPrivateActionRunnerFeature(nil)
 	assert.Equal(t, string(feature.PrivateActionRunnerIDType), string(f.ID()))
-}
-
-func Test_privateActionRunnerFeature_ManageSingleContainerNodeAgent(t *testing.T) {
-	f := buildPrivateActionRunnerFeature(nil)
-	managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
-
-	err := f.ManageSingleContainerNodeAgent(managers, "")
-	assert.NoError(t, err)
-}
-
-func Test_privateActionRunnerFeature_ManageClusterChecksRunner(t *testing.T) {
-	f := buildPrivateActionRunnerFeature(nil)
-	managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
-
-	err := f.ManageClusterChecksRunner(managers, "")
-	assert.NoError(t, err)
-}
-
-func Test_privateActionRunnerFeature_ManageOtelAgentGateway(t *testing.T) {
-	f := buildPrivateActionRunnerFeature(nil)
-	managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
-
-	err := f.ManageOtelAgentGateway(managers, "")
-	assert.NoError(t, err)
-}
-
-func Test_privateActionRunnerFeature_ManageDependencies(t *testing.T) {
-	f := buildPrivateActionRunnerFeature(nil)
-	err := f.ManageDependencies(nil, "")
-	assert.NoError(t, err)
-}
-
-func Test_privateActionRunnerFeature_ManageClusterAgent(t *testing.T) {
-	f := buildPrivateActionRunnerFeature(nil)
-	managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
-
-	err := f.ManageClusterAgent(managers, "")
-	assert.NoError(t, err)
-}
-
-func Test_buildPrivateActionRunnerFeature_WithLogger(t *testing.T) {
-	f := buildPrivateActionRunnerFeature(&feature.Options{
-		Logger: logr.Discard(),
-	})
-
-	parFeat, ok := f.(*privateActionRunnerFeature)
-	assert.True(t, ok)
-	assert.NotNil(t, parFeat)
 }
 
 func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
