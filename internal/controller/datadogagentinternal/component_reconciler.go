@@ -100,7 +100,6 @@ type ComponentReconciler interface {
 
 // ReconcileComponentParams bundles common parameters needed by all components
 type ReconcileComponentParams struct {
-	Logger             logr.Logger
 	DDAI               *v1alpha1.DatadogAgentInternal
 	RequiredComponents feature.RequiredComponents
 	Features           []feature.Feature
