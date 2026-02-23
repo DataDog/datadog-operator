@@ -363,10 +363,6 @@ func ddotCollectorImage() string {
 	return images.GetLatestDdotCollectorImage()
 }
 
-func hostProfilerImage() string {
-	return images.GetLatestHostProfilerImage()
-}
-
 func initContainers(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Container {
 	initContainers := []corev1.Container{
 		initVolumeContainer(),
