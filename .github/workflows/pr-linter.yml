@@ -1,19 +1,22 @@
 name: pull request linter
 on:
   pull_request_target:
-   types: [opened, labeled, unlabeled, synchronize]
+    types: [opened, labeled, unlabeled, synchronize]
+  pull_request:
+    types: [opened, labeled, unlabeled, synchronize, milestoned, demilestoned]
 
 permissions: {}
 
 jobs:
   build:
+    if: github.event_name == 'pull_request_target'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: read
     steps:
     - name: Check out code into the Go module directory
-      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
     - name: Verify Pull Request Labels
       uses: jesusvasquez333/verify-pr-label-action@657d111bbbe13e22bbd55870f1813c699bde1401 # v1.4.0
       with:
@@ -23,9 +26,19 @@ jobs:
         disable-reviews: true
   check-milestone:
     name: Check Milestone
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
     steps:
-      - if: github.event.pull_request.milestone == null && !contains(toJson(github.event.pull_request.labels.*.name), 'qa/skip-qa')
-        run: echo "::error::Missing milestone or \`qa/skip-qa\` label" && exit 1
+      - name: Check milestone and labels
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_JSON=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }})
+          MILESTONE=$(echo "$PR_JSON" | jq -r '.milestone.title // empty')
+          HAS_SKIP_QA=$(echo "$PR_JSON" | jq -r '[.labels[].name] | any(. == "qa/skip-qa")')
+          if [ -z "$MILESTONE" ] && [ "$HAS_SKIP_QA" != "true" ]; then
+            echo "::error::Missing milestone or \`qa/skip-qa\` label"
+            exit 1
+          fi

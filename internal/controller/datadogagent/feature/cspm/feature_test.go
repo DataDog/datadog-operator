@@ -67,6 +67,25 @@ func Test_cspmFeature_Configure(t *testing.T) {
 		ddaCSPMEnabled.Spec.Features.CSPM.HostBenchmarks = &v2alpha1.CSPMHostBenchmarksConfig{Enabled: apiutils.NewBoolPointer(true)}
 	}
 
+	ddaCSPMDirectSendEnabled := ddaCSPMDisabled.DeepCopy()
+	{
+		ddaCSPMDirectSendEnabled.Spec.Features.CSPM.Enabled = apiutils.NewBoolPointer(true)
+		ddaCSPMDirectSendEnabled.Spec.Features.CSPM.CustomBenchmarks = &v2alpha1.CustomConfig{
+			ConfigMap: &v2alpha1.ConfigMapConfig{
+				Name: "custom_test",
+				Items: []corev1.KeyToPath{
+					{
+						Key:  "key1",
+						Path: "some/path",
+					},
+				},
+			},
+		}
+		ddaCSPMDirectSendEnabled.Spec.Features.CSPM.CheckInterval = &metav1.Duration{Duration: 20 * time.Minute}
+		ddaCSPMDirectSendEnabled.Spec.Features.CSPM.HostBenchmarks = &v2alpha1.CSPMHostBenchmarksConfig{Enabled: apiutils.NewBoolPointer(true)}
+		ddaCSPMDirectSendEnabled.Spec.Features.CSPM.RunInSystemProbe = apiutils.NewBoolPointer(true)
+	}
+
 	tests := test.FeatureTestSuite{
 
 		{
@@ -79,7 +98,14 @@ func Test_cspmFeature_Configure(t *testing.T) {
 			DDA:           ddaCSPMEnabled,
 			WantConfigure: true,
 			ClusterAgent:  cspmClusterAgentWantFunc(),
-			Agent:         cspmAgentNodeWantFunc(),
+			Agent:         cspmAgentNodeWantFunc(false),
+		},
+		{
+			Name:          "CSPM enabled with runInSystemProbe",
+			DDA:           ddaCSPMDirectSendEnabled,
+			WantConfigure: true,
+			ClusterAgent:  cspmClusterAgentWantFunc(),
+			Agent:         cspmAgentNodeWantFunc(true),
 		},
 	}
 
@@ -145,10 +171,16 @@ func cspmClusterAgentWantFunc() *test.ComponentTest {
 	)
 }
 
-func cspmAgentNodeWantFunc() *test.ComponentTest {
+func cspmAgentNodeWantFunc(runInSystemProbe bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+			// Determine which container to check based on runInSystemProbe
+			targetContainer := apicommon.SecurityAgentContainerName
+			if runInSystemProbe {
+				targetContainer = apicommon.SystemProbeContainerName
+			}
 
 			want := []*corev1.EnvVar{
 				{
@@ -167,10 +199,14 @@ func cspmAgentNodeWantFunc() *test.ComponentTest {
 					Name:  DDComplianceHostBenchmarksEnabled,
 					Value: "true",
 				},
+				{
+					Name:  DDComplianceConfigRunInSystemProbe,
+					Value: apiutils.BoolToString(&runInSystemProbe),
+				},
 			}
 
-			securityAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SecurityAgentContainerName]
-			assert.True(t, apiutils.IsEqualStruct(securityAgentEnvVars, want), "Agent envvars \ndiff = %s", cmp.Diff(securityAgentEnvVars, want))
+			targetContainerEnvVars := mgr.EnvVarMgr.EnvVarsByC[targetContainer]
+			assert.True(t, apiutils.IsEqualStruct(targetContainerEnvVars, want), "Agent envvars \ndiff = %s", cmp.Diff(targetContainerEnvVars, want))
 
 			// check volume mounts
 			wantVolumeMounts := []corev1.VolumeMount{
@@ -206,8 +242,8 @@ func cspmAgentNodeWantFunc() *test.ComponentTest {
 				},
 			}
 
-			securityAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.SecurityAgentContainerName]
-			assert.True(t, apiutils.IsEqualStruct(securityAgentVolumeMounts, wantVolumeMounts), "Security Agent volume mounts \ndiff = %s", cmp.Diff(securityAgentVolumeMounts, wantVolumeMounts))
+			targetContainerVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[targetContainer]
+			assert.True(t, apiutils.IsEqualStruct(targetContainerVolumeMounts, wantVolumeMounts), "Target container volume mounts \ndiff = %s", cmp.Diff(targetContainerVolumeMounts, wantVolumeMounts))
 
 			// check volumes
 			wantVolumes := []corev1.Volume{

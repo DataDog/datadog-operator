@@ -181,9 +181,83 @@
                 "additionalProperties": false,
                 "description": "DatadogPodAutoscalerContainerConstraints defines constraints that should always be respected for a container.\nIf no constraints are set, it enables resource scaling for all containers without any constraints.",
                 "properties": {
+                  "controlledResources": {
+                    "description": "Specifies the resources for which recommendations will be computed.\nIf not specified, it defaults to CPU and Memory.\nIf an empty list is provided, no resource will be controlled (equivalent to Enabled=false).",
+                    "items": {
+                      "description": "ResourceName is the name identifying various resources in a ResourceList.",
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "controlledValues": {
+                    "description": "Specifies whether recommendations are made to Requests and Limits (RequestsAndLimits) or Requests only (RequestsOnly).\nThe default is \"RequestsAndLimits\".",
+                    "enum": [
+                      "RequestsAndLimits",
+                      "RequestsOnly"
+                    ],
+                    "type": "string"
+                  },
                   "enabled": {
                     "description": "Enabled, if false, allows one to disable resource autoscaling for the container. Defaults to true.",
                     "type": "boolean"
+                  },
+                  "maxAllowed": {
+                    "additionalProperties": false,
+                    "description": "MaxAllowed is the upper limit for the requests of the container.",
+                    "properties": {
+                      "cpu": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "integer"
+                          }
+                        ],
+                        "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$"
+                      },
+                      "memory": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "integer"
+                          }
+                        ],
+                        "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "minAllowed": {
+                    "additionalProperties": false,
+                    "description": "MinAllowed is the lower limit for the requests of the container.",
+                    "properties": {
+                      "cpu": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "integer"
+                          }
+                        ],
+                        "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$"
+                      },
+                      "memory": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "integer"
+                          }
+                        ],
+                        "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$"
+                      }
+                    },
+                    "type": "object"
                   },
                   "name": {
                     "description": "Name is the name of the container. Can be \"*\" to apply to all containers.",
@@ -191,7 +265,7 @@
                   },
                   "requests": {
                     "additionalProperties": false,
-                    "description": "Requests defines the constraints for the requests of the container.",
+                    "description": "Requests defines the constraints for the requests of the container.\nWARNING: Deprecated",
                     "properties": {
                       "maxAllowed": {
                         "additionalProperties": false,
@@ -265,6 +339,7 @@
             "maxReplicas": {
               "description": "MaxReplicas is the upper limit for the number of POD replicas. Needs to be \u003e= minReplicas.",
               "format": "int32",
+              "minimum": 1,
               "type": "integer"
             },
             "minReplicas": {
@@ -274,9 +349,6 @@
               "type": "integer"
             }
           },
-          "required": [
-            "maxReplicas"
-          ],
           "type": "object"
         },
         "fallback": {
@@ -321,7 +393,8 @@
                           "name": {
                             "description": "Name is the name of the resource.",
                             "enum": [
-                              "cpu"
+                              "cpu",
+                              "memory"
                             ],
                             "type": "string"
                           },
@@ -552,7 +625,8 @@
                           "name": {
                             "description": "Name is the name of the resource.",
                             "enum": [
-                              "cpu"
+                              "cpu",
+                              "memory"
                             ],
                             "type": "string"
                           },
@@ -658,7 +732,8 @@
                   "name": {
                     "description": "Name is the name of the resource.",
                     "enum": [
-                      "cpu"
+                      "cpu",
+                      "memory"
                     ],
                     "type": "string"
                   },
@@ -889,7 +964,8 @@
                   "name": {
                     "description": "Name is the name of the resource.",
                     "enum": [
-                      "cpu"
+                      "cpu",
+                      "memory"
                     ],
                     "type": "string"
                   },
@@ -956,6 +1032,33 @@
           "minItems": 1,
           "type": "array",
           "x-kubernetes-list-type": "atomic"
+        },
+        "options": {
+          "additionalProperties": false,
+          "description": "Options defines optional behavior modifications for the autoscaler.",
+          "properties": {
+            "outOfMemory": {
+              "additionalProperties": false,
+              "description": "OutOfMemory configures behavior when OOM events are detected.",
+              "properties": {
+                "bumpUpRatio": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ],
+                  "description": "BumpUpRatio defines the ratio to multiply memory by when OOM is detected.\nFor example, \"1.2\" means increase memory by 20%.\nRepresented as a resource.Quantity to avoid floating point in CRDs.",
+                  "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                  "x-kubernetes-int-or-string": true
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
         },
         "owner": {
           "description": "Owner defines the source of truth for this object (local or remote).\nValue must be set when a DatadogPodAutoscaler object is created.",

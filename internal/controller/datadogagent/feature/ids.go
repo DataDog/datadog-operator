@@ -29,6 +29,8 @@ const (
 	OtelAgentIDType = "otel_agent"
 	// OtelAgentGatewayIDType OTel Agent Gateway feature.
 	OtelAgentGatewayIDType = "otel_agent_gateway"
+	// HostProfilerIDType Host Profiler feature.
+	HostProfilerIDType = "host_profiler"
 	// ProcessDiscoveryIDType Process Discovery feature.
 	ProcessDiscoveryIDType = "process_discovery"
 	// KubernetesAPIServerIDType Kube APIServer feature.
@@ -79,4 +81,6 @@ const (
 	GPUIDType = "gpu"
 	// ControlPlaneMonitoringIDType Control Plane Monitoring feature.
 	ControlPlaneMonitoringIDType = "control_plane_monitoring"
+	// PrivateActionRunnerIDType Private Action Runner feature.
+	PrivateActionRunnerIDType = "private_action_runner"
 )

@@ -22,6 +22,8 @@ const (
 	ClusterAgentComponentName ComponentName = "clusterAgent"
 	// ClusterChecksRunnerComponentName is the name of the Cluster Check Runner
 	ClusterChecksRunnerComponentName ComponentName = "clusterChecksRunner"
+	// OtelAgentGatewayComponentName is the name of the OTel Agent Gateway
+	OtelAgentGatewayComponentName ComponentName = "otelAgentGateway"
 )
 
 // DatadogAgentSpec defines the desired state of DatadogAgent
@@ -446,6 +448,12 @@ type CSPMFeatureConfig struct {
 	// HostBenchmarks contains configuration for host benchmarks.
 	// +optional
 	HostBenchmarks *CSPMHostBenchmarksConfig `json:"hostBenchmarks,omitempty"`
+
+	// RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent.
+	// This is an experimental feature. Contact support before using.
+	// Default: false
+	// +optional
+	RunInSystemProbe *bool `json:"runInSystemProbe,omitempty"`
 }
 
 // CSPMHostBenchmarksConfig contains configuration for host benchmarks.
@@ -591,6 +599,11 @@ type NPMFeatureConfig struct {
 	// Default: false
 	// +optional
 	CollectDNSStats *bool `json:"collectDNSStats,omitempty"`
+
+	// DirectSend enables CNM/USM to send data directly to the backend
+	// Default: false
+	// +optional
+	DirectSend *bool `json:"directSend,omitempty"`
 }
 
 // USMFeatureConfig contains USM (Universal Service Monitoring) feature configuration.
@@ -640,7 +653,7 @@ type GPUFeatureConfig struct {
 	// If the value is an empty string, the runtime class is not set.
 	// Default: nvidia
 	// +optional
-	PodRuntimeClassName *string `json:"requiredRuntimeClassName"`
+	PodRuntimeClassName *string `json:"requiredRuntimeClassName,omitempty"`
 
 	// PatchCgroupPermissions enables the patch of cgroup permissions for GPU monitoring, in case
 	// the container runtime is not properly configured and the Agent containers lose access to GPU devices.
@@ -658,6 +671,7 @@ type DogstatsdFeatureConfig struct {
 	OriginDetectionEnabled *bool `json:"originDetectionEnabled,omitempty"`
 
 	// TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`).
+	// This setting only applies when OriginDetectionEnabled is true.
 	// See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables
 	// Cardinality default: low
 	// +optional
@@ -1037,6 +1051,11 @@ type OtelAgentGatewayFeatureConfig struct {
 	// +optional
 	// +listType=atomic
 	Ports []*corev1.ContainerPort `json:"ports,omitempty"`
+
+	// FeatureGates are the feature gates to pass to the OTel collector as a comma-separated list.
+	// Example: "component.UseLocalHostAsDefaultHost,connector.datadogconnector.NativeIngest"
+	// +optional
+	FeatureGates *string `json:"featureGates,omitempty"`
 }
 
 // ControlPlaneMonitoringFeatureConfig contains the configuration for the control plane monitoring.
@@ -1141,7 +1160,7 @@ type AgentSidecarInjectionConfig struct {
 	// Enabled enables Sidecar injections.
 	// Default: false
 	// +optional
-	Enabled *bool `json:"enabled"`
+	Enabled *bool `json:"enabled,omitempty"`
 
 	// ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.
 	// Default : true
@@ -2253,6 +2272,9 @@ type DatadogAgentStatus struct {
 	// The actual state of the Cluster Checks Runner as a deployment.
 	// +optional
 	ClusterChecksRunner *DeploymentStatus `json:"clusterChecksRunner,omitempty"`
+	// The actual state of the OTel Agent Gateway as a deployment.
+	// +optional
+	OtelAgentGateway *DeploymentStatus `json:"otelAgentGateway,omitempty"`
 	// RemoteConfigConfiguration stores the configuration received from RemoteConfig.
 	// +optional
 	RemoteConfigConfiguration *RemoteConfigConfiguration `json:"remoteConfigConfiguration,omitempty"`

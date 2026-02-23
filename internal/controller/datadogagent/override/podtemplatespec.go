@@ -33,7 +33,9 @@ func getAgentContainersMap() map[apicommon.AgentContainerName]string {
 		apicommon.ProcessAgentContainerName:            "",
 		apicommon.SecurityAgentContainerName:           "",
 		apicommon.SystemProbeContainerName:             "",
+		apicommon.PrivateActionRunnerContainerName:     "",
 		apicommon.OtelAgent:                            "",
+		apicommon.HostProfiler:                         "",
 		apicommon.AgentDataPlaneContainerName:          "",
 		apicommon.ClusterAgentContainerName:            "",
 		// apicommon.ClusterChecksRunnersContainerName:    "", // Is the same value as CoreAgentContainerName

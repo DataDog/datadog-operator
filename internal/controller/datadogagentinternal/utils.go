@@ -6,6 +6,7 @@
 package datadogagentinternal
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -13,12 +14,17 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/gobwas/glob"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func mergeAnnotationsLabels(logger logr.Logger, previousVal map[string]string, newVal map[string]string, filter string) map[string]string {
@@ -160,4 +166,22 @@ func getReplicas(currentReplicas, newReplicas *int32) *int32 {
 	}
 
 	return apiutils.NewInt32Pointer(*newReplicas)
+}
+
+// delete ALL workloads for a given DDA/DDAI and orphan pods
+func deleteObjectAndOrphanDependents(ctx context.Context, logger logr.Logger, c client.Client, obj client.Object, component string) error {
+	propagationPolicy := metav1.DeletePropagationOrphan
+	selector := labels.SelectorFromSet(labels.Set{
+		kubernetes.AppKubernetesPartOfLabelKey:     obj.GetLabels()[kubernetes.AppKubernetesPartOfLabelKey],
+		apicommon.AgentDeploymentComponentLabelKey: component,
+	})
+	logger.Info("deleting all workloads for matching DDAI", "labels", selector.String())
+	if err := c.DeleteAllOf(ctx, obj, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{LabelSelector: selector, Namespace: obj.GetNamespace()}, DeleteOptions: client.DeleteOptions{PropagationPolicy: &propagationPolicy}}); err != nil {
+		if apierrors.IsNotFound(err) {
+			logger.Info("object not found, skipping deletion", "object", obj.GetName(), "namespace", obj.GetNamespace())
+			return nil
+		}
+		return err
+	}
+	return nil
 }

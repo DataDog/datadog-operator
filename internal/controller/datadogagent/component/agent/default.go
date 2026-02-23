@@ -23,6 +23,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/privateactionrunner"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
@@ -362,6 +363,10 @@ func ddotCollectorImage() string {
 	return images.GetLatestDdotCollectorImage()
 }
 
+func hostProfilerImage() string {
+	return images.GetLatestHostProfilerImage()
+}
+
 func initContainers(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Container {
 	initContainers := []corev1.Container{
 		initVolumeContainer(),
@@ -399,7 +404,6 @@ func agentSingleContainer(dda metav1.Object) []corev1.Container {
 
 func agentOptimizedContainers(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Container {
 	containers := []corev1.Container{coreAgentContainer(dda)}
-
 	for _, containerName := range requiredContainers {
 		switch containerName {
 		case apicommon.CoreAgentContainerName:
@@ -412,8 +416,12 @@ func agentOptimizedContainers(dda metav1.Object, requiredContainers []apicommon.
 			containers = append(containers, securityAgentContainer(dda))
 		case apicommon.SystemProbeContainerName:
 			containers = append(containers, systemProbeContainer(dda))
+		case apicommon.PrivateActionRunnerContainerName:
+			containers = append(containers, privateActionRunnerContainer(dda))
 		case apicommon.OtelAgent:
 			containers = append(containers, otelAgentContainer(dda))
+		case apicommon.HostProfiler:
+			containers = append(containers, hostProfilerContainer(dda))
 		case apicommon.AgentDataPlaneContainerName:
 			containers = append(containers, agentDataPlaneContainer(dda))
 		}
@@ -512,6 +520,26 @@ func otelAgentContainer(dda metav1.Object) corev1.Container {
 	}
 }
 
+func hostProfilerContainer(dda metav1.Object) corev1.Container {
+	return corev1.Container{
+		Name: string(apicommon.HostProfiler),
+		// Note: Dev Image, Subject to change
+		Image: hostProfilerImage(),
+		Command: []string{
+			"/opt/datadog-agent/embedded/bin/full-host-profiler",
+			"run",
+			"--core-config=" + agentCustomConfigVolumePath,
+		},
+		Env:          commonEnvVars(dda),
+		VolumeMounts: volumeMountsForOtelAgent(),
+		Ports:        []corev1.ContainerPort{},
+		SecurityContext: &corev1.SecurityContext{
+			ReadOnlyRootFilesystem: apiutils.NewBoolPointer(true),
+			Privileged:             apiutils.NewBoolPointer(true),
+		},
+	}
+}
+
 func securityAgentContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
 		Name:  string(apicommon.SecurityAgentContainerName),
@@ -544,6 +572,24 @@ func systemProbeContainer(dda metav1.Object) corev1.Container {
 				Type:             corev1.SeccompProfileTypeLocalhost,
 				LocalhostProfile: apiutils.NewStringPointer(common.SystemProbeSeccompProfileName),
 			},
+		},
+	}
+}
+
+func privateActionRunnerContainer(dda metav1.Object) corev1.Container {
+	return corev1.Container{
+		Name:  string(apicommon.PrivateActionRunnerContainerName),
+		Image: agentImage(),
+		Command: []string{
+			"/opt/datadog-agent/embedded/bin/privateactionrunner",
+			"run",
+			fmt.Sprintf("-c=%s", agentCustomConfigVolumePath),
+			fmt.Sprintf("-c=%s", privateactionrunner.PrivateActionRunnerConfigPath),
+		},
+		Env:          commonEnvVars(dda),
+		VolumeMounts: volumeMountsForPrivateActionRunner(),
+		SecurityContext: &corev1.SecurityContext{
+			ReadOnlyRootFilesystem: apiutils.NewBoolPointer(true),
 		},
 	}
 }
@@ -809,6 +855,16 @@ func volumeMountsForSystemProbe() []corev1.VolumeMount {
 		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForProc(),
 		common.GetVolumeMountForRunPath(),
+		common.GetVolumeMountForTmp(),
+	}
+}
+
+func volumeMountsForPrivateActionRunner() []corev1.VolumeMount {
+	return []corev1.VolumeMount{
+		common.GetVolumeMountForLogs(),
+		common.GetVolumeMountForAuth(false),
+		common.GetVolumeMountForConfig(),
+		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForTmp(),
 	}
 }

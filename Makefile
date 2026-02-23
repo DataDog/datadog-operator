@@ -52,6 +52,10 @@ IMG_CHECK ?= gcr.io/datadoghq/operator-check:latest
 
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.30
+# Default timeout for `go test` when running E2E tests.
+# (E2E provisioning can hang; having a finite timeout ensures we get goroutine dumps
+# instead of the CI job timing out with no actionable logs.)
+E2E_GO_TEST_TIMEOUT ?= 55m
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -71,7 +75,8 @@ build: manager kubectl-datadog ## Builds manager + kubectl plugin
 .PHONY: fmt
 fmt: bin/$(PLATFORM)/golangci-lint ## Run formatters against code
 	go fmt ./...
-	bin/$(PLATFORM)/golangci-lint run ./... ./api/... ./test/e2e/... --fix
+	bin/$(PLATFORM)/golangci-lint run ./... ./api/... --fix
+	cd test/e2e && GOWORK=off go fmt ./... && GOWORK=off ../../bin/$(PLATFORM)/golangci-lint run ./... --fix
 
 .PHONY: vet
 vet: ## Run go vet against code
@@ -92,7 +97,7 @@ $(KUSTOMIZE): Makefile  ## Download kustomize locally if necessary.
 
 ENVTEST = bin/$(PLATFORM)/setup-envtest
 $(ENVTEST): Makefile ## Download envtest-setup locally if necessary.
-	$(call go-get-tool,$@,sigs.k8s.io/controller-runtime/tools/setup-envtest@v0.0.0-20240320141353-395cfc7486e6)
+	$(call go-get-tool,$@,sigs.k8s.io/controller-runtime/tools/setup-envtest@release-0.22)
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -205,11 +210,15 @@ integration-tests: $(ENVTEST) ## Run integration tests with reconciler
 .PHONY: e2e-tests
 e2e-tests: ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.
 	@if [ -z "$(E2E_RUN_REGEX)" ]; then \
-		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -v -run TestAWSKindSuite -timeout 0s -coverprofile cover_e2e.out; \
+		GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -v -run TestAWSKindSuite -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out; \
 	else \
 	    echo "Running e2e test: $(E2E_RUN_REGEX)"; \
-		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -v -run $(E2E_RUN_REGEX) -timeout 0s -coverprofile cover_e2e.out; \
+		GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -v -run $(E2E_RUN_REGEX) -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out; \
 	fi
+
+.PHONY: e2e-autoscaling-tests
+e2e-autoscaling-tests: kubectl-datadog ## Run autoscaling E2E tests on EKS. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`.
+	GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./tests/autoscaling_suite/... -count=1 --tags=e2e -v -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e_autoscaling.out
 
 .PHONY: yaml-mapper-tests
 yaml-mapper-tests:  fmt vet yaml-mapper-unit-tests
@@ -285,7 +294,7 @@ catalog-push: ## Push a catalog image.
 
 ##@ Datadog Custom part
 .PHONY: install-tools
-install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq bin/$(PLATFORM)/jq bin/$(PLATFORM)/kubebuilder bin/$(PLATFORM)/kubebuilder-tools bin/$(PLATFORM)/go-licenses bin/$(PLATFORM)/openapi-gen
+install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq bin/$(PLATFORM)/jq bin/$(PLATFORM)/kubebuilder bin/$(PLATFORM)/controller-tools bin/$(PLATFORM)/go-licenses bin/$(PLATFORM)/openapi-gen
 
 .PHONY: generate-openapi
 generate-openapi: bin/$(PLATFORM)/openapi-gen
@@ -309,7 +318,8 @@ patch-crds: bin/$(PLATFORM)/yq ## Patch-crds
 
 .PHONY: lint
 lint: bin/$(PLATFORM)/golangci-lint vet ## Lint
-	bin/$(PLATFORM)/golangci-lint run ./... ./api/... ./test/e2e/...
+	bin/$(PLATFORM)/golangci-lint run ./... ./api/...
+	cd test/e2e && GOWORK=off ../../bin/$(PLATFORM)/golangci-lint run ./...
 
 .PHONY: licenses
 licenses: bin/$(PLATFORM)/go-licenses
@@ -382,8 +392,8 @@ bin/$(PLATFORM)/openapi-gen:
 bin/$(PLATFORM)/kubebuilder:
 	./hack/install-kubebuilder.sh 4.1.1 ./bin/$(PLATFORM)
 
-bin/$(PLATFORM)/kubebuilder-tools:
-	./hack/install-kubebuilder-tools.sh 1.28.3 ./bin/$(PLATFORM)
+bin/$(PLATFORM)/controller-tools:
+	./hack/install-controller-tools.sh 1.28.3 ./bin/$(PLATFORM)
 
 .DEFAULT_GOAL := help
 .PHONY: help

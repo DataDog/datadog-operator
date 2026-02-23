@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/util/errors"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -47,6 +48,9 @@ func (r *Reconciler) manageGlobalDependencies(logger logr.Logger, ddai *datadogh
 	if err := global.ApplyGlobalComponentDependencies(logger, ddai.GetObjectMeta(), &ddai.Spec, nil, resourceManagers, datadoghqv2alpha1.ClusterChecksRunnerComponentName, requiredComponents.ClusterChecksRunner, true); len(err) > 0 {
 		errs = append(errs, err...)
 	}
+	if err := global.ApplyGlobalComponentDependencies(logger, ddai.GetObjectMeta(), &ddai.Spec, nil, resourceManagers, datadoghqv2alpha1.OtelAgentGatewayComponentName, requiredComponents.OtelAgentGateway, true); len(err) > 0 {
+		errs = append(errs, err...)
+	}
 
 	if len(errs) > 0 {
 		return errors.NewAggregate(errs)
@@ -58,7 +62,6 @@ func (r *Reconciler) manageGlobalDependencies(logger logr.Logger, ddai *datadogh
 func (r *Reconciler) manageFeatureDependencies(logger logr.Logger, features []feature.Feature, resourceManagers feature.ResourceManagers) error {
 	var errs []error
 	for _, feat := range features {
-		logger.V(1).Info("Managing dependencies", "featureID", feat.ID())
 		if err := feat.ManageDependencies(resourceManagers, ""); err != nil {
 			errs = append(errs, err)
 		}
@@ -83,12 +86,13 @@ func (r *Reconciler) overrideDependencies(logger logr.Logger, resourceManagers f
 // *************************************
 
 // cleanupExtraneousResources groups the cleanup calls for old components.
-func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, logger logr.Logger, instance *datadoghqv1alpha1.DatadogAgentInternal, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, resourceManagers feature.ResourceManagers) error {
+func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, instance *datadoghqv1alpha1.DatadogAgentInternal, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, resourceManagers feature.ResourceManagers) error {
+	logger := ctrl.LoggerFrom(ctx)
 	var errs []error
 	// Cleanup old DaemonSets, DCA and CCR deployments.
 
 	// TODO: re-enable once labels are updated to use DDAI name
-	// if err := r.cleanupExtraneousDaemonSets(ctx, logger, instance, newStatus); err != nil {
+	// if err := r.cleanupExtraneousDaemonSets(ctx, instance, newStatus); err != nil {
 	// 	errs = append(errs, err)
 	// 	logger.Error(err, "Error cleaning up old DaemonSets")
 	// }
@@ -96,11 +100,11 @@ func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, logger logr
 	// Only cleanup DCA and CCR deployments for the default (non-profile) DDAI
 	// Profile DDAIs do not manage any component except the Agent DaemonSet
 	if !isDDAILabeledWithProfile(instance) {
-		if err := r.cleanupOldDCADeployments(ctx, logger, instance, resourceManagers, newStatus); err != nil {
+		if err := r.cleanupOldDCADeployments(ctx, instance, resourceManagers, newStatus); err != nil {
 			errs = append(errs, err)
 			logger.Error(err, "Error cleaning up old DCA Deployments")
 		}
-		if err := r.cleanupOldCCRDeployments(ctx, logger, instance, newStatus); err != nil {
+		if err := r.cleanupOldCCRDeployments(ctx, instance, newStatus); err != nil {
 			errs = append(errs, err)
 			logger.Error(err, "Error cleaning up old CCR Deployments")
 		}
@@ -118,7 +122,8 @@ func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, logger logr
 // applyAndCleanupDependencies applies pending changes and cleans up unused dependencies.
 // It excludes DDA-managed resources from cleanup to avoid competition between the DDA
 // and DDAI controllers when DatadogAgentInternalEnabled is true.
-func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, logger logr.Logger, depsStore *store.Store) error {
+func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, depsStore *store.Store) error {
+	logger := ctrl.LoggerFrom(ctx)
 	logger.V(1).Info("Applying pending dependencies and cleaning up unused dependencies")
 	var errs []error
 	errs = append(errs, depsStore.Apply(ctx, r.client)...)

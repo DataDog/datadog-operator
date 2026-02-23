@@ -19,7 +19,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func Test_getDeploymentNameFromCCR(t *testing.T) {
@@ -238,13 +237,11 @@ func Test_cleanupOldCCRDeployments(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(tt.existingAgents...).Build()
-			logger := logf.Log.WithName("Test_cleanupOldCCRDeployments")
 			eventBroadcaster := record.NewBroadcaster()
 			recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "Test_cleanupOldCCRDeployments"})
 
 			r := &Reconciler{
 				client:   fakeClient,
-				log:      logger,
 				recorder: recorder,
 			}
 
@@ -260,7 +257,7 @@ func Test_cleanupOldCCRDeployments(t *testing.T) {
 			}
 			ddaiStatus := datadoghqv1alpha1.DatadogAgentInternalStatus{}
 
-			err := r.cleanupOldCCRDeployments(ctx, logger, &ddai, &ddaiStatus)
+			err := r.cleanupOldCCRDeployments(ctx, &ddai, &ddaiStatus)
 			assert.NoError(t, err)
 
 			deploymentList := &appsv1.DeploymentList{}

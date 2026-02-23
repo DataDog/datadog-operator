@@ -13,7 +13,8 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector/defaultconfig"
+	otelagentgatewaydefaultconfig "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelagentgateway/defaultconfig"
+	otelcollectordefaultconfig "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector/defaultconfig"
 	"github.com/DataDog/datadog-operator/pkg/images"
 )
 
@@ -398,7 +399,7 @@ func (builder *DatadogAgentBuilder) WithOTelCollectorEnabled(enabled bool) *Data
 
 func (builder *DatadogAgentBuilder) WithOTelCollectorConfig() *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Features.OtelCollector.Conf = &v2alpha1.CustomConfig{}
-	builder.datadogAgent.Spec.Features.OtelCollector.Conf.ConfigData = apiutils.NewStringPointer(defaultconfig.DefaultOtelCollectorConfig)
+	builder.datadogAgent.Spec.Features.OtelCollector.Conf.ConfigData = apiutils.NewStringPointer(otelcollectordefaultconfig.DefaultOtelCollectorConfig)
 	return builder
 }
 
@@ -465,6 +466,73 @@ func (builder *DatadogAgentBuilder) WithOTelCollectorPorts(grpcPort int32, httpP
 			Protocol:      corev1.ProtocolTCP,
 		},
 	}
+	return builder
+}
+
+// OtelAgentGateway
+func (builder *DatadogAgentBuilder) initOtelAgentGateway() {
+	if builder.datadogAgent.Spec.Features.OtelAgentGateway == nil {
+		builder.datadogAgent.Spec.Features.OtelAgentGateway = &v2alpha1.OtelAgentGatewayFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithOTelAgentGatewayEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initOtelAgentGateway()
+	builder.datadogAgent.Spec.Features.OtelAgentGateway.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTelAgentGatewayConfig() *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.OtelAgentGateway.Conf = &v2alpha1.CustomConfig{}
+	builder.datadogAgent.Spec.Features.OtelAgentGateway.Conf.ConfigData = apiutils.NewStringPointer(otelagentgatewaydefaultconfig.DefaultOtelAgentGatewayConfig)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTelAgentGatewayConfigMap() *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.OtelAgentGateway.Conf = &v2alpha1.CustomConfig{}
+	builder.datadogAgent.Spec.Features.OtelAgentGateway.Conf.ConfigMap = &v2alpha1.ConfigMapConfig{
+		Name: "user-provided-config-map",
+	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTelAgentGatewayConfigMapMultipleItems() *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.OtelAgentGateway.Conf = &v2alpha1.CustomConfig{}
+	builder.datadogAgent.Spec.Features.OtelAgentGateway.Conf.ConfigMap = &v2alpha1.ConfigMapConfig{
+		Name: "user-provided-config-map",
+		Items: []corev1.KeyToPath{
+			{
+				Key:  "otel-gateway-config.yaml",
+				Path: "otel-gateway-config.yaml",
+			},
+			{
+				Key:  "otel-config-two.yaml",
+				Path: "otel-config-two.yaml",
+			},
+		},
+	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTelAgentGatewayPorts(grpcPort int32, httpPort int32) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.OtelAgentGateway.Ports = []*corev1.ContainerPort{
+		{
+			Name:          "otel-grpc",
+			ContainerPort: grpcPort,
+			Protocol:      corev1.ProtocolTCP,
+		},
+		{
+			Name:          "otel-http",
+			ContainerPort: httpPort,
+			Protocol:      corev1.ProtocolTCP,
+		},
+	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTelAgentGatewayFeatureGates(featureGates string) *DatadogAgentBuilder {
+	builder.initOtelAgentGateway()
+	builder.datadogAgent.Spec.Features.OtelAgentGateway.FeatureGates = &featureGates
 	return builder
 }
 
@@ -1055,6 +1123,13 @@ func (builder *DatadogAgentBuilder) WithClusterAgentImage(image string) *Datadog
 	builder.datadogAgent.Spec.Override[v2alpha1.ClusterAgentComponentName].Image = &v2alpha1.AgentImageConfig{
 		Name: image,
 	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithClusterAgentDisabled(disabled bool) *DatadogAgentBuilder {
+	builder.WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+		Disabled: apiutils.NewBoolPointer(disabled),
+	})
 	return builder
 }
 

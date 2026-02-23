@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -22,7 +21,6 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
-	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
@@ -36,11 +34,9 @@ const (
 	defaultURLHost       = "app.datadoghq.com"
 	defaultURLHostPrefix = "app."
 	defaultURLPath       = "api/v1/metadata"
-)
 
-var (
-	// ErrEmptyHostName empty HostName error
-	ErrEmptyHostName = errors.New("empty host name")
+	// default timeout for metadata operations
+	DefaultOperationTimeout = 30 * time.Second
 )
 
 // SharedMetadata contains the common metadata shared across all forwarders
@@ -52,7 +48,6 @@ type SharedMetadata struct {
 	clusterUID        string
 	operatorVersion   string
 	kubernetesVersion string
-	hostName          string
 	httpClient        *http.Client
 
 	// Shared credential management
@@ -66,7 +61,6 @@ func NewSharedMetadata(logger logr.Logger, k8sClient client.Reader, kubernetesVe
 		logger:            logger,
 		operatorVersion:   operatorVersion,
 		kubernetesVersion: kubernetesVersion,
-		hostName:          os.Getenv(constants.DDHostName),
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -75,11 +69,6 @@ func NewSharedMetadata(logger logr.Logger, k8sClient client.Reader, kubernetesVe
 }
 
 func (sm *SharedMetadata) createRequest(payload []byte) (*http.Request, error) {
-	if sm.hostName == "" {
-		sm.logger.Error(ErrEmptyHostName, "Could not set host name; not starting metadata forwarder")
-		return nil, ErrEmptyHostName
-	}
-
 	apiKey, requestURL, err := sm.getApiKeyAndURL()
 	if err != nil {
 		sm.logger.V(1).Info("Could not get credentials", "error", err)
@@ -100,13 +89,13 @@ func (sm *SharedMetadata) createRequest(payload []byte) (*http.Request, error) {
 }
 
 // GetOrCreateClusterUID retrieves the cluster UID from kube-system namespace
-func (sm *SharedMetadata) GetOrCreateClusterUID() (string, error) {
+func (sm *SharedMetadata) GetOrCreateClusterUID(ctx context.Context) (string, error) {
 	if sm.clusterUID != "" {
 		return sm.clusterUID, nil
 	}
 
 	kubeSystemNS := &corev1.Namespace{}
-	err := sm.k8sClient.Get(context.TODO(), types.NamespacedName{Name: "kube-system"}, kubeSystemNS)
+	err := sm.k8sClient.Get(ctx, types.NamespacedName{Name: "kube-system"}, kubeSystemNS)
 	if err != nil {
 		return "", fmt.Errorf("failed to get kube-system namespace: %w", err)
 	}

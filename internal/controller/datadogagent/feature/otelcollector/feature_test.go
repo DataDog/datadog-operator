@@ -29,11 +29,12 @@ type expectedPorts struct {
 }
 
 type expectedEnvVars struct {
-	agent_ipc_port    expectedEnvVar
-	agent_ipc_refresh expectedEnvVar
-	enabled           expectedEnvVar
-	extension_timeout expectedEnvVar
-	extension_url     expectedEnvVar
+	agent_ipc_port     expectedEnvVar
+	agent_ipc_refresh  expectedEnvVar
+	enabled            expectedEnvVar
+	extension_timeout  expectedEnvVar
+	extension_url      expectedEnvVar
+	converter_features expectedEnvVar
 }
 
 type expectedEnvVar struct {
@@ -60,8 +61,9 @@ var (
 			present: true,
 			value:   "true",
 		},
-		extension_timeout: expectedEnvVar{},
-		extension_url:     expectedEnvVar{},
+		extension_timeout:  expectedEnvVar{},
+		extension_url:      expectedEnvVar{},
+		converter_features: expectedEnvVar{},
 	}
 
 	onlyIpcEnvVars = expectedEnvVars{
@@ -98,7 +100,7 @@ var (
 	}
 )
 
-var defaultAnnotations = map[string]string{"checksum/otel_agent-custom-config": "c4efec532ac1feb5548c7bf9a000f3bd"}
+var defaultAnnotations = map[string]string{"checksum/otel_agent-custom-config": "8e715f9526c27c6cd06ba9a9d8913451"}
 
 func Test_otelCollectorFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
@@ -198,7 +200,80 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				httpPort: 5555,
 			},
 				defaultExpectedEnvVars,
-				map[string]string{"checksum/otel_agent-custom-config": "ced0b89ba76af21bcaf3126cb2095c90"},
+				map[string]string{"checksum/otel_agent-custom-config": "1b4f73fd3576db6a939bbfe788cc1f80"},
+				defaultVolumeMounts,
+				defaultVolumes(defaultLocalObjectReferenceName),
+			),
+		},
+		// gateway enabled
+		{
+			Name: "otel agent with gateway enabled default ports",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelAgentGatewayEnabled(true).
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: testExpectedDepsCreatedCM,
+			Agent: testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts,
+				expectedEnvVars{
+					agent_ipc_port: expectedEnvVar{
+						present: true,
+						value:   "5009",
+					},
+					agent_ipc_refresh: expectedEnvVar{
+						present: true,
+						value:   "60",
+					},
+					enabled: expectedEnvVar{
+						present: true,
+						value:   "true",
+					},
+					extension_timeout: expectedEnvVar{},
+					extension_url:     expectedEnvVar{},
+					converter_features: expectedEnvVar{
+						present: true,
+						value:   "health_check,zpages,pprof,ddflare",
+					},
+				},
+				map[string]string{"checksum/otel_agent-custom-config": "b4ea5ecc5c7901d3b48c58622379ecfb"},
+				defaultVolumeMounts,
+				defaultVolumes(defaultLocalObjectReferenceName),
+			),
+		},
+		{
+			Name: "otel agent with gateway enabled non default ports",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelAgentGatewayEnabled(true).
+				WithOTelCollectorPorts(4444, 5555).
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: testExpectedDepsCreatedCM,
+			Agent: testExpectedAgent(apicommon.OtelAgent, expectedPorts{
+				grpcPort: 4444,
+				httpPort: 5555,
+			},
+				expectedEnvVars{
+					agent_ipc_port: expectedEnvVar{
+						present: true,
+						value:   "5009",
+					},
+					agent_ipc_refresh: expectedEnvVar{
+						present: true,
+						value:   "60",
+					},
+					enabled: expectedEnvVar{
+						present: true,
+						value:   "true",
+					},
+					extension_timeout: expectedEnvVar{},
+					extension_url:     expectedEnvVar{},
+					converter_features: expectedEnvVar{
+						present: true,
+						value:   "health_check,zpages,pprof,ddflare",
+					},
+				},
+				map[string]string{"checksum/otel_agent-custom-config": "d9c73c9017a4fcb811da0e51f5044b3c"},
 				defaultVolumeMounts,
 				defaultVolumes(defaultLocalObjectReferenceName),
 			),
@@ -465,6 +540,13 @@ func testExpectedAgent(
 				})
 			}
 
+			if expectedEnvVars.converter_features.present {
+				wantEnvVarsOTel = append(wantEnvVarsOTel, &corev1.EnvVar{
+					Name:  DDOtelCollectorConverterFeatures,
+					Value: expectedEnvVars.converter_features.value,
+				})
+			}
+
 			if len(wantEnvVars) == 0 {
 				wantEnvVars = nil
 			}
@@ -517,6 +599,30 @@ func testExpectedDepsCreatedCM(t testing.TB, store store.StoreClient) {
 		)
 		return
 	}
+
+	// validate gateway-enabled tests use the gateway config
+	if t.Name() == "Test_otelCollectorFeature_Configure/otel_agent_with_gateway_enabled_default_ports" {
+		expectedCM["otel-config.yaml"] = defaultconfig.DefaultOtelCollectorConfigInGateway("")
+		assert.True(
+			t,
+			apiutils.IsEqualStruct(configMap.Data, expectedCM),
+			"ConfigMap \ndiff = %s", cmp.Diff(configMap.Data, expectedCM),
+		)
+		return
+	}
+
+	if t.Name() == "Test_otelCollectorFeature_Configure/otel_agent_with_gateway_enabled_non_default_ports" {
+		expectedCM["otel-config.yaml"] = defaultconfig.DefaultOtelCollectorConfigInGateway("")
+		expectedCM["otel-config.yaml"] = strings.Replace(expectedCM["otel-config.yaml"], "4317", "4444", 1)
+		expectedCM["otel-config.yaml"] = strings.Replace(expectedCM["otel-config.yaml"], "4318", "5555", 1)
+		assert.True(
+			t,
+			apiutils.IsEqualStruct(configMap.Data, expectedCM),
+			"ConfigMap \ndiff = %s", cmp.Diff(configMap.Data, expectedCM),
+		)
+		return
+	}
+
 	assert.True(
 		t,
 		apiutils.IsEqualStruct(configMap.Data, expectedCM),

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"helm.sh/helm/v3/pkg/action"
@@ -14,10 +15,11 @@ import (
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 func CreateOrUpgrade(ctx context.Context, ac *action.Configuration, releaseName, namespace, chartRef, version string, values map[string]any) error {
-	exist, err := doesExist(ctx, ac, releaseName)
+	exist, err := Exists(ctx, ac, releaseName)
 	if err != nil {
 		return err
 	}
@@ -29,7 +31,7 @@ func CreateOrUpgrade(ctx context.Context, ac *action.Configuration, releaseName,
 	}
 }
 
-func doesExist(_ context.Context, ac *action.Configuration, releaseName string) (bool, error) {
+func Exists(_ context.Context, ac *action.Configuration, releaseName string) (bool, error) {
 	historyAction := action.NewHistory(ac)
 	historyAction.Max = 1
 	versions, err := historyAction.Run(releaseName)
@@ -124,4 +126,42 @@ func upgrade(ctx context.Context, ac *action.Configuration, releaseName, namespa
 	log.Printf("Upgraded Helm release %s.", release.Name)
 
 	return nil
+}
+
+func Uninstall(ctx context.Context, ac *action.Configuration, releaseName string) error {
+	exist, err := Exists(ctx, ac, releaseName)
+	if err != nil {
+		return err
+	}
+
+	if !exist {
+		log.Printf("Helm release %s does not exist, skipping uninstallation.", releaseName)
+		return nil
+	}
+
+	log.Printf("Uninstalling Helm release %s…", releaseName)
+
+	uninstallAction := action.NewUninstall(ac)
+	uninstallAction.Wait = true
+	uninstallAction.Timeout = 30 * time.Minute
+
+	response, err := uninstallAction.Run(releaseName)
+	if err != nil {
+		return fmt.Errorf("failed to uninstall Helm release %s: %w", releaseName, err)
+	}
+
+	log.Printf("Uninstalled Helm release %s.", response.Release.Name)
+
+	return nil
+}
+
+// NewActionConfig creates a new Helm action configuration from kubeconfig flags.
+func NewActionConfig(configFlags *genericclioptions.ConfigFlags, namespace string) (*action.Configuration, error) {
+	actionConfig := new(action.Configuration)
+
+	if err := actionConfig.Init(configFlags, namespace, os.Getenv("HELM_DRIVER"), log.Printf); err != nil {
+		return nil, fmt.Errorf("failed to initialize Helm configuration: %w", err)
+	}
+
+	return actionConfig, nil
 }

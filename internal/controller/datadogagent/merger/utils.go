@@ -10,13 +10,15 @@ import "github.com/DataDog/datadog-operator/api/datadoghq/common"
 // AllAgentContainers is a map of all agent containers
 var AllAgentContainers = map[common.AgentContainerName]struct{}{
 	// Node agent containers
-	common.CoreAgentContainerName:      {},
-	common.TraceAgentContainerName:     {},
-	common.ProcessAgentContainerName:   {},
-	common.SecurityAgentContainerName:  {},
-	common.SystemProbeContainerName:    {},
-	common.OtelAgent:                   {},
-	common.AgentDataPlaneContainerName: {},
+	common.CoreAgentContainerName:           {},
+	common.TraceAgentContainerName:          {},
+	common.ProcessAgentContainerName:        {},
+	common.SecurityAgentContainerName:       {},
+	common.SystemProbeContainerName:         {},
+	common.OtelAgent:                        {},
+	common.HostProfiler:                     {},
+	common.AgentDataPlaneContainerName:      {},
+	common.PrivateActionRunnerContainerName: {},
 	// DCA containers
 	common.ClusterAgentContainerName: {},
 	// CCR container name is equivalent to core agent container name

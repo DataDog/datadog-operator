@@ -11,21 +11,22 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/provisioners"
-	awskubernetes "github.com/DataDog/datadog-agent/test/new-e2e/pkg/provisioners/aws/kubernetes"
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/utils/optional"
-	"github.com/DataDog/test-infra-definitions/common/config"
-	"github.com/DataDog/test-infra-definitions/components/datadog/agent"
-	"github.com/DataDog/test-infra-definitions/components/datadog/agentwithoperatorparams"
-	fakeintakeComp "github.com/DataDog/test-infra-definitions/components/datadog/fakeintake"
-	"github.com/DataDog/test-infra-definitions/components/datadog/operator"
-	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
-	kubeComp "github.com/DataDog/test-infra-definitions/components/kubernetes"
-	"github.com/DataDog/test-infra-definitions/resources/local"
-	"github.com/DataDog/test-infra-definitions/scenarios/aws/ec2"
-	"github.com/DataDog/test-infra-definitions/scenarios/aws/fakeintake"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/common/config"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/agent"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/agentwithoperatorparams"
+	fakeintakeComp "github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/fakeintake"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/operator"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/operatorparams"
+	kubeComp "github.com/DataDog/datadog-agent/test/e2e-framework/components/kubernetes"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/resources/local"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/scenarios/aws/ec2"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/scenarios/aws/fakeintake"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/scenarios/aws/kindvm"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/environments"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/provisioners"
+	kindvmprovisioner "github.com/DataDog/datadog-agent/test/e2e-framework/testing/provisioners/aws/kubernetes/kindvm"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/runner"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/utils/optional"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
 	corev1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/kustomize"
@@ -74,10 +75,49 @@ func newKubernetesProvisionerParams() *KubernetesProvisionerParams {
 	}
 }
 
-// newAWSK8sProvisionerOpts Translates the generic KubernetesProvisionerParams into a list of awskubernetes.ProvisionerOption for the AWS Kind provisioner
-func newAWSK8sProvisionerOpts(params *KubernetesProvisionerParams) []awskubernetes.ProvisionerOption {
+// newKindVMRunOpts Translates the generic KubernetesProvisionerParams into kindvm.RunOption for the AWS Kind-on-VM provisioner
+func newKindVMRunOpts(params *KubernetesProvisionerParams) []kindvm.RunOption {
 	provisionerName := provisionerBaseID + params.name
 
+	runOpts := []kindvm.RunOption{
+		kindvm.WithName(provisionerName),
+		kindvm.WithVMOptions(ec2.WithUserData(UserData), ec2.WithInstanceType("m5.xlarge")),
+	}
+
+	// Add operator deployment if options are provided
+	if params.operatorOptions != nil {
+		runOpts = append(runOpts, kindvm.WithDeployOperator())
+		runOpts = append(runOpts, kindvm.WithOperatorOptions(params.operatorOptions...))
+
+		// Pass DDA options only when explicitly provided
+		if len(params.ddaOptions) > 0 {
+			runOpts = append(runOpts, kindvm.WithOperatorDDAOptions(params.ddaOptions...))
+		}
+		// Note: When WithoutDDA() is called, no DDA options are passed.
+		// The e2e-framework (fixed in PR #45390) now correctly handles this case
+		// by not deploying a DDA when operatorDDAOptions is nil or empty.
+	}
+
+	// Add fakeintake options if provided
+	if params.fakeintakeOptions != nil {
+		runOpts = append(runOpts, kindvm.WithFakeintakeOptions(params.fakeintakeOptions...))
+	} else {
+		runOpts = append(runOpts, kindvm.WithoutFakeIntake())
+	}
+
+	// Add kustomize workload
+	runOpts = append(runOpts, kindvm.WithWorkloadApp(KustomizeWorkloadAppFunc(params.testName, params.kustomizeResources)))
+
+	// Add YAML workloads
+	for _, yamlWorkload := range params.yamlWorkloads {
+		runOpts = append(runOpts, kindvm.WithWorkloadApp(YAMLWorkloadAppFunc(yamlWorkload)))
+	}
+
+	return runOpts
+}
+
+// newKindVMExtraConfig returns the extra config params for the Kind-on-VM provisioner
+func newKindVMExtraConfig(params *KubernetesProvisionerParams) runner.ConfigMap {
 	extraConfig := params.extraConfigParams
 	extraConfig.Merge(runner.ConfigMap{
 		"ddinfra:kubernetesVersion": auto.ConfigValue{Value: params.k8sVersion},
@@ -85,23 +125,7 @@ func newAWSK8sProvisionerOpts(params *KubernetesProvisionerParams) []awskubernet
 		"ddagent:imagePullUsername": auto.ConfigValue{Value: "AWS"},
 		"ddagent:imagePullPassword": auto.ConfigValue{Value: common.ImgPullPassword},
 	})
-
-	newOpts := []awskubernetes.ProvisionerOption{
-		awskubernetes.WithName(provisionerName),
-		awskubernetes.WithOperator(),
-		awskubernetes.WithOperatorDDAOptions(params.ddaOptions...),
-		awskubernetes.WithOperatorOptions(params.operatorOptions...),
-		awskubernetes.WithExtraConfigParams(extraConfig),
-		awskubernetes.WithWorkloadApp(KustomizeWorkloadAppFunc(params.testName, params.kustomizeResources)),
-		awskubernetes.WithFakeIntakeOptions(params.fakeintakeOptions...),
-		awskubernetes.WithEC2VMOptions([]ec2.VMOption{ec2.WithUserData(UserData), ec2.WithInstanceType("m5.xlarge")}...),
-	}
-
-	for _, yamlWorkload := range params.yamlWorkloads {
-		newOpts = append(newOpts, awskubernetes.WithWorkloadApp(YAMLWorkloadAppFunc(yamlWorkload)))
-	}
-
-	return newOpts
+	return extraConfig
 }
 
 // KubernetesProvisionerOption is a function that modifies the KubernetesProvisionerParams
@@ -218,11 +242,10 @@ func WithWorkloadApp(appFunc func(e config.Env, kubeProvider *kubernetes.Provide
 }
 
 // KubernetesProvisioner generic Kubernetes provisioner wrapper that creates a new provisioner
-// Inspired by https://github.com/DataDog/datadog-agent/blob/main/test/new-e2e/pkg/environments/local/kubernetes/kind.go
+// Inspired by https://github.com/DataDog/datadog-agent/blob/main/test/e2e-framework/testing/provisioners/aws/kubernetes/kindvm/kind.go
 func KubernetesProvisioner(opts ...KubernetesProvisionerOption) provisioners.TypedProvisioner[environments.Kubernetes] {
 	// We ALWAYS need to make a deep copy of `params`, as the provisioner can be called multiple times.
 	// and it's easy to forget about it, leading to hard to debug issues.
-	var awsK8sOpts []awskubernetes.ProvisionerOption
 	var provisioner provisioners.TypedProvisioner[environments.Kubernetes]
 
 	params := newKubernetesProvisionerParams()
@@ -230,8 +253,12 @@ func KubernetesProvisioner(opts ...KubernetesProvisionerOption) provisioners.Typ
 	inCI := os.Getenv("GITLAB_CI")
 
 	if !params.local || strings.ToLower(inCI) == "true" {
-		awsK8sOpts = newAWSK8sProvisionerOpts(params)
-		provisioner = awskubernetes.KindProvisioner(awsK8sOpts...)
+		runOpts := newKindVMRunOpts(params)
+		extraConfig := newKindVMExtraConfig(params)
+		provisioner = kindvmprovisioner.Provisioner(
+			kindvmprovisioner.WithRunOptions(runOpts...),
+			kindvmprovisioner.WithExtraConfigParams(extraConfig),
+		)
 		return provisioner
 	}
 
@@ -325,7 +352,7 @@ func localKindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params 
 	}
 
 	// Setup DDA options
-	if params.ddaOptions != nil && params.operatorOptions != nil {
+	if len(params.ddaOptions) > 0 && params.operatorOptions != nil {
 		ddaResourceOpts := []pulumi.ResourceOption{
 			pulumi.DependsOn([]pulumi.Resource{e2eKustomize, operatorComp}),
 		}

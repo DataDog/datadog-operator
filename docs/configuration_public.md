@@ -132,6 +132,9 @@ spec:
 `features.cspm.hostBenchmarks.enabled`
 : Enables host benchmarks. Default: true
 
+`features.cspm.runInSystemProbe`
+: RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent. This is an experimental feature. Contact support before using. Default: false
+
 `features.cws.customPolicies.configData`
 : ConfigData corresponds to the configuration file content.
 
@@ -184,7 +187,7 @@ spec:
 : OriginDetectionEnabled enables origin detection for container tagging. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging
 
 `features.dogstatsd.tagCardinality`
-: TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`). See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables Cardinality default: low
+: TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`). This setting only applies when OriginDetectionEnabled is true. See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables Cardinality default: low
 
 `features.dogstatsd.unixDomainSocketConfig.enabled`
 : Enables Unix Domain Socket. Default: true
@@ -285,6 +288,9 @@ spec:
 `features.npm.collectDNSStats`
 : CollectDNSStats enables DNS stat collection. Default: false
 
+`features.npm.directSend`
+: DirectSend enables CNM/USM to send data directly to the backend Default: false
+
 `features.npm.enableConntrack`
 : EnableConntrack enables the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data. See also: http://conntrack-tools.netfilter.org/ Default: false
 
@@ -329,6 +335,9 @@ spec:
 
 `features.otelAgentGateway.enabled`
 : Enables the OTel Agent Gateway. Default: false
+
+`features.otelAgentGateway.featureGates`
+: FeatureGates are the feature gates to pass to the OTel collector as a comma-separated list. Example: "component.UseLocalHostAsDefaultHost,connector.datadogconnector.NativeIngest"
 
 `features.otelAgentGateway.ports`
 : Contains the ports that the OTel Collector is listening on. Defaults: otel-grpc:4317 / otel-http:4318.
