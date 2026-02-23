@@ -106,7 +106,9 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 			return reqComp
 		}
 		f.clusterConfig = clusterConfig
-
+		if f.clusterConfig != nil {
+			f.clusterConfig.Enabled = true
+		}
 		f.clusterServiceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 		reqComp.ClusterAgent = feature.RequiredComponent{

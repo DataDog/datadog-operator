@@ -286,6 +286,22 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 			wantNodeAgentEnabled:    false,
 		},
 		{
+			name: "annotation true but config says enabled false - should force enable",
+			annotations: map[string]string{
+				featureutils.EnableClusterAgentPrivateActionRunnerAnnotation: "true",
+				featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation: `private_action_runner:
+  enabled: false
+  self_enroll: true
+  identity_secret_name: my-secret`,
+			},
+			wantClusterAgentEnabled: true,
+			wantNodeAgentEnabled:    false,
+			expectedClusterConfigData: `private_action_runner:
+  enabled: false
+  self_enroll: true
+  identity_secret_name: my-secret`,
+		},
+		{
 			name: "both node and cluster agent enabled",
 			annotations: map[string]string{
 				featureutils.EnablePrivateActionRunnerAnnotation:             "true",
@@ -346,6 +362,7 @@ func Test_privateActionRunnerFeature_ManageClusterAgentEnvVars(t *testing.T) {
 		name              string
 		configData        string
 		expectedEnvVars   map[string]string
+		unexpectedEnvVars []string
 		validateAllowlist bool
 		expectedAllowlist []string
 	}{
@@ -356,9 +373,14 @@ func Test_privateActionRunnerFeature_ManageClusterAgentEnvVars(t *testing.T) {
   self_enroll: true
   identity_secret_name: my-par-identity`,
 			expectedEnvVars: map[string]string{
-				"DD_PRIVATE_ACTION_RUNNER_ENABLED":              "true",
-				"DD_PRIVATE_ACTION_RUNNER_SELF_ENROLL":          "true",
-				"DD_PRIVATE_ACTION_RUNNER_IDENTITY_SECRET_NAME": "my-par-identity",
+				"DD_PRIVATE_ACTION_RUNNER_ENABLED":                 "true",
+				"DD_PRIVATE_ACTION_RUNNER_IDENTITY_USE_K8S_SECRET": "true",
+				"DD_PRIVATE_ACTION_RUNNER_SELF_ENROLL":             "true",
+				"DD_PRIVATE_ACTION_RUNNER_IDENTITY_SECRET_NAME":    "my-par-identity",
+			},
+			unexpectedEnvVars: []string{
+				"DD_PRIVATE_ACTION_RUNNER_URN",
+				"DD_PRIVATE_ACTION_RUNNER_PRIVATE_KEY",
 			},
 			validateAllowlist: false,
 		},
@@ -371,11 +393,14 @@ func Test_privateActionRunnerFeature_ManageClusterAgentEnvVars(t *testing.T) {
   private_key: my-secret-key
   identity_secret_name: par-secret`,
 			expectedEnvVars: map[string]string{
-				"DD_PRIVATE_ACTION_RUNNER_ENABLED":              "true",
-				"DD_PRIVATE_ACTION_RUNNER_URN":                  "urn:dd:apps:on-prem-runner:us1:1:runner-abc",
-				"DD_PRIVATE_ACTION_RUNNER_PRIVATE_KEY":          "my-secret-key",
-				"DD_PRIVATE_ACTION_RUNNER_IDENTITY_SECRET_NAME": "par-secret",
+				"DD_PRIVATE_ACTION_RUNNER_ENABLED":                 "true",
+				"DD_PRIVATE_ACTION_RUNNER_IDENTITY_USE_K8S_SECRET": "true",
+				"DD_PRIVATE_ACTION_RUNNER_SELF_ENROLL":             "false",
+				"DD_PRIVATE_ACTION_RUNNER_URN":                     "urn:dd:apps:on-prem-runner:us1:1:runner-abc",
+				"DD_PRIVATE_ACTION_RUNNER_PRIVATE_KEY":             "my-secret-key",
+				"DD_PRIVATE_ACTION_RUNNER_IDENTITY_SECRET_NAME":    "par-secret",
 			},
+			unexpectedEnvVars: nil,
 			validateAllowlist: false,
 		},
 		{
@@ -388,8 +413,14 @@ func Test_privateActionRunnerFeature_ManageClusterAgentEnvVars(t *testing.T) {
     - com.datadoghq.kubernetes.core.listPod
     - com.datadoghq.traceroute`,
 			expectedEnvVars: map[string]string{
-				"DD_PRIVATE_ACTION_RUNNER_ENABLED":     "true",
-				"DD_PRIVATE_ACTION_RUNNER_SELF_ENROLL": "true",
+				"DD_PRIVATE_ACTION_RUNNER_ENABLED":                 "true",
+				"DD_PRIVATE_ACTION_RUNNER_IDENTITY_USE_K8S_SECRET": "true",
+				"DD_PRIVATE_ACTION_RUNNER_SELF_ENROLL":             "true",
+			},
+			unexpectedEnvVars: []string{
+				"DD_PRIVATE_ACTION_RUNNER_URN",
+				"DD_PRIVATE_ACTION_RUNNER_PRIVATE_KEY",
+				"DD_PRIVATE_ACTION_RUNNER_IDENTITY_SECRET_NAME",
 			},
 			validateAllowlist: true,
 			expectedAllowlist: []string{
@@ -402,7 +433,14 @@ func Test_privateActionRunnerFeature_ManageClusterAgentEnvVars(t *testing.T) {
 			name:       "default config (minimal)",
 			configData: defaultConfigData,
 			expectedEnvVars: map[string]string{
-				"DD_PRIVATE_ACTION_RUNNER_ENABLED": "true",
+				"DD_PRIVATE_ACTION_RUNNER_ENABLED":                 "true",
+				"DD_PRIVATE_ACTION_RUNNER_IDENTITY_USE_K8S_SECRET": "true",
+				"DD_PRIVATE_ACTION_RUNNER_SELF_ENROLL":             "false",
+			},
+			unexpectedEnvVars: []string{
+				"DD_PRIVATE_ACTION_RUNNER_URN",
+				"DD_PRIVATE_ACTION_RUNNER_PRIVATE_KEY",
+				"DD_PRIVATE_ACTION_RUNNER_IDENTITY_SECRET_NAME",
 			},
 			validateAllowlist: false,
 		},
@@ -442,6 +480,12 @@ func Test_privateActionRunnerFeature_ManageClusterAgentEnvVars(t *testing.T) {
 				actualValue, found := envVarMap[expectedKey]
 				assert.True(t, found, "Expected env var %s not found", expectedKey)
 				assert.Equal(t, expectedValue, actualValue, "Env var %s has wrong value", expectedKey)
+			}
+
+			// Verify unexpected env vars are not set
+			for _, unexpectedKey := range tt.unexpectedEnvVars {
+				_, found := envVarMap[unexpectedKey]
+				assert.False(t, found, "Unexpected env var %s should not be set", unexpectedKey)
 			}
 
 			// Validate allowlist if specified
