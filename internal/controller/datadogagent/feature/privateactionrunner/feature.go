@@ -108,7 +108,7 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 		f.clusterConfig = clusterConfig
 		if !f.clusterConfig.Enabled {
 			// Due-diligence
-			f.logger.Info("private_action_runner.enabled=false in configdata is overridden by the enable annotation")
+			f.logger.V(1).Info("private_action_runner.enabled=false in configdata is overridden by the enable annotation")
 			f.clusterConfig.Enabled = true
 		}
 		f.clusterServiceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
