@@ -73,7 +73,7 @@ func (c *OtelAgentGatewayComponent) DeleteStatus(newStatus *v1alpha1.DatadogAgen
 	condition.DeleteDatadogAgentInternalStatusCondition(newStatus, conditionType)
 }
 
-func (c *OtelAgentGatewayComponent) ForceDeleteComponent(ddai *v1alpha1.DatadogAgentInternal, componentName datadoghqv2alpha1.ComponentName, requiredComponents feature.RequiredComponents) bool {
+func (c *OtelAgentGatewayComponent) ForceDeleteComponent(ddai *v1alpha1.DatadogAgentInternal, requiredComponents feature.RequiredComponents) bool {
 	return false
 }
 
