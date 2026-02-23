@@ -106,9 +106,11 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 			return reqComp
 		}
 		f.clusterConfig = clusterConfig
-		// Due-diligence
-		f.logger.Info("private_action_runner.enabled=false in configdata is overridden by the enable annotation")
-		f.clusterConfig.Enabled = true
+		if !f.clusterConfig.Enabled {
+			// Due-diligence
+			f.logger.Info("private_action_runner.enabled=false in configdata is overridden by the enable annotation")
+			f.clusterConfig.Enabled = true
+		}
 		f.clusterServiceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 		reqComp.ClusterAgent = feature.RequiredComponent{
