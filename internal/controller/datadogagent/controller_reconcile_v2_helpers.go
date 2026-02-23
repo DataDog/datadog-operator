@@ -207,11 +207,11 @@ func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, logger logr
 		errs = append(errs, err)
 		logger.Error(err, "Error cleaning up old DaemonSets")
 	}
-	if err := r.cleanupOldDCADeployments(ctx, logger, instance, resourceManagers, newStatus); err != nil {
+	if err := r.cleanupOldDCADeployments(ctx, logger, instance); err != nil {
 		errs = append(errs, err)
 		logger.Error(err, "Error cleaning up old DCA Deployments")
 	}
-	if err := r.cleanupOldCCRDeployments(ctx, logger, instance, resourceManagers, newStatus); err != nil {
+	if err := r.cleanupOldCCRDeployments(ctx, logger, instance); err != nil {
 		errs = append(errs, err)
 		logger.Error(err, "Error cleaning up old CCR Deployments")
 	}
@@ -285,7 +285,7 @@ func (r *Reconciler) deleteDeploymentWithEvent(ctx context.Context, logger logr.
 }
 
 // cleanupOldDCADeployments deletes DCA deployments when a DCA Deployment's name is changed using clusterAgent name override
-func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) error {
+func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent) error {
 	matchLabels := client.MatchingLabels{
 		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterAgentResourceSuffix,
 		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
@@ -307,7 +307,7 @@ func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, logger logr.L
 }
 
 // cleanupOldCCRDeployments deletes CCR deployments when a CCR Deployment's name is changed using clusterChecksRunner name override
-func (r *Reconciler) cleanupOldCCRDeployments(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) error {
+func (r *Reconciler) cleanupOldCCRDeployments(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent) error {
 	matchLabels := client.MatchingLabels{
 		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterChecksRunnerResourceSuffix,
 		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",

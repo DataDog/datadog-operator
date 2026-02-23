@@ -113,11 +113,11 @@ func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, instance *d
 	// Only cleanup DCA and CCR deployments for the default (non-profile) DDAI
 	// Profile DDAIs do not manage any component except the Agent DaemonSet
 	if !isDDAILabeledWithProfile(instance) {
-		if err := r.cleanupOldDCADeployments(ctx, instance, resourceManagers, newStatus); err != nil {
+		if err := r.cleanupOldDCADeployments(ctx, instance); err != nil {
 			errs = append(errs, err)
 			logger.Error(err, "Error cleaning up old DCA Deployments")
 		}
-		if err := r.cleanupOldCCRDeployments(ctx, instance, resourceManagers, newStatus); err != nil {
+		if err := r.cleanupOldCCRDeployments(ctx, instance); err != nil {
 			errs = append(errs, err)
 			logger.Error(err, "Error cleaning up old CCR Deployments")
 		}
@@ -182,7 +182,7 @@ func (r *Reconciler) deleteDeploymentWithEvent(ctx context.Context, logger logr.
 }
 
 // cleanupOldDCADeployments deletes DCA deployments when deployment name is changed using clusterAgent name override
-func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers, newStatus *v1alpha1.DatadogAgentInternalStatus) error {
+func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal) error {
 	matchLabels := client.MatchingLabels{
 		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterAgentResourceSuffix,
 		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
@@ -205,7 +205,7 @@ func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, ddai *v1alpha
 }
 
 // cleanupOldCCRDeployments deletes CCR deployments when deployment name is changed using clusterChecksRunner name override
-func (r *Reconciler) cleanupOldCCRDeployments(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers, newStatus *v1alpha1.DatadogAgentInternalStatus) error {
+func (r *Reconciler) cleanupOldCCRDeployments(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal) error {
 	matchLabels := client.MatchingLabels{
 		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterChecksRunnerResourceSuffix,
 		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",

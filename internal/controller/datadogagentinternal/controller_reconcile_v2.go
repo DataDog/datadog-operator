@@ -81,7 +81,6 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, instance *v1alpha1
 
 	// 2. Reconcile each component using the component registry
 	params := &ReconcileComponentParams{
-		Logger:             logger,
 		DDAI:               instance,
 		RequiredComponents: requiredComponents,
 		Features:           append(configuredFeatures, enabledFeatures...),

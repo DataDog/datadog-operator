@@ -73,7 +73,7 @@ func (c *ClusterAgentComponent) DeleteStatus(newStatus *v1alpha1.DatadogAgentInt
 	condition.DeleteDatadogAgentInternalStatusCondition(newStatus, conditionType)
 }
 
-func (c *ClusterAgentComponent) ForceDeleteComponent(ddai *v1alpha1.DatadogAgentInternal, componentName datadoghqv2alpha1.ComponentName, requiredComponents feature.RequiredComponents) bool {
+func (c *ClusterAgentComponent) ForceDeleteComponent(ddai *v1alpha1.DatadogAgentInternal, _ feature.RequiredComponents) bool {
 	return false
 }
 
