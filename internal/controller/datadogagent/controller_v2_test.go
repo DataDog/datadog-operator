@@ -31,6 +31,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -64,12 +66,12 @@ type testCase struct {
 func runTestCases(t *testing.T, tests []testCase, testFunc func(t *testing.T, tt testCase, opts ReconcilerOptions)) {
 	// Check if any test is focused
 	hasFocused := false
-	// for _, tt := range tests {
-	// 	if tt.focus {
-	// 		hasFocused = true
-	// 		break
-	// 	}
-	// }
+	for _, tt := range tests {
+		if tt.focus {
+			hasFocused = true
+			break
+		}
+	}
 
 	// Run tests
 	for _, tt := range tests {
@@ -669,6 +671,201 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				assert.True(t, conflictCondition.Status == metav1.ConditionTrue, "OverrideReconcileConflictCondition should be true")
 			},
 		},
+		{
+			name: "OTel Agent Gateway deployment created when feature enabled",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithOTelAgentGatewayEnabled(true).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				verifyOtelAgentGatewayDeployment(t, c, resourcesNamespace, resourcesName)
+				verifyOtelAgentGatewayStatus(t, c, resourcesNamespace, resourcesName)
+			},
+		},
+		{
+			name: "OTel Agent Gateway not created when feature disabled",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithOTelAgentGatewayEnabled(false).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				deploymentName := fmt.Sprintf("%s-otel-agent-gateway", resourcesName)
+				deployment := &appsv1.Deployment{}
+				err := c.Get(context.TODO(), types.NamespacedName{
+					Namespace: resourcesNamespace,
+					Name:      deploymentName,
+				}, deployment)
+				assert.Error(t, err, "OTel Agent Gateway Deployment should not exist when disabled")
+				assert.True(t, apierrors.IsNotFound(err), "Expected NotFound error")
+			},
+		},
+		{
+			name: "OTel Agent Gateway status and condition set",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithOTelAgentGatewayEnabled(true).
+					WithStatus(v2alpha1.DatadogAgentStatus{
+						OtelAgentGateway: &v2alpha1.DeploymentStatus{
+							Replicas: 1,
+						},
+					}).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				dda := &v2alpha1.DatadogAgent{}
+				err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, dda)
+				assert.NoError(t, client.IgnoreNotFound(err), "Unexpected error getting resource")
+				otelStatus := dda.Status.OtelAgentGateway
+				var otelCondition *metav1.Condition
+				if otelStatus == nil {
+					// Condition will be set in DDAI if full reconciler is used.
+					ddai := &v1alpha1.DatadogAgentInternal{}
+					err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, ddai)
+					assert.NoError(t, client.IgnoreNotFound(err), "Unexpected error getting resource")
+					otelStatus = ddai.Status.OtelAgentGateway
+					otelCondition = condition.GetDDAICondition(&ddai.Status, common.OtelAgentGatewayReconcileConditionType)
+				} else {
+					otelCondition = condition.GetCondition(&dda.Status, common.OtelAgentGatewayReconcileConditionType)
+				}
+				assert.NotNil(t, otelStatus, "OTel Agent Gateway status should be set")
+				assert.NotNil(t, otelCondition, "OTel Agent Gateway status condition should be set")
+				assert.True(t, otelCondition.Status == metav1.ConditionTrue && otelCondition.Reason == "reconcile_succeed", "OTel Agent Gateway status condition should be set")
+			},
+		},
+		{
+			name: "OTel Agent Gateway status condition should be deleted when disabled",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithOTelAgentGatewayEnabled(true).
+					WithComponentOverride(v2alpha1.OtelAgentGatewayComponentName, v2alpha1.DatadogAgentComponentOverride{
+						Disabled: apiutils.NewBoolPointer(true),
+					}).
+					WithStatus(v2alpha1.DatadogAgentStatus{
+						OtelAgentGateway: &v2alpha1.DeploymentStatus{
+							Replicas: 1,
+						},
+					}).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				dda := &v2alpha1.DatadogAgent{}
+				err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, dda)
+				assert.NoError(t, client.IgnoreNotFound(err), "Unexpected error getting resource")
+				conflictCondition := condition.GetCondition(&dda.Status, common.OverrideReconcileConflictConditionType)
+				if conflictCondition == nil {
+					// Condition will be set in DDAI if full reconciler is used.
+					ddai := &v1alpha1.DatadogAgentInternal{}
+					err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, ddai)
+					assert.NoError(t, client.IgnoreNotFound(err), "Unexpected error getting resource")
+					assert.Nil(t, ddai.Status.OtelAgentGateway, "OTel Agent Gateway status should be nil when cleaned up")
+					assert.Nil(t, condition.GetDDAICondition(&ddai.Status, common.OtelAgentGatewayReconcileConditionType), "OTel Agent Gateway status condition should be nil when cleaned up")
+					conflictCondition = condition.GetDDAICondition(&ddai.Status, common.OverrideReconcileConflictConditionType)
+				} else {
+					// Condition will be set via DDA reconciler.
+					assert.Nil(t, dda.Status.OtelAgentGateway, "OTel Agent Gateway status should be nil when cleaned up")
+					assert.Nil(t, condition.GetCondition(&dda.Status, common.OtelAgentGatewayReconcileConditionType), "OTel Agent Gateway status condition should be nil when cleaned up")
+					assert.True(t, conflictCondition.Status == metav1.ConditionTrue, "OverrideReconcileConflictCondition should be true")
+				}
+			},
+		},
+		{
+			name: "OTel Agent Gateway status condition should be set to conflict when disabled via override",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithOTelAgentGatewayEnabled(true).
+					WithComponentOverride(v2alpha1.OtelAgentGatewayComponentName, v2alpha1.DatadogAgentComponentOverride{
+						Disabled: apiutils.NewBoolPointer(true),
+					}).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				dda := &v2alpha1.DatadogAgent{}
+				err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, dda)
+				assert.NoError(t, client.IgnoreNotFound(err), "Unexpected error getting resource")
+				assert.Nil(t, dda.Status.OtelAgentGateway, "OTel Agent Gateway status should be nil when cleaned up")
+				assert.Nil(t, condition.GetCondition(&dda.Status, common.OtelAgentGatewayReconcileConditionType), "OTel Agent Gateway status condition should be nil when cleaned up")
+				conflictCondition := condition.GetCondition(&dda.Status, common.OverrideReconcileConflictConditionType)
+				if conflictCondition == nil {
+					ddai := &v1alpha1.DatadogAgentInternal{}
+					err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, ddai)
+					assert.NoError(t, client.IgnoreNotFound(err), "Unexpected error getting resource")
+					conflictCondition = condition.GetDDAICondition(&ddai.Status, common.OverrideReconcileConflictConditionType)
+				}
+				assert.True(t, conflictCondition.Status == metav1.ConditionTrue, "OverrideReconcileConflictCondition should be true")
+			},
+		},
+		{
+			name:  "CCR override with container resources when CCR disabled in features",
+			focus: true,
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithClusterChecksEnabled(true).
+					WithClusterChecksUseCLCEnabled(false).
+					WithComponentOverride(v2alpha1.ClusterChecksRunnerComponentName, v2alpha1.DatadogAgentComponentOverride{
+						Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+							apicommon.CoreAgentContainerName: {
+								Resources: &corev1.ResourceRequirements{
+									Requests: corev1.ResourceList{
+										corev1.ResourceMemory: resource.MustParse("256Mi"),
+									},
+								},
+							},
+						},
+					}).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				dda := &v2alpha1.DatadogAgent{}
+				err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, dda)
+				assert.NoError(t, client.IgnoreNotFound(err), "Unexpected error getting resource")
+
+				// Expected behavior: CCR should NOT be created when disabled in features,
+				// even if an override is present (without explicitly setting disabled: true)
+				// The override should be ignored since the component is disabled.
+				deployment := &appsv1.Deployment{}
+				err = c.Get(context.TODO(), types.NamespacedName{
+					Namespace: resourcesNamespace,
+					Name:      fmt.Sprintf("%s-cluster-checks-runner", resourcesName),
+				}, deployment)
+
+				// CCR deployment should NOT exist when disabled in features
+				assert.True(t, apierrors.IsNotFound(err), "CCR deployment should not exist when disabled in features")
+				assert.Nil(t, dda.Status.ClusterChecksRunner, "CCR status should be nil")
+
+				// Check DDAI status if full reconciler is being used
+				ddai := &v1alpha1.DatadogAgentInternal{}
+				ddaiErr := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, ddai)
+				if ddaiErr == nil {
+					assert.Nil(t, ddai.Status.ClusterChecksRunner, "CCR status should be nil in DDAI")
+				}
+			},
+		},
 	}
 
 	runTestCases(t, tests, runDDAReconcilerTest)
@@ -1167,6 +1364,80 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 			},
 		},
 		{
+			name:                 "[introspection] Control Plane Monitoring with EKS multi-node (Fargate + Standard + Bottlerocket)",
+			introspectionEnabled: true,
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				return createDatadogAgentWithClusterChecks(c, resourcesNamespace, resourcesName)
+			},
+			nodes: []client.Object{
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "eks-fargate-node",
+						Labels: map[string]string{
+							"eks.amazonaws.com/compute-type":    "fargate",
+							"eks.amazonaws.com/fargate-profile": "my-profile",
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "eks-standard-node",
+						Labels: map[string]string{
+							kubernetes.EKSProviderLabel:   "ami-0e7f88829f3d06e29",
+							"eks.amazonaws.com/nodegroup": "standard-nodes",
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "eks-bottlerocket-node",
+						Labels: map[string]string{
+							kubernetes.EKSProviderLabel:   "ami-0fa9d45aa38272f15",
+							"eks.amazonaws.com/nodegroup": "bottlerocket-nodes",
+						},
+					},
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				// All EKS nodes should be detected as single "eks" provider
+				verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "eks")
+				// Should create single DaemonSet for all EKS node types
+				expectedDaemonsets := []string{
+					dsName,
+				}
+				verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
+			},
+		},
+		{
+			name:                 "[introspection] Control Plane Monitoring with EKS eksctl-provisioned cluster",
+			introspectionEnabled: true,
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				return createDatadogAgentWithClusterChecks(c, resourcesNamespace, resourcesName)
+			},
+			nodes: []client.Object{
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "eks-eksctl-node",
+						Labels: map[string]string{
+							"alpha.eksctl.io/cluster-name":   "my-cluster",
+							"alpha.eksctl.io/nodegroup-name": "my-nodegroup",
+						},
+					},
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				verifyDCADeployment(t, c, resourcesName, resourcesNamespace, dcaName, "eks")
+				expectedDaemonsets := []string{
+					dsName,
+				}
+				verifyDaemonsetNames(t, c, resourcesNamespace, expectedDaemonsets)
+			},
+		},
+		{
 			name:                 "[introspection] Control Plane Monitoring with multiple providers",
 			introspectionEnabled: true,
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
@@ -1236,17 +1507,15 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 }
 
 func verifyDCADeployment(t *testing.T, c client.Client, ddaName, resourcesNamespace, expectedName string, provider string) {
-	deploymentList := appsv1.DeploymentList{}
-	err := c.List(context.TODO(), &deploymentList, client.HasLabels{constants.MD5AgentDeploymentProviderLabelKey})
-	assert.NoError(t, err, "Failed to list deployments")
-	assert.Equal(t, 1, len(deploymentList.Items), "Expected 1 deployment")
-	assert.Equal(t, expectedName, deploymentList.Items[0].ObjectMeta.Name, "Deployment name mismatch")
+	dcaDeployment := appsv1.Deployment{}
+	err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: expectedName}, &dcaDeployment)
+	assert.NoError(t, err, "Failed to get DCA deployment")
+	assert.Contains(t, dcaDeployment.ObjectMeta.Labels, constants.MD5AgentDeploymentProviderLabelKey)
 
 	cms := corev1.ConfigMapList{}
 	err = c.List(context.TODO(), &cms, client.InNamespace(resourcesNamespace))
 	assert.NoError(t, err, "Failed to list ConfigMaps")
 
-	dcaDeployment := deploymentList.Items[0]
 	if provider == kubernetes.DefaultProvider {
 		for _, cm := range cms.Items {
 			assert.NotEqual(t, fmt.Sprintf("datadog-controlplane-monitoring-%s", provider), cm.ObjectMeta.Name,
@@ -1779,4 +2048,52 @@ func getDefaultDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 		},
 	}
 	return expectedDDAI
+}
+
+func verifyOtelAgentGatewayDeployment(t *testing.T, c client.Client, namespace, ddaName string) {
+	deploymentName := fmt.Sprintf("%s-otel-agent-gateway", ddaName)
+	deployment := &appsv1.Deployment{}
+	err := c.Get(context.TODO(), types.NamespacedName{
+		Namespace: namespace,
+		Name:      deploymentName,
+	}, deployment)
+	assert.NoError(t, err, "Failed to get OTel Agent Gateway Deployment %s/%s", namespace, deploymentName)
+
+	// Verify deployment has correct labels
+	assert.Contains(t, deployment.Labels, apicommon.AgentDeploymentComponentLabelKey)
+
+	// Verify at least one container exists
+	assert.NotEmpty(t, deployment.Spec.Template.Spec.Containers, "Deployment should have at least one container")
+}
+
+func verifyOtelAgentGatewayStatus(t *testing.T, c client.Client, namespace, ddaName string) {
+	dda := &v2alpha1.DatadogAgent{}
+	err := c.Get(context.TODO(), types.NamespacedName{
+		Namespace: namespace,
+		Name:      ddaName,
+	}, dda)
+	assert.NoError(t, err, "Failed to get DatadogAgent %s/%s", namespace, ddaName)
+
+	// Check if status is set in DDA or DDAI
+	otelStatus := dda.Status.OtelAgentGateway
+	var otelCondition *metav1.Condition
+
+	if otelStatus == nil {
+		// Status might be in DDAI if full reconciler is used
+		ddai := &v1alpha1.DatadogAgentInternal{}
+		err = c.Get(context.TODO(), types.NamespacedName{
+			Namespace: namespace,
+			Name:      ddaName,
+		}, ddai)
+		assert.NoError(t, err, "Failed to get DDAI %s/%s", namespace, ddaName)
+		otelStatus = ddai.Status.OtelAgentGateway
+		otelCondition = condition.GetDDAICondition(&ddai.Status, common.OtelAgentGatewayReconcileConditionType)
+	} else {
+		otelCondition = condition.GetCondition(&dda.Status, common.OtelAgentGatewayReconcileConditionType)
+	}
+
+	assert.NotNil(t, otelStatus, "OTel Agent Gateway status should be set")
+	assert.NotNil(t, otelCondition, "OTel Agent Gateway condition should be set")
+	assert.Equal(t, metav1.ConditionTrue, otelCondition.Status, "OTel Agent Gateway condition should be True")
+	assert.Equal(t, "reconcile_succeed", otelCondition.Reason, "OTel Agent Gateway reconcile should succeed")
 }

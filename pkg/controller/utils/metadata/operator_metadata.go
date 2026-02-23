@@ -99,7 +99,10 @@ func (omf *OperatorMetadataForwarder) Start() {
 }
 
 func (omf *OperatorMetadataForwarder) sendMetadata() error {
-	clusterUID, err := omf.GetOrCreateClusterUID()
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultOperationTimeout)
+	defer cancel()
+
+	clusterUID, err := omf.GetOrCreateClusterUID(ctx)
 	if err != nil {
 		return fmt.Errorf("error getting cluster UID: %w", err)
 	}
@@ -108,6 +111,9 @@ func (omf *OperatorMetadataForwarder) sendMetadata() error {
 	if err != nil {
 		return fmt.Errorf("error creating request: %w", err)
 	}
+
+	req = req.WithContext(ctx)
+
 	resp, err := omf.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("error sending metadata request: %w", err)
@@ -158,6 +164,9 @@ func (omf *OperatorMetadataForwarder) updateResourceCounts() {
 		return
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultOperationTimeout)
+	defer cancel()
+
 	omf.mutex.Lock()
 	defer omf.mutex.Unlock()
 
@@ -165,7 +174,7 @@ func (omf *OperatorMetadataForwarder) updateResourceCounts() {
 	// For each resource type: if fetch succeeds, update count; if fails, keep old value
 	if omf.OperatorMetadata.DatadogAgentEnabled {
 		ddaList := &v2alpha1.DatadogAgentList{}
-		if err := omf.k8sClient.List(context.TODO(), ddaList); err == nil {
+		if err := omf.k8sClient.List(ctx, ddaList); err == nil {
 			omf.OperatorMetadata.ResourceCounts["datadogagent"] = len(ddaList.Items)
 		} else {
 			omf.logger.V(1).Info("Failed to list DatadogAgents, keeping old value", "error", err, "old_count", omf.OperatorMetadata.ResourceCounts["datadogagent"])
@@ -174,7 +183,7 @@ func (omf *OperatorMetadataForwarder) updateResourceCounts() {
 
 	if omf.OperatorMetadata.DatadogAgentInternalEnabled {
 		ddaiList := &v1alpha1.DatadogAgentInternalList{}
-		if err := omf.k8sClient.List(context.TODO(), ddaiList); err == nil {
+		if err := omf.k8sClient.List(ctx, ddaiList); err == nil {
 			omf.OperatorMetadata.ResourceCounts["datadogagentinternal"] = len(ddaiList.Items)
 		} else {
 			omf.logger.V(1).Info("Failed to list DatadogAgentInternals, keeping old value", "error", err, "old_count", omf.OperatorMetadata.ResourceCounts["datadogagentinternal"])
@@ -183,7 +192,7 @@ func (omf *OperatorMetadataForwarder) updateResourceCounts() {
 
 	if omf.OperatorMetadata.DatadogMonitorEnabled {
 		monitorList := &v1alpha1.DatadogMonitorList{}
-		if err := omf.k8sClient.List(context.TODO(), monitorList); err == nil {
+		if err := omf.k8sClient.List(ctx, monitorList); err == nil {
 			omf.OperatorMetadata.ResourceCounts["datadogmonitor"] = len(monitorList.Items)
 		} else {
 			omf.logger.V(1).Info("Failed to list DatadogMonitors, keeping old value", "error", err, "old_count", omf.OperatorMetadata.ResourceCounts["datadogmonitor"])
@@ -192,7 +201,7 @@ func (omf *OperatorMetadataForwarder) updateResourceCounts() {
 
 	if omf.OperatorMetadata.DatadogDashboardEnabled {
 		dashboardList := &v1alpha1.DatadogDashboardList{}
-		if err := omf.k8sClient.List(context.TODO(), dashboardList); err == nil {
+		if err := omf.k8sClient.List(ctx, dashboardList); err == nil {
 			omf.OperatorMetadata.ResourceCounts["datadogdashboard"] = len(dashboardList.Items)
 		} else {
 			omf.logger.V(1).Info("Failed to list DatadogDashboards, keeping old value", "error", err, "old_count", omf.OperatorMetadata.ResourceCounts["datadogdashboard"])
@@ -201,7 +210,7 @@ func (omf *OperatorMetadataForwarder) updateResourceCounts() {
 
 	if omf.OperatorMetadata.DatadogSLOEnabled {
 		sloList := &v1alpha1.DatadogSLOList{}
-		if err := omf.k8sClient.List(context.TODO(), sloList); err == nil {
+		if err := omf.k8sClient.List(ctx, sloList); err == nil {
 			omf.OperatorMetadata.ResourceCounts["datadogslo"] = len(sloList.Items)
 		} else {
 			omf.logger.V(1).Info("Failed to list DatadogSLOs, keeping old value", "error", err, "old_count", omf.OperatorMetadata.ResourceCounts["datadogslo"])
@@ -210,7 +219,7 @@ func (omf *OperatorMetadataForwarder) updateResourceCounts() {
 
 	if omf.OperatorMetadata.DatadogGenericResourceEnabled {
 		genericList := &v1alpha1.DatadogGenericResourceList{}
-		if err := omf.k8sClient.List(context.TODO(), genericList); err == nil {
+		if err := omf.k8sClient.List(ctx, genericList); err == nil {
 			omf.OperatorMetadata.ResourceCounts["datadoggenericresource"] = len(genericList.Items)
 		} else {
 			omf.logger.V(1).Info("Failed to list DatadogGenericResources, keeping old value", "error", err, "old_count", omf.OperatorMetadata.ResourceCounts["datadoggenericresource"])
@@ -219,7 +228,7 @@ func (omf *OperatorMetadataForwarder) updateResourceCounts() {
 
 	if omf.OperatorMetadata.DatadogAgentProfileEnabled {
 		profileList := &v1alpha1.DatadogAgentProfileList{}
-		if err := omf.k8sClient.List(context.TODO(), profileList); err == nil {
+		if err := omf.k8sClient.List(ctx, profileList); err == nil {
 			omf.OperatorMetadata.ResourceCounts["datadogagentprofile"] = len(profileList.Items)
 		} else {
 			omf.logger.V(1).Info("Failed to list DatadogAgentProfiles, keeping old value", "error", err, "old_count", omf.OperatorMetadata.ResourceCounts["datadogagentprofile"])
