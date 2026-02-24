@@ -24,7 +24,7 @@ require (
 
 require (
 	github.com/DataDog/datadog-operator v1.11.1
-	k8s.io/api v0.36.0-alpha.0
+	k8s.io/api v0.36.0-alpha.1
 	k8s.io/cli-runtime v0.34.1
 	k8s.io/utils v0.0.0-20260108192941-914a6e750570
 )
