@@ -58,28 +58,11 @@ type testCase struct {
 	profilesEnabled      bool                          // For DDAI tests
 	ddaiEnabled          bool                          // For DDAI tests
 	introspectionEnabled bool                          // For introspection tests
-	focus                bool                          // For debugging: run only focused tests if any are focused
 }
 
-// runTestCases runs test cases, respecting the focus field for debugging.
-// If any test has focus=true, only focused tests run. Otherwise all tests run.
+// runTestCases runs test cases
 func runTestCases(t *testing.T, tests []testCase, testFunc func(t *testing.T, tt testCase, opts ReconcilerOptions)) {
-	// Check if any test is focused
-	hasFocused := false
 	for _, tt := range tests {
-		if tt.focus {
-			hasFocused = true
-			break
-		}
-	}
-
-	// Run tests
-	for _, tt := range tests {
-		// Skip non-focused tests if any test is focused
-		if hasFocused && !tt.focus {
-			continue
-		}
-
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a copy of opts for this test
 			testOpts := ReconcilerOptions{
@@ -227,8 +210,10 @@ func buildClient(t *testing.T, tt testCase, s *runtime.Scheme, ddaiEnabled bool)
 		// Deep copy primarily to avoid adding CRD twice when running both DDA and full reconciler tests
 		copy := *tt.clientBuilder
 		builder = &copy
+		builder = builder.WithScheme(s)
 	} else {
 		builder = fake.NewClientBuilder().
+			WithScheme(s).
 			WithStatusSubresource(&appsv1.DaemonSet{}, &corev1.Node{}, &v2alpha1.DatadogAgent{})
 	}
 
@@ -817,8 +802,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name:  "CCR override with container resources when CCR disabled in features",
-			focus: true,
+			name: "CCR override with container resources when CCR disabled in features",
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithClusterChecksEnabled(true).
