@@ -16,6 +16,8 @@ import (
 	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	karpawsv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/fatih/color"
@@ -168,6 +170,11 @@ func (o *options) run(cmd *cobra.Command) error {
 	if err = removeAwsAuthConfigMapRole(ctx, cli, clusterName); err != nil {
 		log.Printf("Warning: failed to remove aws-auth role: %v", err)
 		errs = append(errs, fmt.Errorf("aws-auth role removal: %w", err))
+	}
+
+	if err = deleteKarpenterInstanceProfiles(ctx, cli, clusterName); err != nil {
+		log.Printf("Warning: failed to delete Karpenter instance profiles: %v", err)
+		errs = append(errs, fmt.Errorf("instance profile cleanup: %w", err))
 	}
 
 	if err = deleteCloudFormationStacks(ctx, cli, clusterName); err != nil {
@@ -519,6 +526,62 @@ func listCloudFormationStacks(ctx context.Context, cli *clients.Clients, cluster
 		}
 	}
 	return existing, nil
+}
+
+func deleteKarpenterInstanceProfiles(ctx context.Context, cli *clients.Clients, clusterName string) error {
+	log.Println("Cleaning up Karpenter instance profiles…")
+
+	roleName := "KarpenterNodeRole-" + clusterName
+
+	// List instance profiles associated with the Karpenter node role
+	out, err := cli.IAM.ListInstanceProfilesForRole(ctx, &iam.ListInstanceProfilesForRoleInput{
+		RoleName: awssdk.String(roleName),
+	})
+	if err != nil {
+		// If the role doesn't exist, there's nothing to clean up
+		var noSuchEntity *iamtypes.NoSuchEntityException
+		if errors.As(err, &noSuchEntity) {
+			log.Println("KarpenterNodeRole not found, skipping instance profile cleanup.")
+			return nil
+		}
+		return fmt.Errorf("failed to list instance profiles for role %s: %w", roleName, err)
+	}
+
+	if len(out.InstanceProfiles) == 0 {
+		log.Println("No instance profiles found for KarpenterNodeRole.")
+		return nil
+	}
+
+	log.Printf("Found %d instance profile(s) to clean up.", len(out.InstanceProfiles))
+
+	for _, profile := range out.InstanceProfiles {
+		profileName := awssdk.ToString(profile.InstanceProfileName)
+
+		// Remove all roles from the instance profile
+		for _, role := range profile.Roles {
+			rn := awssdk.ToString(role.RoleName)
+			log.Printf("Removing role %s from instance profile %s…", rn, profileName)
+			_, err := cli.IAM.RemoveRoleFromInstanceProfile(ctx, &iam.RemoveRoleFromInstanceProfileInput{
+				InstanceProfileName: profile.InstanceProfileName,
+				RoleName:            role.RoleName,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to remove role %s from instance profile %s: %w", rn, profileName, err)
+			}
+		}
+
+		// Delete the instance profile
+		log.Printf("Deleting instance profile %s…", profileName)
+		_, err := cli.IAM.DeleteInstanceProfile(ctx, &iam.DeleteInstanceProfileInput{
+			InstanceProfileName: profile.InstanceProfileName,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to delete instance profile %s: %w", profileName, err)
+		}
+	}
+
+	log.Printf("Cleaned up %d instance profile(s).", len(out.InstanceProfiles))
+	return nil
 }
 
 func deleteCloudFormationStacks(ctx context.Context, cli *clients.Clients, clusterName string) error {
