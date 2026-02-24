@@ -8,7 +8,7 @@ require (
 	github.com/DataDog/datadog-agent/test/e2e-framework v0.77.0-devel.0.20260128103425-05ec94f73895
 	github.com/DataDog/datadog-agent/test/fakeintake v0.77.0-devel
 	github.com/DataDog/datadog-api-client-go/v2 v2.54.0 // indirect
-	github.com/aws/aws-sdk-go-v2 v1.41.1 // indirect
+	github.com/aws/aws-sdk-go-v2 v1.41.1
 	github.com/aws/aws-sdk-go-v2/config v1.32.7
 	github.com/aws/aws-sdk-go-v2/service/cloudformation v1.68.3
 	github.com/aws/smithy-go v1.24.0 // indirect
