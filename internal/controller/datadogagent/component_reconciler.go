@@ -238,6 +238,12 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 // Cleanup removes the component deployment, associated resources and updates status
 func (r *ComponentRegistry) Cleanup(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (reconcile.Result, error) {
 	deployment := component.GetNewDeploymentFunc()(params.DDA.GetObjectMeta(), &params.DDA.Spec)
+
+	// Apply the name override so we delete the correct deployment
+	if componentOverride, ok := params.DDA.Spec.Override[component.Name()]; ok {
+		override.Deployment(deployment, componentOverride)
+	}
+
 	result, err := r.reconciler.deleteDeploymentWithEvent(ctx, params.Logger, params.DDA, deployment)
 
 	if err != nil {
