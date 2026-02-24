@@ -131,6 +131,7 @@ func (r *ComponentRegistry) Register(component ComponentReconciler) {
 func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error) {
 	var result reconcile.Result
 	now := metav1.NewTime(time.Now())
+	hasConflict := false
 
 	for _, comp := range r.components {
 		// Check if component is enabled and if there's a conflict
@@ -142,6 +143,7 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 		if !enabled {
 			// Component is disabled, clean it up
 			if conflict {
+				hasConflict = true
 				// Set conflict status condition
 				condition.UpdateDatadogAgentInternalStatusConditions(
 					params.Status,
@@ -155,7 +157,6 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 			}
 			res, err = r.Cleanup(ctx, params, comp)
 		} else {
-			// Component is enabled, reconcile it
 			res, err = r.reconcileComponent(ctx, params, comp)
 		}
 
@@ -167,6 +168,13 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 		if res.Requeue || res.RequeueAfter > 0 {
 			result = res
 		}
+	}
+
+	// Clear conflict condition only after all components are processed and none has a conflict.
+	// This prevents prematurely removing the condition when a later component is enabled
+	// but an earlier one still has a conflict.
+	if !hasConflict {
+		condition.DeleteDatadogAgentInternalStatusCondition(params.Status, common.OverrideReconcileConflictConditionType)
 	}
 
 	return result, nil
