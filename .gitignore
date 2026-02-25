@@ -108,6 +108,3 @@ errors
 # Exclude claude-data folder except readme.txt
 .devcontainer/claude-data/*
 !.devcontainer/claude-data/readme.txt
-
-# Claude Code settings
-.claude/settings.local.json
