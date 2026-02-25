@@ -61,6 +61,18 @@ func getDCAClusterPolicyRules(workloadEnabled, clusterEnabled bool) []rbacv1.Pol
 				},
 			},
 			{
+				// In-place resize: patching pod resources via resize subresource
+				APIGroups: []string{rbac.CoreAPIGroup},
+				Resources: []string{rbac.PodsResizeResource},
+				Verbs:     []string{rbac.PatchVerb},
+			},
+			{
+				// In-place resize: evicting pods that cannot resize in-place
+				APIGroups: []string{rbac.CoreAPIGroup},
+				Resources: []string{rbac.PodsEvictionResource},
+				Verbs:     []string{rbac.CreateVerb},
+			},
+			{
 				// Patching Deployment to trigger rollout.
 				APIGroups: []string{rbac.AppsAPIGroup},
 				Resources: []string{

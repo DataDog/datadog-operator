@@ -35,11 +35,43 @@ const (
 	DatadogPodAutoscalerDisabledUpdateStrategy DatadogPodAutoscalerUpdateStrategy = "Disabled"
 )
 
+// DatadogPodAutoscalerUpdateMode controls how vertical recommendations are applied.
+// +kubebuilder:validation:Enum:=Rollout;InPlaceResize
+type DatadogPodAutoscalerUpdateMode string
+
+const (
+	// DatadogPodAutoscalerRolloutUpdateMode triggers a full pod rollout to apply vertical recommendations.
+	DatadogPodAutoscalerRolloutUpdateMode DatadogPodAutoscalerUpdateMode = "Rollout"
+	// DatadogPodAutoscalerInPlaceResizeUpdateMode patches pod resources directly without restarting pods (K8s 1.33+).
+	DatadogPodAutoscalerInPlaceResizeUpdateMode DatadogPodAutoscalerUpdateMode = "InPlaceResize"
+)
+
+// DatadogPodAutoscalerResizePendingPolicy controls behavior when a resize is deferred by the kubelet.
+// +kubebuilder:validation:Enum:=Wait;Restart
+type DatadogPodAutoscalerResizePendingPolicy string
+
+const (
+	// DatadogPodAutoscalerResizePendingPolicyWait keeps the pod running and retries resize later.
+	DatadogPodAutoscalerResizePendingPolicyWait DatadogPodAutoscalerResizePendingPolicy = "Wait"
+	// DatadogPodAutoscalerResizePendingPolicyRestart evicts the pod so it restarts with the new resources.
+	DatadogPodAutoscalerResizePendingPolicyRestart DatadogPodAutoscalerResizePendingPolicy = "Restart"
+)
+
 // DatadogPodAutoscalerUpdatePolicy defines the policy to update the target workload.
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerUpdatePolicy struct {
 	// Strategy defines the mode of the update policy.
 	Strategy DatadogPodAutoscalerUpdateStrategy `json:"strategy,omitempty"`
+
+	// Mode controls how vertical recommendations are applied.
+	// Rollout (default) triggers a full pod rollout; InPlaceResize patches pod resources directly (requires K8s 1.33+).
+	// +optional
+	Mode DatadogPodAutoscalerUpdateMode `json:"mode,omitempty"`
+
+	// ResizePendingPolicy controls what happens when the kubelet defers a resize (PodResizePending=True, reason=Deferred).
+	// Wait (default) keeps the pod and retries; Restart evicts the pod so it comes back with the new resources.
+	// +optional
+	ResizePendingPolicy DatadogPodAutoscalerResizePendingPolicy `json:"resizePendingPolicy,omitempty"`
 }
 
 //
@@ -542,6 +574,10 @@ type DatadogPodAutoscalerVerticalActionType string
 const (
 	// DatadogPodAutoscalerRolloutTriggeredVerticalActionType is the action when the controller triggers a rollout of the targetRef
 	DatadogPodAutoscalerRolloutTriggeredVerticalActionType DatadogPodAutoscalerVerticalActionType = "RolloutTriggered"
+	// DatadogPodAutoscalerInPlaceResizeVerticalActionType is the action when the controller patches pod resources in-place
+	DatadogPodAutoscalerInPlaceResizeVerticalActionType DatadogPodAutoscalerVerticalActionType = "InPlaceResize"
+	// DatadogPodAutoscalerInPlaceFallbackVerticalActionType is the action when in-place resize fails and pods are evicted
+	DatadogPodAutoscalerInPlaceFallbackVerticalActionType DatadogPodAutoscalerVerticalActionType = "InPlaceFallback"
 )
 
 // DatadogPodAutoscalerVerticalAction represents a vertical action done by the controller

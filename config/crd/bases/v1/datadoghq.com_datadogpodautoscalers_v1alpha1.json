@@ -285,6 +285,22 @@
               "additionalProperties": false,
               "description": "Update defines the policy to update target resource.",
               "properties": {
+                "mode": {
+                  "description": "Mode controls how vertical recommendations are applied.\nRollout (default) triggers a full pod rollout; InPlaceResize patches pod resources directly (requires K8s 1.33+).",
+                  "enum": [
+                    "Rollout",
+                    "InPlaceResize"
+                  ],
+                  "type": "string"
+                },
+                "resizePendingPolicy": {
+                  "description": "ResizePendingPolicy controls what happens when the kubelet defers a resize (PodResizePending=True, reason=Deferred).\nWait (default) keeps the pod and retries; Restart evicts the pod so it comes back with the new resources.",
+                  "enum": [
+                    "Wait",
+                    "Restart"
+                  ],
+                  "type": "string"
+                },
                 "strategy": {
                   "description": "Strategy defines the mode of the update policy.",
                   "enum": [
