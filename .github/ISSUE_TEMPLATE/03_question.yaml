@@ -1,0 +1,13 @@
+name: Question
+description: Ask a Question
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to submit a question!
+  - type: textarea
+    attributes:
+      label: Question
+    validations:
+      required: true
