@@ -509,25 +509,6 @@ func removeAwsAuthConfigMapRole(ctx context.Context, cli *clients.Clients, clust
 	return nil
 }
 
-func listCloudFormationStacks(ctx context.Context, cli *clients.Clients, clusterName string) ([]string, error) {
-	stackNames := []string{
-		"dd-karpenter-" + clusterName + "-karpenter",
-		"dd-karpenter-" + clusterName + "-dd-karpenter",
-	}
-
-	var existing []string
-	for _, name := range stackNames {
-		exists, err := aws.DoesStackExist(ctx, cli.CloudFormation, name)
-		if err != nil {
-			return nil, err
-		}
-		if exists {
-			existing = append(existing, name)
-		}
-	}
-	return existing, nil
-}
-
 func deleteKarpenterInstanceProfiles(ctx context.Context, cli *clients.Clients, clusterName string) error {
 	log.Println("Cleaning up Karpenter instance profiles…")
 
@@ -547,13 +528,6 @@ func deleteKarpenterInstanceProfiles(ctx context.Context, cli *clients.Clients, 
 		return fmt.Errorf("failed to list instance profiles for role %s: %w", roleName, err)
 	}
 
-	if len(out.InstanceProfiles) == 0 {
-		log.Println("No instance profiles found for KarpenterNodeRole.")
-		return nil
-	}
-
-	log.Printf("Found %d instance profile(s) to clean up.", len(out.InstanceProfiles))
-
 	for _, profile := range out.InstanceProfiles {
 		profileName := awssdk.ToString(profile.InstanceProfileName)
 
@@ -561,27 +535,44 @@ func deleteKarpenterInstanceProfiles(ctx context.Context, cli *clients.Clients, 
 		for _, role := range profile.Roles {
 			rn := awssdk.ToString(role.RoleName)
 			log.Printf("Removing role %s from instance profile %s…", rn, profileName)
-			_, err := cli.IAM.RemoveRoleFromInstanceProfile(ctx, &iam.RemoveRoleFromInstanceProfileInput{
+			if _, err := cli.IAM.RemoveRoleFromInstanceProfile(ctx, &iam.RemoveRoleFromInstanceProfileInput{
 				InstanceProfileName: profile.InstanceProfileName,
 				RoleName:            role.RoleName,
-			})
-			if err != nil {
+			}); err != nil {
 				return fmt.Errorf("failed to remove role %s from instance profile %s: %w", rn, profileName, err)
 			}
 		}
 
 		// Delete the instance profile
 		log.Printf("Deleting instance profile %s…", profileName)
-		_, err := cli.IAM.DeleteInstanceProfile(ctx, &iam.DeleteInstanceProfileInput{
+		if _, err := cli.IAM.DeleteInstanceProfile(ctx, &iam.DeleteInstanceProfileInput{
 			InstanceProfileName: profile.InstanceProfileName,
-		})
-		if err != nil {
+		}); err != nil {
 			return fmt.Errorf("failed to delete instance profile %s: %w", profileName, err)
 		}
 	}
 
 	log.Printf("Cleaned up %d instance profile(s).", len(out.InstanceProfiles))
 	return nil
+}
+
+func listCloudFormationStacks(ctx context.Context, cli *clients.Clients, clusterName string) ([]string, error) {
+	stackNames := []string{
+		"dd-karpenter-" + clusterName + "-karpenter",
+		"dd-karpenter-" + clusterName + "-dd-karpenter",
+	}
+
+	var existing []string
+	for _, name := range stackNames {
+		exists, err := aws.DoesStackExist(ctx, cli.CloudFormation, name)
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			existing = append(existing, name)
+		}
+	}
+	return existing, nil
 }
 
 func deleteCloudFormationStacks(ctx context.Context, cli *clients.Clients, clusterName string) error {
