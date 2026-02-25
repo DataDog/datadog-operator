@@ -84,6 +84,7 @@ type instrumentationConfig struct {
 	libVersions        map[string]string
 	languageDetection  *languageDetection
 	injector           *injector
+	injectionMode      string
 	targets            []v2alpha1.SSITarget
 }
 
@@ -175,6 +176,7 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			f.singleStepInstrumentation.libVersions = apm.SingleStepInstrumentation.LibVersions
 			f.singleStepInstrumentation.languageDetection = &languageDetection{enabled: apiutils.BoolValue(ddaSpec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled)}
 			f.singleStepInstrumentation.injector = &injector{imageTag: apm.SingleStepInstrumentation.Injector.ImageTag}
+			f.singleStepInstrumentation.injectionMode = apm.SingleStepInstrumentation.InjectionMode
 			if len(apm.SingleStepInstrumentation.Targets) > 0 {
 				if supportsInstrumentationTargets(ddaSpec) {
 					f.singleStepInstrumentation.targets = apm.SingleStepInstrumentation.Targets
@@ -208,6 +210,11 @@ func (f *apmFeature) shouldSetCustomInjectorImage() bool {
 		f.singleStepInstrumentation.enabled &&
 		f.singleStepInstrumentation.injector != nil &&
 		f.singleStepInstrumentation.injector.imageTag != ""
+}
+
+func (f *apmFeature) shouldSetInjectionMode() bool {
+	return f.singleStepInstrumentation != nil &&
+		f.singleStepInstrumentation.injectionMode != ""
 }
 
 func (f *apmFeature) shouldEnableLanguageDetection() bool {
@@ -323,6 +330,13 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, pr
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 				Name:  DDAPMInstrumentationInjectorImageTag,
 				Value: f.singleStepInstrumentation.injector.imageTag,
+			})
+		}
+
+		if f.shouldSetInjectionMode() {
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  DDAPMInstrumentationInjectionMode,
+				Value: f.singleStepInstrumentation.injectionMode,
 			})
 		}
 
