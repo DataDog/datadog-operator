@@ -90,6 +90,10 @@ type DatadogFeatures struct {
 	ServiceDiscovery *ServiceDiscoveryFeatureConfig `json:"serviceDiscovery,omitempty"`
 	// GPU monitoring
 	GPU *GPUFeatureConfig `json:"gpu,omitempty"`
+	// DataPlane configuration for the Agent Data Plane.
+	// Agent Data Plane is a high-performance sidecar that handles data ingestion.
+	// +optional
+	DataPlane *DataPlaneFeatureConfig `json:"dataPlane,omitempty"`
 
 	// Cluster-level features
 
@@ -660,6 +664,30 @@ type GPUFeatureConfig struct {
 	// Default: false
 	// +optional
 	PatchCgroupPermissions *bool `json:"patchCgroupPermissions,omitempty"`
+}
+
+// DataPlaneFeatureConfig contains the Data Plane configuration.
+// Data Plane runs as a sidecar container alongside the Core Agent.
+// +k8s:openapi-gen=true
+type DataPlaneFeatureConfig struct {
+	// Enabled enables the Data Plane.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Dogstatsd configures DogStatsD handling by the Data Plane.
+	// +optional
+	Dogstatsd *DataPlaneDogstatsdConfig `json:"dogstatsd,omitempty"`
+}
+
+// DataPlaneDogstatsdConfig configures DogStatsD handling by the Data Plane.
+// +k8s:openapi-gen=true
+type DataPlaneDogstatsdConfig struct {
+	// Enabled configures the Data Plane to handle DogStatsD traffic.
+	// When enabled, DogStatsD is disabled in the Core Agent.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // DogstatsdFeatureConfig contains the Dogstatsd configuration parameters.

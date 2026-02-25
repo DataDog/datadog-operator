@@ -69,9 +69,36 @@ func hasFeatureEnableAnnotation(dda metav1.Object, annotation string) bool {
 	return false
 }
 
-// HasAgentDataPlaneAnnotation returns true if the Agent Data Plane is enabled via the dedicated `agent.datadoghq.com/adp-enabled` annotation
+// HasAgentDataPlaneAnnotation returns true if the Agent Data Plane is enabled via the dedicated `agent.datadoghq.com/adp-enabled` annotation.
+// Deprecated: Use IsDataPlaneEnabled instead which supports both CRD and annotation configuration.
 func HasAgentDataPlaneAnnotation(dda metav1.Object) bool {
 	return hasFeatureEnableAnnotation(dda, EnableADPAnnotation)
+}
+
+// IsDataPlaneEnabled returns true if the Data Plane is enabled.
+// CRD configuration takes precedence over the annotation.
+// If the annotation is used, a deprecation warning is logged.
+func IsDataPlaneEnabled(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	// CRD takes precedence
+	if ddaSpec.Features != nil && ddaSpec.Features.DataPlane != nil && ddaSpec.Features.DataPlane.Enabled != nil {
+		return *ddaSpec.Features.DataPlane.Enabled
+	}
+
+	// Fall back to annotation
+	if HasAgentDataPlaneAnnotation(dda) {
+		return true
+	}
+
+	return false
+}
+
+// IsDataPlaneDogstatsdEnabled returns true if the Data Plane should handle DogStatsD.
+func IsDataPlaneDogstatsdEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	if ddaSpec.Features != nil && ddaSpec.Features.DataPlane != nil &&
+		ddaSpec.Features.DataPlane.Dogstatsd != nil && ddaSpec.Features.DataPlane.Dogstatsd.Enabled != nil {
+		return *ddaSpec.Features.DataPlane.Dogstatsd.Enabled
+	}
+	return false
 }
 
 // HasHostProfilerAnnotation returns true if the Host Profiler is enabled via the dedicated `agent.datadoghq.com/host-profiler` annotation

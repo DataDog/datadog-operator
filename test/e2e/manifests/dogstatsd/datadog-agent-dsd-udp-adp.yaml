@@ -1,0 +1,21 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  namespace: e2e-operator
+  labels:
+    agent.datadoghq.com/e2e-test: datadog-agent-dsd-udp-adp
+spec:
+  global:
+    kubelet:
+      tlsVerify: false
+  features:
+    dogstatsd:
+      hostPortConfig:
+        enabled: true
+        hostPort: 8125
+      unixDomainSocketConfig:
+        enabled: false
+    dataPlane:
+      enabled: true
+      dogstatsd:
+        enabled: true
