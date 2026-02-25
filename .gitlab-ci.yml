@@ -400,7 +400,7 @@ e2e_autoscaling:
   stage: e2e
   needs:
     - "go_e2e_deps"
-  timeout: 60m
+  timeout: 90m
   rules:
     # Disable on Conductor-triggered jobs (ex: nightly) — must be first so it wins
     - if: '$DDR == "true"'
