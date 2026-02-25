@@ -7,36 +7,95 @@ package datadogagentinternal
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	"github.com/go-logr/logr"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
+
+// checkComponentEnabledWithOverride is a helper function that determines if a component is enabled
+// based on both feature requirements and override settings. This is the default logic used by most components.
+// Returns (enabled, conflict) where:
+//   - enabled=true, conflict=false: component should be reconciled normally
+//   - enabled=true, conflict=true: component enabled in features but disabled via override (cleanup with conflict status)
+//   - enabled=false, conflict=true: component disabled in features but has override config (cleanup with conflict status)
+//   - enabled=false, conflict=false: component disabled (cleanup without conflict status)
+func checkComponentEnabledWithOverride(
+	componentName datadoghqv2alpha1.ComponentName,
+	componentRequired bool,
+	overrides map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride,
+) (enabled bool, conflict bool) {
+	// Check if there's an override for this component
+	if componentOverride, ok := overrides[componentName]; ok {
+		// If override explicitly disables the component
+		if apiutils.BoolValue(componentOverride.Disabled) {
+			// Conflict: component is enabled in features but disabled via override
+			if componentRequired {
+				return false, true
+			}
+			// No conflict: both features and override disable it
+			return false, false
+		}
+		// Override exists with configuration but doesn't disable
+		// If component is disabled in features, this is a conflict (user trying to configure disabled component)
+		if !componentRequired {
+			return false, true
+		}
+	}
+
+	// No override or override doesn't disable: use feature setting
+	return componentRequired, false
+}
 
 // ComponentReconciler defines the interface that all deployment/daemonset components must implement
 type ComponentReconciler interface {
 	// Name returns the component name (e.g., "clusterAgent", "clusterChecksRunner")
 	Name() datadoghqv2alpha1.ComponentName
 
-	// IsEnabled checks if this component should be reconciled based on requiredComponents
-	IsEnabled(requiredComponents feature.RequiredComponents) bool
-
-	// Reconcile handles the reconciliation logic for this component
-	Reconcile(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error)
-
-	// Cleanup removes resources when component is disabled
-	Cleanup(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error)
+	// IsEnabled checks if this component should be reconciled based on requiredComponents and override settings
+	// Returns (enabled, conflict) where:
+	//   - enabled=true, conflict=false: component should be reconciled normally
+	//   - enabled=true, conflict=true: component enabled in features but disabled via override (cleanup with conflict status)
+	//   - enabled=false, conflict=*: component disabled (cleanup without conflict status if conflict=false)
+	IsEnabled(requiredComponents feature.RequiredComponents, overrides map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride) (enabled bool, conflict bool)
 
 	// GetConditionType returns the condition type used for status updates
 	GetConditionType() string
+
+	// GetGlobalSettingsFunc returns the function to apply global settings to the component
+	GetGlobalSettingsFunc() func(logger logr.Logger, podManagers feature.PodTemplateManagers, ddai metav1.Object, spec *datadoghqv2alpha1.DatadogAgentSpec, resourceManagers feature.ResourceManagers, requiredComponents feature.RequiredComponents)
+
+	// GetNewDeploymentFunc returns the function to create a new deployment for the component
+	GetNewDeploymentFunc() func(ddai metav1.Object, spec *datadoghqv2alpha1.DatadogAgentSpec) *appsv1.Deployment
+
+	// GetManageFeatureFunc returns the function to manage features for the component
+	GetManageFeatureFunc() func(feat feature.Feature, managers feature.PodTemplateManagers, provider string) error
+
+	// UpdateStatus updates the status of the component
+	UpdateStatus(deployment *appsv1.Deployment, newStatus *v1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
+
+	// DeleteStatus deletes the status of the component
+	DeleteStatus(newStatus *v1alpha1.DatadogAgentInternalStatus, conditionType string)
+
+	// ForceDeleteComponent returns true if the component should be force deleted
+	ForceDeleteComponent(ddai *v1alpha1.DatadogAgentInternal, requiredComponents feature.RequiredComponents) bool
+
+	// CleanupDependencies deletes any dependencies associated with the component
+	CleanupDependencies(ctx context.Context, logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers) (reconcile.Result, error)
 }
 
 // ReconcileComponentParams bundles common parameters needed by all components
@@ -72,68 +131,125 @@ func (r *ComponentRegistry) Register(component ComponentReconciler) {
 func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error) {
 	var result reconcile.Result
 	now := metav1.NewTime(time.Now())
+	hasConflict := false
 
 	for _, comp := range r.components {
-		componentLogger := ctrl.LoggerFrom(ctx).WithValues("component", comp.Name())
-		componentCtx := ctrl.LoggerInto(ctx, componentLogger)
+		// Check if component is enabled and if there's a conflict
+		enabled, conflict := comp.IsEnabled(params.RequiredComponents, params.DDAI.Spec.Override)
 
-		// Check if component is enabled based on required components
-		enabled := comp.IsEnabled(params.RequiredComponents)
+		var res reconcile.Result
+		var err error
 
-		// Check if component is explicitly disabled via override
-		explicitlyDisabled := false
-		if override, ok := params.DDAI.Spec.Override[comp.Name()]; ok {
-			if override.Disabled != nil && *override.Disabled {
-				explicitlyDisabled = true
-			}
-		}
-
-		// If not enabled or explicitly disabled, cleanup and continue
-		if !enabled || explicitlyDisabled {
-			if enabled && explicitlyDisabled {
-				// The override supersedes what's set in requiredComponents; update status to reflect the conflict
+		if !enabled {
+			// Component is disabled, clean it up
+			if conflict {
+				hasConflict = true
+				// Set conflict status condition
 				condition.UpdateDatadogAgentInternalStatusConditions(
 					params.Status,
 					now,
 					common.OverrideReconcileConflictConditionType,
 					metav1.ConditionTrue,
 					"OverrideConflict",
-					string(comp.Name())+" component is set to disabled",
+					fmt.Sprintf("%s component is set to disabled", comp.Name()),
 					true,
 				)
 			}
-
-			componentLogger.V(1).Info("Component disabled, cleaning up")
-			res, err := comp.Cleanup(componentCtx, params)
-			if utils.ShouldReturn(res, err) {
-				return res, err
-			}
-			continue
+			res, err = r.Cleanup(ctx, params, comp)
+		} else {
+			res, err = r.reconcileComponent(ctx, params, comp)
 		}
 
-		// Reconcile the component
-		componentLogger.V(1).Info("Reconciling component")
-		res, err := comp.Reconcile(componentCtx, params)
 		if utils.ShouldReturn(res, err) {
 			return res, err
 		}
-
-		// Update condition on success
-		condition.UpdateDatadogAgentInternalStatusConditions(
-			params.Status,
-			now,
-			comp.GetConditionType(),
-			metav1.ConditionTrue,
-			"reconcile_succeed",
-			"reconcile succeed",
-			false,
-		)
 
 		// Merge result (preserve requeue settings)
 		if res.Requeue || res.RequeueAfter > 0 {
 			result = res
 		}
 	}
+
+	// Clear conflict condition only after all components are processed and none has a conflict.
+	// This prevents prematurely removing the condition when a later component is enabled
+	// but an earlier one still has a conflict.
+	if !hasConflict {
+		condition.DeleteDatadogAgentInternalStatusCondition(params.Status, common.OverrideReconcileConflictConditionType)
+	}
+
+	return result, nil
+}
+
+// reconcileComponent reconciles a single component
+func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (reconcile.Result, error) {
+	var result reconcile.Result
+	now := metav1.NewTime(time.Now())
+
+	// Start by creating the Default deployment
+	deployment := component.GetNewDeploymentFunc()(params.DDAI.GetObjectMeta(), &params.DDAI.Spec)
+	objLogger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
+	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
+
+	// Set Global setting on the default deployment
+	component.GetGlobalSettingsFunc()(objLogger, podManagers, params.DDAI.GetObjectMeta(), &params.DDAI.Spec, params.ResourceManagers, params.RequiredComponents)
+
+	// Apply features changes on the Deployment.Spec.Template
+	var featErrors []error
+	for _, feat := range params.Features {
+		if errFeat := component.GetManageFeatureFunc()(feat, podManagers, params.Provider); errFeat != nil {
+			featErrors = append(featErrors, errFeat)
+		}
+	}
+	if len(featErrors) > 0 {
+		err := utilerrors.NewAggregate(featErrors)
+		component.UpdateStatus(deployment, params.Status, now, metav1.ConditionFalse, fmt.Sprintf("%s feature error", component.Name()), err.Error())
+		return result, err
+	}
+
+	// Check for force delete (e.g., CCR when ClusterAgent is disabled)
+	if component.ForceDeleteComponent(params.DDAI, params.RequiredComponents) {
+		return r.Cleanup(ctx, params, component)
+	}
+
+	// If Override is defined for the component, apply the override on the PodTemplateSpec, it will cascade to container.
+	if componentOverride, ok := params.DDAI.Spec.Override[component.Name()]; ok {
+		override.PodTemplateSpec(objLogger, podManagers, componentOverride, component.Name(), params.DDAI.Name)
+		override.Deployment(deployment, componentOverride)
+	}
+
+	res, err := r.reconciler.createOrUpdateDeployment(objLogger, params.DDAI, deployment, params.Status, component.UpdateStatus)
+
+	if err == nil {
+		// Update condition to success since the deployment was created or updated successfully
+		condition.UpdateDatadogAgentInternalStatusConditions(
+			params.Status,
+			now,
+			component.GetConditionType(),
+			metav1.ConditionTrue,
+			"reconcile_succeed",
+			"reconcile succeed",
+			false,
+		)
+	}
+
+	return res, err
+}
+
+// Cleanup removes the component deployment, associated resources and updates status
+func (r *ComponentRegistry) Cleanup(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (reconcile.Result, error) {
+	deployment := component.GetNewDeploymentFunc()(params.DDAI.GetObjectMeta(), &params.DDAI.Spec)
+	objLogger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
+	result, err := r.reconciler.deleteDeploymentWithEvent(ctx, objLogger, params.DDAI, deployment)
+
+	if err != nil {
+		return result, err
+	}
+
+	// Do status and other resource cleanup if the deployment was deleted successfully
+	if result, err = component.CleanupDependencies(ctx, objLogger, params.DDAI, params.ResourceManagers); err != nil {
+		return result, err
+	}
+	component.DeleteStatus(params.Status, component.GetConditionType())
 
 	return result, nil
 }

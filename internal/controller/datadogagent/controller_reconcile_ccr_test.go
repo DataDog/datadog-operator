@@ -257,9 +257,8 @@ func Test_cleanupOldCCRDeployments(t *testing.T) {
 					Namespace: "ns-1",
 				},
 			}
-			ddaStatus := datadoghqv2alpha1.DatadogAgentStatus{}
 
-			err := r.cleanupOldCCRDeployments(ctx, logger, &dda, nil, &ddaStatus)
+			err := r.cleanupOldCCRDeployments(ctx, logger, &dda)
 			assert.NoError(t, err)
 
 			deploymentList := &appsv1.DeploymentList{}

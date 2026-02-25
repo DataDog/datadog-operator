@@ -91,7 +91,7 @@ type ComponentReconciler interface {
 	DeleteStatus(newStatus *datadoghqv2alpha1.DatadogAgentStatus, conditionType string)
 
 	// ForceDeleteComponent forces the deletion of the component
-	ForceDeleteComponent(dda *datadoghqv2alpha1.DatadogAgent, componentName datadoghqv2alpha1.ComponentName, requiredComponents feature.RequiredComponents) bool
+	ForceDeleteComponent(dda *datadoghqv2alpha1.DatadogAgent, requiredComponents feature.RequiredComponents) bool
 
 	// CleanupDependencies deletes any dependencies associated with the component
 	CleanupDependencies(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) (reconcile.Result, error)
@@ -199,7 +199,7 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 	}
 
 	// Check for force delete (e.g., CCR when ClusterAgent is disabled)
-	if component.ForceDeleteComponent(params.DDA, component.Name(), params.RequiredComponents) {
+	if component.ForceDeleteComponent(params.DDA, params.RequiredComponents) {
 		return r.Cleanup(ctx, params, component)
 	}
 
