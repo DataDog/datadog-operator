@@ -40,7 +40,7 @@ func GetDefaultClusterAgentRolePolicyRules(dda metav1.Object) []rbacv1.PolicyRul
 	rules = append(rules, rbacv1.PolicyRule{
 		APIGroups: []string{rbac.DatadogAPIGroup},
 		Resources: []string{rbac.DatadogServiceMonitorsResource},
-		Verbs:     []string{rbac.GetVerb, rbac.ListVerb, rbac.WatchVerb},
+		Verbs:     []string{rbac.GetVerb, rbac.ListVerb, rbac.WatchVerb, rbac.CreateVerb, rbac.UpdateVerb, rbac.PatchVerb, rbac.DeleteVerb},
 	})
 	return rules
 }
@@ -127,7 +127,13 @@ func GetDefaultClusterAgentClusterRolePolicyRules(_ metav1.Object) []rbacv1.Poli
 			// DatadogServiceMonitors for APM auto-instrumentation
 			APIGroups: []string{rbac.DatadogAPIGroup},
 			Resources: []string{rbac.DatadogServiceMonitorsResource},
-			Verbs:     []string{rbac.GetVerb, rbac.ListVerb, rbac.WatchVerb},
+			Verbs:     []string{rbac.GetVerb, rbac.ListVerb, rbac.WatchVerb, rbac.CreateVerb, rbac.UpdateVerb, rbac.PatchVerb, rbac.DeleteVerb},
+		},
+		{
+			// Pods deletion for APM auto-instrumentation (to restart pods after injection)
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.PodsResource},
+			Verbs:     []string{rbac.DeleteVerb},
 		},
 	}
 }
