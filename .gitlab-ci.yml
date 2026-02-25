@@ -409,8 +409,8 @@ e2e_autoscaling:
     - if: $CI_COMMIT_BRANCH
       changes:
         paths:
-          - "cmd/kubectl-datadog/autoscaling/**"
-          - "test/e2e/tests/autoscaling_suite/**"
+          - "cmd/kubectl-datadog/autoscaling/**/*"
+          - "test/e2e/tests/autoscaling_suite/**/*"
           - "test/e2e/provisioners/eks.go"
           - "test/e2e/common/autoscaling.go"
       when: on_success
