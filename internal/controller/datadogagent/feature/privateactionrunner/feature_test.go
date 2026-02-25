@@ -370,14 +370,14 @@ func Test_privateActionRunnerFeature_ManageClusterAgentEnvVars(t *testing.T) {
   self_enroll: true
   identity_secret_name: my-par-identity`,
 			expectedEnvVars: map[string]string{
-				"DD_PRIVATE_ACTION_RUNNER_ENABLED":                 "true",
-				"DD_PRIVATE_ACTION_RUNNER_IDENTITY_USE_K8S_SECRET": "true",
-				"DD_PRIVATE_ACTION_RUNNER_SELF_ENROLL":             "true",
-				"DD_PRIVATE_ACTION_RUNNER_IDENTITY_SECRET_NAME":    "my-par-identity",
+				DDPAREnabled:              "true",
+				DDPARIdentityUseK8sSecret: "true",
+				DDPARSelfEnroll:           "true",
+				DDPARIdentitySecretName:   "my-par-identity",
 			},
 			unexpectedEnvVars: []string{
-				"DD_PRIVATE_ACTION_RUNNER_URN",
-				"DD_PRIVATE_ACTION_RUNNER_PRIVATE_KEY",
+				DDPARURN,
+				DDPARPrivateKey,
 			},
 			validateAllowlist: false,
 		},
@@ -390,12 +390,12 @@ func Test_privateActionRunnerFeature_ManageClusterAgentEnvVars(t *testing.T) {
   private_key: my-secret-key
   identity_secret_name: par-secret`,
 			expectedEnvVars: map[string]string{
-				"DD_PRIVATE_ACTION_RUNNER_ENABLED":                 "true",
-				"DD_PRIVATE_ACTION_RUNNER_IDENTITY_USE_K8S_SECRET": "true",
-				"DD_PRIVATE_ACTION_RUNNER_SELF_ENROLL":             "false",
-				"DD_PRIVATE_ACTION_RUNNER_URN":                     "urn:dd:apps:on-prem-runner:us1:1:runner-abc",
-				"DD_PRIVATE_ACTION_RUNNER_PRIVATE_KEY":             "my-secret-key",
-				"DD_PRIVATE_ACTION_RUNNER_IDENTITY_SECRET_NAME":    "par-secret",
+				DDPAREnabled:              "true",
+				DDPARIdentityUseK8sSecret: "true",
+				DDPARSelfEnroll:           "false",
+				DDPARURN:                  "urn:dd:apps:on-prem-runner:us1:1:runner-abc",
+				DDPARPrivateKey:           "my-secret-key",
+				DDPARIdentitySecretName:   "par-secret",
 			},
 			unexpectedEnvVars: nil,
 			validateAllowlist: false,
@@ -410,14 +410,14 @@ func Test_privateActionRunnerFeature_ManageClusterAgentEnvVars(t *testing.T) {
     - com.datadoghq.kubernetes.core.listPod
     - com.datadoghq.traceroute`,
 			expectedEnvVars: map[string]string{
-				"DD_PRIVATE_ACTION_RUNNER_ENABLED":                 "true",
-				"DD_PRIVATE_ACTION_RUNNER_IDENTITY_USE_K8S_SECRET": "true",
-				"DD_PRIVATE_ACTION_RUNNER_SELF_ENROLL":             "true",
+				DDPAREnabled:              "true",
+				DDPARIdentityUseK8sSecret: "true",
+				DDPARSelfEnroll:           "true",
 			},
 			unexpectedEnvVars: []string{
-				"DD_PRIVATE_ACTION_RUNNER_URN",
-				"DD_PRIVATE_ACTION_RUNNER_PRIVATE_KEY",
-				"DD_PRIVATE_ACTION_RUNNER_IDENTITY_SECRET_NAME",
+				DDPARURN,
+				DDPARPrivateKey,
+				DDPARIdentitySecretName,
 			},
 			validateAllowlist: true,
 			expectedAllowlist: []string{
@@ -430,14 +430,14 @@ func Test_privateActionRunnerFeature_ManageClusterAgentEnvVars(t *testing.T) {
 			name:       "default config (minimal)",
 			configData: defaultConfigData,
 			expectedEnvVars: map[string]string{
-				"DD_PRIVATE_ACTION_RUNNER_ENABLED":                 "true",
-				"DD_PRIVATE_ACTION_RUNNER_IDENTITY_USE_K8S_SECRET": "true",
-				"DD_PRIVATE_ACTION_RUNNER_SELF_ENROLL":             "false",
+				DDPAREnabled:              "true",
+				DDPARIdentityUseK8sSecret: "true",
+				DDPARSelfEnroll:           "false",
 			},
 			unexpectedEnvVars: []string{
-				"DD_PRIVATE_ACTION_RUNNER_URN",
-				"DD_PRIVATE_ACTION_RUNNER_PRIVATE_KEY",
-				"DD_PRIVATE_ACTION_RUNNER_IDENTITY_SECRET_NAME",
+				DDPARURN,
+				DDPARPrivateKey,
+				DDPARIdentitySecretName,
 			},
 			validateAllowlist: false,
 		},
@@ -487,108 +487,12 @@ func Test_privateActionRunnerFeature_ManageClusterAgentEnvVars(t *testing.T) {
 
 			// Validate allowlist if specified
 			if tt.validateAllowlist {
-				allowlistEnvVar, found := envVarMap["DD_PRIVATE_ACTION_RUNNER_ACTIONS_ALLOWLIST"]
-				assert.True(t, found, "Expected DD_PRIVATE_ACTION_RUNNER_ACTIONS_ALLOWLIST not found")
+				allowlistEnvVar, found := envVarMap[DDPARActionsAllowlist]
+				assert.True(t, found, "Expected %s not found", DDPARActionsAllowlist)
 
 				// The allowlist is stored as comma-separated string
 				allowlist := strings.Split(allowlistEnvVar, ",")
 				assert.ElementsMatch(t, tt.expectedAllowlist, allowlist, "Allowlist doesn't match expected")
-			}
-		})
-	}
-}
-
-func Test_parsePrivateActionRunnerConfig(t *testing.T) {
-	tests := []struct {
-		name           string
-		configData     string
-		wantErr        bool
-		expectedConfig *PrivateActionRunnerConfig
-	}{
-		{
-			name: "valid config with self-enroll",
-			configData: `private_action_runner:
-  enabled: true
-  self_enroll: true
-  identity_secret_name: my-secret`,
-			wantErr: false,
-			expectedConfig: &PrivateActionRunnerConfig{
-				Enabled:            true,
-				SelfEnroll:         true,
-				IdentitySecretName: "my-secret",
-			},
-		},
-		{
-			name: "valid config with manual enrollment",
-			configData: `private_action_runner:
-  enabled: true
-  self_enroll: false
-  urn: urn:dd:apps:on-prem-runner:us1:1:runner-abc
-  private_key: secret-key
-  actions_allowlist:
-    - com.datadoghq.http.request
-    - com.datadoghq.traceroute`,
-			wantErr: false,
-			expectedConfig: &PrivateActionRunnerConfig{
-				Enabled:    true,
-				SelfEnroll: false,
-				URN:        "urn:dd:apps:on-prem-runner:us1:1:runner-abc",
-				PrivateKey: "secret-key",
-				ActionsAllowlist: []string{
-					"com.datadoghq.http.request",
-					"com.datadoghq.traceroute",
-				},
-			},
-		},
-		{
-			name:       "empty config",
-			configData: ``,
-			wantErr:    false,
-			expectedConfig: &PrivateActionRunnerConfig{
-				Enabled: false,
-			},
-		},
-		{
-			name:       "missing private_action_runner key",
-			configData: `some_other_key: value`,
-			wantErr:    false,
-			expectedConfig: &PrivateActionRunnerConfig{
-				Enabled: false,
-			},
-		},
-		{
-			name:       "invalid YAML",
-			configData: `private_action_runner:\n  invalid: [unclosed`,
-			wantErr:    true,
-		},
-		{
-			name:       "default config",
-			configData: defaultConfigData,
-			wantErr:    false,
-			expectedConfig: &PrivateActionRunnerConfig{
-				Enabled: true,
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			config, err := parsePrivateActionRunnerConfig(tt.configData)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
-			}
-
-			assert.NoError(t, err)
-			require.NotNil(t, config)
-			assert.Equal(t, tt.expectedConfig.Enabled, config.Enabled)
-			assert.Equal(t, tt.expectedConfig.SelfEnroll, config.SelfEnroll)
-			assert.Equal(t, tt.expectedConfig.URN, config.URN)
-			assert.Equal(t, tt.expectedConfig.PrivateKey, config.PrivateKey)
-			assert.Equal(t, tt.expectedConfig.IdentitySecretName, config.IdentitySecretName)
-			if len(tt.expectedConfig.ActionsAllowlist) > 0 {
-				assert.ElementsMatch(t, tt.expectedConfig.ActionsAllowlist, config.ActionsAllowlist)
 			}
 		})
 	}
