@@ -7,7 +7,6 @@ package autoscalingsuite
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -320,27 +319,29 @@ func (s *autoscalingSuite) testUninstall() {
 	s.verifyCleanUninstall(ctx)
 }
 
-// runKubectlDatadog executes kubectl-datadog with fresh AWS credentials.
-// Credentials are retrieved on each call to avoid STS token expiry during long-running suites.
+// runKubectlDatadog executes kubectl-datadog with the AWS profile-based
+// credential chain so the subprocess can refresh its own STS tokens during
+// long-running operations (e.g. CloudFormation stack creation).
 func (s *autoscalingSuite) runKubectlDatadog(ctx context.Context, args ...string) (string, error) {
-	creds, err := s.awsCfg.Credentials.Retrieve(ctx)
-	if err != nil {
-		return "", fmt.Errorf("failed to retrieve AWS credentials: %w", err)
-	}
-
 	cmd := exec.CommandContext(ctx, filepath.Join(common.ProjectRootPath, "bin", "kubectl-datadog"), args...)
 
-	// Set minimal environment with explicit credentials
+	// Propagate the AWS profile and config files instead of static STS
+	// tokens. This lets the subprocess call AssumeRole itself and refresh
+	// credentials if they expire during long-running CloudFormation waits.
 	cmd.Env = []string{
 		"PATH=" + os.Getenv("PATH"),
 		"HOME=" + os.Getenv("HOME"),
 		"KUBECONFIG=" + s.kubeconfigPath,
-		"AWS_ACCESS_KEY_ID=" + creds.AccessKeyID,
-		"AWS_SECRET_ACCESS_KEY=" + creds.SecretAccessKey,
 		"AWS_REGION=" + s.awsCfg.Region,
 	}
-	if creds.SessionToken != "" {
-		cmd.Env = append(cmd.Env, "AWS_SESSION_TOKEN="+creds.SessionToken)
+	if v, ok := os.LookupEnv("AWS_PROFILE"); ok {
+		cmd.Env = append(cmd.Env, "AWS_PROFILE="+v)
+	}
+	if v, ok := os.LookupEnv("AWS_CONFIG_FILE"); ok {
+		cmd.Env = append(cmd.Env, "AWS_CONFIG_FILE="+v)
+	}
+	if v, ok := os.LookupEnv("AWS_SHARED_CREDENTIALS_FILE"); ok {
+		cmd.Env = append(cmd.Env, "AWS_SHARED_CREDENTIALS_FILE="+v)
 	}
 
 	output, err := cmd.CombinedOutput()
