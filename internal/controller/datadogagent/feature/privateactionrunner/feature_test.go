@@ -6,7 +6,7 @@
 package privateactionrunner
 
 import (
-	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -487,12 +487,11 @@ func Test_privateActionRunnerFeature_ManageClusterAgentEnvVars(t *testing.T) {
 
 			// Validate allowlist if specified
 			if tt.validateAllowlist {
-				allowlistJSON, found := envVarMap["DD_PRIVATE_ACTION_RUNNER_ACTIONS_ALLOWLIST"]
+				allowlistEnvVar, found := envVarMap["DD_PRIVATE_ACTION_RUNNER_ACTIONS_ALLOWLIST"]
 				assert.True(t, found, "Expected DD_PRIVATE_ACTION_RUNNER_ACTIONS_ALLOWLIST not found")
 
-				var allowlist []string
-				err := json.Unmarshal([]byte(allowlistJSON), &allowlist)
-				assert.NoError(t, err, "Failed to unmarshal allowlist JSON")
+				// The allowlist is stored as comma-separated string
+				allowlist := strings.Split(allowlistEnvVar, ",")
 				assert.ElementsMatch(t, tt.expectedAllowlist, allowlist, "Allowlist doesn't match expected")
 			}
 		})

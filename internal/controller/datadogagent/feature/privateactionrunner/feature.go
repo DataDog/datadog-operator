@@ -6,9 +6,9 @@
 package privateactionrunner
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"gopkg.in/yaml.v3"
@@ -238,15 +238,11 @@ func (f *privateActionRunnerFeature) ManageClusterAgent(managers feature.PodTemp
 	}
 
 	if len(f.clusterConfig.ActionsAllowlist) > 0 {
-		allowlistJSON, err := json.Marshal(f.clusterConfig.ActionsAllowlist)
-		if err != nil {
-			return fmt.Errorf("failed to marshal actions allowlist: %w", err)
-		}
 		managers.EnvVar().AddEnvVarToContainer(
 			apicommon.ClusterAgentContainerName,
 			&corev1.EnvVar{
 				Name:  "DD_PRIVATE_ACTION_RUNNER_ACTIONS_ALLOWLIST",
-				Value: string(allowlistJSON),
+				Value: strings.Join(f.clusterConfig.ActionsAllowlist, ","),
 			},
 		)
 	}
