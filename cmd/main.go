@@ -225,7 +225,7 @@ func run(opts *options) error {
 	version.PrintVersionLogs(setupLog)
 
 	if !opts.datadogAgentInternalEnabled {
-		setupLog.Error(nil, "[WARNING] DatadogAgentInternal controller is disabled, in Operator v1.27 option to disable it will be removed, DatadogAgentInternal will be enabled by default.")
+		setupLog.Error(nil, "[WARNING] DatadogAgentInternal controller is disabled. This flag will be removed in Operator v1.27 and enabling DatadogAgentInternal will be required.")
 	}
 
 	// submits the maximum go routine setting as a metric
