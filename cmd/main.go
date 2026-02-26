@@ -224,11 +224,8 @@ func run(opts *options) error {
 	}
 	version.PrintVersionLogs(setupLog)
 
-	if opts.datadogAgentEnabled {
-		setupLog.Error(nil, "[WARNING] Agent DaemonSet selector changed in Operator v1.21. If you rely on Datadog Agent pod labels e.g. in NetworkPolicies, verify if you may be impacted. See README for details.")
-		if opts.datadogAgentProfileEnabled {
-			setupLog.Error(nil, "[WARNING] Selector changed in Agent DaemonSets managed by DAPs in Operator v1.18 and v1.21. If you rely on Datadog Agent pod labels, e.g. in NetworkPolicies, verify if you may be impacted. See README for details.")
-		}
+	if !opts.datadogAgentInternalEnabled {
+		setupLog.Error(nil, "[WARNING] DatadogAgentInternal controller is disabled, in Operator v1.27 option to disable it will be removed, DatadogAgentInternal will be enabled by default.")
 	}
 
 	// submits the maximum go routine setting as a metric
