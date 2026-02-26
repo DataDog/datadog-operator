@@ -1,0 +1,18 @@
+name: 'Close stale issues'
+on:
+  schedule:
+    - cron: '0 12 * * 1'
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v8
+        with:
+          stale-issue-message: 'This issue is marked as stale since there has not been any activity in over a year. It will be closed in 10 days'
+          close-issue-message: 'This issue has been closed after being marked stale for more than 10 days'
+          days-before-issue-stale: 365
+          days-before-issue-close: 10
+          exempt-issue-labels: no stale,enhancement,feature request,bug,feature/datadog-monitor,feature/slo
+          stale-issue-label: stale
+          close-issue-label: autoclosed
