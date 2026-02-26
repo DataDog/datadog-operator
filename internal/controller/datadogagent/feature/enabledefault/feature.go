@@ -51,7 +51,7 @@ func (f *defaultFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogA
 	f.owner = dda
 
 	if dda.GetAnnotations() != nil {
-		f.adpEnabled = featureutils.HasAgentDataPlaneAnnotation(dda)
+		f.adpEnabled = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableADPAnnotation)
 	}
 
 	agentContainers := make([]apicommon.AgentContainerName, 0)
