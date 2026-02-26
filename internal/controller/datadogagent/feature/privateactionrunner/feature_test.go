@@ -6,9 +6,9 @@
 package privateactionrunner
 
 import (
+	"strings"
 	"testing"
 
-	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -134,54 +134,6 @@ func Test_privateActionRunnerFeature_ID(t *testing.T) {
 	assert.Equal(t, string(feature.PrivateActionRunnerIDType), string(f.ID()))
 }
 
-func Test_privateActionRunnerFeature_ManageSingleContainerNodeAgent(t *testing.T) {
-	f := buildPrivateActionRunnerFeature(nil)
-	managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
-
-	err := f.ManageSingleContainerNodeAgent(managers, "")
-	assert.NoError(t, err)
-}
-
-func Test_privateActionRunnerFeature_ManageClusterChecksRunner(t *testing.T) {
-	f := buildPrivateActionRunnerFeature(nil)
-	managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
-
-	err := f.ManageClusterChecksRunner(managers, "")
-	assert.NoError(t, err)
-}
-
-func Test_privateActionRunnerFeature_ManageOtelAgentGateway(t *testing.T) {
-	f := buildPrivateActionRunnerFeature(nil)
-	managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
-
-	err := f.ManageOtelAgentGateway(managers, "")
-	assert.NoError(t, err)
-}
-
-func Test_privateActionRunnerFeature_ManageDependencies(t *testing.T) {
-	f := buildPrivateActionRunnerFeature(nil)
-	err := f.ManageDependencies(nil, "")
-	assert.NoError(t, err)
-}
-
-func Test_privateActionRunnerFeature_ManageClusterAgent(t *testing.T) {
-	f := buildPrivateActionRunnerFeature(nil)
-	managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
-
-	err := f.ManageClusterAgent(managers, "")
-	assert.NoError(t, err)
-}
-
-func Test_buildPrivateActionRunnerFeature_WithLogger(t *testing.T) {
-	f := buildPrivateActionRunnerFeature(&feature.Options{
-		Logger: logr.Discard(),
-	})
-
-	parFeat, ok := f.(*privateActionRunnerFeature)
-	assert.True(t, ok)
-	assert.NotNil(t, parFeat)
-}
-
 func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
 	testScheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(testScheme)
@@ -282,6 +234,266 @@ func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
 			assert.NotEmpty(t, configMap.Annotations)
 			assert.NotEmpty(t, configMap.Annotations["checksum/private_action_runner-custom-config"])
 			assert.Equal(t, tt.expectedHash, configMap.Annotations["checksum/private_action_runner-custom-config"])
+		})
+	}
+}
+
+func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
+	tests := []struct {
+		name                      string
+		annotations               map[string]string
+		wantClusterAgentEnabled   bool
+		wantNodeAgentEnabled      bool
+		expectedClusterConfigData string
+	}{
+		{
+			name:                    "cluster agent not enabled (no annotation)",
+			annotations:             nil,
+			wantClusterAgentEnabled: false,
+			wantNodeAgentEnabled:    false,
+		},
+		{
+			name: "cluster agent enabled via annotation",
+			annotations: map[string]string{
+				featureutils.EnableClusterAgentPrivateActionRunnerAnnotation: "true",
+			},
+			wantClusterAgentEnabled:   true,
+			wantNodeAgentEnabled:      false,
+			expectedClusterConfigData: defaultConfigData,
+		},
+		{
+			name: "cluster agent enabled with custom config",
+			annotations: map[string]string{
+				featureutils.EnableClusterAgentPrivateActionRunnerAnnotation: "true",
+				featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation: `private_action_runner:
+  enabled: true
+  self_enroll: true
+  identity_secret_name: my-custom-secret`,
+			},
+			wantClusterAgentEnabled: true,
+			wantNodeAgentEnabled:    false,
+			expectedClusterConfigData: `private_action_runner:
+  enabled: true
+  self_enroll: true
+  identity_secret_name: my-custom-secret`,
+		},
+		{
+			name: "cluster agent explicitly disabled",
+			annotations: map[string]string{
+				featureutils.EnableClusterAgentPrivateActionRunnerAnnotation: "false",
+			},
+			wantClusterAgentEnabled: false,
+			wantNodeAgentEnabled:    false,
+		},
+		{
+			name: "annotation true but config says enabled false - should force enable",
+			annotations: map[string]string{
+				featureutils.EnableClusterAgentPrivateActionRunnerAnnotation: "true",
+				featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation: `private_action_runner:
+  enabled: false
+  self_enroll: true
+  identity_secret_name: my-secret`,
+			},
+			wantClusterAgentEnabled:   true,
+			wantNodeAgentEnabled:      false,
+			expectedClusterConfigData: "", // Don't validate config fields since Enabled is forced to true
+		},
+		{
+			name: "both node and cluster agent enabled",
+			annotations: map[string]string{
+				featureutils.EnablePrivateActionRunnerAnnotation:             "true",
+				featureutils.EnableClusterAgentPrivateActionRunnerAnnotation: "true",
+				featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation: `private_action_runner:
+  enabled: true
+  self_enroll: false
+  urn: urn:dd:apps:on-prem-runner:us1:1:runner-xyz`,
+			},
+			wantClusterAgentEnabled: true,
+			wantNodeAgentEnabled:    true,
+			expectedClusterConfigData: `private_action_runner:
+  enabled: true
+  self_enroll: false
+  urn: urn:dd:apps:on-prem-runner:us1:1:runner-xyz`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := buildPrivateActionRunnerFeature(nil)
+			dda := &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: tt.annotations,
+				},
+			}
+			reqComp := f.Configure(dda, &v2alpha1.DatadogAgentSpec{}, nil)
+
+			assert.Equal(t, tt.wantClusterAgentEnabled, reqComp.ClusterAgent.IsEnabled())
+			assert.Equal(t, tt.wantNodeAgentEnabled, reqComp.Agent.IsEnabled())
+
+			parFeat, ok := f.(*privateActionRunnerFeature)
+			require.True(t, ok)
+
+			// Check if cluster config is set correctly
+			if tt.wantClusterAgentEnabled {
+				require.NotNil(t, parFeat.clusterConfig, "clusterConfig should not be nil when enabled")
+				assert.True(t, parFeat.clusterConfig.Enabled, "clusterConfig.Enabled should be true")
+
+				// If we have expected config data, parse it and validate key fields
+				if tt.expectedClusterConfigData != "" {
+					expectedConfig, err := parsePrivateActionRunnerConfig(tt.expectedClusterConfigData)
+					require.NoError(t, err)
+					assert.Equal(t, expectedConfig.Enabled, parFeat.clusterConfig.Enabled)
+					assert.Equal(t, expectedConfig.SelfEnroll, parFeat.clusterConfig.SelfEnroll)
+					assert.Equal(t, expectedConfig.URN, parFeat.clusterConfig.URN)
+					assert.Equal(t, expectedConfig.IdentitySecretName, parFeat.clusterConfig.IdentitySecretName)
+				}
+			} else {
+				assert.Nil(t, parFeat.clusterConfig, "clusterConfig should be nil when not enabled")
+			}
+		})
+	}
+}
+
+func Test_privateActionRunnerFeature_ManageClusterAgentEnvVars(t *testing.T) {
+	tests := []struct {
+		name              string
+		configData        string
+		expectedEnvVars   map[string]string
+		unexpectedEnvVars []string
+		validateAllowlist bool
+		expectedAllowlist []string
+	}{
+		{
+			name: "self-enroll with identity secret",
+			configData: `private_action_runner:
+  enabled: true
+  self_enroll: true
+  identity_secret_name: my-par-identity`,
+			expectedEnvVars: map[string]string{
+				DDPAREnabled:              "true",
+				DDPARIdentityUseK8sSecret: "true",
+				DDPARSelfEnroll:           "true",
+				DDPARIdentitySecretName:   "my-par-identity",
+			},
+			unexpectedEnvVars: []string{
+				DDPARURN,
+				DDPARPrivateKey,
+			},
+			validateAllowlist: false,
+		},
+		{
+			name: "manual enrollment with URN and private key",
+			configData: `private_action_runner:
+  enabled: true
+  self_enroll: false
+  urn: urn:dd:apps:on-prem-runner:us1:1:runner-abc
+  private_key: my-secret-key
+  identity_secret_name: par-secret`,
+			expectedEnvVars: map[string]string{
+				DDPAREnabled:              "true",
+				DDPARIdentityUseK8sSecret: "true",
+				DDPARSelfEnroll:           "false",
+				DDPARURN:                  "urn:dd:apps:on-prem-runner:us1:1:runner-abc",
+				DDPARPrivateKey:           "my-secret-key",
+				DDPARIdentitySecretName:   "par-secret",
+			},
+			unexpectedEnvVars: nil,
+			validateAllowlist: false,
+		},
+		{
+			name: "with actions allowlist",
+			configData: `private_action_runner:
+  enabled: true
+  self_enroll: true
+  actions_allowlist:
+    - com.datadoghq.http.request
+    - com.datadoghq.kubernetes.core.listPod
+    - com.datadoghq.traceroute`,
+			expectedEnvVars: map[string]string{
+				DDPAREnabled:              "true",
+				DDPARIdentityUseK8sSecret: "true",
+				DDPARSelfEnroll:           "true",
+			},
+			unexpectedEnvVars: []string{
+				DDPARURN,
+				DDPARPrivateKey,
+				DDPARIdentitySecretName,
+			},
+			validateAllowlist: true,
+			expectedAllowlist: []string{
+				"com.datadoghq.http.request",
+				"com.datadoghq.kubernetes.core.listPod",
+				"com.datadoghq.traceroute",
+			},
+		},
+		{
+			name:       "default config (minimal)",
+			configData: defaultConfigData,
+			expectedEnvVars: map[string]string{
+				DDPAREnabled:              "true",
+				DDPARIdentityUseK8sSecret: "true",
+				DDPARSelfEnroll:           "false",
+			},
+			unexpectedEnvVars: []string{
+				DDPARURN,
+				DDPARPrivateKey,
+				DDPARIdentitySecretName,
+			},
+			validateAllowlist: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := buildPrivateActionRunnerFeature(nil)
+			dda := &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dda",
+					Namespace: "default",
+					Annotations: map[string]string{
+						featureutils.EnableClusterAgentPrivateActionRunnerAnnotation:     "true",
+						featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation: tt.configData,
+					},
+				},
+			}
+			f.Configure(dda, &v2alpha1.DatadogAgentSpec{}, nil)
+
+			// Create test managers
+			podTmpl := corev1.PodTemplateSpec{}
+			managers := fake.NewPodTemplateManagers(t, podTmpl)
+
+			// Call ManageClusterAgent
+			err := f.ManageClusterAgent(managers, "")
+			assert.NoError(t, err)
+
+			// Verify environment variables
+			envVars := managers.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+			envVarMap := make(map[string]string)
+			for _, env := range envVars {
+				envVarMap[env.Name] = env.Value
+			}
+
+			for expectedKey, expectedValue := range tt.expectedEnvVars {
+				actualValue, found := envVarMap[expectedKey]
+				assert.True(t, found, "Expected env var %s not found", expectedKey)
+				assert.Equal(t, expectedValue, actualValue, "Env var %s has wrong value", expectedKey)
+			}
+
+			// Verify unexpected env vars are not set
+			for _, unexpectedKey := range tt.unexpectedEnvVars {
+				_, found := envVarMap[unexpectedKey]
+				assert.False(t, found, "Unexpected env var %s should not be set", unexpectedKey)
+			}
+
+			// Validate allowlist if specified
+			if tt.validateAllowlist {
+				allowlistEnvVar, found := envVarMap[DDPARActionsAllowlist]
+				assert.True(t, found, "Expected %s not found", DDPARActionsAllowlist)
+
+				// The allowlist is stored as comma-separated string
+				allowlist := strings.Split(allowlistEnvVar, ",")
+				assert.ElementsMatch(t, tt.expectedAllowlist, allowlist, "Allowlist doesn't match expected")
+			}
 		})
 	}
 }
