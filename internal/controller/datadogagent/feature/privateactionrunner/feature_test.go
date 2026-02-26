@@ -6,7 +6,6 @@
 package privateactionrunner
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,7 +18,6 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
-	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -41,7 +39,7 @@ func Test_privateActionRunnerFeature_Configure(t *testing.T) {
 		{
 			name: "feature enabled via annotation",
 			annotations: map[string]string{
-				featureutils.EnablePrivateActionRunnerAnnotation: "true",
+				"agent.datadoghq.com/private-action-runner-enabled": "true",
 			},
 			wantFunc: func(t *testing.T, reqComp feature.RequiredComponents) {
 				assert.True(t, reqComp.Agent.IsEnabled())
@@ -52,7 +50,7 @@ func Test_privateActionRunnerFeature_Configure(t *testing.T) {
 		{
 			name: "feature explicitly disabled via annotation",
 			annotations: map[string]string{
-				featureutils.EnablePrivateActionRunnerAnnotation: "false",
+				"agent.datadoghq.com/private-action-runner-enabled": "false",
 			},
 			wantFunc: func(t *testing.T, reqComp feature.RequiredComponents) {
 				assert.False(t, reqComp.Agent.IsEnabled())
@@ -86,8 +84,8 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 			Name:      "test-dda",
 			Namespace: "default",
 			Annotations: map[string]string{
-				featureutils.EnablePrivateActionRunnerAnnotation: "true",
-				featureutils.PrivateActionRunnerConfigDataAnnotation: `private_action_runner:
+				"agent.datadoghq.com/private-action-runner-enabled": "true",
+				"agent.datadoghq.com/private-action-runner-configdata": `private_action_runner:
 	enabled: true
     private_key: some-key
     urn: urn:dd:apps:on-prem-runner:us1:1:runner-abc
@@ -150,14 +148,14 @@ func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
 		{
 			name: "feature disabled",
 			annotations: map[string]string{
-				featureutils.EnablePrivateActionRunnerAnnotation: "false",
+				"agent.datadoghq.com/private-action-runner-enabled": "false",
 			},
 			expectConfigMap: false,
 		},
 		{
 			name: "enabled without configdata - uses default",
 			annotations: map[string]string{
-				featureutils.EnablePrivateActionRunnerAnnotation: "true",
+				"agent.datadoghq.com/private-action-runner-enabled": "true",
 			},
 			expectConfigMap: true,
 			expectedYAML:    defaultConfigData,
@@ -166,8 +164,8 @@ func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
 		{
 			name: "enabled with configdata - passes through directly",
 			annotations: map[string]string{
-				featureutils.EnablePrivateActionRunnerAnnotation: "true",
-				featureutils.PrivateActionRunnerConfigDataAnnotation: `private_action_runner:
+				"agent.datadoghq.com/private-action-runner-enabled": "true",
+				"agent.datadoghq.com/private-action-runner-configdata": `private_action_runner:
     private_key: some-key
     urn: urn:dd:apps:on-prem-runner:us1:1:runner-abc
     self_enroll: false
@@ -256,7 +254,7 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 		{
 			name: "cluster agent enabled via annotation",
 			annotations: map[string]string{
-				featureutils.EnableClusterAgentPrivateActionRunnerAnnotation: "true",
+				"cluster-agent.datadoghq.com/private-action-runner-enabled": "true",
 			},
 			wantClusterAgentEnabled:   true,
 			wantNodeAgentEnabled:      false,
@@ -265,8 +263,8 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 		{
 			name: "cluster agent enabled with custom config",
 			annotations: map[string]string{
-				featureutils.EnableClusterAgentPrivateActionRunnerAnnotation: "true",
-				featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation: `private_action_runner:
+				"cluster-agent.datadoghq.com/private-action-runner-enabled": "true",
+				"cluster-agent.datadoghq.com/private-action-runner-configdata": `private_action_runner:
   enabled: true
   self_enroll: true
   identity_secret_name: my-custom-secret`,
@@ -281,7 +279,7 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 		{
 			name: "cluster agent explicitly disabled",
 			annotations: map[string]string{
-				featureutils.EnableClusterAgentPrivateActionRunnerAnnotation: "false",
+				"cluster-agent.datadoghq.com/private-action-runner-enabled": "false",
 			},
 			wantClusterAgentEnabled: false,
 			wantNodeAgentEnabled:    false,
@@ -289,8 +287,8 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 		{
 			name: "annotation true but config says enabled false - should force enable",
 			annotations: map[string]string{
-				featureutils.EnableClusterAgentPrivateActionRunnerAnnotation: "true",
-				featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation: `private_action_runner:
+				"cluster-agent.datadoghq.com/private-action-runner-enabled": "true",
+				"cluster-agent.datadoghq.com/private-action-runner-configdata": `private_action_runner:
   enabled: false
   self_enroll: true
   identity_secret_name: my-secret`,
@@ -302,9 +300,9 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 		{
 			name: "both node and cluster agent enabled",
 			annotations: map[string]string{
-				featureutils.EnablePrivateActionRunnerAnnotation:             "true",
-				featureutils.EnableClusterAgentPrivateActionRunnerAnnotation: "true",
-				featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation: `private_action_runner:
+				"agent.datadoghq.com/private-action-runner-enabled":         "true",
+				"cluster-agent.datadoghq.com/private-action-runner-enabled": "true",
+				"cluster-agent.datadoghq.com/private-action-runner-configdata": `private_action_runner:
   enabled: true
   self_enroll: false
   urn: urn:dd:apps:on-prem-runner:us1:1:runner-xyz`,
@@ -352,12 +350,14 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 }
 
 func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) {
+	testScheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(testScheme)
+	_ = v2alpha1.AddToScheme(testScheme)
+
 	tests := []struct {
 		name                      string
 		configData                string
 		expectedClusterConfigData string
-		validateAllowlist         bool
-		expectedAllowlist         []string
 	}{
 		{
 			name: "self-enroll with identity secret",
@@ -369,7 +369,6 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
   enabled: true
   self_enroll: true
   identity_secret_name: my-par-identity`,
-			validateAllowlist: false,
 		},
 		{
 			name: "manual enrollment with URN and private key",
@@ -385,7 +384,6 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
   urn: urn:dd:apps:on-prem-runner:us1:1:runner-abc
   private_key: my-secret-key
   identity_secret_name: par-secret`,
-			validateAllowlist: false,
 		},
 		{
 			name: "with actions allowlist",
@@ -403,18 +401,11 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
     - com.datadoghq.http.request
     - com.datadoghq.kubernetes.core.listPod
     - com.datadoghq.traceroute`,
-			validateAllowlist: true,
-			expectedAllowlist: []string{
-				"com.datadoghq.http.request",
-				"com.datadoghq.kubernetes.core.listPod",
-				"com.datadoghq.traceroute",
-			},
 		},
 		{
 			name:                      "default config (minimal)",
 			configData:                defaultConfigData,
 			expectedClusterConfigData: defaultConfigData,
-			validateAllowlist:         false,
 		},
 	}
 
@@ -426,15 +417,37 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
 					Name:      "test-dda",
 					Namespace: "default",
 					Annotations: map[string]string{
-						featureutils.EnableClusterAgentPrivateActionRunnerAnnotation:     "true",
-						featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation: tt.configData,
+						"cluster-agent.datadoghq.com/private-action-runner-enabled":    "true",
+						"cluster-agent.datadoghq.com/private-action-runner-configdata": tt.configData,
 					},
 				},
 			}
 			f.Configure(dda, &v2alpha1.DatadogAgentSpec{}, nil)
 
-			// Cast to concrete type to access private methods
-			parFeature := f.(*privateActionRunnerFeature)
+			// Create store and resource managers for ConfigMap creation
+			storeOptions := &store.StoreOptions{
+				Scheme: testScheme,
+			}
+			resourceManagers := feature.NewResourceManagers(store.NewStore(dda, storeOptions))
+
+			// Call ManageDependencies to create the ConfigMap
+			err := f.ManageDependencies(resourceManagers, "")
+			require.NoError(t, err)
+
+			// Verify ConfigMap was created with correct data
+			cm, found := resourceManagers.Store().Get(kubernetes.ConfigMapKind, "default", "test-dda-clusteragent-privateactionrunner")
+			require.True(t, found, "ConfigMap should be created")
+			require.NotNil(t, cm)
+
+			configMap, ok := cm.(*corev1.ConfigMap)
+			require.True(t, ok, "Object should be a ConfigMap")
+			assert.Equal(t, "test-dda-clusteragent-privateactionrunner", configMap.Name)
+			assert.Equal(t, "default", configMap.Namespace)
+			require.Contains(t, configMap.Data, "privateactionrunner.yaml", "ConfigMap must contain privateactionrunner.yaml")
+
+			// Verify the ConfigMap contains the expected config data
+			yamlContent := configMap.Data["privateactionrunner.yaml"]
+			assert.Equal(t, tt.expectedClusterConfigData, yamlContent, "ConfigMap content should match expected")
 
 			// Create test managers with a container
 			podTmpl := corev1.PodTemplateSpec{
@@ -449,22 +462,21 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
 			managers := fake.NewPodTemplateManagers(t, podTmpl)
 
 			// Call ManageClusterAgent
-			err := f.ManageClusterAgent(managers, "")
+			err = f.ManageClusterAgent(managers, "")
 			assert.NoError(t, err)
 
 			// Verify volume was added
 			volumes := managers.VolumeMgr.Volumes
 			assert.Len(t, volumes, 1, "Expected 1 volume to be added")
-			expectedVolumeName := "test-dda-privateactionrunner-config"
-			assert.Equal(t, expectedVolumeName, volumes[0].Name)
+			assert.Equal(t, "test-dda-privateactionrunner-config", volumes[0].Name)
 			assert.NotNil(t, volumes[0].ConfigMap)
-			assert.Equal(t, parFeature.getClusterAgentConfigMapName(), volumes[0].ConfigMap.Name)
+			assert.Equal(t, "test-dda-clusteragent-privateactionrunner", volumes[0].ConfigMap.Name)
 
 			// Verify volume mount was added
 			volumeMounts := managers.VolumeMountMgr.VolumeMountsByC[apicommon.ClusterAgentContainerName]
 			assert.Len(t, volumeMounts, 1, "Expected 1 volume mount to be added")
-			assert.Equal(t, expectedVolumeName, volumeMounts[0].Name)
-			assert.Equal(t, PrivateActionRunnerConfigPath, volumeMounts[0].MountPath)
+			assert.Equal(t, "test-dda-privateactionrunner-config", volumeMounts[0].Name)
+			assert.Equal(t, "/etc/datadog-agent/privateactionrunner.yaml", volumeMounts[0].MountPath)
 			assert.Equal(t, "privateactionrunner.yaml", volumeMounts[0].SubPath)
 			assert.True(t, volumeMounts[0].ReadOnly)
 
@@ -477,8 +489,7 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
 					assert.NotEmpty(t, container.Command, "Container command should be set")
 					assert.Contains(t, container.Command, "datadog-cluster-agent")
 					assert.Contains(t, container.Command, "start")
-					expectedEFlag := fmt.Sprintf("-E=%s", PrivateActionRunnerConfigPath)
-					assert.Contains(t, container.Command, expectedEFlag, "Container command should contain -E flag")
+					assert.Contains(t, container.Command, "-E=/etc/datadog-agent/privateactionrunner.yaml", "Container command should contain -E flag")
 					break
 				}
 			}
@@ -487,21 +498,8 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
 			// Verify checksum annotation was added
 			annotations := managers.AnnotationMgr.Annotations
 			checksumKey := object.GetChecksumAnnotationKey(feature.PrivateActionRunnerIDType)
-			_, found := annotations[checksumKey]
-			assert.True(t, found, "Checksum annotation should be present")
-
-			// Validate config by parsing it
-			if tt.expectedClusterConfigData != "" {
-				expectedConfig, err := parsePrivateActionRunnerConfig(tt.expectedClusterConfigData)
-				assert.NoError(t, err)
-				assert.NotNil(t, expectedConfig)
-				assert.True(t, expectedConfig.Enabled)
-
-				// Validate allowlist if specified
-				if tt.validateAllowlist {
-					assert.ElementsMatch(t, tt.expectedAllowlist, expectedConfig.ActionsAllowlist, "Allowlist doesn't match expected")
-				}
-			}
+			_, foundAnnotation := annotations[checksumKey]
+			assert.True(t, foundAnnotation, "Checksum annotation should be present")
 		})
 	}
 }
