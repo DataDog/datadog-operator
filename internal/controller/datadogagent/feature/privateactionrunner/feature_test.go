@@ -6,7 +6,7 @@
 package privateactionrunner
 
 import (
-	"strings"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -20,6 +20,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -110,7 +111,7 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 	volumes := managers.VolumeMgr.Volumes
 	assert.Len(t, volumes, 1, "Should have exactly one volume")
 	vol := volumes[0]
-	assert.Equal(t, "privateactionrunner-config", vol.Name, "Volume name should match")
+	assert.Equal(t, "test-dda-privateactionrunner-config", vol.Name, "Volume name should match")
 	assert.NotNil(t, vol.VolumeSource.ConfigMap, "Volume should be a ConfigMap volume")
 	assert.Equal(t, "test-dda-privateactionrunner", vol.VolumeSource.ConfigMap.Name, "ConfigMap name should match")
 
@@ -118,7 +119,7 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 	volumeMounts := managers.VolumeMountMgr.VolumeMountsByC[apicommon.PrivateActionRunnerContainerName]
 	assert.Len(t, volumeMounts, 1, "Should have exactly one volume mount")
 	mount := volumeMounts[0]
-	assert.Equal(t, "privateactionrunner-config", mount.Name, "Mount name should match")
+	assert.Equal(t, "test-dda-privateactionrunner-config", mount.Name, "Mount name should match")
 	assert.Equal(t, "/etc/datadog-agent/privateactionrunner.yaml", mount.MountPath, "Mount path should be the hardcoded path")
 	assert.Equal(t, "privateactionrunner.yaml", mount.SubPath, "SubPath should mount the file directly")
 	assert.True(t, mount.ReadOnly, "Mount should be read-only")
@@ -335,17 +336,13 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 
 			// Check if cluster config is set correctly
 			if tt.wantClusterAgentEnabled {
-				require.NotNil(t, parFeat.clusterConfig, "clusterConfig should not be nil when enabled")
+				assert.NotNil(t, parFeat.clusterConfig, "clusterConfig should not be nil when enabled")
 				assert.True(t, parFeat.clusterConfig.Enabled, "clusterConfig.Enabled should be true")
+				assert.NotEmpty(t, parFeat.clusterConfigData, "clusterConfigData should not be empty when enabled")
 
-				// If we have expected config data, parse it and validate key fields
+				// Validate the raw config data matches expected
 				if tt.expectedClusterConfigData != "" {
-					expectedConfig, err := parsePrivateActionRunnerConfig(tt.expectedClusterConfigData)
-					require.NoError(t, err)
-					assert.Equal(t, expectedConfig.Enabled, parFeat.clusterConfig.Enabled)
-					assert.Equal(t, expectedConfig.SelfEnroll, parFeat.clusterConfig.SelfEnroll)
-					assert.Equal(t, expectedConfig.URN, parFeat.clusterConfig.URN)
-					assert.Equal(t, expectedConfig.IdentitySecretName, parFeat.clusterConfig.IdentitySecretName)
+					assert.Equal(t, tt.expectedClusterConfigData, parFeat.clusterConfigData)
 				}
 			} else {
 				assert.Nil(t, parFeat.clusterConfig, "clusterConfig should be nil when not enabled")
@@ -354,14 +351,13 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 	}
 }
 
-func Test_privateActionRunnerFeature_ManageClusterAgentEnvVars(t *testing.T) {
+func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) {
 	tests := []struct {
-		name              string
-		configData        string
-		expectedEnvVars   map[string]string
-		unexpectedEnvVars []string
-		validateAllowlist bool
-		expectedAllowlist []string
+		name                      string
+		configData                string
+		expectedClusterConfigData string
+		validateAllowlist         bool
+		expectedAllowlist         []string
 	}{
 		{
 			name: "self-enroll with identity secret",
@@ -369,16 +365,10 @@ func Test_privateActionRunnerFeature_ManageClusterAgentEnvVars(t *testing.T) {
   enabled: true
   self_enroll: true
   identity_secret_name: my-par-identity`,
-			expectedEnvVars: map[string]string{
-				DDPAREnabled:              "true",
-				DDPARIdentityUseK8sSecret: "true",
-				DDPARSelfEnroll:           "true",
-				DDPARIdentitySecretName:   "my-par-identity",
-			},
-			unexpectedEnvVars: []string{
-				DDPARURN,
-				DDPARPrivateKey,
-			},
+			expectedClusterConfigData: `private_action_runner:
+  enabled: true
+  self_enroll: true
+  identity_secret_name: my-par-identity`,
 			validateAllowlist: false,
 		},
 		{
@@ -389,15 +379,12 @@ func Test_privateActionRunnerFeature_ManageClusterAgentEnvVars(t *testing.T) {
   urn: urn:dd:apps:on-prem-runner:us1:1:runner-abc
   private_key: my-secret-key
   identity_secret_name: par-secret`,
-			expectedEnvVars: map[string]string{
-				DDPAREnabled:              "true",
-				DDPARIdentityUseK8sSecret: "true",
-				DDPARSelfEnroll:           "false",
-				DDPARURN:                  "urn:dd:apps:on-prem-runner:us1:1:runner-abc",
-				DDPARPrivateKey:           "my-secret-key",
-				DDPARIdentitySecretName:   "par-secret",
-			},
-			unexpectedEnvVars: nil,
+			expectedClusterConfigData: `private_action_runner:
+  enabled: true
+  self_enroll: false
+  urn: urn:dd:apps:on-prem-runner:us1:1:runner-abc
+  private_key: my-secret-key
+  identity_secret_name: par-secret`,
 			validateAllowlist: false,
 		},
 		{
@@ -409,16 +396,13 @@ func Test_privateActionRunnerFeature_ManageClusterAgentEnvVars(t *testing.T) {
     - com.datadoghq.http.request
     - com.datadoghq.kubernetes.core.listPod
     - com.datadoghq.traceroute`,
-			expectedEnvVars: map[string]string{
-				DDPAREnabled:              "true",
-				DDPARIdentityUseK8sSecret: "true",
-				DDPARSelfEnroll:           "true",
-			},
-			unexpectedEnvVars: []string{
-				DDPARURN,
-				DDPARPrivateKey,
-				DDPARIdentitySecretName,
-			},
+			expectedClusterConfigData: `private_action_runner:
+  enabled: true
+  self_enroll: true
+  actions_allowlist:
+    - com.datadoghq.http.request
+    - com.datadoghq.kubernetes.core.listPod
+    - com.datadoghq.traceroute`,
 			validateAllowlist: true,
 			expectedAllowlist: []string{
 				"com.datadoghq.http.request",
@@ -427,19 +411,10 @@ func Test_privateActionRunnerFeature_ManageClusterAgentEnvVars(t *testing.T) {
 			},
 		},
 		{
-			name:       "default config (minimal)",
-			configData: defaultConfigData,
-			expectedEnvVars: map[string]string{
-				DDPAREnabled:              "true",
-				DDPARIdentityUseK8sSecret: "true",
-				DDPARSelfEnroll:           "false",
-			},
-			unexpectedEnvVars: []string{
-				DDPARURN,
-				DDPARPrivateKey,
-				DDPARIdentitySecretName,
-			},
-			validateAllowlist: false,
+			name:                      "default config (minimal)",
+			configData:                defaultConfigData,
+			expectedClusterConfigData: defaultConfigData,
+			validateAllowlist:         false,
 		},
 	}
 
@@ -458,41 +433,74 @@ func Test_privateActionRunnerFeature_ManageClusterAgentEnvVars(t *testing.T) {
 			}
 			f.Configure(dda, &v2alpha1.DatadogAgentSpec{}, nil)
 
-			// Create test managers
-			podTmpl := corev1.PodTemplateSpec{}
+			// Cast to concrete type to access private methods
+			parFeature := f.(*privateActionRunnerFeature)
+
+			// Create test managers with a container
+			podTmpl := corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name: string(apicommon.ClusterAgentContainerName),
+						},
+					},
+				},
+			}
 			managers := fake.NewPodTemplateManagers(t, podTmpl)
 
 			// Call ManageClusterAgent
 			err := f.ManageClusterAgent(managers, "")
 			assert.NoError(t, err)
 
-			// Verify environment variables
-			envVars := managers.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
-			envVarMap := make(map[string]string)
-			for _, env := range envVars {
-				envVarMap[env.Name] = env.Value
+			// Verify volume was added
+			volumes := managers.VolumeMgr.Volumes
+			assert.Len(t, volumes, 1, "Expected 1 volume to be added")
+			expectedVolumeName := "test-dda-privateactionrunner-config"
+			assert.Equal(t, expectedVolumeName, volumes[0].Name)
+			assert.NotNil(t, volumes[0].ConfigMap)
+			assert.Equal(t, parFeature.getClusterAgentConfigMapName(), volumes[0].ConfigMap.Name)
+
+			// Verify volume mount was added
+			volumeMounts := managers.VolumeMountMgr.VolumeMountsByC[apicommon.ClusterAgentContainerName]
+			assert.Len(t, volumeMounts, 1, "Expected 1 volume mount to be added")
+			assert.Equal(t, expectedVolumeName, volumeMounts[0].Name)
+			assert.Equal(t, PrivateActionRunnerConfigPath, volumeMounts[0].MountPath)
+			assert.Equal(t, "privateactionrunner.yaml", volumeMounts[0].SubPath)
+			assert.True(t, volumeMounts[0].ReadOnly)
+
+			// Verify container command was modified
+			podTemplate := managers.PodTemplateSpec()
+			containerFound := false
+			for _, container := range podTemplate.Spec.Containers {
+				if container.Name == string(apicommon.ClusterAgentContainerName) {
+					containerFound = true
+					assert.NotEmpty(t, container.Command, "Container command should be set")
+					assert.Contains(t, container.Command, "datadog-cluster-agent")
+					assert.Contains(t, container.Command, "start")
+					expectedEFlag := fmt.Sprintf("-E=%s", PrivateActionRunnerConfigPath)
+					assert.Contains(t, container.Command, expectedEFlag, "Container command should contain -E flag")
+					break
+				}
 			}
+			assert.True(t, containerFound, "Cluster agent container should be found")
 
-			for expectedKey, expectedValue := range tt.expectedEnvVars {
-				actualValue, found := envVarMap[expectedKey]
-				assert.True(t, found, "Expected env var %s not found", expectedKey)
-				assert.Equal(t, expectedValue, actualValue, "Env var %s has wrong value", expectedKey)
-			}
+			// Verify checksum annotation was added
+			annotations := managers.AnnotationMgr.Annotations
+			checksumKey := object.GetChecksumAnnotationKey(feature.PrivateActionRunnerIDType)
+			_, found := annotations[checksumKey]
+			assert.True(t, found, "Checksum annotation should be present")
 
-			// Verify unexpected env vars are not set
-			for _, unexpectedKey := range tt.unexpectedEnvVars {
-				_, found := envVarMap[unexpectedKey]
-				assert.False(t, found, "Unexpected env var %s should not be set", unexpectedKey)
-			}
+			// Validate config by parsing it
+			if tt.expectedClusterConfigData != "" {
+				expectedConfig, err := parsePrivateActionRunnerConfig(tt.expectedClusterConfigData)
+				assert.NoError(t, err)
+				assert.NotNil(t, expectedConfig)
+				assert.True(t, expectedConfig.Enabled)
 
-			// Validate allowlist if specified
-			if tt.validateAllowlist {
-				allowlistEnvVar, found := envVarMap[DDPARActionsAllowlist]
-				assert.True(t, found, "Expected %s not found", DDPARActionsAllowlist)
-
-				// The allowlist is stored as comma-separated string
-				allowlist := strings.Split(allowlistEnvVar, ",")
-				assert.ElementsMatch(t, tt.expectedAllowlist, allowlist, "Allowlist doesn't match expected")
+				// Validate allowlist if specified
+				if tt.validateAllowlist {
+					assert.ElementsMatch(t, tt.expectedAllowlist, expectedConfig.ActionsAllowlist, "Allowlist doesn't match expected")
+				}
 			}
 		})
 	}
