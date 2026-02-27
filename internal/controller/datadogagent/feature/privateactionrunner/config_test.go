@@ -397,6 +397,91 @@ func TestPrivateActionRunnerConfig_ToEnvVars(t *testing.T) {
 	}
 }
 
+func TestEnsureEnabledInConfigData(t *testing.T) {
+	tests := []struct {
+		name           string
+		inputYAML      string
+		enabled        bool
+		expectedResult string
+		wantErr        bool
+	}{
+		{
+			name: "set enabled to true when it was false",
+			inputYAML: `private_action_runner:
+  enabled: false
+  self_enroll: true
+  identity_secret_name: my-secret`,
+			enabled: true,
+			expectedResult: `private_action_runner:
+    enabled: true
+    identity_secret_name: my-secret
+    self_enroll: true
+`,
+			wantErr: false,
+		},
+		{
+			name: "set enabled to true when not present",
+			inputYAML: `private_action_runner:
+  self_enroll: true
+  urn: urn:dd:apps:on-prem-runner:us1:1:runner-abc`,
+			enabled: true,
+			expectedResult: `private_action_runner:
+    enabled: true
+    self_enroll: true
+    urn: urn:dd:apps:on-prem-runner:us1:1:runner-abc
+`,
+			wantErr: false,
+		},
+		{
+			name: "set enabled to false",
+			inputYAML: `private_action_runner:
+  enabled: true
+  self_enroll: false`,
+			enabled: false,
+			expectedResult: `private_action_runner:
+    enabled: false
+    self_enroll: false
+`,
+			wantErr: false,
+		},
+		{
+			name: "do nothing if private_action_runner section is missing",
+			inputYAML: `some_other_config:
+  key: value`,
+			enabled: false,
+			expectedResult: `some_other_config:
+    key: value
+`,
+			wantErr: false,
+		},
+		{
+			name:      "invalid YAML",
+			inputYAML: `invalid: [unclosed`,
+			enabled:   true,
+			wantErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := overrideEnabledValueInConfigData(tt.inputYAML, tt.enabled)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expectedResult, result)
+
+			// Verify the result can be parsed and has the correct enabled value
+			config, err := parsePrivateActionRunnerConfig(result)
+			require.NoError(t, err)
+			assert.Equal(t, tt.enabled, config.Enabled, "Parsed config should have correct enabled value")
+		})
+	}
+}
+
 // Helper functions for creating pointers
 func boolPtr(b bool) *bool {
 	return &b
