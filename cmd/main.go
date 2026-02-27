@@ -140,6 +140,7 @@ type options struct {
 	remoteConfigEnabled                    bool
 	datadogDashboardEnabled                bool
 	datadogGenericResourceEnabled          bool
+	ddaReconcileOnAnnotationsChange        bool
 
 	// Secret Backend options
 	secretBackendCommand  string
@@ -177,6 +178,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.remoteConfigEnabled, "remoteConfigEnabled", false, "Enable RemoteConfig capabilities in the Operator (beta)")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
 	flag.BoolVar(&opts.datadogGenericResourceEnabled, "datadogGenericResourceEnabled", false, "Enable the DatadogGenericResource controller")
+	flag.BoolVar(&opts.ddaReconcileOnAnnotationsChange, "ddaReconcileOnAnnotationsChange", false, "Reconcile DatadogAgent on annotation changes (experimental)")
 
 	// DatadogAgentInternal
 	flag.BoolVar(&opts.datadogAgentInternalEnabled, "datadogAgentInternalEnabled", true, "Enable the DatadogAgentInternal controller")
@@ -366,6 +368,7 @@ func run(opts *options) error {
 		DatadogAgentProfileEnabled:    opts.datadogAgentProfileEnabled,
 		DatadogDashboardEnabled:       opts.datadogDashboardEnabled,
 		DatadogGenericResourceEnabled: opts.datadogGenericResourceEnabled,
+		ReconcileOnAnnotationsChange:  opts.ddaReconcileOnAnnotationsChange,
 	}
 
 	versionInfo, platformInfo, err := getVersionAndPlatformInfo(rest.CopyConfig(mgr.GetConfig()))
