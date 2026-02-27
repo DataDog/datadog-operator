@@ -580,7 +580,7 @@ func privateActionRunnerContainer(dda metav1.Object) corev1.Container {
 			"/opt/datadog-agent/embedded/bin/privateactionrunner",
 			"run",
 			fmt.Sprintf("-c=%s", agentCustomConfigVolumePath),
-			fmt.Sprintf("-c=%s", privateactionrunner.PrivateActionRunnerConfigPath),
+			fmt.Sprintf("-E=%s", privateactionrunner.PrivateActionRunnerConfigPath),
 		},
 		Env:          commonEnvVars(dda),
 		VolumeMounts: volumeMountsForPrivateActionRunner(),
