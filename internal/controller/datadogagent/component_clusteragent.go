@@ -72,7 +72,7 @@ func (c *ClusterAgentComponent) DeleteStatus(newStatus *datadoghqv2alpha1.Datado
 	condition.DeleteDatadogAgentStatusCondition(newStatus, conditionType)
 }
 
-func (c *ClusterAgentComponent) ForceDeleteComponent(dda *datadoghqv2alpha1.DatadogAgent, componentName datadoghqv2alpha1.ComponentName, requiredComponents feature.RequiredComponents) bool {
+func (c *ClusterAgentComponent) ForceDeleteComponent(dda *datadoghqv2alpha1.DatadogAgent, requiredComponents feature.RequiredComponents) bool {
 	return false
 }
 func (c *ClusterAgentComponent) CleanupDependencies(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) (reconcile.Result, error) {

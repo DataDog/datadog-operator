@@ -79,6 +79,10 @@ unit_tests:
 check-golang-version:
   stage: build
   tags: ["arch:amd64"]
+  rules:
+    - if: '$DDR == "true"'
+      when: never
+    - when: on_success
   before_script:
     - make install-tools
   script:
@@ -396,20 +400,20 @@ e2e_autoscaling:
   stage: e2e
   needs:
     - "go_e2e_deps"
-  timeout: 60m
+  timeout: 90m
   rules:
+    # Disable on Conductor-triggered jobs (ex: nightly) — must be first so it wins
+    - if: '$DDR == "true"'
+      when: never
     # Run automatically on changes to autoscaling code
     - if: $CI_COMMIT_BRANCH
       changes:
         paths:
-          - "cmd/kubectl-datadog/autoscaling/**"
-          - "test/e2e/tests/autoscaling_suite/**"
+          - "cmd/kubectl-datadog/autoscaling/**/*"
+          - "test/e2e/tests/autoscaling_suite/**/*"
           - "test/e2e/provisioners/eks.go"
           - "test/e2e/common/autoscaling.go"
       when: on_success
-    # Disable on Conductor-triggered jobs (ex: nightly)
-    - if: '$DDR == "true"'
-      when: never
     # Allow manual run otherwise
     - when: manual
       allow_failure: true

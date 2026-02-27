@@ -74,7 +74,7 @@ func (c *ClusterChecksRunnerComponent) DeleteStatus(newStatus *datadoghqv2alpha1
 	condition.DeleteDatadogAgentStatusCondition(newStatus, conditionType)
 }
 
-func (c *ClusterChecksRunnerComponent) ForceDeleteComponent(dda *datadoghqv2alpha1.DatadogAgent, componentName datadoghqv2alpha1.ComponentName, requiredComponents feature.RequiredComponents) bool {
+func (c *ClusterChecksRunnerComponent) ForceDeleteComponent(dda *datadoghqv2alpha1.DatadogAgent, requiredComponents feature.RequiredComponents) bool {
 	dcaEnabled := requiredComponents.ClusterAgent.IsEnabled()
 	// If the Cluster Agent is disabled, then CCR should be disabled too
 	if dcaOverride, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterAgentComponentName]; ok {
