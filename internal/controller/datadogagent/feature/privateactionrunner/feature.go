@@ -45,6 +45,7 @@ type privateActionRunnerFeature struct {
 	nodeEnabled               bool
 	nodeConfigData            string
 	clusterConfig             *PrivateActionRunnerConfig
+	clusterConfigData         string
 	clusterServiceAccountName string
 }
 
@@ -81,22 +82,29 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 
 	// Check for Cluster Agent configuration (annotation-based)
 	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableClusterAgentPrivateActionRunnerAnnotation) {
-		configData, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation)
-		if !ok {
-			configData = defaultConfigData
+		// Use config data from annotation directly, or fall back to default
+		if configData, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation); ok {
+			f.clusterConfigData = configData
+		} else {
+			f.clusterConfigData = defaultConfigData
 		}
 
-		clusterConfig, err := parsePrivateActionRunnerConfig(configData)
+		clusterConfig, err := parsePrivateActionRunnerConfig(f.clusterConfigData)
 		if err != nil {
 			f.logger.Error(err, "failed to parse private action runner config")
 			return reqComp
 		}
-		f.clusterConfig = clusterConfig
-		if !f.clusterConfig.Enabled {
+		if !clusterConfig.Enabled {
 			// Due-diligence
 			f.logger.V(1).Info("private_action_runner.enabled=false in configdata is overridden by the enable annotation")
-			f.clusterConfig.Enabled = true
+			clusterConfig.Enabled = true
+			f.clusterConfigData, err = overrideEnabledValueInConfigData(f.clusterConfigData, true)
+			if err != nil {
+				f.logger.Error(err, "failed to update enabled field in config data")
+				return reqComp
+			}
 		}
+		f.clusterConfig = clusterConfig
 		f.clusterServiceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 		reqComp.ClusterAgent = feature.RequiredComponent{
@@ -109,11 +117,6 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 
 	return reqComp
 }
-
-const (
-	PrivateActionRunnerConfigPath = "/etc/datadog-agent/privateactionrunner.yaml"
-	privateActionRunnerVolumeName = "privateactionrunner-config"
-)
 
 // ManageDependencies allows a feature to manage its dependencies.
 func (f *privateActionRunnerFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
@@ -134,7 +137,7 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 				},
 			},
 			Data: map[string]string{
-				"privateactionrunner.yaml": f.nodeConfigData,
+				privateActionRunnerFileName: f.nodeConfigData,
 			},
 		}
 
@@ -143,16 +146,42 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 		}
 	}
 
-	// Handle Cluster Agent dependencies (RBAC for secret access)
+	// Handle Cluster Agent dependencies (ConfigMap for config and RBAC for secret access)
 	if f.clusterConfig != nil && f.clusterConfig.Enabled {
-		rbacResourcesName := getPrivateActionRunnerRbacResourcesName(f.owner)
+		checksumKey, checksumValue, err := checksumAnnotation(f.clusterConfigData)
+		if err != nil {
+			return err
+		}
 
-		return managers.RBACManager().AddPolicyRules(
-			f.owner.GetNamespace(),
-			rbacResourcesName,
-			f.clusterServiceAccountName,
-			getClusterAgentRBACPolicyRules(f.clusterConfig),
-		)
+		// Create ConfigMap with the config content (either from annotation or default)
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      f.getClusterAgentConfigMapName(),
+				Namespace: f.owner.GetNamespace(),
+				Annotations: map[string]string{
+					checksumKey: checksumValue,
+				},
+			},
+			Data: map[string]string{
+				privateActionRunnerFileName: f.clusterConfigData,
+			},
+		}
+
+		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
+			return err
+		}
+
+		if f.clusterConfig.SelfEnroll {
+			err := managers.RBACManager().AddPolicyRules(
+				f.owner.GetNamespace(),
+				f.getRbacResourcesName(),
+				f.clusterServiceAccountName,
+				getClusterAgentRBACPolicyRules(f.clusterConfig.IdentitySecretName),
+			)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
@@ -162,15 +191,57 @@ func (f *privateActionRunnerFeature) getConfigMapName() string {
 	return fmt.Sprintf("%s-privateactionrunner", f.owner.GetName())
 }
 
+func (f *privateActionRunnerFeature) getClusterAgentConfigMapName() string {
+	return fmt.Sprintf("%s-clusteragent-privateactionrunner", f.owner.GetName())
+}
+
+func (f *privateActionRunnerFeature) getRbacResourcesName() string {
+	return fmt.Sprintf("%s-%s", f.owner.GetName(), privateActionRunnerSuffix)
+}
+
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 func (f *privateActionRunnerFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	if f.clusterConfig == nil || !f.clusterConfig.Enabled {
 		return nil
 	}
 
-	for _, envVar := range f.clusterConfig.ToEnvVars() {
-		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, envVar)
+	configMapName := f.getClusterAgentConfigMapName()
+
+	cmConfig := &v2alpha1.ConfigMapConfig{
+		Name: configMapName,
 	}
+	volName := fmt.Sprintf("%s-%s", f.owner.GetName(), privateActionRunnerVolumeNameSuffix)
+	vol := volume.GetVolumeFromConfigMap(cmConfig, configMapName, volName)
+	managers.Volume().AddVolume(&vol)
+
+	volMount := corev1.VolumeMount{
+		Name:      fmt.Sprintf("%s-%s", f.owner.GetName(), privateActionRunnerVolumeNameSuffix),
+		MountPath: PrivateActionRunnerConfigPath,
+		SubPath:   privateActionRunnerFileName,
+		ReadOnly:  true,
+	}
+	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.ClusterAgentContainerName)
+
+	podTemplate := managers.PodTemplateSpec()
+	for i, container := range podTemplate.Spec.Containers {
+		if container.Name == string(apicommon.ClusterAgentContainerName) {
+			// Set command if not already set (default is from Dockerfile)
+			// See https://github.com/DataDog/datadog-agent/blob/06ea6848b891e08d34753e452be7f3c9bacbf407/Dockerfiles/cluster-agent/Dockerfile#L123
+			if len(container.Command) == 0 {
+				podTemplate.Spec.Containers[i].Command = []string{"datadog-cluster-agent", "start"}
+			}
+			// Add -E flag to command
+			podTemplate.Spec.Containers[i].Command = append(podTemplate.Spec.Containers[i].Command, fmt.Sprintf("-E=%s", PrivateActionRunnerConfigPath))
+			break
+		}
+	}
+
+	// Add checksum annotation to force pod restart on config changes
+	checksumKey, checksumValue, err := checksumAnnotation(f.clusterConfigData)
+	if err != nil {
+		return err
+	}
+	managers.Annotation().AddAnnotation(checksumKey, checksumValue)
 
 	return nil
 }
@@ -186,13 +257,14 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	cmConfig := &v2alpha1.ConfigMapConfig{
 		Name: configMapName,
 	}
-	vol := volume.GetVolumeFromConfigMap(cmConfig, configMapName, privateActionRunnerVolumeName)
+	volName := fmt.Sprintf("%s-%s", f.owner.GetName(), privateActionRunnerVolumeNameSuffix)
+	vol := volume.GetVolumeFromConfigMap(cmConfig, configMapName, volName)
 	managers.Volume().AddVolume(&vol)
 
 	volMount := corev1.VolumeMount{
-		Name:      privateActionRunnerVolumeName,
+		Name:      volName,
 		MountPath: PrivateActionRunnerConfigPath,
-		SubPath:   "privateactionrunner.yaml",
+		SubPath:   privateActionRunnerFileName,
 		ReadOnly:  true,
 	}
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.PrivateActionRunnerContainerName)
