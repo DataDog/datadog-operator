@@ -601,14 +601,28 @@ func (r *Reconciler) createOrUpdateDDAI(ddai *v1alpha1.DatadogAgentInternal) err
 		return nil
 	}
 
-	if currentDDAI.Annotations[constants.MD5DDAIDeploymentAnnotationKey] != ddai.Annotations[constants.MD5DDAIDeploymentAnnotationKey] {
-		r.log.Info("updating DatadogAgentInternal", "ns", ddai.Namespace, "name", ddai.Name)
+	specChanged := currentDDAI.Annotations[constants.MD5DDAIDeploymentAnnotationKey] != ddai.Annotations[constants.MD5DDAIDeploymentAnnotationKey]
+	annotationsChanged := !maps.Equal(
+		filterOutHashAnnotations(currentDDAI.Annotations),
+		filterOutHashAnnotations(ddai.Annotations),
+	)
+	if specChanged || annotationsChanged {
+		r.log.Info("updating DatadogAgentInternal", "ns", ddai.Namespace, "name", ddai.Name, "specChanged", specChanged, "annotationsChanged", annotationsChanged)
 		if err := kubernetes.UpdateFromObject(context.TODO(), r.client, ddai, currentDDAI.ObjectMeta); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+// filterOutHashAnnotations returns a copy of the annotations map with operator-managed hash
+// annotations removed, so that user-facing annotations can be compared without noise.
+func filterOutHashAnnotations(annotations map[string]string) map[string]string {
+	filtered := maps.Clone(annotations)
+	delete(filtered, constants.MD5DDAIDeploymentAnnotationKey)
+	delete(filtered, constants.MD5AgentDeploymentAnnotationKey)
+	return filtered
 }
 
 func (r *Reconciler) addDDAIStatusToDDAStatus(status *v2alpha1.DatadogAgentStatus, ddai metav1.ObjectMeta) error {
