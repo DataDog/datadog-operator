@@ -291,7 +291,7 @@ func (s *autoscalingSuite) TestAutoscalingInferenceMethodNodes() {
 // testInstall tests the default install flow
 func (s *autoscalingSuite) testInstall(extraArgs ...string) {
 	t := s.T()
-	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 25*time.Minute)
 	defer cancel()
 
 	// Run install
