@@ -172,12 +172,15 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 		}
 
 		if f.clusterConfig.SelfEnroll {
-			return managers.RBACManager().AddPolicyRules(
+			err := managers.RBACManager().AddPolicyRules(
 				f.owner.GetNamespace(),
 				f.getRbacResourcesName(),
 				f.clusterServiceAccountName,
 				getClusterAgentRBACPolicyRules(f.clusterConfig.IdentitySecretName),
 			)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
