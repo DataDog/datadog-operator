@@ -102,12 +102,8 @@ func (r *DatadogAgentInternalReconciler) SetupWithManager(mgr ctrl.Manager, metr
 		}))
 	}
 
-	// React to both spec changes (generation) and annotation changes.
-	// Annotation changes on DDAI are driven by the DDA controller (e.g., feature flags configured via annotations).
-	eventFilter := predicate.Or(predicate.GenerationChangedPredicate{}, predicate.AnnotationChangedPredicate{})
-
 	or := reconcile.AsReconciler[*v1alpha1.DatadogAgentInternal](r.Client, r)
-	if err := builder.For(&datadoghqv1alpha1.DatadogAgentInternal{}, builderOptions...).WithEventFilter(eventFilter).Complete(or); err != nil {
+	if err := builder.For(&datadoghqv1alpha1.DatadogAgentInternal{}, builderOptions...).WithEventFilter(predicate.GenerationChangedPredicate{}).Complete(or); err != nil {
 		return err
 	}
 

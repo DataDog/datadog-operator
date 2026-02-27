@@ -288,10 +288,8 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwar
 		}))
 	}
 
-	eventFilter := r.buildEventFilter()
-
 	or := reconcile.AsReconciler[*v2alpha1.DatadogAgent](r.Client, r)
-	if err := builder.For(&v2alpha1.DatadogAgent{}, builderOptions...).WithEventFilter(eventFilter).Complete(or); err != nil {
+	if err := builder.For(&v2alpha1.DatadogAgent{}, builderOptions...).WithEventFilter(predicate.GenerationChangedPredicate{}).Complete(or); err != nil {
 		return err
 	}
 
@@ -302,19 +300,6 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwar
 	r.internal = internal
 
 	return nil
-}
-
-// buildEventFilter returns the event filter predicate for the DatadogAgent controller.
-// By default, it only reconciles on spec changes (generation change).
-// When ReconcileOnAnnotationsChange is enabled, it also reconciles on annotation updates.
-func (r *DatadogAgentReconciler) buildEventFilter() predicate.Predicate {
-	if r.Options.ReconcileOnAnnotationsChange {
-		return predicate.Or(
-			predicate.GenerationChangedPredicate{},
-			predicate.AnnotationChangedPredicate{},
-		)
-	}
-	return predicate.GenerationChangedPredicate{}
 }
 
 func enqueueIfOwnedByDatadogAgent(ctx context.Context, obj client.Object) []reconcile.Request {

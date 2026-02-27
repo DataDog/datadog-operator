@@ -57,7 +57,6 @@ type SetupOptions struct {
 	OtelAgentEnabled              bool
 	DatadogDashboardEnabled       bool
 	DatadogGenericResourceEnabled bool
-	ReconcileOnAnnotationsChange  bool
 }
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
@@ -132,12 +131,11 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes
 				CanaryAutoFailEnabled:               options.SupportExtendedDaemonset.CanaryAutoFailEnabled,
 				CanaryAutoFailMaxRestarts:           int32(options.SupportExtendedDaemonset.CanaryAutoFailMaxRestarts),
 			},
-			SupportCilium:                options.SupportCilium,
-			OperatorMetricsEnabled:       options.OperatorMetricsEnabled,
-			IntrospectionEnabled:         options.IntrospectionEnabled,
-			DatadogAgentProfileEnabled:   options.DatadogAgentProfileEnabled,
-			DatadogAgentInternalEnabled:  options.DatadogAgentInternalEnabled,
-			ReconcileOnAnnotationsChange: options.ReconcileOnAnnotationsChange,
+			SupportCilium:               options.SupportCilium,
+			OperatorMetricsEnabled:      options.OperatorMetricsEnabled,
+			IntrospectionEnabled:        options.IntrospectionEnabled,
+			DatadogAgentProfileEnabled:  options.DatadogAgentProfileEnabled,
+			DatadogAgentInternalEnabled: options.DatadogAgentInternalEnabled,
 		},
 	}).SetupWithManager(mgr, metricForwardersMgr)
 }
