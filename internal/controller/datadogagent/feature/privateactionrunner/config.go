@@ -32,6 +32,11 @@ const (
 	DDPARLogFile               = "DD_PRIVATE_ACTION_RUNNER_LOG_FILE"
 )
 
+const (
+	privateActionRunnerConfigKey  = "private_action_runner"
+	privateActionRunnerEnabledKey = "enabled"
+)
+
 // PrivateActionRunnerConfig represents the parsed configuration from YAML for Private Action Runner
 type PrivateActionRunnerConfig struct {
 	// Enabled controls whether the Private Action Runner is enabled
@@ -105,6 +110,26 @@ func parsePrivateActionRunnerConfig(configData string) (*PrivateActionRunnerConf
 		return nil, fmt.Errorf("failed to unmarshal config data: %w", err)
 	}
 	return config.PrivateActionRunner, nil
+}
+
+// overrideEnabledValueInConfigData ensures that the enabled field in the config data YAML
+// matches the desired value.
+func overrideEnabledValueInConfigData(configData string, enabled bool) (string, error) {
+	var data map[string]any
+	if err := yaml.Unmarshal([]byte(configData), &data); err != nil {
+		return "", fmt.Errorf("failed to unmarshal config data: %w", err)
+	}
+
+	if parConfig, ok := data[privateActionRunnerConfigKey].(map[string]any); ok {
+		parConfig[privateActionRunnerEnabledKey] = enabled
+	}
+
+	updatedYAML, err := yaml.Marshal(data)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal updated config data: %w", err)
+	}
+
+	return string(updatedYAML), nil
 }
 
 // ToEnvVars converts the PrivateActionRunnerConfig to a list of environment variables

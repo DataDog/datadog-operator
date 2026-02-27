@@ -94,13 +94,17 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 			f.logger.Error(err, "failed to parse private action runner config")
 			return reqComp
 		}
-		f.clusterConfig = clusterConfig
-		if !f.clusterConfig.Enabled {
+		if !clusterConfig.Enabled {
 			// Due-diligence
 			f.logger.V(1).Info("private_action_runner.enabled=false in configdata is overridden by the enable annotation")
-			f.clusterConfig.Enabled = true
+			clusterConfig.Enabled = true
+			f.clusterConfigData, err = overrideEnabledValueInConfigData(f.clusterConfigData, true)
+			if err != nil {
+				f.logger.Error(err, "failed to update enabled field in config data")
+				return reqComp
+			}
 		}
-
+		f.clusterConfig = clusterConfig
 		f.clusterServiceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 		reqComp.ClusterAgent = feature.RequiredComponent{
@@ -167,14 +171,14 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 			return err
 		}
 
-		// Add RBAC for secret access during self-enrollment
-		rbacResourcesName := getPrivateActionRunnerRbacResourcesName(f.owner)
-		return managers.RBACManager().AddPolicyRules(
-			f.owner.GetNamespace(),
-			rbacResourcesName,
-			f.clusterServiceAccountName,
-			getClusterAgentRBACPolicyRules(f.clusterConfig),
-		)
+		if f.clusterConfig.SelfEnroll {
+			return managers.RBACManager().AddPolicyRules(
+				f.owner.GetNamespace(),
+				f.getRbacResourcesName(),
+				f.clusterServiceAccountName,
+				getClusterAgentRBACPolicyRules(f.clusterConfig.IdentitySecretName),
+			)
+		}
 	}
 
 	return nil
@@ -186,6 +190,10 @@ func (f *privateActionRunnerFeature) getConfigMapName() string {
 
 func (f *privateActionRunnerFeature) getClusterAgentConfigMapName() string {
 	return fmt.Sprintf("%s-clusteragent-privateactionrunner", f.owner.GetName())
+}
+
+func (f *privateActionRunnerFeature) getRbacResourcesName() string {
+	return fmt.Sprintf("%s-%s", f.owner.GetName(), privateActionRunnerSuffix)
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
