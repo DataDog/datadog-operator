@@ -22,6 +22,8 @@ const (
 	DdotCollectorLatestVersion = "7.76.1"
 	// FIPSProxyLatestVersion corresponds to the latest stable fips-proxy release
 	FIPSProxyLatestVersion = "1.1.21"
+	// Datadog container registry
+	DatadogContainerRegistry = "registry.datadoghq.com"
 	// GCRContainerRegistry corresponds to the datadoghq GCR registry
 	GCRContainerRegistry = "gcr.io/datadoghq"
 	// DockerHubContainerRegistry corresponds to the datadoghq docker.io registry

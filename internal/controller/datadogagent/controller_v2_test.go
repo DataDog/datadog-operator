@@ -1111,6 +1111,20 @@ func getDsContainers(c client.Client, resourcesNamespace, dsName string) map[api
 	return dsContainers
 }
 
+func getDeploymentContainers(c client.Client, resourcesNamespace, deploymentName string) map[apicommon.AgentContainerName]corev1.Container {
+	deployment := &appsv1.Deployment{}
+	if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: deploymentName}, deployment); err != nil {
+		return nil
+	}
+
+	containers := map[apicommon.AgentContainerName]corev1.Container{}
+	for _, container := range deployment.Spec.Template.Spec.Containers {
+		containers[apicommon.AgentContainerName(container.Name)] = container
+	}
+
+	return containers
+}
+
 func Test_AutopilotOverrides(t *testing.T) {
 	const resourcesName, resourcesNamespace, dsName = "foo", "bar", "foo-agent"
 
@@ -2080,4 +2094,103 @@ func verifyOtelAgentGatewayStatus(t *testing.T, c client.Client, namespace, ddaN
 	assert.NotNil(t, otelCondition, "OTel Agent Gateway condition should be set")
 	assert.Equal(t, metav1.ConditionTrue, otelCondition.Status, "OTel Agent Gateway condition should be True")
 	assert.Equal(t, "reconcile_succeed", otelCondition.Reason, "OTel Agent Gateway reconcile should succeed")
+}
+
+func Test_RegistryDefaultingBySite(t *testing.T) {
+	const resourcesName = "foo"
+	const resourcesNamespace = "bar"
+	const dsName = "foo-agent"
+	const dcaName = "foo-cluster-agent"
+	const ccrName = "foo-cluster-checks-runner"
+
+	defaultRequeueDuration := 15 * time.Second
+
+	type registryTestCase struct {
+		name         string
+		site         string
+		envVars      map[string]string
+		wantRegistry string
+	}
+
+	tests := []registryTestCase{
+		{
+			name:         "Europe site defaults to EU registry",
+			site:         "datadoghq.eu",
+			wantRegistry: images.DefaultEuropeImageRegistry,
+		},
+		{
+			name:         "Asia site defaults to Asia registry",
+			site:         "ap1.datadoghq.com",
+			wantRegistry: images.DefaultAsiaImageRegistry,
+		},
+		{
+			name:         "Azure site defaults to Azure registry",
+			site:         "us3.datadoghq.com",
+			wantRegistry: images.DefaultAzureImageRegistry,
+		},
+		{
+			name:         "Gov site defaults to Gov registry",
+			site:         "ddog-gov.com",
+			wantRegistry: images.DefaultGovImageRegistry,
+		},
+		{
+			name:         "default site without DD_USE_DATADOG_REGISTRY uses GCR registry",
+			site:         "datadoghq.com",
+			wantRegistry: images.DefaultImageRegistry,
+		},
+		{
+			name:         "default site with DD_USE_DATADOG_REGISTRY=true uses Datadog registry",
+			site:         "datadoghq.com",
+			envVars:      map[string]string{"DD_USE_DATADOG_REGISTRY": "true"},
+			wantRegistry: images.DatadogContainerRegistry,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for k, v := range tt.envVars {
+				t.Setenv(k, v)
+			}
+
+			site := tt.site
+			wantRegistry := tt.wantRegistry
+
+			tc := testCase{
+				loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+						WithClusterChecks(true, true).
+						Build()
+					dda.Spec.Global.Site = apiutils.NewStringPointer(site)
+					_ = c.Create(context.TODO(), dda)
+					return dda
+				},
+				want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+				wantErr: false,
+				wantFunc: func(t *testing.T, c client.Client) {
+					// Node Agent
+					agentContainers := getDsContainers(c, resourcesNamespace, dsName)
+					assert.Equal(t,
+						fmt.Sprintf("%s/%s:%s", wantRegistry, images.DefaultAgentImageName, images.AgentLatestVersion),
+						agentContainers[apicommon.CoreAgentContainerName].Image,
+					)
+
+					// Cluster Agent
+					dcaContainers := getDeploymentContainers(c, resourcesNamespace, dcaName)
+					assert.Equal(t,
+						fmt.Sprintf("%s/%s:%s", wantRegistry, images.DefaultClusterAgentImageName, images.ClusterAgentLatestVersion),
+						dcaContainers[apicommon.ClusterAgentContainerName].Image,
+					)
+
+					// Cluster Checks Runner
+					ccrContainers := getDeploymentContainers(c, resourcesNamespace, ccrName)
+					assert.Equal(t,
+						fmt.Sprintf("%s/%s:%s", wantRegistry, images.DefaultAgentImageName, images.AgentLatestVersion),
+						ccrContainers[apicommon.ClusterChecksRunnersContainerName].Image,
+					)
+				},
+			}
+
+			runDDAReconcilerTest(t, tc, ReconcilerOptions{})
+		})
+	}
 }

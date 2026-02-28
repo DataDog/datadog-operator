@@ -6,6 +6,8 @@
 package defaults
 
 import (
+	"os"
+
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -167,7 +169,11 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		case defaultGovSite:
 			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultGovImageRegistry)
 		default:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultImageRegistry)
+			if os.Getenv("DD_USE_DATADOG_REGISTRY") == "true" {
+				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DatadogContainerRegistry)
+			} else {
+				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultImageRegistry)
+			}
 		}
 	}
 
