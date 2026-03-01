@@ -64,11 +64,8 @@ type RCClient interface {
 	Subscribe(product string, fn func(update map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus)))
 }
 
-// Client returns the underlying RC client. Returns nil before Setup has been called.
+// Client returns the underlying RC client.
 func (r *RemoteConfigUpdater) Client() RCClient {
-	if r.rcClient == nil {
-		return nil
-	}
 	return r.rcClient
 }
 
