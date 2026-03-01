@@ -1787,6 +1787,29 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_SecretBackendConfig(ref comm
 							Format:      "",
 						},
 					},
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The built-in secret backend type to use (e.g., `k8s.secrets`, `docker.secrets`, `aws.secrets`). Alternative to Command; when Type is set, the Agent uses the built-in backend to resolve secrets. Requires Agent 7.70+.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"config": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Additional configuration for the secret backend type.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 					"roles": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{

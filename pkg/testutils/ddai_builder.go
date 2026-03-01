@@ -979,6 +979,15 @@ func (builder *DatadogAgentInternalBuilder) WithGlobalSecretBackendGlobalPerms(c
 	return builder
 }
 
+func (builder *DatadogAgentInternalBuilder) WithGlobalSecretBackendType(backendType string, config map[string]string) *DatadogAgentInternalBuilder {
+	if builder.datadogAgentInternal.Spec.Global.SecretBackend == nil {
+		builder.datadogAgentInternal.Spec.Global.SecretBackend = &v2alpha1.SecretBackendConfig{}
+	}
+	builder.datadogAgentInternal.Spec.Global.SecretBackend.Type = apiutils.NewStringPointer(backendType)
+	builder.datadogAgentInternal.Spec.Global.SecretBackend.Config = config
+	return builder
+}
+
 func (builder *DatadogAgentInternalBuilder) WithGlobalSecretBackendSpecificRoles(command string, args string, timeout int32, secretNs string, secretNames []string) *DatadogAgentInternalBuilder {
 	builder.datadogAgentInternal.Spec.Global.SecretBackend = &v2alpha1.SecretBackendConfig{
 		Command:                 apiutils.NewStringPointer(command),
