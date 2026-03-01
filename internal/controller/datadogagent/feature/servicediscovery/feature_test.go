@@ -43,6 +43,10 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 	{
 		ddaServiceDiscoveryEnabledWithNetStats.Spec.Features.ServiceDiscovery.NetworkStats.Enabled = apiutils.NewBoolPointer(true)
 	}
+	ddaServiceDiscoveryWithSdAgent := ddaServiceDiscoveryEnabledWithNetStats.DeepCopy()
+	{
+		ddaServiceDiscoveryWithSdAgent.Spec.Features.ServiceDiscovery.UseSdAgent = apiutils.NewBoolPointer(true)
+	}
 
 	tests := test.FeatureTestSuite{
 		{
@@ -54,13 +58,21 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 			Name:          "service discovery enabled - no network stats",
 			DDA:           ddaServiceDiscoveryEnabledNoNetStats,
 			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(getWantFunc(noNetStats)),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(getWantFunc(noNetStats, noSdAgent)),
 		},
 		{
 			Name:          "service discovery enabled - with network stats",
 			DDA:           ddaServiceDiscoveryEnabledWithNetStats,
 			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(getWantFunc(withNetStats)),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(getWantFunc(withNetStats, noSdAgent)),
+		},
+		{
+			Name:          "service discovery enabled - with sd-agent",
+			DDA:           ddaServiceDiscoveryWithSdAgent,
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().
+				WithCreateFunc(createFuncWithSystemProbeContainer()).
+				WithWantFunc(getWantFunc(withNetStats, withSdAgent)),
 		},
 	}
 
@@ -70,9 +82,29 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 const (
 	noNetStats   = false
 	withNetStats = true
+	noSdAgent    = false
+	withSdAgent  = true
 )
 
-func getWantFunc(withNetStats bool) func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+func createFuncWithSystemProbeContainer() func(testing.TB) (feature.PodTemplateManagers, string) {
+	return func(t testing.TB) (feature.PodTemplateManagers, string) {
+		newPTS := corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name: string(apicommon.CoreAgentContainerName),
+					},
+					{
+						Name: string(apicommon.SystemProbeContainerName),
+					},
+				},
+			},
+		}
+		return fake.NewPodTemplateManagers(t, newPTS), ""
+	}
+}
+
+func getWantFunc(withNetStats bool, useSdAgent bool) func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 
@@ -216,11 +248,31 @@ func getWantFunc(withNetStats bool) func(t testing.TB, mgrInterface feature.PodT
 			},
 		}
 
+		if useSdAgent {
+			wantSPEnvVars = append(wantSPEnvVars, &corev1.EnvVar{
+				Name:  DDDiscoveryUseSdAgent,
+				Value: "true",
+			})
+		}
+
 		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantAgentEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantAgentEnvVars))
 
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
 		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, wantSPEnvVars), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, wantSPEnvVars))
+
+		// check system-probe container command override for sd-agent
+		if useSdAgent {
+			for _, c := range mgr.PodTemplateSpec().Spec.Containers {
+				if c.Name == string(apicommon.SystemProbeContainerName) {
+					assert.Equal(t, []string{"/bin/sh", "-c"}, c.Command, "System Probe command should be overridden for sd-agent")
+					assert.Len(t, c.Args, 1, "System Probe args should have one element")
+					assert.Contains(t, c.Args[0], "sd-agent", "System Probe args should contain sd-agent")
+					assert.Contains(t, c.Args[0], "system-probe", "System Probe args should contain system-probe fallback")
+					break
+				}
+			}
+		}
 	}
 }
 

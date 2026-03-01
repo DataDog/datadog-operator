@@ -626,6 +626,13 @@ type ServiceDiscoveryFeatureConfig struct {
 	// Default: true
 	// +optional
 	NetworkStats *ServiceDiscoveryNetworkStatsConfig `json:"networkStats,omitempty"`
+
+	// UseSdAgent enables the sd-agent wrapper for system-probe when running service discovery.
+	// When enabled, the system-probe container uses sd-agent as a lightweight wrapper,
+	// falling back to plain system-probe if the binary is not available.
+	// Default: false
+	// +optional
+	UseSdAgent *bool `json:"useSdAgent,omitempty"`
 }
 
 // ServiceDiscoveryNetworkStatsConfig configures Service Discovery's network stats

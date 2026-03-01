@@ -2485,6 +2485,10 @@
                     }
                   },
                   "type": "object"
+                },
+                "useSdAgent": {
+                  "description": "UseSdAgent enables the sd-agent wrapper for system-probe when running service discovery.\nWhen enabled, the system-probe container uses sd-agent as a lightweight wrapper,\nfalling back to plain system-probe if the binary is not available.\nDefault: false",
+                  "type": "boolean"
                 }
               },
               "type": "object"
@@ -10348,6 +10352,10 @@
                         }
                       },
                       "type": "object"
+                    },
+                    "useSdAgent": {
+                      "description": "UseSdAgent enables the sd-agent wrapper for system-probe when running service discovery.\nWhen enabled, the system-probe container uses sd-agent as a lightweight wrapper,\nfalling back to plain system-probe if the binary is not available.\nDefault: false",
+                      "type": "boolean"
                     }
                   },
                   "type": "object"

@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.17.3
+    controller-gen.kubebuilder.io/version: v0.16.3
   name: datadogagentprofiles.datadoghq.com
 spec:
   group: datadoghq.com
@@ -2368,6 +2368,13 @@ spec:
                                     Default: true
                                   type: boolean
                               type: object
+                            useSdAgent:
+                              description: |-
+                                UseSdAgent enables the sd-agent wrapper for system-probe when running service discovery.
+                                When enabled, the system-probe container uses sd-agent as a lightweight wrapper,
+                                falling back to plain system-probe if the binary is not available.
+                                Default: false
+                              type: boolean
                           type: object
                         tcpQueueLength:
                           description: TCPQueueLength configuration.
