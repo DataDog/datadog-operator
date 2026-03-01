@@ -724,6 +724,17 @@ spec:
                                 type: string
                               type: array
                               x-kubernetes-list-type: set
+                            injectionMode:
+                              description: |-
+                                InjectionMode is the injection mode to use for libraries injection.
+                                Valid values are: "auto", "init_container", "csi" (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver), "image_volume" (experimental, requires Cluster Agent 7.77.0+).
+                                Empty by default so the Cluster Agent can apply its own defaults.
+                              enum:
+                                - auto
+                                - init_container
+                                - csi
+                                - image_volume
+                              type: string
                             injector:
                               description: Injector configures the APM Injector.
                               properties:
@@ -8729,6 +8740,17 @@ spec:
                                     type: string
                                   type: array
                                   x-kubernetes-list-type: set
+                                injectionMode:
+                                  description: |-
+                                    InjectionMode is the injection mode to use for libraries injection.
+                                    Valid values are: "auto", "init_container", "csi" (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver), "image_volume" (experimental, requires Cluster Agent 7.77.0+).
+                                    Empty by default so the Cluster Agent can apply its own defaults.
+                                  enum:
+                                    - auto
+                                    - init_container
+                                    - csi
+                                    - image_volume
+                                  type: string
                                 injector:
                                   description: Injector configures the APM Injector.
                                   properties:

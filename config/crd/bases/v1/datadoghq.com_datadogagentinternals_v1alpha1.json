@@ -685,6 +685,16 @@
                       "type": "array",
                       "x-kubernetes-list-type": "set"
                     },
+                    "injectionMode": {
+                      "description": "InjectionMode is the injection mode to use for libraries injection.\nValid values are: \"auto\", \"init_container\", \"csi\" (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver), \"image_volume\" (experimental, requires Cluster Agent 7.77.0+).\nEmpty by default so the Cluster Agent can apply its own defaults.",
+                      "enum": [
+                        "auto",
+                        "init_container",
+                        "csi",
+                        "image_volume"
+                      ],
+                      "type": "string"
+                    },
                     "injector": {
                       "additionalProperties": false,
                       "description": "Injector configures the APM Injector.",
@@ -8547,6 +8557,16 @@
                           },
                           "type": "array",
                           "x-kubernetes-list-type": "set"
+                        },
+                        "injectionMode": {
+                          "description": "InjectionMode is the injection mode to use for libraries injection.\nValid values are: \"auto\", \"init_container\", \"csi\" (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver), \"image_volume\" (experimental, requires Cluster Agent 7.77.0+).\nEmpty by default so the Cluster Agent can apply its own defaults.",
+                          "enum": [
+                            "auto",
+                            "init_container",
+                            "csi",
+                            "image_volume"
+                          ],
+                          "type": "string"
                         },
                         "injector": {
                           "additionalProperties": false,

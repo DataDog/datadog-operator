@@ -195,6 +195,13 @@ type SingleStepInstrumentation struct {
 	// +optional
 	Injector *InjectorConfig `json:"injector,omitempty"`
 
+	// InjectionMode is the injection mode to use for libraries injection.
+	// Valid values are: "auto", "init_container", "csi" (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver), "image_volume" (experimental, requires Cluster Agent 7.77.0+).
+	// Empty by default so the Cluster Agent can apply its own defaults.
+	// +optional
+	// +kubebuilder:validation:Enum=auto;init_container;csi;image_volume
+	InjectionMode string `json:"injectionMode,omitempty"`
+
 	// Targets is a list of targets to apply the auto instrumentation to. The first target that matches the pod will be
 	// used. If no target matches, the auto instrumentation will not be applied.
 	// (Requires Cluster Agent 7.64.0+)
