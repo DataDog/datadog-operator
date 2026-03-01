@@ -32,22 +32,22 @@ import (
 
 // NewDefaultAgentDaemonset return a new default agent DaemonSet
 // TODO: remove instanceName once v2 reconcile is removed
-func NewDefaultAgentDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent, instanceName string) *appsv1.DaemonSet {
+func NewDefaultAgentDaemonset(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent, instanceName string) *appsv1.DaemonSet {
 	daemonset := NewDaemonset(dda, edsOptions, constants.DefaultAgentResourceSuffix, component.GetAgentName(dda), common.GetAgentVersion(dda), nil, instanceName)
-	podTemplate := NewDefaultAgentPodTemplateSpec(dda, agentComponent, daemonset.GetLabels())
+	podTemplate := NewDefaultAgentPodTemplateSpec(dda, ddaSpec, agentComponent, daemonset.GetLabels())
 	daemonset.Spec.Template = *podTemplate
 	return daemonset
 }
 
 // NewDefaultAgentExtendedDaemonset return a new default agent DaemonSet
-func NewDefaultAgentExtendedDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent) *edsv1alpha1.ExtendedDaemonSet {
+func NewDefaultAgentExtendedDaemonset(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent) *edsv1alpha1.ExtendedDaemonSet {
 	edsDaemonset := NewExtendedDaemonset(dda, edsOptions, constants.DefaultAgentResourceSuffix, component.GetAgentName(dda), common.GetAgentVersion(dda), nil)
-	edsDaemonset.Spec.Template = *NewDefaultAgentPodTemplateSpec(dda, agentComponent, edsDaemonset.GetLabels())
+	edsDaemonset.Spec.Template = *NewDefaultAgentPodTemplateSpec(dda, ddaSpec, agentComponent, edsDaemonset.GetLabels())
 	return edsDaemonset
 }
 
 // NewDefaultAgentPodTemplateSpec returns a defaulted node agent PodTemplateSpec with a single multi-process container or multiple single-process containers
-func NewDefaultAgentPodTemplateSpec(dda metav1.Object, agentComponent feature.RequiredComponent, labels map[string]string) *corev1.PodTemplateSpec {
+func NewDefaultAgentPodTemplateSpec(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, agentComponent feature.RequiredComponent, labels map[string]string) *corev1.PodTemplateSpec {
 	requiredContainers := agentComponent.Containers
 
 	var agentContainers []corev1.Container
@@ -70,7 +70,7 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, agentComponent feature.Re
 			ServiceAccountName: getDefaultServiceAccountName(dda),
 			InitContainers:     initContainers(dda, requiredContainers),
 			Containers:         agentContainers,
-			Volumes:            volumesForAgent(dda, requiredContainers),
+			Volumes:            volumesForAgent(dda, ddaSpec, requiredContainers),
 		},
 	}
 }
@@ -763,10 +763,15 @@ func volumeMountsForInitConfig() []corev1.VolumeMount {
 	}
 }
 
-func volumesForAgent(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Volume {
+func volumesForAgent(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, requiredContainers []apicommon.AgentContainerName) []corev1.Volume {
+	useVSock := false
+	if ddaSpec != nil && ddaSpec.Global != nil {
+		useVSock = apiutils.BoolValue(ddaSpec.Global.UseVSock)
+	}
+
 	volumes := []corev1.Volume{
 		common.GetVolumeForLogs(),
-		common.GetVolumeForAuth(),
+		common.GetVolumeForAuth(useVSock),
 		common.GetVolumeInstallInfo(dda),
 		common.GetVolumeForChecksd(),
 		common.GetVolumeForConfd(),
