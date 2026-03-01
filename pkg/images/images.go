@@ -171,8 +171,14 @@ func OverrideAgentImage(currentImage string, overrideImageSpec *v2alpha1.AgentIm
 	// If an override tag (whether from the tag or name) is provided, then the FIPS and full suffixes present in this tag
 	// should take precedence over the current image suffixes. If it's not provided, then preserve the original
 	if overrideImage.tag != "" {
-		image.WithFIPS(overrideImage.isFIPS).
-			WithFull(overrideImage.isFull)
+		// Only override FIPS/Full if they're explicitly present in the override tag
+		// Otherwise preserve current settings (from global.useFIPSAgent or existing image)
+		if overrideImage.isFIPS {
+			image.WithFIPS(overrideImage.isFIPS)
+		}
+		if overrideImage.isFull {
+			image.WithFull(overrideImage.isFull)
+		}
 	}
 
 	return image.ToString()
@@ -184,15 +190,19 @@ func (i *Image) ToString() string {
 	// FIPS is a global setting, JMX is an override setting and Full is a feature setting.
 	// Order of priority is JMX -> FIPS -> Full
 	if i.isJMX {
-		if i.isFIPS {
+		if i.isFIPS && i.isFull {
+			// JMX + FIPS + Full: Full image includes JMX, so use -fips-full
+			suffix = FIPSTagSuffix + FullTagSuffix
+		} else if i.isFIPS {
 			suffix = FIPSTagSuffix + JMXTagSuffix
 		} else if i.isFull {
 			// Since JMX is compatible with the Full image, iff isJMX and isFull are true then use the Full suffix
 			suffix = FullTagSuffix
 		} else {
 			suffix = JMXTagSuffix
-
 		}
+	} else if i.isFIPS && i.isFull {
+		suffix = FIPSTagSuffix + FullTagSuffix
 	} else if i.isFIPS {
 		suffix = FIPSTagSuffix
 	} else if i.isFull {
@@ -212,21 +222,23 @@ func FromString(stringImage string) *Image {
 	name := splitName[0]
 	tag := splitName[1]
 
-	// Check if this tag has Full suffix
-	// If it does, return because it is incompatible with the other two suffixes
+	// Check for suffixes in reverse order of how they appear in the tag
+	// Expected suffix order: -fips-full, -fips-jmx
+	// Parse from right to left: Full -> JMX -> FIPS
+
+	// Check if this tag has Full suffix (rightmost)
 	isFull := strings.HasSuffix(tag, FullTagSuffix)
 	if isFull {
 		tag = strings.TrimSuffix(tag, FullTagSuffix)
-		return newImage(registry, name, tag, false, false, isFull)
 	}
 
-	// Check if this tag has JMX or FIPS suffixes
-	// JMX would be on the outside
+	// Check if this tag has JMX suffix (rightmost if no Full)
 	isJMX := strings.HasSuffix(tag, JMXTagSuffix)
 	if isJMX {
 		tag = strings.TrimSuffix(tag, JMXTagSuffix)
 	}
 
+	// Check if this tag has FIPS suffix (before Full or JMX)
 	isFIPS := strings.HasSuffix(tag, FIPSTagSuffix)
 	if isFIPS {
 		tag = strings.TrimSuffix(tag, FIPSTagSuffix)
