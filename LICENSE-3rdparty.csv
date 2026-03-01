@@ -104,6 +104,7 @@ core,github.com/google/btree,Apache-2.0
 core,github.com/google/cel-go,Apache-2.0
 core,github.com/google/gnostic-models,Apache-2.0
 core,github.com/google/go-cmp/cmp,BSD-3-Clause
+core,github.com/google/jsonschema-go/jsonschema,MIT
 core,github.com/google/pprof/profile,Apache-2.0
 core,github.com/google/shlex,Apache-2.0
 core,github.com/google/uuid,BSD-3-Clause
@@ -146,6 +147,7 @@ core,github.com/mitchellh/mapstructure,MIT
 core,github.com/mitchellh/reflectwalk,MIT
 core,github.com/moby/spdystream,Apache-2.0
 core,github.com/moby/term,Apache-2.0
+core,github.com/modelcontextprotocol/go-sdk,MIT
 core,github.com/modern-go/concurrent,Apache-2.0
 core,github.com/modern-go/reflect2,Apache-2.0
 core,github.com/mohae/deepcopy,MIT
@@ -201,6 +203,7 @@ core,github.com/ulikunitz/xz,BSD-3-Clause
 core,github.com/x448/float16,MIT
 core,github.com/xi2/xz,Unknown
 core,github.com/xlab/treeprint,MIT
+core,github.com/yosida95/uritemplate/v3,BSD-3-Clause
 core,go.etcd.io/bbolt,MIT
 core,go.opentelemetry.io/auto/sdk,Apache-2.0
 core,go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp,Apache-2.0

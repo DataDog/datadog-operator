@@ -21,7 +21,7 @@ import (
 type Options struct {
 	ConfigFlags     *genericclioptions.ConfigFlags
 	Client          client.Client
-	Clientset       *kubernetes.Clientset
+	Clientset       kubernetes.Interface
 	APIExtClient    *apiextensionclient.Clientset
 	DiscoveryClient discovery.DiscoveryInterface
 
