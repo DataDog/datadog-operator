@@ -123,7 +123,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	// the workaround to merge existing config and check files with custom ones. The VolumeMount is already
 	// defined in the init container; just overwrite the Volume to mount the ConfigMap instead of an EmptyDir.
 	// If both ConfigMap and ConfigData exist, ConfigMap has higher priority.
-	if override.ExtraConfd != nil {
+	if override.ExtraConfd != nil && (override.ExtraConfd.ConfigMap != nil || len(override.ExtraConfd.ConfigDataMap) > 0) {
 		cmName := fmt.Sprintf(extraConfdConfigMapName, strings.ToLower((string(componentName))))
 		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraConfd, common.ConfdVolumeName, cmName)
 		manager.Volume().AddVolume(&vol)
@@ -140,7 +140,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	}
 
 	// If both ConfigMap and ConfigData exist, ConfigMap has higher priority.
-	if override.ExtraChecksd != nil {
+	if override.ExtraChecksd != nil && (override.ExtraChecksd.ConfigMap != nil || len(override.ExtraChecksd.ConfigDataMap) > 0) {
 		cmName := fmt.Sprintf(extraChecksdConfigMapName, strings.ToLower((string(componentName))))
 		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraChecksd, common.ChecksdVolumeName, cmName)
 		manager.Volume().AddVolume(&vol)
