@@ -7,7 +7,6 @@ package fleet
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
@@ -43,10 +42,6 @@ func NewDaemon(logger logr.Logger, rcClient remoteconfig.RCClient) *Daemon {
 // blocks until ctx is cancelled.
 func (d *Daemon) Start(ctx context.Context) error {
 	d.logger.Info("Starting Fleet daemon")
-
-	if d.rcClient == nil {
-		return fmt.Errorf("fleet daemon: RC client is not ready")
-	}
 
 	d.rcClient.Subscribe(state.ProductUpdaterAgent, handleInstallerConfigUpdate(d.handleConfigs))
 	d.rcClient.Subscribe(state.ProductUpdaterTask, handleUpdaterTaskUpdate(d.handleRemoteAPIRequest))
