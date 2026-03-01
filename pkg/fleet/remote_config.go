@@ -10,17 +10,7 @@ import (
 	"fmt"
 
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
-
-	"github.com/DataDog/datadog-operator/pkg/config"
-	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 )
-
-// rcClientProvider is what the daemon needs from the RC layer.
-// *remoteconfig.RemoteConfigUpdater satisfies this interface.
-type rcClientProvider interface {
-	Setup(creds config.Creds) error
-	Client() remoteconfig.RCClient
-}
 
 // installerConfig is the fleet installer configuration received via RC.
 type installerConfig struct {

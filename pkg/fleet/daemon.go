@@ -7,14 +7,13 @@ package fleet
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"github.com/DataDog/datadog-operator/pkg/config"
+	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 )
 
 var _ manager.Runnable = &Daemon{}
@@ -23,36 +22,29 @@ var _ manager.LeaderElectionRunnable = &Daemon{}
 // Daemon subscribes to fleet-specific RC products (installer configs and tasks)
 // and runs after leader election as a controller-runtime Runnable.
 type Daemon struct {
-	logger logr.Logger
-	creds  config.Creds
-	rc     rcClientProvider
-	mu     sync.RWMutex
+	logger   logr.Logger
+	rcClient remoteconfig.RCClient
+	mu       sync.RWMutex
 	// configs stores the latest received installer configs keyed by RC config path.
 	configs map[string]installerConfig
 }
 
 // NewDaemon creates a new Fleet Daemon.
-func NewDaemon(logger logr.Logger, creds config.Creds, rc rcClientProvider) *Daemon {
+func NewDaemon(logger logr.Logger, rcClient remoteconfig.RCClient) *Daemon {
 	return &Daemon{
-		logger:  logger,
-		creds:   creds,
-		rc:      rc,
-		configs: make(map[string]installerConfig),
+		logger:   logger,
+		rcClient: rcClient,
+		configs:  make(map[string]installerConfig),
 	}
 }
 
-// Start implements manager.Runnable. It sets up the RC client, subscribes to
-// fleet products, and blocks until ctx is cancelled.
+// Start implements manager.Runnable. It subscribes to fleet RC products and
+// blocks until ctx is cancelled.
 func (d *Daemon) Start(ctx context.Context) error {
 	d.logger.Info("Starting Fleet daemon")
 
-	if err := d.rc.Setup(d.creds); err != nil {
-		return fmt.Errorf("failed to setup fleet RC: %w", err)
-	}
-
-	rcClient := d.rc.Client()
-	rcClient.Subscribe(state.ProductUpdaterAgent, handleInstallerConfigUpdate(d.handleConfigs))
-	rcClient.Subscribe(state.ProductUpdaterTask, handleUpdaterTaskUpdate(d.handleRemoteAPIRequest))
+	d.rcClient.Subscribe(state.ProductUpdaterAgent, handleInstallerConfigUpdate(d.handleConfigs))
+	d.rcClient.Subscribe(state.ProductUpdaterTask, handleUpdaterTaskUpdate(d.handleRemoteAPIRequest))
 
 	<-ctx.Done()
 	d.logger.Info("Stopping Fleet daemon")
