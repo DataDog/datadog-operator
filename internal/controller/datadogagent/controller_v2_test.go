@@ -1916,6 +1916,96 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 	runTestCases(t, tests, runFullReconcilerTest)
 }
 
+// Test_StaleAgentPodCleanup tests that agent pods whose profile assignment has changed are deleted.
+// It exercises both code paths:
+//   - Non-DDAI path via runDDAReconcilerTest (DatadogAgentInternalEnabled=false): reconcileInstanceV2 → handleProfiles → cleanupPodsForProfilesThatNoLongerApply
+//   - DDAI path via runFullReconcilerTest (forces DatadogAgentInternalEnabled=true): reconcileInstanceV3 → reconcileProfiles → cleanupPodsForProfilesThatNoLongerApply
+func Test_StaleAgentPodCleanup(t *testing.T) {
+	const resourcesName = "foo"
+	const resourcesNamespace = "bar"
+
+	defaultRequeueDuration := 15 * time.Second
+
+	dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).BuildWithDefaults()
+
+	// newProfile selects nodes with label role=new-profile.
+	// Config.Override must be non-nil for the non-DDAI code path (DatadogAgentInternalEnabled=false).
+	newProfile := &v1alpha1.DatadogAgentProfile{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "new-profile",
+			Namespace: resourcesNamespace,
+		},
+		Spec: v1alpha1.DatadogAgentProfileSpec{
+			ProfileAffinity: &v1alpha1.ProfileAffinity{
+				ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
+					{
+						Key:      "role",
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"new-profile"},
+					},
+				},
+			},
+			Config: &v2alpha1.DatadogAgentSpec{
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {},
+				},
+			},
+		},
+	}
+	// profileChangeNode has been relabeled so it now matches new-profile
+	profileChangeNode := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "node1",
+			Labels: map[string]string{
+				"role": "new-profile",
+			},
+		},
+	}
+	// stalePod is still running on node1 but was created by the old-profile DaemonSet
+	stalePod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "agent-stale-pod",
+			Namespace: resourcesNamespace,
+			Labels: map[string]string{
+				apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+				constants.ProfileLabelKey:                  "old-profile",
+			},
+		},
+		Spec: corev1.PodSpec{
+			NodeName: "node1",
+		},
+	}
+
+	tests := []testCase{
+		{
+			name:            "stale agent pods from old profile are deleted when node profile assignment changes",
+			profilesEnabled: true,
+			ddaiEnabled:     false, // runFullReconcilerTest will force DatadogAgentInternalEnabled=true
+			nodes:           []client.Object{profileChangeNode},
+			clientBuilder: fake.NewClientBuilder().
+				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}).
+				WithObjects(newProfile, stalePod),
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				ddaCopy := dda.DeepCopy()
+				_ = c.Create(context.TODO(), ddaCopy)
+				return ddaCopy
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				podList := corev1.PodList{}
+				err := c.List(context.TODO(), &podList, client.InNamespace(resourcesNamespace))
+				assert.NoError(t, err)
+				assert.Empty(t, podList.Items,
+					"stale agent pods from old profile should be deleted when node profile assignment changes")
+			},
+		},
+	}
+
+	runTestCases(t, tests, runDDAReconcilerTest)
+	runTestCases(t, tests, runFullReconcilerTest)
+}
+
 func verifyDDAI(t *testing.T, c client.Client, expectedDDAI []v1alpha1.DatadogAgentInternal) {
 	ddaiList := v1alpha1.DatadogAgentInternalList{}
 	err := c.List(context.TODO(), &ddaiList)

@@ -405,6 +405,9 @@ e2e_autoscaling:
     # Disable on Conductor-triggered jobs (ex: nightly) — must be first so it wins
     - if: '$DDR == "true"'
       when: never
+    # Allow failure if we're explicitly pushing images to staging
+    - if: $PUSH_IMAGES_TO_STAGING == 'true'
+      allow_failure: true
     # Run automatically on changes to autoscaling code
     - if: $CI_COMMIT_BRANCH
       changes:
