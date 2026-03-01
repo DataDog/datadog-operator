@@ -27,13 +27,13 @@ type installerConfigFileOperation struct {
 
 // remoteAPIRequest is a task sent to the fleet daemon via RC.
 type remoteAPIRequest struct {
-	ID           string          `json:"id"`
-	Package      string          `json:"package_name"`
-	TraceID      string          `json:"trace_id"`
-	ParentSpanID string          `json:"parent_span_id"`
-	ExpectedState expectedState  `json:"expected_state"`
-	Method       string          `json:"method"`
-	Params       json.RawMessage `json:"params"`
+	ID            string          `json:"id"`
+	Package       string          `json:"package_name"`
+	TraceID       string          `json:"trace_id"`
+	ParentSpanID  string          `json:"parent_span_id"`
+	ExpectedState expectedState   `json:"expected_state"`
+	Method        string          `json:"method"`
+	Params        json.RawMessage `json:"params"`
 }
 
 // expectedState describes the package state expected before executing the request.

@@ -317,13 +317,13 @@ func run(opts *options) error {
 			// to handle that.
 			<-mgr.Elected()
 
-			if err := rcUpdater.Setup(creds); err != nil {
-				setupErrorf(setupLog, err, "Unable to set up Remote Config service")
+			if rcErr := rcUpdater.Setup(creds); rcErr != nil {
+				setupErrorf(setupLog, rcErr, "Unable to set up Remote Config service")
 				return
 			}
 
-			if err := setupFleetDaemon(setupLog, mgr, rcUpdater.Client()); err != nil {
-				setupErrorf(setupLog, err, "Unable to setup Fleet daemon")
+			if rcErr := setupFleetDaemon(setupLog, mgr, rcUpdater.Client()); rcErr != nil {
+				setupErrorf(setupLog, rcErr, "Unable to setup Fleet daemon")
 			}
 		}()
 	}
