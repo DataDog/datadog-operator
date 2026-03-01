@@ -319,12 +319,13 @@ func run(opts *options) error {
 
 			if err := rcUpdater.Setup(creds); err != nil {
 				setupErrorf(setupLog, err, "Unable to set up Remote Config service")
+				return
+			}
+
+			if err := setupFleetDaemon(setupLog, mgr, rcUpdater.Client()); err != nil {
+				setupErrorf(setupLog, err, "Unable to setup Fleet daemon")
 			}
 		}()
-
-		if err = setupFleetDaemon(setupLog, mgr, rcUpdater.Client()); err != nil {
-			return setupErrorf(setupLog, err, "Unable to setup Fleet daemon")
-		}
 	}
 
 	// Cleanup leftover DatadogAgentInternal resources if DDAI controller is disabled
