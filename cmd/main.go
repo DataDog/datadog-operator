@@ -46,6 +46,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/metadata"
+	"github.com/DataDog/datadog-operator/pkg/fleet"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
@@ -320,6 +321,10 @@ func run(opts *options) error {
 				setupErrorf(setupLog, err, "Unable to set up Remote Config service")
 			}
 		}()
+
+		if err = setupFleetDaemon(setupLog, mgr, creds); err != nil {
+			return setupErrorf(setupLog, err, "Unable to setup Fleet daemon")
+		}
 	}
 
 	// Cleanup leftover DatadogAgentInternal resources if DDAI controller is disabled
@@ -635,4 +640,10 @@ func setupAndStartHelmMetadataForwarder(logger logr.Logger, mgr manager.Manager,
 	hmf := metadata.NewHelmMetadataForwarderWithManager(logger, mgr, client, kubernetesVersion, version.GetVersion(), credsManager)
 	// Register as a runnable with the manager - will be started after cache sync
 	return mgr.Add(hmf)
+}
+
+func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, creds config.Creds) error {
+	rcUpdater := remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), logger.WithName("remote_config"))
+	daemon := fleet.NewDaemon(logger.WithName("fleet"), rcUpdater)
+	return mgr.Add(daemon)
 }
