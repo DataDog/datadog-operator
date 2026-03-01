@@ -7,35 +7,53 @@ package fleet
 
 import (
 	"context"
+	"fmt"
+	"sync"
 
+	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
+	"github.com/DataDog/datadog-operator/pkg/config"
 )
 
 var _ manager.Runnable = &Daemon{}
 var _ manager.LeaderElectionRunnable = &Daemon{}
 
-// Daemon is a placeholder for the Fleet daemon. It runs after leader election
-// as a controller-runtime Runnable and holds a reference to the RC updater
-// for future use.
+// Daemon subscribes to fleet-specific RC products (installer configs and tasks)
+// and runs after leader election as a controller-runtime Runnable.
 type Daemon struct {
-	logger    logr.Logger
-	rcUpdater *remoteconfig.RemoteConfigUpdater
+	logger logr.Logger
+	creds  config.Creds
+	rc     rcClientProvider
+	mu     sync.RWMutex
+	// configs stores the latest received installer configs keyed by RC config path.
+	configs map[string]installerConfig
 }
 
 // NewDaemon creates a new Fleet Daemon.
-func NewDaemon(logger logr.Logger, rcUpdater *remoteconfig.RemoteConfigUpdater) *Daemon {
+func NewDaemon(logger logr.Logger, creds config.Creds, rc rcClientProvider) *Daemon {
 	return &Daemon{
-		logger:    logger,
-		rcUpdater: rcUpdater,
+		logger:  logger,
+		creds:   creds,
+		rc:      rc,
+		configs: make(map[string]installerConfig),
 	}
 }
 
-// Start implements manager.Runnable. It blocks until ctx is cancelled.
+// Start implements manager.Runnable. It sets up the RC client, subscribes to
+// fleet products, and blocks until ctx is cancelled.
 func (d *Daemon) Start(ctx context.Context) error {
 	d.logger.Info("Starting Fleet daemon")
+
+	if err := d.rc.Setup(d.creds); err != nil {
+		return fmt.Errorf("failed to setup fleet RC: %w", err)
+	}
+
+	rcClient := d.rc.Client()
+	rcClient.Subscribe(state.ProductUpdaterAgent, handleInstallerConfigUpdate(d.handleConfigs))
+	rcClient.Subscribe(state.ProductUpdaterTask, handleUpdaterTaskUpdate(d.handleRemoteAPIRequest))
+
 	<-ctx.Done()
 	d.logger.Info("Stopping Fleet daemon")
 	return nil
@@ -45,4 +63,21 @@ func (d *Daemon) Start(ctx context.Context) error {
 // The daemon only runs on the elected leader.
 func (d *Daemon) NeedLeaderElection() bool {
 	return true
+}
+
+// handleConfigs stores the received installer configs and logs them.
+func (d *Daemon) handleConfigs(configs map[string]installerConfig) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for path, cfg := range configs {
+		d.logger.Info("Received installer config", "path", path, "id", cfg.ID, "file_operations", len(cfg.FileOperations))
+		d.configs[path] = cfg
+	}
+	return nil
+}
+
+// handleRemoteAPIRequest logs the incoming task request. No action is taken.
+func (d *Daemon) handleRemoteAPIRequest(req remoteAPIRequest) error {
+	d.logger.Info("Received remote API request", "id", req.ID, "package", req.Package, "method", req.Method)
+	return nil
 }

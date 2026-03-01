@@ -310,18 +310,6 @@ func run(opts *options) error {
 	customSetupHealthChecks(setupLog, mgr, &opts.maximumGoroutines)
 
 	if opts.remoteConfigEnabled {
-		go func() {
-			// Block until this controller manager is elected leader. We presume the
-			// entire process will terminate if we lose leadership, so we don't need
-			// to handle that.
-			<-mgr.Elected()
-
-			err = remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config")).Setup(creds)
-			if err != nil {
-				setupErrorf(setupLog, err, "Unable to set up Remote Config service")
-			}
-		}()
-
 		if err = setupFleetDaemon(setupLog, mgr, creds); err != nil {
 			return setupErrorf(setupLog, err, "Unable to setup Fleet daemon")
 		}
@@ -644,6 +632,6 @@ func setupAndStartHelmMetadataForwarder(logger logr.Logger, mgr manager.Manager,
 
 func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, creds config.Creds) error {
 	rcUpdater := remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), logger.WithName("remote_config"))
-	daemon := fleet.NewDaemon(logger.WithName("fleet"), rcUpdater)
+	daemon := fleet.NewDaemon(logger.WithName("fleet"), creds, rcUpdater)
 	return mgr.Add(daemon)
 }

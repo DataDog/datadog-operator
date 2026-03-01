@@ -59,6 +59,16 @@ type RcServiceConfiguration struct {
 	rcDatabaseDir     string
 }
 
+// RCClient is the interface for subscribing to RC product updates.
+type RCClient interface {
+	Subscribe(product string, fn func(update map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus)))
+}
+
+// Client returns the underlying RC client. It is non-nil only after Setup has been called.
+func (r *RemoteConfigUpdater) Client() RCClient {
+	return r.rcClient
+}
+
 // DatadogProductRemoteConfig  is an interface for Datadog product remote configuration
 type DatadogProductRemoteConfig interface {
 	// GetID returns the ID of the configuration
@@ -179,7 +189,12 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 	rcClient, err := client.NewClient(
 		rcService,
 		client.WithAgent("datadog-operator", version.Version),
-		client.WithProducts(state.ProductAgentConfig, state.ProductOrchestratorK8sCRDs),
+		client.WithProducts(
+			state.ProductAgentConfig,
+			state.ProductOrchestratorK8sCRDs,
+			state.ProductUpdaterAgent,
+			state.ProductUpdaterTask,
+		),
 		client.WithDirectorRootOverride(r.serviceConf.cfg.GetString("site"), r.serviceConf.cfg.GetString("remote_configuration.director_root")),
 		client.WithPollInterval(pollInterval),
 	)
