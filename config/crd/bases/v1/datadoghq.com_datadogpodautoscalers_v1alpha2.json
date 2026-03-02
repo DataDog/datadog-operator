@@ -19,7 +19,6 @@
       "properties": {
         "applyPolicy": {
           "additionalProperties": false,
-          "default": {},
           "description": "ApplyPolicy defines how recommendations should be applied.",
           "properties": {
             "mode": {
@@ -173,7 +172,7 @@
         },
         "constraints": {
           "additionalProperties": false,
-          "description": "Constraints defines constraints that should always be respected.",
+          "description": "Constraints defines the constraints to be enforced on recommendations.",
           "properties": {
             "containers": {
               "description": "Containers defines constraints for the containers.",
@@ -353,8 +352,7 @@
         },
         "fallback": {
           "additionalProperties": false,
-          "default": {},
-          "description": "Fallback defines how recommendations should be applied when in fallback mode.",
+          "description": "Fallback defines the policy to use for fallback recommendations.",
           "properties": {
             "horizontal": {
               "additionalProperties": false,
@@ -716,7 +714,7 @@
           "type": "object"
         },
         "objectives": {
-          "description": "Objectives are the objectives to reach and maintain for the target resource.\nDefault to a single objective to maintain 80% POD CPU utilization.",
+          "description": "Objectives are the objectives used to compute recommendations.",
           "items": {
             "additionalProperties": false,
             "description": "DatadogPodAutoscalerObjective defines the objectives to reach and maintain for the target workload.",
@@ -1029,13 +1027,11 @@
             ],
             "type": "object"
           },
-          "minItems": 1,
-          "type": "array",
-          "x-kubernetes-list-type": "atomic"
+          "type": "array"
         },
         "options": {
           "additionalProperties": false,
-          "description": "Options defines optional behavior modifications for the autoscaler.",
+          "description": "Options are optional settings for this autoscaler.",
           "properties": {
             "outOfMemory": {
               "additionalProperties": false,

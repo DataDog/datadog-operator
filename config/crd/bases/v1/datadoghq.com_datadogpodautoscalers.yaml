@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.17.3
+    controller-gen.kubebuilder.io/version: v0.16.3
   name: datadogpodautoscalers.datadoghq.com
 spec:
   group: datadoghq.com
@@ -841,7 +841,6 @@ spec:
               description: DatadogPodAutoscalerSpec defines the desired state of DatadogPodAutoscaler
               properties:
                 applyPolicy:
-                  default: {}
                   description: ApplyPolicy defines how recommendations should be applied.
                   properties:
                     mode:
@@ -979,7 +978,7 @@ spec:
                       type: object
                   type: object
                 constraints:
-                  description: Constraints defines constraints that should always be respected.
+                  description: Constraints defines the constraints to be enforced on recommendations.
                   properties:
                     containers:
                       description: Containers defines constraints for the containers.
@@ -1069,8 +1068,7 @@ spec:
                       type: integer
                   type: object
                 fallback:
-                  default: {}
-                  description: Fallback defines how recommendations should be applied when in fallback mode.
+                  description: Fallback defines the policy to use for fallback recommendations.
                   properties:
                     horizontal:
                       default: {}
@@ -1337,9 +1335,7 @@ spec:
                       type: object
                   type: object
                 objectives:
-                  description: |-
-                    Objectives are the objectives to reach and maintain for the target resource.
-                    Default to a single objective to maintain 80% POD CPU utilization.
+                  description: Objectives are the objectives used to compute recommendations.
                   items:
                     description: DatadogPodAutoscalerObjective defines the objectives to reach and maintain for the target workload.
                     properties:
@@ -1568,11 +1564,9 @@ spec:
                     required:
                       - type
                     type: object
-                  minItems: 1
                   type: array
-                  x-kubernetes-list-type: atomic
                 options:
-                  description: Options defines optional behavior modifications for the autoscaler.
+                  description: Options are optional settings for this autoscaler.
                   properties:
                     outOfMemory:
                       description: OutOfMemory configures behavior when OOM events are detected.

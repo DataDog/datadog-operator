@@ -107,114 +107,52 @@ type DatadogPodAutoscalerSpec struct {
 	RemoteVersion *uint64 `json:"remoteVersion,omitempty"`
 
 	// ApplyPolicy defines how recommendations should be applied.
-	// +optional
-	// +kubebuilder:default={}
 	ApplyPolicy *DatadogPodAutoscalerApplyPolicy `json:"applyPolicy,omitempty"`
 
-	// Objectives are the objectives to reach and maintain for the target resource.
-	// Default to a single objective to maintain 80% POD CPU utilization.
-	// +listType=atomic
-	// +kubebuilder:validation:MinItems=1
+	// Objectives are the objectives used to compute recommendations.
 	Objectives []common.DatadogPodAutoscalerObjective `json:"objectives,omitempty"`
 
-	// Fallback defines how recommendations should be applied when in fallback mode.
-	// +optional
-	// +kubebuilder:default={}
+	// Fallback defines the policy to use for fallback recommendations.
 	Fallback *DatadogFallbackPolicy `json:"fallback,omitempty"`
 
-	// Constraints defines constraints that should always be respected.
+	// Constraints defines the constraints to be enforced on recommendations.
 	Constraints *common.DatadogPodAutoscalerConstraints `json:"constraints,omitempty"`
 
-	// Options defines optional behavior modifications for the autoscaler.
-	// +optional
+	// Options are optional settings for this autoscaler.
 	Options *common.DatadogPodAutoscalerOptions `json:"options,omitempty"`
 }
 
-// DatadogPodAutoscalerApplyMode specifies if the controller should apply recommendations.
-// +kubebuilder:validation:Enum:=Apply;Preview
-type DatadogPodAutoscalerApplyMode string
+// Type aliases for backward compatibility.
+// These types are defined in the common package to enable reusage.
+// The +kubebuilder:object:generate=false marker prevents controller-gen from generating
+// duplicate deepcopy methods for these aliases, as the methods already exist in the common package.
 
-// DatadogPodAutoscalerFallbackDirection specifies the direction that fallback recommendations can be applied.
-// +kubebuilder:validation:Enum:=ScaleUp;ScaleDown;All
-type DatadogPodAutoscalerFallbackDirection string
+// +kubebuilder:object:generate=false
+type DatadogPodAutoscalerApplyMode = common.DatadogPodAutoscalerApplyModeV2
+
+// +kubebuilder:object:generate=false
+type DatadogPodAutoscalerFallbackDirection = common.DatadogPodAutoscalerFallbackDirection
+
+// +kubebuilder:object:generate=false
+type DatadogPodAutoscalerApplyPolicy = common.DatadogPodAutoscalerApplyPolicy
+
+// +kubebuilder:object:generate=false
+type DatadogFallbackPolicy = common.DatadogFallbackPolicy
+
+// +kubebuilder:object:generate=false
+type DatadogPodAutoscalerHorizontalFallbackPolicy = common.DatadogPodAutoscalerHorizontalFallbackPolicy
+
+// +kubebuilder:object:generate=false
+type HorizontalFallbackTriggers = common.HorizontalFallbackTriggers
 
 const (
-	// DatadogPodAutoscalerApplyModeApply allows the controller to apply all recommendations (regular and manual)
-	DatadogPodAutoscalerApplyModeApply DatadogPodAutoscalerApplyMode = "Apply"
+	DatadogPodAutoscalerApplyModeApply   = common.DatadogPodAutoscalerApplyModeV2Apply
+	DatadogPodAutoscalerApplyModePreview = common.DatadogPodAutoscalerApplyModeV2Preview
 
-	// DatadogPodAutoscalerApplyModePreview doesn't allow the controller to apply any recommendations
-	DatadogPodAutoscalerApplyModePreview DatadogPodAutoscalerApplyMode = "Preview"
-
-	// DatadogPodAutoscalerFallbackDirectionScaleUp allows the controller to apply fallback recommendations to scale up the target resource.
-	DatadogPodAutoscalerFallbackDirectionScaleUp DatadogPodAutoscalerFallbackDirection = "ScaleUp"
-
-	// DatadogPodAutoscalerFallbackDirectionScaleDown allows the controller to apply fallback recommendations to scale down the target resource.
-	DatadogPodAutoscalerFallbackDirectionScaleDown DatadogPodAutoscalerFallbackDirection = "ScaleDown"
-
-	// DatadogPodAutoscalerFallbackDirectionAll allows the controller to apply fallback recommendations to scale up or down the target resource.
-	DatadogPodAutoscalerFallbackDirectionAll DatadogPodAutoscalerFallbackDirection = "All"
+	DatadogPodAutoscalerFallbackDirectionScaleUp   = common.DatadogPodAutoscalerFallbackDirectionScaleUp
+	DatadogPodAutoscalerFallbackDirectionScaleDown = common.DatadogPodAutoscalerFallbackDirectionScaleDown
+	DatadogPodAutoscalerFallbackDirectionAll       = common.DatadogPodAutoscalerFallbackDirectionAll
 )
-
-// DatadogPodAutoscalerApplyPolicy defines how recommendations should be applied.
-type DatadogPodAutoscalerApplyPolicy struct {
-	// Mode determines recommendations that should be applied by the controller:
-	// - Apply: Apply all recommendations.
-	// - Preview: Recommendations are received and visible through .Status, but the controller does not apply them.
-	// It's also possible to selectively deactivate upscale, downscale or update actions thanks to the `ScaleUp`, `ScaleDown` and `Update` fields.
-	// +optional
-	// +kubebuilder:default=Apply
-	Mode DatadogPodAutoscalerApplyMode `json:"mode"`
-
-	// Update defines the policy for updating the target resource.
-	Update *common.DatadogPodAutoscalerUpdatePolicy `json:"update,omitempty"`
-
-	// ScaleUp defines the policy to scale up the target resource.
-	ScaleUp *common.DatadogPodAutoscalerScalingPolicy `json:"scaleUp,omitempty"`
-
-	// ScaleDown defines the policy to scale down the target resource.
-	ScaleDown *common.DatadogPodAutoscalerScalingPolicy `json:"scaleDown,omitempty"`
-}
-
-// DatadogFallbackPolicy configures the behavior during fallback mode.
-type DatadogFallbackPolicy struct {
-	// Horizontal configures the behavior during horizontal fallback mode.
-	// +optional
-	// +kubebuilder:default={}
-	Horizontal DatadogPodAutoscalerHorizontalFallbackPolicy `json:"horizontal,omitempty"`
-}
-
-// DatadogPodAutoscalerHorizontalFallbackPolicy defines how recommendations should be applied in fallback mode.
-type DatadogPodAutoscalerHorizontalFallbackPolicy struct {
-	// Enabled determines whether recommendations should be applied by the controller:
-	// +optional
-	// +kubebuilder:default=true
-	Enabled bool `json:"enabled"`
-
-	// Triggers defines the triggers that will generate recommendations.
-	// +optional
-	// +kubebuilder:default={}
-	Triggers HorizontalFallbackTriggers `json:"triggers,omitempty"`
-
-	// Direction determines the direction that recommendations should be applied.
-	// +optional
-	// +kubebuilder:default=ScaleUp
-	Direction DatadogPodAutoscalerFallbackDirection `json:"direction,omitempty"`
-
-	// Objectives are the objectives to reach and maintain for the target resource in fallback mode.
-	// If not set, the regular objectives will be used.
-	// +listType=atomic
-	Objectives []common.DatadogPodAutoscalerObjective `json:"objectives,omitempty"`
-}
-
-// HorizontalFallbackTriggers defines the triggers that will cause local fallback to be enabled.
-type HorizontalFallbackTriggers struct {
-	// StaleRecommendationThresholdSeconds defines the time window the controller will wait after detecting an error before applying recommendations.
-	// +optional
-	// +kubebuilder:default=600
-	// +kubebuilder:validation:Minimum=100
-	// +kubebuilder:validation:Maximum=3600
-	StaleRecommendationThresholdSeconds int32 `json:"staleRecommendationThresholdSeconds,omitempty"`
-}
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:shortName=dpa
