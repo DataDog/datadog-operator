@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/helm"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
+	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/stretchr/testify/require"
@@ -41,20 +42,12 @@ var (
 	testWorkloadSelector = map[string]string{"app": testWorkloadName}
 )
 
-// awsCredentials holds AWS credentials loaded from the SDK's default credential chain
-type awsCredentials struct {
-	AccessKeyID     string
-	SecretAccessKey string
-	SessionToken    string // may be empty for static credentials
-	Region          string
-}
-
 // autoscalingSuite tests kubectl datadog autoscaling cluster install and uninstall commands
 type autoscalingSuite struct {
 	e2e.BaseSuite[environments.Kubernetes]
 	kubeconfigPath string
 	clusterName    string
-	awsCreds       awsCredentials
+	awsCfg         awssdk.Config
 	cfnClient      *cloudformation.Client
 }
 
@@ -97,24 +90,16 @@ func (s *autoscalingSuite) extractClusterInfo() {
 	cfg, err := config.LoadDefaultConfig(t.Context())
 	require.NoError(t, err, "Failed to load AWS config")
 
+	if cfg.Region == "" {
+		cfg.Region = "us-east-1" // Fallback default
+	}
+
+	s.awsCfg = cfg
 	s.cfnClient = cloudformation.NewFromConfig(cfg)
-
-	creds, err := cfg.Credentials.Retrieve(t.Context())
-	require.NoError(t, err, "Failed to retrieve AWS credentials")
-
-	s.awsCreds = awsCredentials{
-		AccessKeyID:     creds.AccessKeyID,
-		SecretAccessKey: creds.SecretAccessKey,
-		SessionToken:    creds.SessionToken,
-		Region:          cfg.Region,
-	}
-	if s.awsCreds.Region == "" {
-		s.awsCreds.Region = "us-east-1" // Fallback default
-	}
 
 	t.Logf("EKS cluster name: %s", s.clusterName)
 	t.Logf("Kubeconfig path: %s", s.kubeconfigPath)
-	t.Logf("AWS region: %s", s.awsCreds.Region)
+	t.Logf("AWS region: %s", s.awsCfg.Region)
 }
 
 // cleanupKarpenterResources ensures Karpenter resources are cleaned up at the end of the suite
@@ -306,7 +291,7 @@ func (s *autoscalingSuite) TestAutoscalingInferenceMethodNodes() {
 // testInstall tests the default install flow
 func (s *autoscalingSuite) testInstall(extraArgs ...string) {
 	t := s.T()
-	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 25*time.Minute)
 	defer cancel()
 
 	// Run install
@@ -334,21 +319,29 @@ func (s *autoscalingSuite) testUninstall() {
 	s.verifyCleanUninstall(ctx)
 }
 
-// runKubectlDatadog executes kubectl-datadog with the suite's AWS credentials
+// runKubectlDatadog executes kubectl-datadog with the AWS profile-based
+// credential chain so the subprocess can refresh its own STS tokens during
+// long-running operations (e.g. CloudFormation stack creation).
 func (s *autoscalingSuite) runKubectlDatadog(ctx context.Context, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, filepath.Join(common.ProjectRootPath, "bin", "kubectl-datadog"), args...)
 
-	// Set minimal environment with explicit credentials
+	// Propagate the AWS profile and config files instead of static STS
+	// tokens. This lets the subprocess call AssumeRole itself and refresh
+	// credentials if they expire during long-running CloudFormation waits.
 	cmd.Env = []string{
 		"PATH=" + os.Getenv("PATH"),
 		"HOME=" + os.Getenv("HOME"),
 		"KUBECONFIG=" + s.kubeconfigPath,
-		"AWS_ACCESS_KEY_ID=" + s.awsCreds.AccessKeyID,
-		"AWS_SECRET_ACCESS_KEY=" + s.awsCreds.SecretAccessKey,
-		"AWS_REGION=" + s.awsCreds.Region,
+		"AWS_REGION=" + s.awsCfg.Region,
 	}
-	if s.awsCreds.SessionToken != "" {
-		cmd.Env = append(cmd.Env, "AWS_SESSION_TOKEN="+s.awsCreds.SessionToken)
+	if v, ok := os.LookupEnv("AWS_PROFILE"); ok {
+		cmd.Env = append(cmd.Env, "AWS_PROFILE="+v)
+	}
+	if v, ok := os.LookupEnv("AWS_CONFIG_FILE"); ok {
+		cmd.Env = append(cmd.Env, "AWS_CONFIG_FILE="+v)
+	}
+	if v, ok := os.LookupEnv("AWS_SHARED_CREDENTIALS_FILE"); ok {
+		cmd.Env = append(cmd.Env, "AWS_SHARED_CREDENTIALS_FILE="+v)
 	}
 
 	output, err := cmd.CombinedOutput()

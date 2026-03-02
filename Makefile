@@ -56,6 +56,7 @@ ENVTEST_K8S_VERSION = 1.30
 # (E2E provisioning can hang; having a finite timeout ensures we get goroutine dumps
 # instead of the CI job timing out with no actionable logs.)
 E2E_GO_TEST_TIMEOUT ?= 55m
+E2E_AUTOSCALING_GO_TEST_TIMEOUT ?= 80m
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -218,7 +219,7 @@ e2e-tests: ## Run E2E tests and destroy environment stacks after tests complete.
 
 .PHONY: e2e-autoscaling-tests
 e2e-autoscaling-tests: kubectl-datadog ## Run autoscaling E2E tests on EKS. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`.
-	GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./tests/autoscaling_suite/... -count=1 --tags=e2e -v -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e_autoscaling.out
+	GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./tests/autoscaling_suite/... -count=1 --tags=e2e -v -timeout $(E2E_AUTOSCALING_GO_TEST_TIMEOUT) -coverprofile cover_e2e_autoscaling.out
 
 .PHONY: yaml-mapper-tests
 yaml-mapper-tests:  fmt vet yaml-mapper-unit-tests

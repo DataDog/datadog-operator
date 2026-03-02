@@ -7,9 +7,9 @@ metadata:
   namespace: datadog-agent
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.17.0
+    helm.sh/chart: datadog-operator-2.18.1
     app.kubernetes.io/instance: operator-eks-addon
-    app.kubernetes.io/version: "1.22.0"
+    app.kubernetes.io/version: "1.23.1"
     app.kubernetes.io/managed-by: eks-addon
 ---
 # Source: operator-eks-addon/charts/datadog-operator/charts/datadogCRDs/templates/datadoghq.com_datadogagentinternals_v1.yaml
@@ -20,7 +20,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.17.3
   name: datadogagentinternals.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.15.0'
+    helm.sh/chart: 'datadogCRDs-2.16.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -1238,6 +1238,14 @@ spec:
                             Enabled enables Cloud Workload Security.
                             Default: false
                           type: boolean
+                        enforcement:
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables Enforcement for Cloud Workload Security.
+                                Default: true
+                              type: boolean
+                          type: object
                         network:
                           properties:
                             enabled:
@@ -2024,6 +2032,11 @@ spec:
                             Enabled enables the OTel Agent Gateway.
                             Default: false
                           type: boolean
+                        featureGates:
+                          description: |-
+                            FeatureGates are the feature gates to pass to the OTel collector as a comma-separated list.
+                            Example: "component.UseLocalHostAsDefaultHost,connector.datadogconnector.NativeIngest"
+                          type: string
                         ports:
                           description: |-
                             Ports contains the ports that the OTel Collector is listening on.
@@ -8002,6 +8015,54 @@ spec:
                   x-kubernetes-list-map-keys:
                     - type
                   x-kubernetes-list-type: map
+                otelAgentGateway:
+                  description: The actual state of the OTel Agent Gateway as a deployment.
+                  properties:
+                    availableReplicas:
+                      description: Total number of available pods (ready for at least minReadySeconds) targeted by this Deployment.
+                      format: int32
+                      type: integer
+                    currentHash:
+                      description: CurrentHash is the stored hash of the Deployment.
+                      type: string
+                    deploymentName:
+                      description: DeploymentName corresponds to the name of the Deployment.
+                      type: string
+                    generatedToken:
+                      description: |-
+                        GeneratedToken corresponds to the generated token if any token was provided in the Credential configuration when ClusterAgent is
+                        enabled.
+                      type: string
+                    lastUpdate:
+                      description: LastUpdate is the last time the status was updated.
+                      format: date-time
+                      type: string
+                    readyReplicas:
+                      description: Total number of ready pods targeted by this Deployment.
+                      format: int32
+                      type: integer
+                    replicas:
+                      description: Total number of non-terminated pods targeted by this Deployment (their labels match the selector).
+                      format: int32
+                      type: integer
+                    state:
+                      description: State corresponds to the Deployment state.
+                      type: string
+                    status:
+                      description: Status corresponds to the Deployment computed status.
+                      type: string
+                    unavailableReplicas:
+                      description: |-
+                        Total number of unavailable pods targeted by this Deployment. This is the total number of
+                        pods that are still required for the Deployment to have 100% available capacity. They may
+                        either be pods that are running but not yet available or pods that still have not been created.
+                      format: int32
+                      type: integer
+                    updatedReplicas:
+                      description: Total number of non-terminated pods targeted by this Deployment that have the desired template spec.
+                      format: int32
+                      type: integer
+                  type: object
                 remoteConfigConfiguration:
                   description: RemoteConfigConfiguration stores the configuration received from RemoteConfig.
                   properties:
@@ -9170,6 +9231,14 @@ spec:
                                 Enabled enables Cloud Workload Security.
                                 Default: false
                               type: boolean
+                            enforcement:
+                              properties:
+                                enabled:
+                                  description: |-
+                                    Enabled enables Enforcement for Cloud Workload Security.
+                                    Default: true
+                                  type: boolean
+                              type: object
                             network:
                               properties:
                                 enabled:
@@ -9956,6 +10025,11 @@ spec:
                                 Enabled enables the OTel Agent Gateway.
                                 Default: false
                               type: boolean
+                            featureGates:
+                              description: |-
+                                FeatureGates are the feature gates to pass to the OTel collector as a comma-separated list.
+                                Example: "component.UseLocalHostAsDefaultHost,connector.datadogconnector.NativeIngest"
+                              type: string
                             ports:
                               description: |-
                                 Ports contains the ports that the OTel Collector is listening on.
@@ -10330,7 +10404,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.17.3
   name: datadogagents.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.15.0'
+    helm.sh/chart: 'datadogCRDs-2.16.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -10986,6 +11060,11 @@ spec:
                           type: boolean
                         enabled:
                           type: boolean
+                        enforcement:
+                          properties:
+                            enabled:
+                              type: boolean
+                          type: object
                         network:
                           properties:
                             enabled:
@@ -11430,6 +11509,8 @@ spec:
                           type: object
                         enabled:
                           type: boolean
+                        featureGates:
+                          type: string
                         ports:
                           items:
                             properties:
@@ -14470,6 +14551,37 @@ spec:
                   x-kubernetes-list-map-keys:
                     - type
                   x-kubernetes-list-type: map
+                otelAgentGateway:
+                  properties:
+                    availableReplicas:
+                      format: int32
+                      type: integer
+                    currentHash:
+                      type: string
+                    deploymentName:
+                      type: string
+                    generatedToken:
+                      type: string
+                    lastUpdate:
+                      format: date-time
+                      type: string
+                    readyReplicas:
+                      format: int32
+                      type: integer
+                    replicas:
+                      format: int32
+                      type: integer
+                    state:
+                      type: string
+                    status:
+                      type: string
+                    unavailableReplicas:
+                      format: int32
+                      type: integer
+                    updatedReplicas:
+                      format: int32
+                      type: integer
+                  type: object
                 remoteConfigConfiguration:
                   properties:
                     features:
@@ -15087,6 +15199,11 @@ spec:
                               type: boolean
                             enabled:
                               type: boolean
+                            enforcement:
+                              properties:
+                                enabled:
+                                  type: boolean
+                              type: object
                             network:
                               properties:
                                 enabled:
@@ -15531,6 +15648,8 @@ spec:
                               type: object
                             enabled:
                               type: boolean
+                            featureGates:
+                              type: string
                             ports:
                               items:
                                 properties:
@@ -15742,7 +15861,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.17.3
   name: datadogmetrics.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.15.0'
+    helm.sh/chart: 'datadogCRDs-2.16.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -15870,7 +15989,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.17.3
   name: datadogpodautoscalers.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.15.0'
+    helm.sh/chart: 'datadogCRDs-2.16.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -17606,9 +17725,9 @@ metadata:
   name: operator-eks-addon-datadog-operator
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.17.0
+    helm.sh/chart: datadog-operator-2.18.1
     app.kubernetes.io/instance: operator-eks-addon
-    app.kubernetes.io/version: "1.22.0"
+    app.kubernetes.io/version: "1.23.1"
     app.kubernetes.io/managed-by: eks-addon
 rules:
 - nonResourceURLs:
@@ -18104,9 +18223,9 @@ metadata:
   namespace: datadog-agent
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.17.0
+    helm.sh/chart: datadog-operator-2.18.1
     app.kubernetes.io/instance: operator-eks-addon
-    app.kubernetes.io/version: "1.22.0"
+    app.kubernetes.io/version: "1.23.1"
     app.kubernetes.io/managed-by: eks-addon
 spec:
   replicas: 1
@@ -18132,7 +18251,7 @@ spec:
       serviceAccountName: operator-eks-addon-datadog-operator
       containers:
         - name: datadog-operator
-          image: "709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator:1.22.0"
+          image: "709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator:1.23.1"
           imagePullPolicy: IfNotPresent
           env:
             - name: WATCH_NAMESPACE
@@ -18147,6 +18266,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
             - name: DD_TOOL_VERSION
               value: eks-addon
           args:

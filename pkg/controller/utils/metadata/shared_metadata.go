@@ -34,6 +34,9 @@ const (
 	defaultURLHost       = "app.datadoghq.com"
 	defaultURLHostPrefix = "app."
 	defaultURLPath       = "api/v1/metadata"
+
+	// default timeout for metadata operations
+	DefaultOperationTimeout = 30 * time.Second
 )
 
 // SharedMetadata contains the common metadata shared across all forwarders
@@ -86,13 +89,13 @@ func (sm *SharedMetadata) createRequest(payload []byte) (*http.Request, error) {
 }
 
 // GetOrCreateClusterUID retrieves the cluster UID from kube-system namespace
-func (sm *SharedMetadata) GetOrCreateClusterUID() (string, error) {
+func (sm *SharedMetadata) GetOrCreateClusterUID(ctx context.Context) (string, error) {
 	if sm.clusterUID != "" {
 		return sm.clusterUID, nil
 	}
 
 	kubeSystemNS := &corev1.Namespace{}
-	err := sm.k8sClient.Get(context.TODO(), types.NamespacedName{Name: "kube-system"}, kubeSystemNS)
+	err := sm.k8sClient.Get(ctx, types.NamespacedName{Name: "kube-system"}, kubeSystemNS)
 	if err != nil {
 		return "", fmt.Errorf("failed to get kube-system namespace: %w", err)
 	}

@@ -4,15 +4,29 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
+	appsv1 "k8s.io/api/apps/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
+	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
+	componentotel "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/otelagentgateway"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
+	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // STEP 2 of the reconcile loop: reconcile 3 components
@@ -100,13 +114,17 @@ func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, instance *d
 	// Only cleanup DCA and CCR deployments for the default (non-profile) DDAI
 	// Profile DDAIs do not manage any component except the Agent DaemonSet
 	if !isDDAILabeledWithProfile(instance) {
-		if err := r.cleanupOldDCADeployments(ctx, instance, resourceManagers, newStatus); err != nil {
+		if err := r.cleanupOldDCADeployments(ctx, instance); err != nil {
 			errs = append(errs, err)
 			logger.Error(err, "Error cleaning up old DCA Deployments")
 		}
-		if err := r.cleanupOldCCRDeployments(ctx, instance, newStatus); err != nil {
+		if err := r.cleanupOldCCRDeployments(ctx, instance); err != nil {
 			errs = append(errs, err)
 			logger.Error(err, "Error cleaning up old CCR Deployments")
+		}
+		if err := r.cleanupOldOtelAgentGatewayDeployments(ctx, instance); err != nil {
+			errs = append(errs, err)
+			logger.Error(err, "Error cleaning up old OTel Agent Gateway Deployments")
 		}
 	}
 	if len(errs) > 0 {
@@ -142,4 +160,122 @@ func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, depsStore 
 		return errors.NewAggregate(errs)
 	}
 	return nil
+}
+
+func (r *Reconciler) deleteDeploymentWithEvent(ctx context.Context, logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, deployment *appsv1.Deployment) (reconcile.Result, error) {
+	nsName := types.NamespacedName{
+		Name:      deployment.GetName(),
+		Namespace: deployment.GetNamespace(),
+	}
+
+	existingDeployment := &appsv1.Deployment{}
+	if err := r.client.Get(ctx, nsName, existingDeployment); err != nil {
+		if apierrors.IsNotFound(err) {
+			return reconcile.Result{}, nil
+		}
+		return reconcile.Result{}, err
+	}
+	logger.Info("Deleting Deployment", "deployment.Namespace", existingDeployment.Namespace, "deployment.Name", existingDeployment.Name)
+	if err := r.client.Delete(ctx, existingDeployment); err != nil {
+		return reconcile.Result{}, err
+	}
+	// Record event only if deletion was successful
+	event := buildEventInfo(existingDeployment.Name, existingDeployment.Namespace, kubernetes.DeploymentKind, datadog.DeletionEvent)
+	r.recordEvent(ddai, event)
+
+	return reconcile.Result{}, nil
+}
+
+// cleanupOldDCADeployments deletes DCA deployments when deployment name is changed using clusterAgent name override
+func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal) error {
+	matchLabels := client.MatchingLabels{
+		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterAgentResourceSuffix,
+		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(ddai).String(),
+	}
+	deploymentName := component.GetDeploymentNameFromDatadogAgent(ddai.GetObjectMeta(), &ddai.Spec)
+	deploymentList := appsv1.DeploymentList{}
+	if err := r.client.List(ctx, &deploymentList, matchLabels); err != nil {
+		return err
+	}
+	for _, deployment := range deploymentList.Items {
+		if deploymentName != deployment.Name {
+			objLogger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
+			if _, err := r.deleteDeploymentWithEvent(ctx, objLogger, ddai, &deployment); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// cleanupOldCCRDeployments deletes CCR deployments when deployment name is changed using clusterChecksRunner name override
+func (r *Reconciler) cleanupOldCCRDeployments(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal) error {
+	matchLabels := client.MatchingLabels{
+		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterChecksRunnerResourceSuffix,
+		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(ddai).String(),
+	}
+	deploymentName := getDeploymentNameFromCCR(ddai)
+	deploymentList := appsv1.DeploymentList{}
+	if err := r.client.List(ctx, &deploymentList, matchLabels); err != nil {
+		return err
+	}
+	for _, deployment := range deploymentList.Items {
+		if deploymentName != deployment.Name {
+			objLogger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
+			if _, err := r.deleteDeploymentWithEvent(ctx, objLogger, ddai, &deployment); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// getDeploymentNameFromCCR returns the expected CCR deployment name based on
+// the DDAI name and clusterChecksRunner name override
+func getDeploymentNameFromCCR(ddai *v1alpha1.DatadogAgentInternal) string {
+	deploymentName := componentccr.GetClusterChecksRunnerName(ddai)
+	if componentOverride, ok := ddai.Spec.Override[datadoghqv2alpha1.ClusterChecksRunnerComponentName]; ok {
+		if componentOverride.Name != nil && *componentOverride.Name != "" {
+			deploymentName = *componentOverride.Name
+		}
+	}
+	return deploymentName
+}
+
+// cleanupOldOtelAgentGatewayDeployments deletes OTel Agent Gateway deployments when
+// the deployment name is changed using otelAgentGateway name override
+func (r *Reconciler) cleanupOldOtelAgentGatewayDeployments(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal) error {
+	matchLabels := client.MatchingLabels{
+		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultOtelAgentGatewayResourceSuffix,
+		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(ddai).String(),
+	}
+	deploymentName := getDeploymentNameFromOtelAgentGateway(ddai)
+	deploymentList := appsv1.DeploymentList{}
+	if err := r.client.List(ctx, &deploymentList, matchLabels); err != nil {
+		return err
+	}
+	for _, deployment := range deploymentList.Items {
+		if deploymentName != deployment.Name {
+			objLogger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
+			if _, err := r.deleteDeploymentWithEvent(ctx, objLogger, ddai, &deployment); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// getDeploymentNameFromOtelAgentGateway returns the expected OTel Agent Gateway deployment name based on
+// the DDAI name and otelAgentGateway name override
+func getDeploymentNameFromOtelAgentGateway(ddai *v1alpha1.DatadogAgentInternal) string {
+	deploymentName := componentotel.GetOtelAgentGatewayName(ddai)
+	if componentOverride, ok := ddai.Spec.Override[datadoghqv2alpha1.OtelAgentGatewayComponentName]; ok {
+		if componentOverride.Name != nil && *componentOverride.Name != "" {
+			deploymentName = *componentOverride.Name
+		}
+	}
+	return deploymentName
 }

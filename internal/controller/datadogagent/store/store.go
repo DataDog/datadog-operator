@@ -294,6 +294,7 @@ func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client, excludeDD
 	listOptions := &client.ListOptions{
 		LabelSelector: selector,
 	}
+
 	for _, kind := range ds.platformInfo.GetAgentResourcesKind(ds.supportCilium) {
 		objList := kubernetes.ObjectListFromKind(kind, ds.platformInfo)
 		if err := k8sClient.List(ctx, objList, listOptions); err != nil {
@@ -301,7 +302,7 @@ func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client, excludeDD
 			continue
 		}
 
-		objsToDelete, err := ds.listObjectToDelete(objList, ds.deps[kind], excludeDDAManagedResources)
+		objsToDelete, err := ds.listObjectToDelete(kind, objList, ds.deps[kind], excludeDDAManagedResources)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -364,7 +365,7 @@ func (ds *Store) DeleteAll(ctx context.Context, k8sClient client.Client) []error
 	return deleteObjects(ctx, k8sClient, objsToDelete)
 }
 
-func (ds *Store) listObjectToDelete(objList client.ObjectList, cacheObjects map[string]client.Object, excludeDDAManagedResources bool) ([]client.Object, error) {
+func (ds *Store) listObjectToDelete(kind kubernetes.ObjectKind, objList client.ObjectList, cacheObjects map[string]client.Object, excludeDDAManagedResources bool) ([]client.Object, error) {
 	items, err := apimeta.ExtractList(objList)
 	if err != nil {
 		return nil, err
@@ -402,7 +403,19 @@ func (ds *Store) listObjectToDelete(objList client.ObjectList, cacheObjects map[
 							Namespace: objMeta.GetNamespace(),
 						},
 					}
-					partialObj.TypeMeta.SetGroupVersionKind(objAPIServer.GetObjectKind().GroupVersionKind())
+
+					// Try to get GVK from the listed object first (works in production)
+					gvk := objAPIServer.GetObjectKind().GroupVersionKind()
+
+					// If GVK is empty (e.g., in fake client tests), get it from the scheme
+					if gvk.Empty() && ds.scheme != nil {
+						refObj := kubernetes.ObjectFromKind(kind, ds.platformInfo)
+						if gvks, _, err := ds.scheme.ObjectKinds(refObj); err == nil && len(gvks) > 0 {
+							gvk = gvks[0]
+						}
+					}
+
+					partialObj.TypeMeta.SetGroupVersionKind(gvk)
 					objsToDelete = append(objsToDelete, partialObj)
 				}
 			}

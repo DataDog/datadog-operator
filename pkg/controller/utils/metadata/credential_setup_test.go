@@ -6,6 +6,7 @@
 package metadata
 
 import (
+	"context"
 	"os"
 	"strings"
 	"testing"
@@ -334,7 +335,7 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 			assert.Equal(t, "application/json", req.Header.Get("Accept"), "Accept header should be set")
 
 			// Verify cluster UID is set
-			clusterUID, err := omf.GetOrCreateClusterUID()
+			clusterUID, err := omf.GetOrCreateClusterUID(context.Background())
 			assert.NoError(t, err)
 			assert.NotEmpty(t, clusterUID, "Cluster UID should be set")
 		})

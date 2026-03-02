@@ -363,10 +363,6 @@ func ddotCollectorImage() string {
 	return images.GetLatestDdotCollectorImage()
 }
 
-func hostProfilerImage() string {
-	return images.GetLatestHostProfilerImage()
-}
-
 func initContainers(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Container {
 	initContainers := []corev1.Container{
 		initVolumeContainer(),
@@ -523,8 +519,8 @@ func otelAgentContainer(dda metav1.Object) corev1.Container {
 func hostProfilerContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
 		Name: string(apicommon.HostProfiler),
-		// Note: Dev Image, Subject to change
-		Image: hostProfilerImage(),
+		// Note: Need to override image via annotation
+		Image: agentImage(),
 		Command: []string{
 			"/opt/datadog-agent/embedded/bin/full-host-profiler",
 			"run",
@@ -584,7 +580,7 @@ func privateActionRunnerContainer(dda metav1.Object) corev1.Container {
 			"/opt/datadog-agent/embedded/bin/privateactionrunner",
 			"run",
 			fmt.Sprintf("-c=%s", agentCustomConfigVolumePath),
-			fmt.Sprintf("-c=%s", privateactionrunner.PrivateActionRunnerConfigPath),
+			fmt.Sprintf("-E=%s", privateactionrunner.PrivateActionRunnerConfigPath),
 		},
 		Env:          commonEnvVars(dda),
 		VolumeMounts: volumeMountsForPrivateActionRunner(),
