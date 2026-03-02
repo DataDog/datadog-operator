@@ -17,6 +17,12 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 )
 
+const (
+	methodStartDatadogAgentExperiment   = "operator/start_datadogagent_experiment"
+	methodStopDatadogAgentExperiment    = "operator/stop_datadogagent_experiment"
+	methodPromoteDatadogAgentExperiment = "operator/promote_datadogagent_experiment"
+)
+
 var _ manager.Runnable = &Daemon{}
 var _ manager.LeaderElectionRunnable = &Daemon{}
 
@@ -82,18 +88,40 @@ func (d *Daemon) getConfig(id string) (installerConfig, error) {
 	return cfg, nil
 }
 
-// handleRemoteAPIRequest logs the incoming task request. No action is taken.
+// handleRemoteAPIRequest dispatches the incoming task to the appropriate handler.
 func (d *Daemon) handleRemoteAPIRequest(req remoteAPIRequest) error {
 	d.logger.Info("Received remote API request", "id", req.ID, "package", req.Package, "method", req.Method)
-	if req.ExpectedState.StableConfig != "" {
-		if cfg, err := d.getConfig(req.ExpectedState.StableConfig); err == nil {
-			d.logger.Info("Found associated stable config", "config_id", cfg.ID)
-		}
+	switch req.Method {
+	case methodStartDatadogAgentExperiment:
+		return d.startDatadogAgentExperiment(req)
+	case methodStopDatadogAgentExperiment:
+		return d.stopDatadogAgentExperiment(req)
+	case methodPromoteDatadogAgentExperiment:
+		return d.promoteDatadogAgentExperiment(req)
+	default:
+		return fmt.Errorf("unknown method: %s", req.Method)
 	}
-	if req.ExpectedState.ExperimentConfig != "" {
-		if cfg, err := d.getConfig(req.ExpectedState.ExperimentConfig); err == nil {
-			d.logger.Info("Found associated experiment config", "config_id", cfg.ID)
-		}
+}
+
+func (d *Daemon) startDatadogAgentExperiment(req remoteAPIRequest) error {
+	cfg, err := d.getConfig(req.ExpectedState.ExperimentConfig)
+	if err != nil {
+		return fmt.Errorf("start DatadogAgent experiment: %w", err)
 	}
+	d.logger.Info("Starting DatadogAgent experiment", "id", req.ID, "package", req.Package, "config_id", cfg.ID)
+	return nil
+}
+
+func (d *Daemon) stopDatadogAgentExperiment(req remoteAPIRequest) error {
+	d.logger.Info("Stopping DatadogAgent experiment", "id", req.ID, "package", req.Package)
+	return nil
+}
+
+func (d *Daemon) promoteDatadogAgentExperiment(req remoteAPIRequest) error {
+	cfg, err := d.getConfig(req.ExpectedState.ExperimentConfig)
+	if err != nil {
+		return fmt.Errorf("promote DatadogAgent experiment: %w", err)
+	}
+	d.logger.Info("Promoting DatadogAgent experiment", "id", req.ID, "package", req.Package, "config_id", cfg.ID)
 	return nil
 }
