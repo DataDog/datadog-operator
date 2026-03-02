@@ -42,7 +42,7 @@ This separation enables:
 
 ## Behavior Without Profiles
 
-When not using `DatadogAgentProfiles`, a single `DatadogAgent` creates a single `DatadogAgentInternal` with the same name and namespace.
+When not using `DatadogAgentProfiles`, a `DatadogAgent` creates a single `DatadogAgentInternal` with the same name and namespace.
 
 ### Example
 
