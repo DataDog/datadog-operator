@@ -10,7 +10,7 @@
 > `DatadogAgentInternal` was introduced in v1.16.0, enabled by default in v1.22.0, and will become required (opt-out removed) in v1.27.0. See [documentation][20] for details.
 
 > [!WARNING]
-> ⚠️ If you are upgrading to **Operator v1.22.0+** from **<v1.18.0** or you haven't migrated Daemonset `matchLabels` please see the [migration guide][19].
+> ⚠️ If you are upgrading to **Operator v1.22.0+** from **<v1.18.0** or you haven't migrated Daemonset `matchLabels`, see the [migration guide][19].
 
 
 
