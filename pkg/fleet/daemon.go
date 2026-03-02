@@ -7,6 +7,7 @@ package fleet
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
@@ -25,8 +26,7 @@ type Daemon struct {
 	logger   logr.Logger
 	rcClient remoteconfig.RCClient
 	mu       sync.RWMutex
-	// configs stores the latest received installer configs keyed by RC config path.
-	configs map[string]installerConfig
+	configs  map[string]installerConfig // keyed by config ID; replaced on each RC update
 }
 
 // NewDaemon creates a new Fleet Daemon.
@@ -57,19 +57,43 @@ func (d *Daemon) NeedLeaderElection() bool {
 	return true
 }
 
-// handleConfigs stores the received installer configs and logs them.
+// handleConfigs replaces the stored installer configs with the latest RC update.
+// Configs are indexed by their ID so they can be retrieved by task handlers.
 func (d *Daemon) handleConfigs(configs map[string]installerConfig) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	for path, cfg := range configs {
-		d.logger.Info("Received installer config", "path", path, "id", cfg.ID, "file_operations", len(cfg.FileOperations))
-		d.configs[path] = cfg
+	newConfigs := make(map[string]installerConfig, len(configs))
+	for _, cfg := range configs {
+		d.logger.Info("Received installer config", "id", cfg.ID, "file_operations", len(cfg.FileOperations))
+		newConfigs[cfg.ID] = cfg
 	}
+	d.configs = newConfigs
 	return nil
+}
+
+// getConfig returns the installer config with the given ID.
+func (d *Daemon) getConfig(id string) (installerConfig, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	cfg, ok := d.configs[id]
+	if !ok {
+		return installerConfig{}, fmt.Errorf("config %s not found", id)
+	}
+	return cfg, nil
 }
 
 // handleRemoteAPIRequest logs the incoming task request. No action is taken.
 func (d *Daemon) handleRemoteAPIRequest(req remoteAPIRequest) error {
 	d.logger.Info("Received remote API request", "id", req.ID, "package", req.Package, "method", req.Method)
+	if req.ExpectedState.StableConfig != "" {
+		if cfg, err := d.getConfig(req.ExpectedState.StableConfig); err == nil {
+			d.logger.Info("Found associated stable config", "config_id", cfg.ID)
+		}
+	}
+	if req.ExpectedState.ExperimentConfig != "" {
+		if cfg, err := d.getConfig(req.ExpectedState.ExperimentConfig); err == nil {
+			d.logger.Info("Found associated experiment config", "config_id", cfg.ID)
+		}
+	}
 	return nil
 }
