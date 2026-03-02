@@ -34,8 +34,7 @@ This separation enables:
 
 ## What You Need to Know
 
-* You do not need to create `DatadogAgentInternal` resources.
-* They are automatically created and owned by the corresponding `DatadogAgent`.
+* You do not need to create `DatadogAgentInternal` resources. They are automatically created and owned by the corresponding `DatadogAgent`.
 * Manual modification is not supported and may lead to undefined behavior.
 * Deleting a `DatadogAgent` automatically deletes its `DatadogAgentInternal` resources.
 
