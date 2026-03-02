@@ -41,8 +41,12 @@ const (
 	// EKSCloudProvider is the Amazon EKS CloudProvider name
 	EKSCloudProvider = "eks"
 
-	// EKSProviderLabel is the EKS node label used to determine the node's provider
+	// EKSProviderLabel is a common EKS node label containing the AMI ID
 	EKSProviderLabel = "eks.amazonaws.com/nodegroup-image"
+
+	// EKS label prefixes for provider detection
+	eksLabelPrefix    = "eks.amazonaws.com/"
+	eksctlLabelPrefix = "alpha.eksctl.io/"
 )
 
 // ProviderValue allowlist
@@ -63,13 +67,42 @@ func determineProvider(labels map[string]string) string {
 		if val, ok := labels[OpenShiftProviderLabel]; ok {
 			return generateValidProviderName(OpenshiftProvider, val)
 		}
-		// EKS
-		if val, ok := labels[EKSProviderLabel]; ok {
-			return generateValidProviderName(EKSCloudProvider, val)
+		// EKS - check for any EKS-related labels
+		if isEKSProvider(labels) {
+			return EKSCloudProvider
 		}
 	}
 
 	return DefaultProvider
+}
+
+// isEKSProvider checks if a node is an EKS node by looking for EKS-specific labels
+func isEKSProvider(labels map[string]string) bool {
+	// Check for any eks.amazonaws.com/* or eksctl labels
+	for key := range labels {
+		if strings.HasPrefix(key, eksLabelPrefix) || strings.HasPrefix(key, eksctlLabelPrefix) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// ShouldUseDefaultDaemonset checks if the provider list contains providers that don't support
+// provider-specific daemonsets and should use a single default daemonset without node affinity.
+// Currently applies to EKS and OpenShift providers.
+func ShouldUseDefaultDaemonset(providerList map[string]struct{}) bool {
+	for provider := range providerList {
+		// Check for EKS directly (has no suffix)
+		if provider == EKSCloudProvider {
+			return true
+		}
+		// Check for OpenShift (has format "openshift-{value}")
+		if strings.HasPrefix(provider, OpenshiftProvider+"-") {
+			return true
+		}
+	}
+	return false
 }
 
 // getProviderNodeAffinity creates NodeSelectorTerms based on the provider
@@ -79,6 +112,13 @@ func getProviderNodeAffinity(provider string, providerList map[string]struct{}) 
 	}
 	// if only the default provider exists, there should be no affinity override
 	if provider == DefaultProvider && len(providerList) == 1 {
+		return nil
+	}
+
+	// If EKS or OpenShift is present and we're using the default provider,
+	// don't apply affinity rules. We don't support provider-specific daemonsets
+	// for these platforms, so a single daemonset runs on all nodes without affinity.
+	if provider == DefaultProvider && ShouldUseDefaultDaemonset(providerList) {
 		return nil
 	}
 
@@ -153,10 +193,15 @@ func isProviderValueAllowed(value string) bool {
 
 // GetProviderLabelKeyValue gets the corresponding cloud provider label key and value from a provider name
 func GetProviderLabelKeyValue(provider string) (string, string) {
+	// For EKS, this returns empty values since EKS provider has no suffix.
+	// Use direct comparison (provider == EKSCloudProvider) to check for EKS instead.
+	if provider == EKSCloudProvider {
+		return "", ""
+	}
+
 	// cloud provider to label mapping
 	providerMapping := map[string]string{
 		GKECloudProvider:  GKEProviderLabel,
-		EKSCloudProvider:  EKSProviderLabel,
 		OpenshiftProvider: OpenShiftProviderLabel,
 	}
 

@@ -216,7 +216,7 @@ func TestPrivateActionRunnerContainer(t *testing.T) {
 		"/opt/datadog-agent/embedded/bin/privateactionrunner",
 		"run",
 		"-c=/etc/datadog-agent/datadog.yaml",
-		"-c=/etc/datadog-agent/privateactionrunner.yaml",
+		"-E=/etc/datadog-agent/privateactionrunner.yaml",
 	}, parContainer.Command)
 
 	assert.True(t, *parContainer.SecurityContext.ReadOnlyRootFilesystem)

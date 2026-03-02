@@ -7,8 +7,6 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +18,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func Test_cleanupOldDCADeployments(t *testing.T) {
@@ -181,7 +178,6 @@ func Test_cleanupOldDCADeployments(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(tt.existingAgents...).Build()
-			logger := logf.Log.WithName("Test_cleanupOldDCADeployments")
 			eventBroadcaster := record.NewBroadcaster()
 			recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "Test_cleanupOldDCADeployments"})
 
@@ -189,17 +185,10 @@ func Test_cleanupOldDCADeployments(t *testing.T) {
 				client:   fakeClient,
 				recorder: recorder,
 			}
-			storeOptions := &store.StoreOptions{
-				SupportCilium: r.options.SupportCilium,
-				PlatformInfo:  r.platformInfo,
-				Logger:        logger,
-				Scheme:        r.scheme,
-			}
+
 			instance := &datadoghqv1alpha1.DatadogAgentInternal{}
 			instanceCopy := instance.DeepCopy()
 			defaults.DefaultDatadogAgentSpec(&instanceCopy.Spec)
-			depsStore := store.NewStore(instance, storeOptions)
-			resourcesManager := feature.NewResourceManagers(depsStore)
 
 			ddai := datadoghqv1alpha1.DatadogAgentInternal{
 				TypeMeta: metav1.TypeMeta{
@@ -211,9 +200,8 @@ func Test_cleanupOldDCADeployments(t *testing.T) {
 					Namespace: "ns-1",
 				},
 			}
-			ddaiStatus := datadoghqv1alpha1.DatadogAgentInternalStatus{}
 
-			err := r.cleanupOldDCADeployments(ctx, &ddai, resourcesManager, &ddaiStatus)
+			err := r.cleanupOldDCADeployments(ctx, &ddai)
 			assert.NoError(t, err)
 
 			deploymentList := &appsv1.DeploymentList{}

@@ -79,19 +79,22 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, instance *v1alpha1
 		}
 	}
 
-	// 2. Reconcile each component using the component registry
-	params := &ReconcileComponentParams{
-		DDAI:               instance,
-		RequiredComponents: requiredComponents,
-		Features:           append(configuredFeatures, enabledFeatures...),
-		ResourceManagers:   resourceManagers,
-		Status:             newStatus,
-		Provider:           "",
-	}
+	// 2. Reconcile each component (DCA, CCR, OTel Gateway) using the component registry.
+	// Profile DDAIs only manage the Node Agent DaemonSet, so skip components to avoid cleanup of un-related components / running un-necessary operations.
+	if !isDDAILabeledWithProfile(instance) {
+		params := &ReconcileComponentParams{
+			DDAI:               instance,
+			RequiredComponents: requiredComponents,
+			Features:           append(configuredFeatures, enabledFeatures...),
+			ResourceManagers:   resourceManagers,
+			Status:             newStatus,
+			Provider:           "",
+		}
 
-	result, err = r.componentRegistry.ReconcileComponents(ctx, params)
-	if utils.ShouldReturn(result, err) {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
+		result, err = r.componentRegistry.ReconcileComponents(ctx, params)
+		if utils.ShouldReturn(result, err) {
+			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
+		}
 	}
 
 	// 2.b. Node Agent

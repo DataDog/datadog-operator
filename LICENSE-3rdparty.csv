@@ -53,6 +53,7 @@ core,github.com/aws/aws-sdk-go-v2/internal/sync/singleflight,BSD-3-Clause
 core,github.com/aws/aws-sdk-go-v2/service/cloudformation,Apache-2.0
 core,github.com/aws/aws-sdk-go-v2/service/ec2,Apache-2.0
 core,github.com/aws/aws-sdk-go-v2/service/eks,Apache-2.0
+core,github.com/aws/aws-sdk-go-v2/service/iam,Apache-2.0
 core,github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding,Apache-2.0
 core,github.com/aws/aws-sdk-go-v2/service/internal/presigned-url,Apache-2.0
 core,github.com/aws/aws-sdk-go-v2/service/sso,Apache-2.0
