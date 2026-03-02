@@ -2119,9 +2119,21 @@ func Test_RegistryDefaultingBySite(t *testing.T) {
 			wantRegistry: images.DefaultEuropeImageRegistry,
 		},
 		{
+			name:         "Europe site with DD_REGISTRY_OVERRIDE_EU=true uses Datadog registry",
+			site:         "datadoghq.eu",
+			envVars:      map[string]string{"DD_REGISTRY_OVERRIDE_EU": "true"},
+			wantRegistry: images.DatadogContainerRegistry,
+		},
+		{
 			name:         "Asia site defaults to Asia registry",
 			site:         "ap1.datadoghq.com",
 			wantRegistry: images.DefaultAsiaImageRegistry,
+		},
+		{
+			name:         "Asia site with DD_REGISTRY_OVERRIDE_ASIA=true uses Datadog registry",
+			site:         "ap1.datadoghq.com",
+			envVars:      map[string]string{"DD_REGISTRY_OVERRIDE_ASIA": "true"},
+			wantRegistry: images.DatadogContainerRegistry,
 		},
 		{
 			name:         "Azure site defaults to Azure registry",
@@ -2129,20 +2141,48 @@ func Test_RegistryDefaultingBySite(t *testing.T) {
 			wantRegistry: images.DefaultAzureImageRegistry,
 		},
 		{
+			name:         "Azure site with DD_REGISTRY_OVERRIDE_AZURE=true uses Datadog registry",
+			site:         "us3.datadoghq.com",
+			envVars:      map[string]string{"DD_REGISTRY_OVERRIDE_AZURE": "true"},
+			wantRegistry: images.DatadogContainerRegistry,
+		},
+		{
 			name:         "Gov site defaults to Gov registry",
 			site:         "ddog-gov.com",
 			wantRegistry: images.DefaultGovImageRegistry,
 		},
 		{
-			name:         "default site without DD_USE_DATADOG_REGISTRY uses GCR registry",
+			name:         "default site without DD_REGISTRY_OVERRIDE_DEFAULT uses GCR registry",
 			site:         "datadoghq.com",
 			wantRegistry: images.DefaultImageRegistry,
 		},
 		{
-			name:         "default site with DD_USE_DATADOG_REGISTRY=true uses Datadog registry",
+			name:         "default site with DD_REGISTRY_OVERRIDE_DEFAULT=true uses Datadog registry",
 			site:         "datadoghq.com",
-			envVars:      map[string]string{"DD_USE_DATADOG_REGISTRY": "true"},
+			envVars:      map[string]string{"DD_REGISTRY_OVERRIDE_DEFAULT": "true"},
 			wantRegistry: images.DatadogContainerRegistry,
+		},
+		// Verify that override env vars are site-scoped: setting overrides for other sites
+		// must not affect the current site's registry selection.
+		{
+			name: "EU site ignores non-EU override env vars",
+			site: "datadoghq.eu",
+			envVars: map[string]string{
+				"DD_REGISTRY_OVERRIDE_ASIA":    "true",
+				"DD_REGISTRY_OVERRIDE_AZURE":   "true",
+				"DD_REGISTRY_OVERRIDE_DEFAULT": "true",
+			},
+			wantRegistry: images.DefaultEuropeImageRegistry,
+		},
+		{
+			name: "default site ignores non-default override env vars",
+			site: "datadoghq.com",
+			envVars: map[string]string{
+				"DD_REGISTRY_OVERRIDE_EU":    "true",
+				"DD_REGISTRY_OVERRIDE_ASIA":  "true",
+				"DD_REGISTRY_OVERRIDE_AZURE": "true",
+			},
+			wantRegistry: images.DefaultImageRegistry,
 		},
 	}
 

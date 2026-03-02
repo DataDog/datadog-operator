@@ -161,15 +161,27 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	if ddaSpec.Global.Registry == nil {
 		switch *ddaSpec.Global.Site {
 		case defaultEuropeSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultEuropeImageRegistry)
+			if os.Getenv("DD_REGISTRY_OVERRIDE_EU") == "true" {
+				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DatadogContainerRegistry)
+			} else {
+				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultEuropeImageRegistry)
+			}
 		case defaultAsiaSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultAsiaImageRegistry)
+			if os.Getenv("DD_REGISTRY_OVERRIDE_ASIA") == "true" {
+				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DatadogContainerRegistry)
+			} else {
+				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultAsiaImageRegistry)
+			}
 		case defaultAzureSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultAzureImageRegistry)
+			if os.Getenv("DD_REGISTRY_OVERRIDE_AZURE") == "true" {
+				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DatadogContainerRegistry)
+			} else {
+				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultAzureImageRegistry)
+			}
 		case defaultGovSite:
 			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultGovImageRegistry)
 		default:
-			if os.Getenv("DD_USE_DATADOG_REGISTRY") == "true" {
+			if os.Getenv("DD_REGISTRY_OVERRIDE_DEFAULT") == "true" {
 				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DatadogContainerRegistry)
 			} else {
 				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultImageRegistry)
