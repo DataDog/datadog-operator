@@ -2144,6 +2144,30 @@ func Test_RegistryDefaultingBySite(t *testing.T) {
 			envVars:      map[string]string{"DD_USE_DATADOG_REGISTRY": "true"},
 			wantRegistry: images.DatadogContainerRegistry,
 		},
+		{
+			name:         "Europe site with DD_USE_DATADOG_REGISTRY=true uses Datadog registry",
+			site:         "datadoghq.eu",
+			envVars:      map[string]string{"DD_USE_DATADOG_REGISTRY": "true"},
+			wantRegistry: images.DatadogContainerRegistry,
+		},
+		{
+			name:         "Asia site with DD_USE_DATADOG_REGISTRY=true uses Datadog registry",
+			site:         "ap1.datadoghq.com",
+			envVars:      map[string]string{"DD_USE_DATADOG_REGISTRY": "true"},
+			wantRegistry: images.DatadogContainerRegistry,
+		},
+		{
+			name:         "Azure site with DD_USE_DATADOG_REGISTRY=true uses Datadog registry",
+			site:         "us3.datadoghq.com",
+			envVars:      map[string]string{"DD_USE_DATADOG_REGISTRY": "true"},
+			wantRegistry: images.DatadogContainerRegistry,
+		},
+		{
+			name:         "Gov site with DD_USE_DATADOG_REGISTRY=true uses Datadog registry",
+			site:         "ddog-gov.com",
+			envVars:      map[string]string{"DD_USE_DATADOG_REGISTRY": "true"},
+			wantRegistry: images.DatadogContainerRegistry,
+		},
 	}
 
 	for _, tt := range tests {

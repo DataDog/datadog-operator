@@ -159,19 +159,19 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	}
 
 	if ddaSpec.Global.Registry == nil {
-		switch *ddaSpec.Global.Site {
-		case defaultEuropeSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultEuropeImageRegistry)
-		case defaultAsiaSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultAsiaImageRegistry)
-		case defaultAzureSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultAzureImageRegistry)
-		case defaultGovSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultGovImageRegistry)
-		default:
-			if os.Getenv("DD_USE_DATADOG_REGISTRY") == "true" {
-				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DatadogContainerRegistry)
-			} else {
+		if os.Getenv("DD_USE_DATADOG_REGISTRY") == "true" {
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DatadogContainerRegistry)
+		} else {
+			switch *ddaSpec.Global.Site {
+			case defaultEuropeSite:
+				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultEuropeImageRegistry)
+			case defaultAsiaSite:
+				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultAsiaImageRegistry)
+			case defaultAzureSite:
+				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultAzureImageRegistry)
+			case defaultGovSite:
+				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultGovImageRegistry)
+			default:
 				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultImageRegistry)
 			}
 		}
