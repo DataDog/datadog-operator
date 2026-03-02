@@ -6,5 +6,9 @@
 package privateactionrunner
 
 const (
-	privateActionRunnerSuffix = "private-action-runner"
+	PrivateActionRunnerConfigPath = "/etc/datadog-agent/privateactionrunner.yaml"
+
+	privateActionRunnerVolumeNameSuffix = "privateactionrunner-config"
+	privateActionRunnerFileName         = "privateactionrunner.yaml"
+	privateActionRunnerSuffix           = "private-action-runner"
 )
