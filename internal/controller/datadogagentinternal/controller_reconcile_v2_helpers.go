@@ -18,6 +18,7 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
+	componentotel "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/otelagentgateway"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
@@ -120,6 +121,10 @@ func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, instance *d
 		if err := r.cleanupOldCCRDeployments(ctx, instance); err != nil {
 			errs = append(errs, err)
 			logger.Error(err, "Error cleaning up old CCR Deployments")
+		}
+		if err := r.cleanupOldOtelAgentGatewayDeployments(ctx, instance); err != nil {
+			errs = append(errs, err)
+			logger.Error(err, "Error cleaning up old OTel Agent Gateway Deployments")
 		}
 	}
 	if len(errs) > 0 {
@@ -232,6 +237,42 @@ func (r *Reconciler) cleanupOldCCRDeployments(ctx context.Context, ddai *v1alpha
 func getDeploymentNameFromCCR(ddai *v1alpha1.DatadogAgentInternal) string {
 	deploymentName := componentccr.GetClusterChecksRunnerName(ddai)
 	if componentOverride, ok := ddai.Spec.Override[datadoghqv2alpha1.ClusterChecksRunnerComponentName]; ok {
+		if componentOverride.Name != nil && *componentOverride.Name != "" {
+			deploymentName = *componentOverride.Name
+		}
+	}
+	return deploymentName
+}
+
+// cleanupOldOtelAgentGatewayDeployments deletes OTel Agent Gateway deployments when
+// the deployment name is changed using otelAgentGateway name override
+func (r *Reconciler) cleanupOldOtelAgentGatewayDeployments(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal) error {
+	matchLabels := client.MatchingLabels{
+		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultOtelAgentGatewayResourceSuffix,
+		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(ddai).String(),
+	}
+	deploymentName := getDeploymentNameFromOtelAgentGateway(ddai)
+	deploymentList := appsv1.DeploymentList{}
+	if err := r.client.List(ctx, &deploymentList, matchLabels); err != nil {
+		return err
+	}
+	for _, deployment := range deploymentList.Items {
+		if deploymentName != deployment.Name {
+			objLogger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
+			if _, err := r.deleteDeploymentWithEvent(ctx, objLogger, ddai, &deployment); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// getDeploymentNameFromOtelAgentGateway returns the expected OTel Agent Gateway deployment name based on
+// the DDAI name and otelAgentGateway name override
+func getDeploymentNameFromOtelAgentGateway(ddai *v1alpha1.DatadogAgentInternal) string {
+	deploymentName := componentotel.GetOtelAgentGatewayName(ddai)
+	if componentOverride, ok := ddai.Spec.Override[datadoghqv2alpha1.OtelAgentGatewayComponentName]; ok {
 		if componentOverride.Name != nil && *componentOverride.Name != "" {
 			deploymentName = *componentOverride.Name
 		}

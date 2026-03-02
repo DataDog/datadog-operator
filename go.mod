@@ -51,6 +51,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/cloudformation v1.68.3
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.206.0
 	github.com/aws/aws-sdk-go-v2/service/eks v1.60.0
+	github.com/aws/aws-sdk-go-v2/service/iam v1.40.0
 	github.com/aws/aws-sdk-go-v2/service/sts v1.34.0
 	github.com/aws/karpenter-provider-aws v1.3.6
 	github.com/aws/smithy-go v1.24.0

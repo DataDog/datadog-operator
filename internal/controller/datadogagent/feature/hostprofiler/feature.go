@@ -60,17 +60,17 @@ func (o *hostProfilerFeature) ID() feature.IDType {
 }
 
 func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
-	o.hostProfilerEnabled = featureutils.HasHostProfilerAnnotation(dda)
+	o.hostProfilerEnabled = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerAnnotation)
 
 	o.owner = dda
-	if value, ok := featureutils.HasHostProfilerConfigAnnotion(dda, featureutils.HostProfilerConfigDataAnnotion); ok {
+	if value, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.HostProfilerConfigDataAnnotation); ok {
 		o.customConfig = &v2alpha1.CustomConfig{
 			ConfigData: apiutils.NewStringPointer(value),
 		}
 
 	}
 
-	if value, ok := featureutils.HasHostProfilerConfigAnnotion(dda, featureutils.HostProfilerConfigMapNameAnnotion); ok {
+	if value, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.HostProfilerConfigMapNameAnnotation); ok {
 		o.customConfig = &v2alpha1.CustomConfig{
 			ConfigMap: &v2alpha1.ConfigMapConfig{
 				Name: value,
