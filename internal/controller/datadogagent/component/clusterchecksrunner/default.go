@@ -19,6 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
@@ -37,7 +38,7 @@ func GetCCRRbacResourcesName(dda metav1.Object) string {
 }
 
 // NewDefaultClusterChecksRunnerDeployment return a new default cluster-checks-runner deployment
-func NewDefaultClusterChecksRunnerDeployment(dda metav1.Object) *appsv1.Deployment {
+func NewDefaultClusterChecksRunnerDeployment(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) *appsv1.Deployment {
 	deployment := common.NewDeployment(dda, constants.DefaultClusterChecksRunnerResourceSuffix, GetClusterChecksRunnerName(dda), common.GetAgentVersion(dda), nil)
 
 	podTemplate := NewDefaultClusterChecksRunnerPodTemplateSpec(dda)
