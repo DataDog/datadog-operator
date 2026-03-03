@@ -426,6 +426,74 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			wantDependency:            assertSecretBackendGlobalPerms,
 		},
 		{
+			name:                           "Secret backend - type-based configuration",
+			singleContainerStrategyEnabled: false,
+			dda: addNameNamespaceToDDA(
+				ddaName,
+				ddaNamespace,
+				testutils.NewDatadogAgentBuilder().
+					WithGlobalSecretBackendType("k8s.secrets", map[string]string{"token_path": "/custom/token"}).
+					WithCredentials("apiKey", "appKey").
+					BuildWithDefaults(),
+			),
+			wantCoreAgentEnvVars: nil,
+			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
+				{
+					Name: constants.DDAPIKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "datadog-secret",
+							},
+							Key: v2alpha1.DefaultAPIKeyKey,
+						},
+					},
+				},
+				{
+					Name: constants.DDAppKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "datadog-secret",
+							},
+							Key: v2alpha1.DefaultAPPKeyKey,
+						},
+					},
+				},
+				{
+					Name: DDClusterAgentAuthToken,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "datadog-token",
+							},
+							Key: common.DefaultTokenKey,
+						},
+					},
+				},
+				{
+					Name:  DDSecretBackendCommand,
+					Value: "",
+				},
+				{
+					Name:  DDSecretBackendArguments,
+					Value: "",
+				},
+				{
+					Name:  DDSecretBackendType,
+					Value: "k8s.secrets",
+				},
+				{
+					Name:  DDSecretBackendConfig,
+					Value: `{"token_path":"/custom/token"}`,
+				},
+			}...),
+			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
+			wantVolumeMounts:          getExpectedVolumeMounts(),
+			wantVolumes:               getExpectedVolumes(),
+			want:                      assertAll,
+		},
+		{
 			name:                           "Secret backend - with refresh interval",
 			singleContainerStrategyEnabled: false,
 			dda: addNameNamespaceToDDA(

@@ -1818,6 +1818,16 @@ type SecretBackendConfig struct {
 	// +optional
 	EnableGlobalPermissions *bool `json:"enableGlobalPermissions,omitempty"`
 
+	// The built-in secret backend type to use (e.g., `k8s.secrets`, `docker.secrets`, `aws.secrets`).
+	// Alternative to Command; when Type is set, the Agent uses the built-in backend to resolve secrets.
+	// Requires Agent 7.70+.
+	// +optional
+	Type *string `json:"type,omitempty"`
+
+	// Additional configuration for the secret backend type.
+	// +optional
+	Config map[string]string `json:"config,omitempty"`
+
 	// Roles for Datadog to read the specified secrets, replacing `enableGlobalPermissions`.
 	// They are defined as a list of namespace/secrets.
 	// Each defined namespace needs to be present in the DatadogAgent controller using `WATCH_NAMESPACE` or `DD_AGENT_WATCH_NAMESPACE`.
