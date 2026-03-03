@@ -19,7 +19,9 @@ const (
 	defaultSite       string = "datadoghq.com"
 	defaultEuropeSite string = "datadoghq.eu"
 	defaultAsiaSite   string = "ap1.datadoghq.com"
+	defaultAsia2Site  string = "ap2.datadoghq.com"
 	defaultAzureSite  string = "us3.datadoghq.com"
+	defaultUS5Site    string = "us5.datadoghq.com"
 	defaultGovSite    string = "ddog-gov.com"
 	defaultLogLevel   string = "info"
 
@@ -172,11 +174,23 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 			} else {
 				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultAsiaImageRegistry)
 			}
+		case defaultAsia2Site:
+			if os.Getenv("DD_REGISTRY_OVERRIDE_AP2") == "true" {
+				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DatadogContainerRegistry)
+			} else {
+				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultAsiaImageRegistry)
+			}
 		case defaultAzureSite:
 			if os.Getenv("DD_REGISTRY_OVERRIDE_AZURE") == "true" {
 				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DatadogContainerRegistry)
 			} else {
 				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultAzureImageRegistry)
+			}
+		case defaultUS5Site:
+			if os.Getenv("DD_REGISTRY_OVERRIDE_US5") == "true" {
+				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DatadogContainerRegistry)
+			} else {
+				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultImageRegistry)
 			}
 		case defaultGovSite:
 			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultGovImageRegistry)

@@ -1620,6 +1620,7 @@ type GlobalConfig struct {
 	// Set to 'us5.datadoghq.com' to send data to the US5 site.
 	// Set to 'ddog-gov.com' to send data to the US1-FED site.
 	// Set to 'ap1.datadoghq.com' to send data to the AP1 site.
+	// Set to 'ap2.datadoghq.com' to send data to the AP2 site.
 	// Default: 'datadoghq.com'
 	// +optional
 	Site *string `json:"site,omitempty"`

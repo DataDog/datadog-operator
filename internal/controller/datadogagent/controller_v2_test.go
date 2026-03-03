@@ -2147,6 +2147,28 @@ func Test_RegistryDefaultingBySite(t *testing.T) {
 			wantRegistry: images.DatadogContainerRegistry,
 		},
 		{
+			name:         "US5 site defaults to GCR registry",
+			site:         "us5.datadoghq.com",
+			wantRegistry: images.DefaultImageRegistry,
+		},
+		{
+			name:         "US5 site with DD_REGISTRY_OVERRIDE_US5=true uses Datadog registry",
+			site:         "us5.datadoghq.com",
+			envVars:      map[string]string{"DD_REGISTRY_OVERRIDE_US5": "true"},
+			wantRegistry: images.DatadogContainerRegistry,
+		},
+		{
+			name:         "AP2 site defaults to Asia registry",
+			site:         "ap2.datadoghq.com",
+			wantRegistry: images.DefaultAsiaImageRegistry,
+		},
+		{
+			name:         "AP2 site with DD_REGISTRY_OVERRIDE_AP2=true uses Datadog registry",
+			site:         "ap2.datadoghq.com",
+			envVars:      map[string]string{"DD_REGISTRY_OVERRIDE_AP2": "true"},
+			wantRegistry: images.DatadogContainerRegistry,
+		},
+		{
 			name:         "Gov site defaults to Gov registry",
 			site:         "ddog-gov.com",
 			wantRegistry: images.DefaultGovImageRegistry,
@@ -2169,7 +2191,9 @@ func Test_RegistryDefaultingBySite(t *testing.T) {
 			site: "datadoghq.eu",
 			envVars: map[string]string{
 				"DD_REGISTRY_OVERRIDE_ASIA":    "true",
+				"DD_REGISTRY_OVERRIDE_AP2":     "true",
 				"DD_REGISTRY_OVERRIDE_AZURE":   "true",
+				"DD_REGISTRY_OVERRIDE_US5":     "true",
 				"DD_REGISTRY_OVERRIDE_DEFAULT": "true",
 			},
 			wantRegistry: images.DefaultEuropeImageRegistry,
@@ -2180,7 +2204,9 @@ func Test_RegistryDefaultingBySite(t *testing.T) {
 			envVars: map[string]string{
 				"DD_REGISTRY_OVERRIDE_EU":    "true",
 				"DD_REGISTRY_OVERRIDE_ASIA":  "true",
+				"DD_REGISTRY_OVERRIDE_AP2":   "true",
 				"DD_REGISTRY_OVERRIDE_AZURE": "true",
+				"DD_REGISTRY_OVERRIDE_US5":   "true",
 			},
 			wantRegistry: images.DefaultImageRegistry,
 		},
