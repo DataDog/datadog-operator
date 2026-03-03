@@ -11,6 +11,7 @@ import (
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -77,10 +78,10 @@ func (c *ClusterAgentComponent) ForceDeleteComponent(ddai *v1alpha1.DatadogAgent
 	return false
 }
 
-func (c *ClusterAgentComponent) CleanupDependencies(ctx context.Context, logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers) (reconcile.Result, error) {
+func (c *ClusterAgentComponent) CleanupDependencies(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers) (reconcile.Result, error) {
 	// Delete associated RBACs as well
 	rbacManager := resourcesManager.RBACManager()
-	logger.Info("Deleting Cluster Agent RBACs")
+	ctrl.LoggerFrom(ctx).Info("Deleting Cluster Agent RBACs")
 	if err := rbacManager.DeleteServiceAccountByComponent(string(datadoghqv2alpha1.ClusterAgentComponentName), ddai.Namespace); err != nil {
 		return reconcile.Result{}, err
 	}
