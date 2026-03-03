@@ -178,7 +178,7 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 			if os.Getenv("DD_REGISTRY_OVERRIDE_AP2") == "true" {
 				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DatadogContainerRegistry)
 			} else {
-				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultAsiaImageRegistry)
+				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultImageRegistry)
 			}
 		case defaultAzureSite:
 			if os.Getenv("DD_REGISTRY_OVERRIDE_AZURE") == "true" {

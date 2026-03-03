@@ -2158,9 +2158,9 @@ func Test_RegistryDefaultingBySite(t *testing.T) {
 			wantRegistry: images.DatadogContainerRegistry,
 		},
 		{
-			name:         "AP2 site defaults to Asia registry",
+			name:         "AP2 site defaults to GCR registry",
 			site:         "ap2.datadoghq.com",
-			wantRegistry: images.DefaultAsiaImageRegistry,
+			wantRegistry: images.DefaultImageRegistry,
 		},
 		{
 			name:         "AP2 site with DD_REGISTRY_OVERRIDE_AP2=true uses Datadog registry",
