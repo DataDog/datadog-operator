@@ -49,7 +49,7 @@ func (f *dataPlaneFeature) ID() feature.IDType {
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *dataPlaneFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	// Check if the deprecated annotation is being used, and log a warning if so.
-	if featureutils.HasAgentDataPlaneAnnotation(dda) {
+	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableADPAnnotation) {
 		f.logger.Info("DEPRECATION WARNING: annotation 'agent.datadoghq.com/adp-enabled' is deprecated; use 'spec.features.dataPlane.enabled' instead")
 	}
 
