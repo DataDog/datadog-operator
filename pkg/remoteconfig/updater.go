@@ -23,8 +23,10 @@ import (
 	"github.com/cenkalti/backoff"
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
+	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	kubeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -54,6 +56,7 @@ type RcServiceConfiguration struct {
 	baseRawURL        string
 	hostname          string
 	clusterName       string
+	clusterID         string
 	telemetryReporter service.RcTelemetryReporter
 	agentVersion      string
 	rcDatabaseDir     string
@@ -145,9 +148,11 @@ func (r *RemoteConfigUpdater) Setup(creds config.Creds) error {
 	configRoot := os.Getenv("DD_REMOTE_CONFIGURATION_CONFIG_ROOT")
 	endpoint := os.Getenv("DD_REMOTE_CONFIGURATION_RC_DD_URL")
 
+	clusterID := r.getClusterID()
+
 	if r.rcClient == nil && r.rcService == nil {
 		// Setup rcClient and rcService
-		err := r.Start(apiKey, site, clusterName, directorRoot, configRoot, endpoint)
+		err := r.Start(apiKey, site, clusterName, clusterID, directorRoot, configRoot, endpoint)
 		if err != nil {
 			return err
 		}
@@ -157,11 +162,11 @@ func (r *RemoteConfigUpdater) Setup(creds config.Creds) error {
 
 }
 
-func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName string, directorRoot string, configRoot string, endpoint string) error {
+func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName string, clusterID string, directorRoot string, configRoot string, endpoint string) error {
 
 	r.logger.Info("Starting Remote Configuration client and service")
 
-	err := r.configureService(apiKey, site, clusterName, directorRoot, configRoot, endpoint)
+	err := r.configureService(apiKey, site, clusterName, clusterID, directorRoot, configRoot, endpoint)
 	if err != nil {
 		r.logger.Error(err, "Failed to configure Remote Configuration service")
 		return err
@@ -172,7 +177,13 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 		"",
 		r.serviceConf.baseRawURL,
 		r.serviceConf.hostname,
-		func() []string { return []string{"cluster_name:" + r.serviceConf.clusterName} },
+		func() []string {
+			tags := []string{"cluster_name:" + r.serviceConf.clusterName}
+			if r.serviceConf.clusterID != "" {
+				tags = append(tags, "cluster_id:"+r.serviceConf.clusterID)
+			}
+			return tags
+		},
 		r.serviceConf.telemetryReporter,
 		r.serviceConf.agentVersion,
 		service.WithAPIKey(apiKey),
@@ -213,7 +224,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 }
 
 // configureService fills the configuration needed to start the rc service
-func (r *RemoteConfigUpdater) configureService(apiKey, site, clusterName, directorRoot, configRoot, endpoint string) error {
+func (r *RemoteConfigUpdater) configureService(apiKey, site, clusterName, clusterID, directorRoot, configRoot, endpoint string) error {
 	cfg := model.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
 
 	cfg.SetWithoutSource("api_key", apiKey)
@@ -238,6 +249,7 @@ func (r *RemoteConfigUpdater) configureService(apiKey, site, clusterName, direct
 		baseRawURL:        endpoint,
 		hostname:          hostname,
 		clusterName:       clusterName,
+		clusterID:         clusterID,
 		telemetryReporter: dummyTelemetryReporter{},
 		// TODO fix when other values accepted
 		agentVersion:  "7.50.0",
@@ -245,6 +257,17 @@ func (r *RemoteConfigUpdater) configureService(apiKey, site, clusterName, direct
 	}
 	r.serviceConf = serviceConf
 	return nil
+}
+
+// getClusterID returns the cluster ID (kube-system namespace UID). Returns an empty
+// string and logs a warning if the namespace cannot be fetched.
+func (r *RemoteConfigUpdater) getClusterID() string {
+	kubeSystemNS := &corev1.Namespace{}
+	if err := r.kubeClient.Get(context.TODO(), types.NamespacedName{Name: "kube-system"}, kubeSystemNS); err != nil {
+		r.logger.Info("Could not fetch kube-system namespace, cluster_id tag will be omitted", "err", err)
+		return ""
+	}
+	return string(kubeSystemNS.UID)
 }
 
 // getEndpoint returns the Remote Config endpoint, based on `site` and the prefix
