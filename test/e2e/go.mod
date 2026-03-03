@@ -10,7 +10,7 @@ require (
 	github.com/DataDog/datadog-api-client-go/v2 v2.54.0 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.41.2
 	github.com/aws/aws-sdk-go-v2/config v1.32.10
-	github.com/aws/aws-sdk-go-v2/service/cloudformation v1.68.3
+	github.com/aws/aws-sdk-go-v2/service/cloudformation v1.71.6
 	github.com/aws/smithy-go v1.24.1 // indirect
 	github.com/pulumi/pulumi-kubernetes/sdk/v4 v4.23.0
 	github.com/pulumi/pulumi/sdk/v3 v3.219.0
