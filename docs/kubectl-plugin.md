@@ -84,13 +84,13 @@ Available Commands:
 
 ### Autoscaling sub-commands (Technical Preview)
 
-> **Note:** The `autoscaling` commands are part of the Datadog cluster autoscaling feature, which is currently in **technical preview**. APIs and behaviors may change in future releases.
+> **Note:** The `autoscaling` commands are part of the Datadog Cluster Autoscaling feature, which is in **technical preview**. APIs and behaviors may change in future releases.
 
 These commands install and configure [Karpenter](https://karpenter.sh/) on an EKS cluster so that Datadog can manage cluster autoscaling.
 
 #### `autoscaling cluster install`
 
-Installs Karpenter on an EKS cluster and configures it for use with Datadog cluster autoscaling. The command:
+Installs Karpenter on an EKS cluster and configures it for use with Datadog Cluster Autoscaling. The command:
 
 1. Creates the required AWS CloudFormation stacks.
 2. Configures EKS authentication (aws-auth ConfigMap, EKS Pod Identity, or API-based access entries depending on the cluster).
