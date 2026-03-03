@@ -32,10 +32,14 @@ Usage:
 
 Available Commands:
   agent
+  autoscaling  Manage autoscaling features
   clusteragent
+  completion   Generate the autocompletion script for the specified shell
   flare        Collect a Datadog's Operator flare and send it to Datadog
   get          Get DatadogAgent deployment(s)
+  helm2dda     Map Datadog Helm values to DatadogAgent CRD schema
   help         Help about any command
+  metrics
   validate
 
 ```
@@ -78,7 +82,20 @@ Available Commands:
   service     Validate the autodiscovery annotations for a service
 ```
 
-### Cluster autoscaling
+### Autoscaling sub-commands (Technical Preview)
+
+> **Note:** The `autoscaling` commands are part of the Datadog cluster autoscaling feature, which is currently in **technical preview**. APIs and behaviors may change in future releases.
+
+These commands install and configure [Karpenter](https://karpenter.sh/) on an EKS cluster so that Datadog can manage cluster autoscaling.
+
+#### `autoscaling cluster install`
+
+Installs Karpenter on an EKS cluster and configures it for use with Datadog cluster autoscaling. The command:
+
+1. Creates the required AWS CloudFormation stacks.
+2. Configures EKS authentication (aws-auth ConfigMap, EKS Pod Identity, or API-based access entries depending on the cluster).
+3. Installs Karpenter via Helm from the OCI registry.
+4. Optionally creates `EC2NodeClass` and `NodePool` Karpenter resources, inferred from existing cluster nodes or EKS node groups.
 
 ```console
 $ kubectl datadog autoscaling cluster install --help
@@ -93,57 +110,34 @@ Examples:
   kubectl datadog autoscaling cluster install
 
 Flags:
-      --as string
-            Username to impersonate for the operation. User could be a regular user or a service account in a namespace.
-      --as-group stringArray
-            Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
-      --as-uid string
-            UID to impersonate for the operation.
-      --cache-dir string
-            Default cache directory (default "/home/lenaic/.kube/cache")
-      --certificate-authority string
-            Path to a cert file for the certificate authority
-      --client-certificate string
-            Path to a client certificate file for TLS
-      --client-key string
-            Path to a client key file for TLS
-      --cluster string
-            The name of the kubeconfig cluster to use
-      --cluster-name string
-            Name of the EKS cluster
-      --context string
-            The name of the kubeconfig context to use
-      --create-karpenter-resources CreateKarpenterResources
-            Which Karpenter resources to create: none, ec2nodeclass, all
-            (default all)
-      --debug
-            Enable debug logs
-      --disable-compression
-            If true, opt-out of response compression for all requests to the server
-  -h, --help
-            help for install
-      --inference-method InferenceMethod
-            Method to infer EC2NodeClass and NodePool properties: nodes, nodegroups (default nodegroups)
-      --insecure-skip-tls-verify
-            If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
-      --karpenter-namespace string
-            Name of the Kubernetes namespace to deploy Karpenter into (default "dd-karpenter")
-      --karpenter-version string
-            Version of Karpenter to install (default to latest)
-      --kubeconfig string
-            Path to the kubeconfig file to use for CLI requests.
-  -n, --namespace string
-            If present, the namespace scope for this CLI request
-      --request-timeout string
-            The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
-  -s, --server string
-            The address and port of the Kubernetes API server
-      --tls-server-name string
-            Server name to use for server certificate validation. If it is not provided, the hostname used to contact the server is used
-      --token string
-            Bearer token for authentication to the API server
-      --user string
-            The name of the kubeconfig user to use
+      --cluster-name string                                   Name of the EKS cluster
+      --create-karpenter-resources CreateKarpenterResources   Which Karpenter resources to create: none, ec2nodeclass, all (default: all) (default all)
+      --debug                                                 Enable debug logs
+      --inference-method InferenceMethod                      Method to infer EC2NodeClass and NodePool properties: nodes, nodegroups (default nodegroups)
+      --karpenter-namespace string                            Name of the Kubernetes namespace to deploy Karpenter into (default "dd-karpenter")
+      --karpenter-version string                              Version of Karpenter to install (default to latest)
+```
+
+#### `autoscaling cluster uninstall`
+
+Removes Karpenter and all associated resources from an EKS cluster. Deletes `NodePool` and `EC2NodeClass` resources, waits for the corresponding EC2 instances to terminate, uninstalls the Karpenter Helm release, cleans up IAM roles, and removes the CloudFormation stacks. Only resources originally created by `kubectl datadog` are affected.
+
+```console
+$ kubectl datadog autoscaling cluster uninstall --help
+Uninstall autoscaling from an EKS cluster
+
+Usage:
+  datadog autoscaling cluster uninstall [flags]
+
+Examples:
+
+  # uninstall autoscaling
+  kubectl datadog autoscaling cluster uninstall
+
+Flags:
+      --cluster-name string        Name of the EKS cluster
+      --karpenter-namespace string  Name of the Kubernetes namespace where Karpenter is deployed (default "dd-karpenter")
+      --yes                        Skip confirmation prompt
 ```
 
 [1]: https://github.com/DataDog/helm-charts/tree/main/charts/datadog
