@@ -209,7 +209,7 @@ jobs:
           COMMIT_TAG: ${{steps.tag.outputs.tag}}
           GITHUB_TOKEN: ${{ steps.octo-sts.outputs.token }}
       - name: Update new plugin version in krew-index
-        uses: rajatjindal/krew-release-bot@a7e82ae57ca41a16fca2691ef00e8a8d35bc77d4 # v0.0.50
+        uses: rajatjindal/krew-release-bot@c970b8a8f6dbc2f2285a26e3ae160903b87002c3 # v0.0.51
         continue-on-error: true
         with:
           krew_template_file: dist/datadog-plugin.yaml
