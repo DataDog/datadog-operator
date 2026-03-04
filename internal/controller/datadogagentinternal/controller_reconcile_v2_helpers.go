@@ -3,7 +3,6 @@ package datadogagentinternal
 import (
 	"context"
 
-	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -32,11 +31,11 @@ import (
 // STEP 2 of the reconcile loop: reconcile 3 components
 
 // setupDependencies initializes the store and resource managers.
-func (r *Reconciler) setupDependencies(instance *datadoghqv1alpha1.DatadogAgentInternal, logger logr.Logger) (*store.Store, feature.ResourceManagers) {
+func (r *Reconciler) setupDependencies(ctx context.Context, instance *datadoghqv1alpha1.DatadogAgentInternal) (*store.Store, feature.ResourceManagers) {
 	storeOptions := &store.StoreOptions{
 		SupportCilium: r.options.SupportCilium,
 		PlatformInfo:  r.platformInfo,
-		Logger:        logger,
+		Logger:        ctrl.LoggerFrom(ctx),
 		Scheme:        r.scheme,
 	}
 	depsStore := store.NewStore(instance, storeOptions)
@@ -45,7 +44,8 @@ func (r *Reconciler) setupDependencies(instance *datadoghqv1alpha1.DatadogAgentI
 }
 
 // manageGlobalDependencies manages the global dependencies for a component.
-func (r *Reconciler) manageGlobalDependencies(logger logr.Logger, ddai *datadoghqv1alpha1.DatadogAgentInternal, resourceManagers feature.ResourceManagers, requiredComponents feature.RequiredComponents) error {
+func (r *Reconciler) manageGlobalDependencies(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal, resourceManagers feature.ResourceManagers, requiredComponents feature.RequiredComponents) error {
+	logger := ctrl.LoggerFrom(ctx)
 	var errs []error
 	// Non component specific dependencies
 	if err := global.ApplyGlobalDependencies(logger, ddai.GetObjectMeta(), &ddai.Spec, resourceManagers, true); len(err) > 0 {
@@ -73,7 +73,7 @@ func (r *Reconciler) manageGlobalDependencies(logger logr.Logger, ddai *datadogh
 }
 
 // manageFeatureDependencies iterates over features to set up dependencies.
-func (r *Reconciler) manageFeatureDependencies(logger logr.Logger, features []feature.Feature, resourceManagers feature.ResourceManagers) error {
+func (r *Reconciler) manageFeatureDependencies(features []feature.Feature, resourceManagers feature.ResourceManagers) error {
 	var errs []error
 	for _, feat := range features {
 		if err := feat.ManageDependencies(resourceManagers, ""); err != nil {
@@ -87,8 +87,8 @@ func (r *Reconciler) manageFeatureDependencies(logger logr.Logger, features []fe
 }
 
 // overrideDependencies wraps the dependency override logic.
-func (r *Reconciler) overrideDependencies(logger logr.Logger, resourceManagers feature.ResourceManagers, instance *datadoghqv1alpha1.DatadogAgentInternal) error {
-	errs := override.Dependencies(logger, resourceManagers, instance.GetObjectMeta(), &instance.Spec)
+func (r *Reconciler) overrideDependencies(ctx context.Context, resourceManagers feature.ResourceManagers, instance *datadoghqv1alpha1.DatadogAgentInternal) error {
+	errs := override.Dependencies(ctrl.LoggerFrom(ctx), resourceManagers, instance.GetObjectMeta(), &instance.Spec)
 	if len(errs) > 0 {
 		return errors.NewAggregate(errs)
 	}
@@ -162,7 +162,7 @@ func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, depsStore 
 	return nil
 }
 
-func (r *Reconciler) deleteDeploymentWithEvent(ctx context.Context, logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, deployment *appsv1.Deployment) (reconcile.Result, error) {
+func (r *Reconciler) deleteDeploymentWithEvent(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, deployment *appsv1.Deployment) (reconcile.Result, error) {
 	nsName := types.NamespacedName{
 		Name:      deployment.GetName(),
 		Namespace: deployment.GetNamespace(),
@@ -175,7 +175,7 @@ func (r *Reconciler) deleteDeploymentWithEvent(ctx context.Context, logger logr.
 		}
 		return reconcile.Result{}, err
 	}
-	logger.Info("Deleting Deployment", "deployment.Namespace", existingDeployment.Namespace, "deployment.Name", existingDeployment.Name)
+	ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", existingDeployment.Namespace, "object.name", existingDeployment.Name).Info("Deleting Deployment")
 	if err := r.client.Delete(ctx, existingDeployment); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -200,8 +200,7 @@ func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, ddai *v1alpha
 	}
 	for _, deployment := range deploymentList.Items {
 		if deploymentName != deployment.Name {
-			objLogger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
-			if _, err := r.deleteDeploymentWithEvent(ctx, objLogger, ddai, &deployment); err != nil {
+			if _, err := r.deleteDeploymentWithEvent(ctx, ddai, &deployment); err != nil {
 				return err
 			}
 		}
@@ -223,8 +222,7 @@ func (r *Reconciler) cleanupOldCCRDeployments(ctx context.Context, ddai *v1alpha
 	}
 	for _, deployment := range deploymentList.Items {
 		if deploymentName != deployment.Name {
-			objLogger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
-			if _, err := r.deleteDeploymentWithEvent(ctx, objLogger, ddai, &deployment); err != nil {
+			if _, err := r.deleteDeploymentWithEvent(ctx, ddai, &deployment); err != nil {
 				return err
 			}
 		}
@@ -259,8 +257,7 @@ func (r *Reconciler) cleanupOldOtelAgentGatewayDeployments(ctx context.Context, 
 	}
 	for _, deployment := range deploymentList.Items {
 		if deploymentName != deployment.Name {
-			objLogger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
-			if _, err := r.deleteDeploymentWithEvent(ctx, objLogger, ddai, &deployment); err != nil {
+			if _, err := r.deleteDeploymentWithEvent(ctx, ddai, &deployment); err != nil {
 				return err
 			}
 		}
