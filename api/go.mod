@@ -5,7 +5,7 @@ go 1.25
 toolchain go1.25.7
 
 require (
-	github.com/DataDog/datadog-api-client-go/v2 v2.34.0
+	github.com/DataDog/datadog-api-client-go/v2 v2.55.0
 	github.com/google/go-cmp v0.7.0
 	github.com/stretchr/testify v1.11.1
 	k8s.io/api v0.33.3
@@ -27,6 +27,7 @@ require (
 	github.com/goccy/go-json v0.10.4 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/gnostic-models v0.6.9 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect

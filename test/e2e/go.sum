@@ -40,8 +40,8 @@ github.com/DataDog/datadog-agent/test/fakeintake v0.78.0-devel h1:Fkbrn3RWZu70Rg
 github.com/DataDog/datadog-agent/test/fakeintake v0.78.0-devel/go.mod h1:xJtH+WWNNK3Ct5L209wemg03Xh1WI2Ytqmh5832NI7s=
 github.com/DataDog/datadog-agent/test/new-e2e v0.77.0-devel.0.20260211235139-a5361978c2b6 h1:F+fV4liqHTt9GMO4jN3pRVzpDO/65XwwQLGmjFk4aQU=
 github.com/DataDog/datadog-agent/test/new-e2e v0.77.0-devel.0.20260211235139-a5361978c2b6/go.mod h1:YaZu9IOVLmTKNr2L32GAOfqARnGBaPvAwUG7faL9IO0=
-github.com/DataDog/datadog-api-client-go/v2 v2.54.0 h1:bLSwX1D7JA7hAHxpo8Aa2+d8F2wzD8sNOJszL89yGyU=
-github.com/DataDog/datadog-api-client-go/v2 v2.54.0/go.mod h1:d3tOEgUd2kfsr9uuHQdY+nXrWp4uikgTgVCPdKNK30U=
+github.com/DataDog/datadog-api-client-go/v2 v2.55.0 h1:wRwBJJpNRoyBJXdKtInfHXeXIo+nTn5DSIayaovRYVY=
+github.com/DataDog/datadog-api-client-go/v2 v2.55.0/go.mod h1:d3tOEgUd2kfsr9uuHQdY+nXrWp4uikgTgVCPdKNK30U=
 github.com/DataDog/mmh3 v0.0.0-20210722141835-012dc69a9e49 h1:EbzDX8HPk5uE2FsJYxD74QmMw0/3CqSKhEr6teh0ncQ=
 github.com/DataDog/mmh3 v0.0.0-20210722141835-012dc69a9e49/go.mod h1:SvsjzyJlSg0rKsqYgdcFxeEVflx3ZNAyFfkUHP0TxXg=
 github.com/DataDog/zstd v1.5.7 h1:ybO8RBeh29qrxIhCA9E8gKY6xfONU9T6G6aP9DTKfLE=
