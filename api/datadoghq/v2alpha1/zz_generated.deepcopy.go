@@ -3255,6 +3255,18 @@ func (in *SecretBackendConfig) DeepCopyInto(out *SecretBackendConfig) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.Type != nil {
+		in, out := &in.Type, &out.Type
+		*out = new(string)
+		**out = **in
+	}
+	if in.Config != nil {
+		in, out := &in.Config, &out.Config
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.Roles != nil {
 		in, out := &in.Roles, &out.Roles
 		*out = make([]*SecretBackendRolesConfig, len(*in))

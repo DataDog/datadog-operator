@@ -95,7 +95,7 @@ type ComponentReconciler interface {
 	ForceDeleteComponent(ddai *v1alpha1.DatadogAgentInternal, requiredComponents feature.RequiredComponents) bool
 
 	// CleanupDependencies deletes any dependencies associated with the component
-	CleanupDependencies(ctx context.Context, logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers) (reconcile.Result, error)
+	CleanupDependencies(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers) (reconcile.Result, error)
 }
 
 // ReconcileComponentParams bundles common parameters needed by all components
@@ -217,7 +217,7 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 		override.Deployment(deployment, componentOverride)
 	}
 
-	res, err := r.reconciler.createOrUpdateDeployment(objLogger, params.DDAI, deployment, params.Status, component.UpdateStatus)
+	res, err := r.reconciler.createOrUpdateDeployment(ctx, params.DDAI, deployment, params.Status, component.UpdateStatus)
 
 	if err == nil {
 		// Update condition to success since the deployment was created or updated successfully
@@ -244,15 +244,20 @@ func (r *ComponentRegistry) Cleanup(ctx context.Context, params *ReconcileCompon
 		override.Deployment(deployment, componentOverride)
 	}
 
-	objLogger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
-	result, err := r.reconciler.deleteDeploymentWithEvent(ctx, objLogger, params.DDAI, deployment)
+	ctx = ctrl.LoggerInto(ctx, ctrl.LoggerFrom(ctx).WithValues(
+		"object.kind", "Deployment",
+		"object.namespace", deployment.Namespace,
+		"object.name", deployment.Name,
+	))
+
+	result, err := r.reconciler.deleteDeploymentWithEvent(ctx, params.DDAI, deployment)
 
 	if err != nil {
 		return result, err
 	}
 
 	// Do status and other resource cleanup if the deployment was deleted successfully
-	if result, err = component.CleanupDependencies(ctx, objLogger, params.DDAI, params.ResourceManagers); err != nil {
+	if result, err = component.CleanupDependencies(ctx, params.DDAI, params.ResourceManagers); err != nil {
 		return result, err
 	}
 	component.DeleteStatus(params.Status, component.GetConditionType())
