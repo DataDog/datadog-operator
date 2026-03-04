@@ -32,6 +32,7 @@ type DatadogMonitorReconciler struct {
 	Scheme                 *runtime.Scheme
 	Recorder               record.EventRecorder
 	operatorMetricsEnabled bool
+	validateOnly           bool
 	internal               *datadogmonitor.Reconciler
 }
 
@@ -46,7 +47,7 @@ func (r *DatadogMonitorReconciler) Reconcile(ctx context.Context, instance *data
 
 // SetupWithManager creates a new DatadogMonitor controller.
 func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager, metricForwardersMgr datadog.MetricsForwardersManager) error {
-	internal, err := datadogmonitor.NewReconciler(r.Client, r.Creds, r.Scheme, r.Log, r.Recorder, r.operatorMetricsEnabled, metricForwardersMgr)
+	internal, err := datadogmonitor.NewReconciler(r.Client, r.Creds, r.Scheme, r.Log, r.Recorder, r.operatorMetricsEnabled, r.validateOnly, metricForwardersMgr)
 	if err != nil {
 		return err
 	}

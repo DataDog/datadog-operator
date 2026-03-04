@@ -475,6 +475,7 @@ find . -name "*_test.go" | head -20
 | `loglevel` | `info` | Log level |
 | `datadogAgentEnabled` | `true` | Enable DatadogAgent controller |
 | `datadogMonitorEnabled` | `false` | Enable Monitor controller |
+| `datadogMonitorValidateOnly` | `false` | Validate DatadogMonitor specs against Datadog API without creating/updating monitors |
 | `datadogAgentProfileEnabled` | `false` | Enable Profile controller (beta) |
 | `supportExtendedDaemonset` | `false` | Use ExtendedDaemonSet |
 | `secretBackendCommand` | `""` | Secret backend executable |
