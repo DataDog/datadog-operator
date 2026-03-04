@@ -73,6 +73,21 @@ spec:
                                     ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.
                                     Default : true
                                   type: boolean
+                                clusterAgentTlsVerification:
+                                  description: ClusterAgentTLSVerification configures TLS verification for sidecar-to-cluster-agent communication.
+                                  properties:
+                                    copyCaConfigMap:
+                                      description: |-
+                                        CopyCaConfigMap enables automatic creation of a ConfigMap containing the cluster agent's CA certificate
+                                        in namespaces where sidecar injection occurs.
+                                        Default: false
+                                      type: boolean
+                                    enabled:
+                                      description: |-
+                                        Enabled enables TLS verification for agent sidecars communicating with the cluster agent.
+                                        Default: false
+                                      type: boolean
+                                  type: object
                                 enabled:
                                   description: |-
                                     Enabled enables Sidecar injections.

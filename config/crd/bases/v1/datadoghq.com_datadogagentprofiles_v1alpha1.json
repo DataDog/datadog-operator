@@ -41,6 +41,21 @@
                           "description": "ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.\nDefault : true",
                           "type": "boolean"
                         },
+                        "clusterAgentTlsVerification": {
+                          "additionalProperties": false,
+                          "description": "ClusterAgentTLSVerification configures TLS verification for sidecar-to-cluster-agent communication.",
+                          "properties": {
+                            "copyCaConfigMap": {
+                              "description": "CopyCaConfigMap enables automatic creation of a ConfigMap containing the cluster agent's CA certificate\nin namespaces where sidecar injection occurs.\nDefault: false",
+                              "type": "boolean"
+                            },
+                            "enabled": {
+                              "description": "Enabled enables TLS verification for agent sidecars communicating with the cluster agent.\nDefault: false",
+                              "type": "boolean"
+                            }
+                          },
+                          "type": "object"
+                        },
                         "enabled": {
                           "description": "Enabled enables Sidecar injections.\nDefault: false",
                           "type": "boolean"
