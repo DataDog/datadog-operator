@@ -1248,6 +1248,10 @@ type AgentSidecarInjectionConfig struct {
 	// +optional
 	// +listType=atomic
 	Profiles []*Profile `json:"profiles,omitempty"`
+
+	// ClusterAgentTLSVerification configures TLS verification for sidecar-to-cluster-agent communication.
+	// +optional
+	ClusterAgentTLSVerification *AdmissionControllerClusterAgentTLSVerificationConfig `json:"clusterAgentTlsVerification,omitempty"`
 }
 
 // Selectors define a pod selector for sidecar injection.
@@ -1276,6 +1280,20 @@ type Profile struct {
 	// SecurityContext specifies the security context for the profile.
 	// +optional
 	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
+}
+
+// AdmissionControllerClusterAgentTLSVerificationConfig configures TLS verification settings for agent sidecars.
+type AdmissionControllerClusterAgentTLSVerificationConfig struct {
+	// Enabled enables TLS verification for agent sidecars communicating with the cluster agent.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// CopyCaConfigMap enables automatic creation of a ConfigMap containing the cluster agent's CA certificate
+	// in namespaces where sidecar injection occurs.
+	// Default: false
+	// +optional
+	CopyCaConfigMap *bool `json:"copyCaConfigMap,omitempty"`
 }
 
 type KubernetesAdmissionEventsConfig struct {
