@@ -10,15 +10,15 @@ require (
 	github.com/DataDog/datadog-api-client-go/v2 v2.54.0 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.41.2
 	github.com/aws/aws-sdk-go-v2/config v1.32.10
-	github.com/aws/aws-sdk-go-v2/service/cloudformation v1.68.3
+	github.com/aws/aws-sdk-go-v2/service/cloudformation v1.71.6
 	github.com/aws/smithy-go v1.24.1 // indirect
 	github.com/pulumi/pulumi-kubernetes/sdk/v4 v4.23.0
 	github.com/pulumi/pulumi/sdk/v3 v3.219.0
 	github.com/stretchr/testify v1.11.1
 	k8s.io/apimachinery v0.36.0-alpha.1
 	k8s.io/client-go v0.36.0-alpha.1
-	sigs.k8s.io/kustomize/api v0.20.1
-	sigs.k8s.io/kustomize/kyaml v0.21.0
+	sigs.k8s.io/kustomize/api v0.21.1
+	sigs.k8s.io/kustomize/kyaml v0.21.1
 	sigs.k8s.io/yaml v1.6.0
 )
 
