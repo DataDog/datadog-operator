@@ -1249,7 +1249,7 @@ type AgentSidecarInjectionConfig struct {
 	// +listType=atomic
 	Profiles []*Profile `json:"profiles,omitempty"`
 
-	// ClusterAgentTLSVerification configures TLS verification for sidecar-to-cluster-agent communication.
+	// ClusterAgentTLSVerification configures TLS verification for Agent sidecar to Cluster Agent communication.
 	// +optional
 	ClusterAgentTLSVerification *AdmissionControllerClusterAgentTLSVerificationConfig `json:"clusterAgentTlsVerification,omitempty"`
 }
@@ -1282,14 +1282,14 @@ type Profile struct {
 	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 }
 
-// AdmissionControllerClusterAgentTLSVerificationConfig configures TLS verification settings for agent sidecars.
+// AdmissionControllerClusterAgentTLSVerificationConfig configures TLS verification settings for Agent sidecars.
 type AdmissionControllerClusterAgentTLSVerificationConfig struct {
-	// Enabled enables TLS verification for agent sidecars communicating with the cluster agent.
+	// Enabled enables TLS verification for agent sidecars communicating with the Cluster Agent.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// CopyCaConfigMap enables automatic creation of a ConfigMap containing the cluster agent's CA certificate
+	// CopyCaConfigMap enables automatic creation of a ConfigMap containing the Cluster Agent's CA certificate
 	// in namespaces where sidecar injection occurs.
 	// Default: false
 	// +optional

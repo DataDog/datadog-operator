@@ -74,17 +74,17 @@ spec:
                                 Default : true
                               type: boolean
                             clusterAgentTlsVerification:
-                              description: ClusterAgentTLSVerification configures TLS verification for sidecar-to-cluster-agent communication.
+                              description: ClusterAgentTLSVerification configures TLS verification for Agent sidecar to Cluster Agent communication.
                               properties:
                                 copyCaConfigMap:
                                   description: |-
-                                    CopyCaConfigMap enables automatic creation of a ConfigMap containing the cluster agent's CA certificate
+                                    CopyCaConfigMap enables automatic creation of a ConfigMap containing the Cluster Agent's CA certificate
                                     in namespaces where sidecar injection occurs.
                                     Default: false
                                   type: boolean
                                 enabled:
                                   description: |-
-                                    Enabled enables TLS verification for agent sidecars communicating with the cluster agent.
+                                    Enabled enables TLS verification for agent sidecars communicating with the Cluster Agent.
                                     Default: false
                                   type: boolean
                               type: object
@@ -8556,17 +8556,17 @@ spec:
                                     Default : true
                                   type: boolean
                                 clusterAgentTlsVerification:
-                                  description: ClusterAgentTLSVerification configures TLS verification for sidecar-to-cluster-agent communication.
+                                  description: ClusterAgentTLSVerification configures TLS verification for Agent sidecar to Cluster Agent communication.
                                   properties:
                                     copyCaConfigMap:
                                       description: |-
-                                        CopyCaConfigMap enables automatic creation of a ConfigMap containing the cluster agent's CA certificate
+                                        CopyCaConfigMap enables automatic creation of a ConfigMap containing the Cluster Agent's CA certificate
                                         in namespaces where sidecar injection occurs.
                                         Default: false
                                       type: boolean
                                     enabled:
                                       description: |-
-                                        Enabled enables TLS verification for agent sidecars communicating with the cluster agent.
+                                        Enabled enables TLS verification for agent sidecars communicating with the Cluster Agent.
                                         Default: false
                                       type: boolean
                                   type: object
