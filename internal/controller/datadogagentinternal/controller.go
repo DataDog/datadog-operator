@@ -9,9 +9,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -117,9 +117,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, ddai *v1alpha1.DatadogAgentI
 	return resp, err
 }
 
-func reconcilerOptionsToFeatureOptions(opts *ReconcilerOptions, logger logr.Logger) *feature.Options {
+func reconcilerOptionsToFeatureOptions(opts *ReconcilerOptions, ctx context.Context) *feature.Options {
 	return &feature.Options{
-		Logger: logger,
+		Logger: ctrl.LoggerFrom(ctx),
 	}
 }
 
