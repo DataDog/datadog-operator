@@ -570,6 +570,9 @@ spec:
 `global.secretBackend.command`
 : The secret backend command to use. Datadog provides a pre-defined binary `/readsecret_multiple_providers.sh`. Read more about `/readsecret_multiple_providers.sh` at https://docs.datadoghq.com/agent/configuration/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers.
 
+`global.secretBackend.config`
+: Additional configuration for the secret backend type.
+
 `global.secretBackend.enableGlobalPermissions`
 : Whether to create a global permission allowing Datadog agents to read all Kubernetes secrets. Default: `false`.
 
@@ -581,6 +584,9 @@ spec:
 
 `global.secretBackend.timeout`
 : The command timeout in seconds. Default: `30`.
+
+`global.secretBackend.type`
+: The built-in secret backend type to use (e.g., `k8s.secrets`, `docker.secrets`, `aws.secrets`). Alternative to Command; when Type is set, the Agent uses the built-in backend to resolve secrets. Requires Agent 7.70+.
 
 `global.site`
 : Is the Datadog intake site Agent data are sent to. Set to 'datadoghq.com' to send data to the US1 site (default). Set to 'datadoghq.eu' to send data to the EU site. Set to 'us3.datadoghq.com' to send data to the US3 site. Set to 'us5.datadoghq.com' to send data to the US5 site. Set to 'ddog-gov.com' to send data to the US1-FED site. Set to 'ap1.datadoghq.com' to send data to the AP1 site. Default: 'datadoghq.com'
