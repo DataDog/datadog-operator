@@ -8,9 +8,9 @@ package datadogagentinternal
 import (
 	"context"
 
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -22,9 +22,9 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-type finalizerDDAIFunc func(reqLogger logr.Logger, dda client.Object) error
+type finalizerDDAIFunc func(ctx context.Context, dda client.Object) error
 
-func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, ddai client.Object, finalizerDDAI finalizerDDAIFunc) (reconcile.Result, error) {
+func (r *Reconciler) handleFinalizer(ctx context.Context, ddai client.Object, finalizerDDAI finalizerDDAIFunc) (reconcile.Result, error) {
 	// Check if the DatadogAgentInternal instance is marked to be deleted, which is
 	// indicated by the deletion timestamp being set.
 	isDDAIMarkedToBeDeleted := ddai.GetDeletionTimestamp() != nil
@@ -33,7 +33,7 @@ func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, ddai client.Object, 
 			// Run finalization logic for datadogAgentFinalizer. If the
 			// finalization logic fails, don't remove the finalizer so
 			// that we can retry during the next reconciliation.
-			if err := finalizerDDAI(reqLogger, ddai); err != nil {
+			if err := finalizerDDAI(ctx, ddai); err != nil {
 				return reconcile.Result{}, err
 			}
 
@@ -50,7 +50,7 @@ func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, ddai client.Object, 
 
 	// Add finalizer for this CR
 	if !controllerutil.ContainsFinalizer(ddai, constants.DatadogAgentInternalFinalizer) {
-		if err := r.addFinalizer(reqLogger, ddai); err != nil {
+		if err := r.addFinalizer(ctx, ddai); err != nil {
 			return reconcile.Result{}, err
 		}
 		return reconcile.Result{Requeue: true}, nil
@@ -59,7 +59,8 @@ func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, ddai client.Object, 
 	return reconcile.Result{}, nil
 }
 
-func (r *Reconciler) finalizeDDAI(reqLogger logr.Logger, obj client.Object) error {
+func (r *Reconciler) finalizeDDAI(ctx context.Context, obj client.Object) error {
+	logger := ctrl.LoggerFrom(ctx)
 	if r.options.OperatorMetricsEnabled {
 		r.forwarders.Unregister(obj)
 	}
@@ -74,18 +75,19 @@ func (r *Reconciler) finalizeDDAI(reqLogger logr.Logger, obj client.Object) erro
 		return err
 	}
 
-	reqLogger.Info("Successfully finalized DatadogAgentInternal")
+	logger.Info("Successfully finalized DatadogAgentInternal")
 	return nil
 }
 
-func (r *Reconciler) addFinalizer(reqLogger logr.Logger, ddai client.Object) error {
-	reqLogger.Info("Adding Finalizer for the DatadogAgentInternal")
+func (r *Reconciler) addFinalizer(ctx context.Context, ddai client.Object) error {
+	logger := ctrl.LoggerFrom(ctx)
+	logger.Info("Adding Finalizer for the DatadogAgentInternal")
 	controllerutil.AddFinalizer(ddai, constants.DatadogAgentInternalFinalizer)
 
 	// Update CR
 	err := r.client.Update(context.TODO(), ddai)
 	if err != nil {
-		reqLogger.Error(err, "Failed to update DatadogAgentInternal with finalizer")
+		logger.Error(err, "Failed to update DatadogAgentInternal with finalizer")
 		return err
 	}
 	return nil

@@ -90,6 +90,6 @@ func (c *ClusterChecksRunnerComponent) ForceDeleteComponent(ddai *v1alpha1.Datad
 	return false
 }
 
-func (c *ClusterChecksRunnerComponent) CleanupDependencies(ctx context.Context, logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers) (reconcile.Result, error) {
+func (c *ClusterChecksRunnerComponent) CleanupDependencies(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers) (reconcile.Result, error) {
 	return reconcile.Result{}, nil
 }
