@@ -10,7 +10,6 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -257,8 +256,7 @@ func Test_cleanupOldCCRDeployments(t *testing.T) {
 				},
 			}
 
-			logger := logr.Discard()
-			r.setupDependencies(&ddai, logger)
+			r.setupDependencies(ctx, &ddai)
 			err := r.cleanupOldCCRDeployments(ctx, &ddai)
 			assert.NoError(t, err)
 

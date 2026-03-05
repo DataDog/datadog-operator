@@ -77,6 +77,6 @@ func (c *OtelAgentGatewayComponent) ForceDeleteComponent(ddai *v1alpha1.DatadogA
 	return false
 }
 
-func (c *OtelAgentGatewayComponent) CleanupDependencies(ctx context.Context, logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers) (reconcile.Result, error) {
+func (c *OtelAgentGatewayComponent) CleanupDependencies(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers) (reconcile.Result, error) {
 	return reconcile.Result{}, nil
 }
