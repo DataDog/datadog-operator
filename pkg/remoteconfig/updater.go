@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config/model"
 	"github.com/DataDog/datadog-agent/pkg/config/remote/client"
 	"github.com/DataDog/datadog-agent/pkg/config/remote/service"
+	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"github.com/cenkalti/backoff"
 	"github.com/go-logr/logr"
@@ -30,7 +31,6 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 const (
@@ -188,7 +188,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 
 	rcClient, err := client.NewClient(
 		rcService,
-		client.WithAgent("datadog-operator", version.Version),
+		client.WithUpdater("datadog-operator"),
 		client.WithProducts(state.ProductAgentConfig, state.ProductOrchestratorK8sCRDs),
 		client.WithDirectorRootOverride(r.serviceConf.cfg.GetString("site"), r.serviceConf.cfg.GetString("remote_configuration.director_root")),
 		client.WithPollInterval(pollInterval),
@@ -198,6 +198,13 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 		return err
 	}
 	r.rcClient = rcClient
+	rcClient.SetInstallerState([]*pbgo.PackageState{
+		{
+			Package:             "datadog-operator",
+			StableVersion:       "0.0.1",
+			StableConfigVersion: "0.0.1",
+		},
+	})
 
 	rcService.Start()
 	r.logger.Info("Remote Configuration service started")
