@@ -3117,6 +3117,11 @@ spec:
                             The secret backend command to use. Datadog provides a pre-defined binary `/readsecret_multiple_providers.sh`.
                             Read more about `/readsecret_multiple_providers.sh` at https://docs.datadoghq.com/agent/configuration/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers.
                           type: string
+                        config:
+                          additionalProperties:
+                            type: string
+                          description: Additional configuration for the secret backend type.
+                          type: object
                         enableGlobalPermissions:
                           description: |-
                             Whether to create a global permission allowing Datadog agents to read all Kubernetes secrets.
@@ -3158,6 +3163,12 @@ spec:
                             Default: `30`.
                           format: int32
                           type: integer
+                        type:
+                          description: |-
+                            The built-in secret backend type to use (e.g., `k8s.secrets`, `docker.secrets`, `aws.secrets`).
+                            Alternative to Command; when Type is set, the Agent uses the built-in backend to resolve secrets.
+                            Requires Agent 7.70+.
+                          type: string
                       type: object
                     site:
                       description: |-
