@@ -138,6 +138,10 @@ func getRBACPolicyRules(logger logr.Logger, crs []string) []rbacv1.PolicyRule {
 			APIGroups: []string{rbac.KarpenterAzureAPIGroup},
 			Resources: []string{rbac.Wildcard},
 		},
+		{
+			APIGroups: []string{rbac.EKSAPIGroup},
+			Resources: []string{rbac.Wildcard},
+		},
 	}
 
 	if len(crs) > 0 {

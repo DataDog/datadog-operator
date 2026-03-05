@@ -601,7 +601,9 @@ func (r *Reconciler) createOrUpdateDDAI(ddai *v1alpha1.DatadogAgentInternal) err
 		return nil
 	}
 
-	if currentDDAI.Annotations[constants.MD5DDAIDeploymentAnnotationKey] != ddai.Annotations[constants.MD5DDAIDeploymentAnnotationKey] {
+	// By comparing annotations, we reconcile either instantly if the spec annotation changed or after the reconcile period
+	// if only the annotations changed.
+	if !maps.Equal(currentDDAI.Annotations, ddai.Annotations) {
 		r.log.Info("updating DatadogAgentInternal", "ns", ddai.Namespace, "name", ddai.Name)
 		if err := kubernetes.UpdateFromObject(context.TODO(), r.client, ddai, currentDDAI.ObjectMeta); err != nil {
 			return err

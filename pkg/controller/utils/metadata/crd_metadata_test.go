@@ -8,6 +8,7 @@ package metadata
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -201,13 +202,13 @@ func Test_CRDCacheDetection(t *testing.T) {
 		Annotations: map[string]string{"owner": "team-b"},
 	}
 	// First call - both CRDs should be new (changed)
-	changed := cmf.getChangedCRDs([]CRDInstance{crd1, crd2})
+	changed := cmf.getCRDsToSend([]CRDInstance{crd1, crd2})
 	if len(changed) != 2 {
 		t.Errorf("Expected 2 changed CRDs on first run, got %d", len(changed))
 	}
 
 	// Second call with same specs - no changes expected
-	changed = cmf.getChangedCRDs([]CRDInstance{crd1, crd2})
+	changed = cmf.getCRDsToSend([]CRDInstance{crd1, crd2})
 	if len(changed) != 0 {
 		t.Errorf("Expected 0 changed CRDs on second run, got %d", len(changed))
 	}
@@ -217,7 +218,7 @@ func Test_CRDCacheDetection(t *testing.T) {
 	crd1Modified.Spec = map[string]interface{}{"version": "7.52.0"}
 
 	// Third call with modified crd1 spec - only 1 change expected
-	changed = cmf.getChangedCRDs([]CRDInstance{crd1Modified, crd2})
+	changed = cmf.getCRDsToSend([]CRDInstance{crd1Modified, crd2})
 	if len(changed) != 1 {
 		t.Errorf("Expected 1 changed CRD after spec modification, got %d", len(changed))
 	}
@@ -229,7 +230,7 @@ func Test_CRDCacheDetection(t *testing.T) {
 	crd1ModifiedLabels := crd1
 	crd1ModifiedLabels.Labels = map[string]string{"app": "agent", "env": "prod"}
 
-	changed = cmf.getChangedCRDs([]CRDInstance{crd1ModifiedLabels, crd2})
+	changed = cmf.getCRDsToSend([]CRDInstance{crd1ModifiedLabels, crd2})
 	if len(changed) != 1 {
 		t.Errorf("Expected 1 changed CRD after label modification, got %d", len(changed))
 	}
@@ -238,7 +239,7 @@ func Test_CRDCacheDetection(t *testing.T) {
 	crd1ModifiedAnnotations := crd1ModifiedLabels
 	crd1ModifiedAnnotations.Annotations = map[string]string{"owner": "team-c"}
 
-	changed = cmf.getChangedCRDs([]CRDInstance{crd1ModifiedAnnotations, crd2})
+	changed = cmf.getCRDsToSend([]CRDInstance{crd1ModifiedAnnotations, crd2})
 	if len(changed) != 1 {
 		t.Errorf("Expected 1 changed CRD after annotation modification, got %d", len(changed))
 	}
@@ -272,7 +273,7 @@ func Test_CRDCacheCleanup(t *testing.T) {
 	successfulKinds := map[string]bool{"DatadogAgent": true}
 
 	// Add both CRDs to cache
-	cmf.getChangedCRDs([]CRDInstance{crd1, crd2})
+	cmf.getCRDsToSend([]CRDInstance{crd1, crd2})
 
 	cmf.cacheMutex.RLock()
 	initialCacheSize := len(cmf.crdCache)
@@ -320,7 +321,7 @@ func Test_CRDPerKindErrorHandling(t *testing.T) {
 		Spec:      map[string]interface{}{"version": "7.50.0"},
 	}
 
-	cmf.getChangedCRDs([]CRDInstance{ddaCRD, ddaiCRD})
+	cmf.getCRDsToSend([]CRDInstance{ddaCRD, ddaiCRD})
 
 	cmf.cacheMutex.RLock()
 	cacheSize := len(cmf.crdCache)
@@ -333,7 +334,7 @@ func Test_CRDPerKindErrorHandling(t *testing.T) {
 	onlyDDASuccessful := map[string]bool{"DatadogAgent": true}
 
 	// Filter should only process DDA (no changes since spec is same)
-	changed := cmf.getChangedCRDs([]CRDInstance{ddaCRD})
+	changed := cmf.getCRDsToSend([]CRDInstance{ddaCRD})
 	if len(changed) != 0 {
 		t.Errorf("Expected 0 changed CRDs for DDA (unchanged spec), got %d", len(changed))
 	}
@@ -448,5 +449,287 @@ func Test_HashCRD(t *testing.T) {
 	// Different labels should produce different hash
 	if hash1 == hash4 {
 		t.Errorf("Expected different hash for different labels, both got %s", hash1)
+	}
+}
+
+// Test that heartbeat triggers after 10 minutes for unchanged CRDs
+func Test_CRDHeartbeatTriggersAfter10Minutes(t *testing.T) {
+	cmf := NewCRDMetadataForwarder(
+		zap.New(zap.UseDevMode(true)),
+		nil,
+		"v1.28.0",
+		"v1.19.0",
+		config.NewCredentialManager(fake.NewFakeClient()),
+		EnabledCRDKindsConfig{DatadogAgentEnabled: true},
+	)
+
+	crd := CRDInstance{
+		Kind:      "DatadogAgent",
+		Name:      "test-agent",
+		Namespace: "default",
+		Spec:      map[string]interface{}{"version": "7.50.0"},
+		Labels:    map[string]string{"app": "agent"},
+	}
+
+	// First call - should be new
+	toSend := cmf.getCRDsToSend([]CRDInstance{crd})
+	if len(toSend) != 1 {
+		t.Errorf("Expected 1 CRD to send (new), got %d", len(toSend))
+	}
+
+	// Second call immediately - should not send (no change, no heartbeat due)
+	toSend = cmf.getCRDsToSend([]CRDInstance{crd})
+	if len(toSend) != 0 {
+		t.Errorf("Expected 0 CRDs to send (no change, too soon), got %d", len(toSend))
+	}
+
+	// Simulate 10+ minutes passing by backdating the cache entry
+	cmf.cacheMutex.Lock()
+	key := buildCacheKey(crd)
+	if entry, exists := cmf.crdCache[key]; exists {
+		entry.lastSent = entry.lastSent.Add(-11 * time.Minute)
+	}
+	cmf.cacheMutex.Unlock()
+
+	// Third call after 10+ minutes - should trigger heartbeat
+	toSend = cmf.getCRDsToSend([]CRDInstance{crd})
+	if len(toSend) != 1 {
+		t.Errorf("Expected 1 CRD to send (heartbeat due), got %d", len(toSend))
+	}
+
+	// Verify the timestamp was updated
+	cmf.cacheMutex.RLock()
+	entry := cmf.crdCache[key]
+	timeSinceLastSent := time.Since(entry.lastSent)
+	cmf.cacheMutex.RUnlock()
+
+	if timeSinceLastSent > 1*time.Second {
+		t.Errorf("Expected lastSent to be updated to now, but it was %v ago", timeSinceLastSent)
+	}
+}
+
+// Test that spec changes still work with heartbeat logic
+func Test_CRDChangeDetectionWithHeartbeat(t *testing.T) {
+	cmf := NewCRDMetadataForwarder(
+		zap.New(zap.UseDevMode(true)),
+		nil,
+		"v1.28.0",
+		"v1.19.0",
+		config.NewCredentialManager(fake.NewFakeClient()),
+		EnabledCRDKindsConfig{DatadogAgentEnabled: true},
+	)
+
+	crd := CRDInstance{
+		Kind:      "DatadogAgent",
+		Name:      "test-agent",
+		Namespace: "default",
+		Spec:      map[string]interface{}{"version": "7.50.0"},
+	}
+
+	// First call - new CRD
+	toSend := cmf.getCRDsToSend([]CRDInstance{crd})
+	if len(toSend) != 1 {
+		t.Fatalf("Expected 1 CRD to send (new), got %d", len(toSend))
+	}
+
+	// Modify spec immediately
+	crdModified := crd
+	crdModified.Spec = map[string]interface{}{"version": "7.51.0"}
+
+	// Should send immediately due to change
+	toSend = cmf.getCRDsToSend([]CRDInstance{crdModified})
+	if len(toSend) != 1 {
+		t.Errorf("Expected 1 CRD to send (spec changed), got %d", len(toSend))
+	}
+
+	// Verify hash was updated
+	cmf.cacheMutex.RLock()
+	key := buildCacheKey(crd)
+	newHash, _ := hashCRD(crdModified)
+	if cmf.crdCache[key].hash != newHash {
+		t.Errorf("Expected hash to be updated after spec change")
+	}
+	cmf.cacheMutex.RUnlock()
+}
+
+// Test that heartbeat timer resets when spec changes
+func Test_CRDHeartbeatResetsOnChange(t *testing.T) {
+	cmf := NewCRDMetadataForwarder(
+		zap.New(zap.UseDevMode(true)),
+		nil,
+		"v1.28.0",
+		"v1.19.0",
+		config.NewCredentialManager(fake.NewFakeClient()),
+		EnabledCRDKindsConfig{DatadogAgentEnabled: true},
+	)
+
+	crd := CRDInstance{
+		Kind:      "DatadogAgent",
+		Name:      "test-agent",
+		Namespace: "default",
+		Spec:      map[string]interface{}{"version": "7.50.0"},
+	}
+
+	// First call - new CRD
+	cmf.getCRDsToSend([]CRDInstance{crd})
+
+	// Backdate the cache entry to 9 minutes ago
+	cmf.cacheMutex.Lock()
+	key := buildCacheKey(crd)
+	cmf.crdCache[key].lastSent = cmf.crdCache[key].lastSent.Add(-9 * time.Minute)
+	cmf.cacheMutex.Unlock()
+
+	// Modify spec (heartbeat not due yet, but spec changed)
+	crdModified := crd
+	crdModified.Spec = map[string]interface{}{"version": "7.51.0"}
+
+	// Should send due to spec change
+	toSend := cmf.getCRDsToSend([]CRDInstance{crdModified})
+	if len(toSend) != 1 {
+		t.Errorf("Expected 1 CRD to send (spec changed), got %d", len(toSend))
+	}
+
+	// Verify timestamp was reset to now
+	cmf.cacheMutex.RLock()
+	timeSinceLastSent := time.Since(cmf.crdCache[key].lastSent)
+	cmf.cacheMutex.RUnlock()
+
+	if timeSinceLastSent > 1*time.Second {
+		t.Errorf("Expected lastSent to be reset to now, but it was %v ago", timeSinceLastSent)
+	}
+
+	// Wait should not trigger heartbeat yet (just reset)
+	toSend = cmf.getCRDsToSend([]CRDInstance{crdModified})
+	if len(toSend) != 0 {
+		t.Errorf("Expected 0 CRDs to send (timer reset), got %d", len(toSend))
+	}
+}
+
+// Test that multiple CRDs can have independent heartbeat timers
+func Test_CRDMultipleHeartbeats(t *testing.T) {
+	cmf := NewCRDMetadataForwarder(
+		zap.New(zap.UseDevMode(true)),
+		nil,
+		"v1.28.0",
+		"v1.19.0",
+		config.NewCredentialManager(fake.NewFakeClient()),
+		EnabledCRDKindsConfig{DatadogAgentEnabled: true},
+	)
+
+	crd1 := CRDInstance{
+		Kind:      "DatadogAgent",
+		Name:      "test-agent-1",
+		Namespace: "default",
+		Spec:      map[string]interface{}{"version": "7.50.0"},
+	}
+
+	crd2 := CRDInstance{
+		Kind:      "DatadogAgent",
+		Name:      "test-agent-2",
+		Namespace: "default",
+		Spec:      map[string]interface{}{"version": "7.50.0"},
+	}
+
+	// First call - both new
+	toSend := cmf.getCRDsToSend([]CRDInstance{crd1, crd2})
+	if len(toSend) != 2 {
+		t.Fatalf("Expected 2 CRDs to send (new), got %d", len(toSend))
+	}
+
+	// Backdate only crd1 to 11 minutes ago
+	cmf.cacheMutex.Lock()
+	key1 := buildCacheKey(crd1)
+	cmf.crdCache[key1].lastSent = cmf.crdCache[key1].lastSent.Add(-11 * time.Minute)
+	cmf.cacheMutex.Unlock()
+
+	// Should only send crd1 (heartbeat due)
+	toSend = cmf.getCRDsToSend([]CRDInstance{crd1, crd2})
+	if len(toSend) != 1 {
+		t.Errorf("Expected 1 CRD to send (crd1 heartbeat), got %d", len(toSend))
+	}
+	if len(toSend) > 0 && toSend[0].Name != "test-agent-1" {
+		t.Errorf("Expected crd1 to be sent, got %s", toSend[0].Name)
+	}
+
+	// Backdate crd2 to 11 minutes ago
+	cmf.cacheMutex.Lock()
+	key2 := buildCacheKey(crd2)
+	cmf.crdCache[key2].lastSent = cmf.crdCache[key2].lastSent.Add(-11 * time.Minute)
+	cmf.cacheMutex.Unlock()
+
+	// Should only send crd2 now (crd1 was just sent)
+	toSend = cmf.getCRDsToSend([]CRDInstance{crd1, crd2})
+	if len(toSend) != 1 {
+		t.Errorf("Expected 1 CRD to send (crd2 heartbeat), got %d", len(toSend))
+	}
+	if len(toSend) > 0 && toSend[0].Name != "test-agent-2" {
+		t.Errorf("Expected crd2 to be sent, got %s", toSend[0].Name)
+	}
+}
+
+// Test mixed scenarios: some changed, some heartbeat, some neither
+func Test_CRDMixedChangesAndHeartbeats(t *testing.T) {
+	cmf := NewCRDMetadataForwarder(
+		zap.New(zap.UseDevMode(true)),
+		nil,
+		"v1.28.0",
+		"v1.19.0",
+		config.NewCredentialManager(fake.NewFakeClient()),
+		EnabledCRDKindsConfig{DatadogAgentEnabled: true},
+	)
+
+	crd1 := CRDInstance{
+		Kind:      "DatadogAgent",
+		Name:      "test-agent-1",
+		Namespace: "default",
+		Spec:      map[string]interface{}{"version": "7.50.0"},
+	}
+
+	crd2 := CRDInstance{
+		Kind:      "DatadogAgent",
+		Name:      "test-agent-2",
+		Namespace: "default",
+		Spec:      map[string]interface{}{"version": "7.50.0"},
+	}
+
+	crd3 := CRDInstance{
+		Kind:      "DatadogAgent",
+		Name:      "test-agent-3",
+		Namespace: "default",
+		Spec:      map[string]interface{}{"version": "7.50.0"},
+	}
+
+	// Initialize all CRDs
+	cmf.getCRDsToSend([]CRDInstance{crd1, crd2, crd3})
+
+	// Setup: crd1 needs heartbeat, crd2 will change, crd3 neither
+	cmf.cacheMutex.Lock()
+	cmf.crdCache[buildCacheKey(crd1)].lastSent = cmf.crdCache[buildCacheKey(crd1)].lastSent.Add(-11 * time.Minute)
+	cmf.cacheMutex.Unlock()
+
+	// Modify crd2
+	crd2Modified := crd2
+	crd2Modified.Spec = map[string]interface{}{"version": "7.51.0"}
+
+	// Should send crd1 (heartbeat) and crd2 (changed)
+	toSend := cmf.getCRDsToSend([]CRDInstance{crd1, crd2Modified, crd3})
+	if len(toSend) != 2 {
+		t.Errorf("Expected 2 CRDs to send (1 heartbeat, 1 changed), got %d", len(toSend))
+	}
+
+	// Verify both crd1 and crd2 are in the list
+	sentNames := make(map[string]bool)
+	for _, crd := range toSend {
+		sentNames[crd.Name] = true
+	}
+
+	if !sentNames["test-agent-1"] {
+		t.Error("Expected test-agent-1 to be sent (heartbeat)")
+	}
+	if !sentNames["test-agent-2"] {
+		t.Error("Expected test-agent-2 to be sent (changed)")
+	}
+	if sentNames["test-agent-3"] {
+		t.Error("Did not expect test-agent-3 to be sent")
 	}
 }
