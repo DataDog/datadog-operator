@@ -96,6 +96,15 @@ func GetDefaultClusterAgentClusterRolePolicyRules(_ metav1.Object) []rbacv1.Poli
 			},
 		},
 		{
+			APIGroups: []string{rbac.DiscoveryAPIGroup},
+			Resources: []string{rbac.EndpointsSlicesResource},
+			Verbs: []string{
+				rbac.GetVerb,
+				rbac.ListVerb,
+				rbac.WatchVerb,
+			},
+		},
+		{
 			APIGroups: []string{rbac.OpenShiftQuotaAPIGroup},
 			Resources: []string{rbac.ClusterResourceQuotasResource},
 			Verbs:     []string{rbac.GetVerb, rbac.ListVerb},
