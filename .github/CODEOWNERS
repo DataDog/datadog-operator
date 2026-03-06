@@ -8,6 +8,7 @@
 # Documentation
 README.md               @DataDog/documentation @DataDog/container-ecosystems @DataDog/container-platform
 /docs/                  @DataDog/documentation @DataDog/container-ecosystems @DataDog/container-platform
+/docs/kubectl-plugin.md @DataDog/documentation @DataDog/container-ecosystems @DataDog/container-platform @DataDog/container-autoscaling
 
 
 # Features owners

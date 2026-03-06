@@ -165,6 +165,12 @@ spec:
 `features.cws.syscallMonitorEnabled`
 : SyscallMonitorEnabled enables Syscall Monitoring (recommended for troubleshooting only). Default: false
 
+`features.dataPlane.dogstatsd.enabled`
+: Configures the Data Plane to handle DogStatsD traffic. When enabled, DogStatsD is disabled in the Core Agent. Default: false
+
+`features.dataPlane.enabled`
+: Enables the Data Plane. Default: false
+
 `features.dogstatsd.hostPortConfig.enabled`
 : Enables host port configuration
 
@@ -234,14 +240,8 @@ spec:
 `features.kubeStateMetricsCore.collectCrMetrics`
 : `CollectCrMetrics` defines custom resources for the kube-state-metrics core check to collect.  The datadog agent uses the same logic as upstream `kube-state-metrics`. So is its configuration. The exact structure and existing fields of each item in this list can be found in: https://github.com/kubernetes/kube-state-metrics/blob/main/docs/metrics/extend/customresourcestate-metrics.md
 
-`features.kubeStateMetricsCore.conf.configData`
-: ConfigData corresponds to the configuration file content.
-
-`features.kubeStateMetricsCore.conf.configMap.items`
-: Maps a ConfigMap data `key` to a file `path` mount.
-
-`features.kubeStateMetricsCore.conf.configMap.name`
-: Is the name of the ConfigMap.
+`features.kubeStateMetricsCore.conf`
+: Overrides the configuration for the default Kubernetes State Metrics Core check. This must point to a ConfigMap containing a valid cluster check configuration.
 
 `features.kubeStateMetricsCore.enabled`
 : Enables Kube State Metrics Core. Default: true
@@ -324,14 +324,8 @@ spec:
 `features.orchestratorExplorer.scrubContainers`
 : ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ). Default: true
 
-`features.otelAgentGateway.conf.configData`
-: ConfigData corresponds to the configuration file content.
-
-`features.otelAgentGateway.conf.configMap.items`
-: Maps a ConfigMap data `key` to a file `path` mount.
-
-`features.otelAgentGateway.conf.configMap.name`
-: Is the name of the ConfigMap.
+`features.otelAgentGateway.conf`
+: Overrides the configuration for the default OTel Agent Gateway. This must point to a ConfigMap containing a valid OTel collector configuration. When passing a configmap, file name *must* be otel-gateway-config.yaml.
 
 `features.otelAgentGateway.enabled`
 : Enables the OTel Agent Gateway. Default: false
@@ -441,9 +435,6 @@ spec:
 `global.csi.enabled`
 : Enables the usage of CSI driver in Datadog Agent. Requires installation of Datadog CSI Driver https://github.com/DataDog/helm-charts/tree/main/charts/datadog-csi-driver Default: false
 
-`global.disableNonResourceRules`
-: Set DisableNonResourceRules to exclude NonResourceURLs from default ClusterRoles. Required 'true' for Google Cloud Marketplace.
-
 `global.dockerSocketPath`
 : Path to the docker runtime socket.
 
@@ -477,50 +468,8 @@ spec:
 `global.kubelet.agentCAPath`
 : AgentCAPath is the container path where the kubelet CA certificate is stored. Default: '/var/run/host-kubelet-ca.crt' if hostCAPath is set, else '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
 
-`global.kubelet.host.configMapKeyRef.key`
-: The key to select.
-
-`global.kubelet.host.configMapKeyRef.name`
-: Of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-
-`global.kubelet.host.configMapKeyRef.optional`
-: Specify whether the ConfigMap or its key must be defined
-
-`global.kubelet.host.fieldRef.apiVersion`
-: Version of the schema the FieldPath is written in terms of, defaults to "v1".
-
-`global.kubelet.host.fieldRef.fieldPath`
-: Path of the field to select in the specified API version.
-
-`global.kubelet.host.fileKeyRef.key`
-: The key within the env file. An invalid key will prevent the pod from starting. The keys defined within a source may consist of any printable ASCII characters except '='. During Alpha stage of the EnvFiles feature gate, the key size is limited to 128 characters.
-
-`global.kubelet.host.fileKeyRef.optional`
-: Specify whether the file or its key must be defined. If the file or key does not exist, then the env var is not published. If optional is set to true and the specified key does not exist, the environment variable will not be set in the Pod's containers.  If optional is set to false and the specified key does not exist, an error will be returned during Pod creation.
-
-`global.kubelet.host.fileKeyRef.path`
-: The path within the volume from which to select the file. Must be relative and may not contain the '..' path or start with '..'.
-
-`global.kubelet.host.fileKeyRef.volumeName`
-: The name of the volume mount containing the env file.
-
-`global.kubelet.host.resourceFieldRef.containerName`
-: Container name: required for volumes, optional for env vars
-
-`global.kubelet.host.resourceFieldRef.divisor`
-: Specifies the output format of the exposed resources, defaults to "1"
-
-`global.kubelet.host.resourceFieldRef.resource`
-: Required: resource to select
-
-`global.kubelet.host.secretKeyRef.key`
-: The key of the secret to select from.  Must be a valid secret key.
-
-`global.kubelet.host.secretKeyRef.name`
-: Of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-
-`global.kubelet.host.secretKeyRef.optional`
-: Specify whether the Secret or its key must be defined
+`global.kubelet.host`
+: Overrides the host used to contact kubelet API (default to status.hostIP).
 
 `global.kubelet.hostCAPath`
 : HostCAPath is the host path where the kubelet CA certificate is stored.
@@ -582,6 +531,9 @@ spec:
 `global.secretBackend.command`
 : The secret backend command to use. Datadog provides a pre-defined binary `/readsecret_multiple_providers.sh`. Read more about `/readsecret_multiple_providers.sh` at https://docs.datadoghq.com/agent/configuration/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers.
 
+`global.secretBackend.config`
+: Additional configuration for the secret backend type.
+
 `global.secretBackend.enableGlobalPermissions`
 : Whether to create a global permission allowing Datadog agents to read all Kubernetes secrets. Default: `false`.
 
@@ -593,6 +545,9 @@ spec:
 
 `global.secretBackend.timeout`
 : The command timeout in seconds. Default: `30`.
+
+`global.secretBackend.type`
+: The built-in secret backend type to use (e.g., `k8s.secrets`, `docker.secrets`, `aws.secrets`). Alternative to Command; when Type is set, the Agent uses the built-in backend to resolve secrets. Requires Agent 7.70+.
 
 `global.site`
 : Is the Datadog intake site Agent data are sent to. Set to 'datadoghq.com' to send data to the US1 site (default). Set to 'datadoghq.eu' to send data to the EU site. Set to 'us3.datadoghq.com' to send data to the US3 site. Set to 'us5.datadoghq.com' to send data to the US5 site. Set to 'ddog-gov.com' to send data to the US1-FED site. Set to 'ap1.datadoghq.com' to send data to the AP1 site. Default: 'datadoghq.com'
@@ -738,23 +693,11 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 : _type_: `[]object`
 <br /> EnvFrom specifies the ConfigMaps and Secrets to expose as environment variables. Priority is env > envFrom.
 
-`[component].extraChecksd.configDataMap`
-: ConfigDataMap corresponds to the content of the configuration files. The key should be the filename the contents get mounted to; for instance check.py or check.yaml.
+`[component].extraChecksd`
+: Checksd configuration allowing to specify custom checks placed under /etc/datadog-agent/checks.d/ See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
 
-`[component].extraChecksd.configMap.items`
-: Items maps a ConfigMap data `key` to a file `path` mount.
-
-`[component].extraChecksd.configMap.name`
-: Name is the name of the ConfigMap.
-
-`[component].extraConfd.configDataMap`
-: ConfigDataMap corresponds to the content of the configuration files. The key should be the filename the contents get mounted to; for instance check.py or check.yaml.
-
-`[component].extraConfd.configMap.items`
-: Items maps a ConfigMap data `key` to a file `path` mount.
-
-`[component].extraConfd.configMap.name`
-: Name is the name of the ConfigMap.
+`[component].extraConfd`
+: Confd configuration allowing to specify config files for custom checks placed under /etc/datadog-agent/conf.d/. See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
 
 `[component].hostNetwork`
 : Host networking requested for this pod. Use the host's network namespace.

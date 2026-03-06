@@ -90,7 +90,7 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=*,resources=*/scale,verbs=get;update
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=patch
 // +kubebuilder:rbac:groups=argoproj.io,resources=rollouts,verbs=patch
-// +kubebuilder:rbac:groups=karpenter.sh,resources=*,verbs=get;list;watch;create;patch;delete
+// +kubebuilder:rbac:groups=karpenter.sh,resources=*,verbs=get;list;watch;create;patch;update;delete
 // +kubebuilder:rbac:groups=karpenter.k8s.aws,resources=*,verbs=get;list
 
 // Use ExtendedDaemonSet
@@ -137,6 +137,7 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=list;watch;get
 
 // EKS control plane metrics
 // +kubebuilder:rbac:groups="metrics.eks.amazonaws.com",resources=kcm/metrics,verbs=get
