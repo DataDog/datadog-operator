@@ -6,8 +6,10 @@
 package v1alpha2
 
 import (
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
@@ -102,4 +104,29 @@ func ConvertDatadogPodAutoscalerSpecToV1Alpha1(in DatadogPodAutoscalerSpec) v1al
 	}
 
 	return out
+}
+
+func BuildDatadogPodAutoscalerSpecV1Alpha2FromTemplate(
+	targetRef autoscalingv2.CrossVersionObjectReference,
+	owner common.DatadogPodAutoscalerOwner,
+	remoteVersion *uint64,
+	tmlp DatadogPodAutoscalerTemplate,
+) DatadogPodAutoscalerSpec {
+	var objectives []common.DatadogPodAutoscalerObjective
+	if len(tmlp.Objectives) > 0 {
+		objectives = make([]common.DatadogPodAutoscalerObjective, 0, len(tmlp.Objectives))
+		for _, o := range tmlp.Objectives {
+			objectives = append(objectives, *o.DeepCopy())
+		}
+	}
+	return DatadogPodAutoscalerSpec{
+		TargetRef:     targetRef,
+		Owner:         owner,
+		RemoteVersion: remoteVersion,
+		ApplyPolicy:   tmlp.ApplyPolicy.DeepCopy(),
+		Objectives:    objectives,
+		Fallback:      tmlp.Fallback.DeepCopy(),
+		Constraints:   tmlp.Constraints.DeepCopy(),
+		Options:       tmlp.Options.DeepCopy(),
+	}
 }
