@@ -165,6 +165,12 @@ spec:
 `features.cws.syscallMonitorEnabled`
 : SyscallMonitorEnabled enables Syscall Monitoring (recommended for troubleshooting only). Default: false
 
+`features.dataPlane.dogstatsd.enabled`
+: Configures the Data Plane to handle DogStatsD traffic. When enabled, DogStatsD is disabled in the Core Agent. Default: false
+
+`features.dataPlane.enabled`
+: Enables the Data Plane. Default: false
+
 `features.dogstatsd.hostPortConfig.enabled`
 : Enables host port configuration
 
