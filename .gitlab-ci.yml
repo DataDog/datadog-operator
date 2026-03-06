@@ -401,6 +401,9 @@ e2e_autoscaling:
   needs:
     - "go_e2e_deps"
   timeout: 90m
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
   rules:
     # Disable on Conductor-triggered jobs (ex: nightly) — must be first so it wins
     - if: '$DDR == "true"'
