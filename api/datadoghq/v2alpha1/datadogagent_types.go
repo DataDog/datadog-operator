@@ -167,6 +167,21 @@ type ErrorTrackingStandalone struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
+// InjectionModeType represents the injection mode for APM libraries.
+// +kubebuilder:validation:Enum=auto;init_container;csi;image_volume
+type InjectionModeType string
+
+const (
+	// InjectionModeAuto lets the Cluster Agent decide the best injection method.
+	InjectionModeAuto InjectionModeType = "auto"
+	// InjectionModeInitContainer uses init containers for library injection.
+	InjectionModeInitContainer InjectionModeType = "init_container"
+	// InjectionModeCSI uses CSI driver for library injection (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+).
+	InjectionModeCSI InjectionModeType = "csi"
+	// InjectionModeImageVolume uses image volumes for library injection (experimental, requires Cluster Agent 7.77.0+).
+	InjectionModeImageVolume InjectionModeType = "image_volume"
+)
+
 // SingleStepInstrumentation contains the config for the namespaces to target and the library to inject.
 type SingleStepInstrumentation struct {
 	// Enabled enables injecting the Datadog APM libraries into all pods in the cluster.
@@ -198,6 +213,12 @@ type SingleStepInstrumentation struct {
 	// Injector configures the APM Injector.
 	// +optional
 	Injector *InjectorConfig `json:"injector,omitempty"`
+
+	// InjectionMode is the injection mode to use for libraries injection.
+	// Valid values are: "auto", "init_container", "csi" (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+), "image_volume" (experimental, requires Cluster Agent 7.77.0+).
+	// Empty by default so the Cluster Agent can apply its own defaults.
+	// +optional
+	InjectionMode InjectionModeType `json:"injectionMode,omitempty"`
 
 	// Targets is a list of targets to apply the auto instrumentation to. The first target that matches the pod will be
 	// used. If no target matches, the auto instrumentation will not be applied.
