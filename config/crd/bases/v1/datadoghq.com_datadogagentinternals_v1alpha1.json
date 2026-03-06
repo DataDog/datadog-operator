@@ -686,7 +686,7 @@
                       "x-kubernetes-list-type": "set"
                     },
                     "injectionMode": {
-                      "description": "InjectionMode is the injection mode to use for libraries injection.\nValid values are: \"auto\", \"init_container\", \"csi\" (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver), \"image_volume\" (experimental, requires Cluster Agent 7.77.0+).\nEmpty by default so the Cluster Agent can apply its own defaults.",
+                      "description": "InjectionMode is the injection mode to use for libraries injection.\nValid values are: \"auto\", \"init_container\", \"csi\" (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+), \"image_volume\" (experimental, requires Cluster Agent 7.77.0+).\nEmpty by default so the Cluster Agent can apply its own defaults.",
                       "enum": [
                         "auto",
                         "init_container",
@@ -8570,7 +8570,7 @@
                           "x-kubernetes-list-type": "set"
                         },
                         "injectionMode": {
-                          "description": "InjectionMode is the injection mode to use for libraries injection.\nValid values are: \"auto\", \"init_container\", \"csi\" (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver), \"image_volume\" (experimental, requires Cluster Agent 7.77.0+).\nEmpty by default so the Cluster Agent can apply its own defaults.",
+                          "description": "InjectionMode is the injection mode to use for libraries injection.\nValid values are: \"auto\", \"init_container\", \"csi\" (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+), \"image_volume\" (experimental, requires Cluster Agent 7.77.0+).\nEmpty by default so the Cluster Agent can apply its own defaults.",
                           "enum": [
                             "auto",
                             "init_container",

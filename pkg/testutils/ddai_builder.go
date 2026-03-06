@@ -697,7 +697,7 @@ func (builder *DatadogAgentInternalBuilder) WithClusterAgentTag(tag string) *Dat
 	return builder
 }
 
-func (builder *DatadogAgentInternalBuilder) WithAPMSingleStepInstrumentationEnabled(enabled bool, enabledNamespaces []string, disabledNamespaces []string, libVersion map[string]string, languageDetectionEnabled bool, injectorImageTag string, targets []v2alpha1.SSITarget, injectionMode string) *DatadogAgentInternalBuilder {
+func (builder *DatadogAgentInternalBuilder) WithAPMSingleStepInstrumentationEnabled(enabled bool, enabledNamespaces []string, disabledNamespaces []string, libVersion map[string]string, languageDetectionEnabled bool, injectorImageTag string, targets []v2alpha1.SSITarget, injectionMode v2alpha1.InjectionModeType) *DatadogAgentInternalBuilder {
 	builder.initAPM()
 	builder.datadogAgentInternal.Spec.Features.APM.SingleStepInstrumentation = &v2alpha1.SingleStepInstrumentation{
 		Enabled:            apiutils.NewBoolPointer(enabled),

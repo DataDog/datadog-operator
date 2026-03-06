@@ -176,7 +176,7 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			f.singleStepInstrumentation.libVersions = apm.SingleStepInstrumentation.LibVersions
 			f.singleStepInstrumentation.languageDetection = &languageDetection{enabled: apiutils.BoolValue(ddaSpec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled)}
 			f.singleStepInstrumentation.injector = &injector{imageTag: apm.SingleStepInstrumentation.Injector.ImageTag}
-			f.singleStepInstrumentation.injectionMode = apm.SingleStepInstrumentation.InjectionMode
+			f.singleStepInstrumentation.injectionMode = string(apm.SingleStepInstrumentation.InjectionMode)
 			if len(apm.SingleStepInstrumentation.Targets) > 0 {
 				if supportsInstrumentationTargets(ddaSpec) {
 					f.singleStepInstrumentation.targets = apm.SingleStepInstrumentation.Targets
@@ -214,6 +214,7 @@ func (f *apmFeature) shouldSetCustomInjectorImage() bool {
 
 func (f *apmFeature) shouldSetInjectionMode() bool {
 	return f.singleStepInstrumentation != nil &&
+		f.singleStepInstrumentation.enabled &&
 		f.singleStepInstrumentation.injectionMode != ""
 }
 
