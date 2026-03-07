@@ -40,12 +40,12 @@ type Clients struct {
 	STS            *sts.Client
 
 	// Kubernetes clients
-	K8sClient    client.Client         // controller-runtime client
-	K8sClientset *kubernetes.Clientset // typed Kubernetes client
+	K8sClient    client.Client        // controller-runtime client
+	K8sClientset kubernetes.Interface // typed Kubernetes client
 }
 
 // Build creates AWS and Kubernetes clients for Karpenter operations.
-func Build(ctx context.Context, configFlags *genericclioptions.ConfigFlags, k8sClientset *kubernetes.Clientset) (*Clients, error) {
+func Build(ctx context.Context, configFlags *genericclioptions.ConfigFlags, k8sClientset kubernetes.Interface) (*Clients, error) {
 	awsConfig, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)

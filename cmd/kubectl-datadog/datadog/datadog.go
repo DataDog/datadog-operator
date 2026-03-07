@@ -15,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/flare"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/get"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/helm2dda"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/mcp"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/metrics"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/validate/validate"
 )
@@ -43,6 +44,7 @@ func NewCmd(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd.AddCommand(get.New(streams))
 	cmd.AddCommand(flare.New(streams))
 	cmd.AddCommand(validate.New(streams))
+	cmd.AddCommand(mcp.New(streams))
 
 	// Agent commands
 	cmd.AddCommand(agent.New(streams))
