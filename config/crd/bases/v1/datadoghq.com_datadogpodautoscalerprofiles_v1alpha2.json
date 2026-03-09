@@ -1089,15 +1089,8 @@
           "description": "ControlledAutoscalers is the number of DatadogPodAutoscaler objects managed by this profile.",
           "format": "int32",
           "type": "integer"
-        },
-        "strategy": {
-          "description": "Strategy represents the autoscaling strategy derived from the template configuration.\nPossible values: \"vertical\" (VPA only), \"horizontal\" (HPA only), \"multi-dimension\" (HPA+VPA).",
-          "type": "string"
         }
       },
-      "required": [
-        "controlledAutoscalers"
-      ],
       "type": "object"
     }
   },

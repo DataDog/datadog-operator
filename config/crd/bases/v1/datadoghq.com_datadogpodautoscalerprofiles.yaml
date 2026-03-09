@@ -23,9 +23,6 @@ spec:
         - jsonPath: .metadata.annotations['autoscaling\.datadoghq\.com/profile-description']
           name: Description
           type: string
-        - jsonPath: .status.strategy
-          name: Strategy
-          type: string
         - jsonPath: .status.conditions[?(@.type=='Ready')].status
           name: Ready
           type: string
@@ -891,13 +888,6 @@ spec:
                   description: ControlledAutoscalers is the number of DatadogPodAutoscaler objects managed by this profile.
                   format: int32
                   type: integer
-                strategy:
-                  description: |-
-                    Strategy represents the autoscaling strategy derived from the template configuration.
-                    Possible values: "vertical" (VPA only), "horizontal" (HPA only), "multi-dimension" (HPA+VPA).
-                  type: string
-              required:
-                - controlledAutoscalers
               type: object
           type: object
       served: true

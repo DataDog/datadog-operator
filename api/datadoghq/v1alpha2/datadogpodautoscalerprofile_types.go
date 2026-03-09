@@ -70,7 +70,6 @@ type DatadogPodAutoscalerProfileStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Display Name",type="string",JSONPath=".metadata.annotations['autoscaling\\.datadoghq\\.com/profile-name']"
 // +kubebuilder:printcolumn:name="Description",type="string",JSONPath=".metadata.annotations['autoscaling\\.datadoghq\\.com/profile-description']"
-// +kubebuilder:printcolumn:name="Strategy",type="string",JSONPath=".status.strategy"
 // +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="Controlled Autoscalers",type="integer",JSONPath=".status.controlledAutoscalers"
 // +kubebuilder:printcolumn:name="Apply Mode",type="string",JSONPath=".spec.template.applyPolicy.mode"
