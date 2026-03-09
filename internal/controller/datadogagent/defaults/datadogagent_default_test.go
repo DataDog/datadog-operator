@@ -315,7 +315,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						ServiceName:      apiutils.NewStringPointer(DefaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
@@ -699,7 +699,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						ServiceName:      apiutils.NewStringPointer(DefaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
@@ -860,7 +860,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						ServiceName:      apiutils.NewStringPointer(DefaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
@@ -1016,7 +1016,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						ServiceName:      apiutils.NewStringPointer(DefaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
@@ -1174,7 +1174,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						ServiceName:      apiutils.NewStringPointer(DefaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
@@ -1337,7 +1337,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						ServiceName:      apiutils.NewStringPointer(DefaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
@@ -1496,7 +1496,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						ServiceName:      apiutils.NewStringPointer(DefaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
@@ -1652,7 +1652,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						ServiceName:      apiutils.NewStringPointer(DefaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
@@ -1821,7 +1821,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled:       apiutils.NewBoolPointer(valueTrue),
-						ServiceName:            apiutils.NewStringPointer(defaultAdmissionServiceName),
+						ServiceName:            apiutils.NewStringPointer(DefaultAdmissionServiceName),
 						AgentCommunicationMode: apiutils.NewStringPointer("socket"),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(valueTrue),
@@ -1980,7 +1980,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						ServiceName:      apiutils.NewStringPointer(DefaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
@@ -2136,7 +2136,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						ServiceName:      apiutils.NewStringPointer(DefaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
@@ -2316,7 +2316,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						ServiceName:      apiutils.NewStringPointer(DefaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
@@ -2491,7 +2491,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						ServiceName:      apiutils.NewStringPointer(DefaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
@@ -2650,7 +2650,7 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						ServiceName:      apiutils.NewStringPointer(DefaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},

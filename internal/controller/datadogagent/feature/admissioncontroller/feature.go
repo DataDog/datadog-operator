@@ -19,6 +19,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
@@ -233,7 +234,7 @@ func (f *admissionControllerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 
 	// Apply defaults for fields not explicitly configured
 	if f.serviceName == "" {
-		f.serviceName = defaultAdmissionServiceName
+		f.serviceName = defaults.DefaultAdmissionServiceName
 	}
 	if f.registry == "" && ddaSpec.Global.Registry != nil && *ddaSpec.Global.Registry != "" {
 		f.registry = *ddaSpec.Global.Registry
