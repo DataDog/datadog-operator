@@ -251,6 +251,8 @@ func DefaultSyscallsForSystemProbe() []string {
 		"setitimer",
 		"setns",
 		"setpgid",
+		"setresgid",
+		"setresuid",
 		"setrlimit",
 		"setsid",
 		"setsidaccept4",
