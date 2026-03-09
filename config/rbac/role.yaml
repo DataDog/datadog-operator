@@ -258,6 +258,7 @@ rules:
   - datadogdashboards/status
   - datadoggenericresources/status
   - datadogmonitors/status
+  - datadogpodchecks/status
   - datadogslos/status
   verbs:
   - get
@@ -290,6 +291,7 @@ rules:
 - apiGroups:
   - datadoghq.com
   resources:
+  - datadogpodchecks
   - extendeddaemonsetreplicasets
   - watermarkpodautoscalers
   verbs:
