@@ -14,11 +14,6 @@ import (
 // DatadogPodAutoscalerTemplate contains the autoscaling behavior configuration
 // that can be shared across multiple autoscalers via DatadogPodAutoscalerProfile.
 type DatadogPodAutoscalerTemplate struct {
-	// ApplyPolicy defines how recommendations should be applied.
-	// +optional
-	// +kubebuilder:default={}
-	ApplyPolicy *DatadogPodAutoscalerApplyPolicy `json:"applyPolicy,omitempty"`
-
 	// Objectives are the objectives to reach and maintain for the target resource.
 	// Default to a single objective to maintain 80% POD CPU utilization.
 	// +listType=atomic
@@ -63,11 +58,6 @@ type DatadogPodAutoscalerProfileStatus struct {
 	// ControlledAutoscalers is the number of DatadogPodAutoscaler objects managed by this profile.
 	// +optional
 	ControlledAutoscalers int32 `json:"controlledAutoscalers"`
-
-	// Strategy represents the autoscaling strategy derived from the template configuration.
-	// Possible values: "vertical" (VPA only), "horizontal" (HPA only), "multi-dimension" (HPA+VPA).
-	// +optional
-	Strategy string `json:"strategy,omitempty"`
 }
 
 // +kubebuilder:object:root=true
