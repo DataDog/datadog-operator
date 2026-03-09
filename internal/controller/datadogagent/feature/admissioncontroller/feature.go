@@ -122,9 +122,11 @@ func (f *admissionControllerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 		if ac.ServiceName != nil && *ac.ServiceName != "" {
 			f.serviceName = *ac.ServiceName
 		}
+		// set image registry from feature config; global config fallback applied below
 		if ac.Registry != nil && *ac.Registry != "" {
 			f.registry = *ac.Registry
 		}
+		// agent communication mode set by user; automatic detection applied below
 		if ac.AgentCommunicationMode != nil && *ac.AgentCommunicationMode != "" {
 			f.agentCommunicationMode = *ac.AgentCommunicationMode
 		}
@@ -156,12 +158,15 @@ func (f *admissionControllerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 			if sidecarConfig.ClusterAgentCommunicationEnabled != nil {
 				f.agentSidecarConfig.clusterAgentCommunicationEnabled = *sidecarConfig.ClusterAgentCommunicationEnabled
 			}
+			// set image registry from admissionController config or global config if defined
 			if sidecarConfig.Registry != nil && *sidecarConfig.Registry != "" {
 				f.agentSidecarConfig.registry = *sidecarConfig.Registry
 			} else if ddaSpec.Global.Registry != nil && *ddaSpec.Global.Registry != "" {
 				f.agentSidecarConfig.registry = *ddaSpec.Global.Registry
 			}
 
+			// set agent image from admissionController config or nodeAgent override image name.
+			// default is "agent"
 			f.agentSidecarConfig.imageName = images.DefaultAgentImageName
 			f.agentSidecarConfig.imageTag = images.AgentLatestVersion
 
@@ -171,12 +176,15 @@ func (f *admissionControllerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 			} else if ok && componentOverride.Image != nil {
 				f.agentSidecarConfig.imageName = componentOverride.Image.Name
 			}
+			// set agent image tag from admissionController config or nodeAgent override image tag.
+			// defaults will depend on operator version.
 			if sidecarConfig.Image != nil && sidecarConfig.Image.Tag != "" {
 				f.agentSidecarConfig.imageTag = sidecarConfig.Image.Tag
 			} else if ok && componentOverride.Image != nil {
 				f.agentSidecarConfig.imageTag = componentOverride.Image.Tag
 			}
 
+			// Assemble agent sidecar selectors.
 			for _, selector := range sidecarConfig.Selectors {
 				newSelector := &v2alpha1.Selector{}
 
@@ -199,6 +207,7 @@ func (f *admissionControllerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 				}
 			}
 
+			// Assemble agent sidecar profiles.
 			for _, profile := range sidecarConfig.Profiles {
 				if len(profile.EnvVars) > 0 || profile.ResourceRequirements != nil || profile.SecurityContext != nil {
 					newProfile := &v2alpha1.Profile{
@@ -224,12 +233,15 @@ func (f *admissionControllerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 		if experimental.IsAutopilotEnabled(dda) {
 			f.agentCommunicationMode = admissionControllerHostipCommunicationMode
 		} else {
+			// agent communication mode set automatically
+			// use `socket` mode if either apm or dsd uses uds
 			apm := ddaSpec.Features.APM
 			dsd := ddaSpec.Features.Dogstatsd
 			if (apm != nil && apm.UnixDomainSocketConfig != nil && apiutils.BoolValue(apm.Enabled) && apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled)) ||
 				(dsd != nil && dsd.UnixDomainSocketConfig != nil && apiutils.BoolValue(dsd.UnixDomainSocketConfig.Enabled)) {
 				f.agentCommunicationMode = admissionControllerSocketCommunicationMode
 			}
+			// otherwise don't set to fall back to default agent setting `hostip`
 		}
 	}
 	f.localServiceName = constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec)
