@@ -75,6 +75,26 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_CheckConfig(ref common.Refer
 							Format:      "",
 						},
 					},
+					"adIdentifiers": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "ADIdentifiers is the list of autodiscovery identifiers (e.g. container image names) used for template matching against discovered containers.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 					"initConfig": {
 						SchemaProps: spec.SchemaProps{
 							Description: "InitConfig is the init_config section passed to the integration check.",
@@ -97,6 +117,12 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_CheckConfig(ref common.Refer
 									},
 								},
 							},
+						},
+					},
+					"logs": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Logs defines optional log collection configuration for this check.",
+							Ref:         ref("k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"),
 						},
 					},
 				},
@@ -1925,51 +1951,38 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogPodCheckSpec(ref comm
 				Description: "DatadogPodCheckSpec defines the desired state of a DatadogPodCheck.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"containerImage": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ContainerImage is the container image name used for autodiscovery template matching. The check is resolved per-pod against containers running this image and supports AD template variables (%%host%%, %%port%%, etc).",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"selector": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Selector provides additional targeting criteria to narrow which pods this check applies to. When specified, all conditions (containerImage + selector fields) must match for a pod to be targeted (AND semantics).",
+							Description: "Selector provides targeting criteria to narrow which pods these checks apply to. At least one of matchLabels or matchAnnotations must be set. When both are specified, all fields are ANDed together.",
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.PodSelector"),
 						},
 					},
-					"check": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Check defines the integration check configuration.",
-							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.CheckConfig"),
-						},
-					},
-					"logs": {
+					"checks": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
 								"x-kubernetes-list-type": "atomic",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Logs defines optional log collection configurations.",
+							Description: "Checks is the list of integration check configurations to schedule.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.CheckConfig"),
 									},
 								},
 							},
 						},
 					},
 				},
-				Required: []string{"containerImage", "check"},
+				Required: []string{"selector", "checks"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.CheckConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.PodSelector", "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.CheckConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.PodSelector"},
 	}
 }
 

@@ -13,24 +13,15 @@ import (
 // DatadogPodCheckSpec defines the desired state of a DatadogPodCheck.
 // +k8s:openapi-gen=true
 type DatadogPodCheckSpec struct {
-	// ContainerImage is the container image name used for autodiscovery template matching.
-	// The check is resolved per-pod against containers running this image
-	// and supports AD template variables (%%host%%, %%port%%, etc).
-	ContainerImage string `json:"containerImage"`
+	// Selector provides targeting criteria to narrow which pods these
+	// checks apply to. At least one of matchLabels or matchAnnotations must be set.
+	// When both are specified, all fields are ANDed together.
+	Selector PodSelector `json:"selector"`
 
-	// Selector provides additional targeting criteria to narrow which pods this
-	// check applies to. When specified, all conditions (containerImage + selector
-	// fields) must match for a pod to be targeted (AND semantics).
-	// +optional
-	Selector *PodSelector `json:"selector,omitempty"`
-
-	// Check defines the integration check configuration.
-	Check CheckConfig `json:"check"`
-
-	// Logs defines optional log collection configurations.
-	// +optional
+	// Checks is the list of integration check configurations to schedule.
+	// +kubebuilder:validation:MinItems=1
 	// +listType=atomic
-	Logs []apiextensionsv1.JSON `json:"logs,omitempty"`
+	Checks []CheckConfig `json:"checks"`
 }
 
 // PodSelector defines criteria for selecting pods by labels and annotations.
@@ -52,6 +43,12 @@ type CheckConfig struct {
 	// Name is the Datadog integration name (e.g. "nginx", "http_check", "redis").
 	Name string `json:"name"`
 
+	// ADIdentifiers is the list of autodiscovery identifiers (e.g. container image names)
+	// used for template matching against discovered containers.
+	// +optional
+	// +listType=atomic
+	ADIdentifiers []string `json:"adIdentifiers,omitempty"`
+
 	// InitConfig is the init_config section passed to the integration check.
 	// +optional
 	InitConfig *apiextensionsv1.JSON `json:"initConfig,omitempty"`
@@ -61,6 +58,10 @@ type CheckConfig struct {
 	// +kubebuilder:validation:MinItems=1
 	// +listType=atomic
 	Instances []apiextensionsv1.JSON `json:"instances"`
+
+	// Logs defines optional log collection configuration for this check.
+	// +optional
+	Logs *apiextensionsv1.JSON `json:"logs,omitempty"`
 }
 
 // DatadogPodCheckStatus defines the observed state of a DatadogPodCheck.
@@ -78,8 +79,6 @@ type DatadogPodCheckStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=datadogpodchecks,scope=Namespaced,shortName=ddpc
-// +kubebuilder:printcolumn:name="check",type="string",JSONPath=".spec.check.name"
-// +kubebuilder:printcolumn:name="image",type="string",JSONPath=".spec.containerImage"
 // +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
 // +k8s:openapi-gen=true
 // +genclient

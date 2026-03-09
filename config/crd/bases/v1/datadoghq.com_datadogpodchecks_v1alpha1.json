@@ -17,49 +17,55 @@
       "additionalProperties": false,
       "description": "DatadogPodCheckSpec defines the desired state of a DatadogPodCheck.",
       "properties": {
-        "check": {
-          "additionalProperties": false,
-          "description": "Check defines the integration check configuration.",
-          "properties": {
-            "initConfig": {
-              "description": "InitConfig is the init_config section passed to the integration check.",
-              "x-kubernetes-preserve-unknown-fields": true
-            },
-            "instances": {
-              "description": "Instances is the list of check instance configurations.\nAt least one instance is required.",
-              "items": {
+        "checks": {
+          "description": "Checks is the list of integration check configurations to schedule.",
+          "items": {
+            "additionalProperties": false,
+            "description": "CheckConfig defines a Datadog integration check configuration.",
+            "properties": {
+              "adIdentifiers": {
+                "description": "ADIdentifiers is the list of autodiscovery identifiers (e.g. container image names)\nused for template matching against discovered containers.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "x-kubernetes-list-type": "atomic"
+              },
+              "initConfig": {
+                "description": "InitConfig is the init_config section passed to the integration check.",
                 "x-kubernetes-preserve-unknown-fields": true
               },
-              "minItems": 1,
-              "type": "array",
-              "x-kubernetes-list-type": "atomic"
+              "instances": {
+                "description": "Instances is the list of check instance configurations.\nAt least one instance is required.",
+                "items": {
+                  "x-kubernetes-preserve-unknown-fields": true
+                },
+                "minItems": 1,
+                "type": "array",
+                "x-kubernetes-list-type": "atomic"
+              },
+              "logs": {
+                "description": "Logs defines optional log collection configuration for this check.",
+                "x-kubernetes-preserve-unknown-fields": true
+              },
+              "name": {
+                "description": "Name is the Datadog integration name (e.g. \"nginx\", \"http_check\", \"redis\").",
+                "type": "string"
+              }
             },
-            "name": {
-              "description": "Name is the Datadog integration name (e.g. \"nginx\", \"http_check\", \"redis\").",
-              "type": "string"
-            }
+            "required": [
+              "instances",
+              "name"
+            ],
+            "type": "object"
           },
-          "required": [
-            "instances",
-            "name"
-          ],
-          "type": "object"
-        },
-        "containerImage": {
-          "description": "ContainerImage is the container image name used for autodiscovery template matching.\nThe check is resolved per-pod against containers running this image\nand supports AD template variables (%%host%%, %%port%%, etc).",
-          "type": "string"
-        },
-        "logs": {
-          "description": "Logs defines optional log collection configurations.",
-          "items": {
-            "x-kubernetes-preserve-unknown-fields": true
-          },
+          "minItems": 1,
           "type": "array",
           "x-kubernetes-list-type": "atomic"
         },
         "selector": {
           "additionalProperties": false,
-          "description": "Selector provides additional targeting criteria to narrow which pods this\ncheck applies to. When specified, all conditions (containerImage + selector\nfields) must match for a pod to be targeted (AND semantics).",
+          "description": "Selector provides targeting criteria to narrow which pods these\nchecks apply to. At least one of matchLabels or matchAnnotations must be set.\nWhen both are specified, all fields are ANDed together.",
           "properties": {
             "matchAnnotations": {
               "additionalProperties": {
@@ -80,8 +86,8 @@
         }
       },
       "required": [
-        "check",
-        "containerImage"
+        "checks",
+        "selector"
       ],
       "type": "object"
     },
