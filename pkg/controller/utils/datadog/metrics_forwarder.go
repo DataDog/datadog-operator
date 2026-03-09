@@ -147,8 +147,8 @@ type metricsForwarder struct {
 // newMetricsForwarder returns a new Datadog MetricsForwarder instance
 func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj client.Object, platforminfo *kubernetes.PlatformInfo, datadogAgentInternalEnabled bool, credsManager *config.CredentialManager) *metricsForwarder {
 
-	logger := log.WithValues("CustomResource.Namespace", obj.GetNamespace(), "CustomResource.Name", obj.GetName())
 	objKind := getObjKind(obj)
+	logger := log.WithValues("kind", objKind, "namespace", obj.GetNamespace(), "name", obj.GetName())
 
 	return &metricsForwarder{
 		id:                          getObjID(obj),
