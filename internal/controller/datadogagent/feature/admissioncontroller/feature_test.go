@@ -294,6 +294,10 @@ func getACEnvVars(validation, mutation bool, acm, registry string, cws bool) []*
 			Value: "false",
 		},
 		{
+			Name:  DDAdmissionControllerServiceName,
+			Value: defaultAdmissionServiceName,
+		},
+		{
 			Name:  DDAdmissionControllerLocalServiceName,
 			Value: "-agent",
 		},

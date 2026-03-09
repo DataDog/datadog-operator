@@ -67,11 +67,19 @@ func TestAutoscalingFeature(t *testing.T) {
 		},
 		{
 			Name:                 "autoscaling enabled without explicit admission controller",
-			DDA:                  newAgent(true, true, false),
+			DDA:                  newAgentWithoutAdmissionController(true, true),
 			ClusterAgent:         testDCAResources(true, true),
 			Agent:                testAgentResources(true),
 			WantConfigure:        true,
 			WantDependenciesFunc: testRBACResources,
+		},
+		{
+			Name:                      "autoscaling enabled but admission explicitly disabled",
+			DDA:                       newAgent(true, true, false),
+			ClusterAgent:              testDCAResources(true, true),
+			Agent:                     testAgentResources(true),
+			WantConfigure:             true,
+			WantManageDependenciesErr: true,
 		},
 	}
 
@@ -96,6 +104,27 @@ func newAgent(workloadEnabled, clusterEnabled, admissionEnabled bool) *v2alpha1.
 				},
 				AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
 					Enabled: apiutils.NewBoolPointer(admissionEnabled),
+				},
+			},
+		},
+	}
+}
+
+func newAgentWithoutAdmissionController(workloadEnabled, clusterEnabled bool) *v2alpha1.DatadogAgent {
+	return &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "bar",
+		},
+		Spec: v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				Autoscaling: &v2alpha1.AutoscalingFeatureConfig{
+					Workload: &v2alpha1.WorkloadAutoscalingFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(workloadEnabled),
+					},
+					Cluster: &v2alpha1.ClusterAutoscalingFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(clusterEnabled),
+					},
 				},
 			},
 		},

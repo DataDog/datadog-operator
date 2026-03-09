@@ -6,6 +6,8 @@
 package autoscaling
 
 import (
+	"errors"
+
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,9 +41,10 @@ type autoscalingFeature struct {
 	workloadEnabled bool
 	clusterEnabled  bool
 
-	serviceAccountName string
-	owner              metav1.Object
-	logger             logr.Logger
+	serviceAccountName                    string
+	owner                                 metav1.Object
+	logger                                logr.Logger
+	admissionControllerExplicitlyDisabled bool
 }
 
 // ID returns the ID of the Feature
@@ -69,6 +72,9 @@ func (f *autoscalingFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Data
 	if autoscaling.Workload != nil && apiutils.BoolValue(autoscaling.Workload.Enabled) {
 		f.workloadEnabled = true
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
+
+		ac := ddaSpec.Features.AdmissionController
+		f.admissionControllerExplicitlyDisabled = ac != nil && ac.Enabled != nil && !*ac.Enabled
 	}
 
 	if autoscaling.Cluster != nil && apiutils.BoolValue(autoscaling.Cluster.Enabled) {
@@ -88,6 +94,10 @@ func (f *autoscalingFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Data
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *autoscalingFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+	if f.workloadEnabled && f.admissionControllerExplicitlyDisabled {
+		return errors.New("admission controller feature must not be explicitly disabled when using the workload autoscaling feature")
+	}
+
 	return managers.RBACManager().AddClusterPolicyRulesByComponent(
 		f.owner.GetNamespace(),
 		componentdca.GetClusterAgentRbacResourcesName(f.owner)+"-autoscaling",

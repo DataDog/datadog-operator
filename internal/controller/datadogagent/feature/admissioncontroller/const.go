@@ -16,4 +16,6 @@ const (
 	defaultAdmissionControllerTargetPort = 8000
 	// DefaultAdmissionControllerWebhookName default admission controller webhook name
 	defaultAdmissionControllerWebhookName string = "datadog-webhook"
+	// defaultAdmissionServiceName default admission controller service name
+	defaultAdmissionServiceName string = "datadog-admission-controller"
 )

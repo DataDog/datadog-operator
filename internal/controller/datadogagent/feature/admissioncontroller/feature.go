@@ -99,12 +99,18 @@ func isWorkloadAutoscalingEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 		apiutils.BoolValue(ddaSpec.Features.Autoscaling.Workload.Enabled)
 }
 
+func isAdmissionControllerExplicitlyDisabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	ac := ddaSpec.Features.AdmissionController
+	return ac != nil && ac.Enabled != nil && !*ac.Enabled
+}
+
 func (f *admissionControllerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 	ac := ddaSpec.Features.AdmissionController
-	enabled := (ac != nil && apiutils.BoolValue(ac.Enabled)) || isWorkloadAutoscalingEnabled(ddaSpec)
+	acExplicitlyEnabled := ac != nil && apiutils.BoolValue(ac.Enabled)
+	enabled := acExplicitlyEnabled || (isWorkloadAutoscalingEnabled(ddaSpec) && !isAdmissionControllerExplicitlyDisabled(ddaSpec))
 
 	if !enabled {
 		return reqComp
@@ -226,6 +232,9 @@ func (f *admissionControllerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 	}
 
 	// Apply defaults for fields not explicitly configured
+	if f.serviceName == "" {
+		f.serviceName = defaultAdmissionServiceName
+	}
 	if f.registry == "" && ddaSpec.Global.Registry != nil && *ddaSpec.Global.Registry != "" {
 		f.registry = *ddaSpec.Global.Registry
 	}
