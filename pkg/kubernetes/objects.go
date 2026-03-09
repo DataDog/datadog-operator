@@ -33,6 +33,8 @@ func ObjectFromKind(kind ObjectKind, platformInfo PlatformInfo) client.Object {
 		return &admissionregistrationv1.ValidatingWebhookConfiguration{}
 	case MutatingWebhookConfigurationsKind:
 		return &admissionregistrationv1.MutatingWebhookConfiguration{}
+	case NamespacesKind:
+		return &corev1.Namespace{}
 	case APIServiceKind:
 		return &apiregistrationv1.APIService{}
 	case SecretsKind:

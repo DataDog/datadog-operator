@@ -200,6 +200,9 @@ func (builder *DatadogAgentBuilder) initAdmissionController() {
 	if builder.datadogAgent.Spec.Features.AdmissionController.CWSInstrumentation == nil {
 		builder.datadogAgent.Spec.Features.AdmissionController.CWSInstrumentation = &v2alpha1.CWSInstrumentationConfig{}
 	}
+	if builder.datadogAgent.Spec.Features.AdmissionController.Probe == nil {
+		builder.datadogAgent.Spec.Features.AdmissionController.Probe = &v2alpha1.AdmissionControllerProbeConfig{}
+	}
 }
 
 func (builder *DatadogAgentBuilder) initSidecarInjection() {
@@ -262,6 +265,12 @@ func (builder *DatadogAgentBuilder) WithAdmissionControllerWebhookName(name stri
 func (builder *DatadogAgentBuilder) WithAdmissionControllerRegistry(name string) *DatadogAgentBuilder {
 	builder.initAdmissionController()
 	builder.datadogAgent.Spec.Features.AdmissionController.Registry = apiutils.NewStringPointer(name)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithAdmissionControllerProbeEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgent.Spec.Features.AdmissionController.Probe.Enabled = apiutils.NewBoolPointer(enabled)
 	return builder
 }
 

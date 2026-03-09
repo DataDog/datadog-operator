@@ -41,6 +41,8 @@ const (
 	ConfigMapKind ObjectKind = "configmaps"
 	// MutatingWebhookConfigurationsKind is the MutatingWebhookConfigurations resource kind
 	MutatingWebhookConfigurationsKind = "mutatingwebhookconfigurations"
+	// NamespacesKind is the Namespaces resource kind
+	NamespacesKind ObjectKind = "namespaces"
 	// NetworkPoliciesKind is the NetworkPolicies resource kind
 	NetworkPoliciesKind = "networkpolicies"
 	// NodeKind is the Nodes resource kind
@@ -69,6 +71,7 @@ func getResourcesKind(withCiliumResources bool) []ObjectKind {
 		ClusterRoleBindingKind,
 		ConfigMapKind,
 		MutatingWebhookConfigurationsKind,
+		NamespacesKind,
 		NetworkPoliciesKind,
 		PodDisruptionBudgetsKind,
 		RolesKind,

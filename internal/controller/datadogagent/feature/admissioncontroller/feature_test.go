@@ -196,6 +196,17 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
 				sidecarInjectionWantFunc("", "", "", "agent", images.AgentLatestVersion, true, true)),
 		},
+		{
+			Name: "Admission Controller enabled with probe explicitly disabled",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithAdmissionControllerProbeEnabled(false).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				probeDisabledWantFunc()),
+		},
+	
 	}
 
 	tests.Run(t, buildAdmissionControllerFeature)
@@ -263,6 +274,8 @@ func testDCAResources(acm string, registry string, cwsInstrumentationEnabled boo
 				}
 				expectedAgentEnvs = append(expectedAgentEnvs, &registryEnv)
 			}
+
+			expectedAgentEnvs = append(expectedAgentEnvs, getProbeEnvVars()...)
 
 			assert.ElementsMatch(t,
 				agentEnvs,
@@ -338,7 +351,27 @@ func getACEnvVars(validation, mutation bool, acm, registry string, cws bool) []*
 		}
 		envVars = append(envVars, &cwsEnv[0], &cwsEnv[1])
 	}
+
+	envVars = append(envVars, getProbeEnvVars()...)
+
 	return envVars
+}
+
+func getProbeEnvVars() []*corev1.EnvVar {
+	return []*corev1.EnvVar{
+		{
+			Name:  DDAdmissionControllerProbeEnabled,
+			Value: "true",
+		},
+		{
+			Name:  DDAdmissionControllerProbeInterval,
+			Value: "60",
+		},
+		{
+			Name:  DDAdmissionControllerProbeGracePeriod,
+			Value: "60",
+		},
+	}
 }
 
 func admissionControllerWantFunc(validation, mutation bool, acm, registry string, cws bool) func(testing.TB, feature.PodTemplateManagers) {
@@ -411,6 +444,89 @@ func getSidecarEnvVars(imageName, imageTag, registry string, selectors, profiles
 			Value: "[{\"env\":[{\"name\":\"testName\",\"value\":\"testValue\"}],\"resources\":{\"requests\":{\"cpu\":\"500m\",\"memory\":\"1Gi\"}},\"securityContext\":{\"runAsUser\":1000}}]",
 		}
 		envVars = append(envVars, &profileEnv)
+	}
+
+	return envVars
+}
+
+func probeDisabledWantFunc() func(testing.TB, feature.PodTemplateManagers) {
+	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+		mgr := mgrInterface.(*fake.PodTemplateManagers)
+		dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+		want := getACEnvVarsNoProbe(false, false, "", "", false)
+		assert.ElementsMatch(
+			t,
+			dcaEnvVars,
+			want,
+			"DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want),
+		)
+	}
+}
+
+
+func getACEnvVarsNoProbe(validation, mutation bool, acm, registry string, cws bool) []*corev1.EnvVar {
+	envVars := []*corev1.EnvVar{
+		{
+			Name:  DDAdmissionControllerEnabled,
+			Value: "true",
+		},
+		{
+			Name:  DDAdmissionControllerMutateUnlabelled,
+			Value: "false",
+		},
+		{
+			Name:  DDAdmissionControllerLocalServiceName,
+			Value: "-agent",
+		},
+		{
+			Name:  DDAdmissionControllerWebhookName,
+			Value: "datadog-webhook",
+		},
+	}
+
+	if validation {
+		validationEnv := corev1.EnvVar{
+			Name:  DDAdmissionControllerValidationEnabled,
+			Value: apiutils.BoolToString(&validation),
+		}
+		envVars = append(envVars, &validationEnv)
+	}
+
+	if mutation {
+		mutationEnv := corev1.EnvVar{
+			Name:  DDAdmissionControllerMutationEnabled,
+			Value: apiutils.BoolToString(&mutation),
+		}
+		envVars = append(envVars, &mutationEnv)
+	}
+
+	if acm != "" {
+		acmEnv := corev1.EnvVar{
+			Name:  DDAdmissionControllerInjectConfigMode,
+			Value: acm,
+		}
+		envVars = append(envVars, &acmEnv)
+	}
+	if registry != "" {
+		registryEnv := corev1.EnvVar{
+			Name:  DDAdmissionControllerRegistryName,
+			Value: registry,
+		}
+		envVars = append(envVars, &registryEnv)
+	}
+
+	if cws {
+		cwsEnv := []corev1.EnvVar{
+			{
+				Name:  DDAdmissionControllerCWSInstrumentationEnabled,
+				Value: apiutils.BoolToString(&cws),
+			},
+			{
+				Name:  DDAdmissionControllerCWSInstrumentationMode,
+				Value: "test-mode",
+			},
+		}
+		envVars = append(envVars, &cwsEnv[0], &cwsEnv[1])
 	}
 
 	return envVars

@@ -63,6 +63,15 @@ spec:
 `features.admissionController.mutation.enabled`
 : Enables the Admission Controller mutation webhook. Default: true
 
+`features.admissionController.probe.enabled`
+: Enables the admission controller connectivity probe. The probe periodically sends dry-run ConfigMap creation requests to verify the webhook is reachable from the API server. Requires Cluster Agent 7.78.0+. Default: true
+
+`features.admissionController.probe.gracePeriod`
+: GracePeriod is the number of seconds to wait at startup before the first probe. Default: 60
+
+`features.admissionController.probe.interval`
+: Is the number of seconds between probe executions. Default: 60
+
 `features.admissionController.registry`
 : Defines an image registry for the admission controller.
 
