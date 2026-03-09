@@ -66,12 +66,12 @@ func TestAutoscalingFeature(t *testing.T) {
 			WantDependenciesFunc: testRBACResources,
 		},
 		{
-			Name:                      "autoscaling enabled but admission disabled",
-			DDA:                       newAgent(true, true, false),
-			ClusterAgent:              testDCAResources(true, true),
-			Agent:                     testAgentResources(true),
-			WantConfigure:             true,
-			WantManageDependenciesErr: true,
+			Name:                 "autoscaling enabled without explicit admission controller",
+			DDA:                  newAgent(true, true, false),
+			ClusterAgent:         testDCAResources(true, true),
+			Agent:                testAgentResources(true),
+			WantConfigure:        true,
+			WantDependenciesFunc: testRBACResources,
 		},
 	}
 
@@ -162,7 +162,8 @@ func testRBACResources(t testing.TB, store store.StoreClient) {
 		}
 	}
 
-	if t.Name() == "TestAutoscalingFeature/workload_and_cluster_autoscaling_enabled" {
+	if t.Name() == "TestAutoscalingFeature/workload_and_cluster_autoscaling_enabled" ||
+		t.Name() == "TestAutoscalingFeature/autoscaling_enabled_without_explicit_admission_controller" {
 		policyRules = append(policyRules, []rbacv1.PolicyRule{
 			{
 				Verbs:     []string{"get", "list", "watch", "create", "patch", "update", "delete"},

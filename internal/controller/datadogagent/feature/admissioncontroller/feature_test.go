@@ -196,6 +196,15 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
 				sidecarInjectionWantFunc("", "", "", "agent", images.AgentLatestVersion, true, true)),
 		},
+		{
+			Name: "Admission Controller auto-enabled by workload autoscaling",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithWorkloadAutoscalerEnabled(true).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				admissionControllerWantFunc(false, false, "", "", false)),
+		},
 	}
 
 	tests.Run(t, buildAdmissionControllerFeature)

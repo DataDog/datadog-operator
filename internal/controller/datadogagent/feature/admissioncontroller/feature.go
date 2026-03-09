@@ -92,13 +92,25 @@ func shouldEnablesidecarInjection(sidecarInjectionConf *v2alpha1.AgentSidecarInj
 	return false
 }
 
+func isWorkloadAutoscalingEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	return ddaSpec.Features != nil &&
+		ddaSpec.Features.Autoscaling != nil &&
+		ddaSpec.Features.Autoscaling.Workload != nil &&
+		apiutils.BoolValue(ddaSpec.Features.Autoscaling.Workload.Enabled)
+}
+
 func (f *admissionControllerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 	ac := ddaSpec.Features.AdmissionController
+	enabled := (ac != nil && apiutils.BoolValue(ac.Enabled)) || isWorkloadAutoscalingEnabled(ddaSpec)
 
-	if ac != nil && apiutils.BoolValue(ac.Enabled) {
+	if !enabled {
+		return reqComp
+	}
+
+	if ac != nil {
 		if ac.Validation != nil && ac.Validation.Enabled != nil {
 			f.validationWebhookConfig = &ValidationConfig{enabled: apiutils.BoolValue(ac.Validation.Enabled)}
 		}
@@ -110,58 +122,27 @@ func (f *admissionControllerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 		if ac.ServiceName != nil && *ac.ServiceName != "" {
 			f.serviceName = *ac.ServiceName
 		}
-		// set image registry from feature config or global config if defined
 		if ac.Registry != nil && *ac.Registry != "" {
 			f.registry = *ac.Registry
-		} else if ddaSpec.Global.Registry != nil && *ddaSpec.Global.Registry != "" {
-			f.registry = *ddaSpec.Global.Registry
 		}
-		// agent communication mode set by user
 		if ac.AgentCommunicationMode != nil && *ac.AgentCommunicationMode != "" {
 			f.agentCommunicationMode = *ac.AgentCommunicationMode
-		} else {
-			if experimental.IsAutopilotEnabled(dda) {
-				f.agentCommunicationMode = admissionControllerHostipCommunicationMode
-			} else {
-				// agent communication mode set automatically
-				// use `socket` mode if either apm or dsd uses uds
-				apm := ddaSpec.Features.APM
-				dsd := ddaSpec.Features.Dogstatsd
-				if (apm != nil && apm.UnixDomainSocketConfig != nil && apiutils.BoolValue(apm.Enabled) && apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled)) ||
-					(dsd != nil && dsd.UnixDomainSocketConfig != nil && apiutils.BoolValue(dsd.UnixDomainSocketConfig.Enabled)) {
-					f.agentCommunicationMode = admissionControllerSocketCommunicationMode
-				}
-				// otherwise don't set to fall back to default agent setting `hostip`
-			}
-		}
-		f.localServiceName = constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec)
-		reqComp = feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
-			},
 		}
 		if ac.FailurePolicy != nil && *ac.FailurePolicy != "" {
 			f.failurePolicy = *ac.FailurePolicy
 		}
-
-		f.webhookName = defaultAdmissionControllerWebhookName
 		if ac.WebhookName != nil {
 			f.webhookName = *ac.WebhookName
 		}
-
 		if ac.CWSInstrumentation != nil && apiutils.BoolValue(ac.CWSInstrumentation.Enabled) {
 			f.cwsInstrumentationEnabled = true
 			f.cwsInstrumentationMode = apiutils.StringValue(ac.CWSInstrumentation.Mode)
 		}
-
 		if ac.KubernetesAdmissionEvents != nil && apiutils.BoolValue(ac.KubernetesAdmissionEvents.Enabled) {
 			f.kubernetesAdmissionEvents = &KubernetesAdmissionEventConfig{enabled: true}
 		}
 
-		_, f.networkPolicy = constants.IsNetworkPolicyEnabled(ddaSpec)
-
-		sidecarConfig := ddaSpec.Features.AdmissionController.AgentSidecarInjection
+		sidecarConfig := ac.AgentSidecarInjection
 		if shouldEnablesidecarInjection(sidecarConfig) {
 			f.agentSidecarConfig = &AgentSidecarInjectionConfig{}
 			if sidecarConfig.Enabled != nil {
@@ -175,15 +156,12 @@ func (f *admissionControllerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 			if sidecarConfig.ClusterAgentCommunicationEnabled != nil {
 				f.agentSidecarConfig.clusterAgentCommunicationEnabled = *sidecarConfig.ClusterAgentCommunicationEnabled
 			}
-			// set image registry from admissionController config or global config if defined
 			if sidecarConfig.Registry != nil && *sidecarConfig.Registry != "" {
 				f.agentSidecarConfig.registry = *sidecarConfig.Registry
 			} else if ddaSpec.Global.Registry != nil && *ddaSpec.Global.Registry != "" {
 				f.agentSidecarConfig.registry = *ddaSpec.Global.Registry
 			}
 
-			// set agent image from admissionController config or nodeAgent override image name. else, It will follow agent image name.
-			// default is "agent"
 			f.agentSidecarConfig.imageName = images.DefaultAgentImageName
 			f.agentSidecarConfig.imageTag = images.AgentLatestVersion
 
@@ -193,15 +171,12 @@ func (f *admissionControllerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 			} else if ok && componentOverride.Image != nil {
 				f.agentSidecarConfig.imageName = componentOverride.Image.Name
 			}
-			// set agent image tag from admissionController config or nodeAgent override image tag. else, It will follow default image tag.
-			// defaults will depend on operator version.
 			if sidecarConfig.Image != nil && sidecarConfig.Image.Tag != "" {
 				f.agentSidecarConfig.imageTag = sidecarConfig.Image.Tag
 			} else if ok && componentOverride.Image != nil {
 				f.agentSidecarConfig.imageTag = componentOverride.Image.Tag
 			}
 
-			// Assemble agent sidecar selectors.
 			for _, selector := range sidecarConfig.Selectors {
 				newSelector := &v2alpha1.Selector{}
 
@@ -224,7 +199,6 @@ func (f *admissionControllerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 				}
 			}
 
-			// Assemble agent sidecar profiles.
 			for _, profile := range sidecarConfig.Profiles {
 				if len(profile.EnvVars) > 0 || profile.ResourceRequirements != nil || profile.SecurityContext != nil {
 					newProfile := &v2alpha1.Profile{
@@ -240,8 +214,37 @@ func (f *admissionControllerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 				}
 			}
 		}
-
 	}
+
+	// Apply defaults for fields not explicitly configured
+	if f.registry == "" && ddaSpec.Global.Registry != nil && *ddaSpec.Global.Registry != "" {
+		f.registry = *ddaSpec.Global.Registry
+	}
+	if f.agentCommunicationMode == "" {
+		if experimental.IsAutopilotEnabled(dda) {
+			f.agentCommunicationMode = admissionControllerHostipCommunicationMode
+		} else {
+			apm := ddaSpec.Features.APM
+			dsd := ddaSpec.Features.Dogstatsd
+			if (apm != nil && apm.UnixDomainSocketConfig != nil && apiutils.BoolValue(apm.Enabled) && apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled)) ||
+				(dsd != nil && dsd.UnixDomainSocketConfig != nil && apiutils.BoolValue(dsd.UnixDomainSocketConfig.Enabled)) {
+				f.agentCommunicationMode = admissionControllerSocketCommunicationMode
+			}
+		}
+	}
+	f.localServiceName = constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec)
+	if f.webhookName == "" {
+		f.webhookName = defaultAdmissionControllerWebhookName
+	}
+	_, f.networkPolicy = constants.IsNetworkPolicyEnabled(ddaSpec)
+
+	reqComp = feature.RequiredComponents{
+		ClusterAgent: feature.RequiredComponent{
+			IsRequired: apiutils.NewBoolPointer(true),
+			Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
+		},
+	}
+
 	return reqComp
 }
 
