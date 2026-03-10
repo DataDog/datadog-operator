@@ -15,11 +15,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
+	"github.com/DataDog/dd-trace-go/v2/profiler"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"gopkg.in/DataDog/dd-trace-go.v1/profiler"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -107,6 +108,7 @@ type options struct {
 	metricsAddr      string
 	secureMetrics    bool
 	profilingEnabled bool
+	tracingEnabled   bool
 	logLevel         *zapcore.Level
 	logEncoder       string
 	printVersion     bool
@@ -152,6 +154,7 @@ func (opts *options) Parse() {
 	flag.StringVar(&opts.metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&opts.secureMetrics, "metrics-secure", false, "If true, the metrics endpoint is served securely via HTTPS. Use false to use HTTP instead.")
 	flag.BoolVar(&opts.profilingEnabled, "profiling-enabled", false, "Enable Datadog profile in the Datadog Operator process.")
+	flag.BoolVar(&opts.tracingEnabled, "tracing-enabled", false, "Enable Datadog APM tracing in the Datadog Operator process.")
 	opts.logLevel = zap.LevelFlag("loglevel", zapcore.InfoLevel, "Set log level")
 	flag.StringVar(&opts.logEncoder, "logEncoder", "json", "log encoding ('json' or 'console')")
 	flag.BoolVar(&opts.printVersion, "version", false, "Print version and exit")
@@ -247,6 +250,15 @@ func run(opts *options) error {
 		}
 
 		defer profiler.Stop()
+	}
+
+	if opts.tracingEnabled {
+		setupLog.Info("Starting datadog APM tracer")
+		tracer.Start(
+			tracer.WithService("datadog-operator"),
+			tracer.WithServiceVersion(version.Version),
+		)
+		defer tracer.Stop()
 	}
 
 	// Dispatch CLI flags to each package
