@@ -13,53 +13,64 @@ import (
 // DatadogPodCheckSpec defines the desired state of a DatadogPodCheck.
 // +k8s:openapi-gen=true
 type DatadogPodCheckSpec struct {
-	// Selector provides targeting criteria to narrow which pods these
-	// checks apply to. At least one of matchLabels or matchAnnotations must be set.
-	// When both are specified, all fields are ANDed together.
+	// Selector determines which pods this DatadogPodCheck applies to.
+	// At least one of matchLabels or matchAnnotations must be set.
+	// When both are specified, a pod must match all criteria to be selected.
 	Selector PodSelector `json:"selector"`
 
-	// Checks is the list of integration check configurations to schedule.
+	// Checks is the list of Datadog integration checks to run on the selected pods.
+	// Each entry defines one check, including what to monitor and how to connect to it.
 	// +kubebuilder:validation:MinItems=1
 	// +listType=atomic
 	Checks []CheckConfig `json:"checks"`
 }
 
 // PodSelector defines criteria for selecting pods by labels and annotations.
-// All specified fields are ANDed together.
 // +k8s:openapi-gen=true
 type PodSelector struct {
-	// MatchLabels is a map of key-value pairs that must match a pod's labels.
+	// MatchLabels is a map of label key-value pairs. A pod must have all
+	// these labels with the exact values specified to be selected.
 	// +optional
 	MatchLabels map[string]string `json:"matchLabels,omitempty"`
 
-	// MatchAnnotations is a map of key-value pairs that must match a pod's annotations.
+	// MatchAnnotations is a map of annotation key-value pairs. A pod must have all
+	// these annotations with the exact values specified to be selected.
 	// +optional
 	MatchAnnotations map[string]string `json:"matchAnnotations,omitempty"`
 }
 
-// CheckConfig defines a Datadog integration check configuration.
+// CheckConfig defines a single Datadog integration check to run on matched pods.
 // +k8s:openapi-gen=true
 type CheckConfig struct {
 	// Name is the Datadog integration name (e.g. "nginx", "http_check", "redis").
+	// Must correspond to a valid Datadog integration.
 	Name string `json:"name"`
 
-	// ADIdentifiers is the list of autodiscovery identifiers (e.g. container image names)
-	// used for template matching against discovered containers.
+	// ADIdentifiers is a list of container identifiers (typically image names like
+	// "nginx" or "redis") that the Datadog Agent uses to determine which container
+	// in a pod this check should monitor. When omitted, the check applies to the
+	// pod as a whole without targeting a specific container.
 	// +optional
 	// +listType=atomic
 	ADIdentifiers []string `json:"adIdentifiers,omitempty"`
 
-	// InitConfig is the init_config section passed to the integration check.
+	// InitConfig holds shared configuration that applies across all instances of
+	// this check. This corresponds to the init_config section in a Datadog
+	// integration YAML file. Most checks do not require this.
 	// +optional
 	InitConfig *apiextensionsv1.JSON `json:"initConfig,omitempty"`
 
-	// Instances is the list of check instance configurations.
-	// At least one instance is required.
+	// Instances defines how the Agent connects to and collects metrics from the
+	// monitored service. Each entry represents one independent check execution.
+	// Template variables such as %%host%% and %%port%% can be used and will be
+	// resolved at runtime to the pod's IP and exposed port.
 	// +kubebuilder:validation:MinItems=1
 	// +listType=atomic
 	Instances []apiextensionsv1.JSON `json:"instances"`
 
-	// Logs defines optional log collection configuration for this check.
+	// Logs configures log collection from containers matched by this check.
+	// When set, the Datadog Agent will tail and forward logs according to
+	// the provided rules (e.g. source, service, log processing pipelines).
 	// +optional
 	Logs *apiextensionsv1.JSON `json:"logs,omitempty"`
 }
@@ -73,9 +84,9 @@ type DatadogPodCheckStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
-// DatadogPodCheck allows a user to define Datadog integration checks that are
-// scheduled against pods via the autodiscovery system, without requiring pod
-// annotation changes or agent restarts.
+// DatadogPodCheck defines Datadog integration checks to run on pods that match
+// the given selector. This enables monitoring without modifying pod annotations
+// or restarting the Datadog Agent.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=datadogpodchecks,scope=Namespaced,shortName=ddpc

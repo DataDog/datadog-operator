@@ -1,6 +1,6 @@
 {
   "additionalProperties": false,
-  "description": "DatadogPodCheck allows a user to define Datadog integration checks that are\nscheduled against pods via the autodiscovery system, without requiring pod\nannotation changes or agent restarts.",
+  "description": "DatadogPodCheck defines Datadog integration checks to run on pods that match\nthe given selector. This enables monitoring without modifying pod annotations\nor restarting the Datadog Agent.",
   "properties": {
     "apiVersion": {
       "description": "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
@@ -18,13 +18,13 @@
       "description": "DatadogPodCheckSpec defines the desired state of a DatadogPodCheck.",
       "properties": {
         "checks": {
-          "description": "Checks is the list of integration check configurations to schedule.",
+          "description": "Checks is the list of Datadog integration checks to run on the selected pods.\nEach entry defines one check, including what to monitor and how to connect to it.",
           "items": {
             "additionalProperties": false,
-            "description": "CheckConfig defines a Datadog integration check configuration.",
+            "description": "CheckConfig defines a single Datadog integration check to run on matched pods.",
             "properties": {
               "adIdentifiers": {
-                "description": "ADIdentifiers is the list of autodiscovery identifiers (e.g. container image names)\nused for template matching against discovered containers.",
+                "description": "ADIdentifiers is a list of container identifiers (typically image names like\n\"nginx\" or \"redis\") that the Datadog Agent uses to determine which container\nin a pod this check should monitor. When omitted, the check applies to the\npod as a whole without targeting a specific container.",
                 "items": {
                   "type": "string"
                 },
@@ -32,11 +32,11 @@
                 "x-kubernetes-list-type": "atomic"
               },
               "initConfig": {
-                "description": "InitConfig is the init_config section passed to the integration check.",
+                "description": "InitConfig holds shared configuration that applies across all instances of\nthis check. This corresponds to the init_config section in a Datadog\nintegration YAML file. Most checks do not require this.",
                 "x-kubernetes-preserve-unknown-fields": true
               },
               "instances": {
-                "description": "Instances is the list of check instance configurations.\nAt least one instance is required.",
+                "description": "Instances defines how the Agent connects to and collects metrics from the\nmonitored service. Each entry represents one independent check execution.\nTemplate variables such as %%host%% and %%port%% can be used and will be\nresolved at runtime to the pod's IP and exposed port.",
                 "items": {
                   "x-kubernetes-preserve-unknown-fields": true
                 },
@@ -45,11 +45,11 @@
                 "x-kubernetes-list-type": "atomic"
               },
               "logs": {
-                "description": "Logs defines optional log collection configuration for this check.",
+                "description": "Logs configures log collection from containers matched by this check.\nWhen set, the Datadog Agent will tail and forward logs according to\nthe provided rules (e.g. source, service, log processing pipelines).",
                 "x-kubernetes-preserve-unknown-fields": true
               },
               "name": {
-                "description": "Name is the Datadog integration name (e.g. \"nginx\", \"http_check\", \"redis\").",
+                "description": "Name is the Datadog integration name (e.g. \"nginx\", \"http_check\", \"redis\").\nMust correspond to a valid Datadog integration.",
                 "type": "string"
               }
             },
@@ -65,20 +65,20 @@
         },
         "selector": {
           "additionalProperties": false,
-          "description": "Selector provides targeting criteria to narrow which pods these\nchecks apply to. At least one of matchLabels or matchAnnotations must be set.\nWhen both are specified, all fields are ANDed together.",
+          "description": "Selector determines which pods this DatadogPodCheck applies to.\nAt least one of matchLabels or matchAnnotations must be set.\nWhen both are specified, a pod must match all criteria to be selected.",
           "properties": {
             "matchAnnotations": {
               "additionalProperties": {
                 "type": "string"
               },
-              "description": "MatchAnnotations is a map of key-value pairs that must match a pod's annotations.",
+              "description": "MatchAnnotations is a map of annotation key-value pairs. A pod must have all\nthese annotations with the exact values specified to be selected.",
               "type": "object"
             },
             "matchLabels": {
               "additionalProperties": {
                 "type": "string"
               },
-              "description": "MatchLabels is a map of key-value pairs that must match a pod's labels.",
+              "description": "MatchLabels is a map of label key-value pairs. A pod must have all\nthese labels with the exact values specified to be selected.",
               "type": "object"
             }
           },

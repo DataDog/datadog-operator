@@ -64,12 +64,12 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_CheckConfig(ref common.Refer
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "CheckConfig defines a Datadog integration check configuration.",
+				Description: "CheckConfig defines a single Datadog integration check to run on matched pods.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name is the Datadog integration name (e.g. \"nginx\", \"http_check\", \"redis\").",
+							Description: "Name is the Datadog integration name (e.g. \"nginx\", \"http_check\", \"redis\"). Must correspond to a valid Datadog integration.",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -82,7 +82,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_CheckConfig(ref common.Refer
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "ADIdentifiers is the list of autodiscovery identifiers (e.g. container image names) used for template matching against discovered containers.",
+							Description: "ADIdentifiers is a list of container identifiers (typically image names like \"nginx\" or \"redis\") that the Datadog Agent uses to determine which container in a pod this check should monitor. When omitted, the check applies to the pod as a whole without targeting a specific container.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -97,7 +97,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_CheckConfig(ref common.Refer
 					},
 					"initConfig": {
 						SchemaProps: spec.SchemaProps{
-							Description: "InitConfig is the init_config section passed to the integration check.",
+							Description: "InitConfig holds shared configuration that applies across all instances of this check. This corresponds to the init_config section in a Datadog integration YAML file. Most checks do not require this.",
 							Ref:         ref("k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"),
 						},
 					},
@@ -108,7 +108,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_CheckConfig(ref common.Refer
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Instances is the list of check instance configurations. At least one instance is required.",
+							Description: "Instances defines how the Agent connects to and collects metrics from the monitored service. Each entry represents one independent check execution. Template variables such as %%host%% and %%port%% can be used and will be resolved at runtime to the pod's IP and exposed port.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -121,7 +121,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_CheckConfig(ref common.Refer
 					},
 					"logs": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Logs defines optional log collection configuration for this check.",
+							Description: "Logs configures log collection from containers matched by this check. When set, the Datadog Agent will tail and forward logs according to the provided rules (e.g. source, service, log processing pipelines).",
 							Ref:         ref("k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"),
 						},
 					},
@@ -1901,7 +1901,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogPodCheck(ref common.R
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogPodCheck allows a user to define Datadog integration checks that are scheduled against pods via the autodiscovery system, without requiring pod annotation changes or agent restarts.",
+				Description: "DatadogPodCheck defines Datadog integration checks to run on pods that match the given selector. This enables monitoring without modifying pod annotations or restarting the Datadog Agent.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -1953,7 +1953,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogPodCheckSpec(ref comm
 				Properties: map[string]spec.Schema{
 					"selector": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Selector provides targeting criteria to narrow which pods these checks apply to. At least one of matchLabels or matchAnnotations must be set. When both are specified, all fields are ANDed together.",
+							Description: "Selector determines which pods this DatadogPodCheck applies to. At least one of matchLabels or matchAnnotations must be set. When both are specified, a pod must match all criteria to be selected.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.PodSelector"),
 						},
@@ -1965,7 +1965,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogPodCheckSpec(ref comm
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Checks is the list of integration check configurations to schedule.",
+							Description: "Checks is the list of Datadog integration checks to run on the selected pods. Each entry defines one check, including what to monitor and how to connect to it.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -2330,12 +2330,12 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_PodSelector(ref common.Refer
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "PodSelector defines criteria for selecting pods by labels and annotations. All specified fields are ANDed together.",
+				Description: "PodSelector defines criteria for selecting pods by labels and annotations.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"matchLabels": {
 						SchemaProps: spec.SchemaProps{
-							Description: "MatchLabels is a map of key-value pairs that must match a pod's labels.",
+							Description: "MatchLabels is a map of label key-value pairs. A pod must have all these labels with the exact values specified to be selected.",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
 								Allows: true,
@@ -2351,7 +2351,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_PodSelector(ref common.Refer
 					},
 					"matchAnnotations": {
 						SchemaProps: spec.SchemaProps{
-							Description: "MatchAnnotations is a map of key-value pairs that must match a pod's annotations.",
+							Description: "MatchAnnotations is a map of annotation key-value pairs. A pod must have all these annotations with the exact values specified to be selected.",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
 								Allows: true,

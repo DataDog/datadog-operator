@@ -137,13 +137,11 @@ func getRBACResourceName(owner metav1.Object, suffix string) string {
 
 func getPolicyRules(configMapName string) []rbacv1.PolicyRule {
 	return []rbacv1.PolicyRule{
-		// Read DatadogPodCheck CRDs
 		{
 			APIGroups: []string{rbac.DatadogAPIGroup},
 			Resources: []string{"datadogpodchecks"},
 			Verbs:     []string{"get", "list", "watch"},
 		},
-		// Read/update the ConfigMap used to pass check configs between DCA and Node Agent
 		{
 			APIGroups:     []string{rbac.CoreAPIGroup},
 			Resources:     []string{rbac.ConfigMapsResource},

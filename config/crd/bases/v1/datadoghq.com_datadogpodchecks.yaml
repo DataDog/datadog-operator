@@ -24,9 +24,9 @@ spec:
       schema:
         openAPIV3Schema:
           description: |-
-            DatadogPodCheck allows a user to define Datadog integration checks that are
-            scheduled against pods via the autodiscovery system, without requiring pod
-            annotation changes or agent restarts.
+            DatadogPodCheck defines Datadog integration checks to run on pods that match
+            the given selector. This enables monitoring without modifying pod annotations
+            or restarting the Datadog Agent.
           properties:
             apiVersion:
               description: |-
@@ -49,35 +49,49 @@ spec:
               description: DatadogPodCheckSpec defines the desired state of a DatadogPodCheck.
               properties:
                 checks:
-                  description: Checks is the list of integration check configurations to schedule.
+                  description: |-
+                    Checks is the list of Datadog integration checks to run on the selected pods.
+                    Each entry defines one check, including what to monitor and how to connect to it.
                   items:
-                    description: CheckConfig defines a Datadog integration check configuration.
+                    description: CheckConfig defines a single Datadog integration check to run on matched pods.
                     properties:
                       adIdentifiers:
                         description: |-
-                          ADIdentifiers is the list of autodiscovery identifiers (e.g. container image names)
-                          used for template matching against discovered containers.
+                          ADIdentifiers is a list of container identifiers (typically image names like
+                          "nginx" or "redis") that the Datadog Agent uses to determine which container
+                          in a pod this check should monitor. When omitted, the check applies to the
+                          pod as a whole without targeting a specific container.
                         items:
                           type: string
                         type: array
                         x-kubernetes-list-type: atomic
                       initConfig:
-                        description: InitConfig is the init_config section passed to the integration check.
+                        description: |-
+                          InitConfig holds shared configuration that applies across all instances of
+                          this check. This corresponds to the init_config section in a Datadog
+                          integration YAML file. Most checks do not require this.
                         x-kubernetes-preserve-unknown-fields: true
                       instances:
                         description: |-
-                          Instances is the list of check instance configurations.
-                          At least one instance is required.
+                          Instances defines how the Agent connects to and collects metrics from the
+                          monitored service. Each entry represents one independent check execution.
+                          Template variables such as %%host%% and %%port%% can be used and will be
+                          resolved at runtime to the pod's IP and exposed port.
                         items:
                           x-kubernetes-preserve-unknown-fields: true
                         minItems: 1
                         type: array
                         x-kubernetes-list-type: atomic
                       logs:
-                        description: Logs defines optional log collection configuration for this check.
+                        description: |-
+                          Logs configures log collection from containers matched by this check.
+                          When set, the Datadog Agent will tail and forward logs according to
+                          the provided rules (e.g. source, service, log processing pipelines).
                         x-kubernetes-preserve-unknown-fields: true
                       name:
-                        description: Name is the Datadog integration name (e.g. "nginx", "http_check", "redis").
+                        description: |-
+                          Name is the Datadog integration name (e.g. "nginx", "http_check", "redis").
+                          Must correspond to a valid Datadog integration.
                         type: string
                     required:
                       - instances
@@ -88,19 +102,23 @@ spec:
                   x-kubernetes-list-type: atomic
                 selector:
                   description: |-
-                    Selector provides targeting criteria to narrow which pods these
-                    checks apply to. At least one of matchLabels or matchAnnotations must be set.
-                    When both are specified, all fields are ANDed together.
+                    Selector determines which pods this DatadogPodCheck applies to.
+                    At least one of matchLabels or matchAnnotations must be set.
+                    When both are specified, a pod must match all criteria to be selected.
                   properties:
                     matchAnnotations:
                       additionalProperties:
                         type: string
-                      description: MatchAnnotations is a map of key-value pairs that must match a pod's annotations.
+                      description: |-
+                        MatchAnnotations is a map of annotation key-value pairs. A pod must have all
+                        these annotations with the exact values specified to be selected.
                       type: object
                     matchLabels:
                       additionalProperties:
                         type: string
-                      description: MatchLabels is a map of key-value pairs that must match a pod's labels.
+                      description: |-
+                        MatchLabels is a map of label key-value pairs. A pod must have all
+                        these labels with the exact values specified to be selected.
                       type: object
                   type: object
               required:
