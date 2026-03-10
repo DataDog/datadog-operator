@@ -25,9 +25,9 @@ import (
 
 const (
 	podCheckRBACPrefix      = "pod-check"
-	podCheckVolumeName      = "podcheck-config"
-	podCheckFolderName      = "pod-check.d"
-	podCheckConfigMapSuffix = "podcheck-config"
+	podCheckVolumeName      = "crd-check-conf"
+	crdConfigDirectory      = "crd-conf.d"
+	podCheckConfigMapSuffix = "crd-check-conf"
 )
 
 func init() {
@@ -101,7 +101,7 @@ func (f *podCheckFeature) ManageNodeAgent(managers feature.PodTemplateManagers, 
 	vol := volume.GetBasicVolume(f.configMapName, podCheckVolumeName)
 	volMount := corev1.VolumeMount{
 		Name:      podCheckVolumeName,
-		MountPath: fmt.Sprintf("%s%s/%s", common.ConfigVolumePath, common.ConfdVolumePath, podCheckFolderName),
+		MountPath: fmt.Sprintf("%s/%s", common.ConfigVolumePath, crdConfigDirectory),
 		ReadOnly:  true,
 	}
 
@@ -114,7 +114,7 @@ func (f *podCheckFeature) ManageSingleContainerNodeAgent(managers feature.PodTem
 	vol := volume.GetBasicVolume(f.configMapName, podCheckVolumeName)
 	volMount := corev1.VolumeMount{
 		Name:      podCheckVolumeName,
-		MountPath: fmt.Sprintf("%s%s/%s", common.ConfigVolumePath, common.ConfdVolumePath, podCheckFolderName),
+		MountPath: fmt.Sprintf("%s/%s", common.ConfigVolumePath, crdConfigDirectory),
 		ReadOnly:  true,
 	}
 
