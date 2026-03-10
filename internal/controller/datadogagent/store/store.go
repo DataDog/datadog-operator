@@ -40,10 +40,12 @@ const (
 // StoreClient dependencies store client interface
 type StoreClient interface {
 	AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) error
-	// AddCreateOnly adds an object to the store that will only be created if it
+
+	// AddOnly adds an object to the store that will only be created if it
 	// does not already exist on the API server. It will never be updated by the
 	// store, allowing external components to write to the resource freely.
-	AddCreateOnly(kind kubernetes.ObjectKind, obj client.Object) error
+	AddOnly(kind kubernetes.ObjectKind, obj client.Object) error
+
 	Get(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
 	GetOrCreate(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
 	GetPlatformInfo() kubernetes.PlatformInfo
@@ -162,7 +164,7 @@ func (ds *Store) AddOrUpdateStore(kind kubernetes.ObjectKind, obj client.Object)
 // AddCreateOnly adds an object to the store that will only be created if it does not
 // already exist on the API server. Once created, the store will never overwrite it,
 // allowing external components to modify the resource freely.
-func (ds *Store) AddCreateOnly(kind kubernetes.ObjectKind, obj client.Object) error {
+func (ds *Store) AddOnly(kind kubernetes.ObjectKind, obj client.Object) error {
 	id := buildID(obj.GetNamespace(), obj.GetName())
 	ds.createOnly[id] = true
 	return ds.AddOrUpdate(kind, obj)

@@ -79,7 +79,7 @@ func (f *podCheckFeature) ManageDependencies(managers feature.ResourceManagers, 
 		},
 		Data: map[string]string{},
 	}
-	if err := managers.Store().AddCreateOnly(kubernetes.ConfigMapKind, cm); err != nil {
+	if err := managers.Store().AddOnly(kubernetes.ConfigMapKind, cm); err != nil {
 		return err
 	}
 
