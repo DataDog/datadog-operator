@@ -68,8 +68,8 @@ type DatadogPodAutoscalerProfileStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:shortName=dpap
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Display Name",type="string",JSONPath=".metadata.annotations['autoscaling\\.datadoghq\\.com/profile-name']"
-// +kubebuilder:printcolumn:name="Description",type="string",JSONPath=".metadata.annotations['autoscaling\\.datadoghq\\.com/profile-description']"
+// +kubebuilder:printcolumn:name="Name",type="string",JSONPath=".metadata.name"
+// +kubebuilder:printcolumn:name="Description",type="string",JSONPath=".metadata.annotations['kubernetes\\.io/description']"
 // +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="Controlled Autoscalers",type="integer",JSONPath=".status.controlledAutoscalers"
 // +kubebuilder:printcolumn:name="Apply Mode",type="string",JSONPath=".spec.template.applyPolicy.mode"
