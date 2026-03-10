@@ -40,6 +40,10 @@ const (
 // StoreClient dependencies store client interface
 type StoreClient interface {
 	AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) error
+	// AddCreateOnly adds an object to the store that will only be created if it
+	// does not already exist on the API server. It will never be updated by the
+	// store, allowing external components to write to the resource freely.
+	AddCreateOnly(kind kubernetes.ObjectKind, obj client.Object) error
 	Get(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
 	GetOrCreate(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
 	GetPlatformInfo() kubernetes.PlatformInfo
@@ -51,8 +55,9 @@ type StoreClient interface {
 // NewStore returns a new Store instance
 func NewStore(owner metav1.Object, options *StoreOptions) *Store {
 	store := &Store{
-		deps:  make(map[kubernetes.ObjectKind]map[string]client.Object),
-		owner: owner,
+		deps:       make(map[kubernetes.ObjectKind]map[string]client.Object),
+		createOnly: make(map[string]bool),
+		owner:      owner,
 	}
 	if options != nil {
 		store.supportCilium = options.SupportCilium
@@ -68,8 +73,9 @@ func NewStore(owner metav1.Object, options *StoreOptions) *Store {
 // Store Kubernetes resource dependencies store
 // this store helps to keep track of every resources that the different agent deployments depend on.
 type Store struct {
-	deps  map[kubernetes.ObjectKind]map[string]client.Object
-	mutex sync.RWMutex
+	deps       map[kubernetes.ObjectKind]map[string]client.Object
+	createOnly map[string]bool // tracks objects that should only be created, never updated
+	mutex      sync.RWMutex
 
 	supportCilium        bool
 	platformInfo         kubernetes.PlatformInfo
@@ -151,6 +157,15 @@ func (ds *Store) AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) erro
 func (ds *Store) AddOrUpdateStore(kind kubernetes.ObjectKind, obj client.Object) *Store {
 	_ = ds.AddOrUpdate(kind, obj)
 	return ds
+}
+
+// AddCreateOnly adds an object to the store that will only be created if it does not
+// already exist on the API server. Once created, the store will never overwrite it,
+// allowing external components to modify the resource freely.
+func (ds *Store) AddCreateOnly(kind kubernetes.ObjectKind, obj client.Object) error {
+	id := buildID(obj.GetNamespace(), obj.GetName())
+	ds.createOnly[id] = true
+	return ds.AddOrUpdate(kind, obj)
 }
 
 // Get returns the client.Object instance if it was previously added in the Store.
@@ -240,6 +255,10 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 			}
 
 			if !equality.IsEqualObject(kind, objStore, objAPIServer) {
+				if ds.createOnly[objID] {
+					ds.logger.V(2).Info("store.store Skipping update for create-only object", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
+					continue
+				}
 				ds.logger.V(2).Info("store.store Add object to update", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
 				objsToUpdate = append(objsToUpdate, objStore)
 				continue

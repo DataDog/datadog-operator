@@ -79,7 +79,7 @@ func (f *podCheckFeature) ManageDependencies(managers feature.ResourceManagers, 
 		},
 		Data: map[string]string{},
 	}
-	if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
+	if err := managers.Store().AddCreateOnly(kubernetes.ConfigMapKind, cm); err != nil {
 		return err
 	}
 
@@ -93,16 +93,7 @@ func (f *podCheckFeature) ManageDependencies(managers feature.ResourceManagers, 
 	)
 }
 
-func (f *podCheckFeature) ManageClusterAgent(managers feature.PodTemplateManagers, _ string) error {
-	vol := volume.GetBasicVolume(f.configMapName, podCheckVolumeName)
-	volMount := corev1.VolumeMount{
-		Name:      podCheckVolumeName,
-		MountPath: fmt.Sprintf("%s%s/%s", common.ConfigVolumePath, common.ConfdVolumePath, podCheckFolderName),
-		ReadOnly:  true,
-	}
-
-	managers.Volume().AddVolume(&vol)
-	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.ClusterAgentContainerName)
+func (f *podCheckFeature) ManageClusterAgent(_ feature.PodTemplateManagers, _ string) error {
 	return nil
 }
 
