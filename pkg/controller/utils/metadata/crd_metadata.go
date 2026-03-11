@@ -73,7 +73,7 @@ type CRDInstance struct {
 	Namespace   string            `json:"namespace"`
 	APIVersion  string            `json:"api_version"`
 	UID         string            `json:"uid"`
-	Spec        interface{}       `json:"spec"`
+	Spec        any               `json:"spec"`
 	Labels      map[string]string `json:"labels,omitempty"`
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
@@ -175,7 +175,7 @@ func (cmf *CRDMetadataForwarder) sendCRDMetadata(ctx context.Context, crdInstanc
 }
 
 // marshalToJSON marshals data to JSON, returning empty object on error
-func (cmf *CRDMetadataForwarder) marshalToJSON(data interface{}, fieldName string, crdInstance CRDInstance) []byte {
+func (cmf *CRDMetadataForwarder) marshalToJSON(data any, fieldName string, crdInstance CRDInstance) []byte {
 	if data == nil {
 		return nil
 	}
@@ -404,7 +404,7 @@ func buildCacheKey(crd CRDInstance) string {
 func hashCRD(crd CRDInstance) (string, error) {
 	// Hash spec, labels, and annotations together
 	hashable := struct {
-		Spec        interface{}       `json:"spec"`
+		Spec        any               `json:"spec"`
 		Labels      map[string]string `json:"labels,omitempty"`
 		Annotations map[string]string `json:"annotations,omitempty"`
 	}{

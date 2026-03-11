@@ -14,9 +14,9 @@ import (
 // InsertAtPath inserts a value into a nested map at a dotted path, creating
 // intermediate maps as needed and deep-merging with existing keys.
 // It returns the updated destination map.
-func InsertAtPath(path string, val interface{}, destMap map[string]interface{}) map[string]interface{} {
+func InsertAtPath(path string, val any, destMap map[string]any) map[string]any {
 	parts := strings.Split(path, ".")
-	res := make(map[string]interface{})
+	res := make(map[string]any)
 	if len(parts) > 0 {
 		// create innermost map using the input value
 		res[parts[len(parts)-1]] = val
@@ -25,7 +25,7 @@ func InsertAtPath(path string, val interface{}, destMap map[string]interface{}) 
 			p := parts[len(parts)-(i+1)]
 			// `t` is a placeholder map to carry over submaps between iterations
 			t := res
-			res = make(map[string]interface{})
+			res = make(map[string]any)
 			res[p] = t
 		}
 	}
@@ -38,9 +38,9 @@ func InsertAtPath(path string, val interface{}, destMap map[string]interface{}) 
 // MergeMapDeep recursively merges two maps, with values from map2 taking precedence over map1.
 // It handles nil maps and type assertions safely.
 // Inspired by: https://stackoverflow.com/a/60420264
-func MergeMapDeep(map1, map2 map[string]interface{}) map[string]interface{} {
+func MergeMapDeep(map1, map2 map[string]any) map[string]any {
 	if map1 == nil {
-		map1 = make(map[string]interface{})
+		map1 = make(map[string]any)
 	}
 	if map2 == nil {
 		return map1
@@ -74,7 +74,7 @@ func MergeMapDeep(map1, map2 map[string]interface{}) map[string]interface{} {
 
 // MergeOrSet sets a key in the interim map. If both the existing and new values are maps,
 // it deep-merges them instead of overwriting. Otherwise, it overwrites.
-func MergeOrSet(interim map[string]interface{}, key string, val interface{}) {
+func MergeOrSet(interim map[string]any, key string, val any) {
 	if val == nil {
 		return
 	}
@@ -90,19 +90,19 @@ func MergeOrSet(interim map[string]interface{}, key string, val interface{}) {
 }
 
 // asMap tries to coerce supported map-like types into map[string]interface{}.
-func asMap(v interface{}) (map[string]interface{}, bool) {
+func asMap(v any) (map[string]any, bool) {
 	switch t := v.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		return t, true
 	case chartutil.Values:
-		return map[string]interface{}(t), true
+		return map[string]any(t), true
 	default:
 		return nil, false
 	}
 }
 
 // removeAtPath deletes the value from the map object at the period-delimited path string
-func removeAtPath(root map[string]interface{}, dotted string) {
+func removeAtPath(root map[string]any, dotted string) {
 	parts := strings.Split(dotted, ".")
 	if len(parts) == 0 {
 		return
