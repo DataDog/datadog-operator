@@ -105,7 +105,7 @@ go_mod_files="$ROOT/go.mod $ROOT/test/e2e/go.mod $ROOT/api/go.mod"
 for file in $go_mod_files; do
     if [[ -f $file ]]; then
         echo "Processing $file..."
-        go mod edit -go $new_minor_version $file
+        go mod edit -go $GOVERSION $file
         go mod edit -toolchain go$GOVERSION $file
     else
         echo "Warning: $file not found, skipping."
@@ -115,6 +115,14 @@ done
 # Run go work sync
 echo "Running go work sync..."
 go work sync
+
+# Run go mod tidy for workspace modules (go work sync may add/update dependencies,
+# and go mod tidy normalizes the go.mod files, e.g. removing redundant toolchain directives)
+echo "Running go mod tidy for main module..."
+go mod tidy
+
+echo "Running go mod tidy for api module..."
+(cd "$ROOT/api" && go mod tidy)
 
 # test/e2e is not in go.work, so we need to run go mod tidy separately
 echo "Running go mod tidy for test/e2e module..."
