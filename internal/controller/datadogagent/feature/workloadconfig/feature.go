@@ -24,10 +24,10 @@ import (
 )
 
 const (
-	workloadConfigRBACPrefix      = "workload-config"
-	workloadConfigVolumeName      = "crd-check-conf"
-	crdConfigDirectory            = "crd-conf.d"
-	workloadConfigConfigMapSuffix = "crd-check-conf"
+	workloadConfigRBACPrefix   = "workload-config"
+	workloadConfigVolumeName   = "crd-check-conf"
+	crdConfigDirectory         = "crd-conf.d"
+	workloadCheckConfigMapName = "datadog-crd-check-conf"
 )
 
 func init() {
@@ -43,7 +43,6 @@ func buildWorkloadConfigFeature(_ *feature.Options) feature.Feature {
 
 type workloadConfigFeature struct {
 	owner              metav1.Object
-	configMapName      string
 	serviceAccountName string
 	rbacSuffix         string
 }
@@ -54,7 +53,6 @@ func (f *workloadConfigFeature) ID() feature.IDType {
 
 func (f *workloadConfigFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	f.owner = dda
-	f.configMapName = fmt.Sprintf("%s-%s", dda.GetName(), workloadConfigConfigMapSuffix)
 	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 	f.rbacSuffix = common.ClusterAgentSuffix
 
@@ -74,7 +72,7 @@ func (f *workloadConfigFeature) ManageDependencies(managers feature.ResourceMana
 	// Create the empty ConfigMap that the DCA will populate with check configs.
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      f.configMapName,
+			Name:      workloadCheckConfigMapName,
 			Namespace: f.owner.GetNamespace(),
 		},
 		Data: map[string]string{},
@@ -89,7 +87,7 @@ func (f *workloadConfigFeature) ManageDependencies(managers feature.ResourceMana
 		f.owner.GetNamespace(),
 		rbacName,
 		f.serviceAccountName,
-		getPolicyRules(f.configMapName),
+		getPolicyRules(workloadCheckConfigMapName),
 	)
 }
 
@@ -98,7 +96,7 @@ func (f *workloadConfigFeature) ManageClusterAgent(_ feature.PodTemplateManagers
 }
 
 func (f *workloadConfigFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ string) error {
-	vol := volume.GetBasicVolume(f.configMapName, workloadConfigVolumeName)
+	vol := volume.GetBasicVolume(workloadCheckConfigMapName, workloadConfigVolumeName)
 	volMount := corev1.VolumeMount{
 		Name:      workloadConfigVolumeName,
 		MountPath: fmt.Sprintf("%s/%s", common.ConfigVolumePath, crdConfigDirectory),
@@ -111,7 +109,7 @@ func (f *workloadConfigFeature) ManageNodeAgent(managers feature.PodTemplateMana
 }
 
 func (f *workloadConfigFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, _ string) error {
-	vol := volume.GetBasicVolume(f.configMapName, workloadConfigVolumeName)
+	vol := volume.GetBasicVolume(workloadCheckConfigMapName, workloadConfigVolumeName)
 	volMount := corev1.VolumeMount{
 		Name:      workloadConfigVolumeName,
 		MountPath: fmt.Sprintf("%s/%s", common.ConfigVolumePath, crdConfigDirectory),
