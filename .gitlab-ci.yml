@@ -129,6 +129,21 @@ check_formatting:
     - make fmt
     - git diff --exit-code
 
+lint_e2e:
+  stage: test
+  tags: ["arch:amd64"]
+  rules:
+    - if: '$DDR == "true"'
+      when: never
+    - when: on_success
+  variables:
+    <<: *resource_variables
+  before_script:
+    - make install-tools
+  script:
+    - make lint-e2e
+    - git diff --exit-code
+
 build_operator_image_amd64:
   stage: image
   tags:
