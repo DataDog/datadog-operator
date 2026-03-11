@@ -139,6 +139,7 @@ type options struct {
 	introspectionEnabled                   bool
 	datadogAgentProfileEnabled             bool
 	remoteConfigEnabled                    bool
+	remoteUpdatesEnabled                   bool
 	datadogDashboardEnabled                bool
 	datadogGenericResourceEnabled          bool
 
@@ -176,6 +177,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.introspectionEnabled, "introspectionEnabled", false, "Enable introspection (beta)")
 	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller")
 	flag.BoolVar(&opts.remoteConfigEnabled, "remoteConfigEnabled", false, "Enable RemoteConfig capabilities in the Operator (beta)")
+	flag.BoolVar(&opts.remoteUpdatesEnabled, "remoteUpdatesEnabled", false, "Enable Remote Updates capabilities in the Operator (beta)")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
 	flag.BoolVar(&opts.datadogGenericResourceEnabled, "datadogGenericResourceEnabled", false, "Enable the DatadogGenericResource controller")
 
@@ -322,8 +324,10 @@ func run(opts *options) error {
 				return
 			}
 
-			if rcErr := setupFleetDaemon(setupLog, mgr, rcUpdater.Client()); rcErr != nil {
-				setupErrorf(setupLog, rcErr, "Unable to setup Fleet daemon")
+			if opts.remoteUpdatesEnabled {
+				if rcErr := setupFleetDaemon(setupLog, mgr, rcUpdater.Client()); rcErr != nil {
+					setupErrorf(setupLog, rcErr, "Unable to setup Fleet daemon")
+				}
 			}
 		}()
 	}
@@ -612,6 +616,7 @@ func setupAndStartOperatorMetadataForwarder(logger logr.Logger, client client.Re
 		LeaderElectionEnabled:         options.enableLeaderElection,
 		ExtendedDaemonSetEnabled:      options.supportExtendedDaemonset,
 		RemoteConfigEnabled:           options.remoteConfigEnabled,
+		RemoteUpdatesEnabled:          options.remoteUpdatesEnabled,
 		IntrospectionEnabled:          options.introspectionEnabled,
 		ConfigDDURL:                   os.Getenv(constants.DDURL),
 		ConfigDDSite:                  os.Getenv(constants.DDSite),
