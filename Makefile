@@ -145,7 +145,7 @@ undeploy: $(KUSTOMIZE) ## Undeploy controller from the K8s cluster specified in 
 	$(KUSTOMIZE) build $(KUSTOMIZE_CONFIG) | kubectl delete -f -
 
 .PHONY: manifests
-manifests: generate-manifests patch-crds ## Generate manifestcd s e.g. CRD, RBAC etc.
+manifests: generate-manifests patch-crds ## Generate manifests e.g. CRD, RBAC etc.
 
 .PHONY: generate-manifests
 generate-manifests: $(CONTROLLER_GEN)
