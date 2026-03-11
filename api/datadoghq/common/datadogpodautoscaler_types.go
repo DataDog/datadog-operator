@@ -57,7 +57,7 @@ type DatadogPodAutoscalerUpdatePolicy struct {
 	Mode DatadogPodAutoscalerUpdateMode `json:"mode,omitempty"`
 
 	// Controls how long we wait before forcing an eviction when the kubelet reports a resize as pending.
-	// Must be greater than 0 and less than 3600 (1 hour).
+	// Must be greater than 0 and less than or equal to 3600 (1 hour).
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=3600
@@ -65,12 +65,12 @@ type DatadogPodAutoscalerUpdatePolicy struct {
 	ResizePendingPeriod int32 `json:"resizePendingPeriod,omitempty"`
 
 	// Controls how long we wait before falling back to a full rollout when evictions are blocked.
-	// Must be greater than 0 and less than 3600 (1 hour).
+	// Must be greater than 0 and less than or equal to 3600 (1 hour).
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=3600
 	// +kubebuilder:default=1200
-	RollbackFallbackDelay int32 `json:"rollbackFallbackDelay,omitempty"`
+	RolloutFallbackDelay int32 `json:"rolloutFallbackDelay,omitempty"`
 }
 
 //
