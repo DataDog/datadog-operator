@@ -349,6 +349,7 @@ update-golang:
 sync: ## Run go work sync
 	go work sync
 
+.PHONY: kubectl-datadog
 kubectl-datadog: lint
 	go build -ldflags '${LDFLAGS}' -o bin/kubectl-datadog ./cmd/kubectl-datadog/main.go
 
