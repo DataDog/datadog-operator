@@ -327,7 +327,7 @@ lint: bin/$(PLATFORM)/golangci-lint vet ## Lint
 
 .PHONY: lint-e2e
 lint-e2e: bin/$(PLATFORM)/golangci-lint ## Lint e2e tests (slow, run separately from main lint)
-	cd test/e2e && GOWORK=off go fmt ./... && GOWORK=off ../../bin/$(PLATFORM)/golangci-lint run ./... --fix
+	cd test/e2e && GOWORK=off ../../bin/$(PLATFORM)/golangci-lint run ./...
 
 .PHONY: licenses
 licenses: bin/$(PLATFORM)/go-licenses
