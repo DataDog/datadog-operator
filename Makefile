@@ -199,7 +199,10 @@ docker-push-check-img:
 ##@ Test
 
 .PHONY: test
-test: build manifests generate fmt vet verify-licenses gotest integration-tests ## Run unit tests and integration tests
+test: build fmt verify-licenses gotest integration-tests ## Run unit tests and integration tests
+
+.PHONY: ci-test
+ci-test: gotest integration-tests ## Run tests only (for CI, where build/generate/lint are separate jobs)
 
 .PHONY: gotest
 gotest:
