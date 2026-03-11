@@ -74,7 +74,19 @@ unit_tests:
   before_script:
     - make install-tools
   script:
-    - make test
+    - make ci-test
+
+verify_licenses:
+  stage: test
+  tags: ["arch:amd64"]
+  rules:
+    - if: '$DDR == "true"'
+      when: never
+    - when: on_success
+  before_script:
+    - make install-tools
+  script:
+    - make verify-licenses
 
 check-golang-version:
   stage: build
