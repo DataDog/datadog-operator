@@ -261,7 +261,7 @@ spec:
                         resizePendingPeriod:
                           default: 600
                           description: |-
-                            Controls how long we wait before forcing an eviction when the kubelet reports a resize as pending (see Handling Pod Resize Conditions).
+                            Controls how long we wait before forcing an eviction when the kubelet reports a resize as pending.
                             Must be greater than 0 and less than 3600 (1 hour).
                           format: int32
                           maximum: 3600
@@ -270,7 +270,7 @@ spec:
                         rollbackFallbackDelay:
                           default: 1200
                           description: |-
-                            Controls how long we wait before before falling back to a full rollout when evictions are blocked.
+                            Controls how long we wait before falling back to a full rollout when evictions are blocked.
                             Must be greater than 0 and less than 3600 (1 hour).
                           format: int32
                           maximum: 3600
@@ -1009,7 +1009,7 @@ spec:
                         resizePendingPeriod:
                           default: 600
                           description: |-
-                            Controls how long we wait before forcing an eviction when the kubelet reports a resize as pending (see Handling Pod Resize Conditions).
+                            Controls how long we wait before forcing an eviction when the kubelet reports a resize as pending.
                             Must be greater than 0 and less than 3600 (1 hour).
                           format: int32
                           maximum: 3600
@@ -1018,7 +1018,7 @@ spec:
                         rollbackFallbackDelay:
                           default: 1200
                           description: |-
-                            Controls how long we wait before before falling back to a full rollout when evictions are blocked.
+                            Controls how long we wait before falling back to a full rollout when evictions are blocked.
                             Must be greater than 0 and less than 3600 (1 hour).
                           format: int32
                           maximum: 3600

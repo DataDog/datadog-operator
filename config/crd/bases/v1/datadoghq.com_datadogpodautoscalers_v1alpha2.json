@@ -167,7 +167,7 @@
                 },
                 "resizePendingPeriod": {
                   "default": 600,
-                  "description": "Controls how long we wait before forcing an eviction when the kubelet reports a resize as pending (see Handling Pod Resize Conditions).\nMust be greater than 0 and less than 3600 (1 hour).",
+                  "description": "Controls how long we wait before forcing an eviction when the kubelet reports a resize as pending.\nMust be greater than 0 and less than 3600 (1 hour).",
                   "format": "int32",
                   "maximum": 3600,
                   "minimum": 1,
@@ -175,7 +175,7 @@
                 },
                 "rollbackFallbackDelay": {
                   "default": 1200,
-                  "description": "Controls how long we wait before before falling back to a full rollout when evictions are blocked.\nMust be greater than 0 and less than 3600 (1 hour).",
+                  "description": "Controls how long we wait before falling back to a full rollout when evictions are blocked.\nMust be greater than 0 and less than 3600 (1 hour).",
                   "format": "int32",
                   "maximum": 3600,
                   "minimum": 1,

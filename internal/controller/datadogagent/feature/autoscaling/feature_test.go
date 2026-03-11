@@ -132,6 +132,16 @@ func testRBACResources(t testing.TB, store store.StoreClient) {
 		},
 		{
 			Verbs:     []string{"patch"},
+			APIGroups: []string{""},
+			Resources: []string{"pods/resize"},
+		},
+		{
+			Verbs:     []string{"create"},
+			APIGroups: []string{""},
+			Resources: []string{"pods/eviction"},
+		},
+		{
+			Verbs:     []string{"patch"},
 			APIGroups: []string{"apps"},
 			Resources: []string{"deployments"},
 		},
