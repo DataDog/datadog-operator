@@ -285,6 +285,30 @@
               "additionalProperties": false,
               "description": "Update defines the policy to update target resource.",
               "properties": {
+                "mode": {
+                  "description": "Mode controls the ability to trigger rollouts.",
+                  "enum": [
+                    "Auto",
+                    "TriggerRollout"
+                  ],
+                  "type": "string"
+                },
+                "resizePendingPeriod": {
+                  "default": 600,
+                  "description": "Controls how long we wait before forcing an eviction when the kubelet reports a resize as pending (see Handling Pod Resize Conditions).\nMust be greater than 0 and less than 3600 (1 hour).",
+                  "format": "int32",
+                  "maximum": 3600,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "rollbackFallbackDelay": {
+                  "default": 1200,
+                  "description": "Controls how long we wait before before falling back to a full rollout when evictions are blocked.\nMust be greater than 0 and less than 3600 (1 hour).",
+                  "format": "int32",
+                  "maximum": 3600,
+                  "minimum": 1,
+                  "type": "integer"
+                },
                 "strategy": {
                   "description": "Strategy defines the mode of the update policy.",
                   "enum": [
@@ -967,6 +991,11 @@
                     "type": "object"
                   },
                   "type": "array"
+                },
+                "evicted": {
+                  "description": "Evicted is the number of pods evicted as an in-place resize fallback during the\ncurrent recommendation cycle. Resets when the recommendation changes.",
+                  "format": "int32",
+                  "type": "integer"
                 },
                 "generatedAt": {
                   "description": "GeneratedAt is the timestamp at which the recommendation was generated",
