@@ -226,7 +226,7 @@ e2e-autoscaling-tests: kubectl-datadog ## Run autoscaling E2E tests on EKS. To r
 	GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./tests/autoscaling_suite/... -count=1 --tags=e2e -v -timeout $(E2E_AUTOSCALING_GO_TEST_TIMEOUT) -coverprofile cover_e2e_autoscaling.out
 
 .PHONY: yaml-mapper-tests
-yaml-mapper-tests:  fmt vet yaml-mapper-unit-tests
+yaml-mapper-tests: fmt yaml-mapper-unit-tests
 # Run yaml-mapper tests
 
 .PHONY: yaml-mapper-unit-tests
@@ -354,11 +354,11 @@ kubectl-datadog: lint
 	go build -ldflags '${LDFLAGS}' -o bin/kubectl-datadog ./cmd/kubectl-datadog/main.go
 
 .PHONY: yaml-mapper
-yaml-mapper: fmt vet lint
+yaml-mapper: fmt lint
 	go build -ldflags '${LDFLAGS}' -o bin/yaml-mapper ./cmd/yaml-mapper/main.go
 
 .PHONY: check-operator
-check-operator: fmt vet lint
+check-operator: fmt lint
 	go build -ldflags '${LDFLAGS}' -o bin/check-operator ./cmd/check-operator/main.go
 
 .PHONY: publish-community-bundles
