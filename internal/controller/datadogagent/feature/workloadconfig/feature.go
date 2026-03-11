@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package podcheck
+package workloadconfig
 
 import (
 	"fmt"
@@ -24,37 +24,37 @@ import (
 )
 
 const (
-	podCheckRBACPrefix      = "pod-check"
-	podCheckVolumeName      = "crd-check-conf"
-	crdConfigDirectory      = "crd-conf.d"
-	podCheckConfigMapSuffix = "crd-check-conf"
+	workloadConfigRBACPrefix      = "workload-config"
+	workloadConfigVolumeName      = "crd-check-conf"
+	crdConfigDirectory            = "crd-conf.d"
+	workloadConfigConfigMapSuffix = "crd-check-conf"
 )
 
 func init() {
-	err := feature.Register(feature.PodCheckIDType, buildPodCheckFeature)
+	err := feature.Register(feature.WorkloadConfigIDType, buildWorkloadConfigFeature)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func buildPodCheckFeature(_ *feature.Options) feature.Feature {
-	return &podCheckFeature{}
+func buildWorkloadConfigFeature(_ *feature.Options) feature.Feature {
+	return &workloadConfigFeature{}
 }
 
-type podCheckFeature struct {
+type workloadConfigFeature struct {
 	owner              metav1.Object
 	configMapName      string
 	serviceAccountName string
 	rbacSuffix         string
 }
 
-func (f *podCheckFeature) ID() feature.IDType {
-	return feature.PodCheckIDType
+func (f *workloadConfigFeature) ID() feature.IDType {
+	return feature.WorkloadConfigIDType
 }
 
-func (f *podCheckFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
+func (f *workloadConfigFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	f.owner = dda
-	f.configMapName = fmt.Sprintf("%s-%s", dda.GetName(), podCheckConfigMapSuffix)
+	f.configMapName = fmt.Sprintf("%s-%s", dda.GetName(), workloadConfigConfigMapSuffix)
 	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 	f.rbacSuffix = common.ClusterAgentSuffix
 
@@ -70,7 +70,7 @@ func (f *podCheckFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datadog
 	}
 }
 
-func (f *podCheckFeature) ManageDependencies(managers feature.ResourceManagers, _ string) error {
+func (f *workloadConfigFeature) ManageDependencies(managers feature.ResourceManagers, _ string) error {
 	// Create the empty ConfigMap that the DCA will populate with check configs.
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -83,7 +83,7 @@ func (f *podCheckFeature) ManageDependencies(managers feature.ResourceManagers, 
 		return err
 	}
 
-	// RBAC: allow the Cluster Agent to read DatadogPodCheck CRDs and update the ConfigMap.
+	// RBAC: allow the Cluster Agent to read DatadogWorkloadConfig CRDs and update the ConfigMap.
 	rbacName := getRBACResourceName(f.owner, f.rbacSuffix)
 	return managers.RBACManager().AddClusterPolicyRules(
 		f.owner.GetNamespace(),
@@ -93,14 +93,14 @@ func (f *podCheckFeature) ManageDependencies(managers feature.ResourceManagers, 
 	)
 }
 
-func (f *podCheckFeature) ManageClusterAgent(_ feature.PodTemplateManagers, _ string) error {
+func (f *workloadConfigFeature) ManageClusterAgent(_ feature.PodTemplateManagers, _ string) error {
 	return nil
 }
 
-func (f *podCheckFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ string) error {
-	vol := volume.GetBasicVolume(f.configMapName, podCheckVolumeName)
+func (f *workloadConfigFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ string) error {
+	vol := volume.GetBasicVolume(f.configMapName, workloadConfigVolumeName)
 	volMount := corev1.VolumeMount{
-		Name:      podCheckVolumeName,
+		Name:      workloadConfigVolumeName,
 		MountPath: fmt.Sprintf("%s/%s", common.ConfigVolumePath, crdConfigDirectory),
 		ReadOnly:  true,
 	}
@@ -110,10 +110,10 @@ func (f *podCheckFeature) ManageNodeAgent(managers feature.PodTemplateManagers, 
 	return nil
 }
 
-func (f *podCheckFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, _ string) error {
-	vol := volume.GetBasicVolume(f.configMapName, podCheckVolumeName)
+func (f *workloadConfigFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, _ string) error {
+	vol := volume.GetBasicVolume(f.configMapName, workloadConfigVolumeName)
 	volMount := corev1.VolumeMount{
-		Name:      podCheckVolumeName,
+		Name:      workloadConfigVolumeName,
 		MountPath: fmt.Sprintf("%s/%s", common.ConfigVolumePath, crdConfigDirectory),
 		ReadOnly:  true,
 	}
@@ -123,23 +123,23 @@ func (f *podCheckFeature) ManageSingleContainerNodeAgent(managers feature.PodTem
 	return nil
 }
 
-func (f *podCheckFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers, _ string) error {
+func (f *workloadConfigFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers, _ string) error {
 	return nil
 }
 
-func (f *podCheckFeature) ManageOtelAgentGateway(_ feature.PodTemplateManagers, _ string) error {
+func (f *workloadConfigFeature) ManageOtelAgentGateway(_ feature.PodTemplateManagers, _ string) error {
 	return nil
 }
 
 func getRBACResourceName(owner metav1.Object, suffix string) string {
-	return fmt.Sprintf("%s-%s-%s-%s", owner.GetNamespace(), owner.GetName(), podCheckRBACPrefix, suffix)
+	return fmt.Sprintf("%s-%s-%s-%s", owner.GetNamespace(), owner.GetName(), workloadConfigRBACPrefix, suffix)
 }
 
 func getPolicyRules(configMapName string) []rbacv1.PolicyRule {
 	return []rbacv1.PolicyRule{
 		{
 			APIGroups: []string{rbac.DatadogAPIGroup},
-			Resources: []string{"datadogpodchecks"},
+			Resources: []string{"datadogworkloadconfigs"},
 			Verbs:     []string{"get", "list", "watch"},
 		},
 		{

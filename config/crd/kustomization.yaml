@@ -13,7 +13,7 @@ resources:
 - bases/v1/datadoghq.com_datadogdashboards.yaml
 - bases/v1/datadoghq.com_datadoggenericresources.yaml
 - bases/v1/datadoghq.com_datadogagentinternals.yaml
-- bases/v1/datadoghq.com_datadogpodchecks.yaml
+- bases/v1/datadoghq.com_datadogworkloadconfigs.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 #patches:

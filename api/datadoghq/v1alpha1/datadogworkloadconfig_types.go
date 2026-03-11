@@ -10,19 +10,29 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// DatadogPodCheckSpec defines the desired state of a DatadogPodCheck.
+// DatadogWorkloadConfigSpec defines the desired state of a DatadogWorkloadConfig.
 // +k8s:openapi-gen=true
-type DatadogPodCheckSpec struct {
-	// Selector determines which pods this DatadogPodCheck applies to.
+type DatadogWorkloadConfigSpec struct {
+	// Selector determines which pods this DatadogWorkloadConfig applies to.
 	// At least one of matchLabels or matchAnnotations must be set.
 	// When both are specified, a pod must match all criteria to be selected.
 	Selector PodSelector `json:"selector"`
 
+	// Config holds the Datadog feature configurations to apply to the selected pods.
+	Config WorkloadConfig `json:"config"`
+}
+
+// WorkloadConfig holds the set of Datadog features to configure for the
+// selected pods. Currently supports integration checks; APM instrumentation
+// will be added in a future release.
+// +k8s:openapi-gen=true
+type WorkloadConfig struct {
 	// Checks is the list of Datadog integration checks to run on the selected pods.
 	// Each entry defines one check, including what to monitor and how to connect to it.
+	// +optional
 	// +kubebuilder:validation:MinItems=1
 	// +listType=atomic
-	Checks []CheckConfig `json:"checks"`
+	Checks []CheckConfig `json:"checks,omitempty"`
 }
 
 // PodSelector defines criteria for selecting pods by labels and annotations.
@@ -73,40 +83,40 @@ type CheckConfig struct {
 	Logs *apiextensionsv1.JSON `json:"logs,omitempty"`
 }
 
-// DatadogPodCheckStatus defines the observed state of a DatadogPodCheck.
+// DatadogWorkloadConfigStatus defines the observed state of a DatadogWorkloadConfig.
 // +k8s:openapi-gen=true
-type DatadogPodCheckStatus struct {
-	// Conditions represents the latest available observations of the state of a DatadogPodCheck.
+type DatadogWorkloadConfigStatus struct {
+	// Conditions represents the latest available observations of the state of a DatadogWorkloadConfig.
 	// +listType=map
 	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
-// DatadogPodCheck defines Datadog integration checks to run on pods that match
-// the given selector. This enables monitoring without modifying pod annotations
-// or restarting the Datadog Agent.
+// DatadogWorkloadConfig defines Datadog features like integration checks to apply
+// to the matching workload using the given selector. This enables dynamic configuration
+// of monitoring without modifying workloads or restarting the Datadog Agent.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:path=datadogpodchecks,scope=Namespaced,shortName=ddpc
+// +kubebuilder:resource:path=datadogworkloadconfigs,scope=Namespaced,shortName=ddwc
 // +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
 // +k8s:openapi-gen=true
 // +genclient
-type DatadogPodCheck struct {
+type DatadogWorkloadConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   DatadogPodCheckSpec   `json:"spec,omitempty"`
-	Status DatadogPodCheckStatus `json:"status,omitempty"`
+	Spec   DatadogWorkloadConfigSpec   `json:"spec,omitempty"`
+	Status DatadogWorkloadConfigStatus `json:"status,omitempty"`
 }
 
-// DatadogPodCheckList contains a list of DatadogPodCheck resources.
+// DatadogWorkloadConfigList contains a list of DatadogWorkloadConfig resources.
 // +kubebuilder:object:root=true
-type DatadogPodCheckList struct {
+type DatadogWorkloadConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []DatadogPodCheck `json:"items"`
+	Items           []DatadogWorkloadConfig `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&DatadogPodCheck{}, &DatadogPodCheckList{})
+	SchemeBuilder.Register(&DatadogWorkloadConfig{}, &DatadogWorkloadConfigList{})
 }

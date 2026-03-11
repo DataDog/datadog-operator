@@ -4,16 +4,16 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.17.3
-  name: datadogpodchecks.datadoghq.com
+  name: datadogworkloadconfigs.datadoghq.com
 spec:
   group: datadoghq.com
   names:
-    kind: DatadogPodCheck
-    listKind: DatadogPodCheckList
-    plural: datadogpodchecks
+    kind: DatadogWorkloadConfig
+    listKind: DatadogWorkloadConfigList
+    plural: datadogworkloadconfigs
     shortNames:
-      - ddpc
-    singular: datadogpodcheck
+      - ddwc
+    singular: datadogworkloadconfig
   scope: Namespaced
   versions:
     - additionalPrinterColumns:
@@ -24,9 +24,9 @@ spec:
       schema:
         openAPIV3Schema:
           description: |-
-            DatadogPodCheck defines Datadog integration checks to run on pods that match
-            the given selector. This enables monitoring without modifying pod annotations
-            or restarting the Datadog Agent.
+            DatadogWorkloadConfig defines Datadog features like integration checks to apply
+            to the matching workload using the given selector. This enables dynamic configuration
+            of monitoring without modifying workloads or restarting the Datadog Agent.
           properties:
             apiVersion:
               description: |-
@@ -46,62 +46,66 @@ spec:
             metadata:
               type: object
             spec:
-              description: DatadogPodCheckSpec defines the desired state of a DatadogPodCheck.
+              description: DatadogWorkloadConfigSpec defines the desired state of a DatadogWorkloadConfig.
               properties:
-                checks:
-                  description: |-
-                    Checks is the list of Datadog integration checks to run on the selected pods.
-                    Each entry defines one check, including what to monitor and how to connect to it.
-                  items:
-                    description: CheckConfig defines a single Datadog integration check to run on matched pods.
-                    properties:
-                      containerImage:
-                        description: |-
-                          ContainerImage is a list of container image names (e.g. "nginx", "redis")
-                          that the Datadog Agent uses to determine which container in a pod this
-                          check should monitor.
-                        items:
-                          type: string
-                        type: array
-                        x-kubernetes-list-type: atomic
-                      initConfig:
-                        description: |-
-                          InitConfig holds shared configuration that applies across all instances of
-                          this check. This corresponds to the init_config section in a Datadog
-                          integration YAML file. Most checks do not require this.
-                        x-kubernetes-preserve-unknown-fields: true
-                      instances:
-                        description: |-
-                          Instances defines how the Agent connects to and collects metrics from the
-                          monitored service. Each entry represents one independent check execution.
-                          Template variables such as %%host%% and %%port%% can be used and will be
-                          resolved at runtime to the pod's IP and exposed port.
-                        items:
-                          x-kubernetes-preserve-unknown-fields: true
-                        minItems: 1
-                        type: array
-                        x-kubernetes-list-type: atomic
-                      integration:
-                        description: |-
-                          Integration is the Datadog integration name (e.g. "nginx", "http_check", "redis").
-                          Must correspond to a valid Datadog integration.
-                        type: string
-                      logs:
-                        description: |-
-                          Logs configures log collection from containers matched by this check.
-                          When set, the Datadog Agent will tail and forward logs according to
-                          the provided rules (e.g. source, service, log processing pipelines).
-                        x-kubernetes-preserve-unknown-fields: true
-                    required:
-                      - instances
-                      - integration
-                    type: object
-                  minItems: 1
-                  type: array
-                  x-kubernetes-list-type: atomic
+                config:
+                  description: Config holds the Datadog feature configurations to apply to the selected pods.
+                  properties:
+                    checks:
+                      description: |-
+                        Checks is the list of Datadog integration checks to run on the selected pods.
+                        Each entry defines one check, including what to monitor and how to connect to it.
+                      items:
+                        description: CheckConfig defines a single Datadog integration check to run on matched pods.
+                        properties:
+                          containerImage:
+                            description: |-
+                              ContainerImage is a list of container image names (e.g. "nginx", "redis")
+                              that the Datadog Agent uses to determine which container in a pod this
+                              check should monitor.
+                            items:
+                              type: string
+                            type: array
+                            x-kubernetes-list-type: atomic
+                          initConfig:
+                            description: |-
+                              InitConfig holds shared configuration that applies across all instances of
+                              this check. This corresponds to the init_config section in a Datadog
+                              integration YAML file. Most checks do not require this.
+                            x-kubernetes-preserve-unknown-fields: true
+                          instances:
+                            description: |-
+                              Instances defines how the Agent connects to and collects metrics from the
+                              monitored service. Each entry represents one independent check execution.
+                              Template variables such as %%host%% and %%port%% can be used and will be
+                              resolved at runtime to the pod's IP and exposed port.
+                            items:
+                              x-kubernetes-preserve-unknown-fields: true
+                            minItems: 1
+                            type: array
+                            x-kubernetes-list-type: atomic
+                          integration:
+                            description: |-
+                              Integration is the Datadog integration name (e.g. "nginx", "http_check", "redis").
+                              Must correspond to a valid Datadog integration.
+                            type: string
+                          logs:
+                            description: |-
+                              Logs configures log collection from containers matched by this check.
+                              When set, the Datadog Agent will tail and forward logs according to
+                              the provided rules (e.g. source, service, log processing pipelines).
+                            x-kubernetes-preserve-unknown-fields: true
+                        required:
+                          - instances
+                          - integration
+                        type: object
+                      minItems: 1
+                      type: array
+                      x-kubernetes-list-type: atomic
+                  type: object
                 selector:
                   description: |-
-                    Selector determines which pods this DatadogPodCheck applies to.
+                    Selector determines which pods this DatadogWorkloadConfig applies to.
                     At least one of matchLabels or matchAnnotations must be set.
                     When both are specified, a pod must match all criteria to be selected.
                   properties:
@@ -121,14 +125,14 @@ spec:
                       type: object
                   type: object
               required:
-                - checks
+                - config
                 - selector
               type: object
             status:
-              description: DatadogPodCheckStatus defines the observed state of a DatadogPodCheck.
+              description: DatadogWorkloadConfigStatus defines the observed state of a DatadogWorkloadConfig.
               properties:
                 conditions:
-                  description: Conditions represents the latest available observations of the state of a DatadogPodCheck.
+                  description: Conditions represents the latest available observations of the state of a DatadogWorkloadConfig.
                   items:
                     description: Condition contains details for one aspect of the current state of this API Resource.
                     properties:

@@ -85,6 +85,6 @@ const (
 	PrivateActionRunnerIDType = "private_action_runner"
 	// DataPlaneIDType Data Plane feature.
 	DataPlaneIDType = "data_plane"
-	// PodCheckIDType Pod Check feature.
-	PodCheckIDType = "pod_check"
+	// WorkloadConfigIDType Workload Config feature.
+	WorkloadConfigIDType = "workload_config"
 )
