@@ -21,10 +21,10 @@ var (
 
 func init() {
 	sliceToMapTypes := map[reflect.Type]struct{}{
-		reflect.TypeOf([]corev1.EnvVar{}):      {},
-		reflect.TypeOf([]corev1.Volume{}):      {},
-		reflect.TypeOf([]corev1.VolumeMount{}): {},
-		reflect.TypeOf([]corev1.Container{}):   {},
+		reflect.TypeFor[[]corev1.EnvVar]():      {},
+		reflect.TypeFor[[]corev1.Volume]():      {},
+		reflect.TypeFor[[]corev1.VolumeMount](): {},
+		reflect.TypeFor[[]corev1.Container]():   {},
 	}
 
 	sliceToMapFilterFunc := func(x any, y any) bool {
