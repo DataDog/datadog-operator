@@ -23,8 +23,8 @@
             "additionalProperties": false,
             "description": "CheckConfig defines a single Datadog integration check to run on matched pods.",
             "properties": {
-              "adIdentifiers": {
-                "description": "ADIdentifiers is a list of container identifiers (typically image names like\n\"nginx\" or \"redis\") that the Datadog Agent uses to determine which container\nin a pod this check should monitor. When omitted, the check applies to the\npod as a whole without targeting a specific container.",
+              "containerImage": {
+                "description": "ContainerImage is a list of container image names (e.g. \"nginx\", \"redis\")\nthat the Datadog Agent uses to determine which container in a pod this\ncheck should monitor.",
                 "items": {
                   "type": "string"
                 },
@@ -44,18 +44,18 @@
                 "type": "array",
                 "x-kubernetes-list-type": "atomic"
               },
+              "integration": {
+                "description": "Integration is the Datadog integration name (e.g. \"nginx\", \"http_check\", \"redis\").\nMust correspond to a valid Datadog integration.",
+                "type": "string"
+              },
               "logs": {
                 "description": "Logs configures log collection from containers matched by this check.\nWhen set, the Datadog Agent will tail and forward logs according to\nthe provided rules (e.g. source, service, log processing pipelines).",
                 "x-kubernetes-preserve-unknown-fields": true
-              },
-              "name": {
-                "description": "Name is the Datadog integration name (e.g. \"nginx\", \"http_check\", \"redis\").\nMust correspond to a valid Datadog integration.",
-                "type": "string"
               }
             },
             "required": [
               "instances",
-              "name"
+              "integration"
             ],
             "type": "object"
           },

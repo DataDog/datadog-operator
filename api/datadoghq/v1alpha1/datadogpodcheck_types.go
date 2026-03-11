@@ -42,17 +42,15 @@ type PodSelector struct {
 // CheckConfig defines a single Datadog integration check to run on matched pods.
 // +k8s:openapi-gen=true
 type CheckConfig struct {
-	// Name is the Datadog integration name (e.g. "nginx", "http_check", "redis").
+	// Integration is the Datadog integration name (e.g. "nginx", "http_check", "redis").
 	// Must correspond to a valid Datadog integration.
-	Name string `json:"name"`
+	Integration string `json:"integration"`
 
-	// ADIdentifiers is a list of container identifiers (typically image names like
-	// "nginx" or "redis") that the Datadog Agent uses to determine which container
-	// in a pod this check should monitor. When omitted, the check applies to the
-	// pod as a whole without targeting a specific container.
-	// +optional
+	// ContainerImage is a list of container image names (e.g. "nginx", "redis")
+	// that the Datadog Agent uses to determine which container in a pod this
+	// check should monitor.
 	// +listType=atomic
-	ADIdentifiers []string `json:"adIdentifiers,omitempty"`
+	ContainerImage []string `json:"containerImage,omitempty"`
 
 	// InitConfig holds shared configuration that applies across all instances of
 	// this check. This corresponds to the init_config section in a Datadog

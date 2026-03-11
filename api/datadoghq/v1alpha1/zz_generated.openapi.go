@@ -67,22 +67,22 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_CheckConfig(ref common.Refer
 				Description: "CheckConfig defines a single Datadog integration check to run on matched pods.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"name": {
+					"integration": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name is the Datadog integration name (e.g. \"nginx\", \"http_check\", \"redis\"). Must correspond to a valid Datadog integration.",
+							Description: "Integration is the Datadog integration name (e.g. \"nginx\", \"http_check\", \"redis\"). Must correspond to a valid Datadog integration.",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
-					"adIdentifiers": {
+					"containerImage": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
 								"x-kubernetes-list-type": "atomic",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "ADIdentifiers is a list of container identifiers (typically image names like \"nginx\" or \"redis\") that the Datadog Agent uses to determine which container in a pod this check should monitor. When omitted, the check applies to the pod as a whole without targeting a specific container.",
+							Description: "ContainerImage is a list of container image names (e.g. \"nginx\", \"redis\") that the Datadog Agent uses to determine which container in a pod this check should monitor.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -126,7 +126,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_CheckConfig(ref common.Refer
 						},
 					},
 				},
-				Required: []string{"name", "instances"},
+				Required: []string{"integration", "instances"},
 			},
 		},
 		Dependencies: []string{

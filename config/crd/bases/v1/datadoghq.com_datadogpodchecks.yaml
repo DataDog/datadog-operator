@@ -55,12 +55,11 @@ spec:
                   items:
                     description: CheckConfig defines a single Datadog integration check to run on matched pods.
                     properties:
-                      adIdentifiers:
+                      containerImage:
                         description: |-
-                          ADIdentifiers is a list of container identifiers (typically image names like
-                          "nginx" or "redis") that the Datadog Agent uses to determine which container
-                          in a pod this check should monitor. When omitted, the check applies to the
-                          pod as a whole without targeting a specific container.
+                          ContainerImage is a list of container image names (e.g. "nginx", "redis")
+                          that the Datadog Agent uses to determine which container in a pod this
+                          check should monitor.
                         items:
                           type: string
                         type: array
@@ -82,20 +81,20 @@ spec:
                         minItems: 1
                         type: array
                         x-kubernetes-list-type: atomic
+                      integration:
+                        description: |-
+                          Integration is the Datadog integration name (e.g. "nginx", "http_check", "redis").
+                          Must correspond to a valid Datadog integration.
+                        type: string
                       logs:
                         description: |-
                           Logs configures log collection from containers matched by this check.
                           When set, the Datadog Agent will tail and forward logs according to
                           the provided rules (e.g. source, service, log processing pipelines).
                         x-kubernetes-preserve-unknown-fields: true
-                      name:
-                        description: |-
-                          Name is the Datadog integration name (e.g. "nginx", "http_check", "redis").
-                          Must correspond to a valid Datadog integration.
-                        type: string
                     required:
                       - instances
-                      - name
+                      - integration
                     type: object
                   minItems: 1
                   type: array
