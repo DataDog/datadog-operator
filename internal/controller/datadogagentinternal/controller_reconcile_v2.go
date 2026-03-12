@@ -23,6 +23,9 @@ import (
 )
 
 func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *v1alpha1.DatadogAgentInternal) (reconcile.Result, error) {
+	span, ctx := startDDAISpan(ctx)
+	defer span.Finish()
+
 	logger := ctrl.LoggerFrom(ctx)
 	logger.Info("Reconciling DatadogAgentInternal")
 	// var result reconcile.Result
@@ -47,6 +50,9 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *v1alpha1
 }
 
 func (r *Reconciler) reconcileInstanceV2(ctx context.Context, instance *v1alpha1.DatadogAgentInternal) (reconcile.Result, error) {
+	span, ctx := startDDAISpan(ctx)
+	defer span.Finish()
+
 	logger := ctrl.LoggerFrom(ctx)
 	var result reconcile.Result
 	newStatus := instance.Status.DeepCopy()
@@ -66,7 +72,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, instance *v1alpha1
 		if err = r.manageGlobalDependencies(ctx, instance, resourceManagers, requiredComponents); err != nil {
 			return r.updateStatusIfNeededV2(ctx, instance, newStatus, reconcile.Result{}, err, now)
 		}
-		if err = r.manageFeatureDependencies(enabledFeatures, resourceManagers); err != nil {
+		if err = r.manageFeatureDependencies(ctx, enabledFeatures, resourceManagers); err != nil {
 			return r.updateStatusIfNeededV2(ctx, instance, newStatus, reconcile.Result{}, err, now)
 		}
 		if err = r.overrideDependencies(ctx, resourceManagers, instance); err != nil {
@@ -136,7 +142,7 @@ func (r *Reconciler) updateStatusIfNeededV2(ctx context.Context, agentdeployment
 	if !IsEqualStatus(&agentdeployment.Status, newStatus) {
 		updateAgentDeployment := agentdeployment.DeepCopy()
 		updateAgentDeployment.Status = *newStatus
-		if err := r.client.Status().Update(context.TODO(), updateAgentDeployment); err != nil {
+		if err := r.client.Status().Update(ctx, updateAgentDeployment); err != nil {
 			if apierrors.IsConflict(err) {
 				logger.V(1).Info("unable to update DatadogAgent status due to update conflict")
 				return reconcile.Result{RequeueAfter: time.Second}, nil

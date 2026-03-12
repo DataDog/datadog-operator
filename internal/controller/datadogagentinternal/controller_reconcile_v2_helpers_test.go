@@ -101,11 +101,11 @@ func Test_manageFeatureDependencies(t *testing.T) {
 
 	r := &Reconciler{}
 	// Test when all features succeed.
-	err := r.manageFeatureDependencies([]feature.Feature{f1}, dummyResMgrs)
+	err := r.manageFeatureDependencies(context.TODO(), []feature.Feature{f1}, dummyResMgrs)
 	require.NoError(t, err)
 
 	// Test with one failing feature.
-	err = r.manageFeatureDependencies([]feature.Feature{f1, f2}, dummyResMgrs)
+	err = r.manageFeatureDependencies(context.TODO(), []feature.Feature{f1, f2}, dummyResMgrs)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "fail dependency")
 }

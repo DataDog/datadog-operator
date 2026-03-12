@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -129,6 +130,9 @@ func (r *ComponentRegistry) Register(component ComponentReconciler) {
 
 // ReconcileComponents reconciles all registered components in order
 func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error) {
+	span, ctx := startDDAISpan(ctx)
+	defer span.Finish()
+
 	var result reconcile.Result
 	now := metav1.NewTime(time.Now())
 	hasConflict := false
@@ -182,6 +186,11 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 
 // reconcileComponent reconciles a single component
 func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (reconcile.Result, error) {
+	span, ctx := startDDAISpan(ctx,
+		tracer.Tag("component", component.Name()),
+	)
+	defer span.Finish()
+
 	var result reconcile.Result
 	now := metav1.NewTime(time.Now())
 
@@ -237,6 +246,11 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 
 // Cleanup removes the component deployment, associated resources and updates status
 func (r *ComponentRegistry) Cleanup(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (reconcile.Result, error) {
+	span, ctx := startDDAISpan(ctx,
+		tracer.Tag("component", component.Name()),
+	)
+	defer span.Finish()
+
 	deployment := component.GetNewDeploymentFunc()(params.DDAI.GetObjectMeta(), &params.DDAI.Spec)
 
 	// Apply the name override so we delete the correct deployment

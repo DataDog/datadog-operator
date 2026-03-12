@@ -45,6 +45,9 @@ func (r *Reconciler) setupDependencies(ctx context.Context, instance *datadoghqv
 
 // manageGlobalDependencies manages the global dependencies for a component.
 func (r *Reconciler) manageGlobalDependencies(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal, resourceManagers feature.ResourceManagers, requiredComponents feature.RequiredComponents) error {
+	span, ctx := startDDAISpan(ctx)
+	defer span.Finish()
+
 	logger := ctrl.LoggerFrom(ctx)
 	var errs []error
 	// Non component specific dependencies
@@ -73,7 +76,10 @@ func (r *Reconciler) manageGlobalDependencies(ctx context.Context, ddai *datadog
 }
 
 // manageFeatureDependencies iterates over features to set up dependencies.
-func (r *Reconciler) manageFeatureDependencies(features []feature.Feature, resourceManagers feature.ResourceManagers) error {
+func (r *Reconciler) manageFeatureDependencies(ctx context.Context, features []feature.Feature, resourceManagers feature.ResourceManagers) error {
+	span, _ := startDDAISpan(ctx)
+	defer span.Finish()
+
 	var errs []error
 	for _, feat := range features {
 		if err := feat.ManageDependencies(resourceManagers, ""); err != nil {
@@ -88,6 +94,9 @@ func (r *Reconciler) manageFeatureDependencies(features []feature.Feature, resou
 
 // overrideDependencies wraps the dependency override logic.
 func (r *Reconciler) overrideDependencies(ctx context.Context, resourceManagers feature.ResourceManagers, instance *datadoghqv1alpha1.DatadogAgentInternal) error {
+	span, ctx := startDDAISpan(ctx)
+	defer span.Finish()
+
 	errs := override.Dependencies(ctrl.LoggerFrom(ctx), resourceManagers, instance.GetObjectMeta(), &instance.Spec)
 	if len(errs) > 0 {
 		return errors.NewAggregate(errs)
@@ -101,6 +110,9 @@ func (r *Reconciler) overrideDependencies(ctx context.Context, resourceManagers 
 
 // cleanupExtraneousResources groups the cleanup calls for old components.
 func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, instance *datadoghqv1alpha1.DatadogAgentInternal, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, resourceManagers feature.ResourceManagers) error {
+	span, ctx := startDDAISpan(ctx)
+	defer span.Finish()
+
 	logger := ctrl.LoggerFrom(ctx)
 	var errs []error
 	// Cleanup old DaemonSets, DCA and CCR deployments.
@@ -141,6 +153,9 @@ func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, instance *d
 // It excludes DDA-managed resources from cleanup to avoid competition between the DDA
 // and DDAI controllers when DatadogAgentInternalEnabled is true.
 func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, depsStore *store.Store) error {
+	span, ctx := startDDAISpan(ctx)
+	defer span.Finish()
+
 	logger := ctrl.LoggerFrom(ctx)
 	logger.V(1).Info("Applying pending dependencies and cleaning up unused dependencies")
 	var errs []error

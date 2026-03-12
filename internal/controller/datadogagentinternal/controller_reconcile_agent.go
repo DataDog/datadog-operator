@@ -9,6 +9,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -34,6 +35,11 @@ import (
 
 func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents feature.RequiredComponents, features []feature.Feature,
 	ddai *datadoghqv1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus) (reconcile.Result, error) {
+	span, ctx := startDDAISpan(ctx,
+		tracer.Tag("component", datadoghqv2alpha1.NodeAgentComponentName),
+	)
+	defer span.Finish()
+
 	var result reconcile.Result
 	var eds *edsv1alpha1.ExtendedDaemonSet
 	var daemonset *appsv1.DaemonSet
@@ -178,7 +184,7 @@ func updateEDSStatusV2WithAgent(eds *edsv1alpha1.ExtendedDaemonSet, newStatus *d
 }
 
 func (r *Reconciler) deleteV2DaemonSet(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal, ds *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus) error {
-	err := r.client.Delete(context.TODO(), ds)
+	err := r.client.Delete(ctx, ds)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
@@ -194,7 +200,7 @@ func (r *Reconciler) deleteV2DaemonSet(ctx context.Context, ddai *datadoghqv1alp
 }
 
 func (r *Reconciler) deleteV2ExtendedDaemonSet(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal, eds *edsv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus) error {
-	err := r.client.Delete(context.TODO(), eds)
+	err := r.client.Delete(ctx, eds)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
