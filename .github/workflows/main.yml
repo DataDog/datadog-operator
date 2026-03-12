@@ -37,3 +37,11 @@ jobs:
           use_oidc: true
           files: cover.out,cover_integration.out
           flags: unittests
+      - name: Upload coverage to Datadog
+        if: always()
+        continue-on-error: true
+        uses: DataDog/coverage-upload-github-action@v1
+        with:
+          api_key: ${{ secrets.DD_API_KEY }}
+          files: .
+          flags: unittests
