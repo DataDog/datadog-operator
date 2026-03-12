@@ -139,6 +139,9 @@ Images required during add-on installation must be available through the EKS mar
 aws ecr get-login-password --region us-east-1|crane auth login --username AWS --password-stdin 709825985650.dkr.ecr.us-east-1.amazonaws.com
 
 ❯ crane copy gcr.io/datadoghq/operator:1.0.3 709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator:1.0.3
+
+# Agent install hook Job image (required when installAgents is enabled)
+❯ crane copy bitnami/kubectl:1.31 709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/kubectl:1.31
 ```
 
 To validate, describe the repository

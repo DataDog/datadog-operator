@@ -11,6 +11,6 @@ datadog-operator:
   agentConfigUrl: ""
   agentInstallJob:
     image:
-      repository: bitnami/kubectl
+      repository: 709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/kubectl
       tag: "1.31"
       pullPolicy: IfNotPresent
