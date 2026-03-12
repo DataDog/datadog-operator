@@ -53,7 +53,8 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 	// 2. Handle finalizer logic.
 	{
 		fSpan, _ := tracer.StartSpanFromContext(ctx, "datadogagent.handleFinalizer")
-		result, err := r.handleFinalizer(reqLogger, instance, r.finalizeDadV2)
+		var err error
+		result, err = r.handleFinalizer(reqLogger, instance, r.finalizeDadV2)
 		fSpan.Finish(tracer.WithError(err))
 		if utils.ShouldReturn(result, err) {
 			reconcileErr = err
