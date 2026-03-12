@@ -790,8 +790,6 @@ publish_nightly_workflow:
     project: DataDog/k8s-datadog-agent-ops
     branch: main
     strategy: depend
-    forward:
-      pipeline_variables: true
   variables:
     OPERATOR_NIGHTLY: "true"
     # Conductor-related variables
