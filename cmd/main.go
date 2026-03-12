@@ -19,6 +19,7 @@ import (
 	"github.com/go-logr/logr"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	"gopkg.in/DataDog/dd-trace-go.v1/profiler"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,6 +50,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 	"github.com/DataDog/datadog-operator/pkg/version"
 
@@ -107,6 +109,7 @@ type options struct {
 	metricsAddr      string
 	secureMetrics    bool
 	profilingEnabled bool
+	tracingEnabled   bool
 	logLevel         *zapcore.Level
 	logEncoder       string
 	printVersion     bool
@@ -152,6 +155,7 @@ func (opts *options) Parse() {
 	flag.StringVar(&opts.metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&opts.secureMetrics, "metrics-secure", false, "If true, the metrics endpoint is served securely via HTTPS. Use false to use HTTP instead.")
 	flag.BoolVar(&opts.profilingEnabled, "profiling-enabled", false, "Enable Datadog profile in the Datadog Operator process.")
+	flag.BoolVar(&opts.tracingEnabled, "tracing-enabled", false, "Enable Datadog APM tracing in the Datadog Operator process.")
 	opts.logLevel = zap.LevelFlag("loglevel", zapcore.InfoLevel, "Set log level")
 	flag.StringVar(&opts.logEncoder, "logEncoder", "json", "log encoding ('json' or 'console')")
 	flag.BoolVar(&opts.printVersion, "version", false, "Print version and exit")
@@ -234,6 +238,7 @@ func run(opts *options) error {
 	if opts.profilingEnabled {
 		setupLog.Info("Starting datadog profiler")
 		if err := profiler.Start(
+			profiler.WithService("datadog-operator"),
 			profiler.WithVersion(version.Version),
 			profiler.WithProfileTypes(
 				profiler.CPUProfile,
@@ -247,6 +252,15 @@ func run(opts *options) error {
 		}
 
 		defer profiler.Stop()
+	}
+
+	if opts.tracingEnabled {
+		setupLog.Info("Starting datadog APM tracer")
+		tracer.Start(
+			tracer.WithService("datadog-operator"),
+			tracer.WithServiceVersion(version.Version),
+		)
+		defer tracer.Stop()
 	}
 
 	// Dispatch CLI flags to each package
@@ -269,6 +283,9 @@ func run(opts *options) error {
 
 	restConfig := ctrl.GetConfigOrDie()
 	restConfig.UserAgent = "datadog-operator"
+	if opts.tracingEnabled {
+		restConfig.WrapTransport = trace.WrapTransport
+	}
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:                     scheme,
 		Metrics:                    metricsServerOptions,

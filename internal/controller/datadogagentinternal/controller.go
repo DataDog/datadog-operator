@@ -9,10 +9,13 @@ import (
 	"context"
 	"time"
 
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -20,6 +23,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 
 	// Use to register features
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/admissioncontroller"
@@ -110,6 +114,15 @@ func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo
 func (r *Reconciler) Reconcile(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal) (reconcile.Result, error) {
 	var resp reconcile.Result
 	var err error
+
+	ctx = trace.WithControllerContext(ctx, ddai.Name, ddai.Namespace, string(ctrlcontroller.ReconcileIDFromContext(ctx)), "DatadogAgentInternal", "datadogagentinternal")
+	span, ctx := startDDAISpan(ctx)
+	defer func() { span.Finish(tracer.WithError(err)) }()
+
+	ctx = log.IntoContext(ctx, ctrl.LoggerFrom(ctx).WithValues(
+		"dd.trace_id", span.Context().TraceID(),
+		"dd.span_id", span.Context().SpanID(),
+	))
 
 	resp, err = r.internalReconcileV2(ctx, ddai)
 
