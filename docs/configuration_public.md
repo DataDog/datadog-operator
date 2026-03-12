@@ -127,7 +127,7 @@ spec:
 : CustomBenchmarks contains CSPM benchmarks. The content of the ConfigMap will be merged with the benchmarks bundled with the agent. Any benchmarks with the same name as those existing in the agent will take precedence.
 
 `features.cspm.enabled`
-: Enables Cloud Security Posture Management, including Docker and Kubernetes benchmarks. This must be set to `true` before `features.cspm.hostBenchmarks.enabled` takes effect. Default: `false`
+: Enables Cloud Security Posture Management, including Docker and Kubernetes benchmarks. Default: `false`
 
 `features.cspm.hostBenchmarks.enabled`
 : Enables Linux host benchmarks. Requires `features.cspm.enabled` to be set to `true`. Default: `true`
