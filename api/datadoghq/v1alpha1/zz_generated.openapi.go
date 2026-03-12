@@ -32,6 +32,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericResource":                                         schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResource(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericResourceSpec":                                     schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResourceSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericResourceStatus":                                   schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResourceStatus(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogInstrumentation":                                         schema_datadog_operator_api_datadoghq_v1alpha1_DatadogInstrumentation(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogInstrumentationSpec":                                     schema_datadog_operator_api_datadoghq_v1alpha1_DatadogInstrumentationSpec(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogInstrumentationStatus":                                   schema_datadog_operator_api_datadoghq_v1alpha1_DatadogInstrumentationStatus(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMetric":                                                  schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMetric(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMetricCondition":                                         schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMetricCondition(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitor":                                                 schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitor(ref),
@@ -53,11 +56,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOQuery":                                                schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOQuery(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOSpec":                                                 schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOStatus":                                               schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOStatus(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogWorkloadConfig":                                          schema_datadog_operator_api_datadoghq_v1alpha1_DatadogWorkloadConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogWorkloadConfigSpec":                                      schema_datadog_operator_api_datadoghq_v1alpha1_DatadogWorkloadConfigSpec(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogWorkloadConfigStatus":                                    schema_datadog_operator_api_datadoghq_v1alpha1_DatadogWorkloadConfigStatus(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.InstrumentationConfig":                                          schema_datadog_operator_api_datadoghq_v1alpha1_InstrumentationConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.PodSelector":                                                    schema_datadog_operator_api_datadoghq_v1alpha1_PodSelector(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.WorkloadConfig":                                                 schema_datadog_operator_api_datadoghq_v1alpha1_WorkloadConfig(ref),
 	}
 }
 
@@ -977,6 +977,120 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResourceStatus
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogInstrumentation(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogInstrumentation defines Datadog features such as integration checks and APM instrumentation to apply to pods that match the given selector. This enables monitoring without modifying pod annotations or restarting the Datadog Agent.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogInstrumentationSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogInstrumentationStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogInstrumentationSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogInstrumentationStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogInstrumentationSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogInstrumentationSpec defines the desired state of a DatadogInstrumentation.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"selector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Selector determines which pods this DatadogInstrumentation applies to. At least one of matchLabels or matchAnnotations must be set. When both are specified, a pod must match all criteria to be selected.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.PodSelector"),
+						},
+					},
+					"config": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Config holds the Datadog feature configurations to apply to the selected pods.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.InstrumentationConfig"),
+						},
+					},
+				},
+				Required: []string{"selector", "config"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.InstrumentationConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.PodSelector"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogInstrumentationStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogInstrumentationStatus defines the observed state of a DatadogInstrumentation.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"conditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"type",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions represents the latest available observations of the state of a DatadogInstrumentation.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.Condition"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Condition"},
 	}
 }
 
@@ -2201,107 +2315,27 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOStatus(ref common.
 	}
 }
 
-func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogWorkloadConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_api_datadoghq_v1alpha1_InstrumentationConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogWorkloadConfig defines Datadog features like integration checks to apply to the matching workload using the given selector. This enables dynamic configuration of monitoring without modifying workloads or restarting the Datadog Agent.",
+				Description: "InstrumentationConfig holds the set of Datadog features to configure for the selected pods. Currently supports integration checks; APM instrumentation will be added in a future release.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"kind": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"apiVersion": {
-						SchemaProps: spec.SchemaProps{
-							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"metadata": {
-						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
-						},
-					},
-					"spec": {
-						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogWorkloadConfigSpec"),
-						},
-					},
-					"status": {
-						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogWorkloadConfigStatus"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogWorkloadConfigSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogWorkloadConfigStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
-	}
-}
-
-func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogWorkloadConfigSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "DatadogWorkloadConfigSpec defines the desired state of a DatadogWorkloadConfig.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"selector": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Selector determines which pods this DatadogWorkloadConfig applies to. At least one of matchLabels or matchAnnotations must be set. When both are specified, a pod must match all criteria to be selected.",
-							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.PodSelector"),
-						},
-					},
-					"config": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Config holds the Datadog feature configurations to apply to the selected pods.",
-							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.WorkloadConfig"),
-						},
-					},
-				},
-				Required: []string{"selector", "config"},
-			},
-		},
-		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.PodSelector", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.WorkloadConfig"},
-	}
-}
-
-func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogWorkloadConfigStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "DatadogWorkloadConfigStatus defines the observed state of a DatadogWorkloadConfig.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"conditions": {
+					"checks": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-map-keys": []interface{}{
-									"type",
-								},
-								"x-kubernetes-list-type": "map",
+								"x-kubernetes-list-type": "atomic",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Conditions represents the latest available observations of the state of a DatadogWorkloadConfig.",
+							Description: "Checks is the list of Datadog integration checks to run on the selected pods. Each entry defines one check, including what to monitor and how to connect to it.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.Condition"),
+										Ref:     ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.CheckConfig"),
 									},
 								},
 							},
@@ -2311,7 +2345,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogWorkloadConfigStatus(
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/apis/meta/v1.Condition"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.CheckConfig"},
 	}
 }
 
@@ -2357,39 +2391,5 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_PodSelector(ref common.Refer
 				},
 			},
 		},
-	}
-}
-
-func schema_datadog_operator_api_datadoghq_v1alpha1_WorkloadConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "WorkloadConfig holds the set of Datadog features to configure for the selected pods. Currently supports integration checks; APM instrumentation will be added in a future release.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"checks": {
-						VendorExtensible: spec.VendorExtensible{
-							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "atomic",
-							},
-						},
-						SchemaProps: spec.SchemaProps{
-							Description: "Checks is the list of Datadog integration checks to run on the selected pods. Each entry defines one check, including what to monitor and how to connect to it.",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.CheckConfig"),
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.CheckConfig"},
 	}
 }

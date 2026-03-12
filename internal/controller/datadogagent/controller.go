@@ -42,6 +42,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/gpu"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/helmcheck"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/hostprofiler"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/instrumentation"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kubernetesstatecore"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/livecontainer"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/liveprocess"
@@ -60,7 +61,6 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/servicediscovery"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/tcpqueuelength"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/usm"
-	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/workloadconfig"
 )
 
 const (

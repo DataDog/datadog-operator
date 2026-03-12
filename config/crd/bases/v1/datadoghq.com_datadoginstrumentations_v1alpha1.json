@@ -1,6 +1,6 @@
 {
   "additionalProperties": false,
-  "description": "DatadogWorkloadConfig defines Datadog features like integration checks to apply\nto the matching workload using the given selector. This enables dynamic configuration\nof monitoring without modifying workloads or restarting the Datadog Agent.",
+  "description": "DatadogInstrumentation defines Datadog features such as integration checks and\nAPM instrumentation to apply to pods that match the given selector. This enables\nmonitoring without modifying pod annotations or restarting the Datadog Agent.",
   "properties": {
     "apiVersion": {
       "description": "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
@@ -15,7 +15,7 @@
     },
     "spec": {
       "additionalProperties": false,
-      "description": "DatadogWorkloadConfigSpec defines the desired state of a DatadogWorkloadConfig.",
+      "description": "DatadogInstrumentationSpec defines the desired state of a DatadogInstrumentation.",
       "properties": {
         "config": {
           "additionalProperties": false,
@@ -72,7 +72,7 @@
         },
         "selector": {
           "additionalProperties": false,
-          "description": "Selector determines which pods this DatadogWorkloadConfig applies to.\nAt least one of matchLabels or matchAnnotations must be set.\nWhen both are specified, a pod must match all criteria to be selected.",
+          "description": "Selector determines which pods this DatadogInstrumentation applies to.\nAt least one of matchLabels or matchAnnotations must be set.\nWhen both are specified, a pod must match all criteria to be selected.",
           "properties": {
             "matchAnnotations": {
               "additionalProperties": {
@@ -100,10 +100,10 @@
     },
     "status": {
       "additionalProperties": false,
-      "description": "DatadogWorkloadConfigStatus defines the observed state of a DatadogWorkloadConfig.",
+      "description": "DatadogInstrumentationStatus defines the observed state of a DatadogInstrumentation.",
       "properties": {
         "conditions": {
-          "description": "Conditions represents the latest available observations of the state of a DatadogWorkloadConfig.",
+          "description": "Conditions represents the latest available observations of the state of a DatadogInstrumentation.",
           "items": {
             "additionalProperties": false,
             "description": "Condition contains details for one aspect of the current state of this API Resource.",

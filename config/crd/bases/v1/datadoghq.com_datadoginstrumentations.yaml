@@ -4,16 +4,16 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.17.3
-  name: datadogworkloadconfigs.datadoghq.com
+  name: datadoginstrumentations.datadoghq.com
 spec:
   group: datadoghq.com
   names:
-    kind: DatadogWorkloadConfig
-    listKind: DatadogWorkloadConfigList
-    plural: datadogworkloadconfigs
+    kind: DatadogInstrumentation
+    listKind: DatadogInstrumentationList
+    plural: datadoginstrumentations
     shortNames:
-      - ddwc
-    singular: datadogworkloadconfig
+      - ddi
+    singular: datadoginstrumentation
   scope: Namespaced
   versions:
     - additionalPrinterColumns:
@@ -24,9 +24,9 @@ spec:
       schema:
         openAPIV3Schema:
           description: |-
-            DatadogWorkloadConfig defines Datadog features like integration checks to apply
-            to the matching workload using the given selector. This enables dynamic configuration
-            of monitoring without modifying workloads or restarting the Datadog Agent.
+            DatadogInstrumentation defines Datadog features such as integration checks and
+            APM instrumentation to apply to pods that match the given selector. This enables
+            monitoring without modifying pod annotations or restarting the Datadog Agent.
           properties:
             apiVersion:
               description: |-
@@ -46,7 +46,7 @@ spec:
             metadata:
               type: object
             spec:
-              description: DatadogWorkloadConfigSpec defines the desired state of a DatadogWorkloadConfig.
+              description: DatadogInstrumentationSpec defines the desired state of a DatadogInstrumentation.
               properties:
                 config:
                   description: Config holds the Datadog feature configurations to apply to the selected pods.
@@ -105,7 +105,7 @@ spec:
                   type: object
                 selector:
                   description: |-
-                    Selector determines which pods this DatadogWorkloadConfig applies to.
+                    Selector determines which pods this DatadogInstrumentation applies to.
                     At least one of matchLabels or matchAnnotations must be set.
                     When both are specified, a pod must match all criteria to be selected.
                   properties:
@@ -129,10 +129,10 @@ spec:
                 - selector
               type: object
             status:
-              description: DatadogWorkloadConfigStatus defines the observed state of a DatadogWorkloadConfig.
+              description: DatadogInstrumentationStatus defines the observed state of a DatadogInstrumentation.
               properties:
                 conditions:
-                  description: Conditions represents the latest available observations of the state of a DatadogWorkloadConfig.
+                  description: Conditions represents the latest available observations of the state of a DatadogInstrumentation.
                   items:
                     description: Condition contains details for one aspect of the current state of this API Resource.
                     properties:

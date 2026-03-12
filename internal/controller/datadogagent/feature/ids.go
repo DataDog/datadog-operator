@@ -85,6 +85,6 @@ const (
 	PrivateActionRunnerIDType = "private_action_runner"
 	// DataPlaneIDType Data Plane feature.
 	DataPlaneIDType = "data_plane"
-	// WorkloadConfigIDType Workload Config feature.
-	WorkloadConfigIDType = "workload_config"
+	// InstrumentationIDType Instrumentation feature.
+	InstrumentationIDType = "instrumentation"
 )
