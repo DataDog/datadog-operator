@@ -157,10 +157,7 @@
           "type": "string",
           "description": "Datadog application key"
         }
-      },
-      "required": [
-        "apiKey"
-      ]
+      }
     }
   }
 }
