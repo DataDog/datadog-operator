@@ -2,6 +2,31 @@
 
 This is a wrapper chart for installing EKS add-on. Charts required for the add-on are added as a dependency to this chart. Chart itself doesn't contain any templates or configurable properties.
 
+## Automatic Agent Installation
+
+Starting with version 0.1.25, the EKS add-on automatically installs the Datadog Agent
+after the operator is deployed. A post-install hook Job applies a default `DatadogAgent`
+manifest to the cluster, so agents begin running without any additional steps.
+
+This behavior is controlled by:
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `datadog-operator.installAgents` | `true` | Enable or disable automatic agent installation |
+| `datadog-operator.agentConfigUrl` | `""` (built-in default) | URL to a custom `DatadogAgent` manifest |
+
+To disable automatic agent installation:
+
+```sh
+helm install datadog-operator . --set datadog-operator.installAgents=false
+```
+
+To use a custom agent configuration:
+
+```sh
+helm install datadog-operator . --set datadog-operator.agentConfigUrl=https://example.com/my-agent.yaml
+```
+
 ## Version Mapping
 | `operator-addon-chart` | `datadog-operator` | `datadog-crds` | Operator | Agent | Cluster Agent |
 | :-: | :-: | :-: | :-: | :-: | :-: |
@@ -20,6 +45,7 @@ This is a wrapper chart for installing EKS add-on. Charts required for the add-o
 | 0.1.21 | 2.16.0 | 2.14.0 | 1.21.0 | 7.73.0 | 7.73.0 |
 | 0.1.23 | 2.17.0 | 2.15.0 | 1.22.0 | 7.74.0 | 7.74.0 |
 | 0.1.24 | 2.18.1 | 2.16.0 | 1.23.1 | 7.75.0 | 7.75.0 |
+| 0.1.25 | TBD | TBD | TBD | TBD | TBD |
 
 * 0.1.8 failed validation and didn't go through.
 * 0.1.11 failed validation and didn't go through.
