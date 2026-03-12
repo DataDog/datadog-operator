@@ -9,6 +9,7 @@ import (
 	"context"
 	"reflect"
 
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -214,7 +215,12 @@ type DatadogAgentReconciler struct {
 
 // Reconcile loop for DatadogAgent.
 func (r *DatadogAgentReconciler) Reconcile(ctx context.Context, dda *v2alpha1.DatadogAgent) (ctrl.Result, error) {
-	return r.internal.Reconcile(ctx, dda)
+	span, ctx := tracer.StartSpanFromContext(ctx, "datadogagent.Reconcile")
+	var err error
+	defer func() { span.Finish(tracer.WithError(err)) }()
+	var result ctrl.Result
+	result, err = r.internal.Reconcile(ctx, dda)
+	return result, err
 }
 
 // SetupWithManager creates a new DatadogAgent controller.
