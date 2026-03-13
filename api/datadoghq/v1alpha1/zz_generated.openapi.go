@@ -17,6 +17,7 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.CheckConfig":                                                    schema_datadog_operator_api_datadoghq_v1alpha1_CheckConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.CreateStrategy":                                                 schema_datadog_operator_api_datadoghq_v1alpha1_CreateStrategy(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DashboardTemplateVariable":                                      schema_datadog_operator_api_datadoghq_v1alpha1_DashboardTemplateVariable(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DashboardTemplateVariablePreset":                                schema_datadog_operator_api_datadoghq_v1alpha1_DashboardTemplateVariablePreset(ref),
@@ -31,6 +32,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericResource":                                         schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResource(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericResourceSpec":                                     schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResourceSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericResourceStatus":                                   schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResourceStatus(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogInstrumentation":                                         schema_datadog_operator_api_datadoghq_v1alpha1_DatadogInstrumentation(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogInstrumentationSpec":                                     schema_datadog_operator_api_datadoghq_v1alpha1_DatadogInstrumentationSpec(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogInstrumentationStatus":                                   schema_datadog_operator_api_datadoghq_v1alpha1_DatadogInstrumentationStatus(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMetric":                                                  schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMetric(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMetricCondition":                                         schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMetricCondition(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitor":                                                 schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitor(ref),
@@ -52,6 +56,82 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOQuery":                                                schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOQuery(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOSpec":                                                 schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOStatus":                                               schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOStatus(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.InstrumentationConfig":                                          schema_datadog_operator_api_datadoghq_v1alpha1_InstrumentationConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.PodSelector":                                                    schema_datadog_operator_api_datadoghq_v1alpha1_PodSelector(ref),
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v1alpha1_CheckConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CheckConfig defines a single Datadog integration check to run on matched pods.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"integration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Integration is the Datadog integration name (e.g. \"nginx\", \"http_check\", \"redis\"). Must correspond to a valid Datadog integration.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"containerImage": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "ContainerImage is a list of container image names (e.g. \"nginx\", \"redis\") that the Datadog Agent uses to determine which container in a pod this check should monitor.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"initConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "InitConfig holds shared configuration that applies across all instances of this check. This corresponds to the init_config section in a Datadog integration YAML file. Most checks do not require this.",
+							Ref:         ref("k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"),
+						},
+					},
+					"instances": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Instances defines how the Agent connects to and collects metrics from the monitored service. Each entry represents one independent check execution. Template variables such as %%host%% and %%port%% can be used and will be resolved at runtime to the pod's IP and exposed port.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"),
+									},
+								},
+							},
+						},
+					},
+					"logs": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Logs configures log collection from containers matched by this check. When set, the Datadog Agent will tail and forward logs according to the provided rules (e.g. source, service, log processing pipelines).",
+							Ref:         ref("k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"),
+						},
+					},
+				},
+				Required: []string{"integration", "instances"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"},
 	}
 }
 
@@ -897,6 +977,120 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResourceStatus
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogInstrumentation(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogInstrumentation defines Datadog features such as integration checks and APM instrumentation to apply to pods that match the given selector. This enables monitoring without modifying pod annotations or restarting the Datadog Agent.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogInstrumentationSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogInstrumentationStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogInstrumentationSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogInstrumentationStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogInstrumentationSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogInstrumentationSpec defines the desired state of a DatadogInstrumentation.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"selector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Selector determines which pods this DatadogInstrumentation applies to. At least one of matchLabels or matchAnnotations must be set. When both are specified, a pod must match all criteria to be selected.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.PodSelector"),
+						},
+					},
+					"config": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Config holds the Datadog feature configurations to apply to the selected pods.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.InstrumentationConfig"),
+						},
+					},
+				},
+				Required: []string{"selector", "config"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.InstrumentationConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.PodSelector"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogInstrumentationStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogInstrumentationStatus defines the observed state of a DatadogInstrumentation.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"conditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"type",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions represents the latest available observations of the state of a DatadogInstrumentation.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.Condition"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Condition"},
 	}
 }
 
@@ -2118,5 +2312,84 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOStatus(ref common.
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v1alpha1_InstrumentationConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "InstrumentationConfig holds the set of Datadog features to configure for the selected pods. Currently supports integration checks; APM instrumentation will be added in a future release.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"checks": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Checks is the list of Datadog integration checks to run on the selected pods. Each entry defines one check, including what to monitor and how to connect to it.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.CheckConfig"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.CheckConfig"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v1alpha1_PodSelector(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PodSelector defines criteria for selecting pods by labels and annotations.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"matchLabels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MatchLabels is a map of label key-value pairs. A pod must have all these labels with the exact values specified to be selected.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"matchAnnotations": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MatchAnnotations is a map of annotation key-value pairs. A pod must have all these annotations with the exact values specified to be selected.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 }

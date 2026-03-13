@@ -1,0 +1,170 @@
+{
+  "additionalProperties": false,
+  "description": "DatadogInstrumentation defines Datadog features such as integration checks and\nAPM instrumentation to apply to pods that match the given selector. This enables\nmonitoring without modifying pod annotations or restarting the Datadog Agent.",
+  "properties": {
+    "apiVersion": {
+      "description": "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+      "type": "string"
+    },
+    "kind": {
+      "description": "Kind is a string value representing the REST resource this object represents.\nServers may infer this from the endpoint the client submits requests to.\nCannot be updated.\nIn CamelCase.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+      "type": "string"
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "spec": {
+      "additionalProperties": false,
+      "description": "DatadogInstrumentationSpec defines the desired state of a DatadogInstrumentation.",
+      "properties": {
+        "config": {
+          "additionalProperties": false,
+          "description": "Config holds the Datadog feature configurations to apply to the selected pods.",
+          "properties": {
+            "checks": {
+              "description": "Checks is the list of Datadog integration checks to run on the selected pods.\nEach entry defines one check, including what to monitor and how to connect to it.",
+              "items": {
+                "additionalProperties": false,
+                "description": "CheckConfig defines a single Datadog integration check to run on matched pods.",
+                "properties": {
+                  "containerImage": {
+                    "description": "ContainerImage is a list of container image names (e.g. \"nginx\", \"redis\")\nthat the Datadog Agent uses to determine which container in a pod this\ncheck should monitor.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array",
+                    "x-kubernetes-list-type": "atomic"
+                  },
+                  "initConfig": {
+                    "description": "InitConfig holds shared configuration that applies across all instances of\nthis check. This corresponds to the init_config section in a Datadog\nintegration YAML file. Most checks do not require this.",
+                    "x-kubernetes-preserve-unknown-fields": true
+                  },
+                  "instances": {
+                    "description": "Instances defines how the Agent connects to and collects metrics from the\nmonitored service. Each entry represents one independent check execution.\nTemplate variables such as %%host%% and %%port%% can be used and will be\nresolved at runtime to the pod's IP and exposed port.",
+                    "items": {
+                      "x-kubernetes-preserve-unknown-fields": true
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                    "x-kubernetes-list-type": "atomic"
+                  },
+                  "integration": {
+                    "description": "Integration is the Datadog integration name (e.g. \"nginx\", \"http_check\", \"redis\").\nMust correspond to a valid Datadog integration.",
+                    "type": "string"
+                  },
+                  "logs": {
+                    "description": "Logs configures log collection from containers matched by this check.\nWhen set, the Datadog Agent will tail and forward logs according to\nthe provided rules (e.g. source, service, log processing pipelines).",
+                    "x-kubernetes-preserve-unknown-fields": true
+                  }
+                },
+                "required": [
+                  "instances",
+                  "integration"
+                ],
+                "type": "object"
+              },
+              "minItems": 1,
+              "type": "array",
+              "x-kubernetes-list-type": "atomic"
+            }
+          },
+          "type": "object"
+        },
+        "selector": {
+          "additionalProperties": false,
+          "description": "Selector determines which pods this DatadogInstrumentation applies to.\nAt least one of matchLabels or matchAnnotations must be set.\nWhen both are specified, a pod must match all criteria to be selected.",
+          "properties": {
+            "matchAnnotations": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "MatchAnnotations is a map of annotation key-value pairs. A pod must have all\nthese annotations with the exact values specified to be selected.",
+              "type": "object"
+            },
+            "matchLabels": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "MatchLabels is a map of label key-value pairs. A pod must have all\nthese labels with the exact values specified to be selected.",
+              "type": "object"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "config",
+        "selector"
+      ],
+      "type": "object"
+    },
+    "status": {
+      "additionalProperties": false,
+      "description": "DatadogInstrumentationStatus defines the observed state of a DatadogInstrumentation.",
+      "properties": {
+        "conditions": {
+          "description": "Conditions represents the latest available observations of the state of a DatadogInstrumentation.",
+          "items": {
+            "additionalProperties": false,
+            "description": "Condition contains details for one aspect of the current state of this API Resource.",
+            "properties": {
+              "lastTransitionTime": {
+                "description": "lastTransitionTime is the last time the condition transitioned from one status to another.\nThis should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.",
+                "format": "date-time",
+                "type": "string"
+              },
+              "message": {
+                "description": "message is a human readable message indicating details about the transition.\nThis may be an empty string.",
+                "maxLength": 32768,
+                "type": "string"
+              },
+              "observedGeneration": {
+                "description": "observedGeneration represents the .metadata.generation that the condition was set based upon.\nFor instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date\nwith respect to the current state of the instance.",
+                "format": "int64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "reason": {
+                "description": "reason contains a programmatic identifier indicating the reason for the condition's last transition.\nProducers of specific condition types may define expected values and meanings for this field,\nand whether the values are considered a guaranteed API.\nThe value should be a CamelCase string.\nThis field may not be empty.",
+                "maxLength": 1024,
+                "minLength": 1,
+                "pattern": "^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$",
+                "type": "string"
+              },
+              "status": {
+                "description": "status of the condition, one of True, False, Unknown.",
+                "enum": [
+                  "True",
+                  "False",
+                  "Unknown"
+                ],
+                "type": "string"
+              },
+              "type": {
+                "description": "type of condition in CamelCase or in foo.example.com/CamelCase.",
+                "maxLength": 316,
+                "pattern": "^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "lastTransitionTime",
+              "message",
+              "reason",
+              "status",
+              "type"
+            ],
+            "type": "object"
+          },
+          "type": "array",
+          "x-kubernetes-list-map-keys": [
+            "type"
+          ],
+          "x-kubernetes-list-type": "map"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "type": "object"
+}
