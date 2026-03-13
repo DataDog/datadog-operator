@@ -792,6 +792,7 @@ publish_nightly_workflow:
     strategy: depend
   variables:
     OPERATOR_NIGHTLY: "true"
+    DDR_WORKFLOW_ID: $DDR_WORKFLOW_ID
 
 # On success, this will cause CNAB to trigger a Deployment to Release Candidate clusters and open a corresponding pull request
 publish_release_candidate_workflow:
