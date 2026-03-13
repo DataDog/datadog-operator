@@ -5,6 +5,7 @@
 package admissioncontroller
 
 import (
+	"strconv"
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -206,7 +207,17 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
 				probeDisabledWantFunc()),
 		},
-	
+		{
+			Name: "Admission Controller enabled with custom probe interval and grace period",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithAdmissionControllerProbeInterval(30).
+				WithAdmissionControllerProbeGracePeriod(120).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				probeCustomConfigWantFunc(30, 120)),
+		},
 	}
 
 	tests.Run(t, buildAdmissionControllerFeature)
@@ -358,6 +369,10 @@ func getACEnvVars(validation, mutation bool, acm, registry string, cws bool) []*
 }
 
 func getProbeEnvVars() []*corev1.EnvVar {
+	return getProbeEnvVarsCustom(defaultProbeInterval, defaultProbeGracePeriod)
+}
+
+func getProbeEnvVarsCustom(interval, gracePeriod int32) []*corev1.EnvVar {
 	return []*corev1.EnvVar{
 		{
 			Name:  DDAdmissionControllerProbeEnabled,
@@ -365,11 +380,11 @@ func getProbeEnvVars() []*corev1.EnvVar {
 		},
 		{
 			Name:  DDAdmissionControllerProbeInterval,
-			Value: "60",
+			Value: strconv.Itoa(int(interval)),
 		},
 		{
 			Name:  DDAdmissionControllerProbeGracePeriod,
-			Value: "60",
+			Value: strconv.Itoa(int(gracePeriod)),
 		},
 	}
 }
@@ -454,6 +469,21 @@ func probeDisabledWantFunc() func(testing.TB, feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 		dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 		want := getACEnvVarsNoProbe(false, false, "", "", false)
+		assert.ElementsMatch(
+			t,
+			dcaEnvVars,
+			want,
+			"DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want),
+		)
+	}
+}
+
+func probeCustomConfigWantFunc(interval, gracePeriod int32) func(testing.TB, feature.PodTemplateManagers) {
+	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+		mgr := mgrInterface.(*fake.PodTemplateManagers)
+		dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+		want := getACEnvVarsNoProbe(false, false, "", "", false)
+		want = append(want, getProbeEnvVarsCustom(interval, gracePeriod)...)
 		assert.ElementsMatch(
 			t,
 			dcaEnvVars,

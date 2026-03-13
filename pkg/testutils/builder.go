@@ -274,6 +274,18 @@ func (builder *DatadogAgentBuilder) WithAdmissionControllerProbeEnabled(enabled 
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithAdmissionControllerProbeInterval(interval int32) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgent.Spec.Features.AdmissionController.Probe.Interval = &interval
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithAdmissionControllerProbeGracePeriod(gracePeriod int32) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgent.Spec.Features.AdmissionController.Probe.GracePeriod = &gracePeriod
+	return builder
+}
+
 // sidecar Injection
 func (builder *DatadogAgentBuilder) WithSidecarInjectionEnabled(enabled bool) *DatadogAgentBuilder {
 	// builder.initAdmissionController()
