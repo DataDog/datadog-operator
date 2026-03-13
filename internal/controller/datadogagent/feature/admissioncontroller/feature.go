@@ -411,19 +411,21 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 		})
 	}
 
-	if f.probeConfig != nil && f.probeConfig.enabled {
+	if f.probeConfig != nil {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  DDAdmissionControllerProbeEnabled,
-			Value: "true",
+			Value: apiutils.BoolToString(&f.probeConfig.enabled),
 		})
-		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  DDAdmissionControllerProbeInterval,
-			Value: strconv.Itoa(int(f.probeConfig.interval)),
-		})
-		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  DDAdmissionControllerProbeGracePeriod,
-			Value: strconv.Itoa(int(f.probeConfig.gracePeriod)),
-		})
+		if f.probeConfig.enabled {
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  DDAdmissionControllerProbeInterval,
+				Value: strconv.Itoa(int(f.probeConfig.interval)),
+			})
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  DDAdmissionControllerProbeGracePeriod,
+				Value: strconv.Itoa(int(f.probeConfig.gracePeriod)),
+			})
+		}
 	}
 
 	if f.agentCommunicationMode != "" {

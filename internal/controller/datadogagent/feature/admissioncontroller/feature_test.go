@@ -469,6 +469,10 @@ func probeDisabledWantFunc() func(testing.TB, feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 		dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 		want := getACEnvVarsNoProbe(false, false, "", "", false)
+		want = append(want, &corev1.EnvVar{
+			Name:  DDAdmissionControllerProbeEnabled,
+			Value: "false",
+		})
 		assert.ElementsMatch(
 			t,
 			dcaEnvVars,
