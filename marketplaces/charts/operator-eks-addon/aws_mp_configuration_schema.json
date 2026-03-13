@@ -116,6 +116,46 @@
         },
         "containerSecurityContext": {
           "type": "object"
+        },
+        "installAgents": {
+          "type": "boolean",
+          "description": "Enable automatic agent installation via a post-install hook Job",
+          "default": true
+        },
+        "agentConfigUrl": {
+          "type": "string",
+          "description": "URL to a custom DatadogAgent manifest. If empty, the default EKS add-on agent config is used"
+        },
+        "agentInstallJob": {
+          "type": "object",
+          "description": "Configuration for the agent install hook Job",
+          "properties": {
+            "image": {
+              "type": "object",
+              "properties": {
+                "repository": {
+                  "type": "string",
+                  "description": "Repository for the agent install job image"
+                },
+                "tag": {
+                  "type": "string",
+                  "description": "Tag for the agent install job image"
+                },
+                "pullPolicy": {
+                  "type": "string",
+                  "description": "Pull policy for the agent install job image"
+                }
+              }
+            }
+          }
+        },
+        "apiKey": {
+          "type": "string",
+          "description": "Datadog API key"
+        },
+        "appKey": {
+          "type": "string",
+          "description": "Datadog application key"
         }
       }
     }

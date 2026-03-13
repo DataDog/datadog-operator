@@ -2,6 +2,31 @@
 
 This is a wrapper chart for installing EKS add-on. Charts required for the add-on are added as a dependency to this chart. Chart itself doesn't contain any templates or configurable properties.
 
+## Automatic Agent Installation
+
+Once the `datadog-operator` subchart includes the `installAgents` feature, the EKS add-on will automatically install the Datadog Agent
+after the operator is deployed. A post-install hook Job applies a default `DatadogAgent`
+manifest to the cluster, so agents begin running without any additional steps.
+
+This behavior is controlled by:
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `datadog-operator.installAgents` | `true` | Enable or disable automatic agent installation |
+| `datadog-operator.agentConfigUrl` | `""` (built-in default) | URL to a custom `DatadogAgent` manifest |
+
+To disable automatic agent installation:
+
+```sh
+helm install datadog-operator . --set datadog-operator.installAgents=false
+```
+
+To use a custom agent configuration:
+
+```sh
+helm install datadog-operator . --set datadog-operator.agentConfigUrl=https://example.com/my-agent.yaml
+```
+
 ## Version Mapping
 | `operator-addon-chart` | `datadog-operator` | `datadog-crds` | Operator | Agent | Cluster Agent |
 | :-: | :-: | :-: | :-: | :-: | :-: |
@@ -113,6 +138,9 @@ Images required during add-on installation must be available through the EKS mar
 aws ecr get-login-password --region us-east-1|crane auth login --username AWS --password-stdin 709825985650.dkr.ecr.us-east-1.amazonaws.com
 
 ❯ crane copy gcr.io/datadoghq/operator:1.0.3 709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator:1.0.3
+
+# Agent install hook Job image (required when installAgents is enabled)
+❯ crane copy bitnami/kubectl:1.31 709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/kubectl:1.31
 ```
 
 To validate, describe the repository
