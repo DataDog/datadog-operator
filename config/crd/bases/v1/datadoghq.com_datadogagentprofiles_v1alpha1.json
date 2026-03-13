@@ -1220,7 +1220,7 @@
                       "type": "object"
                     },
                     "enabled": {
-                      "description": "Enabled enables Cloud Security Posture Management.\nDefault: false",
+                      "description": "Enabled enables Cloud Security Posture Management, including Docker and Kubernetes benchmarks.\nDefault: false",
                       "type": "boolean"
                     },
                     "hostBenchmarks": {
@@ -1228,7 +1228,7 @@
                       "description": "HostBenchmarks contains configuration for host benchmarks.",
                       "properties": {
                         "enabled": {
-                          "description": "Enabled enables host benchmarks.\nDefault: true",
+                          "description": "Enabled enables Linux host benchmarks. Requires `features.cspm.enabled` to be set to `true`.\nDefault: true",
                           "type": "boolean"
                         }
                       },
