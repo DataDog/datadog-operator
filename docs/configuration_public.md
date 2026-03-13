@@ -111,6 +111,9 @@ spec:
 `features.autoscaling.workload.enabled`
 : Enables the workload autoscaling product. Default: false
 
+`features.autoscaling.workload.failover.enabled`
+: Enables the autoscaling failover mechanism. Default: true
+
 `features.clusterChecks.enabled`
 : Enables Cluster Checks scheduling in the Cluster Agent. Default: true
 

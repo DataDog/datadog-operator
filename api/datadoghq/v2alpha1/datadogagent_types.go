@@ -1344,6 +1344,18 @@ type WorkloadAutoscalingFeatureConfig struct {
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// Failover contains the configuration for the autoscaling failover mechanism.
+	// +optional
+	Failover *WorkloadAutoscalingFailoverConfig `json:"failover,omitempty"`
+}
+
+// WorkloadAutoscalingFailoverConfig contains the configuration for the autoscaling failover mechanism.
+type WorkloadAutoscalingFailoverConfig struct {
+	// Enabled enables the autoscaling failover mechanism.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // ClusterAutoscalingFeatureConfig contains the configuration for the cluster autoscaling product.
