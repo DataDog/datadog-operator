@@ -476,8 +476,6 @@ func shouldSetOwnerReference(kind kubernetes.ObjectKind, objNamespace, ownerName
 		return false
 	case kubernetes.APIServiceKind:
 		return false
-	case kubernetes.NamespacesKind:
-		return false
 	}
 
 	// Owner-reference should not be added to namespaced resources in a different namespace than the owner
