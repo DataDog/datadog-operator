@@ -454,7 +454,7 @@ type EBPFCheckFeatureConfig struct {
 // CSPMFeatureConfig contains CSPM (Cloud Security Posture Management) configuration.
 // CSPM runs in the Security Agent and Cluster Agent.
 type CSPMFeatureConfig struct {
-	// Enabled enables Cloud Security Posture Management.
+	// Enabled enables Cloud Security Posture Management, including Docker and Kubernetes benchmarks.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
@@ -484,7 +484,7 @@ type CSPMFeatureConfig struct {
 // CSPMHostBenchmarksConfig contains configuration for host benchmarks.
 // +k8s:openapi-gen=true
 type CSPMHostBenchmarksConfig struct {
-	// Enabled enables host benchmarks.
+	// Enabled enables Linux host benchmarks. Requires `features.cspm.enabled` to be set to `true`.
 	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
