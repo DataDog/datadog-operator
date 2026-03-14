@@ -10,4 +10,5 @@ const (
 	DDClcRunnerHost            = "DD_CLC_RUNNER_HOST"
 	DDClcRunnerID              = "DD_CLC_RUNNER_ID"
 	DDEnableMetadataCollection = "DD_ENABLE_METADATA_COLLECTION"
+	DDCCRNodeName              = "DD_CCR_NODE_NAME"
 )
