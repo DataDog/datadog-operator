@@ -497,7 +497,6 @@ func probeCustomConfigWantFunc(interval, gracePeriod int32) func(testing.TB, fea
 	}
 }
 
-
 func getACEnvVarsNoProbe(validation, mutation bool, acm, registry string, cws bool) []*corev1.EnvVar {
 	envVars := []*corev1.EnvVar{
 		{
