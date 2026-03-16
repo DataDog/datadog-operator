@@ -5,26 +5,19 @@ This is a wrapper chart for installing EKS add-on. Charts required for the add-o
 ## Automatic Agent Installation
 
 Once the `datadog-operator` subchart includes the `installAgents` feature, the EKS add-on will automatically install the Datadog Agent
-after the operator is deployed. A post-install hook Job applies a default `DatadogAgent`
-manifest to the cluster, so agents begin running without any additional steps.
-
-This behavior is controlled by:
+after the operator is deployed. A Job creates a default `DatadogAgent`
+resource in the cluster, so agents begin running without any additional steps.
+The default agent configuration is bundled in the chart as a ConfigMap.
+Agent configuration can be customized after install by editing the DatadogAgent resource.
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `datadog-operator.installAgents` | `true` | Enable or disable automatic agent installation |
-| `datadog-operator.agentConfigUrl` | `""` (built-in default) | URL to a custom `DatadogAgent` manifest |
 
 To disable automatic agent installation:
 
 ```sh
 helm install datadog-operator . --set datadog-operator.installAgents=false
-```
-
-To use a custom agent configuration:
-
-```sh
-helm install datadog-operator . --set datadog-operator.agentConfigUrl=https://example.com/my-agent.yaml
 ```
 
 ## Version Mapping

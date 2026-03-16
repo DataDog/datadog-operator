@@ -8,7 +8,6 @@ datadog-operator:
     tag: 1.23.1
   operatorMetricsEnabled: false
   installAgents: true
-  agentConfigUrl: ""
   agentInstallJob:
     image:
       repository: 709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/kubectl
