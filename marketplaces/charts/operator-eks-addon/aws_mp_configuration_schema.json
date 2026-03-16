@@ -122,10 +122,6 @@
           "description": "Enable automatic agent installation via a post-install hook Job",
           "default": true
         },
-        "agentConfigUrl": {
-          "type": "string",
-          "description": "URL to a custom DatadogAgent manifest. If empty, the default EKS add-on agent config is used"
-        },
         "apiKey": {
           "type": "string",
           "description": "Datadog API key"
