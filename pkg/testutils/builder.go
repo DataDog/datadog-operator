@@ -793,7 +793,7 @@ func (builder *DatadogAgentBuilder) WithClusterAgentTag(tag string) *DatadogAgen
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enabled bool, enabledNamespaces []string, disabledNamespaces []string, libVersion map[string]string, languageDetectionEnabled bool, injectorImageTag string, targets []v2alpha1.SSITarget) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enabled bool, enabledNamespaces []string, disabledNamespaces []string, libVersion map[string]string, languageDetectionEnabled bool, injectorImageTag string, targets []v2alpha1.SSITarget, injectionMode v2alpha1.InjectionModeType) *DatadogAgentBuilder {
 	builder.initAPM()
 	builder.datadogAgent.Spec.Features.APM.SingleStepInstrumentation = &v2alpha1.SingleStepInstrumentation{
 		Enabled:            apiutils.NewBoolPointer(enabled),
@@ -804,7 +804,8 @@ func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enab
 		Injector: &v2alpha1.InjectorConfig{
 			ImageTag: injectorImageTag,
 		},
-		Targets: targets,
+		Targets:       targets,
+		InjectionMode: injectionMode,
 	}
 	return builder
 }
@@ -1083,6 +1084,15 @@ func (builder *DatadogAgentBuilder) WithGlobalSecretBackendGlobalPerms(command s
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithGlobalSecretBackendType(backendType string, config map[string]string) *DatadogAgentBuilder {
+	if builder.datadogAgent.Spec.Global.SecretBackend == nil {
+		builder.datadogAgent.Spec.Global.SecretBackend = &v2alpha1.SecretBackendConfig{}
+	}
+	builder.datadogAgent.Spec.Global.SecretBackend.Type = apiutils.NewStringPointer(backendType)
+	builder.datadogAgent.Spec.Global.SecretBackend.Config = config
+	return builder
+}
+
 func (builder *DatadogAgentBuilder) WithGlobalSecretBackendSpecificRoles(command string, args string, timeout int32, refreshInterval int32, secretNs string, secretNames []string) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.SecretBackend = &v2alpha1.SecretBackendConfig{
 		Command:                 apiutils.NewStringPointer(command),
@@ -1192,6 +1202,30 @@ func (builder *DatadogAgentBuilder) initControlPlaneMonitoring() {
 func (builder *DatadogAgentBuilder) WithControlPlaneMonitoring(enabled bool) *DatadogAgentBuilder {
 	builder.initControlPlaneMonitoring()
 	builder.datadogAgent.Spec.Features.ControlPlaneMonitoring.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) initDataPlane() {
+	if builder.datadogAgent.Spec.Features == nil {
+		builder.datadogAgent.Spec.Features = &v2alpha1.DatadogFeatures{}
+	}
+	if builder.datadogAgent.Spec.Features.DataPlane == nil {
+		builder.datadogAgent.Spec.Features.DataPlane = &v2alpha1.DataPlaneFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithDataPlaneEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initDataPlane()
+	builder.datadogAgent.Spec.Features.DataPlane.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithDataPlaneDogstatsdEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initDataPlane()
+	if builder.datadogAgent.Spec.Features.DataPlane.Dogstatsd == nil {
+		builder.datadogAgent.Spec.Features.DataPlane.Dogstatsd = &v2alpha1.DataPlaneDogstatsdConfig{}
+	}
+	builder.datadogAgent.Spec.Features.DataPlane.Dogstatsd.Enabled = apiutils.NewBoolPointer(enabled)
 	return builder
 }
 

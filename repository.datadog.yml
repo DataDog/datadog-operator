@@ -6,6 +6,7 @@ merge_method: squash
 merge_freeze: false
 github_teams_restrictions:
   - agent-all
+  - injection-platform
   - container-app
   - container-ecosystems
   - container-platform
@@ -23,5 +24,5 @@ kind: mergegate
 rules:
   - require: commit-signatures
     excluded_emails:
-      - 'github-actions[bot]@users.noreply.github.com' # github-actions[bot]
-      - '152526959+datadog-githubops-containers[bot]@users.noreply.github.com' # datadog-githubops-containers[bot]
+      - "github-actions[bot]@users.noreply.github.com" # github-actions[bot]
+      - "152526959+datadog-githubops-containers[bot]@users.noreply.github.com" # datadog-githubops-containers[bot]

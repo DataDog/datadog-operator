@@ -12,13 +12,13 @@ import (
 	"maps"
 	"strings"
 
-	"github.com/go-logr/logr"
 	"github.com/gobwas/glob"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
@@ -27,13 +27,13 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-func mergeAnnotationsLabels(logger logr.Logger, previousVal map[string]string, newVal map[string]string, filter string) map[string]string {
+func mergeAnnotationsLabels(ctx context.Context, previousVal map[string]string, newVal map[string]string, filter string) map[string]string {
 	var globFilter glob.Glob
 	var err error
 	if filter != "" {
 		globFilter, err = glob.Compile(filter)
 		if err != nil {
-			logger.Error(err, "Unable to parse glob filter for metadata/annotations - discarding everything", "filter", filter)
+			ctrl.LoggerFrom(ctx).Error(err, "Unable to parse glob filter for metadata/annotations - discarding everything", "filter", filter)
 		}
 	}
 
@@ -169,7 +169,8 @@ func getReplicas(currentReplicas, newReplicas *int32) *int32 {
 }
 
 // delete ALL workloads for a given DDA/DDAI and orphan pods
-func deleteObjectAndOrphanDependents(ctx context.Context, logger logr.Logger, c client.Client, obj client.Object, component string) error {
+func deleteObjectAndOrphanDependents(ctx context.Context, c client.Client, obj client.Object, component string) error {
+	logger := ctrl.LoggerFrom(ctx)
 	propagationPolicy := metav1.DeletePropagationOrphan
 	selector := labels.SelectorFromSet(labels.Set{
 		kubernetes.AppKubernetesPartOfLabelKey:     obj.GetLabels()[kubernetes.AppKubernetesPartOfLabelKey],

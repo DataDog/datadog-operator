@@ -254,6 +254,25 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 				Value: strconv.FormatInt(int64(*config.SecretBackend.RefreshInterval), 10),
 			})
 		}
+
+		// Set secret backend type
+		if config.SecretBackend.Type != nil {
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  DDSecretBackendType,
+				Value: apiutils.StringValue(config.SecretBackend.Type),
+			})
+		}
+
+		// Set secret backend config
+		if len(config.SecretBackend.Config) > 0 {
+			configJSON, err := json.Marshal(config.SecretBackend.Config)
+			if err == nil {
+				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+					Name:  DDSecretBackendConfig,
+					Value: string(configJSON),
+				})
+			}
+		}
 	}
 
 	// Update images with Global Registry and UseFIPSAgent configurations

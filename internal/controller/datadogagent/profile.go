@@ -110,6 +110,12 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 	if err := r.labelNodesWithProfiles(ctx, profilesByNode); err != nil {
 		return appliedProfiles, fmt.Errorf("unable to label nodes with profiles: %w", err)
 	}
+
+	// delete stale agent pods whose profile assignment has changed
+	if err := r.cleanupPodsForProfilesThatNoLongerApply(ctx, profilesByNode, dsNSName.Namespace); err != nil {
+		return appliedProfiles, fmt.Errorf("unable to cleanup pods for profiles that no longer apply: %w", err)
+	}
+
 	return appliedProfiles, nil
 }
 
