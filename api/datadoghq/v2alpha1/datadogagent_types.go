@@ -1194,6 +1194,7 @@ type AdmissionControllerFeatureConfig struct {
 	CWSInstrumentation *CWSInstrumentationConfig `json:"cwsInstrumentation,omitempty"`
 
 	// Probe holds the admission controller connectivity probe configuration.
+	// +doc-gen:exclude
 	// +optional
 	Probe *AdmissionControllerProbeConfig `json:"probe,omitempty"`
 }
