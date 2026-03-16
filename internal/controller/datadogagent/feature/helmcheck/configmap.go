@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,21 +43,22 @@ func helmCheckConfig(clusterCheck bool, collectEvents bool, valuesAsTags map[str
 	clusterChecksVal := strconv.FormatBool(clusterCheck)
 	collectEventsVal := strconv.FormatBool(collectEvents)
 	sortedTagsKeys := sortTagsKeys(valuesAsTags)
-	config := fmt.Sprintf(`---
+	var config strings.Builder
+	config.WriteString(fmt.Sprintf(`---
 cluster_check: %s
 init_config:
 instances:
   - collect_events: %s
-`, clusterChecksVal, collectEventsVal)
+`, clusterChecksVal, collectEventsVal))
 
 	if len(valuesAsTags) > 0 {
-		config += "    helm_values_as_tags:\n"
+		config.WriteString("    helm_values_as_tags:\n")
 		for _, key := range sortedTagsKeys {
-			config += fmt.Sprintf("      %s: %s\n", key, valuesAsTags[key])
+			config.WriteString(fmt.Sprintf("      %s: %s\n", key, valuesAsTags[key]))
 		}
 	}
 
-	return config
+	return config.String()
 }
 
 func sortTagsKeys(tags map[string]string) []string {
