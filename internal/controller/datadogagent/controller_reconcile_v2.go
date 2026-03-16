@@ -28,10 +28,11 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	pkgutils "github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
-	span, ctx := tracer.StartSpanFromContext(ctx, "datadogagent.internalReconcileV2")
+	span, ctx := startDDASpan(ctx)
 	var reconcileErr error
 	defer func() { span.Finish(tracer.WithError(reconcileErr)) }()
 
@@ -41,7 +42,7 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 
 	// 1. Validate the resource.
 	{
-		vSpan, _ := tracer.StartSpanFromContext(ctx, "datadogagent.validateDatadogAgent")
+		vSpan, _ := trace.StartControllerSpan(ctx, "validateDatadogAgent")
 		err := datadoghqv2alpha1.ValidateDatadogAgent(instance)
 		vSpan.Finish(tracer.WithError(err))
 		if err != nil {
@@ -52,7 +53,7 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 
 	// 2. Handle finalizer logic.
 	{
-		fSpan, _ := tracer.StartSpanFromContext(ctx, "datadogagent.handleFinalizer")
+		fSpan, _ := trace.StartControllerSpan(ctx, "handleFinalizer")
 		var err error
 		result, err = r.handleFinalizer(reqLogger, instance, r.finalizeDadV2)
 		fSpan.Finish(tracer.WithError(err))
@@ -76,7 +77,7 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 }
 
 func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
-	span, ctx := tracer.StartSpanFromContext(ctx, "datadogagent.reconcileInstanceV3")
+	span, ctx := startDDASpan(ctx)
 	var reconcileErr error
 	defer func() { span.Finish(tracer.WithError(reconcileErr)) }()
 
@@ -98,25 +99,25 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 
 	// Manage dependencies
 	{
-		dSpan, _ := tracer.StartSpanFromContext(ctx, "datadogagent.manageDDADependenciesWithDDAI")
+		dSpan, _ := trace.StartControllerSpan(ctx, "manageDDADependenciesWithDDAI")
 		depErr := r.manageDDADependenciesWithDDAI(ctx, logger, instance, newDDAStatus)
 		dSpan.Finish(tracer.WithError(depErr))
 		if depErr != nil {
 			reconcileErr = depErr
-			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, depErr, now)
+			return r.updateStatusIfNeededV2(ctx, logger, instance, ddaStatusCopy, result, depErr, now)
 		}
 	}
 
 	// Generate default DDAI object from DDA
 	var ddai *datadoghqv1alpha1.DatadogAgentInternal
 	{
-		gSpan, _ := tracer.StartSpanFromContext(ctx, "datadogagent.generateDDAIFromDDA")
+		gSpan, _ := trace.StartControllerSpan(ctx, "generateDDAIFromDDA")
 		var genErr error
 		ddai, genErr = r.generateDDAIFromDDA(instance)
 		gSpan.Finish(tracer.WithError(genErr))
 		if genErr != nil {
 			reconcileErr = genErr
-			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, genErr, now)
+			return r.updateStatusIfNeededV2(ctx, logger, instance, ddaStatusCopy, result, genErr, now)
 		}
 	}
 	ddais = append(ddais, ddai)
@@ -125,7 +126,7 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 	// TODO: introspection
 	sendProfileEnabledMetric(r.options.DatadogAgentProfileEnabled)
 	if r.options.DatadogAgentProfileEnabled {
-		pSpan, _ := tracer.StartSpanFromContext(ctx, "datadogagent.reconcileProfiles")
+		pSpan, _ := trace.StartControllerSpan(ctx, "reconcileProfiles")
 		dsName := component.GetDaemonSetNameFromDatadogAgent(instance, &instance.Spec)
 		dsNSName := types.NamespacedName{
 			Namespace: instance.Namespace,
@@ -136,13 +137,13 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 		if e != nil {
 			pSpan.Finish(tracer.WithError(e))
 			reconcileErr = e
-			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
+			return r.updateStatusIfNeededV2(ctx, logger, instance, ddaStatusCopy, result, e, now)
 		}
 		profileDDAIs, e := r.applyProfilesToDDAISpec(ddai, appliedProfiles)
 		if e != nil {
 			pSpan.Finish(tracer.WithError(e))
 			reconcileErr = e
-			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
+			return r.updateStatusIfNeededV2(ctx, logger, instance, ddaStatusCopy, result, e, now)
 		}
 		ddais = profileDDAIs
 		pSpan.Finish()
@@ -150,22 +151,22 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 
 	// Create or update the DDAI object in k8s
 	{
-		cSpan, _ := tracer.StartSpanFromContext(ctx, "datadogagent.createOrUpdateDDAI")
+		cSpan, _ := trace.StartControllerSpan(ctx, "createOrUpdateDDAI")
 		var ddaiErr error
 		for _, ddai := range ddais {
-			if e := r.createOrUpdateDDAI(ddai); e != nil {
+			if e := r.createOrUpdateDDAI(ctx, ddai); e != nil {
 				ddaiErr = e
 				cSpan.Finish(tracer.WithError(ddaiErr))
 				reconcileErr = ddaiErr
-				return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
+				return r.updateStatusIfNeededV2(ctx, logger, instance, ddaStatusCopy, result, e, now)
 			}
 
 			// Add DDAI status to DDA status
-			if e := r.addDDAIStatusToDDAStatus(newDDAStatus, ddai.ObjectMeta); e != nil {
+			if e := r.addDDAIStatusToDDAStatus(ctx, newDDAStatus, ddai.ObjectMeta); e != nil {
 				ddaiErr = e
 				cSpan.Finish(tracer.WithError(ddaiErr))
 				reconcileErr = ddaiErr
-				return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
+				return r.updateStatusIfNeededV2(ctx, logger, instance, ddaStatusCopy, result, e, now)
 			}
 
 			// Add DDA remote config status to DDAI status
@@ -173,7 +174,7 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 				ddaiErr = e
 				cSpan.Finish(tracer.WithError(ddaiErr))
 				reconcileErr = ddaiErr
-				return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
+				return r.updateStatusIfNeededV2(ctx, logger, instance, ddaStatusCopy, result, e, now)
 			}
 		}
 		cSpan.Finish(tracer.WithError(ddaiErr))
@@ -181,20 +182,20 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 
 	// Clean up unused DDAI objects
 	{
-		clSpan, _ := tracer.StartSpanFromContext(ctx, "datadogagent.cleanUpUnusedDDAIs")
+		clSpan, _ := trace.StartControllerSpan(ctx, "cleanUpUnusedDDAIs")
 		if e := r.cleanUpUnusedDDAIs(ctx, ddais); e != nil {
 			clSpan.Finish(tracer.WithError(e))
 			reconcileErr = e
-			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
+			return r.updateStatusIfNeededV2(ctx, logger, instance, ddaStatusCopy, result, e, now)
 		}
 		clSpan.Finish()
 	}
 
 	// Update status
 	{
-		sSpan, _ := tracer.StartSpanFromContext(ctx, "datadogagent.updateStatusIfNeededV2")
+		sSpan, _ := trace.StartControllerSpan(ctx, "updateStatusIfNeededV2")
 		result.RequeueAfter = defaultRequeuePeriod
-		result, reconcileErr = r.updateStatusIfNeededV2(logger, instance, newDDAStatus, result, nil, now)
+		result, reconcileErr = r.updateStatusIfNeededV2(ctx, logger, instance, newDDAStatus, result, nil, now)
 		sSpan.Finish(tracer.WithError(reconcileErr))
 		return result, reconcileErr
 	}
@@ -247,35 +248,29 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// 1. Manage dependencies
 	var err error
 	{
-		span, _ := tracer.StartSpanFromContext(ctx, "datadogagent.manage_dependencies",
-			tracer.ResourceName(instance.Namespace+"/"+instance.Name),
-			tracer.SpanType("worker"),
-		)
+		span, _ := trace.StartControllerSpan(ctx, "manageDependencies")
 		if err = r.manageGlobalDependencies(logger, instance, resourceManagers, requiredComponents); err != nil {
 			span.Finish(tracer.WithError(err))
-			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
+			return r.updateStatusIfNeededV2(ctx, logger, instance, newStatus, reconcile.Result{}, err, now)
 		}
 		if err = r.manageFeatureDependencies(logger, enabledFeatures, resourceManagers, k8sProvider); err != nil {
 			span.Finish(tracer.WithError(err))
-			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
+			return r.updateStatusIfNeededV2(ctx, logger, instance, newStatus, reconcile.Result{}, err, now)
 		}
 		if err = r.overrideDependencies(logger, resourceManagers, instance); err != nil {
 			span.Finish(tracer.WithError(err))
-			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
+			return r.updateStatusIfNeededV2(ctx, logger, instance, newStatus, reconcile.Result{}, err, now)
 		}
 		if err = r.applyAndCleanupDependencies(ctx, logger, depsStore); err != nil {
 			span.Finish(tracer.WithError(err))
-			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
+			return r.updateStatusIfNeededV2(ctx, logger, instance, newStatus, reconcile.Result{}, err, now)
 		}
 		span.Finish()
 	}
 
 	// 2. Reconcile each component using the component registry
 	{
-		span, spanCtx := tracer.StartSpanFromContext(ctx, "datadogagent.reconcile_components",
-			tracer.ResourceName(instance.Namespace+"/"+instance.Name),
-			tracer.SpanType("worker"),
-		)
+		span, spanCtx := trace.StartControllerSpan(ctx, "reconcileComponents")
 		params := &ReconcileComponentParams{
 			Logger:             logger,
 			DDA:                instance,
@@ -289,7 +284,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		result, err = r.componentRegistry.ReconcileComponents(spanCtx, params)
 		span.Finish(tracer.WithError(err))
 		if utils.ShouldReturn(result, err) {
-			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
+			return r.updateStatusIfNeededV2(ctx, logger, instance, newStatus, result, err, now)
 		}
 	}
 
@@ -297,7 +292,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// TODO: ignore profiles and introspection for DDAI
 
 	if result, err = r.reconcileAgentProfiles(ctx, logger, instance, requiredComponents, append(configuredFeatures, enabledFeatures...), resourceManagers, newStatus, now); utils.ShouldReturn(result, err) {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
+		return r.updateStatusIfNeededV2(ctx, logger, instance, newStatus, result, err, now)
 	}
 
 	// TODO: this feels like it should be moved somewhere else
@@ -308,14 +303,11 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 
 	// 3. Cleanup extraneous resources.
 	{
-		span, _ := tracer.StartSpanFromContext(ctx, "datadogagent.cleanup_resources",
-			tracer.ResourceName(instance.Namespace+"/"+instance.Name),
-			tracer.SpanType("worker"),
-		)
+		span, _ := trace.StartControllerSpan(ctx, "cleanupResources")
 		if err = r.cleanupExtraneousResources(ctx, logger, instance, newStatus, resourceManagers); err != nil {
 			logger.Error(err, "Error cleaning up extraneous resources")
 			span.Finish(tracer.WithError(err))
-			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
+			return r.updateStatusIfNeededV2(ctx, logger, instance, newStatus, result, err, now)
 		}
 		span.Finish()
 	}
@@ -324,10 +316,10 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	if !result.Requeue && result.RequeueAfter == 0 {
 		result.RequeueAfter = defaultRequeuePeriod
 	}
-	return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
+	return r.updateStatusIfNeededV2(ctx, logger, instance, newStatus, result, err, now)
 }
 
-func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus, result reconcile.Result, currentError error, now metav1.Time) (reconcile.Result, error) {
+func (r *Reconciler) updateStatusIfNeededV2(ctx context.Context, logger logr.Logger, agentdeployment *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus, result reconcile.Result, currentError error, now metav1.Time) (reconcile.Result, error) {
 	if currentError == nil {
 		condition.UpdateDatadogAgentStatusConditions(newStatus, now, common.DatadogAgentReconcileErrorConditionType, metav1.ConditionFalse, "DatadogAgent_reconcile_ok", "DatadogAgent reconcile ok", false)
 	} else {
@@ -339,7 +331,7 @@ func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment 
 	if !IsEqualStatus(&agentdeployment.Status, newStatus) {
 		updateAgentDeployment := agentdeployment.DeepCopy()
 		updateAgentDeployment.Status = *newStatus
-		if err := r.client.Status().Update(context.TODO(), updateAgentDeployment); err != nil {
+		if err := r.client.Status().Update(ctx, updateAgentDeployment); err != nil {
 			if apierrors.IsConflict(err) {
 				logger.V(1).Info("unable to update DatadogAgent status due to update conflict")
 				return reconcile.Result{RequeueAfter: time.Second}, nil

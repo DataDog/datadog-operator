@@ -260,6 +260,7 @@ func run(opts *options) error {
 		tracer.Start(
 			tracer.WithService("datadog-operator"),
 			tracer.WithServiceVersion(version.Version),
+			tracer.WithGlobalTag("git.repository_url", "https://github.com/DataDog/datadog-operator"),
 		)
 		defer tracer.Stop()
 	}
