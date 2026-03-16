@@ -687,25 +687,26 @@ func commonEnvVars(dda metav1.Object) []corev1.EnvVar {
 }
 
 func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
-	envs := []corev1.EnvVar{
-		{
-			Name:  common.DDHealthPort,
-			Value: strconv.Itoa(int(constants.DefaultAgentHealthPort)),
-		},
-		{
-			// we want to default it in 7.49.0
-			// but in 7.50.0 it will be already defaulted in the agent process.
-			Name:  DDContainerImageEnabled,
-			Value: "true",
-		},
-	}
-
-	return append(envs, commonEnvVars(dda)...)
+	commonEnvs := commonEnvVars(dda)
+	envs := make([]corev1.EnvVar, 0, 2+len(commonEnvs))
+	envs = append(envs, corev1.EnvVar{
+		Name:  common.DDHealthPort,
+		Value: strconv.Itoa(int(constants.DefaultAgentHealthPort)),
+	})
+	envs = append(envs, corev1.EnvVar{
+		// we want to default it in 7.49.0
+		// but in 7.50.0 it will be already defaulted in the agent process.
+		Name:  DDContainerImageEnabled,
+		Value: "true",
+	})
+	return append(envs, commonEnvs...)
 }
 
 func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
-	envs := []corev1.EnvVar{
-		{
+	commonEnvs := commonEnvVars(dda)
+	envs := make([]corev1.EnvVar, 0, 3+len(commonEnvs))
+	envs = append(envs,
+		corev1.EnvVar{
 			Name: common.DDAPMInstrumentationInstallId,
 			ValueFrom: &corev1.EnvVarSource{
 				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
@@ -716,7 +717,7 @@ func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
 				},
 			},
 		},
-		{
+		corev1.EnvVar{
 			Name: common.DDAPMInstrumentationInstallTime,
 			ValueFrom: &corev1.EnvVarSource{
 				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
@@ -727,7 +728,7 @@ func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
 				},
 			},
 		},
-		{
+		corev1.EnvVar{
 			Name: common.DDAPMInstrumentationInstallType,
 			ValueFrom: &corev1.EnvVarSource{
 				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
@@ -738,20 +739,18 @@ func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
 				},
 			},
 		},
-	}
-
-	return append(envs, commonEnvVars(dda)...)
+	)
+	return append(envs, commonEnvs...)
 }
 
 func envVarsForSecurityAgent(dda metav1.Object) []corev1.EnvVar {
-	envs := []corev1.EnvVar{
-		{
-			Name:  "HOST_ROOT",
-			Value: common.HostRootMountPath,
-		},
-	}
-
-	return append(envs, commonEnvVars(dda)...)
+	commonEnvs := commonEnvVars(dda)
+	envs := make([]corev1.EnvVar, 0, 1+len(commonEnvs))
+	envs = append(envs, corev1.EnvVar{
+		Name:  "HOST_ROOT",
+		Value: common.HostRootMountPath,
+	})
+	return append(envs, commonEnvs...)
 }
 
 func volumeMountsForInitConfig() []corev1.VolumeMount {

@@ -4,8 +4,6 @@ go 1.25.6
 
 toolchain go1.25.7
 
-replace github.com/DataDog/extendeddaemonset v0.10.0-rc.4 => github.com/DataDog/extendeddaemonset/api v0.0.0-20250108205105-6c4d337b78a1
-
 require (
 	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.71.0 // indirect
 	github.com/DataDog/datadog-api-client-go/v2 v2.55.0

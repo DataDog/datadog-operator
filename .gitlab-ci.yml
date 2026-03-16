@@ -790,16 +790,8 @@ publish_nightly_workflow:
     project: DataDog/k8s-datadog-agent-ops
     branch: main
     strategy: depend
-    forward:
-      pipeline_variables: true
   variables:
     OPERATOR_NIGHTLY: "true"
-    # Conductor-related variables
-    APPS: $APPS
-    BAZEL_TARGET: $BAZEL_TARGET
-    DDR: $DDR
-    TARGET_ENV: $TARGET_ENV
-    CONDUCTOR_TARGET: $CONDUCTOR_TARGET
     DDR_WORKFLOW_ID: $DDR_WORKFLOW_ID
 
 # On success, this will cause CNAB to trigger a Deployment to Release Candidate clusters and open a corresponding pull request

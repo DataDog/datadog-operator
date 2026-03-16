@@ -494,7 +494,7 @@ func (f *filteringEncoder) AddString(key, val string) {
 }
 
 // AddReflected filters out unwanted reflected fields (used for complex objects)
-func (f *filteringEncoder) AddReflected(key string, obj interface{}) error {
+func (f *filteringEncoder) AddReflected(key string, obj any) error {
 	if f.fieldsToSkip[key] {
 		return nil // skip this field
 	}
