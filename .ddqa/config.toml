@@ -76,7 +76,7 @@ jira_project = "USMON"
 jira_issue_type = "Task"
 jira_statuses = ["To Do", "In Progress", "Done"]
 github_team = "universal-service-monitoring"
-github_labels = ["team/usm"]
+github_labels = ["team/universal-service-monitoring"]
 
 [teams."Network Device Monitoring - Core"]
 jira_project = "NDMC"
@@ -156,14 +156,14 @@ jira_project = "FA"
 jira_issue_type = "QA"
 jira_statuses = ["To Do", "In Progress", "Done"]
 github_team = "Fleet"
-github_labels = ["team/fleet-automation"]
+github_labels = ["team/fleet"]
 
 [teams."Container Integrations"]
 jira_project = "CONTINT"
 jira_issue_type = "Task"
 jira_statuses = ["To Do", "In Progress", "Done"]
 github_team = "container-integrations"
-github_labels = ["team/containers"]
+github_labels = ["team/container-integrations"]
 exclude_members = ["clamoriniere"]
 
 [teams."Container Platform"]
@@ -254,7 +254,7 @@ jira_project = "DEBUG"
 jira_issue_type = "Task"
 jira_statuses = ["To Do", "In Progress", "Done"]
 github_team = "debugger-go"
-github_labels = ["team/dynamic-instrumentation"]
+github_labels = ["team/debugger-go"]
 
 [teams."Data Streams Monitoring"]
 jira_project = "DSMON"
