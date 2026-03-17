@@ -463,8 +463,7 @@ func TestHandleStopExperiment_NoRunningExperiment(t *testing.T) {
 	}
 
 	err := r.handleExperimentSignal(context.TODO(), signal)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no running experiment")
+	require.NoError(t, err, "stale signal should be silently ignored")
 }
 
 func TestHandleStopExperiment_AbortedExperiment(t *testing.T) {
@@ -477,8 +476,7 @@ func TestHandleStopExperiment_AbortedExperiment(t *testing.T) {
 	}
 
 	err := r.handleExperimentSignal(context.TODO(), signal)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no running experiment")
+	require.NoError(t, err, "stale signal should be silently ignored")
 }
 
 func TestHandleStopExperiment_IDMismatch(t *testing.T) {
@@ -491,8 +489,7 @@ func TestHandleStopExperiment_IDMismatch(t *testing.T) {
 	}
 
 	err := r.handleExperimentSignal(context.TODO(), signal)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "signal targets experiment")
+	require.NoError(t, err, "mismatched signal should be silently ignored")
 
 	// Original experiment should be untouched
 	updated := getDDA(t, r)
@@ -532,8 +529,7 @@ func TestHandlePromoteExperiment_NoRunningExperiment(t *testing.T) {
 	}
 
 	err := r.handleExperimentSignal(context.TODO(), signal)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no running experiment")
+	require.NoError(t, err, "stale signal should be silently ignored")
 }
 
 func TestHandlePromoteExperiment_AbortedExperiment(t *testing.T) {
@@ -546,8 +542,7 @@ func TestHandlePromoteExperiment_AbortedExperiment(t *testing.T) {
 	}
 
 	err := r.handleExperimentSignal(context.TODO(), signal)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no running experiment")
+	require.NoError(t, err, "stale signal should be silently ignored")
 }
 
 func TestHandlePromoteExperiment_IDMismatch(t *testing.T) {
@@ -560,8 +555,7 @@ func TestHandlePromoteExperiment_IDMismatch(t *testing.T) {
 	}
 
 	err := r.handleExperimentSignal(context.TODO(), signal)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "signal targets experiment")
+	require.NoError(t, err, "mismatched signal should be silently ignored")
 
 	// Original experiment should still be running
 	updated := getDDA(t, r)

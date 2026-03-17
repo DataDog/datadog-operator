@@ -184,8 +184,10 @@ func (r *RemoteConfigUpdater) handleStartExperiment(ctx context.Context, dda *v2
 // handleStopExperiment sets experiment status to rollback.
 // The reconciler will detect this and restore from baselineRevision.
 func (r *RemoteConfigUpdater) handleStopExperiment(ctx context.Context, dda *v2alpha1.DatadogAgent, signal *ExperimentSignal) error {
-	if err := r.validateExperimentSignal(dda, signal, "stopExperiment"); err != nil {
+	if valid, err := r.validateExperimentSignal(dda, signal, "stopExperiment"); err != nil {
 		return err
+	} else if !valid {
+		return nil
 	}
 
 	if err := r.setExperimentStatus(ctx, dda, &v2alpha1.ExperimentStatus{
@@ -203,8 +205,10 @@ func (r *RemoteConfigUpdater) handleStopExperiment(ctx context.Context, dda *v2a
 // handlePromoteExperiment sets experiment status to promoted.
 // The reconciler will detect this and clear experiment state.
 func (r *RemoteConfigUpdater) handlePromoteExperiment(ctx context.Context, dda *v2alpha1.DatadogAgent, signal *ExperimentSignal) error {
-	if err := r.validateExperimentSignal(dda, signal, "promoteExperiment"); err != nil {
+	if valid, err := r.validateExperimentSignal(dda, signal, "promoteExperiment"); err != nil {
 		return err
+	} else if !valid {
+		return nil
 	}
 
 	if err := r.setExperimentStatus(ctx, dda, &v2alpha1.ExperimentStatus{
@@ -220,23 +224,23 @@ func (r *RemoteConfigUpdater) handlePromoteExperiment(ctx context.Context, dda *
 }
 
 // validateExperimentSignal checks that a stop/promote signal targets the
-// currently running experiment. Returns nil if valid, a logged-and-ignored
-// nil-error for mismatches that should be silently dropped.
-func (r *RemoteConfigUpdater) validateExperimentSignal(dda *v2alpha1.DatadogAgent, signal *ExperimentSignal, action string) error {
+// currently running experiment. Returns (true, nil) if valid. Returns
+// (false, nil) for stale/mismatched signals — these are logged and silently
+// dropped so they don't block processing of other RC updates.
+func (r *RemoteConfigUpdater) validateExperimentSignal(dda *v2alpha1.DatadogAgent, signal *ExperimentSignal, action string) (bool, error) {
 	if dda.Status.Experiment == nil || dda.Status.Experiment.Phase != v2alpha1.ExperimentPhaseRunning {
 		r.logger.Info(fmt.Sprintf("Ignoring %s: no running experiment", action),
 			"currentPhase", experimentPhase(dda))
-		return fmt.Errorf("ignoring %s: no running experiment", action)
+		return false, nil
 	}
 	if signal.ExperimentID != "" && dda.Status.Experiment.ID != "" &&
 		signal.ExperimentID != dda.Status.Experiment.ID {
 		r.logger.Info(fmt.Sprintf("Ignoring %s: experiment ID mismatch", action),
 			"signalID", signal.ExperimentID,
 			"runningID", dda.Status.Experiment.ID)
-		return fmt.Errorf("ignoring %s: signal targets experiment %s but %s is running",
-			action, signal.ExperimentID, dda.Status.Experiment.ID)
+		return false, nil
 	}
-	return nil
+	return true, nil
 }
 
 // setExperimentStatus updates the DDA status with the given experiment state.
