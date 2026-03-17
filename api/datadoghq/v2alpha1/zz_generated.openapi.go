@@ -645,6 +645,20 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgentStatus(ref commo
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.RemoteConfigConfiguration"),
 						},
 					},
+					"currentRevision": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CurrentRevision is the name of the ControllerRevision for the spec currently applied to pods.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"previousRevision": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PreviousRevision is the name of the ControllerRevision just before the current one. Used as the restore point for rollback.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

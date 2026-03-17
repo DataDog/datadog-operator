@@ -57,6 +57,7 @@ type SetupOptions struct {
 	OtelAgentEnabled              bool
 	DatadogDashboardEnabled       bool
 	DatadogGenericResourceEnabled bool
+	CreateControllerRevisions     bool
 }
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
@@ -136,6 +137,7 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes
 			IntrospectionEnabled:        options.IntrospectionEnabled,
 			DatadogAgentProfileEnabled:  options.DatadogAgentProfileEnabled,
 			DatadogAgentInternalEnabled: options.DatadogAgentInternalEnabled,
+			CreateControllerRevisions:   options.CreateControllerRevisions,
 		},
 	}).SetupWithManager(mgr, metricForwardersMgr)
 }

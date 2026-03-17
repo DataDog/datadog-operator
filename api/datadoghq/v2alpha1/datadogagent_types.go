@@ -2346,6 +2346,13 @@ type DatadogAgentStatus struct {
 	// RemoteConfigConfiguration stores the configuration received from RemoteConfig.
 	// +optional
 	RemoteConfigConfiguration *RemoteConfigConfiguration `json:"remoteConfigConfiguration,omitempty"`
+	// CurrentRevision is the name of the ControllerRevision for the spec currently applied to pods.
+	// +optional
+	CurrentRevision string `json:"currentRevision,omitempty"`
+	// PreviousRevision is the name of the ControllerRevision just before the current one.
+	// Used as the restore point for rollback.
+	// +optional
+	PreviousRevision string `json:"previousRevision,omitempty"`
 }
 
 // DatadogAgent defines Agent configuration, see reference https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md

@@ -131,6 +131,7 @@ type options struct {
 	supportCilium                          bool
 	datadogAgentEnabled                    bool
 	datadogAgentInternalEnabled            bool
+	createControllerRevisions              bool
 	datadogMonitorEnabled                  bool
 	datadogSLOEnabled                      bool
 	operatorMetricsEnabled                 bool
@@ -180,6 +181,7 @@ func (opts *options) Parse() {
 
 	// DatadogAgentInternal
 	flag.BoolVar(&opts.datadogAgentInternalEnabled, "datadogAgentInternalEnabled", true, "Enable the DatadogAgentInternal controller")
+	flag.BoolVar(&opts.createControllerRevisions, "createControllerRevisions", false, "Enable creation of ControllerRevision snapshots on each DDA spec change")
 
 	// ExtendedDaemonset configuration
 	flag.BoolVar(&opts.supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
@@ -358,6 +360,7 @@ func run(opts *options) error {
 		SecretRefreshInterval:         opts.secretRefreshInterval,
 		DatadogAgentEnabled:           opts.datadogAgentEnabled,
 		DatadogAgentInternalEnabled:   opts.datadogAgentInternalEnabled,
+		CreateControllerRevisions:     opts.createControllerRevisions,
 		DatadogMonitorEnabled:         opts.datadogMonitorEnabled,
 		DatadogSLOEnabled:             opts.datadogSLOEnabled,
 		OperatorMetricsEnabled:        opts.operatorMetricsEnabled,

@@ -8150,6 +8150,10 @@
           ],
           "x-kubernetes-list-type": "map"
         },
+        "currentRevision": {
+          "description": "CurrentRevision is the name of the ControllerRevision for the spec currently applied to pods.",
+          "type": "string"
+        },
         "otelAgentGateway": {
           "additionalProperties": false,
           "description": "The actual state of the OTel Agent Gateway as a deployment.",
@@ -8206,6 +8210,10 @@
             }
           },
           "type": "object"
+        },
+        "previousRevision": {
+          "description": "PreviousRevision is the name of the ControllerRevision just before the current one.\nUsed as the restore point for rollback.",
+          "type": "string"
         },
         "remoteConfigConfiguration": {
           "additionalProperties": false,
