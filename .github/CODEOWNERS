@@ -15,8 +15,8 @@ README.md               @DataDog/documentation  @DataDog/container-platform
 /internal/controller/datadogagent/feature/admissioncontroller       @DataDog/container-platform     @DataDog/container-platform
 /internal/controller/datadogagent/feature/apm                       @DataDog/agent-apm              @DataDog/container-platform
 # TODO check team or add label
-/internal/controller/datadogagent/feature/appsec                    @DataDog/dd-trace-go-guild      @DataDog/container-platform
-/internal/controller/datadogagent/feature/asm                       @DataDog/dd-trace-go-guild      @DataDog/container-platform
+/internal/controller/datadogagent/feature/appsec                    @DataDog/asm-go     @DataDog/container-platform
+/internal/controller/datadogagent/feature/asm                       @DataDog/asm-go     @DataDog/container-platform
 /internal/controller/datadogagent/feature/autoscaling               @DataDog/container-autoscaling  @DataDog/container-platform
 /internal/controller/datadogagent/feature/clusterchecks             @DataDog/container-platform
 /internal/controller/datadogagent/feature/controlplanemonitoring    @DataDog/container-integrations @DataDog/container-platform
