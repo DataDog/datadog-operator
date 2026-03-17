@@ -115,6 +115,24 @@ func TestDependencies(t *testing.T) {
 			expectsErrors: false,
 		},
 		{
+			name: "empty extraConfd and extraChecksd configDataMap without errors",
+			dda: v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							ExtraConfd: &v2alpha1.MultiCustomConfig{
+								ConfigDataMap: map[string]string{},
+							},
+							ExtraChecksd: &v2alpha1.MultiCustomConfig{
+								ConfigDataMap: map[string]string{},
+							},
+						},
+					},
+				},
+			},
+			expectsErrors: false,
+		},
+		{
 			name: "override don't createRbac without errors",
 			dda: v2alpha1.DatadogAgent{
 				Spec: v2alpha1.DatadogAgentSpec{
