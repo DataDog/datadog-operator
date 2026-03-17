@@ -49,6 +49,9 @@ func newTestDDA() *v2alpha1.DatadogAgent {
 				APM: &v2alpha1.APMFeatureConfig{
 					Enabled: apiutils.NewBoolPointer(false),
 				},
+				NPM: &v2alpha1.NPMFeatureConfig{
+					Enabled: apiutils.NewBoolPointer(true),
+				},
 			},
 		},
 	}
@@ -222,9 +225,11 @@ func TestHandleStartExperiment_Success(t *testing.T) {
 	assert.NotEmpty(t, updated.Status.Experiment.ExpectedSpecHash,
 		"ExpectedSpecHash should be set for first-reconcile validation")
 
-	// Verify spec was patched
+	// Verify spec was merged (not replaced)
 	assert.True(t, apiutils.BoolValue(updated.Spec.Features.APM.Enabled),
 		"APM should be enabled after startExperiment")
+	assert.True(t, apiutils.BoolValue(updated.Spec.Features.NPM.Enabled),
+		"NPM should be preserved from original spec (merge, not replace)")
 }
 
 func TestHandleStartExperiment_MissingConfig(t *testing.T) {
@@ -396,6 +401,33 @@ func TestHandleStartExperiment_DuringRollback(t *testing.T) {
 	updated := getDDA(t, r)
 	assert.Equal(t, v2alpha1.ExperimentPhaseRollback, updated.Status.Experiment.Phase)
 	assert.Equal(t, "exp-001", updated.Status.Experiment.ID)
+}
+
+func TestHandleStartExperiment_AfterAborted(t *testing.T) {
+	// A prior experiment was aborted (external edit). A new start should
+	// clear the aborted state and start fresh — not get stuck forever.
+	dda := newTestDDAWithExperiment(v2alpha1.ExperimentPhaseAborted)
+	r := newUpdater(dda)
+
+	signal := &ExperimentSignal{
+		Action:       ExperimentActionStart,
+		ExperimentID: "exp-002",
+		Config: &v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				APM: &v2alpha1.APMFeatureConfig{
+					Enabled: apiutils.NewBoolPointer(true),
+				},
+			},
+		},
+	}
+
+	err := r.handleExperimentSignal(context.TODO(), signal)
+	require.NoError(t, err, "should allow new experiment after aborted")
+
+	updated := getDDA(t, r)
+	require.NotNil(t, updated.Status.Experiment)
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, updated.Status.Experiment.Phase)
+	assert.Equal(t, "exp-002", updated.Status.Experiment.ID)
 }
 
 // ============================================================================

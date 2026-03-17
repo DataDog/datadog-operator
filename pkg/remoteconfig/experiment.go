@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"dario.cat/mergo"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	kubeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -108,38 +109,48 @@ func (r *RemoteConfigUpdater) handleStartExperiment(ctx context.Context, dda *v2
 		return fmt.Errorf("cannot start experiment: no currentRevision set (DDA not yet reconciled)")
 	}
 
-	// Reject if any experiment lifecycle is active — FA must wait for the
-	// current experiment to be fully resolved (promoted, rolled back, timed out,
-	// or cleared) before starting a new one. This covers:
-	// - running: experiment in progress
-	// - rollback: stop received, restore pending
-	// - timeout: auto-rollback pending or just completed
-	// - aborted: awaiting FA acknowledgment
-	// - promoted: being cleared by reconciler
-	//
-	// The only exception is retrying the same experiment after a partial start
-	// failure (status updated but spec patch failed): ExpectedSpecHash is still
-	// set and the experiment ID matches.
+	// Guard against starting an experiment while one is actively in progress.
+	// Terminal phases (aborted, timeout, promoted) are safe to overwrite —
+	// these experiments are done and a new start should clear them.
+	// Active phases (running, rollback) must be resolved first.
 	if dda.Status.Experiment != nil {
 		exp := dda.Status.Experiment
-		// Allow retry of the same experiment if spec wasn't applied yet
-		if exp.Phase == v2alpha1.ExperimentPhaseRunning &&
-			exp.ExpectedSpecHash != "" &&
-			signal.ExperimentID == exp.ID {
-			r.logger.Info("Retrying startExperiment (prior attempt may have failed during spec patch)",
-				"id", signal.ExperimentID)
-		} else {
+		switch exp.Phase {
+		case v2alpha1.ExperimentPhaseAborted, v2alpha1.ExperimentPhaseTimeout, v2alpha1.ExperimentPhasePromoted:
+			// Terminal — safe to start a new experiment, will overwrite
+			r.logger.Info("Starting new experiment, replacing terminal experiment",
+				"oldID", exp.ID, "oldPhase", exp.Phase, "newID", signal.ExperimentID)
+
+		case v2alpha1.ExperimentPhaseRunning:
+			// Allow retry of the same experiment if spec wasn't applied yet
+			if exp.ExpectedSpecHash != "" && signal.ExperimentID == exp.ID {
+				r.logger.Info("Retrying startExperiment (prior attempt may have failed during spec patch)",
+					"id", signal.ExperimentID)
+			} else {
+				return fmt.Errorf("cannot start experiment %s: experiment %s is active (phase=%s)",
+					signal.ExperimentID, exp.ID, exp.Phase)
+			}
+
+		case v2alpha1.ExperimentPhaseRollback:
+			// Rollback in progress — must complete before starting new experiment
 			return fmt.Errorf("cannot start experiment %s: experiment %s is active (phase=%s)",
 				signal.ExperimentID, exp.ID, exp.Phase)
 		}
 	}
 
-	// Compute hash of the FA payload AFTER applying defaults, so it matches
-	// the canonical form the reconciler uses (defaults.DefaultDatadogAgentSpec
-	// runs before HandleExperimentLifecycle).
-	configCopy := signal.Config.DeepCopy()
-	defaults.DefaultDatadogAgentSpec(configCopy)
-	specHash, err := experiment.ComputeSpecHash(configCopy)
+	// Merge the FA patch into the current spec. FA sends only the fields it
+	// wants to change; everything else is preserved from the current DDA spec.
+	mergedSpec := dda.Spec.DeepCopy()
+	if err := mergo.Merge(mergedSpec, signal.Config, mergo.WithOverride); err != nil {
+		return fmt.Errorf("failed to merge experiment config into current spec: %w", err)
+	}
+
+	// Compute hash of the MERGED+DEFAULTED spec, so it matches the canonical
+	// form the reconciler uses (defaults.DefaultDatadogAgentSpec runs before
+	// HandleExperimentLifecycle).
+	defaultedSpec := mergedSpec.DeepCopy()
+	defaults.DefaultDatadogAgentSpec(defaultedSpec)
+	specHash, err := experiment.ComputeSpecHash(defaultedSpec)
 	if err != nil {
 		return fmt.Errorf("failed to compute spec hash for experiment config: %w", err)
 	}
@@ -160,10 +171,10 @@ func (r *RemoteConfigUpdater) handleStartExperiment(ctx context.Context, dda *v2
 		return fmt.Errorf("failed to re-fetch DDA after status update: %w", err)
 	}
 
-	// Step 3: Patch DDA spec with experiment config
-	refreshed.Spec = *signal.Config
+	// Step 3: Apply merged spec to DDA
+	refreshed.Spec = *mergedSpec
 	if err := r.kubeClient.Update(ctx, refreshed); err != nil {
-		return fmt.Errorf("failed to patch DDA spec for startExperiment: %w", err)
+		return fmt.Errorf("failed to update DDA spec for startExperiment: %w", err)
 	}
 
 	r.logger.Info("Started experiment", "id", signal.ExperimentID)
