@@ -8150,6 +8150,45 @@
           ],
           "x-kubernetes-list-type": "map"
         },
+        "currentRevision": {
+          "description": "CurrentRevision is the name of the ControllerRevision for the spec currently applied.",
+          "type": "string"
+        },
+        "experiment": {
+          "additionalProperties": false,
+          "description": "Experiment tracks the state of an active or recent Fleet Automation experiment.",
+          "properties": {
+            "baselineRevision": {
+              "description": "BaselineRevision is the name of the ControllerRevision capturing the pre-experiment spec.\nLocked at startExperiment and never shifted, even if subsequent edits occur.",
+              "type": "string"
+            },
+            "expectedSpecHash": {
+              "description": "ExpectedSpecHash is the truncated MD5 hash of the spec that FA sent in\nstartExperiment. The reconciler uses this on the first reconcile to verify\nthe current spec matches what FA intended, detecting user edits that land\nbetween the RC spec patch and the first reconcile.",
+              "type": "string"
+            },
+            "id": {
+              "description": "ID is the unique experiment ID sent by Fleet Automation.",
+              "type": "string"
+            },
+            "phase": {
+              "description": "Phase is the current state of the experiment.",
+              "enum": [
+                "running",
+                "rollback",
+                "promoted",
+                "aborted",
+                "timeout"
+              ],
+              "type": "string"
+            },
+            "startedAt": {
+              "description": "StartedAt is the timestamp when the experiment began.\nUsed by the reconciler to compute elapsed time for auto-rollback.",
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
         "otelAgentGateway": {
           "additionalProperties": false,
           "description": "The actual state of the OTel Agent Gateway as a deployment.",
@@ -8206,6 +8245,10 @@
             }
           },
           "type": "object"
+        },
+        "previousRevision": {
+          "description": "PreviousRevision is the name of the ControllerRevision for the spec just before the current one.",
+          "type": "string"
         },
         "remoteConfigConfiguration": {
           "additionalProperties": false,

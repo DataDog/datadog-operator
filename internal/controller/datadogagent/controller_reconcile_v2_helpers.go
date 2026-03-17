@@ -248,6 +248,8 @@ func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, logger log
 
 // generateNewStatusFromDDA generates a new status from a DDA status.
 // If an existing DCA token is present, it is copied to the new status.
+// Experiment lifecycle fields (revision pointers, experiment state) are preserved
+// so they are not overwritten by the reconciler's status update.
 func generateNewStatusFromDDA(ddaStatus *datadoghqv2alpha1.DatadogAgentStatus) *datadoghqv2alpha1.DatadogAgentStatus {
 	status := &datadoghqv2alpha1.DatadogAgentStatus{}
 	if ddaStatus != nil {
@@ -258,6 +260,12 @@ func generateNewStatusFromDDA(ddaStatus *datadoghqv2alpha1.DatadogAgentStatus) *
 		}
 		if ddaStatus.RemoteConfigConfiguration != nil {
 			status.RemoteConfigConfiguration = ddaStatus.RemoteConfigConfiguration
+		}
+		// Preserve experiment lifecycle fields
+		status.CurrentRevision = ddaStatus.CurrentRevision
+		status.PreviousRevision = ddaStatus.PreviousRevision
+		if ddaStatus.Experiment != nil {
+			status.Experiment = ddaStatus.Experiment.DeepCopy()
 		}
 	}
 	return status

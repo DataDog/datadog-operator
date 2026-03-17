@@ -381,7 +381,11 @@ spec:
               resources:
                 - controllerrevisions
               verbs:
+                - create
+                - delete
+                - get
                 - list
+                - update
                 - watch
             - apiGroups:
                 - apps

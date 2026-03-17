@@ -1,0 +1,261 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present Datadog, Inc.
+
+package remoteconfig
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	kubeclient "sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experiment"
+)
+
+// ExperimentAction represents the type of experiment signal from Fleet Automation.
+type ExperimentAction string
+
+const (
+	// ExperimentActionStart signals the operator to start a new experiment.
+	ExperimentActionStart ExperimentAction = "startExperiment"
+	// ExperimentActionStop signals the operator to stop (rollback) an experiment.
+	ExperimentActionStop ExperimentAction = "stopExperiment"
+	// ExperimentActionPromote signals the operator to promote an experiment.
+	ExperimentActionPromote ExperimentAction = "promoteExperiment"
+)
+
+// ExperimentSignal is the RC payload for Fleet Automation experiment signals.
+type ExperimentSignal struct {
+	// Action is the experiment command: startExperiment, stopExperiment, promoteExperiment.
+	Action ExperimentAction `json:"action"`
+	// ExperimentID is the unique ID for this experiment, set by FA.
+	ExperimentID string `json:"experiment_id"`
+	// Config is the DDA spec patch to apply (only present for startExperiment).
+	Config *v2alpha1.DatadogAgentSpec `json:"config,omitempty"`
+}
+
+// parseExperimentSignal attempts to parse an RC payload as an experiment signal.
+// Returns nil if the payload is not an experiment signal (i.e., a regular agent config).
+func parseExperimentSignal(data []byte) (*ExperimentSignal, error) {
+	// Try to detect if this is an experiment signal by checking for the "action" field
+	var probe struct {
+		Action string `json:"action"`
+	}
+	if err := json.Unmarshal(data, &probe); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal RC payload: %w", err)
+	}
+	if probe.Action == "" {
+		return nil, nil // Regular agent config, not an experiment signal
+	}
+
+	signal := &ExperimentSignal{}
+	if err := json.Unmarshal(data, signal); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal experiment signal: %w", err)
+	}
+
+	switch signal.Action {
+	case ExperimentActionStart, ExperimentActionStop, ExperimentActionPromote:
+		return signal, nil
+	default:
+		return nil, fmt.Errorf("unknown experiment action: %s", signal.Action)
+	}
+}
+
+// handleExperimentSignal processes an experiment signal from Fleet Automation.
+// It updates the DDA status and (for startExperiment) patches the DDA spec.
+func (r *RemoteConfigUpdater) handleExperimentSignal(ctx context.Context, signal *ExperimentSignal) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	ddaList := &v2alpha1.DatadogAgentList{}
+	if err := r.kubeClient.List(ctx, ddaList); err != nil {
+		return fmt.Errorf("unable to list DatadogAgents: %w", err)
+	}
+	if len(ddaList.Items) == 0 {
+		return fmt.Errorf("cannot find any DatadogAgent")
+	}
+	dda := ddaList.Items[0]
+
+	switch signal.Action {
+	case ExperimentActionStart:
+		return r.handleStartExperiment(ctx, &dda, signal)
+	case ExperimentActionStop:
+		return r.handleStopExperiment(ctx, &dda, signal)
+	case ExperimentActionPromote:
+		return r.handlePromoteExperiment(ctx, &dda, signal)
+	default:
+		return fmt.Errorf("unknown experiment action: %s", signal.Action)
+	}
+}
+
+// handleStartExperiment sets experiment status to running and patches DDA spec.
+// Order: status first (with baselineRevision), then spec patch.
+func (r *RemoteConfigUpdater) handleStartExperiment(ctx context.Context, dda *v2alpha1.DatadogAgent, signal *ExperimentSignal) error {
+	if signal.Config == nil {
+		return fmt.Errorf("startExperiment signal missing config payload")
+	}
+
+	// Reject if no baseline exists yet (DDA hasn't been reconciled).
+	// Without a baseline, rollback/timeout can't restore the previous spec.
+	if dda.Status.CurrentRevision == "" {
+		return fmt.Errorf("cannot start experiment: no currentRevision set (DDA not yet reconciled)")
+	}
+
+	// Reject if any experiment lifecycle is active — FA must wait for the
+	// current experiment to be fully resolved (promoted, rolled back, timed out,
+	// or cleared) before starting a new one. This covers:
+	// - running: experiment in progress
+	// - rollback: stop received, restore pending
+	// - timeout: auto-rollback pending or just completed
+	// - aborted: awaiting FA acknowledgment
+	// - promoted: being cleared by reconciler
+	//
+	// The only exception is retrying the same experiment after a partial start
+	// failure (status updated but spec patch failed): ExpectedSpecHash is still
+	// set and the experiment ID matches.
+	if dda.Status.Experiment != nil {
+		exp := dda.Status.Experiment
+		// Allow retry of the same experiment if spec wasn't applied yet
+		if exp.Phase == v2alpha1.ExperimentPhaseRunning &&
+			exp.ExpectedSpecHash != "" &&
+			signal.ExperimentID == exp.ID {
+			r.logger.Info("Retrying startExperiment (prior attempt may have failed during spec patch)",
+				"id", signal.ExperimentID)
+		} else {
+			return fmt.Errorf("cannot start experiment %s: experiment %s is active (phase=%s)",
+				signal.ExperimentID, exp.ID, exp.Phase)
+		}
+	}
+
+	// Compute hash of the FA payload AFTER applying defaults, so it matches
+	// the canonical form the reconciler uses (defaults.DefaultDatadogAgentSpec
+	// runs before HandleExperimentLifecycle).
+	configCopy := signal.Config.DeepCopy()
+	defaults.DefaultDatadogAgentSpec(configCopy)
+	specHash, err := experiment.ComputeSpecHash(configCopy)
+	if err != nil {
+		return fmt.Errorf("failed to compute spec hash for experiment config: %w", err)
+	}
+
+	// Step 1: Update status — set phase=running, lock baseline, record expected hash
+	if err := r.setExperimentStatus(ctx, dda, &v2alpha1.ExperimentStatus{
+		Phase:            v2alpha1.ExperimentPhaseRunning,
+		BaselineRevision: dda.Status.CurrentRevision,
+		ID:               signal.ExperimentID,
+		ExpectedSpecHash: specHash,
+	}); err != nil {
+		return fmt.Errorf("failed to set experiment status for start: %w", err)
+	}
+
+	// Step 2: Re-fetch DDA to get updated resourceVersion after status update
+	refreshed := &v2alpha1.DatadogAgent{}
+	if err := r.kubeClient.Get(ctx, kubeclient.ObjectKeyFromObject(dda), refreshed); err != nil {
+		return fmt.Errorf("failed to re-fetch DDA after status update: %w", err)
+	}
+
+	// Step 3: Patch DDA spec with experiment config
+	refreshed.Spec = *signal.Config
+	if err := r.kubeClient.Update(ctx, refreshed); err != nil {
+		return fmt.Errorf("failed to patch DDA spec for startExperiment: %w", err)
+	}
+
+	r.logger.Info("Started experiment", "id", signal.ExperimentID)
+	return nil
+}
+
+// handleStopExperiment sets experiment status to rollback.
+// The reconciler will detect this and restore from baselineRevision.
+func (r *RemoteConfigUpdater) handleStopExperiment(ctx context.Context, dda *v2alpha1.DatadogAgent, signal *ExperimentSignal) error {
+	if err := r.validateExperimentSignal(dda, signal, "stopExperiment"); err != nil {
+		return err
+	}
+
+	if err := r.setExperimentStatus(ctx, dda, &v2alpha1.ExperimentStatus{
+		Phase:            v2alpha1.ExperimentPhaseRollback,
+		BaselineRevision: dda.Status.Experiment.BaselineRevision,
+		ID:               dda.Status.Experiment.ID,
+	}); err != nil {
+		return fmt.Errorf("failed to set experiment status for stop: %w", err)
+	}
+
+	r.logger.Info("Stopped experiment", "id", signal.ExperimentID)
+	return nil
+}
+
+// handlePromoteExperiment sets experiment status to promoted.
+// The reconciler will detect this and clear experiment state.
+func (r *RemoteConfigUpdater) handlePromoteExperiment(ctx context.Context, dda *v2alpha1.DatadogAgent, signal *ExperimentSignal) error {
+	if err := r.validateExperimentSignal(dda, signal, "promoteExperiment"); err != nil {
+		return err
+	}
+
+	if err := r.setExperimentStatus(ctx, dda, &v2alpha1.ExperimentStatus{
+		Phase: v2alpha1.ExperimentPhasePromoted,
+		ID:    dda.Status.Experiment.ID,
+		// BaselineRevision and StartedAt cleared — reconciler will nil out experiment
+	}); err != nil {
+		return fmt.Errorf("failed to set experiment status for promote: %w", err)
+	}
+
+	r.logger.Info("Promoted experiment", "id", signal.ExperimentID)
+	return nil
+}
+
+// validateExperimentSignal checks that a stop/promote signal targets the
+// currently running experiment. Returns nil if valid, a logged-and-ignored
+// nil-error for mismatches that should be silently dropped.
+func (r *RemoteConfigUpdater) validateExperimentSignal(dda *v2alpha1.DatadogAgent, signal *ExperimentSignal, action string) error {
+	if dda.Status.Experiment == nil || dda.Status.Experiment.Phase != v2alpha1.ExperimentPhaseRunning {
+		r.logger.Info(fmt.Sprintf("Ignoring %s: no running experiment", action),
+			"currentPhase", experimentPhase(dda))
+		return fmt.Errorf("ignoring %s: no running experiment", action)
+	}
+	if signal.ExperimentID != "" && dda.Status.Experiment.ID != "" &&
+		signal.ExperimentID != dda.Status.Experiment.ID {
+		r.logger.Info(fmt.Sprintf("Ignoring %s: experiment ID mismatch", action),
+			"signalID", signal.ExperimentID,
+			"runningID", dda.Status.Experiment.ID)
+		return fmt.Errorf("ignoring %s: signal targets experiment %s but %s is running",
+			action, signal.ExperimentID, dda.Status.Experiment.ID)
+	}
+	return nil
+}
+
+// setExperimentStatus updates the DDA status with the given experiment state.
+func (r *RemoteConfigUpdater) setExperimentStatus(ctx context.Context, dda *v2alpha1.DatadogAgent, experiment *v2alpha1.ExperimentStatus) error {
+	newStatus := dda.Status.DeepCopy()
+	newStatus.Experiment = experiment
+
+	if apiequality.Semantic.DeepEqual(&dda.Status, newStatus) {
+		return nil // No change
+	}
+
+	ddaUpdate := dda.DeepCopy()
+	ddaUpdate.Status = *newStatus
+	if err := r.kubeClient.Status().Update(ctx, ddaUpdate); err != nil {
+		if apierrors.IsConflict(err) {
+			r.logger.Info("unable to update experiment status due to conflict")
+			return fmt.Errorf("conflict updating experiment status: %w", err)
+		}
+		return err
+	}
+
+	// Update the in-memory object so subsequent operations see the new status
+	dda.Status = *newStatus
+	return nil
+}
+
+// experimentPhase returns the current experiment phase string, or "none" if no experiment.
+func experimentPhase(dda *v2alpha1.DatadogAgent) string {
+	if dda.Status.Experiment == nil {
+		return "none"
+	}
+	return string(dda.Status.Experiment.Phase)
+}
