@@ -2351,6 +2351,7 @@ type ExperimentStatus struct {
 	// +optional
 	BaselineRevision string `json:"baselineRevision,omitempty"`
 	// ID is the unique experiment ID sent by Fleet Automation.
+	// Optional in the CRD schema, but required by the RC signal handler.
 	// +optional
 	ID string `json:"id,omitempty"`
 	// ExpectedSpecHash is the truncated MD5 hash of the spec that FA sent in

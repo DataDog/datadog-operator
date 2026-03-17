@@ -84,6 +84,10 @@ func (r *RemoteConfigUpdater) handleExperimentSignal(ctx context.Context, signal
 	}
 	dda := ddaList.Items[0]
 
+	if signal.ExperimentID == "" {
+		return fmt.Errorf("experiment signal missing experiment_id")
+	}
+
 	switch signal.Action {
 	case ExperimentActionStart:
 		return r.handleStartExperiment(ctx, &dda, signal)
@@ -138,41 +142,54 @@ func (r *RemoteConfigUpdater) handleStartExperiment(ctx context.Context, dda *v2
 		}
 	}
 
-	// Merge the FA patch into the current spec. FA sends only the fields it
-	// wants to change; everything else is preserved from the current DDA spec.
-	mergedSpec := dda.Spec.DeepCopy()
-	if err := mergo.Merge(mergedSpec, signal.Config, mergo.WithOverride); err != nil {
-		return fmt.Errorf("failed to merge experiment config into current spec: %w", err)
-	}
-
-	// Compute hash of the MERGED+DEFAULTED spec, so it matches the canonical
-	// form the reconciler uses (defaults.DefaultDatadogAgentSpec runs before
-	// HandleExperimentLifecycle).
-	defaultedSpec := mergedSpec.DeepCopy()
-	defaults.DefaultDatadogAgentSpec(defaultedSpec)
-	specHash, err := experiment.ComputeSpecHash(defaultedSpec)
-	if err != nil {
-		return fmt.Errorf("failed to compute spec hash for experiment config: %w", err)
-	}
-
-	// Step 1: Update status — set phase=running, lock baseline, record expected hash
+	// Step 1: Update status — set phase=running, lock baseline.
+	// ExpectedSpecHash is computed later from the refreshed spec to avoid races.
 	if err := r.setExperimentStatus(ctx, dda, &v2alpha1.ExperimentStatus{
 		Phase:            v2alpha1.ExperimentPhaseRunning,
 		BaselineRevision: dda.Status.CurrentRevision,
 		ID:               signal.ExperimentID,
-		ExpectedSpecHash: specHash,
 	}); err != nil {
 		return fmt.Errorf("failed to set experiment status for start: %w", err)
 	}
 
-	// Step 2: Re-fetch DDA to get updated resourceVersion after status update
+	// Step 2: Re-fetch DDA to get the latest spec and resourceVersion.
+	// This ensures we merge into the most recent spec, not a stale copy
+	// that could silently overwrite concurrent edits.
 	refreshed := &v2alpha1.DatadogAgent{}
 	if err := r.kubeClient.Get(ctx, kubeclient.ObjectKeyFromObject(dda), refreshed); err != nil {
 		return fmt.Errorf("failed to re-fetch DDA after status update: %w", err)
 	}
 
-	// Step 3: Apply merged spec to DDA
-	refreshed.Spec = *mergedSpec
+	// Step 3: Merge FA patch into the refreshed spec.
+	if err := mergo.Merge(&refreshed.Spec, signal.Config, mergo.WithOverride); err != nil {
+		return fmt.Errorf("failed to merge experiment config into current spec: %w", err)
+	}
+
+	// Step 4: Compute ExpectedSpecHash from the merged+defaulted spec and
+	// update the experiment status with it.
+	defaultedSpec := refreshed.Spec.DeepCopy()
+	defaults.DefaultDatadogAgentSpec(defaultedSpec)
+	specHash, err := experiment.ComputeSpecHash(defaultedSpec)
+	if err != nil {
+		return fmt.Errorf("failed to compute spec hash for experiment config: %w", err)
+	}
+	if err := r.statusUpdateWithRetry(ctx, refreshed, func(d *v2alpha1.DatadogAgent) {
+		if d.Status.Experiment != nil {
+			d.Status.Experiment.ExpectedSpecHash = specHash
+		}
+	}); err != nil {
+		return fmt.Errorf("failed to update ExpectedSpecHash: %w", err)
+	}
+
+	// Step 5: Re-fetch again since status update bumped resourceVersion,
+	// then apply the merged spec.
+	if err := r.kubeClient.Get(ctx, kubeclient.ObjectKeyFromObject(dda), refreshed); err != nil {
+		return fmt.Errorf("failed to re-fetch DDA after hash update: %w", err)
+	}
+	// Re-merge into the latest spec (in case it changed during hash update)
+	if err := mergo.Merge(&refreshed.Spec, signal.Config, mergo.WithOverride); err != nil {
+		return fmt.Errorf("failed to re-merge experiment config: %w", err)
+	}
 	if err := r.kubeClient.Update(ctx, refreshed); err != nil {
 		return fmt.Errorf("failed to update DDA spec for startExperiment: %w", err)
 	}
@@ -243,28 +260,42 @@ func (r *RemoteConfigUpdater) validateExperimentSignal(dda *v2alpha1.DatadogAgen
 	return true, nil
 }
 
-// setExperimentStatus updates the DDA status with the given experiment state.
-func (r *RemoteConfigUpdater) setExperimentStatus(ctx context.Context, dda *v2alpha1.DatadogAgent, experiment *v2alpha1.ExperimentStatus) error {
-	newStatus := dda.Status.DeepCopy()
-	newStatus.Experiment = experiment
+// statusUpdateWithRetry applies a status mutation to the DDA and persists it.
+// On conflict errors, it re-fetches the DDA and retries (up to 3 times) to
+// handle concurrent status writes from the reconciler. The mutate function
+// is called on each attempt with the latest DDA to apply the desired change.
+func (r *RemoteConfigUpdater) statusUpdateWithRetry(ctx context.Context, dda *v2alpha1.DatadogAgent, mutate func(*v2alpha1.DatadogAgent)) error {
+	const maxRetries = 3
+	for i := range maxRetries {
+		ddaUpdate := dda.DeepCopy()
+		mutate(ddaUpdate)
 
-	if apiequality.Semantic.DeepEqual(&dda.Status, newStatus) {
-		return nil // No change
-	}
-
-	ddaUpdate := dda.DeepCopy()
-	ddaUpdate.Status = *newStatus
-	if err := r.kubeClient.Status().Update(ctx, ddaUpdate); err != nil {
-		if apierrors.IsConflict(err) {
-			r.logger.Info("unable to update experiment status due to conflict")
-			return fmt.Errorf("conflict updating experiment status: %w", err)
+		if apiequality.Semantic.DeepEqual(&dda.Status, &ddaUpdate.Status) {
+			return nil // No change
 		}
-		return err
-	}
 
-	// Update the in-memory object so subsequent operations see the new status
-	dda.Status = *newStatus
-	return nil
+		updateErr := r.kubeClient.Status().Update(ctx, ddaUpdate)
+		if updateErr == nil {
+			dda.Status = ddaUpdate.Status
+			return nil
+		}
+		if !apierrors.IsConflict(updateErr) {
+			return updateErr
+		}
+		r.logger.Info("Status update conflict, retrying",
+			"attempt", i+1, "maxRetries", maxRetries)
+		if getErr := r.kubeClient.Get(ctx, kubeclient.ObjectKeyFromObject(dda), dda); getErr != nil {
+			return fmt.Errorf("failed to re-fetch DDA after status conflict: %w", getErr)
+		}
+	}
+	return fmt.Errorf("failed to update status after %d retries due to conflicts", maxRetries)
+}
+
+// setExperimentStatus updates the DDA experiment status using statusUpdateWithRetry.
+func (r *RemoteConfigUpdater) setExperimentStatus(ctx context.Context, dda *v2alpha1.DatadogAgent, experimentStatus *v2alpha1.ExperimentStatus) error {
+	return r.statusUpdateWithRetry(ctx, dda, func(d *v2alpha1.DatadogAgent) {
+		d.Status.Experiment = experimentStatus
+	})
 }
 
 // experimentPhase returns the current experiment phase string, or "none" if no experiment.
