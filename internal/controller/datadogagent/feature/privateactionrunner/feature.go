@@ -47,6 +47,7 @@ type privateActionRunnerFeature struct {
 	clusterConfig             *PrivateActionRunnerConfig
 	clusterConfigData         string
 	clusterServiceAccountName string
+	k8sRemediationEnabled     bool
 }
 
 // ID returns the ID of the Feature
@@ -105,6 +106,7 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 			}
 		}
 		f.clusterConfig = clusterConfig
+		f.k8sRemediationEnabled = featureutils.HasFeatureEnableAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerK8sRemediationEnabled)
 		f.clusterServiceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 		reqComp.ClusterAgent = feature.RequiredComponent{
@@ -176,7 +178,7 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 				f.owner.GetNamespace(),
 				f.getRbacResourcesName(),
 				f.clusterServiceAccountName,
-				getClusterAgentRBACPolicyRules(f.clusterConfig.IdentitySecretName),
+				getClusterAgentRBACPolicyRules(f.clusterConfig.IdentitySecretName, f.k8sRemediationEnabled),
 			)
 			if err != nil {
 				return err

@@ -17,12 +17,12 @@ const (
 
 // getClusterAgentRBACPolicyRules returns the RBAC policy rules for the Private Action Runner
 // This creates a Role (not ClusterRole) with permissions on the identity secret used during self enrollment
-func getClusterAgentRBACPolicyRules(identitySecretName string) []rbacv1.PolicyRule {
+func getClusterAgentRBACPolicyRules(identitySecretName string, enableK8sRemediation bool) []rbacv1.PolicyRule {
 	if identitySecretName == "" {
 		identitySecretName = defaultIdentitySecretName
 	}
 
-	return []rbacv1.PolicyRule{
+	baseRules := []rbacv1.PolicyRule{
 		{
 			APIGroups:     []string{rbac.CoreAPIGroup},
 			Resources:     []string{rbac.SecretsResource},
@@ -30,4 +30,24 @@ func getClusterAgentRBACPolicyRules(identitySecretName string) []rbacv1.PolicyRu
 			Verbs:         []string{rbac.GetVerb, rbac.UpdateVerb, rbac.CreateVerb},
 		},
 	}
+
+	if enableK8sRemediation {
+		baseRules = append(baseRules, rbacv1.PolicyRule{
+			APIGroups: []string{rbac.AppsAPIGroup},
+			Resources: []string{rbac.DeploymentsResource},
+			Verbs:     []string{rbac.GetVerb, rbac.WatchVerb, rbac.PatchVerb, rbac.CreateVerb},
+		})
+		baseRules = append(baseRules, rbacv1.PolicyRule{
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.PodsResource, rbac.ConfigMapsResource, rbac.EventsResource},
+			Verbs:     []string{rbac.GetVerb, rbac.WatchVerb, rbac.PatchVerb, rbac.CreateVerb},
+		})
+		baseRules = append(baseRules, rbacv1.PolicyRule{
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.ConfigMapsResource},
+			Verbs:     []string{rbac.UpdateVerb},
+		})
+	}
+
+	return baseRules
 }
