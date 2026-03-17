@@ -127,10 +127,10 @@ spec:
 : CustomBenchmarks contains CSPM benchmarks. The content of the ConfigMap will be merged with the benchmarks bundled with the agent. Any benchmarks with the same name as those existing in the agent will take precedence.
 
 `features.cspm.enabled`
-: Enables Cloud Security Posture Management. Default: false
+: Enables Cloud Security Posture Management, including Docker and Kubernetes benchmarks. Default: false
 
 `features.cspm.hostBenchmarks.enabled`
-: Enables host benchmarks. Default: true
+: Enables Linux host benchmarks. Requires `features.cspm.enabled` to be set to `true`. Default: true
 
 `features.cspm.runInSystemProbe`
 : RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent. This is an experimental feature. Contact support before using. Default: false

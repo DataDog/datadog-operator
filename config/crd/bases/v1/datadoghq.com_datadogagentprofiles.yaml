@@ -1229,7 +1229,7 @@ spec:
                               type: object
                             enabled:
                               description: |-
-                                Enabled enables Cloud Security Posture Management.
+                                Enabled enables Cloud Security Posture Management, including Docker and Kubernetes benchmarks.
                                 Default: false
                               type: boolean
                             hostBenchmarks:
@@ -1237,7 +1237,7 @@ spec:
                               properties:
                                 enabled:
                                   description: |-
-                                    Enabled enables host benchmarks.
+                                    Enabled enables Linux host benchmarks. Requires `features.cspm.enabled` to be set to `true`.
                                     Default: true
                                   type: boolean
                               type: object
