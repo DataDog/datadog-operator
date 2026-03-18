@@ -38,7 +38,6 @@ jobs:
           files: cover.out,cover_integration.out
           flags: unittests
       - name: Upload coverage to Datadog
-        if: always()
         continue-on-error: true
         uses: DataDog/coverage-upload-github-action@d2cf302a39c05e0ad22063360a2bf6ce0cc4906c # v1
         with:
