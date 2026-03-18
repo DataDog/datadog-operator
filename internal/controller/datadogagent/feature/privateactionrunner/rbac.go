@@ -17,12 +17,12 @@ const (
 
 // getClusterAgentRBACPolicyRules returns the RBAC policy rules for the Private Action Runner
 // This creates a Role (not ClusterRole) with permissions on the identity secret used during self enrollment
-func getClusterAgentRBACPolicyRules(identitySecretName string, enableK8sRemediation bool) []rbacv1.PolicyRule {
+func getClusterAgentRBACPolicyRules(identitySecretName string) []rbacv1.PolicyRule {
 	if identitySecretName == "" {
 		identitySecretName = defaultIdentitySecretName
 	}
 
-	baseRules := []rbacv1.PolicyRule{
+	return []rbacv1.PolicyRule{
 		{
 			APIGroups:     []string{rbac.CoreAPIGroup},
 			Resources:     []string{rbac.SecretsResource},
@@ -30,24 +30,41 @@ func getClusterAgentRBACPolicyRules(identitySecretName string, enableK8sRemediat
 			Verbs:         []string{rbac.GetVerb, rbac.UpdateVerb, rbac.CreateVerb},
 		},
 	}
+}
 
-	if enableK8sRemediation {
-		baseRules = append(baseRules, rbacv1.PolicyRule{
+// getK8sRemediationPolicyRules returns the ClusterRole policy rules required for k8s remediation actions
+func getK8sRemediationPolicyRules() []rbacv1.PolicyRule {
+	// As of 2026-03-18, this list represents the policies needed for remediation, constrained within the maximum set the DCA could have if all features were enabled
+	return []rbacv1.PolicyRule{
+		// Read all workload types
+		{
+			APIGroups: []string{rbac.AppsAPIGroup},
+			Resources: []string{rbac.DeploymentsResource, rbac.DaemonsetsResource, rbac.StatefulsetsResource, rbac.ReplicasetsResource},
+			Verbs:     []string{rbac.GetVerb, rbac.ListVerb, rbac.WatchVerb},
+		},
+		// Write deployments (patch/restart)
+		{
 			APIGroups: []string{rbac.AppsAPIGroup},
 			Resources: []string{rbac.DeploymentsResource},
-			Verbs:     []string{rbac.GetVerb, rbac.WatchVerb, rbac.PatchVerb, rbac.CreateVerb},
-		})
-		baseRules = append(baseRules, rbacv1.PolicyRule{
+			Verbs:     []string{rbac.PatchVerb, rbac.CreateVerb},
+		},
+		// Read pods
+		{
 			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{rbac.PodsResource, rbac.ConfigMapsResource, rbac.EventsResource},
-			Verbs:     []string{rbac.GetVerb, rbac.WatchVerb, rbac.PatchVerb, rbac.CreateVerb},
-		})
-		baseRules = append(baseRules, rbacv1.PolicyRule{
+			Resources: []string{rbac.PodsResource},
+			Verbs:     []string{rbac.GetVerb, rbac.ListVerb, rbac.WatchVerb},
+		},
+		// Full access to configmaps
+		{
 			APIGroups: []string{rbac.CoreAPIGroup},
 			Resources: []string{rbac.ConfigMapsResource},
-			Verbs:     []string{rbac.UpdateVerb},
-		})
+			Verbs:     []string{rbac.GetVerb, rbac.ListVerb, rbac.WatchVerb, rbac.CreateVerb, rbac.UpdateVerb, rbac.PatchVerb},
+		},
+		// Write events
+		{
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.EventsResource},
+			Verbs:     []string{rbac.CreateVerb, rbac.PatchVerb},
+		},
 	}
-
-	return baseRules
 }

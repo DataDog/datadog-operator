@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -173,12 +174,20 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 			return err
 		}
 
+		var clusterAgentPolicyRules []rbacv1.PolicyRule
 		if f.clusterConfig.SelfEnroll {
-			err := managers.RBACManager().AddPolicyRules(
+			clusterAgentPolicyRules = append(clusterAgentPolicyRules, getClusterAgentRBACPolicyRules(f.clusterConfig.IdentitySecretName)...)
+		}
+		if f.k8sRemediationEnabled {
+			clusterAgentPolicyRules = append(clusterAgentPolicyRules, getK8sRemediationPolicyRules()...)
+		}
+		if len(clusterAgentPolicyRules) > 0 {
+			err := managers.RBACManager().AddClusterPolicyRulesByComponent(
 				f.owner.GetNamespace(),
 				f.getRbacResourcesName(),
 				f.clusterServiceAccountName,
-				getClusterAgentRBACPolicyRules(f.clusterConfig.IdentitySecretName, f.k8sRemediationEnabled),
+				clusterAgentPolicyRules,
+				string(v2alpha1.ClusterAgentComponentName),
 			)
 			if err != nil {
 				return err
