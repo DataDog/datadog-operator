@@ -5,7 +5,7 @@
 
 package appsec
 
-const ClusterAgentMinVersion = "7.73.0"
+const ClusterAgentMinVersion = "7.76.0"
 
 // Appsec proxy injection annotations (Preview feature)
 const (

@@ -60,7 +60,7 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with minimal config",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithClusterAgentTag("7.73.0").
+				WithClusterAgentTag("7.76.0").
 				WithAnnotations(map[string]string{
 					AnnotationInjectorEnabled:              "true",
 					AnnotationInjectorAutoDetect:           "true",
@@ -78,7 +78,7 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with autoDetect true",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithClusterAgentTag("7.73.0").
+				WithClusterAgentTag("7.76.0").
 				WithAnnotations(map[string]string{
 					AnnotationInjectorEnabled:              "true",
 					AnnotationInjectorAutoDetect:           "true",
@@ -96,7 +96,7 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with autoDetect false",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithClusterAgentTag("7.73.0").
+				WithClusterAgentTag("7.76.0").
 				WithAnnotations(map[string]string{
 					AnnotationInjectorEnabled:              "true",
 					AnnotationInjectorAutoDetect:           "false",
@@ -116,7 +116,7 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with proxies list",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithClusterAgentTag("7.73.0").
+				WithClusterAgentTag("7.76.0").
 				WithAnnotations(map[string]string{
 					AnnotationInjectorEnabled:              "true",
 					AnnotationInjectorProxies:              `["envoy-gateway","istio"]`,
@@ -134,7 +134,7 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with processor port",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithClusterAgentTag("7.73.0").
+				WithClusterAgentTag("7.76.0").
 				WithAnnotations(map[string]string{
 					AnnotationInjectorEnabled:              "true",
 					AnnotationInjectorAutoDetect:           "true",
@@ -154,7 +154,7 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with processor address",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithClusterAgentTag("7.73.0").
+				WithClusterAgentTag("7.76.0").
 				WithAnnotations(map[string]string{
 					AnnotationInjectorEnabled:              "true",
 					AnnotationInjectorAutoDetect:           "true",
@@ -174,7 +174,7 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with processor service name and namespace",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithClusterAgentTag("7.73.0").
+				WithClusterAgentTag("7.76.0").
 				WithAnnotations(map[string]string{
 					AnnotationInjectorEnabled:                   "true",
 					AnnotationInjectorAutoDetect:                "true",
@@ -195,7 +195,7 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with full config",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithClusterAgentTag("7.73.0").
+				WithClusterAgentTag("7.76.0").
 				WithAnnotations(map[string]string{
 					AnnotationInjectorEnabled:                   "true",
 					AnnotationInjectorAutoDetect:                "true",
@@ -222,7 +222,7 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with istio-gateway proxy",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithClusterAgentTag("7.73.0").
+				WithClusterAgentTag("7.76.0").
 				WithAnnotations(map[string]string{
 					AnnotationInjectorEnabled:  "true",
 					AnnotationInjectorProxies:  `["istio-gateway"]`,
@@ -240,7 +240,7 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled in sidecar mode without ProcessorServiceName",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithClusterAgentTag("7.73.0").
+				WithClusterAgentTag("7.76.0").
 				WithAnnotations(map[string]string{
 					AnnotationInjectorEnabled:    "true",
 					AnnotationInjectorAutoDetect: "true",
@@ -258,7 +258,7 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled in sidecar mode with full sidecar config",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithClusterAgentTag("7.73.0").
+				WithClusterAgentTag("7.76.0").
 				WithAnnotations(map[string]string{
 					AnnotationInjectorEnabled:                "true",
 					AnnotationInjectorAutoDetect:             "true",
@@ -294,7 +294,7 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled in external mode requires ProcessorServiceName",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithClusterAgentTag("7.73.0").
+				WithClusterAgentTag("7.76.0").
 				WithAnnotations(map[string]string{
 					AnnotationInjectorEnabled:              "true",
 					AnnotationInjectorAutoDetect:           "true",
@@ -326,8 +326,8 @@ func TestAppsecVersionCheck(t *testing.T) {
 		wantConfigured  bool
 	}{
 		{
-			name:            "version below minimum 7.72.0",
-			clusterAgentTag: "7.72.0",
+			name:            "version below minimum 7.75.0",
+			clusterAgentTag: "7.75.0",
 			wantConfigured:  false,
 		},
 		{
@@ -336,13 +336,13 @@ func TestAppsecVersionCheck(t *testing.T) {
 			wantConfigured:  false,
 		},
 		{
-			name:            "version at exact minimum 7.73.0",
-			clusterAgentTag: "7.73.0",
+			name:            "version at exact minimum 7.76.0",
+			clusterAgentTag: "7.76.0",
 			wantConfigured:  true,
 		},
 		{
-			name:            "version above minimum 7.74.0",
-			clusterAgentTag: "7.74.0",
+			name:            "version above minimum 7.77.0",
+			clusterAgentTag: "7.77.0",
 			wantConfigured:  true,
 		},
 		{
@@ -425,7 +425,7 @@ func TestAppsecFeatureConfigure(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dda := testutils.NewDatadogAgentBuilder().
-				WithClusterAgentTag("7.73.0").
+				WithClusterAgentTag("7.76.0").
 				WithAnnotations(tt.annotations).
 				Build()
 
@@ -478,7 +478,7 @@ func TestAppsecFeatureManageClusterAgentDisabled(t *testing.T) {
 func TestAppsecFeatureManageClusterAgentEnabled(t *testing.T) {
 	// Test that ManageClusterAgent adds env vars when feature is enabled
 	dda := testutils.NewDatadogAgentBuilder().
-		WithClusterAgentTag("7.73.0").
+		WithClusterAgentTag("7.76.0").
 		WithAnnotations(map[string]string{
 			AnnotationInjectorEnabled:              "true",
 			AnnotationInjectorAutoDetect:           "true",

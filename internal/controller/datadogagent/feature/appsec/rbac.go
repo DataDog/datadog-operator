@@ -86,7 +86,7 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 			},
 		},
 		// Istio resources
-		{Yes the
+		{
 			APIGroups: []string{"networking.istio.io"},
 			Resources: []string{"envoyfilters"},
 			Verbs: []string{
