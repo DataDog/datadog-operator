@@ -1,7 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 # Adds namespace to all resources.
-namespace: datadog-operator
+namespace: system
 
 # Value of this field is prepended to the
 # names of all resources, e.g. a deployment named
@@ -85,7 +85,7 @@ resources:
 #      group: cert-manager.io
 #      kind: Certificate
 #      name: serving-cert
-#      namespace: datadog-operator
+#      namespace: system
 #      version: v1
 #  - fieldPaths:
 #    - spec.dnsNames.0
@@ -97,7 +97,7 @@ resources:
 #      group: cert-manager.io
 #      kind: Certificate
 #      name: serving-cert
-#      namespace: datadog-operator
+#      namespace: system
 #      version: v1
 #- source:
 #    fieldPath: metadata.name
@@ -113,7 +113,7 @@ resources:
 #      group: cert-manager.io
 #      kind: Certificate
 #      name: serving-cert
-#      namespace: datadog-operator
+#      namespace: system
 #      version: v1
 #  - fieldPaths:
 #    - spec.dnsNames.0
@@ -124,5 +124,5 @@ resources:
 #      group: cert-manager.io
 #      kind: Certificate
 #      name: serving-cert
-#      namespace: datadog-operator
+#      namespace: system
 #      version: v1
