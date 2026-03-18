@@ -21,16 +21,16 @@ type Config struct {
 	ProcessorServiceName      string
 	ProcessorServiceNamespace string
 	// Sidecar injection mode fields
-	Mode                        string
-	SidecarImage                string
-	SidecarImageTag             string
-	SidecarPort                 string
-	SidecarHealthPort           string
+	Mode                           string
+	SidecarImage                   string
+	SidecarImageTag                string
+	SidecarPort                    string
+	SidecarHealthPort              string
 	SidecarResourcesRequestsCPU    string
 	SidecarResourcesRequestsMemory string
 	SidecarResourcesLimitsCPU      string
 	SidecarResourcesLimitsMemory   string
-	SidecarBodyParsingSizeLimit string
+	SidecarBodyParsingSizeLimit    string
 }
 
 // FromAnnotations creates an appsec.Config from an annotation map and validates it.

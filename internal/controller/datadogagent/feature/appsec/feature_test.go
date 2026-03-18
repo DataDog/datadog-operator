@@ -224,8 +224,8 @@ func TestAppsecFeature(t *testing.T) {
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithClusterAgentTag("7.76.0").
 				WithAnnotations(map[string]string{
-					AnnotationInjectorEnabled:  "true",
-					AnnotationInjectorProxies:  `["istio-gateway"]`,
+					AnnotationInjectorEnabled:    "true",
+					AnnotationInjectorProxies:    `["istio-gateway"]`,
 					AnnotationInjectorAutoDetect: "false",
 				}).
 				Build(),
@@ -267,11 +267,11 @@ func TestAppsecFeature(t *testing.T) {
 					AnnotationSidecarImageTag:                "latest",
 					AnnotationSidecarPort:                    "8080",
 					AnnotationSidecarHealthPort:              "8081",
-					AnnotationSidecarResourcesRequestsCPU:   "100m",
+					AnnotationSidecarResourcesRequestsCPU:    "100m",
 					AnnotationSidecarResourcesRequestsMemory: "128Mi",
-					AnnotationSidecarResourcesLimitsCPU:     "500m",
-					AnnotationSidecarResourcesLimitsMemory:  "256Mi",
-					AnnotationSidecarBodyParsingSizeLimit:   "1048576",
+					AnnotationSidecarResourcesLimitsCPU:      "500m",
+					AnnotationSidecarResourcesLimitsMemory:   "256Mi",
+					AnnotationSidecarBodyParsingSizeLimit:    "1048576",
 				}).
 				Build(),
 
