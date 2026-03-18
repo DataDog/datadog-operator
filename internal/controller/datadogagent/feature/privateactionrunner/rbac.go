@@ -36,29 +36,34 @@ func getClusterAgentRBACPolicyRules(identitySecretName string) []rbacv1.PolicyRu
 func getK8sRemediationPolicyRules() []rbacv1.PolicyRule {
 	// As of 2026-03-18, this list represents the policies needed for remediation, constrained within the maximum set the DCA could have if all features were enabled
 	return []rbacv1.PolicyRule{
-		// Read all workload types
+		// Read to some workload types
 		{
 			APIGroups: []string{rbac.AppsAPIGroup},
 			Resources: []string{rbac.DeploymentsResource, rbac.DaemonsetsResource, rbac.StatefulsetsResource, rbac.ReplicasetsResource},
+			Verbs:     []string{rbac.GetVerb, rbac.ListVerb, rbac.WatchVerb},
+		},
+		{
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.PodsResource, rbac.EventsResource, rbac.ConfigMapsResource},
 			Verbs:     []string{rbac.GetVerb, rbac.ListVerb, rbac.WatchVerb},
 		},
 		// Write deployments (patch/restart)
 		{
 			APIGroups: []string{rbac.AppsAPIGroup},
 			Resources: []string{rbac.DeploymentsResource},
-			Verbs:     []string{rbac.PatchVerb, rbac.CreateVerb},
+			Verbs:     []string{rbac.PatchVerb},
 		},
-		// Read pods
+		// Patch pods
 		{
 			APIGroups: []string{rbac.CoreAPIGroup},
 			Resources: []string{rbac.PodsResource},
-			Verbs:     []string{rbac.GetVerb, rbac.ListVerb, rbac.WatchVerb},
+			Verbs:     []string{rbac.PatchVerb},
 		},
-		// Full access to configmaps
+		// Full write access to configmaps
 		{
 			APIGroups: []string{rbac.CoreAPIGroup},
 			Resources: []string{rbac.ConfigMapsResource},
-			Verbs:     []string{rbac.GetVerb, rbac.ListVerb, rbac.WatchVerb, rbac.CreateVerb, rbac.UpdateVerb, rbac.PatchVerb},
+			Verbs:     []string{rbac.CreateVerb, rbac.UpdateVerb, rbac.PatchVerb},
 		},
 		// Write events
 		{
