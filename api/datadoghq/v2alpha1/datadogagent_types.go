@@ -1192,6 +1192,11 @@ type AdmissionControllerFeatureConfig struct {
 	// CWSInstrumentation holds the CWS Instrumentation endpoint configuration
 	// +optional
 	CWSInstrumentation *CWSInstrumentationConfig `json:"cwsInstrumentation,omitempty"`
+
+	// Probe holds the admission controller connectivity probe configuration.
+	// +doc-gen:exclude
+	// +optional
+	Probe *AdmissionControllerProbeConfig `json:"probe,omitempty"`
 }
 
 type AdmissionControllerValidationConfig struct {
@@ -1278,6 +1283,26 @@ type KubernetesAdmissionEventsConfig struct {
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// AdmissionControllerProbeConfig contains the configuration for the admission controller connectivity probe.
+type AdmissionControllerProbeConfig struct {
+	// Enabled enables the admission controller connectivity probe.
+	// The probe periodically sends dry-run ConfigMap creation requests to verify the
+	// webhook is reachable from the API server. Requires Cluster Agent 7.78.0+.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Interval is the number of seconds between probe executions.
+	// Default: 60
+	// +optional
+	Interval *int32 `json:"interval,omitempty"`
+
+	// GracePeriod is the number of seconds to wait at startup before the first probe.
+	// Default: 60
+	// +optional
+	GracePeriod *int32 `json:"gracePeriod,omitempty"`
 }
 
 // CWSInstrumentationConfig contains the configuration of the CWS Instrumentation admission controller endpoint.

@@ -195,6 +195,9 @@ func (builder *DatadogAgentInternalBuilder) initAdmissionController() {
 	if builder.datadogAgentInternal.Spec.Features.AdmissionController.CWSInstrumentation == nil {
 		builder.datadogAgentInternal.Spec.Features.AdmissionController.CWSInstrumentation = &v2alpha1.CWSInstrumentationConfig{}
 	}
+	if builder.datadogAgentInternal.Spec.Features.AdmissionController.Probe == nil {
+		builder.datadogAgentInternal.Spec.Features.AdmissionController.Probe = &v2alpha1.AdmissionControllerProbeConfig{}
+	}
 }
 
 func (builder *DatadogAgentInternalBuilder) initSidecarInjection() {
@@ -257,6 +260,24 @@ func (builder *DatadogAgentInternalBuilder) WithAdmissionControllerWebhookName(n
 func (builder *DatadogAgentInternalBuilder) WithAdmissionControllerRegistry(name string) *DatadogAgentInternalBuilder {
 	builder.initAdmissionController()
 	builder.datadogAgentInternal.Spec.Features.AdmissionController.Registry = apiutils.NewStringPointer(name)
+	return builder
+}
+
+func (builder *DatadogAgentInternalBuilder) WithAdmissionControllerProbeEnabled(enabled bool) *DatadogAgentInternalBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgentInternal.Spec.Features.AdmissionController.Probe.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentInternalBuilder) WithAdmissionControllerProbeInterval(interval int32) *DatadogAgentInternalBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgentInternal.Spec.Features.AdmissionController.Probe.Interval = &interval
+	return builder
+}
+
+func (builder *DatadogAgentInternalBuilder) WithAdmissionControllerProbeGracePeriod(gracePeriod int32) *DatadogAgentInternalBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgentInternal.Spec.Features.AdmissionController.Probe.GracePeriod = &gracePeriod
 	return builder
 }
 

@@ -630,6 +630,27 @@
                   },
                   "type": "object"
                 },
+                "probe": {
+                  "additionalProperties": false,
+                  "description": "Probe holds the admission controller connectivity probe configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables the admission controller connectivity probe.\nThe probe periodically sends dry-run ConfigMap creation requests to verify the\nwebhook is reachable from the API server. Requires Cluster Agent 7.78.0+.\nDefault: true",
+                      "type": "boolean"
+                    },
+                    "gracePeriod": {
+                      "description": "GracePeriod is the number of seconds to wait at startup before the first probe.\nDefault: 60",
+                      "format": "int32",
+                      "type": "integer"
+                    },
+                    "interval": {
+                      "description": "Interval is the number of seconds between probe executions.\nDefault: 60",
+                      "format": "int32",
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                },
                 "registry": {
                   "description": "Registry defines an image registry for the admission controller.",
                   "type": "string"
@@ -8755,6 +8776,27 @@
                         "enabled": {
                           "description": "Enabled enables the Admission Controller mutation webhook.\nDefault: true",
                           "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "probe": {
+                      "additionalProperties": false,
+                      "description": "Probe holds the admission controller connectivity probe configuration.",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables the admission controller connectivity probe.\nThe probe periodically sends dry-run ConfigMap creation requests to verify the\nwebhook is reachable from the API server. Requires Cluster Agent 7.78.0+.\nDefault: true",
+                          "type": "boolean"
+                        },
+                        "gracePeriod": {
+                          "description": "GracePeriod is the number of seconds to wait at startup before the first probe.\nDefault: 60",
+                          "format": "int32",
+                          "type": "integer"
+                        },
+                        "interval": {
+                          "description": "Interval is the number of seconds between probe executions.\nDefault: 60",
+                          "format": "int32",
+                          "type": "integer"
                         }
                       },
                       "type": "object"
