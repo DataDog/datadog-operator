@@ -20,6 +20,17 @@ type Config struct {
 	ProcessorPort             int
 	ProcessorServiceName      string
 	ProcessorServiceNamespace string
+	// Sidecar injection mode fields
+	Mode                        string
+	SidecarImage                string
+	SidecarImageTag             string
+	SidecarPort                 string
+	SidecarHealthPort           string
+	SidecarResourcesRequestsCPU    string
+	SidecarResourcesRequestsMemory string
+	SidecarResourcesLimitsCPU      string
+	SidecarResourcesLimitsMemory   string
+	SidecarBodyParsingSizeLimit string
 }
 
 // FromAnnotations creates an appsec.Config from an annotation map and validates it.
@@ -64,6 +75,17 @@ func FromAnnotations(annotations map[string]string) (config Config, err error) {
 		}
 	}
 
+	config.Mode = annotations[AnnotationInjectorMode]
+	config.SidecarImage = annotations[AnnotationSidecarImage]
+	config.SidecarImageTag = annotations[AnnotationSidecarImageTag]
+	config.SidecarPort = annotations[AnnotationSidecarPort]
+	config.SidecarHealthPort = annotations[AnnotationSidecarHealthPort]
+	config.SidecarResourcesRequestsCPU = annotations[AnnotationSidecarResourcesRequestsCPU]
+	config.SidecarResourcesRequestsMemory = annotations[AnnotationSidecarResourcesRequestsMemory]
+	config.SidecarResourcesLimitsCPU = annotations[AnnotationSidecarResourcesLimitsCPU]
+	config.SidecarResourcesLimitsMemory = annotations[AnnotationSidecarResourcesLimitsMemory]
+	config.SidecarBodyParsingSizeLimit = annotations[AnnotationSidecarBodyParsingSizeLimit]
+
 	// Validate the configuration before returning
 	if err = config.Validate(); err != nil {
 		return config, fmt.Errorf("invalid configuration: %w", err)
@@ -99,8 +121,14 @@ func (c Config) Validate() error {
 		}
 	}
 
-	if c.isEnabled() && c.ProcessorServiceName == "" {
-		return fmt.Errorf("processor service name is required when AppSec is enabled (annotation: %s)",
+	if c.Mode != "" && c.Mode != "sidecar" && c.Mode != "external" {
+		return fmt.Errorf("invalid mode %q (allowed values: sidecar, external, annotation: %s)",
+			c.Mode, AnnotationInjectorMode)
+	}
+
+	// ProcessorServiceName is only required in external mode (not in sidecar mode, which is the default)
+	if c.isEnabled() && c.Mode == "external" && c.ProcessorServiceName == "" {
+		return fmt.Errorf("processor service name is required when AppSec is enabled in external mode (annotation: %s)",
 			AnnotationInjectorProcessorServiceName)
 	}
 

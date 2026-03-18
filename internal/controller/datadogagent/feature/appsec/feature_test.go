@@ -219,6 +219,98 @@ func TestAppsecFeature(t *testing.T) {
 				envVar{name: DDClusterAgentAppsecInjectorProcessorServiceNamespace, value: "datadog", present: true},
 			),
 		},
+		{
+			Name: "Appsec enabled with istio-gateway proxy",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterAgentTag("7.73.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:  "true",
+					AnnotationInjectorProxies:  `["istio-gateway"]`,
+					AnnotationInjectorAutoDetect: "false",
+				}).
+				Build(),
+
+			WantConfigure: true,
+			ClusterAgent: assertEnv(
+				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
+				envVar{name: DDAppsecProxyProxies, value: `["istio-gateway"]`, present: true},
+			),
+		},
+		{
+			Name: "Appsec enabled in sidecar mode without ProcessorServiceName",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterAgentTag("7.73.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:    "true",
+					AnnotationInjectorAutoDetect: "true",
+					AnnotationInjectorMode:       "sidecar",
+				}).
+				Build(),
+
+			WantConfigure: true,
+			ClusterAgent: assertEnv(
+				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorMode, value: "sidecar", present: true},
+			),
+		},
+		{
+			Name: "Appsec enabled in sidecar mode with full sidecar config",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterAgentTag("7.73.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:                "true",
+					AnnotationInjectorAutoDetect:             "true",
+					AnnotationInjectorMode:                   "sidecar",
+					AnnotationSidecarImage:                   "datadog/appsec-proxy",
+					AnnotationSidecarImageTag:                "latest",
+					AnnotationSidecarPort:                    "8080",
+					AnnotationSidecarHealthPort:              "8081",
+					AnnotationSidecarResourcesRequestsCPU:   "100m",
+					AnnotationSidecarResourcesRequestsMemory: "128Mi",
+					AnnotationSidecarResourcesLimitsCPU:     "500m",
+					AnnotationSidecarResourcesLimitsMemory:  "256Mi",
+					AnnotationSidecarBodyParsingSizeLimit:   "1048576",
+				}).
+				Build(),
+
+			WantConfigure: true,
+			ClusterAgent: assertEnv(
+				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorMode, value: "sidecar", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarImage, value: "datadog/appsec-proxy", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarImageTag, value: "latest", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarPort, value: "8080", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarHealthPort, value: "8081", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarResourcesRequestsCPU, value: "100m", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarResourcesRequestsMemory, value: "128Mi", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarResourcesLimitsCPU, value: "500m", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarResourcesLimitsMemory, value: "256Mi", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarBodyParsingSizeLimit, value: "1048576", present: true},
+			),
+		},
+		{
+			Name: "Appsec enabled in external mode requires ProcessorServiceName",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterAgentTag("7.73.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:              "true",
+					AnnotationInjectorAutoDetect:           "true",
+					AnnotationInjectorMode:                 "external",
+					AnnotationInjectorProcessorServiceName: "appsec-processor",
+				}).
+				Build(),
+
+			WantConfigure: true,
+			ClusterAgent: assertEnv(
+				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorMode, value: "external", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorProcessorServiceName, value: "appsec-processor", present: true},
+			),
+		},
 	}.Run(t, buildAppsecFeature)
 }
 
@@ -514,6 +606,37 @@ func TestFromAnnotations(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "enabled in sidecar mode without ProcessorServiceName",
+			annotations: map[string]string{
+				AnnotationInjectorEnabled:    "true",
+				AnnotationInjectorAutoDetect: "true",
+				AnnotationInjectorMode:       "sidecar",
+			},
+			wantConfig: Config{
+				Enabled:    true,
+				AutoDetect: boolPtr(true),
+				Mode:       "sidecar",
+			},
+			wantErr: false,
+		},
+		{
+			name: "enabled in external mode without ProcessorServiceName returns error",
+			annotations: map[string]string{
+				AnnotationInjectorEnabled:    "true",
+				AnnotationInjectorAutoDetect: "true",
+				AnnotationInjectorMode:       "external",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid mode value",
+			annotations: map[string]string{
+				AnnotationInjectorEnabled: "true",
+				AnnotationInjectorMode:    "invalid-mode",
+			},
+			wantErr: true,
+		},
+		{
 			name: "full config",
 			annotations: map[string]string{
 				AnnotationInjectorEnabled:                   "true",
@@ -611,12 +734,46 @@ func TestConfigValidate(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "missing service name",
+			name: "missing service name in external mode",
+			config: Config{
+				Enabled:    true,
+				AutoDetect: boolPtr(true),
+				Mode:       "external",
+			},
+			wantErr: true,
+		},
+		{
+			name: "missing service name in sidecar mode is allowed",
+			config: Config{
+				Enabled:    true,
+				AutoDetect: boolPtr(true),
+				Mode:       "sidecar",
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing service name with no mode is allowed (defaults to sidecar)",
 			config: Config{
 				Enabled:    true,
 				AutoDetect: boolPtr(true),
 			},
+			wantErr: false,
+		},
+		{
+			name: "invalid mode value",
+			config: Config{
+				Enabled: true,
+				Mode:    "invalid-mode",
+			},
 			wantErr: true,
+		},
+		{
+			name: "istio-gateway is a valid proxy value",
+			config: Config{
+				Enabled: true,
+				Proxies: []string{"istio-gateway"},
+			},
+			wantErr: false,
 		},
 	}
 
