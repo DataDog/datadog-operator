@@ -66,7 +66,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_CSPMHostBenchmarksConfig(ref
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enabled enables host benchmarks. Default: true",
+							Description: "Enabled enables Linux host benchmarks. Requires `features.cspm.enabled` to be set to `true`. Default: true",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
