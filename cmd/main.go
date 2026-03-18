@@ -31,8 +31,10 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/klog/v2"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlconfig "sigs.k8s.io/controller-runtime/pkg/config"
 	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
@@ -289,6 +291,16 @@ func run(opts *options) error {
 			DatadogDashboardEnabled:       opts.datadogDashboardEnabled,
 			DatadogGenericResourceEnabled: opts.datadogGenericResourceEnabled,
 		}),
+		// UsePriorityQueue makes all controllers use the priority queue, which
+		// directly registers workqueue metrics into controller-runtime's metrics
+		// registry (ctrlmetrics.Registry) rather than routing them through the
+		// global workqueue.SetProvider() call. This is necessary because
+		// k8s.io/kube-aggregator (transitively via k8s.io/component-base) wins
+		// the sync.Once in SetProvider, routing standard workqueue metrics to the
+		// k8s legacy registry instead of controller-runtime's registry.
+		Controller: ctrlconfig.Controller{
+			UsePriorityQueue: ptr.To(true),
+		},
 	})
 	if err != nil {
 		return setupErrorf(setupLog, err, "Unable to start manager")
@@ -477,7 +489,7 @@ func (f *filteringEncoder) AddString(key, val string) {
 }
 
 // AddReflected filters out unwanted reflected fields (used for complex objects)
-func (f *filteringEncoder) AddReflected(key string, obj interface{}) error {
+func (f *filteringEncoder) AddReflected(key string, obj any) error {
 	if f.fieldsToSkip[key] {
 		return nil // skip this field
 	}

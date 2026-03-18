@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"regexp"
 	"strconv"
 	"strings"
@@ -131,14 +132,14 @@ type HelmReleaseMinimal struct {
 	Info      struct {
 		Status string `json:"status"`
 	} `json:"info"`
-	Config map[string]interface{} `json:"config"` // User-provided values only
+	Config map[string]any `json:"config"` // User-provided values only
 	Chart  struct {
 		Metadata struct {
 			Name       string `json:"name"`
 			Version    string `json:"version"`
 			AppVersion string `json:"appVersion"`
 		} `json:"metadata"`
-		Values map[string]interface{} `json:"values"` // Defaults
+		Values map[string]any `json:"values"` // Defaults
 	} `json:"chart"`
 	Version int `json:"version"` // Revision number
 }
@@ -249,7 +250,7 @@ func (hmf *HelmMetadataForwarder) runWorkers(ctx context.Context, numWorkers int
 		hmf.queue.ShutDown()
 	}()
 
-	for i := 0; i < numWorkers; i++ {
+	for i := range numWorkers {
 		go func(workerID int) {
 			// Recover from panics to prevent one worker crash from affecting others
 			defer utilruntime.HandleCrash()
@@ -268,8 +269,8 @@ func (hmf *HelmMetadataForwarder) runWorkers(ctx context.Context, numWorkers int
 					defer cancel()
 
 					var err error
-					if strings.HasPrefix(key, deletePrefix) {
-						hmf.handleDelete(strings.TrimPrefix(key, deletePrefix))
+					if after, ok := strings.CutPrefix(key, deletePrefix); ok {
+						hmf.handleDelete(after)
 					} else {
 						err = hmf.processKey(ctx, key)
 					}
@@ -476,7 +477,7 @@ func (hmf *HelmMetadataForwarder) sendAllSnapshots() {
 	count := 0
 	errors := 0
 
-	hmf.releaseSnapshots.Range(func(key, value interface{}) bool {
+	hmf.releaseSnapshots.Range(func(key, value any) bool {
 		entry := value.(*ReleaseEntry)
 
 		entry.mu.Lock()
@@ -640,17 +641,15 @@ func (hmf *HelmMetadataForwarder) decodeHelmReleaseFromBytes(data []byte) (*Helm
 
 // mergeValues merges chart default values with user-provided config
 // User config takes precedence over defaults (similar to Helm's merge logic)
-func (hmf *HelmMetadataForwarder) mergeValues(defaults, overrides map[string]interface{}) map[string]interface{} {
-	result := make(map[string]interface{})
+func (hmf *HelmMetadataForwarder) mergeValues(defaults, overrides map[string]any) map[string]any {
+	result := make(map[string]any)
 
-	for k, v := range defaults {
-		result[k] = v
-	}
+	maps.Copy(result, defaults)
 
 	for k, v := range overrides {
 		if existingVal, exists := result[k]; exists {
-			if existingMap, ok := existingVal.(map[string]interface{}); ok {
-				if overrideMap, ok := v.(map[string]interface{}); ok {
+			if existingMap, ok := existingVal.(map[string]any); ok {
+				if overrideMap, ok := v.(map[string]any); ok {
 					result[k] = hmf.mergeValues(existingMap, overrideMap)
 					continue
 				}
