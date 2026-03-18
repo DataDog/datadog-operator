@@ -360,7 +360,7 @@ func run(opts *options) error {
 		SecretRefreshInterval:         opts.secretRefreshInterval,
 		DatadogAgentEnabled:           opts.datadogAgentEnabled,
 		DatadogAgentInternalEnabled:   opts.datadogAgentInternalEnabled,
-		CreateControllerRevisions:     opts.createControllerRevisions,
+		CreateControllerRevisions:     opts.createControllerRevisions && opts.datadogAgentInternalEnabled, // Only enable if DDAI is also enabled.
 		DatadogMonitorEnabled:         opts.datadogMonitorEnabled,
 		DatadogSLOEnabled:             opts.datadogSLOEnabled,
 		OperatorMetricsEnabled:        opts.operatorMetricsEnabled,

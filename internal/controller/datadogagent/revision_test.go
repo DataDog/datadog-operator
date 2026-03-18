@@ -320,3 +320,39 @@ func TestManageRevision_Idempotent(t *testing.T) {
 	assert.Equal(t, status1.CurrentRevision, status2.CurrentRevision)
 	assert.Equal(t, status1.PreviousRevision, status2.PreviousRevision)
 }
+
+// TestListRevisions_ExcludesForeignOwner verifies that a ControllerRevision
+// sharing the same name label but owned by a different DDA UID (e.g. a
+// deleted-and-recreated DDA) is not returned by listRevisions.
+func TestListRevisions_ExcludesForeignOwner(t *testing.T) {
+	r, c := newRevisionTestReconciler(t)
+
+	// Current instance with UID "new-uid".
+	current := newRevisionTestOwner("test-dda", "default")
+	current.UID = "new-uid"
+
+	// A revision left over from a previous DDA with the same name but UID "old-uid".
+	isController := true
+	foreign := &appsv1.ControllerRevision{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-dda-oldrev",
+			Namespace: "default",
+			Labels:    map[string]string{"agent.datadoghq.com/datadogagent": "test-dda"},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: "datadoghq.com/v2alpha1",
+					Kind:       "DatadogAgent",
+					Name:       "test-dda",
+					UID:        "old-uid",
+					Controller: &isController,
+				},
+			},
+		},
+		Revision: 1,
+	}
+	require.NoError(t, c.Create(context.Background(), foreign))
+
+	revList, err := r.listRevisions(context.Background(), current)
+	require.NoError(t, err)
+	assert.Empty(t, revList.Items, "foreign revision should be excluded by UID filter")
+}

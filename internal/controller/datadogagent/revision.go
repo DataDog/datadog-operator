@@ -63,6 +63,21 @@ func (r *Reconciler) listRevisions(ctx context.Context, instance *v2alpha1.Datad
 	); err != nil {
 		return nil, fmt.Errorf("failed to list ControllerRevisions: %w", err)
 	}
+
+	// Filter to only the revisions owned by this specific DDA instance.
+	// A DDA deleted and recreated with the same name gets a new UID, so
+	// revisions from the old instance are excluded here rather than being
+	// mistaken for the current owner's history.
+	owned := revList.Items[:0]
+	for i := range revList.Items {
+		for _, ref := range revList.Items[i].OwnerReferences {
+			if ref.Controller != nil && *ref.Controller && ref.UID == instance.GetUID() {
+				owned = append(owned, revList.Items[i])
+				break
+			}
+		}
+	}
+	revList.Items = owned
 	return revList, nil
 }
 
