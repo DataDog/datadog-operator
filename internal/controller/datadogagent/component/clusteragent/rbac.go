@@ -18,9 +18,10 @@ import (
 // GetDefaultClusterAgentRolePolicyRules returns the default policy rules for the Cluster Agent
 // Can be used by the Agent if the Cluster Agent is disabled
 func GetDefaultClusterAgentRolePolicyRules(dda metav1.Object) []rbacv1.PolicyRule {
-	rules := []rbacv1.PolicyRule{}
+	leaderElectionRules := getLeaderElectionPolicyRuleDCA(dda)
+	rules := make([]rbacv1.PolicyRule, 0, 2+len(leaderElectionRules))
 
-	rules = append(rules, getLeaderElectionPolicyRuleDCA(dda)...)
+	rules = append(rules, leaderElectionRules...)
 	rules = append(rules, rbacv1.PolicyRule{
 		APIGroups: []string{rbac.CoreAPIGroup},
 		Resources: []string{rbac.ConfigMapsResource},

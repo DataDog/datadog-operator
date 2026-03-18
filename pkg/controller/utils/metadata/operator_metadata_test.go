@@ -229,7 +229,7 @@ func Test_GetPayload(t *testing.T) {
 	}
 
 	// Parse JSON to validate specific values
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	if err := json.Unmarshal(payload, &parsed); err != nil {
 		t.Fatalf("GetPayload() returned invalid JSON: %v", err)
 	}
@@ -244,7 +244,7 @@ func Test_GetPayload(t *testing.T) {
 	}
 
 	// Validate metadata object exists
-	metadata, ok := parsed["datadog_operator_metadata"].(map[string]interface{})
+	metadata, ok := parsed["datadog_operator_metadata"].(map[string]any)
 	if !ok {
 		t.Fatal("GetPayload() missing or invalid datadog_operator_metadata")
 	}
@@ -297,7 +297,7 @@ func Test_GetPayload(t *testing.T) {
 	}
 
 	// Verify resource_count is a valid map
-	if resourceCount, ok := metadata["resource_count"].(map[string]interface{}); ok {
+	if resourceCount, ok := metadata["resource_count"].(map[string]any); ok {
 		// Valid map - verify it's structured correctly (values are numbers)
 		for _, value := range resourceCount {
 			if _, ok := value.(float64); !ok {
@@ -334,11 +334,11 @@ func Test_GetPayload_Concurrent(t *testing.T) {
 	const numGoroutines = 50
 	done := make(chan bool, numGoroutines)
 
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		go func(id int) {
 			// Call GetPayload multiple times with DIFFERENT cluster IDs
 			// This increases likelihood of detecting races
-			for j := 0; j < 10; j++ {
+			for j := range 10 {
 				clusterUID := fmt.Sprintf("test-cluster-uid-%d-%d", id, j)
 				payload := omf.GetPayload(clusterUID)
 				if len(payload) == 0 {
@@ -351,14 +351,14 @@ func Test_GetPayload_Concurrent(t *testing.T) {
 
 	updateDone := make(chan bool, 1)
 	go func() {
-		for i := 0; i < 10; i++ {
+		for range 10 {
 			omf.updateResourceCounts()
 		}
 		updateDone <- true
 	}()
 
 	// Wait for all goroutines to complete
-	for i := 0; i < numGoroutines; i++ {
+	for range numGoroutines {
 		<-done
 	}
 	<-updateDone

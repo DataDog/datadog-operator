@@ -17,7 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/utils"
 )
 
-type MappingRunFunc = func(values map[string]interface{}, newPath string, pathVal interface{}, args []interface{})
+type MappingRunFunc = func(values map[string]any, newPath string, pathVal any, args []any)
 type MappingProcessor struct {
 	name    string
 	runFunc MappingRunFunc
@@ -43,7 +43,7 @@ func mapFuncRegistry() map[string]MappingRunFunc {
 // mapSecretKeyName adds the secret `keyName` field for mapping k8s secrets
 var mapSecretKeyName = MappingProcessor{
 	name: "mapSecretKeyName",
-	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
+	runFunc: func(interim map[string]any, newPath string, pathVal any, args []any) {
 		if len(args) != 1 {
 			return
 		}
@@ -63,7 +63,7 @@ var mapSecretKeyName = MappingProcessor{
 // mapSeccompProfile Maps the seccompProfile
 var mapSeccompProfile = MappingProcessor{
 	name: "mapSeccompProfile",
-	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
+	runFunc: func(interim map[string]any, newPath string, pathVal any, args []any) {
 		seccompValue, err := pathVal.(string)
 		if !err {
 			return
@@ -85,7 +85,7 @@ var mapSeccompProfile = MappingProcessor{
 // mapSystemProbeAppArmor Maps the systemProbe appArmor profile name
 var mapSystemProbeAppArmor = MappingProcessor{
 	name: "mapSystemProbeAppArmor",
-	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
+	runFunc: func(interim map[string]any, newPath string, pathVal any, args []any) {
 		appArmorValue, err := pathVal.(string)
 		if !err || appArmorValue == "" {
 			// must be set to non-empty string
@@ -126,7 +126,7 @@ var mapSystemProbeAppArmor = MappingProcessor{
 // mapLocalServiceName maps the localService name
 var mapLocalServiceName = MappingProcessor{
 	name: "mapLocalServiceName",
-	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
+	runFunc: func(interim map[string]any, newPath string, pathVal any, args []any) {
 		nameOverride, ok := pathVal.(string)
 		if !ok || nameOverride == "" {
 			return
@@ -141,7 +141,7 @@ var mapLocalServiceName = MappingProcessor{
 //   - name: DD_ENV_VAR
 var mapAppendEnvVar = MappingProcessor{
 	name: "mapAppendEnvVar",
-	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
+	runFunc: func(interim map[string]any, newPath string, pathVal any, args []any) {
 		if len(args) != 1 {
 			return
 		}
@@ -159,7 +159,7 @@ var mapAppendEnvVar = MappingProcessor{
 			return
 		}
 		// Base env var
-		newEnvVar := map[string]interface{}{
+		newEnvVar := map[string]any{
 			"name":  newEnvName,
 			"value": pathVal,
 		}
@@ -167,14 +167,14 @@ var mapAppendEnvVar = MappingProcessor{
 		// Handle valueFrom
 		// a) valFrom is a Map
 		if valFrom, vOk := utils.GetPathVal(pathVal, "valueFrom"); vOk && valFrom != nil {
-			newEnvVar = map[string]interface{}{"name": newEnvName, "valueFrom": valFrom}
+			newEnvVar = map[string]any{"name": newEnvName, "valueFrom": valFrom}
 		} else {
 			// b) valFrom is YAML string
 			if s, isStr := pathVal.(string); isStr && strings.Contains(s, "valueFrom") {
-				var data map[string]interface{}
+				var data map[string]any
 				if err := yaml.Unmarshal([]byte(s), &data); err == nil {
 					if v, vStrOk := data["valueFrom"]; vStrOk {
-						newEnvVar = map[string]interface{}{"name": newEnvName, "valueFrom": v}
+						newEnvVar = map[string]any{"name": newEnvName, "valueFrom": v}
 					}
 				}
 			}
@@ -182,11 +182,11 @@ var mapAppendEnvVar = MappingProcessor{
 
 		// Create the interim[newPath] if it doesn't exist yet
 		if _, exists := interim[newPath]; !exists {
-			utils.MergeOrSet(interim, newPath, []interface{}{newEnvVar})
+			utils.MergeOrSet(interim, newPath, []any{newEnvVar})
 			return
 		}
 
-		existingEnvs, ok := interim[newPath].([]interface{})
+		existingEnvs, ok := interim[newPath].([]any)
 		if !ok {
 			slog.Error("expected []interface{} at path", "path", newPath, "got", fmt.Sprintf("%T", interim[newPath]))
 			return
@@ -203,18 +203,18 @@ var mapAppendEnvVar = MappingProcessor{
 // environment variables at the target path.
 var mapMergeEnvs = MappingProcessor{
 	name: "mapMergeEnvs",
-	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
-		newEnvs, ok := pathVal.([]interface{})
+	runFunc: func(interim map[string]any, newPath string, pathVal any, args []any) {
+		newEnvs, ok := pathVal.([]any)
 		if !ok {
 			slog.Warn("expected []interface{} for pathVal", "got", fmt.Sprintf("%T", pathVal))
 			return
 		}
 
 		// Initialize mergedEnvs with existing environments or an empty slice
-		var mergedEnvs []interface{}
+		var mergedEnvs []any
 		if existingEnvs, exists := interim[newPath]; exists {
-			if existingEnvsSlice, ok := existingEnvs.([]interface{}); ok {
-				mergedEnvs = make([]interface{}, 0, len(existingEnvsSlice))
+			if existingEnvsSlice, ok := existingEnvs.([]any); ok {
+				mergedEnvs = make([]any, 0, len(existingEnvsSlice))
 				mergedEnvs = append(mergedEnvs, existingEnvsSlice...)
 			}
 		}
@@ -260,7 +260,7 @@ var mapMergeEnvs = MappingProcessor{
 // Supports mapping slice -> string and string -> int.
 var mapOverrideType = MappingProcessor{
 	name: "mapOverrideType",
-	runFunc: func(interim map[string]interface{}, newPath string, pathVal interface{}, args []interface{}) {
+	runFunc: func(interim map[string]any, newPath string, pathVal any, args []any) {
 		{
 			if len(args) != 1 {
 				return
@@ -297,7 +297,7 @@ var mapOverrideType = MappingProcessor{
 }
 
 // hasDuplicateEnv checks if a given env var name is already present in the given list of env vars.
-func hasDuplicateEnv(existingEnvs []interface{}, newEnvName string) bool {
+func hasDuplicateEnv(existingEnvs []any, newEnvName string) bool {
 	for _, existingEnv := range existingEnvs {
 		if existingMap, ok := utils.GetPathMap(existingEnv); ok {
 			if existingName, ok := utils.GetPathString(existingMap, "name"); ok && existingName == newEnvName {

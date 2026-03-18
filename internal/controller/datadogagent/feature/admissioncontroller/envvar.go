@@ -29,4 +29,7 @@ const (
 	DDAdmissionControllerCWSInstrumentationEnabled        = "DD_ADMISSION_CONTROLLER_CWS_INSTRUMENTATION_ENABLED"
 	DDAdmissionControllerCWSInstrumentationMode           = "DD_ADMISSION_CONTROLLER_CWS_INSTRUMENTATION_MODE"
 	DDAdmissionControllerKubernetesAdmissionEventsEnabled = "DD_ADMISSION_CONTROLLER_KUBERNETES_ADMISSION_EVENTS_ENABLED"
+	DDAdmissionControllerProbeEnabled                     = "DD_ADMISSION_CONTROLLER_PROBE_ENABLED"
+	DDAdmissionControllerProbeInterval                    = "DD_ADMISSION_CONTROLLER_PROBE_INTERVAL"
+	DDAdmissionControllerProbeGracePeriod                 = "DD_ADMISSION_CONTROLLER_PROBE_GRACE_PERIOD"
 )

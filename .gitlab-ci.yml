@@ -74,7 +74,19 @@ unit_tests:
   before_script:
     - make install-tools
   script:
-    - make test
+    - make ci-test
+
+verify_licenses:
+  stage: test
+  tags: ["arch:amd64"]
+  rules:
+    - if: '$DDR == "true"'
+      when: never
+    - when: on_success
+  before_script:
+    - make install-tools
+  script:
+    - make verify-licenses
 
 check-golang-version:
   stage: build
@@ -116,6 +128,28 @@ check_formatting:
   script:
     - make fmt
     - git diff --exit-code
+
+lint_e2e:
+  stage: test
+  tags: ["arch:amd64"]
+  rules:
+    - if: '$DDR == "true"'
+      when: never
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        paths:
+          - "test/e2e/**/*"
+        compare_to: "refs/heads/main"
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+    - when: never
+  variables:
+    <<: *resource_variables
+  before_script:
+    - make install-tools
+  script:
+    - make lint-e2e
 
 build_operator_image_amd64:
   stage: image
@@ -790,16 +824,8 @@ publish_nightly_workflow:
     project: DataDog/k8s-datadog-agent-ops
     branch: main
     strategy: depend
-    forward:
-      pipeline_variables: true
   variables:
     OPERATOR_NIGHTLY: "true"
-    # Conductor-related variables
-    APPS: $APPS
-    BAZEL_TARGET: $BAZEL_TARGET
-    DDR: $DDR
-    TARGET_ENV: $TARGET_ENV
-    CONDUCTOR_TARGET: $CONDUCTOR_TARGET
     DDR_WORKFLOW_ID: $DDR_WORKFLOW_ID
 
 # On success, this will cause CNAB to trigger a Deployment to Release Candidate clusters and open a corresponding pull request
