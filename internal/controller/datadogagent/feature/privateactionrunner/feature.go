@@ -174,12 +174,12 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 		}
 
 		if f.clusterConfig.SelfEnroll {
-			err := managers.RBACManager().AddPolicyRulesByComponent(
+			// This creates a Role (not ClusterRole) with permissions on the identity secret used during self enrollment
+			err := managers.RBACManager().AddPolicyRules(
 				f.owner.GetNamespace(),
 				f.getRbacResourcesName(),
 				f.clusterServiceAccountName,
 				getClusterAgentRBACPolicyRules(f.clusterConfig.IdentitySecretName),
-				string(v2alpha1.ClusterAgentComponentName),
 			)
 			if err != nil {
 				return err
@@ -187,12 +187,12 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 		}
 
 		if f.k8sRemediationEnabled {
-			err := managers.RBACManager().AddClusterPolicyRulesByComponent(
+			// This creates a ClusterRole with cluster-wide access to workload resources for k8s remediation.
+			err := managers.RBACManager().AddClusterPolicyRules(
 				f.owner.GetNamespace(),
 				f.getRbacResourcesName(),
 				f.clusterServiceAccountName,
 				getK8sRemediationPolicyRules(),
-				string(v2alpha1.ClusterAgentComponentName),
 			)
 			if err != nil {
 				return err
