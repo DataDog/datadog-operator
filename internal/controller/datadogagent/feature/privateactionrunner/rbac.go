@@ -32,9 +32,9 @@ func getClusterAgentRBACPolicyRules(identitySecretName string) []rbacv1.PolicyRu
 	}
 }
 
-// getK8sRemediationPolicyRules returns the ClusterRole policy rules required for k8s remediation actions
+// getK8sRemediationPolicyRules returns the ClusterRole policy rules required for k8s remediation actions.
+// The policy rules included are constrained within the maximum set the DCA could have if all features were enabled
 func getK8sRemediationPolicyRules() []rbacv1.PolicyRule {
-	// As of 2026-03-18, this list represents the policies needed for remediation, constrained within the maximum set the DCA could have if all features were enabled
 	return []rbacv1.PolicyRule{
 		// Read to some workload types
 		{
