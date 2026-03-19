@@ -637,6 +637,30 @@ func TestFromAnnotations(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "invalid sidecar port annotation",
+			annotations: map[string]string{
+				AnnotationInjectorEnabled: "true",
+				AnnotationSidecarPort:     "99999",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid sidecar health port annotation",
+			annotations: map[string]string{
+				AnnotationInjectorEnabled:   "true",
+				AnnotationSidecarHealthPort: "0",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid resource quantity annotation",
+			annotations: map[string]string{
+				AnnotationInjectorEnabled:           "true",
+				AnnotationSidecarResourcesLimitsCPU: "not-valid",
+			},
+			wantErr: true,
+		},
+		{
 			name: "full config",
 			annotations: map[string]string{
 				AnnotationInjectorEnabled:                   "true",
@@ -772,6 +796,89 @@ func TestConfigValidate(t *testing.T) {
 			config: Config{
 				Enabled: true,
 				Proxies: []string{"istio-gateway"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid sidecar port - not a number",
+			config: Config{
+				Enabled:     true,
+				SidecarPort: "not-a-port",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid sidecar port - out of range",
+			config: Config{
+				Enabled:     true,
+				SidecarPort: "99999",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid sidecar port - zero",
+			config: Config{
+				Enabled:     true,
+				SidecarPort: "0",
+			},
+			wantErr: true,
+		},
+		{
+			name: "valid sidecar port",
+			config: Config{
+				Enabled:     true,
+				SidecarPort: "8080",
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid sidecar health port - out of range",
+			config: Config{
+				Enabled:           true,
+				SidecarHealthPort: "0",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid body parsing size limit - not a number",
+			config: Config{
+				Enabled:                     true,
+				SidecarBodyParsingSizeLimit: "abc",
+			},
+			wantErr: true,
+		},
+		{
+			name: "valid body parsing size limit - positive",
+			config: Config{
+				Enabled:                     true,
+				SidecarBodyParsingSizeLimit: "1048576",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid body parsing size limit - negative (disables)",
+			config: Config{
+				Enabled:                     true,
+				SidecarBodyParsingSizeLimit: "-1",
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid resource quantity - CPU",
+			config: Config{
+				Enabled:                   true,
+				SidecarResourcesLimitsCPU: "not-a-quantity",
+			},
+			wantErr: true,
+		},
+		{
+			name: "valid resource quantities",
+			config: Config{
+				Enabled:                        true,
+				SidecarResourcesRequestsCPU:    "100m",
+				SidecarResourcesRequestsMemory: "128Mi",
+				SidecarResourcesLimitsCPU:      "500m",
+				SidecarResourcesLimitsMemory:   "256Mi",
 			},
 			wantErr: false,
 		},

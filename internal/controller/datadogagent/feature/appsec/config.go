@@ -10,6 +10,9 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 type Config struct {
@@ -132,5 +135,48 @@ func (c Config) Validate() error {
 			AnnotationInjectorProcessorServiceName)
 	}
 
+	if err := validatePort(c.SidecarPort, AnnotationSidecarPort); err != nil {
+		return err
+	}
+
+	if err := validatePort(c.SidecarHealthPort, AnnotationSidecarHealthPort); err != nil {
+		return err
+	}
+
+	if c.SidecarBodyParsingSizeLimit != "" {
+		if _, err := strconv.ParseInt(c.SidecarBodyParsingSizeLimit, 10, 64); err != nil {
+			return fmt.Errorf("cannot parse annotation %q value: %w", AnnotationSidecarBodyParsingSizeLimit, err)
+		}
+	}
+
+	for val, annot := range map[string]string{
+		c.SidecarResourcesRequestsCPU:    AnnotationSidecarResourcesRequestsCPU,
+		c.SidecarResourcesRequestsMemory: AnnotationSidecarResourcesRequestsMemory,
+		c.SidecarResourcesLimitsCPU:      AnnotationSidecarResourcesLimitsCPU,
+		c.SidecarResourcesLimitsMemory:   AnnotationSidecarResourcesLimitsMemory,
+	} {
+		if val != "" {
+			if _, err := resource.ParseQuantity(val); err != nil {
+				return fmt.Errorf("invalid resource quantity %q for annotation %s: %w",
+					val, annot, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// validatePort checks that a string port value, if non-empty, is a valid port number (1-65535).
+func validatePort(portStr, annotation string) error {
+	if portStr == "" {
+		return nil
+	}
+	v, err := strconv.Atoi(portStr)
+	if err != nil {
+		return fmt.Errorf("cannot parse annotation %q value: %w", annotation, err)
+	}
+	if errs := validation.IsValidPortNum(v); len(errs) > 0 {
+		return fmt.Errorf("invalid port for annotation %q: %s", annotation, errs[0])
+	}
 	return nil
 }
