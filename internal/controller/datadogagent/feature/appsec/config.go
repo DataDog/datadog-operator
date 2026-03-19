@@ -10,6 +10,9 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 type Config struct {
@@ -20,6 +23,17 @@ type Config struct {
 	ProcessorPort             int
 	ProcessorServiceName      string
 	ProcessorServiceNamespace string
+	// Sidecar injection mode fields
+	Mode                           string
+	SidecarImage                   string
+	SidecarImageTag                string
+	SidecarPort                    string
+	SidecarHealthPort              string
+	SidecarResourcesRequestsCPU    string
+	SidecarResourcesRequestsMemory string
+	SidecarResourcesLimitsCPU      string
+	SidecarResourcesLimitsMemory   string
+	SidecarBodyParsingSizeLimit    string
 }
 
 // FromAnnotations creates an appsec.Config from an annotation map and validates it.
@@ -64,6 +78,17 @@ func FromAnnotations(annotations map[string]string) (config Config, err error) {
 		}
 	}
 
+	config.Mode = annotations[AnnotationInjectorMode]
+	config.SidecarImage = annotations[AnnotationSidecarImage]
+	config.SidecarImageTag = annotations[AnnotationSidecarImageTag]
+	config.SidecarPort = annotations[AnnotationSidecarPort]
+	config.SidecarHealthPort = annotations[AnnotationSidecarHealthPort]
+	config.SidecarResourcesRequestsCPU = annotations[AnnotationSidecarResourcesRequestsCPU]
+	config.SidecarResourcesRequestsMemory = annotations[AnnotationSidecarResourcesRequestsMemory]
+	config.SidecarResourcesLimitsCPU = annotations[AnnotationSidecarResourcesLimitsCPU]
+	config.SidecarResourcesLimitsMemory = annotations[AnnotationSidecarResourcesLimitsMemory]
+	config.SidecarBodyParsingSizeLimit = annotations[AnnotationSidecarBodyParsingSizeLimit]
+
 	// Validate the configuration before returning
 	if err = config.Validate(); err != nil {
 		return config, fmt.Errorf("invalid configuration: %w", err)
@@ -99,10 +124,59 @@ func (c Config) Validate() error {
 		}
 	}
 
-	if c.isEnabled() && c.ProcessorServiceName == "" {
-		return fmt.Errorf("processor service name is required when AppSec is enabled (annotation: %s)",
+	if c.Mode != "" && c.Mode != "sidecar" && c.Mode != "external" {
+		return fmt.Errorf("invalid mode %q (allowed values: sidecar, external, annotation: %s)",
+			c.Mode, AnnotationInjectorMode)
+	}
+
+	// ProcessorServiceName is only required in external mode (not in sidecar mode, which is the default)
+	if c.isEnabled() && c.Mode == "external" && c.ProcessorServiceName == "" {
+		return fmt.Errorf("processor service name is required when AppSec is enabled in external mode (annotation: %s)",
 			AnnotationInjectorProcessorServiceName)
 	}
 
+	if err := validatePort(c.SidecarPort, AnnotationSidecarPort); err != nil {
+		return err
+	}
+
+	if err := validatePort(c.SidecarHealthPort, AnnotationSidecarHealthPort); err != nil {
+		return err
+	}
+
+	if c.SidecarBodyParsingSizeLimit != "" {
+		if _, err := strconv.ParseInt(c.SidecarBodyParsingSizeLimit, 10, 64); err != nil {
+			return fmt.Errorf("cannot parse annotation %q value: %w", AnnotationSidecarBodyParsingSizeLimit, err)
+		}
+	}
+
+	for val, annot := range map[string]string{
+		c.SidecarResourcesRequestsCPU:    AnnotationSidecarResourcesRequestsCPU,
+		c.SidecarResourcesRequestsMemory: AnnotationSidecarResourcesRequestsMemory,
+		c.SidecarResourcesLimitsCPU:      AnnotationSidecarResourcesLimitsCPU,
+		c.SidecarResourcesLimitsMemory:   AnnotationSidecarResourcesLimitsMemory,
+	} {
+		if val != "" {
+			if _, err := resource.ParseQuantity(val); err != nil {
+				return fmt.Errorf("invalid resource quantity %q for annotation %s: %w",
+					val, annot, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// validatePort checks that a string port value, if non-empty, is a valid port number (1-65535).
+func validatePort(portStr, annotation string) error {
+	if portStr == "" {
+		return nil
+	}
+	v, err := strconv.Atoi(portStr)
+	if err != nil {
+		return fmt.Errorf("cannot parse annotation %q value: %w", annotation, err)
+	}
+	if errs := validation.IsValidPortNum(v); len(errs) > 0 {
+		return fmt.Errorf("invalid port for annotation %q: %s", annotation, errs[0])
+	}
 	return nil
 }

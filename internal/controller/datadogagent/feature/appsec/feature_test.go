@@ -60,7 +60,7 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with minimal config",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithClusterAgentTag("7.73.0").
+				WithClusterAgentTag("7.76.0").
 				WithAnnotations(map[string]string{
 					AnnotationInjectorEnabled:              "true",
 					AnnotationInjectorAutoDetect:           "true",
@@ -78,7 +78,7 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with autoDetect true",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithClusterAgentTag("7.73.0").
+				WithClusterAgentTag("7.76.0").
 				WithAnnotations(map[string]string{
 					AnnotationInjectorEnabled:              "true",
 					AnnotationInjectorAutoDetect:           "true",
@@ -96,7 +96,7 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with autoDetect false",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithClusterAgentTag("7.73.0").
+				WithClusterAgentTag("7.76.0").
 				WithAnnotations(map[string]string{
 					AnnotationInjectorEnabled:              "true",
 					AnnotationInjectorAutoDetect:           "false",
@@ -116,7 +116,7 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with proxies list",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithClusterAgentTag("7.73.0").
+				WithClusterAgentTag("7.76.0").
 				WithAnnotations(map[string]string{
 					AnnotationInjectorEnabled:              "true",
 					AnnotationInjectorProxies:              `["envoy-gateway","istio"]`,
@@ -134,7 +134,7 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with processor port",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithClusterAgentTag("7.73.0").
+				WithClusterAgentTag("7.76.0").
 				WithAnnotations(map[string]string{
 					AnnotationInjectorEnabled:              "true",
 					AnnotationInjectorAutoDetect:           "true",
@@ -152,9 +152,24 @@ func TestAppsecFeature(t *testing.T) {
 			),
 		},
 		{
+			Name: "Appsec enabled without processor port does not inject port 0",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterAgentTag("7.76.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:              "true",
+					AnnotationInjectorAutoDetect:           "true",
+					AnnotationInjectorProcessorServiceName: "appsec-processor",
+				}).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: assertEnv(
+				envVar{name: DDAppsecProxyProcessorPort, present: false},
+			),
+		},
+		{
 			Name: "Appsec enabled with processor address",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithClusterAgentTag("7.73.0").
+				WithClusterAgentTag("7.76.0").
 				WithAnnotations(map[string]string{
 					AnnotationInjectorEnabled:              "true",
 					AnnotationInjectorAutoDetect:           "true",
@@ -174,7 +189,7 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with processor service name and namespace",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithClusterAgentTag("7.73.0").
+				WithClusterAgentTag("7.76.0").
 				WithAnnotations(map[string]string{
 					AnnotationInjectorEnabled:                   "true",
 					AnnotationInjectorAutoDetect:                "true",
@@ -195,7 +210,7 @@ func TestAppsecFeature(t *testing.T) {
 		{
 			Name: "Appsec enabled with full config",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithClusterAgentTag("7.73.0").
+				WithClusterAgentTag("7.76.0").
 				WithAnnotations(map[string]string{
 					AnnotationInjectorEnabled:                   "true",
 					AnnotationInjectorAutoDetect:                "true",
@@ -219,6 +234,98 @@ func TestAppsecFeature(t *testing.T) {
 				envVar{name: DDClusterAgentAppsecInjectorProcessorServiceNamespace, value: "datadog", present: true},
 			),
 		},
+		{
+			Name: "Appsec enabled with istio-gateway proxy",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterAgentTag("7.76.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:    "true",
+					AnnotationInjectorProxies:    `["istio-gateway"]`,
+					AnnotationInjectorAutoDetect: "false",
+				}).
+				Build(),
+
+			WantConfigure: true,
+			ClusterAgent: assertEnv(
+				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
+				envVar{name: DDAppsecProxyProxies, value: `["istio-gateway"]`, present: true},
+			),
+		},
+		{
+			Name: "Appsec enabled in sidecar mode without ProcessorServiceName",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterAgentTag("7.76.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:    "true",
+					AnnotationInjectorAutoDetect: "true",
+					AnnotationInjectorMode:       "sidecar",
+				}).
+				Build(),
+
+			WantConfigure: true,
+			ClusterAgent: assertEnv(
+				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorMode, value: "sidecar", present: true},
+			),
+		},
+		{
+			Name: "Appsec enabled in sidecar mode with full sidecar config",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterAgentTag("7.76.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:                "true",
+					AnnotationInjectorAutoDetect:             "true",
+					AnnotationInjectorMode:                   "sidecar",
+					AnnotationSidecarImage:                   "datadog/appsec-proxy",
+					AnnotationSidecarImageTag:                "latest",
+					AnnotationSidecarPort:                    "8080",
+					AnnotationSidecarHealthPort:              "8081",
+					AnnotationSidecarResourcesRequestsCPU:    "100m",
+					AnnotationSidecarResourcesRequestsMemory: "128Mi",
+					AnnotationSidecarResourcesLimitsCPU:      "500m",
+					AnnotationSidecarResourcesLimitsMemory:   "256Mi",
+					AnnotationSidecarBodyParsingSizeLimit:    "1048576",
+				}).
+				Build(),
+
+			WantConfigure: true,
+			ClusterAgent: assertEnv(
+				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorMode, value: "sidecar", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarImage, value: "datadog/appsec-proxy", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarImageTag, value: "latest", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarPort, value: "8080", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarHealthPort, value: "8081", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarResourcesRequestsCPU, value: "100m", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarResourcesRequestsMemory, value: "128Mi", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarResourcesLimitsCPU, value: "500m", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarResourcesLimitsMemory, value: "256Mi", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarBodyParsingSizeLimit, value: "1048576", present: true},
+			),
+		},
+		{
+			Name: "Appsec enabled in external mode requires ProcessorServiceName",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterAgentTag("7.76.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:              "true",
+					AnnotationInjectorAutoDetect:           "true",
+					AnnotationInjectorMode:                 "external",
+					AnnotationInjectorProcessorServiceName: "appsec-processor",
+				}).
+				Build(),
+
+			WantConfigure: true,
+			ClusterAgent: assertEnv(
+				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorMode, value: "external", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorProcessorServiceName, value: "appsec-processor", present: true},
+			),
+		},
 	}.Run(t, buildAppsecFeature)
 }
 
@@ -234,8 +341,8 @@ func TestAppsecVersionCheck(t *testing.T) {
 		wantConfigured  bool
 	}{
 		{
-			name:            "version below minimum 7.72.0",
-			clusterAgentTag: "7.72.0",
+			name:            "version below minimum 7.75.0",
+			clusterAgentTag: "7.75.0",
 			wantConfigured:  false,
 		},
 		{
@@ -244,13 +351,13 @@ func TestAppsecVersionCheck(t *testing.T) {
 			wantConfigured:  false,
 		},
 		{
-			name:            "version at exact minimum 7.73.0",
-			clusterAgentTag: "7.73.0",
+			name:            "version at exact minimum 7.76.0",
+			clusterAgentTag: "7.76.0",
 			wantConfigured:  true,
 		},
 		{
-			name:            "version above minimum 7.74.0",
-			clusterAgentTag: "7.74.0",
+			name:            "version above minimum 7.77.0",
+			clusterAgentTag: "7.77.0",
 			wantConfigured:  true,
 		},
 		{
@@ -333,7 +440,7 @@ func TestAppsecFeatureConfigure(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dda := testutils.NewDatadogAgentBuilder().
-				WithClusterAgentTag("7.73.0").
+				WithClusterAgentTag("7.76.0").
 				WithAnnotations(tt.annotations).
 				Build()
 
@@ -386,7 +493,7 @@ func TestAppsecFeatureManageClusterAgentDisabled(t *testing.T) {
 func TestAppsecFeatureManageClusterAgentEnabled(t *testing.T) {
 	// Test that ManageClusterAgent adds env vars when feature is enabled
 	dda := testutils.NewDatadogAgentBuilder().
-		WithClusterAgentTag("7.73.0").
+		WithClusterAgentTag("7.76.0").
 		WithAnnotations(map[string]string{
 			AnnotationInjectorEnabled:              "true",
 			AnnotationInjectorAutoDetect:           "true",
@@ -514,6 +621,61 @@ func TestFromAnnotations(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "enabled in sidecar mode without ProcessorServiceName",
+			annotations: map[string]string{
+				AnnotationInjectorEnabled:    "true",
+				AnnotationInjectorAutoDetect: "true",
+				AnnotationInjectorMode:       "sidecar",
+			},
+			wantConfig: Config{
+				Enabled:    true,
+				AutoDetect: boolPtr(true),
+				Mode:       "sidecar",
+			},
+			wantErr: false,
+		},
+		{
+			name: "enabled in external mode without ProcessorServiceName returns error",
+			annotations: map[string]string{
+				AnnotationInjectorEnabled:    "true",
+				AnnotationInjectorAutoDetect: "true",
+				AnnotationInjectorMode:       "external",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid mode value",
+			annotations: map[string]string{
+				AnnotationInjectorEnabled: "true",
+				AnnotationInjectorMode:    "invalid-mode",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid sidecar port annotation",
+			annotations: map[string]string{
+				AnnotationInjectorEnabled: "true",
+				AnnotationSidecarPort:     "99999",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid sidecar health port annotation",
+			annotations: map[string]string{
+				AnnotationInjectorEnabled:   "true",
+				AnnotationSidecarHealthPort: "0",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid resource quantity annotation",
+			annotations: map[string]string{
+				AnnotationInjectorEnabled:           "true",
+				AnnotationSidecarResourcesLimitsCPU: "not-valid",
+			},
+			wantErr: true,
+		},
+		{
 			name: "full config",
 			annotations: map[string]string{
 				AnnotationInjectorEnabled:                   "true",
@@ -611,12 +773,129 @@ func TestConfigValidate(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "missing service name",
+			name: "missing service name in external mode",
+			config: Config{
+				Enabled:    true,
+				AutoDetect: boolPtr(true),
+				Mode:       "external",
+			},
+			wantErr: true,
+		},
+		{
+			name: "missing service name in sidecar mode is allowed",
+			config: Config{
+				Enabled:    true,
+				AutoDetect: boolPtr(true),
+				Mode:       "sidecar",
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing service name with no mode is allowed (defaults to sidecar)",
 			config: Config{
 				Enabled:    true,
 				AutoDetect: boolPtr(true),
 			},
+			wantErr: false,
+		},
+		{
+			name: "invalid mode value",
+			config: Config{
+				Enabled: true,
+				Mode:    "invalid-mode",
+			},
 			wantErr: true,
+		},
+		{
+			name: "istio-gateway is a valid proxy value",
+			config: Config{
+				Enabled: true,
+				Proxies: []string{"istio-gateway"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid sidecar port - not a number",
+			config: Config{
+				Enabled:     true,
+				SidecarPort: "not-a-port",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid sidecar port - out of range",
+			config: Config{
+				Enabled:     true,
+				SidecarPort: "99999",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid sidecar port - zero",
+			config: Config{
+				Enabled:     true,
+				SidecarPort: "0",
+			},
+			wantErr: true,
+		},
+		{
+			name: "valid sidecar port",
+			config: Config{
+				Enabled:     true,
+				SidecarPort: "8080",
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid sidecar health port - out of range",
+			config: Config{
+				Enabled:           true,
+				SidecarHealthPort: "0",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid body parsing size limit - not a number",
+			config: Config{
+				Enabled:                     true,
+				SidecarBodyParsingSizeLimit: "abc",
+			},
+			wantErr: true,
+		},
+		{
+			name: "valid body parsing size limit - positive",
+			config: Config{
+				Enabled:                     true,
+				SidecarBodyParsingSizeLimit: "1048576",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid body parsing size limit - negative (disables)",
+			config: Config{
+				Enabled:                     true,
+				SidecarBodyParsingSizeLimit: "-1",
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid resource quantity - CPU",
+			config: Config{
+				Enabled:                   true,
+				SidecarResourcesLimitsCPU: "not-a-quantity",
+			},
+			wantErr: true,
+		},
+		{
+			name: "valid resource quantities",
+			config: Config{
+				Enabled:                        true,
+				SidecarResourcesRequestsCPU:    "100m",
+				SidecarResourcesRequestsMemory: "128Mi",
+				SidecarResourcesLimitsCPU:      "500m",
+				SidecarResourcesLimitsMemory:   "256Mi",
+			},
+			wantErr: false,
 		},
 	}
 

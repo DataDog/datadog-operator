@@ -5,7 +5,7 @@
 
 package appsec
 
-const ClusterAgentMinVersion = "7.73.0"
+const ClusterAgentMinVersion = "7.76.0"
 
 // Appsec proxy injection annotations (Preview feature)
 const (
@@ -19,10 +19,30 @@ const (
 	AnnotationInjectorProcessorAddress = "agent.datadoghq.com/appsec.injector.processor.address"
 	// AnnotationInjectorProcessorPort is the processor service port
 	AnnotationInjectorProcessorPort = "agent.datadoghq.com/appsec.injector.processor.port"
-	// AnnotationInjectorProcessorServiceName is the processor service name (required)
+	// AnnotationInjectorProcessorServiceName is the processor service name (required in external mode)
 	AnnotationInjectorProcessorServiceName = "agent.datadoghq.com/appsec.injector.processor.service.name"
 	// AnnotationInjectorProcessorServiceNamespace is the processor service namespace (optional, cluster-agent will use its own namespace if not specified)
 	AnnotationInjectorProcessorServiceNamespace = "agent.datadoghq.com/appsec.injector.processor.service.namespace"
+	// AnnotationInjectorMode is the injector mode (sidecar or external)
+	AnnotationInjectorMode = "agent.datadoghq.com/appsec.injector.mode"
+	// AnnotationSidecarImage is the sidecar container image
+	AnnotationSidecarImage = "agent.datadoghq.com/appsec.sidecar.image"
+	// AnnotationSidecarImageTag is the sidecar container image tag
+	AnnotationSidecarImageTag = "agent.datadoghq.com/appsec.sidecar.image_tag"
+	// AnnotationSidecarPort is the sidecar container port
+	AnnotationSidecarPort = "agent.datadoghq.com/appsec.sidecar.port"
+	// AnnotationSidecarHealthPort is the sidecar container health port
+	AnnotationSidecarHealthPort = "agent.datadoghq.com/appsec.sidecar.health_port"
+	// AnnotationSidecarResourcesRequestsCPU is the sidecar container CPU request
+	AnnotationSidecarResourcesRequestsCPU = "agent.datadoghq.com/appsec.sidecar.resources.requests.cpu"
+	// AnnotationSidecarResourcesRequestsMemory is the sidecar container memory request
+	AnnotationSidecarResourcesRequestsMemory = "agent.datadoghq.com/appsec.sidecar.resources.requests.memory"
+	// AnnotationSidecarResourcesLimitsCPU is the sidecar container CPU limit
+	AnnotationSidecarResourcesLimitsCPU = "agent.datadoghq.com/appsec.sidecar.resources.limits.cpu"
+	// AnnotationSidecarResourcesLimitsMemory is the sidecar container memory limit
+	AnnotationSidecarResourcesLimitsMemory = "agent.datadoghq.com/appsec.sidecar.resources.limits.memory"
+	// AnnotationSidecarBodyParsingSizeLimit is the sidecar body parsing size limit
+	AnnotationSidecarBodyParsingSizeLimit = "agent.datadoghq.com/appsec.sidecar.body_parsing_size_limit"
 )
 
 const (
@@ -42,9 +62,29 @@ const (
 	DDClusterAgentAppsecInjectorProcessorServiceName = "DD_CLUSTER_AGENT_APPSEC_INJECTOR_PROCESSOR_SERVICE_NAME"
 	// DDClusterAgentAppsecInjectorProcessorServiceNamespace is the processor service namespace
 	DDClusterAgentAppsecInjectorProcessorServiceNamespace = "DD_CLUSTER_AGENT_APPSEC_INJECTOR_PROCESSOR_SERVICE_NAMESPACE"
+	// DDClusterAgentAppsecInjectorMode is the injector mode (sidecar or external)
+	DDClusterAgentAppsecInjectorMode = "DD_CLUSTER_AGENT_APPSEC_INJECTOR_MODE"
+	// DDAdmissionControllerAppsecSidecarImage is the sidecar container image
+	DDAdmissionControllerAppsecSidecarImage = "DD_ADMISSION_CONTROLLER_APPSEC_SIDECAR_IMAGE"
+	// DDAdmissionControllerAppsecSidecarImageTag is the sidecar container image tag
+	DDAdmissionControllerAppsecSidecarImageTag = "DD_ADMISSION_CONTROLLER_APPSEC_SIDECAR_IMAGE_TAG"
+	// DDAdmissionControllerAppsecSidecarPort is the sidecar container port
+	DDAdmissionControllerAppsecSidecarPort = "DD_ADMISSION_CONTROLLER_APPSEC_SIDECAR_PORT"
+	// DDAdmissionControllerAppsecSidecarHealthPort is the sidecar container health port
+	DDAdmissionControllerAppsecSidecarHealthPort = "DD_ADMISSION_CONTROLLER_APPSEC_SIDECAR_HEALTH_PORT"
+	// DDAdmissionControllerAppsecSidecarResourcesRequestsCPU is the sidecar container CPU request
+	DDAdmissionControllerAppsecSidecarResourcesRequestsCPU = "DD_ADMISSION_CONTROLLER_APPSEC_SIDECAR_RESOURCES_REQUESTS_CPU"
+	// DDAdmissionControllerAppsecSidecarResourcesRequestsMemory is the sidecar container memory request
+	DDAdmissionControllerAppsecSidecarResourcesRequestsMemory = "DD_ADMISSION_CONTROLLER_APPSEC_SIDECAR_RESOURCES_REQUESTS_MEMORY"
+	// DDAdmissionControllerAppsecSidecarResourcesLimitsCPU is the sidecar container CPU limit
+	DDAdmissionControllerAppsecSidecarResourcesLimitsCPU = "DD_ADMISSION_CONTROLLER_APPSEC_SIDECAR_RESOURCES_LIMITS_CPU"
+	// DDAdmissionControllerAppsecSidecarResourcesLimitsMemory is the sidecar container memory limit
+	DDAdmissionControllerAppsecSidecarResourcesLimitsMemory = "DD_ADMISSION_CONTROLLER_APPSEC_SIDECAR_RESOURCES_LIMITS_MEMORY"
+	// DDAdmissionControllerAppsecSidecarBodyParsingSizeLimit is the sidecar body parsing size limit
+	DDAdmissionControllerAppsecSidecarBodyParsingSizeLimit = "DD_ADMISSION_CONTROLLER_APPSEC_SIDECAR_BODY_PARSING_SIZE_LIMIT"
 )
 
-var allowedProxyValues = []string{"envoy-gateway", "istio"}
+var allowedProxyValues = []string{"envoy-gateway", "istio", "istio-gateway"}
 
 // AllowedProxyValues returns the proxy types that the current RBAC supports.
 // The returned slice must not be modified.
