@@ -39,6 +39,10 @@ type DatadogSLOSpec struct {
 	// Note that only the `sum by` aggregator is allowed, which sums all request counts. `Average`, `max`, nor `min` request aggregators are not supported.
 	Query *DatadogSLOQuery `json:"query,omitempty"`
 
+	// TimeSlice defines the SLI specification for a time_slice SLO. Required if type is time_slice.
+	// It specifies a metric query and a comparator/threshold that determines what counts as good uptime.
+	TimeSlice *DatadogSLOTimeSlice `json:"timeSlice,omitempty"`
+
 	// Type is the type of the service level objective.
 	Type DatadogSLOType `json:"type"`
 
@@ -63,16 +67,45 @@ type DatadogSLOQuery struct {
 	Denominator string `json:"denominator"`
 }
 
+// DatadogSLOTimeSlice defines the SLI specification for a time_slice SLO.
+// It specifies a metric query and a comparator/threshold that determines what counts as good uptime.
+// The operator automatically wraps the query into the formula and named query structure required by the Datadog API.
+// +k8s:openapi-gen=true
+type DatadogSLOTimeSlice struct {
+	// Query is a Datadog metric query string that produces the SLI value.
+	Query string `json:"query"`
+
+	// Comparator is the comparison operator used to compare the SLI value to the threshold.
+	// +kubebuilder:validation:Enum=">";">=";"<";"<="
+	Comparator DatadogSLOTimeSliceComparator `json:"comparator"`
+
+	// Threshold is the value against which the SLI is compared using the comparator to determine
+	// if a time slice is good or bad.
+	Threshold resource.Quantity `json:"threshold"`
+}
+
+// DatadogSLOTimeSliceComparator is the comparator used to compare the SLI value to the threshold.
+// +kubebuilder:validation:Enum=">";">=";"<";"<="
+type DatadogSLOTimeSliceComparator string
+
+const (
+	DatadogSLOTimeSliceComparatorGreater      DatadogSLOTimeSliceComparator = ">"
+	DatadogSLOTimeSliceComparatorGreaterEqual DatadogSLOTimeSliceComparator = ">="
+	DatadogSLOTimeSliceComparatorLess         DatadogSLOTimeSliceComparator = "<"
+	DatadogSLOTimeSliceComparatorLessEqual    DatadogSLOTimeSliceComparator = "<="
+)
+
 type DatadogSLOType string
 
 const (
-	DatadogSLOTypeMetric  DatadogSLOType = "metric"
-	DatadogSLOTypeMonitor DatadogSLOType = "monitor"
+	DatadogSLOTypeMetric    DatadogSLOType = "metric"
+	DatadogSLOTypeMonitor   DatadogSLOType = "monitor"
+	DatadogSLOTypeTimeSlice DatadogSLOType = "time_slice"
 )
 
 func (t DatadogSLOType) IsValid() bool {
 	switch t {
-	case DatadogSLOTypeMetric, DatadogSLOTypeMonitor:
+	case DatadogSLOTypeMetric, DatadogSLOTypeMonitor, DatadogSLOTypeTimeSlice:
 		return true
 	default:
 		return false
