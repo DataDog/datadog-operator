@@ -286,6 +286,7 @@
               "description": "Update defines the policy to update target resource.",
               "properties": {
                 "mode": {
+                  "default": "Auto",
                   "description": "Mode controls the ability to trigger rollouts.",
                   "enum": [
                     "Auto",

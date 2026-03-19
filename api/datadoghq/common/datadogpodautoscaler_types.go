@@ -54,6 +54,7 @@ type DatadogPodAutoscalerUpdatePolicy struct {
 
 	// Mode controls the ability to trigger rollouts.
 	// +optional
+	// +kubebuilder:default=Auto
 	Mode DatadogPodAutoscalerUpdateMode `json:"mode,omitempty"`
 
 	// Controls how long we wait before forcing an eviction when the kubelet reports a resize as pending.

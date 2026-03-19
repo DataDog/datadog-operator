@@ -158,6 +158,7 @@
               "description": "Update defines the policy for updating the target resource.",
               "properties": {
                 "mode": {
+                  "default": "Auto",
                   "description": "Mode controls the ability to trigger rollouts.",
                   "enum": [
                     "Auto",
