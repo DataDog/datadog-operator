@@ -9,7 +9,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/go-logr/logr"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -35,7 +34,7 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *v1alpha1
 	// }
 
 	// 2. Handle finalizer logic.
-	if result, err := r.handleFinalizer(logger, instance, r.finalizeDDAI); utils.ShouldReturn(result, err) {
+	if result, err := r.handleFinalizer(ctx, instance, r.finalizeDDAI); utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
@@ -53,64 +52,67 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, instance *v1alpha1
 	newStatus := instance.Status.DeepCopy()
 	now := metav1.NewTime(time.Now())
 
-	configuredFeatures, enabledFeatures, requiredComponents := feature.BuildFeatures(instance, &instance.Spec, instance.Status.RemoteConfigConfiguration, reconcilerOptionsToFeatureOptions(&r.options, logger))
+	configuredFeatures, enabledFeatures, requiredComponents := feature.BuildFeatures(instance, &instance.Spec, instance.Status.RemoteConfigConfiguration, reconcilerOptionsToFeatureOptions(&r.options, ctx))
 	// update list of enabled features for metrics forwarder
 	r.updateMetricsForwardersFeatures(instance, enabledFeatures)
 
 	// 1. Manage dependencies.
 	// set the original DDAI as the owner of dependencies
-	depsStore, resourceManagers := r.setupDependencies(instance, logger)
+	depsStore, resourceManagers := r.setupDependencies(ctx, instance)
 
 	var err error
 	// only manage dependencies for default DDAIs
 	if !isDDAILabeledWithProfile(instance) {
-		if err = r.manageGlobalDependencies(logger, instance, resourceManagers, requiredComponents); err != nil {
-			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
+		if err = r.manageGlobalDependencies(ctx, instance, resourceManagers, requiredComponents); err != nil {
+			return r.updateStatusIfNeededV2(ctx, instance, newStatus, reconcile.Result{}, err, now)
 		}
-		if err = r.manageFeatureDependencies(logger, enabledFeatures, resourceManagers); err != nil {
-			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
+		if err = r.manageFeatureDependencies(enabledFeatures, resourceManagers); err != nil {
+			return r.updateStatusIfNeededV2(ctx, instance, newStatus, reconcile.Result{}, err, now)
 		}
-		if err = r.overrideDependencies(logger, resourceManagers, instance); err != nil {
-			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
+		if err = r.overrideDependencies(ctx, resourceManagers, instance); err != nil {
+			return r.updateStatusIfNeededV2(ctx, instance, newStatus, reconcile.Result{}, err, now)
 		}
 		// 1. Apply and cleanup dependencies before reconciling components to ensure deps exist at reconciliation time.
 		if err = r.applyAndCleanupDependencies(ctx, depsStore); err != nil {
-			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
+			return r.updateStatusIfNeededV2(ctx, instance, newStatus, reconcile.Result{}, err, now)
 		}
 	}
 
-	// 2. Reconcile each component using the component registry
-	params := &ReconcileComponentParams{
-		DDAI:               instance,
-		RequiredComponents: requiredComponents,
-		Features:           append(configuredFeatures, enabledFeatures...),
-		ResourceManagers:   resourceManagers,
-		Status:             newStatus,
-		Provider:           "",
-	}
+	// 2. Reconcile each component (DCA, CCR, OTel Gateway) using the component registry.
+	// Profile DDAIs only manage the Node Agent DaemonSet, so skip components to avoid cleanup of un-related components / running un-necessary operations.
+	if !isDDAILabeledWithProfile(instance) {
+		params := &ReconcileComponentParams{
+			DDAI:               instance,
+			RequiredComponents: requiredComponents,
+			Features:           append(configuredFeatures, enabledFeatures...),
+			ResourceManagers:   resourceManagers,
+			Status:             newStatus,
+			Provider:           "",
+		}
 
-	result, err = r.componentRegistry.ReconcileComponents(ctx, params)
-	if utils.ShouldReturn(result, err) {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
+		result, err = r.componentRegistry.ReconcileComponents(ctx, params)
+		if utils.ShouldReturn(result, err) {
+			return r.updateStatusIfNeededV2(ctx, instance, newStatus, result, err, now)
+		}
 	}
 
 	// 2.b. Node Agent
-	result, err = r.reconcileV2Agent(logger, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus)
+	result, err = r.reconcileV2Agent(ctx, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus)
 	if utils.ShouldReturn(result, err) {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
+		return r.updateStatusIfNeededV2(ctx, instance, newStatus, result, err, now)
 	}
 	condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.AgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 
 	// 3. Cleanup extraneous resources.
 	if err = r.cleanupExtraneousResources(ctx, instance, newStatus, resourceManagers); err != nil {
 		logger.Error(err, "Error cleaning up extraneous resources")
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
+		return r.updateStatusIfNeededV2(ctx, instance, newStatus, result, err, now)
 	}
 
 	// 4. Cleanup stale dependencies (only for default DDAIs).
 	if !isDDAILabeledWithProfile(instance) {
 		if cleanupErrs := depsStore.Cleanup(ctx, r.client, true); len(cleanupErrs) > 0 {
-			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, cleanupErrs[0], now)
+			return r.updateStatusIfNeededV2(ctx, instance, newStatus, result, cleanupErrs[0], now)
 		}
 	}
 
@@ -118,22 +120,23 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, instance *v1alpha1
 	if !result.Requeue && result.RequeueAfter == 0 {
 		result.RequeueAfter = defaultRequeuePeriod
 	}
-	return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
+	return r.updateStatusIfNeededV2(ctx, instance, newStatus, result, err, now)
 }
 
-func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment *v1alpha1.DatadogAgentInternal, newStatus *v1alpha1.DatadogAgentInternalStatus, result reconcile.Result, currentError error, now metav1.Time) (reconcile.Result, error) {
+func (r *Reconciler) updateStatusIfNeededV2(ctx context.Context, agentdeployment *v1alpha1.DatadogAgentInternal, newStatus *v1alpha1.DatadogAgentInternalStatus, result reconcile.Result, currentError error, now metav1.Time) (reconcile.Result, error) {
+	logger := ctrl.LoggerFrom(ctx)
 	if currentError == nil {
 		condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.DatadogAgentReconcileErrorConditionType, metav1.ConditionFalse, "DatadogAgent_reconcile_ok", "DatadogAgent reconcile ok", false)
 	} else {
 		condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.DatadogAgentReconcileErrorConditionType, metav1.ConditionTrue, "DatadogAgent_reconcile_error", "DatadogAgent reconcile error", false)
 	}
 
-	r.setMetricsForwarderStatusV2(logger, agentdeployment, newStatus)
+	r.setMetricsForwarderStatusV2(ctx, agentdeployment, newStatus)
 
 	if !IsEqualStatus(&agentdeployment.Status, newStatus) {
 		updateAgentDeployment := agentdeployment.DeepCopy()
 		updateAgentDeployment.Status = *newStatus
-		if err := r.client.Status().Update(context.TODO(), updateAgentDeployment); err != nil {
+		if err := r.client.Status().Update(ctx, updateAgentDeployment); err != nil {
 			if apierrors.IsConflict(err) {
 				logger.V(1).Info("unable to update DatadogAgent status due to update conflict")
 				return reconcile.Result{RequeueAfter: time.Second}, nil
@@ -147,7 +150,7 @@ func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment 
 }
 
 // setMetricsForwarderStatus sets the metrics forwarder status condition if enabled
-func (r *Reconciler) setMetricsForwarderStatusV2(logger logr.Logger, agentdeployment *v1alpha1.DatadogAgentInternal, newStatus *v1alpha1.DatadogAgentInternalStatus) {
+func (r *Reconciler) setMetricsForwarderStatusV2(ctx context.Context, agentdeployment *v1alpha1.DatadogAgentInternal, newStatus *v1alpha1.DatadogAgentInternalStatus) {
 	if r.options.OperatorMetricsEnabled {
 		if forwarderCondition := r.forwarders.MetricsForwarderStatusForObj(agentdeployment); forwarderCondition != nil {
 			condition.UpdateDatadogAgentInternalStatusConditions(
@@ -160,7 +163,7 @@ func (r *Reconciler) setMetricsForwarderStatusV2(logger logr.Logger, agentdeploy
 				true,
 			)
 		} else {
-			logger.V(1).Info("metrics conditions status could not be set")
+			ctrl.LoggerFrom(ctx).V(1).Info("metrics conditions status could not be set")
 		}
 	}
 }

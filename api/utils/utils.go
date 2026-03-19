@@ -99,7 +99,7 @@ func DefaultStringIfUnset(valPtr **string, d string) {
 
 // IsEqualStruct is a util function that returns whether 2 structures are the same
 // We compare the marshaled results to avoid traversing all fields and be agnostic of the struct.
-func IsEqualStruct(in interface{}, cmp interface{}) bool {
+func IsEqualStruct(in any, cmp any) bool {
 	if in == nil {
 		return true
 	}

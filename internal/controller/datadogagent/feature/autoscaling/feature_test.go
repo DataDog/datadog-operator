@@ -155,7 +155,7 @@ func testRBACResources(t testing.TB, store store.StoreClient) {
 	if t.Name() == "TestAutoscalingFeature/cluster_autoscaling_enabled" {
 		policyRules = []rbacv1.PolicyRule{
 			{
-				Verbs:     []string{"get", "list", "watch", "create", "patch", "delete"},
+				Verbs:     []string{"get", "list", "watch", "create", "patch", "update", "delete"},
 				APIGroups: []string{"karpenter.sh"},
 				Resources: []string{"*"},
 			},
@@ -175,7 +175,7 @@ func testRBACResources(t testing.TB, store store.StoreClient) {
 	if t.Name() == "TestAutoscalingFeature/workload_and_cluster_autoscaling_enabled" {
 		policyRules = append(policyRules, []rbacv1.PolicyRule{
 			{
-				Verbs:     []string{"get", "list", "watch", "create", "patch", "delete"},
+				Verbs:     []string{"get", "list", "watch", "create", "patch", "update", "delete"},
 				APIGroups: []string{"karpenter.sh"},
 				Resources: []string{"*"},
 			},

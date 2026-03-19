@@ -6,6 +6,8 @@
 package defaults
 
 import (
+	"os"
+
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -137,6 +139,8 @@ const (
 	defaultFIPSUseHTTPS     bool   = false
 
 	defaultControlPlaneMonitoringEnabled bool = true
+
+	defaultDataPlaneDogstatsdEnabled bool = false
 )
 
 // DefaultDatadogAgentSpec defaults the DatadogAgentSpec GlobalConfig and Features.
@@ -159,15 +163,31 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	if ddaSpec.Global.Registry == nil {
 		switch *ddaSpec.Global.Site {
 		case defaultEuropeSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultEuropeImageRegistry)
+			if os.Getenv("DD_REGISTRY_OVERRIDE_EU") == "true" {
+				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DatadogContainerRegistry)
+			} else {
+				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultEuropeImageRegistry)
+			}
 		case defaultAsiaSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultAsiaImageRegistry)
+			if os.Getenv("DD_REGISTRY_OVERRIDE_ASIA") == "true" {
+				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DatadogContainerRegistry)
+			} else {
+				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultAsiaImageRegistry)
+			}
 		case defaultAzureSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultAzureImageRegistry)
+			if os.Getenv("DD_REGISTRY_OVERRIDE_AZURE") == "true" {
+				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DatadogContainerRegistry)
+			} else {
+				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultAzureImageRegistry)
+			}
 		case defaultGovSite:
 			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultGovImageRegistry)
 		default:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultImageRegistry)
+			if os.Getenv("DD_REGISTRY_OVERRIDE_DEFAULT") == "true" {
+				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DatadogContainerRegistry)
+			} else {
+				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultImageRegistry)
+			}
 		}
 	}
 
@@ -621,4 +641,17 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		ddaSpec.Features.ControlPlaneMonitoring = &v2alpha1.ControlPlaneMonitoringFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ControlPlaneMonitoring.Enabled, defaultControlPlaneMonitoringEnabled)
+
+	// DataPlane Feature
+	// Note: We intentionally do NOT default DataPlane.Enabled to allow the annotation fallback
+	// to work when the user hasn't explicitly configured Data Plane via the CRD.
+	// See IsDataPlaneEnabled() in feature/utils/utils.go for the precedence logic.
+	if ddaSpec.Features.DataPlane == nil {
+		ddaSpec.Features.DataPlane = &v2alpha1.DataPlaneFeatureConfig{}
+	}
+
+	if ddaSpec.Features.DataPlane.Dogstatsd == nil {
+		ddaSpec.Features.DataPlane.Dogstatsd = &v2alpha1.DataPlaneDogstatsdConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.DataPlane.Dogstatsd.Enabled, defaultDataPlaneDogstatsdEnabled)
 }
