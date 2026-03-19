@@ -52,6 +52,9 @@ spec:
 | features.admissionController.kubernetesAdmissionEvents.enabled | Enable the Kubernetes Admission Events feature. Default: false |
 | features.admissionController.mutateUnlabelled | MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled="true"'. Default: false |
 | features.admissionController.mutation.enabled | Enables the Admission Controller mutation webhook. Default: true |
+| features.admissionController.probe.enabled | Enables the admission controller connectivity probe. The probe periodically sends dry-run ConfigMap creation requests to verify the webhook is reachable from the API server. Requires Cluster Agent 7.78.0+. Default: true |
+| features.admissionController.probe.gracePeriod | GracePeriod is the number of seconds to wait at startup before the first probe. Default: 60 |
+| features.admissionController.probe.interval | Is the number of seconds between probe executions. Default: 60 |
 | features.admissionController.registry | Defines an image registry for the admission controller. |
 | features.admissionController.serviceName | ServiceName corresponds to the webhook service name. |
 | features.admissionController.validation.enabled | Enables the Admission Controller validation webhook. Default: true |
@@ -82,8 +85,8 @@ spec:
 | features.cspm.customBenchmarks.configData | ConfigData corresponds to the configuration file content. |
 | features.cspm.customBenchmarks.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | features.cspm.customBenchmarks.configMap.name | Is the name of the ConfigMap. |
-| features.cspm.enabled | Enables Cloud Security Posture Management. Default: false |
-| features.cspm.hostBenchmarks.enabled | Enables host benchmarks. Default: true |
+| features.cspm.enabled | Enables Cloud Security Posture Management, including Docker and Kubernetes benchmarks. Default: false |
+| features.cspm.hostBenchmarks.enabled | Enables Linux host benchmarks. Requires `features.cspm.enabled` to be set to `true`. Default: true |
 | features.cspm.runInSystemProbe | RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent. This is an experimental feature. Contact support before using. Default: false |
 | features.cws.customPolicies.configData | ConfigData corresponds to the configuration file content. |
 | features.cws.customPolicies.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
