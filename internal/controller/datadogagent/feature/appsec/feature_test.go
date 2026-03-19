@@ -152,6 +152,21 @@ func TestAppsecFeature(t *testing.T) {
 			),
 		},
 		{
+			Name: "Appsec enabled without processor port does not inject port 0",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterAgentTag("7.76.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:              "true",
+					AnnotationInjectorAutoDetect:           "true",
+					AnnotationInjectorProcessorServiceName: "appsec-processor",
+				}).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: assertEnv(
+				envVar{name: DDAppsecProxyProcessorPort, present: false},
+			),
+		},
+		{
 			Name: "Appsec enabled with processor address",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithClusterAgentTag("7.76.0").

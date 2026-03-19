@@ -157,9 +157,15 @@ func (f *appsecFeature) ManageClusterAgent(managers feature.PodTemplateManagers,
 		}
 	}
 
+	// Set processor port only when explicitly configured (zero means unset)
+	if f.config.ProcessorPort != 0 {
+		if err := addEnvVar(DDAppsecProxyProcessorPort, strconv.Itoa(f.config.ProcessorPort)); err != nil {
+			return err
+		}
+	}
+
 	// Set optional string env vars (key → value, skipped when value is empty)
 	for key, value := range map[string]string{
-		DDAppsecProxyProcessorPort:                                strconv.Itoa(f.config.ProcessorPort),
 		DDAppsecProxyProcessorAddress:                             f.config.ProcessorAddress,
 		DDClusterAgentAppsecInjectorProcessorServiceName:          f.config.ProcessorServiceName,
 		DDClusterAgentAppsecInjectorProcessorServiceNamespace:     f.config.ProcessorServiceNamespace,
