@@ -78,6 +78,7 @@ spec:
 | features.asm.threats.enabled | Enables ASM App & API Protection. Default: false |
 | features.autoscaling.cluster.enabled | Enables the cluster autoscaling product. (Requires Cluster Agent 7.74.0+) Default: false |
 | features.autoscaling.workload.enabled | Enables the workload autoscaling product. Default: false |
+| features.autoscaling.workload.failover.enabled | Enables the autoscaling failover mechanism. Default: true |
 | features.clusterChecks.enabled | Enables Cluster Checks scheduling in the Cluster Agent. Default: true |
 | features.clusterChecks.useClusterChecksRunners | Enabled enables Cluster Checks Runners to run all Cluster Checks. Default: false |
 | features.controlPlaneMonitoring.enabled | Enables control plane monitoring checks in the cluster agent. Default: true |

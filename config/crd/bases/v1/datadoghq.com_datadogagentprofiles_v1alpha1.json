@@ -1145,6 +1145,17 @@
                         "enabled": {
                           "description": "Enabled enables the workload autoscaling product.\nDefault: false",
                           "type": "boolean"
+                        },
+                        "failover": {
+                          "additionalProperties": false,
+                          "description": "Failover contains the configuration for the autoscaling failover mechanism.",
+                          "properties": {
+                            "enabled": {
+                              "description": "Enabled enables the autoscaling failover mechanism.\nDefault: true",
+                              "type": "boolean"
+                            }
+                          },
+                          "type": "object"
                         }
                       },
                       "type": "object"

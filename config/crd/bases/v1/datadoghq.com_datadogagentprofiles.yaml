@@ -1169,6 +1169,15 @@ spec:
                                     Enabled enables the workload autoscaling product.
                                     Default: false
                                   type: boolean
+                                failover:
+                                  description: Failover contains the configuration for the autoscaling failover mechanism.
+                                  properties:
+                                    enabled:
+                                      description: |-
+                                        Enabled enables the autoscaling failover mechanism.
+                                        Default: true
+                                      type: boolean
+                                  type: object
                               type: object
                           type: object
                         clusterChecks:
