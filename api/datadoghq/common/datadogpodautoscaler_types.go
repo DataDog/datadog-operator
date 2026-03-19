@@ -579,6 +579,8 @@ const (
 	DatadogPodAutoscalerRolloutTriggeredVerticalActionType DatadogPodAutoscalerVerticalActionType = "RolloutTriggered"
 	// DatadogPodAutoscalerResizeTriggeredVerticalActionType is the action when the controller triggers a resize of the pod resources of the targetRef
 	DatadogPodAutoscalerResizeTriggeredVerticalActionType DatadogPodAutoscalerVerticalActionType = "ResizeTriggered"
+	// DatadogPodAutoscalerResizeCompletedVerticalActionType is the action when all pods have completed an in-place resize cycle
+	DatadogPodAutoscalerResizeCompletedVerticalActionType DatadogPodAutoscalerVerticalActionType = "ResizeCompleted"
 )
 
 // DatadogPodAutoscalerVerticalAction represents a vertical action done by the controller
