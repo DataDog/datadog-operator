@@ -142,6 +142,7 @@ type options struct {
 	remoteConfigEnabled                    bool
 	datadogDashboardEnabled                bool
 	datadogGenericResourceEnabled          bool
+	untaintControllerEnabled               bool
 
 	// Secret Backend options
 	secretBackendCommand  string
@@ -179,6 +180,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.remoteConfigEnabled, "remoteConfigEnabled", false, "Enable RemoteConfig capabilities in the Operator (beta)")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
 	flag.BoolVar(&opts.datadogGenericResourceEnabled, "datadogGenericResourceEnabled", false, "Enable the DatadogGenericResource controller")
+	flag.BoolVar(&opts.untaintControllerEnabled, "untaintControllerEnabled", false, "Enable the Untaint controller")
 
 	// DatadogAgentInternal
 	flag.BoolVar(&opts.datadogAgentInternalEnabled, "datadogAgentInternalEnabled", true, "Enable the DatadogAgentInternal controller")
@@ -290,6 +292,7 @@ func run(opts *options) error {
 			IntrospectionEnabled:          opts.introspectionEnabled,
 			DatadogDashboardEnabled:       opts.datadogDashboardEnabled,
 			DatadogGenericResourceEnabled: opts.datadogGenericResourceEnabled,
+			UntaintControllerEnabled:      opts.untaintControllerEnabled,
 		}),
 		// UsePriorityQueue makes all controllers use the priority queue, which
 		// directly registers workqueue metrics into controller-runtime's metrics
@@ -364,20 +367,22 @@ func run(opts *options) error {
 			CanaryAutoPauseMaxSlowStartDuration: opts.edsCanaryAutoPauseMaxSlowStartDuration,
 			MaxPodSchedulerFailure:              opts.edsMaxPodSchedulerFailure,
 		},
-		SupportCilium:                 opts.supportCilium,
-		CredsManager:                  credsManager,
-		Creds:                         creds,
-		SecretRefreshInterval:         opts.secretRefreshInterval,
-		DatadogAgentEnabled:           opts.datadogAgentEnabled,
-		DatadogAgentInternalEnabled:   opts.datadogAgentInternalEnabled,
-		DatadogMonitorEnabled:         opts.datadogMonitorEnabled,
-		DatadogSLOEnabled:             opts.datadogSLOEnabled,
-		OperatorMetricsEnabled:        opts.operatorMetricsEnabled,
-		V2APIEnabled:                  true,
-		IntrospectionEnabled:          opts.introspectionEnabled,
-		DatadogAgentProfileEnabled:    opts.datadogAgentProfileEnabled,
-		DatadogDashboardEnabled:       opts.datadogDashboardEnabled,
-		DatadogGenericResourceEnabled: opts.datadogGenericResourceEnabled,
+		SupportCilium:                  opts.supportCilium,
+		CredsManager:                   credsManager,
+		Creds:                          creds,
+		SecretRefreshInterval:          opts.secretRefreshInterval,
+		DatadogAgentEnabled:            opts.datadogAgentEnabled,
+		DatadogAgentInternalEnabled:    opts.datadogAgentInternalEnabled,
+		DatadogMonitorEnabled:          opts.datadogMonitorEnabled,
+		DatadogSLOEnabled:              opts.datadogSLOEnabled,
+		OperatorMetricsEnabled:         opts.operatorMetricsEnabled,
+		V2APIEnabled:                   true,
+		IntrospectionEnabled:           opts.introspectionEnabled,
+		DatadogAgentProfileEnabled:     opts.datadogAgentProfileEnabled,
+		DatadogDashboardEnabled:        opts.datadogDashboardEnabled,
+		DatadogGenericResourceEnabled:  opts.datadogGenericResourceEnabled,
+		UntaintControllerEnabled:       opts.untaintControllerEnabled,
+		UntaintControllerEventsEnabled: os.Getenv("DD_UNTAINT_CONTROLLER_EVENTS_ENABLED") == "true",
 	}
 
 	versionInfo, platformInfo, err := getVersionAndPlatformInfo(rest.CopyConfig(mgr.GetConfig()))
