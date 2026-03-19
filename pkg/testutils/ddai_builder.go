@@ -195,6 +195,9 @@ func (builder *DatadogAgentInternalBuilder) initAdmissionController() {
 	if builder.datadogAgentInternal.Spec.Features.AdmissionController.CWSInstrumentation == nil {
 		builder.datadogAgentInternal.Spec.Features.AdmissionController.CWSInstrumentation = &v2alpha1.CWSInstrumentationConfig{}
 	}
+	if builder.datadogAgentInternal.Spec.Features.AdmissionController.Probe == nil {
+		builder.datadogAgentInternal.Spec.Features.AdmissionController.Probe = &v2alpha1.AdmissionControllerProbeConfig{}
+	}
 }
 
 func (builder *DatadogAgentInternalBuilder) initSidecarInjection() {
@@ -257,6 +260,24 @@ func (builder *DatadogAgentInternalBuilder) WithAdmissionControllerWebhookName(n
 func (builder *DatadogAgentInternalBuilder) WithAdmissionControllerRegistry(name string) *DatadogAgentInternalBuilder {
 	builder.initAdmissionController()
 	builder.datadogAgentInternal.Spec.Features.AdmissionController.Registry = apiutils.NewStringPointer(name)
+	return builder
+}
+
+func (builder *DatadogAgentInternalBuilder) WithAdmissionControllerProbeEnabled(enabled bool) *DatadogAgentInternalBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgentInternal.Spec.Features.AdmissionController.Probe.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentInternalBuilder) WithAdmissionControllerProbeInterval(interval int32) *DatadogAgentInternalBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgentInternal.Spec.Features.AdmissionController.Probe.Interval = &interval
+	return builder
+}
+
+func (builder *DatadogAgentInternalBuilder) WithAdmissionControllerProbeGracePeriod(gracePeriod int32) *DatadogAgentInternalBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgentInternal.Spec.Features.AdmissionController.Probe.GracePeriod = &gracePeriod
 	return builder
 }
 
@@ -697,7 +718,7 @@ func (builder *DatadogAgentInternalBuilder) WithClusterAgentTag(tag string) *Dat
 	return builder
 }
 
-func (builder *DatadogAgentInternalBuilder) WithAPMSingleStepInstrumentationEnabled(enabled bool, enabledNamespaces []string, disabledNamespaces []string, libVersion map[string]string, languageDetectionEnabled bool, injectorImageTag string, targets []v2alpha1.SSITarget) *DatadogAgentInternalBuilder {
+func (builder *DatadogAgentInternalBuilder) WithAPMSingleStepInstrumentationEnabled(enabled bool, enabledNamespaces []string, disabledNamespaces []string, libVersion map[string]string, languageDetectionEnabled bool, injectorImageTag string, targets []v2alpha1.SSITarget, injectionMode v2alpha1.InjectionModeType) *DatadogAgentInternalBuilder {
 	builder.initAPM()
 	builder.datadogAgentInternal.Spec.Features.APM.SingleStepInstrumentation = &v2alpha1.SingleStepInstrumentation{
 		Enabled:            apiutils.NewBoolPointer(enabled),
@@ -708,7 +729,8 @@ func (builder *DatadogAgentInternalBuilder) WithAPMSingleStepInstrumentationEnab
 		Injector: &v2alpha1.InjectorConfig{
 			ImageTag: injectorImageTag,
 		},
-		Targets: targets,
+		Targets:       targets,
+		InjectionMode: injectionMode,
 	}
 	return builder
 }
@@ -976,6 +998,15 @@ func (builder *DatadogAgentInternalBuilder) WithGlobalSecretBackendGlobalPerms(c
 		Timeout:                 apiutils.NewInt32Pointer(timeout),
 		EnableGlobalPermissions: apiutils.NewBoolPointer(true),
 	}
+	return builder
+}
+
+func (builder *DatadogAgentInternalBuilder) WithGlobalSecretBackendType(backendType string, config map[string]string) *DatadogAgentInternalBuilder {
+	if builder.datadogAgentInternal.Spec.Global.SecretBackend == nil {
+		builder.datadogAgentInternal.Spec.Global.SecretBackend = &v2alpha1.SecretBackendConfig{}
+	}
+	builder.datadogAgentInternal.Spec.Global.SecretBackend.Type = apiutils.NewStringPointer(backendType)
+	builder.datadogAgentInternal.Spec.Global.SecretBackend.Config = config
 	return builder
 }
 

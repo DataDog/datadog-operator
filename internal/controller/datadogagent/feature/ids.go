@@ -83,4 +83,6 @@ const (
 	ControlPlaneMonitoringIDType = "control_plane_monitoring"
 	// PrivateActionRunnerIDType Private Action Runner feature.
 	PrivateActionRunnerIDType = "private_action_runner"
+	// DataPlaneIDType Data Plane feature.
+	DataPlaneIDType = "data_plane"
 )

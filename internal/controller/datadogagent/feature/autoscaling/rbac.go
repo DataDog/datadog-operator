@@ -105,6 +105,7 @@ func getDCAClusterPolicyRules(workloadEnabled, clusterEnabled bool) []rbacv1.Pol
 					rbac.WatchVerb,
 					rbac.CreateVerb,
 					rbac.PatchVerb,
+					rbac.UpdateVerb,
 					rbac.DeleteVerb,
 				},
 			},

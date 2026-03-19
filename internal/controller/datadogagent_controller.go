@@ -92,7 +92,7 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=*,resources=*/scale,verbs=get;update
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=patch
 // +kubebuilder:rbac:groups=argoproj.io,resources=rollouts,verbs=patch
-// +kubebuilder:rbac:groups=karpenter.sh,resources=*,verbs=get;list;watch;create;patch;delete
+// +kubebuilder:rbac:groups=karpenter.sh,resources=*,verbs=get;list;watch;create;patch;update;delete
 // +kubebuilder:rbac:groups=karpenter.k8s.aws,resources=*,verbs=get;list
 
 // Use ExtendedDaemonSet
@@ -110,6 +110,14 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=referencegrants,verbs=get;delete;create;patch
 // +kubebuilder:rbac:groups=gateway.envoyproxy.io,resources=envoyextensionpolicies,verbs=get;delete;create
 // +kubebuilder:rbac:groups=networking.istio.io,resources=envoyfilters,verbs=get;create;delete
+
+// Configure Private Action Runner k8s remediation
+// +kubebuilder:rbac:groups=apps,resources=deployments;daemonsets;statefulsets;replicasets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=patch
+// +kubebuilder:rbac:groups="",resources=pods;events;configmaps,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=pods,verbs=patch
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=create;update;patch
+// +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // OpenShift
 // +kubebuilder:rbac:groups=quota.openshift.io,resources=clusterresourcequotas,verbs=get;list
@@ -139,6 +147,7 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=list;watch;get
 
 // EKS control plane metrics
 // +kubebuilder:rbac:groups="metrics.eks.amazonaws.com",resources=kcm/metrics,verbs=get

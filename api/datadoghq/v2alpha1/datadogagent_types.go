@@ -90,6 +90,10 @@ type DatadogFeatures struct {
 	ServiceDiscovery *ServiceDiscoveryFeatureConfig `json:"serviceDiscovery,omitempty"`
 	// GPU monitoring
 	GPU *GPUFeatureConfig `json:"gpu,omitempty"`
+	// DataPlane configuration for the Agent Data Plane.
+	// Agent Data Plane is a high-performance sidecar that handles data ingestion.
+	// +optional
+	DataPlane *DataPlaneFeatureConfig `json:"dataPlane,omitempty"`
 
 	// Cluster-level features
 
@@ -163,6 +167,21 @@ type ErrorTrackingStandalone struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
+// InjectionModeType represents the injection mode for APM libraries.
+// +kubebuilder:validation:Enum=auto;init_container;csi;image_volume
+type InjectionModeType string
+
+const (
+	// InjectionModeAuto lets the Cluster Agent decide the best injection method.
+	InjectionModeAuto InjectionModeType = "auto"
+	// InjectionModeInitContainer uses init containers for library injection.
+	InjectionModeInitContainer InjectionModeType = "init_container"
+	// InjectionModeCSI uses CSI driver for library injection (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+).
+	InjectionModeCSI InjectionModeType = "csi"
+	// InjectionModeImageVolume uses image volumes for library injection (experimental, requires Cluster Agent 7.77.0+).
+	InjectionModeImageVolume InjectionModeType = "image_volume"
+)
+
 // SingleStepInstrumentation contains the config for the namespaces to target and the library to inject.
 type SingleStepInstrumentation struct {
 	// Enabled enables injecting the Datadog APM libraries into all pods in the cluster.
@@ -194,6 +213,12 @@ type SingleStepInstrumentation struct {
 	// Injector configures the APM Injector.
 	// +optional
 	Injector *InjectorConfig `json:"injector,omitempty"`
+
+	// InjectionMode is the injection mode to use for libraries injection.
+	// Valid values are: "auto", "init_container", "csi" (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+), "image_volume" (experimental, requires Cluster Agent 7.77.0+).
+	// Empty by default so the Cluster Agent can apply its own defaults.
+	// +optional
+	InjectionMode InjectionModeType `json:"injectionMode,omitempty"`
 
 	// Targets is a list of targets to apply the auto instrumentation to. The first target that matches the pod will be
 	// used. If no target matches, the auto instrumentation will not be applied.
@@ -429,7 +454,7 @@ type EBPFCheckFeatureConfig struct {
 // CSPMFeatureConfig contains CSPM (Cloud Security Posture Management) configuration.
 // CSPM runs in the Security Agent and Cluster Agent.
 type CSPMFeatureConfig struct {
-	// Enabled enables Cloud Security Posture Management.
+	// Enabled enables Cloud Security Posture Management, including Docker and Kubernetes benchmarks.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
@@ -459,7 +484,7 @@ type CSPMFeatureConfig struct {
 // CSPMHostBenchmarksConfig contains configuration for host benchmarks.
 // +k8s:openapi-gen=true
 type CSPMHostBenchmarksConfig struct {
-	// Enabled enables host benchmarks.
+	// Enabled enables Linux host benchmarks. Requires `features.cspm.enabled` to be set to `true`.
 	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
@@ -662,6 +687,30 @@ type GPUFeatureConfig struct {
 	PatchCgroupPermissions *bool `json:"patchCgroupPermissions,omitempty"`
 }
 
+// DataPlaneFeatureConfig contains the Data Plane configuration.
+// Data Plane runs as a sidecar container alongside the Core Agent.
+// +k8s:openapi-gen=true
+type DataPlaneFeatureConfig struct {
+	// Enabled enables the Data Plane.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Dogstatsd configures DogStatsD handling by the Data Plane.
+	// +optional
+	Dogstatsd *DataPlaneDogstatsdConfig `json:"dogstatsd,omitempty"`
+}
+
+// DataPlaneDogstatsdConfig configures DogStatsD handling by the Data Plane.
+// +k8s:openapi-gen=true
+type DataPlaneDogstatsdConfig struct {
+	// Enabled configures the Data Plane to handle DogStatsD traffic.
+	// When enabled, DogStatsD is disabled in the Core Agent.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
 // DogstatsdFeatureConfig contains the Dogstatsd configuration parameters.
 // +k8s:openapi-gen=true
 type DogstatsdFeatureConfig struct {
@@ -850,6 +899,7 @@ type KubeStateMetricsCoreFeatureConfig struct {
 
 	// Conf overrides the configuration for the default Kubernetes State Metrics Core check.
 	// This must point to a ConfigMap containing a valid cluster check configuration.
+	// +doc-gen:truncate
 	// +optional
 	Conf *CustomConfig `json:"conf,omitempty"`
 
@@ -1015,6 +1065,7 @@ type OtelCollectorFeatureConfig struct {
 	// Conf overrides the configuration for the default Kubernetes State Metrics Core check.
 	// This must point to a ConfigMap containing a valid cluster check configuration.
 	// When passing a configmap, file name *must* be otel-config.yaml.
+	// +doc-gen:truncate
 	// +optional
 	Conf *CustomConfig `json:"conf,omitempty"`
 
@@ -1043,6 +1094,7 @@ type OtelAgentGatewayFeatureConfig struct {
 	// Conf overrides the configuration for the default OTel Agent Gateway.
 	// This must point to a ConfigMap containing a valid OTel collector configuration.
 	// When passing a configmap, file name *must* be otel-gateway-config.yaml.
+	// +doc-gen:truncate
 	// +optional
 	Conf *CustomConfig `json:"conf,omitempty"`
 
@@ -1140,6 +1192,11 @@ type AdmissionControllerFeatureConfig struct {
 	// CWSInstrumentation holds the CWS Instrumentation endpoint configuration
 	// +optional
 	CWSInstrumentation *CWSInstrumentationConfig `json:"cwsInstrumentation,omitempty"`
+
+	// Probe holds the admission controller connectivity probe configuration.
+	// +doc-gen:exclude
+	// +optional
+	Probe *AdmissionControllerProbeConfig `json:"probe,omitempty"`
 }
 
 type AdmissionControllerValidationConfig struct {
@@ -1226,6 +1283,26 @@ type KubernetesAdmissionEventsConfig struct {
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// AdmissionControllerProbeConfig contains the configuration for the admission controller connectivity probe.
+type AdmissionControllerProbeConfig struct {
+	// Enabled enables the admission controller connectivity probe.
+	// The probe periodically sends dry-run ConfigMap creation requests to verify the
+	// webhook is reachable from the API server. Requires Cluster Agent 7.78.0+.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Interval is the number of seconds between probe executions.
+	// Default: 60
+	// +optional
+	Interval *int32 `json:"interval,omitempty"`
+
+	// GracePeriod is the number of seconds to wait at startup before the first probe.
+	// Default: 60
+	// +optional
+	GracePeriod *int32 `json:"gracePeriod,omitempty"`
 }
 
 // CWSInstrumentationConfig contains the configuration of the CWS Instrumentation admission controller endpoint.
@@ -1419,6 +1496,7 @@ type MultiCustomConfig struct {
 // +kubebuilder:object:generate=true
 type KubeletConfig struct {
 	// Host overrides the host used to contact kubelet API (default to status.hostIP).
+	// +doc-gen:truncate
 	// +optional
 	Host *corev1.EnvVarSource `json:"host,omitempty"`
 
@@ -1733,6 +1811,7 @@ type GlobalConfig struct {
 
 	// Set DisableNonResourceRules to exclude NonResourceURLs from default ClusterRoles.
 	// Required 'true' for Google Cloud Marketplace.
+	// +doc-gen:exclude
 	// +optional
 	DisableNonResourceRules *bool `json:"disableNonResourceRules,omitempty"`
 
@@ -1818,6 +1897,16 @@ type SecretBackendConfig struct {
 	// +optional
 	EnableGlobalPermissions *bool `json:"enableGlobalPermissions,omitempty"`
 
+	// The built-in secret backend type to use (e.g., `k8s.secrets`, `docker.secrets`, `aws.secrets`).
+	// Alternative to Command; when Type is set, the Agent uses the built-in backend to resolve secrets.
+	// Requires Agent 7.70+.
+	// +optional
+	Type *string `json:"type,omitempty"`
+
+	// Additional configuration for the secret backend type.
+	// +optional
+	Config map[string]string `json:"config,omitempty"`
+
 	// Roles for Datadog to read the specified secrets, replacing `enableGlobalPermissions`.
 	// They are defined as a list of namespace/secrets.
 	// Each defined namespace needs to be present in the DatadogAgent controller using `WATCH_NAMESPACE` or `DD_AGENT_WATCH_NAMESPACE`.
@@ -1880,6 +1969,7 @@ type SeccompConfig struct {
 	// CustomProfile specifies a ConfigMap containing a custom Seccomp Profile.
 	// ConfigMap data must either have the key `system-probe-seccomp.json` or CustomProfile.Items
 	// must include a corev1.KeytoPath that maps the key to the path `system-probe-seccomp.json`.
+	// +doc-gen:truncate
 	// +optional
 	CustomProfile *CustomConfig `json:"customProfile,omitempty"`
 }
@@ -1994,16 +2084,19 @@ type DatadogAgentComponentOverride struct {
 	// CustomConfiguration allows to specify custom configuration files for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`.
 	// The content is merged with configuration generated by the Datadog Operator, with priority given to custom configuration.
 	// WARNING: It is possible to override values set in the `DatadogAgent`.
+	// +doc-gen:truncate
 	// +optional
 	CustomConfigurations map[AgentConfigFileName]CustomConfig `json:"customConfigurations,omitempty"`
 
 	// Confd configuration allowing to specify config files for custom checks placed under /etc/datadog-agent/conf.d/.
 	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
+	// +doc-gen:truncate
 	// +optional
 	ExtraConfd *MultiCustomConfig `json:"extraConfd,omitempty"`
 
 	// Checksd configuration allowing to specify custom checks placed under /etc/datadog-agent/checks.d/
 	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
+	// +doc-gen:truncate
 	// +optional
 	ExtraChecksd *MultiCustomConfig `json:"extraChecksd,omitempty"`
 

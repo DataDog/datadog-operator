@@ -124,7 +124,9 @@ func runTest(t *testing.T, tt FeatureTest) {
 		var configuredFeatures []feature.Feature
 		var enabledFeatures []feature.Feature
 		configuredFeatures, enabledFeatures, gotConfigure = feature.BuildFeatures(tt.DDA, &tt.DDA.Spec, tt.DDA.Status.RemoteConfigConfiguration, featureOptions)
-		features = append(configuredFeatures, enabledFeatures...)
+		features = make([]feature.Feature, 0, len(configuredFeatures)+len(enabledFeatures))
+		features = append(features, configuredFeatures...)
+		features = append(features, enabledFeatures...)
 		dda = tt.DDA
 	} else {
 		t.Fatal("No DatadogAgent CRD provided")
