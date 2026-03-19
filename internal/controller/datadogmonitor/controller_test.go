@@ -369,6 +369,24 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 			},
 		},
 		{
+			name: "DatadogMonitor, error-tracking alert",
+			args: args{
+				request:             newRequest(resourcesNamespace, resourcesName),
+				loadFunc:            testErrorTrackingMonitor,
+				firstReconcileCount: 10,
+			},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantErr:    false,
+			wantFunc: func(c client.Client) error {
+				dm := &datadoghqv1alpha1.DatadogMonitor{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm); err != nil {
+					return err
+				}
+				assert.NotContains(t, dm.Status.Conditions[0].Message, "error")
+				return nil
+			},
+		},
+		{
 			name: "DatadogMonitor of unsupported type (composite)",
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -953,6 +971,27 @@ func testAuditMonitor(c client.Client) *datadoghqv1alpha1.DatadogMonitor {
 			Query:   "audits(\"status:error\").rollup(\"cardinality\", \"@usr.id\").last(\"5m\") > 250",
 			Type:    datadoghqv1alpha1.DatadogMonitorTypeAudit,
 			Name:    "test audit monitor",
+			Message: "something is wrong",
+		},
+	}
+	_ = c.Create(context.TODO(), dm)
+	return dm
+}
+
+func testErrorTrackingMonitor(c client.Client) *datadoghqv1alpha1.DatadogMonitor {
+	dm := &datadoghqv1alpha1.DatadogMonitor{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "DatadogMonitor",
+			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: resourcesNamespace,
+			Name:      resourcesName,
+		},
+		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+			Query:   "error-tracking-query",
+			Type:    datadoghqv1alpha1.DatadogMonitorTypeErrorTracking,
+			Name:    "test error tracking monitor",
 			Message: "something is wrong",
 		},
 	}
