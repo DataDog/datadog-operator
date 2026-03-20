@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/ext"
 	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 )
 
@@ -34,16 +35,16 @@ func (t *tracingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	resource := req.Method + " " + req.URL.Path
 	span, ctx := tracer.StartSpanFromContext(req.Context(), "http.request",
 		tracer.ResourceName(resource),
-		tracer.Tag("http.method", req.Method),
-		tracer.Tag("http.url", req.URL.String()),
-		tracer.Tag("span.type", "http"),
-		tracer.Tag("span.kind", "client"),
+		tracer.Tag(ext.HTTPMethod, req.Method),
+		tracer.Tag(ext.HTTPURL, req.URL.String()),
+		tracer.Tag(ext.SpanType, ext.SpanTypeHTTP),
+		tracer.Tag(ext.SpanKind, ext.SpanKindClient),
 	)
 	req = req.WithContext(ctx)
 
 	resp, err := t.wrapped.RoundTrip(req)
 	if resp != nil {
-		span.SetTag("http.status_code", strconv.Itoa(resp.StatusCode))
+		span.SetTag(ext.HTTPCode, strconv.Itoa(resp.StatusCode))
 	}
 	span.Finish(tracer.WithError(err))
 	return resp, err

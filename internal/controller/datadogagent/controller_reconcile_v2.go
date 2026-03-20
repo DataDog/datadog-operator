@@ -42,7 +42,8 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 
 	// 1. Validate the resource.
 	{
-		vSpan, _ := trace.StartControllerSpan(ctx, "validateDatadogAgent")
+		vSpan, vCtx := trace.StartControllerSpan(ctx, "validateDatadogAgent")
+		_ = vCtx // validation is CPU-only, no sub-calls need the child context
 		err := datadoghqv2alpha1.ValidateDatadogAgent(instance)
 		vSpan.Finish(tracer.WithError(err))
 		if err != nil {
@@ -53,7 +54,8 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 
 	// 2. Handle finalizer logic.
 	{
-		fSpan, _ := trace.StartControllerSpan(ctx, "handleFinalizer")
+		fSpan, fCtx := trace.StartControllerSpan(ctx, "handleFinalizer")
+		_ = fCtx // handleFinalizer takes a logger, not ctx
 		var err error
 		result, err = r.handleFinalizer(reqLogger, instance, r.finalizeDadV2)
 		fSpan.Finish(tracer.WithError(err))
@@ -99,8 +101,8 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 
 	// Manage dependencies
 	{
-		dSpan, _ := trace.StartControllerSpan(ctx, "manageDDADependenciesWithDDAI")
-		depErr := r.manageDDADependenciesWithDDAI(ctx, logger, instance, newDDAStatus)
+		dSpan, dCtx := trace.StartControllerSpan(ctx, "manageDDADependenciesWithDDAI")
+		depErr := r.manageDDADependenciesWithDDAI(dCtx, logger, instance, newDDAStatus)
 		dSpan.Finish(tracer.WithError(depErr))
 		if depErr != nil {
 			reconcileErr = depErr
@@ -111,7 +113,8 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 	// Generate default DDAI object from DDA
 	var ddai *datadoghqv1alpha1.DatadogAgentInternal
 	{
-		gSpan, _ := trace.StartControllerSpan(ctx, "generateDDAIFromDDA")
+		gSpan, gCtx := trace.StartControllerSpan(ctx, "generateDDAIFromDDA")
+		_ = gCtx // generateDDAIFromDDA does not take a context
 		var genErr error
 		ddai, genErr = r.generateDDAIFromDDA(instance)
 		gSpan.Finish(tracer.WithError(genErr))
@@ -126,14 +129,14 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 	// TODO: introspection
 	sendProfileEnabledMetric(r.options.DatadogAgentProfileEnabled)
 	if r.options.DatadogAgentProfileEnabled {
-		pSpan, _ := trace.StartControllerSpan(ctx, "reconcileProfiles")
+		pSpan, pCtx := trace.StartControllerSpan(ctx, "reconcileProfiles")
 		dsName := component.GetDaemonSetNameFromDatadogAgent(instance, &instance.Spec)
 		dsNSName := types.NamespacedName{
 			Namespace: instance.Namespace,
 			Name:      dsName,
 		}
 		maxUnavailable := agentprofile.GetMaxUnavailableFromSpecAndEDS(&instance.Spec, &r.options.ExtendedDaemonsetOptions, nil)
-		appliedProfiles, e := r.reconcileProfiles(ctx, dsNSName, maxUnavailable)
+		appliedProfiles, e := r.reconcileProfiles(pCtx, dsNSName, maxUnavailable)
 		if e != nil {
 			pSpan.Finish(tracer.WithError(e))
 			reconcileErr = e
@@ -151,10 +154,10 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 
 	// Create or update the DDAI object in k8s
 	{
-		cSpan, _ := trace.StartControllerSpan(ctx, "createOrUpdateDDAI")
+		cSpan, cCtx := trace.StartControllerSpan(ctx, "createOrUpdateDDAI")
 		var ddaiErr error
 		for _, ddai := range ddais {
-			if e := r.createOrUpdateDDAI(ctx, ddai); e != nil {
+			if e := r.createOrUpdateDDAI(cCtx, ddai); e != nil {
 				ddaiErr = e
 				cSpan.Finish(tracer.WithError(ddaiErr))
 				reconcileErr = ddaiErr
@@ -162,7 +165,7 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 			}
 
 			// Add DDAI status to DDA status
-			if e := r.addDDAIStatusToDDAStatus(ctx, newDDAStatus, ddai.ObjectMeta); e != nil {
+			if e := r.addDDAIStatusToDDAStatus(cCtx, newDDAStatus, ddai.ObjectMeta); e != nil {
 				ddaiErr = e
 				cSpan.Finish(tracer.WithError(ddaiErr))
 				reconcileErr = ddaiErr
@@ -170,7 +173,7 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 			}
 
 			// Add DDA remote config status to DDAI status
-			if res, e := r.addRemoteConfigStatusToDDAIStatus(ctx, newDDAStatus, ddai.ObjectMeta); utils.ShouldReturn(res, e) {
+			if res, e := r.addRemoteConfigStatusToDDAIStatus(cCtx, newDDAStatus, ddai.ObjectMeta); utils.ShouldReturn(res, e) {
 				ddaiErr = e
 				cSpan.Finish(tracer.WithError(ddaiErr))
 				reconcileErr = ddaiErr
@@ -182,8 +185,8 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 
 	// Clean up unused DDAI objects
 	{
-		clSpan, _ := trace.StartControllerSpan(ctx, "cleanUpUnusedDDAIs")
-		if e := r.cleanUpUnusedDDAIs(ctx, ddais); e != nil {
+		clSpan, clCtx := trace.StartControllerSpan(ctx, "cleanUpUnusedDDAIs")
+		if e := r.cleanUpUnusedDDAIs(clCtx, ddais); e != nil {
 			clSpan.Finish(tracer.WithError(e))
 			reconcileErr = e
 			return r.updateStatusIfNeededV2(ctx, logger, instance, ddaStatusCopy, result, e, now)
@@ -193,9 +196,9 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 
 	// Update status
 	{
-		sSpan, _ := trace.StartControllerSpan(ctx, "updateStatusIfNeededV2")
+		sSpan, sCtx := trace.StartControllerSpan(ctx, "updateStatusIfNeededV2")
 		result.RequeueAfter = defaultRequeuePeriod
-		result, reconcileErr = r.updateStatusIfNeededV2(ctx, logger, instance, newDDAStatus, result, nil, now)
+		result, reconcileErr = r.updateStatusIfNeededV2(sCtx, logger, instance, newDDAStatus, result, nil, now)
 		sSpan.Finish(tracer.WithError(reconcileErr))
 		return result, reconcileErr
 	}
@@ -248,7 +251,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// 1. Manage dependencies
 	var err error
 	{
-		span, _ := trace.StartControllerSpan(ctx, "manageDependencies")
+		span, spanCtx := trace.StartControllerSpan(ctx, "manageDependencies")
 		if err = r.manageGlobalDependencies(logger, instance, resourceManagers, requiredComponents); err != nil {
 			span.Finish(tracer.WithError(err))
 			return r.updateStatusIfNeededV2(ctx, logger, instance, newStatus, reconcile.Result{}, err, now)
@@ -261,7 +264,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 			span.Finish(tracer.WithError(err))
 			return r.updateStatusIfNeededV2(ctx, logger, instance, newStatus, reconcile.Result{}, err, now)
 		}
-		if err = r.applyAndCleanupDependencies(ctx, logger, depsStore); err != nil {
+		if err = r.applyAndCleanupDependencies(spanCtx, logger, depsStore); err != nil {
 			span.Finish(tracer.WithError(err))
 			return r.updateStatusIfNeededV2(ctx, logger, instance, newStatus, reconcile.Result{}, err, now)
 		}
@@ -303,8 +306,8 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 
 	// 3. Cleanup extraneous resources.
 	{
-		span, _ := trace.StartControllerSpan(ctx, "cleanupResources")
-		if err = r.cleanupExtraneousResources(ctx, logger, instance, newStatus, resourceManagers); err != nil {
+		span, spanCtx := trace.StartControllerSpan(ctx, "cleanupResources")
+		if err = r.cleanupExtraneousResources(spanCtx, logger, instance, newStatus, resourceManagers); err != nil {
 			logger.Error(err, "Error cleaning up extraneous resources")
 			span.Finish(tracer.WithError(err))
 			return r.updateStatusIfNeededV2(ctx, logger, instance, newStatus, result, err, now)

@@ -256,12 +256,16 @@ func run(opts *options) error {
 
 	if opts.tracingEnabled {
 		setupLog.Info("Starting datadog APM tracer")
-		tracer.Start(
+		if err := tracer.Start(
 			tracer.WithService("datadog-operator"),
 			tracer.WithServiceVersion(version.Version),
 			tracer.WithGlobalTag("git.repository_url", "https://github.com/DataDog/datadog-operator"),
-		)
-		defer tracer.Stop()
+		); err != nil {
+			setupLog.Error(err, "Failed to start datadog APM tracer, continuing without tracing")
+			opts.tracingEnabled = false
+		} else {
+			defer tracer.Stop()
+		}
 	}
 
 	// Dispatch CLI flags to each package
