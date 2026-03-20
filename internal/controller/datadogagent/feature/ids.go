@@ -85,4 +85,6 @@ const (
 	PrivateActionRunnerIDType = "private_action_runner"
 	// DataPlaneIDType Data Plane feature.
 	DataPlaneIDType = "data_plane"
+	// FlightRecorderIDType Flight Recorder feature.
+	FlightRecorderIDType = "flightrecorder"
 )

@@ -34,6 +34,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cws"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/dataplane"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/dogstatsd"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/flightrecorder"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/dummy"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/ebpfcheck"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/enabledefault"
