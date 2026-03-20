@@ -106,7 +106,7 @@ func (r *Reconciler) cleanUpUnusedDDAIs(ctx context.Context, validDDAIs []*v1alp
 
 func (r *Reconciler) addRemoteConfigStatusToDDAIStatus(ctx context.Context, ddaStatus *v2alpha1.DatadogAgentStatus, ddaiMeta metav1.ObjectMeta) (reconcile.Result, error) {
 	ddai := &v1alpha1.DatadogAgentInternal{}
-	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: ddaiMeta.Name, Namespace: ddaiMeta.Namespace}, ddai); err != nil {
+	if err := r.client.Get(ctx, types.NamespacedName{Name: ddaiMeta.Name, Namespace: ddaiMeta.Namespace}, ddai); err != nil {
 		return reconcile.Result{}, err
 	}
 	// check equality
