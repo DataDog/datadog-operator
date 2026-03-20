@@ -724,7 +724,8 @@ check_preflight_redhat_image:
     - when: never
   needs:
     - "publish_redhat_public_tag"
-  tags: ["runner:docker", "size:large"]
+  tags:
+    - "docker-in-docker:amd64"
   image: $JOB_DOCKER_IMAGE
   script:
     - apt-get update && apt-get -y install --no-install-recommends build-essential git awscli && apt-get -y clean && rm -rf /var/lib/apt/lists/*
@@ -743,7 +744,8 @@ submit_preflight_redhat_image:
     - when: never
   needs:
     - "publish_redhat_public_tag"
-  tags: ["runner:docker", "size:large"]
+  tags:
+    - "docker-in-dokcer:amd64"
   image: $JOB_DOCKER_IMAGE
   script:
     - apt-get update && apt-get -y install --no-install-recommends build-essential git awscli && apt-get -y clean && rm -rf /var/lib/apt/lists/*
