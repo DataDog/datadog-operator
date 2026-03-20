@@ -304,7 +304,38 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state
 		configIDs = append(configIDs, id)
 	}
 
-	mergedUpdate, err := r.parseReceivedUpdates(updates, applyStatus)
+	// Separate experiment signals from regular configs. Process experiment
+	// signals first; remaining configs continue through the regular path.
+	regularUpdates := make(map[string]state.RawConfig)
+	regularConfigIDs := make([]string, 0, len(updates))
+	for configPath, c := range updates {
+		signal, err := parseExperimentSignal(c.Config)
+		if err != nil {
+			r.logger.Error(err, "Failed to parse experiment signal")
+			applyStatus(configPath, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
+			return
+		}
+		if signal != nil {
+			r.logger.Info("Received experiment signal", "action", signal.Action, "id", signal.ExperimentID)
+			if err := r.handleExperimentSignal(ctx, signal); err != nil {
+				r.logger.Error(err, "Failed to handle experiment signal")
+				applyStatus(configPath, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
+				return
+			}
+			applyStatus(configPath, state.ApplyStatus{State: state.ApplyStateAcknowledged, Error: ""})
+		} else {
+			regularUpdates[configPath] = c
+			regularConfigIDs = append(regularConfigIDs, configPath)
+		}
+	}
+
+	// If all updates were experiment signals, we're done.
+	if len(regularUpdates) == 0 {
+		return
+	}
+
+	// Regular agent config path — only non-experiment updates remain
+	mergedUpdate, err := r.parseReceivedUpdates(regularUpdates, applyStatus)
 	if err != nil {
 		r.logger.Error(err, "Failed to merge updates")
 		return
@@ -319,12 +350,14 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state
 
 	if err := r.getAndUpdateDatadogAgentWithRetry(ctx, mergedUpdate, r.updateInstanceStatus); err != nil {
 		r.logger.Error(err, "Failed to update status")
-		applyStatus(configIDs[len(configIDs)-1], state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
+		for _, id := range regularConfigIDs {
+			applyStatus(id, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
+		}
 		return
 	}
 
-	// Acknowledge that configs were received
-	for _, id := range configIDs {
+	// Acknowledge regular configs
+	for _, id := range regularConfigIDs {
 		applyStatus(id, state.ApplyStatus{State: state.ApplyStateAcknowledged, Error: ""})
 	}
 

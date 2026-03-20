@@ -2344,6 +2344,49 @@ type RemoteConfigConfiguration struct {
 	Features *DatadogFeatures `json:"features,omitempty"`
 }
 
+// ExperimentPhase represents the current phase of a Fleet Automation experiment.
+// +kubebuilder:validation:Enum=running;rollback;promoted;aborted;timeout
+type ExperimentPhase string
+
+const (
+	// ExperimentPhaseRunning indicates a startExperiment signal was received and the experiment is active.
+	ExperimentPhaseRunning ExperimentPhase = "running"
+	// ExperimentPhaseRollback indicates a stopExperiment signal was received and rollback is in progress.
+	ExperimentPhaseRollback ExperimentPhase = "rollback"
+	// ExperimentPhasePromoted indicates a promoteExperiment signal was received and the experiment is permanent.
+	ExperimentPhasePromoted ExperimentPhase = "promoted"
+	// ExperimentPhaseAborted indicates the experiment was aborted due to an external DDA spec change.
+	ExperimentPhaseAborted ExperimentPhase = "aborted"
+	// ExperimentPhaseTimeout indicates the operator auto-rolled back after the timeout elapsed.
+	ExperimentPhaseTimeout ExperimentPhase = "timeout"
+)
+
+// ExperimentStatus tracks the state of a Fleet Automation experiment.
+// +k8s:openapi-gen=true
+type ExperimentStatus struct {
+	// Phase is the current state of the experiment.
+	// +optional
+	Phase ExperimentPhase `json:"phase,omitempty"`
+	// StartedAt is the timestamp when the experiment began.
+	// Used by the reconciler to compute elapsed time for auto-rollback.
+	// +optional
+	StartedAt *metav1.Time `json:"startedAt,omitempty"`
+	// BaselineRevision is the name of the ControllerRevision capturing the pre-experiment spec.
+	// Locked at startExperiment and never shifted, even if subsequent edits occur.
+	// +optional
+	BaselineRevision string `json:"baselineRevision,omitempty"`
+	// ID is the unique experiment ID sent by Fleet Automation.
+	// Optional in the CRD schema, but required by the RC signal handler.
+	// +optional
+	ID string `json:"id,omitempty"`
+	// ExpectedSpecHash is the truncated MD5 hash of the spec that FA sent in
+	// startExperiment. The reconciler uses this on the first reconcile to verify
+	// the current spec matches what FA intended, detecting user edits that land
+	// between the RC spec patch and the first reconcile.
+	// +optional
+	ExpectedSpecHash string `json:"expectedSpecHash,omitempty"`
+}
+
 // DatadogAgentStatus defines the observed state of DatadogAgent.
 // +k8s:openapi-gen=true
 type DatadogAgentStatus struct {
@@ -2371,6 +2414,15 @@ type DatadogAgentStatus struct {
 	// RemoteConfigConfiguration stores the configuration received from RemoteConfig.
 	// +optional
 	RemoteConfigConfiguration *RemoteConfigConfiguration `json:"remoteConfigConfiguration,omitempty"`
+	// CurrentRevision is the name of the ControllerRevision for the spec currently applied.
+	// +optional
+	CurrentRevision string `json:"currentRevision,omitempty"`
+	// PreviousRevision is the name of the ControllerRevision for the spec just before the current one.
+	// +optional
+	PreviousRevision string `json:"previousRevision,omitempty"`
+	// Experiment tracks the state of an active or recent Fleet Automation experiment.
+	// +optional
+	Experiment *ExperimentStatus `json:"experiment,omitempty"`
 }
 
 // DatadogAgent defines Agent configuration, see reference https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md

@@ -21,6 +21,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experiment"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
@@ -48,7 +49,19 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 	instanceCopy := instance.DeepCopy()
 	defaults.DefaultDatadogAgentSpec(&instanceCopy.Spec)
 
-	// 4. Delegate to the main reconcile function.
+	// 4. Handle experiment lifecycle (ControllerRevision management, timeout, conflict detection).
+	// When HandleExperimentLifecycle returns shouldReturn=true (rollback/timeout),
+	// it has already persisted the status directly (re-fetching after spec restore
+	// to avoid resourceVersion conflicts). The caller just returns.
+	if shouldReturn, res, err := experiment.HandleExperimentLifecycle(
+		ctx, r.client, instanceCopy, r.scheme, time.Now(), experiment.DefaultExperimentTimeout,
+	); err != nil {
+		return res, err
+	} else if shouldReturn {
+		return res, nil
+	}
+
+	// 5. Delegate to the main reconcile function.
 	if r.options.DatadogAgentInternalEnabled {
 		return r.reconcileInstanceV3(ctx, reqLogger, instanceCopy)
 	}

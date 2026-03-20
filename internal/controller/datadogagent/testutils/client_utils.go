@@ -29,6 +29,8 @@ func TestScheme() *runtime.Scheme {
 	s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.DatadogAgentProfileList{})
 	s.AddKnownTypes(appsv1.SchemeGroupVersion, &appsv1.DaemonSet{})
 	s.AddKnownTypes(appsv1.SchemeGroupVersion, &appsv1.Deployment{})
+	s.AddKnownTypes(appsv1.SchemeGroupVersion, &appsv1.ControllerRevision{})
+	s.AddKnownTypes(appsv1.SchemeGroupVersion, &appsv1.ControllerRevisionList{})
 	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.Secret{})
 	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.ServiceAccount{})
 	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.ConfigMap{})
