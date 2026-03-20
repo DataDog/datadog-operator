@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -174,19 +173,27 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 			return err
 		}
 
-		var clusterAgentPolicyRules []rbacv1.PolicyRule
 		if f.clusterConfig.SelfEnroll {
-			clusterAgentPolicyRules = append(clusterAgentPolicyRules, getClusterAgentRBACPolicyRules(f.clusterConfig.IdentitySecretName)...)
+			// This creates a Role (not ClusterRole) with permissions on the identity secret used during self enrollment
+			err := managers.RBACManager().AddPolicyRulesByComponent(
+				f.owner.GetNamespace(),
+				f.getRbacResourcesName(),
+				f.clusterServiceAccountName,
+				getClusterAgentRBACPolicyRules(f.clusterConfig.IdentitySecretName),
+				string(v2alpha1.ClusterAgentComponentName),
+			)
+			if err != nil {
+				return err
+			}
 		}
+
 		if f.k8sRemediationEnabled {
-			clusterAgentPolicyRules = append(clusterAgentPolicyRules, getK8sRemediationPolicyRules()...)
-		}
-		if len(clusterAgentPolicyRules) > 0 {
+			// This creates a ClusterRole with cluster-wide access to workload resources for k8s remediation.
 			err := managers.RBACManager().AddClusterPolicyRulesByComponent(
 				f.owner.GetNamespace(),
 				f.getRbacResourcesName(),
 				f.clusterServiceAccountName,
-				clusterAgentPolicyRules,
+				getK8sRemediationPolicyRules(),
 				string(v2alpha1.ClusterAgentComponentName),
 			)
 			if err != nil {
