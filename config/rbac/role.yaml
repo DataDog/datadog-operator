@@ -110,7 +110,11 @@ rules:
   resources:
   - controllerrevisions
   verbs:
+  - create
+  - delete
+  - get
   - list
+  - patch
   - watch
 - apiGroups:
   - apps
