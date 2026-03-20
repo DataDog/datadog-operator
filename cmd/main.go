@@ -154,8 +154,8 @@ func (opts *options) Parse() {
 	// Observability flags
 	flag.StringVar(&opts.metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&opts.secureMetrics, "metrics-secure", false, "If true, the metrics endpoint is served securely via HTTPS. Use false to use HTTP instead.")
-	flag.BoolVar(&opts.profilingEnabled, "profiling-enabled", false, "Enable Datadog profile in the Datadog Operator process.")
-	flag.BoolVar(&opts.tracingEnabled, "tracing-enabled", false, "Enable Datadog APM tracing in the Datadog Operator process.")
+	flag.BoolVar(&opts.profilingEnabled, "profiling-enabled", os.Getenv("DD_OPERATOR_PROFILING_ENABLED") == "true", "Enable Datadog profiling in the Datadog Operator process.")
+	flag.BoolVar(&opts.tracingEnabled, "tracing-enabled", os.Getenv("DD_OPERATOR_TRACING_ENABLED") == "true", "Enable Datadog APM tracing in the Datadog Operator process.")
 	opts.logLevel = zap.LevelFlag("loglevel", zapcore.InfoLevel, "Set log level")
 	flag.StringVar(&opts.logEncoder, "logEncoder", "json", "log encoding ('json' or 'console')")
 	flag.BoolVar(&opts.printVersion, "version", false, "Print version and exit")
@@ -235,7 +235,7 @@ func run(opts *options) error {
 	// submits the maximum go routine setting as a metric
 	metrics.MaxGoroutines.Set(float64(opts.maximumGoroutines))
 
-	if opts.profilingEnabled || os.Getenv("DD_OPERATOR_PROFILING_ENABLED") == "true" {
+	if opts.profilingEnabled {
 		setupLog.Info("Starting datadog profiler")
 		if err := profiler.Start(
 			profiler.WithService("datadog-operator"),
@@ -254,8 +254,7 @@ func run(opts *options) error {
 		defer profiler.Stop()
 	}
 
-	tracingEnabled := opts.tracingEnabled || os.Getenv("DD_OPERATOR_TRACING_ENABLED") == "true"
-	if tracingEnabled {
+	if opts.tracingEnabled {
 		setupLog.Info("Starting datadog APM tracer")
 		tracer.Start(
 			tracer.WithService("datadog-operator"),
@@ -285,7 +284,7 @@ func run(opts *options) error {
 
 	restConfig := ctrl.GetConfigOrDie()
 	restConfig.UserAgent = "datadog-operator"
-	if tracingEnabled {
+	if opts.tracingEnabled {
 		restConfig.WrapTransport = trace.WrapTransport
 	}
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
