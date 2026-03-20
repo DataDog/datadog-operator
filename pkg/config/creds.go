@@ -40,7 +40,7 @@ type Creds struct {
 
 // CredentialManager provides the credentials from the operator configuration.
 type CredentialManager struct {
-	client           client.Client
+	client           client.Reader
 	secretBackend    secrets.Decryptor
 	creds            Creds
 	credsMutex       sync.Mutex
@@ -61,7 +61,7 @@ func (cm *CredentialManager) RegisterCallback(cb CredentialChangeCallback) {
 }
 
 // NewCredentialManager returns a CredentialManager.
-func NewCredentialManagerWithDecryptor(client client.Client, decryptor secrets.Decryptor) *CredentialManager {
+func NewCredentialManagerWithDecryptor(client client.Reader, decryptor secrets.Decryptor) *CredentialManager {
 	return &CredentialManager{
 		client:        client,
 		secretBackend: decryptor,
@@ -79,7 +79,7 @@ func NewCredentialManagerWithDecryptor(client client.Client, decryptor secrets.D
 
 // TODO deprecate in favor of NewCredentialManagerWithDecryptor
 // NewCredentialManager returns a CredentialManager.
-func NewCredentialManager(client client.Client) *CredentialManager {
+func NewCredentialManager(client client.Reader) *CredentialManager {
 	return &CredentialManager{
 		client:        client,
 		secretBackend: secrets.NewSecretBackend(),
