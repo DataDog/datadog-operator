@@ -24,7 +24,7 @@ const (
 )
 
 // DatadogPodAutoscalerUpdateStrategy defines the mode of the update policy.
-// +kubebuilder:validation:Enum:=Auto;Disabled
+// +kubebuilder:validation:Enum:=Auto;Disabled;TriggerRollout
 type DatadogPodAutoscalerUpdateStrategy string
 
 const (
@@ -33,17 +33,9 @@ const (
 
 	// DatadogPodAutoscalerDisabledUpdateStrategy will disable the update of the target workload.
 	DatadogPodAutoscalerDisabledUpdateStrategy DatadogPodAutoscalerUpdateStrategy = "Disabled"
-)
 
-// DatadogPodAutoscalerUpdateMode controls the ability to trigger rollouts.
-// +kubebuilder:validation:Enum:=Auto;TriggerRollout
-type DatadogPodAutoscalerUpdateMode string
-
-const (
-	// DatadogPodAutoscalerAutoUpdateMode is the default mode.
-	DatadogPodAutoscalerAutoUpdateMode DatadogPodAutoscalerUpdateMode = "Auto"
-	// DatadogPodAutoscalerTriggerRolloutMode allows to trigger a full pod rollout to apply vertical recommendations.
-	DatadogPodAutoscalerTriggerRolloutMode DatadogPodAutoscalerUpdateMode = "TriggerRollout"
+	// DatadogPodAutoscalerTriggerRolloutUpdateStrategy triggers a full pod rollout to apply vertical recommendations.
+	DatadogPodAutoscalerTriggerRolloutUpdateStrategy DatadogPodAutoscalerUpdateStrategy = "TriggerRollout"
 )
 
 // DatadogPodAutoscalerUpdatePolicy defines the policy to update the target workload.
@@ -51,11 +43,6 @@ const (
 type DatadogPodAutoscalerUpdatePolicy struct {
 	// Strategy defines the mode of the update policy.
 	Strategy DatadogPodAutoscalerUpdateStrategy `json:"strategy,omitempty"`
-
-	// Mode controls the ability to trigger rollouts.
-	// +optional
-	// +kubebuilder:default=Auto
-	Mode DatadogPodAutoscalerUpdateMode `json:"mode,omitempty"`
 
 	// Controls how long we wait before forcing an eviction when the kubelet reports a resize as pending.
 	// Must be greater than 0 and less than or equal to 3600 (1 hour).

@@ -157,15 +157,6 @@
               "additionalProperties": false,
               "description": "Update defines the policy for updating the target resource.",
               "properties": {
-                "mode": {
-                  "default": "Auto",
-                  "description": "Mode controls the ability to trigger rollouts.",
-                  "enum": [
-                    "Auto",
-                    "TriggerRollout"
-                  ],
-                  "type": "string"
-                },
                 "resizePendingPeriod": {
                   "default": 600,
                   "description": "Controls how long we wait before forcing an eviction when the kubelet reports a resize as pending.\nMust be greater than 0 and less than or equal to 3600 (1 hour).",
@@ -186,7 +177,8 @@
                   "description": "Strategy defines the mode of the update policy.",
                   "enum": [
                     "Auto",
-                    "Disabled"
+                    "Disabled",
+                    "TriggerRollout"
                   ],
                   "type": "string"
                 }
