@@ -39,6 +39,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/enabledefault"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/eventcollection"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/externalmetrics"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/flightrecorder"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/gpu"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/helmcheck"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/hostprofiler"

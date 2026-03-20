@@ -1,0 +1,27 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+  namespace: system
+spec:
+  global:
+    clusterName: kind-flightrecorder
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+    registry: docker.io
+  features:
+    flightRecorder:
+      enabled: true
+  override:
+    nodeAgent:
+      image:
+        name: datadog/agent-dev
+        tag: misteriaud-poc-signal-recorder-full
+        pullPolicy: Never
+    clusterAgent:
+      image:
+        name: datadog/agent-dev
+        tag: misteriaud-poc-signal-recorder-full
+        pullPolicy: Never

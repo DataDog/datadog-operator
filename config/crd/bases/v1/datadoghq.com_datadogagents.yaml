@@ -1631,6 +1631,18 @@ spec:
                             Default: false
                           type: boolean
                       type: object
+                    flightRecorder:
+                      description: |-
+                        FlightRecorder configuration.
+                        Flight Recorder runs as a sidecar container alongside the Core Agent,
+                        recording pipeline signals (metrics, logs) to Vortex columnar files.
+                      properties:
+                        enabled:
+                          description: |-
+                            Enabled enables the Flight Recorder sidecar.
+                            Default: false
+                          type: boolean
+                      type: object
                     gpu:
                       description: GPU monitoring
                       properties:
@@ -10094,6 +10106,18 @@ spec:
                                 WPAController enables the informer and controller of the Watermark Pod Autoscaler.
                                 NOTE: The Watermark Pod Autoscaler controller needs to be installed.
                                 See also: https://github.com/DataDog/watermarkpodautoscaler.
+                                Default: false
+                              type: boolean
+                          type: object
+                        flightRecorder:
+                          description: |-
+                            FlightRecorder configuration.
+                            Flight Recorder runs as a sidecar container alongside the Core Agent,
+                            recording pipeline signals (metrics, logs) to Vortex columnar files.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables the Flight Recorder sidecar.
                                 Default: false
                               type: boolean
                           type: object
