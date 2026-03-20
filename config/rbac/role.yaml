@@ -264,6 +264,7 @@ rules:
   - datadogagents/status
   - datadogdashboards/status
   - datadoggenericresources/status
+  - datadoginstrumentations/status
   - datadogmonitors/status
   - datadogslos/status
   verbs:
@@ -277,6 +278,16 @@ rules:
   - datadogmetrics/status
   verbs:
   - update
+- apiGroups:
+  - datadoghq.com
+  resources:
+  - datadoginstrumentations
+  - extendeddaemonsetreplicasets
+  - watermarkpodautoscalers
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - datadoghq.com
   resources:
@@ -294,15 +305,6 @@ rules:
   - datadogpodautoscalers/status
   verbs:
   - '*'
-- apiGroups:
-  - datadoghq.com
-  resources:
-  - extendeddaemonsetreplicasets
-  - watermarkpodautoscalers
-  verbs:
-  - get
-  - list
-  - watch
 - apiGroups:
   - datadoghq.com
   - karpenter.azure.com
