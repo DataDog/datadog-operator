@@ -290,7 +290,6 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 			Value: componentdca.GetClusterAgentServiceURL(ddaMeta),
 		})
 	}
-
 }
 
 func updateContainerImages(config *v2alpha1.GlobalConfig, podTemplateManager feature.PodTemplateManagers) {
