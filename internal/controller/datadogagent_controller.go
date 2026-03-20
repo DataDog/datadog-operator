@@ -58,6 +58,8 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=pods/exec,verbs=create
+// +kubebuilder:rbac:groups="",resources=pods/eviction,verbs=create
+// +kubebuilder:rbac:groups="",resources=pods/resize,verbs=patch
 // +kubebuilder:rbac:groups=auto.gke.io,resources=allowlistsynchronizers,verbs=get;list;watch;create
 
 // Finalizer (cluster-scoped resources)
@@ -108,6 +110,14 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=referencegrants,verbs=get;delete;create;patch
 // +kubebuilder:rbac:groups=gateway.envoyproxy.io,resources=envoyextensionpolicies,verbs=get;delete;create
 // +kubebuilder:rbac:groups=networking.istio.io,resources=envoyfilters,verbs=get;create;delete
+
+// Configure Private Action Runner k8s remediation
+// +kubebuilder:rbac:groups=apps,resources=deployments;daemonsets;statefulsets;replicasets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=patch
+// +kubebuilder:rbac:groups="",resources=pods;events;configmaps,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=pods,verbs=patch
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=create;update;patch
+// +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // OpenShift
 // +kubebuilder:rbac:groups=quota.openshift.io,resources=clusterresourcequotas,verbs=get;list
