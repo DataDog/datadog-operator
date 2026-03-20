@@ -142,18 +142,4 @@ func applyNodeAgentResources(manager feature.PodTemplateManagers, ddaSpec *v2alp
 			manager.Volume().AddVolume(&runtimeVol)
 		}
 	}
-
-	// Enable VSock communication between the Agent and containerized workloads if specified
-	if config.UseVSock != nil && *config.UseVSock {
-		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  DDVSockAddr,
-			Value: "host",
-		})
-
-		// Remote agent doesn't work with vsock yet
-		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  DDRemoteAgentRegistryEnabled,
-			Value: "false",
-		})
-	}
 }
