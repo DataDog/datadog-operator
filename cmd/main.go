@@ -15,12 +15,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
+	"github.com/DataDog/dd-trace-go/v2/profiler"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
-	"gopkg.in/DataDog/dd-trace-go.v1/profiler"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -154,8 +154,8 @@ func (opts *options) Parse() {
 	// Observability flags
 	flag.StringVar(&opts.metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&opts.secureMetrics, "metrics-secure", false, "If true, the metrics endpoint is served securely via HTTPS. Use false to use HTTP instead.")
-	flag.BoolVar(&opts.profilingEnabled, "profiling-enabled", false, "Enable Datadog profile in the Datadog Operator process.")
-	flag.BoolVar(&opts.tracingEnabled, "tracing-enabled", false, "Enable Datadog APM tracing in the Datadog Operator process.")
+	flag.BoolVar(&opts.profilingEnabled, "profiling-enabled", os.Getenv("DD_OPERATOR_PROFILING_ENABLED") == "true", "Enable Datadog profiling in the Datadog Operator process.")
+	flag.BoolVar(&opts.tracingEnabled, "tracing-enabled", os.Getenv("DD_OPERATOR_TRACING_ENABLED") == "true", "Enable Datadog APM tracing in the Datadog Operator process.")
 	opts.logLevel = zap.LevelFlag("loglevel", zapcore.InfoLevel, "Set log level")
 	flag.StringVar(&opts.logEncoder, "logEncoder", "json", "log encoding ('json' or 'console')")
 	flag.BoolVar(&opts.printVersion, "version", false, "Print version and exit")
@@ -256,11 +256,16 @@ func run(opts *options) error {
 
 	if opts.tracingEnabled {
 		setupLog.Info("Starting datadog APM tracer")
-		tracer.Start(
+		if err := tracer.Start(
 			tracer.WithService("datadog-operator"),
 			tracer.WithServiceVersion(version.Version),
-		)
-		defer tracer.Stop()
+			tracer.WithGlobalTag("git.repository_url", "https://github.com/DataDog/datadog-operator"),
+		); err != nil {
+			setupLog.Error(err, "Failed to start datadog APM tracer, continuing without tracing")
+			opts.tracingEnabled = false
+		} else {
+			defer tracer.Stop()
+		}
 	}
 
 	// Dispatch CLI flags to each package
