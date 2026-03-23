@@ -89,11 +89,16 @@ type DatadogAgentReconciler struct {
 // (RBACs for events and pods are present below)
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogpodautoscalers,verbs=*
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogpodautoscalers/status,verbs=*
+// +kubebuilder:rbac:groups=datadoghq.com,resources=datadogpodautoscalerclusterprofiles,verbs=*
+// +kubebuilder:rbac:groups=datadoghq.com,resources=datadogpodautoscalerclusterprofiles/status,verbs=*
 // +kubebuilder:rbac:groups=*,resources=*/scale,verbs=get;update
-// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=patch
-// +kubebuilder:rbac:groups=argoproj.io,resources=rollouts,verbs=patch
+// +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;patch
+// +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;patch
+// +kubebuilder:rbac:groups=argoproj.io,resources=rollouts,verbs=get;list;watch;patch
 // +kubebuilder:rbac:groups=karpenter.sh,resources=*,verbs=get;list;watch;create;patch;update;delete
-// +kubebuilder:rbac:groups=karpenter.k8s.aws,resources=*,verbs=get;list
+// +kubebuilder:rbac:groups=karpenter.k8s.aws,resources=*,verbs=get;list;watch
+// +kubebuilder:rbac:groups=eks.amazonaws.com,resources=*,verbs=get;list;watch
 
 // Use ExtendedDaemonSet
 // +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsets,verbs=get;list;watch;create;update;patch;delete
