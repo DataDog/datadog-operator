@@ -768,7 +768,7 @@ func volumeMountsForInitConfig() []corev1.VolumeMount {
 func volumesForAgent(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Volume {
 	volumes := []corev1.Volume{
 		common.GetVolumeForLogs(),
-		common.GetVolumeForAuth(),
+		common.GetVolumeForAuth(false),
 		common.GetVolumeInstallInfo(dda),
 		common.GetVolumeForChecksd(),
 		common.GetVolumeForConfd(),
