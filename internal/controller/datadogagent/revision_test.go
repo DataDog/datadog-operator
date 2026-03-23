@@ -122,6 +122,28 @@ func TestEnsureRevision_DifferentAnnotationsDifferentNames(t *testing.T) {
 	assert.NotEqual(t, name1, name2)
 }
 
+// TestEnsureRevision_NonDatadogAnnotationsIgnored verifies that annotations
+// outside the .datadoghq.com/ domain are not included in the snapshot, so
+// they don't produce distinct revisions.
+func TestEnsureRevision_NonDatadogAnnotationsIgnored(t *testing.T) {
+	r, _ := newRevisionTestReconciler(t)
+
+	instanceA := newRevisionTestOwner("test-dda", "default")
+	instanceB := newRevisionTestOwner("test-dda", "default")
+	// kubectl and other tooling annotations should be invisible to the snapshot.
+	instanceB.Annotations = map[string]string{
+		"kubectl.kubernetes.io/last-applied-configuration": `{"apiVersion":"datadoghq.com/v2alpha1"}`,
+		"some-other-tool/annotation":                       "value",
+	}
+
+	name1, err := r.ensureRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA))
+	require.NoError(t, err)
+	name2, err := r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB))
+	require.NoError(t, err)
+
+	assert.Equal(t, name1, name2, "non-datadoghq annotations should not affect the revision snapshot")
+}
+
 func TestGCOldRevisions_KeepsCurrentAndPrevious(t *testing.T) {
 	r, c := newRevisionTestReconciler(t)
 

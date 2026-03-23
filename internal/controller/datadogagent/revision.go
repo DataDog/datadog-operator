@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -84,7 +85,7 @@ func (r *Reconciler) ensureRevision(
 ) (string, error) {
 	logger := ctrl.LoggerFrom(ctx)
 
-	snap := revisionSnapshot{Spec: instance.Spec, Annotations: instance.GetAnnotations()}
+	snap := revisionSnapshot{Spec: instance.Spec, Annotations: datadogAnnotations(instance.GetAnnotations())}
 	specBytes, err := json.Marshal(snap)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal snapshot: %w", err)
@@ -161,6 +162,21 @@ func (r *Reconciler) ensureRevision(
 	}
 
 	return rev.Name, nil
+}
+
+// datadogAnnotations returns a copy of annotations filtered to only those
+// with `.datadoghq.com/` in the key, which are used for preview features.
+func datadogAnnotations(all map[string]string) map[string]string {
+	filtered := make(map[string]string)
+	for k, v := range all {
+		if strings.Contains(k, ".datadoghq.com/") {
+			filtered[k] = v
+		}
+	}
+	if len(filtered) == 0 {
+		return nil
+	}
+	return filtered
 }
 
 // gcOldRevisions deletes all but the two most recent ControllerRevisions:
