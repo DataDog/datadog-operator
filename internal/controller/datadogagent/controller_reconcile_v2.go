@@ -73,7 +73,7 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 
 	// Manage ControllerRevision snapshots
 	if r.options.CreateControllerRevisions {
-		if err := r.manageRevision(ctx, instance, newDDAStatus); err != nil {
+		if err := r.manageRevision(ctx, instance); err != nil {
 			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, err, now)
 		}
 	}

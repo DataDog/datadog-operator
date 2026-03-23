@@ -259,8 +259,6 @@ func generateNewStatusFromDDA(ddaStatus *datadoghqv2alpha1.DatadogAgentStatus) *
 		if ddaStatus.RemoteConfigConfiguration != nil {
 			status.RemoteConfigConfiguration = ddaStatus.RemoteConfigConfiguration
 		}
-		status.CurrentRevision = ddaStatus.CurrentRevision
-		status.PreviousRevision = ddaStatus.PreviousRevision
 	}
 	return status
 }

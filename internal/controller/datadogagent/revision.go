@@ -31,13 +31,8 @@ type revisionSnapshot struct {
 }
 
 // manageRevision creates or ensures a ControllerRevision snapshot of the current
-// DDA spec, updates revision pointers in newStatus, and GCs old revisions beyond
-// the current and previous.
-func (r *Reconciler) manageRevision(
-	ctx context.Context,
-	instance *v2alpha1.DatadogAgent,
-	newStatus *v2alpha1.DatadogAgentStatus,
-) error {
+// DDA spec and GCs old revisions beyond the current and previous.
+func (r *Reconciler) manageRevision(ctx context.Context, instance *v2alpha1.DatadogAgent) error {
 	revList, err := r.listRevisions(ctx, instance)
 	if err != nil {
 		return err
@@ -46,12 +41,9 @@ func (r *Reconciler) manageRevision(
 	if err != nil {
 		return err
 	}
-	prevName, err := r.gcOldRevisions(ctx, instance, revName, revList)
-	if err != nil {
-		return err
+	if err := r.gcOldRevisions(ctx, instance, revName, revList); err != nil {
+		ctrl.LoggerFrom(ctx).Error(err, "Failed to garbage collect old ControllerRevisions, will retry on next reconcile")
 	}
-	newStatus.CurrentRevision = revName
-	newStatus.PreviousRevision = prevName
 	return nil
 }
 
@@ -173,13 +165,12 @@ func (r *Reconciler) ensureRevision(
 
 // gcOldRevisions deletes all but the two most recent ControllerRevisions:
 // the current and previous.
-// Returns the name of the previous revision (empty string if none exists).
 func (r *Reconciler) gcOldRevisions(
 	ctx context.Context,
 	instance *v2alpha1.DatadogAgent,
 	current string,
 	revList *appsv1.ControllerRevisionList,
-) (string, error) {
+) error {
 	logger := ctrl.LoggerFrom(ctx)
 
 	// Identify the most recent non-current revision to keep as previous.
@@ -208,9 +199,9 @@ func (r *Reconciler) gcOldRevisions(
 		)
 		objLogger.Info("Deleting old ControllerRevision")
 		if err := r.client.Delete(ctx, rev); err != nil && !apierrors.IsNotFound(err) {
-			return "", fmt.Errorf("failed to delete ControllerRevision %s: %w", rev.Name, err)
+			return fmt.Errorf("failed to delete ControllerRevision %s: %w", rev.Name, err)
 		}
 	}
 
-	return previous, nil
+	return nil
 }

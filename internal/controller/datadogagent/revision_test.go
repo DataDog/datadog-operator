@@ -145,9 +145,8 @@ func TestGCOldRevisions_KeepsCurrentAndPrevious(t *testing.T) {
 		names[i] = name
 	}
 
-	prev, err := r.gcOldRevisions(context.Background(), instances[2], names[2], mustListRevisions(t, r, instances[2]))
+	err := r.gcOldRevisions(context.Background(), instances[2], names[2], mustListRevisions(t, r, instances[2]))
 	require.NoError(t, err)
-	assert.Equal(t, names[1], prev, "previous should be the most recent non-current")
 
 	revList := &appsv1.ControllerRevisionList{}
 	require.NoError(t, c.List(context.Background(), revList))
@@ -184,21 +183,20 @@ func TestEnsureRevision_RevertBumpsRevision(t *testing.T) {
 	assert.Equal(t, int64(3), rev.Revision, "revision should be bumped to max+1")
 }
 
-func TestGCOldRevisions_ReturnsPreviousFromLiveState(t *testing.T) {
+func TestGCOldRevisions_KeepsTwoRevisions(t *testing.T) {
 	r, c := newRevisionTestReconciler(t)
 
 	instanceA := newRevisionTestOwner("test-dda", "default")
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
 
-	name1, err := r.ensureRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA))
+	_, err := r.ensureRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA))
 	require.NoError(t, err)
 	name2, err := r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB))
 	require.NoError(t, err)
 
-	prev, err := r.gcOldRevisions(context.Background(), instanceB, name2, mustListRevisions(t, r, instanceB))
+	err = r.gcOldRevisions(context.Background(), instanceB, name2, mustListRevisions(t, r, instanceB))
 	require.NoError(t, err)
-	assert.Equal(t, name1, prev)
 
 	revList := &appsv1.ControllerRevisionList{}
 	require.NoError(t, c.List(context.Background(), revList))
@@ -243,9 +241,8 @@ func TestGCOldRevisions_NoPreviousWhenOnlyCurrent(t *testing.T) {
 	name, err := r.ensureRevision(context.Background(), instance, mustListRevisions(t, r, instance))
 	require.NoError(t, err)
 
-	prev, err := r.gcOldRevisions(context.Background(), instance, name, mustListRevisions(t, r, instance))
+	err = r.gcOldRevisions(context.Background(), instance, name, mustListRevisions(t, r, instance))
 	require.NoError(t, err)
-	assert.Empty(t, prev, "no previous when only current exists")
 
 	revList := &appsv1.ControllerRevisionList{}
 	require.NoError(t, c.List(context.Background(), revList))
@@ -267,9 +264,8 @@ func TestGCOldRevisions_DeletesMultipleOld(t *testing.T) {
 	}
 
 	current := newRevisionTestOwner("test-dda", "default")
-	prev, err := r.gcOldRevisions(context.Background(), current, names[4], mustListRevisions(t, r, current))
+	err := r.gcOldRevisions(context.Background(), current, names[4], mustListRevisions(t, r, current))
 	require.NoError(t, err)
-	assert.Equal(t, names[3], prev, "previous should be the second most recent")
 
 	revList := &appsv1.ControllerRevisionList{}
 	require.NoError(t, c.List(context.Background(), revList))
@@ -286,39 +282,94 @@ func TestGCOldRevisions_DeletesMultipleOld(t *testing.T) {
 	}
 }
 
-func TestManageRevision_SetsStatus(t *testing.T) {
+func TestManageRevision_CreatesRevision(t *testing.T) {
 	r, _ := newRevisionTestReconciler(t)
 
 	instanceA := newRevisionTestOwner("test-dda", "default")
-	status := &v2alpha1.DatadogAgentStatus{}
+	require.NoError(t, r.manageRevision(context.Background(), instanceA))
 
-	require.NoError(t, r.manageRevision(context.Background(), instanceA, status))
-	assert.NotEmpty(t, status.CurrentRevision)
-	assert.Empty(t, status.PreviousRevision, "no previous on first call")
+	revList := mustListRevisions(t, r, instanceA)
+	assert.Len(t, revList.Items, 1, "one revision after first call")
 
-	// Change spec and call again — previous should now point to the first revision.
-	firstRevision := status.CurrentRevision
+	// Change spec and call again — should now have current and previous.
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
-	status = &v2alpha1.DatadogAgentStatus{}
 
-	require.NoError(t, r.manageRevision(context.Background(), instanceB, status))
-	assert.NotEqual(t, firstRevision, status.CurrentRevision)
-	assert.Equal(t, firstRevision, status.PreviousRevision)
+	require.NoError(t, r.manageRevision(context.Background(), instanceB))
+
+	revList = mustListRevisions(t, r, instanceB)
+	assert.Len(t, revList.Items, 2, "current and previous kept after spec change")
 }
 
 func TestManageRevision_Idempotent(t *testing.T) {
 	r, _ := newRevisionTestReconciler(t)
 	instance := newRevisionTestOwner("test-dda", "default")
 
-	status1 := &v2alpha1.DatadogAgentStatus{}
-	require.NoError(t, r.manageRevision(context.Background(), instance, status1))
+	require.NoError(t, r.manageRevision(context.Background(), instance))
+	require.NoError(t, r.manageRevision(context.Background(), instance))
 
-	status2 := &v2alpha1.DatadogAgentStatus{}
-	require.NoError(t, r.manageRevision(context.Background(), instance, status2))
+	revList := mustListRevisions(t, r, instance)
+	assert.Len(t, revList.Items, 1, "idempotent calls should not create duplicate revisions")
+}
 
-	assert.Equal(t, status1.CurrentRevision, status2.CurrentRevision)
-	assert.Equal(t, status1.PreviousRevision, status2.PreviousRevision)
+// TestManageRevision_CurrentDeletedIsRecreated verifies that if the current
+// ControllerRevision is manually deleted, the next manageRevision call
+// re-creates it at the next revision number.
+func TestManageRevision_CurrentDeletedIsRecreated(t *testing.T) {
+	r, c := newRevisionTestReconciler(t)
+	instance := newRevisionTestOwner("test-dda", "default")
+
+	require.NoError(t, r.manageRevision(context.Background(), instance))
+
+	revList := mustListRevisions(t, r, instance)
+	require.Len(t, revList.Items, 1)
+	deletedName := revList.Items[0].Name
+
+	// Simulate manual deletion.
+	require.NoError(t, c.Delete(context.Background(), &revList.Items[0]))
+
+	// Next reconcile should re-create the revision.
+	require.NoError(t, r.manageRevision(context.Background(), instance))
+
+	revList = mustListRevisions(t, r, instance)
+	require.Len(t, revList.Items, 1)
+
+	// Content is identical so the name (hash-based) should be the same.
+	assert.Equal(t, deletedName, revList.Items[0].Name, "re-created revision should have the same name")
+	assert.Equal(t, int64(1), revList.Items[0].Revision)
+}
+
+// TestManageRevision_PreviousDeletedContinuesNormally verifies that if the
+// previous ControllerRevision is manually deleted, the next manageRevision
+// call succeeds and the current revision is preserved.
+func TestManageRevision_PreviousDeletedContinuesNormally(t *testing.T) {
+	r, c := newRevisionTestReconciler(t)
+
+	instanceA := newRevisionTestOwner("test-dda", "default")
+	instanceB := newRevisionTestOwner("test-dda", "default")
+	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
+
+	require.NoError(t, r.manageRevision(context.Background(), instanceA))
+	require.NoError(t, r.manageRevision(context.Background(), instanceB))
+
+	revList := mustListRevisions(t, r, instanceB)
+	require.Len(t, revList.Items, 2)
+
+	// Identify and delete the previous (lower Revision number).
+	var prev appsv1.ControllerRevision
+	for _, rev := range revList.Items {
+		if prev.Name == "" || rev.Revision < prev.Revision {
+			prev = rev
+		}
+	}
+	require.NoError(t, c.Delete(context.Background(), &prev))
+
+	// Next reconcile on the same spec should succeed and keep only the current.
+	require.NoError(t, r.manageRevision(context.Background(), instanceB))
+
+	revList = mustListRevisions(t, r, instanceB)
+	assert.Len(t, revList.Items, 1, "only current should remain after previous was deleted")
+	assert.Equal(t, int64(2), revList.Items[0].Revision)
 }
 
 // TestListRevisions_ExcludesForeignOwner verifies that a ControllerRevision
