@@ -49,7 +49,6 @@ type DatadogPodAutoscalerUpdatePolicy struct {
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=3600
-	// +kubebuilder:default=600
 	ResizePendingPeriod int32 `json:"resizePendingPeriod,omitempty"`
 
 	// Controls how long we wait before falling back to a full rollout when evictions are blocked.
@@ -57,7 +56,6 @@ type DatadogPodAutoscalerUpdatePolicy struct {
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=3600
-	// +kubebuilder:default=1200
 	RolloutFallbackDelay int32 `json:"rolloutFallbackDelay,omitempty"`
 }
 

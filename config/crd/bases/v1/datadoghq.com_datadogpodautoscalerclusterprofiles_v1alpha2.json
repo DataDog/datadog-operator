@@ -162,7 +162,6 @@
                   "description": "Update defines the policy for updating the target resource.",
                   "properties": {
                     "resizePendingPeriod": {
-                      "default": 600,
                       "description": "Controls how long we wait before forcing an eviction when the kubelet reports a resize as pending.\nMust be greater than 0 and less than or equal to 3600 (1 hour).",
                       "format": "int32",
                       "maximum": 3600,
@@ -170,7 +169,6 @@
                       "type": "integer"
                     },
                     "rolloutFallbackDelay": {
-                      "default": 1200,
                       "description": "Controls how long we wait before falling back to a full rollout when evictions are blocked.\nMust be greater than 0 and less than or equal to 3600 (1 hour).",
                       "format": "int32",
                       "maximum": 3600,
