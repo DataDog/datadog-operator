@@ -42,6 +42,7 @@ require (
 require (
 	github.com/DataDog/datadog-agent/pkg/config/model v0.59.0-rc.5
 	github.com/DataDog/datadog-agent/pkg/config/remote v0.59.0-rc.5
+	github.com/DataDog/datadog-agent/pkg/proto v0.63.0-rc.1
 	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.59.0-rc.5
 	github.com/DataDog/datadog-operator/api v0.0.0-20250130131115-7f198adcc856
 	github.com/aws/aws-sdk-go-v2 v1.39.6
@@ -79,7 +80,6 @@ require (
 	github.com/BurntSushi/toml v1.5.0 // indirect
 	github.com/DataDog/appsec-internal-go v1.7.0 // indirect
 	github.com/DataDog/datadog-agent/pkg/obfuscate v0.59.0-rc.5 // indirect
-	github.com/DataDog/datadog-agent/pkg/proto v0.63.0-rc.1 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/backoff v0.59.0-rc.5 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/cache v0.59.0-rc.5 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/grpc v0.59.0-rc.5 // indirect

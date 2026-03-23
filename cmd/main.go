@@ -48,6 +48,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/metadata"
+	"github.com/DataDog/datadog-operator/pkg/fleet"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
@@ -140,6 +141,7 @@ type options struct {
 	introspectionEnabled                   bool
 	datadogAgentProfileEnabled             bool
 	remoteConfigEnabled                    bool
+	remoteUpdatesEnabled                   bool
 	datadogDashboardEnabled                bool
 	datadogGenericResourceEnabled          bool
 
@@ -177,6 +179,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.introspectionEnabled, "introspectionEnabled", false, "Enable introspection (beta)")
 	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller")
 	flag.BoolVar(&opts.remoteConfigEnabled, "remoteConfigEnabled", false, "Enable RemoteConfig capabilities in the Operator (beta)")
+	flag.BoolVar(&opts.remoteUpdatesEnabled, "remoteUpdatesEnabled", false, "Enable Remote Updates capabilities in the Operator (beta)")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
 	flag.BoolVar(&opts.datadogGenericResourceEnabled, "datadogGenericResourceEnabled", false, "Enable the DatadogGenericResource controller")
 
@@ -323,15 +326,22 @@ func run(opts *options) error {
 	customSetupHealthChecks(setupLog, mgr, &opts.maximumGoroutines)
 
 	if opts.remoteConfigEnabled {
+		rcUpdater := remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config"))
 		go func() {
 			// Block until this controller manager is elected leader. We presume the
 			// entire process will terminate if we lose leadership, so we don't need
 			// to handle that.
 			<-mgr.Elected()
 
-			err = remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config")).Setup(creds)
-			if err != nil {
-				setupErrorf(setupLog, err, "Unable to set up Remote Config service")
+			if rcErr := rcUpdater.Setup(creds); rcErr != nil {
+				setupErrorf(setupLog, rcErr, "Unable to set up Remote Config service")
+				return
+			}
+
+			if opts.remoteUpdatesEnabled {
+				if rcErr := setupFleetDaemon(setupLog, mgr, rcUpdater.Client()); rcErr != nil {
+					setupErrorf(setupLog, rcErr, "Unable to setup Fleet daemon")
+				}
 			}
 		}()
 	}
@@ -620,6 +630,7 @@ func setupAndStartOperatorMetadataForwarder(logger logr.Logger, client client.Re
 		LeaderElectionEnabled:         options.enableLeaderElection,
 		ExtendedDaemonSetEnabled:      options.supportExtendedDaemonset,
 		RemoteConfigEnabled:           options.remoteConfigEnabled,
+		RemoteUpdatesEnabled:          options.remoteUpdatesEnabled,
 		IntrospectionEnabled:          options.introspectionEnabled,
 		ConfigDDURL:                   os.Getenv(constants.DDURL),
 		ConfigDDSite:                  os.Getenv(constants.DDSite),
@@ -649,4 +660,9 @@ func setupAndStartHelmMetadataForwarder(logger logr.Logger, mgr manager.Manager,
 	hmf := metadata.NewHelmMetadataForwarderWithManager(logger, mgr, client, kubernetesVersion, version.GetVersion(), credsManager)
 	// Register as a runnable with the manager - will be started after cache sync
 	return mgr.Add(hmf)
+}
+
+func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, rcClient remoteconfig.RCClient) error {
+	daemon := fleet.NewDaemon(logger.WithName("fleet"), rcClient)
+	return mgr.Add(daemon)
 }
