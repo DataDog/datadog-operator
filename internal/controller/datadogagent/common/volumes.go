@@ -115,6 +115,30 @@ func GetVolumeForProc() corev1.Volume {
 	}
 }
 
+// GetVolumeForHostVarLog returns the volume with /var/log from the host
+func GetVolumeForHostVarLog() corev1.Volume {
+	return corev1.Volume{
+		Name: HostVarLogVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: HostVarLogHostPath,
+			},
+		},
+	}
+}
+
+// GetVolumeForOSRelease returns the volume with /etc/os-release from the host
+func GetVolumeForOSRelease() corev1.Volume {
+	return corev1.Volume{
+		Name: SystemProbeOSReleaseDirVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: SystemProbeOSReleaseDirVolumePath,
+			},
+		},
+	}
+}
+
 // GetVolumeForCgroups returns the volume that contains the cgroup directory
 func GetVolumeForCgroups() corev1.Volume {
 	return corev1.Volume{
@@ -247,6 +271,24 @@ func GetVolumeMountForProc() corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:      ProcdirVolumeName,
 		MountPath: ProcdirMountPath,
+		ReadOnly:  true,
+	}
+}
+
+// GetVolumeMountForHostVarLog returns the VolumeMount for the host's /var/log directory
+func GetVolumeMountForHostVarLog() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      HostVarLogVolumeName,
+		MountPath: HostVarLogMountPath,
+		ReadOnly:  true,
+	}
+}
+
+// GetVolumeMountForOSRelease returns the VolumeMount for the host's /etc/os-release
+func GetVolumeMountForOSRelease() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      SystemProbeOSReleaseDirVolumeName,
+		MountPath: SystemProbeOSReleaseDirMountPath,
 		ReadOnly:  true,
 	}
 }

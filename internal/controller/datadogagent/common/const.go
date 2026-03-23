@@ -119,6 +119,10 @@ const (
 	LogDatadogVolumeName      = "logdatadog"
 	LogDatadogVolumePath      = "/var/log/datadog"
 	DefaultLogTempStoragePath = "/var/lib/datadog-agent/logs"
+
+	HostVarLogVolumeName = "host-varlog"
+	HostVarLogHostPath   = "/var/log"
+	HostVarLogMountPath  = "/host/var/log"
 	TmpVolumeName             = "tmp"
 	TmpVolumePath             = "/tmp"
 	CertificatesVolumeName    = "certificates"

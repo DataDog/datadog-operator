@@ -89,6 +89,14 @@ func TestVolumesForAgent(t *testing.T) {
 				assert.NotNil(t, seccompVolume, "seccomp security volume should exist")
 				assert.Equal(t, tt.expectedSeccompName, seccompVolume.ConfigMap.Name)
 			}
+
+			// Check host-varlog volume
+			volumeNames := make(map[string]bool)
+			for _, v := range volumes {
+				volumeNames[v.Name] = true
+			}
+			assert.True(t, volumeNames[common.HostVarLogVolumeName], "host-varlog volume should exist")
+			assert.True(t, volumeNames[common.SystemProbeOSReleaseDirVolumeName], "host-osrelease volume should exist")
 		})
 	}
 }
@@ -229,4 +237,16 @@ func TestPrivateActionRunnerContainer(t *testing.T) {
 	assert.True(t, mountNames[common.ConfigVolumeName])
 	assert.True(t, mountNames[common.DogstatsdSocketVolumeName])
 	assert.True(t, mountNames[common.TmpVolumeName])
+	assert.True(t, mountNames[common.ProcdirVolumeName])
+	assert.True(t, mountNames[common.SystemProbeOSReleaseDirVolumeName])
+	assert.True(t, mountNames[common.HostVarLogVolumeName])
+	assert.Len(t, parContainer.VolumeMounts, 8)
+
+	// Verify host mounts are read-only
+	for _, m := range parContainer.VolumeMounts {
+		switch m.Name {
+		case common.ProcdirVolumeName, common.SystemProbeOSReleaseDirVolumeName, common.HostVarLogVolumeName:
+			assert.True(t, m.ReadOnly, "mount %s should be read-only", m.Name)
+		}
+	}
 }
