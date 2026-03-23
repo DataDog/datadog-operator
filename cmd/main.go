@@ -307,8 +307,10 @@ func run(opts *options) error {
 
 	}
 
-	// Client is needed when Creds should be resolved from DDA so cached client is fine
-	credsManager := config.NewCredentialManagerWithDecryptor(mgr.GetClient(), secrets.NewSecretBackend())
+	// Get call on a cached client initializes informer which requires list and watch permissions.
+	// If RBAC restricts list and watch permissions, the informer will log errors and may cause crash loops.
+	// Reader interface as returned from mgr.GetAPIReader() reads directly from API server bypassing cache and informer initialization.
+	credsManager := config.NewCredentialManagerWithDecryptor(mgr.GetAPIReader(), secrets.NewSecretBackend())
 	creds, err := credsManager.GetCredentials()
 
 	if opts.secretRefreshInterval > 0 && opts.secretBackendCommand == "" {
