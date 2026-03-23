@@ -12,7 +12,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 )
@@ -46,9 +45,23 @@ func (f *flightRecorderFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
+// FlightRecorder is enabled by setting DD_EXPERIMENTAL_FLIGHTRECORDER_ENABLED=true in
+// spec.override.nodeAgent.env (component-level) or
+// spec.override.nodeAgent.containers.agent.env (container-level).
 func (f *flightRecorderFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
-	if ddaSpec.Features != nil && ddaSpec.Features.FlightRecorder != nil {
-		f.enabled = apiutils.BoolValue(ddaSpec.Features.FlightRecorder.Enabled)
+	if nodeAgentOverride, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
+		for _, env := range nodeAgentOverride.Env {
+			if env.Name == common.DDExperimentalFlightRecorderEnabled && env.Value == "true" {
+				f.enabled = true
+			}
+		}
+		if coreContainer, ok := nodeAgentOverride.Containers[apicommon.CoreAgentContainerName]; ok && coreContainer != nil {
+			for _, env := range coreContainer.Env {
+				if env.Name == common.DDExperimentalFlightRecorderEnabled && env.Value == "true" {
+					f.enabled = true
+				}
+			}
+		}
 	}
 
 	var reqComp feature.RequiredComponents

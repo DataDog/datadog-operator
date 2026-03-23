@@ -1645,17 +1645,6 @@
                   },
                   "type": "object"
                 },
-                "flightRecorder": {
-                  "additionalProperties": false,
-                  "description": "FlightRecorder configuration.\nFlight Recorder runs as a sidecar container alongside the Core Agent,\nrecording pipeline signals (metrics, logs) to Vortex columnar files.",
-                  "properties": {
-                    "enabled": {
-                      "description": "Enabled enables the Flight Recorder sidecar.\nDefault: false",
-                      "type": "boolean"
-                    }
-                  },
-                  "type": "object"
-                },
                 "gpu": {
                   "additionalProperties": false,
                   "description": "GPU monitoring",

@@ -12,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
@@ -44,9 +45,13 @@ func Test_flightRecorderFeature(t *testing.T) {
 			),
 		},
 		{
-			Name: "flightrecorder enabled",
+			Name: "flightrecorder enabled via env var",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithFlightRecorderEnabled(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+					Env: []corev1.EnvVar{
+						{Name: common.DDExperimentalFlightRecorderEnabled, Value: "true"},
+					},
+				}).
 				BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
@@ -94,9 +99,13 @@ func Test_flightRecorderFeature(t *testing.T) {
 			),
 		},
 		{
-			Name: "flightrecorder explicitly disabled",
+			Name: "flightrecorder explicitly disabled (env var not set)",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithFlightRecorderEnabled(false).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+					Env: []corev1.EnvVar{
+						{Name: common.DDExperimentalFlightRecorderEnabled, Value: "false"},
+					},
+				}).
 				BuildWithDefaults(),
 			WantConfigure: false,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(

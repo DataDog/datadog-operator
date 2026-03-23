@@ -1250,21 +1250,6 @@ func (builder *DatadogAgentBuilder) WithDataPlaneDogstatsdEnabled(enabled bool) 
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) initFlightRecorder() {
-	if builder.datadogAgent.Spec.Features == nil {
-		builder.datadogAgent.Spec.Features = &v2alpha1.DatadogFeatures{}
-	}
-	if builder.datadogAgent.Spec.Features.FlightRecorder == nil {
-		builder.datadogAgent.Spec.Features.FlightRecorder = &v2alpha1.FlightRecorderFeatureConfig{}
-	}
-}
-
-func (builder *DatadogAgentBuilder) WithFlightRecorderEnabled(enabled bool) *DatadogAgentBuilder {
-	builder.initFlightRecorder()
-	builder.datadogAgent.Spec.Features.FlightRecorder.Enabled = apiutils.NewBoolPointer(enabled)
-	return builder
-}
-
 func (builder *DatadogAgentBuilder) WithStatus(status v2alpha1.DatadogAgentStatus) *DatadogAgentBuilder {
 	builder.datadogAgent.Status = status
 	return builder

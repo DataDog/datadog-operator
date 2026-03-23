@@ -216,9 +216,6 @@ spec:
 `features.externalMetricsServer`
 : ExternalMetricsServer configuration. See [link](https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md) for more information.
 
-`features.flightRecorder.enabled`
-: Enables the Flight Recorder sidecar. Default: false
-
 `features.gpu.enabled`
 : Enables GPU monitoring core check. Default: false
 

@@ -94,11 +94,6 @@ type DatadogFeatures struct {
 	// Agent Data Plane is a high-performance sidecar that handles data ingestion.
 	// +optional
 	DataPlane *DataPlaneFeatureConfig `json:"dataPlane,omitempty"`
-	// FlightRecorder configuration.
-	// Flight Recorder runs as a sidecar container alongside the Core Agent,
-	// recording pipeline signals (metrics, logs) to Vortex columnar files.
-	// +optional
-	FlightRecorder *FlightRecorderFeatureConfig `json:"flightRecorder,omitempty"`
 
 	// Cluster-level features
 
@@ -711,17 +706,6 @@ type DataPlaneFeatureConfig struct {
 type DataPlaneDogstatsdConfig struct {
 	// Enabled configures the Data Plane to handle DogStatsD traffic.
 	// When enabled, DogStatsD is disabled in the Core Agent.
-	// Default: false
-	// +optional
-	Enabled *bool `json:"enabled,omitempty"`
-}
-
-// FlightRecorderFeatureConfig contains the Flight Recorder configuration.
-// Flight Recorder runs as a sidecar container alongside the Core Agent,
-// recording pipeline signals (metrics, logs) to Vortex columnar files.
-// +k8s:openapi-gen=true
-type FlightRecorderFeatureConfig struct {
-	// Enabled enables the Flight Recorder sidecar.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
