@@ -113,7 +113,7 @@ func testRBACResources(t testing.TB, store store.StoreClient) {
 		{
 			Verbs:     []string{"*"},
 			APIGroups: []string{"datadoghq.com"},
-			Resources: []string{"datadogpodautoscalers", "datadogpodautoscalers/status"},
+			Resources: []string{"datadogpodautoscalers", "datadogpodautoscalers/status", "datadogpodautoscalerclusterprofiles", "datadogpodautoscalerclusterprofiles/status"},
 		},
 		{
 			Verbs:     []string{"create", "patch"},
@@ -141,14 +141,19 @@ func testRBACResources(t testing.TB, store store.StoreClient) {
 			Resources: []string{"pods/eviction"},
 		},
 		{
-			Verbs:     []string{"patch"},
+			Verbs:     []string{"get", "list", "watch", "patch"},
 			APIGroups: []string{"apps"},
-			Resources: []string{"deployments"},
+			Resources: []string{"deployments", "statefulsets"},
 		},
 		{
-			Verbs:     []string{"patch"},
+			Verbs:     []string{"get", "list", "watch", "patch"},
 			APIGroups: []string{"argoproj.io"},
 			Resources: []string{"rollouts"},
+		},
+		{
+			Verbs:     []string{"get", "list", "watch"},
+			APIGroups: []string{""},
+			Resources: []string{"namespaces"},
 		},
 	}
 
@@ -169,6 +174,11 @@ func testRBACResources(t testing.TB, store store.StoreClient) {
 				APIGroups: []string{"karpenter.k8s.aws"},
 				Resources: []string{"*"},
 			},
+			{
+				Verbs:     []string{"get", "list"},
+				APIGroups: []string{"eks.amazonaws.com"},
+				Resources: []string{"*"},
+			},
 		}
 	}
 
@@ -182,6 +192,11 @@ func testRBACResources(t testing.TB, store store.StoreClient) {
 			{
 				Verbs:     []string{"get", "list"},
 				APIGroups: []string{"karpenter.k8s.aws"},
+				Resources: []string{"*"},
+			},
+			{
+				Verbs:     []string{"get", "list"},
+				APIGroups: []string{"eks.amazonaws.com"},
 				Resources: []string{"*"},
 			},
 		}...,
