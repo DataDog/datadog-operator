@@ -309,7 +309,7 @@ func run(opts *options) error {
 
 	// Get call on a cached client initializes informer which requires list and watch permissions.
 	// If RBAC restricts list and watch permissions, the informer will log errors and may cause crash loops.
-	// Passing Reader avoids informer initialization.
+	// Reader interface as returned from mgr.GetAPIReader() reads directly from API server bypassing cache and informer initialization.
 	credsManager := config.NewCredentialManagerWithDecryptor(mgr.GetAPIReader(), secrets.NewSecretBackend())
 	creds, err := credsManager.GetCredentials()
 
