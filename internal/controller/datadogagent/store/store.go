@@ -356,7 +356,14 @@ func (ds *Store) DeleteAll(ctx context.Context, k8sClient client.Client) []error
 						Namespace: objMeta.GetNamespace(),
 					},
 				}
-				partialObj.TypeMeta.SetGroupVersionKind(objAPIServer.GetObjectKind().GroupVersionKind())
+				gvk := objAPIServer.GetObjectKind().GroupVersionKind()
+				if gvk.Empty() && ds.scheme != nil {
+					refObj := kubernetes.ObjectFromKind(kind, ds.platformInfo)
+					if gvks, _, schemeErr := ds.scheme.ObjectKinds(refObj); schemeErr == nil && len(gvks) > 0 {
+						gvk = gvks[0]
+					}
+				}
+				partialObj.TypeMeta.SetGroupVersionKind(gvk)
 				objsToDelete = append(objsToDelete, partialObj)
 			}
 		}

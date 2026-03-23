@@ -947,7 +947,7 @@ func (mf *metricsForwarder) sendMetric(ctx context.Context, metricName string, m
 				Tags: tags,
 				Metadata: &datadogV2.MetricMetadata{
 					Origin: &datadogV2.MetricOrigin{
-						AdditionalProperties: map[string]interface{}{
+						AdditionalProperties: map[string]any{
 							"origin_product":     datadogapi.PtrInt32(34),
 							"origin_sub_product": datadogapi.PtrInt32(64),
 						},

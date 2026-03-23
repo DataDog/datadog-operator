@@ -16,7 +16,6 @@ const (
 )
 
 // getClusterAgentRBACPolicyRules returns the RBAC policy rules for the Private Action Runner
-// This creates a Role (not ClusterRole) with permissions on the identity secret used during self enrollment
 func getClusterAgentRBACPolicyRules(identitySecretName string) []rbacv1.PolicyRule {
 	if identitySecretName == "" {
 		identitySecretName = defaultIdentitySecretName
@@ -28,6 +27,48 @@ func getClusterAgentRBACPolicyRules(identitySecretName string) []rbacv1.PolicyRu
 			Resources:     []string{rbac.SecretsResource},
 			ResourceNames: []string{identitySecretName},
 			Verbs:         []string{rbac.GetVerb, rbac.UpdateVerb, rbac.CreateVerb},
+		},
+	}
+}
+
+// getK8sRemediationPolicyRules returns the ClusterRole policy rules required for k8s remediation actions.
+// The policy rules included are constrained within the maximum set the DCA could have if all features were enabled
+func getK8sRemediationPolicyRules() []rbacv1.PolicyRule {
+	return []rbacv1.PolicyRule{
+		// Read to some workload types
+		{
+			APIGroups: []string{rbac.AppsAPIGroup},
+			Resources: []string{rbac.DeploymentsResource, rbac.DaemonsetsResource, rbac.StatefulsetsResource, rbac.ReplicasetsResource},
+			Verbs:     []string{rbac.GetVerb, rbac.ListVerb, rbac.WatchVerb},
+		},
+		{
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.PodsResource, rbac.EventsResource, rbac.ConfigMapsResource},
+			Verbs:     []string{rbac.GetVerb, rbac.ListVerb, rbac.WatchVerb},
+		},
+		// Write deployments (patch/restart)
+		{
+			APIGroups: []string{rbac.AppsAPIGroup},
+			Resources: []string{rbac.DeploymentsResource},
+			Verbs:     []string{rbac.PatchVerb},
+		},
+		// Patch pods
+		{
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.PodsResource},
+			Verbs:     []string{rbac.PatchVerb},
+		},
+		// Full write access to configmaps
+		{
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.ConfigMapsResource},
+			Verbs:     []string{rbac.CreateVerb, rbac.UpdateVerb, rbac.PatchVerb},
+		},
+		// Write events
+		{
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.EventsResource},
+			Verbs:     []string{rbac.CreateVerb, rbac.PatchVerb},
 		},
 	}
 }

@@ -200,6 +200,9 @@ func (builder *DatadogAgentBuilder) initAdmissionController() {
 	if builder.datadogAgent.Spec.Features.AdmissionController.CWSInstrumentation == nil {
 		builder.datadogAgent.Spec.Features.AdmissionController.CWSInstrumentation = &v2alpha1.CWSInstrumentationConfig{}
 	}
+	if builder.datadogAgent.Spec.Features.AdmissionController.Probe == nil {
+		builder.datadogAgent.Spec.Features.AdmissionController.Probe = &v2alpha1.AdmissionControllerProbeConfig{}
+	}
 }
 
 func (builder *DatadogAgentBuilder) initSidecarInjection() {
@@ -262,6 +265,24 @@ func (builder *DatadogAgentBuilder) WithAdmissionControllerWebhookName(name stri
 func (builder *DatadogAgentBuilder) WithAdmissionControllerRegistry(name string) *DatadogAgentBuilder {
 	builder.initAdmissionController()
 	builder.datadogAgent.Spec.Features.AdmissionController.Registry = apiutils.NewStringPointer(name)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithAdmissionControllerProbeEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgent.Spec.Features.AdmissionController.Probe.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithAdmissionControllerProbeInterval(interval int32) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgent.Spec.Features.AdmissionController.Probe.Interval = &interval
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithAdmissionControllerProbeGracePeriod(gracePeriod int32) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgent.Spec.Features.AdmissionController.Probe.GracePeriod = &gracePeriod
 	return builder
 }
 
@@ -793,7 +814,7 @@ func (builder *DatadogAgentBuilder) WithClusterAgentTag(tag string) *DatadogAgen
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enabled bool, enabledNamespaces []string, disabledNamespaces []string, libVersion map[string]string, languageDetectionEnabled bool, injectorImageTag string, targets []v2alpha1.SSITarget) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enabled bool, enabledNamespaces []string, disabledNamespaces []string, libVersion map[string]string, languageDetectionEnabled bool, injectorImageTag string, targets []v2alpha1.SSITarget, injectionMode v2alpha1.InjectionModeType) *DatadogAgentBuilder {
 	builder.initAPM()
 	builder.datadogAgent.Spec.Features.APM.SingleStepInstrumentation = &v2alpha1.SingleStepInstrumentation{
 		Enabled:            apiutils.NewBoolPointer(enabled),
@@ -804,7 +825,8 @@ func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enab
 		Injector: &v2alpha1.InjectorConfig{
 			ImageTag: injectorImageTag,
 		},
-		Targets: targets,
+		Targets:       targets,
+		InjectionMode: injectionMode,
 	}
 	return builder
 }
@@ -1201,6 +1223,30 @@ func (builder *DatadogAgentBuilder) initControlPlaneMonitoring() {
 func (builder *DatadogAgentBuilder) WithControlPlaneMonitoring(enabled bool) *DatadogAgentBuilder {
 	builder.initControlPlaneMonitoring()
 	builder.datadogAgent.Spec.Features.ControlPlaneMonitoring.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) initDataPlane() {
+	if builder.datadogAgent.Spec.Features == nil {
+		builder.datadogAgent.Spec.Features = &v2alpha1.DatadogFeatures{}
+	}
+	if builder.datadogAgent.Spec.Features.DataPlane == nil {
+		builder.datadogAgent.Spec.Features.DataPlane = &v2alpha1.DataPlaneFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithDataPlaneEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initDataPlane()
+	builder.datadogAgent.Spec.Features.DataPlane.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithDataPlaneDogstatsdEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initDataPlane()
+	if builder.datadogAgent.Spec.Features.DataPlane.Dogstatsd == nil {
+		builder.datadogAgent.Spec.Features.DataPlane.Dogstatsd = &v2alpha1.DataPlaneDogstatsdConfig{}
+	}
+	builder.datadogAgent.Spec.Features.DataPlane.Dogstatsd.Enabled = apiutils.NewBoolPointer(enabled)
 	return builder
 }
 

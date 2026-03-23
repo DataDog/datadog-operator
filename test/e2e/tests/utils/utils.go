@@ -43,26 +43,26 @@ func VerifyAgentPods(t *testing.T, c *assert.CollectT, namespace string, k8sClie
 }
 
 func VerifyCheck(c *assert.CollectT, collectorOutput string, checkName string) {
-	var runningChecks map[string]interface{}
+	var runningChecks map[string]any
 
 	checksJson := common.ParseCollectorJson(collectorOutput)
 	if checksJson != nil {
-		runnerStats, runnerStatsOk := checksJson["runnerStats"].(map[string]interface{})
+		runnerStats, runnerStatsOk := checksJson["runnerStats"].(map[string]any)
 		if !runnerStatsOk {
 			assert.Fail(c, "runnerStats field is not a map or is nil")
 			return
 		}
 
 		var checksOk bool
-		runningChecks, checksOk = runnerStats["Checks"].(map[string]interface{})
+		runningChecks, checksOk = runnerStats["Checks"].(map[string]any)
 		if !checksOk {
 			assert.Fail(c, "Checks field is not a map or is nil")
 			return
 		}
 
-		if check, found := runningChecks[checkName].(map[string]interface{}); found {
+		if check, found := runningChecks[checkName].(map[string]any); found {
 			for _, instance := range check {
-				instanceMap, instanceOk := instance.(map[string]interface{})
+				instanceMap, instanceOk := instance.(map[string]any)
 				if !instanceOk {
 					continue
 				}
@@ -91,28 +91,28 @@ func VerifyCheck(c *assert.CollectT, collectorOutput string, checkName string) {
 }
 
 func VerifyAgentPodLogs(c *assert.CollectT, collectorOutput string) {
-	var agentLogs []interface{}
+	var agentLogs []any
 	logsJson := common.ParseCollectorJson(collectorOutput)
 
 	tailedIntegrations := 0
 	if logsJson != nil {
 		var ok bool
-		logsStats, logsStatsOk := logsJson["logsStats"].(map[string]interface{})
+		logsStats, logsStatsOk := logsJson["logsStats"].(map[string]any)
 		if !logsStatsOk {
 			assert.Fail(c, "logsStats field is not a map or is nil")
 			return
 		}
-		agentLogs, ok = logsStats["integrations"].([]interface{})
+		agentLogs, ok = logsStats["integrations"].([]any)
 		assert.True(c, ok)
 		assert.NotEmpty(c, agentLogs)
 		for _, log := range agentLogs {
-			sources, sourcesOk := log.(map[string]interface{})["sources"].([]interface{})
+			sources, sourcesOk := log.(map[string]any)["sources"].([]any)
 			if !sourcesOk || len(sources) == 0 {
 				continue
 			}
 
-			if integration, integrationOk := sources[0].(map[string]interface{}); integrationOk {
-				messages, exists := integration["messages"].([]interface{})
+			if integration, integrationOk := sources[0].(map[string]any); integrationOk {
+				messages, exists := integration["messages"].([]any)
 				assert.True(c, exists)
 				assert.NotEmpty(c, messages)
 
@@ -168,20 +168,20 @@ func VerifyAgentTraces(c *assert.CollectT, collectorOutput string) {
 	foundServices := map[string]bool{}
 
 	if apmAgentJson != nil {
-		apmStatsMap, apmStatsOk := apmAgentJson["apmStats"].(map[string]interface{})
+		apmStatsMap, apmStatsOk := apmAgentJson["apmStats"].(map[string]any)
 		if !apmStatsOk {
 			assert.Fail(c, "apmStats field is not a map or is nil")
 			return
 		}
 
-		receiver, receiverOk := apmStatsMap["receiver"].([]interface{})
+		receiver, receiverOk := apmStatsMap["receiver"].([]any)
 		if !receiverOk {
 			assert.Fail(c, "receiver field is not an array or is nil")
 			return
 		}
 
 		for _, service := range receiver {
-			serviceMap, serviceOk := service.(map[string]interface{})
+			serviceMap, serviceOk := service.(map[string]any)
 			if !serviceOk {
 				continue
 			}

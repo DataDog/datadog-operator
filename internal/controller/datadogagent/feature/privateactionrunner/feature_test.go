@@ -243,6 +243,7 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 		annotations               map[string]string
 		wantClusterAgentEnabled   bool
 		wantNodeAgentEnabled      bool
+		wantK8sRemediationEnabled bool
 		expectedClusterConfigData string
 	}{
 		{
@@ -314,6 +315,28 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
   self_enroll: false
   urn: urn:dd:apps:on-prem-runner:us1:1:runner-xyz`,
 		},
+		{
+			name: "k8s remediation annotation enabled",
+			annotations: map[string]string{
+				"cluster-agent.datadoghq.com/private-action-runner-enabled":                 "true",
+				"cluster-agent.datadoghq.com/private-action-runner-k8s-remediation-enabled": "true",
+			},
+			wantClusterAgentEnabled:   true,
+			wantNodeAgentEnabled:      false,
+			wantK8sRemediationEnabled: true,
+			expectedClusterConfigData: defaultConfigData,
+		},
+		{
+			name: "k8s remediation annotation disabled",
+			annotations: map[string]string{
+				"cluster-agent.datadoghq.com/private-action-runner-enabled":                 "true",
+				"cluster-agent.datadoghq.com/private-action-runner-k8s-remediation-enabled": "false",
+			},
+			wantClusterAgentEnabled:   true,
+			wantNodeAgentEnabled:      false,
+			wantK8sRemediationEnabled: false,
+			expectedClusterConfigData: defaultConfigData,
+		},
 	}
 
 	for _, tt := range tests {
@@ -345,6 +368,8 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 			} else {
 				assert.Nil(t, parFeat.clusterConfig, "clusterConfig should be nil when not enabled")
 			}
+
+			assert.Equal(t, tt.wantK8sRemediationEnabled, parFeat.k8sRemediationEnabled, "k8sRemediationEnabled should match")
 		})
 	}
 }

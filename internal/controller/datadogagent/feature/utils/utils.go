@@ -29,8 +29,9 @@ const (
 	EnablePrivateActionRunnerAnnotation     = "agent.datadoghq.com/private-action-runner-enabled"
 	PrivateActionRunnerConfigDataAnnotation = "agent.datadoghq.com/private-action-runner-configdata"
 
-	EnableClusterAgentPrivateActionRunnerAnnotation     = "cluster-agent.datadoghq.com/private-action-runner-enabled"
-	ClusterAgentPrivateActionRunnerConfigDataAnnotation = "cluster-agent.datadoghq.com/private-action-runner-configdata"
+	EnableClusterAgentPrivateActionRunnerAnnotation      = "cluster-agent.datadoghq.com/private-action-runner-enabled"
+	ClusterAgentPrivateActionRunnerConfigDataAnnotation  = "cluster-agent.datadoghq.com/private-action-runner-configdata"
+	ClusterAgentPrivateActionRunnerK8sRemediationEnabled = "cluster-agent.datadoghq.com/private-action-runner-k8s-remediation-enabled"
 )
 
 func agentSupportsRunInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
@@ -77,4 +78,30 @@ func HasFeatureEnableAnnotation(dda metav1.Object, annotation string) bool {
 func GetFeatureConfigAnnotation(dda metav1.Object, annotation string) (string, bool) {
 	value, ok := dda.GetAnnotations()[annotation]
 	return value, ok
+}
+
+// IsDataPlaneEnabled returns true if the Data Plane is enabled.
+// CRD configuration takes precedence over the annotation.
+// If the annotation is used, a deprecation warning is logged.
+func IsDataPlaneEnabled(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	// CRD takes precedence
+	if ddaSpec.Features != nil && ddaSpec.Features.DataPlane != nil && ddaSpec.Features.DataPlane.Enabled != nil {
+		return *ddaSpec.Features.DataPlane.Enabled
+	}
+
+	// Fall back to annotation
+	if HasFeatureEnableAnnotation(dda, EnableADPAnnotation) {
+		return true
+	}
+
+	return false
+}
+
+// IsDataPlaneDogstatsdEnabled returns true if the Data Plane should handle DogStatsD.
+func IsDataPlaneDogstatsdEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	if ddaSpec.Features != nil && ddaSpec.Features.DataPlane != nil &&
+		ddaSpec.Features.DataPlane.Dogstatsd != nil && ddaSpec.Features.DataPlane.Dogstatsd.Enabled != nil {
+		return *ddaSpec.Features.DataPlane.Dogstatsd.Enabled
+	}
+	return false
 }
