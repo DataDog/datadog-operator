@@ -278,6 +278,13 @@ func fromImageConfig(imageConfig *v2alpha1.AgentImageConfig) *Image {
 		imageName = imageName[lastIdx+1:]
 	}
 
+	// Parse suffixes from right to left: Full -> JMX -> FIPS
+	// Check if tag has Full suffix (rightmost)
+	isFull = strings.HasSuffix(imageTag, FullTagSuffix)
+	if isFull {
+		imageTag = strings.TrimSuffix(imageTag, FullTagSuffix)
+	}
+
 	// Check if tag has JMX suffix
 	// If override name contains JMX tag, isJMX should be true
 	// if override name contains non-JMX tag, isJMX should be false
@@ -291,16 +298,10 @@ func fromImageConfig(imageConfig *v2alpha1.AgentImageConfig) *Image {
 		imageTag = strings.TrimSuffix(imageTag, JMXTagSuffix)
 	}
 
-	// Check if tag has FIPS suffix
+	// Check if tag has FIPS suffix (before Full or JMX)
 	isFIPS = strings.HasSuffix(imageTag, FIPSTagSuffix)
 	if isFIPS {
 		imageTag = strings.TrimSuffix(imageTag, FIPSTagSuffix)
-	}
-
-	// Check if tag has full suffix
-	isFull = strings.HasSuffix(imageTag, FullTagSuffix)
-	if isFull {
-		imageTag = strings.TrimSuffix(imageTag, FullTagSuffix)
 	}
 
 	return newImage(registry, imageName, imageTag, isJMX, isFIPS, isFull)
