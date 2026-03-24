@@ -588,9 +588,6 @@ func privateActionRunnerContainer(dda metav1.Object) corev1.Container {
 		VolumeMounts: volumeMountsForPrivateActionRunner(),
 		SecurityContext: &corev1.SecurityContext{
 			ReadOnlyRootFilesystem: apiutils.NewBoolPointer(true),
-			Capabilities: &corev1.Capabilities{
-				Add: []corev1.Capability{"NET_RAW"},
-			},
 		},
 	}
 }
@@ -792,13 +789,6 @@ func volumesForAgent(dda metav1.Object, requiredContainers []apicommon.AgentCont
 			}
 			volumes = append(volumes, sysProbeVolumes...)
 		}
-		if containerName == apicommon.PrivateActionRunnerContainerName {
-			parVolumes := []corev1.Volume{
-				common.GetVolumeForHostVarLog(),
-				common.GetVolumeForOSRelease(),
-			}
-			volumes = append(volumes, parVolumes...)
-		}
 	}
 
 	return volumes
@@ -874,9 +864,6 @@ func volumeMountsForPrivateActionRunner() []corev1.VolumeMount {
 		common.GetVolumeMountForConfig(),
 		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForTmp(),
-		common.GetVolumeMountForProc(),
-		common.GetVolumeMountForOSRelease(),
-		common.GetVolumeMountForHostVarLog(),
 	}
 }
 

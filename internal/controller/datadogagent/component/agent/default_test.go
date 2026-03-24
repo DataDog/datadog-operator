@@ -21,7 +21,6 @@ func TestVolumesForAgent(t *testing.T) {
 		requiredContainers  []apicommon.AgentContainerName
 		expectedSeccompName string
 		expectedInstallName string
-		expectPARVolumes    bool
 	}{
 		{
 			name: "foo DDA",
@@ -33,7 +32,6 @@ func TestVolumesForAgent(t *testing.T) {
 			requiredContainers:  []apicommon.AgentContainerName{apicommon.SystemProbeContainerName},
 			expectedSeccompName: "foo-system-probe-seccomp",
 			expectedInstallName: "foo-install-info",
-			expectPARVolumes:    false,
 		},
 		{
 			name: "profile DDAI",
@@ -48,7 +46,6 @@ func TestVolumesForAgent(t *testing.T) {
 			requiredContainers:  []apicommon.AgentContainerName{apicommon.SystemProbeContainerName},
 			expectedSeccompName: "foo-system-probe-seccomp",
 			expectedInstallName: "foo-install-info",
-			expectPARVolumes:    false,
 		},
 		{
 			name: "foo DDAI (same name as original DDA, no profile label)",
@@ -62,18 +59,6 @@ func TestVolumesForAgent(t *testing.T) {
 			requiredContainers:  []apicommon.AgentContainerName{apicommon.SystemProbeContainerName},
 			expectedSeccompName: "foo-system-probe-seccomp",
 			expectedInstallName: "foo-install-info",
-			expectPARVolumes:    false,
-		},
-		{
-			name: "PAR container adds host volumes",
-			dda: &metav1.ObjectMeta{
-				Name:      "foo",
-				Namespace: "default",
-				Labels:    map[string]string{},
-			},
-			requiredContainers:  []apicommon.AgentContainerName{apicommon.PrivateActionRunnerContainerName},
-			expectedInstallName: "foo-install-info",
-			expectPARVolumes:    true,
 		},
 	}
 
@@ -93,7 +78,7 @@ func TestVolumesForAgent(t *testing.T) {
 			assert.Equal(t, tt.expectedInstallName, installInfoVolume.ConfigMap.Name)
 
 			// Check seccomp volume if system probe is required
-			if tt.expectedSeccompName != "" {
+			if len(tt.requiredContainers) > 0 {
 				var seccompVolume *corev1.Volume
 				for i := range volumes {
 					if volumes[i].Name == common.SeccompSecurityVolumeName {
@@ -103,19 +88,6 @@ func TestVolumesForAgent(t *testing.T) {
 				}
 				assert.NotNil(t, seccompVolume, "seccomp security volume should exist")
 				assert.Equal(t, tt.expectedSeccompName, seccompVolume.ConfigMap.Name)
-			}
-
-			// Check PAR host volumes
-			volumeNames := make(map[string]bool)
-			for _, v := range volumes {
-				volumeNames[v.Name] = true
-			}
-			if tt.expectPARVolumes {
-				assert.True(t, volumeNames[common.HostVarLogVolumeName], "host-varlog volume should exist")
-				assert.True(t, volumeNames[common.SystemProbeOSReleaseDirVolumeName], "host-osrelease volume should exist")
-			} else {
-				assert.False(t, volumeNames[common.HostVarLogVolumeName], "host-varlog volume should not exist without PAR")
-				assert.False(t, volumeNames[common.SystemProbeOSReleaseDirVolumeName], "host-osrelease volume should not exist without PAR")
 			}
 		})
 	}
@@ -248,8 +220,6 @@ func TestPrivateActionRunnerContainer(t *testing.T) {
 	}, parContainer.Command)
 
 	assert.True(t, *parContainer.SecurityContext.ReadOnlyRootFilesystem)
-	assert.NotNil(t, parContainer.SecurityContext.Capabilities)
-	assert.Contains(t, parContainer.SecurityContext.Capabilities.Add, corev1.Capability("NET_RAW"))
 	mountNames := make(map[string]bool)
 	for _, m := range parContainer.VolumeMounts {
 		mountNames[m.Name] = true
@@ -259,16 +229,4 @@ func TestPrivateActionRunnerContainer(t *testing.T) {
 	assert.True(t, mountNames[common.ConfigVolumeName])
 	assert.True(t, mountNames[common.DogstatsdSocketVolumeName])
 	assert.True(t, mountNames[common.TmpVolumeName])
-	assert.True(t, mountNames[common.ProcdirVolumeName])
-	assert.True(t, mountNames[common.SystemProbeOSReleaseDirVolumeName])
-	assert.True(t, mountNames[common.HostVarLogVolumeName])
-	assert.Len(t, parContainer.VolumeMounts, 8)
-
-	// Verify host mounts are read-only
-	for _, m := range parContainer.VolumeMounts {
-		switch m.Name {
-		case common.ProcdirVolumeName, common.SystemProbeOSReleaseDirVolumeName, common.HostVarLogVolumeName:
-			assert.True(t, m.ReadOnly, "mount %s should be read-only", m.Name)
-		}
-	}
 }

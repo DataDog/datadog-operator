@@ -15,6 +15,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
@@ -292,6 +293,26 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 		return err
 	}
 	managers.Annotation().AddAnnotation(checksumKey, checksumValue)
+
+	// Add host volumes and mounts for PAR
+	hostVolumes := []struct {
+		name, hostPath, mountPath string
+	}{
+		{common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath},
+		{common.SystemProbeOSReleaseDirVolumeName, common.SystemProbeOSReleaseDirVolumePath, common.SystemProbeOSReleaseDirMountPath},
+		{common.HostVarLogVolumeName, common.HostVarLogHostPath, common.HostVarLogMountPath},
+	}
+	for _, hv := range hostVolumes {
+		vol, volMount := volume.GetVolumes(hv.name, hv.hostPath, hv.mountPath, true)
+		managers.Volume().AddVolume(&vol)
+		managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.PrivateActionRunnerContainerName)
+	}
+
+	// Add NET_RAW capability for network operations
+	managers.SecurityContext().AddCapabilitiesToContainer(
+		[]corev1.Capability{"NET_RAW"},
+		apicommon.PrivateActionRunnerContainerName,
+	)
 
 	return nil
 }
