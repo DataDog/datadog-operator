@@ -60,8 +60,8 @@ var (
 		}
 	}
 	wantIpcEnvVars = []*corev1.EnvVar{
-		{Name: DDAgentIpcPort, Value: "5009"},
-		{Name: DDAgentIpcConfigRefreshInterval, Value: "60"},
+		{Name: common.DDAgentIpcPort, Value: "5009"},
+		{Name: common.DDAgentIpcConfigRefreshInterval, Value: "60"},
 	}
 )
 
