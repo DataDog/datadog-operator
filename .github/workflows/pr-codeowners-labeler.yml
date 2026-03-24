@@ -1,0 +1,216 @@
+---
+name: PR Codeowners Labeler
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+
+# pull_request_target runs in the base-branch context, so GITHUB_TOKEN has
+# write access to the repo even for fork PRs. Safe here because no code from
+# the PR branch is executed.
+permissions:
+  pull-requests: write
+  contents: read
+
+env:
+  CODEOWNERS_PATH: .github/CODEOWNERS
+  LABEL_PREFIX: "team/"
+  # When true: if a changed file is owned by multiple teams, drop
+  # DEFAULT_OWNER_TEAM from that file's label contribution.
+  # DEFAULT_OWNER_TEAM is only applied when it is the sole owner
+  # (e.g. matched by the catch-all "*" rule and nothing more specific).
+  EXCLUDE_DEFAULT_OWNER_IF_OTHER_OWNERS: "true"
+  DEFAULT_OWNER_TEAM: container-platform
+
+jobs:
+  label:
+    name: Label PR from CODEOWNERS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Parse CODEOWNERS and sync labels
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+
+            const codeownersPath = process.env.CODEOWNERS_PATH;
+            const labelPrefix    = process.env.LABEL_PREFIX;
+            const excludeDefault = process.env.EXCLUDE_DEFAULT_OWNER_IF_OTHER_OWNERS === 'true';
+            const defaultTeam    = process.env.DEFAULT_OWNER_TEAM;
+
+            // ── 1. Read + parse CODEOWNERS ───────────────────────────────────
+            if (!fs.existsSync(codeownersPath)) {
+              core.setFailed(`CODEOWNERS file not found at: ${codeownersPath}`);
+              return;
+            }
+
+            const rules = [];
+            for (const line of fs.readFileSync(codeownersPath, 'utf8').split('\n')) {
+              const trimmed = line.trim();
+              if (!trimmed || trimmed.startsWith('#')) continue;
+              const parts  = trimmed.split(/\s+/);
+              const owners = parts.slice(1).filter(o => o.startsWith('@'));
+              if (owners.length > 0) rules.push({ pattern: parts[0], owners });
+            }
+            core.info(`Loaded ${rules.length} CODEOWNERS rules`);
+
+            // ── 2. CODEOWNERS glob → RegExp ──────────────────────────────────
+            // Rules follow .gitignore semantics anchored to the repo root:
+            //   - Leading /  → anchored to root
+            //   - Trailing / → directory match (all files beneath)
+            //   - **         → any number of path segments (including zero)
+            //   - *          → any characters within a single path segment
+            //   - No slash   → matches filename at any depth
+            //   - Path with slash but no trailing slash → directory prefix match
+            function patternToRegex(pattern) {
+              const anchored    = pattern.startsWith('/');
+              let p             = anchored ? pattern.slice(1) : pattern;
+              const explicitDir = p.endsWith('/');
+              if (explicitDir) p = p.slice(0, -1);
+
+              const hasWildcard = p.includes('*') || p.includes('?');
+              const hasSlash    = p.includes('/');
+
+              // Build the regex string char-by-char to avoid placeholder collisions.
+              let re = '';
+              for (let i = 0; i < p.length; i++) {
+                const c = p[i];
+                if (c === '*' && p[i + 1] === '*') {
+                  if (p[i + 2] === '/') {
+                    re += '(.*/)?'; i += 2; // **/ → zero-or-more path segments
+                  } else {
+                    re += '.*';    i += 1; // ** at end of pattern
+                  }
+                } else if (c === '*') {
+                  re += '[^/]*';
+                } else if (c === '?') {
+                  re += '[^/]';
+                } else if (/[.+^${}()|[\]\\]/.test(c)) {
+                  re += '\\' + c; // escape regex special chars
+                } else {
+                  re += c;
+                }
+              }
+
+              if (explicitDir || (!hasWildcard && hasSlash)) {
+                // Directory pattern: match the directory itself and all contents.
+                return new RegExp('^' + re + '(/.*)?$');
+              }
+              if (!anchored && !hasSlash) {
+                // Unanchored, no slash: match filename at any depth.
+                return new RegExp('(^|/)' + re + '(/.*)?$');
+              }
+              // Anchored file or glob pattern.
+              return new RegExp('^' + re + '$');
+            }
+
+            // ── 3. Get changed files (paginated) ────────────────────────────
+            const changedFiles = [];
+            for await (const resp of github.paginate.iterator(
+              github.rest.pulls.listFiles,
+              {
+                owner:       context.repo.owner,
+                repo:        context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+                per_page:    100,
+              }
+            )) {
+              changedFiles.push(...resp.data.map(f => f.filename));
+            }
+            core.info(`Changed files (${changedFiles.length}): ${changedFiles.join(', ')}`);
+
+            // ── 4. Match files → collect team slugs ─────────────────────────
+            // Last matching rule wins (CODEOWNERS bottom-to-top precedence).
+            const teamSlugs  = new Set();
+            const regexCache = new Map();
+
+            for (const file of changedFiles) {
+              let matchedOwners = [];
+              for (const rule of rules) {
+                if (!regexCache.has(rule.pattern)) {
+                  regexCache.set(rule.pattern, patternToRegex(rule.pattern));
+                }
+                if (regexCache.get(rule.pattern).test(file)) {
+                  matchedOwners = rule.owners;
+                }
+              }
+
+              let slugs = matchedOwners
+                .filter(o => o.startsWith('@DataDog/'))
+                .map(o => o.slice('@DataDog/'.length));
+
+              // De-duplicate owners listed multiple times in the same rule.
+              slugs = [...new Set(slugs)];
+
+              if (excludeDefault && slugs.length > 1 && slugs.includes(defaultTeam)) {
+                slugs = slugs.filter(s => s !== defaultTeam);
+              }
+
+              for (const slug of slugs) teamSlugs.add(slug);
+            }
+
+            const targetLabels = [...teamSlugs].map(slug => `${labelPrefix}${slug}`);
+            core.info(`Derived labels: ${targetLabels.join(', ') || '(none)'}`);
+
+            // ── 5. Validate labels exist in the repo ────────────────────────
+            const repoLabels = new Set();
+            for await (const resp of github.paginate.iterator(
+              github.rest.issues.listLabelsForRepo,
+              { owner: context.repo.owner, repo: context.repo.repo, per_page: 100 }
+            )) {
+              for (const l of resp.data) repoLabels.add(l.name);
+            }
+
+            const missing = targetLabels.filter(l => !repoLabels.has(l));
+            if (missing.length > 0) {
+              core.setFailed(
+                'The following labels do not exist in the repository and must be ' +
+                'created manually before this workflow can apply them:\n' +
+                missing.map(l => `  - ${l}`).join('\n')
+              );
+              return;
+            }
+
+            // ── 6. Sync labels on the PR (minimal diff) ──────────────────────
+            const prNumber = context.payload.pull_request.number;
+
+            const current = await github.rest.issues.listLabelsOnIssue({
+              owner:        context.repo.owner,
+              repo:         context.repo.repo,
+              issue_number: prNumber,
+            });
+            const currentManaged = current.data
+              .map(l => l.name)
+              .filter(n => n.startsWith(labelPrefix));
+
+            const targetSet  = new Set(targetLabels);
+            const currentSet = new Set(currentManaged);
+
+            for (const label of currentManaged) {
+              if (!targetSet.has(label)) {
+                core.info(`Removing label: ${label}`);
+                await github.rest.issues.removeLabel({
+                  owner:        context.repo.owner,
+                  repo:         context.repo.repo,
+                  issue_number: prNumber,
+                  name:         label,
+                });
+              }
+            }
+
+            const toAdd = targetLabels.filter(l => !currentSet.has(l));
+            if (toAdd.length > 0) {
+              core.info(`Adding labels: ${toAdd.join(', ')}`);
+              await github.rest.issues.addLabels({
+                owner:        context.repo.owner,
+                repo:         context.repo.repo,
+                issue_number: prNumber,
+                labels:       toAdd,
+              });
+            }
+
+            core.info('Label sync complete.');
