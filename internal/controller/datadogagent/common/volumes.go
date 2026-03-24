@@ -130,10 +130,10 @@ func GetVolumeForHostVarLog() corev1.Volume {
 // GetVolumeForOSRelease returns the volume with /etc/os-release from the host
 func GetVolumeForOSRelease() corev1.Volume {
 	return corev1.Volume{
-		Name: SystemProbeOSReleaseDirVolumeName,
+		Name: HostOSReleaseVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
-				Path: SystemProbeOSReleaseDirVolumePath,
+				Path: HostOSReleaseHostPath,
 			},
 		},
 	}
@@ -287,8 +287,8 @@ func GetVolumeMountForHostVarLog() corev1.VolumeMount {
 // GetVolumeMountForOSRelease returns the VolumeMount for the host's /etc/os-release
 func GetVolumeMountForOSRelease() corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      SystemProbeOSReleaseDirVolumeName,
-		MountPath: SystemProbeOSReleaseDirMountPath,
+		Name:      HostOSReleaseVolumeName,
+		MountPath: HostOSReleaseMountPath,
 		ReadOnly:  true,
 	}
 }

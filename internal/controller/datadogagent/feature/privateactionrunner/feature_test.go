@@ -118,7 +118,7 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 		volumeNames[v.Name] = true
 	}
 	assert.True(t, volumeNames[common.ProcdirVolumeName])
-	assert.True(t, volumeNames[common.SystemProbeOSReleaseDirVolumeName])
+	assert.True(t, volumeNames[common.HostOSReleaseVolumeName])
 	assert.True(t, volumeNames[common.HostVarLogVolumeName])
 
 	// Verify volume mounts (1 configmap + 3 host mounts)
@@ -135,12 +135,12 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 		mountNames[m.Name] = true
 	}
 	assert.True(t, mountNames[common.ProcdirVolumeName])
-	assert.True(t, mountNames[common.SystemProbeOSReleaseDirVolumeName])
+	assert.True(t, mountNames[common.HostOSReleaseVolumeName])
 	assert.True(t, mountNames[common.HostVarLogVolumeName])
 
 	// Verify host mounts are read-only
 	for _, m := range volumeMounts {
-		if m.Name == common.ProcdirVolumeName || m.Name == common.SystemProbeOSReleaseDirVolumeName || m.Name == common.HostVarLogVolumeName {
+		if m.Name == common.ProcdirVolumeName || m.Name == common.HostOSReleaseVolumeName || m.Name == common.HostVarLogVolumeName {
 			assert.True(t, m.ReadOnly, "mount %s should be read-only", m.Name)
 		}
 	}

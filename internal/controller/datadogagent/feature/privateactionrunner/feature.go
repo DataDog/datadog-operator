@@ -299,7 +299,7 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 		name, hostPath, mountPath string
 	}{
 		{common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath},
-		{common.SystemProbeOSReleaseDirVolumeName, common.SystemProbeOSReleaseDirVolumePath, common.SystemProbeOSReleaseDirMountPath},
+		{common.HostOSReleaseVolumeName, common.HostOSReleaseHostPath, common.HostOSReleaseMountPath},
 		{common.HostVarLogVolumeName, common.HostVarLogHostPath, common.HostVarLogMountPath},
 	}
 	for _, hv := range hostVolumes {
