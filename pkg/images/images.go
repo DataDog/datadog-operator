@@ -214,6 +214,24 @@ func (i *Image) ToString() string {
 	return fmt.Sprintf("%s/%s:%s%s", i.registry, i.name, i.tag, suffix)
 }
 
+// parseTagSuffixes extracts FIPS, JMX, and Full suffix flags from a tag string.
+// Suffixes are parsed right to left: Full -> JMX -> FIPS, matching the order they appear in the tag.
+func parseTagSuffixes(tag string) (baseTag string, isJMX, isFIPS, isFull bool) {
+	isFull = strings.HasSuffix(tag, FullTagSuffix)
+	if isFull {
+		tag = strings.TrimSuffix(tag, FullTagSuffix)
+	}
+	isJMX = strings.HasSuffix(tag, JMXTagSuffix)
+	if isJMX {
+		tag = strings.TrimSuffix(tag, JMXTagSuffix)
+	}
+	isFIPS = strings.HasSuffix(tag, FIPSTagSuffix)
+	if isFIPS {
+		tag = strings.TrimSuffix(tag, FIPSTagSuffix)
+	}
+	return tag, isJMX, isFIPS, isFull
+}
+
 // FromString translates a string Image in the format registry/name:tag to an Image object
 func FromString(stringImage string) *Image {
 	splitImg := strings.Split(stringImage, "/")
@@ -222,29 +240,7 @@ func FromString(stringImage string) *Image {
 	splitName := strings.Split(splitImg[len(splitImg)-1], ":")
 
 	name := splitName[0]
-	tag := splitName[1]
-
-	// Check for suffixes in reverse order of how they appear in the tag
-	// Expected suffix order: -fips-full, -fips-jmx
-	// Parse from right to left: Full -> JMX -> FIPS
-
-	// Check if this tag has Full suffix (rightmost)
-	isFull := strings.HasSuffix(tag, FullTagSuffix)
-	if isFull {
-		tag = strings.TrimSuffix(tag, FullTagSuffix)
-	}
-
-	// Check if this tag has JMX suffix (rightmost if no Full)
-	isJMX := strings.HasSuffix(tag, JMXTagSuffix)
-	if isJMX {
-		tag = strings.TrimSuffix(tag, JMXTagSuffix)
-	}
-
-	// Check if this tag has FIPS suffix (before Full or JMX)
-	isFIPS := strings.HasSuffix(tag, FIPSTagSuffix)
-	if isFIPS {
-		tag = strings.TrimSuffix(tag, FIPSTagSuffix)
-	}
+	tag, isJMX, isFIPS, isFull := parseTagSuffixes(splitName[1])
 
 	return newImage(registry, name, tag, isJMX, isFIPS, isFull)
 }
@@ -257,52 +253,12 @@ func FromString(stringImage string) *Image {
 // (Notably, we do not accept "registry/name".)
 // Note that if the name includes a tag, then we ignore imageConfig.tag and imageConfig.JMXEnabled
 func fromImageConfig(imageConfig *v2alpha1.AgentImageConfig) *Image {
-	registry := ""
-	imageName := imageConfig.Name
-	imageTag := imageConfig.Tag
-
-	nameContainsTag := false
-	isJMX := false
-	isFIPS := false
-	isFull := false
-
-	if strings.Contains(imageName, ":") {
-		nameContainsTag = true
-		splitRes := strings.SplitN(imageName, ":", 2)
-		imageName, imageTag = splitRes[0], splitRes[1]
-
-	}
-	if nameContainsTag && strings.Contains(imageName, "/") {
-		lastIdx := strings.LastIndex(imageName, "/")
-		registry = imageName[:lastIdx]
-		imageName = imageName[lastIdx+1:]
+	if strings.Contains(imageConfig.Name, ":") {
+		return FromString(imageConfig.Name)
 	}
 
-	// Parse suffixes from right to left: Full -> JMX -> FIPS
-	// Check if tag has Full suffix (rightmost)
-	isFull = strings.HasSuffix(imageTag, FullTagSuffix)
-	if isFull {
-		imageTag = strings.TrimSuffix(imageTag, FullTagSuffix)
-	}
+	imageTag, isJMX, isFIPS, isFull := parseTagSuffixes(imageConfig.Tag)
+	isJMX = isJMX || imageConfig.JMXEnabled
 
-	// Check if tag has JMX suffix
-	// If override name contains JMX tag, isJMX should be true
-	// if override name contains non-JMX tag, isJMX should be false
-	if nameContainsTag {
-		isJMX = strings.HasSuffix(imageTag, JMXTagSuffix)
-	} else {
-		isJMX = imageConfig.JMXEnabled || strings.HasSuffix(imageTag, JMXTagSuffix)
-	}
-
-	if isJMX {
-		imageTag = strings.TrimSuffix(imageTag, JMXTagSuffix)
-	}
-
-	// Check if tag has FIPS suffix (before Full or JMX)
-	isFIPS = strings.HasSuffix(imageTag, FIPSTagSuffix)
-	if isFIPS {
-		imageTag = strings.TrimSuffix(imageTag, FIPSTagSuffix)
-	}
-
-	return newImage(registry, imageName, imageTag, isJMX, isFIPS, isFull)
+	return newImage("", imageConfig.Name, imageTag, isJMX, isFIPS, isFull)
 }
