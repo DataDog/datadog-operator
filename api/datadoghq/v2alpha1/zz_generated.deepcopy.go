@@ -2052,6 +2052,11 @@ func (in *GlobalConfig) DeepCopyInto(out *GlobalConfig) {
 			(*out)[key] = outVal
 		}
 	}
+	if in.KubernetesUseEndpointSlices != nil {
+		in, out := &in.KubernetesUseEndpointSlices, &out.KubernetesUseEndpointSlices
+		*out = new(bool)
+		**out = **in
+	}
 	if in.CSI != nil {
 		in, out := &in.CSI, &out.CSI
 		*out = new(CSIConfig)
