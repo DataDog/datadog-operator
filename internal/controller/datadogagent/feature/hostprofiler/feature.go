@@ -235,11 +235,11 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	// (todo: mackjmr): remove this once IPC port is enabled by default. Enabling this port is required to fetch the API key from
 	// core agent when secrets backend is used.
 	agentIpcPortEnvVar := &corev1.EnvVar{
-		Name:  DDAgentIpcPort,
+		Name:  common.DDAgentIpcPort,
 		Value: "5009",
 	}
 	agentIpcConfigRefreshIntervalEnvVar := &corev1.EnvVar{
-		Name:  DDAgentIpcConfigRefreshInterval,
+		Name:  common.DDAgentIpcConfigRefreshInterval,
 		Value: "60",
 	}
 	for _, container := range []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.HostProfiler} {
