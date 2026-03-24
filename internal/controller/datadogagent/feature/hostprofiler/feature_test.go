@@ -59,6 +59,10 @@ var (
 			},
 		}
 	}
+	wantIpcEnvVars = []*corev1.EnvVar{
+		{Name: DDAgentIpcPort, Value: "5009"},
+		{Name: DDAgentIpcConfigRefreshInterval, Value: "60"},
+	}
 )
 
 var defaultAnnotations = map[string]string{"checksum/host_profiler-custom-config": "7b48d4d7ca198be0a6d7d8c7a5ad5535"}
@@ -141,6 +145,13 @@ func testExpectedAgent(
 			assert.Equal(t, expectedAnnotations, agentAnnotations)
 
 			assert.Equal(t, true, mgr.Tpl.Spec.HostPID)
+
+			// IPC env vars
+			coreEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+			assert.True(t, apiutils.IsEqualStruct(coreEnvVars, wantIpcEnvVars), "Core agent IPC env vars \ndiff = %s", cmp.Diff(coreEnvVars, wantIpcEnvVars))
+
+			hostProfilerEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.HostProfiler]
+			assert.True(t, apiutils.IsEqualStruct(hostProfilerEnvVars, wantIpcEnvVars), "HostProfiler IPC env vars \ndiff = %s", cmp.Diff(hostProfilerEnvVars, wantIpcEnvVars))
 		},
 	)
 }

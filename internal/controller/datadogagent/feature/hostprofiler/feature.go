@@ -231,6 +231,26 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	if o.customConfigAnnotationKey != "" && o.customConfigAnnotationValue != "" {
 		managers.Annotation().AddAnnotation(o.customConfigAnnotationKey, o.customConfigAnnotationValue)
 	}
+
+	// (todo: mackjmr): remove this once IPC port is enabled by default. Enabling this port is required to fetch the API key from
+	// core agent when secrets backend is used.
+	agentIpcPortEnvVar := &corev1.EnvVar{
+		Name:  DDAgentIpcPort,
+		Value: "5009",
+	}
+	agentIpcConfigRefreshIntervalEnvVar := &corev1.EnvVar{
+		Name:  DDAgentIpcConfigRefreshInterval,
+		Value: "60",
+	}
+	// don't set env var if it was already set by user.
+	mergeFunc := func(current, newEnv *corev1.EnvVar) (*corev1.EnvVar, error) {
+		return current, nil
+	}
+	for _, container := range []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.HostProfiler} {
+		managers.EnvVar().AddEnvVarToContainerWithMergeFunc(container, agentIpcPortEnvVar, mergeFunc)
+		managers.EnvVar().AddEnvVarToContainerWithMergeFunc(container, agentIpcConfigRefreshIntervalEnvVar, mergeFunc)
+	}
+
 	return nil
 }
 
