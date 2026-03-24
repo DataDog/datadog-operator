@@ -588,6 +588,9 @@ func privateActionRunnerContainer(dda metav1.Object) corev1.Container {
 		VolumeMounts: volumeMountsForPrivateActionRunner(),
 		SecurityContext: &corev1.SecurityContext{
 			ReadOnlyRootFilesystem: apiutils.NewBoolPointer(true),
+			Capabilities: &corev1.Capabilities{
+				Add: []corev1.Capability{"NET_RAW"},
+			},
 		},
 	}
 }

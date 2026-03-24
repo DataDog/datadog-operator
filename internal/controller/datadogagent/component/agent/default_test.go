@@ -248,6 +248,8 @@ func TestPrivateActionRunnerContainer(t *testing.T) {
 	}, parContainer.Command)
 
 	assert.True(t, *parContainer.SecurityContext.ReadOnlyRootFilesystem)
+	assert.NotNil(t, parContainer.SecurityContext.Capabilities)
+	assert.Contains(t, parContainer.SecurityContext.Capabilities.Add, corev1.Capability("NET_RAW"))
 	mountNames := make(map[string]bool)
 	for _, m := range parContainer.VolumeMounts {
 		mountNames[m.Name] = true
