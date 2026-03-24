@@ -52,6 +52,10 @@ func (r *Reconciler) handleFinalizer(logger logr.Logger, dm *datadoghqv1alpha1.D
 }
 
 func (r *Reconciler) finalizeDatadogMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) {
+	if r.operatorMetricsEnabled {
+		r.forwarders.Unregister(dm)
+	}
+
 	if dm.Status.Primary {
 		err := deleteMonitor(r.datadogAuth, r.datadogClient, dm.Status.ID)
 		if err != nil {
