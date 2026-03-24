@@ -101,10 +101,9 @@ const (
 	SystemProbeOSReleaseDirVolumePath = "/etc/os-release"
 	SystemProbeOSReleaseDirMountPath  = "/host/etc/os-release"
 
-	// Generic aliases for os-release volume constants (same values as SystemProbe variants)
-	HostOSReleaseVolumeName = SystemProbeOSReleaseDirVolumeName
-	HostOSReleaseHostPath   = SystemProbeOSReleaseDirVolumePath
-	HostOSReleaseMountPath  = SystemProbeOSReleaseDirMountPath
+	HostOSReleaseVolumeName = "host-osrelease"
+	HostOSReleaseHostPath   = "/etc/os-release"
+	HostOSReleaseMountPath  = "/host/etc/os-release"
 
 	SystemProbeSocketVolumeName = "sysprobe-socket-dir"
 	SystemProbeSocketVolumePath = "/var/run/sysprobe"
