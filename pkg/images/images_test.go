@@ -631,6 +631,14 @@ func Test_OverrideAgentImage(t *testing.T) {
 			},
 			want: "gcr.io/datadoghq/ddot-collector:7.75.0-fips",
 		},
+		{
+			name:         "current image includes fips suffix and override tag includes fips-full suffix",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0-fips",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Tag: "7.65.0-fips-full",
+			},
+			want: "gcr.io/datadoghq/agent:7.65.0-fips-full",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
