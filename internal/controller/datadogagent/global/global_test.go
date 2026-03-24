@@ -131,6 +131,65 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			want:                      assertAll,
 		},
 		{
+			name:                           "VSock enabled",
+			singleContainerStrategyEnabled: false,
+			dda: func() *v2alpha1.DatadogAgent {
+				dda := testutils.NewDatadogAgentBuilder().
+					WithCredentials("apiKey", "appKey").
+					BuildWithDefaults()
+				dda.Spec.Global.UseVSock = apiutils.NewBoolPointer(true)
+				return dda
+			}(),
+			wantCoreAgentEnvVars: nil,
+			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
+				{
+					Name: constants.DDAPIKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-secret",
+							},
+							Key: v2alpha1.DefaultAPIKeyKey,
+						},
+					},
+				},
+				{
+					Name: constants.DDAppKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-secret",
+							},
+							Key: v2alpha1.DefaultAPPKeyKey,
+						},
+					},
+				},
+				{
+					Name: DDClusterAgentAuthToken,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-token",
+							},
+							Key: common.DefaultTokenKey,
+						},
+					},
+				},
+				{
+					Name:  DDVSockAddr,
+					Value: "host",
+				},
+				{
+					Name:  DDRemoteAgentRegistryEnabled,
+					Value: "false",
+				},
+			}...),
+			wantCoreAgentVolumeMounts: nil,
+			wantVolumeMounts:          nil,
+			wantVolumes:               getExpectedVolumes(authVolume),
+			want:                      assertAll,
+		},
+		{
 			name:                           "Kubelet volume configured",
 			singleContainerStrategyEnabled: true,
 			dda: testutils.NewDatadogAgentBuilder().
@@ -961,6 +1020,7 @@ type volumeConfig string
 
 const kubeletCAVolumes volumeConfig = "kubeletCA"
 const criSocketVolume volumeConfig = "criSocket"
+const authVolume volumeConfig = "auth"
 
 func getExpectedVolumes(configs ...volumeConfig) []*corev1.Volume {
 	volumes := []*corev1.Volume{}
@@ -983,6 +1043,19 @@ func getExpectedVolumes(configs ...volumeConfig) []*corev1.Volume {
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: dockerSocketPath,
+				},
+			},
+		})
+	}
+
+	if slices.Contains(configs, authVolume) {
+		volType := corev1.HostPathDirectoryOrCreate
+		volumes = append(volumes, &corev1.Volume{
+			Name: common.AuthVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: common.AuthVolumePath,
+					Type: &volType,
 				},
 			},
 		})

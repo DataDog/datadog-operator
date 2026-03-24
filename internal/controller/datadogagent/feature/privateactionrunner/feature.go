@@ -47,6 +47,7 @@ type privateActionRunnerFeature struct {
 	clusterConfig             *PrivateActionRunnerConfig
 	clusterConfigData         string
 	clusterServiceAccountName string
+	k8sRemediationEnabled     bool
 }
 
 // ID returns the ID of the Feature
@@ -105,6 +106,7 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 			}
 		}
 		f.clusterConfig = clusterConfig
+		f.k8sRemediationEnabled = featureutils.HasFeatureEnableAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerK8sRemediationEnabled)
 		f.clusterServiceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 		reqComp.ClusterAgent = feature.RequiredComponent{
@@ -172,11 +174,27 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 		}
 
 		if f.clusterConfig.SelfEnroll {
-			err := managers.RBACManager().AddPolicyRules(
+			// This creates a Role (not ClusterRole) with permissions on the identity secret used during self enrollment
+			err := managers.RBACManager().AddPolicyRulesByComponent(
 				f.owner.GetNamespace(),
 				f.getRbacResourcesName(),
 				f.clusterServiceAccountName,
 				getClusterAgentRBACPolicyRules(f.clusterConfig.IdentitySecretName),
+				string(v2alpha1.ClusterAgentComponentName),
+			)
+			if err != nil {
+				return err
+			}
+		}
+
+		if f.k8sRemediationEnabled {
+			// This creates a ClusterRole with cluster-wide access to workload resources for k8s remediation.
+			err := managers.RBACManager().AddClusterPolicyRulesByComponent(
+				f.owner.GetNamespace(),
+				f.getRbacResourcesName(),
+				f.clusterServiceAccountName,
+				getK8sRemediationPolicyRules(),
+				string(v2alpha1.ClusterAgentComponentName),
 			)
 			if err != nil {
 				return err
@@ -188,11 +206,11 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 }
 
 func (f *privateActionRunnerFeature) getConfigMapName() string {
-	return fmt.Sprintf("%s-privateactionrunner", f.owner.GetName())
+	return fmt.Sprintf("%s-privateactionrunner", constants.GetDDAName(f.owner))
 }
 
 func (f *privateActionRunnerFeature) getClusterAgentConfigMapName() string {
-	return fmt.Sprintf("%s-clusteragent-privateactionrunner", f.owner.GetName())
+	return fmt.Sprintf("%s-clusteragent-privateactionrunner", constants.GetDDAName(f.owner))
 }
 
 func (f *privateActionRunnerFeature) getRbacResourcesName() string {

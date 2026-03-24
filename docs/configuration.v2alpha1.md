@@ -288,14 +288,15 @@ spec:
 | global.site | Is the Datadog intake site Agent data are sent to. Set to 'datadoghq.com' to send data to the US1 site (default). Set to 'datadoghq.eu' to send data to the EU site. Set to 'us3.datadoghq.com' to send data to the US3 site. Set to 'us5.datadoghq.com' to send data to the US5 site. Set to 'ddog-gov.com' to send data to the US1-FED site. Set to 'ap1.datadoghq.com' to send data to the AP1 site. Default: 'datadoghq.com' |
 | global.tags | Contains a list of tags to attach to every metric, event and service check collected. Learn more about tagging: https://docs.datadoghq.com/tagging/ |
 | global.useFIPSAgent | UseFIPSAgent enables the FIPS flavor of the Agent. If 'true', the FIPS proxy will always be disabled. Default: 'false' |
+| global.useVSock | UseVSock allows the use of VSock communication between the Agent and containerized workloads. Default: 'false' |
 | override | The default configurations of the agents |
 <br>
 
 ### Override
 
-The table below lists parameters that can be used to override default or global settings. Maps and arrays have a type annotation in the table; properties that are configured as map values contain a `[key]` element which should be replaced by the actual map key. `override` itself is a map with the following possible keys: `nodeAgent`, `clusterAgent`, or `clusterChecksRunner`. Other keys can be added, but they do not have any effect.
+The table below lists parameters that can be used to override default or global settings. Maps and arrays have a type annotation in the table; properties that are configured as map values contain a `[key]` element which should be replaced by the actual map key. `override` itself is a map with the following possible keys: `nodeAgent`, `clusterAgent`, `otelAgentGateway`, or `clusterChecksRunner`. Other keys can be added, but they do not have any effect.
 
-For example, the manifest below can be used to override the node Agent image, tag, and the resource limits of the system probe container. 
+For example, the manifest below can be used to override the node Agent image, tag, and the resource limits of the system probe container.
 
 ```yaml
 apiVersion: datadoghq.com/v2alpha1
@@ -316,7 +317,6 @@ spec:
               memory: 1Gi
 ```
 In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.containers.system-probe.resources.limits` appear as `[key].image.name` and `[key].containers.[key].resources.limits`, respectively.
-
 
 | Parameter | Description |
 | --------- | ----------- |

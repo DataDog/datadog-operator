@@ -128,6 +128,50 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 	assert.Equal(t, "7aca0ab8a2cb083533a5552c17a50aa3", managers.AnnotationMgr.Annotations["checksum/private_action_runner-custom-config"])
 }
 
+// Test_privateActionRunnerFeature_ProfileDDAI_ConfigMapNames verifies that when PAR is
+// enabled on a profile DDAI (whose name differs from the parent DDA), the ConfigMaps are
+// named after the DDA (not the DDAI) so all profile DDAIs share the same ConfigMap.
+func Test_privateActionRunnerFeature_ProfileDDAI_ConfigMapNames(t *testing.T) {
+	testScheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(testScheme)
+	_ = v2alpha1.AddToScheme(testScheme)
+
+	// Simulate a profile DDAI: name differs from parent DDA, but DDA name is in the label.
+	profileDDAI := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "compute-nodeless-200m-v2",
+			Namespace: "default",
+			Labels: map[string]string{
+				apicommon.DatadogAgentNameLabelKey: "datadog-agent",
+			},
+			Annotations: map[string]string{
+				"agent.datadoghq.com/private-action-runner-enabled":         "true",
+				"cluster-agent.datadoghq.com/private-action-runner-enabled": "true",
+			},
+		},
+	}
+
+	f := buildPrivateActionRunnerFeature(nil)
+	f.Configure(profileDDAI, &v2alpha1.DatadogAgentSpec{}, nil)
+
+	storeOptions := &store.StoreOptions{Scheme: testScheme}
+	resourceManagers := feature.NewResourceManagers(store.NewStore(profileDDAI, storeOptions))
+	err := f.ManageDependencies(resourceManagers, "")
+	require.NoError(t, err)
+
+	// Node agent ConfigMap must use the DDA name so all DDAIs share the same ConfigMap.
+	_, found := resourceManagers.Store().Get(kubernetes.ConfigMapKind, "default", "datadog-agent-privateactionrunner")
+	assert.True(t, found, "node agent ConfigMap should use DDA name, not profile DDAI name")
+	_, wrongFound := resourceManagers.Store().Get(kubernetes.ConfigMapKind, "default", "compute-nodeless-200m-v2-privateactionrunner")
+	assert.False(t, wrongFound, "node agent ConfigMap must NOT use profile DDAI name")
+
+	// Cluster agent ConfigMap must use the DDA name for the same reason.
+	_, caFound := resourceManagers.Store().Get(kubernetes.ConfigMapKind, "default", "datadog-agent-clusteragent-privateactionrunner")
+	assert.True(t, caFound, "cluster agent ConfigMap should use DDA name, not profile DDAI name")
+	_, caWrongFound := resourceManagers.Store().Get(kubernetes.ConfigMapKind, "default", "compute-nodeless-200m-v2-clusteragent-privateactionrunner")
+	assert.False(t, caWrongFound, "cluster agent ConfigMap must NOT use profile DDAI name")
+}
+
 func Test_privateActionRunnerFeature_ID(t *testing.T) {
 	f := buildPrivateActionRunnerFeature(nil)
 	assert.Equal(t, string(feature.PrivateActionRunnerIDType), string(f.ID()))
@@ -243,6 +287,7 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 		annotations               map[string]string
 		wantClusterAgentEnabled   bool
 		wantNodeAgentEnabled      bool
+		wantK8sRemediationEnabled bool
 		expectedClusterConfigData string
 	}{
 		{
@@ -314,6 +359,28 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
   self_enroll: false
   urn: urn:dd:apps:on-prem-runner:us1:1:runner-xyz`,
 		},
+		{
+			name: "k8s remediation annotation enabled",
+			annotations: map[string]string{
+				"cluster-agent.datadoghq.com/private-action-runner-enabled":                 "true",
+				"cluster-agent.datadoghq.com/private-action-runner-k8s-remediation-enabled": "true",
+			},
+			wantClusterAgentEnabled:   true,
+			wantNodeAgentEnabled:      false,
+			wantK8sRemediationEnabled: true,
+			expectedClusterConfigData: defaultConfigData,
+		},
+		{
+			name: "k8s remediation annotation disabled",
+			annotations: map[string]string{
+				"cluster-agent.datadoghq.com/private-action-runner-enabled":                 "true",
+				"cluster-agent.datadoghq.com/private-action-runner-k8s-remediation-enabled": "false",
+			},
+			wantClusterAgentEnabled:   true,
+			wantNodeAgentEnabled:      false,
+			wantK8sRemediationEnabled: false,
+			expectedClusterConfigData: defaultConfigData,
+		},
 	}
 
 	for _, tt := range tests {
@@ -345,6 +412,8 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 			} else {
 				assert.Nil(t, parFeat.clusterConfig, "clusterConfig should be nil when not enabled")
 			}
+
+			assert.Equal(t, tt.wantK8sRemediationEnabled, parFeat.k8sRemediationEnabled, "k8sRemediationEnabled should match")
 		})
 	}
 }

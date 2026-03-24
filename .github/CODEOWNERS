@@ -67,3 +67,6 @@ README.md               @DataDog/documentation  @DataDog/container-platform
 
 # e2e tests
 /test/e2e/tests/autoscaling_suite/ @DataDog/container-autoscaling  @DataDog/container-platform
+
+# fleet automation
+/pkg/fleet    @DataDog/fleet @DataDog/container-platform

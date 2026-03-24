@@ -34,6 +34,8 @@ func getDCAClusterPolicyRules(workloadEnabled, clusterEnabled bool) []rbacv1.Pol
 				Resources: []string{
 					rbac.DatadogPodAutoscalersResource,
 					rbac.DatadogPodAutoscalersStatusResource,
+					rbac.DatadogPodAutoscalerClusterProfilesResource,
+					rbac.DatadogPodAutoscalerClusterProfilesStatusResource,
 				},
 				Verbs: []string{
 					rbac.Wildcard,
@@ -61,12 +63,29 @@ func getDCAClusterPolicyRules(workloadEnabled, clusterEnabled bool) []rbacv1.Pol
 				},
 			},
 			{
-				// Patching Deployment to trigger rollout.
+				// In-place resize: patching pod resources via resize subresource
+				APIGroups: []string{rbac.CoreAPIGroup},
+				Resources: []string{rbac.PodsResizeResource},
+				Verbs:     []string{rbac.PatchVerb},
+			},
+			{
+				// In-place resize: evicting pods that cannot resize in-place
+				APIGroups: []string{rbac.CoreAPIGroup},
+				Resources: []string{rbac.PodsEvictionResource},
+				Verbs:     []string{rbac.CreateVerb},
+			},
+			{
+				// Patching workloads to trigger rollout.
+				// List/Watch for profiles
 				APIGroups: []string{rbac.AppsAPIGroup},
 				Resources: []string{
 					rbac.DeploymentsResource,
+					rbac.StatefulsetsResource,
 				},
 				Verbs: []string{
+					rbac.GetVerb,
+					rbac.ListVerb,
+					rbac.WatchVerb,
 					rbac.PatchVerb,
 				},
 			},
@@ -74,7 +93,20 @@ func getDCAClusterPolicyRules(workloadEnabled, clusterEnabled bool) []rbacv1.Pol
 				APIGroups: []string{rbac.ArgoProjAPIGroup},
 				Resources: []string{rbac.Rollout},
 				Verbs: []string{
+					rbac.GetVerb,
+					rbac.ListVerb,
+					rbac.WatchVerb,
 					rbac.PatchVerb,
+				},
+			},
+			{
+				// List/watch for namespaces profiles
+				APIGroups: []string{rbac.CoreAPIGroup},
+				Resources: []string{rbac.NamespaceResource},
+				Verbs: []string{
+					rbac.GetVerb,
+					rbac.ListVerb,
+					rbac.WatchVerb,
 				},
 			},
 		}...,
@@ -99,6 +131,14 @@ func getDCAClusterPolicyRules(workloadEnabled, clusterEnabled bool) []rbacv1.Pol
 			},
 			{
 				APIGroups: []string{rbac.KarpenterAWSAPIGroup},
+				Resources: []string{rbac.Wildcard},
+				Verbs: []string{
+					rbac.GetVerb,
+					rbac.ListVerb,
+				},
+			},
+			{
+				APIGroups: []string{rbac.EKSAPIGroup},
 				Resources: []string{rbac.Wildcard},
 				Verbs: []string{
 					rbac.GetVerb,

@@ -104,7 +104,7 @@ func defaultPodSpec(dda metav1.Object) corev1.PodSpec {
 			common.GetVolumeForLogs(),
 			common.GetVolumeForTmp(),
 			common.GetVolumeForConfig(),
-			common.GetVolumeForAuth(),
+			common.GetVolumeForAuth(false),
 		},
 	}
 }
