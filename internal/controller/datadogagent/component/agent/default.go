@@ -779,8 +779,6 @@ func volumesForAgent(dda metav1.Object, requiredContainers []apicommon.AgentCont
 		common.GetVolumeForRuntimeSocket(),
 		common.GetVolumeForRunPath(),
 		common.GetVolumeForTmp(),
-		common.GetVolumeForHostVarLog(),
-		common.GetVolumeForOSRelease(),
 	}
 
 	for _, containerName := range requiredContainers {
@@ -790,6 +788,13 @@ func volumesForAgent(dda metav1.Object, requiredContainers []apicommon.AgentCont
 				common.GetVolumeForSeccomp(),
 			}
 			volumes = append(volumes, sysProbeVolumes...)
+		}
+		if containerName == apicommon.PrivateActionRunnerContainerName {
+			parVolumes := []corev1.Volume{
+				common.GetVolumeForHostVarLog(),
+				common.GetVolumeForOSRelease(),
+			}
+			volumes = append(volumes, parVolumes...)
 		}
 	}
 
