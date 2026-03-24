@@ -101,10 +101,6 @@ const (
 	SystemProbeOSReleaseDirVolumePath = "/etc/os-release"
 	SystemProbeOSReleaseDirMountPath  = "/host/etc/os-release"
 
-	HostOSReleaseVolumeName = "host-osrelease"
-	HostOSReleaseHostPath   = "/etc/os-release"
-	HostOSReleaseMountPath  = "/host/etc/os-release"
-
 	SystemProbeSocketVolumeName = "sysprobe-socket-dir"
 	SystemProbeSocketVolumePath = "/var/run/sysprobe"
 
@@ -124,9 +120,6 @@ const (
 	LogDatadogVolumePath      = "/var/log/datadog"
 	DefaultLogTempStoragePath = "/var/lib/datadog-agent/logs"
 
-	HostVarLogVolumeName      = "host-varlog"
-	HostVarLogHostPath        = "/var/log"
-	HostVarLogMountPath       = "/host/var/log"
 	TmpVolumeName             = "tmp"
 	TmpVolumePath             = "/tmp"
 	CertificatesVolumeName    = "certificates"
