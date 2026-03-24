@@ -158,6 +158,10 @@ const (
 	HostRunPath       = "/run"
 	HostRunMountPath  = "/host/run"
 
+	HostVarLogVolumeName = "host-varlog"
+	HostVarLogHostPath   = "/var/log"
+	HostVarLogMountPath  = "/host/var/log"
+
 	RunPathVolumeName  = "pointerdir"
 	RunPathVolumeMount = "/opt/datadog-agent/run"
 )

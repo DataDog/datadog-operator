@@ -105,22 +105,49 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 	err := f.ManageNodeAgent(managers, "")
 	assert.NoError(t, err)
 
-	// Verify volume is mounted
+	// Verify volumes: configmap + 3 host paths
 	volumes := managers.VolumeMgr.Volumes
-	assert.Len(t, volumes, 1, "Should have exactly one volume")
+	assert.Len(t, volumes, 4, "Should have 4 volumes")
+
 	vol := volumes[0]
 	assert.Equal(t, "test-dda-privateactionrunner-config", vol.Name, "Volume name should match")
 	assert.NotNil(t, vol.VolumeSource.ConfigMap, "Volume should be a ConfigMap volume")
 	assert.Equal(t, "test-dda-privateactionrunner", vol.VolumeSource.ConfigMap.Name, "ConfigMap name should match")
 
-	// Verify volume mount
+	assert.Equal(t, "host-osrelease", volumes[1].Name)
+	assert.Equal(t, "/etc/os-release", volumes[1].VolumeSource.HostPath.Path)
+
+	assert.Equal(t, "host-varlog", volumes[2].Name)
+	assert.Equal(t, "/var/log", volumes[2].VolumeSource.HostPath.Path)
+
+	assert.Equal(t, "procdir", volumes[3].Name)
+	assert.Equal(t, "/proc", volumes[3].VolumeSource.HostPath.Path)
+
+	// Verify volume mounts: configmap + 3 host paths
 	volumeMounts := managers.VolumeMountMgr.VolumeMountsByC[apicommon.PrivateActionRunnerContainerName]
-	assert.Len(t, volumeMounts, 1, "Should have exactly one volume mount")
+	assert.Len(t, volumeMounts, 4, "Should have 4 volume mounts")
+
 	mount := volumeMounts[0]
 	assert.Equal(t, "test-dda-privateactionrunner-config", mount.Name, "Mount name should match")
 	assert.Equal(t, "/etc/datadog-agent/privateactionrunner.yaml", mount.MountPath, "Mount path should be the hardcoded path")
 	assert.Equal(t, "privateactionrunner.yaml", mount.SubPath, "SubPath should mount the file directly")
 	assert.True(t, mount.ReadOnly, "Mount should be read-only")
+
+	assert.Equal(t, "host-osrelease", volumeMounts[1].Name)
+	assert.Equal(t, "/host/etc/os-release", volumeMounts[1].MountPath)
+	assert.True(t, volumeMounts[1].ReadOnly)
+
+	assert.Equal(t, "host-varlog", volumeMounts[2].Name)
+	assert.Equal(t, "/host/var/log", volumeMounts[2].MountPath)
+	assert.True(t, volumeMounts[2].ReadOnly)
+
+	assert.Equal(t, "procdir", volumeMounts[3].Name)
+	assert.Equal(t, "/host/proc", volumeMounts[3].MountPath)
+	assert.True(t, volumeMounts[3].ReadOnly)
+
+	// Verify NET_RAW capability
+	capabilities := managers.SecurityContextMgr.CapabilitiesByC[apicommon.PrivateActionRunnerContainerName]
+	assert.Contains(t, capabilities, corev1.Capability("NET_RAW"), "PAR container should have NET_RAW capability")
 
 	// Verify hash
 	assert.NotEmpty(t, managers.AnnotationMgr.Annotations)

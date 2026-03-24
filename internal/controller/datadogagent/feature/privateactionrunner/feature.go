@@ -15,6 +15,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
@@ -286,6 +287,21 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 		ReadOnly:  true,
 	}
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.PrivateActionRunnerContainerName)
+
+	managers.SecurityContext().AddCapabilitiesToContainer([]corev1.Capability{"NET_RAW"}, apicommon.PrivateActionRunnerContainerName)
+
+	// Mount host paths for process inspection and log access (read-only)
+	osReleaseVol, osReleaseMount := volume.GetVolumes(common.SystemProbeOSReleaseDirVolumeName, common.SystemProbeOSReleaseDirVolumePath, common.SystemProbeOSReleaseDirMountPath, true)
+	managers.Volume().AddVolume(&osReleaseVol)
+	managers.VolumeMount().AddVolumeMountToContainer(&osReleaseMount, apicommon.PrivateActionRunnerContainerName)
+
+	varLogVol, varLogMount := volume.GetVolumes(common.HostVarLogVolumeName, common.HostVarLogHostPath, common.HostVarLogMountPath, true)
+	managers.Volume().AddVolume(&varLogVol)
+	managers.VolumeMount().AddVolumeMountToContainer(&varLogMount, apicommon.PrivateActionRunnerContainerName)
+
+	procdirVol, procdirMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true)
+	managers.Volume().AddVolume(&procdirVol)
+	managers.VolumeMount().AddVolumeMountToContainer(&procdirMount, apicommon.PrivateActionRunnerContainerName)
 
 	checksumKey, checksumValue, err := checksumAnnotation(f.nodeConfigData)
 	if err != nil {
