@@ -242,13 +242,9 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 		Name:  DDAgentIpcConfigRefreshInterval,
 		Value: "60",
 	}
-	// don't set env var if it was already set by user.
-	mergeFunc := func(current, newEnv *corev1.EnvVar) (*corev1.EnvVar, error) {
-		return current, nil
-	}
 	for _, container := range []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.HostProfiler} {
-		managers.EnvVar().AddEnvVarToContainerWithMergeFunc(container, agentIpcPortEnvVar, mergeFunc)
-		managers.EnvVar().AddEnvVarToContainerWithMergeFunc(container, agentIpcConfigRefreshIntervalEnvVar, mergeFunc)
+		managers.EnvVar().AddEnvVarToContainer(container, agentIpcPortEnvVar)
+		managers.EnvVar().AddEnvVarToContainer(container, agentIpcConfigRefreshIntervalEnvVar)
 	}
 
 	return nil
