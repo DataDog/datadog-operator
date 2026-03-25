@@ -495,22 +495,22 @@ func testExpectedAgent(
 
 			if expectedEnvVars.agent_ipc_port.present {
 				wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
-					Name:  DDAgentIpcPort,
+					Name:  common.DDAgentIpcPort,
 					Value: expectedEnvVars.agent_ipc_port.value,
 				})
 				wantEnvVarsOTel = append(wantEnvVarsOTel, &corev1.EnvVar{
-					Name:  DDAgentIpcPort,
+					Name:  common.DDAgentIpcPort,
 					Value: expectedEnvVars.agent_ipc_port.value,
 				})
 			}
 
 			if expectedEnvVars.agent_ipc_refresh.present {
 				wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
-					Name:  DDAgentIpcConfigRefreshInterval,
+					Name:  common.DDAgentIpcConfigRefreshInterval,
 					Value: expectedEnvVars.agent_ipc_refresh.value,
 				})
 				wantEnvVarsOTel = append(wantEnvVarsOTel, &corev1.EnvVar{
-					Name:  DDAgentIpcConfigRefreshInterval,
+					Name:  common.DDAgentIpcConfigRefreshInterval,
 					Value: expectedEnvVars.agent_ipc_refresh.value,
 				})
 			}
