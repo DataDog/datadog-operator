@@ -1,0 +1,29 @@
+version: 2
+updates:
+- package-ecosystem: github-actions
+  directory: /
+  schedule:
+    interval: weekly
+  labels:
+  - tooling
+  - qa/skip-qa
+  cooldown:
+    default-days: 14
+- package-ecosystem: gomod
+  directory: /
+  schedule:
+    interval: weekly
+  labels:
+  - dependencies
+  - qa/skip-qa
+  cooldown:
+    default-days: 14
+- package-ecosystem: gomod
+  directory: /test/e2e
+  schedule:
+    interval: weekly
+  labels:
+  - dependencies
+  - qa/skip-qa
+  cooldown:
+    default-days: 14
