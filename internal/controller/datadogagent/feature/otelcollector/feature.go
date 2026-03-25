@@ -343,11 +343,11 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 	// (todo: mackjmr): remove this once IPC port is enabled by default. Enabling this port is required to fetch the API key from
 	// core agent when secrets backend is used.
 	agentIpcPortEnvVar := &corev1.EnvVar{
-		Name:  DDAgentIpcPort,
+		Name:  common.DDAgentIpcPort,
 		Value: "5009",
 	}
 	agentIpcConfigRefreshIntervalEnvVar := &corev1.EnvVar{
-		Name:  DDAgentIpcConfigRefreshInterval,
+		Name:  common.DDAgentIpcConfigRefreshInterval,
 		Value: "60",
 	}
 	// don't set env var if it was already set by user.

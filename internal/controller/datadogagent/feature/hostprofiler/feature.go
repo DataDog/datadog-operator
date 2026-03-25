@@ -10,6 +10,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 )
@@ -98,6 +99,21 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 		ReadOnly:  true,
 	}
 	managers.VolumeMount().AddVolumeMountToContainer(&tracingfsMount, apicommon.HostProfiler)
+
+	// (todo: mackjmr): remove this once IPC port is enabled by default. Enabling this port is required to fetch the API key from
+	// core agent when secrets backend is used.
+	agentIpcPortEnvVar := &corev1.EnvVar{
+		Name:  common.DDAgentIpcPort,
+		Value: "5009",
+	}
+	agentIpcConfigRefreshIntervalEnvVar := &corev1.EnvVar{
+		Name:  common.DDAgentIpcConfigRefreshInterval,
+		Value: "60",
+	}
+	for _, container := range []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.HostProfiler} {
+		managers.EnvVar().AddEnvVarToContainer(container, agentIpcPortEnvVar)
+		managers.EnvVar().AddEnvVarToContainer(container, agentIpcConfigRefreshIntervalEnvVar)
+	}
 
 	return nil
 }
