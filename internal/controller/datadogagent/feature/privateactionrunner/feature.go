@@ -294,19 +294,20 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	}
 	managers.Annotation().AddAnnotation(checksumKey, checksumValue)
 
-	// Add host volumes and mounts for PAR
-	hostVolumes := []struct {
-		name, hostPath, mountPath string
-	}{
-		{common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath},
-		{common.SystemProbeOSReleaseDirVolumeName, common.SystemProbeOSReleaseDirVolumePath, common.SystemProbeOSReleaseDirMountPath},
-		{hostVarLogVolumeName, hostVarLogHostPath, hostVarLogMountPath},
-	}
-	for _, hv := range hostVolumes {
-		vol, volMount := volume.GetVolumes(hv.name, hv.hostPath, hv.mountPath, true)
-		managers.Volume().AddVolume(&vol)
-		managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.PrivateActionRunnerContainerName)
-	}
+	// procdir volume mount
+	procdirVol, procdirVolMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true)
+	managers.Volume().AddVolume(&procdirVol)
+	managers.VolumeMount().AddVolumeMountToContainer(&procdirVolMount, apicommon.PrivateActionRunnerContainerName)
+
+	// os-release volume mount
+	osReleaseVol, osReleaseVolMount := volume.GetVolumes(common.SystemProbeOSReleaseDirVolumeName, common.SystemProbeOSReleaseDirVolumePath, common.SystemProbeOSReleaseDirMountPath, true)
+	managers.Volume().AddVolume(&osReleaseVol)
+	managers.VolumeMount().AddVolumeMountToContainer(&osReleaseVolMount, apicommon.PrivateActionRunnerContainerName)
+
+	// host var log volume mount
+	varLogVol, varLogVolMount := volume.GetVolumes(hostVarLogVolumeName, hostVarLogHostPath, hostVarLogMountPath, true)
+	managers.Volume().AddVolume(&varLogVol)
+	managers.VolumeMount().AddVolumeMountToContainer(&varLogVolMount, apicommon.PrivateActionRunnerContainerName)
 
 	// Add NET_RAW capability for network operations
 	managers.SecurityContext().AddCapabilitiesToContainer(
