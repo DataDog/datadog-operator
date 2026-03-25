@@ -15,6 +15,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
@@ -297,8 +298,8 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	hostVolumes := []struct {
 		name, hostPath, mountPath string
 	}{
-		{hostProcVolumeName, hostProcHostPath, hostProcMountPath},
-		{hostOSReleaseVolumeName, hostOSReleaseHostPath, hostOSReleaseMountPath},
+		{common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath},
+		{common.SystemProbeOSReleaseDirVolumeName, common.SystemProbeOSReleaseDirVolumePath, common.SystemProbeOSReleaseDirMountPath},
 		{hostVarLogVolumeName, hostVarLogHostPath, hostVarLogMountPath},
 	}
 	for _, hv := range hostVolumes {

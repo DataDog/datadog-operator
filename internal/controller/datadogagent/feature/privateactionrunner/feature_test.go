@@ -16,6 +16,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
@@ -116,8 +117,8 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 	for _, v := range volumes {
 		volumeNames[v.Name] = true
 	}
-	assert.True(t, volumeNames[hostProcVolumeName])
-	assert.True(t, volumeNames[hostOSReleaseVolumeName])
+	assert.True(t, volumeNames[common.ProcdirVolumeName])
+	assert.True(t, volumeNames[common.SystemProbeOSReleaseDirVolumeName])
 	assert.True(t, volumeNames[hostVarLogVolumeName])
 
 	// Verify volume mounts (1 configmap + 3 host mounts)
@@ -133,13 +134,13 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 	for _, m := range volumeMounts {
 		mountNames[m.Name] = true
 	}
-	assert.True(t, mountNames[hostProcVolumeName])
-	assert.True(t, mountNames[hostOSReleaseVolumeName])
+	assert.True(t, mountNames[common.ProcdirVolumeName])
+	assert.True(t, mountNames[common.SystemProbeOSReleaseDirVolumeName])
 	assert.True(t, mountNames[hostVarLogVolumeName])
 
 	// Verify host mounts are read-only
 	for _, m := range volumeMounts {
-		if m.Name == hostProcVolumeName || m.Name == hostOSReleaseVolumeName || m.Name == hostVarLogVolumeName {
+		if m.Name == common.ProcdirVolumeName || m.Name == common.SystemProbeOSReleaseDirVolumeName || m.Name == hostVarLogVolumeName {
 			assert.True(t, m.ReadOnly, "mount %s should be read-only", m.Name)
 		}
 	}
