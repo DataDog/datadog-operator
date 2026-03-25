@@ -39,12 +39,12 @@ import (
 )
 
 const (
-	defaultRequeuePeriod           = 60 * time.Second
-	defaultErrRequeuePeriod        = 5 * time.Second
-	defaultForceSyncPeriod         = 60 * time.Minute
-	datadogSLOKind                 = "DatadogSLO"
-	datadogSLOFinalizer            = "finalizer.slo.datadoghq.com"
-	DDSLOForceSyncPeriodEnvVar     = "DD_SLO_FORCE_SYNC_PERIOD"
+	defaultRequeuePeriod       = 60 * time.Second
+	defaultErrRequeuePeriod    = 5 * time.Second
+	defaultForceSyncPeriod     = 60 * time.Minute
+	datadogSLOKind             = "DatadogSLO"
+	datadogSLOFinalizer        = "finalizer.slo.datadoghq.com"
+	DDSLOForceSyncPeriodEnvVar = "DD_SLO_FORCE_SYNC_PERIOD"
 )
 
 type Reconciler struct {
