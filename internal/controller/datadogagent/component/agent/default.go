@@ -525,7 +525,6 @@ func hostProfilerContainer(dda metav1.Object) corev1.Container {
 		Image: agentImage(),
 		Command: []string{
 			"/opt/datadog-agent/embedded/bin/full-host-profiler",
-			"run",
 			"--core-config=" + agentCustomConfigVolumePath,
 		},
 		Env:          commonEnvVars(dda),
