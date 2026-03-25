@@ -5,6 +5,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
@@ -31,6 +32,10 @@ var (
 		},
 	}
 	defaultVolumes = []corev1.Volume{tracingfsVolume}
+	wantIpcEnvVars = []*corev1.EnvVar{
+		{Name: common.DDAgentIpcPort, Value: "5009"},
+		{Name: common.DDAgentIpcConfigRefreshInterval, Value: "60"},
+	}
 )
 
 func Test_hostProfilerFeature_Configure(t *testing.T) {
@@ -70,6 +75,13 @@ func testExpectedAgent(
 			assert.True(t, apiutils.IsEqualStruct(volumes, expectedVolume), "Volumes \ndiff = %s", cmp.Diff(volumes, expectedVolume))
 
 			assert.Equal(t, true, mgr.Tpl.Spec.HostPID)
+
+			// IPC env vars
+			coreEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+			assert.True(t, apiutils.IsEqualStruct(coreEnvVars, wantIpcEnvVars), "Core agent IPC env vars \ndiff = %s", cmp.Diff(coreEnvVars, wantIpcEnvVars))
+
+			hostProfilerEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.HostProfiler]
+			assert.True(t, apiutils.IsEqualStruct(hostProfilerEnvVars, wantIpcEnvVars), "HostProfiler IPC env vars \ndiff = %s", cmp.Diff(hostProfilerEnvVars, wantIpcEnvVars))
 		},
 	)
 }
