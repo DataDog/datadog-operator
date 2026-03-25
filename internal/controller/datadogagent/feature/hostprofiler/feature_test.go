@@ -38,8 +38,6 @@ var (
 	}
 )
 
-var defaultAnnotations = map[string]string{"checksum/host_profiler-custom-config": "7b48d4d7ca198be0a6d7d8c7a5ad5535"}
-
 func Test_hostProfilerFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		// disabled
