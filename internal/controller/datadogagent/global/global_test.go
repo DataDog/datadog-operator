@@ -11,24 +11,25 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
-	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
-
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
+
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -123,10 +124,6 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					Name:  DockerHost,
 					Value: "unix:///host" + dockerSocketPath,
 				},
-				{
-					Name:  common.DDKubernetesUseEndpointSlices,
-					Value: "true",
-				},
 			}...),
 			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(kubeletCAVolumes, criSocketVolume),
 			wantVolumeMounts:          getExpectedVolumeMounts(kubeletCAVolumes, criSocketVolume),
@@ -186,10 +183,6 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					Name:  DDRemoteAgentRegistryEnabled,
 					Value: "false",
 				},
-				{
-					Name:  common.DDKubernetesUseEndpointSlices,
-					Value: "true",
-				},
 			}...),
 			wantCoreAgentVolumeMounts: nil,
 			wantVolumeMounts:          nil,
@@ -206,10 +199,6 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				BuildWithDefaults(),
 			wantCoreAgentEnvVars: nil,
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
-				{
-					Name:  common.DDKubernetesUseEndpointSlices,
-					Value: "true",
-				},
 				{
 					Name: constants.DDAPIKey,
 					ValueFrom: &corev1.EnvVarSource{
@@ -307,10 +296,6 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 						},
 					},
 				},
-				{
-					Name:  common.DDKubernetesUseEndpointSlices,
-					Value: "true",
-				},
 			}...),
 			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
 			wantVolumeMounts:          getExpectedVolumeMounts(),
@@ -362,10 +347,6 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 							Key: common.DefaultTokenKey,
 						},
 					},
-				},
-				{
-					Name:  common.DDKubernetesUseEndpointSlices,
-					Value: "true",
 				},
 			}...),
 			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
@@ -432,10 +413,6 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 						},
 					},
 				},
-				{
-					Name:  common.DDKubernetesUseEndpointSlices,
-					Value: "true",
-				},
 			}...),
 			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
 			wantVolumeMounts:          getExpectedVolumeMounts(),
@@ -499,10 +476,6 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 							Key: common.DefaultTokenKey,
 						},
 					},
-				},
-				{
-					Name:  common.DDKubernetesUseEndpointSlices,
-					Value: "true",
 				},
 			}...),
 			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
@@ -573,10 +546,6 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					Name:  DDSecretBackendConfig,
 					Value: `{"token_path":"/custom/token"}`,
 				},
-				{
-					Name:  common.DDKubernetesUseEndpointSlices,
-					Value: "true",
-				},
 			}...),
 			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
 			wantVolumeMounts:          getExpectedVolumeMounts(),
@@ -645,10 +614,6 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 						},
 					},
 				},
-				{
-					Name:  common.DDKubernetesUseEndpointSlices,
-					Value: "true",
-				},
 			}...),
 			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
 			wantVolumeMounts:          getExpectedVolumeMounts(),
@@ -714,10 +679,6 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 						},
 					},
 				},
-				{
-					Name:  common.DDKubernetesUseEndpointSlices,
-					Value: "true",
-				},
 			}...),
 			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
 			wantVolumeMounts:          getExpectedVolumeMounts(),
@@ -771,10 +732,6 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 						},
 					},
 				},
-				{
-					Name:  common.DDKubernetesUseEndpointSlices,
-					Value: "true",
-				},
 			}...),
 			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
 			wantVolumeMounts:          getExpectedVolumeMounts(),
@@ -815,10 +772,6 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 							Key: common.DefaultTokenKey,
 						},
 					},
-				},
-				{
-					Name:  common.DDKubernetesUseEndpointSlices,
-					Value: "true",
 				},
 			}...),
 			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
@@ -871,10 +824,6 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 							Key: common.DefaultTokenKey,
 						},
 					},
-				},
-				{
-					Name:  common.DDKubernetesUseEndpointSlices,
-					Value: "true",
 				},
 			}...),
 			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
@@ -933,10 +882,6 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					Name:  DDKubeletCAPath,
 					Value: agentCAPath,
 				},
-				{
-					Name:  common.DDKubernetesUseEndpointSlices,
-					Value: "true",
-				},
 			}...),
 			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(kubeletCAVolumes),
 			wantVolumeMounts:          getExpectedVolumeMounts(kubeletCAVolumes),
@@ -993,10 +938,6 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				{
 					Name:  common.DDClusterAgentURL,
 					Value: fmt.Sprintf("https://%s-%s.%s.svc.cluster.local:%d", ddaName, constants.DefaultClusterAgentResourceSuffix, ddaNamespace, common.DefaultClusterAgentServicePort),
-				},
-				{
-					Name:  common.DDKubernetesUseEndpointSlices,
-					Value: "true",
 				},
 			}...),
 			want: assertAll,

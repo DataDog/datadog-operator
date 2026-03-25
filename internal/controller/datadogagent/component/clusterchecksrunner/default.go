@@ -211,10 +211,6 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 			Value: "yes",
 		},
 		{
-			Name:  common.DDKubernetesUseEndpointSlices,
-			Value: "true",
-		},
-		{
 			Name:  DDEnableMetadataCollection,
 			Value: "false",
 		},

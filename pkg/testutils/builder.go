@@ -1007,11 +1007,6 @@ func (builder *DatadogAgentBuilder) WithGlobalCriSocketPath(criSocketPath string
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithGlobalKubernetesUseEndpointSlice(useEndpointSlice bool) *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Global.KubernetesUseEndpointSlices = apiutils.NewBoolPointer(useEndpointSlice)
-	return builder
-}
-
 // Global ContainerStrategy
 
 func (builder *DatadogAgentBuilder) WithSingleContainerStrategy(enabled bool) *DatadogAgentBuilder {
