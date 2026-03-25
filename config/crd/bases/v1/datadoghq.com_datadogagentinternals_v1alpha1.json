@@ -2587,17 +2587,6 @@
                 "enabled": {
                   "description": "Enables the service discovery check.\nDefault: false",
                   "type": "boolean"
-                },
-                "networkStats": {
-                  "additionalProperties": false,
-                  "description": "Enables the service discovery network stats collection.\nDefault: true",
-                  "properties": {
-                    "enabled": {
-                      "description": "Enables the Service Discovery Network Stats feature.\nDefault: true",
-                      "type": "boolean"
-                    }
-                  },
-                  "type": "object"
                 }
               },
               "type": "object"
@@ -10741,17 +10730,6 @@
                     "enabled": {
                       "description": "Enables the service discovery check.\nDefault: false",
                       "type": "boolean"
-                    },
-                    "networkStats": {
-                      "additionalProperties": false,
-                      "description": "Enables the service discovery network stats collection.\nDefault: true",
-                      "properties": {
-                        "enabled": {
-                          "description": "Enables the Service Discovery Network Stats feature.\nDefault: true",
-                          "type": "boolean"
-                        }
-                      },
-                      "type": "object"
                     }
                   },
                   "type": "object"
