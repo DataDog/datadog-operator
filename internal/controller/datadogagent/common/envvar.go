@@ -36,6 +36,8 @@ const (
 	DDDataPlaneUseNewConfigStreamEndpoint = "DD_DATA_PLANE_USE_NEW_CONFIG_STREAM_ENDPOINT"
 	DDKubernetesPodResourcesSocket        = "DD_KUBERNETES_KUBELET_PODRESOURCES_SOCKET"
 	DDCELWorkloadExclude                  = "DD_CEL_WORKLOAD_EXCLUDE"
+	DDAgentIpcPort                        = "DD_AGENT_IPC_PORT"
+	DDAgentIpcConfigRefreshInterval       = "DD_AGENT_IPC_CONFIG_REFRESH_INTERVAL"
 
 	// KubernetesEnvvarName Env var used by the Datadog Agent container entrypoint
 	// to add kubelet config provider and listener
