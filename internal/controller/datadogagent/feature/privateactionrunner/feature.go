@@ -206,11 +206,11 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 }
 
 func (f *privateActionRunnerFeature) getConfigMapName() string {
-	return fmt.Sprintf("%s-privateactionrunner", f.owner.GetName())
+	return fmt.Sprintf("%s-privateactionrunner", constants.GetDDAName(f.owner))
 }
 
 func (f *privateActionRunnerFeature) getClusterAgentConfigMapName() string {
-	return fmt.Sprintf("%s-clusteragent-privateactionrunner", f.owner.GetName())
+	return fmt.Sprintf("%s-clusteragent-privateactionrunner", constants.GetDDAName(f.owner))
 }
 
 func (f *privateActionRunnerFeature) getRbacResourcesName() string {
