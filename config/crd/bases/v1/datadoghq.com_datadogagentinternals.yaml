@@ -3173,9 +3173,6 @@ spec:
                         		<KUBERNETES_LABEL>: <DATADOG_TAG_KEY>
                         KUBERNETES_RESOURCE_GROUP should be in the form `{resource}.{group}` or `{resource}` (example: deployments.apps, pods)
                       type: object
-                    kubernetesUseEndpointSlices:
-                      description: KubernetesUseEndpointSlices enables the use of the EndpointSlice API instead of the legacy core Endpoint API.
-                      type: boolean
                     localService:
                       description: LocalService contains configuration to customize the internal traffic policy service.
                       properties:

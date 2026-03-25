@@ -1786,10 +1786,6 @@ type GlobalConfig struct {
 	// +optional
 	KubernetesResourcesAnnotationsAsTags map[string]map[string]string `json:"kubernetesResourcesAnnotationsAsTags,omitempty"`
 
-	// KubernetesUseEndpointSlices enables the use of the EndpointSlice API instead of the legacy core Endpoint API.
-	// +optional
-	KubernetesUseEndpointSlices *bool `json:"kubernetesUseEndpointSlices,omitempty"`
-
 	// CSI contains configuration for Datadog CSI Driver
 	CSI *CSIConfig `json:"csi,omitempty"`
 

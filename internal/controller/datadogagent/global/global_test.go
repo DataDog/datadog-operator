@@ -124,7 +124,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					Value: "unix:///host" + dockerSocketPath,
 				},
 				{
-					Name:  DDKubernetesUseEndpointSlices,
+					Name:  common.DDKubernetesUseEndpointSlices,
 					Value: "true",
 				},
 			}...),
@@ -187,7 +187,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					Value: "false",
 				},
 				{
-					Name:  DDKubernetesUseEndpointSlices,
+					Name:  common.DDKubernetesUseEndpointSlices,
 					Value: "true",
 				},
 			}...),
@@ -207,7 +207,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			wantCoreAgentEnvVars: nil,
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
-					Name:  DDKubernetesUseEndpointSlices,
+					Name:  common.DDKubernetesUseEndpointSlices,
 					Value: "true",
 				},
 				{
@@ -262,58 +262,6 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			want:                      assertAllAgentSingleContainer,
 		},
 		{
-			name:                           "Kubernetes endpoint slices disabled",
-			singleContainerStrategyEnabled: false,
-			dda: testutils.NewDatadogAgentBuilder().
-				WithGlobalKubernetesUseEndpointSlice(false).
-				WithCredentials("apiKey", "appKey").
-				BuildWithDefaults(),
-			wantCoreAgentEnvVars: nil,
-			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
-				{
-					Name:  DDKubernetesUseEndpointSlices,
-					Value: "false",
-				},
-				{
-					Name: constants.DDAPIKey,
-					ValueFrom: &corev1.EnvVarSource{
-						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: "-secret",
-							},
-							Key: v2alpha1.DefaultAPIKeyKey,
-						},
-					},
-				},
-				{
-					Name: constants.DDAppKey,
-					ValueFrom: &corev1.EnvVarSource{
-						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: "-secret",
-							},
-							Key: v2alpha1.DefaultAPPKeyKey,
-						},
-					},
-				},
-				{
-					Name: DDClusterAgentAuthToken,
-					ValueFrom: &corev1.EnvVarSource{
-						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: "-token",
-							},
-							Key: common.DefaultTokenKey,
-						},
-					},
-				},
-			}...),
-			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
-			wantVolumeMounts:          getExpectedVolumeMounts(),
-			wantVolumes:               getExpectedVolumes(),
-			want:                      assertAll,
-		},
-		{
 			name:                           "Checks tag cardinality set to orchestrator",
 			singleContainerStrategyEnabled: false,
 			dda: testutils.NewDatadogAgentBuilder().
@@ -360,7 +308,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					},
 				},
 				{
-					Name:  DDKubernetesUseEndpointSlices,
+					Name:  common.DDKubernetesUseEndpointSlices,
 					Value: "true",
 				},
 			}...),
@@ -416,7 +364,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					},
 				},
 				{
-					Name:  DDKubernetesUseEndpointSlices,
+					Name:  common.DDKubernetesUseEndpointSlices,
 					Value: "true",
 				},
 			}...),
@@ -485,7 +433,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					},
 				},
 				{
-					Name:  DDKubernetesUseEndpointSlices,
+					Name:  common.DDKubernetesUseEndpointSlices,
 					Value: "true",
 				},
 			}...),
@@ -553,7 +501,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					},
 				},
 				{
-					Name:  DDKubernetesUseEndpointSlices,
+					Name:  common.DDKubernetesUseEndpointSlices,
 					Value: "true",
 				},
 			}...),
@@ -626,7 +574,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					Value: `{"token_path":"/custom/token"}`,
 				},
 				{
-					Name:  DDKubernetesUseEndpointSlices,
+					Name:  common.DDKubernetesUseEndpointSlices,
 					Value: "true",
 				},
 			}...),
@@ -698,7 +646,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					},
 				},
 				{
-					Name:  DDKubernetesUseEndpointSlices,
+					Name:  common.DDKubernetesUseEndpointSlices,
 					Value: "true",
 				},
 			}...),
@@ -767,7 +715,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					},
 				},
 				{
-					Name:  DDKubernetesUseEndpointSlices,
+					Name:  common.DDKubernetesUseEndpointSlices,
 					Value: "true",
 				},
 			}...),
@@ -824,7 +772,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					},
 				},
 				{
-					Name:  DDKubernetesUseEndpointSlices,
+					Name:  common.DDKubernetesUseEndpointSlices,
 					Value: "true",
 				},
 			}...),
@@ -869,7 +817,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					},
 				},
 				{
-					Name:  DDKubernetesUseEndpointSlices,
+					Name:  common.DDKubernetesUseEndpointSlices,
 					Value: "true",
 				},
 			}...),
@@ -925,7 +873,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					},
 				},
 				{
-					Name:  DDKubernetesUseEndpointSlices,
+					Name:  common.DDKubernetesUseEndpointSlices,
 					Value: "true",
 				},
 			}...),
@@ -986,7 +934,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					Value: agentCAPath,
 				},
 				{
-					Name:  DDKubernetesUseEndpointSlices,
+					Name:  common.DDKubernetesUseEndpointSlices,
 					Value: "true",
 				},
 			}...),
@@ -1047,7 +995,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					Value: fmt.Sprintf("https://%s-%s.%s.svc.cluster.local:%d", ddaName, constants.DefaultClusterAgentResourceSuffix, ddaNamespace, common.DefaultClusterAgentServicePort),
 				},
 				{
-					Name:  DDKubernetesUseEndpointSlices,
+					Name:  common.DDKubernetesUseEndpointSlices,
 					Value: "true",
 				},
 			}...),

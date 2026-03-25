@@ -486,9 +486,6 @@ spec:
 `global.kubernetesResourcesLabelsAsTags`
 : Provide a mapping of Kubernetes Resource Groups to labels mapping to Datadog Tags. <KUBERNETES_RESOURCE_GROUP>: 		<KUBERNETES_LABEL>: <DATADOG_TAG_KEY> KUBERNETES_RESOURCE_GROUP should be in the form `{resource}.{group}` or `{resource}` (example: deployments.apps, pods)
 
-`global.kubernetesUseEndpointSlices`
-: KubernetesUseEndpointSlices enables the use of the EndpointSlice API instead of the legacy core Endpoint API.
-
 `global.localService.forceEnableLocalService`
 : ForceEnableLocalService forces the creation of the internal traffic policy service to target the agent running on the local node. This parameter only applies to Kubernetes 1.21, where the feature is in alpha and is disabled by default. (On Kubernetes 1.22+, the feature entered beta and the internal traffic service is created by default, so this parameter is ignored.) Default: false
 

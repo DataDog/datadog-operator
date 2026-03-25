@@ -33,7 +33,6 @@ const (
 	DockerHost                             = "DOCKER_HOST"
 	DDKubernetesResourcesLabelsAsTags      = "DD_KUBERNETES_RESOURCES_LABELS_AS_TAGS"
 	DDKubernetesResourcesAnnotationsAsTags = "DD_KUBERNETES_RESOURCES_ANNOTATIONS_AS_TAGS"
-	DDKubernetesUseEndpointSlices          = "DD_KUBERNETES_USE_ENDPOINT_SLICES"
 	DDCSIEnabled                           = "DD_CSI_ENABLED"
 	DDVSockAddr                            = "DD_VSOCK_ADDR"
 	DDRemoteAgentRegistryEnabled           = "DD_REMOTE_AGENT_REGISTRY_ENABLED"

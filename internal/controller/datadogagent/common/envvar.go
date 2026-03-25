@@ -35,6 +35,7 @@ const (
 	DDDataPlaneRemoteAgentEnabled         = "DD_DATA_PLANE_REMOTE_AGENT_ENABLED"
 	DDDataPlaneUseNewConfigStreamEndpoint = "DD_DATA_PLANE_USE_NEW_CONFIG_STREAM_ENDPOINT"
 	DDKubernetesPodResourcesSocket        = "DD_KUBERNETES_KUBELET_PODRESOURCES_SOCKET"
+	DDKubernetesUseEndpointSlices         = "DD_KUBERNETES_USE_ENDPOINT_SLICES"
 	DDCELWorkloadExclude                  = "DD_CEL_WORKLOAD_EXCLUDE"
 
 	// KubernetesEnvvarName Env var used by the Datadog Agent container entrypoint

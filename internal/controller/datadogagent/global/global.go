@@ -209,18 +209,6 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		}
 	}
 
-	if config.KubernetesUseEndpointSlices != nil {
-		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  DDKubernetesUseEndpointSlices,
-			Value: apiutils.BoolToString(config.KubernetesUseEndpointSlices),
-		})
-	} else {
-		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  DDKubernetesUseEndpointSlices,
-			Value: "true",
-		})
-	}
-
 	// CSI Driver config
 	if config.CSI != nil && config.CSI.Enabled != nil {
 		manager.EnvVar().AddEnvVar(&corev1.EnvVar{

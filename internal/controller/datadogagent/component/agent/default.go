@@ -668,6 +668,10 @@ func commonEnvVars(dda metav1.Object) []corev1.EnvVar {
 			Value: componentdca.GetClusterAgentServiceName(dda),
 		},
 		{
+			Name:  common.DDKubernetesUseEndpointSlices,
+			Value: "true",
+		},
+		{
 			Name:  common.DDClusterAgentTokenName,
 			Value: secrets.GetDefaultDCATokenSecretName(dda),
 		},

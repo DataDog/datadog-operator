@@ -167,6 +167,10 @@ func defaultEnvVars(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) [
 			Value: utils.GetDatadogAgentResourceNamespace(ddaMeta),
 		},
 		{
+			Name:  common.DDKubernetesUseEndpointSlices,
+			Value: "true",
+		},
+		{
 			Name:  common.DDLeaderElection,
 			Value: "true",
 		},

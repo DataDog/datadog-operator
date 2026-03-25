@@ -3330,10 +3330,6 @@
               "description": "Provide a mapping of Kubernetes Resource Groups to labels mapping to Datadog Tags.\n\u003cKUBERNETES_RESOURCE_GROUP\u003e:\n\t\t\u003cKUBERNETES_LABEL\u003e: \u003cDATADOG_TAG_KEY\u003e\nKUBERNETES_RESOURCE_GROUP should be in the form `{resource}.{group}` or `{resource}` (example: deployments.apps, pods)",
               "type": "object"
             },
-            "kubernetesUseEndpointSlices": {
-              "description": "KubernetesUseEndpointSlices enables the use of the EndpointSlice API instead of the legacy core Endpoint API.",
-              "type": "boolean"
-            },
             "localService": {
               "additionalProperties": false,
               "description": "LocalService contains configuration to customize the internal traffic policy service.",
