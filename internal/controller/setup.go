@@ -41,22 +41,24 @@ const (
 
 // SetupOptions defines options for setting up controllers to ease testing
 type SetupOptions struct {
-	SupportExtendedDaemonset      ExtendedDaemonsetOptions
-	SupportCilium                 bool
-	CredsManager                  *config.CredentialManager
-	Creds                         config.Creds
-	SecretRefreshInterval         time.Duration
-	DatadogAgentEnabled           bool
-	DatadogAgentInternalEnabled   bool
-	DatadogMonitorEnabled         bool
-	DatadogSLOEnabled             bool
-	OperatorMetricsEnabled        bool
-	V2APIEnabled                  bool
-	IntrospectionEnabled          bool
-	DatadogAgentProfileEnabled    bool
-	OtelAgentEnabled              bool
-	DatadogDashboardEnabled       bool
-	DatadogGenericResourceEnabled bool
+	SupportExtendedDaemonset       ExtendedDaemonsetOptions
+	SupportCilium                  bool
+	CredsManager                   *config.CredentialManager
+	Creds                          config.Creds
+	SecretRefreshInterval          time.Duration
+	DatadogAgentEnabled            bool
+	DatadogAgentInternalEnabled    bool
+	DatadogMonitorEnabled          bool
+	DatadogSLOEnabled              bool
+	OperatorMetricsEnabled         bool
+	V2APIEnabled                   bool
+	IntrospectionEnabled           bool
+	DatadogAgentProfileEnabled     bool
+	OtelAgentEnabled               bool
+	DatadogDashboardEnabled        bool
+	DatadogGenericResourceEnabled  bool
+	UntaintControllerEnabled       bool
+	UntaintControllerEventsEnabled bool
 }
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
@@ -85,6 +87,7 @@ var controllerStarters = map[string]starterFunc{
 	profileControllerName:         startDatadogAgentProfiles,
 	dashboardControllerName:       startDatadogDashboard,
 	genericResourceControllerName: startDatadogGenericResource,
+	untaintControllerName:         startUntaint,
 }
 
 // SetupControllers starts all controllers (also used by e2e tests)
@@ -255,6 +258,22 @@ func startDatadogSLO(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.P
 		options.CredsManager.RegisterCallback(sloReconciler.onCredentialChange)
 	}
 	return sloReconciler.SetupWithManager(mgr)
+}
+
+func startUntaint(logger logr.Logger, mgr manager.Manager, _ kubernetes.PlatformInfo, options SetupOptions, _ datadog.MetricsForwardersManager) error {
+	if !options.UntaintControllerEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", untaintControllerName)
+		return nil
+	}
+
+	logger.Info("untaint controller enabled", "controller", untaintControllerName, "eventsEnabled", options.UntaintControllerEventsEnabled)
+
+	return (&UntaintReconciler{
+		client:        mgr.GetClient(),
+		log:           ctrl.Log.WithName("controllers").WithName(untaintControllerName),
+		recorder:      mgr.GetEventRecorderFor(untaintControllerName),
+		eventsEnabled: options.UntaintControllerEventsEnabled,
+	}).SetupWithManager(mgr)
 }
 
 func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
