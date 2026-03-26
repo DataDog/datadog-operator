@@ -26,9 +26,9 @@ jobs:
         id: backport
         with:
           label_pattern: "^backport/(?<base>([^ ]+))$"
-          labels_template: "<%= JSON.stringify([...labels, 'backport', 'bot', 'qa/skip-qa']) %>"
+          labels_template: "<%= JSON.stringify([...labels, 'backport', 'bot']) %>"
           github_token: ${{ steps.octo-sts.outputs.token }}
-          title_template: "[Backport <%- base %>] <%- title %>"
+          title_template: "<%- title %>"
           body_template: |
             Backport <%- mergeCommitSha %> from #<%- number %>.
 
