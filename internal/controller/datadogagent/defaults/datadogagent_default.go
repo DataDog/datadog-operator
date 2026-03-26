@@ -304,10 +304,14 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	if ddaSpec.Features.ServiceDiscovery == nil {
 		ddaSpec.Features.ServiceDiscovery = &v2alpha1.ServiceDiscoveryFeatureConfig{}
 	}
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ServiceDiscovery.Enabled, defaultServiceDiscoveryEnabled)
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ServiceDiscovery.EnabledByDefault, defaultServiceDiscoveryEnabledByDefault)
+	// Only default Enabled to false when not enabled-by-default, so that Enabled=nil remains
+	// distinguishable from Enabled=false (explicit user opt-out) when EnabledByDefault=true.
+	if !apiutils.BoolValue(ddaSpec.Features.ServiceDiscovery.EnabledByDefault) {
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ServiceDiscovery.Enabled, defaultServiceDiscoveryEnabled)
+	}
 
-	if *ddaSpec.Features.ServiceDiscovery.Enabled || *ddaSpec.Features.ServiceDiscovery.EnabledByDefault {
+	if apiutils.BoolValue(ddaSpec.Features.ServiceDiscovery.Enabled) || apiutils.BoolValue(ddaSpec.Features.ServiceDiscovery.EnabledByDefault) {
 		if ddaSpec.Features.ServiceDiscovery.NetworkStats == nil {
 			ddaSpec.Features.ServiceDiscovery.NetworkStats = &v2alpha1.ServiceDiscoveryNetworkStatsConfig{}
 		}
