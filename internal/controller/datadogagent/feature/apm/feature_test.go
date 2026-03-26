@@ -349,32 +349,6 @@ func TestAPMFeature(t *testing.T) {
 			ClusterAgent:  testAPMInstrumentationNamespaces(),
 		},
 		{
-			Name: "single step instrumentation with language detection enabled, process check runs in process agent",
-			DDA: testutils.NewDatadogAgentBuilder().
-				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
-				WithAPMUDSEnabled(true, apmSocketHostPath).
-				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, true, "", nil, "").
-				WithAdmissionControllerEnabled(true).
-				WithComponentOverride(
-					v2alpha1.NodeAgentComponentName,
-					v2alpha1.DatadogAgentComponentOverride{
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.60.0"},
-						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "false"}},
-					},
-				).
-				Build(),
-			WantConfigure: true,
-			ClusterAgent:  testAPMInstrumentationWithLanguageDetectionEnabledForClusterAgent(),
-			Agent:         testAPMInstrumentationWithLanguageDetectionForNodeAgent(true, false),
-			WantDependenciesFunc: func(t testing.TB, store store.StoreClient) {
-				_, found := store.Get(kubernetes.ClusterRoleBindingKind, "", "-apm-cluster-agent")
-				if !found {
-					t.Error("Should have created proper RBAC for language detection")
-				}
-			},
-		},
-		{
 			Name: "single step instrumentation without language detection enabled",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
@@ -385,7 +359,7 @@ func TestAPMFeature(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  testAPMInstrumentation(),
-			Agent:         testAPMInstrumentationWithLanguageDetectionForNodeAgent(false, false),
+			Agent:         testAPMInstrumentationWithLanguageDetectionForNodeAgent(false),
 			WantDependenciesFunc: func(t testing.TB, store store.StoreClient) {
 				_, found := store.Get(kubernetes.ClusterRoleBindingKind, "", "-apm-cluster-agent")
 				if found {
@@ -410,7 +384,7 @@ func TestAPMFeature(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  testAPMInstrumentationWithLanguageDetectionEnabledForClusterAgent(),
-			Agent:         testAPMInstrumentationWithLanguageDetectionForNodeAgent(true, true),
+			Agent:         testAPMInstrumentationWithLanguageDetectionForNodeAgent(true),
 			WantDependenciesFunc: func(t testing.TB, store store.StoreClient) {
 				_, found := store.Get(kubernetes.ClusterRoleBindingKind, "", "-apm-cluster-agent")
 				if !found {
@@ -815,7 +789,7 @@ func testAPMInstrumentationWithInjectionMode(injectionMode string) *test.Compone
 	)
 }
 
-func testAPMInstrumentationWithLanguageDetectionForNodeAgent(languageDetectionEnabled bool, processChecksInCoreAgent bool) *test.ComponentTest {
+func testAPMInstrumentationWithLanguageDetectionForNodeAgent(languageDetectionEnabled bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -834,10 +808,6 @@ func testAPMInstrumentationWithLanguageDetectionForNodeAgent(languageDetectionEn
 					{
 						Name:  DDLanguageDetectionReportingEnabled,
 						Value: "true",
-					},
-					{
-						Name:  common.DDProcessConfigRunInCoreAgent,
-						Value: apiutils.BoolToString(&processChecksInCoreAgent),
 					},
 				}...)
 				expectedCoreAgentEnvVars = append(expectedCoreAgentEnvVars, expectedEnvVars...)

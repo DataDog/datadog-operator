@@ -88,11 +88,6 @@ func (f *liveProcessFeature) ManageClusterAgent(managers feature.PodTemplateMana
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
 func (f *liveProcessFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	runInCoreAgentEnvVar := &corev1.EnvVar{
-		Name:  common.DDProcessConfigRunInCoreAgent,
-		Value: apiutils.BoolToString(&f.runInCoreAgent),
-	}
-	managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, runInCoreAgentEnvVar)
 	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
 	return nil
 }
@@ -100,14 +95,6 @@ func (f *liveProcessFeature) ManageSingleContainerNodeAgent(managers feature.Pod
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	// Always add this envvar to Core and Process containers
-	runInCoreAgentEnvVar := &corev1.EnvVar{
-		Name:  common.DDProcessConfigRunInCoreAgent,
-		Value: apiutils.BoolToString(&f.runInCoreAgent),
-	}
-	managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, runInCoreAgentEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, runInCoreAgentEnvVar)
-
 	containerName := apicommon.CoreAgentContainerName
 	if !f.runInCoreAgent {
 		containerName = apicommon.ProcessAgentContainerName

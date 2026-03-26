@@ -479,13 +479,6 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 			Value: "true",
 		})
 
-		// Always add this envvar to Core and Process containers
-		runInCoreAgentEnvVar := &corev1.EnvVar{
-			Name:  common.DDProcessConfigRunInCoreAgent,
-			Value: apiutils.BoolToString(&f.processCheckRunsInCoreAgent),
-		}
-		managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, runInCoreAgentEnvVar)
-		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, runInCoreAgentEnvVar)
 	} else {
 		// Language Detection reporting is enabled by default in the Agent
 		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{

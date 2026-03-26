@@ -10,7 +10,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/api/utils"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -31,7 +30,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 				WithProcessDiscoveryEnabled(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true),
+			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName),
 		},
 		{
 			Name: "process discovery disabled",
@@ -45,22 +44,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 			DDA: testutils.NewDatadogAgentBuilder().
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true),
-		},
-		{
-			Name: "process discovery disabled in core agent via env vars",
-			DDA: testutils.NewDatadogAgentBuilder().
-				WithProcessDiscoveryEnabled(true).
-				WithComponentOverride(
-					v2alpha1.NodeAgentComponentName,
-					v2alpha1.DatadogAgentComponentOverride{
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.60.0"},
-						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "false"}},
-					},
-				).
-				Build(),
-			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false),
+			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName),
 		},
 		{
 			Name: "process discovery without min version to run in core agent",
@@ -74,7 +58,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 				).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false),
+			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName),
 		},
 		{
 			Name: "process discovery enabled on single container",
@@ -83,13 +67,13 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 				WithSingleContainerStrategy(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName, true),
+			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName),
 		},
 	}
 	tests.Run(t, buildProcessDiscoveryFeature)
 }
 
-func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCoreAgent bool) *test.ComponentTest {
+func testExpectedAgent(agentContainerName apicommon.AgentContainerName) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -149,10 +133,6 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 
 			// check env vars
 			wantEnvVars := []*corev1.EnvVar{
-				{
-					Name:  common.DDProcessConfigRunInCoreAgent,
-					Value: utils.BoolToString(&runInCoreAgent),
-				},
 				{
 					Name:  DDProcessDiscoveryEnabled,
 					Value: "true",

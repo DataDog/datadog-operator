@@ -69,14 +69,6 @@ func (p *processDiscoveryFeature) ManageClusterAgent(managers feature.PodTemplat
 }
 
 func (p *processDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	// Always add this envvar to Core and Process containers
-	runInCoreAgentEnvVar := &corev1.EnvVar{
-		Name:  common.DDProcessConfigRunInCoreAgent,
-		Value: apiutils.BoolToString(&p.runInCoreAgent),
-	}
-	managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, runInCoreAgentEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, runInCoreAgentEnvVar)
-
 	containerName := apicommon.CoreAgentContainerName
 	if !p.runInCoreAgent {
 		containerName = apicommon.ProcessAgentContainerName
@@ -86,11 +78,6 @@ func (p *processDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMa
 }
 
 func (p *processDiscoveryFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	runInCoreAgentEnvVar := &corev1.EnvVar{
-		Name:  common.DDProcessConfigRunInCoreAgent,
-		Value: apiutils.BoolToString(&p.runInCoreAgent),
-	}
-	managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, runInCoreAgentEnvVar)
 	p.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
 	return nil
 }
