@@ -682,6 +682,29 @@ spec:
                                 Default: true
                               type: boolean
                           type: object
+                        probe:
+                          description: Probe holds the admission controller connectivity probe configuration.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables the admission controller connectivity probe.
+                                The probe periodically sends dry-run ConfigMap creation requests to verify the
+                                webhook is reachable from the API server. Requires Cluster Agent 7.78.0+.
+                                Default: true
+                              type: boolean
+                            gracePeriod:
+                              description: |-
+                                GracePeriod is the number of seconds to wait at startup before the first probe.
+                                Default: 60
+                              format: int32
+                              type: integer
+                            interval:
+                              description: |-
+                                Interval is the number of seconds between probe executions.
+                                Default: 60
+                              format: int32
+                              type: integer
+                          type: object
                         registry:
                           description: Registry defines an image registry for the admission controller.
                           type: string
@@ -3374,6 +3397,11 @@ spec:
                     useFIPSAgent:
                       description: |-
                         UseFIPSAgent enables the FIPS flavor of the Agent. If 'true', the FIPS proxy will always be disabled.
+                        Default: 'false'
+                      type: boolean
+                    useVSock:
+                      description: |-
+                        UseVSock allows the use of VSock communication between the Agent and containerized workloads.
                         Default: 'false'
                       type: boolean
                   type: object
@@ -9124,6 +9152,29 @@ spec:
                                     Enabled enables the Admission Controller mutation webhook.
                                     Default: true
                                   type: boolean
+                              type: object
+                            probe:
+                              description: Probe holds the admission controller connectivity probe configuration.
+                              properties:
+                                enabled:
+                                  description: |-
+                                    Enabled enables the admission controller connectivity probe.
+                                    The probe periodically sends dry-run ConfigMap creation requests to verify the
+                                    webhook is reachable from the API server. Requires Cluster Agent 7.78.0+.
+                                    Default: true
+                                  type: boolean
+                                gracePeriod:
+                                  description: |-
+                                    GracePeriod is the number of seconds to wait at startup before the first probe.
+                                    Default: 60
+                                  format: int32
+                                  type: integer
+                                interval:
+                                  description: |-
+                                    Interval is the number of seconds between probe executions.
+                                    Default: 60
+                                  format: int32
+                                  type: integer
                               type: object
                             registry:
                               description: Registry defines an image registry for the admission controller.

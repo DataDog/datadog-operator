@@ -16,6 +16,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
@@ -105,27 +106,97 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 	err := f.ManageNodeAgent(managers, "")
 	assert.NoError(t, err)
 
-	// Verify volume is mounted
+	// Verify volumes (1 configmap + 3 host volumes)
 	volumes := managers.VolumeMgr.Volumes
-	assert.Len(t, volumes, 1, "Should have exactly one volume")
-	vol := volumes[0]
-	assert.Equal(t, "test-dda-privateactionrunner-config", vol.Name, "Volume name should match")
-	assert.NotNil(t, vol.VolumeSource.ConfigMap, "Volume should be a ConfigMap volume")
-	assert.Equal(t, "test-dda-privateactionrunner", vol.VolumeSource.ConfigMap.Name, "ConfigMap name should match")
+	assert.Len(t, volumes, 4)
+	assert.Equal(t, "test-dda-privateactionrunner-config", volumes[0].Name, "Volume name should match")
+	assert.NotNil(t, volumes[0].VolumeSource.ConfigMap, "Volume should be a ConfigMap volume")
+	assert.Equal(t, "test-dda-privateactionrunner", volumes[0].VolumeSource.ConfigMap.Name, "ConfigMap name should match")
 
-	// Verify volume mount
+	volumeNames := make(map[string]bool)
+	for _, v := range volumes {
+		volumeNames[v.Name] = true
+	}
+	assert.True(t, volumeNames[common.ProcdirVolumeName])
+	assert.True(t, volumeNames[common.SystemProbeOSReleaseDirVolumeName])
+	assert.True(t, volumeNames[hostVarLogVolumeName])
+
+	// Verify volume mounts (1 configmap + 3 host mounts)
 	volumeMounts := managers.VolumeMountMgr.VolumeMountsByC[apicommon.PrivateActionRunnerContainerName]
-	assert.Len(t, volumeMounts, 1, "Should have exactly one volume mount")
+	assert.Len(t, volumeMounts, 4)
 	mount := volumeMounts[0]
 	assert.Equal(t, "test-dda-privateactionrunner-config", mount.Name, "Mount name should match")
 	assert.Equal(t, "/etc/datadog-agent/privateactionrunner.yaml", mount.MountPath, "Mount path should be the hardcoded path")
 	assert.Equal(t, "privateactionrunner.yaml", mount.SubPath, "SubPath should mount the file directly")
 	assert.True(t, mount.ReadOnly, "Mount should be read-only")
 
+	mountNames := make(map[string]bool)
+	for _, m := range volumeMounts {
+		mountNames[m.Name] = true
+	}
+	assert.True(t, mountNames[common.ProcdirVolumeName])
+	assert.True(t, mountNames[common.SystemProbeOSReleaseDirVolumeName])
+	assert.True(t, mountNames[hostVarLogVolumeName])
+
+	// Verify host mounts are read-only
+	for _, m := range volumeMounts {
+		if m.Name == common.ProcdirVolumeName || m.Name == common.SystemProbeOSReleaseDirVolumeName || m.Name == hostVarLogVolumeName {
+			assert.True(t, m.ReadOnly, "mount %s should be read-only", m.Name)
+		}
+	}
+
+	// Verify NET_RAW capability
+	capabilities := managers.SecurityContextMgr.CapabilitiesByC[apicommon.PrivateActionRunnerContainerName]
+	assert.Contains(t, capabilities, corev1.Capability("NET_RAW"))
+
 	// Verify hash
 	assert.NotEmpty(t, managers.AnnotationMgr.Annotations)
 	assert.NotEmpty(t, managers.AnnotationMgr.Annotations["checksum/private_action_runner-custom-config"])
 	assert.Equal(t, "7aca0ab8a2cb083533a5552c17a50aa3", managers.AnnotationMgr.Annotations["checksum/private_action_runner-custom-config"])
+}
+
+// Test_privateActionRunnerFeature_ProfileDDAI_ConfigMapNames verifies that when PAR is
+// enabled on a profile DDAI (whose name differs from the parent DDA), the ConfigMaps are
+// named after the DDA (not the DDAI) so all profile DDAIs share the same ConfigMap.
+func Test_privateActionRunnerFeature_ProfileDDAI_ConfigMapNames(t *testing.T) {
+	testScheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(testScheme)
+	_ = v2alpha1.AddToScheme(testScheme)
+
+	// Simulate a profile DDAI: name differs from parent DDA, but DDA name is in the label.
+	profileDDAI := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "compute-nodeless-200m-v2",
+			Namespace: "default",
+			Labels: map[string]string{
+				apicommon.DatadogAgentNameLabelKey: "datadog-agent",
+			},
+			Annotations: map[string]string{
+				"agent.datadoghq.com/private-action-runner-enabled":         "true",
+				"cluster-agent.datadoghq.com/private-action-runner-enabled": "true",
+			},
+		},
+	}
+
+	f := buildPrivateActionRunnerFeature(nil)
+	f.Configure(profileDDAI, &v2alpha1.DatadogAgentSpec{}, nil)
+
+	storeOptions := &store.StoreOptions{Scheme: testScheme}
+	resourceManagers := feature.NewResourceManagers(store.NewStore(profileDDAI, storeOptions))
+	err := f.ManageDependencies(resourceManagers, "")
+	require.NoError(t, err)
+
+	// Node agent ConfigMap must use the DDA name so all DDAIs share the same ConfigMap.
+	_, found := resourceManagers.Store().Get(kubernetes.ConfigMapKind, "default", "datadog-agent-privateactionrunner")
+	assert.True(t, found, "node agent ConfigMap should use DDA name, not profile DDAI name")
+	_, wrongFound := resourceManagers.Store().Get(kubernetes.ConfigMapKind, "default", "compute-nodeless-200m-v2-privateactionrunner")
+	assert.False(t, wrongFound, "node agent ConfigMap must NOT use profile DDAI name")
+
+	// Cluster agent ConfigMap must use the DDA name for the same reason.
+	_, caFound := resourceManagers.Store().Get(kubernetes.ConfigMapKind, "default", "datadog-agent-clusteragent-privateactionrunner")
+	assert.True(t, caFound, "cluster agent ConfigMap should use DDA name, not profile DDAI name")
+	_, caWrongFound := resourceManagers.Store().Get(kubernetes.ConfigMapKind, "default", "compute-nodeless-200m-v2-clusteragent-privateactionrunner")
+	assert.False(t, caWrongFound, "cluster agent ConfigMap must NOT use profile DDAI name")
 }
 
 func Test_privateActionRunnerFeature_ID(t *testing.T) {
@@ -243,6 +314,7 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 		annotations               map[string]string
 		wantClusterAgentEnabled   bool
 		wantNodeAgentEnabled      bool
+		wantK8sRemediationEnabled bool
 		expectedClusterConfigData string
 	}{
 		{
@@ -314,6 +386,28 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
   self_enroll: false
   urn: urn:dd:apps:on-prem-runner:us1:1:runner-xyz`,
 		},
+		{
+			name: "k8s remediation annotation enabled",
+			annotations: map[string]string{
+				"cluster-agent.datadoghq.com/private-action-runner-enabled":                 "true",
+				"cluster-agent.datadoghq.com/private-action-runner-k8s-remediation-enabled": "true",
+			},
+			wantClusterAgentEnabled:   true,
+			wantNodeAgentEnabled:      false,
+			wantK8sRemediationEnabled: true,
+			expectedClusterConfigData: defaultConfigData,
+		},
+		{
+			name: "k8s remediation annotation disabled",
+			annotations: map[string]string{
+				"cluster-agent.datadoghq.com/private-action-runner-enabled":                 "true",
+				"cluster-agent.datadoghq.com/private-action-runner-k8s-remediation-enabled": "false",
+			},
+			wantClusterAgentEnabled:   true,
+			wantNodeAgentEnabled:      false,
+			wantK8sRemediationEnabled: false,
+			expectedClusterConfigData: defaultConfigData,
+		},
 	}
 
 	for _, tt := range tests {
@@ -345,6 +439,8 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 			} else {
 				assert.Nil(t, parFeat.clusterConfig, "clusterConfig should be nil when not enabled")
 			}
+
+			assert.Equal(t, tt.wantK8sRemediationEnabled, parFeat.k8sRemediationEnabled, "k8sRemediationEnabled should match")
 		})
 	}
 }
