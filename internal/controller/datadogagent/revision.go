@@ -31,13 +31,9 @@ type revisionSnapshot struct {
 	Annotations map[string]string         `json:"annotations,omitempty"`
 }
 
-// manageRevision creates or ensures a ControllerRevision snapshot of the current
-// DDA spec and GCs old revisions beyond the current and previous.
-func (r *Reconciler) manageRevision(ctx context.Context, instance *v2alpha1.DatadogAgent) error {
-	revList, err := r.listRevisions(ctx, instance)
-	if err != nil {
-		return err
-	}
+// manageRevision creates a ControllerRevision snapshot of the current spec and
+// garbage collects old revisions. Must be called after manageExperiment.
+func (r *Reconciler) manageRevision(ctx context.Context, instance *v2alpha1.DatadogAgent, revList []appsv1.ControllerRevision) error {
 	revName, err := r.ensureRevision(ctx, instance, revList)
 	if err != nil {
 		return err
@@ -48,7 +44,7 @@ func (r *Reconciler) manageRevision(ctx context.Context, instance *v2alpha1.Data
 	return nil
 }
 
-func (r *Reconciler) listRevisions(ctx context.Context, instance *v2alpha1.DatadogAgent) (*appsv1.ControllerRevisionList, error) {
+func (r *Reconciler) listRevisions(ctx context.Context, instance *v2alpha1.DatadogAgent) ([]appsv1.ControllerRevision, error) {
 	revList := &appsv1.ControllerRevisionList{}
 	if err := r.client.List(ctx, revList,
 		client.InNamespace(instance.GetNamespace()),
@@ -71,17 +67,17 @@ func (r *Reconciler) listRevisions(ctx context.Context, instance *v2alpha1.Datad
 		}
 	}
 	revList.Items = owned
-	return revList, nil
+	return revList.Items, nil
 }
 
 // ensureRevision creates a ControllerRevision snapshot of the instance spec and
-// annotations if it does not already exist.
+// annotations if it does not already exist, and returns the revision name.
 //
 // The Revision field is a monotonic creation counter.
 func (r *Reconciler) ensureRevision(
 	ctx context.Context,
 	instance *v2alpha1.DatadogAgent,
-	revList *appsv1.ControllerRevisionList,
+	revList []appsv1.ControllerRevision,
 ) (string, error) {
 	logger := ctrl.LoggerFrom(ctx)
 
@@ -99,8 +95,8 @@ func (r *Reconciler) ensureRevision(
 	// Find any existing revision with identical data, and track the max Revision.
 	var matchingRev *appsv1.ControllerRevision
 	maxRevision := int64(0)
-	for i := range revList.Items {
-		existing := &revList.Items[i]
+	for i := range revList {
+		existing := &revList[i]
 		if bytes.Equal(existing.Data.Raw, specBytes) {
 			matchingRev = existing
 		}
@@ -135,9 +131,9 @@ func (r *Reconciler) ensureRevision(
 	rev := controllerrevisions.NewControllerRevision(instance, gvks[0], labels, data, nextRevision, nil)
 
 	// Check for a name conflict before creating.
-	existingByName := make(map[string][]byte, len(revList.Items))
-	for i := range revList.Items {
-		existingByName[revList.Items[i].Name] = revList.Items[i].Data.Raw
+	existingByName := make(map[string][]byte, len(revList))
+	for i := range revList {
+		existingByName[revList[i].Name] = revList[i].Data.Raw
 	}
 	if existingData, nameUsed := existingByName[rev.Name]; nameUsed {
 		if bytes.Equal(existingData, specBytes) {
@@ -185,15 +181,15 @@ func (r *Reconciler) gcOldRevisions(
 	ctx context.Context,
 	instance *v2alpha1.DatadogAgent,
 	current string,
-	revList *appsv1.ControllerRevisionList,
+	revList []appsv1.ControllerRevision,
 ) error {
 	logger := ctrl.LoggerFrom(ctx)
 
 	// Identify the most recent non-current revision to keep as previous.
 	previous := ""
 	previousRevision := int64(-1)
-	for i := range revList.Items {
-		rev := &revList.Items[i]
+	for i := range revList {
+		rev := &revList[i]
 		if rev.Name == current {
 			continue
 		}
@@ -203,8 +199,8 @@ func (r *Reconciler) gcOldRevisions(
 		}
 	}
 
-	for i := range revList.Items {
-		rev := &revList.Items[i]
+	for i := range revList {
+		rev := &revList[i]
 		if rev.Name == current || rev.Name == previous {
 			continue
 		}

@@ -71,10 +71,16 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 	ddaStatusCopy := instance.Status.DeepCopy()
 	newDDAStatus := generateNewStatusFromDDA(ddaStatusCopy)
 
-	// Manage ControllerRevision snapshots
 	if r.options.CreateControllerRevisions {
-		if err := r.manageRevision(ctx, instance); err != nil {
+		revList, err := r.listRevisions(ctx, instance)
+		if err != nil {
 			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, err, now)
+		}
+		if err := r.manageExperiment(ctx, instance, newDDAStatus, now, revList); err != nil {
+			return r.updateStatusIfNeededV2(logger, instance, newDDAStatus, result, err, now)
+		}
+		if err := r.manageRevision(ctx, instance, revList); err != nil {
+			return r.updateStatusIfNeededV2(logger, instance, newDDAStatus, result, err, now)
 		}
 	}
 
