@@ -646,6 +646,20 @@ type ServiceDiscoveryFeatureConfig struct {
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// DEPRECATED: NetworkStats is no longer configurable and will be ignored.
+	// +deprecated
+	// +optional
+	NetworkStats *ServiceDiscoveryNetworkStatsConfig `json:"networkStats,omitempty"`
+}
+
+// ServiceDiscoveryNetworkStatsConfig is deprecated and has no effect.
+// +deprecated
+type ServiceDiscoveryNetworkStatsConfig struct {
+	// DEPRECATED: this field is ignored.
+	// +deprecated
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // GPUFeatureConfig contains the GPU monitoring configuration.

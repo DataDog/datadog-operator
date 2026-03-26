@@ -2587,6 +2587,17 @@
                 "enabled": {
                   "description": "Enables the service discovery check.\nDefault: false",
                   "type": "boolean"
+                },
+                "networkStats": {
+                  "additionalProperties": false,
+                  "description": "DEPRECATED: NetworkStats is no longer configurable and will be ignored.",
+                  "properties": {
+                    "enabled": {
+                      "description": "DEPRECATED: this field is ignored.",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
                 }
               },
               "type": "object"
@@ -10795,6 +10806,17 @@
                     "enabled": {
                       "description": "Enables the service discovery check.\nDefault: false",
                       "type": "boolean"
+                    },
+                    "networkStats": {
+                      "additionalProperties": false,
+                      "description": "DEPRECATED: NetworkStats is no longer configurable and will be ignored.",
+                      "properties": {
+                        "enabled": {
+                          "description": "DEPRECATED: this field is ignored.",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
                     }
                   },
                   "type": "object"
