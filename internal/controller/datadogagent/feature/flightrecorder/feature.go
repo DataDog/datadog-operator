@@ -98,15 +98,22 @@ func (f *flightRecorderFeature) ManageNodeAgent(managers feature.PodTemplateMana
 		return nil
 	}
 
-	// Set env vars on the core agent to enable flightrecorder and configure the socket path.
-	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-		Name:  common.DDFlightRecorderEnabled,
-		Value: "true",
-	})
-	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-		Name:  common.DDFlightRecorderSocketPath,
-		Value: flightRecorderSocketFile,
-	})
+	// Set env vars on the core agent and trace agent to enable flightrecorder
+	// and configure the socket path. The trace-agent runs its own flightrecorder
+	// component to record trace stats via the hook system.
+	for _, container := range []apicommon.AgentContainerName{
+		apicommon.CoreAgentContainerName,
+		apicommon.TraceAgentContainerName,
+	} {
+		managers.EnvVar().AddEnvVarToContainer(container, &corev1.EnvVar{
+			Name:  common.DDFlightRecorderEnabled,
+			Value: "true",
+		})
+		managers.EnvVar().AddEnvVarToContainer(container, &corev1.EnvVar{
+			Name:  common.DDFlightRecorderSocketPath,
+			Value: flightRecorderSocketFile,
+		})
+	}
 
 	// Shared socket volume (emptyDir) for Unix socket communication between agent and flightrecorder.
 	socketVol := corev1.Volume{
@@ -124,6 +131,7 @@ func (f *flightRecorderFeature) ManageNodeAgent(managers feature.PodTemplateMana
 		&socketVolMount,
 		[]apicommon.AgentContainerName{
 			apicommon.CoreAgentContainerName,
+			apicommon.TraceAgentContainerName,
 			apicommon.FlightRecorderContainerName,
 		},
 	)

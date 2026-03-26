@@ -58,10 +58,14 @@ func Test_flightRecorderFeature(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-					// Check env vars on core agent
+					// Check env vars on core agent and trace agent
 					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
-					assert.Contains(t, agentEnvVars, flightRecorderEnabledEnvVar, "DD_FLIGHTRECORDER_ENABLED should be set")
-					assert.Contains(t, agentEnvVars, flightRecorderSocketPathEnvVar, "DD_FLIGHTRECORDER_SOCKET_PATH should be set")
+					assert.Contains(t, agentEnvVars, flightRecorderEnabledEnvVar, "DD_FLIGHTRECORDER_ENABLED should be set on core agent")
+					assert.Contains(t, agentEnvVars, flightRecorderSocketPathEnvVar, "DD_FLIGHTRECORDER_SOCKET_PATH should be set on core agent")
+
+					traceAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.TraceAgentContainerName]
+					assert.Contains(t, traceAgentEnvVars, flightRecorderEnabledEnvVar, "DD_FLIGHTRECORDER_ENABLED should be set on trace agent")
+					assert.Contains(t, traceAgentEnvVars, flightRecorderSocketPathEnvVar, "DD_FLIGHTRECORDER_SOCKET_PATH should be set on trace agent")
 
 					// Check volumes
 					expectedSocketVol := &corev1.Volume{
@@ -86,6 +90,10 @@ func Test_flightRecorderFeature(t *testing.T) {
 					}
 					coreAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.CoreAgentContainerName]
 					assert.Contains(t, coreAgentMounts, expectedSocketMount, "core agent should have socket volume mount")
+
+					// Check volume mounts on trace agent (socket)
+					traceAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.TraceAgentContainerName]
+					assert.Contains(t, traceAgentMounts, expectedSocketMount, "trace agent should have socket volume mount")
 
 					// Check volume mounts on flightrecorder container (socket + data)
 					expectedDataMount := &corev1.VolumeMount{
