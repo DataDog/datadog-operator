@@ -241,27 +241,27 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			),
 		},
 		{
-		Name: "uds enabled sets host socket path on cluster agent",
-		DDA: testutils.NewDefaultDatadogAgentBuilder().BuildWithDefaults(),
-		WantConfigure: true,
-		ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-			func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-				mgr := mgrInterface.(*fake.PodTemplateManagers)
-				clusterAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
-				expectedEnvVars := []*corev1.EnvVar{
-					{
-						Name:  DDDogstatsdHostSocketPath,
-						Value: common.DogstatsdAPMSocketHostPath,
-					},
-					{
-						Name:  DDDogstatsdSocket,
-						Value: common.DogstatsdAPMSocketHostPath + "/" + common.DogstatsdSocketName,
-					},
-				}
-				assert.True(t, apiutils.IsEqualStruct(clusterAgentEnvVars, expectedEnvVars),
-					"Cluster Agent envvars \ndiff = %s", cmp.Diff(clusterAgentEnvVars, expectedEnvVars))
-			},
-		),
+			Name:          "uds enabled sets host socket path on cluster agent",
+			DDA:           testutils.NewDefaultDatadogAgentBuilder().BuildWithDefaults(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					clusterAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+					expectedEnvVars := []*corev1.EnvVar{
+						{
+							Name:  DDDogstatsdHostSocketPath,
+							Value: common.DogstatsdAPMSocketHostPath,
+						},
+						{
+							Name:  DDDogstatsdSocket,
+							Value: common.DogstatsdAPMSocketHostPath + "/" + common.DogstatsdSocketName,
+						},
+					}
+					assert.True(t, apiutils.IsEqualStruct(clusterAgentEnvVars, expectedEnvVars),
+						"Cluster Agent envvars \ndiff = %s", cmp.Diff(clusterAgentEnvVars, expectedEnvVars))
+				},
+			),
 		},
 		{
 			Name: "uds disabled",
@@ -311,24 +311,24 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					assertWants(t, mgrInterface, "12", customVolumeMounts, customVolumes, []*corev1.EnvVar{getNonLocalTrafficEnvVar()}, customEnvVars, getWantContainerPorts())
 				},
 			),
-		ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-			func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-				mgr := mgrInterface.(*fake.PodTemplateManagers)
-				clusterAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
-				expectedEnvVars := []*corev1.EnvVar{
-					{
-						Name:  DDDogstatsdHostSocketPath,
-						Value: customVolumePath,
-					},
-					{
-						Name:  DDDogstatsdSocket,
-						Value: customPath,
-					},
-				}
-				assert.True(t, apiutils.IsEqualStruct(clusterAgentEnvVars, expectedEnvVars),
-					"Cluster Agent envvars \ndiff = %s", cmp.Diff(clusterAgentEnvVars, expectedEnvVars))
-			},
-		),
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					clusterAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+					expectedEnvVars := []*corev1.EnvVar{
+						{
+							Name:  DDDogstatsdHostSocketPath,
+							Value: customVolumePath,
+						},
+						{
+							Name:  DDDogstatsdSocket,
+							Value: customPath,
+						},
+					}
+					assert.True(t, apiutils.IsEqualStruct(clusterAgentEnvVars, expectedEnvVars),
+						"Cluster Agent envvars \ndiff = %s", cmp.Diff(clusterAgentEnvVars, expectedEnvVars))
+				},
+			),
 		},
 		{
 			Name: "uds origin detection",
