@@ -69,11 +69,6 @@ func applyOtelAgentGatewayResources(manager feature.PodTemplateManagers, ddaSpec
 	})
 
 	manager.EnvVar().AddEnvVarToContainer(apicommon.OtelAgent, &corev1.EnvVar{
-		Name:  "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED",
-		Value: "false",
-	})
-
-	manager.EnvVar().AddEnvVarToContainer(apicommon.OtelAgent, &corev1.EnvVar{
 		Name:  "DD_REMOTE_CONFIGURATION_ENABLED",
 		Value: "false",
 	})
