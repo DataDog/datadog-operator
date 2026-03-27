@@ -26,6 +26,8 @@ const (
 	// Config map item must be `host-profiler-config.yaml`
 	HostProfilerConfigMapNameAnnotation = "agent.datadoghq.com/host-profiler-configmap-name"
 
+	EnableFlightRecorderAnnotation = "agent.datadoghq.com/flightrecorder-enabled"
+
 	EnablePrivateActionRunnerAnnotation     = "agent.datadoghq.com/private-action-runner-enabled"
 	PrivateActionRunnerConfigDataAnnotation = "agent.datadoghq.com/private-action-runner-configdata"
 

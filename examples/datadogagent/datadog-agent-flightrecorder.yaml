@@ -3,6 +3,8 @@ kind: DatadogAgent
 metadata:
   name: datadog
   namespace: system
+  annotations:
+    agent.datadoghq.com/flightrecorder-enabled: "true"
 spec:
   global:
     clusterName: kind-flightrecorder
@@ -11,9 +13,6 @@ spec:
         secretName: datadog-secret
         keyName: api-key
     registry: docker.io
-  features:
-    flightRecorder:
-      enabled: true
   override:
     nodeAgent:
       image:

@@ -34,7 +34,6 @@ const (
 	DDDataPlaneOTLPEnabled                = "DD_DATA_PLANE_OTLP_ENABLED"
 	DDDataPlaneRemoteAgentEnabled         = "DD_DATA_PLANE_REMOTE_AGENT_ENABLED"
 	DDDataPlaneUseNewConfigStreamEndpoint = "DD_DATA_PLANE_USE_NEW_CONFIG_STREAM_ENDPOINT"
-	DDExperimentalFlightRecorderEnabled   = "DD_EXPERIMENTAL_FLIGHTRECORDER_ENABLED"
 	DDFlightRecorderEnabled               = "DD_FLIGHTRECORDER_ENABLED"
 	DDFlightRecorderSocketPath            = "DD_FLIGHTRECORDER_SOCKET_PATH"
 	DDKubernetesPodResourcesSocket        = "DD_KUBERNETES_KUBELET_PODRESOURCES_SOCKET"
