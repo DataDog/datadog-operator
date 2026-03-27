@@ -162,7 +162,7 @@ func isReconcileError(conditions []metav1.Condition) error {
 // Run use to run the command.
 func (o *Options) Run() error {
 	o.printOutf("Start checking rolling-update status")
-	checkFunc := func() (bool, error) {
+	checkFunc := func(ctx context.Context) (bool, error) {
 		var agentDone, dcaDone, ccrDone, reconcileError bool
 		var status common.StatusWrapper
 		o.printOutf("v2alpha1 is available")
@@ -213,7 +213,7 @@ func (o *Options) Run() error {
 		return false, nil
 	}
 
-	return wait.Poll(o.checkPeriod, o.checkTimeout, checkFunc)
+	return wait.PollUntilContextTimeout(context.Background(), o.checkPeriod, o.checkTimeout, false, checkFunc)
 }
 
 func (o *Options) isAgentDone(status *v2alpha1.DaemonSetStatus) bool {
