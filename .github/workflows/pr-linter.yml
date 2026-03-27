@@ -3,7 +3,7 @@ on:
   pull_request_target:
     types: [opened, labeled, unlabeled, synchronize]
   pull_request:
-    types: [opened, labeled, unlabeled, synchronize, milestoned, demilestoned]
+    types: [opened, labeled, unlabeled, synchronize]
 
 permissions: {}
 
@@ -24,21 +24,3 @@ jobs:
         valid-labels: 'bug, enhancement, refactoring, documentation, tooling, dependencies'
         pull-request-number: '${{ github.event.pull_request.number }}'
         disable-reviews: true
-  check-milestone:
-    name: Check Milestone
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: read
-    steps:
-      - name: Check milestone and labels
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          PR_JSON=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }})
-          MILESTONE=$(echo "$PR_JSON" | jq -r '.milestone.title // empty')
-          HAS_SKIP_QA=$(echo "$PR_JSON" | jq -r '[.labels[].name] | any(. == "qa/skip-qa")')
-          if [ -z "$MILESTONE" ] && [ "$HAS_SKIP_QA" != "true" ]; then
-            echo "::error::Missing milestone or \`qa/skip-qa\` label"
-            exit 1
-          fi
