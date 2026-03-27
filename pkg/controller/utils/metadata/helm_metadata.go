@@ -22,6 +22,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"gopkg.in/yaml.v2"
+	authorizationv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -65,6 +66,10 @@ type HelmMetadataForwarder struct {
 	// Key: "namespace/releaseName"
 	// Value: *ReleaseEntry
 	releaseSnapshots sync.Map
+
+	// secretAccessEnabled tracks whether the operator has permission to read Secrets.
+	// Set once in Start() and used to skip the Secret path in processKey.
+	secretAccessEnabled bool
 }
 
 // ReleaseEntry wraps a ReleaseSnapshot with a mutex for safe concurrent access
@@ -155,6 +160,28 @@ func NewHelmMetadataForwarderWithManager(logger logr.Logger, mgr manager.Manager
 	}
 }
 
+// canListWatchSecrets checks if the operator has permission to list and watch Secrets
+func (hmf *HelmMetadataForwarder) canListWatchSecrets(ctx context.Context) bool {
+	for _, verb := range []string{"list", "watch"} {
+		sar := &authorizationv1.SelfSubjectAccessReview{
+			Spec: authorizationv1.SelfSubjectAccessReviewSpec{
+				ResourceAttributes: &authorizationv1.ResourceAttributes{
+					Verb:     verb,
+					Resource: "secrets",
+				},
+			},
+		}
+		if err := hmf.mgr.GetClient().Create(ctx, sar); err != nil {
+			hmf.logger.V(1).Info("Failed to check Secret RBAC permission", "verb", verb, "error", err)
+			return false
+		}
+		if !sar.Status.Allowed {
+			return false
+		}
+	}
+	return true
+}
+
 // Start implements manager.Runnable interface
 // It is called by the manager after the cache is synced but we don't need to initialize resources at start.
 // Cache sends synthetic 'Add' events to the newly registered handler, see
@@ -166,12 +193,6 @@ func (hmf *HelmMetadataForwarder) Start(ctx context.Context) error {
 		hmf.logger.Info("Unable to get ConfigMap informer, Helm metadata collection will be disabled", "error", err)
 		return nil
 	}
-	secretInformer, err := hmf.mgr.GetCache().GetInformer(ctx, &corev1.Secret{})
-	if err != nil {
-		hmf.logger.Info("Unable to get Secret informer, Helm metadata collection will be disabled", "error", err)
-		return nil
-	}
-
 	_, err = cmInformer.AddEventHandler(toolscache.FilteringResourceEventHandler{
 		FilterFunc: func(obj any) bool {
 			cm, ok := obj.(*corev1.ConfigMap)
@@ -200,30 +221,38 @@ func (hmf *HelmMetadataForwarder) Start(ctx context.Context) error {
 		return nil
 	}
 
-	_, err = secretInformer.AddEventHandler(toolscache.FilteringResourceEventHandler{
-		FilterFunc: func(obj any) bool {
-			secret, ok := obj.(*corev1.Secret)
-			return ok &&
-				secret.Labels["owner"] == "helm" &&
-				strings.HasPrefix(secret.Name, releasePrefix)
-		},
-		Handler: toolscache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj any) {
-				if key, keyErr := toolscache.MetaNamespaceKeyFunc(obj); keyErr == nil {
-					hmf.queue.Add(key)
-				}
-			},
-			DeleteFunc: func(obj any) {
-				if key, keyErr := toolscache.DeletionHandlingMetaNamespaceKeyFunc(obj); keyErr == nil {
-					hmf.queue.Add(deletePrefix + key)
-				}
-			},
-		},
-	})
-
-	if err != nil {
-		hmf.logger.Info("Unable to add Secret event handler, Helm metadata collection will be disabled", "error", err)
-		return nil
+	hmf.secretAccessEnabled = hmf.canListWatchSecrets(ctx)
+	if hmf.secretAccessEnabled {
+		secretInformer, secretErr := hmf.mgr.GetCache().GetInformer(ctx, &corev1.Secret{})
+		if secretErr != nil {
+			hmf.logger.Info("Unable to get Secret informer, Helm metadata collection from Secrets will be disabled", "error", secretErr)
+		} else {
+			_, secretErr = secretInformer.AddEventHandler(toolscache.FilteringResourceEventHandler{
+				FilterFunc: func(obj any) bool {
+					secret, ok := obj.(*corev1.Secret)
+					return ok &&
+						secret.Labels["owner"] == "helm" &&
+						strings.HasPrefix(secret.Name, releasePrefix)
+				},
+				Handler: toolscache.ResourceEventHandlerFuncs{
+					AddFunc: func(obj any) {
+						if key, keyErr := toolscache.MetaNamespaceKeyFunc(obj); keyErr == nil {
+							hmf.queue.Add(key)
+						}
+					},
+					DeleteFunc: func(obj any) {
+						if key, keyErr := toolscache.DeletionHandlingMetaNamespaceKeyFunc(obj); keyErr == nil {
+							hmf.queue.Add(deletePrefix + key)
+						}
+					},
+				},
+			})
+			if secretErr != nil {
+				hmf.logger.Info("Unable to add Secret event handler, Helm metadata collection from Secrets will be disabled", "error", secretErr)
+			}
+		}
+	} else {
+		hmf.logger.Info("No permission to list/watch Secrets, Helm metadata collection from Secrets will be disabled")
 	}
 
 	// Cache is already synced by the manager before Start() is called
@@ -301,12 +330,14 @@ func (hmf *HelmMetadataForwarder) processKey(ctx context.Context, key string) er
 		return nil
 	}
 
-	// Try as Secret
-	secret := &corev1.Secret{}
-	err = hmf.k8sClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, secret)
-	if err == nil && secret.Labels["owner"] == "helm" {
-		hmf.handleHelmResource(ctx, secret.Name, secret.Namespace, string(secret.UID), secret.Data["release"])
-		return nil
+	// Try as Secret (only if we have permission, to avoid lazily registering a Secret informer)
+	if hmf.secretAccessEnabled {
+		secret := &corev1.Secret{}
+		err = hmf.k8sClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, secret)
+		if err == nil && secret.Labels["owner"] == "helm" {
+			hmf.handleHelmResource(ctx, secret.Name, secret.Namespace, string(secret.UID), secret.Data["release"])
+			return nil
+		}
 	}
 
 	// If not found, likely a race condition with deletion - ignore it

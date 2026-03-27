@@ -525,7 +525,6 @@ func hostProfilerContainer(dda metav1.Object) corev1.Container {
 		Image: agentImage(),
 		Command: []string{
 			"/opt/datadog-agent/embedded/bin/full-host-profiler",
-			"run",
 			"--core-config=" + agentCustomConfigVolumePath,
 		},
 		Env:          commonEnvVars(dda),
@@ -668,6 +667,10 @@ func commonEnvVars(dda metav1.Object) []corev1.EnvVar {
 			Value: componentdca.GetClusterAgentServiceName(dda),
 		},
 		{
+			Name:  common.DDKubernetesUseEndpointSlices,
+			Value: "true",
+		},
+		{
 			Name:  common.DDClusterAgentTokenName,
 			Value: secrets.GetDefaultDCATokenSecretName(dda),
 		},
@@ -768,7 +771,7 @@ func volumeMountsForInitConfig() []corev1.VolumeMount {
 func volumesForAgent(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Volume {
 	volumes := []corev1.Volume{
 		common.GetVolumeForLogs(),
-		common.GetVolumeForAuth(),
+		common.GetVolumeForAuth(false),
 		common.GetVolumeInstallInfo(dda),
 		common.GetVolumeForChecksd(),
 		common.GetVolumeForConfd(),

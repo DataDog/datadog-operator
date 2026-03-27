@@ -58,12 +58,17 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=pods/exec,verbs=create
+// +kubebuilder:rbac:groups="",resources=pods/eviction,verbs=create
+// +kubebuilder:rbac:groups="",resources=pods/resize,verbs=patch
 // +kubebuilder:rbac:groups=auto.gke.io,resources=allowlistsynchronizers,verbs=get;list;watch;create
 
 // Finalizer (cluster-scoped resources)
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=deletecollection
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=deletecollection
 // +kubebuilder:rbac:groups=apiregistration.k8s.io,resources=apiservices,verbs=deletecollection
+
+// ControllerRevision snapshots
+// +kubebuilder:rbac:groups=apps,resources=controllerrevisions,verbs=get;list;watch;create;patch;delete
 
 // Configure Admission Controller
 // +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=validatingwebhookconfigurations;mutatingwebhookconfigurations,verbs=*
@@ -87,11 +92,16 @@ type DatadogAgentReconciler struct {
 // (RBACs for events and pods are present below)
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogpodautoscalers,verbs=*
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogpodautoscalers/status,verbs=*
+// +kubebuilder:rbac:groups=datadoghq.com,resources=datadogpodautoscalerclusterprofiles,verbs=*
+// +kubebuilder:rbac:groups=datadoghq.com,resources=datadogpodautoscalerclusterprofiles/status,verbs=*
 // +kubebuilder:rbac:groups=*,resources=*/scale,verbs=get;update
-// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=patch
-// +kubebuilder:rbac:groups=argoproj.io,resources=rollouts,verbs=patch
+// +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;patch
+// +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;patch
+// +kubebuilder:rbac:groups=argoproj.io,resources=rollouts,verbs=get;list;watch;patch
 // +kubebuilder:rbac:groups=karpenter.sh,resources=*,verbs=get;list;watch;create;patch;update;delete
-// +kubebuilder:rbac:groups=karpenter.k8s.aws,resources=*,verbs=get;list
+// +kubebuilder:rbac:groups=karpenter.k8s.aws,resources=*,verbs=get;list;watch
+// +kubebuilder:rbac:groups=eks.amazonaws.com,resources=*,verbs=get;list;watch
 
 // Use ExtendedDaemonSet
 // +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsets,verbs=get;list;watch;create;update;patch;delete
@@ -108,6 +118,14 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=referencegrants,verbs=get;delete;create;patch
 // +kubebuilder:rbac:groups=gateway.envoyproxy.io,resources=envoyextensionpolicies,verbs=get;delete;create
 // +kubebuilder:rbac:groups=networking.istio.io,resources=envoyfilters,verbs=get;create;delete
+
+// Configure Private Action Runner k8s remediation
+// +kubebuilder:rbac:groups=apps,resources=deployments;daemonsets;statefulsets;replicasets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=patch
+// +kubebuilder:rbac:groups="",resources=pods;events;configmaps,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=pods,verbs=patch
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=create;update;patch
+// +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // OpenShift
 // +kubebuilder:rbac:groups=quota.openshift.io,resources=clusterresourcequotas,verbs=get;list
@@ -290,7 +308,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwar
 	}
 
 	or := reconcile.AsReconciler[*v2alpha1.DatadogAgent](r.Client, r)
-	if err := builder.For(&v2alpha1.DatadogAgent{}, builderOptions...).WithEventFilter(predicate.GenerationChangedPredicate{}).Complete(or); err != nil {
+	if err := builder.For(&v2alpha1.DatadogAgent{}, builderOptions...).WithEventFilter(predicate.Or(predicate.GenerationChangedPredicate{}, predicate.AnnotationChangedPredicate{})).Complete(or); err != nil {
 		return err
 	}
 

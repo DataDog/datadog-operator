@@ -18286,6 +18286,7 @@ spec:
             - "-datadogDashboardEnabled=false"
             - "-datadogGenericResourceEnabled=false"
             - "-remoteConfigEnabled=false"
+            - "-remoteUpdatesEnabled=false"
             - "-datadogAgentInternalEnabled=true"
           ports:
             - name: metrics

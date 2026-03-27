@@ -67,9 +67,16 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - pods/eviction
   - pods/exec
   verbs:
   - create
+- apiGroups:
+  - ""
+  resources:
+  - pods/resize
+  verbs:
+  - patch
 - apiGroups:
   - '*'
   resources:
@@ -103,7 +110,11 @@ rules:
   resources:
   - controllerrevisions
   verbs:
+  - create
+  - delete
+  - get
   - list
+  - patch
   - watch
 - apiGroups:
   - apps
@@ -123,10 +134,18 @@ rules:
   - apps
   resources:
   - replicasets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - apps
+  resources:
   - statefulsets
   verbs:
   - get
   - list
+  - patch
   - watch
 - apiGroups:
   - argoproj.io
@@ -141,6 +160,7 @@ rules:
   resources:
   - rollouts
   verbs:
+  - get
   - list
   - patch
   - watch
@@ -283,6 +303,8 @@ rules:
 - apiGroups:
   - datadoghq.com
   resources:
+  - datadogpodautoscalerclusterprofiles
+  - datadogpodautoscalerclusterprofiles/status
   - datadogpodautoscalers
   - datadogpodautoscalers/status
   verbs:

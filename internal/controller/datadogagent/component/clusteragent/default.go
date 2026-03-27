@@ -78,7 +78,7 @@ func NewDefaultClusterAgentPodTemplateSpec(ddaMeta metav1.Object, ddaSpec *v2alp
 		common.GetVolumeForConfd(),
 		common.GetVolumeForLogs(),
 		common.GetVolumeForCertificates(),
-		common.GetVolumeForAuth(),
+		common.GetVolumeForAuth(false),
 
 		// /tmp is needed because some versions of the DCA (at least until
 		// 1.19.0) write to it.
@@ -165,6 +165,10 @@ func defaultEnvVars(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) [
 		{
 			Name:  DDKubeResourcesNamespace,
 			Value: utils.GetDatadogAgentResourceNamespace(ddaMeta),
+		},
+		{
+			Name:  common.DDKubernetesUseEndpointSlices,
+			Value: "true",
 		},
 		{
 			Name:  common.DDLeaderElection,

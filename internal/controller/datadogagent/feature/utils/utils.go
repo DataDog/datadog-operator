@@ -21,16 +21,13 @@ const (
 	EnableADPAnnotation                   = "agent.datadoghq.com/adp-enabled"
 	EnableFineGrainedKubeletAuthz         = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
 	EnableHostProfilerAnnotation          = "agent.datadoghq.com/host-profiler-enabled"
-	HostProfilerConfigDataAnnotation      = "agent.datadoghq.com/host-profiler-configdata"
-
-	// Config map item must be `host-profiler-config.yaml`
-	HostProfilerConfigMapNameAnnotation = "agent.datadoghq.com/host-profiler-configmap-name"
 
 	EnablePrivateActionRunnerAnnotation     = "agent.datadoghq.com/private-action-runner-enabled"
 	PrivateActionRunnerConfigDataAnnotation = "agent.datadoghq.com/private-action-runner-configdata"
 
-	EnableClusterAgentPrivateActionRunnerAnnotation     = "cluster-agent.datadoghq.com/private-action-runner-enabled"
-	ClusterAgentPrivateActionRunnerConfigDataAnnotation = "cluster-agent.datadoghq.com/private-action-runner-configdata"
+	EnableClusterAgentPrivateActionRunnerAnnotation      = "cluster-agent.datadoghq.com/private-action-runner-enabled"
+	ClusterAgentPrivateActionRunnerConfigDataAnnotation  = "cluster-agent.datadoghq.com/private-action-runner-configdata"
+	ClusterAgentPrivateActionRunnerK8sRemediationEnabled = "cluster-agent.datadoghq.com/private-action-runner-k8s-remediation-enabled"
 )
 
 func agentSupportsRunInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
