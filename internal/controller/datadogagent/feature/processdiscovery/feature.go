@@ -30,7 +30,8 @@ func buildProcessDiscoveryFeature(options *feature.Options) feature.Feature {
 }
 
 type processDiscoveryFeature struct {
-	runInCoreAgent bool
+	runInCoreAgent            bool
+	needsRunInCoreAgentEnvVar bool
 }
 
 func (p *processDiscoveryFeature) ID() feature.IDType {
@@ -45,6 +46,7 @@ func (p *processDiscoveryFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.D
 		}
 
 		p.runInCoreAgent = featutils.ShouldRunProcessChecksInCoreAgent(ddaSpec)
+		p.needsRunInCoreAgentEnvVar = featutils.NeedsRunInCoreAgentEnvVar(ddaSpec)
 
 		if !p.runInCoreAgent {
 			reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)
@@ -69,13 +71,14 @@ func (p *processDiscoveryFeature) ManageClusterAgent(managers feature.PodTemplat
 }
 
 func (p *processDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	// Always add this envvar to Core and Process containers
-	runInCoreAgentEnvVar := &corev1.EnvVar{
-		Name:  common.DDProcessConfigRunInCoreAgent,
-		Value: apiutils.BoolToString(&p.runInCoreAgent),
+	if p.needsRunInCoreAgentEnvVar {
+		runInCoreAgentEnvVar := &corev1.EnvVar{
+			Name:  common.DDProcessConfigRunInCoreAgent,
+			Value: apiutils.BoolToString(&p.runInCoreAgent),
+		}
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, runInCoreAgentEnvVar)
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, runInCoreAgentEnvVar)
 	}
-	managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, runInCoreAgentEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, runInCoreAgentEnvVar)
 
 	containerName := apicommon.CoreAgentContainerName
 	if !p.runInCoreAgent {
@@ -86,11 +89,13 @@ func (p *processDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMa
 }
 
 func (p *processDiscoveryFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	runInCoreAgentEnvVar := &corev1.EnvVar{
-		Name:  common.DDProcessConfigRunInCoreAgent,
-		Value: apiutils.BoolToString(&p.runInCoreAgent),
+	if p.needsRunInCoreAgentEnvVar {
+		runInCoreAgentEnvVar := &corev1.EnvVar{
+			Name:  common.DDProcessConfigRunInCoreAgent,
+			Value: apiutils.BoolToString(&p.runInCoreAgent),
+		}
+		managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, runInCoreAgentEnvVar)
 	}
-	managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, runInCoreAgentEnvVar)
 	p.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
 	return nil
 }

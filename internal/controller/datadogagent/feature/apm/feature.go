@@ -71,6 +71,7 @@ type apmFeature struct {
 	singleStepInstrumentation *instrumentationConfig
 
 	processCheckRunsInCoreAgent bool
+	needsRunInCoreAgentEnvVar   bool
 
 	errorTrackingStandalone bool
 
@@ -193,6 +194,7 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		}
 
 		f.processCheckRunsInCoreAgent = featutils.ShouldRunProcessChecksInCoreAgent(ddaSpec)
+		f.needsRunInCoreAgentEnvVar = featutils.NeedsRunInCoreAgentEnvVar(ddaSpec)
 		if f.shouldEnableLanguageDetection() && !f.processCheckRunsInCoreAgent {
 			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommon.ProcessAgentContainerName)
 		}
@@ -489,13 +491,14 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 			Value: "true",
 		})
 
-		// Always add this envvar to Core and Process containers
-		runInCoreAgentEnvVar := &corev1.EnvVar{
-			Name:  common.DDProcessConfigRunInCoreAgent,
-			Value: apiutils.BoolToString(&f.processCheckRunsInCoreAgent),
+		if f.needsRunInCoreAgentEnvVar {
+			runInCoreAgentEnvVar := &corev1.EnvVar{
+				Name:  common.DDProcessConfigRunInCoreAgent,
+				Value: apiutils.BoolToString(&f.processCheckRunsInCoreAgent),
+			}
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, runInCoreAgentEnvVar)
+			managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, runInCoreAgentEnvVar)
 		}
-		managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, runInCoreAgentEnvVar)
-		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, runInCoreAgentEnvVar)
 	} else {
 		// Language Detection reporting is enabled by default in the Agent
 		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
