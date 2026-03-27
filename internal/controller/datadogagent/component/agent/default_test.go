@@ -220,6 +220,7 @@ func TestPrivateActionRunnerContainer(t *testing.T) {
 	}, parContainer.Command)
 
 	assert.True(t, *parContainer.SecurityContext.ReadOnlyRootFilesystem)
+	assert.True(t, *parContainer.SecurityContext.Privileged)
 	mountNames := make(map[string]bool)
 	for _, m := range parContainer.VolumeMounts {
 		mountNames[m.Name] = true
