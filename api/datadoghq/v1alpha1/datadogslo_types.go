@@ -39,6 +39,9 @@ type DatadogSLOSpec struct {
 	// Note that only the `sum by` aggregator is allowed, which sums all request counts. `Average`, `max`, nor `min` request aggregators are not supported.
 	Query *DatadogSLOQuery `json:"query,omitempty"`
 
+	// TimeSliceSpec is the specification for a time-slice SLO. Required if type is time_slice.
+	TimeSliceSpec *DatadogSLOTimeSliceSpec `json:"timeSliceSpec,omitempty"`
+
 	// Type is the type of the service level objective.
 	Type DatadogSLOType `json:"type"`
 
@@ -63,16 +66,57 @@ type DatadogSLOQuery struct {
 	Denominator string `json:"denominator"`
 }
 
+// +k8s:openapi-gen=true
+type DatadogSLOTimeSliceSpec struct {
+	// TimeSliceCondition is the condition for the time-slice SLO.
+	TimeSliceCondition DatadogSLOTimeSliceCondition `json:"timeSliceCondition"`
+	// Query is the query for the time-slice SLO.
+	Query DatadogSLOTimeSliceQuery `json:"query"`
+}
+
+// +k8s:openapi-gen=true
+type DatadogSLOTimeSliceCondition struct {
+	// Comparator is the comparator used for the time-slice condition.
+	Comparator string `json:"comparator"`
+	// Threshold is the threshold value for the time-slice condition.
+	Threshold resource.Quantity `json:"threshold"`
+}
+
+// +k8s:openapi-gen=true
+type DatadogSLOTimeSliceQuery struct {
+	// Formulas is a list of formulas for the time-slice SLO query.
+	Formulas []DatadogSLOFormula `json:"formulas"`
+	// Queries is a list of queries for the time-slice SLO query.
+	Queries []DatadogSLOQueryDefinition `json:"queries"`
+}
+
+// +k8s:openapi-gen=true
+type DatadogSLOFormula struct {
+	// Formula is the formula string.
+	Formula string `json:"formula"`
+}
+
+// +k8s:openapi-gen=true
+type DatadogSLOQueryDefinition struct {
+	// DataSource is the data source for the query.
+	DataSource string `json:"dataSource"`
+	// Name is the name of the query.
+	Name string `json:"name"`
+	// Query is the query string.
+	Query string `json:"query"`
+}
+
 type DatadogSLOType string
 
 const (
-	DatadogSLOTypeMetric  DatadogSLOType = "metric"
-	DatadogSLOTypeMonitor DatadogSLOType = "monitor"
+	DatadogSLOTypeMetric    DatadogSLOType = "metric"
+	DatadogSLOTypeMonitor   DatadogSLOType = "monitor"
+	DatadogSLOTypeTimeSlice DatadogSLOType = "time_slice"
 )
 
 func (t DatadogSLOType) IsValid() bool {
 	switch t {
-	case DatadogSLOTypeMetric, DatadogSLOTypeMonitor:
+	case DatadogSLOTypeMetric, DatadogSLOTypeMonitor, DatadogSLOTypeTimeSlice:
 		return true
 	default:
 		return false
