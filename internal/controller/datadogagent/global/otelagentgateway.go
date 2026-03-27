@@ -23,9 +23,10 @@ func ApplyGlobalSettingsOtelAgentGateway(
 	ddaSpec *v2alpha1.DatadogAgentSpec,
 	resourcesManager feature.ResourceManagers,
 	requiredComponents feature.RequiredComponents,
-) {
-	applyGlobalSettings(logger, manager, ddaMeta, ddaSpec, resourcesManager, requiredComponents)
+) []error {
+	errs := applyGlobalSettings(logger, manager, ddaMeta, ddaSpec, resourcesManager, requiredComponents)
 	applyOtelAgentGatewayResources(manager, ddaSpec)
+	return errs
 }
 
 func applyOtelAgentGatewayResources(manager feature.PodTemplateManagers, ddaSpec *v2alpha1.DatadogAgentSpec) {

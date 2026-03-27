@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 const (
@@ -22,6 +23,10 @@ const (
 	DdotCollectorLatestVersion = "7.77.2"
 	// FIPSProxyLatestVersion corresponds to the latest stable fips-proxy release
 	FIPSProxyLatestVersion = "1.1.21"
+	// DDOTFIPSMinimumVersion is the minimum version at which ddot-collector publishes a -fips variant.
+	// Note: the regular agent -fips image predates this; this constant only applies to ddot-collector.
+	// Add "-0" so that pre-release versions are considered sufficient. https://github.com/Masterminds/semver#working-with-prerelease-versions
+	DDOTFIPSMinimumVersion = "7.78.0-0"
 	// Datadog container registry
 	DatadogContainerRegistry = "registry.datadoghq.com"
 	// GCRContainerRegistry corresponds to the datadoghq GCR registry
@@ -119,6 +124,24 @@ func (i *Image) WithFIPS(isFIPS bool) *Image {
 func (i *Image) WithFull(isFull bool) *Image {
 	i.isFull = isFull
 	return i
+}
+
+// FIPSVersionError returns an error if this image requires a FIPS variant that does not exist
+// for the configured version. Specifically:
+//   - agent -fips-full (isFIPS && isFull) is only published from v7.78.0
+//   - ddot-collector -fips (isFIPS && name == DefaultDdotCollectorImageName) is only published from v7.78.0
+//
+// Returns nil if no incompatibility is detected.
+func (i *Image) FIPSVersionError() error {
+	if !i.isFIPS {
+		return nil
+	}
+	if i.isFull || i.name == DefaultDdotCollectorImageName {
+		if !utils.IsAboveMinVersion(i.tag, DDOTFIPSMinimumVersion, nil) {
+			return fmt.Errorf("%s:%s does not have a FIPS variant: agent -fips-full and ddot-collector -fips are only published from v7.78.0", i.name, i.tag)
+		}
+	}
+	return nil
 }
 
 // GetLatestAgentImage returns the latest stable agent release version
