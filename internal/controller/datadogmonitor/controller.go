@@ -44,6 +44,7 @@ const (
 	defaultForceSyncPeriod         = 60 * time.Minute
 	maxTriggeredStateGroups        = 10
 	DDMonitorForceSyncPeriodEnvVar = "DD_MONITOR_FORCE_SYNC_PERIOD"
+	DDMonitorRequeuePeriodEnvVar   = "DD_MONITOR_REQUEUE_PERIOD"
 )
 
 var supportedMonitorTypes = map[string]bool{
@@ -122,6 +123,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	logger.Info("Reconciling DatadogMonitor")
 	now := metav1.NewTime(time.Now())
 	forceSyncPeriod := defaultForceSyncPeriod
+	requeuePeriod := defaultRequeuePeriod
 
 	if userForceSyncPeriod, ok := os.LookupEnv(DDMonitorForceSyncPeriodEnvVar); ok {
 		forceSyncPeriodInt, err := strconv.Atoi(userForceSyncPeriod)
@@ -130,6 +132,16 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 		} else {
 			logger.V(1).Info("Setting monitor force sync period", "minutes", forceSyncPeriodInt)
 			forceSyncPeriod = time.Duration(forceSyncPeriodInt) * time.Minute
+		}
+	}
+
+	if userRequeuePeriod, ok := os.LookupEnv(DDMonitorRequeuePeriodEnvVar); ok {
+		requeuePeriodInt, err := strconv.Atoi(userRequeuePeriod)
+		if err != nil {
+			logger.Error(err, "Invalid value for monitor requeue period. Defaulting to 60 seconds.")
+		} else {
+			logger.V(1).Info("Setting monitor force sync period", "seconds", requeuePeriodInt)
+			requeuePeriod = time.Duration(requeuePeriodInt) * time.Second
 		}
 	}
 
@@ -182,8 +194,8 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 			} else {
 				shouldUpdate = true
 			}
-		} else if instance.Status.MonitorStateLastUpdateTime == nil || (defaultRequeuePeriod-now.Sub(instance.Status.MonitorStateLastUpdateTime.Time)) <= 0 {
-			// If other conditions aren't met, and we have passed the defaultRequeuePeriod, then update monitor state
+		} else if instance.Status.MonitorStateLastUpdateTime == nil || (requeuePeriod-now.Sub(instance.Status.MonitorStateLastUpdateTime.Time)) <= 0 {
+			// If other conditions aren't met, and we have passed the requeuePeriod, then update monitor state
 			// Get monitor to make sure it exists before trying any updates. If it doesn't, set shouldCreate
 			m, err = r.get(instance, newStatus)
 			if err != nil {
@@ -226,9 +238,9 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 		}
 	}
 
-	// If reconcile was successful, requeue with period defaultRequeuePeriod
+	// If reconcile was successful, requeue with period requeuePeriod
 	if !result.Requeue && result.RequeueAfter == 0 {
-		result.RequeueAfter = defaultRequeuePeriod
+		result.RequeueAfter = requeuePeriod
 	}
 
 	// Update the status

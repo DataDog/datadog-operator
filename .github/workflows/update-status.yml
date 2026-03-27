@@ -1,0 +1,267 @@
+name: Update Project Status
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  update-status:
+    runs-on: ubuntu-latest
+    if: startsWith(github.event.comment.body, '/status')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Update Project Status
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PAT_TOKEN }}
+          script: |
+            const comment = context.payload.comment.body;
+            const commentUrl = context.payload.comment.html_url;
+            const issueNumber = context.payload.issue.number;
+            const repo = context.repo;
+
+            // Parse the /status command
+            const statusRegex = /^\/status\s+(on-track|at-risk|blocked)\s+"?([^"]+)"?$/i;
+            const match = comment.match(statusRegex);
+
+            if (!match) {
+              console.log('Invalid /status command format');
+              await github.rest.reactions.createForIssueComment({
+                owner: repo.owner,
+                repo: repo.repo,
+                comment_id: context.payload.comment.id,
+                content: 'confused'
+              });
+              return;
+            }
+
+            const [, statusValue, statusNote] = match;
+            
+            // Map command values to field values
+            const healthMap = {
+              'on-track': 'On track',
+              'at-risk': 'At risk',
+              'blocked': 'Blocked'
+            };
+            
+            const health = healthMap[statusValue.toLowerCase()];
+            const today = new Date().toISOString().split('T')[0];
+
+            console.log(`Parsed: health=${health}, note=${statusNote}`);
+
+            // Get the project item ID for this issue
+            const projectQuery = `
+              query($owner: String!, $repo: String!, $issueNumber: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  issue(number: $issueNumber) {
+                    projectItems(first: 10) {
+                      nodes {
+                        id
+                        project {
+                          id
+                          title
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const projectData = await github.graphql(projectQuery, {
+              owner: repo.owner,
+              repo: repo.repo,
+              issueNumber: issueNumber
+            });
+
+            const projectItems = projectData.repository.issue.projectItems.nodes;
+            
+            if (projectItems.length === 0) {
+              console.log('Issue not linked to any project');
+              await github.rest.issues.createComment({
+                owner: repo.owner,
+                repo: repo.repo,
+                issue_number: issueNumber,
+                body: '⚠️ This issue is not linked to any GitHub Project.'
+              });
+              return;
+            }
+
+            // Find the "Money Out & Regional" project specifically
+            const targetProject = projectItems.find(item => 
+              item.project.title === 'Money Out & Regional'
+            );
+
+            if (!targetProject) {
+              console.log('Issue not linked to "Money Out & Regional" project');
+              await github.rest.issues.createComment({
+                owner: repo.owner,
+                repo: repo.repo,
+                issue_number: issueNumber,
+                body: '⚠️ This issue is not linked to the "Money Out & Regional" project.'
+              });
+              return;
+            }
+
+            // Get project fields
+            const projectId = targetProject.project.id;
+            const projectItemId = targetProject.id;
+
+            const fieldsQuery = `
+              query($projectId: ID!) {
+                node(id: $projectId) {
+                  ... on ProjectV2 {
+                    title
+                    fields(first: 50) {
+                      nodes {
+                        ... on ProjectV2Field {
+                          id
+                          name
+                        }
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          name
+                          options {
+                            id
+                            name
+                          }
+                        }
+                        ... on ProjectV2IterationField {
+                          id
+                          name
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const fieldsData = await github.graphql(fieldsQuery, {
+              projectId: projectId
+            });
+
+            const fields = fieldsData.node.fields.nodes;
+            
+            // Log all available fields for debugging
+            console.log(`Project: ${fieldsData.node.title}`);
+            console.log(`Available fields: ${fields.map(f => f.name).join(', ')}`);
+
+            // Find field IDs
+            const healthField = fields.find(f => f.name === 'Health');
+            const statusNoteField = fields.find(f => f.name === 'Status note');
+            const lastUpdateField = fields.find(f => f.name === 'Last update');
+            const latestUrlField = fields.find(f => f.name === 'Latest update URL');
+
+            console.log(`Health field found: ${!!healthField}`);
+            console.log(`Status note field found: ${!!statusNoteField}`);
+            console.log(`Last update field found: ${!!lastUpdateField}`);
+            console.log(`Latest update URL field found: ${!!latestUrlField}`);
+
+            if (!healthField || !statusNoteField || !lastUpdateField || !latestUrlField) {
+              const missingFields = [];
+              if (!healthField) missingFields.push('Health');
+              if (!statusNoteField) missingFields.push('Status note');
+              if (!lastUpdateField) missingFields.push('Last update');
+              if (!latestUrlField) missingFields.push('Latest update URL');
+              
+              console.log('Missing required fields in project');
+              await github.rest.issues.createComment({
+                owner: repo.owner,
+                repo: repo.repo,
+                issue_number: issueNumber,
+                body: `⚠️ Project "${fieldsData.node.title}" is missing required fields: ${missingFields.join(', ')}\n\nAvailable fields: ${fields.map(f => f.name).join(', ')}`
+              });
+              return;
+            }
+
+            // Get the option ID for the health value
+            const healthOption = healthField.options.find(o => o.name === health);
+            
+            if (!healthOption) {
+              console.log(`Health option "${health}" not found`);
+              return;
+            }
+
+            // Update all fields
+            const updateMutation = `
+              mutation(
+                $projectId: ID!,
+                $itemId: ID!,
+                $healthFieldId: ID!,
+                $healthOptionId: String!,
+                $statusNoteFieldId: ID!,
+                $statusNote: String!,
+                $lastUpdateFieldId: ID!,
+                $lastUpdate: Date!,
+                $latestUrlFieldId: ID!,
+                $latestUrl: String!
+              ) {
+                updateHealth: updateProjectV2ItemFieldValue(
+                  input: {
+                    projectId: $projectId,
+                    itemId: $itemId,
+                    fieldId: $healthFieldId,
+                    value: { singleSelectOptionId: $healthOptionId }
+                  }
+                ) { projectV2Item { id } }
+                
+                updateStatusNote: updateProjectV2ItemFieldValue(
+                  input: {
+                    projectId: $projectId,
+                    itemId: $itemId,
+                    fieldId: $statusNoteFieldId,
+                    value: { text: $statusNote }
+                  }
+                ) { projectV2Item { id } }
+                
+                updateLastUpdate: updateProjectV2ItemFieldValue(
+                  input: {
+                    projectId: $projectId,
+                    itemId: $itemId,
+                    fieldId: $lastUpdateFieldId,
+                    value: { date: $lastUpdate }
+                  }
+                ) { projectV2Item { id } }
+                
+                updateLatestUrl: updateProjectV2ItemFieldValue(
+                  input: {
+                    projectId: $projectId,
+                    itemId: $itemId,
+                    fieldId: $latestUrlFieldId,
+                    value: { text: $latestUrl }
+                  }
+                ) { projectV2Item { id } }
+              }
+            `;
+
+            await github.graphql(updateMutation, {
+              projectId: projectId,
+              itemId: projectItemId,
+              healthFieldId: healthField.id,
+              healthOptionId: healthOption.id,
+              statusNoteFieldId: statusNoteField.id,
+              statusNote: statusNote.trim(),
+              lastUpdateFieldId: lastUpdateField.id,
+              lastUpdate: today,
+              latestUrlFieldId: latestUrlField.id,
+              latestUrl: commentUrl
+            });
+
+            console.log('✅ Project fields updated successfully');
+
+            // Add success reaction
+            await github.rest.reactions.createForIssueComment({
+              owner: repo.owner,
+              repo: repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'rocket'
+            });
