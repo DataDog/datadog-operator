@@ -48,7 +48,7 @@ func (c *OtelAgentGatewayComponent) GetConditionType() string {
 	return common.OtelAgentGatewayReconcileConditionType
 }
 
-func (c *OtelAgentGatewayComponent) GetGlobalSettingsFunc() func(logger logr.Logger, podManagers feature.PodTemplateManagers, dda metav1.Object, spec *datadoghqv2alpha1.DatadogAgentSpec, resourceManagers feature.ResourceManagers, requiredComponents feature.RequiredComponents) {
+func (c *OtelAgentGatewayComponent) GetGlobalSettingsFunc() func(logger logr.Logger, podManagers feature.PodTemplateManagers, dda metav1.Object, spec *datadoghqv2alpha1.DatadogAgentSpec, resourceManagers feature.ResourceManagers, requiredComponents feature.RequiredComponents) []error {
 	return global.ApplyGlobalSettingsOtelAgentGateway
 }
 
