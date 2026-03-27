@@ -647,7 +647,7 @@ type ServiceDiscoveryFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// DEPRECATED: NetworkStats is no longer configurable and will be ignored.
+	// DEPRECATED: NetworkStats is no longer configurable and will be ignored. Scheduled for removal in v1.28.
 	// +deprecated
 	// +optional
 	NetworkStats *ServiceDiscoveryNetworkStatsConfig `json:"networkStats,omitempty"`
