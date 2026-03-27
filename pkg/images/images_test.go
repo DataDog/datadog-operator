@@ -646,3 +646,78 @@ func Test_OverrideAgentImage(t *testing.T) {
 		})
 	}
 }
+
+func Test_FIPSVersionError(t *testing.T) {
+	tests := []struct {
+		name      string
+		image     *Image
+		wantError bool
+	}{
+		// No error: FIPS not requested
+		{
+			name:      "ddot-collector, no fips",
+			image:     &Image{name: DefaultDdotCollectorImageName, tag: "7.77.0", isFIPS: false},
+			wantError: false,
+		},
+		{
+			name:      "agent-full, no fips",
+			image:     &Image{name: DefaultAgentImageName, tag: "7.77.0", isFull: true, isFIPS: false},
+			wantError: false,
+		},
+		// No error: regular agent -fips has existed before 7.78
+		{
+			name:      "agent, fips, old version",
+			image:     &Image{name: DefaultAgentImageName, tag: "7.77.0", isFIPS: true},
+			wantError: false,
+		},
+		// No error: version is sufficient
+		{
+			name:      "ddot-collector, fips, version 7.78.0",
+			image:     &Image{name: DefaultDdotCollectorImageName, tag: "7.78.0", isFIPS: true},
+			wantError: false,
+		},
+		{
+			name:      "ddot-collector, fips, version above 7.78",
+			image:     &Image{name: DefaultDdotCollectorImageName, tag: "7.80.0", isFIPS: true},
+			wantError: false,
+		},
+		{
+			name:      "agent-full, fips, version 7.78.0",
+			image:     &Image{name: DefaultAgentImageName, tag: "7.78.0", isFIPS: true, isFull: true},
+			wantError: false,
+		},
+		// No error: unparseable version is assumed sufficient (fallback = true)
+		{
+			name:      "ddot-collector, fips, unparseable version",
+			image:     &Image{name: DefaultDdotCollectorImageName, tag: "latest", isFIPS: true},
+			wantError: false,
+		},
+		// Error: ddot-collector -fips does not exist before 7.78
+		{
+			name:      "ddot-collector, fips, version below 7.78",
+			image:     &Image{name: DefaultDdotCollectorImageName, tag: "7.77.0", isFIPS: true},
+			wantError: true,
+		},
+		{
+			name:      "ddot-collector, fips, version 7.67.0",
+			image:     &Image{name: DefaultDdotCollectorImageName, tag: "7.67.0", isFIPS: true},
+			wantError: true,
+		},
+		// Error: agent -fips-full does not exist before 7.78
+		{
+			name:      "agent-full, fips, version below 7.78",
+			image:     &Image{name: DefaultAgentImageName, tag: "7.77.0", isFIPS: true, isFull: true},
+			wantError: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.image.FIPSVersionError()
+			if tt.wantError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
