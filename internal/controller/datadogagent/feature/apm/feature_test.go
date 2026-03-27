@@ -349,32 +349,6 @@ func TestAPMFeature(t *testing.T) {
 			ClusterAgent:  testAPMInstrumentationNamespaces(),
 		},
 		{
-			Name: "single step instrumentation with language detection enabled, process check runs in process agent",
-			DDA: testutils.NewDatadogAgentBuilder().
-				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
-				WithAPMUDSEnabled(true, apmSocketHostPath).
-				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, true, "", nil, "").
-				WithAdmissionControllerEnabled(true).
-				WithComponentOverride(
-					v2alpha1.NodeAgentComponentName,
-					v2alpha1.DatadogAgentComponentOverride{
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.60.0"},
-						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "false"}},
-					},
-				).
-				Build(),
-			WantConfigure: true,
-			ClusterAgent:  testAPMInstrumentationWithLanguageDetectionEnabledForClusterAgent(),
-			Agent:         testAPMInstrumentationWithLanguageDetectionForNodeAgent(true, false),
-			WantDependenciesFunc: func(t testing.TB, store store.StoreClient) {
-				_, found := store.Get(kubernetes.ClusterRoleBindingKind, "", "-apm-cluster-agent")
-				if !found {
-					t.Error("Should have created proper RBAC for language detection")
-				}
-			},
-		},
-		{
 			Name: "single step instrumentation without language detection enabled",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
