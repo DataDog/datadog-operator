@@ -13,7 +13,7 @@ metadata:
               protocols:
                 grpc:
                 http:
-            hostprofiler:
+            profiling:
               symbol_uploader:
                 enabled: true
                 symbol_endpoints:
@@ -38,7 +38,7 @@ metadata:
             extensions: [hpflare/default]
             pipelines:
               profiles:
-                receivers: [hostprofiler]
+                receivers: [profiling]
                 processors: [infraattributes/default]
                 exporters: [otlphttp, debug]   
               metrics:
