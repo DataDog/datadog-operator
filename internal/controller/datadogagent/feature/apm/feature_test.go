@@ -359,7 +359,7 @@ func TestAPMFeature(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  testAPMInstrumentation(),
-			Agent:         testAPMInstrumentationWithLanguageDetectionForNodeAgent(false),
+			Agent:         testAPMInstrumentationWithLanguageDetectionForNodeAgent(false, false),
 			WantDependenciesFunc: func(t testing.TB, store store.StoreClient) {
 				_, found := store.Get(kubernetes.ClusterRoleBindingKind, "", "-apm-cluster-agent")
 				if found {
@@ -384,7 +384,7 @@ func TestAPMFeature(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  testAPMInstrumentationWithLanguageDetectionEnabledForClusterAgent(),
-			Agent:         testAPMInstrumentationWithLanguageDetectionForNodeAgent(true),
+			Agent:         testAPMInstrumentationWithLanguageDetectionForNodeAgent(true, true),
 			WantDependenciesFunc: func(t testing.TB, store store.StoreClient) {
 				_, found := store.Get(kubernetes.ClusterRoleBindingKind, "", "-apm-cluster-agent")
 				if !found {
@@ -789,7 +789,7 @@ func testAPMInstrumentationWithInjectionMode(injectionMode string) *test.Compone
 	)
 }
 
-func testAPMInstrumentationWithLanguageDetectionForNodeAgent(languageDetectionEnabled bool) *test.ComponentTest {
+func testAPMInstrumentationWithLanguageDetectionForNodeAgent(languageDetectionEnabled bool, expectRunInCoreAgentEnvVar bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -810,6 +810,14 @@ func testAPMInstrumentationWithLanguageDetectionForNodeAgent(languageDetectionEn
 						Value: "true",
 					},
 				}...)
+				if expectRunInCoreAgentEnvVar {
+					processChecksInCoreAgent := true
+					runInCoreAgentEnvVar := &corev1.EnvVar{
+						Name:  common.DDProcessConfigRunInCoreAgent,
+						Value: apiutils.BoolToString(&processChecksInCoreAgent),
+					}
+					expectedEnvVars = append(expectedEnvVars, runInCoreAgentEnvVar)
+				}
 				expectedCoreAgentEnvVars = append(expectedCoreAgentEnvVars, expectedEnvVars...)
 			} else {
 				expectedCoreAgentEnvVars = append(expectedCoreAgentEnvVars, &corev1.EnvVar{Name: DDLanguageDetectionReportingEnabled, Value: "false"})

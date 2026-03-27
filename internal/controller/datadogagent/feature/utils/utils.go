@@ -15,7 +15,8 @@ import (
 )
 
 const (
-	ProcessConfigRunInCoreAgentMinVersion = "7.60.0-0"
+	ProcessConfigRunInCoreAgentMinVersion        = "7.60.0-0"
+	ProcessConfigRunInCoreAgentRemovedMinVersion = "7.78.0-0"
 	EnableADPAnnotation                   = "agent.datadoghq.com/adp-enabled"
 	EnableFineGrainedKubeletAuthz         = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
 	EnableHostProfilerAnnotation          = "agent.datadoghq.com/host-profiler-enabled"
@@ -44,6 +45,23 @@ func agentSupportsRunInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 // DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED envvar is no longer recognized.
 func ShouldRunProcessChecksInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	return agentSupportsRunInCoreAgent(ddaSpec)
+}
+
+// NeedsRunInCoreAgentEnvVar returns true if the agent version requires the
+// DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED envvar to be explicitly set.
+// Agents >= 7.60.0 and < 7.78.0 need this envvar. Agents >= 7.78.0 removed
+// the config key entirely, and agents < 7.60.0 don't support the feature.
+func NeedsRunInCoreAgentEnvVar(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	if !agentSupportsRunInCoreAgent(ddaSpec) {
+		return false
+	}
+	// Agent >= 7.78.0 removed the config key; no envvar needed
+	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
+		if nodeAgent.Image != nil {
+			return !utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), ProcessConfigRunInCoreAgentRemovedMinVersion, nil)
+		}
+	}
+	return !utils.IsAboveMinVersion(images.AgentLatestVersion, ProcessConfigRunInCoreAgentRemovedMinVersion, nil)
 }
 
 func HasFeatureEnableAnnotation(dda metav1.Object, annotation string) bool {

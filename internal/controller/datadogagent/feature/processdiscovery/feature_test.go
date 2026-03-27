@@ -30,7 +30,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 				WithProcessDiscoveryEnabled(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName),
+			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true),
 		},
 		{
 			Name: "process discovery disabled",
@@ -44,7 +44,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 			DDA: testutils.NewDatadogAgentBuilder().
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName),
+			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true),
 		},
 		{
 			Name: "process discovery without min version to run in core agent",
@@ -58,7 +58,21 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 				).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName),
+			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false),
+		},
+		{
+			Name: "process discovery with agent >= 7.78 does not inject run_in_core_agent envvar",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithProcessDiscoveryEnabled(true).
+				WithComponentOverride(
+					v2alpha1.NodeAgentComponentName,
+					v2alpha1.DatadogAgentComponentOverride{
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
+					},
+				).
+				Build(),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, false),
 		},
 		{
 			Name: "process discovery enabled on single container",
@@ -67,13 +81,13 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 				WithSingleContainerStrategy(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName),
+			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName, true),
 		},
 	}
 	tests.Run(t, buildProcessDiscoveryFeature)
 }
 
-func testExpectedAgent(agentContainerName apicommon.AgentContainerName) *test.ComponentTest {
+func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expectRunInCoreAgentEnvVar bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -132,12 +146,18 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName) *test.Co
 			assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
 
 			// check env vars
-			wantEnvVars := []*corev1.EnvVar{
-				{
-					Name:  DDProcessDiscoveryEnabled,
-					Value: "true",
-				},
+			var wantEnvVars []*corev1.EnvVar
+			if expectRunInCoreAgentEnvVar {
+				runInCoreAgent := true
+				wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
+					Name:  common.DDProcessConfigRunInCoreAgent,
+					Value: apiutils.BoolToString(&runInCoreAgent),
+				})
 			}
+			wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
+				Name:  DDProcessDiscoveryEnabled,
+				Value: "true",
+			})
 
 			agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 			assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "%s envvars \ndiff = %s", agentContainerName, cmp.Diff(agentEnvVars, wantEnvVars))

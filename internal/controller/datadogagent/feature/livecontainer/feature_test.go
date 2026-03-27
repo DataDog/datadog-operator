@@ -30,7 +30,7 @@ func TestLiveContainerFeature(t *testing.T) {
 				WithLiveContainerCollectionEnabled(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName),
+			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true),
 		},
 		{
 			Name: "live container collection enabled with single container",
@@ -39,7 +39,7 @@ func TestLiveContainerFeature(t *testing.T) {
 				WithSingleContainerStrategy(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName),
+			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName, true),
 		},
 		{
 			Name: "live container collection without min version to run in core agent",
@@ -53,26 +53,46 @@ func TestLiveContainerFeature(t *testing.T) {
 				).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName),
+			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false),
+		},
+		{
+			Name: "live container collection with agent >= 7.78 does not inject run_in_core_agent envvar",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithLiveContainerCollectionEnabled(true).
+				WithComponentOverride(
+					v2alpha1.NodeAgentComponentName,
+					v2alpha1.DatadogAgentComponentOverride{
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
+					},
+				).
+				Build(),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, false),
 		},
 	}
 
 	tests.Run(t, buildLiveContainerFeature)
 }
 
-func testExpectedAgent(agentContainerName apicommon.AgentContainerName) *test.ComponentTest {
+func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expectRunInCoreAgentEnvVar bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
-			expectedAgentEnvs := []*corev1.EnvVar{
-				{
-					Name:  common.DDContainerCollectionEnabled,
-					Value: "true",
-				},
+			var expectedAgentEnvs []*corev1.EnvVar
+			if expectRunInCoreAgentEnvVar {
+				runInCoreAgent := true
+				expectedAgentEnvs = append(expectedAgentEnvs, &corev1.EnvVar{
+					Name:  common.DDProcessConfigRunInCoreAgent,
+					Value: apiutils.BoolToString(&runInCoreAgent),
+				})
 			}
+			expectedAgentEnvs = append(expectedAgentEnvs, &corev1.EnvVar{
+				Name:  common.DDContainerCollectionEnabled,
+				Value: "true",
+			})
 
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 			assert.True(
 				t,
 				apiutils.IsEqualStruct(agentEnvs, expectedAgentEnvs),
