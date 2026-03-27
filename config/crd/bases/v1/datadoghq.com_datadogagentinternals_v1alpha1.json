@@ -2589,7 +2589,7 @@
                   "type": "boolean"
                 },
                 "enabledByDefault": {
-                  "description": "EnabledByDefault is set by the operator when it enables this feature via default configuration,\nas opposed to an explicit user choice. When true, the system-probe binary is not used as a\nfallback if system-probe-lite is unavailable — the container falls back to sleep infinity\ninstead, to avoid unexpected resource usage on older agent images.\nThis field is managed by the operator and should not be set by users.",
+                  "description": "Indicates that the operator enabled this feature automatically rather than in response to an\nexplicit user setting. When true, if `system-probe-lite` is unavailable, the container falls\nback to `sleep infinity` rather than `system-probe`, to avoid unexpected resource usage on\nolder agent images. This field is managed by the operator and must not be set by users.",
                   "type": "boolean"
                 },
                 "networkStats": {
@@ -10747,7 +10747,7 @@
                       "type": "boolean"
                     },
                     "enabledByDefault": {
-                      "description": "EnabledByDefault is set by the operator when it enables this feature via default configuration,\nas opposed to an explicit user choice. When true, the system-probe binary is not used as a\nfallback if system-probe-lite is unavailable — the container falls back to sleep infinity\ninstead, to avoid unexpected resource usage on older agent images.\nThis field is managed by the operator and should not be set by users.",
+                      "description": "Indicates that the operator enabled this feature automatically rather than in response to an\nexplicit user setting. When true, if `system-probe-lite` is unavailable, the container falls\nback to `sleep infinity` rather than `system-probe`, to avoid unexpected resource usage on\nolder agent images. This field is managed by the operator and must not be set by users.",
                       "type": "boolean"
                     },
                     "networkStats": {
