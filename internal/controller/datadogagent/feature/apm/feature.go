@@ -317,6 +317,16 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, provi
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+	if f.udsEnabled {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDTraceAgentHostSocketPath,
+			Value: filepath.Dir(f.udsHostFilepath),
+		})
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDAPMReceiverSocket,
+			Value: f.udsHostFilepath,
+		})
+	}
 	if f.singleStepInstrumentation != nil {
 		if len(f.singleStepInstrumentation.disabledNamespaces) > 0 && len(f.singleStepInstrumentation.enabledNamespaces) > 0 {
 			// This configuration is not supported
