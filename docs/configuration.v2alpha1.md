@@ -200,6 +200,7 @@ spec:
 | features.sbom.host.analyzers | To use for SBOM collection. |
 | features.sbom.host.enabled | Enable this option to activate SBOM collection. Default: false |
 | features.serviceDiscovery.enabled | Enables the service discovery check. Default: false |
+| features.serviceDiscovery.enabledByDefault | Indicates that the operator enabled this feature automatically rather than in response to an explicit user setting. When true, if `system-probe-lite` is unavailable, the container falls back to `sleep infinity` rather than `system-probe`, to avoid unexpected resource usage on older agent images. This field is managed by the operator and must not be set by users. |
 | features.serviceDiscovery.networkStats.enabled | Enables the Service Discovery Network Stats feature. Default: true |
 | features.tcpQueueLength.enabled | Enables the TCP queue length eBPF-based check. Default: false |
 | features.usm.enabled | Enables Universal Service Monitoring. Default: false |
