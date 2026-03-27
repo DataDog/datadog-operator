@@ -50,7 +50,7 @@ func (c *ClusterAgentComponent) GetConditionType() string {
 	return common.ClusterAgentReconcileConditionType
 }
 
-func (c *ClusterAgentComponent) GetGlobalSettingsFunc() func(logger logr.Logger, podManagers feature.PodTemplateManagers, ddai metav1.Object, spec *datadoghqv2alpha1.DatadogAgentSpec, resourceManagers feature.ResourceManagers, requiredComponents feature.RequiredComponents) {
+func (c *ClusterAgentComponent) GetGlobalSettingsFunc() func(logger logr.Logger, podManagers feature.PodTemplateManagers, ddai metav1.Object, spec *datadoghqv2alpha1.DatadogAgentSpec, resourceManagers feature.ResourceManagers, requiredComponents feature.RequiredComponents) []error {
 	return global.ApplyGlobalSettingsClusterAgent
 }
 

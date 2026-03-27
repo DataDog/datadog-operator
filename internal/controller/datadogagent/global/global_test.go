@@ -1319,3 +1319,93 @@ func checkFIPSImages(t testing.TB, mgr *fake.PodTemplateManagers) {
 		assert.True(t, strings.HasSuffix(container.Image, "-fips"), "Container %s has image %s", container.Name, container.Image)
 	}
 }
+
+func Test_FIPSVersionErrors(t *testing.T) {
+	logger := logf.Log.WithName("Test_FIPSVersionErrors")
+
+	testScheme := runtime.NewScheme()
+	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
+	storeOptions := &store.StoreOptions{Scheme: testScheme}
+
+	reqComp := feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)}
+	requiredComponents := feature.RequiredComponents{Agent: reqComp}
+
+	tests := []struct {
+		name           string
+		containers     []corev1.Container
+		initContainers []corev1.Container
+		wantErrors     int
+	}{
+		{
+			name: "no error: regular agent with fips, old version",
+			containers: []corev1.Container{
+				{Name: string(apicommon.CoreAgentContainerName), Image: "gcr.io/datadoghq/agent:7.77.0"},
+			},
+			wantErrors: 0,
+		},
+		{
+			name: "no error: ddot-collector with fips, sufficient version",
+			containers: []corev1.Container{
+				{Name: string(apicommon.OtelAgent), Image: "gcr.io/datadoghq/ddot-collector:7.78.0"},
+			},
+			wantErrors: 0,
+		},
+		{
+			name: "error: ddot-collector with fips, version below 7.78",
+			containers: []corev1.Container{
+				{Name: string(apicommon.OtelAgent), Image: "gcr.io/datadoghq/ddot-collector:7.77.0"},
+			},
+			wantErrors: 1,
+		},
+		{
+			name: "error: agent-full with fips, version below 7.78",
+			containers: []corev1.Container{
+				{Name: string(apicommon.CoreAgentContainerName), Image: "gcr.io/datadoghq/agent:7.77.0-full"},
+			},
+			wantErrors: 1,
+		},
+		{
+			name: "two errors: ddot-collector and agent-full both below 7.78",
+			containers: []corev1.Container{
+				{Name: string(apicommon.CoreAgentContainerName), Image: "gcr.io/datadoghq/agent:7.77.0-full"},
+				{Name: string(apicommon.OtelAgent), Image: "gcr.io/datadoghq/ddot-collector:7.77.0"},
+			},
+			wantErrors: 2,
+		},
+		{
+			name: "no error: regular agent init container with fips",
+			initContainers: []corev1.Container{
+				{Name: "init-volume", Image: "gcr.io/datadoghq/agent:7.77.0"},
+			},
+			wantErrors: 0,
+		},
+		{
+			name: "error: ddot-collector init container with fips below 7.78",
+			initContainers: []corev1.Container{
+				{Name: "init-otel", Image: "gcr.io/datadoghq/ddot-collector:7.77.0"},
+			},
+			wantErrors: 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := testutils.NewDatadogAgentBuilder().
+				WithCredentials("api-key", "app-key").
+				WithUseFIPSAgent().
+				BuildWithDefaults()
+
+			st := store.NewStore(dda, storeOptions)
+			resourcesManager := feature.NewResourceManagers(st)
+
+			mgr := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers:     tt.containers,
+					InitContainers: tt.initContainers,
+				},
+			})
+
+			errs := applyGlobalSettings(logger, mgr, dda.GetObjectMeta(), &dda.Spec, resourcesManager, requiredComponents)
+			assert.Len(t, errs, tt.wantErrors)
+		})
+	}
+}
