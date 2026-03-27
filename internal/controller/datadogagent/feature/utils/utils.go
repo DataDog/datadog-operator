@@ -22,6 +22,8 @@ const (
 	EnableFineGrainedKubeletAuthz         = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
 	EnableHostProfilerAnnotation          = "agent.datadoghq.com/host-profiler-enabled"
 
+	EnableFlightRecorderAnnotation = "agent.datadoghq.com/flightrecorder-enabled"
+
 	EnablePrivateActionRunnerAnnotation     = "agent.datadoghq.com/private-action-runner-enabled"
 	PrivateActionRunnerConfigDataAnnotation = "agent.datadoghq.com/private-action-runner-configdata"
 

@@ -14,6 +14,7 @@ import (
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -422,6 +423,8 @@ func agentOptimizedContainers(dda metav1.Object, requiredContainers []apicommon.
 			containers = append(containers, hostProfilerContainer(dda))
 		case apicommon.AgentDataPlaneContainerName:
 			containers = append(containers, agentDataPlaneContainer(dda))
+		case apicommon.FlightRecorderContainerName:
+			containers = append(containers, flightRecorderContainer(dda))
 		}
 	}
 
@@ -605,6 +608,38 @@ func agentDataPlaneContainer(dda metav1.Object) corev1.Container {
 		VolumeMounts:   volumeMountsForAgentDataPlane(),
 		LivenessProbe:  constants.GetDefaultAgentDataPlaneLivenessProbe(),
 		ReadinessProbe: constants.GetDefaultAgentDataPlaneReadinessProbe(),
+		SecurityContext: &corev1.SecurityContext{
+			ReadOnlyRootFilesystem: apiutils.NewBoolPointer(true),
+		},
+	}
+}
+
+func flightRecorderContainer(dda metav1.Object) corev1.Container {
+	return corev1.Container{
+		Name:  string(apicommon.FlightRecorderContainerName),
+		Image: agentImage(),
+		Command: []string{
+			"/opt/datadog-agent/embedded/bin/flightrecorder",
+		},
+		Env: commonEnvVars(dda),
+		VolumeMounts: []corev1.VolumeMount{
+			{
+				Name:      "flightrecorder-socket",
+				MountPath: "/var/run/datadog/flightrecorder",
+			},
+			{
+				Name:      "flightrecorder-data",
+				MountPath: "/data/signals",
+			},
+		},
+		Resources: corev1.ResourceRequirements{
+			Requests: corev1.ResourceList{
+				corev1.ResourceMemory: resource.MustParse("50Mi"),
+			},
+			Limits: corev1.ResourceList{
+				corev1.ResourceMemory: resource.MustParse("200Mi"),
+			},
+		},
 		SecurityContext: &corev1.SecurityContext{
 			ReadOnlyRootFilesystem: apiutils.NewBoolPointer(true),
 		},
