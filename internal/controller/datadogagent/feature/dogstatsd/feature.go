@@ -163,6 +163,10 @@ func (f *dogstatsdFeature) ManageClusterAgent(managers feature.PodTemplateManage
 			Name:  DDDogstatsdHostSocketPath,
 			Value: filepath.Dir(f.udsHostFilepath),
 		})
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDDogstatsdSocket,
+			Value: f.udsHostFilepath,
+		})
 	}
 	return nil
 }

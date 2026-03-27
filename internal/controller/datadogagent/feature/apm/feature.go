@@ -322,6 +322,10 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, pr
 			Name:  DDTraceAgentHostSocketPath,
 			Value: filepath.Dir(f.udsHostFilepath),
 		})
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDAPMReceiverSocket,
+			Value: f.udsHostFilepath,
+		})
 	}
 	if f.singleStepInstrumentation != nil {
 		if len(f.singleStepInstrumentation.disabledNamespaces) > 0 && len(f.singleStepInstrumentation.enabledNamespaces) > 0 {

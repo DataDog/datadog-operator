@@ -647,6 +647,10 @@ func testAPMInstrumentationFull() *test.ComponentTest {
 					Value: common.DogstatsdAPMSocketHostPath,
 				},
 				{
+					Name:  DDAPMReceiverSocket,
+					Value: apmSocketHostPath,
+				},
+				{
 					Name:  DDAPMInstrumentationEnabled,
 					Value: "true",
 				},
@@ -684,6 +688,10 @@ func testAPMInstrumentationDisabledWithAC() *test.ComponentTest {
 					Name:  DDTraceAgentHostSocketPath,
 					Value: common.DogstatsdAPMSocketHostPath,
 				},
+				{
+					Name:  DDAPMReceiverSocket,
+					Value: apmSocketHostPath,
+				},
 			}
 			assert.True(
 				t,
@@ -704,6 +712,10 @@ func testAPMInstrumentationNamespaces() *test.ComponentTest {
 				{
 					Name:  DDTraceAgentHostSocketPath,
 					Value: common.DogstatsdAPMSocketHostPath,
+				},
+				{
+					Name:  DDAPMReceiverSocket,
+					Value: apmSocketHostPath,
 				},
 				{
 					Name:  DDAPMInstrumentationEnabled,
@@ -739,6 +751,10 @@ func testAPMInstrumentation() *test.ComponentTest {
 					Value: common.DogstatsdAPMSocketHostPath,
 				},
 				{
+					Name:  DDAPMReceiverSocket,
+					Value: apmSocketHostPath,
+				},
+				{
 					Name:  DDAPMInstrumentationEnabled,
 					Value: "true",
 				},
@@ -763,6 +779,10 @@ func testAPMInstrumentationWithLanguageDetectionEnabledForClusterAgent() *test.C
 				{
 					Name:  DDTraceAgentHostSocketPath,
 					Value: common.DogstatsdAPMSocketHostPath,
+				},
+				{
+					Name:  DDAPMReceiverSocket,
+					Value: apmSocketHostPath,
 				},
 				{
 					Name:  DDAPMInstrumentationEnabled,
@@ -798,6 +818,10 @@ func testAPMInstrumentationWithCustomInjectorImage() *test.ComponentTest {
 					Value: common.DogstatsdAPMSocketHostPath,
 				},
 				{
+					Name:  DDAPMReceiverSocket,
+					Value: apmSocketHostPath,
+				},
+				{
 					Name:  DDAPMInstrumentationEnabled,
 					Value: "true",
 				},
@@ -825,6 +849,10 @@ func testAPMInstrumentationWithInjectionMode(injectionMode string) *test.Compone
 				{
 					Name:  DDTraceAgentHostSocketPath,
 					Value: common.DogstatsdAPMSocketHostPath,
+				},
+				{
+					Name:  DDAPMReceiverSocket,
+					Value: apmSocketHostPath,
 				},
 				{
 					Name:  DDAPMInstrumentationEnabled,
