@@ -7,8 +7,8 @@ package flightrecorder
 
 const (
 	flightRecorderSocketVolumeName = "flightrecorder-socket"
-	flightRecorderSocketPath       = "/var/run/datadog/flightrecorder"
+	flightRecorderSocketPath       = "/var/run/datadog"
 	flightRecorderDataVolumeName   = "flightrecorder-data"
 	flightRecorderDataPath         = "/data/signals"
-	flightRecorderSocketFile       = "/var/run/datadog/flightrecorder/pipeline.sock"
+	flightRecorderSocketFile       = "/var/run/datadog/flightrecorder.sock"
 )

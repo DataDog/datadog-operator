@@ -626,7 +626,7 @@ func flightRecorderContainer(dda metav1.Object) corev1.Container {
 		VolumeMounts: []corev1.VolumeMount{
 			{
 				Name:      "flightrecorder-socket",
-				MountPath: "/var/run/datadog/flightrecorder",
+				MountPath: "/var/run/datadog",
 			},
 			{
 				Name:      "flightrecorder-data",
