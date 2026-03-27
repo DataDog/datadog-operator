@@ -7,20 +7,7 @@ metadata:
     agent.datadoghq.com/flightrecorder-enabled: "true"
 spec:
   global:
-    clusterName: kind-flightrecorder
     credentials:
       apiSecret:
         secretName: datadog-secret
         keyName: api-key
-    registry: docker.io
-  override:
-    nodeAgent:
-      image:
-        name: datadog/agent-dev
-        tag: misteriaud-poc-signal-recorder-full
-        pullPolicy: Never
-    clusterAgent:
-      image:
-        name: datadog/agent-dev
-        tag: misteriaud-poc-signal-recorder-full
-        pullPolicy: Never

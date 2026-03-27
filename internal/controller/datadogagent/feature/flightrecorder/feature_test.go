@@ -29,6 +29,10 @@ func Test_flightRecorderFeature(t *testing.T) {
 		Name:  common.DDFlightRecorderSocketPath,
 		Value: flightRecorderSocketFile,
 	}
+	flightRecorderOutputDirEnvVar := &corev1.EnvVar{
+		Name:  common.DDFlightRecorderOutputDir,
+		Value: flightRecorderDataPath,
+	}
 
 	tests := test.FeatureTestSuite{
 		{
@@ -64,6 +68,11 @@ func Test_flightRecorderFeature(t *testing.T) {
 					traceAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.TraceAgentContainerName]
 					assert.Contains(t, traceAgentEnvVars, flightRecorderEnabledEnvVar, "DD_FLIGHTRECORDER_ENABLED should be set on trace agent")
 					assert.Contains(t, traceAgentEnvVars, flightRecorderSocketPathEnvVar, "DD_FLIGHTRECORDER_SOCKET_PATH should be set on trace agent")
+
+					frEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.FlightRecorderContainerName]
+					assert.NotContains(t, frEnvVars, flightRecorderEnabledEnvVar, "DD_FLIGHTRECORDER_ENABLED should not be set on flightrecorder")
+					assert.Contains(t, frEnvVars, flightRecorderSocketPathEnvVar, "DD_FLIGHTRECORDER_SOCKET_PATH should be set on flightrecorder")
+					assert.Contains(t, frEnvVars, flightRecorderOutputDirEnvVar, "DD_FLIGHTRECORDER_OUTPUT_DIR should be set on flightrecorder")
 
 					// Check volumes
 					expectedSocketVol := &corev1.Volume{

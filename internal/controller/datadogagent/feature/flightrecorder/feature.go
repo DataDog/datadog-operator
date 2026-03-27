@@ -85,9 +85,7 @@ func (f *flightRecorderFeature) ManageNodeAgent(managers feature.PodTemplateMana
 		return nil
 	}
 
-	// Set env vars on the core agent and trace agent to enable flightrecorder
-	// and configure the socket path. The trace-agent runs its own flightrecorder
-	// component to record trace stats via the hook system.
+	// Enable flightrecorder and configure the socket path on the agent containers.
 	for _, container := range []apicommon.AgentContainerName{
 		apicommon.CoreAgentContainerName,
 		apicommon.TraceAgentContainerName,
@@ -101,6 +99,16 @@ func (f *flightRecorderFeature) ManageNodeAgent(managers feature.PodTemplateMana
 			Value: flightRecorderSocketFile,
 		})
 	}
+
+	// Configure the flightrecorder container with the socket and output paths.
+	managers.EnvVar().AddEnvVarToContainer(apicommon.FlightRecorderContainerName, &corev1.EnvVar{
+		Name:  common.DDFlightRecorderSocketPath,
+		Value: flightRecorderSocketFile,
+	})
+	managers.EnvVar().AddEnvVarToContainer(apicommon.FlightRecorderContainerName, &corev1.EnvVar{
+		Name:  common.DDFlightRecorderOutputDir,
+		Value: flightRecorderDataPath,
+	})
 
 	// Shared socket volume (emptyDir) for Unix socket communication between agent and flightrecorder.
 	socketVol := corev1.Volume{
@@ -123,7 +131,7 @@ func (f *flightRecorderFeature) ManageNodeAgent(managers feature.PodTemplateMana
 		},
 	)
 
-	// Data volume for Vortex output files, mounted only on the flightrecorder container.
+	// Data volume for Parquet output files, mounted only on the flightrecorder container.
 	dataVol := corev1.Volume{
 		Name: flightRecorderDataVolumeName,
 		VolumeSource: corev1.VolumeSource{

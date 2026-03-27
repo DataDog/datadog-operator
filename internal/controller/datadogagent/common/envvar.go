@@ -36,6 +36,7 @@ const (
 	DDDataPlaneUseNewConfigStreamEndpoint = "DD_DATA_PLANE_USE_NEW_CONFIG_STREAM_ENDPOINT"
 	DDFlightRecorderEnabled               = "DD_FLIGHTRECORDER_ENABLED"
 	DDFlightRecorderSocketPath            = "DD_FLIGHTRECORDER_SOCKET_PATH"
+	DDFlightRecorderOutputDir             = "DD_FLIGHTRECORDER_OUTPUT_DIR"
 	DDKubernetesPodResourcesSocket        = "DD_KUBERNETES_KUBELET_PODRESOURCES_SOCKET"
 	DDCELWorkloadExclude                  = "DD_CEL_WORKLOAD_EXCLUDE"
 
