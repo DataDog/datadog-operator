@@ -33,8 +33,11 @@ func buildFeature(*feature.Options) feature.Feature {
 
 type serviceDiscoveryFeature struct {
 	networkStatsEnabled   bool
-	useSystemProbeLite    bool
 	userExplicitlyEnabled bool
+	// features holds a pointer to the live DDA features struct so that ManageNodeAgent
+	// can re-evaluate hasOtherSystemProbeFeatures after Remote Config state has been
+	// merged by other features' Configure calls (e.g. USM merges RC state into the spec).
+	features *v2alpha1.DatadogFeatures
 }
 
 // ID returns the ID of the Feature
@@ -69,7 +72,7 @@ func (f *serviceDiscoveryFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.D
 		f.networkStatsEnabled = apiutils.BoolValue(sd.NetworkStats.Enabled)
 	}
 
-	f.useSystemProbeLite = !hasOtherSystemProbeFeatures(ddaSpec.Features)
+	f.features = ddaSpec.Features
 	f.userExplicitlyEnabled = apiutils.BoolValue(sd.Enabled)
 
 	return reqComp
@@ -186,7 +189,9 @@ func (f *serviceDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMa
 	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, socketEnvVar)
 
 	// Direct PodTemplateSpec mutation: no managers API for command overrides.
-	if f.useSystemProbeLite {
+	// Re-evaluate here (not cached from Configure) so that RC state merged by other
+	// features' Configure calls (e.g. USM) is taken into account.
+	if !hasOtherSystemProbeFeatures(f.features) {
 		for i := range managers.PodTemplateSpec().Spec.Containers {
 			c := &managers.PodTemplateSpec().Spec.Containers[i]
 			if c.Name == string(apicommon.SystemProbeContainerName) {
