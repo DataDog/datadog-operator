@@ -70,8 +70,8 @@ type apmFeature struct {
 
 	singleStepInstrumentation *instrumentationConfig
 
-	processCheckRunsInCoreAgent    bool
-	needsRunInCoreAgentEnvVar      bool
+	processCheckRunsInCoreAgent bool
+	needsRunInCoreAgentEnvVar   bool
 
 	errorTrackingStandalone bool
 

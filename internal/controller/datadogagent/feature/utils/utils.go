@@ -17,9 +17,9 @@ import (
 const (
 	ProcessConfigRunInCoreAgentMinVersion        = "7.60.0-0"
 	ProcessConfigRunInCoreAgentRemovedMinVersion = "7.78.0-0"
-	EnableADPAnnotation                   = "agent.datadoghq.com/adp-enabled"
-	EnableFineGrainedKubeletAuthz         = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
-	EnableHostProfilerAnnotation          = "agent.datadoghq.com/host-profiler-enabled"
+	EnableADPAnnotation                          = "agent.datadoghq.com/adp-enabled"
+	EnableFineGrainedKubeletAuthz                = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
+	EnableHostProfilerAnnotation                 = "agent.datadoghq.com/host-profiler-enabled"
 
 	EnablePrivateActionRunnerAnnotation     = "agent.datadoghq.com/private-action-runner-enabled"
 	PrivateActionRunnerConfigDataAnnotation = "agent.datadoghq.com/private-action-runner-configdata"
