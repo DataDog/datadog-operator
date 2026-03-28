@@ -34,6 +34,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DogstatsdFeatureConfig":              schema_datadog_operator_api_datadoghq_v2alpha1_DogstatsdFeatureConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ErrorTrackingStandalone":             schema_datadog_operator_api_datadoghq_v2alpha1_ErrorTrackingStandalone(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.EventCollectionFeatureConfig":        schema_datadog_operator_api_datadoghq_v2alpha1_EventCollectionFeatureConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ExperimentStatus":                    schema_datadog_operator_api_datadoghq_v2alpha1_ExperimentStatus(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.FIPSConfig":                          schema_datadog_operator_api_datadoghq_v2alpha1_FIPSConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.HelmCheckFeatureConfig":              schema_datadog_operator_api_datadoghq_v2alpha1_HelmCheckFeatureConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig":   schema_datadog_operator_api_datadoghq_v2alpha1_KubeStateMetricsCoreFeatureConfig(ref),
@@ -645,11 +646,17 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgentStatus(ref commo
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.RemoteConfigConfiguration"),
 						},
 					},
+					"experiment": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Experiment tracks the state of an active or recent Fleet Automation experiment.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ExperimentStatus"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DaemonSetStatus", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DeploymentStatus", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.RemoteConfigConfiguration", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DaemonSetStatus", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DeploymentStatus", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ExperimentStatus", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.RemoteConfigConfiguration", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition"},
 	}
 }
 
@@ -1111,6 +1118,40 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_EventCollectionFeatureConfig
 		},
 		Dependencies: []string{
 			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.EventTypes"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_ExperimentStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ExperimentStatus tracks the state of a Fleet Automation experiment.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"phase": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Phase is the current state of the experiment.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"id": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ID is the unique experiment ID sent by Fleet Automation.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"generation": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Generation is the DDA metadata.generation recorded when the experiment started. Used to detect manual spec changes during an experiment.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 

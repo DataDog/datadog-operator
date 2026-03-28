@@ -12,6 +12,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"github.com/go-logr/logr"
+	kubeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
@@ -29,17 +30,19 @@ var _ manager.LeaderElectionRunnable = &Daemon{}
 // Daemon subscribes to fleet-specific RC products (installer configs and tasks)
 // and runs after leader election as a controller-runtime Runnable.
 type Daemon struct {
-	logger   logr.Logger
-	rcClient remoteconfig.RCClient
+	logger     logr.Logger
+	rcClient   remoteconfig.RCClient
+	kubeClient kubeclient.Client
 	mu       sync.RWMutex
 	configs  map[string]installerConfig // keyed by config ID; replaced on each RC update
 }
 
 // NewDaemon creates a new Fleet Daemon.
-func NewDaemon(logger logr.Logger, rcClient remoteconfig.RCClient) *Daemon {
+func NewDaemon(logger logr.Logger, rcClient remoteconfig.RCClient, kubeClient kubeclient.Client) *Daemon {
 	return &Daemon{
-		logger:   logger,
-		rcClient: rcClient,
+		logger:     logger,
+		rcClient:   rcClient,
+		kubeClient: kubeClient,
 		configs:  make(map[string]installerConfig),
 	}
 }
@@ -103,25 +106,5 @@ func (d *Daemon) handleRemoteAPIRequest(req remoteAPIRequest) error {
 	}
 }
 
-func (d *Daemon) startDatadogAgentExperiment(req remoteAPIRequest) error {
-	cfg, err := d.getConfig(req.ExpectedState.ExperimentConfig)
-	if err != nil {
-		return fmt.Errorf("start DatadogAgent experiment: %w", err)
-	}
-	d.logger.Info("Starting DatadogAgent experiment", "id", req.ID, "package", req.Package, "config_id", cfg.ID)
-	return nil
-}
 
-func (d *Daemon) stopDatadogAgentExperiment(req remoteAPIRequest) error {
-	d.logger.Info("Stopping DatadogAgent experiment", "id", req.ID, "package", req.Package)
-	return nil
-}
 
-func (d *Daemon) promoteDatadogAgentExperiment(req remoteAPIRequest) error {
-	cfg, err := d.getConfig(req.ExpectedState.ExperimentConfig)
-	if err != nil {
-		return fmt.Errorf("promote DatadogAgent experiment: %w", err)
-	}
-	d.logger.Info("Promoting DatadogAgent experiment", "id", req.ID, "package", req.Package, "config_id", cfg.ID)
-	return nil
-}

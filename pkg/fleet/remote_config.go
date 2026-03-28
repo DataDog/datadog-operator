@@ -16,6 +16,7 @@ import (
 type installerConfig struct {
 	ID             string                         `json:"id"`
 	FileOperations []installerConfigFileOperation `json:"file_operations"`
+	Operations     []fleetManagementOperation     `json:"operations"`
 }
 
 // installerConfigFileOperation is a single file operation in an installerConfig.
