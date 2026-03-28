@@ -39,6 +39,7 @@ func buildAutoscalingFeature(options *feature.Options) feature.Feature {
 
 type autoscalingFeature struct {
 	workloadEnabled bool
+	failoverEnabled bool
 	clusterEnabled  bool
 
 	serviceAccountName           string
@@ -71,6 +72,7 @@ func (f *autoscalingFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Data
 
 	if autoscaling.Workload != nil && apiutils.BoolValue(autoscaling.Workload.Enabled) {
 		f.workloadEnabled = true
+		f.failoverEnabled = autoscaling.Workload.Failover == nil || autoscaling.Workload.Failover.Enabled == nil || apiutils.BoolValue(autoscaling.Workload.Failover.Enabled)
 		f.admissionControllerActivated = apiutils.BoolValue(ddaSpec.Features.AdmissionController.Enabled)
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 	}
@@ -116,10 +118,12 @@ func (f *autoscalingFeature) ManageClusterAgent(managers feature.PodTemplateMana
 			Value: "true",
 		})
 
-		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  DDAutoscalingFailoverEnabled,
-			Value: "true",
-		})
+		if f.failoverEnabled {
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  DDAutoscalingFailoverEnabled,
+				Value: "true",
+			})
+		}
 	}
 
 	if f.clusterEnabled {
@@ -143,7 +147,7 @@ func (f *autoscalingFeature) ManageSingleContainerNodeAgent(managers feature.Pod
 // It should do nothing if the feature doesn't need to configure it.
 func (f *autoscalingFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 
-	if f.workloadEnabled {
+	if f.workloadEnabled && f.failoverEnabled {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 			Name:  DDAutoscalingFailoverEnabled,
 			Value: "true",
