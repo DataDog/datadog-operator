@@ -514,6 +514,38 @@ func TestPodTemplateSpec(t *testing.T) {
 			},
 		},
 		{
+			name: "empty confd configDataMap does not add volume",
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				ExtraConfd: &v2alpha1.MultiCustomConfig{
+					ConfigDataMap: map[string]string{},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				for _, vol := range manager.VolumeMgr.Volumes {
+					assert.NotEqual(t, common.ConfdVolumeName, vol.Name, "confd volume should not be added for empty configDataMap")
+				}
+			},
+		},
+		{
+			name: "empty checksd configDataMap does not add volume",
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				ExtraChecksd: &v2alpha1.MultiCustomConfig{
+					ConfigDataMap: map[string]string{},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				for _, vol := range manager.VolumeMgr.Volumes {
+					assert.NotEqual(t, common.ChecksdVolumeName, vol.Name, "checksd volume should not be added for empty configDataMap")
+				}
+			},
+		},
+		{
 			// This test is pretty simple because "container_test.go" already tests overriding containers
 			name: "override containers",
 			existingManager: func() *fake.PodTemplateManagers {
