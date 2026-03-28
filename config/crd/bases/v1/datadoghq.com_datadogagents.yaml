@@ -8474,6 +8474,29 @@ spec:
                   x-kubernetes-list-map-keys:
                     - type
                   x-kubernetes-list-type: map
+                experiment:
+                  description: Experiment tracks the state of an active or recent Fleet Automation experiment.
+                  properties:
+                    generation:
+                      description: |-
+                        Generation is the DDA metadata.generation recorded when the experiment started.
+                        Used to detect manual spec changes during an experiment.
+                      format: int64
+                      type: integer
+                    id:
+                      description: ID is the unique experiment ID sent by Fleet Automation.
+                      type: string
+                    phase:
+                      description: Phase is the current state of the experiment.
+                      enum:
+                        - running
+                        - stopped
+                        - rollback
+                        - timeout
+                        - promoted
+                        - aborted
+                      type: string
+                  type: object
                 otelAgentGateway:
                   description: The actual state of the OTel Agent Gateway as a deployment.
                   properties:
