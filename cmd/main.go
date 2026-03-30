@@ -41,6 +41,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/render"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -199,6 +200,15 @@ func (opts *options) Parse() {
 }
 
 func main() {
+	// Dispatch "render" subcommand before parsing the main flag set
+	if len(os.Args) > 1 && os.Args[1] == "render" {
+		if err := render.Run(os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
 	var opts options
 	opts.Parse()
 
