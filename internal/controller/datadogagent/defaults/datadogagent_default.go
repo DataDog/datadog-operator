@@ -41,9 +41,8 @@ const (
 
 	defaultGPUMonitoringEnabled bool = false
 
-	defaultServiceDiscoveryEnabled             bool = false
-	defaultServiceDiscoveryEnabledByDefault    bool = false
-	defaultServiceDiscoveryNetworkStatsEnabled bool = true
+	defaultServiceDiscoveryEnabled          bool = false
+	defaultServiceDiscoveryEnabledByDefault bool = false
 
 	defaultAPMEnabled                   bool   = true
 	defaultAPMHostPortEnabled           bool   = false
@@ -309,14 +308,6 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	// distinguishable from Enabled=false (explicit user opt-out) when EnabledByDefault=true.
 	if !apiutils.BoolValue(ddaSpec.Features.ServiceDiscovery.EnabledByDefault) {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ServiceDiscovery.Enabled, defaultServiceDiscoveryEnabled)
-	}
-
-	if apiutils.BoolValue(ddaSpec.Features.ServiceDiscovery.Enabled) || apiutils.BoolValue(ddaSpec.Features.ServiceDiscovery.EnabledByDefault) {
-		if ddaSpec.Features.ServiceDiscovery.NetworkStats == nil {
-			ddaSpec.Features.ServiceDiscovery.NetworkStats = &v2alpha1.ServiceDiscoveryNetworkStatsConfig{}
-		}
-
-		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ServiceDiscovery.NetworkStats.Enabled, defaultServiceDiscoveryNetworkStatsEnabled)
 	}
 
 	// GPU monitoring feature

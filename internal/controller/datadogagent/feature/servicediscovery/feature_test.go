@@ -28,21 +28,12 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 			Features: &v2alpha1.DatadogFeatures{
 				ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
 					Enabled: apiutils.NewBoolPointer(false),
-					NetworkStats: &v2alpha1.ServiceDiscoveryNetworkStatsConfig{
-						Enabled: apiutils.NewBoolPointer(false),
-					},
 				},
 			},
 		},
 	}
-	ddaServiceDiscoveryEnabledNoNetStats := ddaServiceDiscoveryDisabled.DeepCopy()
-	{
-		ddaServiceDiscoveryEnabledNoNetStats.Spec.Features.ServiceDiscovery.Enabled = apiutils.NewBoolPointer(true)
-	}
-	ddaServiceDiscoveryEnabledWithNetStats := ddaServiceDiscoveryEnabledNoNetStats.DeepCopy()
-	{
-		ddaServiceDiscoveryEnabledWithNetStats.Spec.Features.ServiceDiscovery.NetworkStats.Enabled = apiutils.NewBoolPointer(true)
-	}
+	ddaServiceDiscoveryEnabled := ddaServiceDiscoveryDisabled.DeepCopy()
+	ddaServiceDiscoveryEnabled.Spec.Features.ServiceDiscovery.Enabled = apiutils.NewBoolPointer(true)
 
 	ddaWithNPM := v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
@@ -87,20 +78,12 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
-			Name:          "service discovery enabled - no network stats",
-			DDA:           ddaServiceDiscoveryEnabledNoNetStats,
+			Name:          "service discovery enabled",
+			DDA:           ddaServiceDiscoveryEnabled,
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().
 				WithCreateFunc(createFuncWithSystemProbeContainer()).
-				WithWantFunc(getWantFunc(noNetStats, true, true)),
-		},
-		{
-			Name:          "service discovery enabled - with network stats",
-			DDA:           ddaServiceDiscoveryEnabledWithNetStats,
-			WantConfigure: true,
-			Agent: test.NewDefaultComponentTest().
-				WithCreateFunc(createFuncWithSystemProbeContainer()).
-				WithWantFunc(getWantFunc(withNetStats, true, true)),
+				WithWantFunc(getWantFunc(true, true)),
 		},
 		{
 			Name:          "system-probe-lite not used when NPM also enabled",
@@ -108,7 +91,7 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().
 				WithCreateFunc(createFuncWithSystemProbeContainer()).
-				WithWantFunc(getWantFunc(withNetStats, false, true)),
+				WithWantFunc(getWantFunc(false, true)),
 		},
 		{
 			Name:          "system-probe-lite not used when CWS also enabled",
@@ -116,7 +99,7 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().
 				WithCreateFunc(createFuncWithSystemProbeContainer()).
-				WithWantFunc(getWantFunc(withNetStats, false, true)),
+				WithWantFunc(getWantFunc(false, true)),
 		},
 		{
 			Name:          "system-probe-lite enabled by default - no system-probe fallback",
@@ -124,7 +107,7 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().
 				WithCreateFunc(createFuncWithSystemProbeContainer()).
-				WithWantFunc(getWantFunc(withNetStats, true, false)),
+				WithWantFunc(getWantFunc(true, false)),
 		},
 	}
 
@@ -236,11 +219,6 @@ func Test_hasOtherSystemProbeFeatures(t *testing.T) {
 	}
 }
 
-const (
-	noNetStats   = false
-	withNetStats = true
-)
-
 func createFuncWithSystemProbeContainer() func(testing.TB) (feature.PodTemplateManagers, string) {
 	return func(t testing.TB) (feature.PodTemplateManagers, string) {
 		newPTS := corev1.PodTemplateSpec{
@@ -259,7 +237,7 @@ func createFuncWithSystemProbeContainer() func(testing.TB) (feature.PodTemplateM
 	}
 }
 
-func getWantFunc(withNetStats bool, useSPL bool, userOptedIn bool) func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+func getWantFunc(useSPL bool, userOptedIn bool) func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 
@@ -298,22 +276,6 @@ func getWantFunc(withNetStats bool, useSPL bool, userOptedIn bool) func(t testin
 				ReadOnly:  false,
 			},
 		}
-		if withNetStats {
-			wantSystemProbeVolMounts = append(wantSystemProbeVolMounts,
-				corev1.VolumeMount{
-					Name:      common.DebugfsVolumeName,
-					MountPath: common.DebugfsPath,
-					ReadOnly:  false,
-				}, corev1.VolumeMount{
-					Name:      common.ModulesVolumeName,
-					MountPath: common.ModulesVolumePath,
-					ReadOnly:  true,
-				}, corev1.VolumeMount{
-					Name:      common.SrcVolumeName,
-					MountPath: common.SrcVolumePath,
-					ReadOnly:  true,
-				})
-		}
 
 		coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.CoreAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantCoreAgentVolMounts), "Core agent volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantCoreAgentVolMounts))
@@ -346,31 +308,6 @@ func getWantFunc(withNetStats bool, useSPL bool, userOptedIn bool) func(t testin
 				},
 			},
 		}
-		if withNetStats {
-			wantVolumes = append(wantVolumes,
-				corev1.Volume{
-					Name: common.DebugfsVolumeName,
-					VolumeSource: corev1.VolumeSource{
-						HostPath: &corev1.HostPathVolumeSource{
-							Path: common.DebugfsPath,
-						},
-					},
-				}, corev1.Volume{
-					Name: common.ModulesVolumeName,
-					VolumeSource: corev1.VolumeSource{
-						HostPath: &corev1.HostPathVolumeSource{
-							Path: common.ModulesVolumePath,
-						},
-					},
-				}, corev1.Volume{
-					Name: common.SrcVolumeName,
-					VolumeSource: corev1.VolumeSource{
-						HostPath: &corev1.HostPathVolumeSource{
-							Path: common.SrcVolumePath,
-						},
-					},
-				})
-		}
 
 		volumes := mgr.VolumeMgr.Volumes
 		assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
@@ -391,10 +328,6 @@ func getWantFunc(withNetStats bool, useSPL bool, userOptedIn bool) func(t testin
 			{
 				Name:  DDServiceDiscoveryEnabled,
 				Value: "true",
-			},
-			{
-				Name:  DDServiceDiscoveryNetworkStatsEnabled,
-				Value: boolToString(withNetStats),
 			},
 			{
 				Name:  common.DDSystemProbeSocket,
@@ -422,11 +355,4 @@ func getWantFunc(withNetStats bool, useSPL bool, userOptedIn bool) func(t testin
 			}
 		}
 	}
-}
-
-func boolToString(val bool) string {
-	if val {
-		return "true"
-	}
-	return "false"
 }

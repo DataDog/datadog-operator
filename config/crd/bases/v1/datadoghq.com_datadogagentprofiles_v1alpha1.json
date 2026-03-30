@@ -2598,10 +2598,10 @@
                     },
                     "networkStats": {
                       "additionalProperties": false,
-                      "description": "Enables the service discovery network stats collection.\nDefault: true",
+                      "description": "DEPRECATED: NetworkStats is no longer configurable and will be ignored. Scheduled for removal in v1.28.",
                       "properties": {
                         "enabled": {
-                          "description": "Enables the Service Discovery Network Stats feature.\nDefault: true",
+                          "description": "DEPRECATED: this field is ignored.",
                           "type": "boolean"
                         }
                       },

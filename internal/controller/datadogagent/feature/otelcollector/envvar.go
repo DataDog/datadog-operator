@@ -6,8 +6,6 @@
 package otelcollector
 
 const (
-	DDAgentIpcPort                            = "DD_AGENT_IPC_PORT"
-	DDAgentIpcConfigRefreshInterval           = "DD_AGENT_IPC_CONFIG_REFRESH_INTERVAL"
 	DDOtelCollectorCoreConfigEnabled          = "DD_OTELCOLLECTOR_ENABLED"
 	DDOtelCollectorCoreConfigExtensionURL     = "DD_OTELCOLLECTOR_EXTENSION_URL"
 	DDOtelCollectorCoreConfigExtensionTimeout = "DD_OTELCOLLECTOR_EXTENSION_TIMEOUT"
