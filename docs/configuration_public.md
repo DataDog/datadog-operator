@@ -385,7 +385,7 @@ spec:
 : Enables the service discovery check. Default: false
 
 `features.serviceDiscovery.networkStats.enabled`
-: Enables the Service Discovery Network Stats feature. Default: true
+: DEPRECATED: this field is ignored.
 
 `features.tcpQueueLength.enabled`
 : Enables the TCP queue length eBPF-based check. Default: false
