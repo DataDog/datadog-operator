@@ -11,7 +11,7 @@ const (
 	flightRecorderSocketFile = common.FlightRecorderSocketPath + "/flightrecorder.sock"
 
 	// Env var names for the flightrecorder feature
-	ddFlightRecorderEnabled   = "DD_FLIGHTRECORDER_ENABLED"
+	ddFlightRecorderEnabled    = "DD_FLIGHTRECORDER_ENABLED"
 	ddFlightRecorderSocketPath = "DD_FLIGHTRECORDER_SOCKET_PATH"
 	ddFlightRecorderOutputDir  = "DD_FLIGHTRECORDER_OUTPUT_DIR"
 )
