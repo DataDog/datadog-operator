@@ -5,10 +5,13 @@
 
 package flightrecorder
 
+import "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+
 const (
-	flightRecorderSocketVolumeName = "flightrecorder-socket"
-	flightRecorderSocketPath       = "/var/run/datadog/flightrecorder"
-	flightRecorderDataVolumeName   = "flightrecorder-data"
-	flightRecorderDataPath         = "/data/signals"
-	flightRecorderSocketFile       = "/var/run/datadog/flightrecorder/flightrecorder.sock"
+	flightRecorderSocketFile = common.FlightRecorderSocketPath + "/flightrecorder.sock"
+
+	// Env var names for the flightrecorder feature
+	ddFlightRecorderEnabled   = "DD_FLIGHTRECORDER_ENABLED"
+	ddFlightRecorderSocketPath = "DD_FLIGHTRECORDER_SOCKET_PATH"
+	ddFlightRecorderOutputDir  = "DD_FLIGHTRECORDER_OUTPUT_DIR"
 )

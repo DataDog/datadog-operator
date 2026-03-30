@@ -22,16 +22,16 @@ import (
 
 func Test_flightRecorderFeature(t *testing.T) {
 	flightRecorderEnabledEnvVar := &corev1.EnvVar{
-		Name:  common.DDFlightRecorderEnabled,
+		Name:  ddFlightRecorderEnabled,
 		Value: "true",
 	}
 	flightRecorderSocketPathEnvVar := &corev1.EnvVar{
-		Name:  common.DDFlightRecorderSocketPath,
+		Name:  ddFlightRecorderSocketPath,
 		Value: flightRecorderSocketFile,
 	}
 	flightRecorderOutputDirEnvVar := &corev1.EnvVar{
-		Name:  common.DDFlightRecorderOutputDir,
-		Value: flightRecorderDataPath,
+		Name:  ddFlightRecorderOutputDir,
+		Value: common.FlightRecorderDataPath,
 	}
 
 	tests := test.FeatureTestSuite{
@@ -76,13 +76,13 @@ func Test_flightRecorderFeature(t *testing.T) {
 
 					// Check volumes
 					expectedSocketVol := &corev1.Volume{
-						Name: flightRecorderSocketVolumeName,
+						Name: common.FlightRecorderSocketVolumeName,
 						VolumeSource: corev1.VolumeSource{
 							EmptyDir: &corev1.EmptyDirVolumeSource{},
 						},
 					}
 					expectedDataVol := &corev1.Volume{
-						Name: flightRecorderDataVolumeName,
+						Name: common.FlightRecorderDataVolumeName,
 						VolumeSource: corev1.VolumeSource{
 							EmptyDir: &corev1.EmptyDirVolumeSource{},
 						},
@@ -92,8 +92,8 @@ func Test_flightRecorderFeature(t *testing.T) {
 
 					// Check volume mounts on core agent (socket only)
 					expectedSocketMount := &corev1.VolumeMount{
-						Name:      flightRecorderSocketVolumeName,
-						MountPath: flightRecorderSocketPath,
+						Name:      common.FlightRecorderSocketVolumeName,
+						MountPath: common.FlightRecorderSocketPath,
 					}
 					coreAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.CoreAgentContainerName]
 					assert.Contains(t, coreAgentMounts, expectedSocketMount, "core agent should have socket volume mount")
@@ -104,8 +104,8 @@ func Test_flightRecorderFeature(t *testing.T) {
 
 					// Check volume mounts on flightrecorder container (socket + data)
 					expectedDataMount := &corev1.VolumeMount{
-						Name:      flightRecorderDataVolumeName,
-						MountPath: flightRecorderDataPath,
+						Name:      common.FlightRecorderDataVolumeName,
+						MountPath: common.FlightRecorderDataPath,
 					}
 					frMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.FlightRecorderContainerName]
 					assert.Contains(t, frMounts, expectedSocketMount, "flightrecorder should have socket volume mount")

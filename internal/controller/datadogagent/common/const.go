@@ -160,6 +160,11 @@ const (
 
 	RunPathVolumeName  = "pointerdir"
 	RunPathVolumeMount = "/opt/datadog-agent/run"
+
+	FlightRecorderSocketVolumeName = "flightrecorder-socket"
+	FlightRecorderSocketPath       = "/var/run/datadog/flightrecorder"
+	FlightRecorderDataVolumeName   = "flightrecorder-data"
+	FlightRecorderDataPath         = "/data/signals"
 )
 
 // Field paths

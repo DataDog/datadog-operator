@@ -91,35 +91,35 @@ func (f *flightRecorderFeature) ManageNodeAgent(managers feature.PodTemplateMana
 		apicommon.TraceAgentContainerName,
 	} {
 		managers.EnvVar().AddEnvVarToContainer(container, &corev1.EnvVar{
-			Name:  common.DDFlightRecorderEnabled,
+			Name:  ddFlightRecorderEnabled,
 			Value: "true",
 		})
 		managers.EnvVar().AddEnvVarToContainer(container, &corev1.EnvVar{
-			Name:  common.DDFlightRecorderSocketPath,
+			Name:  ddFlightRecorderSocketPath,
 			Value: flightRecorderSocketFile,
 		})
 	}
 
 	// Configure the flightrecorder container with the socket and output paths.
 	managers.EnvVar().AddEnvVarToContainer(apicommon.FlightRecorderContainerName, &corev1.EnvVar{
-		Name:  common.DDFlightRecorderSocketPath,
+		Name:  ddFlightRecorderSocketPath,
 		Value: flightRecorderSocketFile,
 	})
 	managers.EnvVar().AddEnvVarToContainer(apicommon.FlightRecorderContainerName, &corev1.EnvVar{
-		Name:  common.DDFlightRecorderOutputDir,
-		Value: flightRecorderDataPath,
+		Name:  ddFlightRecorderOutputDir,
+		Value: common.FlightRecorderDataPath,
 	})
 
 	// Shared socket volume (emptyDir) for Unix socket communication between agent and flightrecorder.
 	socketVol := corev1.Volume{
-		Name: flightRecorderSocketVolumeName,
+		Name: common.FlightRecorderSocketVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
 	}
 	socketVolMount := corev1.VolumeMount{
-		Name:      flightRecorderSocketVolumeName,
-		MountPath: flightRecorderSocketPath,
+		Name:      common.FlightRecorderSocketVolumeName,
+		MountPath: common.FlightRecorderSocketPath,
 	}
 	managers.Volume().AddVolume(&socketVol)
 	managers.VolumeMount().AddVolumeMountToContainers(
@@ -133,14 +133,14 @@ func (f *flightRecorderFeature) ManageNodeAgent(managers feature.PodTemplateMana
 
 	// Data volume for Parquet output files, mounted only on the flightrecorder container.
 	dataVol := corev1.Volume{
-		Name: flightRecorderDataVolumeName,
+		Name: common.FlightRecorderDataVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
 	}
 	dataVolMount := corev1.VolumeMount{
-		Name:      flightRecorderDataVolumeName,
-		MountPath: flightRecorderDataPath,
+		Name:      common.FlightRecorderDataVolumeName,
+		MountPath: common.FlightRecorderDataPath,
 	}
 	managers.Volume().AddVolume(&dataVol)
 	managers.VolumeMount().AddVolumeMountToContainer(
