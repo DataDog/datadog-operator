@@ -41,30 +41,44 @@ func ApplyGlobalComponentDependencies(logger logr.Logger, ddaMeta metav1.Object,
 
 // ApplyGlobalSettingsClusterAgent applies the global settings for the ClusterAgent component.
 func ApplyGlobalSettingsClusterAgent(logger logr.Logger, manager feature.PodTemplateManagers, ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec,
-	resourcesManager feature.ResourceManagers, requiredComponents feature.RequiredComponents) []error {
-	errs := applyGlobalSettings(logger, manager, ddaMeta, ddaSpec, resourcesManager, requiredComponents)
+	resourcesManager feature.ResourceManagers, requiredComponents feature.RequiredComponents) {
+	applyGlobalSettings(logger, manager, ddaMeta, ddaSpec, resourcesManager, requiredComponents)
 	applyClusterAgentResources(manager, ddaSpec)
-	return errs
 }
 
 // ApplyGlobalSettingsClusterChecksRunner applies the global settings for the ClusterChecksRunner component.
 func ApplyGlobalSettingsClusterChecksRunner(logger logr.Logger, manager feature.PodTemplateManagers, ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec,
-	resourcesManager feature.ResourceManagers, requiredComponents feature.RequiredComponents) []error {
-	errs := applyGlobalSettings(logger, manager, ddaMeta, ddaSpec, resourcesManager, requiredComponents)
+	resourcesManager feature.ResourceManagers, requiredComponents feature.RequiredComponents) {
+	applyGlobalSettings(logger, manager, ddaMeta, ddaSpec, resourcesManager, requiredComponents)
 	applyClusterChecksRunnerResources(manager, ddaSpec)
-	return errs
 }
 
 // ApplyGlobalSettingsNodeAgent applies the global settings for the NodeAgent component.
 func ApplyGlobalSettingsNodeAgent(logger logr.Logger, manager feature.PodTemplateManagers, ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec,
-	resourcesManager feature.ResourceManagers, singleContainerStrategyEnabled bool, requiredComponents feature.RequiredComponents) []error {
-	errs := applyGlobalSettings(logger, manager, ddaMeta, ddaSpec, resourcesManager, requiredComponents)
+	resourcesManager feature.ResourceManagers, singleContainerStrategyEnabled bool, requiredComponents feature.RequiredComponents) {
+	applyGlobalSettings(logger, manager, ddaMeta, ddaSpec, resourcesManager, requiredComponents)
 	applyNodeAgentResources(manager, ddaSpec, singleContainerStrategyEnabled)
+}
+
+// ValidateFIPSVersions checks all containers in the pod template for FIPS version compatibility.
+// This must be called after all image overrides have been applied, so it sees the final image tags.
+func ValidateFIPSVersions(manager feature.PodTemplateManagers) []error {
+	var errs []error
+	for _, container := range manager.PodTemplateSpec().Spec.Containers {
+		if err := images.FromString(container.Image).FIPSVersionError(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	for _, container := range manager.PodTemplateSpec().Spec.InitContainers {
+		if err := images.FromString(container.Image).FIPSVersionError(); err != nil {
+			errs = append(errs, err)
+		}
+	}
 	return errs
 }
 
-// applyGlobalSettings applies global settings to a PodTemplateSpec and returns any FIPS version errors.
-func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers, ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, resourcesManager feature.ResourceManagers, requiredComponents feature.RequiredComponents) []error {
+// applyGlobalSettings applies global settings to a PodTemplateSpec.
+func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers, ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, resourcesManager feature.ResourceManagers, requiredComponents feature.RequiredComponents) {
 	config := ddaSpec.Global
 
 	// ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
@@ -279,7 +293,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	}
 
 	// Update images with Global Registry and UseFIPSAgent configurations
-	errs := updateContainerImages(config, manager)
+	updateContainerImages(config, manager)
 
 	// Apply FIPS proxy settings - UseFIPSAgent must be false
 	if !*config.UseFIPSAgent && config.FIPS != nil && apiutils.BoolValue(config.FIPS.Enabled) {
@@ -293,19 +307,13 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 			Value: componentdca.GetClusterAgentServiceURL(ddaMeta),
 		})
 	}
-	return errs
 }
 
-func updateContainerImages(config *v2alpha1.GlobalConfig, podTemplateManager feature.PodTemplateManagers) []error {
-	var errs []error
+func updateContainerImages(config *v2alpha1.GlobalConfig, podTemplateManager feature.PodTemplateManagers) {
 	for i, container := range podTemplateManager.PodTemplateSpec().Spec.Containers {
 		image := images.FromString(container.Image).
 			WithRegistry(*config.Registry).
 			WithFIPS(*config.UseFIPSAgent)
-		if err := image.FIPSVersionError(); err != nil {
-			errs = append(errs, err)
-		}
-		// Note: if an image tag override is configured, this image tag will be overwritten
 		podTemplateManager.PodTemplateSpec().Spec.Containers[i].Image = image.ToString()
 	}
 
@@ -313,13 +321,8 @@ func updateContainerImages(config *v2alpha1.GlobalConfig, podTemplateManager fea
 		image := images.FromString(container.Image).
 			WithRegistry(*config.Registry).
 			WithFIPS(*config.UseFIPSAgent)
-		if err := image.FIPSVersionError(); err != nil {
-			errs = append(errs, err)
-		}
-		// Note: if an image tag override is configured, this image tag will be overwritten
 		podTemplateManager.PodTemplateSpec().Spec.InitContainers[i].Image = image.ToString()
 	}
-	return errs
 }
 
 func credentialResource(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, podTemplateManager feature.PodTemplateManagers) {

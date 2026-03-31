@@ -50,7 +50,7 @@ func (c *ClusterChecksRunnerComponent) GetConditionType() string {
 	return common.ClusterChecksRunnerReconcileConditionType
 }
 
-func (c *ClusterChecksRunnerComponent) GetGlobalSettingsFunc() func(logger logr.Logger, podManagers feature.PodTemplateManagers, dda metav1.Object, spec *datadoghqv2alpha1.DatadogAgentSpec, resourceManagers feature.ResourceManagers, requiredComponents feature.RequiredComponents) []error {
+func (c *ClusterChecksRunnerComponent) GetGlobalSettingsFunc() func(logger logr.Logger, podManagers feature.PodTemplateManagers, dda metav1.Object, spec *datadoghqv2alpha1.DatadogAgentSpec, resourceManagers feature.ResourceManagers, requiredComponents feature.RequiredComponents) {
 	return global.ApplyGlobalSettingsClusterChecksRunner
 }
 
