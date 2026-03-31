@@ -10,12 +10,12 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
@@ -174,19 +174,27 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 			return err
 		}
 
-		var clusterAgentPolicyRules []rbacv1.PolicyRule
 		if f.clusterConfig.SelfEnroll {
-			clusterAgentPolicyRules = append(clusterAgentPolicyRules, getClusterAgentRBACPolicyRules(f.clusterConfig.IdentitySecretName)...)
+			// This creates a Role (not ClusterRole) with permissions on the identity secret used during self enrollment
+			err := managers.RBACManager().AddPolicyRulesByComponent(
+				f.owner.GetNamespace(),
+				f.getRbacResourcesName(),
+				f.clusterServiceAccountName,
+				getClusterAgentRBACPolicyRules(f.clusterConfig.IdentitySecretName),
+				string(v2alpha1.ClusterAgentComponentName),
+			)
+			if err != nil {
+				return err
+			}
 		}
+
 		if f.k8sRemediationEnabled {
-			clusterAgentPolicyRules = append(clusterAgentPolicyRules, getK8sRemediationPolicyRules()...)
-		}
-		if len(clusterAgentPolicyRules) > 0 {
+			// This creates a ClusterRole with cluster-wide access to workload resources for k8s remediation.
 			err := managers.RBACManager().AddClusterPolicyRulesByComponent(
 				f.owner.GetNamespace(),
 				f.getRbacResourcesName(),
 				f.clusterServiceAccountName,
-				clusterAgentPolicyRules,
+				getK8sRemediationPolicyRules(),
 				string(v2alpha1.ClusterAgentComponentName),
 			)
 			if err != nil {
@@ -199,11 +207,11 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 }
 
 func (f *privateActionRunnerFeature) getConfigMapName() string {
-	return fmt.Sprintf("%s-privateactionrunner", f.owner.GetName())
+	return fmt.Sprintf("%s-privateactionrunner", constants.GetDDAName(f.owner))
 }
 
 func (f *privateActionRunnerFeature) getClusterAgentConfigMapName() string {
-	return fmt.Sprintf("%s-clusteragent-privateactionrunner", f.owner.GetName())
+	return fmt.Sprintf("%s-clusteragent-privateactionrunner", constants.GetDDAName(f.owner))
 }
 
 func (f *privateActionRunnerFeature) getRbacResourcesName() string {
@@ -285,6 +293,27 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 		return err
 	}
 	managers.Annotation().AddAnnotation(checksumKey, checksumValue)
+
+	// procdir volume mount
+	procdirVol, procdirVolMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true)
+	managers.Volume().AddVolume(&procdirVol)
+	managers.VolumeMount().AddVolumeMountToContainer(&procdirVolMount, apicommon.PrivateActionRunnerContainerName)
+
+	// os-release volume mount
+	osReleaseVol, osReleaseVolMount := volume.GetVolumes(common.SystemProbeOSReleaseDirVolumeName, common.SystemProbeOSReleaseDirVolumePath, common.SystemProbeOSReleaseDirMountPath, true)
+	managers.Volume().AddVolume(&osReleaseVol)
+	managers.VolumeMount().AddVolumeMountToContainer(&osReleaseVolMount, apicommon.PrivateActionRunnerContainerName)
+
+	// host var log volume mount
+	varLogVol, varLogVolMount := volume.GetVolumes(hostVarLogVolumeName, hostVarLogHostPath, hostVarLogMountPath, true)
+	managers.Volume().AddVolume(&varLogVol)
+	managers.VolumeMount().AddVolumeMountToContainer(&varLogVolMount, apicommon.PrivateActionRunnerContainerName)
+
+	// Add NET_RAW capability for network operations
+	managers.SecurityContext().AddCapabilitiesToContainer(
+		[]corev1.Capability{"NET_RAW"},
+		apicommon.PrivateActionRunnerContainerName,
+	)
 
 	return nil
 }

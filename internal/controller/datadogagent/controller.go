@@ -75,6 +75,7 @@ type ReconcilerOptions struct {
 	IntrospectionEnabled        bool
 	DatadogAgentProfileEnabled  bool
 	DatadogAgentInternalEnabled bool
+	CreateControllerRevisions   bool
 }
 
 // Reconciler is the internal reconciler for Datadog Agent

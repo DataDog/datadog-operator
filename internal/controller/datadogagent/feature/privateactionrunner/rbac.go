@@ -16,7 +16,6 @@ const (
 )
 
 // getClusterAgentRBACPolicyRules returns the RBAC policy rules for the Private Action Runner
-// This creates a Role (not ClusterRole) with permissions on the identity secret used during self enrollment
 func getClusterAgentRBACPolicyRules(identitySecretName string) []rbacv1.PolicyRule {
 	if identitySecretName == "" {
 		identitySecretName = defaultIdentitySecretName

@@ -4,6 +4,12 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -11,18 +17,11 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
-	"github.com/stretchr/testify/assert"
-
-	corev1 "k8s.io/api/core/v1"
-	policyv1 "k8s.io/api/policy/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
 	testDdaName      = "foo"
 	testDdaNamespace = "bar"
-	agentConfigFile  = "/etc/datadog-agent/datadog.yaml"
 )
 
 func defaultDatadogAgent() *datadoghqv2alpha1.DatadogAgent {
@@ -235,6 +234,10 @@ func clusterAgentDefaultEnvVars(dda *datadoghqv2alpha1.DatadogAgent) []corev1.En
 		{
 			Name:  "DD_KUBE_RESOURCES_NAMESPACE",
 			Value: testDdaNamespace,
+		},
+		{
+			Name:  "DD_KUBERNETES_USE_ENDPOINT_SLICES",
+			Value: "true",
 		},
 		{
 			Name: "DD_INSTRUMENTATION_INSTALL_ID",
