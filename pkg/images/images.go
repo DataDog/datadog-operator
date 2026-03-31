@@ -196,14 +196,8 @@ func OverrideAgentImage(currentImage string, overrideImageSpec *v2alpha1.AgentIm
 	// If an override tag (whether from the tag or name) is provided, then the FIPS and full suffixes present in this tag
 	// should take precedence over the current image suffixes. If it's not provided, then preserve the original
 	if overrideImage.tag != "" {
-		// Only override FIPS/Full if they're explicitly present in the override tag
-		// Otherwise preserve current settings (from global.useFIPSAgent or existing image)
-		if overrideImage.isFIPS {
-			image.WithFIPS(overrideImage.isFIPS)
-		}
-		if overrideImage.isFull {
-			image.WithFull(overrideImage.isFull)
-		}
+		image.WithFIPS(overrideImage.isFIPS).
+			WithFull(overrideImage.isFull)
 	}
 
 	return image.ToString()
