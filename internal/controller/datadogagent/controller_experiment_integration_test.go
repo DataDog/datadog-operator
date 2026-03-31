@@ -212,6 +212,170 @@ func mustGetExperimentPhase(t *testing.T, r *Reconciler, ns, name string) v2alph
 	return dda.Status.Experiment.Phase
 }
 
+// Test_Experiment_TimeoutPhase_IsStable verifies that once phase=timeout is
+// persisted, further reconciles do not change the spec or phase.
+func Test_Experiment_TimeoutPhase_IsStable(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+	const timeout = 50 * time.Millisecond
+	nsName := types.NamespacedName{Namespace: ns, Name: name}
+
+	r := newExperimentIntegrationReconciler(t, timeout)
+
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.Site = apiutils.NewStringPointer("datadoghq.eu")
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+	reconcileN(t, r, ns, name, 1)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Status.Experiment = &v2alpha1.ExperimentStatus{
+		Phase:      v2alpha1.ExperimentPhaseRunning,
+		Generation: dda.Generation,
+		ID:         "exp-1",
+	}
+	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
+	time.Sleep(2 * timeout)
+	reconcileN(t, r, ns, name, 2)
+
+	assert.Equal(t, v2alpha1.ExperimentPhaseTimeout, mustGetExperimentPhase(t, r, ns, name))
+
+	// Extra reconciles must not change phase or spec.
+	reconcileN(t, r, ns, name, 3)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	assert.Equal(t, "datadoghq.com", *dda.Spec.Global.Site)
+	assert.Equal(t, v2alpha1.ExperimentPhaseTimeout, mustGetExperimentPhase(t, r, ns, name))
+}
+
+// Test_Experiment_RollbackPhase_IsStable verifies that once phase=rollback is
+// persisted, further reconciles do not change the spec or phase.
+func Test_Experiment_RollbackPhase_IsStable(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+	nsName := types.NamespacedName{Namespace: ns, Name: name}
+
+	r := newExperimentIntegrationReconciler(t, 0)
+
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.Site = apiutils.NewStringPointer("datadoghq.eu")
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+	reconcileN(t, r, ns, name, 1)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Status.Experiment = &v2alpha1.ExperimentStatus{
+		Phase:      v2alpha1.ExperimentPhaseStopped,
+		Generation: dda.Generation,
+		ID:         "exp-1",
+	}
+	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
+	reconcileN(t, r, ns, name, 2)
+
+	assert.Equal(t, v2alpha1.ExperimentPhaseRollback, mustGetExperimentPhase(t, r, ns, name))
+
+	// Extra reconciles must not change phase or spec.
+	reconcileN(t, r, ns, name, 3)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	assert.Equal(t, "datadoghq.com", *dda.Spec.Global.Site)
+	assert.Equal(t, v2alpha1.ExperimentPhaseRollback, mustGetExperimentPhase(t, r, ns, name))
+}
+
+// Test_Experiment_RunningAfterTimeout_StaleGeneration verifies that if RC
+// writes phase=running after a timeout rollback has completed, the operator
+// fires timeout again idempotently: the pre-experiment revision is old enough
+// to exceed the timeout threshold, rollback is a no-op (spec already correct),
+// and phase=timeout is written again.
+func Test_Experiment_RunningAfterTimeout_StaleGeneration(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+	const timeout = 50 * time.Millisecond
+	nsName := types.NamespacedName{Namespace: ns, Name: name}
+
+	r := newExperimentIntegrationReconciler(t, timeout)
+
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.Site = apiutils.NewStringPointer("datadoghq.eu")
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+	reconcileN(t, r, ns, name, 1)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Status.Experiment = &v2alpha1.ExperimentStatus{
+		Phase:      v2alpha1.ExperimentPhaseRunning,
+		Generation: dda.Generation,
+		ID:         "exp-1",
+	}
+	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
+	time.Sleep(2 * timeout)
+	reconcileN(t, r, ns, name, 2)
+	assert.Equal(t, v2alpha1.ExperimentPhaseTimeout, mustGetExperimentPhase(t, r, ns, name))
+
+	// RC writes phase=running again with the old (pre-rollback) generation — stale.
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	const staleGen = int64(99)
+	dda.Status.Experiment = &v2alpha1.ExperimentStatus{
+		Phase:      v2alpha1.ExperimentPhaseRunning,
+		Generation: staleGen,
+		ID:         "exp-1",
+	}
+	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
+
+	reconcileN(t, r, ns, name, 1)
+
+	// The pre-experiment revision is old enough that timeout fires idempotently —
+	// rollback is a no-op (spec already correct) and phase=timeout is written again.
+	assert.Equal(t, v2alpha1.ExperimentPhaseTimeout, mustGetExperimentPhase(t, r, ns, name))
+}
+
+// Test_Experiment_StoppedAfterRollback verifies that if RC writes phase=stopped
+// after a rollback has already completed, the idempotent rollback path handles
+// it cleanly (spec unchanged, phase set to rollback again).
+func Test_Experiment_StoppedAfterRollback(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+	nsName := types.NamespacedName{Namespace: ns, Name: name}
+
+	r := newExperimentIntegrationReconciler(t, 0)
+
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.Site = apiutils.NewStringPointer("datadoghq.eu")
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+	reconcileN(t, r, ns, name, 1)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Status.Experiment = &v2alpha1.ExperimentStatus{
+		Phase:      v2alpha1.ExperimentPhaseStopped,
+		Generation: dda.Generation,
+		ID:         "exp-1",
+	}
+	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
+	reconcileN(t, r, ns, name, 2)
+	assert.Equal(t, v2alpha1.ExperimentPhaseRollback, mustGetExperimentPhase(t, r, ns, name))
+
+	// RC writes phase=stopped again.
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Status.Experiment.Phase = v2alpha1.ExperimentPhaseStopped
+	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
+
+	reconcileN(t, r, ns, name, 2)
+
+	// Spec should still be the rolled-back spec; phase=rollback again.
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	assert.Equal(t, "datadoghq.com", *dda.Spec.Global.Site)
+	assert.Equal(t, v2alpha1.ExperimentPhaseRollback, mustGetExperimentPhase(t, r, ns, name))
+}
+
 // Test_Experiment_AbortDoesNotRollback verifies that phase=aborted is a
 // terminal state and does not trigger a spec restore on subsequent reconciles.
 func Test_Experiment_AbortDoesNotRollback(t *testing.T) {

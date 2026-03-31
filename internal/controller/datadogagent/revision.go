@@ -31,10 +31,23 @@ type revisionSnapshot struct {
 	Annotations map[string]string         `json:"annotations,omitempty"`
 }
 
+// skipRevisionBump returns true when the revision bump should be suppressed.
+// During experiment rollback the spec is restored to an older revision; bumping
+// its revision number to "latest" would make it appear newer than the experiment
+// revision, causing findRollbackTarget to return the experiment revision on the
+// next rollback attempt instead of the pre-experiment revision.
+func skipRevisionBump(newStatus *v2alpha1.DatadogAgentStatus) bool {
+	if newStatus == nil || newStatus.Experiment == nil {
+		return false
+	}
+	phase := newStatus.Experiment.Phase
+	return phase == v2alpha1.ExperimentPhaseRollback || phase == v2alpha1.ExperimentPhaseTimeout
+}
+
 // manageRevision creates a ControllerRevision snapshot of the current spec and
 // garbage collects old revisions. Must be called after manageExperiment.
-func (r *Reconciler) manageRevision(ctx context.Context, instance *v2alpha1.DatadogAgent, revList []appsv1.ControllerRevision) error {
-	revName, err := r.ensureRevision(ctx, instance, revList)
+func (r *Reconciler) manageRevision(ctx context.Context, instance *v2alpha1.DatadogAgent, revList []appsv1.ControllerRevision, newStatus *v2alpha1.DatadogAgentStatus) error {
+	revName, err := r.ensureRevision(ctx, instance, revList, skipRevisionBump(newStatus))
 	if err != nil {
 		return err
 	}
@@ -73,11 +86,13 @@ func (r *Reconciler) listRevisions(ctx context.Context, instance *v2alpha1.Datad
 // ensureRevision creates a ControllerRevision snapshot of the instance spec and
 // annotations if it does not already exist, and returns the revision name.
 //
-// The Revision field is a monotonic creation counter.
+// The Revision field is a monotonic creation counter. If skipBump is true the
+// existing revision is returned as-is without bumping its Revision number.
 func (r *Reconciler) ensureRevision(
 	ctx context.Context,
 	instance *v2alpha1.DatadogAgent,
 	revList []appsv1.ControllerRevision,
+	skipBump bool,
 ) (string, error) {
 	logger := ctrl.LoggerFrom(ctx)
 
@@ -108,7 +123,11 @@ func (r *Reconciler) ensureRevision(
 	if matchingRev != nil {
 		// Identical content already snapshotted. Bump Revision to max+1 if it
 		// has been superseded (e.g. after a revert) so ordering stays correct.
-		if matchingRev.Revision < maxRevision {
+		// Skip the bump during experiment rollback: bumping the pre-experiment
+		// revision above the experiment revision would cause findRollbackTarget
+		// to select the experiment revision as the rollback target on the next
+		// stopped signal, reversing the rollback.
+		if matchingRev.Revision < maxRevision && !skipBump {
 			objLogger := logger.WithValues(
 				"object.kind", "ControllerRevision",
 				"object.namespace", matchingRev.Namespace,

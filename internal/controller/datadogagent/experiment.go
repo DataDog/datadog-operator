@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -48,6 +49,8 @@ func (r *Reconciler) manageExperiment(
 
 // abortExperiment marks the experiment as aborted in newStatus if a manual spec
 // change is detected (DDA generation differs from the recorded experiment generation).
+// It is a no-op if handleRollback has already set a terminal phase (e.g. timeout),
+// preventing spurious abort logs and phase overwrites.
 func abortExperiment(
 	ctx context.Context,
 	instanceGeneration int64,
@@ -55,6 +58,10 @@ func abortExperiment(
 	newStatus *v2alpha1.DatadogAgentStatus,
 ) {
 	if experiment.Phase != v2alpha1.ExperimentPhaseRunning {
+		return
+	}
+	if newStatus.Experiment.Phase != v2alpha1.ExperimentPhaseRunning {
+		// handleRollback already determined a terminal phase (e.g. timeout); don't overwrite or log.
 		return
 	}
 	if experiment.Generation == 0 || instanceGeneration == experiment.Generation {
@@ -85,7 +92,7 @@ func (r *Reconciler) handleRollback(
 		logger.Info("Experiment stopped, rolling back")
 		return r.restorePreviousSpec(ctx, instance.ObjectMeta, newStatus, revisions, v2alpha1.ExperimentPhaseRollback)
 	case phase == v2alpha1.ExperimentPhaseRunning:
-		rev := findMostRecentRevision(revisions)
+		rev := findMostRecentMatchingRevision(revisions, instance)
 		if rev != nil {
 			elapsed := now.Sub(rev.CreationTimestamp.Time)
 			if elapsed >= getExperimentTimeout(r.options.ExperimentTimeout) {
@@ -98,8 +105,8 @@ func (r *Reconciler) handleRollback(
 	return nil
 }
 
-// restorePreviousSpec sets the terminal experiment phase and restores the DDA spec
-// from the previous ControllerRevision.
+// restorePreviousSpec restores the DDA spec from the previous ControllerRevision
+// and, on success, sets the terminal experiment phase.
 func (r *Reconciler) restorePreviousSpec(
 	ctx context.Context,
 	instanceMeta metav1.ObjectMeta,
@@ -107,8 +114,11 @@ func (r *Reconciler) restorePreviousSpec(
 	revisions []appsv1.ControllerRevision,
 	terminalPhase v2alpha1.ExperimentPhase,
 ) error {
+	if err := r.rollback(ctx, instanceMeta, findRollbackTarget(revisions)); err != nil {
+		return err
+	}
 	newStatus.Experiment.Phase = terminalPhase
-	return r.rollback(ctx, instanceMeta, findRollbackTarget(revisions))
+	return nil
 }
 
 // rollback restores the DDA spec from the named ControllerRevision.
@@ -146,11 +156,16 @@ func (r *Reconciler) rollback(
 		return nil
 	}
 
+	// Merge snapshot annotations (Datadog-only keys) on top of current annotations
+	// so that non-Datadog annotations (user metadata, tooling labels, etc.) are preserved.
+	merged := maps.Clone(current.Annotations)
+	maps.Copy(merged, snapshot.Annotations)
+
 	toUpdate := &v2alpha1.DatadogAgent{
 		ObjectMeta: current.ObjectMeta,
 		Spec:       snapshot.Spec,
 	}
-	toUpdate.Annotations = snapshot.Annotations
+	toUpdate.Annotations = merged
 	return r.client.Update(ctx, toUpdate)
 }
 
@@ -172,13 +187,31 @@ func findRollbackTarget(revisions []appsv1.ControllerRevision) string {
 	return prevName
 }
 
-// findMostRecentRevision returns the ControllerRevision with the highest Revision number,
-// or nil if the list is empty. Used to determine the experiment start time for timeout checks.
-func findMostRecentRevision(revisions []appsv1.ControllerRevision) *appsv1.ControllerRevision {
+// findMostRecentMatchingRevision returns the revision with the highest Revision number
+// whose snapshot content matches the current instance spec and annotations, or nil if
+// none match. This serves two purposes:
+//
+//   - First reconcile after experiment start: the revision for the new spec has not been
+//     created yet, so no revision matches → nil → timeout check is skipped, preventing a
+//     spurious immediate timeout from an old pre-experiment revision's timestamp.
+//
+//   - Post-rollback reconcile: the spec has been restored to the pre-experiment value.
+//     The matching revision is the pre-experiment one (old timestamp), so elapsed is
+//     large, timeout fires, and the idempotent rollback path sets phase=timeout cleanly
+//     without a spec-update conflict (ResourceVersion unchanged → status write succeeds).
+func findMostRecentMatchingRevision(revisions []appsv1.ControllerRevision, instance *v2alpha1.DatadogAgent) *appsv1.ControllerRevision {
+	snap := revisionSnapshot{Spec: instance.Spec, Annotations: datadogAnnotations(instance.GetAnnotations())}
+	snapBytes, err := json.Marshal(snap)
+	if err != nil {
+		return nil
+	}
 	var result *appsv1.ControllerRevision
 	for i := range revisions {
-		if result == nil || revisions[i].Revision > result.Revision {
-			result = &revisions[i]
+		rev := &revisions[i]
+		if bytes.Equal(rev.Data.Raw, snapBytes) {
+			if result == nil || rev.Revision > result.Revision {
+				result = rev
+			}
 		}
 	}
 	return result

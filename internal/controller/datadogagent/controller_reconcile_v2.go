@@ -79,7 +79,7 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 		if err := r.manageExperiment(ctx, instance, newDDAStatus, now, revList); err != nil {
 			return r.updateStatusIfNeededV2(logger, instance, newDDAStatus, result, err, now)
 		}
-		if err := r.manageRevision(ctx, instance, revList); err != nil {
+		if err := r.manageRevision(ctx, instance, revList, newDDAStatus); err != nil {
 			return r.updateStatusIfNeededV2(logger, instance, newDDAStatus, result, err, now)
 		}
 	}
