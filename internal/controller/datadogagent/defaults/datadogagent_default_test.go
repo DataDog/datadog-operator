@@ -2545,9 +2545,6 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueTrue),
-						NetworkStats: &v2alpha1.ServiceDiscoveryNetworkStatsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryNetworkStatsEnabled),
-						},
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
