@@ -398,6 +398,11 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 		})
 	}
 
+	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.OtelAgent}, &corev1.EnvVar{
+		Name:  DDOtelCollectorInstallationMethod,
+		Value: "kubernetes",
+	})
+
 	return nil
 }
 
