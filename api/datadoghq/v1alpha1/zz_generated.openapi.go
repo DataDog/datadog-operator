@@ -25,6 +25,10 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogAgentInternalStatus":                                     schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentInternalStatus(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogAgentProfile":                                            schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentProfile(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogAgentProfileStatus":                                      schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentProfileStatus(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogCSIDriver":                                               schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriver(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogCSIDriverOverride":                                       schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriverOverride(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogCSIDriverSpec":                                           schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriverSpec(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogCSIDriverStatus":                                         schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriverStatus(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogDashboard":                                               schema_datadog_operator_api_datadoghq_v1alpha1_DatadogDashboard(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogDashboardSpec":                                           schema_datadog_operator_api_datadoghq_v1alpha1_DatadogDashboardSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogDashboardStatus":                                         schema_datadog_operator_api_datadoghq_v1alpha1_DatadogDashboardStatus(ref),
@@ -485,6 +489,336 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentProfileStatus(re
 		},
 		Dependencies: []string{
 			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.CreateStrategy", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriver(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogCSIDriver is the Schema for the datadogcsidrivers API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogCSIDriverSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogCSIDriverStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogCSIDriverSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogCSIDriverStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriverOverride(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogCSIDriverOverride provides override capabilities for the CSI driver DaemonSet.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"labels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AdditionalLabels provides labels that are added to the CSI driver DaemonSet pods.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"annotations": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Annotations provides annotations that are added to the CSI driver DaemonSet pods.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"nodeSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NodeSelector is a map of key-value pairs. For the CSI driver pod to run on a specific node, the node must have these key-value pairs as labels.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"tolerations": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Tolerations configure the CSI driver DaemonSet pod tolerations.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.Toleration"),
+									},
+								},
+							},
+						},
+					},
+					"affinity": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Affinity specifies the pod's scheduling constraints.",
+							Ref:         ref("k8s.io/api/core/v1.Affinity"),
+						},
+					},
+					"priorityClassName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PriorityClassName indicates the pod's priority.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"securityContext": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SecurityContext holds pod-level security attributes.",
+							Ref:         ref("k8s.io/api/core/v1.PodSecurityContext"),
+						},
+					},
+					"updateStrategy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "UpdateStrategy is the DaemonSet update strategy configuration.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/common.UpdateStrategy"),
+						},
+					},
+					"containers": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Containers allows overriding container-level configuration for the CSI driver containers. Valid keys are: \"csi-node-driver\" and \"csi-node-driver-registrar\".",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogAgentGenericContainer"),
+									},
+								},
+							},
+						},
+					},
+					"volumes": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Volumes specifies additional volumes to add to the CSI driver DaemonSet pods.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.Volume"),
+									},
+								},
+							},
+						},
+					},
+					"env": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Env specifies additional environment variables for all containers.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.EnvVar"),
+									},
+								},
+							},
+						},
+					},
+					"serviceAccountName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ServiceAccountName sets the ServiceAccount used by the CSI driver DaemonSet.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/common.UpdateStrategy", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogAgentGenericContainer", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.Volume"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriverSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogCSIDriverSpec defines the desired state of DatadogCSIDriver",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"csiDriverImage": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CSIDriverImage is the image configuration for the main CSI node driver container. Default image: gcr.io/datadoghq/csi-driver:1.2.1",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AgentImageConfig"),
+						},
+					},
+					"registrarImage": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RegistrarImage is the image configuration for the CSI node driver registrar sidecar. Default image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.0.1",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AgentImageConfig"),
+						},
+					},
+					"csiDriverName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CSIDriverName is the name of the CSIDriver Kubernetes object to create. Default: k8s.csi.datadoghq.com",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apmSocketPath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APMSocketPath is the host path to the APM socket. Default: /var/run/datadog/apm.socket",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"dsdSocketPath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DSDSocketPath is the host path to the DogStatsD socket. Default: /var/run/datadog/dsd.socket",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"override": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Override allows customization of the CSI driver DaemonSet pod template.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogCSIDriverOverride"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogCSIDriverOverride", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AgentImageConfig"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriverStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogCSIDriverStatus defines the observed state of DatadogCSIDriver",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"observedGeneration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ObservedGeneration is the most recent generation observed for this resource.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"conditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"type",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions represents the latest available observations of the DatadogCSIDriver's current state.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.Condition"),
+									},
+								},
+							},
+						},
+					},
+					"daemonSet": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DaemonSet tracks the status of the CSI driver DaemonSet.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DaemonSetStatus"),
+						},
+					},
+					"csiDriverName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CSIDriverName is the name of the managed CSIDriver Kubernetes object.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DaemonSetStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition"},
 	}
 }
 
