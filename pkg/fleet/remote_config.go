@@ -10,19 +10,32 @@ import (
 	"fmt"
 
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // installerConfig is the fleet installer configuration received via RC.
 type installerConfig struct {
-	ID             string                         `json:"id"`
-	FileOperations []installerConfigFileOperation `json:"file_operations"`
+	ID         string                     `json:"id"`
+	Operations []fleetManagementOperation `json:"operations"`
 }
 
-// installerConfigFileOperation is a single file operation in an installerConfig.
-type installerConfigFileOperation struct {
-	FileOperationType string          `json:"file_op"`
-	FilePath          string          `json:"file_path"`
-	Patch             json.RawMessage `json:"patch"`
+// Operation is the type of fleet management operation to perform on a Kubernetes resource.
+type Operation string
+
+const (
+	OperationCreate Operation = "create"
+	OperationUpdate Operation = "update"
+	OperationDelete Operation = "delete"
+)
+
+// fleetManagementOperation is a single fleet operation for config management of a Kubernetes resource.
+// Config is a JSON merge patch (no strategic merge patch).
+type fleetManagementOperation struct {
+	Operation        Operation               `json:"operation"`
+	GroupVersionKind schema.GroupVersionKind `json:"group_version_kind"`
+	NamespacedName   types.NamespacedName    `json:"namespaced_name"`
+	Config           json.RawMessage         `json:"config"`
 }
 
 // remoteAPIRequest is a task sent to the fleet daemon via RC.
@@ -91,6 +104,9 @@ func handleUpdaterTaskUpdate(h func(remoteAPIRequest) error) func(map[string]sta
 				applyStatus(cfgPath, state.ApplyStatus{State: state.ApplyStateAcknowledged})
 				continue
 			}
+
+			// Signal received and parsed; notify the backend before applying.
+			applyStatus(cfgPath, state.ApplyStatus{State: state.ApplyStateUnacknowledged})
 
 			if err := h(req); err != nil {
 				applyStatus(cfgPath, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
