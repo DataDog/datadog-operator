@@ -12,17 +12,27 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // Test data
 
 var testInstallerConfig = installerConfig{
 	ID: "test",
-	FileOperations: []installerConfigFileOperation{
+	Operations: []fleetManagementOperation{
 		{
-			FileOperationType: "write",
-			FilePath:          "/etc/datadog-agent/config.yaml",
-			Patch:             json.RawMessage(`{"key":"value"}`),
+			Operation: OperationUpdate,
+			GroupVersionKind: schema.GroupVersionKind{
+				Group:   "datadoghq.com",
+				Version: "v2alpha1",
+				Kind:    "DatadogAgent",
+			},
+			NamespacedName: types.NamespacedName{
+				Namespace: "datadog",
+				Name:      "datadog-agent",
+			},
+			Config: json.RawMessage(`{"spec":{"features":{"apm":{"enabled":true}}}}`),
 		},
 	},
 }
@@ -130,11 +140,13 @@ func TestRemoteAPIRequest(t *testing.T) {
 	updates := map[string]state.RawConfig{"path/to/task": raw}
 
 	cb.On("handleRemoteAPIRequest", testRemoteAPIRequest).Return(nil)
+	cb.On("applyStateCallback", "path/to/task", state.ApplyStatus{State: state.ApplyStateUnacknowledged}).Return()
 	cb.On("applyStateCallback", "path/to/task", state.ApplyStatus{State: state.ApplyStateAcknowledged}).Return()
 
 	handler(updates, cb.applyStateCallback)
 
 	cb.AssertCalled(t, "handleRemoteAPIRequest", testRemoteAPIRequest)
+	cb.AssertCalled(t, "applyStateCallback", "path/to/task", state.ApplyStatus{State: state.ApplyStateUnacknowledged})
 	cb.AssertCalled(t, "applyStateCallback", "path/to/task", state.ApplyStatus{State: state.ApplyStateAcknowledged})
 }
 
@@ -166,6 +178,7 @@ func TestRemoteAPIRequestError(t *testing.T) {
 	updates := map[string]state.RawConfig{"path/to/task": raw}
 
 	cb.On("handleRemoteAPIRequest", testRemoteAPIRequest).Return(assert.AnError)
+	cb.On("applyStateCallback", "path/to/task", state.ApplyStatus{State: state.ApplyStateUnacknowledged}).Return()
 	cb.On("applyStateCallback", "path/to/task", mock.MatchedBy(func(s state.ApplyStatus) bool {
 		return s.State == state.ApplyStateError && s.Error != ""
 	})).Return()
@@ -173,6 +186,7 @@ func TestRemoteAPIRequestError(t *testing.T) {
 	handler(updates, cb.applyStateCallback)
 
 	cb.AssertCalled(t, "handleRemoteAPIRequest", testRemoteAPIRequest)
+	cb.AssertCalled(t, "applyStateCallback", "path/to/task", state.ApplyStatus{State: state.ApplyStateUnacknowledged})
 	cb.AssertCalled(t, "applyStateCallback", "path/to/task", mock.MatchedBy(func(s state.ApplyStatus) bool {
 		return s.State == state.ApplyStateError
 	}))
@@ -186,16 +200,17 @@ func TestRemoteAPIRequestIgnoresAlreadyExecutedRequests(t *testing.T) {
 	updates := map[string]state.RawConfig{"path/to/task": raw}
 
 	cb.On("handleRemoteAPIRequest", testRemoteAPIRequest).Return(nil)
+	cb.On("applyStateCallback", "path/to/task", state.ApplyStatus{State: state.ApplyStateUnacknowledged}).Return()
 	cb.On("applyStateCallback", "path/to/task", state.ApplyStatus{State: state.ApplyStateAcknowledged}).Return()
 
-	// First call — should invoke the handler.
+	// First call — should invoke the handler; sends Unacknowledged then Acknowledged.
 	handler(updates, cb.applyStateCallback)
 	cb.AssertNumberOfCalls(t, "handleRemoteAPIRequest", 1)
 
-	// Second call with same request ID — handler must NOT be called again.
+	// Second call with same request ID — handler must NOT be called again; sends only Acknowledged.
 	handler(updates, cb.applyStateCallback)
 	cb.AssertNumberOfCalls(t, "handleRemoteAPIRequest", 1)
 
-	// applyStateCallback is called both times (acknowledge on repeat).
-	cb.AssertNumberOfCalls(t, "applyStateCallback", 2)
+	// First call: Unacknowledged + Acknowledged. Second call: Acknowledged only.
+	cb.AssertNumberOfCalls(t, "applyStateCallback", 3)
 }
