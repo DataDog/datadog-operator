@@ -257,6 +257,72 @@ func TestHandleRollback_PostRollbackSetsTimeout(t *testing.T) {
 	assert.Equal(t, v2alpha1.ExperimentPhaseTimeout, newStatus.Experiment.Phase)
 }
 
+// TestReapplySameSpecAfterRollback_NoImmediateTimeout is the end-to-end
+// regression test for the stale-revision bug.
+//
+// Without the fix: gcOldRevisions kept the experiment revision (rev2/B) after
+// rollback. When RC later re-applied spec B as a new experiment and set
+// phase=Running, findMostRecentMatchingRevision found the stale rev2 — its
+// CreationTimestamp predated the current experiment — so elapsed >= timeout
+// fired immediately and the operator rolled back again, making the re-apply
+// appear to have no effect.
+//
+// With the fix: gcOldRevisions deletes rev2 once phase=Rollback is persisted.
+// Re-applying spec B creates a fresh revision with a current timestamp, and
+// the timeout clock starts correctly.
+func TestReapplySameSpecAfterRollback_NoImmediateTimeout(t *testing.T) {
+	r, c := newRevisionTestReconciler(t)
+
+	// Setup: create revisions for spec A (pre-experiment) and spec B (experiment).
+	instanceA := newRevisionTestOwner("test-dda", "default")
+	require.NoError(t, r.manageRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), nil))
+
+	instanceB := newRevisionTestOwner("test-dda", "default")
+	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
+	require.NoError(t, r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil))
+	require.NoError(t, c.Create(context.Background(), instanceB))
+
+	// Backdate rev2 (B) to simulate a long-running experiment whose revision
+	// timestamp is well past the timeout threshold.
+	revList := mustListRevisions(t, r, instanceB)
+	for i := range revList {
+		if revList[i].Revision == 2 {
+			revList[i].CreationTimestamp = metav1.NewTime(time.Now().Add(-ExperimentDefaultTimeout - time.Hour))
+		}
+	}
+
+	// Rollback: RC sets phase=Stopped; operator restores spec A.
+	instanceB.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseStopped}
+	rollbackStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceB.Status.Experiment.DeepCopy()}
+	require.NoError(t, r.handleRollback(context.Background(), instanceB, rollbackStatus, metav1.Now(), revList))
+	require.Equal(t, v2alpha1.ExperimentPhaseRollback, rollbackStatus.Experiment.Phase)
+
+	// Next reconcile: Rollback phase is now persisted in instance.Status.
+	// gcOldRevisions must delete the stale rev2 (B).
+	instanceA.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseRollback}
+	rollbackNewStatus := &v2alpha1.DatadogAgentStatus{Experiment: &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseRollback}}
+	require.NoError(t, r.manageRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), rollbackNewStatus))
+
+	remaining := mustListRevisions(t, r, instanceA)
+	require.Len(t, remaining, 1, "stale experiment revision (spec B) must be deleted once Rollback phase is persisted")
+
+	// RC re-applies spec B as a new experiment (sets spec=B, phase=Running).
+	// In the real reconcile loop manageExperiment (handleRollback) runs before
+	// manageRevision, so no revision for spec B exists at the time of the check.
+	// findMostRecentMatchingRevision returns nil → timeout check is skipped.
+	instanceB2 := newRevisionTestOwner("test-dda", "default")
+	instanceB2.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
+	instanceB2.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseRunning}
+
+	revListBeforeNewRevision := mustListRevisions(t, r, instanceB2)
+	require.Len(t, revListBeforeNewRevision, 1, "only rev1 (A) should exist before the new experiment's revision is created")
+
+	newStatus2 := &v2alpha1.DatadogAgentStatus{Experiment: instanceB2.Status.Experiment.DeepCopy()}
+	require.NoError(t, r.handleRollback(context.Background(), instanceB2, newStatus2, metav1.Now(), revListBeforeNewRevision))
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, newStatus2.Experiment.Phase,
+		"re-applying the same spec after rollback must not immediately time out")
+}
+
 func TestHandleRollback_Timeout(t *testing.T) {
 	r, c := newRevisionTestReconciler(t)
 

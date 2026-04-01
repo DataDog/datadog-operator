@@ -407,6 +407,83 @@ func TestManageRevision_PreviousDeletedContinuesNormally(t *testing.T) {
 	assert.Equal(t, int64(2), revList[0].Revision)
 }
 
+// TestGCOldRevisions_DeletesPreviousAfterRejectedExperiment verifies that when
+// the persisted experiment phase is a rejected terminal phase (Rollback, Timeout,
+// or Aborted), gcOldRevisions deletes the stale experiment revision instead of
+// keeping it as "previous". This prevents an immediate timeout if the same spec
+// is re-applied as a new experiment.
+func TestGCOldRevisions_DeletesPreviousAfterRejectedExperiment(t *testing.T) {
+	rejectedPhases := []v2alpha1.ExperimentPhase{
+		v2alpha1.ExperimentPhaseRollback,
+		v2alpha1.ExperimentPhaseTimeout,
+		v2alpha1.ExperimentPhaseAborted,
+	}
+
+	for _, phase := range rejectedPhases {
+		t.Run(string(phase), func(t *testing.T) {
+			r, c := newRevisionTestReconciler(t)
+
+			instanceA := newRevisionTestOwner("test-dda", "default")
+			instanceB := newRevisionTestOwner("test-dda", "default")
+			instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
+
+			nameA, err := r.ensureRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), false)
+			require.NoError(t, err)
+			_, err = r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), false)
+			require.NoError(t, err)
+
+			// Simulate the persisted status having a rejected terminal phase.
+			// current is instanceA (spec restored after rollback).
+			instanceA.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: phase}
+
+			err = r.gcOldRevisions(context.Background(), instanceA, nameA, mustListRevisions(t, r, instanceA))
+			require.NoError(t, err)
+
+			revList := &appsv1.ControllerRevisionList{}
+			require.NoError(t, c.List(context.Background(), revList))
+			assert.Len(t, revList.Items, 1, "experiment revision should be deleted after rejected phase")
+			assert.Equal(t, nameA, revList.Items[0].Name, "only the current (pre-experiment) revision should remain")
+		})
+	}
+}
+
+// TestGCOldRevisions_KeepsPreviousForNonRejectedPhases verifies that for
+// non-rejected experiment phases (Running, Promoted, or nil), the normal
+// "keep current + previous" behavior is preserved.
+func TestGCOldRevisions_KeepsPreviousForNonRejectedPhases(t *testing.T) {
+	nonRejectedPhases := []v2alpha1.ExperimentPhase{
+		v2alpha1.ExperimentPhaseRunning,
+		v2alpha1.ExperimentPhasePromoted,
+		"", // nil experiment
+	}
+
+	for _, phase := range nonRejectedPhases {
+		t.Run(string(phase)+"_or_nil", func(t *testing.T) {
+			r, c := newRevisionTestReconciler(t)
+
+			instanceA := newRevisionTestOwner("test-dda", "default")
+			instanceB := newRevisionTestOwner("test-dda", "default")
+			instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
+
+			_, err := r.ensureRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), false)
+			require.NoError(t, err)
+			nameB, err := r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), false)
+			require.NoError(t, err)
+
+			if phase != "" {
+				instanceB.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: phase}
+			}
+
+			err = r.gcOldRevisions(context.Background(), instanceB, nameB, mustListRevisions(t, r, instanceB))
+			require.NoError(t, err)
+
+			revList := &appsv1.ControllerRevisionList{}
+			require.NoError(t, c.List(context.Background(), revList))
+			assert.Len(t, revList.Items, 2, "current and previous should both be kept for non-rejected phase")
+		})
+	}
+}
+
 // TestListRevisions_ExcludesForeignOwner verifies that a ControllerRevision
 // sharing the same name label but owned by a different DDA UID (e.g. a
 // deleted-and-recreated DDA) is not returned by listRevisions.

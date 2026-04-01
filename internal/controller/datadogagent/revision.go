@@ -196,6 +196,17 @@ func datadogAnnotations(all map[string]string) map[string]string {
 
 // gcOldRevisions deletes all but the two most recent ControllerRevisions:
 // the current and previous.
+//
+// Exception: after a rejected experiment (rollback, timeout, or abort) the
+// experiment revision carries a stale CreationTimestamp. If that revision were
+// kept and the same spec were re-applied as a new experiment,
+// findMostRecentMatchingRevision would find it, compute an elapsed time based
+// on the old timestamp, and immediately time out. To prevent this, all
+// non-current revisions are deleted once the rejected phase is persisted in
+// instance.Status. The check uses the persisted status (not the in-flight
+// newStatus) so that the revision survives any status-write conflicts during
+// the rollback itself — the deletion is intentionally deferred to the next
+// reconcile cycle after the terminal phase is confirmed.
 func (r *Reconciler) gcOldRevisions(
 	ctx context.Context,
 	instance *v2alpha1.DatadogAgent,
@@ -205,16 +216,20 @@ func (r *Reconciler) gcOldRevisions(
 	logger := ctrl.LoggerFrom(ctx)
 
 	// Identify the most recent non-current revision to keep as previous.
+	// Skip this when the persisted experiment phase is a rejected terminal
+	// phase — in that case we want to delete the stale experiment revision.
 	previous := ""
-	previousRevision := int64(-1)
-	for i := range revList {
-		rev := &revList[i]
-		if rev.Name == current {
-			continue
-		}
-		if rev.Revision > previousRevision {
-			previousRevision = rev.Revision
-			previous = rev.Name
+	if !isRejectedExperimentPhase(instance) {
+		previousRevision := int64(-1)
+		for i := range revList {
+			rev := &revList[i]
+			if rev.Name == current {
+				continue
+			}
+			if rev.Revision > previousRevision {
+				previousRevision = rev.Revision
+				previous = rev.Name
+			}
 		}
 	}
 
@@ -235,4 +250,19 @@ func (r *Reconciler) gcOldRevisions(
 	}
 
 	return nil
+}
+
+// isRejectedExperimentPhase returns true when the persisted experiment phase
+// indicates the experiment spec was rejected — rolled back, timed out, or
+// aborted. These are the cases where keeping the experiment revision would
+// cause an immediate timeout if the same spec were re-applied.
+func isRejectedExperimentPhase(instance *v2alpha1.DatadogAgent) bool {
+	if instance.Status.Experiment == nil {
+		return false
+	}
+	switch instance.Status.Experiment.Phase {
+	case v2alpha1.ExperimentPhaseRollback, v2alpha1.ExperimentPhaseTimeout, v2alpha1.ExperimentPhaseAborted:
+		return true
+	}
+	return false
 }
