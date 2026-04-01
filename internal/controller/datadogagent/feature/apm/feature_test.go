@@ -359,8 +359,7 @@ func TestAPMFeature(t *testing.T) {
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
 					v2alpha1.DatadogAgentComponentOverride{
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.60.0"},
-						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "false"}},
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.59.0"},
 					},
 				).
 				Build(),
@@ -643,6 +642,14 @@ func testAPMInstrumentationFull() *test.ComponentTest {
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
+					Name:  DDTraceAgentHostSocketPath,
+					Value: common.DogstatsdAPMSocketHostPath,
+				},
+				{
+					Name:  DDAPMReceiverSocket,
+					Value: apmSocketHostPath,
+				},
+				{
 					Name:  DDAPMInstrumentationEnabled,
 					Value: "true",
 				},
@@ -675,11 +682,20 @@ func testAPMInstrumentationDisabledWithAC() *test.ComponentTest {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
-
+			expectedEnvs := []*corev1.EnvVar{
+				{
+					Name:  DDTraceAgentHostSocketPath,
+					Value: common.DogstatsdAPMSocketHostPath,
+				},
+				{
+					Name:  DDAPMReceiverSocket,
+					Value: apmSocketHostPath,
+				},
+			}
 			assert.True(
 				t,
-				apiutils.IsEqualStruct(agentEnvs, nil),
-				"Cluster Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, nil),
+				apiutils.IsEqualStruct(agentEnvs, expectedEnvs),
+				"Cluster Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, expectedEnvs),
 			)
 		},
 	)
@@ -692,6 +708,14 @@ func testAPMInstrumentationNamespaces() *test.ComponentTest {
 
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
+				{
+					Name:  DDTraceAgentHostSocketPath,
+					Value: common.DogstatsdAPMSocketHostPath,
+				},
+				{
+					Name:  DDAPMReceiverSocket,
+					Value: apmSocketHostPath,
+				},
 				{
 					Name:  DDAPMInstrumentationEnabled,
 					Value: "false",
@@ -722,6 +746,14 @@ func testAPMInstrumentation() *test.ComponentTest {
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
+					Name:  DDTraceAgentHostSocketPath,
+					Value: common.DogstatsdAPMSocketHostPath,
+				},
+				{
+					Name:  DDAPMReceiverSocket,
+					Value: apmSocketHostPath,
+				},
+				{
 					Name:  DDAPMInstrumentationEnabled,
 					Value: "true",
 				},
@@ -743,6 +775,14 @@ func testAPMInstrumentationWithLanguageDetectionEnabledForClusterAgent() *test.C
 			// Test Cluster Agent Env Vars
 			clusterAgentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 			expectedClusterAgentEnvs := []*corev1.EnvVar{
+				{
+					Name:  DDTraceAgentHostSocketPath,
+					Value: common.DogstatsdAPMSocketHostPath,
+				},
+				{
+					Name:  DDAPMReceiverSocket,
+					Value: apmSocketHostPath,
+				},
 				{
 					Name:  DDAPMInstrumentationEnabled,
 					Value: "true",
@@ -773,6 +813,14 @@ func testAPMInstrumentationWithCustomInjectorImage() *test.ComponentTest {
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
+					Name:  DDTraceAgentHostSocketPath,
+					Value: common.DogstatsdAPMSocketHostPath,
+				},
+				{
+					Name:  DDAPMReceiverSocket,
+					Value: apmSocketHostPath,
+				},
+				{
 					Name:  DDAPMInstrumentationEnabled,
 					Value: "true",
 				},
@@ -797,6 +845,14 @@ func testAPMInstrumentationWithInjectionMode(injectionMode string) *test.Compone
 
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
+				{
+					Name:  DDTraceAgentHostSocketPath,
+					Value: common.DogstatsdAPMSocketHostPath,
+				},
+				{
+					Name:  DDAPMReceiverSocket,
+					Value: apmSocketHostPath,
+				},
 				{
 					Name:  DDAPMInstrumentationEnabled,
 					Value: "true",

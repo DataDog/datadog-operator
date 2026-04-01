@@ -158,6 +158,16 @@ func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers,
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *dogstatsdFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+	if f.udsEnabled {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDDogstatsdHostSocketPath,
+			Value: filepath.Dir(f.udsHostFilepath),
+		})
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDDogstatsdSocket,
+			Value: f.udsHostFilepath,
+		})
+	}
 	return nil
 }
 
