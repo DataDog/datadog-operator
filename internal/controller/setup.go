@@ -37,6 +37,7 @@ const (
 	profileControllerName         = "DatadogAgentProfile"
 	dashboardControllerName       = "DatadogDashboard"
 	genericResourceControllerName = "DatadogGenericResource"
+	csiDriverControllerName       = "DatadogCSIDriver"
 )
 
 // SetupOptions defines options for setting up controllers to ease testing
@@ -57,6 +58,7 @@ type SetupOptions struct {
 	OtelAgentEnabled              bool
 	DatadogDashboardEnabled       bool
 	DatadogGenericResourceEnabled bool
+	DatadogCSIDriverEnabled       bool
 }
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
@@ -85,6 +87,7 @@ var controllerStarters = map[string]starterFunc{
 	profileControllerName:         startDatadogAgentProfiles,
 	dashboardControllerName:       startDatadogDashboard,
 	genericResourceControllerName: startDatadogGenericResource,
+	csiDriverControllerName:       startDatadogCSIDriver,
 }
 
 // SetupControllers starts all controllers (also used by e2e tests)
@@ -268,6 +271,20 @@ func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, pInfo ku
 		Log:      ctrl.Log.WithName("controllers").WithName(profileControllerName),
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorderFor(profileControllerName),
+	}).SetupWithManager(mgr)
+}
+
+func startDatadogCSIDriver(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
+	if !options.DatadogCSIDriverEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", csiDriverControllerName)
+		return nil
+	}
+
+	return (&DatadogCSIDriverReconciler{
+		Client:   mgr.GetClient(),
+		Log:      ctrl.Log.WithName("controllers").WithName(csiDriverControllerName),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor(csiDriverControllerName),
 	}).SetupWithManager(mgr)
 }
 
