@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -18,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 const datadogCSIDriverKind = "DatadogCSIDriver"
@@ -42,43 +44,59 @@ func (r *Reconciler) reconcileDatadogCSIDriver(ctx context.Context, logger logr.
 	return r.cleanupDatadogCSIDriver(ctx, logger, instance)
 }
 
-// createOrUpdateDatadogCSIDriver ensures a DatadogCSIDriver resource exists for the given DDA.
+// buildDesiredDatadogCSIDriver builds the desired DatadogCSIDriver object from the DDA spec.
+// Currently the spec is empty (the DatadogCSIDriver controller applies its own defaults).
+// In a follow-up, this will construct the spec based on relevant DDA fields.
+func (r *Reconciler) buildDesiredDatadogCSIDriver(instance *v2alpha1.DatadogAgent) (*v1alpha1.DatadogCSIDriver, error) {
+	ddcsi := &v1alpha1.DatadogCSIDriver{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      instance.Name,
+			Namespace: instance.Namespace,
+		},
+	}
+	if err := controllerutil.SetControllerReference(instance, ddcsi, r.scheme); err != nil {
+		return nil, fmt.Errorf("failed to set owner reference on DatadogCSIDriver: %w", err)
+	}
+	return ddcsi, nil
+}
+
+// createOrUpdateDatadogCSIDriver ensures a DatadogCSIDriver resource exists with the desired spec.
+// Like DatadogAgentInternal, this treats the DatadogCSIDriver as a desired-state object: if someone
+// modifies it, the operator will reconcile it back to the desired state on the next loop.
 func (r *Reconciler) createOrUpdateDatadogCSIDriver(ctx context.Context, logger logr.Logger, instance *v2alpha1.DatadogAgent) error {
 	// Guard: check that the DatadogCSIDriver CRD is installed on the cluster.
 	if !r.platformInfo.IsResourceSupported(datadogCSIDriverKind) {
 		return fmt.Errorf("DatadogCSIDriver CRD is not installed on the cluster but spec.global.csi.createDatadogCSIDriver is enabled")
 	}
 
-	ddcsiName := instance.Name
-	ddcsiNamespace := instance.Namespace
+	desired, err := r.buildDesiredDatadogCSIDriver(instance)
+	if err != nil {
+		return err
+	}
 
 	existing := &v1alpha1.DatadogCSIDriver{}
-	err := r.client.Get(ctx, types.NamespacedName{Name: ddcsiName, Namespace: ddcsiNamespace}, existing)
-	if err == nil {
-		// Already exists — nothing to update currently (empty spec, controller applies defaults).
-		logger.V(1).Info("DatadogCSIDriver already exists, skipping update", "name", ddcsiName)
+	err = r.client.Get(ctx, types.NamespacedName{Name: desired.Name, Namespace: desired.Namespace}, existing)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return fmt.Errorf("failed to get DatadogCSIDriver %s/%s: %w", desired.Namespace, desired.Name, err)
+		}
+
+		// Create a new DatadogCSIDriver.
+		logger.Info("Creating DatadogCSIDriver", "name", desired.Name, "namespace", desired.Namespace)
+		if err := r.client.Create(ctx, desired); err != nil {
+			return fmt.Errorf("failed to create DatadogCSIDriver %s/%s: %w", desired.Namespace, desired.Name, err)
+		}
 		return nil
 	}
-	if !apierrors.IsNotFound(err) {
-		return fmt.Errorf("failed to get DatadogCSIDriver %s/%s: %w", ddcsiNamespace, ddcsiName, err)
+
+	// Update if the spec has drifted from the desired state.
+	if !apiequality.Semantic.DeepEqual(existing.Spec, desired.Spec) {
+		logger.Info("Updating DatadogCSIDriver", "name", desired.Name, "namespace", desired.Namespace)
+		if err := kubernetes.UpdateFromObject(ctx, r.client, desired, existing.ObjectMeta); err != nil {
+			return fmt.Errorf("failed to update DatadogCSIDriver %s/%s: %w", desired.Namespace, desired.Name, err)
+		}
 	}
 
-	// Create a new DatadogCSIDriver with owner reference to the DDA.
-	// The DatadogCSIDriver controller will apply its own defaults to the empty spec.
-	ddcsi := &v1alpha1.DatadogCSIDriver{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      ddcsiName,
-			Namespace: ddcsiNamespace,
-		},
-	}
-	if err := controllerutil.SetControllerReference(instance, ddcsi, r.scheme); err != nil {
-		return fmt.Errorf("failed to set owner reference on DatadogCSIDriver: %w", err)
-	}
-
-	logger.Info("Creating DatadogCSIDriver", "name", ddcsiName, "namespace", ddcsiNamespace)
-	if err := r.client.Create(ctx, ddcsi); err != nil {
-		return fmt.Errorf("failed to create DatadogCSIDriver %s/%s: %w", ddcsiNamespace, ddcsiName, err)
-	}
 	return nil
 }
 

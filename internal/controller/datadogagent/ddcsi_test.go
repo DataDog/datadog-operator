@@ -188,6 +188,34 @@ func TestReconcileDatadogCSIDriver_CleanupSkipsNotOwned(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestReconcileDatadogCSIDriver_UpdateOnSpecDrift(t *testing.T) {
+	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
+	dda := newDDAForDDCSI("test-dda", "default", true, true)
+
+	// Create the DatadogCSIDriver via reconcile
+	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
+	require.NoError(t, err)
+
+	// Simulate external modification: someone sets a custom APM socket path
+	existing := &v1alpha1.DatadogCSIDriver{}
+	err = r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, existing)
+	require.NoError(t, err)
+	customPath := "/custom/apm.socket"
+	existing.Spec.APMSocketPath = &customPath
+	err = r.client.Update(context.Background(), existing)
+	require.NoError(t, err)
+
+	// Reconcile again — should update back to the desired state (empty spec)
+	err = r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
+	require.NoError(t, err)
+
+	// Verify the spec was reconciled back to desired state
+	updated := &v1alpha1.DatadogCSIDriver{}
+	err = r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, updated)
+	require.NoError(t, err)
+	assert.Nil(t, updated.Spec.APMSocketPath)
+}
+
 func TestReconcileDatadogCSIDriver_CleanupCRDNotAvailable(t *testing.T) {
 	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithoutDDCSI())
 	dda := newDDAForDDCSI("test-dda", "default", false, false)
