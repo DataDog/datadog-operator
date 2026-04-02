@@ -212,7 +212,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled:          apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						EnabledByDefault: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabledByDefault),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
@@ -361,7 +362,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled:          apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						EnabledByDefault: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabledByDefault),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
@@ -460,7 +462,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled:          apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						EnabledByDefault: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabledByDefault),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
@@ -596,7 +599,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled:          apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						EnabledByDefault: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabledByDefault),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
@@ -757,7 +761,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled:          apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						EnabledByDefault: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabledByDefault),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
@@ -913,7 +918,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled:          apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						EnabledByDefault: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabledByDefault),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
@@ -1069,7 +1075,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled:          apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						EnabledByDefault: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabledByDefault),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
@@ -1234,7 +1241,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled:          apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						EnabledByDefault: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabledByDefault),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
@@ -1390,7 +1398,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled:          apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						EnabledByDefault: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabledByDefault),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
@@ -1549,7 +1558,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled:          apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						EnabledByDefault: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabledByDefault),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
@@ -1751,7 +1761,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled:          apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						EnabledByDefault: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabledByDefault),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
@@ -1876,7 +1887,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled:          apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						EnabledByDefault: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabledByDefault),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
@@ -2033,7 +2045,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled:          apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						EnabledByDefault: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabledByDefault),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
@@ -2213,7 +2226,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled:          apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						EnabledByDefault: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabledByDefault),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
@@ -2372,7 +2386,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled:          apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						EnabledByDefault: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabledByDefault),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
@@ -2544,7 +2559,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueTrue),
+						Enabled:          apiutils.NewBoolPointer(valueTrue),
+						EnabledByDefault: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabledByDefault),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
