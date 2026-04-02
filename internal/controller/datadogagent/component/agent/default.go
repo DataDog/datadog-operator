@@ -422,6 +422,8 @@ func agentOptimizedContainers(dda metav1.Object, requiredContainers []apicommon.
 			containers = append(containers, hostProfilerContainer(dda))
 		case apicommon.AgentDataPlaneContainerName:
 			containers = append(containers, agentDataPlaneContainer(dda))
+		case apicommon.FlightRecorderContainerName:
+			containers = append(containers, flightRecorderContainer(dda))
 		}
 	}
 
@@ -605,6 +607,21 @@ func agentDataPlaneContainer(dda metav1.Object) corev1.Container {
 		VolumeMounts:   volumeMountsForAgentDataPlane(),
 		LivenessProbe:  constants.GetDefaultAgentDataPlaneLivenessProbe(),
 		ReadinessProbe: constants.GetDefaultAgentDataPlaneReadinessProbe(),
+		SecurityContext: &corev1.SecurityContext{
+			ReadOnlyRootFilesystem: apiutils.NewBoolPointer(true),
+		},
+	}
+}
+
+func flightRecorderContainer(dda metav1.Object) corev1.Container {
+	return corev1.Container{
+		Name:  string(apicommon.FlightRecorderContainerName),
+		Image: agentImage(),
+		Command: []string{
+			"/opt/datadog-agent/embedded/bin/flightrecorder",
+		},
+		Env:          commonEnvVars(dda),
+		VolumeMounts: volumeMountsForFlightRecorder(),
 		SecurityContext: &corev1.SecurityContext{
 			ReadOnlyRootFilesystem: apiutils.NewBoolPointer(true),
 		},
@@ -896,5 +913,18 @@ func volumeMountsForAgentDataPlane() []corev1.VolumeMount {
 		common.GetVolumeMountForProc(),
 		common.GetVolumeMountForCgroups(),
 		common.GetVolumeMountForTmp(),
+	}
+}
+
+func volumeMountsForFlightRecorder() []corev1.VolumeMount {
+	return []corev1.VolumeMount{
+		{
+			Name:      common.FlightRecorderSocketVolumeName,
+			MountPath: common.FlightRecorderSocketPath,
+		},
+		{
+			Name:      common.FlightRecorderDataVolumeName,
+			MountPath: common.FlightRecorderDataPath,
+		},
 	}
 }
