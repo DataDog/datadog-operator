@@ -4,6 +4,11 @@
   "enabledManagers": ["github-actions", "gomod"],
   "packageRules": [
     {
+      "matchManagers": ["gomod"],
+      "matchDepNames": ["go"],
+      "enabled": false
+    },
+    {
       "matchManagers": ["github-actions"],
       "labels": ["tooling", "qa/skip-qa"],
       "schedule": ["before 6am on Monday"],
