@@ -1,6 +1,19 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
+  "extends": ["config:recommended"],
+  "enabledManagers": ["github-actions", "gomod"],
+  "packageRules": [
+    {
+      "matchManagers": ["github-actions"],
+      "labels": ["tooling", "qa/skip-qa"],
+      "schedule": ["before 6am on Monday"],
+      "groupName": "github actions"
+    },
+    {
+      "matchManagers": ["gomod"],
+      "labels": ["dependencies", "qa/skip-qa"],
+      "schedule": ["before 6am on Monday"],
+      "groupName": "go dependencies"
+    }
   ]
 }
