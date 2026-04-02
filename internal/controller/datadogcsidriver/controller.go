@@ -76,7 +76,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogCS
 
 		r.populateDaemonSetStatus(ctx, instance)
 
-		instance.Status.CSIDriverName = getCSIDriverName(instance)
+		instance.Status.CSIDriverName = csiDriverName
 
 		statusApply := v1alpha1.DatadogCSIDriver{
 			TypeMeta: metav1.TypeMeta{
@@ -143,7 +143,7 @@ func (r *Reconciler) handleDeletion(ctx context.Context, logger logr.Logger, ins
 		return ctrl.Result{}, nil
 	}
 
-	driverName := getCSIDriverName(instance)
+	driverName := csiDriverName
 	logger.Info("Handling deletion, cleaning up CSIDriver object", "csidriver", driverName)
 
 	csiDriver := &storagev1.CSIDriver{}
@@ -238,9 +238,8 @@ func (r *Reconciler) reconcileDaemonSet(ctx context.Context, logger logr.Logger,
 }
 
 func (r *Reconciler) populateDaemonSetStatus(ctx context.Context, instance *v1alpha1.DatadogCSIDriver) {
-	dsName := fmt.Sprintf("%s-node-server", defaultDaemonSetName)
 	ds := &appsv1.DaemonSet{}
-	err := r.client.Get(ctx, types.NamespacedName{Name: dsName, Namespace: instance.Namespace}, ds)
+	err := r.client.Get(ctx, types.NamespacedName{Name: csiDsName, Namespace: instance.Namespace}, ds)
 	if err != nil {
 		instance.Status.DaemonSet = nil
 		return

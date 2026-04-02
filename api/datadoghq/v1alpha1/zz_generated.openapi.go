@@ -730,13 +730,6 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriverSpec(ref com
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AgentImageConfig"),
 						},
 					},
-					"csiDriverName": {
-						SchemaProps: spec.SchemaProps{
-							Description: "CSIDriverName is the name of the CSIDriver Kubernetes object to create. Default: k8s.csi.datadoghq.com",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"apmSocketPath": {
 						SchemaProps: spec.SchemaProps{
 							Description: "APMSocketPath is the host path to the APM socket. Default: /var/run/datadog/apm.socket",

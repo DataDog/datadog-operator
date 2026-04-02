@@ -6,6 +6,11 @@
 package datadogcsidriver
 
 const (
+	// csiDsName is the default name of the CSI driver DaemonSet
+	csiDsName = "datadog-csi-driver-node-server"
+	// csiDriverName is the default name of the CSIDriver Kubernetes object
+	csiDriverName = "k8s.csi.datadoghq.com"
+
 	// Volume names
 	pluginDirVolumeName       = "plugin-dir"
 	storageDirVolumeName      = "storage-dir"

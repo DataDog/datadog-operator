@@ -514,11 +514,6 @@ func (in *DatadogCSIDriverSpec) DeepCopyInto(out *DatadogCSIDriverSpec) {
 		*out = new(v2alpha1.AgentImageConfig)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.CSIDriverName != nil {
-		in, out := &in.CSIDriverName, &out.CSIDriverName
-		*out = new(string)
-		**out = **in
-	}
 	if in.APMSocketPath != nil {
 		in, out := &in.APMSocketPath, &out.APMSocketPath
 		*out = new(string)

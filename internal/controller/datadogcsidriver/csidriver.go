@@ -15,7 +15,7 @@ import (
 )
 
 func buildCSIDriverObject(instance *datadoghqv1alpha1.DatadogCSIDriver) *storagev1.CSIDriver {
-	driverName := getCSIDriverName(instance)
+	driverName := csiDriverName
 	attachRequired := false
 	podInfoOnMount := true
 
@@ -36,11 +36,4 @@ func buildCSIDriverObject(instance *datadoghqv1alpha1.DatadogCSIDriver) *storage
 			},
 		},
 	}
-}
-
-func getCSIDriverName(instance *datadoghqv1alpha1.DatadogCSIDriver) string {
-	if instance.Spec.CSIDriverName != nil && *instance.Spec.CSIDriverName != "" {
-		return *instance.Spec.CSIDriverName
-	}
-	return defaultCSIDriverName
 }

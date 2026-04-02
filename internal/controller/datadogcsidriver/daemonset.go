@@ -21,17 +21,17 @@ import (
 )
 
 func buildDaemonSet(instance *datadoghqv1alpha1.DatadogCSIDriver) *appsv1.DaemonSet {
-	driverName := getCSIDriverName(instance)
+	driverName := csiDriverName
 	apmSocketPath := getAPMSocketPath(instance)
 	dsdSocketPath := getDSDSocketPath(instance)
 	apmSocketDir := filepath.Dir(apmSocketPath)
 	dsdSocketDir := filepath.Dir(dsdSocketPath)
 
 	labels := map[string]string{
-		appLabelKey: defaultDaemonSetName,
+		appLabelKey: csiDsName,
 	}
 	podLabels := map[string]string{
-		appLabelKey:                     defaultDaemonSetName,
+		appLabelKey:                     csiDsName,
 		admissionControllerEnabledLabel: "false",
 	}
 
@@ -42,14 +42,14 @@ func buildDaemonSet(instance *datadoghqv1alpha1.DatadogCSIDriver) *appsv1.Daemon
 	revisionHistoryLimit := int32(10)
 	ds := &appsv1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-node-server", defaultDaemonSetName),
+			Name:      csiDsName,
 			Namespace: instance.Namespace,
 			Labels:    labels,
 		},
 		Spec: appsv1.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					appLabelKey: defaultDaemonSetName,
+					appLabelKey: csiDsName,
 				},
 			},
 			RevisionHistoryLimit: &revisionHistoryLimit,

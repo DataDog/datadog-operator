@@ -61,10 +61,6 @@
           },
           "type": "object"
         },
-        "csiDriverName": {
-          "description": "CSIDriverName is the name of the CSIDriver Kubernetes object to create.\nDefault: k8s.csi.datadoghq.com",
-          "type": "string"
-        },
         "dsdSocketPath": {
           "description": "DSDSocketPath is the host path to the DogStatsD socket.\nDefault: /var/run/datadog/dsd.socket",
           "type": "string"

@@ -6,9 +6,6 @@
 package datadogcsidriver
 
 const (
-	// defaultCSIDriverName is the default name of the CSIDriver Kubernetes object
-	defaultCSIDriverName = "k8s.csi.datadoghq.com"
-
 	// defaultCSIDriverImageRegistry is the registry for the CSI driver image
 	defaultCSIDriverImageRegistry = "gcr.io/datadoghq"
 	// defaultCSIDriverImageName is the default CSI driver container image name
@@ -27,7 +24,4 @@ const (
 	defaultAPMSocketPath = "/var/run/datadog/apm.socket"
 	// defaultDSDSocketPath is the default host path to the DogStatsD socket
 	defaultDSDSocketPath = "/var/run/datadog/dsd.socket"
-
-	// defaultDaemonSetName is the default name of the CSI driver DaemonSet
-	defaultDaemonSetName = "datadog-csi-driver"
 )

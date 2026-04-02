@@ -23,7 +23,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -35,15 +36,15 @@ const (
 func newTestReconciler(t *testing.T, objects ...client.Object) (*Reconciler, client.Client) {
 	t.Helper()
 	s := scheme.Scheme
-	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion,
-		&datadoghqv1alpha1.DatadogCSIDriver{},
-		&datadoghqv1alpha1.DatadogCSIDriverList{},
+	s.AddKnownTypes(v1alpha1.GroupVersion,
+		&v1alpha1.DatadogCSIDriver{},
+		&v1alpha1.DatadogCSIDriverList{},
 	)
 
 	c := fake.NewClientBuilder().
 		WithScheme(s).
 		WithObjects(objects...).
-		WithStatusSubresource(&datadoghqv1alpha1.DatadogCSIDriver{}).
+		WithStatusSubresource(&v1alpha1.DatadogCSIDriver{}).
 		Build()
 
 	logger := zap.New(zap.UseDevMode(true))
@@ -53,17 +54,17 @@ func newTestReconciler(t *testing.T, objects ...client.Object) (*Reconciler, cli
 	return r, c
 }
 
-func defaultCSIDriverCR() *datadoghqv1alpha1.DatadogCSIDriver {
-	return &datadoghqv1alpha1.DatadogCSIDriver{
+func defaultCSIDriverCR() *v1alpha1.DatadogCSIDriver {
+	return &v1alpha1.DatadogCSIDriver{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "DatadogCSIDriver",
-			APIVersion: datadoghqv1alpha1.GroupVersion.String(),
+			APIVersion: v1alpha1.GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      testName,
 			Namespace: testNamespace,
 		},
-		Spec: datadoghqv1alpha1.DatadogCSIDriverSpec{},
+		Spec: v1alpha1.DatadogCSIDriverSpec{},
 	}
 }
 
@@ -89,9 +90,9 @@ func TestReconcile_CreatesResources(t *testing.T) {
 
 	// Verify CSIDriver was created
 	csiDriver := &storagev1.CSIDriver{}
-	err = c.Get(ctx, types.NamespacedName{Name: defaultCSIDriverName}, csiDriver)
+	err = c.Get(ctx, types.NamespacedName{Name: csiDriverName}, csiDriver)
 	require.NoError(t, err)
-	assert.Equal(t, defaultCSIDriverName, csiDriver.Name)
+	assert.Equal(t, csiDriverName, csiDriver.Name)
 	assert.Equal(t, "datadog-operator", csiDriver.Labels[kubernetes.AppKubernetesManageByLabelKey])
 	assert.False(t, *csiDriver.Spec.AttachRequired)
 	assert.True(t, *csiDriver.Spec.PodInfoOnMount)
@@ -100,7 +101,7 @@ func TestReconcile_CreatesResources(t *testing.T) {
 
 	// Verify DaemonSet was created
 	ds := &appsv1.DaemonSet{}
-	dsName := fmt.Sprintf("%s-node-server", defaultDaemonSetName)
+	dsName := csiDsName
 	err = c.Get(ctx, types.NamespacedName{Name: dsName, Namespace: testNamespace}, ds)
 	require.NoError(t, err)
 	assert.Equal(t, dsName, ds.Name)
@@ -109,11 +110,11 @@ func TestReconcile_CreatesResources(t *testing.T) {
 	// Verify DaemonSet containers
 	require.Len(t, ds.Spec.Template.Spec.Containers, 2)
 	csiContainer := ds.Spec.Template.Spec.Containers[0]
-	assert.Equal(t, datadoghqv1alpha1.CSINodeDriverContainerName, csiContainer.Name)
+	assert.Equal(t, v1alpha1.CSINodeDriverContainerName, csiContainer.Name)
 	assert.Equal(t, fmt.Sprintf("%s/%s:%s", defaultCSIDriverImageRegistry, defaultCSIDriverImageName, defaultCSIDriverImageTag), csiContainer.Image)
 
 	registrarContainer := ds.Spec.Template.Spec.Containers[1]
-	assert.Equal(t, datadoghqv1alpha1.CSINodeDriverRegistrarContainerName, registrarContainer.Name)
+	assert.Equal(t, v1alpha1.CSINodeDriverRegistrarContainerName, registrarContainer.Name)
 	assert.Equal(t, fmt.Sprintf("%s/%s:%s", defaultRegistrarImageRegistry, defaultRegistrarImageName, defaultRegistrarImageTag), registrarContainer.Image)
 
 	// Verify volumes exist
@@ -130,51 +131,13 @@ func TestReconcile_CreatesResources(t *testing.T) {
 	// Verify status was updated
 	err = c.Get(ctx, types.NamespacedName{Name: testName, Namespace: testNamespace}, instance)
 	require.NoError(t, err)
-	assert.Equal(t, defaultCSIDriverName, instance.Status.CSIDriverName)
+	assert.Equal(t, csiDriverName, instance.Status.CSIDriverName)
 	require.NotEmpty(t, instance.Status.Conditions)
 
 	readyCond := findCondition(instance.Status.Conditions, "Ready")
 	require.NotNil(t, readyCond)
 	assert.Equal(t, metav1.ConditionTrue, readyCond.Status)
 	assert.Equal(t, "ReconcileSucceeded", readyCond.Reason)
-}
-
-func TestReconcile_CustomCSIDriverName(t *testing.T) {
-	customName := "custom.csi.datadoghq.com"
-	instance := defaultCSIDriverCR()
-	instance.Spec.CSIDriverName = &customName
-
-	r, c := newTestReconciler(t, instance)
-	ctx := context.Background()
-
-	// First reconcile: finalizer
-	_, err := r.Reconcile(ctx, instance)
-	require.NoError(t, err)
-	err = c.Get(ctx, types.NamespacedName{Name: testName, Namespace: testNamespace}, instance)
-	require.NoError(t, err)
-
-	// Second reconcile: creates resources
-	_, err = r.Reconcile(ctx, instance)
-	require.NoError(t, err)
-
-	// Verify CSIDriver uses custom name
-	csiDriver := &storagev1.CSIDriver{}
-	err = c.Get(ctx, types.NamespacedName{Name: customName}, csiDriver)
-	require.NoError(t, err)
-	assert.Equal(t, customName, csiDriver.Name)
-
-	// Verify DaemonSet volumes reference custom driver name
-	ds := &appsv1.DaemonSet{}
-	dsName := fmt.Sprintf("%s-node-server", defaultDaemonSetName)
-	err = c.Get(ctx, types.NamespacedName{Name: dsName, Namespace: testNamespace}, ds)
-	require.NoError(t, err)
-
-	// The plugin-dir volume should reference the custom driver name
-	for _, v := range ds.Spec.Template.Spec.Volumes {
-		if v.Name == pluginDirVolumeName {
-			assert.Equal(t, fmt.Sprintf(kubeletPluginsDirFmt, customName), v.VolumeSource.HostPath.Path)
-		}
-	}
 }
 
 func TestReconcile_CustomSocketPaths(t *testing.T) {
@@ -196,7 +159,7 @@ func TestReconcile_CustomSocketPaths(t *testing.T) {
 	require.NoError(t, err)
 
 	ds := &appsv1.DaemonSet{}
-	dsName := fmt.Sprintf("%s-node-server", defaultDaemonSetName)
+	dsName := csiDsName
 	err = c.Get(ctx, types.NamespacedName{Name: dsName, Namespace: testNamespace}, ds)
 	require.NoError(t, err)
 
@@ -228,7 +191,7 @@ func TestReconcile_Deletion(t *testing.T) {
 
 	// Verify CSIDriver exists
 	csiDriver := &storagev1.CSIDriver{}
-	err = c.Get(ctx, types.NamespacedName{Name: defaultCSIDriverName}, csiDriver)
+	err = c.Get(ctx, types.NamespacedName{Name: csiDriverName}, csiDriver)
 	require.NoError(t, err)
 
 	// Mark for deletion
@@ -246,7 +209,7 @@ func TestReconcile_Deletion(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify CSIDriver was deleted
-	err = c.Get(ctx, types.NamespacedName{Name: defaultCSIDriverName}, csiDriver)
+	err = c.Get(ctx, types.NamespacedName{Name: csiDriverName}, csiDriver)
 	assert.True(t, err != nil, "CSIDriver should be deleted")
 
 	// Verify finalizer was removed
@@ -271,7 +234,7 @@ func TestReconcile_UpdateDaemonSetOnSpecChange(t *testing.T) {
 
 	// Verify initial DaemonSet uses default APM socket path
 	ds := &appsv1.DaemonSet{}
-	dsName := fmt.Sprintf("%s-node-server", defaultDaemonSetName)
+	dsName := csiDsName
 	err = c.Get(ctx, types.NamespacedName{Name: dsName, Namespace: testNamespace}, ds)
 	require.NoError(t, err)
 	csiContainer := ds.Spec.Template.Spec.Containers[0]
@@ -313,7 +276,7 @@ func TestReconcile_IdempotentNoUpdate(t *testing.T) {
 
 	// Get DaemonSet resource version before second reconcile
 	ds := &appsv1.DaemonSet{}
-	dsName := fmt.Sprintf("%s-node-server", defaultDaemonSetName)
+	dsName := csiDsName
 	err = c.Get(ctx, types.NamespacedName{Name: dsName, Namespace: testNamespace}, ds)
 	require.NoError(t, err)
 	rvBefore := ds.ResourceVersion
@@ -339,7 +302,7 @@ func TestReconcile_CSIDriverLabelsAdoption(t *testing.T) {
 	// to validate adoption plus reconciliation of manual edits.
 	existingCSIDriver := &storagev1.CSIDriver{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: defaultCSIDriverName,
+			Name: csiDriverName,
 		},
 		Spec: storagev1.CSIDriverSpec{
 			AttachRequired: &attachRequired,
@@ -364,7 +327,7 @@ func TestReconcile_CSIDriverLabelsAdoption(t *testing.T) {
 	require.NoError(t, err)
 
 	csiDriver := &storagev1.CSIDriver{}
-	err = c.Get(ctx, types.NamespacedName{Name: defaultCSIDriverName}, csiDriver)
+	err = c.Get(ctx, types.NamespacedName{Name: csiDriverName}, csiDriver)
 	require.NoError(t, err)
 	assert.Equal(t, "datadog-operator", csiDriver.Labels[kubernetes.AppKubernetesManageByLabelKey])
 	assert.NotEmpty(t, csiDriver.Labels[kubernetes.AppKubernetesPartOfLabelKey])
@@ -376,7 +339,7 @@ func TestReconcile_CSIDriverLabelsAdoption(t *testing.T) {
 
 func TestReconcile_Overrides(t *testing.T) {
 	instance := defaultCSIDriverCR()
-	instance.Spec.Override = &datadoghqv1alpha1.DatadogCSIDriverOverride{
+	instance.Spec.Override = &v1alpha1.DatadogCSIDriverOverride{
 		Labels: map[string]string{
 			"team": "containers",
 		},
@@ -415,14 +378,14 @@ func TestReconcile_Overrides(t *testing.T) {
 	require.NoError(t, err)
 
 	ds := &appsv1.DaemonSet{}
-	dsName := fmt.Sprintf("%s-node-server", defaultDaemonSetName)
+	dsName := csiDsName
 	err = c.Get(ctx, types.NamespacedName{Name: dsName, Namespace: testNamespace}, ds)
 	require.NoError(t, err)
 
 	// Labels merged into pod template
 	assert.Equal(t, "containers", ds.Spec.Template.Labels["team"])
 	// Default labels still present
-	assert.Equal(t, defaultDaemonSetName, ds.Spec.Template.Labels[appLabelKey])
+	assert.Equal(t, csiDsName, ds.Spec.Template.Labels[appLabelKey])
 
 	// Tolerations applied
 	require.Len(t, ds.Spec.Template.Spec.Tolerations, 1)
@@ -475,7 +438,7 @@ func TestReconcile_StatusConditionOnCSIDriverError(t *testing.T) {
 	require.NoError(t, err)
 
 	// Note: fake client doesn't bump .metadata.generation, so ObservedGeneration stays 0.
-	assert.Equal(t, defaultCSIDriverName, instance.Status.CSIDriverName)
+	assert.Equal(t, csiDriverName, instance.Status.CSIDriverName)
 
 	readyCond := findCondition(instance.Status.Conditions, "Ready")
 	require.NotNil(t, readyCond)
@@ -497,13 +460,12 @@ func TestReconcile_CSIDriverSpecDriftIsReconciled(t *testing.T) {
 
 	// Simulate manual drift on the managed CSIDriver.
 	csiDriver := &storagev1.CSIDriver{}
-	err = c.Get(ctx, types.NamespacedName{Name: defaultCSIDriverName}, csiDriver)
+	err = c.Get(ctx, types.NamespacedName{Name: csiDriverName}, csiDriver)
 	require.NoError(t, err)
 
-	attachRequired := true
-	podInfoOnMount := false
-	csiDriver.Spec.AttachRequired = &attachRequired
-	csiDriver.Spec.PodInfoOnMount = &podInfoOnMount
+	// These are opposite of the default
+	csiDriver.Spec.AttachRequired = utils.NewBoolPointer(true)
+	csiDriver.Spec.PodInfoOnMount = utils.NewBoolPointer(false)
 	csiDriver.Spec.VolumeLifecycleModes = []storagev1.VolumeLifecycleMode{storagev1.VolumeLifecyclePersistent}
 	err = c.Update(ctx, csiDriver)
 	require.NoError(t, err)
@@ -514,7 +476,7 @@ func TestReconcile_CSIDriverSpecDriftIsReconciled(t *testing.T) {
 	_, err = r.Reconcile(ctx, instance)
 	require.NoError(t, err)
 
-	err = c.Get(ctx, types.NamespacedName{Name: defaultCSIDriverName}, csiDriver)
+	err = c.Get(ctx, types.NamespacedName{Name: csiDriverName}, csiDriver)
 	require.NoError(t, err)
 	assert.False(t, *csiDriver.Spec.AttachRequired)
 	assert.True(t, *csiDriver.Spec.PodInfoOnMount)

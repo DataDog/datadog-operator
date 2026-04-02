@@ -64,7 +64,9 @@ func (r *DatadogCSIDriverReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 // enqueueIfOwnedCSIDriver maps a CSIDriver change back to the owning DatadogCSIDriver CR
-// using the app.kubernetes.io/part-of label.
+// using the app.kubernetes.io/part-of label and the app.kubernetes.io/managed-by label.
+// If the label is not set, the object is not owned by a DatadogCSIDriver and we do nothing.
+// If the label is set, we enqueue the owning DatadogCSIDriver CR.
 func enqueueIfOwnedCSIDriver(_ context.Context, obj client.Object) []reconcile.Request {
 	labels := obj.GetLabels()
 	if labels[kubernetes.AppKubernetesManageByLabelKey] != "datadog-operator" {

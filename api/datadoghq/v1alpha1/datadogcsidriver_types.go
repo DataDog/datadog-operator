@@ -32,11 +32,6 @@ type DatadogCSIDriverSpec struct {
 	// +optional
 	RegistrarImage *v2alpha1.AgentImageConfig `json:"registrarImage,omitempty"`
 
-	// CSIDriverName is the name of the CSIDriver Kubernetes object to create.
-	// Default: k8s.csi.datadoghq.com
-	// +optional
-	CSIDriverName *string `json:"csiDriverName,omitempty"`
-
 	// APMSocketPath is the host path to the APM socket.
 	// Default: /var/run/datadog/apm.socket
 	// +optional
