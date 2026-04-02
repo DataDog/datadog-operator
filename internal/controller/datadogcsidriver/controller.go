@@ -9,12 +9,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"time"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,18 +25,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 const (
-	// annotation key for spec hash comparison
-	csiDriverHashAnnotationKey = "datadoghq.com/csi-driver-spec-hash"
-	// annotation key to track the DaemonSet generation we last reconciled
-	csiDriverGenerationAnnotationKey = "datadoghq.com/csi-driver-generation"
 	// fieldOwner identifies this controller for SSA
 	fieldOwner = "datadogcsidriver-controller"
 )
@@ -60,7 +53,7 @@ func NewReconciler(client client.Client, scheme *runtime.Scheme, log logr.Logger
 }
 
 // Reconcile handles the reconciliation loop for DatadogCSIDriver
-func (r *Reconciler) Reconcile(ctx context.Context, instance *datadoghqv1alpha1.DatadogCSIDriver) (result ctrl.Result, retErr error) {
+func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogCSIDriver) (result ctrl.Result, retErr error) {
 	logger := r.log.WithValues("datadogcsidriver", fmt.Sprintf("%s/%s", instance.Namespace, instance.Name))
 
 	// Handle deletion via finalizer
@@ -85,9 +78,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *datadoghqv1alpha1.
 
 		instance.Status.CSIDriverName = getCSIDriverName(instance)
 
-		statusApply := datadoghqv1alpha1.DatadogCSIDriver{
+		statusApply := v1alpha1.DatadogCSIDriver{
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: datadoghqv1alpha1.GroupVersion.String(),
+				APIVersion: v1alpha1.GroupVersion.String(),
 				Kind:       "DatadogCSIDriver",
 			},
 			ObjectMeta: metav1.ObjectMeta{
@@ -145,7 +138,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *datadoghqv1alpha1.
 	return ctrl.Result{}, nil
 }
 
-func (r *Reconciler) handleDeletion(ctx context.Context, logger logr.Logger, instance *datadoghqv1alpha1.DatadogCSIDriver) (ctrl.Result, error) {
+func (r *Reconciler) handleDeletion(ctx context.Context, logger logr.Logger, instance *v1alpha1.DatadogCSIDriver) (ctrl.Result, error) {
 	if !controllerutil.ContainsFinalizer(instance, finalizerName) {
 		return ctrl.Result{}, nil
 	}
@@ -175,149 +168,76 @@ func (r *Reconciler) handleDeletion(ctx context.Context, logger logr.Logger, ins
 	return ctrl.Result{}, nil
 }
 
-func (r *Reconciler) reconcileCSIDriver(ctx context.Context, logger logr.Logger, instance *datadoghqv1alpha1.DatadogCSIDriver) error {
+func (r *Reconciler) reconcileCSIDriver(ctx context.Context, logger logr.Logger, instance *v1alpha1.DatadogCSIDriver) error {
 	desired := buildCSIDriverObject(instance)
-	driverName := desired.Name
 
 	current := &storagev1.CSIDriver{}
-	err := r.client.Get(ctx, types.NamespacedName{Name: driverName}, current)
+	err := r.client.Get(ctx, types.NamespacedName{Name: desired.Name}, current)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return fmt.Errorf("getting CSIDriver: %w", err)
 		}
-
-		// CSIDriver doesn't exist yet — create it
-		logger.Info("Creating CSIDriver object", "csidriver", driverName)
+		logger.Info("Creating CSIDriver", "csidriver", desired.Name)
 		if err := r.client.Create(ctx, desired); err != nil {
 			return fmt.Errorf("creating CSIDriver: %w", err)
 		}
-		r.recorder.Eventf(instance, "Normal", "CSIDriverCreated", "Created CSIDriver %s", driverName)
 		return nil
 	}
 
-	// CSIDriver exists — ensure our ownership labels are set.
-	// This path is hit on first reconcile after adoption of an existing CSIDriver,
-	// or if someone manually removed the labels.
-	expectedPartOf := object.NewPartOfLabelValue(instance).String()
-	if current.Labels == nil ||
-		current.Labels[kubernetes.AppKubernetesManageByLabelKey] != "datadog-operator" ||
-		current.Labels[kubernetes.AppKubernetesPartOfLabelKey] != expectedPartOf {
-		logger.Info("Updating CSIDriver ownership labels", "csidriver", driverName)
-		if current.Labels == nil {
-			current.Labels = map[string]string{}
-		}
-		current.Labels[kubernetes.AppKubernetesManageByLabelKey] = "datadog-operator"
-		current.Labels[kubernetes.AppKubernetesPartOfLabelKey] = expectedPartOf
+	// Full replacement of spec and labels ensures any external drift is reverted,
+	// including fields added manually (e.g. via kubectl edit).
+	if !apiequality.Semantic.DeepEqual(current.Spec, desired.Spec) ||
+		!apiequality.Semantic.DeepEqual(current.Labels, desired.Labels) {
+		logger.Info("Updating CSIDriver to match desired state", "csidriver", desired.Name)
+		current.Spec = desired.Spec
+		current.Labels = desired.Labels
 		if err := r.client.Update(ctx, current); err != nil {
-			return fmt.Errorf("updating CSIDriver labels: %w", err)
+			return fmt.Errorf("updating CSIDriver: %w", err)
 		}
 	}
 
 	return nil
 }
 
-func (r *Reconciler) reconcileDaemonSet(ctx context.Context, logger logr.Logger, instance *datadoghqv1alpha1.DatadogCSIDriver) error {
+func (r *Reconciler) reconcileDaemonSet(ctx context.Context, logger logr.Logger, instance *v1alpha1.DatadogCSIDriver) error {
 	desired := buildDaemonSet(instance)
 
 	if err := controllerutil.SetControllerReference(instance, desired, r.scheme); err != nil {
 		return fmt.Errorf("setting owner reference: %w", err)
 	}
 
-	nsName := types.NamespacedName{
-		Name:      desired.Name,
-		Namespace: desired.Namespace,
-	}
-
+	nsName := types.NamespacedName{Name: desired.Name, Namespace: desired.Namespace}
 	current := &appsv1.DaemonSet{}
 	err := r.client.Get(ctx, nsName, current)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return fmt.Errorf("getting DaemonSet: %w", err)
 		}
-
-		// DaemonSet doesn't exist yet — create it with hash annotation
-		if _, hashErr := comparison.SetMD5GenerationAnnotation(&desired.ObjectMeta, desired.Spec, csiDriverHashAnnotationKey); hashErr != nil {
-			return fmt.Errorf("generating spec hash: %w", hashErr)
-		}
 		logger.Info("Creating DaemonSet", "daemonset", nsName)
-		if createErr := r.client.Create(ctx, desired); createErr != nil {
-			return fmt.Errorf("creating DaemonSet: %w", createErr)
+		if err := r.client.Create(ctx, desired); err != nil {
+			return fmt.Errorf("creating DaemonSet: %w", err)
 		}
-		// Store the generation via metadata-only merge patch (doesn't bump generation).
-		// This establishes the baseline for drift detection on subsequent reconciles.
-		genPatch := fmt.Appendf(nil, `{"metadata":{"annotations":{%q:%q}}}`,
-			csiDriverGenerationAnnotationKey, fmt.Sprintf("%d", desired.Generation))
-		if patchErr := r.client.Patch(ctx, desired, client.RawPatch(types.MergePatchType, genPatch)); patchErr != nil {
-			return fmt.Errorf("storing generation annotation: %w", patchErr)
-		}
-		r.recorder.Eventf(instance, "Normal", "DaemonSetCreated", "Created DaemonSet %s", desired.Name)
 		return nil
 	}
 
-	// DaemonSet exists — check if we need to update it.
-	// Preserve the immutable selector from the existing DaemonSet before hashing,
-	// so the hash reflects what we'll actually submit to the API server.
-	desired.Spec.Selector = current.Spec.Selector
-	desired.Spec.Template.Labels = ensureSelectorLabels(current.Spec.Selector, desired.Spec.Template.Labels)
-
-	hash, err := comparison.SetMD5GenerationAnnotation(&desired.ObjectMeta, desired.Spec, csiDriverHashAnnotationKey)
-	if err != nil {
-		return fmt.Errorf("generating spec hash: %w", err)
+	// Full replacement of spec and labels ensures any external drift is reverted,
+	// including fields added manually (e.g. via kubectl edit).
+	// The DeepEqual guard avoids unnecessary writes that would trigger the Owns()
+	// watch and cause a reconcile loop.
+	if !apiequality.Semantic.DeepEqual(current.Spec, desired.Spec) ||
+		!apiequality.Semantic.DeepEqual(current.Labels, desired.Labels) {
+		logger.Info("Updating DaemonSet to match desired state", "daemonset", nsName)
+		current.Spec = desired.Spec
+		current.Labels = desired.Labels
+		if err := r.client.Update(ctx, current); err != nil {
+			return fmt.Errorf("updating DaemonSet: %w", err)
+		}
 	}
 
-	// Decide whether an update is needed using two signals:
-	//
-	// 1. Spec hash: has the DatadogCSIDriver CR changed, producing a different
-	//    desired DaemonSet spec? Detected by comparing the freshly computed hash
-	//    against the hash stored in the DaemonSet annotation from the last apply.
-	//
-	// 2. Generation: has someone manually edited the DaemonSet? The API server
-	//    bumps .metadata.generation on every spec change. We store the generation
-	//    after each apply, so a mismatch means an external edit occurred.
-	//
-	// Skip only when BOTH match — our intent is unchanged AND no drift occurred.
-	storedGen := current.GetAnnotations()[csiDriverGenerationAnnotationKey]
-	currentGen := fmt.Sprintf("%d", current.Generation)
-	hashMatch := comparison.IsSameMD5Hash(hash, current.GetAnnotations(), csiDriverHashAnnotationKey)
-	genMatch := storedGen == currentGen
-
-	if hashMatch && genMatch {
-		// Steady state: CR unchanged, DaemonSet untouched externally — nothing to do.
-		return nil
-	}
-
-	if hashMatch && !genMatch {
-		// Drift detected: CR hasn't changed but someone manually edited the
-		// DaemonSet spec (generation bumped without a hash change). Re-apply
-		// our desired spec to revert the external modification.
-		logger.Info("Drift detected on DaemonSet, reverting to desired state", "daemonset", nsName)
-	} else {
-		// CR changed: the DatadogCSIDriver spec was updated, producing a new
-		// desired DaemonSet spec. Apply the new configuration.
-		logger.Info("Updating DaemonSet", "daemonset", nsName)
-	}
-
-	current.Spec = desired.Spec
-	current.Labels = desired.Labels
-	if current.Annotations == nil {
-		current.Annotations = map[string]string{}
-	}
-	current.Annotations[csiDriverHashAnnotationKey] = hash
-	if err := r.client.Update(ctx, current); err != nil {
-		return fmt.Errorf("updating DaemonSet: %w", err)
-	}
-	// Store the new generation via metadata-only merge patch (doesn't bump generation).
-	// On the next reconcile, if no external edits occur, storedGen == currentGen → skip.
-	genPatch := fmt.Appendf(nil, `{"metadata":{"annotations":{%q:%q}}}`,
-		csiDriverGenerationAnnotationKey, fmt.Sprintf("%d", current.Generation))
-	if err := r.client.Patch(ctx, current, client.RawPatch(types.MergePatchType, genPatch)); err != nil {
-		return fmt.Errorf("storing generation annotation: %w", err)
-	}
-	r.recorder.Eventf(instance, "Normal", "DaemonSetUpdated", "Updated DaemonSet %s", desired.Name)
 	return nil
 }
 
-func (r *Reconciler) populateDaemonSetStatus(ctx context.Context, instance *datadoghqv1alpha1.DatadogCSIDriver) {
+func (r *Reconciler) populateDaemonSetStatus(ctx context.Context, instance *v1alpha1.DatadogCSIDriver) {
 	dsName := fmt.Sprintf("%s-node-server", defaultDaemonSetName)
 	ds := &appsv1.DaemonSet{}
 	err := r.client.Get(ctx, types.NamespacedName{Name: dsName, Namespace: instance.Namespace}, ds)
@@ -350,15 +270,4 @@ func getDaemonSetStatusString(ds *appsv1.DaemonSet) string {
 		return "Pending"
 	}
 	return "Progressing"
-}
-
-func ensureSelectorLabels(selector *metav1.LabelSelector, labels map[string]string) map[string]string {
-	if selector == nil {
-		return labels
-	}
-	if labels == nil {
-		labels = map[string]string{}
-	}
-	maps.Copy(labels, selector.MatchLabels)
-	return labels
 }

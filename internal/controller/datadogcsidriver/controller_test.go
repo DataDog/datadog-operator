@@ -127,9 +127,6 @@ func TestReconcile_CreatesResources(t *testing.T) {
 	assert.Contains(t, volumeNames, mountpointDirVolumeName)
 	assert.Contains(t, volumeNames, apmSocketVolumeName)
 
-	// Verify hash annotation is set on the DaemonSet
-	assert.NotEmpty(t, ds.Annotations[csiDriverHashAnnotationKey])
-
 	// Verify status was updated
 	err = c.Get(ctx, types.NamespacedName{Name: testName, Namespace: testNamespace}, instance)
 	require.NoError(t, err)
@@ -272,12 +269,13 @@ func TestReconcile_UpdateDaemonSetOnSpecChange(t *testing.T) {
 	_, err = r.Reconcile(ctx, instance)
 	require.NoError(t, err)
 
-	// Get DaemonSet hash before update
+	// Verify initial DaemonSet uses default APM socket path
 	ds := &appsv1.DaemonSet{}
 	dsName := fmt.Sprintf("%s-node-server", defaultDaemonSetName)
 	err = c.Get(ctx, types.NamespacedName{Name: dsName, Namespace: testNamespace}, ds)
 	require.NoError(t, err)
-	hashBefore := ds.Annotations[csiDriverHashAnnotationKey]
+	csiContainer := ds.Spec.Template.Spec.Containers[0]
+	assert.Contains(t, csiContainer.Args, fmt.Sprintf("--apm-host-socket-path=%s", defaultAPMSocketPath))
 
 	// Change spec: set custom APM socket path
 	customAPM := "/new/apm.socket"
@@ -293,10 +291,11 @@ func TestReconcile_UpdateDaemonSetOnSpecChange(t *testing.T) {
 	_, err = r.Reconcile(ctx, instance)
 	require.NoError(t, err)
 
-	// Verify the hash changed (indicating the DaemonSet was updated)
+	// Verify the DaemonSet spec was updated with the new socket path
 	err = c.Get(ctx, types.NamespacedName{Name: dsName, Namespace: testNamespace}, ds)
 	require.NoError(t, err)
-	assert.NotEqual(t, hashBefore, ds.Annotations[csiDriverHashAnnotationKey])
+	csiContainer = ds.Spec.Template.Spec.Containers[0]
+	assert.Contains(t, csiContainer.Args, fmt.Sprintf("--apm-host-socket-path=%s", customAPM))
 }
 
 func TestReconcile_IdempotentNoUpdate(t *testing.T) {
@@ -333,13 +332,22 @@ func TestReconcile_IdempotentNoUpdate(t *testing.T) {
 
 func TestReconcile_CSIDriverLabelsAdoption(t *testing.T) {
 	instance := defaultCSIDriverCR()
+	attachRequired := true
+	podInfoOnMount := false
 
-	// Pre-create a CSIDriver without ownership labels (simulates adoption)
+	// Pre-create a CSIDriver without ownership labels and with drifted spec
+	// to validate adoption plus reconciliation of manual edits.
 	existingCSIDriver := &storagev1.CSIDriver{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: defaultCSIDriverName,
 		},
-		Spec: storagev1.CSIDriverSpec{},
+		Spec: storagev1.CSIDriverSpec{
+			AttachRequired: &attachRequired,
+			PodInfoOnMount: &podInfoOnMount,
+			VolumeLifecycleModes: []storagev1.VolumeLifecycleMode{
+				storagev1.VolumeLifecyclePersistent,
+			},
+		},
 	}
 
 	r, c := newTestReconciler(t, instance, existingCSIDriver)
@@ -360,6 +368,10 @@ func TestReconcile_CSIDriverLabelsAdoption(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "datadog-operator", csiDriver.Labels[kubernetes.AppKubernetesManageByLabelKey])
 	assert.NotEmpty(t, csiDriver.Labels[kubernetes.AppKubernetesPartOfLabelKey])
+	assert.False(t, *csiDriver.Spec.AttachRequired)
+	assert.True(t, *csiDriver.Spec.PodInfoOnMount)
+	assert.Contains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecyclePersistent)
+	assert.Contains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecycleEphemeral)
 }
 
 func TestReconcile_Overrides(t *testing.T) {
@@ -468,6 +480,46 @@ func TestReconcile_StatusConditionOnCSIDriverError(t *testing.T) {
 	readyCond := findCondition(instance.Status.Conditions, "Ready")
 	require.NotNil(t, readyCond)
 	assert.Equal(t, metav1.ConditionTrue, readyCond.Status)
+}
+
+func TestReconcile_CSIDriverSpecDriftIsReconciled(t *testing.T) {
+	instance := defaultCSIDriverCR()
+	r, c := newTestReconciler(t, instance)
+	ctx := context.Background()
+
+	// Reconcile to create resources.
+	_, err := r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+	err = c.Get(ctx, types.NamespacedName{Name: testName, Namespace: testNamespace}, instance)
+	require.NoError(t, err)
+	_, err = r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+
+	// Simulate manual drift on the managed CSIDriver.
+	csiDriver := &storagev1.CSIDriver{}
+	err = c.Get(ctx, types.NamespacedName{Name: defaultCSIDriverName}, csiDriver)
+	require.NoError(t, err)
+
+	attachRequired := true
+	podInfoOnMount := false
+	csiDriver.Spec.AttachRequired = &attachRequired
+	csiDriver.Spec.PodInfoOnMount = &podInfoOnMount
+	csiDriver.Spec.VolumeLifecycleModes = []storagev1.VolumeLifecycleMode{storagev1.VolumeLifecyclePersistent}
+	err = c.Update(ctx, csiDriver)
+	require.NoError(t, err)
+
+	// Reconcile again and verify drift is reverted.
+	err = c.Get(ctx, types.NamespacedName{Name: testName, Namespace: testNamespace}, instance)
+	require.NoError(t, err)
+	_, err = r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+
+	err = c.Get(ctx, types.NamespacedName{Name: defaultCSIDriverName}, csiDriver)
+	require.NoError(t, err)
+	assert.False(t, *csiDriver.Spec.AttachRequired)
+	assert.True(t, *csiDriver.Spec.PodInfoOnMount)
+	assert.Contains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecyclePersistent)
+	assert.Contains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecycleEphemeral)
 }
 
 // findCondition returns the condition with the given type, or nil.
