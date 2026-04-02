@@ -1,0 +1,59 @@
+name: Bug Report
+description: File a bug report
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+  - type: textarea
+    attributes:
+      label: What happened?
+      value: | 
+        **Describe what happened:**
+
+
+        **Describe what you expected:**
+
+
+        **Steps to reproduce the issue:**
+
+
+        **Additional environment details (Operating System, Cloud provider, etc):**
+    validations:
+      required: true
+  - type: dropdown
+    id: version
+    attributes:
+      label: "Operator Version"
+      description: | 
+        What version of our software are you running?
+      options:
+        - 1.2.x
+        - 1.1.x
+        - 1.0.x
+        - 0.8.x
+        - other
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Chart Version
+      description: Please add the chart version used for Operator setup.
+  - type: dropdown
+    id: k8s-distribution
+    attributes:
+      label: Kubernetes Distribution
+      options:
+        - AKS
+        - EKS
+        - GKE
+        - On premise
+        - Openshift
+        - Other
+  - type: input
+    id: k8s-version
+    attributes:
+      label: Kubernetes Version
+    validations:
+      required: true
