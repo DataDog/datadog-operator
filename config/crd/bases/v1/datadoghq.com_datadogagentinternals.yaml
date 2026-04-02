@@ -2597,6 +2597,13 @@ spec:
                     csi:
                       description: CSI contains configuration for Datadog CSI Driver
                       properties:
+                        createDatadogCSIDriver:
+                          description: |-
+                            CreateDatadogCSIDriver instructs the operator to create a DatadogCSIDriver custom resource
+                            when CSI is enabled. This requires the DatadogCSIDriver CRD to be installed and the
+                            DatadogCSIDriver controller to be enabled on the operator.
+                            Default: false
+                          type: boolean
                         enabled:
                           description: |-
                             Enables the usage of CSI driver in Datadog Agent.

@@ -2728,6 +2728,10 @@
                   "additionalProperties": false,
                   "description": "CSI contains configuration for Datadog CSI Driver",
                   "properties": {
+                    "createDatadogCSIDriver": {
+                      "description": "CreateDatadogCSIDriver instructs the operator to create a DatadogCSIDriver custom resource\nwhen CSI is enabled. This requires the DatadogCSIDriver CRD to be installed and the\nDatadogCSIDriver controller to be enabled on the operator.\nDefault: false",
+                      "type": "boolean"
+                    },
                     "enabled": {
                       "description": "Enables the usage of CSI driver in Datadog Agent.\nRequires installation of Datadog CSI Driver https://github.com/DataDog/helm-charts/tree/main/charts/datadog-csi-driver\nDefault: false",
                       "type": "boolean"

@@ -284,6 +284,13 @@ type CSIConfig struct {
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// CreateDatadogCSIDriver instructs the operator to create a DatadogCSIDriver custom resource
+	// when CSI is enabled. This requires the DatadogCSIDriver CRD to be installed and the
+	// DatadogCSIDriver controller to be enabled on the operator.
+	// Default: false
+	// +optional
+	CreateDatadogCSIDriver *bool `json:"createDatadogCSIDriver,omitempty"`
 }
 
 // InjectorConfig contains the configuration for the APM Injector.
