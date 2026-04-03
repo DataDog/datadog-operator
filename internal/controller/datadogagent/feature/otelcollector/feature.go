@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -94,7 +95,7 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 			agentVersion = common.GetAgentVersionFromImage(*nodeAgent.Image)
 		}
 	}
-	supportedVersion := utils.IsAboveMinVersion(agentVersion, otelAgentMinVersion, apiutils.NewBoolPointer(true))
+	supportedVersion := utils.IsAboveMinVersion(agentVersion, otelAgentMinVersion, ptr.To(true))
 	if !supportedVersion && agentImageName == "" {
 		o.incompatibleImage = true
 		o.logger.Error(errIncompatibleImage,
@@ -153,7 +154,7 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 	if apiutils.BoolValue(ddaSpec.Features.OtelCollector.Enabled) {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: ptr.To(true),
 				Containers: []apicommon.AgentContainerName{
 					apicommon.CoreAgentContainerName,
 					apicommon.OtelAgent,

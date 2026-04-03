@@ -14,10 +14,11 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/utils/ptr"
+
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -35,10 +36,10 @@ func TestBuildDashboard(t *testing.T) {
 	}
 	templateVariablePresets := []v1alpha1.DashboardTemplateVariablePreset{
 		{
-			Name: apiutils.NewStringPointer("test preset"),
+			Name: ptr.To("test preset"),
 			TemplateVariables: []v1alpha1.DashboardTemplateVariablePresetValue{
 				{
-					Name: apiutils.NewStringPointer("foo-bar"),
+					Name: ptr.To("foo-bar"),
 					Values: []string{
 						"foo",
 						"bar",
@@ -203,7 +204,7 @@ func genericDashboard(dbID string) datadogV1.Dashboard {
 	})
 	title := "Test dashboard"
 	handle := "test_user"
-	description := datadogapi.NewNullableString(apiutils.NewStringPointer("test description"))
+	description := datadogapi.NewNullableString(ptr.To("test description"))
 	tags := datadogapi.NewNullableList(&[]string{
 		"team:test", "team:test2",
 	})

@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -29,7 +31,6 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -77,7 +78,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 				// But disable via override to create conflict
 				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.ClusterAgentComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					},
 				}
 				_ = c.Create(context.TODO(), dda)
@@ -124,7 +125,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 				// But disable CCR via override to create conflict
 				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.ClusterChecksRunnerComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					},
 				}
 				_ = c.Create(context.TODO(), dda)
@@ -178,7 +179,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 				// But disable DCA - CCR should be cleaned up due to dependency
 				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.ClusterAgentComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					},
 				}
 				_ = c.Create(context.TODO(), dda)
@@ -246,10 +247,10 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 				// Now disable both components to test cleanup
 				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.ClusterAgentComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					},
 					v2alpha1.ClusterChecksRunnerComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					},
 				}
 				_ = c.Update(context.TODO(), dda)
@@ -357,7 +358,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 				// This simulates the case where deployment doesn't exist but status does
 				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.ClusterAgentComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					},
 				}
 				_ = c.Update(context.TODO(), dda)
@@ -406,7 +407,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 				// This simulates the case where deployment doesn't exist but status does
 				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.ClusterChecksRunnerComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					},
 				}
 				_ = c.Update(context.TODO(), dda)
@@ -464,7 +465,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 				// Now disable DCA via override to trigger cleanup of existing deployment
 				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.ClusterAgentComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					},
 				}
 				_ = c.Update(context.TODO(), dda)
@@ -528,7 +529,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 				// Now disable DCA via override to trigger cleanup including RBAC cleanup
 				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.ClusterAgentComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					},
 				}
 				_ = c.Update(context.TODO(), dda)
