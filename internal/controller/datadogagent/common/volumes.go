@@ -177,12 +177,16 @@ func GetVolumeMountForRmCorechecks() corev1.VolumeMount {
 }
 
 // GetVolumeMountForAuth returns the VolumeMount that contains the authentication information
-func GetVolumeMountForAuth(readOnly bool) corev1.VolumeMount {
-	return corev1.VolumeMount{
+func GetVolumeMountForAuth(readOnly bool, mountPropagation ...*corev1.MountPropagationMode) corev1.VolumeMount {
+	vm := corev1.VolumeMount{
 		Name:      AuthVolumeName,
 		MountPath: AuthVolumePath,
 		ReadOnly:  readOnly,
 	}
+	if len(mountPropagation) > 0 {
+		vm.MountPropagation = mountPropagation[0]
+	}
+	return vm
 }
 
 // GetVolumeMountForLogs return the VolumeMount for the container generated logs
@@ -243,21 +247,29 @@ func GetVolumeMountForInstallInfo() corev1.VolumeMount {
 }
 
 // GetVolumeMountForProc returns the VolumeMount that contains /proc
-func GetVolumeMountForProc() corev1.VolumeMount {
-	return corev1.VolumeMount{
+func GetVolumeMountForProc(mountPropagation ...*corev1.MountPropagationMode) corev1.VolumeMount {
+	vm := corev1.VolumeMount{
 		Name:      ProcdirVolumeName,
 		MountPath: ProcdirMountPath,
 		ReadOnly:  true,
 	}
+	if len(mountPropagation) > 0 {
+		vm.MountPropagation = mountPropagation[0]
+	}
+	return vm
 }
 
 // GetVolumeMountForCgroups returns the VolumeMount that contains the cgroups info
-func GetVolumeMountForCgroups() corev1.VolumeMount {
-	return corev1.VolumeMount{
+func GetVolumeMountForCgroups(mountPropagation ...*corev1.MountPropagationMode) corev1.VolumeMount {
+	vm := corev1.VolumeMount{
 		Name:      CgroupsVolumeName,
 		MountPath: CgroupsMountPath,
 		ReadOnly:  true,
 	}
+	if len(mountPropagation) > 0 {
+		vm.MountPropagation = mountPropagation[0]
+	}
+	return vm
 }
 
 // GetVolumeMountForDogstatsdSocket returns the VolumeMount with the Dogstatsd socket
@@ -282,12 +294,16 @@ func GetVolumeForRuntimeSocket() corev1.Volume {
 }
 
 // GetVolumeMountForRuntimeSocket returns the VolumeMount with the runtime socket
-func GetVolumeMountForRuntimeSocket(readOnly bool) corev1.VolumeMount {
-	return corev1.VolumeMount{
+func GetVolumeMountForRuntimeSocket(readOnly bool, mountPropagation ...*corev1.MountPropagationMode) corev1.VolumeMount {
+	vm := corev1.VolumeMount{
 		Name:      CriSocketVolumeName,
 		MountPath: HostCriSocketPathPrefix + RuntimeDirVolumePath,
 		ReadOnly:  readOnly,
 	}
+	if len(mountPropagation) > 0 {
+		vm.MountPropagation = mountPropagation[0]
+	}
+	return vm
 }
 
 // GetVolumeMountForSecurity returns the VolumeMount for datadog-agent-security
@@ -313,11 +329,15 @@ func GetVolumeForSecurity(owner metav1.Object) corev1.Volume {
 }
 
 // GetVolumeMountForSeccomp returns the VolumeMount for seccomp root
-func GetVolumeMountForSeccomp() corev1.VolumeMount {
-	return corev1.VolumeMount{
+func GetVolumeMountForSeccomp(mountPropagation ...*corev1.MountPropagationMode) corev1.VolumeMount {
+	vm := corev1.VolumeMount{
 		Name:      SeccompRootVolumeName,
 		MountPath: SeccompRootVolumePath,
 	}
+	if len(mountPropagation) > 0 {
+		vm.MountPropagation = mountPropagation[0]
+	}
+	return vm
 }
 
 // GetVolumeForSeccomp returns the volume for seccomp root

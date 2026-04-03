@@ -32,29 +32,29 @@ import (
 
 // NewDefaultAgentDaemonset return a new default agent DaemonSet
 // TODO: remove instanceName once v2 reconcile is removed
-func NewDefaultAgentDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent, instanceName string) *appsv1.DaemonSet {
+func NewDefaultAgentDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent, instanceName string, mountPropagation *corev1.MountPropagationMode) *appsv1.DaemonSet {
 	daemonset := NewDaemonset(dda, edsOptions, constants.DefaultAgentResourceSuffix, component.GetAgentName(dda), common.GetAgentVersion(dda), nil, instanceName)
-	podTemplate := NewDefaultAgentPodTemplateSpec(dda, agentComponent, daemonset.GetLabels())
+	podTemplate := NewDefaultAgentPodTemplateSpec(dda, agentComponent, daemonset.GetLabels(), mountPropagation)
 	daemonset.Spec.Template = *podTemplate
 	return daemonset
 }
 
 // NewDefaultAgentExtendedDaemonset return a new default agent DaemonSet
-func NewDefaultAgentExtendedDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent) *edsv1alpha1.ExtendedDaemonSet {
+func NewDefaultAgentExtendedDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent, mountPropagation *corev1.MountPropagationMode) *edsv1alpha1.ExtendedDaemonSet {
 	edsDaemonset := NewExtendedDaemonset(dda, edsOptions, constants.DefaultAgentResourceSuffix, component.GetAgentName(dda), common.GetAgentVersion(dda), nil)
-	edsDaemonset.Spec.Template = *NewDefaultAgentPodTemplateSpec(dda, agentComponent, edsDaemonset.GetLabels())
+	edsDaemonset.Spec.Template = *NewDefaultAgentPodTemplateSpec(dda, agentComponent, edsDaemonset.GetLabels(), mountPropagation)
 	return edsDaemonset
 }
 
 // NewDefaultAgentPodTemplateSpec returns a defaulted node agent PodTemplateSpec with a single multi-process container or multiple single-process containers
-func NewDefaultAgentPodTemplateSpec(dda metav1.Object, agentComponent feature.RequiredComponent, labels map[string]string) *corev1.PodTemplateSpec {
+func NewDefaultAgentPodTemplateSpec(dda metav1.Object, agentComponent feature.RequiredComponent, labels map[string]string, mountPropagation *corev1.MountPropagationMode) *corev1.PodTemplateSpec {
 	requiredContainers := agentComponent.Containers
 
 	var agentContainers []corev1.Container
 	if agentComponent.SingleContainerStrategyEnabled() {
-		agentContainers = agentSingleContainer(dda)
+		agentContainers = agentSingleContainer(dda, mountPropagation)
 	} else {
-		agentContainers = agentOptimizedContainers(dda, requiredContainers)
+		agentContainers = agentOptimizedContainers(dda, requiredContainers, mountPropagation)
 	}
 
 	return &corev1.PodTemplateSpec{
@@ -68,7 +68,7 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, agentComponent feature.Re
 				RunAsUser: ptr.To[int64](0),
 			},
 			ServiceAccountName: getDefaultServiceAccountName(dda),
-			InitContainers:     initContainers(dda, requiredContainers),
+			InitContainers:     initContainers(dda, requiredContainers, mountPropagation),
 			Containers:         agentContainers,
 			Volumes:            volumesForAgent(dda, requiredContainers),
 		},
@@ -365,26 +365,26 @@ func ddotCollectorImage() string {
 	return images.GetLatestDdotCollectorImage()
 }
 
-func initContainers(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Container {
+func initContainers(dda metav1.Object, requiredContainers []apicommon.AgentContainerName, mountPropagation *corev1.MountPropagationMode) []corev1.Container {
 	initContainers := []corev1.Container{
 		initVolumeContainer(),
-		initConfigContainer(dda),
+		initConfigContainer(dda, mountPropagation),
 	}
 	for _, containerName := range requiredContainers {
 		if containerName == apicommon.SystemProbeContainerName {
-			initContainers = append(initContainers, initSeccompSetupContainer())
+			initContainers = append(initContainers, initSeccompSetupContainer(mountPropagation))
 		}
 	}
 
 	return initContainers
 }
 
-func agentSingleContainer(dda metav1.Object) []corev1.Container {
+func agentSingleContainer(dda metav1.Object, mountPropagation *corev1.MountPropagationMode) []corev1.Container {
 	agentSingleContainer := corev1.Container{
 		Name:           string(apicommon.UnprivilegedSingleAgentContainerName),
 		Image:          agentImage(),
 		Env:            envVarsForCoreAgent(dda),
-		VolumeMounts:   volumeMountsForCoreAgent(),
+		VolumeMounts:   volumeMountsForCoreAgent(mountPropagation),
 		LivenessProbe:  constants.GetDefaultLivenessProbe(),
 		ReadinessProbe: constants.GetDefaultReadinessProbe(),
 		StartupProbe:   constants.GetDefaultStartupProbe(),
@@ -400,20 +400,20 @@ func agentSingleContainer(dda metav1.Object) []corev1.Container {
 	return containers
 }
 
-func agentOptimizedContainers(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Container {
-	containers := []corev1.Container{coreAgentContainer(dda)}
+func agentOptimizedContainers(dda metav1.Object, requiredContainers []apicommon.AgentContainerName, mountPropagation *corev1.MountPropagationMode) []corev1.Container {
+	containers := []corev1.Container{coreAgentContainer(dda, mountPropagation)}
 	for _, containerName := range requiredContainers {
 		switch containerName {
 		case apicommon.CoreAgentContainerName:
 			// Nothing to do. It's always required.
 		case apicommon.TraceAgentContainerName:
-			containers = append(containers, traceAgentContainer(dda))
+			containers = append(containers, traceAgentContainer(dda, mountPropagation))
 		case apicommon.ProcessAgentContainerName:
-			containers = append(containers, processAgentContainer(dda))
+			containers = append(containers, processAgentContainer(dda, mountPropagation))
 		case apicommon.SecurityAgentContainerName:
-			containers = append(containers, securityAgentContainer(dda))
+			containers = append(containers, securityAgentContainer(dda, mountPropagation))
 		case apicommon.SystemProbeContainerName:
-			containers = append(containers, systemProbeContainer(dda))
+			containers = append(containers, systemProbeContainer(dda, mountPropagation))
 		case apicommon.PrivateActionRunnerContainerName:
 			containers = append(containers, privateActionRunnerContainer(dda))
 		case apicommon.OtelAgent:
@@ -421,7 +421,7 @@ func agentOptimizedContainers(dda metav1.Object, requiredContainers []apicommon.
 		case apicommon.HostProfiler:
 			containers = append(containers, hostProfilerContainer(dda))
 		case apicommon.AgentDataPlaneContainerName:
-			containers = append(containers, agentDataPlaneContainer(dda))
+			containers = append(containers, agentDataPlaneContainer(dda, mountPropagation))
 		case apicommon.FlightRecorderContainerName:
 			containers = append(containers, flightRecorderContainer(dda))
 		}
@@ -430,13 +430,13 @@ func agentOptimizedContainers(dda metav1.Object, requiredContainers []apicommon.
 	return containers
 }
 
-func coreAgentContainer(dda metav1.Object) corev1.Container {
+func coreAgentContainer(dda metav1.Object, mountPropagation *corev1.MountPropagationMode) corev1.Container {
 	return corev1.Container{
 		Name:           string(apicommon.CoreAgentContainerName),
 		Image:          agentImage(),
 		Command:        []string{"agent", "run"},
 		Env:            envVarsForCoreAgent(dda),
-		VolumeMounts:   volumeMountsForCoreAgent(),
+		VolumeMounts:   volumeMountsForCoreAgent(mountPropagation),
 		LivenessProbe:  constants.GetDefaultLivenessProbe(),
 		ReadinessProbe: constants.GetDefaultReadinessProbe(),
 		StartupProbe:   constants.GetDefaultStartupProbe(),
@@ -446,7 +446,7 @@ func coreAgentContainer(dda metav1.Object) corev1.Container {
 	}
 }
 
-func traceAgentContainer(dda metav1.Object) corev1.Container {
+func traceAgentContainer(dda metav1.Object, mountPropagation *corev1.MountPropagationMode) corev1.Container {
 	command := []string{
 		"trace-agent",
 		fmt.Sprintf("--config=%s", agentCustomConfigVolumePath),
@@ -462,7 +462,7 @@ func traceAgentContainer(dda metav1.Object) corev1.Container {
 		Image:         agentImage(),
 		Command:       command,
 		Env:           envVarsForTraceAgent(dda),
-		VolumeMounts:  volumeMountsForTraceAgent(),
+		VolumeMounts:  volumeMountsForTraceAgent(mountPropagation),
 		LivenessProbe: constants.GetDefaultTraceAgentProbe(),
 		SecurityContext: &corev1.SecurityContext{
 			ReadOnlyRootFilesystem: ptr.To(true),
@@ -470,7 +470,7 @@ func traceAgentContainer(dda metav1.Object) corev1.Container {
 	}
 }
 
-func processAgentContainer(dda metav1.Object) corev1.Container {
+func processAgentContainer(dda metav1.Object, mountPropagation *corev1.MountPropagationMode) corev1.Container {
 	return corev1.Container{
 		Name:  string(apicommon.ProcessAgentContainerName),
 		Image: agentImage(),
@@ -479,7 +479,7 @@ func processAgentContainer(dda metav1.Object) corev1.Container {
 			fmt.Sprintf("--sysprobe-config=%s", systemProbeConfigVolumePath),
 		},
 		Env:          commonEnvVars(dda),
-		VolumeMounts: volumeMountsForProcessAgent(),
+		VolumeMounts: volumeMountsForProcessAgent(mountPropagation),
 		SecurityContext: &corev1.SecurityContext{
 			ReadOnlyRootFilesystem: ptr.To(true),
 		},
@@ -539,7 +539,7 @@ func hostProfilerContainer(dda metav1.Object) corev1.Container {
 	}
 }
 
-func securityAgentContainer(dda metav1.Object) corev1.Container {
+func securityAgentContainer(dda metav1.Object, mountPropagation *corev1.MountPropagationMode) corev1.Container {
 	return corev1.Container{
 		Name:  string(apicommon.SecurityAgentContainerName),
 		Image: agentImage(),
@@ -548,14 +548,14 @@ func securityAgentContainer(dda metav1.Object) corev1.Container {
 			"start", fmt.Sprintf("-c=%s", agentCustomConfigVolumePath),
 		},
 		Env:          envVarsForSecurityAgent(dda),
-		VolumeMounts: volumeMountsForSecurityAgent(),
+		VolumeMounts: volumeMountsForSecurityAgent(mountPropagation),
 		SecurityContext: &corev1.SecurityContext{
 			ReadOnlyRootFilesystem: ptr.To(true),
 		},
 	}
 }
 
-func systemProbeContainer(dda metav1.Object) corev1.Container {
+func systemProbeContainer(dda metav1.Object, mountPropagation *corev1.MountPropagationMode) corev1.Container {
 	return corev1.Container{
 		Name:  string(apicommon.SystemProbeContainerName),
 		Image: agentImage(),
@@ -564,7 +564,7 @@ func systemProbeContainer(dda metav1.Object) corev1.Container {
 			fmt.Sprintf("--config=%s", systemProbeConfigVolumePath),
 		},
 		Env:          commonEnvVars(dda),
-		VolumeMounts: volumeMountsForSystemProbe(),
+		VolumeMounts: volumeMountsForSystemProbe(mountPropagation),
 		SecurityContext: &corev1.SecurityContext{
 			ReadOnlyRootFilesystem: ptr.To(true),
 			SeccompProfile: &corev1.SeccompProfile{
@@ -593,7 +593,7 @@ func privateActionRunnerContainer(dda metav1.Object) corev1.Container {
 	}
 }
 
-func agentDataPlaneContainer(dda metav1.Object) corev1.Container {
+func agentDataPlaneContainer(dda metav1.Object, mountPropagation *corev1.MountPropagationMode) corev1.Container {
 	return corev1.Container{
 		Name:  string(apicommon.AgentDataPlaneContainerName),
 		Image: agentImage(),
@@ -604,7 +604,7 @@ func agentDataPlaneContainer(dda metav1.Object) corev1.Container {
 			"run",
 		},
 		Env:            commonEnvVars(dda),
-		VolumeMounts:   volumeMountsForAgentDataPlane(),
+		VolumeMounts:   volumeMountsForAgentDataPlane(mountPropagation),
 		LivenessProbe:  constants.GetDefaultAgentDataPlaneLivenessProbe(),
 		ReadinessProbe: constants.GetDefaultAgentDataPlaneReadinessProbe(),
 		SecurityContext: &corev1.SecurityContext{
@@ -643,7 +643,7 @@ func initVolumeContainer() corev1.Container {
 	}
 }
 
-func initConfigContainer(dda metav1.Object) corev1.Container {
+func initConfigContainer(dda metav1.Object, mountPropagation *corev1.MountPropagationMode) corev1.Container {
 	return corev1.Container{
 		Name:    "init-config",
 		Image:   agentImage(),
@@ -651,12 +651,12 @@ func initConfigContainer(dda metav1.Object) corev1.Container {
 		Args: []string{
 			"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done",
 		},
-		VolumeMounts: volumeMountsForInitConfig(),
+		VolumeMounts: volumeMountsForInitConfig(mountPropagation),
 		Env:          envVarsForCoreAgent(dda),
 	}
 }
 
-func initSeccompSetupContainer() corev1.Container {
+func initSeccompSetupContainer(mountPropagation *corev1.MountPropagationMode) corev1.Container {
 	return corev1.Container{
 		Name:  "seccomp-setup",
 		Image: agentImage(),
@@ -665,7 +665,7 @@ func initSeccompSetupContainer() corev1.Container {
 			fmt.Sprintf("%s/%s", common.SeccompSecurityVolumePath, common.SystemProbeSeccompKey),
 			fmt.Sprintf("%s/%s", common.SeccompRootVolumePath, common.SystemProbeSeccompProfileName),
 		},
-		VolumeMounts: volumeMountsForSeccompSetup(),
+		VolumeMounts: volumeMountsForSeccompSetup(mountPropagation),
 	}
 }
 
@@ -773,15 +773,15 @@ func envVarsForSecurityAgent(dda metav1.Object) []corev1.EnvVar {
 	return append(envs, commonEnvs...)
 }
 
-func volumeMountsForInitConfig() []corev1.VolumeMount {
+func volumeMountsForInitConfig(mountPropagation *corev1.MountPropagationMode) []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		common.GetVolumeMountForLogs(),
 		common.GetVolumeMountForChecksd(),
-		common.GetVolumeMountForAuth(false),
+		common.GetVolumeMountForAuth(false, mountPropagation),
 		common.GetVolumeMountForConfd(),
 		common.GetVolumeMountForConfig(),
-		common.GetVolumeMountForProc(),
-		common.GetVolumeMountForRuntimeSocket(true),
+		common.GetVolumeMountForProc(mountPropagation),
+		common.GetVolumeMountForRuntimeSocket(true, mountPropagation),
 	}
 }
 
@@ -814,64 +814,64 @@ func volumesForAgent(dda metav1.Object, requiredContainers []apicommon.AgentCont
 	return volumes
 }
 
-func volumeMountsForCoreAgent() []corev1.VolumeMount {
+func volumeMountsForCoreAgent(mountPropagation *corev1.MountPropagationMode) []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		common.GetVolumeMountForLogs(),
-		common.GetVolumeMountForAuth(false),
+		common.GetVolumeMountForAuth(false, mountPropagation),
 		common.GetVolumeMountForInstallInfo(),
 		common.GetVolumeMountForConfig(),
-		common.GetVolumeMountForProc(),
-		common.GetVolumeMountForCgroups(),
+		common.GetVolumeMountForProc(mountPropagation),
+		common.GetVolumeMountForCgroups(mountPropagation),
 		common.GetVolumeMountForDogstatsdSocket(false),
-		common.GetVolumeMountForRuntimeSocket(true),
+		common.GetVolumeMountForRuntimeSocket(true, mountPropagation),
 		common.GetVolumeMountForRunPath(),
 		common.GetVolumeMountForTmp(),
 	}
 }
 
-func volumeMountsForTraceAgent() []corev1.VolumeMount {
+func volumeMountsForTraceAgent(mountPropagation *corev1.MountPropagationMode) []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		common.GetVolumeMountForLogs(),
-		common.GetVolumeMountForProc(),
-		common.GetVolumeMountForCgroups(),
-		common.GetVolumeMountForAuth(true),
+		common.GetVolumeMountForProc(mountPropagation),
+		common.GetVolumeMountForCgroups(mountPropagation),
+		common.GetVolumeMountForAuth(true, mountPropagation),
 		common.GetVolumeMountForConfig(),
 		common.GetVolumeMountForDogstatsdSocket(false),
-		common.GetVolumeMountForRuntimeSocket(true),
+		common.GetVolumeMountForRuntimeSocket(true, mountPropagation),
 		common.GetVolumeMountForTmp(),
 	}
 }
 
-func volumeMountsForProcessAgent() []corev1.VolumeMount {
+func volumeMountsForProcessAgent(mountPropagation *corev1.MountPropagationMode) []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		common.GetVolumeMountForLogs(),
-		common.GetVolumeMountForAuth(true),
+		common.GetVolumeMountForAuth(true, mountPropagation),
 		common.GetVolumeMountForConfig(),
 		common.GetVolumeMountForDogstatsdSocket(false),
-		common.GetVolumeMountForRuntimeSocket(true),
-		common.GetVolumeMountForProc(),
+		common.GetVolumeMountForRuntimeSocket(true, mountPropagation),
+		common.GetVolumeMountForProc(mountPropagation),
 		common.GetVolumeMountForTmp(),
 	}
 }
 
-func volumeMountsForSecurityAgent() []corev1.VolumeMount {
+func volumeMountsForSecurityAgent(mountPropagation *corev1.MountPropagationMode) []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		common.GetVolumeMountForLogs(),
-		common.GetVolumeMountForAuth(true),
+		common.GetVolumeMountForAuth(true, mountPropagation),
 		common.GetVolumeMountForConfig(),
 		common.GetVolumeMountForDogstatsdSocket(false),
-		common.GetVolumeMountForRuntimeSocket(true),
+		common.GetVolumeMountForRuntimeSocket(true, mountPropagation),
 		common.GetVolumeMountForTmp(),
 	}
 }
 
-func volumeMountsForSystemProbe() []corev1.VolumeMount {
+func volumeMountsForSystemProbe(mountPropagation *corev1.MountPropagationMode) []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		common.GetVolumeMountForLogs(),
-		common.GetVolumeMountForAuth(true),
+		common.GetVolumeMountForAuth(true, mountPropagation),
 		common.GetVolumeMountForConfig(),
 		common.GetVolumeMountForDogstatsdSocket(false),
-		common.GetVolumeMountForProc(),
+		common.GetVolumeMountForProc(mountPropagation),
 		common.GetVolumeMountForRunPath(),
 		common.GetVolumeMountForTmp(),
 	}
@@ -887,10 +887,10 @@ func volumeMountsForPrivateActionRunner() []corev1.VolumeMount {
 	}
 }
 
-func volumeMountsForSeccompSetup() []corev1.VolumeMount {
+func volumeMountsForSeccompSetup(mountPropagation *corev1.MountPropagationMode) []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		common.GetVolumeMountForSecurity(),
-		common.GetVolumeMountForSeccomp(),
+		common.GetVolumeMountForSeccomp(mountPropagation),
 	}
 }
 
@@ -903,15 +903,15 @@ func volumeMountsForOtelAgent() []corev1.VolumeMount {
 	}
 }
 
-func volumeMountsForAgentDataPlane() []corev1.VolumeMount {
+func volumeMountsForAgentDataPlane(mountPropagation *corev1.MountPropagationMode) []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		common.GetVolumeMountForLogs(),
-		common.GetVolumeMountForAuth(true),
+		common.GetVolumeMountForAuth(true, mountPropagation),
 		common.GetVolumeMountForConfig(),
 		common.GetVolumeMountForDogstatsdSocket(false),
-		common.GetVolumeMountForRuntimeSocket(true),
-		common.GetVolumeMountForProc(),
-		common.GetVolumeMountForCgroups(),
+		common.GetVolumeMountForRuntimeSocket(true, mountPropagation),
+		common.GetVolumeMountForProc(mountPropagation),
+		common.GetVolumeMountForCgroups(mountPropagation),
 		common.GetVolumeMountForTmp(),
 	}
 }

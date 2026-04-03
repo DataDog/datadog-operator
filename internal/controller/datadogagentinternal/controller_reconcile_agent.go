@@ -24,6 +24,7 @@ import (
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/condition"
@@ -56,7 +57,7 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	// multiple canaries, etc.
 	if r.options.ExtendedDaemonsetOptions.Enabled && !isDDAILabeledWithProfile(ddai) {
 		// Start by creating the Default Agent extendeddaemonset
-		eds = componentagent.NewDefaultAgentExtendedDaemonset(ddai, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
+		eds = componentagent.NewDefaultAgentExtendedDaemonset(ddai, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent, volume.GetMountPropagationMode(ddai.Spec.Global))
 		objLogger := daemonsetLogger.WithValues("object.kind", "ExtendedDaemonSet", "object.namespace", eds.Namespace, "object.name", eds.Name)
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
 
@@ -109,7 +110,7 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	}
 
 	// Start by creating the Default Agent daemonset
-	daemonset = componentagent.NewDefaultAgentDaemonset(ddai, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent, component.GetAgentName(ddai))
+	daemonset = componentagent.NewDefaultAgentDaemonset(ddai, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent, component.GetAgentName(ddai), volume.GetMountPropagationMode(ddai.Spec.Global))
 	objLogger := daemonsetLogger.WithValues("object.kind", "DaemonSet", "object.namespace", daemonset.Namespace, "object.name", daemonset.Name)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 	// Set Global setting on the default daemonset

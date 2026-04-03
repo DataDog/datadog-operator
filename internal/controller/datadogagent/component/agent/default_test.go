@@ -206,7 +206,7 @@ func TestPrivateActionRunnerContainer(t *testing.T) {
 	containers := agentOptimizedContainers(dda, []apicommon.AgentContainerName{
 		apicommon.CoreAgentContainerName,
 		apicommon.PrivateActionRunnerContainerName,
-	})
+	}, nil)
 
 	assert.Len(t, containers, 2)
 
