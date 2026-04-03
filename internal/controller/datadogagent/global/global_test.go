@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
@@ -137,7 +139,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				dda := testutils.NewDatadogAgentBuilder().
 					WithCredentials("apiKey", "appKey").
 					BuildWithDefaults()
-				dda.Spec.Global.UseVSock = apiutils.NewBoolPointer(true)
+				dda.Spec.Global.UseVSock = ptr.To(true)
 				return dda
 			}(),
 			wantCoreAgentEnvVars: nil,
@@ -949,7 +951,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			podTemplateManager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
 			store := store.NewStore(tt.dda, storeOptions)
 			resourcesManager := feature.NewResourceManagers(store)
-			reqComp := feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)}
+			reqComp := feature.RequiredComponent{IsRequired: ptr.To(true)}
 			requiredComponents := feature.RequiredComponents{
 				ClusterAgent: reqComp,
 				Agent:        reqComp,
@@ -1296,7 +1298,7 @@ func Test_UseFIPSAgent(t *testing.T) {
 		},
 	})
 
-	reqComp := feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)}
+	reqComp := feature.RequiredComponent{IsRequired: ptr.To(true)}
 	requiredComponents := feature.RequiredComponents{
 		ClusterAgent: reqComp,
 		Agent:        reqComp,

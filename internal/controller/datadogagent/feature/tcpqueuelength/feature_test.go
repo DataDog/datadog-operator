@@ -8,6 +8,8 @@ package tcpqueuelength
 import (
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -28,14 +30,14 @@ func Test_tcpQueueLengthFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: ptr.To(false),
 				},
 			},
 		},
 	}
 	ddaTCPQLEnabled := ddaTCPQLDisabled.DeepCopy()
 	{
-		ddaTCPQLEnabled.Spec.Features.TCPQueueLength.Enabled = apiutils.NewBoolPointer(true)
+		ddaTCPQLEnabled.Spec.Features.TCPQueueLength.Enabled = ptr.To(true)
 	}
 
 	tcpQueueLengthAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {

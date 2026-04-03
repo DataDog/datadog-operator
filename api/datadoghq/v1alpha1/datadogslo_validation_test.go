@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/resource"
 	utilserrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/utils/ptr"
 )
 
 func TestIsValidDatadogSLO(t *testing.T) {
@@ -139,7 +140,7 @@ func TestIsValidDatadogSLO(t *testing.T) {
 				Type:             DatadogSLOTypeMetric,
 				TargetThreshold:  resource.MustParse("98.00"),
 				Timeframe:        DatadogSLOTimeFrame30d,
-				WarningThreshold: ptrResourceQuantity(resource.MustParse("0")),
+				WarningThreshold: ptr.To(resource.MustParse("0")),
 			},
 			expected: errors.New("spec.WarningThreshold must be greater than 0 and less than 100"),
 		},
@@ -169,8 +170,4 @@ func TestIsValidDatadogSLO(t *testing.T) {
 			}
 		})
 	}
-}
-
-func ptrResourceQuantity(n resource.Quantity) *resource.Quantity {
-	return &n
 }

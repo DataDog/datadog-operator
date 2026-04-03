@@ -17,6 +17,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/ptr"
 )
 
 type envVar struct {
@@ -431,7 +432,7 @@ func TestAppsecFeatureConfigure(t *testing.T) {
 			},
 			wantEnabled:       true,
 			wantClusterAgent:  true,
-			wantAutoDetect:    boolPtr(true),
+			wantAutoDetect:    ptr.To(true),
 			wantProxies:       []string{"envoy-gateway", "istio"},
 			wantProcessorPort: 443,
 		},
@@ -556,7 +557,7 @@ func TestFromAnnotations(t *testing.T) {
 			},
 			wantConfig: Config{
 				Enabled:              true,
-				AutoDetect:           boolPtr(true),
+				AutoDetect:           ptr.To(true),
 				ProcessorServiceName: "appsec-svc",
 			},
 			wantErr: false,
@@ -629,7 +630,7 @@ func TestFromAnnotations(t *testing.T) {
 			},
 			wantConfig: Config{
 				Enabled:    true,
-				AutoDetect: boolPtr(true),
+				AutoDetect: ptr.To(true),
 				Mode:       "sidecar",
 			},
 			wantErr: false,
@@ -688,7 +689,7 @@ func TestFromAnnotations(t *testing.T) {
 			},
 			wantConfig: Config{
 				Enabled:                   true,
-				AutoDetect:                boolPtr(false),
+				AutoDetect:                ptr.To(false),
 				Proxies:                   []string{"envoy-gateway"},
 				ProcessorPort:             8080,
 				ProcessorAddress:          "processor.example.com",
@@ -729,7 +730,7 @@ func TestConfigValidate(t *testing.T) {
 			name: "valid config with autoDetect",
 			config: Config{
 				Enabled:              true,
-				AutoDetect:           boolPtr(true),
+				AutoDetect:           ptr.To(true),
 				ProcessorServiceName: "appsec-processor",
 			},
 			wantErr: false,
@@ -747,7 +748,7 @@ func TestConfigValidate(t *testing.T) {
 			name: "invalid port - negative",
 			config: Config{
 				Enabled:              true,
-				AutoDetect:           boolPtr(true),
+				AutoDetect:           ptr.To(true),
 				ProcessorPort:        -1,
 				ProcessorServiceName: "appsec-processor",
 			},
@@ -757,7 +758,7 @@ func TestConfigValidate(t *testing.T) {
 			name: "invalid port - too high",
 			config: Config{
 				Enabled:              true,
-				AutoDetect:           boolPtr(true),
+				AutoDetect:           ptr.To(true),
 				ProcessorPort:        70000,
 				ProcessorServiceName: "appsec-processor",
 			},
@@ -776,7 +777,7 @@ func TestConfigValidate(t *testing.T) {
 			name: "missing service name in external mode",
 			config: Config{
 				Enabled:    true,
-				AutoDetect: boolPtr(true),
+				AutoDetect: ptr.To(true),
 				Mode:       "external",
 			},
 			wantErr: true,
@@ -785,7 +786,7 @@ func TestConfigValidate(t *testing.T) {
 			name: "missing service name in sidecar mode is allowed",
 			config: Config{
 				Enabled:    true,
-				AutoDetect: boolPtr(true),
+				AutoDetect: ptr.To(true),
 				Mode:       "sidecar",
 			},
 			wantErr: false,
@@ -794,7 +795,7 @@ func TestConfigValidate(t *testing.T) {
 			name: "missing service name with no mode is allowed (defaults to sidecar)",
 			config: Config{
 				Enabled:    true,
-				AutoDetect: boolPtr(true),
+				AutoDetect: ptr.To(true),
 			},
 			wantErr: false,
 		},
@@ -922,7 +923,7 @@ func TestConfigIsEnabled(t *testing.T) {
 			name: "enabled with autoDetect true",
 			config: Config{
 				Enabled:    true,
-				AutoDetect: boolPtr(true),
+				AutoDetect: ptr.To(true),
 			},
 			wantEnabled: true,
 		},
@@ -930,7 +931,7 @@ func TestConfigIsEnabled(t *testing.T) {
 			name: "enabled with autoDetect false and proxies",
 			config: Config{
 				Enabled:    true,
-				AutoDetect: boolPtr(false),
+				AutoDetect: ptr.To(false),
 				Proxies:    []string{"envoy-gateway"},
 			},
 			wantEnabled: true,
@@ -939,7 +940,7 @@ func TestConfigIsEnabled(t *testing.T) {
 			name: "enabled with autoDetect false but no proxies",
 			config: Config{
 				Enabled:    true,
-				AutoDetect: boolPtr(false),
+				AutoDetect: ptr.To(false),
 			},
 			wantEnabled: false,
 		},
@@ -965,8 +966,4 @@ func TestConfigIsEnabled(t *testing.T) {
 			assert.Equal(t, tt.wantEnabled, tt.config.isEnabled())
 		})
 	}
-}
-
-func boolPtr(b bool) *bool {
-	return &b
 }

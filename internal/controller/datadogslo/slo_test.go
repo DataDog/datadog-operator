@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/utils/ptr"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
@@ -42,13 +43,13 @@ func Test_buildThreshold(t *testing.T) {
 				Name:             "test",
 				Timeframe:        "30d",
 				TargetThreshold:  resource.MustParse("99.999"),
-				WarningThreshold: ptrResourceQuantity(resource.MustParse("95.010001")),
+				WarningThreshold: ptr.To(resource.MustParse("95.010001")),
 			},
 			expectedResult: []datadogV1.SLOThreshold{
 				{
 					Target:    99.999,
 					Timeframe: datadogV1.SLOTimeframe("30d"),
-					Warning:   float64Ptr(95.010001),
+					Warning:   ptr.To(95.010001),
 				},
 			},
 		},
@@ -64,12 +65,4 @@ func Test_buildThreshold(t *testing.T) {
 			assert.Equal(t, tt.expectedResult, result)
 		})
 	}
-}
-
-func float64Ptr(f float64) *float64 {
-	return &f
-}
-
-func ptrResourceQuantity(n resource.Quantity) *resource.Quantity {
-	return &n
 }
