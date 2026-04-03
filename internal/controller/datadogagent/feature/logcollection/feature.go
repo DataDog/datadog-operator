@@ -43,6 +43,7 @@ type logCollectionFeature struct {
 	tempStoragePath            string
 	openFilesLimit             int32
 	autoMultiLineDetection     *bool
+	mountPropagation           *corev1.MountPropagationMode
 }
 
 // ID returns the ID of the Feature
@@ -59,6 +60,7 @@ func (f *logCollectionFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.Data
 	logCollection := ddaSpec.Features.LogCollection
 
 	if logCollection != nil && apiutils.BoolValue(logCollection.Enabled) {
+		f.mountPropagation = volume.GetMountPropagationMode(ddaSpec.Global)
 		if logCollection.ContainerCollectAll != nil {
 			// fallback to agent default if not set
 			f.containerCollectAll = apiutils.BoolValue(logCollection.ContainerCollectAll)
@@ -114,22 +116,22 @@ func (f *logCollectionFeature) ManageNodeAgent(managers feature.PodTemplateManag
 
 func (f *logCollectionFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
 	// pointerdir volume mount (replace default empty dir volume)
-	pointerVol, pointerVolMount := volume.GetVolumes(pointerVolumeName, f.tempStoragePath, pointerVolumePath, false)
+	pointerVol, pointerVolMount := volume.GetVolumes(pointerVolumeName, f.tempStoragePath, pointerVolumePath, false, volume.WithMountPropagation(f.mountPropagation))
 	managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&pointerVolMount, agentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)
 	managers.Volume().AddVolumeWithMergeFunc(&pointerVol, merger.OverrideCurrentVolumeMergeFunction)
 
 	// pod logs volume mount
-	podLogVol, podLogVolMount := volume.GetVolumes(podLogVolumeName, f.podLogsPath, podLogVolumePath, true)
+	podLogVol, podLogVolMount := volume.GetVolumes(podLogVolumeName, f.podLogsPath, podLogVolumePath, true, volume.WithMountPropagation(f.mountPropagation))
 	managers.VolumeMount().AddVolumeMountToContainer(&podLogVolMount, agentContainerName)
 	managers.Volume().AddVolume(&podLogVol)
 
 	// container logs volume mount
-	containerLogVol, containerLogVolMount := volume.GetVolumes(containerLogVolumeName, f.containerLogsPath, containerLogVolumePath, true)
+	containerLogVol, containerLogVolMount := volume.GetVolumes(containerLogVolumeName, f.containerLogsPath, containerLogVolumePath, true, volume.WithMountPropagation(f.mountPropagation))
 	managers.VolumeMount().AddVolumeMountToContainer(&containerLogVolMount, agentContainerName)
 	managers.Volume().AddVolume(&containerLogVol)
 
 	// symlink volume mount
-	symlinkVol, symlinkVolMount := volume.GetVolumes(symlinkContainerVolumeName, f.containerSymlinksPath, symlinkContainerVolumePath, true)
+	symlinkVol, symlinkVolMount := volume.GetVolumes(symlinkContainerVolumeName, f.containerSymlinksPath, symlinkContainerVolumePath, true, volume.WithMountPropagation(f.mountPropagation))
 	managers.VolumeMount().AddVolumeMountToContainer(&symlinkVolMount, agentContainerName)
 	managers.Volume().AddVolume(&symlinkVol)
 

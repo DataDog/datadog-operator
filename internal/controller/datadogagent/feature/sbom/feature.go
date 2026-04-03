@@ -48,6 +48,7 @@ type sbomFeature struct {
 	containerImageOverlayFSDirectScan       bool
 	hostEnabled                             bool
 	hostAnalyzers                           []string
+	mountPropagation                        *corev1.MountPropagationMode
 }
 
 // ID returns the ID of the Feature
@@ -65,6 +66,7 @@ func (f *sbomFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentS
 
 	if sbomConfig != nil && apiutils.BoolValue(sbomConfig.Enabled) {
 		f.enabled = true
+		f.mountPropagation = volume.GetMountPropagationMode(ddaSpec.Global)
 		if sbomConfig.ContainerImage != nil && apiutils.BoolValue(sbomConfig.ContainerImage.Enabled) {
 			f.containerImageEnabled = true
 			f.containerImageAnalyzers = sbomConfig.ContainerImage.Analyzers
@@ -179,11 +181,11 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 		volMgr := managers.Volume()
 		volMountMgr := managers.VolumeMount()
 
-		containerdLibVol, containerdLibVolMount := volume.GetVolumes(containerdDirVolumeName, containerdDirVolumePath, containerdDirMountPath, true)
+		containerdLibVol, containerdLibVolMount := volume.GetVolumes(containerdDirVolumeName, containerdDirVolumePath, containerdDirMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 		volMountMgr.AddVolumeMountToContainer(&containerdLibVolMount, apicommon.CoreAgentContainerName)
 		volMgr.AddVolume(&containerdLibVol)
 
-		criLibVol, criLibVolMount := volume.GetVolumes(criDirVolumeName, criDirVolumePath, criDirMountPath, true)
+		criLibVol, criLibVolMount := volume.GetVolumes(criDirVolumeName, criDirVolumePath, criDirMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 		volMountMgr.AddVolumeMountToContainer(&criLibVolMount, apicommon.CoreAgentContainerName)
 		volMgr.AddVolume(&criLibVol)
 	}
@@ -208,7 +210,7 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 		volMgr := managers.Volume()
 		volMountMgr := managers.VolumeMount()
 
-		hostRootVol, hostRootVolMount := volume.GetVolumes(common.HostRootVolumeName, common.HostRootHostPath, common.HostRootMountPath, true)
+		hostRootVol, hostRootVolMount := volume.GetVolumes(common.HostRootVolumeName, common.HostRootHostPath, common.HostRootMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 		volMountMgr.AddVolumeMountToContainer(&hostRootVolMount, apicommon.CoreAgentContainerName)
 		volMgr.AddVolume(&hostRootVol)
 	}

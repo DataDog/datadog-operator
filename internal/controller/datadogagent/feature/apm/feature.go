@@ -75,6 +75,8 @@ type apmFeature struct {
 
 	errorTrackingStandalone bool
 
+	mountPropagation *corev1.MountPropagationMode
+
 	logger logr.Logger
 }
 
@@ -128,6 +130,7 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 	f.owner = dda
 	apm := ddaSpec.Features.APM
 	if shouldEnableAPM(apm) {
+		f.mountPropagation = volume.GetMountPropagationMode(ddaSpec.Global)
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 		f.useHostNetwork = constants.IsHostNetworkEnabled(ddaSpec, v2alpha1.NodeAgentComponentName)
 
@@ -513,7 +516,7 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 			Name:  DDAPMReceiverSocket,
 			Value: filepath.Join(apmSocketVolumeLocalPath, sockName),
 		})
-		socketVol, socketVolMount := volume.GetVolumes(apmSocketVolumeName, udsHostFolder, apmSocketVolumeLocalPath, false)
+		socketVol, socketVolMount := volume.GetVolumes(apmSocketVolumeName, udsHostFolder, apmSocketVolumeLocalPath, false, volume.WithMountPropagation(f.mountPropagation))
 		volType := corev1.HostPathDirectoryOrCreate // We need to create the directory on the host if it does not exist.
 		socketVol.VolumeSource.HostPath.Type = &volType
 		managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&socketVolMount, agentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)

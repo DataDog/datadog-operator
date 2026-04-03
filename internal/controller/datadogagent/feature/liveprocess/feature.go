@@ -32,9 +32,10 @@ func buildLiveProcessFeature(options *feature.Options) feature.Feature {
 }
 
 type liveProcessFeature struct {
-	scrubArgs      *bool
-	stripArgs      *bool
-	runInCoreAgent bool
+	scrubArgs        *bool
+	stripArgs        *bool
+	runInCoreAgent   bool
+	mountPropagation *corev1.MountPropagationMode
 }
 
 // ID returns the ID of the Feature
@@ -45,6 +46,7 @@ func (f *liveProcessFeature) ID() feature.IDType {
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *liveProcessFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	if ddaSpec.Features.LiveProcessCollection != nil && apiutils.BoolValue(ddaSpec.Features.LiveProcessCollection.Enabled) {
+		f.mountPropagation = volume.GetMountPropagationMode(ddaSpec.Global)
 		if ddaSpec.Features.LiveProcessCollection.ScrubProcessArguments != nil {
 			f.scrubArgs = ptr.To(*ddaSpec.Features.LiveProcessCollection.ScrubProcessArguments)
 		}
@@ -120,17 +122,17 @@ func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManager
 func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
 
 	// passwd volume mount
-	passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, common.PasswdMountPath, true)
+	passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, common.PasswdMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 	managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, agentContainerName)
 	managers.Volume().AddVolume(&passwdVol)
 
 	// cgroups volume mount
-	cgroupsVol, cgroupsVolMount := volume.GetVolumes(common.CgroupsVolumeName, common.CgroupsHostPath, common.CgroupsMountPath, true)
+	cgroupsVol, cgroupsVolMount := volume.GetVolumes(common.CgroupsVolumeName, common.CgroupsHostPath, common.CgroupsMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 	managers.VolumeMount().AddVolumeMountToContainer(&cgroupsVolMount, agentContainerName)
 	managers.Volume().AddVolume(&cgroupsVol)
 
 	// procdir volume mount
-	procdirVol, procdirVolMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true)
+	procdirVol, procdirVolMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 	managers.VolumeMount().AddVolumeMountToContainer(&procdirVolMount, agentContainerName)
 	managers.Volume().AddVolume(&procdirVol)
 

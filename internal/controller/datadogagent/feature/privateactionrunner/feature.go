@@ -49,6 +49,7 @@ type privateActionRunnerFeature struct {
 	clusterConfigData         string
 	clusterServiceAccountName string
 	k8sRemediationEnabled     bool
+	mountPropagation          *corev1.MountPropagationMode
 }
 
 // ID returns the ID of the Feature
@@ -65,6 +66,7 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 	// Check for Node Agent configuration (annotation-based)
 	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnablePrivateActionRunnerAnnotation) {
 		f.nodeEnabled = true
+		f.mountPropagation = volume.GetMountPropagationMode(ddaSpec.Global)
 
 		// Use config data from annotation directly, or fall back to default
 		if configData, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.PrivateActionRunnerConfigDataAnnotation); ok {
@@ -295,17 +297,17 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	managers.Annotation().AddAnnotation(checksumKey, checksumValue)
 
 	// procdir volume mount
-	procdirVol, procdirVolMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true)
+	procdirVol, procdirVolMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 	managers.Volume().AddVolume(&procdirVol)
 	managers.VolumeMount().AddVolumeMountToContainer(&procdirVolMount, apicommon.PrivateActionRunnerContainerName)
 
 	// os-release volume mount
-	osReleaseVol, osReleaseVolMount := volume.GetVolumes(common.SystemProbeOSReleaseDirVolumeName, common.SystemProbeOSReleaseDirVolumePath, common.SystemProbeOSReleaseDirMountPath, true)
+	osReleaseVol, osReleaseVolMount := volume.GetVolumes(common.SystemProbeOSReleaseDirVolumeName, common.SystemProbeOSReleaseDirVolumePath, common.SystemProbeOSReleaseDirMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 	managers.Volume().AddVolume(&osReleaseVol)
 	managers.VolumeMount().AddVolumeMountToContainer(&osReleaseVolMount, apicommon.PrivateActionRunnerContainerName)
 
 	// host var log volume mount
-	varLogVol, varLogVolMount := volume.GetVolumes(hostVarLogVolumeName, hostVarLogHostPath, hostVarLogMountPath, true)
+	varLogVol, varLogVolMount := volume.GetVolumes(hostVarLogVolumeName, hostVarLogHostPath, hostVarLogMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 	managers.Volume().AddVolume(&varLogVol)
 	managers.VolumeMount().AddVolumeMountToContainer(&varLogVolMount, apicommon.PrivateActionRunnerContainerName)
 

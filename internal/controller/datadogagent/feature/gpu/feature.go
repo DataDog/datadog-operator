@@ -35,6 +35,7 @@ type gpuFeature struct {
 	podResourcesSocketPath  string
 	isPrivilegedModeEnabled bool
 	patchCgroupPermissions  bool
+	mountPropagation        *corev1.MountPropagationMode
 }
 
 // ID returns the ID of the Feature
@@ -48,6 +49,7 @@ func (f *gpuFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSp
 		return reqComp
 	}
 
+	f.mountPropagation = volume.GetMountPropagationMode(ddaSpec.Global)
 	f.isPrivilegedModeEnabled = apiutils.BoolValue(ddaSpec.Features.GPU.PrivilegedMode)
 	f.patchCgroupPermissions = apiutils.BoolValue(ddaSpec.Features.GPU.PatchCgroupPermissions)
 
@@ -87,7 +89,7 @@ func (f *gpuFeature) ManageClusterAgent(managers feature.PodTemplateManagers, pr
 	return nil
 }
 
-func configureSystemProbe(managers feature.PodTemplateManagers) {
+func (f *gpuFeature) configureSystemProbe(managers feature.PodTemplateManagers) {
 	// env var to enable the GPU probe module in system-probe
 	enableSPEnvVar := &corev1.EnvVar{
 		Name:  DDEnableGPUProbeEnvVar,
@@ -126,15 +128,15 @@ func configureSystemProbe(managers feature.PodTemplateManagers) {
 	managers.VolumeMount().AddVolumeMountToContainer(nvidiaDevicesMount, apicommon.SystemProbeContainerName)
 
 	// socket volume mount (needs write perms for the system probe container but not the others)
-	procdirVol, procdirMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true)
+	procdirVol, procdirMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 	managers.VolumeMount().AddVolumeMountToContainer(&procdirMount, apicommon.SystemProbeContainerName)
 	managers.Volume().AddVolume(&procdirVol)
 
-	cgroupsVol, cgroupsMount := volume.GetVolumes(common.CgroupsVolumeName, common.CgroupsHostPath, common.CgroupsMountPath, true)
+	cgroupsVol, cgroupsMount := volume.GetVolumes(common.CgroupsVolumeName, common.CgroupsHostPath, common.CgroupsMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 	managers.VolumeMount().AddVolumeMountToContainer(&cgroupsMount, apicommon.SystemProbeContainerName)
 	managers.Volume().AddVolume(&cgroupsVol)
 
-	debugfsVol, debugfsMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false)
+	debugfsVol, debugfsMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false, volume.WithMountPropagation(f.mountPropagation))
 	managers.VolumeMount().AddVolumeMountToContainer(&debugfsMount, apicommon.SystemProbeContainerName)
 	managers.Volume().AddVolume(&debugfsVol)
 
@@ -172,7 +174,7 @@ func (f *gpuFeature) configurePodResourcesSocket(managers feature.PodTemplateMan
 		Value: path.Join(f.podResourcesSocketPath, "kubelet.sock"),
 	})
 
-	podResourcesVol, podResourcesMount := volume.GetVolumes(common.KubeletPodResourcesVolumeName, f.podResourcesSocketPath, f.podResourcesSocketPath, false)
+	podResourcesVol, podResourcesMount := volume.GetVolumes(common.KubeletPodResourcesVolumeName, f.podResourcesSocketPath, f.podResourcesSocketPath, false, volume.WithMountPropagation(f.mountPropagation))
 	managers.VolumeMount().AddVolumeMountToContainer(
 		&podResourcesMount,
 		apicommon.CoreAgentContainerName,
@@ -190,7 +192,7 @@ func (f *gpuFeature) configureCgroupPermissions(managers feature.PodTemplateMana
 		Value: "true",
 	})
 
-	hostRunVol, hostRunMount := volume.GetVolumes(common.HostRunVolumeName, common.HostRunPath, common.HostRunMountPath, false)
+	hostRunVol, hostRunMount := volume.GetVolumes(common.HostRunVolumeName, common.HostRunPath, common.HostRunMountPath, false, volume.WithMountPropagation(f.mountPropagation))
 	managers.VolumeMount().AddVolumeMountToContainer(&hostRunMount, apicommon.SystemProbeContainerName)
 	managers.Volume().AddVolume(&hostRunVol)
 
@@ -220,7 +222,7 @@ func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ str
 	f.configurePodResourcesSocket(managers)
 
 	if f.isPrivilegedModeEnabled {
-		configureSystemProbe(managers)
+		f.configureSystemProbe(managers)
 	}
 
 	if f.patchCgroupPermissions {
@@ -250,7 +252,7 @@ func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ str
 	// in the NVIDIA container runtime config. In this case, we need to mount the
 	// /var/run/nvidia-container-devices/all directory into the container, so that
 	// the nvidia-container-runtime can see that we want to use all GPUs.
-	devicesVol, devicesMount := volume.GetVolumes(nvidiaDevicesVolumeName, devNullPath, nvidiaDevicesMountPath, true)
+	devicesVol, devicesMount := volume.GetVolumes(nvidiaDevicesVolumeName, devNullPath, nvidiaDevicesMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 	managers.Volume().AddVolume(&devicesVol)
 	managers.VolumeMount().AddVolumeMountToContainer(&devicesMount, apicommon.CoreAgentContainerName)
 

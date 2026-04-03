@@ -3155,6 +3155,15 @@
                   },
                   "type": "object"
                 },
+                "hostVolumeMountPropagation": {
+                  "description": "HostVolumeMountPropagation determines how mounts are propagated from the host to the Agent containers\nand the other way around for host path volumes.\nref: https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation",
+                  "enum": [
+                    "None",
+                    "HostToContainer",
+                    "Bidirectional"
+                  ],
+                  "type": "string"
+                },
                 "kubelet": {
                   "additionalProperties": false,
                   "description": "Kubelet contains the kubelet configuration parameters.",

@@ -49,6 +49,7 @@ type cspmFeature struct {
 	checkInterval         string
 	hostBenchmarksEnabled bool
 	runInSystemProbe      bool
+	mountPropagation      *corev1.MountPropagationMode
 
 	owner  metav1.Object
 	logger logr.Logger
@@ -75,6 +76,7 @@ func (f *cspmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgen
 
 	if cspmConfig != nil && apiutils.BoolValue(cspmConfig.Enabled) {
 		f.enable = true
+		f.mountPropagation = volume.GetMountPropagationMode(ddaSpec.Global)
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 		if cspmConfig.CheckInterval != nil {
@@ -314,27 +316,27 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 	}
 
 	// cgroups volume mount
-	cgroupsVol, cgroupsVolMount := volume.GetVolumes(common.CgroupsVolumeName, common.CgroupsHostPath, common.CgroupsMountPath, true)
+	cgroupsVol, cgroupsVolMount := volume.GetVolumes(common.CgroupsVolumeName, common.CgroupsHostPath, common.CgroupsMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 	volMountMgr.AddVolumeMountToContainer(&cgroupsVolMount, targetContainer)
 	VolMgr.AddVolume(&cgroupsVol)
 
 	// passwd volume mount
-	passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, common.PasswdMountPath, true)
+	passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, common.PasswdMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 	volMountMgr.AddVolumeMountToContainer(&passwdVolMount, targetContainer)
 	VolMgr.AddVolume(&passwdVol)
 
 	// procdir volume mount
-	procdirVol, procdirVolMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true)
+	procdirVol, procdirVolMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 	volMountMgr.AddVolumeMountToContainer(&procdirVolMount, targetContainer)
 	VolMgr.AddVolume(&procdirVol)
 
 	// host root volume mount
-	hostRootVol, hostRootVolMount := volume.GetVolumes(common.HostRootVolumeName, common.HostRootHostPath, common.HostRootMountPath, true)
+	hostRootVol, hostRootVolMount := volume.GetVolumes(common.HostRootVolumeName, common.HostRootHostPath, common.HostRootMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 	volMountMgr.AddVolumeMountToContainer(&hostRootVolMount, targetContainer)
 	VolMgr.AddVolume(&hostRootVol)
 
 	// group volume mount
-	groupVol, groupVolMount := volume.GetVolumes(common.GroupVolumeName, common.GroupHostPath, common.GroupMountPath, true)
+	groupVol, groupVolMount := volume.GetVolumes(common.GroupVolumeName, common.GroupHostPath, common.GroupMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 	volMountMgr.AddVolumeMountToContainer(&groupVolMount, targetContainer)
 	VolMgr.AddVolume(&groupVol)
 

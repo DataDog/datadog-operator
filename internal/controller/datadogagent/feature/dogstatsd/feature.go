@@ -64,6 +64,8 @@ type dogstatsdFeature struct {
 
 	nonLocalTraffic bool
 
+	mountPropagation *corev1.MountPropagationMode
+
 	logger logr.Logger
 	owner  metav1.Object
 }
@@ -116,6 +118,8 @@ func (f *dogstatsdFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datado
 
 	f.dataPlaneEnabled = featureutils.IsDataPlaneEnabled(dda, ddaSpec)
 	f.dataPlaneDogstatsdEnabled = featureutils.IsDataPlaneDogstatsdEnabled(ddaSpec)
+
+	f.mountPropagation = volume.GetMountPropagationMode(ddaSpec.Global)
 
 	reqComp = feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
@@ -253,7 +257,7 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentCon
 	if f.udsEnabled {
 		udsHostFolder := filepath.Dir(f.udsHostFilepath)
 		sockName := filepath.Base(f.udsHostFilepath)
-		socketVol, socketVolMount := volume.GetVolumes(common.DogstatsdSocketVolumeName, udsHostFolder, common.DogstatsdSocketLocalPath, false)
+		socketVol, socketVolMount := volume.GetVolumes(common.DogstatsdSocketVolumeName, udsHostFolder, common.DogstatsdSocketLocalPath, false, volume.WithMountPropagation(f.mountPropagation))
 		volType := corev1.HostPathDirectoryOrCreate // We need to create the directory on the host if it does not exist.
 
 		socketVol.VolumeSource.HostPath.Type = &volType

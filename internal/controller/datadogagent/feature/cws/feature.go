@@ -52,6 +52,7 @@ type cwsFeature struct {
 	directSendFromSystemProbe  bool
 	enforcementEnabled         bool
 	useVSock                   bool
+	mountPropagation           *corev1.MountPropagationMode
 
 	owner  metav1.Object
 	logger logr.Logger
@@ -77,6 +78,7 @@ func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 	cwsConfig := ddaSpec.Features.CWS
 
 	if cwsConfig != nil && apiutils.BoolValue(cwsConfig.Enabled) {
+		f.mountPropagation = volume.GetMountPropagationMode(ddaSpec.Global)
 		f.syscallMonitorEnabled = apiutils.BoolValue(cwsConfig.SyscallMonitorEnabled)
 		f.directSendFromSystemProbe = apiutils.BoolValue(cwsConfig.DirectSendFromSystemProbe)
 
@@ -288,7 +290,7 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	volMgr := managers.Volume()
 
 	// debugfs volume mount
-	debugfsVol, debugfsVolMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false)
+	debugfsVol, debugfsVolMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false, volume.WithMountPropagation(f.mountPropagation))
 	volMountMgr.AddVolumeMountToContainer(&debugfsVolMount, apicommon.SystemProbeContainerName)
 	volMgr.AddVolume(&debugfsVol)
 
@@ -311,32 +313,32 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	volMgr.AddVolume(&socketVol)
 
 	// procdir volume mount
-	procdirVol, procdirVolMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true)
+	procdirVol, procdirVolMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 	volMountMgr.AddVolumeMountToContainer(&procdirVolMount, apicommon.SystemProbeContainerName)
 	volMgr.AddVolume(&procdirVol)
 
 	// passwd volume mount
-	passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, common.PasswdMountPath, true)
+	passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, common.PasswdMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 	volMountMgr.AddVolumeMountToContainer(&passwdVolMount, apicommon.SystemProbeContainerName)
 	volMgr.AddVolume(&passwdVol)
 
 	// group volume mount
-	groupVol, groupVolMount := volume.GetVolumes(common.GroupVolumeName, common.GroupHostPath, common.GroupMountPath, true)
+	groupVol, groupVolMount := volume.GetVolumes(common.GroupVolumeName, common.GroupHostPath, common.GroupMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 	volMountMgr.AddVolumeMountToContainer(&groupVolMount, apicommon.SystemProbeContainerName)
 	volMgr.AddVolume(&groupVol)
 
 	// osRelease volume mount
-	osReleaseVol, osReleaseVolMount := volume.GetVolumes(common.SystemProbeOSReleaseDirVolumeName, common.SystemProbeOSReleaseDirVolumePath, common.SystemProbeOSReleaseDirMountPath, true)
+	osReleaseVol, osReleaseVolMount := volume.GetVolumes(common.SystemProbeOSReleaseDirVolumeName, common.SystemProbeOSReleaseDirVolumePath, common.SystemProbeOSReleaseDirMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 	volMountMgr.AddVolumeMountToContainer(&osReleaseVolMount, apicommon.SystemProbeContainerName)
 	volMgr.AddVolume(&osReleaseVol)
 
 	// cgroup volume mount
-	cgroupsVol, cgroupsVolMount := volume.GetVolumes(common.CgroupsVolumeName, common.CgroupsHostPath, common.CgroupsMountPath, true)
+	cgroupsVol, cgroupsVolMount := volume.GetVolumes(common.CgroupsVolumeName, common.CgroupsHostPath, common.CgroupsMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 	volMountMgr.AddVolumeMountToContainer(&cgroupsVolMount, apicommon.SystemProbeContainerName)
 	volMgr.AddVolume(&cgroupsVol)
 
 	// host root volume mount
-	hostRootVol, hostRootVolMount := volume.GetVolumes(common.HostRootVolumeName, common.HostRootHostPath, common.HostRootMountPath, true)
+	hostRootVol, hostRootVolMount := volume.GetVolumes(common.HostRootVolumeName, common.HostRootHostPath, common.HostRootMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 	volMountMgr.AddVolumeMountToContainer(&hostRootVolMount, apicommon.SystemProbeContainerName)
 	volMgr.AddVolume(&hostRootVol)
 

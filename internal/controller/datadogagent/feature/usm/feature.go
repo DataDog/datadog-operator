@@ -33,7 +33,8 @@ func buildUSMFeature(options *feature.Options) feature.Feature {
 }
 
 type usmFeature struct {
-	directSend bool
+	directSend       bool
+	mountPropagation *corev1.MountPropagationMode
 }
 
 // ID returns the ID of the Feature
@@ -49,6 +50,7 @@ func (f *usmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 	usmConfig := ddaSpec.Features.USM
 
 	if usmConfig != nil && apiutils.BoolValue(usmConfig.Enabled) {
+		f.mountPropagation = volume.GetMountPropagationMode(ddaSpec.Global)
 		containers := []apicommon.AgentContainerName{
 			apicommon.CoreAgentContainerName,
 			apicommon.SystemProbeContainerName,
@@ -122,16 +124,16 @@ func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommon.SystemProbeContainerName)
 
 	// procdir volume mount
-	procdirVol, procdirVolMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true)
+	procdirVol, procdirVolMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 	managers.Volume().AddVolume(&procdirVol)
 	managers.VolumeMount().AddVolumeMountToContainers(&procdirVolMount, []apicommon.AgentContainerName{apicommon.ProcessAgentContainerName, apicommon.SystemProbeContainerName})
 
 	// cgroups volume mount
-	cgroupsVol, cgroupsVolMount := volume.GetVolumes(common.CgroupsVolumeName, common.CgroupsHostPath, common.CgroupsMountPath, true)
+	cgroupsVol, cgroupsVolMount := volume.GetVolumes(common.CgroupsVolumeName, common.CgroupsHostPath, common.CgroupsMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 	managers.Volume().AddVolume(&cgroupsVol)
 	managers.VolumeMount().AddVolumeMountToContainers(&cgroupsVolMount, []apicommon.AgentContainerName{apicommon.ProcessAgentContainerName, apicommon.SystemProbeContainerName})
 
-	debugfsVol, debugfsVolMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false)
+	debugfsVol, debugfsVolMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false, volume.WithMountPropagation(f.mountPropagation))
 	managers.Volume().AddVolume(&debugfsVol)
 	managers.VolumeMount().AddVolumeMountToContainers(&debugfsVolMount, []apicommon.AgentContainerName{apicommon.ProcessAgentContainerName, apicommon.SystemProbeContainerName})
 

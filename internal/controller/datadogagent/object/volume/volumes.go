@@ -16,8 +16,20 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 )
 
+// VolumeMountOption is a functional option for configuring a corev1.VolumeMount.
+type VolumeMountOption func(*corev1.VolumeMount)
+
+// WithMountPropagation returns a VolumeMountOption that sets MountPropagation on a VolumeMount.
+func WithMountPropagation(mode *corev1.MountPropagationMode) VolumeMountOption {
+	return func(vm *corev1.VolumeMount) {
+		if mode != nil {
+			vm.MountPropagation = mode
+		}
+	}
+}
+
 // GetVolumes creates a corev1.Volume and corev1.VolumeMount corresponding to a host path.
-func GetVolumes(volumeName, hostPath, mountPath string, readOnly bool) (corev1.Volume, corev1.VolumeMount) {
+func GetVolumes(volumeName, hostPath, mountPath string, readOnly bool, opts ...VolumeMountOption) (corev1.Volume, corev1.VolumeMount) {
 	var volume corev1.Volume
 	var volumeMount corev1.VolumeMount
 
@@ -33,6 +45,10 @@ func GetVolumes(volumeName, hostPath, mountPath string, readOnly bool) (corev1.V
 		Name:      volumeName,
 		MountPath: mountPath,
 		ReadOnly:  readOnly,
+	}
+
+	for _, opt := range opts {
+		opt(&volumeMount)
 	}
 
 	return volume, volumeMount

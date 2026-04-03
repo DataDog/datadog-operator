@@ -33,7 +33,8 @@ func buildLiveContainerFeature(options *feature.Options) feature.Feature {
 }
 
 type liveContainerFeature struct {
-	runInCoreAgent bool
+	runInCoreAgent   bool
+	mountPropagation *corev1.MountPropagationMode
 }
 
 // ID returns the ID of the Feature
@@ -44,6 +45,8 @@ func (f *liveContainerFeature) ID() feature.IDType {
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *liveContainerFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	if ddaSpec.Features.LiveContainerCollection != nil && apiutils.BoolValue(ddaSpec.Features.LiveContainerCollection.Enabled) {
+		f.mountPropagation = volume.GetMountPropagationMode(ddaSpec.Global)
+
 		reqContainers := []apicommon.AgentContainerName{
 			apicommon.CoreAgentContainerName,
 		}
@@ -112,12 +115,12 @@ func (f *liveContainerFeature) ManageNodeAgent(managers feature.PodTemplateManag
 func (f *liveContainerFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
 
 	// cgroups volume mount
-	cgroupsVol, cgroupsVolMount := volume.GetVolumes(common.CgroupsVolumeName, common.CgroupsHostPath, common.CgroupsMountPath, true)
+	cgroupsVol, cgroupsVolMount := volume.GetVolumes(common.CgroupsVolumeName, common.CgroupsHostPath, common.CgroupsMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 	managers.VolumeMount().AddVolumeMountToContainer(&cgroupsVolMount, agentContainerName)
 	managers.Volume().AddVolume(&cgroupsVol)
 
 	// procdir volume mount
-	procdirVol, procdirVolMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true)
+	procdirVol, procdirVolMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true, volume.WithMountPropagation(f.mountPropagation))
 	managers.VolumeMount().AddVolumeMountToContainer(&procdirVolMount, agentContainerName)
 	managers.Volume().AddVolume(&procdirVol)
 

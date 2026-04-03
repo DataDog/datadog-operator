@@ -32,7 +32,9 @@ func buildEBPFCheckFeature(options *feature.Options) feature.Feature {
 	return ebpfCheckFeat
 }
 
-type ebpfCheckFeature struct{}
+type ebpfCheckFeature struct {
+	mountPropagation *corev1.MountPropagationMode
+}
 
 // ID returns the ID of the Feature
 func (f *ebpfCheckFeature) ID() feature.IDType {
@@ -42,6 +44,8 @@ func (f *ebpfCheckFeature) ID() feature.IDType {
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *ebpfCheckFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	if ddaSpec.Features != nil && ddaSpec.Features.EBPFCheck != nil && apiutils.BoolValue(ddaSpec.Features.EBPFCheck.Enabled) {
+		f.mountPropagation = volume.GetMountPropagationMode(ddaSpec.Global)
+
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: ptr.To(true),
 			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
@@ -70,7 +74,7 @@ func (f *ebpfCheckFeature) ManageNodeAgent(managers feature.PodTemplateManagers,
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommon.SystemProbeContainerName)
 
 	// debugfs volume mount
-	debugfsVol, debugfsVolMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false)
+	debugfsVol, debugfsVolMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false, volume.WithMountPropagation(f.mountPropagation))
 	managers.Volume().AddVolume(&debugfsVol)
 	managers.VolumeMount().AddVolumeMountToContainers(&debugfsVolMount, []apicommon.AgentContainerName{apicommon.SystemProbeContainerName})
 
