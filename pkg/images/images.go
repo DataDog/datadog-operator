@@ -136,7 +136,7 @@ func (i *Image) FIPSVersionError() error {
 	if !i.isFIPS {
 		return nil
 	}
-	if i.isFull || i.name == DefaultDdotCollectorImageName {
+	if (i.name == DefaultAgentImageName && i.isFull) || i.name == DefaultDdotCollectorImageName {
 		if !utils.IsAboveMinVersion(i.tag, DDOTFIPSMinimumVersion, nil) {
 			return fmt.Errorf("%s:%s does not have a FIPS variant: agent -fips-full and ddot-collector -fips are only published from v7.78.0", i.name, i.tag)
 		}

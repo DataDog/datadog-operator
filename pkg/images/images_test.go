@@ -709,6 +709,12 @@ func Test_FIPSVersionError(t *testing.T) {
 			image:     &Image{name: DefaultAgentImageName, tag: "7.77.0", isFIPS: true, isFull: true},
 			wantError: true,
 		},
+		// No error: custom image with fips-full naming — not a known DD image, don't validate
+		{
+			name:      "custom image, fips-full naming, low version",
+			image:     &Image{name: "my-image", tag: "1.0.0", isFIPS: true, isFull: true},
+			wantError: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
