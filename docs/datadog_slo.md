@@ -69,6 +69,8 @@ To deploy a `DatadogSLO` with the Datadog Operator, use the [`datadog-operator` 
     Datadog Operator occasionally reconciles and keeps SLOs in line with the given configuration. There is also a force 
     sync every hour, so if a user deletes an SLO in the Datadog UI, Datadog Operator restores it in under an hour.
 
+By default, the Operator ensures that the API SLO definition stays in sync with the DatadogSLO resource every **60** minutes (per SLO). This interval can be adjusted using the environment variable `DD_SLO_FORCE_SYNC_PERIOD`, which specifies the number of minutes. For example, setting this variable to `"30"` changes the interval to 30 minutes.
+
 ## Cleanup
 
 The following commands delete the SLO from your Datadog account as well as all of the Kubernetes resources created by the previous instructions:
