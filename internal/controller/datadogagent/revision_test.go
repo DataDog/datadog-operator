@@ -9,6 +9,8 @@ import (
 	"context"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -19,7 +21,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 )
 
 func newRevisionTestScheme(t *testing.T) *runtime.Scheme {
@@ -156,7 +157,7 @@ func TestGCOldRevisions_KeepsCurrentAndPrevious(t *testing.T) {
 		}(),
 		func() *v2alpha1.DatadogAgent {
 			i := newRevisionTestOwner("test-dda", "default")
-			i.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{Site: apiutils.NewStringPointer("datadoghq.eu")}}
+			i.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{Site: ptr.To("datadoghq.eu")}}
 			return i
 		}(),
 	}
@@ -237,7 +238,7 @@ func TestEnsureRevision_RevisionNumbersMonotonic(t *testing.T) {
 		}(),
 		func() *v2alpha1.DatadogAgent {
 			i := newRevisionTestOwner("test-dda", "default")
-			i.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{Site: apiutils.NewStringPointer("datadoghq.eu")}}
+			i.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{Site: ptr.To("datadoghq.eu")}}
 			return i
 		}(),
 	}
@@ -279,7 +280,7 @@ func TestGCOldRevisions_DeletesMultipleOld(t *testing.T) {
 	names := make([]string, len(sites))
 	for i, site := range sites {
 		inst := newRevisionTestOwner("test-dda", "default")
-		inst.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{Site: apiutils.NewStringPointer(site)}}
+		inst.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{Site: ptr.To(site)}}
 		name, err := r.ensureRevision(context.Background(), inst, mustListRevisions(t, r, inst))
 		require.NoError(t, err)
 		names[i] = name

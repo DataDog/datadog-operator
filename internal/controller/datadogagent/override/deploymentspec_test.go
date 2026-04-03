@@ -8,8 +8,9 @@ package override
 import (
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/apps/v1"
@@ -25,70 +26,70 @@ func TestDeployment(t *testing.T) {
 	}{
 		{
 			deployment: makeDeployment(
-				apiutils.NewStringPointer("RollingUpdate"),
-				apiutils.NewStringPointer("50%"),
-				apiutils.NewStringPointer("50%"),
+				ptr.To("RollingUpdate"),
+				ptr.To("50%"),
+				ptr.To("50%"),
 			),
 			override: makeOverride(
-				apiutils.NewStringPointer("RollingUpdate"),
-				apiutils.NewStringPointer("0%"),
-				apiutils.NewStringPointer("0%"),
+				ptr.To("RollingUpdate"),
+				ptr.To("0%"),
+				ptr.To("0%"),
 			),
 			expected: makeDeployment(
-				apiutils.NewStringPointer("RollingUpdate"),
-				apiutils.NewStringPointer("0%"),
-				apiutils.NewStringPointer("0%"),
+				ptr.To("RollingUpdate"),
+				ptr.To("0%"),
+				ptr.To("0%"),
 			),
 		},
 		{
 			deployment: makeDeployment(
-				apiutils.NewStringPointer("RollingUpdate"),
-				apiutils.NewStringPointer("50%"),
-				apiutils.NewStringPointer("50%"),
+				ptr.To("RollingUpdate"),
+				ptr.To("50%"),
+				ptr.To("50%"),
 			),
 			override: makeOverride(
-				apiutils.NewStringPointer("Recreate"),
+				ptr.To("Recreate"),
 				nil,
 				nil,
 			),
 			expected: makeDeployment(
-				apiutils.NewStringPointer("Recreate"),
+				ptr.To("Recreate"),
 				nil,
-				nil,
-			),
-		},
-		{
-			deployment: makeDeployment(
-				apiutils.NewStringPointer("RollingUpdate"),
-				apiutils.NewStringPointer("50%"),
-				apiutils.NewStringPointer("50%"),
-			),
-			override: makeOverride(
-				apiutils.NewStringPointer("Recreate"),
-				apiutils.NewStringPointer("50%"),
-				nil,
-			),
-			expected: makeDeployment(
-				apiutils.NewStringPointer("Recreate"),
-				apiutils.NewStringPointer("50%"),
 				nil,
 			),
 		},
 		{
 			deployment: makeDeployment(
+				ptr.To("RollingUpdate"),
+				ptr.To("50%"),
+				ptr.To("50%"),
+			),
+			override: makeOverride(
+				ptr.To("Recreate"),
+				ptr.To("50%"),
+				nil,
+			),
+			expected: makeDeployment(
+				ptr.To("Recreate"),
+				ptr.To("50%"),
+				nil,
+			),
+		},
+		{
+			deployment: makeDeployment(
 				nil,
 				nil,
 				nil,
 			),
 			override: makeOverride(
-				apiutils.NewStringPointer("Recreate"),
-				apiutils.NewStringPointer("25%"),
-				apiutils.NewStringPointer("25%"),
+				ptr.To("Recreate"),
+				ptr.To("25%"),
+				ptr.To("25%"),
 			),
 			expected: makeDeployment(
-				apiutils.NewStringPointer("Recreate"),
-				apiutils.NewStringPointer("25%"),
-				apiutils.NewStringPointer("25%"),
+				ptr.To("Recreate"),
+				ptr.To("25%"),
+				ptr.To("25%"),
 			),
 		},
 	}
@@ -103,13 +104,13 @@ func TestDeployment(t *testing.T) {
 			Name: "current-name",
 		},
 		Spec: v1.DeploymentSpec{
-			Replicas: apiutils.NewInt32Pointer(1),
+			Replicas: ptr.To[int32](1),
 		},
 	}
 
 	override := v2alpha1.DatadogAgentComponentOverride{
-		Name:     apiutils.NewStringPointer("new-name"),
-		Replicas: apiutils.NewInt32Pointer(2),
+		Name:     ptr.To("new-name"),
+		Replicas: ptr.To[int32](2),
 	}
 
 	Deployment(&deployment, &override)

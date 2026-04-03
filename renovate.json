@@ -3,6 +3,7 @@
   "extends": ["config:recommended"],
   "enabledManagers": ["github-actions", "gomod"],
   "minimumReleaseAge": "7 days",
+  "ignoreDeps": ["mstksg/get-package", "github.com/aws/smithy-go"],
   "packageRules": [
     {
       "matchManagers": ["gomod"],

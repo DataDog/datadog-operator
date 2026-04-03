@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -13,7 +15,6 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/stretchr/testify/assert"
@@ -46,8 +47,8 @@ func Test_generateObjMetaFromDDA(t *testing.T) {
 							Kind:               "DatadogAgent",
 							Name:               "foo",
 							UID:                "",
-							BlockOwnerDeletion: apiutils.NewBoolPointer(true),
-							Controller:         apiutils.NewBoolPointer(true),
+							BlockOwnerDeletion: ptr.To(true),
+							Controller:         ptr.To(true),
 						},
 					},
 					Finalizers: []string{constants.DatadogAgentInternalFinalizer},
@@ -85,8 +86,8 @@ func Test_generateObjMetaFromDDA(t *testing.T) {
 							Kind:               "DatadogAgent",
 							Name:               "foo",
 							UID:                "",
-							BlockOwnerDeletion: apiutils.NewBoolPointer(true),
-							Controller:         apiutils.NewBoolPointer(true),
+							BlockOwnerDeletion: ptr.To(true),
+							Controller:         ptr.To(true),
 						},
 					},
 					Finalizers: []string{constants.DatadogAgentInternalFinalizer},
@@ -118,7 +119,7 @@ func Test_generateSpecFromDDA(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Global: &v2alpha1.GlobalConfig{
 						Credentials: &v2alpha1.DatadogCredentials{
-							APIKey: apiutils.NewStringPointer("key"),
+							APIKey: ptr.To("key"),
 						},
 					},
 				},
@@ -156,7 +157,7 @@ func Test_generateSpecFromDDA(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Global: &v2alpha1.GlobalConfig{
 						Credentials: &v2alpha1.DatadogCredentials{
-							APIKey: apiutils.NewStringPointer("key"),
+							APIKey: ptr.To("key"),
 						},
 					},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -164,7 +165,7 @@ func Test_generateSpecFromDDA(t *testing.T) {
 							Labels: map[string]string{
 								"foo": "bar",
 							},
-							PriorityClassName: apiutils.NewStringPointer("foo-priority-class"),
+							PriorityClassName: ptr.To("foo-priority-class"),
 							Affinity: &corev1.Affinity{
 								NodeAffinity: &corev1.NodeAffinity{
 									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -183,7 +184,7 @@ func Test_generateSpecFromDDA(t *testing.T) {
 							},
 						},
 						v2alpha1.ClusterAgentComponentName: {
-							PriorityClassName: apiutils.NewStringPointer("bar-priority-class"),
+							PriorityClassName: ptr.To("bar-priority-class"),
 						},
 					},
 				},
@@ -208,7 +209,7 @@ func Test_generateSpecFromDDA(t *testing.T) {
 								constants.MD5AgentDeploymentProviderLabelKey: "",
 								"foo": "bar",
 							},
-							PriorityClassName: apiutils.NewStringPointer("foo-priority-class"),
+							PriorityClassName: ptr.To("foo-priority-class"),
 							Affinity: &corev1.Affinity{
 								NodeAffinity: &corev1.NodeAffinity{
 									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -227,7 +228,7 @@ func Test_generateSpecFromDDA(t *testing.T) {
 							},
 						},
 						v2alpha1.ClusterAgentComponentName: {
-							PriorityClassName: apiutils.NewStringPointer("bar-priority-class"),
+							PriorityClassName: ptr.To("bar-priority-class"),
 						},
 					},
 				},
@@ -289,7 +290,7 @@ func Test_addRemoteConfigStatusToDDAIStatus(t *testing.T) {
 				RemoteConfigConfiguration: &v2alpha1.RemoteConfigConfiguration{
 					Features: &v2alpha1.DatadogFeatures{
 						CSPM: &v2alpha1.CSPMFeatureConfig{
-							Enabled: apiutils.NewBoolPointer(true),
+							Enabled: ptr.To(true),
 						},
 					},
 				},
@@ -303,7 +304,7 @@ func Test_addRemoteConfigStatusToDDAIStatus(t *testing.T) {
 					RemoteConfigConfiguration: &v2alpha1.RemoteConfigConfiguration{
 						Features: &v2alpha1.DatadogFeatures{
 							CSPM: &v2alpha1.CSPMFeatureConfig{
-								Enabled: apiutils.NewBoolPointer(true),
+								Enabled: ptr.To(true),
 							},
 						},
 					},
@@ -319,7 +320,7 @@ func Test_addRemoteConfigStatusToDDAIStatus(t *testing.T) {
 				RemoteConfigConfiguration: &v2alpha1.RemoteConfigConfiguration{
 					Features: &v2alpha1.DatadogFeatures{
 						CSPM: &v2alpha1.CSPMFeatureConfig{
-							Enabled: apiutils.NewBoolPointer(true),
+							Enabled: ptr.To(true),
 						},
 					},
 				},
@@ -340,7 +341,7 @@ func Test_addRemoteConfigStatusToDDAIStatus(t *testing.T) {
 					RemoteConfigConfiguration: &v2alpha1.RemoteConfigConfiguration{
 						Features: &v2alpha1.DatadogFeatures{
 							CSPM: &v2alpha1.CSPMFeatureConfig{
-								Enabled: apiutils.NewBoolPointer(true),
+								Enabled: ptr.To(true),
 							},
 						},
 					},
