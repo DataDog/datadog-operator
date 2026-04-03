@@ -11,6 +11,8 @@ import (
 	"os"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -18,7 +20,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	testutils_test "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/stretchr/testify/assert"
@@ -130,9 +131,9 @@ func Test_setup(t *testing.T) {
 			dda: &v2alpha1.DatadogAgent{
 				Spec: v2alpha1.DatadogAgentSpec{
 					Global: &v2alpha1.GlobalConfig{
-						ClusterName: apiutils.NewStringPointer(fakeClusterNameDDA),
+						ClusterName: ptr.To(fakeClusterNameDDA),
 						Credentials: &v2alpha1.DatadogCredentials{
-							APIKey: apiutils.NewStringPointer(fakeAPIKeyDDA),
+							APIKey: ptr.To(fakeAPIKeyDDA),
 						},
 					},
 				},
@@ -149,11 +150,11 @@ func Test_setup(t *testing.T) {
 			dda: &v2alpha1.DatadogAgent{
 				Spec: v2alpha1.DatadogAgentSpec{
 					Global: &v2alpha1.GlobalConfig{
-						ClusterName: apiutils.NewStringPointer(fakeClusterNameDDA),
+						ClusterName: ptr.To(fakeClusterNameDDA),
 						Credentials: &v2alpha1.DatadogCredentials{
-							APIKey: apiutils.NewStringPointer(fakeAPIKeyDDA),
+							APIKey: ptr.To(fakeAPIKeyDDA),
 						},
-						Site: apiutils.NewStringPointer("datad0g.com"),
+						Site: ptr.To("datad0g.com"),
 					},
 				},
 			},
