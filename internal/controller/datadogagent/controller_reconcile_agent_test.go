@@ -4,10 +4,11 @@ import (
 	"context"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
@@ -313,7 +314,7 @@ func Test_getDaemonSetNameFromDatadogAgent(t *testing.T) {
 				Spec: datadoghqv2alpha1.DatadogAgentSpec{
 					Override: map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
 						datadoghqv2alpha1.NodeAgentComponentName: {
-							Replicas: apiutils.NewInt32Pointer(10),
+							Replicas: ptr.To[int32](10),
 						},
 					},
 				},
@@ -329,8 +330,8 @@ func Test_getDaemonSetNameFromDatadogAgent(t *testing.T) {
 				Spec: datadoghqv2alpha1.DatadogAgentSpec{
 					Override: map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
 						datadoghqv2alpha1.NodeAgentComponentName: {
-							Name:     apiutils.NewStringPointer("bar"),
-							Replicas: apiutils.NewInt32Pointer(10),
+							Name:     ptr.To("bar"),
+							Replicas: ptr.To[int32](10),
 						},
 					},
 				},
@@ -346,8 +347,8 @@ func Test_getDaemonSetNameFromDatadogAgent(t *testing.T) {
 				Spec: datadoghqv2alpha1.DatadogAgentSpec{
 					Override: map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
 						datadoghqv2alpha1.ClusterAgentComponentName: {
-							Name:     apiutils.NewStringPointer("bar"),
-							Replicas: apiutils.NewInt32Pointer(10),
+							Name:     ptr.To("bar"),
+							Replicas: ptr.To[int32](10),
 						},
 					},
 				},

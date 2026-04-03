@@ -13,10 +13,11 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/utils/ptr"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	common "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
@@ -458,7 +459,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			name: "DatadogAgent with FIPS enabled",
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				fipsConfig := v2alpha1.FIPSConfig{
-					Enabled: apiutils.NewBoolPointer(true),
+					Enabled: ptr.To(true),
 				}
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithFIPS(fipsConfig).
@@ -484,11 +485,11 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-						CreatePodDisruptionBudget: apiutils.NewBoolPointer(true),
+						CreatePodDisruptionBudget: ptr.To(true),
 					}).
 					WithClusterChecksUseCLCEnabled(true).
 					WithComponentOverride(v2alpha1.ClusterChecksRunnerComponentName, v2alpha1.DatadogAgentComponentOverride{
-						CreatePodDisruptionBudget: apiutils.NewBoolPointer(true),
+						CreatePodDisruptionBudget: ptr.To(true),
 					}).
 					Build()
 				_ = c.Create(context.TODO(), dda)
@@ -505,7 +506,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					}).
 					Build()
 				_ = c.Create(context.TODO(), dda)
@@ -556,7 +557,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					}).
 					WithStatus(v2alpha1.DatadogAgentStatus{
 						ClusterAgent: &v2alpha1.DeploymentStatus{
@@ -630,7 +631,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.ClusterChecksRunnerComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					}).
 					WithClusterChecksEnabled(true).
 					WithClusterChecksUseCLCEnabled(true).
@@ -737,7 +738,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithOTelAgentGatewayEnabled(true).
 					WithComponentOverride(v2alpha1.OtelAgentGatewayComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					}).
 					WithStatus(v2alpha1.DatadogAgentStatus{
 						OtelAgentGateway: &v2alpha1.DeploymentStatus{
@@ -777,7 +778,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithOTelAgentGatewayEnabled(true).
 					WithComponentOverride(v2alpha1.OtelAgentGatewayComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					}).
 					Build()
 				_ = c.Create(context.TODO(), dda)
@@ -1786,7 +1787,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 				expectedDDAI.Annotations = map[string]string{
 					constants.MD5DDAIDeploymentAnnotationKey: "f2aa21d0ecced63c091ca2df3d31e451",
 				}
-				expectedDDAI.Spec.Features.ClusterChecks.UseClusterChecksRunners = apiutils.NewBoolPointer(true)
+				expectedDDAI.Spec.Features.ClusterChecks.UseClusterChecksRunners = ptr.To(true)
 				expectedDDAI.Spec.Global.Credentials = &v2alpha1.DatadogCredentials{
 					APISecret: &v2alpha1.SecretConfig{
 						SecretName: "custom-secret",
@@ -1865,16 +1866,16 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 				profileDDAI.Labels[constants.ProfileLabelKey] = "foo-profile"
 				profileDDAI.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.ClusterAgentComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					},
 					v2alpha1.ClusterChecksRunnerComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					},
 					v2alpha1.OtelAgentGatewayComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					},
 					v2alpha1.NodeAgentComponentName: {
-						Name: apiutils.NewStringPointer("foo-profile-agent"),
+						Name: ptr.To("foo-profile-agent"),
 						Labels: map[string]string{
 							constants.MD5AgentDeploymentProviderLabelKey: "",
 							"foo":                     "bar",
@@ -2053,8 +2054,8 @@ func getBaseDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 					APIVersion:         "datadoghq.com/v2alpha1",
 					Kind:               "DatadogAgent",
 					Name:               dda.Name,
-					Controller:         apiutils.NewBoolPointer(true),
-					BlockOwnerDeletion: apiutils.NewBoolPointer(true),
+					Controller:         ptr.To(true),
+					BlockOwnerDeletion: ptr.To(true),
 				},
 			},
 			Finalizers: []string{constants.DatadogAgentInternalFinalizer},
@@ -2290,7 +2291,7 @@ func Test_RegistryDefaultingBySite(t *testing.T) {
 					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 						WithClusterChecks(true, true).
 						Build()
-					dda.Spec.Global.Site = apiutils.NewStringPointer(site)
+					dda.Spec.Global.Site = ptr.To(site)
 					_ = c.Create(context.TODO(), dda)
 					return dda
 				},

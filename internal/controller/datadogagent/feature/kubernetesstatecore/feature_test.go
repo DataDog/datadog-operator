@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -159,7 +161,7 @@ func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {
 
 			if hasCustomConfig {
 				customConfig := v2alpha1.CustomConfig{
-					ConfigData: apiutils.NewStringPointer(customData),
+					ConfigData: ptr.To(customData),
 				}
 				hash, err := comparison.GenerateMD5ForSpec(&customConfig)
 				assert.NoError(t, err)

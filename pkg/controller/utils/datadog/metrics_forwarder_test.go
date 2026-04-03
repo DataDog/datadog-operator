@@ -15,8 +15,9 @@ import (
 	"sync"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -263,9 +264,9 @@ func Test_setupFromDDA(t *testing.T) {
 					},
 					Spec: v2alpha1.DatadogAgentSpec{
 						Global: &v2alpha1.GlobalConfig{
-							ClusterName: apiutils.NewStringPointer("test-cluster"),
+							ClusterName: ptr.To("test-cluster"),
 							Credentials: &v2alpha1.DatadogCredentials{
-								APIKey: apiutils.NewStringPointer(apiKey),
+								APIKey: ptr.To(apiKey),
 							},
 						},
 					},
@@ -294,9 +295,9 @@ func Test_setupFromDDA(t *testing.T) {
 					},
 					Spec: v2alpha1.DatadogAgentSpec{
 						Global: &v2alpha1.GlobalConfig{
-							ClusterName: apiutils.NewStringPointer("test-cluster"),
+							ClusterName: ptr.To("test-cluster"),
 							Credentials: &v2alpha1.DatadogCredentials{
-								APIKey: apiutils.NewStringPointer(apiKey),
+								APIKey: ptr.To(apiKey),
 							},
 						},
 					},
@@ -363,9 +364,9 @@ func Test_setupFromDDA(t *testing.T) {
 					},
 					Spec: v2alpha1.DatadogAgentSpec{
 						Global: &v2alpha1.GlobalConfig{
-							ClusterName: apiutils.NewStringPointer("test-cluster"),
+							ClusterName: ptr.To("test-cluster"),
 							Credentials: &v2alpha1.DatadogCredentials{
-								APIKey: apiutils.NewStringPointer(apiKey),
+								APIKey: ptr.To(apiKey),
 							},
 						},
 					},
@@ -489,7 +490,7 @@ func Test_getCredentialsFromDDA(t *testing.T) {
 			args: args{
 				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
 					Credentials: &v2alpha1.DatadogCredentials{
-						APIKey: apiutils.NewStringPointer(apiKey),
+						APIKey: ptr.To(apiKey),
 					},
 				}),
 			},
@@ -534,7 +535,7 @@ func Test_getCredentialsFromDDA(t *testing.T) {
 			args: args{
 				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
 					Credentials: &v2alpha1.DatadogCredentials{
-						APIKey: apiutils.NewStringPointer(encAPIKey),
+						APIKey: ptr.To(encAPIKey),
 					},
 				}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
@@ -560,7 +561,7 @@ func Test_getCredentialsFromDDA(t *testing.T) {
 			args: args{
 				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
 					Credentials: &v2alpha1.DatadogCredentials{
-						APIKey: apiutils.NewStringPointer(encAPIKey),
+						APIKey: ptr.To(encAPIKey),
 					},
 				}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
@@ -940,7 +941,7 @@ func Test_getbaseURL(t *testing.T) {
 			args: args{
 				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
 					Endpoint: &v2alpha1.Endpoint{
-						URL: apiutils.NewStringPointer("https://test.url.com"),
+						URL: ptr.To("https://test.url.com"),
 					},
 				}),
 			},
@@ -952,7 +953,7 @@ func Test_getbaseURL(t *testing.T) {
 				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
 					Site: &euSite,
 					Endpoint: &v2alpha1.Endpoint{
-						URL: apiutils.NewStringPointer("https://test.url.com"),
+						URL: ptr.To("https://test.url.com"),
 					},
 				}),
 			},

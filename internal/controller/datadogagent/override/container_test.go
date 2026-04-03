@@ -10,9 +10,10 @@ import (
 	"reflect"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
@@ -56,7 +57,7 @@ func TestContainer(t *testing.T) {
 				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
-				Name: apiutils.NewStringPointer("my-container-name"),
+				Name: ptr.To("my-container-name"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
 				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, "my-container-name", func(container corev1.Container) bool {
@@ -75,7 +76,7 @@ func TestContainer(t *testing.T) {
 				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
-				LogLevel: apiutils.NewStringPointer("debug"),
+				LogLevel: ptr.To("debug"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
 				envs := manager.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
@@ -412,7 +413,7 @@ func TestContainer(t *testing.T) {
 				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
-				HealthPort: apiutils.NewInt32Pointer(1234),
+				HealthPort: ptr.To[int32](1234),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
 				envs := manager.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
@@ -836,15 +837,15 @@ func TestContainer(t *testing.T) {
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				SecurityContext: &corev1.SecurityContext{
-					RunAsUser: apiutils.NewInt64Pointer(12345),
+					RunAsUser: ptr.To[int64](12345),
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
 				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
 					return reflect.DeepEqual(
 						&corev1.SecurityContext{
-							RunAsUser:              apiutils.NewInt64Pointer(12345),
-							ReadOnlyRootFilesystem: apiutils.NewBoolPointer(true),
+							RunAsUser:              ptr.To[int64](12345),
+							ReadOnlyRootFilesystem: ptr.To(true),
 						},
 						container.SecurityContext)
 				})
@@ -862,14 +863,14 @@ func TestContainer(t *testing.T) {
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				SecurityContext: &corev1.SecurityContext{
-					ReadOnlyRootFilesystem: apiutils.NewBoolPointer(false),
+					ReadOnlyRootFilesystem: ptr.To(false),
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
 				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
 					return reflect.DeepEqual(
 						&corev1.SecurityContext{
-							ReadOnlyRootFilesystem: apiutils.NewBoolPointer(false),
+							ReadOnlyRootFilesystem: ptr.To(false),
 						},
 						container.SecurityContext)
 				})
@@ -887,7 +888,7 @@ func TestContainer(t *testing.T) {
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				SeccompConfig: &v2alpha1.SeccompConfig{
-					CustomRootPath: apiutils.NewStringPointer("seccomp/path"),
+					CustomRootPath: ptr.To("seccomp/path"),
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
@@ -950,7 +951,7 @@ func TestContainer(t *testing.T) {
 				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
-				AppArmorProfileName: apiutils.NewStringPointer("my-app-armor-profile"),
+				AppArmorProfileName: ptr.To("my-app-armor-profile"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
 				annotation := fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, apicommon.CoreAgentContainerName)
@@ -968,7 +969,7 @@ func TestContainer(t *testing.T) {
 				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
-				Name: apiutils.NewStringPointer("my-initContainer-name"),
+				Name: ptr.To("my-initContainer-name"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
 				assertContainerMatch(t, manager.PodTemplateSpec().Spec.InitContainers, "my-initContainer-name", func(container corev1.Container) bool {
@@ -1119,14 +1120,14 @@ func TestContainer(t *testing.T) {
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				SecurityContext: &corev1.SecurityContext{
-					RunAsUser: apiutils.NewInt64Pointer(12345),
+					RunAsUser: ptr.To[int64](12345),
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
 				assertContainerMatch(t, manager.PodTemplateSpec().Spec.InitContainers, containerName, func(container corev1.Container) bool {
 					return reflect.DeepEqual(
 						&corev1.SecurityContext{
-							RunAsUser: apiutils.NewInt64Pointer(12345),
+							RunAsUser: ptr.To[int64](12345),
 						},
 						container.SecurityContext)
 				})
@@ -1145,7 +1146,7 @@ func TestContainer(t *testing.T) {
 			override: v2alpha1.DatadogAgentGenericContainer{
 				SeccompConfig: &v2alpha1.SeccompConfig{
 					CustomProfile: &v2alpha1.CustomConfig{
-						ConfigData: apiutils.NewStringPointer("inline-seccomp-data"),
+						ConfigData: ptr.To("inline-seccomp-data"),
 					},
 				},
 			},

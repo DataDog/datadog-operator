@@ -8,6 +8,8 @@ package servicediscovery
 import (
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -27,13 +29,13 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: ptr.To(false),
 				},
 			},
 		},
 	}
 	ddaServiceDiscoveryEnabled := ddaServiceDiscoveryDisabled.DeepCopy()
-	ddaServiceDiscoveryEnabled.Spec.Features.ServiceDiscovery.Enabled = apiutils.NewBoolPointer(true)
+	ddaServiceDiscoveryEnabled.Spec.Features.ServiceDiscovery.Enabled = ptr.To(true)
 
 	tests := test.FeatureTestSuite{
 		{
