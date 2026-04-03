@@ -20,6 +20,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -207,6 +208,11 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 	if componentOverride, ok := params.DDA.Spec.Override[component.Name()]; ok {
 		override.PodTemplateSpec(deploymentLogger, podManagers, componentOverride, component.Name(), params.DDA.Name)
 		override.Deployment(deployment, componentOverride)
+	}
+
+	// Apply host volume mount propagation from global config
+	if params.DDA.Spec.Global != nil {
+		volume.ApplyMountPropagation(podManagers.PodTemplateSpec(), params.DDA.Spec.Global.HostVolumeMountPropagation)
 	}
 
 	if r.reconciler.options.IntrospectionEnabled {

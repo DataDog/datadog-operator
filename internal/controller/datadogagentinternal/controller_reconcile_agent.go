@@ -25,6 +25,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -86,6 +87,11 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 
 		experimental.ApplyExperimentalOverrides(objLogger, ddai, podManagers)
 
+		// Apply host volume mount propagation from global config
+		if ddai.Spec.Global != nil {
+			volume.ApplyMountPropagation(podManagers.PodTemplateSpec(), ddai.Spec.Global.HostVolumeMountPropagation)
+		}
+
 		if disabledByOverride {
 			if agentEnabled {
 				// The override supersedes what's set in requiredComponents; update status to reflect the conflict
@@ -143,6 +149,11 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	}
 
 	experimental.ApplyExperimentalOverrides(objLogger, ddai, podManagers)
+
+	// Apply host volume mount propagation from global config
+	if ddai.Spec.Global != nil {
+		volume.ApplyMountPropagation(podManagers.PodTemplateSpec(), ddai.Spec.Global.HostVolumeMountPropagation)
+	}
 
 	if disabledByOverride {
 		if agentEnabled {

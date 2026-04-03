@@ -465,6 +465,9 @@ spec:
 `global.fips`
 : FIPS contains configuration used to customize the FIPS proxy sidecar. See [link](https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md) for more information.
 
+`global.hostVolumeMountPropagation`
+: HostVolumeMountPropagation determines how mounts are propagated from the host to the Agent containers and the other way around for host path volumes. ref: https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation
+
 `global.kubelet.agentCAPath`
 : AgentCAPath is the container path where the kubelet CA certificate is stored. Default: '/var/run/host-kubelet-ca.crt' if hostCAPath is set, else '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
 
