@@ -576,16 +576,16 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
 			assert.Equal(t, "privateactionrunner.yaml", volumeMounts[0].SubPath)
 			assert.True(t, volumeMounts[0].ReadOnly)
 
-			// Verify container command was modified
+			// Verify container args were modified (ENTRYPOINT=/entrypoint.sh stays in Command, CMD goes in Args)
 			podTemplate := managers.PodTemplateSpec()
 			containerFound := false
 			for _, container := range podTemplate.Spec.Containers {
 				if container.Name == string(apicommon.ClusterAgentContainerName) {
 					containerFound = true
-					assert.NotEmpty(t, container.Command, "Container command should be set")
-					assert.Contains(t, container.Command, "datadog-cluster-agent")
-					assert.Contains(t, container.Command, "start")
-					assert.Contains(t, container.Command, "-E=/etc/datadog-agent/privateactionrunner.yaml", "Container command should contain -E flag")
+					assert.NotEmpty(t, container.Args, "Container args should be set")
+					assert.Contains(t, container.Args, "datadog-cluster-agent")
+					assert.Contains(t, container.Args, "start")
+					assert.Contains(t, container.Args, "-E=/etc/datadog-agent/privateactionrunner.yaml", "Container args should contain -E flag")
 					break
 				}
 			}
