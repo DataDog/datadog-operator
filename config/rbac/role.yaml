@@ -253,6 +253,8 @@ rules:
   - datadogagentprofiles/finalizers
   - datadogagents
   - datadogagents/finalizers
+  - datadogcsidrivers
+  - datadogcsidrivers/finalizers
   - datadogdashboards
   - datadoggenericresources
   - datadoggenericresources/finalizers
@@ -275,6 +277,7 @@ rules:
   - datadogagentinternals/status
   - datadogagentprofiles/status
   - datadogagents/status
+  - datadogcsidrivers/status
   - datadogdashboards/status
   - datadoggenericresources/status
   - datadogmonitors/status
@@ -492,6 +495,18 @@ rules:
   - ocirepositories
   verbs:
   - list
+  - watch
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - csidrivers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - storage.k8s.io
