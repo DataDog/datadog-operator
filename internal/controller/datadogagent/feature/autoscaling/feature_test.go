@@ -36,40 +36,56 @@ func TestAutoscalingFeature(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name:          "autoscaling disabled",
-			DDA:           newAgent(false, false, true),
-			ClusterAgent:  testDCAResources(false, false),
-			Agent:         testAgentResources(false),
+			DDA:           newAgent(false, false, true, nil),
+			ClusterAgent:  testDCAResources(false, false, false),
+			Agent:         testAgentResources(false, false),
 			WantConfigure: false,
 		},
 		{
 			Name:                 "workload autoscaling enabled",
-			DDA:                  newAgent(true, false, true),
+			DDA:                  newAgent(true, false, true, nil),
 			WantConfigure:        true,
-			ClusterAgent:         testDCAResources(true, false),
-			Agent:                testAgentResources(true),
+			ClusterAgent:         testDCAResources(true, false, true),
+			Agent:                testAgentResources(true, true),
+			WantDependenciesFunc: testRBACResources,
+		},
+		{
+			Name:                 "workload autoscaling enabled with failover explicitly enabled",
+			DDA:                  newAgent(true, false, true, apiutils.NewBoolPointer(true)),
+			WantConfigure:        true,
+			ClusterAgent:         testDCAResources(true, false, true),
+			Agent:                testAgentResources(true, true),
+			WantDependenciesFunc: testRBACResources,
+		},
+		{
+			Name:                 "workload autoscaling enabled with failover disabled",
+			DDA:                  newAgent(true, false, true, apiutils.NewBoolPointer(false)),
+			WantConfigure:        true,
+			ClusterAgent:         testDCAResources(true, false, false),
+			Agent:                testAgentResources(true, false),
 			WantDependenciesFunc: testRBACResources,
 		},
 		{
 			Name:                 "cluster autoscaling enabled",
-			DDA:                  newAgent(false, true, false),
+			DDA:                  newAgent(false, true, false, nil),
 			WantConfigure:        true,
-			ClusterAgent:         testDCAResources(false, true),
-			Agent:                testAgentResources(false),
+			ClusterAgent:         testDCAResources(false, true, false),
+			Agent:                testAgentResources(false, false),
 			WantDependenciesFunc: testRBACResources,
 		},
 		{
 			Name:                 "workload and cluster autoscaling enabled",
-			DDA:                  newAgent(true, true, true),
+			DDA:                  newAgent(true, true, true, nil),
 			WantConfigure:        true,
-			ClusterAgent:         testDCAResources(true, true),
-			Agent:                testAgentResources(true),
+			ClusterAgent:         testDCAResources(true, true, true),
+			Agent:                testAgentResources(true, true),
 			WantDependenciesFunc: testRBACResources,
 		},
 		{
 			Name:                      "autoscaling enabled but admission disabled",
-			DDA:                       newAgent(true, true, false),
-			ClusterAgent:              testDCAResources(true, true),
-			Agent:                     testAgentResources(true),
+			DDA:                       newAgent(true, true, false, nil),
+			ClusterAgent:              testDCAResources(true, true, true),
+			Agent:                     testAgentResources(true, true),
 			WantConfigure:             true,
 			WantManageDependenciesErr: true,
 		},
@@ -78,7 +94,15 @@ func TestAutoscalingFeature(t *testing.T) {
 	tests.Run(t, buildAutoscalingFeature)
 }
 
-func newAgent(workloadEnabled, clusterEnabled, admissionEnabled bool) *v2alpha1.DatadogAgent {
+func newAgent(workloadEnabled, clusterEnabled, admissionEnabled bool, failoverEnabled *bool) *v2alpha1.DatadogAgent {
+	workloadConfig := &v2alpha1.WorkloadAutoscalingFeatureConfig{
+		Enabled: apiutils.NewBoolPointer(workloadEnabled),
+	}
+	if failoverEnabled != nil {
+		workloadConfig.Failover = &v2alpha1.WorkloadAutoscalingFailoverConfig{
+			Enabled: failoverEnabled,
+		}
+	}
 	return &v2alpha1.DatadogAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
@@ -87,9 +111,7 @@ func newAgent(workloadEnabled, clusterEnabled, admissionEnabled bool) *v2alpha1.
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				Autoscaling: &v2alpha1.AutoscalingFeatureConfig{
-					Workload: &v2alpha1.WorkloadAutoscalingFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(workloadEnabled),
-					},
+					Workload: workloadConfig,
 					Cluster: &v2alpha1.ClusterAutoscalingFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(clusterEnabled),
 					},
@@ -231,7 +253,7 @@ func testRBACResources(t testing.TB, store store.StoreClient) {
 	}
 }
 
-func testDCAResources(workloadEnabled, clusterEnabled bool) *test.ComponentTest {
+func testDCAResources(workloadEnabled, clusterEnabled, failoverEnabled bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -245,11 +267,15 @@ func testDCAResources(workloadEnabled, clusterEnabled bool) *test.ComponentTest 
 						Name:  DDAutoscalingWorkloadEnabled,
 						Value: "true",
 					},
-					&corev1.EnvVar{
-						Name:  DDAutoscalingFailoverEnabled,
-						Value: "true",
-					},
 				)
+				if failoverEnabled {
+					expectedClusterAgentEnvVars = append(expectedClusterAgentEnvVars,
+						&corev1.EnvVar{
+							Name:  DDAutoscalingFailoverEnabled,
+							Value: "true",
+						},
+					)
+				}
 			}
 
 			if clusterEnabled {
@@ -270,14 +296,14 @@ func testDCAResources(workloadEnabled, clusterEnabled bool) *test.ComponentTest 
 	)
 }
 
-func testAgentResources(workloadEnabled bool) *test.ComponentTest {
+func testAgentResources(workloadEnabled, failoverEnabled bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
 			coreAgentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 			var expectedCoreAgentEnvVars []*corev1.EnvVar
-			if workloadEnabled {
+			if workloadEnabled && failoverEnabled {
 				expectedCoreAgentEnvVars = append(expectedCoreAgentEnvVars,
 					&corev1.EnvVar{
 						Name:  DDAutoscalingFailoverEnabled,
