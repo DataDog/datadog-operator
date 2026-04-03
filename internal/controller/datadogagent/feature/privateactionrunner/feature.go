@@ -244,13 +244,13 @@ func (f *privateActionRunnerFeature) ManageClusterAgent(managers feature.PodTemp
 	podTemplate := managers.PodTemplateSpec()
 	for i, container := range podTemplate.Spec.Containers {
 		if container.Name == string(apicommon.ClusterAgentContainerName) {
-			// Set command if not already set (default is from Dockerfile)
-			// See https://github.com/DataDog/datadog-agent/blob/06ea6848b891e08d34753e452be7f3c9bacbf407/Dockerfiles/cluster-agent/Dockerfile#L123
-			if len(container.Command) == 0 {
-				podTemplate.Spec.Containers[i].Command = []string{"datadog-cluster-agent", "start"}
+			// Set args if not already set (default CMD is from Dockerfile, ENTRYPOINT is /entrypoint.sh)
+			// See https://github.com/DataDog/datadog-agent/blob/1ed74f0b3924390f1b40e82e83e50d530e1f8f3b/Dockerfiles/cluster-agent/Dockerfile
+			if len(container.Args) == 0 {
+				podTemplate.Spec.Containers[i].Args = []string{"datadog-cluster-agent", "start"}
 			}
-			// Add -E flag to command
-			podTemplate.Spec.Containers[i].Command = append(podTemplate.Spec.Containers[i].Command, fmt.Sprintf("-E=%s", PrivateActionRunnerConfigPath))
+			// Add -E flag to args
+			podTemplate.Spec.Containers[i].Args = append(podTemplate.Spec.Containers[i].Args, fmt.Sprintf("-E=%s", PrivateActionRunnerConfigPath))
 			break
 		}
 	}
