@@ -6,7 +6,7 @@ toolchain go1.25.8
 
 require (
 	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.63.0-rc.1 // indirect
-	github.com/DataDog/datadog-api-client-go/v2 v2.55.0
+	github.com/DataDog/datadog-api-client-go/v2 v2.56.0
 	// TODO: pin to an EDS released version once there is a release that includes the api module
 	github.com/DataDog/extendeddaemonset/api v0.0.0-20250108205105-6c4d337b78a1
 	github.com/Masterminds/semver/v3 v3.4.0
