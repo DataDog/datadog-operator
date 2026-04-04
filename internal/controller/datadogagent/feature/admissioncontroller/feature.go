@@ -74,8 +74,8 @@ type AgentSidecarInjectionConfig struct {
 	imageTag                         string
 	selectors                        []*v2alpha1.Selector
 	profiles                         []*v2alpha1.Profile
-	tlsVerificationEnabled           bool
-	tlsVerificationCopyCaConfigMap   bool
+	tlsVerificationEnabled           *bool
+	tlsVerificationCopyCaConfigMap   *bool
 }
 
 type KubernetesAdmissionEventConfig struct {
@@ -271,10 +271,10 @@ func (f *admissionControllerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 			// Configure TLS verification settings
 			if sidecarConfig.ClusterAgentTLSVerification != nil {
 				if sidecarConfig.ClusterAgentTLSVerification.Enabled != nil {
-					f.agentSidecarConfig.tlsVerificationEnabled = apiutils.BoolValue(sidecarConfig.ClusterAgentTLSVerification.Enabled)
+					f.agentSidecarConfig.tlsVerificationEnabled = sidecarConfig.ClusterAgentTLSVerification.Enabled
 				}
 				if sidecarConfig.ClusterAgentTLSVerification.CopyCaConfigMap != nil {
-					f.agentSidecarConfig.tlsVerificationCopyCaConfigMap = apiutils.BoolValue(sidecarConfig.ClusterAgentTLSVerification.CopyCaConfigMap)
+					f.agentSidecarConfig.tlsVerificationCopyCaConfigMap = sidecarConfig.ClusterAgentTLSVerification.CopyCaConfigMap
 				}
 			}
 		}
@@ -523,17 +523,17 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 			})
 		}
 
-		if f.agentSidecarConfig.tlsVerificationEnabled {
+		if f.agentSidecarConfig.tlsVerificationEnabled != nil {
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 				Name:  DDAdmissionControllerAgentSidecarClusterAgentTLSVerificationEnabled,
-				Value: apiutils.BoolToString(&f.agentSidecarConfig.tlsVerificationEnabled),
+				Value: apiutils.BoolToString(f.agentSidecarConfig.tlsVerificationEnabled),
 			})
 		}
 
-		if f.agentSidecarConfig.tlsVerificationCopyCaConfigMap {
+		if f.agentSidecarConfig.tlsVerificationCopyCaConfigMap != nil {
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 				Name:  DDAdmissionControllerAgentSidecarClusterAgentTLSVerificationCopyCaConfigMap,
-				Value: apiutils.BoolToString(&f.agentSidecarConfig.tlsVerificationCopyCaConfigMap),
+				Value: apiutils.BoolToString(f.agentSidecarConfig.tlsVerificationCopyCaConfigMap),
 			})
 		}
 	}

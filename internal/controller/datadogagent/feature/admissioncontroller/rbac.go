@@ -8,6 +8,7 @@ package admissioncontroller
 import (
 	rbacv1 "k8s.io/api/rbac/v1"
 
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/extendeddaemonset"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
@@ -92,7 +93,7 @@ func (f *admissionControllerFeature) getRBACClusterPolicyRules() []rbacv1.Policy
 		})
 	}
 
-	if f.agentSidecarConfig != nil && f.agentSidecarConfig.tlsVerificationEnabled && f.agentSidecarConfig.tlsVerificationCopyCaConfigMap {
+	if f.agentSidecarConfig != nil && apiutils.BoolValue(f.agentSidecarConfig.tlsVerificationEnabled) && apiutils.BoolValue(f.agentSidecarConfig.tlsVerificationCopyCaConfigMap) {
 		clusterPolicyRules = append(clusterPolicyRules, rbacv1.PolicyRule{
 			APIGroups: []string{rbac.CoreAPIGroup},
 			Resources: []string{rbac.ConfigMapsResource},
