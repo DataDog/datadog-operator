@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 const (
@@ -21,7 +22,11 @@ const (
 	// DdotCollectorLatestVersion corresponds to the latest stable ddot-collector release
 	DdotCollectorLatestVersion = "7.77.2"
 	// FIPSProxyLatestVersion corresponds to the latest stable fips-proxy release
-	FIPSProxyLatestVersion = "1.1.22"
+	FIPSProxyLatestVersion = "1.1.21"
+	// DDOTFIPSMinimumVersion is the minimum version at which ddot-collector publishes a -fips variant.
+	// Note: the regular agent -fips image predates this; this constant only applies to ddot-collector.
+	// Add "-0" so that pre-release versions are considered sufficient. https://github.com/Masterminds/semver#working-with-prerelease-versions
+	DDOTFIPSMinimumVersion = "7.78.0-0"
 	// Datadog container registry
 	DatadogContainerRegistry = "registry.datadoghq.com"
 	// GCRContainerRegistry corresponds to the datadoghq GCR registry
@@ -121,6 +126,24 @@ func (i *Image) WithFull(isFull bool) *Image {
 	return i
 }
 
+// FIPSVersionError returns an error if this image requires a FIPS variant that does not exist
+// for the configured version. Specifically:
+//   - agent -fips-full (isFIPS && isFull) is only published from v7.78.0
+//   - ddot-collector -fips (isFIPS && name == DefaultDdotCollectorImageName) is only published from v7.78.0
+//
+// Returns nil if no incompatibility is detected.
+func (i *Image) FIPSVersionError() error {
+	if !i.isFIPS {
+		return nil
+	}
+	if (i.name == DefaultAgentImageName && i.isFull) || i.name == DefaultDdotCollectorImageName {
+		if !utils.IsAboveMinVersion(i.tag, DDOTFIPSMinimumVersion, nil) {
+			return fmt.Errorf("%s:%s does not have a FIPS variant: agent -fips-full and ddot-collector -fips are only published from v7.78.0", i.name, i.tag)
+		}
+	}
+	return nil
+}
+
 // GetLatestAgentImage returns the latest stable agent release version
 func GetLatestAgentImage() string {
 	image := newImage(DefaultImageRegistry, DefaultAgentImageName, AgentLatestVersion, false, false, false)
@@ -186,15 +209,19 @@ func (i *Image) ToString() string {
 	// FIPS is a global setting, JMX is an override setting and Full is a feature setting.
 	// Order of priority is JMX -> FIPS -> Full
 	if i.isJMX {
-		if i.isFIPS {
+		if i.isFIPS && i.isFull {
+			// JMX + FIPS + Full: Full image includes JMX, so use -fips-full
+			suffix = FIPSTagSuffix + FullTagSuffix
+		} else if i.isFIPS {
 			suffix = FIPSTagSuffix + JMXTagSuffix
 		} else if i.isFull {
 			// Since JMX is compatible with the Full image, iff isJMX and isFull are true then use the Full suffix
 			suffix = FullTagSuffix
 		} else {
 			suffix = JMXTagSuffix
-
 		}
+	} else if i.isFIPS && i.isFull {
+		suffix = FIPSTagSuffix + FullTagSuffix
 	} else if i.isFIPS {
 		suffix = FIPSTagSuffix
 	} else if i.isFull {
@@ -202,6 +229,24 @@ func (i *Image) ToString() string {
 	}
 
 	return fmt.Sprintf("%s/%s:%s%s", i.registry, i.name, i.tag, suffix)
+}
+
+// parseTagSuffixes extracts FIPS, JMX, and Full suffix flags from a tag string.
+// Suffixes are parsed right to left: Full -> JMX -> FIPS, matching the order they appear in the tag.
+func parseTagSuffixes(tag string) (baseTag string, isJMX, isFIPS, isFull bool) {
+	isFull = strings.HasSuffix(tag, FullTagSuffix)
+	if isFull {
+		tag = strings.TrimSuffix(tag, FullTagSuffix)
+	}
+	isJMX = strings.HasSuffix(tag, JMXTagSuffix)
+	if isJMX {
+		tag = strings.TrimSuffix(tag, JMXTagSuffix)
+	}
+	isFIPS = strings.HasSuffix(tag, FIPSTagSuffix)
+	if isFIPS {
+		tag = strings.TrimSuffix(tag, FIPSTagSuffix)
+	}
+	return tag, isJMX, isFIPS, isFull
 }
 
 // FromString translates a string Image in the format registry/name:tag to an Image object
@@ -212,27 +257,7 @@ func FromString(stringImage string) *Image {
 	splitName := strings.Split(splitImg[len(splitImg)-1], ":")
 
 	name := splitName[0]
-	tag := splitName[1]
-
-	// Check if this tag has Full suffix
-	// If it does, return because it is incompatible with the other two suffixes
-	isFull := strings.HasSuffix(tag, FullTagSuffix)
-	if isFull {
-		tag = strings.TrimSuffix(tag, FullTagSuffix)
-		return newImage(registry, name, tag, false, false, isFull)
-	}
-
-	// Check if this tag has JMX or FIPS suffixes
-	// JMX would be on the outside
-	isJMX := strings.HasSuffix(tag, JMXTagSuffix)
-	if isJMX {
-		tag = strings.TrimSuffix(tag, JMXTagSuffix)
-	}
-
-	isFIPS := strings.HasSuffix(tag, FIPSTagSuffix)
-	if isFIPS {
-		tag = strings.TrimSuffix(tag, FIPSTagSuffix)
-	}
+	tag, isJMX, isFIPS, isFull := parseTagSuffixes(splitName[1])
 
 	return newImage(registry, name, tag, isJMX, isFIPS, isFull)
 }
@@ -245,51 +270,12 @@ func FromString(stringImage string) *Image {
 // (Notably, we do not accept "registry/name".)
 // Note that if the name includes a tag, then we ignore imageConfig.tag and imageConfig.JMXEnabled
 func fromImageConfig(imageConfig *v2alpha1.AgentImageConfig) *Image {
-	registry := ""
-	imageName := imageConfig.Name
-	imageTag := imageConfig.Tag
-
-	nameContainsTag := false
-	isJMX := false
-	isFIPS := false
-	isFull := false
-
-	if strings.Contains(imageName, ":") {
-		nameContainsTag = true
-		splitRes := strings.SplitN(imageName, ":", 2)
-		imageName, imageTag = splitRes[0], splitRes[1]
-
-	}
-	if nameContainsTag && strings.Contains(imageName, "/") {
-		lastIdx := strings.LastIndex(imageName, "/")
-		registry = imageName[:lastIdx]
-		imageName = imageName[lastIdx+1:]
+	if strings.Contains(imageConfig.Name, ":") {
+		return FromString(imageConfig.Name)
 	}
 
-	// Check if tag has JMX suffix
-	// If override name contains JMX tag, isJMX should be true
-	// if override name contains non-JMX tag, isJMX should be false
-	if nameContainsTag {
-		isJMX = strings.HasSuffix(imageTag, JMXTagSuffix)
-	} else {
-		isJMX = imageConfig.JMXEnabled || strings.HasSuffix(imageTag, JMXTagSuffix)
-	}
+	imageTag, isJMX, isFIPS, isFull := parseTagSuffixes(imageConfig.Tag)
+	isJMX = isJMX || imageConfig.JMXEnabled
 
-	if isJMX {
-		imageTag = strings.TrimSuffix(imageTag, JMXTagSuffix)
-	}
-
-	// Check if tag has FIPS suffix
-	isFIPS = strings.HasSuffix(imageTag, FIPSTagSuffix)
-	if isFIPS {
-		imageTag = strings.TrimSuffix(imageTag, FIPSTagSuffix)
-	}
-
-	// Check if tag has full suffix
-	isFull = strings.HasSuffix(imageTag, FullTagSuffix)
-	if isFull {
-		imageTag = strings.TrimSuffix(imageTag, FullTagSuffix)
-	}
-
-	return newImage(registry, imageName, imageTag, isJMX, isFIPS, isFull)
+	return newImage("", imageConfig.Name, imageTag, isJMX, isFIPS, isFull)
 }
