@@ -647,17 +647,17 @@ type ServiceDiscoveryFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// Enables the service discovery network stats collection.
-	// Default: true
+	// DEPRECATED: NetworkStats is no longer configurable and will be ignored. Scheduled for removal in v1.28.
+	// +deprecated
 	// +optional
 	NetworkStats *ServiceDiscoveryNetworkStatsConfig `json:"networkStats,omitempty"`
 }
 
-// ServiceDiscoveryNetworkStatsConfig configures Service Discovery's network stats
-// collection feature.
+// ServiceDiscoveryNetworkStatsConfig is deprecated and has no effect.
+// +deprecated
 type ServiceDiscoveryNetworkStatsConfig struct {
-	// Enables the Service Discovery Network Stats feature.
-	// Default: true
+	// DEPRECATED: this field is ignored.
+	// +deprecated
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }

@@ -20,6 +20,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -207,6 +208,12 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 	if componentOverride, ok := params.DDA.Spec.Override[component.Name()]; ok {
 		override.PodTemplateSpec(deploymentLogger, podManagers, componentOverride, component.Name(), params.DDA.Name)
 		override.Deployment(deployment, componentOverride)
+	}
+
+	if errs := global.ValidateFIPSVersions(podManagers); len(errs) > 0 {
+		err := utilerrors.NewAggregate(errs)
+		component.UpdateStatus(deployment, params.Status, now, metav1.ConditionFalse, fmt.Sprintf("%s FIPS version error", component.Name()), err.Error())
+		return result, err
 	}
 
 	if r.reconciler.options.IntrospectionEnabled {

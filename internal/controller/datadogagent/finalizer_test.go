@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
@@ -43,8 +44,8 @@ func Test_handleFinalizer(t *testing.T) {
 		Spec: datadoghqv2alpha1.DatadogAgentSpec{
 			Global: &datadoghqv2alpha1.GlobalConfig{
 				Credentials: &datadoghqv2alpha1.DatadogCredentials{
-					APIKey: apiutils.NewStringPointer("apiKey"),
-					AppKey: apiutils.NewStringPointer("appKey"),
+					APIKey: ptr.To("apiKey"),
+					AppKey: ptr.To("appKey"),
 				},
 			},
 		},
