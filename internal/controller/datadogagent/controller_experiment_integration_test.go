@@ -30,9 +30,9 @@ import (
 	assert "github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 )
 
 // newExperimentIntegrationReconciler builds a revision reconciler with an
@@ -71,7 +71,7 @@ func Test_Experiment_StoppedRollback(t *testing.T) {
 
 	// Rev2: RC applies experiment spec.
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
-	dda.Spec.Global.Site = apiutils.NewStringPointer("datadoghq.eu")
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
 	assert.NoError(t, r.client.Update(context.TODO(), dda))
 	reconcileN(t, r, ns, name, 1)
 	assert.Len(t, listOwnedRevisions(t, r.client, ns, uid), 2)
@@ -115,7 +115,7 @@ func Test_Experiment_TimeoutRollback(t *testing.T) {
 
 	// Rev2: RC applies experiment spec.
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
-	dda.Spec.Global.Site = apiutils.NewStringPointer("datadoghq.eu")
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
 	assert.NoError(t, r.client.Update(context.TODO(), dda))
 	reconcileN(t, r, ns, name, 1)
 	assert.Len(t, listOwnedRevisions(t, r.client, ns, uid), 2)
@@ -159,7 +159,7 @@ func Test_Experiment_AbortOnManualChange(t *testing.T) {
 
 	// Rev2: RC applies experiment spec; RC signals running.
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
-	dda.Spec.Global.Site = apiutils.NewStringPointer("datadoghq.eu")
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
 	assert.NoError(t, r.client.Update(context.TODO(), dda))
 	reconcileN(t, r, ns, name, 1)
 
@@ -188,7 +188,7 @@ func Test_Experiment_AbortOnManualChange(t *testing.T) {
 	// experimentGen. In the fake client Generation stays at 0, which differs from
 	// the experimentGen sentinel above, so the mismatch is already in place.
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
-	dda.Spec.Global.Site = apiutils.NewStringPointer("datadoghq.com")
+	dda.Spec.Global.Site = ptr.To("datadoghq.com")
 	assert.NoError(t, r.client.Update(context.TODO(), dda))
 
 	reconcileN(t, r, ns, name, 1)
@@ -226,7 +226,7 @@ func Test_Experiment_TimeoutPhase_IsStable(t *testing.T) {
 	createAndReconcile(t, r, dda)
 
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
-	dda.Spec.Global.Site = apiutils.NewStringPointer("datadoghq.eu")
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
 	assert.NoError(t, r.client.Update(context.TODO(), dda))
 	reconcileN(t, r, ns, name, 1)
 
@@ -263,7 +263,7 @@ func Test_Experiment_RollbackPhase_IsStable(t *testing.T) {
 	createAndReconcile(t, r, dda)
 
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
-	dda.Spec.Global.Site = apiutils.NewStringPointer("datadoghq.eu")
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
 	assert.NoError(t, r.client.Update(context.TODO(), dda))
 	reconcileN(t, r, ns, name, 1)
 
@@ -303,7 +303,7 @@ func Test_Experiment_RunningAfterTimeout_StaleGeneration(t *testing.T) {
 	createAndReconcile(t, r, dda)
 
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
-	dda.Spec.Global.Site = apiutils.NewStringPointer("datadoghq.eu")
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
 	assert.NoError(t, r.client.Update(context.TODO(), dda))
 	reconcileN(t, r, ns, name, 1)
 
@@ -349,7 +349,7 @@ func Test_Experiment_StoppedAfterRollback(t *testing.T) {
 	createAndReconcile(t, r, dda)
 
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
-	dda.Spec.Global.Site = apiutils.NewStringPointer("datadoghq.eu")
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
 	assert.NoError(t, r.client.Update(context.TODO(), dda))
 	reconcileN(t, r, ns, name, 1)
 
@@ -390,7 +390,7 @@ func Test_Experiment_AbortDoesNotRollback(t *testing.T) {
 
 	// Apply experiment spec.
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
-	dda.Spec.Global.Site = apiutils.NewStringPointer("datadoghq.eu")
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
 	assert.NoError(t, r.client.Update(context.TODO(), dda))
 	reconcileN(t, r, ns, name, 1)
 
