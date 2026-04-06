@@ -76,8 +76,6 @@ func (sm *SharedMetadata) createRequest(payload []byte) (*http.Request, error) {
 	}
 	payloadHeader := sm.GetHeaders(*apiKey)
 
-	sm.logger.V(1).Info("Sending metadata to URL", "url", *requestURL)
-
 	reader := bytes.NewReader(payload)
 	req, err := http.NewRequestWithContext(context.TODO(), "POST", *requestURL, reader)
 	if err != nil {
