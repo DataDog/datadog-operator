@@ -84,7 +84,7 @@ func TestIsValidDatadogSLO(t *testing.T) {
 				TargetThreshold: resource.MustParse("99.99"),
 				Timeframe:       DatadogSLOTimeFrame30d,
 			},
-			expected: errors.New("spec.Type must be one of the values: monitor or metric"),
+			expected: errors.New("spec.Type must be one of the values: monitor, metric, or time_slice"),
 		},
 		{
 			name: "Missing Threshold and Timeframe",
@@ -157,6 +157,116 @@ func TestIsValidDatadogSLO(t *testing.T) {
 				Timeframe:       "invalid",
 			},
 			expected: errors.New("spec.Timeframe must be defined as one of the values: 7d, 30d, or 90d"),
+		},
+		{
+			name: "Valid time_slice spec",
+			spec: &DatadogSLOSpec{
+				Name: "TimeSliceSLO",
+				Type: DatadogSLOTypeTimeSlice,
+				TimeSlice: &DatadogSLOTimeSlice{
+					Query:      "trace.servlet.request{env:prod}",
+					Comparator: DatadogSLOTimeSliceComparatorGreater,
+					Threshold:  resource.MustParse("5"),
+				},
+				TargetThreshold: resource.MustParse("97"),
+				Timeframe:       DatadogSLOTimeFrame7d,
+			},
+			expected: nil,
+		},
+		{
+			name: "Missing TimeSlice when type is time_slice",
+			spec: &DatadogSLOSpec{
+				Name:            "TimeSliceSLO",
+				Type:            DatadogSLOTypeTimeSlice,
+				TargetThreshold: resource.MustParse("97"),
+				Timeframe:       DatadogSLOTimeFrame7d,
+			},
+			expected: errors.New("spec.TimeSlice must be defined when spec.Type is time_slice"),
+		},
+		{
+			name: "Empty query in time_slice",
+			spec: &DatadogSLOSpec{
+				Name: "TimeSliceSLO",
+				Type: DatadogSLOTypeTimeSlice,
+				TimeSlice: &DatadogSLOTimeSlice{
+					Query:      "",
+					Comparator: DatadogSLOTimeSliceComparatorGreater,
+					Threshold:  resource.MustParse("5"),
+				},
+				TargetThreshold: resource.MustParse("97"),
+				Timeframe:       DatadogSLOTimeFrame7d,
+			},
+			expected: errors.New("spec.TimeSlice.Query must be defined"),
+		},
+		{
+			name: "time_slice type with Query set is invalid",
+			spec: &DatadogSLOSpec{
+				Name: "TimeSliceSLO",
+				Type: DatadogSLOTypeTimeSlice,
+				TimeSlice: &DatadogSLOTimeSlice{
+					Query:      "trace.servlet.request{env:prod}",
+					Comparator: DatadogSLOTimeSliceComparatorGreater,
+					Threshold:  resource.MustParse("5"),
+				},
+				Query: &DatadogSLOQuery{
+					Numerator:   "good",
+					Denominator: "total",
+				},
+				TargetThreshold: resource.MustParse("97"),
+				Timeframe:       DatadogSLOTimeFrame7d,
+			},
+			expected: errors.New("spec.Query must not be defined when spec.Type is time_slice"),
+		},
+		{
+			name: "time_slice type with MonitorIDs set is invalid",
+			spec: &DatadogSLOSpec{
+				Name: "TimeSliceSLO",
+				Type: DatadogSLOTypeTimeSlice,
+				TimeSlice: &DatadogSLOTimeSlice{
+					Query:      "trace.servlet.request{env:prod}",
+					Comparator: DatadogSLOTimeSliceComparatorGreater,
+					Threshold:  resource.MustParse("5"),
+				},
+				MonitorIDs:      []int64{12345},
+				TargetThreshold: resource.MustParse("97"),
+				Timeframe:       DatadogSLOTimeFrame7d,
+			},
+			expected: errors.New("spec.MonitorIDs must not be defined when spec.Type is time_slice"),
+		},
+		{
+			name: "metric type with TimeSlice set is invalid",
+			spec: &DatadogSLOSpec{
+				Name: "MySLO",
+				Type: DatadogSLOTypeMetric,
+				Query: &DatadogSLOQuery{
+					Numerator:   "good",
+					Denominator: "total",
+				},
+				TimeSlice: &DatadogSLOTimeSlice{
+					Query:      "trace.servlet.request{env:prod}",
+					Comparator: DatadogSLOTimeSliceComparatorGreater,
+					Threshold:  resource.MustParse("5"),
+				},
+				TargetThreshold: resource.MustParse("97"),
+				Timeframe:       DatadogSLOTimeFrame7d,
+			},
+			expected: errors.New("spec.TimeSlice must not be defined when spec.Type is metric"),
+		},
+		{
+			name: "monitor type with TimeSlice set is invalid",
+			spec: &DatadogSLOSpec{
+				Name:       "MySLO",
+				Type:       DatadogSLOTypeMonitor,
+				MonitorIDs: []int64{12345},
+				TimeSlice: &DatadogSLOTimeSlice{
+					Query:      "trace.servlet.request{env:prod}",
+					Comparator: DatadogSLOTimeSliceComparatorGreater,
+					Threshold:  resource.MustParse("5"),
+				},
+				TargetThreshold: resource.MustParse("97"),
+				Timeframe:       DatadogSLOTimeFrame7d,
+			},
+			expected: errors.New("spec.TimeSlice must not be defined when spec.Type is monitor"),
 		},
 	}
 
