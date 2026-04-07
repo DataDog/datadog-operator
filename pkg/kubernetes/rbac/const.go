@@ -143,18 +143,19 @@ const (
 
 	// Traefik Ingress Controller resources
 	IngressRoutesResource = "ingressroutes"
-	SecretsResource                                   = "secrets"
-	ServiceAccountResource                            = "serviceaccounts"
-	ServicesResource                                  = "services"
-	StatefulsetsResource                              = "statefulsets"
-	StorageClassesResource                            = "storageclasses"
-	SubjectAccessReviewResource                       = "subjectaccessreviews"
-	ValidatingConfigResource                          = "validatingwebhookconfigurations"
-	VolumeAttachments                                 = "volumeattachments"
-	VPAResource                                       = "verticalpodautoscalers"
-	WpaResource                                       = "watermarkpodautoscalers"
-	EKSKubeControllerManagerMetrics                   = "kcm/metrics"
-	EKSKubeSchedulerMetrics                           = "ksh/metrics"
+
+	SecretsResource                 = "secrets"
+	ServiceAccountResource          = "serviceaccounts"
+	ServicesResource                = "services"
+	StatefulsetsResource            = "statefulsets"
+	StorageClassesResource          = "storageclasses"
+	SubjectAccessReviewResource     = "subjectaccessreviews"
+	ValidatingConfigResource        = "validatingwebhookconfigurations"
+	VolumeAttachments               = "volumeattachments"
+	VPAResource                     = "verticalpodautoscalers"
+	WpaResource                     = "watermarkpodautoscalers"
+	EKSKubeControllerManagerMetrics = "kcm/metrics"
+	EKSKubeSchedulerMetrics         = "ksh/metrics"
 
 	// Non resource URLs
 
