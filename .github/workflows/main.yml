@@ -37,10 +37,17 @@ jobs:
           use_oidc: true
           files: cover.out,cover_integration.out
           flags: unittests
+      - name: Get Datadog credentials
+        id: dd-sts
+        continue-on-error: true
+        uses: DataDog/dd-sts-action@2e8187910199bd93129520183c093e19aa585c75 # v1.0.0
+        with:
+          policy: datadog-operator
       - name: Upload coverage to Datadog
+        if: steps.dd-sts.outputs.api_key != ''
         continue-on-error: true
         uses: DataDog/coverage-upload-github-action@d2cf302a39c05e0ad22063360a2bf6ce0cc4906c # v1
         with:
-          api_key: ${{ secrets.DD_API_KEY }}
+          api_key: ${{ steps.dd-sts.outputs.api_key }}
           files: .
           flags: unittests
