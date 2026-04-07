@@ -32,18 +32,22 @@ var _ manager.LeaderElectionRunnable = &Daemon{}
 // Daemon subscribes to fleet-specific RC products (installer configs and tasks)
 // and runs after leader election as a controller-runtime Runnable.
 type Daemon struct {
-	rcClient remoteconfig.RCClient
-	client   client.Client
-	mu       sync.RWMutex
-	configs  map[string]installerConfig // keyed by config ID; replaced on each RC update
+	rcClient         remoteconfig.RCClient
+	client           client.Client
+	revisionsEnabled bool
+	mu               sync.RWMutex
+	configs          map[string]installerConfig // keyed by config ID; replaced on each RC update
 }
 
-// NewDaemon creates a new Fleet Daemon.
-func NewDaemon(rcClient remoteconfig.RCClient, k8sClient client.Client) *Daemon {
+// NewDaemon creates a new Fleet Daemon. When revisionsEnabled is false, experiment
+// signals are rejected because the reconciler cannot process them without the
+// ControllerRevision machinery.
+func NewDaemon(rcClient remoteconfig.RCClient, k8sClient client.Client, revisionsEnabled bool) *Daemon {
 	return &Daemon{
-		rcClient: rcClient,
-		client:   k8sClient,
-		configs:  make(map[string]installerConfig),
+		rcClient:         rcClient,
+		client:           k8sClient,
+		revisionsEnabled: revisionsEnabled,
+		configs:          make(map[string]installerConfig),
 	}
 }
 
@@ -101,6 +105,11 @@ func (d *Daemon) getConfig(id string) (installerConfig, error) {
 // handleRemoteAPIRequest dispatches the incoming task to the appropriate handler.
 func (d *Daemon) handleRemoteAPIRequest(ctx context.Context, req remoteAPIRequest) error {
 	ctrl.LoggerFrom(ctx).Info("Received remote API request", "id", req.ID, "package", req.Package, "method", req.Method)
+
+	if !d.revisionsEnabled {
+		return fmt.Errorf("experiment signals require the CreateControllerRevisions and DatadogAgentInternal feature gates")
+	}
+
 	switch req.Method {
 	case methodStartDatadogAgentExperiment:
 		return d.startDatadogAgentExperiment(ctx, req)

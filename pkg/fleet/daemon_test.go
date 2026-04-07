@@ -38,8 +38,9 @@ func testDaemon(dda *v2alpha1.DatadogAgent, configs map[string]installerConfig) 
 	}
 	c := b.Build()
 	return &Daemon{
-		client:  c,
-		configs: configs,
+		client:           c,
+		revisionsEnabled: true,
+		configs:          configs,
 	}, c
 }
 

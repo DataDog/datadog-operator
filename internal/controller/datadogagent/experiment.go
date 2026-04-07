@@ -159,6 +159,9 @@ func (r *Reconciler) rollback(
 	// Merge snapshot annotations (Datadog-only keys) on top of current annotations
 	// so that non-Datadog annotations (user metadata, tooling labels, etc.) are preserved.
 	merged := maps.Clone(current.Annotations)
+	if merged == nil {
+		merged = make(map[string]string, len(snapshot.Annotations))
+	}
 	maps.Copy(merged, snapshot.Annotations)
 
 	toUpdate := &v2alpha1.DatadogAgent{
