@@ -11,10 +11,10 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
@@ -216,7 +216,7 @@ func overrideSeccompProfile(containerName apicommon.AgentContainerName, manager 
 			// 	manager.PodTemplateSpec().Spec.InitContainers[id].SecurityContext = &corev1.SecurityContext{
 			// 		SeccompProfile: &corev1.SeccompProfile{
 			// 			Type:             corev1.SeccompProfileTypeLocalhost,
-			// 			LocalhostProfile: apiutils.NewStringPointer(containerName),
+			// 			LocalhostProfile: ptr.To(containerName),
 			// 		},
 			// 	}
 			// }
@@ -292,7 +292,7 @@ func overrideStartupProbe(startupProbeOverride *corev1.Probe) *corev1.Probe {
 func overrideSecurityContext(securityContext *corev1.SecurityContext) *corev1.SecurityContext {
 	if securityContext.ReadOnlyRootFilesystem == nil {
 		// Default to readOnlyRootFilesystem to true if not explicitly configured.
-		securityContext.ReadOnlyRootFilesystem = apiutils.NewBoolPointer(true)
+		securityContext.ReadOnlyRootFilesystem = ptr.To(true)
 	}
 	return securityContext
 }

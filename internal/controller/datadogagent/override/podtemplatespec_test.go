@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,7 +19,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -46,7 +47,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				ServiceAccountName: apiutils.NewStringPointer("new-service-account"),
+				ServiceAccountName: ptr.To("new-service-account"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				assert.Equal(t, "new-service-account", manager.PodTemplateSpec().Spec.ServiceAccountName)
@@ -542,7 +543,7 @@ func TestPodTemplateSpec(t *testing.T) {
 			override: v2alpha1.DatadogAgentComponentOverride{
 				Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
 					apicommon.ClusterAgentContainerName: {
-						LogLevel: apiutils.NewStringPointer("trace"),
+						LogLevel: ptr.To("trace"),
 					},
 				},
 			},
@@ -595,13 +596,13 @@ func TestPodTemplateSpec(t *testing.T) {
 			existingManager: func() *fake.PodTemplateManagers {
 				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 				manager.PodTemplateSpec().Spec.SecurityContext = &v1.PodSecurityContext{
-					RunAsUser: apiutils.NewInt64Pointer(1234),
+					RunAsUser: ptr.To[int64](1234),
 				}
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
 				SecurityContext: &v1.PodSecurityContext{
-					RunAsUser: apiutils.NewInt64Pointer(5678),
+					RunAsUser: ptr.To[int64](5678),
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -616,7 +617,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				PriorityClassName: apiutils.NewStringPointer("new-name"),
+				PriorityClassName: ptr.To("new-name"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				assert.Equal(t, "new-name", manager.PodTemplateSpec().Spec.PriorityClassName)
@@ -626,11 +627,11 @@ func TestPodTemplateSpec(t *testing.T) {
 			name: "override runtime class name",
 			existingManager: func() *fake.PodTemplateManagers {
 				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
-				manager.PodTemplateSpec().Spec.RuntimeClassName = apiutils.NewStringPointer("old-name")
+				manager.PodTemplateSpec().Spec.RuntimeClassName = ptr.To("old-name")
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				RuntimeClassName: apiutils.NewStringPointer("new-name"),
+				RuntimeClassName: ptr.To("new-name"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				assert.Equal(t, "new-name", *manager.PodTemplateSpec().Spec.RuntimeClassName)
@@ -836,11 +837,11 @@ func TestPodTemplateSpec(t *testing.T) {
 					Options: []v1.PodDNSConfigOption{
 						{
 							Name:  "",
-							Value: apiutils.NewStringPointer("value-0"),
+							Value: ptr.To("value-0"),
 						},
 						{
 							Name:  "",
-							Value: apiutils.NewStringPointer("value-1"),
+							Value: ptr.To("value-1"),
 						},
 					},
 				}
@@ -857,11 +858,11 @@ func TestPodTemplateSpec(t *testing.T) {
 					Options: []v1.PodDNSConfigOption{
 						{
 							Name:  "DNSResolver1",
-							Value: apiutils.NewStringPointer("value-2"),
+							Value: ptr.To("value-2"),
 						},
 						{
 							Name:  "DNSResolver2",
-							Value: apiutils.NewStringPointer("value-3"),
+							Value: ptr.To("value-3"),
 						},
 					},
 				},
@@ -877,11 +878,11 @@ func TestPodTemplateSpec(t *testing.T) {
 					Options: []v1.PodDNSConfigOption{
 						{
 							Name:  "DNSResolver1",
-							Value: apiutils.NewStringPointer("value-2"),
+							Value: ptr.To("value-2"),
 						},
 						{
 							Name:  "DNSResolver2",
-							Value: apiutils.NewStringPointer("value-3"),
+							Value: ptr.To("value-3"),
 						},
 					},
 				}
@@ -921,7 +922,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				HostNetwork: apiutils.NewBoolPointer(true),
+				HostNetwork: ptr.To(true),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				assert.True(t, manager.PodTemplateSpec().Spec.HostNetwork)
@@ -935,7 +936,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				HostPID: apiutils.NewBoolPointer(true),
+				HostPID: ptr.To(true),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				assert.True(t, manager.PodTemplateSpec().Spec.HostPID)

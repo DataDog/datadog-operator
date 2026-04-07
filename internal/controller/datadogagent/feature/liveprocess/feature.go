@@ -8,6 +8,7 @@ package liveprocess
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -45,10 +46,10 @@ func (f *liveProcessFeature) ID() feature.IDType {
 func (f *liveProcessFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	if ddaSpec.Features.LiveProcessCollection != nil && apiutils.BoolValue(ddaSpec.Features.LiveProcessCollection.Enabled) {
 		if ddaSpec.Features.LiveProcessCollection.ScrubProcessArguments != nil {
-			f.scrubArgs = apiutils.NewBoolPointer(*ddaSpec.Features.LiveProcessCollection.ScrubProcessArguments)
+			f.scrubArgs = ptr.To(*ddaSpec.Features.LiveProcessCollection.ScrubProcessArguments)
 		}
 		if ddaSpec.Features.LiveProcessCollection.StripProcessArguments != nil {
-			f.stripArgs = apiutils.NewBoolPointer(*ddaSpec.Features.LiveProcessCollection.StripProcessArguments)
+			f.stripArgs = ptr.To(*ddaSpec.Features.LiveProcessCollection.StripProcessArguments)
 		}
 
 		reqContainers := []apicommon.AgentContainerName{
@@ -63,7 +64,7 @@ func (f *liveProcessFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.Datado
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: ptr.To(true),
 				Containers: reqContainers,
 			},
 		}

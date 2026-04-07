@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -202,7 +204,7 @@ func orchestratorExplorerClusterAgentWantFuncV2() *test.ComponentTest {
 
 			// check annotation
 			customConfig := v2alpha1.CustomConfig{
-				ConfigData: apiutils.NewStringPointer(customConfDataV2),
+				ConfigData: ptr.To(customConfDataV2),
 			}
 			trueValue := true
 			url := "https://foo.bar"
