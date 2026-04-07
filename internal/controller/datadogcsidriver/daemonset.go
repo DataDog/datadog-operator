@@ -385,6 +385,16 @@ func applyContainerOverrides(container *corev1.Container, override *v2alpha1.Dat
 	}
 }
 
+// The merge helpers below (mergeEnvVarsByName, mergeVolumeMountsByName,
+// mergeVolumesByName, mergePortsByContainerPort) use a simple "override wins"
+// batch-merge strategy. If another controller needs the same pattern, these
+// should be extracted to pkg/kubernetes/.
+//
+// Note: the datadogagent controller's merger package (internal/controller/
+// datadogagent/merger/) is NOT a candidate for sharing — it operates one item
+// at a time with pluggable merge strategies (append, ignore, error-on-conflict),
+// which is a fundamentally different interface.
+
 // mergeEnvVarsByName merges env vars by name. Override values replace existing
 // vars with the same name; new vars are appended.
 func mergeEnvVarsByName(base, overrides []corev1.EnvVar) []corev1.EnvVar {

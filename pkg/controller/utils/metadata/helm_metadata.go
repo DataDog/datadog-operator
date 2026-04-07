@@ -204,13 +204,13 @@ func (hmf *HelmMetadataForwarder) Start(ctx context.Context) error {
 			AddFunc: func(obj any) {
 				if key, keyErr := toolscache.MetaNamespaceKeyFunc(obj); keyErr == nil {
 					hmf.queue.Add(key)
-					hmf.logger.V(1).Info("Enqueued ConfigMap for processing", "key", key)
+					hmf.logger.V(2).Info("Enqueued ConfigMap for processing", "key", key)
 				}
 			},
 			DeleteFunc: func(obj any) {
 				if key, keyErr := toolscache.DeletionHandlingMetaNamespaceKeyFunc(obj); keyErr == nil {
 					hmf.queue.Add(deletePrefix + key)
-					hmf.logger.V(1).Info("Enqueued ConfigMap deletion for processing", "key", key)
+					hmf.logger.V(2).Info("Enqueued ConfigMap deletion for processing", "key", key)
 				}
 			},
 		},
@@ -388,7 +388,7 @@ func (hmf *HelmMetadataForwarder) handleHelmResource(ctx context.Context, name, 
 
 	// Filter for allowed charts (after decoding)
 	if !allowedCharts[release.Chart.Metadata.Name] {
-		hmf.logger.V(1).Info("Skipping non-allowed chart",
+		hmf.logger.V(2).Info("Skipping non-allowed chart",
 			"chart", release.Chart.Metadata.Name,
 			"release", releaseName)
 		return
@@ -405,7 +405,7 @@ func (hmf *HelmMetadataForwarder) handleHelmResource(ctx context.Context, name, 
 
 	// Check if we should update (prevent old revisions)
 	if entry.snapshot != nil && entry.snapshot.Revision >= revision {
-		hmf.logger.V(1).Info("Skipping old/same revision",
+		hmf.logger.V(2).Info("Skipping old/same revision",
 			"key", key,
 			"existing", entry.snapshot.Revision,
 			"new", revision)
@@ -503,8 +503,6 @@ func (hmf *HelmMetadataForwarder) tickerLoop(ctx context.Context) {
 
 // sendAllSnapshots sends all release snapshots
 func (hmf *HelmMetadataForwarder) sendAllSnapshots() {
-	hmf.logger.V(1).Info("Ticker: sending all Helm release snapshots")
-
 	count := 0
 	errors := 0
 
@@ -537,7 +535,7 @@ func (hmf *HelmMetadataForwarder) sendAllSnapshots() {
 	})
 
 	if count > 0 {
-		hmf.logger.V(1).Info("Ticker: sent Helm release snapshots",
+		hmf.logger.V(2).Info("Ticker: sent Helm release snapshots",
 			"sent", count,
 			"errors", errors)
 	}

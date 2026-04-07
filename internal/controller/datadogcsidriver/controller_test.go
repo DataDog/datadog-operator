@@ -19,12 +19,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -464,8 +464,8 @@ func TestReconcile_CSIDriverSpecDriftIsReconciled(t *testing.T) {
 	require.NoError(t, err)
 
 	// These are opposite of the default
-	csiDriver.Spec.AttachRequired = utils.NewBoolPointer(true)
-	csiDriver.Spec.PodInfoOnMount = utils.NewBoolPointer(false)
+	csiDriver.Spec.AttachRequired = ptr.To(true)
+	csiDriver.Spec.PodInfoOnMount = ptr.To(false)
 	csiDriver.Spec.VolumeLifecycleModes = []storagev1.VolumeLifecycleMode{storagev1.VolumeLifecyclePersistent}
 	err = c.Update(ctx, csiDriver)
 	require.NoError(t, err)

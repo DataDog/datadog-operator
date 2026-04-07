@@ -8,6 +8,8 @@ package defaults
 import (
 	"os"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -156,42 +158,42 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	}
 
 	if ddaSpec.Global.Site == nil {
-		ddaSpec.Global.Site = apiutils.NewStringPointer(defaultSite)
+		ddaSpec.Global.Site = ptr.To(defaultSite)
 	}
 
 	if ddaSpec.Global.Registry == nil {
 		switch *ddaSpec.Global.Site {
 		case defaultEuropeSite:
 			if os.Getenv("DD_REGISTRY_OVERRIDE_EU") == "true" {
-				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DatadogContainerRegistry)
+				ddaSpec.Global.Registry = ptr.To(images.DatadogContainerRegistry)
 			} else {
-				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultEuropeImageRegistry)
+				ddaSpec.Global.Registry = ptr.To(images.DefaultEuropeImageRegistry)
 			}
 		case defaultAsiaSite:
 			if os.Getenv("DD_REGISTRY_OVERRIDE_ASIA") == "true" {
-				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DatadogContainerRegistry)
+				ddaSpec.Global.Registry = ptr.To(images.DatadogContainerRegistry)
 			} else {
-				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultAsiaImageRegistry)
+				ddaSpec.Global.Registry = ptr.To(images.DefaultAsiaImageRegistry)
 			}
 		case defaultAzureSite:
 			if os.Getenv("DD_REGISTRY_OVERRIDE_AZURE") == "true" {
-				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DatadogContainerRegistry)
+				ddaSpec.Global.Registry = ptr.To(images.DatadogContainerRegistry)
 			} else {
-				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultAzureImageRegistry)
+				ddaSpec.Global.Registry = ptr.To(images.DefaultAzureImageRegistry)
 			}
 		case defaultGovSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultGovImageRegistry)
+			ddaSpec.Global.Registry = ptr.To(images.DefaultGovImageRegistry)
 		default:
 			if os.Getenv("DD_REGISTRY_OVERRIDE_DEFAULT") == "true" {
-				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DatadogContainerRegistry)
+				ddaSpec.Global.Registry = ptr.To(images.DatadogContainerRegistry)
 			} else {
-				ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultImageRegistry)
+				ddaSpec.Global.Registry = ptr.To(images.DefaultImageRegistry)
 			}
 		}
 	}
 
 	if ddaSpec.Global.LogLevel == nil {
-		ddaSpec.Global.LogLevel = apiutils.NewStringPointer(defaultLogLevel)
+		ddaSpec.Global.LogLevel = ptr.To(defaultLogLevel)
 	}
 
 	if ddaSpec.Global.ContainerStrategy == nil {
@@ -439,7 +441,7 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 
 	if ddaSpec.Features.Dogstatsd.HostPortConfig == nil {
 		ddaSpec.Features.Dogstatsd.HostPortConfig = &v2alpha1.HostPortConfig{
-			Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled),
+			Enabled: ptr.To(defaultDogstatsdHostPortEnabled),
 		}
 	}
 

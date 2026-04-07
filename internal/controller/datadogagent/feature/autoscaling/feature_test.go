@@ -10,6 +10,8 @@ import (
 	"sort"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -88,14 +90,14 @@ func newAgent(workloadEnabled, clusterEnabled, admissionEnabled bool) *v2alpha1.
 			Features: &v2alpha1.DatadogFeatures{
 				Autoscaling: &v2alpha1.AutoscalingFeatureConfig{
 					Workload: &v2alpha1.WorkloadAutoscalingFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(workloadEnabled),
+						Enabled: ptr.To(workloadEnabled),
 					},
 					Cluster: &v2alpha1.ClusterAutoscalingFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(clusterEnabled),
+						Enabled: ptr.To(clusterEnabled),
 					},
 				},
 				AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(admissionEnabled),
+					Enabled: ptr.To(admissionEnabled),
 				},
 			},
 		},
