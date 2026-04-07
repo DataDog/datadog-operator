@@ -1145,7 +1145,7 @@ func TestContainer(t *testing.T) {
 				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
-				AppArmorProfileName: apiutils.NewStringPointer("my-app-armor-profile"),
+				AppArmorProfileName: ptr.To("my-app-armor-profile"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
 				annotation := fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, apicommon.SecurityAgentContainerName)
