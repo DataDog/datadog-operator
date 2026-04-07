@@ -243,7 +243,8 @@ func overrideAppArmorProfile(containerName apicommon.AgentContainerName, manager
 		// This avoids invalid DaemonSet configurations when a container is not present
 		// (e.g. security-agent is absent when directSendFromSystemProbe is enabled).
 		containerExists := false
-		for _, c := range manager.PodTemplateSpec().Spec.Containers {
+		allContainers := append(manager.PodTemplateSpec().Spec.Containers, manager.PodTemplateSpec().Spec.InitContainers...)
+		for _, c := range allContainers {
 			if c.Name == effectiveName {
 				containerExists = true
 				break
