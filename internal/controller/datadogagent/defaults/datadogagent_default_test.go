@@ -8,6 +8,8 @@ package defaults
 import (
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -35,9 +37,9 @@ func Test_defaultGlobal(t *testing.T) {
 			},
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
-					Site:     apiutils.NewStringPointer(defaultSite),
-					Registry: apiutils.NewStringPointer(images.DefaultImageRegistry),
-					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
+					Site:     ptr.To(defaultSite),
+					Registry: ptr.To(images.DefaultImageRegistry),
+					LogLevel: ptr.To(defaultLogLevel),
 				},
 			},
 		},
@@ -45,14 +47,14 @@ func Test_defaultGlobal(t *testing.T) {
 			name: "test registry defaulting based on site - EU",
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
-					Site: apiutils.NewStringPointer(defaultEuropeSite),
+					Site: ptr.To(defaultEuropeSite),
 				},
 			},
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
-					Site:     apiutils.NewStringPointer(defaultEuropeSite),
-					Registry: apiutils.NewStringPointer(images.DefaultEuropeImageRegistry),
-					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
+					Site:     ptr.To(defaultEuropeSite),
+					Registry: ptr.To(images.DefaultEuropeImageRegistry),
+					LogLevel: ptr.To(defaultLogLevel),
 				},
 			},
 		},
@@ -60,14 +62,14 @@ func Test_defaultGlobal(t *testing.T) {
 			name: "test registry defaulting based on site - Asia",
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
-					Site: apiutils.NewStringPointer(defaultAsiaSite),
+					Site: ptr.To(defaultAsiaSite),
 				},
 			},
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
-					Site:     apiutils.NewStringPointer(defaultAsiaSite),
-					Registry: apiutils.NewStringPointer(images.DefaultAsiaImageRegistry),
-					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
+					Site:     ptr.To(defaultAsiaSite),
+					Registry: ptr.To(images.DefaultAsiaImageRegistry),
+					LogLevel: ptr.To(defaultLogLevel),
 				},
 			},
 		},
@@ -75,14 +77,14 @@ func Test_defaultGlobal(t *testing.T) {
 			name: "test registry defaulting based on site - Azure",
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
-					Site: apiutils.NewStringPointer(defaultAzureSite),
+					Site: ptr.To(defaultAzureSite),
 				},
 			},
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
-					Site:     apiutils.NewStringPointer(defaultAzureSite),
-					Registry: apiutils.NewStringPointer(images.DefaultAzureImageRegistry),
-					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
+					Site:     ptr.To(defaultAzureSite),
+					Registry: ptr.To(images.DefaultAzureImageRegistry),
+					LogLevel: ptr.To(defaultLogLevel),
 				},
 			},
 		},
@@ -90,14 +92,14 @@ func Test_defaultGlobal(t *testing.T) {
 			name: "test registry defaulting based on site - Gov",
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
-					Site: apiutils.NewStringPointer(defaultGovSite),
+					Site: ptr.To(defaultGovSite),
 				},
 			},
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
-					Site:     apiutils.NewStringPointer(defaultGovSite),
-					Registry: apiutils.NewStringPointer(images.DefaultGovImageRegistry),
-					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
+					Site:     ptr.To(defaultGovSite),
+					Registry: ptr.To(images.DefaultGovImageRegistry),
+					LogLevel: ptr.To(defaultLogLevel),
 				},
 			},
 		},
@@ -108,10 +110,10 @@ func Test_defaultGlobal(t *testing.T) {
 			},
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
-					UseFIPSAgent: apiutils.NewBoolPointer(defaultUseFIPSAgent),
-					Site:         apiutils.NewStringPointer(defaultSite),
-					Registry:     apiutils.NewStringPointer(images.DefaultImageRegistry),
-					LogLevel:     apiutils.NewStringPointer(defaultLogLevel),
+					UseFIPSAgent: ptr.To(defaultUseFIPSAgent),
+					Site:         ptr.To(defaultSite),
+					Registry:     ptr.To(images.DefaultImageRegistry),
+					LogLevel:     ptr.To(defaultLogLevel),
 				},
 			},
 		},
@@ -123,11 +125,11 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
 					FIPS: &v2alpha1.FIPSConfig{
-						Enabled: apiutils.NewBoolPointer(defaultFIPSProxyEnabled),
+						Enabled: ptr.To(defaultFIPSProxyEnabled),
 					},
-					Site:     apiutils.NewStringPointer(defaultSite),
-					Registry: apiutils.NewStringPointer(images.DefaultImageRegistry),
-					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
+					Site:     ptr.To(defaultSite),
+					Registry: ptr.To(images.DefaultImageRegistry),
+					LogLevel: ptr.To(defaultLogLevel),
 				},
 			},
 		},
@@ -136,26 +138,26 @@ func Test_defaultGlobal(t *testing.T) {
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
 					FIPS: &v2alpha1.FIPSConfig{
-						Enabled: apiutils.NewBoolPointer(true),
+						Enabled: ptr.To(true),
 					},
 				},
 			},
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
 					FIPS: &v2alpha1.FIPSConfig{
-						Enabled: apiutils.NewBoolPointer(true),
+						Enabled: ptr.To(true),
 						Image: &v2alpha1.AgentImageConfig{
 							Name: defaultFIPSImageName,
 							Tag:  defaultFIPSImageTag,
 						},
-						LocalAddress: apiutils.NewStringPointer(defaultFIPSLocalAddress),
-						Port:         apiutils.NewInt32Pointer(defaultFIPSPort),
-						PortRange:    apiutils.NewInt32Pointer(defaultFIPSPortRange),
-						UseHTTPS:     apiutils.NewBoolPointer(defaultFIPSUseHTTPS),
+						LocalAddress: ptr.To(defaultFIPSLocalAddress),
+						Port:         ptr.To(defaultFIPSPort),
+						PortRange:    ptr.To(defaultFIPSPortRange),
+						UseHTTPS:     ptr.To(defaultFIPSUseHTTPS),
 					},
-					Site:     apiutils.NewStringPointer(defaultSite),
-					Registry: apiutils.NewStringPointer(images.DefaultImageRegistry),
-					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
+					Site:     ptr.To(defaultSite),
+					Registry: ptr.To(images.DefaultImageRegistry),
+					LogLevel: ptr.To(defaultLogLevel),
 				},
 			},
 		},
@@ -191,146 +193,146 @@ func Test_defaultFeatures(t *testing.T) {
 			want: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					LogCollection: &v2alpha1.LogCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLogCollectionEnabled),
+						Enabled: ptr.To(defaultLogCollectionEnabled),
 					},
 					LiveProcessCollection: &v2alpha1.LiveProcessCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
+						Enabled: ptr.To(defaultLiveProcessCollectionEnabled),
 					},
 					LiveContainerCollection: &v2alpha1.LiveContainerCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+						Enabled: ptr.To(defaultLiveContainerCollectionEnabled),
 					},
 					ProcessDiscovery: &v2alpha1.ProcessDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryEnabled),
+						Enabled: ptr.To(defaultProcessDiscoveryEnabled),
 					},
 					OOMKill: &v2alpha1.OOMKillFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOOMKillEnabled),
+						Enabled: ptr.To(defaultOOMKillEnabled),
 					},
 					TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultTCPQueueLengthEnabled),
+						Enabled: ptr.To(defaultTCPQueueLengthEnabled),
 					},
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
 					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
-						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: ptr.To(defaultDataPlaneDogstatsdEnabled)},
 					},
 					APM: &v2alpha1.APMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						Enabled: ptr.To(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
-							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
-							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+							Port:    ptr.To(defaultAPMHostPort),
+							Enabled: ptr.To(defaultAPMHostPortEnabled),
 						},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+							Enabled: ptr.To(defaultAPMSocketEnabled),
+							Path:    ptr.To(defaultAPMSocketHostPath),
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
-							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
-							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
+							Enabled: ptr.To(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
+						Enabled: ptr.To(defaultOtelCollectorEnabled),
 					},
 					ASM: &v2alpha1.ASMFeatureConfig{
 						Threats: &v2alpha1.ASMThreatsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+							Enabled: ptr.To(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+							Enabled: ptr.To(defaultAdmissionASMSCAEnabled),
 						},
 						IAST: &v2alpha1.ASMIASTConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+							Enabled: ptr.To(defaultAdmissionASMIASTEnabled),
 						},
 					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
+						Enabled: ptr.To(defaultCSPMEnabled),
 					},
 					CWS: &v2alpha1.CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCWSEnabled),
+						Enabled: ptr.To(defaultCWSEnabled),
 					},
 					NPM: &v2alpha1.NPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultNPMEnabled),
+						Enabled: ptr.To(defaultNPMEnabled),
 					},
 					USM: &v2alpha1.USMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultUSMEnabled),
+						Enabled: ptr.To(defaultUSMEnabled),
 					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
-						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
-						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
+						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
+						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: ptr.To(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
+							Enabled: ptr.To(defaultDogstatsdSocketEnabled),
+							Path:    ptr.To(defaultDogstatsdHostSocketPath),
 						},
-						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
+						NonLocalTraffic: ptr.To(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							Enabled:        ptr.To(defaultOTLPGRPCEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Endpoint:       ptr.To(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							Enabled:        ptr.To(defaultOTLPHTTPEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
+						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
 					EventCollection: &v2alpha1.EventCollectionFeatureConfig{
-						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
+						CollectKubernetesEvents: ptr.To(defaultCollectKubernetesEvents),
 					},
 					OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
-						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
-						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
+						Enabled:         ptr.To(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: ptr.To(defaultOrchestratorExplorerScrubContainers),
 					},
 					ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultExternalMetricsServerEnabled),
+						Enabled: ptr.To(defaultExternalMetricsServerEnabled),
 					},
 					KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
+						Enabled: ptr.To(defaultKubeStateMetricsCoreEnabled),
 					},
 					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
-						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+						Enabled:                 ptr.To(defaultClusterChecksEnabled),
+						UseClusterChecksRunners: ptr.To(defaultUseClusterChecksRunners),
 					},
 					AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Enabled: ptr.To(defaultAdmissionControllerEnabled),
 						Validation: &v2alpha1.AdmissionControllerValidationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerValidationEnabled),
 						},
 						Mutation: &v2alpha1.AdmissionControllerMutationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerMutationEnabled),
 						},
-						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						MutateUnlabelled: ptr.To(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      ptr.To(defaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
-							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+							Enabled: ptr.To(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
 						KubernetesAdmissionEvents: &v2alpha1.KubernetesAdmissionEventsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
 						},
 					},
 					PrometheusScrape: &v2alpha1.PrometheusScrapeFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
+						Enabled: ptr.To(defaultPrometheusScrapeEnabled),
 					},
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
+						Enabled: ptr.To(defaultHelmCheckEnabled),
 					},
 					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
+						Enabled: ptr.To(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -340,225 +342,225 @@ func Test_defaultFeatures(t *testing.T) {
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					LogCollection: &v2alpha1.LogCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					LiveProcessCollection: &v2alpha1.LiveProcessCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					LiveContainerCollection: &v2alpha1.LiveContainerCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					ProcessDiscovery: &v2alpha1.ProcessDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					OOMKill: &v2alpha1.OOMKillFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
 					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
-						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: ptr.To(defaultDataPlaneDogstatsdEnabled)},
 					},
 					APM: &v2alpha1.APMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
+						Enabled: ptr.To(defaultOtelCollectorEnabled),
 					},
 					ASM: &v2alpha1.ASMFeatureConfig{
 						Threats: &v2alpha1.ASMThreatsConfig{
-							Enabled: apiutils.NewBoolPointer(valueFalse),
+							Enabled: ptr.To(valueFalse),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
-							Enabled: apiutils.NewBoolPointer(valueFalse),
+							Enabled: ptr.To(valueFalse),
 						},
 						IAST: &v2alpha1.ASMIASTConfig{
-							Enabled: apiutils.NewBoolPointer(valueFalse),
+							Enabled: ptr.To(valueFalse),
 						},
 					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					CWS: &v2alpha1.CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					NPM: &v2alpha1.NPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					USM: &v2alpha1.USMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
-						GRPC: &v2alpha1.OTLPGRPCConfig{Enabled: apiutils.NewBoolPointer(valueFalse)},
-						HTTP: &v2alpha1.OTLPHTTPConfig{Enabled: apiutils.NewBoolPointer(valueFalse)},
+						GRPC: &v2alpha1.OTLPGRPCConfig{Enabled: ptr.To(valueFalse)},
+						HTTP: &v2alpha1.OTLPHTTPConfig{Enabled: ptr.To(valueFalse)},
 					}}},
 					EventCollection: &v2alpha1.EventCollectionFeatureConfig{
-						CollectKubernetesEvents: apiutils.NewBoolPointer(valueFalse),
+						CollectKubernetesEvents: ptr.To(valueFalse),
 					},
 					OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
-						Enabled:    apiutils.NewBoolPointer(valueFalse),
-						Validation: &v2alpha1.AdmissionControllerValidationConfig{Enabled: apiutils.NewBoolPointer(valueFalse)},
-						Mutation:   &v2alpha1.AdmissionControllerMutationConfig{Enabled: apiutils.NewBoolPointer(valueFalse)},
+						Enabled:    ptr.To(valueFalse),
+						Validation: &v2alpha1.AdmissionControllerValidationConfig{Enabled: ptr.To(valueFalse)},
+						Mutation:   &v2alpha1.AdmissionControllerMutationConfig{Enabled: ptr.To(valueFalse)},
 					},
 					ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					PrometheusScrape: &v2alpha1.PrometheusScrapeFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 				},
 			},
 			want: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					LogCollection: &v2alpha1.LogCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					LiveProcessCollection: &v2alpha1.LiveProcessCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					LiveContainerCollection: &v2alpha1.LiveContainerCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					ProcessDiscovery: &v2alpha1.ProcessDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					OOMKill: &v2alpha1.OOMKillFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
 					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
-						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: ptr.To(defaultDataPlaneDogstatsdEnabled)},
 					},
 					APM: &v2alpha1.APMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
+						Enabled: ptr.To(defaultOtelCollectorEnabled),
 					},
 					ASM: &v2alpha1.ASMFeatureConfig{
 						Threats: &v2alpha1.ASMThreatsConfig{
-							Enabled: apiutils.NewBoolPointer(valueFalse),
+							Enabled: ptr.To(valueFalse),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
-							Enabled: apiutils.NewBoolPointer(valueFalse),
+							Enabled: ptr.To(valueFalse),
 						},
 						IAST: &v2alpha1.ASMIASTConfig{
-							Enabled: apiutils.NewBoolPointer(valueFalse),
+							Enabled: ptr.To(valueFalse),
 						},
 					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					CWS: &v2alpha1.CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					NPM: &v2alpha1.NPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					USM: &v2alpha1.USMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
-						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
-						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
+						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
+						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: ptr.To(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
+							Enabled: ptr.To(defaultDogstatsdSocketEnabled),
+							Path:    ptr.To(defaultDogstatsdHostSocketPath),
 						},
-						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
+						NonLocalTraffic: ptr.To(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							Enabled:        ptr.To(defaultOTLPGRPCEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Endpoint:       ptr.To(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							Enabled:        ptr.To(defaultOTLPHTTPEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					EventCollection: &v2alpha1.EventCollectionFeatureConfig{
-						CollectKubernetesEvents: apiutils.NewBoolPointer(valueFalse),
+						CollectKubernetesEvents: ptr.To(valueFalse),
 					},
 					OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 						Validation: &v2alpha1.AdmissionControllerValidationConfig{
-							Enabled: apiutils.NewBoolPointer(valueFalse),
+							Enabled: ptr.To(valueFalse),
 						},
 						Mutation: &v2alpha1.AdmissionControllerMutationConfig{
-							Enabled: apiutils.NewBoolPointer(valueFalse),
+							Enabled: ptr.To(valueFalse),
 						},
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
-							Enabled: apiutils.NewBoolPointer(valueFalse),
+							Enabled: ptr.To(valueFalse),
 						},
 						KubernetesAdmissionEvents: &v2alpha1.KubernetesAdmissionEventsConfig{
-							Enabled: apiutils.NewBoolPointer(valueFalse),
+							Enabled: ptr.To(valueFalse),
 						},
 					},
 					ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					PrometheusScrape: &v2alpha1.PrometheusScrapeFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled: ptr.To(valueFalse),
 					},
 				},
 			},
@@ -568,153 +570,153 @@ func Test_defaultFeatures(t *testing.T) {
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					LiveProcessCollection: &v2alpha1.LiveProcessCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueTrue),
+						Enabled: ptr.To(valueTrue),
 					},
 				},
 			},
 			want: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					LogCollection: &v2alpha1.LogCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLogCollectionEnabled),
+						Enabled: ptr.To(defaultLogCollectionEnabled),
 					},
 					LiveProcessCollection: &v2alpha1.LiveProcessCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueTrue),
+						Enabled: ptr.To(valueTrue),
 					},
 					LiveContainerCollection: &v2alpha1.LiveContainerCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+						Enabled: ptr.To(defaultLiveContainerCollectionEnabled),
 					},
 					ProcessDiscovery: &v2alpha1.ProcessDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryEnabled),
+						Enabled: ptr.To(defaultProcessDiscoveryEnabled),
 					},
 					OOMKill: &v2alpha1.OOMKillFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOOMKillEnabled),
+						Enabled: ptr.To(defaultOOMKillEnabled),
 					},
 					TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultTCPQueueLengthEnabled),
+						Enabled: ptr.To(defaultTCPQueueLengthEnabled),
 					},
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
 					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
-						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: ptr.To(defaultDataPlaneDogstatsdEnabled)},
 					},
 					APM: &v2alpha1.APMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						Enabled: ptr.To(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
-							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
-							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+							Port:    ptr.To(defaultAPMHostPort),
+							Enabled: ptr.To(defaultAPMHostPortEnabled),
 						},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+							Enabled: ptr.To(defaultAPMSocketEnabled),
+							Path:    ptr.To(defaultAPMSocketHostPath),
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
-							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
-							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
+							Enabled: ptr.To(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
+						Enabled: ptr.To(defaultOtelCollectorEnabled),
 					},
 					ASM: &v2alpha1.ASMFeatureConfig{
 						Threats: &v2alpha1.ASMThreatsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+							Enabled: ptr.To(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+							Enabled: ptr.To(defaultAdmissionASMSCAEnabled),
 						},
 						IAST: &v2alpha1.ASMIASTConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+							Enabled: ptr.To(defaultAdmissionASMIASTEnabled),
 						},
 					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
+						Enabled: ptr.To(defaultCSPMEnabled),
 					},
 					CWS: &v2alpha1.CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCWSEnabled),
+						Enabled: ptr.To(defaultCWSEnabled),
 					},
 					NPM: &v2alpha1.NPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultNPMEnabled),
+						Enabled: ptr.To(defaultNPMEnabled),
 					},
 					USM: &v2alpha1.USMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultUSMEnabled),
+						Enabled: ptr.To(defaultUSMEnabled),
 					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
-						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
-						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
+						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
+						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: ptr.To(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
+							Enabled: ptr.To(defaultDogstatsdSocketEnabled),
+							Path:    ptr.To(defaultDogstatsdHostSocketPath),
 						},
-						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
+						NonLocalTraffic: ptr.To(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							Enabled:        ptr.To(defaultOTLPGRPCEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Endpoint:       ptr.To(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							Enabled:        ptr.To(defaultOTLPHTTPEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
+						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
 					EventCollection: &v2alpha1.EventCollectionFeatureConfig{
-						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
+						CollectKubernetesEvents: ptr.To(defaultCollectKubernetesEvents),
 					},
 					OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
-						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
-						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
+						Enabled:         ptr.To(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: ptr.To(defaultOrchestratorExplorerScrubContainers),
 					},
 					ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultExternalMetricsServerEnabled),
+						Enabled: ptr.To(defaultExternalMetricsServerEnabled),
 					},
 					KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
+						Enabled: ptr.To(defaultKubeStateMetricsCoreEnabled),
 					},
 					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
-						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+						Enabled:                 ptr.To(defaultClusterChecksEnabled),
+						UseClusterChecksRunners: ptr.To(defaultUseClusterChecksRunners),
 					},
 					AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Enabled: ptr.To(defaultAdmissionControllerEnabled),
 						Validation: &v2alpha1.AdmissionControllerValidationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerValidationEnabled),
 						},
 						Mutation: &v2alpha1.AdmissionControllerMutationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerMutationEnabled),
 						},
-						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						MutateUnlabelled: ptr.To(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      ptr.To(defaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
-							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+							Enabled: ptr.To(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
 						KubernetesAdmissionEvents: &v2alpha1.KubernetesAdmissionEventsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
 						},
 					},
 					PrometheusScrape: &v2alpha1.PrometheusScrapeFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
+						Enabled: ptr.To(defaultPrometheusScrapeEnabled),
 					},
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
+						Enabled: ptr.To(defaultHelmCheckEnabled),
 					},
 					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
+						Enabled: ptr.To(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -724,158 +726,158 @@ func Test_defaultFeatures(t *testing.T) {
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					LogCollection: &v2alpha1.LogCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueTrue),
+						Enabled: ptr.To(valueTrue),
 					},
 				},
 			},
 			want: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					LogCollection: &v2alpha1.LogCollectionFeatureConfig{
-						Enabled:                    apiutils.NewBoolPointer(valueTrue),
-						ContainerCollectUsingFiles: apiutils.NewBoolPointer(defaultLogContainerCollectUsingFiles),
-						ContainerLogsPath:          apiutils.NewStringPointer(defaultLogContainerLogsPath),
-						PodLogsPath:                apiutils.NewStringPointer(defaultLogPodLogsPath),
-						ContainerSymlinksPath:      apiutils.NewStringPointer(defaultLogContainerSymlinksPath),
-						TempStoragePath:            apiutils.NewStringPointer(common.DefaultLogTempStoragePath),
+						Enabled:                    ptr.To(valueTrue),
+						ContainerCollectUsingFiles: ptr.To(defaultLogContainerCollectUsingFiles),
+						ContainerLogsPath:          ptr.To(defaultLogContainerLogsPath),
+						PodLogsPath:                ptr.To(defaultLogPodLogsPath),
+						ContainerSymlinksPath:      ptr.To(defaultLogContainerSymlinksPath),
+						TempStoragePath:            ptr.To(common.DefaultLogTempStoragePath),
 					},
 					LiveProcessCollection: &v2alpha1.LiveProcessCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
+						Enabled: ptr.To(defaultLiveProcessCollectionEnabled),
 					},
 					LiveContainerCollection: &v2alpha1.LiveContainerCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+						Enabled: ptr.To(defaultLiveContainerCollectionEnabled),
 					},
 					ProcessDiscovery: &v2alpha1.ProcessDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryEnabled),
+						Enabled: ptr.To(defaultProcessDiscoveryEnabled),
 					},
 					OOMKill: &v2alpha1.OOMKillFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOOMKillEnabled),
+						Enabled: ptr.To(defaultOOMKillEnabled),
 					},
 					TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultTCPQueueLengthEnabled),
+						Enabled: ptr.To(defaultTCPQueueLengthEnabled),
 					},
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
 					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
-						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: ptr.To(defaultDataPlaneDogstatsdEnabled)},
 					},
 					APM: &v2alpha1.APMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						Enabled: ptr.To(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
-							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
-							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+							Port:    ptr.To(defaultAPMHostPort),
+							Enabled: ptr.To(defaultAPMHostPortEnabled),
 						},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+							Enabled: ptr.To(defaultAPMSocketEnabled),
+							Path:    ptr.To(defaultAPMSocketHostPath),
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
-							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
-							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
+							Enabled: ptr.To(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
+						Enabled: ptr.To(defaultOtelCollectorEnabled),
 					},
 					ASM: &v2alpha1.ASMFeatureConfig{
 						Threats: &v2alpha1.ASMThreatsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+							Enabled: ptr.To(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+							Enabled: ptr.To(defaultAdmissionASMSCAEnabled),
 						},
 						IAST: &v2alpha1.ASMIASTConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+							Enabled: ptr.To(defaultAdmissionASMIASTEnabled),
 						},
 					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
+						Enabled: ptr.To(defaultCSPMEnabled),
 					},
 					CWS: &v2alpha1.CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCWSEnabled),
+						Enabled: ptr.To(defaultCWSEnabled),
 					},
 					NPM: &v2alpha1.NPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultNPMEnabled),
+						Enabled: ptr.To(defaultNPMEnabled),
 					},
 					USM: &v2alpha1.USMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultUSMEnabled),
+						Enabled: ptr.To(defaultUSMEnabled),
 					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
-						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
-						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
+						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
+						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: ptr.To(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
+							Enabled: ptr.To(defaultDogstatsdSocketEnabled),
+							Path:    ptr.To(defaultDogstatsdHostSocketPath),
 						},
-						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
+						NonLocalTraffic: ptr.To(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							Enabled:        ptr.To(defaultOTLPGRPCEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Endpoint:       ptr.To(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							Enabled:        ptr.To(defaultOTLPHTTPEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
+						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
 					EventCollection: &v2alpha1.EventCollectionFeatureConfig{
-						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
+						CollectKubernetesEvents: ptr.To(defaultCollectKubernetesEvents),
 					},
 					OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
-						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
-						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
+						Enabled:         ptr.To(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: ptr.To(defaultOrchestratorExplorerScrubContainers),
 					},
 					ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultExternalMetricsServerEnabled),
+						Enabled: ptr.To(defaultExternalMetricsServerEnabled),
 					},
 					KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
+						Enabled: ptr.To(defaultKubeStateMetricsCoreEnabled),
 					},
 					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
-						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+						Enabled:                 ptr.To(defaultClusterChecksEnabled),
+						UseClusterChecksRunners: ptr.To(defaultUseClusterChecksRunners),
 					},
 					AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Enabled: ptr.To(defaultAdmissionControllerEnabled),
 						Validation: &v2alpha1.AdmissionControllerValidationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerValidationEnabled),
 						},
 						Mutation: &v2alpha1.AdmissionControllerMutationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerMutationEnabled),
 						},
-						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						MutateUnlabelled: ptr.To(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      ptr.To(defaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
-							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+							Enabled: ptr.To(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
 						KubernetesAdmissionEvents: &v2alpha1.KubernetesAdmissionEventsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
 						},
 					},
 					PrometheusScrape: &v2alpha1.PrometheusScrapeFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
+						Enabled: ptr.To(defaultPrometheusScrapeEnabled),
 					},
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
+						Enabled: ptr.To(defaultHelmCheckEnabled),
 					},
 					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
+						Enabled: ptr.To(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -885,153 +887,153 @@ func Test_defaultFeatures(t *testing.T) {
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					APM: &v2alpha1.APMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueTrue),
+						Enabled: ptr.To(valueTrue),
 					},
 				},
 			},
 			want: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					LogCollection: &v2alpha1.LogCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLogCollectionEnabled),
+						Enabled: ptr.To(defaultLogCollectionEnabled),
 					},
 					LiveProcessCollection: &v2alpha1.LiveProcessCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
+						Enabled: ptr.To(defaultLiveProcessCollectionEnabled),
 					},
 					LiveContainerCollection: &v2alpha1.LiveContainerCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+						Enabled: ptr.To(defaultLiveContainerCollectionEnabled),
 					},
 					ProcessDiscovery: &v2alpha1.ProcessDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryEnabled),
+						Enabled: ptr.To(defaultProcessDiscoveryEnabled),
 					},
 					OOMKill: &v2alpha1.OOMKillFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOOMKillEnabled),
+						Enabled: ptr.To(defaultOOMKillEnabled),
 					},
 					TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultTCPQueueLengthEnabled),
+						Enabled: ptr.To(defaultTCPQueueLengthEnabled),
 					},
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
 					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
-						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: ptr.To(defaultDataPlaneDogstatsdEnabled)},
 					},
 					APM: &v2alpha1.APMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueTrue),
+						Enabled: ptr.To(valueTrue),
 						HostPortConfig: &v2alpha1.HostPortConfig{
-							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
-							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+							Port:    ptr.To(defaultAPMHostPort),
+							Enabled: ptr.To(defaultAPMHostPortEnabled),
 						},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+							Enabled: ptr.To(defaultAPMSocketEnabled),
+							Path:    ptr.To(defaultAPMSocketHostPath),
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
-							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
-							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
+							Enabled: ptr.To(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
+						Enabled: ptr.To(defaultOtelCollectorEnabled),
 					},
 					ASM: &v2alpha1.ASMFeatureConfig{
 						Threats: &v2alpha1.ASMThreatsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+							Enabled: ptr.To(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+							Enabled: ptr.To(defaultAdmissionASMSCAEnabled),
 						},
 						IAST: &v2alpha1.ASMIASTConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+							Enabled: ptr.To(defaultAdmissionASMIASTEnabled),
 						},
 					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
+						Enabled: ptr.To(defaultCSPMEnabled),
 					},
 					CWS: &v2alpha1.CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCWSEnabled),
+						Enabled: ptr.To(defaultCWSEnabled),
 					},
 					NPM: &v2alpha1.NPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultNPMEnabled),
+						Enabled: ptr.To(defaultNPMEnabled),
 					},
 					USM: &v2alpha1.USMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultUSMEnabled),
+						Enabled: ptr.To(defaultUSMEnabled),
 					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
-						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
-						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
+						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
+						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: ptr.To(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
+							Enabled: ptr.To(defaultDogstatsdSocketEnabled),
+							Path:    ptr.To(defaultDogstatsdHostSocketPath),
 						},
-						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
+						NonLocalTraffic: ptr.To(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							Enabled:        ptr.To(defaultOTLPGRPCEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Endpoint:       ptr.To(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							Enabled:        ptr.To(defaultOTLPHTTPEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
+						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
 					EventCollection: &v2alpha1.EventCollectionFeatureConfig{
-						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
+						CollectKubernetesEvents: ptr.To(defaultCollectKubernetesEvents),
 					},
 					OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
-						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
-						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
+						Enabled:         ptr.To(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: ptr.To(defaultOrchestratorExplorerScrubContainers),
 					},
 					ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultExternalMetricsServerEnabled),
+						Enabled: ptr.To(defaultExternalMetricsServerEnabled),
 					},
 					KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
+						Enabled: ptr.To(defaultKubeStateMetricsCoreEnabled),
 					},
 					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
-						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+						Enabled:                 ptr.To(defaultClusterChecksEnabled),
+						UseClusterChecksRunners: ptr.To(defaultUseClusterChecksRunners),
 					},
 					AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Enabled: ptr.To(defaultAdmissionControllerEnabled),
 						Validation: &v2alpha1.AdmissionControllerValidationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerValidationEnabled),
 						},
 						Mutation: &v2alpha1.AdmissionControllerMutationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerMutationEnabled),
 						},
-						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						MutateUnlabelled: ptr.To(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      ptr.To(defaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
-							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+							Enabled: ptr.To(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
 						KubernetesAdmissionEvents: &v2alpha1.KubernetesAdmissionEventsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
 						},
 					},
 					PrometheusScrape: &v2alpha1.PrometheusScrapeFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
+						Enabled: ptr.To(defaultPrometheusScrapeEnabled),
 					},
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
+						Enabled: ptr.To(defaultHelmCheckEnabled),
 					},
 					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
+						Enabled: ptr.To(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -1041,155 +1043,155 @@ func Test_defaultFeatures(t *testing.T) {
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					NPM: &v2alpha1.NPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueTrue),
+						Enabled: ptr.To(valueTrue),
 					},
 				},
 			},
 			want: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					LogCollection: &v2alpha1.LogCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLogCollectionEnabled),
+						Enabled: ptr.To(defaultLogCollectionEnabled),
 					},
 					LiveProcessCollection: &v2alpha1.LiveProcessCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
+						Enabled: ptr.To(defaultLiveProcessCollectionEnabled),
 					},
 					LiveContainerCollection: &v2alpha1.LiveContainerCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+						Enabled: ptr.To(defaultLiveContainerCollectionEnabled),
 					},
 					ProcessDiscovery: &v2alpha1.ProcessDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryEnabled),
+						Enabled: ptr.To(defaultProcessDiscoveryEnabled),
 					},
 					OOMKill: &v2alpha1.OOMKillFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOOMKillEnabled),
+						Enabled: ptr.To(defaultOOMKillEnabled),
 					},
 					TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultTCPQueueLengthEnabled),
+						Enabled: ptr.To(defaultTCPQueueLengthEnabled),
 					},
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
 					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
-						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: ptr.To(defaultDataPlaneDogstatsdEnabled)},
 					},
 					APM: &v2alpha1.APMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						Enabled: ptr.To(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
-							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
-							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+							Port:    ptr.To(defaultAPMHostPort),
+							Enabled: ptr.To(defaultAPMHostPortEnabled),
 						},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+							Enabled: ptr.To(defaultAPMSocketEnabled),
+							Path:    ptr.To(defaultAPMSocketHostPath),
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
-							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
-							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
+							Enabled: ptr.To(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
+						Enabled: ptr.To(defaultOtelCollectorEnabled),
 					},
 					ASM: &v2alpha1.ASMFeatureConfig{
 						Threats: &v2alpha1.ASMThreatsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+							Enabled: ptr.To(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+							Enabled: ptr.To(defaultAdmissionASMSCAEnabled),
 						},
 						IAST: &v2alpha1.ASMIASTConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+							Enabled: ptr.To(defaultAdmissionASMIASTEnabled),
 						},
 					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
+						Enabled: ptr.To(defaultCSPMEnabled),
 					},
 					CWS: &v2alpha1.CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCWSEnabled),
+						Enabled: ptr.To(defaultCWSEnabled),
 					},
 					NPM: &v2alpha1.NPMFeatureConfig{
-						Enabled:         apiutils.NewBoolPointer(valueTrue),
-						EnableConntrack: apiutils.NewBoolPointer(defaultNPMEnableConntrack),
-						CollectDNSStats: apiutils.NewBoolPointer(defaultNPMCollectDNSStats),
+						Enabled:         ptr.To(valueTrue),
+						EnableConntrack: ptr.To(defaultNPMEnableConntrack),
+						CollectDNSStats: ptr.To(defaultNPMCollectDNSStats),
 					},
 					USM: &v2alpha1.USMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultUSMEnabled),
+						Enabled: ptr.To(defaultUSMEnabled),
 					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
-						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
-						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
+						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
+						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: ptr.To(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
+							Enabled: ptr.To(defaultDogstatsdSocketEnabled),
+							Path:    ptr.To(defaultDogstatsdHostSocketPath),
 						},
-						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
+						NonLocalTraffic: ptr.To(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							Enabled:        ptr.To(defaultOTLPGRPCEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Endpoint:       ptr.To(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							Enabled:        ptr.To(defaultOTLPHTTPEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
+						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
 					EventCollection: &v2alpha1.EventCollectionFeatureConfig{
-						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
+						CollectKubernetesEvents: ptr.To(defaultCollectKubernetesEvents),
 					},
 					OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
-						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
-						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
+						Enabled:         ptr.To(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: ptr.To(defaultOrchestratorExplorerScrubContainers),
 					},
 					ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultExternalMetricsServerEnabled),
+						Enabled: ptr.To(defaultExternalMetricsServerEnabled),
 					},
 					KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
+						Enabled: ptr.To(defaultKubeStateMetricsCoreEnabled),
 					},
 					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
-						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+						Enabled:                 ptr.To(defaultClusterChecksEnabled),
+						UseClusterChecksRunners: ptr.To(defaultUseClusterChecksRunners),
 					},
 					AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Enabled: ptr.To(defaultAdmissionControllerEnabled),
 						Validation: &v2alpha1.AdmissionControllerValidationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerValidationEnabled),
 						},
 						Mutation: &v2alpha1.AdmissionControllerMutationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerMutationEnabled),
 						},
-						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						MutateUnlabelled: ptr.To(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      ptr.To(defaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
-							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+							Enabled: ptr.To(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
 						KubernetesAdmissionEvents: &v2alpha1.KubernetesAdmissionEventsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
 						},
 					},
 					PrometheusScrape: &v2alpha1.PrometheusScrapeFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
+						Enabled: ptr.To(defaultPrometheusScrapeEnabled),
 					},
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
+						Enabled: ptr.To(defaultHelmCheckEnabled),
 					},
 					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
+						Enabled: ptr.To(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -1200,12 +1202,12 @@ func Test_defaultFeatures(t *testing.T) {
 				Features: &v2alpha1.DatadogFeatures{
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:  apiutils.NewBoolPointer(true),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Enabled:  ptr.To(true),
+							Endpoint: ptr.To(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:  apiutils.NewBoolPointer(true),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Enabled:  ptr.To(true),
+							Endpoint: ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 				},
@@ -1213,146 +1215,146 @@ func Test_defaultFeatures(t *testing.T) {
 			want: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					LogCollection: &v2alpha1.LogCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLogCollectionEnabled),
+						Enabled: ptr.To(defaultLogCollectionEnabled),
 					},
 					LiveProcessCollection: &v2alpha1.LiveProcessCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
+						Enabled: ptr.To(defaultLiveProcessCollectionEnabled),
 					},
 					LiveContainerCollection: &v2alpha1.LiveContainerCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+						Enabled: ptr.To(defaultLiveContainerCollectionEnabled),
 					},
 					ProcessDiscovery: &v2alpha1.ProcessDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryEnabled),
+						Enabled: ptr.To(defaultProcessDiscoveryEnabled),
 					},
 					OOMKill: &v2alpha1.OOMKillFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOOMKillEnabled),
+						Enabled: ptr.To(defaultOOMKillEnabled),
 					},
 					TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultTCPQueueLengthEnabled),
+						Enabled: ptr.To(defaultTCPQueueLengthEnabled),
 					},
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
 					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
-						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: ptr.To(defaultDataPlaneDogstatsdEnabled)},
 					},
 					APM: &v2alpha1.APMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						Enabled: ptr.To(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
-							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
-							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+							Port:    ptr.To(defaultAPMHostPort),
+							Enabled: ptr.To(defaultAPMHostPortEnabled),
 						},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+							Enabled: ptr.To(defaultAPMSocketEnabled),
+							Path:    ptr.To(defaultAPMSocketHostPath),
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
-							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
-							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
+							Enabled: ptr.To(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
+						Enabled: ptr.To(defaultOtelCollectorEnabled),
 					},
 					ASM: &v2alpha1.ASMFeatureConfig{
 						Threats: &v2alpha1.ASMThreatsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+							Enabled: ptr.To(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+							Enabled: ptr.To(defaultAdmissionASMSCAEnabled),
 						},
 						IAST: &v2alpha1.ASMIASTConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+							Enabled: ptr.To(defaultAdmissionASMIASTEnabled),
 						},
 					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
+						Enabled: ptr.To(defaultCSPMEnabled),
 					},
 					CWS: &v2alpha1.CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCWSEnabled),
+						Enabled: ptr.To(defaultCWSEnabled),
 					},
 					NPM: &v2alpha1.NPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultNPMEnabled),
+						Enabled: ptr.To(defaultNPMEnabled),
 					},
 					USM: &v2alpha1.USMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultUSMEnabled),
+						Enabled: ptr.To(defaultUSMEnabled),
 					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
-						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
-						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
+						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
+						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: ptr.To(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
+							Enabled: ptr.To(defaultDogstatsdSocketEnabled),
+							Path:    ptr.To(defaultDogstatsdHostSocketPath),
 						},
-						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
+						NonLocalTraffic: ptr.To(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(valueTrue),
-							HostPortConfig: &v2alpha1.HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultOTLPGRPCHostPortEnabled)},
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Enabled:        ptr.To(valueTrue),
+							HostPortConfig: &v2alpha1.HostPortConfig{Enabled: ptr.To(defaultOTLPGRPCHostPortEnabled)},
+							Endpoint:       ptr.To(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(valueTrue),
-							HostPortConfig: &v2alpha1.HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultOTLPGRPCHostPortEnabled)},
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Enabled:        ptr.To(valueTrue),
+							HostPortConfig: &v2alpha1.HostPortConfig{Enabled: ptr.To(defaultOTLPGRPCHostPortEnabled)},
+							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
+						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
 					EventCollection: &v2alpha1.EventCollectionFeatureConfig{
-						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
+						CollectKubernetesEvents: ptr.To(defaultCollectKubernetesEvents),
 					},
 					OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
-						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
-						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
+						Enabled:         ptr.To(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: ptr.To(defaultOrchestratorExplorerScrubContainers),
 					},
 					ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultExternalMetricsServerEnabled),
+						Enabled: ptr.To(defaultExternalMetricsServerEnabled),
 					},
 					KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
+						Enabled: ptr.To(defaultKubeStateMetricsCoreEnabled),
 					},
 					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
-						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+						Enabled:                 ptr.To(defaultClusterChecksEnabled),
+						UseClusterChecksRunners: ptr.To(defaultUseClusterChecksRunners),
 					},
 					AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Enabled: ptr.To(defaultAdmissionControllerEnabled),
 						Validation: &v2alpha1.AdmissionControllerValidationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerValidationEnabled),
 						},
 						Mutation: &v2alpha1.AdmissionControllerMutationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerMutationEnabled),
 						},
-						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						MutateUnlabelled: ptr.To(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      ptr.To(defaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
-							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+							Enabled: ptr.To(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
 						KubernetesAdmissionEvents: &v2alpha1.KubernetesAdmissionEventsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
 						},
 					},
 					PrometheusScrape: &v2alpha1.PrometheusScrapeFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
+						Enabled: ptr.To(defaultPrometheusScrapeEnabled),
 					},
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
+						Enabled: ptr.To(defaultHelmCheckEnabled),
 					},
 					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
+						Enabled: ptr.To(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -1362,156 +1364,156 @@ func Test_defaultFeatures(t *testing.T) {
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueTrue),
+						Enabled: ptr.To(valueTrue),
 					},
 				},
 			},
 			want: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					LogCollection: &v2alpha1.LogCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLogCollectionEnabled),
+						Enabled: ptr.To(defaultLogCollectionEnabled),
 					},
 					LiveProcessCollection: &v2alpha1.LiveProcessCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
+						Enabled: ptr.To(defaultLiveProcessCollectionEnabled),
 					},
 					LiveContainerCollection: &v2alpha1.LiveContainerCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+						Enabled: ptr.To(defaultLiveContainerCollectionEnabled),
 					},
 					ProcessDiscovery: &v2alpha1.ProcessDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryEnabled),
+						Enabled: ptr.To(defaultProcessDiscoveryEnabled),
 					},
 					OOMKill: &v2alpha1.OOMKillFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOOMKillEnabled),
+						Enabled: ptr.To(defaultOOMKillEnabled),
 					},
 					TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultTCPQueueLengthEnabled),
+						Enabled: ptr.To(defaultTCPQueueLengthEnabled),
 					},
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
 					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
-						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: ptr.To(defaultDataPlaneDogstatsdEnabled)},
 					},
 					APM: &v2alpha1.APMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						Enabled: ptr.To(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
-							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
-							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+							Port:    ptr.To(defaultAPMHostPort),
+							Enabled: ptr.To(defaultAPMHostPortEnabled),
 						},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+							Enabled: ptr.To(defaultAPMSocketEnabled),
+							Path:    ptr.To(defaultAPMSocketHostPath),
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
-							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
-							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
+							Enabled: ptr.To(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
+						Enabled: ptr.To(defaultOtelCollectorEnabled),
 					},
 					ASM: &v2alpha1.ASMFeatureConfig{
 						Threats: &v2alpha1.ASMThreatsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+							Enabled: ptr.To(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+							Enabled: ptr.To(defaultAdmissionASMSCAEnabled),
 						},
 						IAST: &v2alpha1.ASMIASTConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+							Enabled: ptr.To(defaultAdmissionASMIASTEnabled),
 						},
 					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
+						Enabled: ptr.To(defaultCSPMEnabled),
 					},
 					CWS: &v2alpha1.CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCWSEnabled),
+						Enabled: ptr.To(defaultCWSEnabled),
 					},
 					NPM: &v2alpha1.NPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultNPMEnabled),
+						Enabled: ptr.To(defaultNPMEnabled),
 					},
 					USM: &v2alpha1.USMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultUSMEnabled),
+						Enabled: ptr.To(defaultUSMEnabled),
 					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
-						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
-						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
+						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
+						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: ptr.To(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
+							Enabled: ptr.To(defaultDogstatsdSocketEnabled),
+							Path:    ptr.To(defaultDogstatsdHostSocketPath),
 						},
-						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
+						NonLocalTraffic: ptr.To(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							Enabled:        ptr.To(defaultOTLPGRPCEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Endpoint:       ptr.To(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							Enabled:        ptr.To(defaultOTLPHTTPEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
+						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
 					EventCollection: &v2alpha1.EventCollectionFeatureConfig{
-						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
+						CollectKubernetesEvents: ptr.To(defaultCollectKubernetesEvents),
 					},
 					OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
-						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
-						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
+						Enabled:         ptr.To(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: ptr.To(defaultOrchestratorExplorerScrubContainers),
 					},
 					ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
-						Enabled:            apiutils.NewBoolPointer(valueTrue),
-						RegisterAPIService: apiutils.NewBoolPointer(defaultRegisterAPIService),
-						UseDatadogMetrics:  apiutils.NewBoolPointer(defaultDatadogMetricsEnabled),
-						Port:               apiutils.NewInt32Pointer(defaultMetricsProviderPort),
+						Enabled:            ptr.To(valueTrue),
+						RegisterAPIService: ptr.To(defaultRegisterAPIService),
+						UseDatadogMetrics:  ptr.To(defaultDatadogMetricsEnabled),
+						Port:               ptr.To(defaultMetricsProviderPort),
 					},
 					KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
+						Enabled: ptr.To(defaultKubeStateMetricsCoreEnabled),
 					},
 					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
-						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+						Enabled:                 ptr.To(defaultClusterChecksEnabled),
+						UseClusterChecksRunners: ptr.To(defaultUseClusterChecksRunners),
 					},
 					AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Enabled: ptr.To(defaultAdmissionControllerEnabled),
 						Validation: &v2alpha1.AdmissionControllerValidationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerValidationEnabled),
 						},
 						Mutation: &v2alpha1.AdmissionControllerMutationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerMutationEnabled),
 						},
-						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						MutateUnlabelled: ptr.To(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      ptr.To(defaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
-							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+							Enabled: ptr.To(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
 						KubernetesAdmissionEvents: &v2alpha1.KubernetesAdmissionEventsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
 						},
 					},
 					PrometheusScrape: &v2alpha1.PrometheusScrapeFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
+						Enabled: ptr.To(defaultPrometheusScrapeEnabled),
 					},
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
+						Enabled: ptr.To(defaultHelmCheckEnabled),
 					},
 					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
+						Enabled: ptr.To(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -1521,153 +1523,153 @@ func Test_defaultFeatures(t *testing.T) {
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+						UseClusterChecksRunners: ptr.To(defaultUseClusterChecksRunners),
 					},
 				},
 			},
 			want: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					LogCollection: &v2alpha1.LogCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLogCollectionEnabled),
+						Enabled: ptr.To(defaultLogCollectionEnabled),
 					},
 					LiveProcessCollection: &v2alpha1.LiveProcessCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
+						Enabled: ptr.To(defaultLiveProcessCollectionEnabled),
 					},
 					LiveContainerCollection: &v2alpha1.LiveContainerCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+						Enabled: ptr.To(defaultLiveContainerCollectionEnabled),
 					},
 					ProcessDiscovery: &v2alpha1.ProcessDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryEnabled),
+						Enabled: ptr.To(defaultProcessDiscoveryEnabled),
 					},
 					OOMKill: &v2alpha1.OOMKillFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOOMKillEnabled),
+						Enabled: ptr.To(defaultOOMKillEnabled),
 					},
 					TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultTCPQueueLengthEnabled),
+						Enabled: ptr.To(defaultTCPQueueLengthEnabled),
 					},
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
 					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
-						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: ptr.To(defaultDataPlaneDogstatsdEnabled)},
 					},
 					APM: &v2alpha1.APMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						Enabled: ptr.To(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
-							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
-							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+							Port:    ptr.To(defaultAPMHostPort),
+							Enabled: ptr.To(defaultAPMHostPortEnabled),
 						},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+							Enabled: ptr.To(defaultAPMSocketEnabled),
+							Path:    ptr.To(defaultAPMSocketHostPath),
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
-							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
-							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
+							Enabled: ptr.To(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
+						Enabled: ptr.To(defaultOtelCollectorEnabled),
 					},
 					ASM: &v2alpha1.ASMFeatureConfig{
 						Threats: &v2alpha1.ASMThreatsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+							Enabled: ptr.To(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+							Enabled: ptr.To(defaultAdmissionASMSCAEnabled),
 						},
 						IAST: &v2alpha1.ASMIASTConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+							Enabled: ptr.To(defaultAdmissionASMIASTEnabled),
 						},
 					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
+						Enabled: ptr.To(defaultCSPMEnabled),
 					},
 					CWS: &v2alpha1.CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCWSEnabled),
+						Enabled: ptr.To(defaultCWSEnabled),
 					},
 					NPM: &v2alpha1.NPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultNPMEnabled),
+						Enabled: ptr.To(defaultNPMEnabled),
 					},
 					USM: &v2alpha1.USMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultUSMEnabled),
+						Enabled: ptr.To(defaultUSMEnabled),
 					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
-						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
-						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
+						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
+						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: ptr.To(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
+							Enabled: ptr.To(defaultDogstatsdSocketEnabled),
+							Path:    ptr.To(defaultDogstatsdHostSocketPath),
 						},
-						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
+						NonLocalTraffic: ptr.To(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							Enabled:        ptr.To(defaultOTLPGRPCEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Endpoint:       ptr.To(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							Enabled:        ptr.To(defaultOTLPHTTPEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
+						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
 					EventCollection: &v2alpha1.EventCollectionFeatureConfig{
-						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
+						CollectKubernetesEvents: ptr.To(defaultCollectKubernetesEvents),
 					},
 					OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
-						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
-						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
+						Enabled:         ptr.To(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: ptr.To(defaultOrchestratorExplorerScrubContainers),
 					},
 					ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultExternalMetricsServerEnabled),
+						Enabled: ptr.To(defaultExternalMetricsServerEnabled),
 					},
 					KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
+						Enabled: ptr.To(defaultKubeStateMetricsCoreEnabled),
 					},
 					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
-						UseClusterChecksRunners: apiutils.NewBoolPointer(valueFalse),
+						Enabled:                 ptr.To(defaultClusterChecksEnabled),
+						UseClusterChecksRunners: ptr.To(valueFalse),
 					},
 					AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Enabled: ptr.To(defaultAdmissionControllerEnabled),
 						Validation: &v2alpha1.AdmissionControllerValidationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerValidationEnabled),
 						},
 						Mutation: &v2alpha1.AdmissionControllerMutationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerMutationEnabled),
 						},
-						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						MutateUnlabelled: ptr.To(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      ptr.To(defaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
-							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+							Enabled: ptr.To(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
 						KubernetesAdmissionEvents: &v2alpha1.KubernetesAdmissionEventsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
 						},
 					},
 					PrometheusScrape: &v2alpha1.PrometheusScrapeFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
+						Enabled: ptr.To(defaultPrometheusScrapeEnabled),
 					},
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
+						Enabled: ptr.To(defaultHelmCheckEnabled),
 					},
 					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
+						Enabled: ptr.To(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -1678,18 +1680,18 @@ func Test_defaultFeatures(t *testing.T) {
 				Features: &v2alpha1.DatadogFeatures{
 					AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
 						Validation: &v2alpha1.AdmissionControllerValidationConfig{
-							Enabled: apiutils.NewBoolPointer(true),
+							Enabled: ptr.To(true),
 						},
 						Mutation: &v2alpha1.AdmissionControllerMutationConfig{
-							Enabled: apiutils.NewBoolPointer(true),
+							Enabled: ptr.To(true),
 						},
-						MutateUnlabelled:       apiutils.NewBoolPointer(true),
-						AgentCommunicationMode: apiutils.NewStringPointer("socket"),
+						MutateUnlabelled:       ptr.To(true),
+						AgentCommunicationMode: ptr.To("socket"),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
-							Enabled: apiutils.NewBoolPointer(true),
+							Enabled: ptr.To(true),
 						},
 						KubernetesAdmissionEvents: &v2alpha1.KubernetesAdmissionEventsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
 						},
 					},
 				},
@@ -1697,148 +1699,148 @@ func Test_defaultFeatures(t *testing.T) {
 			want: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					LogCollection: &v2alpha1.LogCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLogCollectionEnabled),
+						Enabled: ptr.To(defaultLogCollectionEnabled),
 					},
 					LiveProcessCollection: &v2alpha1.LiveProcessCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
+						Enabled: ptr.To(defaultLiveProcessCollectionEnabled),
 					},
 					LiveContainerCollection: &v2alpha1.LiveContainerCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+						Enabled: ptr.To(defaultLiveContainerCollectionEnabled),
 					},
 					APM: &v2alpha1.APMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						Enabled: ptr.To(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
-							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
-							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+							Port:    ptr.To(defaultAPMHostPort),
+							Enabled: ptr.To(defaultAPMHostPortEnabled),
 						},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+							Enabled: ptr.To(defaultAPMSocketEnabled),
+							Path:    ptr.To(defaultAPMSocketHostPath),
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
-							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
-							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
+							Enabled: ptr.To(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
+						Enabled: ptr.To(defaultOtelCollectorEnabled),
 					},
 					ASM: &v2alpha1.ASMFeatureConfig{
 						Threats: &v2alpha1.ASMThreatsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+							Enabled: ptr.To(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+							Enabled: ptr.To(defaultAdmissionASMSCAEnabled),
 						},
 						IAST: &v2alpha1.ASMIASTConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+							Enabled: ptr.To(defaultAdmissionASMIASTEnabled),
 						},
 					},
 					ProcessDiscovery: &v2alpha1.ProcessDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryEnabled),
+						Enabled: ptr.To(defaultProcessDiscoveryEnabled),
 					},
 					OOMKill: &v2alpha1.OOMKillFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOOMKillEnabled),
+						Enabled: ptr.To(defaultOOMKillEnabled),
 					},
 					TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultTCPQueueLengthEnabled),
+						Enabled: ptr.To(defaultTCPQueueLengthEnabled),
 					},
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
 					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
-						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: ptr.To(defaultDataPlaneDogstatsdEnabled)},
 					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
+						Enabled: ptr.To(defaultCSPMEnabled),
 					},
 					CWS: &v2alpha1.CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCWSEnabled),
+						Enabled: ptr.To(defaultCWSEnabled),
 					},
 					NPM: &v2alpha1.NPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultNPMEnabled),
+						Enabled: ptr.To(defaultNPMEnabled),
 					},
 					USM: &v2alpha1.USMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultUSMEnabled),
+						Enabled: ptr.To(defaultUSMEnabled),
 					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
-						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
-						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
+						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
+						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: ptr.To(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
+							Enabled: ptr.To(defaultDogstatsdSocketEnabled),
+							Path:    ptr.To(defaultDogstatsdHostSocketPath),
 						},
-						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
+						NonLocalTraffic: ptr.To(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							Enabled:        ptr.To(defaultOTLPGRPCEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Endpoint:       ptr.To(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							Enabled:        ptr.To(defaultOTLPHTTPEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
+						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
 					EventCollection: &v2alpha1.EventCollectionFeatureConfig{
-						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
+						CollectKubernetesEvents: ptr.To(defaultCollectKubernetesEvents),
 					},
 					OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
-						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
-						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
+						Enabled:         ptr.To(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: ptr.To(defaultOrchestratorExplorerScrubContainers),
 					},
 					ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultExternalMetricsServerEnabled),
+						Enabled: ptr.To(defaultExternalMetricsServerEnabled),
 					},
 					KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
+						Enabled: ptr.To(defaultKubeStateMetricsCoreEnabled),
 					},
 					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
-						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+						Enabled:                 ptr.To(defaultClusterChecksEnabled),
+						UseClusterChecksRunners: ptr.To(defaultUseClusterChecksRunners),
 					},
 					AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueTrue),
+						Enabled: ptr.To(valueTrue),
 						Validation: &v2alpha1.AdmissionControllerValidationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerValidationEnabled),
 						},
 						Mutation: &v2alpha1.AdmissionControllerMutationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerMutationEnabled),
 						},
-						MutateUnlabelled:       apiutils.NewBoolPointer(valueTrue),
-						ServiceName:            apiutils.NewStringPointer(defaultAdmissionServiceName),
-						AgentCommunicationMode: apiutils.NewStringPointer("socket"),
+						MutateUnlabelled:       ptr.To(valueTrue),
+						ServiceName:            ptr.To(defaultAdmissionServiceName),
+						AgentCommunicationMode: ptr.To("socket"),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
-							Enabled: apiutils.NewBoolPointer(valueTrue),
-							Mode:    apiutils.NewStringPointer(DefaultAdmissionControllerCWSInstrumentationMode),
+							Enabled: ptr.To(valueTrue),
+							Mode:    ptr.To(DefaultAdmissionControllerCWSInstrumentationMode),
 						},
 						KubernetesAdmissionEvents: &v2alpha1.KubernetesAdmissionEventsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
 						},
 					},
 					PrometheusScrape: &v2alpha1.PrometheusScrapeFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
+						Enabled: ptr.To(defaultPrometheusScrapeEnabled),
 					},
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
+						Enabled: ptr.To(defaultHelmCheckEnabled),
 					},
 					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
+						Enabled: ptr.To(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -1855,147 +1857,147 @@ func Test_defaultFeatures(t *testing.T) {
 			want: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					LogCollection: &v2alpha1.LogCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLogCollectionEnabled),
+						Enabled: ptr.To(defaultLogCollectionEnabled),
 					},
 					LiveProcessCollection: &v2alpha1.LiveProcessCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
+						Enabled: ptr.To(defaultLiveProcessCollectionEnabled),
 					},
 					LiveContainerCollection: &v2alpha1.LiveContainerCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+						Enabled: ptr.To(defaultLiveContainerCollectionEnabled),
 					},
 					ProcessDiscovery: &v2alpha1.ProcessDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryEnabled),
+						Enabled: ptr.To(defaultProcessDiscoveryEnabled),
 					},
 					OOMKill: &v2alpha1.OOMKillFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOOMKillEnabled),
+						Enabled: ptr.To(defaultOOMKillEnabled),
 					},
 					TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultTCPQueueLengthEnabled),
+						Enabled: ptr.To(defaultTCPQueueLengthEnabled),
 					},
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
 					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
-						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: ptr.To(defaultDataPlaneDogstatsdEnabled)},
 					},
 					APM: &v2alpha1.APMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						Enabled: ptr.To(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
-							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
-							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+							Port:    ptr.To(defaultAPMHostPort),
+							Enabled: ptr.To(defaultAPMHostPortEnabled),
 						},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+							Enabled: ptr.To(defaultAPMSocketEnabled),
+							Path:    ptr.To(defaultAPMSocketHostPath),
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
-							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
-							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
+							Enabled: ptr.To(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
+						Enabled: ptr.To(defaultOtelCollectorEnabled),
 					},
 					ASM: &v2alpha1.ASMFeatureConfig{
 						Threats: &v2alpha1.ASMThreatsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+							Enabled: ptr.To(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+							Enabled: ptr.To(defaultAdmissionASMSCAEnabled),
 						},
 						IAST: &v2alpha1.ASMIASTConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+							Enabled: ptr.To(defaultAdmissionASMIASTEnabled),
 						},
 					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
+						Enabled: ptr.To(defaultCSPMEnabled),
 					},
 					CWS: &v2alpha1.CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCWSEnabled),
+						Enabled: ptr.To(defaultCWSEnabled),
 					},
 					NPM: &v2alpha1.NPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultNPMEnabled),
+						Enabled: ptr.To(defaultNPMEnabled),
 					},
 					USM: &v2alpha1.USMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultUSMEnabled),
+						Enabled: ptr.To(defaultUSMEnabled),
 					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
-						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
-						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
+						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
+						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: ptr.To(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
+							Enabled: ptr.To(defaultDogstatsdSocketEnabled),
+							Path:    ptr.To(defaultDogstatsdHostSocketPath),
 						},
-						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
+						NonLocalTraffic: ptr.To(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							Enabled:        ptr.To(defaultOTLPGRPCEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Endpoint:       ptr.To(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							Enabled:        ptr.To(defaultOTLPHTTPEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
+						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
 					EventCollection: &v2alpha1.EventCollectionFeatureConfig{
-						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
+						CollectKubernetesEvents: ptr.To(defaultCollectKubernetesEvents),
 					},
 					OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
-						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
-						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
+						Enabled:         ptr.To(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: ptr.To(defaultOrchestratorExplorerScrubContainers),
 						CustomResources: []string{"datadoghq.com/v1alpha1/datadogmetrics"},
 					},
 					ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultExternalMetricsServerEnabled),
+						Enabled: ptr.To(defaultExternalMetricsServerEnabled),
 					},
 					KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
+						Enabled: ptr.To(defaultKubeStateMetricsCoreEnabled),
 					},
 					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
-						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+						Enabled:                 ptr.To(defaultClusterChecksEnabled),
+						UseClusterChecksRunners: ptr.To(defaultUseClusterChecksRunners),
 					},
 					AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Enabled: ptr.To(defaultAdmissionControllerEnabled),
 						Validation: &v2alpha1.AdmissionControllerValidationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerValidationEnabled),
 						},
 						Mutation: &v2alpha1.AdmissionControllerMutationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerMutationEnabled),
 						},
-						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						MutateUnlabelled: ptr.To(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      ptr.To(defaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
-							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+							Enabled: ptr.To(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
 						KubernetesAdmissionEvents: &v2alpha1.KubernetesAdmissionEventsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
 						},
 					},
 					PrometheusScrape: &v2alpha1.PrometheusScrapeFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
+						Enabled: ptr.To(defaultPrometheusScrapeEnabled),
 					},
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
+						Enabled: ptr.To(defaultHelmCheckEnabled),
 					},
 					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
+						Enabled: ptr.To(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -2005,153 +2007,153 @@ func Test_defaultFeatures(t *testing.T) {
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueTrue),
+						Enabled: ptr.To(valueTrue),
 					},
 				},
 			},
 			want: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					LogCollection: &v2alpha1.LogCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLogCollectionEnabled),
+						Enabled: ptr.To(defaultLogCollectionEnabled),
 					},
 					LiveProcessCollection: &v2alpha1.LiveProcessCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
+						Enabled: ptr.To(defaultLiveProcessCollectionEnabled),
 					},
 					LiveContainerCollection: &v2alpha1.LiveContainerCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+						Enabled: ptr.To(defaultLiveContainerCollectionEnabled),
 					},
 					ProcessDiscovery: &v2alpha1.ProcessDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryEnabled),
+						Enabled: ptr.To(defaultProcessDiscoveryEnabled),
 					},
 					OOMKill: &v2alpha1.OOMKillFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOOMKillEnabled),
+						Enabled: ptr.To(defaultOOMKillEnabled),
 					},
 					TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultTCPQueueLengthEnabled),
+						Enabled: ptr.To(defaultTCPQueueLengthEnabled),
 					},
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
 					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
-						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: ptr.To(defaultDataPlaneDogstatsdEnabled)},
 					},
 					APM: &v2alpha1.APMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						Enabled: ptr.To(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
-							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
-							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+							Port:    ptr.To(defaultAPMHostPort),
+							Enabled: ptr.To(defaultAPMHostPortEnabled),
 						},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+							Enabled: ptr.To(defaultAPMSocketEnabled),
+							Path:    ptr.To(defaultAPMSocketHostPath),
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
-							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
-							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
+							Enabled: ptr.To(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueTrue),
+						Enabled: ptr.To(valueTrue),
 					},
 					ASM: &v2alpha1.ASMFeatureConfig{
 						Threats: &v2alpha1.ASMThreatsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+							Enabled: ptr.To(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+							Enabled: ptr.To(defaultAdmissionASMSCAEnabled),
 						},
 						IAST: &v2alpha1.ASMIASTConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+							Enabled: ptr.To(defaultAdmissionASMIASTEnabled),
 						},
 					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
+						Enabled: ptr.To(defaultCSPMEnabled),
 					},
 					CWS: &v2alpha1.CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCWSEnabled),
+						Enabled: ptr.To(defaultCWSEnabled),
 					},
 					NPM: &v2alpha1.NPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultNPMEnabled),
+						Enabled: ptr.To(defaultNPMEnabled),
 					},
 					USM: &v2alpha1.USMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultUSMEnabled),
+						Enabled: ptr.To(defaultUSMEnabled),
 					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
-						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
-						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
+						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
+						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: ptr.To(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
+							Enabled: ptr.To(defaultDogstatsdSocketEnabled),
+							Path:    ptr.To(defaultDogstatsdHostSocketPath),
 						},
-						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
+						NonLocalTraffic: ptr.To(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							Enabled:        ptr.To(defaultOTLPGRPCEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Endpoint:       ptr.To(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							Enabled:        ptr.To(defaultOTLPHTTPEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
+						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
 					EventCollection: &v2alpha1.EventCollectionFeatureConfig{
-						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
+						CollectKubernetesEvents: ptr.To(defaultCollectKubernetesEvents),
 					},
 					OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
-						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
-						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
+						Enabled:         ptr.To(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: ptr.To(defaultOrchestratorExplorerScrubContainers),
 					},
 					ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultExternalMetricsServerEnabled),
+						Enabled: ptr.To(defaultExternalMetricsServerEnabled),
 					},
 					KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
+						Enabled: ptr.To(defaultKubeStateMetricsCoreEnabled),
 					},
 					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
-						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+						Enabled:                 ptr.To(defaultClusterChecksEnabled),
+						UseClusterChecksRunners: ptr.To(defaultUseClusterChecksRunners),
 					},
 					AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Enabled: ptr.To(defaultAdmissionControllerEnabled),
 						Validation: &v2alpha1.AdmissionControllerValidationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerValidationEnabled),
 						},
 						Mutation: &v2alpha1.AdmissionControllerMutationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerMutationEnabled),
 						},
-						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						MutateUnlabelled: ptr.To(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      ptr.To(defaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
-							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+							Enabled: ptr.To(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
 						KubernetesAdmissionEvents: &v2alpha1.KubernetesAdmissionEventsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
 						},
 					},
 					PrometheusScrape: &v2alpha1.PrometheusScrapeFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
+						Enabled: ptr.To(defaultPrometheusScrapeEnabled),
 					},
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
+						Enabled: ptr.To(defaultHelmCheckEnabled),
 					},
 					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
+						Enabled: ptr.To(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -2192,146 +2194,146 @@ func Test_defaultFeatures(t *testing.T) {
 			want: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					LogCollection: &v2alpha1.LogCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLogCollectionEnabled),
+						Enabled: ptr.To(defaultLogCollectionEnabled),
 					},
 					LiveProcessCollection: &v2alpha1.LiveProcessCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
+						Enabled: ptr.To(defaultLiveProcessCollectionEnabled),
 					},
 					LiveContainerCollection: &v2alpha1.LiveContainerCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+						Enabled: ptr.To(defaultLiveContainerCollectionEnabled),
 					},
 					ProcessDiscovery: &v2alpha1.ProcessDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryEnabled),
+						Enabled: ptr.To(defaultProcessDiscoveryEnabled),
 					},
 					OOMKill: &v2alpha1.OOMKillFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOOMKillEnabled),
+						Enabled: ptr.To(defaultOOMKillEnabled),
 					},
 					TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultTCPQueueLengthEnabled),
+						Enabled: ptr.To(defaultTCPQueueLengthEnabled),
 					},
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
 					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
-						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: ptr.To(defaultDataPlaneDogstatsdEnabled)},
 					},
 					APM: &v2alpha1.APMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						Enabled: ptr.To(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
-							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
-							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+							Port:    ptr.To(defaultAPMHostPort),
+							Enabled: ptr.To(defaultAPMHostPortEnabled),
 						},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+							Enabled: ptr.To(defaultAPMSocketEnabled),
+							Path:    ptr.To(defaultAPMSocketHostPath),
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
-							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
-							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
+							Enabled: ptr.To(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
+						Enabled: ptr.To(defaultOtelCollectorEnabled),
 					},
 					ASM: &v2alpha1.ASMFeatureConfig{
 						Threats: &v2alpha1.ASMThreatsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+							Enabled: ptr.To(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+							Enabled: ptr.To(defaultAdmissionASMSCAEnabled),
 						},
 						IAST: &v2alpha1.ASMIASTConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+							Enabled: ptr.To(defaultAdmissionASMIASTEnabled),
 						},
 					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
+						Enabled: ptr.To(defaultCSPMEnabled),
 					},
 					CWS: &v2alpha1.CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCWSEnabled),
+						Enabled: ptr.To(defaultCWSEnabled),
 					},
 					NPM: &v2alpha1.NPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultNPMEnabled),
+						Enabled: ptr.To(defaultNPMEnabled),
 					},
 					USM: &v2alpha1.USMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultUSMEnabled),
+						Enabled: ptr.To(defaultUSMEnabled),
 					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
-						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
-						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
+						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
+						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: ptr.To(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
+							Enabled: ptr.To(defaultDogstatsdSocketEnabled),
+							Path:    ptr.To(defaultDogstatsdHostSocketPath),
 						},
-						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
+						NonLocalTraffic: ptr.To(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							Enabled:        ptr.To(defaultOTLPGRPCEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Endpoint:       ptr.To(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							Enabled:        ptr.To(defaultOTLPHTTPEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
+						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
 					EventCollection: &v2alpha1.EventCollectionFeatureConfig{
-						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
+						CollectKubernetesEvents: ptr.To(defaultCollectKubernetesEvents),
 					},
 					OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
-						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
-						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
+						Enabled:         ptr.To(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: ptr.To(defaultOrchestratorExplorerScrubContainers),
 					},
 					ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultExternalMetricsServerEnabled),
+						Enabled: ptr.To(defaultExternalMetricsServerEnabled),
 					},
 					KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
+						Enabled: ptr.To(defaultKubeStateMetricsCoreEnabled),
 					},
 					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
-						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+						Enabled:                 ptr.To(defaultClusterChecksEnabled),
+						UseClusterChecksRunners: ptr.To(defaultUseClusterChecksRunners),
 					},
 					AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Enabled: ptr.To(defaultAdmissionControllerEnabled),
 						Validation: &v2alpha1.AdmissionControllerValidationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerValidationEnabled),
 						},
 						Mutation: &v2alpha1.AdmissionControllerMutationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerMutationEnabled),
 						},
-						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						MutateUnlabelled: ptr.To(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      ptr.To(defaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
-							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+							Enabled: ptr.To(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
 						KubernetesAdmissionEvents: &v2alpha1.KubernetesAdmissionEventsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
 						},
 					},
 					PrometheusScrape: &v2alpha1.PrometheusScrapeFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
+						Enabled: ptr.To(defaultPrometheusScrapeEnabled),
 					},
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
+						Enabled: ptr.To(defaultHelmCheckEnabled),
 					},
 					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
+						Enabled: ptr.To(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -2341,172 +2343,172 @@ func Test_defaultFeatures(t *testing.T) {
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					CSPM: &v2alpha1.CSPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueTrue),
+						Enabled: ptr.To(valueTrue),
 					},
 					CWS: &v2alpha1.CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueTrue),
+						Enabled: ptr.To(valueTrue),
 					},
 				},
 			},
 			want: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					LogCollection: &v2alpha1.LogCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLogCollectionEnabled),
+						Enabled: ptr.To(defaultLogCollectionEnabled),
 					},
 					LiveProcessCollection: &v2alpha1.LiveProcessCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
+						Enabled: ptr.To(defaultLiveProcessCollectionEnabled),
 					},
 					LiveContainerCollection: &v2alpha1.LiveContainerCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+						Enabled: ptr.To(defaultLiveContainerCollectionEnabled),
 					},
 					ProcessDiscovery: &v2alpha1.ProcessDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryEnabled),
+						Enabled: ptr.To(defaultProcessDiscoveryEnabled),
 					},
 					OOMKill: &v2alpha1.OOMKillFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOOMKillEnabled),
+						Enabled: ptr.To(defaultOOMKillEnabled),
 					},
 					TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultTCPQueueLengthEnabled),
+						Enabled: ptr.To(defaultTCPQueueLengthEnabled),
 					},
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
 					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
-						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: ptr.To(defaultDataPlaneDogstatsdEnabled)},
 					},
 					APM: &v2alpha1.APMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						Enabled: ptr.To(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
-							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
-							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+							Port:    ptr.To(defaultAPMHostPort),
+							Enabled: ptr.To(defaultAPMHostPortEnabled),
 						},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+							Enabled: ptr.To(defaultAPMSocketEnabled),
+							Path:    ptr.To(defaultAPMSocketHostPath),
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
-							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
-							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
+							Enabled: ptr.To(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
+						Enabled: ptr.To(defaultOtelCollectorEnabled),
 					},
 					ASM: &v2alpha1.ASMFeatureConfig{
 						Threats: &v2alpha1.ASMThreatsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+							Enabled: ptr.To(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+							Enabled: ptr.To(defaultAdmissionASMSCAEnabled),
 						},
 						IAST: &v2alpha1.ASMIASTConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+							Enabled: ptr.To(defaultAdmissionASMIASTEnabled),
 						},
 					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueTrue),
+						Enabled: ptr.To(valueTrue),
 						HostBenchmarks: &v2alpha1.CSPMHostBenchmarksConfig{
-							Enabled: apiutils.NewBoolPointer(defaultCSPMHostBenchmarksEnabled),
+							Enabled: ptr.To(defaultCSPMHostBenchmarksEnabled),
 						},
 					},
 					CWS: &v2alpha1.CWSFeatureConfig{
-						Enabled:                   apiutils.NewBoolPointer(valueTrue),
-						SyscallMonitorEnabled:     apiutils.NewBoolPointer(defaultCWSSyscallMonitorEnabled),
-						DirectSendFromSystemProbe: apiutils.NewBoolPointer(defaultCWSDirectSendFromSystemProbe),
+						Enabled:                   ptr.To(valueTrue),
+						SyscallMonitorEnabled:     ptr.To(defaultCWSSyscallMonitorEnabled),
+						DirectSendFromSystemProbe: ptr.To(defaultCWSDirectSendFromSystemProbe),
 						Network: &v2alpha1.CWSNetworkConfig{
-							Enabled: apiutils.NewBoolPointer(defaultCWSNetworkEnabled),
+							Enabled: ptr.To(defaultCWSNetworkEnabled),
 						},
 						SecurityProfiles: &v2alpha1.CWSSecurityProfilesConfig{
-							Enabled: apiutils.NewBoolPointer(defaultCWSSecurityProfilesEnabled),
+							Enabled: ptr.To(defaultCWSSecurityProfilesEnabled),
 						},
 						Enforcement: &v2alpha1.CWSEnforcementConfig{
-							Enabled: apiutils.NewBoolPointer(defaultCWSEnforcementEnabled),
+							Enabled: ptr.To(defaultCWSEnforcementEnabled),
 						},
 					},
 					NPM: &v2alpha1.NPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultNPMEnabled),
+						Enabled: ptr.To(defaultNPMEnabled),
 					},
 					USM: &v2alpha1.USMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultUSMEnabled),
+						Enabled: ptr.To(defaultUSMEnabled),
 					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
-						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
-						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
+						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
+						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: ptr.To(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
+							Enabled: ptr.To(defaultDogstatsdSocketEnabled),
+							Path:    ptr.To(defaultDogstatsdHostSocketPath),
 						},
-						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
+						NonLocalTraffic: ptr.To(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							Enabled:        ptr.To(defaultOTLPGRPCEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Endpoint:       ptr.To(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							Enabled:        ptr.To(defaultOTLPHTTPEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					},
 					},
 					},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
+						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
 					EventCollection: &v2alpha1.EventCollectionFeatureConfig{
-						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
+						CollectKubernetesEvents: ptr.To(defaultCollectKubernetesEvents),
 					},
 					OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
-						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
-						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
+						Enabled:         ptr.To(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: ptr.To(defaultOrchestratorExplorerScrubContainers),
 					},
 					ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultExternalMetricsServerEnabled),
+						Enabled: ptr.To(defaultExternalMetricsServerEnabled),
 					},
 					KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
+						Enabled: ptr.To(defaultKubeStateMetricsCoreEnabled),
 					},
 					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
-						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+						Enabled:                 ptr.To(defaultClusterChecksEnabled),
+						UseClusterChecksRunners: ptr.To(defaultUseClusterChecksRunners),
 					},
 					AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Enabled: ptr.To(defaultAdmissionControllerEnabled),
 						Validation: &v2alpha1.AdmissionControllerValidationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerValidationEnabled),
 						},
 						Mutation: &v2alpha1.AdmissionControllerMutationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerMutationEnabled),
 						},
-						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						MutateUnlabelled: ptr.To(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      ptr.To(defaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
-							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+							Enabled: ptr.To(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
 						KubernetesAdmissionEvents: &v2alpha1.KubernetesAdmissionEventsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
 						},
 					},
 					PrometheusScrape: &v2alpha1.PrometheusScrapeFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
+						Enabled: ptr.To(defaultPrometheusScrapeEnabled),
 					},
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
+						Enabled: ptr.To(defaultHelmCheckEnabled),
 					},
 					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
+						Enabled: ptr.To(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -2516,153 +2518,153 @@ func Test_defaultFeatures(t *testing.T) {
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueTrue),
+						Enabled: ptr.To(valueTrue),
 					},
 				},
 			},
 			want: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					LogCollection: &v2alpha1.LogCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLogCollectionEnabled),
+						Enabled: ptr.To(defaultLogCollectionEnabled),
 					},
 					LiveProcessCollection: &v2alpha1.LiveProcessCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
+						Enabled: ptr.To(defaultLiveProcessCollectionEnabled),
 					},
 					LiveContainerCollection: &v2alpha1.LiveContainerCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+						Enabled: ptr.To(defaultLiveContainerCollectionEnabled),
 					},
 					ProcessDiscovery: &v2alpha1.ProcessDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryEnabled),
+						Enabled: ptr.To(defaultProcessDiscoveryEnabled),
 					},
 					OOMKill: &v2alpha1.OOMKillFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOOMKillEnabled),
+						Enabled: ptr.To(defaultOOMKillEnabled),
 					},
 					TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultTCPQueueLengthEnabled),
+						Enabled: ptr.To(defaultTCPQueueLengthEnabled),
 					},
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueTrue),
+						Enabled: ptr.To(valueTrue),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
 					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
-						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: apiutils.NewBoolPointer(defaultDataPlaneDogstatsdEnabled)},
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: ptr.To(defaultDataPlaneDogstatsdEnabled)},
 					},
 					APM: &v2alpha1.APMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						Enabled: ptr.To(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
-							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
-							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+							Port:    ptr.To(defaultAPMHostPort),
+							Enabled: ptr.To(defaultAPMHostPortEnabled),
 						},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+							Enabled: ptr.To(defaultAPMSocketEnabled),
+							Path:    ptr.To(defaultAPMSocketHostPath),
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
-							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
-							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
+							Enabled: ptr.To(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
+						Enabled: ptr.To(defaultOtelCollectorEnabled),
 					},
 					ASM: &v2alpha1.ASMFeatureConfig{
 						Threats: &v2alpha1.ASMThreatsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+							Enabled: ptr.To(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+							Enabled: ptr.To(defaultAdmissionASMSCAEnabled),
 						},
 						IAST: &v2alpha1.ASMIASTConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+							Enabled: ptr.To(defaultAdmissionASMIASTEnabled),
 						},
 					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
+						Enabled: ptr.To(defaultCSPMEnabled),
 					},
 					CWS: &v2alpha1.CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCWSEnabled),
+						Enabled: ptr.To(defaultCWSEnabled),
 					},
 					NPM: &v2alpha1.NPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultNPMEnabled),
+						Enabled: ptr.To(defaultNPMEnabled),
 					},
 					USM: &v2alpha1.USMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultUSMEnabled),
+						Enabled: ptr.To(defaultUSMEnabled),
 					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
-						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
-						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
+						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
+						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: ptr.To(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
+							Enabled: ptr.To(defaultDogstatsdSocketEnabled),
+							Path:    ptr.To(defaultDogstatsdHostSocketPath),
 						},
-						NonLocalTraffic: apiutils.NewBoolPointer(defaultDogstatsdNonLocalTraffic),
+						NonLocalTraffic: ptr.To(defaultDogstatsdNonLocalTraffic),
 					},
 					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							Enabled:        ptr.To(defaultOTLPGRPCEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Endpoint:       ptr.To(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							Enabled:        ptr.To(defaultOTLPHTTPEnabled),
 							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
+						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
 					},
 					EventCollection: &v2alpha1.EventCollectionFeatureConfig{
-						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
+						CollectKubernetesEvents: ptr.To(defaultCollectKubernetesEvents),
 					},
 					OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
-						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
-						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
+						Enabled:         ptr.To(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: ptr.To(defaultOrchestratorExplorerScrubContainers),
 					},
 					ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultExternalMetricsServerEnabled),
+						Enabled: ptr.To(defaultExternalMetricsServerEnabled),
 					},
 					KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
+						Enabled: ptr.To(defaultKubeStateMetricsCoreEnabled),
 					},
 					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
-						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+						Enabled:                 ptr.To(defaultClusterChecksEnabled),
+						UseClusterChecksRunners: ptr.To(defaultUseClusterChecksRunners),
 					},
 					AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Enabled: ptr.To(defaultAdmissionControllerEnabled),
 						Validation: &v2alpha1.AdmissionControllerValidationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerValidationEnabled),
 						},
 						Mutation: &v2alpha1.AdmissionControllerMutationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerMutationEnabled),
 						},
-						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
-						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						MutateUnlabelled: ptr.To(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      ptr.To(defaultAdmissionServiceName),
 						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
-							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+							Enabled: ptr.To(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
 						KubernetesAdmissionEvents: &v2alpha1.KubernetesAdmissionEventsConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
+							Enabled: ptr.To(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
 						},
 					},
 					PrometheusScrape: &v2alpha1.PrometheusScrapeFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
+						Enabled: ptr.To(defaultPrometheusScrapeEnabled),
 					},
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
+						Enabled: ptr.To(defaultHelmCheckEnabled),
 					},
 					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
+						Enabled: ptr.To(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},

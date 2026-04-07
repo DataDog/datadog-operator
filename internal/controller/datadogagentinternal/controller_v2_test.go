@@ -319,7 +319,7 @@ package datadogagentinternal
 // 			},
 // 			loadFunc: func(c client.Client) *v1alpha1.DatadogAgentInternal {
 // 				fipsConfig := v2alpha1.FIPSConfig{
-// 					Enabled: apiutils.NewBoolPointer(true),
+// 					Enabled: ptr.To(true),
 // 				}
 // 				ddai := testutils.NewInitializedDatadogAgentInternalBuilder(resourcesNamespace, resourcesName).
 // 					WithFIPS(fipsConfig).
@@ -349,11 +349,11 @@ package datadogagentinternal
 // 			loadFunc: func(c client.Client) *v1alpha1.DatadogAgentInternal {
 // 				ddai := testutils.NewInitializedDatadogAgentInternalBuilder(resourcesNamespace, resourcesName).
 // 					WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-// 						CreatePodDisruptionBudget: apiutils.NewBoolPointer(true),
+// 						CreatePodDisruptionBudget: ptr.To(true),
 // 					}).
 // 					WithClusterChecksUseCLCEnabled(true).
 // 					WithComponentOverride(v2alpha1.ClusterChecksRunnerComponentName, v2alpha1.DatadogAgentComponentOverride{
-// 						CreatePodDisruptionBudget: apiutils.NewBoolPointer(true),
+// 						CreatePodDisruptionBudget: ptr.To(true),
 // 					}).
 // 					Build()
 // 				_ = c.Create(context.TODO(), ddai)
@@ -401,7 +401,7 @@ package datadogagentinternal
 // 			loadFunc: func(c client.Client) *v1alpha1.DatadogAgentInternal {
 // 				ddai := testutils.NewInitializedDatadogAgentInternalBuilder(resourcesNamespace, resourcesName).
 // 					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-// 						Disabled: apiutils.NewBoolPointer(true),
+// 						Disabled: ptr.To(true),
 // 					}).
 // 					Build()
 // 				_ = c.Create(context.TODO(), ddai)
