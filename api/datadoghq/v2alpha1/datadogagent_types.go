@@ -2367,6 +2367,43 @@ type RemoteConfigConfiguration struct {
 	Features *DatadogFeatures `json:"features,omitempty"`
 }
 
+// ExperimentPhase is the lifecycle phase of a Fleet Automation experiment.
+// +kubebuilder:validation:Enum=running;stopped;rollback;timeout;promoted;aborted
+type ExperimentPhase string
+
+const (
+	// ExperimentPhaseRunning is set by RC when an experiment starts (startExperiment).
+	ExperimentPhaseRunning ExperimentPhase = "running"
+	// ExperimentPhaseStopped is set by RC to request a rollback (stopExperiment).
+	ExperimentPhaseStopped ExperimentPhase = "stopped"
+	// ExperimentPhaseRollback is set by the operator after processing a stopped signal and restoring the previous spec.
+	ExperimentPhaseRollback ExperimentPhase = "rollback"
+	// ExperimentPhaseTimeout is set by the operator when the experiment exceeds the timeout and is auto-rolled back.
+	ExperimentPhaseTimeout ExperimentPhase = "timeout"
+	// ExperimentPhasePromoted is set by RC when an experiment succeeds (promoteExperiment).
+	ExperimentPhasePromoted ExperimentPhase = "promoted"
+	// ExperimentPhaseAborted is set by the operator when a manual spec change is detected during a running experiment.
+	ExperimentPhaseAborted ExperimentPhase = "aborted"
+)
+
+// ExperimentStatus defines the state of a Fleet Automation experiment.
+// +k8s:openapi-gen=true
+type ExperimentStatus struct {
+	// Phase is the current state of the experiment.
+	// +optional
+	Phase ExperimentPhase `json:"phase,omitempty"`
+	// ID is the unique experiment ID sent by Fleet Automation.
+	// +optional
+	ID string `json:"id,omitempty"`
+	// Generation is the DDA metadata.generation recorded when the experiment started.
+	// Used to detect manual spec changes while the experiment is running: if the
+	// current DDA generation differs from this value, the operator aborts the experiment.
+	//
+	// This value must be recorded after the DDA is patched for a startExperiment signal.
+	// +optional
+	Generation int64 `json:"generation,omitempty"`
+}
+
 // DatadogAgentStatus defines the observed state of DatadogAgent.
 // +k8s:openapi-gen=true
 type DatadogAgentStatus struct {
@@ -2394,6 +2431,9 @@ type DatadogAgentStatus struct {
 	// RemoteConfigConfiguration stores the configuration received from RemoteConfig.
 	// +optional
 	RemoteConfigConfiguration *RemoteConfigConfiguration `json:"remoteConfigConfiguration,omitempty"`
+	// Experiment tracks the state of an active or recent Fleet Automation experiment.
+	// +optional
+	Experiment *ExperimentStatus `json:"experiment,omitempty"`
 }
 
 // DatadogAgent defines Agent configuration, see reference https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md
@@ -2405,6 +2445,7 @@ type DatadogAgentStatus struct {
 // +kubebuilder:printcolumn:name="cluster-agent",type="string",JSONPath=".status.clusterAgent.status"
 // +kubebuilder:printcolumn:name="cluster-checks-runner",type="string",JSONPath=".status.clusterChecksRunner.status"
 // +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:printcolumn:name="experiment-phase",type="string",JSONPath=".status.experiment.phase",priority=1
 // +k8s:openapi-gen=true
 // +genclient
 type DatadogAgent struct {

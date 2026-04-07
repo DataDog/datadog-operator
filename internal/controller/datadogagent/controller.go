@@ -76,6 +76,8 @@ type ReconcilerOptions struct {
 	DatadogAgentProfileEnabled  bool
 	DatadogAgentInternalEnabled bool
 	CreateControllerRevisions   bool
+	// ExperimentTimeout overrides ExperimentDefaultTimeout. Zero means use the default.
+	ExperimentTimeout time.Duration
 }
 
 // Reconciler is the internal reconciler for Datadog Agent
