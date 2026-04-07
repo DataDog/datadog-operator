@@ -35,11 +35,23 @@ type DatadogCSIDriverReconciler struct {
 	internal *datadogcsidriver.Reconciler
 }
 
+// RBACs for DatadogCSIDriver objects
+//
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogcsidrivers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogcsidrivers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogcsidrivers/finalizers,verbs=get;list;watch;create;update;patch;delete
+//
+// RBACs for DaemonSet objects
+//
 // +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=storage.k8s.io,resources=csidrivers,verbs=get;list;watch;create;update;patch;delete
+//
+// RBACs for CSIDriver objects
+// It is split into two rules to scope mutations to the Datadog driver only.
+// create/list/watch cannot be restricted by resourceNames in K8s RBAC (create targets
+// a not-yet-existing resource; list/watch operate on collections).
+//
+// +kubebuilder:rbac:groups=storage.k8s.io,resources=csidrivers,verbs=create;list;watch
+// +kubebuilder:rbac:groups=storage.k8s.io,resources=csidrivers,resourceNames=k8s.csi.datadoghq.com,verbs=get;update;patch;delete
 
 // Reconcile loop for DatadogCSIDriver.
 func (r *DatadogCSIDriverReconciler) Reconcile(ctx context.Context, instance *datadoghqv1alpha1.DatadogCSIDriver) (ctrl.Result, error) {
