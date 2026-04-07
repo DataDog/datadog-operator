@@ -1,4 +1,4 @@
-image: registry.ddbuild.io/images/mirror/library/golang:1.25.7
+image: registry.ddbuild.io/images/mirror/library/golang:1.25.8
 variables:
   NIGHTLY_BUILD_CONDUCTOR_NAME: "operator-nightly-build"
   PROJECTNAME: "datadog-operator"
@@ -16,7 +16,7 @@ variables:
   RH_PARTNER_REGISTRY_KEY_SSM_KEY: redhat_registry_key
   RH_PARTNER_API_KEY_SSM_KEY: redhat_api_key
   # Image version from datadog-agent-buildimages (same as datadog-agent main branch)
-  CI_IMAGE_LINUX: v88930157-ef91d52f
+  CI_IMAGE_LINUX: v102144341-64dad9f8
   CI_IMAGE_LINUX_SUFFIX: ""
   PUSH_IMAGES_TO_STAGING:
     description: "Set PUSH_IMAGE_TO_STAGING to 'true' if you want to push the operator to internal staging registry."
@@ -74,7 +74,19 @@ unit_tests:
   before_script:
     - make install-tools
   script:
-    - make test
+    - make ci-test
+
+verify_licenses:
+  stage: test
+  tags: ["arch:amd64"]
+  rules:
+    - if: '$DDR == "true"'
+      when: never
+    - when: on_success
+  before_script:
+    - make install-tools
+  script:
+    - make verify-licenses
 
 check-golang-version:
   stage: build
@@ -116,6 +128,28 @@ check_formatting:
   script:
     - make fmt
     - git diff --exit-code
+
+lint_e2e:
+  stage: test
+  tags: ["arch:amd64"]
+  rules:
+    - if: '$DDR == "true"'
+      when: never
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        paths:
+          - "test/e2e/**/*"
+        compare_to: "refs/heads/main"
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+    - when: never
+  variables:
+    <<: *resource_variables
+  before_script:
+    - make install-tools
+  script:
+    - make lint-e2e
 
 build_operator_image_amd64:
   stage: image
@@ -690,7 +724,8 @@ check_preflight_redhat_image:
     - when: never
   needs:
     - "publish_redhat_public_tag"
-  tags: ["runner:docker", "size:large"]
+  tags:
+    - "docker-in-docker:amd64"
   image: $JOB_DOCKER_IMAGE
   script:
     - apt-get update && apt-get -y install --no-install-recommends build-essential git awscli && apt-get -y clean && rm -rf /var/lib/apt/lists/*
@@ -709,7 +744,8 @@ submit_preflight_redhat_image:
     - when: never
   needs:
     - "publish_redhat_public_tag"
-  tags: ["runner:docker", "size:large"]
+  tags:
+    - "docker-in-docker:amd64"
   image: $JOB_DOCKER_IMAGE
   script:
     - apt-get update && apt-get -y install --no-install-recommends build-essential git awscli && apt-get -y clean && rm -rf /var/lib/apt/lists/*
@@ -728,7 +764,8 @@ publish_community_operators:
   # preflight submission can be retried locally followed by this manual job trigger in the pipeline
   # needs:
   #   - "submit_preflight_redhat_image"
-  tags: ["runner:docker", "size:large"]
+  tags:
+    - "docker-in-docker:amd64"
   image: $OCTO_JOB_DOCKER_IMAGE
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
@@ -790,16 +827,8 @@ publish_nightly_workflow:
     project: DataDog/k8s-datadog-agent-ops
     branch: main
     strategy: depend
-    forward:
-      pipeline_variables: true
   variables:
     OPERATOR_NIGHTLY: "true"
-    # Conductor-related variables
-    APPS: $APPS
-    BAZEL_TARGET: $BAZEL_TARGET
-    DDR: $DDR
-    TARGET_ENV: $TARGET_ENV
-    CONDUCTOR_TARGET: $CONDUCTOR_TARGET
     DDR_WORKFLOW_ID: $DDR_WORKFLOW_ID
 
 # On success, this will cause CNAB to trigger a Deployment to Release Candidate clusters and open a corresponding pull request

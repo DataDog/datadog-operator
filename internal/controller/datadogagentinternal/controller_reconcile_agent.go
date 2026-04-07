@@ -178,7 +178,7 @@ func updateEDSStatusV2WithAgent(eds *edsv1alpha1.ExtendedDaemonSet, newStatus *d
 }
 
 func (r *Reconciler) deleteV2DaemonSet(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal, ds *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus) error {
-	err := r.client.Delete(context.TODO(), ds)
+	err := r.client.Delete(ctx, ds)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
@@ -194,7 +194,7 @@ func (r *Reconciler) deleteV2DaemonSet(ctx context.Context, ddai *datadoghqv1alp
 }
 
 func (r *Reconciler) deleteV2ExtendedDaemonSet(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal, eds *edsv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus) error {
-	err := r.client.Delete(context.TODO(), eds)
+	err := r.client.Delete(ctx, eds)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil

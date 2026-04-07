@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/utils/ptr"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
@@ -42,13 +43,13 @@ func Test_buildThreshold(t *testing.T) {
 				Name:             "test",
 				Timeframe:        "30d",
 				TargetThreshold:  resource.MustParse("99.999"),
-				WarningThreshold: ptrResourceQuantity(resource.MustParse("95.010001")),
+				WarningThreshold: ptr.To(resource.MustParse("95.010001")),
 			},
 			expectedResult: []datadogV1.SLOThreshold{
 				{
 					Target:    99.999,
 					Timeframe: datadogV1.SLOTimeframe("30d"),
-					Warning:   float64Ptr(95.010001),
+					Warning:   ptr.To(95.010001),
 				},
 			},
 		},
@@ -66,18 +67,6 @@ func Test_buildThreshold(t *testing.T) {
 	}
 }
 
-func float64Ptr(f float64) *float64 {
-	return &f
-}
-
-func ptrResourceQuantity(n resource.Quantity) *resource.Quantity {
-	return &n
-}
-
-func strPtr(s string) *string {
-	return &s
-}
-
 func Test_buildSLO(t *testing.T) {
 	tests := []struct {
 		name              string
@@ -90,7 +79,7 @@ func Test_buildSLO(t *testing.T) {
 			crdSLO: &v1alpha1.DatadogSLO{
 				Spec: v1alpha1.DatadogSLOSpec{
 					Name:        "metric-slo",
-					Description: strPtr("a metric SLO"),
+					Description: ptrString("a metric SLO"),
 					Type:        v1alpha1.DatadogSLOTypeMetric,
 					Query: &v1alpha1.DatadogSLOQuery{
 						Numerator:   "sum:good.events{*}.as_count()",
@@ -154,7 +143,7 @@ func Test_buildSLO(t *testing.T) {
 			crdSLO: &v1alpha1.DatadogSLO{
 				Spec: v1alpha1.DatadogSLOSpec{
 					Name:        "timeslice-slo",
-					Description: strPtr("a time slice SLO"),
+					Description: ptrString("a time slice SLO"),
 					Type:        v1alpha1.DatadogSLOTypeTimeSlice,
 					TimeSlice: &v1alpha1.DatadogSLOTimeSlice{
 						Query:      "trace.servlet.request{env:prod}",

@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -135,6 +136,10 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 			return reconcile.Result{}, nil
 		}
 
+		if errs := global.ValidateFIPSVersions(podManagers); len(errs) > 0 {
+			return result, utilerrors.NewAggregate(errs)
+		}
+
 		return r.createOrUpdateExtendedDaemonset(daemonsetLogger, dda, eds, newStatus, updateEDSStatusV2WithAgent)
 	}
 
@@ -234,6 +239,10 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		}
 		deleteStatusWithAgent(newStatus)
 		return reconcile.Result{}, nil
+	}
+
+	if errs := global.ValidateFIPSVersions(podManagers); len(errs) > 0 {
+		return result, utilerrors.NewAggregate(errs)
 	}
 
 	return r.createOrUpdateDaemonset(daemonsetLogger, dda, daemonset, newStatus, updateDSStatusV2WithAgent, profile)

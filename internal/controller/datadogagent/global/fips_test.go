@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -74,7 +76,7 @@ defaults
 			name: "FIPS proxy enabled",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
-					Enabled: apiutils.NewBoolPointer(true),
+					Enabled: ptr.To(true),
 				}).
 				BuildWithDefaults(),
 			existingManager: func() *fake.PodTemplateManagers {
@@ -103,7 +105,7 @@ defaults
 			name: "FIPS proxy enabled, custom image",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
-					Enabled: apiutils.NewBoolPointer(true),
+					Enabled: ptr.To(true),
 					Image: &v2alpha1.AgentImageConfig{
 						Name: "registry/custom:tag",
 					},
@@ -137,8 +139,8 @@ defaults
 			name: "FIPS proxy enabled, custom port",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
-					Enabled: apiutils.NewBoolPointer(true),
-					Port:    apiutils.NewInt32Pointer(2),
+					Enabled: ptr.To(true),
+					Port:    ptr.To[int32](2),
 				}).
 				BuildWithDefaults(),
 			existingManager: func() *fake.PodTemplateManagers {
@@ -167,7 +169,7 @@ defaults
 			name: "FIPS proxy enabled, custom config - config map",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
-					Enabled: apiutils.NewBoolPointer(true),
+					Enabled: ptr.To(true),
 					CustomFIPSConfig: &v2alpha1.CustomConfig{
 						ConfigMap: &v2alpha1.ConfigMapConfig{
 							Name: "foo",
@@ -178,7 +180,7 @@ defaults
 								},
 							},
 						},
-						ConfigData: apiutils.NewStringPointer("{foo:bar}"),
+						ConfigData: ptr.To("{foo:bar}"),
 					},
 				}).
 				BuildWithDefaults(),
@@ -208,9 +210,9 @@ defaults
 			name: "FIPS proxy enabled, custom config - config data",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
-					Enabled: apiutils.NewBoolPointer(true),
+					Enabled: ptr.To(true),
 					CustomFIPSConfig: &v2alpha1.CustomConfig{
-						ConfigData: apiutils.NewStringPointer(customConfig),
+						ConfigData: ptr.To(customConfig),
 					},
 				}).
 				BuildWithDefaults(),

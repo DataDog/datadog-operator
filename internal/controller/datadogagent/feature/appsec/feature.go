@@ -13,6 +13,7 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -97,7 +98,7 @@ func (f *appsecFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAg
 	// The cluster agent is required for the AppSec feature.
 	return feature.RequiredComponents{
 		ClusterAgent: feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
+			IsRequired: ptr.To(true),
 			Containers: []apicommon.AgentContainerName{
 				apicommon.ClusterAgentContainerName,
 			},
@@ -157,31 +158,33 @@ func (f *appsecFeature) ManageClusterAgent(managers feature.PodTemplateManagers,
 		}
 	}
 
-	// Set processor port if specified
+	// Set processor port only when explicitly configured (zero means unset)
 	if f.config.ProcessorPort != 0 {
 		if err := addEnvVar(DDAppsecProxyProcessorPort, strconv.Itoa(f.config.ProcessorPort)); err != nil {
 			return err
 		}
 	}
 
-	// Set processor address if specified
-	if f.config.ProcessorAddress != "" {
-		if err := addEnvVar(DDAppsecProxyProcessorAddress, f.config.ProcessorAddress); err != nil {
-			return err
-		}
-	}
-
-	// Set processor service name if specified
-	if f.config.ProcessorServiceName != "" {
-		if err := addEnvVar(DDClusterAgentAppsecInjectorProcessorServiceName, f.config.ProcessorServiceName); err != nil {
-			return err
-		}
-	}
-
-	// Set processor service namespace if specified
-	if f.config.ProcessorServiceNamespace != "" {
-		if err := addEnvVar(DDClusterAgentAppsecInjectorProcessorServiceNamespace, f.config.ProcessorServiceNamespace); err != nil {
-			return err
+	// Set optional string env vars (key → value, skipped when value is empty)
+	for key, value := range map[string]string{
+		DDAppsecProxyProcessorAddress:                             f.config.ProcessorAddress,
+		DDClusterAgentAppsecInjectorProcessorServiceName:          f.config.ProcessorServiceName,
+		DDClusterAgentAppsecInjectorProcessorServiceNamespace:     f.config.ProcessorServiceNamespace,
+		DDClusterAgentAppsecInjectorMode:                          f.config.Mode,
+		DDAdmissionControllerAppsecSidecarImage:                   f.config.SidecarImage,
+		DDAdmissionControllerAppsecSidecarImageTag:                f.config.SidecarImageTag,
+		DDAdmissionControllerAppsecSidecarPort:                    f.config.SidecarPort,
+		DDAdmissionControllerAppsecSidecarHealthPort:              f.config.SidecarHealthPort,
+		DDAdmissionControllerAppsecSidecarResourcesRequestsCPU:    f.config.SidecarResourcesRequestsCPU,
+		DDAdmissionControllerAppsecSidecarResourcesRequestsMemory: f.config.SidecarResourcesRequestsMemory,
+		DDAdmissionControllerAppsecSidecarResourcesLimitsCPU:      f.config.SidecarResourcesLimitsCPU,
+		DDAdmissionControllerAppsecSidecarResourcesLimitsMemory:   f.config.SidecarResourcesLimitsMemory,
+		DDAdmissionControllerAppsecSidecarBodyParsingSizeLimit:    f.config.SidecarBodyParsingSizeLimit,
+	} {
+		if value != "" {
+			if err := addEnvVar(key, value); err != nil {
+				return err
+			}
 		}
 	}
 
