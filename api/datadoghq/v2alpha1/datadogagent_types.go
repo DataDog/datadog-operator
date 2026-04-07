@@ -885,6 +885,22 @@ type OrchestratorExplorerFeatureConfig struct {
 	// URL Default: "https://orchestrator.datadoghq.com".
 	// +optional
 	DDUrl *string `json:"ddUrl,omitempty"`
+
+	// NetworkCRDs enables RBAC for collecting Gateway API, service mesh,
+	// and ingress controller CRDs in the orchestrator explorer.
+	// Default: false
+	// +optional
+	NetworkCRDs *NetworkCRDsConfig `json:"networkCRDs,omitempty"`
+}
+
+// NetworkCRDsConfig contains the configuration for collecting Gateway API, service mesh,
+// and ingress controller CRDs in the orchestrator explorer.
+// +k8s:openapi-gen=true
+type NetworkCRDsConfig struct {
+	// Enabled enables collection of network topology CRDs.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // KubeStateMetricsCoreFeatureConfig contains the Kube State Metrics Core check feature configuration.

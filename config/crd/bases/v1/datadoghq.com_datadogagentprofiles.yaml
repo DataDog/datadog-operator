@@ -2107,6 +2107,18 @@ spec:
                                 type: string
                               type: array
                               x-kubernetes-list-type: set
+                            networkCRDs:
+                              description: |-
+                                NetworkCRDs enables RBAC for collecting Gateway API, service mesh,
+                                and ingress controller CRDs in the orchestrator explorer.
+                                Default: false
+                              properties:
+                                enabled:
+                                  description: |-
+                                    Enabled enables collection of network topology CRDs.
+                                    Default: false
+                                  type: boolean
+                              type: object
                             scrubContainers:
                               description: |-
                                 ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ).

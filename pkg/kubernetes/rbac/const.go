@@ -42,6 +42,22 @@ const (
 	KarpenterAWSAPIGroup         = "karpenter.k8s.aws"
 	KarpenterAzureAPIGroup       = "karpenter.azure.com"
 
+	// Service Mesh API groups
+	IstioNetworkingAPIGroup = "networking.istio.io"
+	EnvoyGatewayAPIGroup    = "gateway.envoyproxy.io"
+	TraefikLegacyAPIGroup   = "traefik.containo.us"
+	LinkerdPolicyAPIGroup   = "policy.linkerd.io"
+	ConsulAPIGroup          = "consul.hashicorp.com"
+	ConsulMeshAPIGroup      = "mesh.consul.hashicorp.com"
+	KumaAPIGroup            = "kuma.io"
+
+	// Ingress Controller API groups
+	NginxAPIGroup            = "k8s.nginx.org"
+	TraefikAPIGroup          = "traefik.io"
+	KongAPIGroup             = "configuration.konghq.com"
+	HAProxyCoreAPIGroup      = "core.haproxy.org"
+	HAProxyIngressV1APIGroup = "ingress.v1.haproxy.org"
+
 	// Resources
 
 	APIServicesResource                               = "apiservices"
@@ -107,6 +123,26 @@ const (
 	Helmrepositories                                  = "helmrepositories"
 	Ocirepositories                                   = "ocirepositories"
 	Kustomizations                                    = "kustomizations"
+
+	// Gateway API resources
+	GatewaysResource     = "gateways"
+	HTTPRoutesResource   = "httproutes"
+	GRPCRoutesResource   = "grpcroutes"
+	TLSRoutesResource    = "tlsroutes"
+	ListenerSetsResource = "listenersets"
+
+	// Istio resources
+	VirtualServicesResource  = "virtualservices"
+	DestinationRulesResource = "destinationrules"
+	ServiceEntriesResource   = "serviceentries"
+	SidecarsResource         = "sidecars"
+
+	// NGINX Ingress Controller resources
+	VirtualServersResource      = "virtualservers"
+	VirtualServerRoutesResource = "virtualserverroutes"
+
+	// Traefik Ingress Controller resources
+	IngressRoutesResource = "ingressroutes"
 	SecretsResource                                   = "secrets"
 	ServiceAccountResource                            = "serviceaccounts"
 	ServicesResource                                  = "services"

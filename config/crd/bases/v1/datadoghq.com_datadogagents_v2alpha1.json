@@ -2174,6 +2174,17 @@
                   "type": "array",
                   "x-kubernetes-list-type": "set"
                 },
+                "networkCRDs": {
+                  "additionalProperties": false,
+                  "description": "NetworkCRDs enables RBAC for collecting Gateway API, service mesh,\nand ingress controller CRDs in the orchestrator explorer.\nDefault: false",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables collection of network topology CRDs.\nDefault: false",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
                 "scrubContainers": {
                   "description": "ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ).\nDefault: true",
                   "type": "boolean"
@@ -10435,6 +10446,17 @@
                       },
                       "type": "array",
                       "x-kubernetes-list-type": "set"
+                    },
+                    "networkCRDs": {
+                      "additionalProperties": false,
+                      "description": "NetworkCRDs enables RBAC for collecting Gateway API, service mesh,\nand ingress controller CRDs in the orchestrator explorer.\nDefault: false",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables collection of network topology CRDs.\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
                     },
                     "scrubContainers": {
                       "description": "ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ).\nDefault: true",
