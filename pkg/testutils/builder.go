@@ -392,6 +392,17 @@ func (builder *DatadogAgentBuilder) WithSidecarInjectionProfiles(envKey, envValu
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithSidecarInjectionTLSVerification(enabled, copyCaConfigMap bool) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.initSidecarInjection()
+	if builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.ClusterAgentTLSVerification == nil {
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.ClusterAgentTLSVerification = &v2alpha1.AdmissionControllerClusterAgentTLSVerificationConfig{}
+	}
+	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.ClusterAgentTLSVerification.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.ClusterAgentTLSVerification.CopyCaConfigMap = ptr.To(copyCaConfigMap)
+	return builder
+}
+
 // Process Discovery
 func (builder *DatadogAgentBuilder) initProcessDiscovery() {
 	if builder.datadogAgent.Spec.Features.ProcessDiscovery == nil {
