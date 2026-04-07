@@ -324,6 +324,9 @@ spec:
 `features.orchestratorExplorer.extraTags`
 : Additional tags to associate with the collected data in the form of `a b c`. This is a Cluster Agent option distinct from DD_TAGS that is used in the Orchestrator Explorer.
 
+`features.orchestratorExplorer.networkCRDs.enabled`
+: Enables collection of network topology CRDs. Default: false
+
 `features.orchestratorExplorer.scrubContainers`
 : ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ). Default: true
 
