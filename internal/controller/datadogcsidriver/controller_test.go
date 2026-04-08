@@ -20,11 +20,13 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -47,9 +49,10 @@ func newTestReconciler(t *testing.T, objects ...client.Object) (*Reconciler, cli
 		WithStatusSubresource(&v1alpha1.DatadogCSIDriver{}).
 		Build()
 
-	logger := zap.New(zap.UseDevMode(true))
+	// Set the default controller-runtime logger so ctrl.LoggerFrom(ctx) works in tests
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 	recorder := record.NewFakeRecorder(10)
-	r := NewReconciler(c, s, logger, recorder)
+	r := NewReconciler(c, s, recorder)
 
 	return r, c
 }
@@ -111,11 +114,11 @@ func TestReconcile_CreatesResources(t *testing.T) {
 	require.Len(t, ds.Spec.Template.Spec.Containers, 2)
 	csiContainer := ds.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, v1alpha1.CSINodeDriverContainerName, csiContainer.Name)
-	assert.Equal(t, fmt.Sprintf("%s/%s:%s", defaultCSIDriverImageRegistry, defaultCSIDriverImageName, defaultCSIDriverImageTag), csiContainer.Image)
+	assert.Equal(t, fmt.Sprintf("%s/%s:%s", images.GCRContainerRegistry, defaultCSIDriverImageName, images.CSILatestImageVersion), csiContainer.Image)
 
 	registrarContainer := ds.Spec.Template.Spec.Containers[1]
 	assert.Equal(t, v1alpha1.CSINodeDriverRegistrarContainerName, registrarContainer.Name)
-	assert.Equal(t, fmt.Sprintf("%s/%s:%s", defaultRegistrarImageRegistry, defaultRegistrarImageName, defaultRegistrarImageTag), registrarContainer.Image)
+	assert.Equal(t, fmt.Sprintf("%s/%s:%s", images.SIGStorageRegistry, defaultRegistrarImageName, images.DefaultRegistrarImageVersion), registrarContainer.Image)
 
 	// Verify volumes exist
 	volumeNames := make([]string, 0, len(ds.Spec.Template.Spec.Volumes))

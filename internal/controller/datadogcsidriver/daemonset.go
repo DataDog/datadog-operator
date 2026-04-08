@@ -17,6 +17,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
 )
 
@@ -129,7 +130,7 @@ func buildCSIDriverContainer(instance *datadoghqv1alpha1.DatadogCSIDriver, drive
 				},
 			},
 			{
-				Name:  envDDAPMEnabled,
+				Name:  constants.DDAPMEnabled,
 				Value: "true",
 			},
 		},
@@ -482,13 +483,13 @@ func mergePortsByContainerPort(base, overrides []corev1.ContainerPort) []corev1.
 func resolveCSIDriverImage(instance *datadoghqv1alpha1.DatadogCSIDriver) string {
 	defaultImage := &v2alpha1.AgentImageConfig{
 		Name: defaultCSIDriverImageName,
-		Tag:  defaultCSIDriverImageTag,
+		Tag:  images.CSILatestImageVersion,
 	}
 	if instance.Spec.CSIDriverImage == nil {
-		return images.AssembleImage(defaultImage, defaultCSIDriverImageRegistry)
+		return images.AssembleImage(defaultImage, images.GCRContainerRegistry)
 	}
 	return images.OverrideAgentImage(
-		images.AssembleImage(defaultImage, defaultCSIDriverImageRegistry),
+		images.AssembleImage(defaultImage, images.GCRContainerRegistry),
 		instance.Spec.CSIDriverImage,
 	)
 }
@@ -496,13 +497,13 @@ func resolveCSIDriverImage(instance *datadoghqv1alpha1.DatadogCSIDriver) string 
 func resolveRegistrarImage(instance *datadoghqv1alpha1.DatadogCSIDriver) string {
 	defaultImage := &v2alpha1.AgentImageConfig{
 		Name: defaultRegistrarImageName,
-		Tag:  defaultRegistrarImageTag,
+		Tag:  images.DefaultRegistrarImageVersion,
 	}
 	if instance.Spec.RegistrarImage == nil {
-		return images.AssembleImage(defaultImage, defaultRegistrarImageRegistry)
+		return images.AssembleImage(defaultImage, images.SIGStorageRegistry)
 	}
 	return images.OverrideAgentImage(
-		images.AssembleImage(defaultImage, defaultRegistrarImageRegistry),
+		images.AssembleImage(defaultImage, images.SIGStorageRegistry),
 		instance.Spec.RegistrarImage,
 	)
 }

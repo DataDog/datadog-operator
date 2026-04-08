@@ -284,7 +284,6 @@ func startDatadogCSIDriver(logger logr.Logger, mgr manager.Manager, pInfo kubern
 
 	return (&DatadogCSIDriverReconciler{
 		Client:   mgr.GetClient(),
-		Log:      ctrl.Log.WithName("controllers").WithName(csiDriverControllerName),
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorderFor(csiDriverControllerName),
 	}).SetupWithManager(mgr)
