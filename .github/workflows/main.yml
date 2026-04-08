@@ -7,7 +7,7 @@ permissions:
   # packages: read
 env:
   PROJECTNAME: "datadog-operator"
-  GO_VERSION: 1.25.8
+  GO_VERSION: 1.25.9
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -32,7 +32,7 @@ jobs:
       - name: run unit tests and E2E tests (fake cluster)
         run: |
           make test
-      - uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+      - uses: codecov/codecov-action@1af58845a975a7985b0beb0cbe6fbbb71a41dbad # v5.5.3
         with:
           use_oidc: true
           files: cover.out,cover_integration.out

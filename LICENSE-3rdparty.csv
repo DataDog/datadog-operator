@@ -108,14 +108,12 @@ core,github.com/go-openapi/swag/typeutils,Apache-2.0
 core,github.com/go-openapi/swag/yamlutils,Apache-2.0
 core,github.com/gobuffalo/flect,MIT
 core,github.com/gobwas/glob,MIT
-core,github.com/gogo/protobuf/proto,BSD-3-Clause
 core,github.com/golang/protobuf,BSD-3-Clause
 core,github.com/golang/snappy,BSD-3-Clause
 core,github.com/google/btree,Apache-2.0
 core,github.com/google/cel-go,Apache-2.0
 core,github.com/google/gnostic-models,Apache-2.0
 core,github.com/google/pprof/profile,Apache-2.0
-core,github.com/google/shlex,Apache-2.0
 core,github.com/google/uuid,BSD-3-Clause
 core,github.com/gorilla/websocket,BSD-2-Clause
 core,github.com/gosuri/uitable,MIT

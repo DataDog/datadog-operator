@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -17,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
@@ -56,9 +59,9 @@ func TestShouldEnableAPM(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Features: &v2alpha1.DatadogFeatures{
 						APM: &v2alpha1.APMFeatureConfig{
-							Enabled: apiutils.NewBoolPointer(false),
+							Enabled: ptr.To(false),
 							SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
-								Enabled: apiutils.NewBoolPointer(true),
+								Enabled: ptr.To(true),
 							},
 						},
 					},
@@ -96,7 +99,7 @@ func TestAPMFeature(t *testing.T) {
 			Name: "apm enabled, use uds",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(false, apiutils.NewInt32Pointer(8126)).
+				WithAPMHostPortEnabled(false, ptr.To[int32](8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				Build(),
 			WantConfigure: true,
@@ -106,7 +109,7 @@ func TestAPMFeature(t *testing.T) {
 			Name: "apm enabled, use uds with single container strategy",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(false, apiutils.NewInt32Pointer(8126)).
+				WithAPMHostPortEnabled(false, ptr.To[int32](8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithSingleContainerStrategy(true).
 				Build(),
@@ -117,7 +120,7 @@ func TestAPMFeature(t *testing.T) {
 			Name: "apm enabled, use uds and host port",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
+				WithAPMHostPortEnabled(true, ptr.To[int32](8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				BuildWithDefaults(),
 			WantConfigure: true,
@@ -127,7 +130,7 @@ func TestAPMFeature(t *testing.T) {
 			Name: "apm enabled, use uds and host port with single container strategy",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
+				WithAPMHostPortEnabled(true, ptr.To[int32](8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithSingleContainerStrategy(true).
 				BuildWithDefaults(),
@@ -138,7 +141,7 @@ func TestAPMFeature(t *testing.T) {
 			Name: "apm enabled, use uds and custom host port",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(1234)).
+				WithAPMHostPortEnabled(true, ptr.To[int32](1234)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				BuildWithDefaults(),
 			WantConfigure: true,
@@ -148,7 +151,7 @@ func TestAPMFeature(t *testing.T) {
 			Name: "apm enabled, use uds and custom host port with single container strategy",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(1234)).
+				WithAPMHostPortEnabled(true, ptr.To[int32](1234)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithSingleContainerStrategy(true).
 				BuildWithDefaults(),
@@ -182,7 +185,7 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(true, nil).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					HostNetwork: apiutils.NewBoolPointer(true),
+					HostNetwork: ptr.To(true),
 				}).
 				BuildWithDefaults(),
 			WantConfigure: true,
@@ -194,7 +197,7 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(true, nil).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					HostNetwork: apiutils.NewBoolPointer(true),
+					HostNetwork: ptr.To(true),
 				}).
 				WithSingleContainerStrategy(true).
 				BuildWithDefaults(),
@@ -205,9 +208,9 @@ func TestAPMFeature(t *testing.T) {
 			Name: "apm enabled, custom host port host network",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(1234)).
+				WithAPMHostPortEnabled(true, ptr.To[int32](1234)).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					HostNetwork: apiutils.NewBoolPointer(true),
+					HostNetwork: ptr.To(true),
 				}).
 				BuildWithDefaults(),
 			WantConfigure: true,
@@ -217,9 +220,9 @@ func TestAPMFeature(t *testing.T) {
 			Name: "apm enabled, custom host port host network with single container strategy",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(1234)).
+				WithAPMHostPortEnabled(true, ptr.To[int32](1234)).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					HostNetwork: apiutils.NewBoolPointer(true),
+					HostNetwork: ptr.To(true),
 				}).
 				WithSingleContainerStrategy(true).
 				BuildWithDefaults(),
@@ -230,7 +233,7 @@ func TestAPMFeature(t *testing.T) {
 			Name: "basic apm single step instrumentation",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
+				WithAPMHostPortEnabled(true, ptr.To[int32](8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithAdmissionControllerEnabled(true).
 				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false, "", nil, "").
@@ -243,7 +246,7 @@ func TestAPMFeature(t *testing.T) {
 			Name: "error apm single step instrumentation without language detection",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
+				WithAPMHostPortEnabled(true, ptr.To[int32](8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithAdmissionControllerEnabled(true).
 				WithClusterAgentTag(minInstrumentationTargetsVersion).
@@ -315,7 +318,7 @@ func TestAPMFeature(t *testing.T) {
 			Name: "step instrumentation precedence",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(false).
-				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
+				WithAPMHostPortEnabled(true, ptr.To[int32](8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false, "", nil, "").
 				WithAdmissionControllerEnabled(true).
@@ -326,7 +329,7 @@ func TestAPMFeature(t *testing.T) {
 			Name: "step instrumentation w/o AC",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
+				WithAPMHostPortEnabled(true, ptr.To[int32](8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false, "", nil, "").
 				WithAdmissionControllerEnabled(false).
@@ -340,7 +343,7 @@ func TestAPMFeature(t *testing.T) {
 			Name: "single step instrumentation namespace specific",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
+				WithAPMHostPortEnabled(true, ptr.To[int32](8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithAPMSingleStepInstrumentationEnabled(false, []string{"foo", "bar"}, nil, map[string]string{"java": "1.2.4"}, false, "", nil, "").
 				WithAdmissionControllerEnabled(true).
@@ -352,7 +355,7 @@ func TestAPMFeature(t *testing.T) {
 			Name: "single step instrumentation with language detection enabled, process check runs in process agent",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
+				WithAPMHostPortEnabled(true, ptr.To[int32](8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, true, "", nil, "").
 				WithAdmissionControllerEnabled(true).
@@ -377,7 +380,7 @@ func TestAPMFeature(t *testing.T) {
 			Name: "single step instrumentation without language detection enabled",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
+				WithAPMHostPortEnabled(true, ptr.To[int32](8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false, "", nil, "").
 				WithAdmissionControllerEnabled(true).
@@ -396,7 +399,7 @@ func TestAPMFeature(t *testing.T) {
 			Name: "single step instrumentation with language detection enabled, process check runs in core agent",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
+				WithAPMHostPortEnabled(true, ptr.To[int32](8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, true, "", nil, "").
 				WithAdmissionControllerEnabled(true).
@@ -421,7 +424,7 @@ func TestAPMFeature(t *testing.T) {
 			Name: "error tracking standalone",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(false, apiutils.NewInt32Pointer(8126)).
+				WithAPMHostPortEnabled(false, ptr.To[int32](8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithErrorTrackingStandalone(true).
 				Build(),
@@ -432,7 +435,7 @@ func TestAPMFeature(t *testing.T) {
 			Name: "single step instrumentation with custom injector image",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
+				WithAPMHostPortEnabled(true, ptr.To[int32](8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false, "0.27.0", nil, "").
 				WithAdmissionControllerEnabled(true).
@@ -444,7 +447,7 @@ func TestAPMFeature(t *testing.T) {
 			Name: "single step instrumentation with injection mode",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
+				WithAPMHostPortEnabled(true, ptr.To[int32](8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false, "", nil, "init_container").
 				WithAdmissionControllerEnabled(true).
@@ -464,7 +467,7 @@ func testTraceAgentEnabled(containerName apicommon.AgentContainerName) *test.Com
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[containerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  common.DDAPMEnabled,
+					Name:  constants.DDAPMEnabled,
 					Value: "true",
 				},
 				{
@@ -497,7 +500,7 @@ func testAgentHostPortOnly() *test.ComponentTest {
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.TraceAgentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  common.DDAPMEnabled,
+					Name:  constants.DDAPMEnabled,
 					Value: "true",
 				},
 				{
@@ -541,7 +544,7 @@ func testAgentErrorTrackingStandalone() *test.ComponentTest {
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.TraceAgentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  common.DDAPMEnabled,
+					Name:  constants.DDAPMEnabled,
 					Value: "true",
 				},
 				{
@@ -570,7 +573,7 @@ func testAgentUDSOnly(agentContainerName apicommon.AgentContainerName) *test.Com
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  common.DDAPMEnabled,
+					Name:  constants.DDAPMEnabled,
 					Value: "true",
 				},
 				{
@@ -931,7 +934,7 @@ func testAgentHostPortUDS(agentContainerName apicommon.AgentContainerName, hostP
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  common.DDAPMEnabled,
+					Name:  constants.DDAPMEnabled,
 					Value: "true",
 				},
 				{

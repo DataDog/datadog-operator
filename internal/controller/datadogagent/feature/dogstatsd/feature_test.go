@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -56,7 +58,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			DDA: testutils.NewDefaultDatadogAgentBuilder().
 				WithDogstatsdHostPortEnabled(true).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					HostNetwork: apiutils.NewBoolPointer(true),
+					HostNetwork: ptr.To(true),
 				}).
 				BuildWithDefaults(),
 			WantConfigure: true,
@@ -94,7 +96,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				WithDogstatsdHostPortEnabled(true).
 				WithDogstatsdHostPortConfig(1234).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					HostNetwork: apiutils.NewBoolPointer(true),
+					HostNetwork: ptr.To(true),
 				}).
 				BuildWithDefaults(),
 			WantConfigure: true,

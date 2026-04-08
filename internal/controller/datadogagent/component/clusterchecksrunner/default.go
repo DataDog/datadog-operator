@@ -16,11 +16,11 @@ import (
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -47,7 +47,7 @@ func NewDefaultClusterChecksRunnerDeployment(dda metav1.Object, ddaSpec *v2alpha
 	maps.Copy(podTemplate.Annotations, deployment.GetAnnotations())
 
 	deployment.Spec.Template = *podTemplate
-	deployment.Spec.Replicas = apiutils.NewInt32Pointer(defaultClusterChecksRunnerReplicas)
+	deployment.Spec.Replicas = ptr.To(defaultClusterChecksRunnerReplicas)
 
 	return deployment
 }
@@ -177,8 +177,8 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 				ReadinessProbe: constants.GetDefaultReadinessProbe(),
 				StartupProbe:   constants.GetDefaultStartupProbe(),
 				SecurityContext: &corev1.SecurityContext{
-					ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(true),
-					AllowPrivilegeEscalation: apiutils.NewBoolPointer(false),
+					ReadOnlyRootFilesystem:   ptr.To(true),
+					AllowPrivilegeEscalation: ptr.To(false),
 				},
 			},
 		},
@@ -186,7 +186,7 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 		Volumes:  volumes,
 		// To be uncommented when the agent Dockerfile will be updated to use a non-root user by default
 		// SecurityContext: &corev1.PodSecurityContext{
-		// 	RunAsNonRoot: apiutils.NewBoolPointer(true),
+		// 	RunAsNonRoot: ptr.To(true),
 		// },
 	}
 	return podSpec
@@ -251,7 +251,7 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 			Value: "false",
 		},
 		{
-			Name:  common.DDAPMEnabled,
+			Name:  constants.DDAPMEnabled,
 			Value: "false",
 		},
 		{
