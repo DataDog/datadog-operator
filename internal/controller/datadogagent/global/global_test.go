@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
@@ -137,7 +139,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				dda := testutils.NewDatadogAgentBuilder().
 					WithCredentials("apiKey", "appKey").
 					BuildWithDefaults()
-				dda.Spec.Global.UseVSock = apiutils.NewBoolPointer(true)
+				dda.Spec.Global.UseVSock = ptr.To(true)
 				return dda
 			}(),
 			wantCoreAgentEnvVars: nil,
@@ -949,7 +951,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			podTemplateManager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
 			store := store.NewStore(tt.dda, storeOptions)
 			resourcesManager := feature.NewResourceManagers(store)
-			reqComp := feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)}
+			reqComp := feature.RequiredComponent{IsRequired: ptr.To(true)}
 			requiredComponents := feature.RequiredComponents{
 				ClusterAgent: reqComp,
 				Agent:        reqComp,
@@ -1296,7 +1298,7 @@ func Test_UseFIPSAgent(t *testing.T) {
 		},
 	})
 
-	reqComp := feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)}
+	reqComp := feature.RequiredComponent{IsRequired: ptr.To(true)}
 	requiredComponents := feature.RequiredComponents{
 		ClusterAgent: reqComp,
 		Agent:        reqComp,
@@ -1317,5 +1319,77 @@ func checkFIPSImages(t testing.TB, mgr *fake.PodTemplateManagers) {
 	}
 	for _, container := range mgr.PodTemplateSpec().Spec.InitContainers {
 		assert.True(t, strings.HasSuffix(container.Image, "-fips"), "Container %s has image %s", container.Name, container.Image)
+	}
+}
+
+func Test_ValidateFIPSVersions(t *testing.T) {
+	tests := []struct {
+		name           string
+		containers     []corev1.Container
+		initContainers []corev1.Container
+		wantErrors     int
+	}{
+		{
+			name: "no error: regular agent with fips, old version",
+			containers: []corev1.Container{
+				{Image: "gcr.io/datadoghq/agent:7.77.0-fips"},
+			},
+			wantErrors: 0,
+		},
+		{
+			name: "no error: ddot-collector with fips, sufficient version",
+			containers: []corev1.Container{
+				{Image: "gcr.io/datadoghq/ddot-collector:7.78.0-fips"},
+			},
+			wantErrors: 0,
+		},
+		{
+			name: "error: ddot-collector with fips, version below 7.78",
+			containers: []corev1.Container{
+				{Image: "gcr.io/datadoghq/ddot-collector:7.77.0-fips"},
+			},
+			wantErrors: 1,
+		},
+		{
+			name: "error: agent-full with fips, version below 7.78",
+			containers: []corev1.Container{
+				{Image: "gcr.io/datadoghq/agent:7.77.0-fips-full"},
+			},
+			wantErrors: 1,
+		},
+		{
+			name: "two errors: ddot-collector and agent-full both below 7.78",
+			containers: []corev1.Container{
+				{Image: "gcr.io/datadoghq/agent:7.77.0-fips-full"},
+				{Image: "gcr.io/datadoghq/ddot-collector:7.77.0-fips"},
+			},
+			wantErrors: 2,
+		},
+		{
+			name: "no error: regular agent init container with fips",
+			initContainers: []corev1.Container{
+				{Image: "gcr.io/datadoghq/agent:7.77.0-fips"},
+			},
+			wantErrors: 0,
+		},
+		{
+			name: "error: ddot-collector init container with fips below 7.78",
+			initContainers: []corev1.Container{
+				{Image: "gcr.io/datadoghq/ddot-collector:7.77.0-fips"},
+			},
+			wantErrors: 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mgr := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers:     tt.containers,
+					InitContainers: tt.initContainers,
+				},
+			})
+			errs := ValidateFIPSVersions(mgr)
+			assert.Len(t, errs, tt.wantErrors)
+		})
 	}
 }

@@ -8,13 +8,14 @@ package v1alpha1
 import (
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/api/utils"
 )
 
 func TestIsValidDatadogAgentProfile(t *testing.T) {
@@ -128,7 +129,7 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 		Config: &v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				GPU: &v2alpha1.GPUFeatureConfig{
-					Enabled: utils.NewBoolPointer(true),
+					Enabled: ptr.To(true),
 				},
 			},
 		},
@@ -138,8 +139,8 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 		Config: &v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				GPU: &v2alpha1.GPUFeatureConfig{
-					Enabled:        utils.NewBoolPointer(true),
-					PrivilegedMode: utils.NewBoolPointer(true),
+					Enabled:        ptr.To(true),
+					PrivilegedMode: ptr.To(true),
 				},
 			},
 		},
@@ -149,7 +150,7 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 		Config: &v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				NPM: &v2alpha1.NPMFeatureConfig{
-					Enabled: utils.NewBoolPointer(true),
+					Enabled: ptr.To(true),
 				},
 			},
 		},
@@ -159,7 +160,7 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 		Config: &v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				GPU: &v2alpha1.GPUFeatureConfig{
-					Enabled: utils.NewBoolPointer(true),
+					Enabled: ptr.To(true),
 				},
 			},
 		},

@@ -20,6 +20,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/ptr"
 )
 
 func Test_admissionControllerFeature_Configure(t *testing.T) {
@@ -112,7 +113,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				sidecarInjectionWantFunc("", "", "", "agent", images.AgentLatestVersion, false, false)),
+				sidecarInjectionWantFunc("", "", "", "agent", images.AgentLatestVersion, false, false, nil, nil)),
 		},
 		{
 			Name: "Admission Controller enabled with sidecar injection adding global registry",
@@ -123,7 +124,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				sidecarInjectionWantFunc("", "globalRegistry", "globalRegistry", "agent", images.AgentLatestVersion, false, false)),
+				sidecarInjectionWantFunc("", "globalRegistry", "globalRegistry", "agent", images.AgentLatestVersion, false, false, nil, nil)),
 		},
 		{
 			Name: "Admission Controller enabled with sidecar injection adding both sidecar and global registry",
@@ -135,7 +136,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				sidecarInjectionWantFunc("", "globalRegistry", "sidecarRegistry", "agent", images.AgentLatestVersion, false, false)),
+				sidecarInjectionWantFunc("", "globalRegistry", "sidecarRegistry", "agent", images.AgentLatestVersion, false, false, nil, nil)),
 		},
 		{
 			Name: "Admission Controller enabled with sidecar injection adding test sidecar image and tag",
@@ -147,7 +148,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				sidecarInjectionWantFunc("", "", "", "testAgentImage", "testAgentTag", false, false)),
+				sidecarInjectionWantFunc("", "", "", "testAgentImage", "testAgentTag", false, false, nil, nil)),
 		},
 		{
 			Name: "Admission Controller enabled with sidecar injection adding global image and tag",
@@ -165,7 +166,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				sidecarInjectionWantFunc("", "", "", "overrideName", "overrideTag", false, false)),
+				sidecarInjectionWantFunc("", "", "", "overrideName", "overrideTag", false, false, nil, nil)),
 		},
 		{
 			Name: "Admission Controller enabled with sidecar injection adding both global and sidecar image and tag",
@@ -183,7 +184,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				sidecarInjectionWantFunc("", "", "", "sidecarAgent", "sidecarTag", false, false)),
+				sidecarInjectionWantFunc("", "", "", "sidecarAgent", "sidecarTag", false, false, nil, nil)),
 		},
 		{
 			Name: "Admission Controller enabled with sidecar injection with selector and profile",
@@ -195,7 +196,29 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				sidecarInjectionWantFunc("", "", "", "agent", images.AgentLatestVersion, true, true)),
+				sidecarInjectionWantFunc("", "", "", "agent", images.AgentLatestVersion, true, true, nil, nil)),
+		},
+		{
+			Name: "Admission Controller enabled with sidecar TLS verification enabled",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithSidecarInjectionEnabled(true).
+				WithSidecarInjectionTLSVerification(true, true).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				sidecarInjectionWantFunc("", "", "", "agent", images.AgentLatestVersion, false, false, ptr.To(true), ptr.To(true))),
+		},
+		{
+			Name: "Admission Controller enabled with sidecar TLS verification explicitly disabled",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithSidecarInjectionEnabled(true).
+				WithSidecarInjectionTLSVerification(false, false).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				sidecarInjectionWantFunc("", "", "", "agent", images.AgentLatestVersion, false, false, ptr.To(false), ptr.To(false))),
 		},
 		{
 			Name: "Admission Controller enabled with probe explicitly disabled",
@@ -415,7 +438,7 @@ func sidecarHelperFunc(admissionControllerConfig, sidecarConfig []*corev1.EnvVar
 	return envVars
 }
 
-func getSidecarEnvVars(imageName, imageTag, registry string, selectors, profiles bool) []*corev1.EnvVar {
+func getSidecarEnvVars(imageName, imageTag, registry string, selectors, profiles bool, tlsVerificationEnabled, tlsVerificationCopyCaConfigMap *bool) []*corev1.EnvVar {
 	envVars := []*corev1.EnvVar{
 		{
 			Name:  DDAdmissionControllerAgentSidecarEnabled,
@@ -459,6 +482,19 @@ func getSidecarEnvVars(imageName, imageTag, registry string, selectors, profiles
 			Value: "[{\"env\":[{\"name\":\"testName\",\"value\":\"testValue\"}],\"resources\":{\"requests\":{\"cpu\":\"500m\",\"memory\":\"1Gi\"}},\"securityContext\":{\"runAsUser\":1000}}]",
 		}
 		envVars = append(envVars, &profileEnv)
+	}
+
+	if tlsVerificationEnabled != nil {
+		envVars = append(envVars, &corev1.EnvVar{
+			Name:  DDAdmissionControllerAgentSidecarClusterAgentTLSVerificationEnabled,
+			Value: apiutils.BoolToString(tlsVerificationEnabled),
+		})
+	}
+	if tlsVerificationCopyCaConfigMap != nil {
+		envVars = append(envVars, &corev1.EnvVar{
+			Name:  DDAdmissionControllerAgentSidecarClusterAgentTLSVerificationCopyCaConfigMap,
+			Value: apiutils.BoolToString(tlsVerificationCopyCaConfigMap),
+		})
 	}
 
 	return envVars
@@ -565,11 +601,11 @@ func getACEnvVarsNoProbe(validation, mutation bool, acm, registry string, cws bo
 	return envVars
 }
 
-func sidecarInjectionWantFunc(acm, acRegistry, sidecarRegstry, imageName, imageTag string, selectors, profiles bool) func(testing.TB, feature.PodTemplateManagers) {
+func sidecarInjectionWantFunc(acm, acRegistry, sidecarRegstry, imageName, imageTag string, selectors, profiles bool, tlsVerificationEnabled, tlsVerificationCopyCaConfigMap *bool) func(testing.TB, feature.PodTemplateManagers) {
 	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 		dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
-		want := sidecarHelperFunc(getACEnvVars(false, false, acm, acRegistry, false), getSidecarEnvVars(imageName, imageTag, sidecarRegstry, selectors, profiles))
+		want := sidecarHelperFunc(getACEnvVars(false, false, acm, acRegistry, false), getSidecarEnvVars(imageName, imageTag, sidecarRegstry, selectors, profiles, tlsVerificationEnabled, tlsVerificationCopyCaConfigMap))
 		assert.ElementsMatch(
 			t,
 			dcaEnvVars,

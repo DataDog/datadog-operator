@@ -8,6 +8,8 @@ package npm
 import (
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -27,20 +29,20 @@ func Test_npmFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				NPM: &v2alpha1.NPMFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: ptr.To(false),
 				},
 			},
 		},
 	}
 	ddaNPMEnabled := ddaNPMDisabled.DeepCopy()
-	ddaNPMEnabled.Spec.Features.NPM.Enabled = apiutils.NewBoolPointer(true)
+	ddaNPMEnabled.Spec.Features.NPM.Enabled = ptr.To(true)
 
 	ddaNPMEnabledConfig := ddaNPMEnabled.DeepCopy()
-	ddaNPMEnabledConfig.Spec.Features.NPM.CollectDNSStats = apiutils.NewBoolPointer(true)
-	ddaNPMEnabledConfig.Spec.Features.NPM.EnableConntrack = apiutils.NewBoolPointer(false)
+	ddaNPMEnabledConfig.Spec.Features.NPM.CollectDNSStats = ptr.To(true)
+	ddaNPMEnabledConfig.Spec.Features.NPM.EnableConntrack = ptr.To(false)
 
 	ddaCNMDirectSendEnabledConfig := ddaNPMEnabled.DeepCopy()
-	ddaCNMDirectSendEnabledConfig.Spec.Features.NPM.DirectSend = apiutils.NewBoolPointer(true)
+	ddaCNMDirectSendEnabledConfig.Spec.Features.NPM.DirectSend = ptr.To(true)
 
 	npmFeatureEnvVarWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)

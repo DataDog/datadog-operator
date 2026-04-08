@@ -24,11 +24,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -163,14 +163,14 @@ func getReplicas(currentReplicas, newReplicas *int32) *int32 {
 		if currentReplicas != nil {
 			// Do not overwrite the current value
 			// It's most likely managed by an autoscaler
-			return apiutils.NewInt32Pointer(*currentReplicas)
+			return ptr.To(*currentReplicas)
 		}
 
 		// Both new and current are nil
 		return nil
 	}
 
-	return apiutils.NewInt32Pointer(*newReplicas)
+	return ptr.To(*newReplicas)
 }
 
 // getDDAICRDFromConfig is only used in tests

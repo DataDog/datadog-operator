@@ -69,18 +69,34 @@ func TestAppsecRBACPolicyRules(t *testing.T) {
 	}
 	assert.True(t, foundGatewayRule, "Should have Gateway API permissions")
 
-	// Test Istio permissions
+	// Test Istio EnvoyFilter permissions
 	var foundIstioRule bool
 	for _, rule := range rules {
 		if len(rule.APIGroups) > 0 && rule.APIGroups[0] == "networking.istio.io" {
-			assert.Contains(t, rule.Resources, "envoyfilters")
-			assert.Contains(t, rule.Verbs, rbac.GetVerb)
-			assert.Contains(t, rule.Verbs, rbac.CreateVerb)
-			assert.Contains(t, rule.Verbs, rbac.DeleteVerb)
-			foundIstioRule = true
+			if len(rule.Resources) > 0 && rule.Resources[0] == "envoyfilters" {
+				assert.Contains(t, rule.Resources, "envoyfilters")
+				assert.Contains(t, rule.Verbs, rbac.GetVerb)
+				assert.Contains(t, rule.Verbs, rbac.CreateVerb)
+				assert.Contains(t, rule.Verbs, rbac.DeleteVerb)
+				foundIstioRule = true
+			}
 		}
 	}
-	assert.True(t, foundIstioRule, "Should have Istio permissions")
+	assert.True(t, foundIstioRule, "Should have Istio EnvoyFilter permissions")
+
+	// Test Istio Gateway watching permissions
+	var foundIstioGatewayRule bool
+	for _, rule := range rules {
+		if len(rule.APIGroups) > 0 && rule.APIGroups[0] == "networking.istio.io" {
+			if len(rule.Resources) > 0 && rule.Resources[0] == "gateways" {
+				assert.Contains(t, rule.Verbs, rbac.GetVerb)
+				assert.Contains(t, rule.Verbs, rbac.ListVerb)
+				assert.Contains(t, rule.Verbs, rbac.WatchVerb)
+				foundIstioGatewayRule = true
+			}
+		}
+	}
+	assert.True(t, foundIstioGatewayRule, "Should have Istio Gateway watching permissions")
 
 	// Test Envoy Gateway permissions
 	var foundEnvoyRule bool

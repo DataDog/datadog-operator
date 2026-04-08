@@ -29,6 +29,8 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/utils/ptr"
+
 	assert "github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -41,7 +43,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	testutils "github.com/DataDog/datadog-operator/pkg/testutils"
@@ -125,7 +126,7 @@ func baseDDA(ns, name string, uid types.UID) *v2alpha1.DatadogAgent {
 // preserving the required credentials so the reconciler does not reject it.
 func baseDDAWithSite(ns, name string, uid types.UID, site string) *v2alpha1.DatadogAgent {
 	dda := baseDDA(ns, name, uid)
-	dda.Spec.Global.Site = apiutils.NewStringPointer(site)
+	dda.Spec.Global.Site = ptr.To(site)
 	return dda
 }
 
@@ -219,7 +220,7 @@ func Test_ControllerRevisions_SpecChange(t *testing.T) {
 
 	// Re-fetch to get current resourceVersion, then change a spec field.
 	assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: name}, dda))
-	dda.Spec.Global.Site = apiutils.NewStringPointer("datadoghq.eu")
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
 	assert.NoError(t, c.Update(context.TODO(), dda))
 	_, err := r.Reconcile(context.TODO(), dda)
 	assert.NoError(t, err)
@@ -249,7 +250,7 @@ func Test_ControllerRevisions_Revert(t *testing.T) {
 
 	// Change spec.
 	assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: name}, dda))
-	dda.Spec.Global.Site = apiutils.NewStringPointer("datadoghq.eu")
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
 	assert.NoError(t, c.Update(context.TODO(), dda))
 	_, err := r.Reconcile(context.TODO(), dda)
 	assert.NoError(t, err)
@@ -291,7 +292,7 @@ func Test_ControllerRevisions_GC(t *testing.T) {
 
 	for i, site := range sites[1:] {
 		assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: name}, dda))
-		dda.Spec.Global.Site = apiutils.NewStringPointer(site)
+		dda.Spec.Global.Site = ptr.To(site)
 		assert.NoError(t, c.Update(context.TODO(), dda))
 		_, err := r.Reconcile(context.TODO(), dda)
 		assert.NoError(t, err)
