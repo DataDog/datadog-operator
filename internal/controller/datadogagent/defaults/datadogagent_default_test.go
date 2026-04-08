@@ -213,10 +213,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled:          ptr.To(defaultServiceDiscoveryEnabled),
-						EnabledByDefault: ptr.To(defaultServiceDiscoveryEnabledByDefault),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -363,10 +360,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled:          ptr.To(defaultServiceDiscoveryEnabled),
-						EnabledByDefault: ptr.To(defaultServiceDiscoveryEnabledByDefault),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -463,10 +457,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled:          ptr.To(defaultServiceDiscoveryEnabled),
-						EnabledByDefault: ptr.To(defaultServiceDiscoveryEnabledByDefault),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -600,10 +591,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled:          ptr.To(defaultServiceDiscoveryEnabled),
-						EnabledByDefault: ptr.To(defaultServiceDiscoveryEnabledByDefault),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -762,10 +750,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled:          ptr.To(defaultServiceDiscoveryEnabled),
-						EnabledByDefault: ptr.To(defaultServiceDiscoveryEnabledByDefault),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -919,10 +904,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled:          ptr.To(defaultServiceDiscoveryEnabled),
-						EnabledByDefault: ptr.To(defaultServiceDiscoveryEnabledByDefault),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -1076,10 +1058,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled:          ptr.To(defaultServiceDiscoveryEnabled),
-						EnabledByDefault: ptr.To(defaultServiceDiscoveryEnabledByDefault),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -1242,10 +1221,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled:          ptr.To(defaultServiceDiscoveryEnabled),
-						EnabledByDefault: ptr.To(defaultServiceDiscoveryEnabledByDefault),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -1399,10 +1375,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled:          ptr.To(defaultServiceDiscoveryEnabled),
-						EnabledByDefault: ptr.To(defaultServiceDiscoveryEnabledByDefault),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -1559,10 +1532,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled:          ptr.To(defaultServiceDiscoveryEnabled),
-						EnabledByDefault: ptr.To(defaultServiceDiscoveryEnabledByDefault),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -1762,10 +1732,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled:          ptr.To(defaultServiceDiscoveryEnabled),
-						EnabledByDefault: ptr.To(defaultServiceDiscoveryEnabledByDefault),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -1888,10 +1855,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled:          ptr.To(defaultServiceDiscoveryEnabled),
-						EnabledByDefault: ptr.To(defaultServiceDiscoveryEnabledByDefault),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -2046,10 +2010,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled:          ptr.To(defaultServiceDiscoveryEnabled),
-						EnabledByDefault: ptr.To(defaultServiceDiscoveryEnabledByDefault),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -2227,10 +2188,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled:          ptr.To(defaultServiceDiscoveryEnabled),
-						EnabledByDefault: ptr.To(defaultServiceDiscoveryEnabledByDefault),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -2387,10 +2345,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled:          ptr.To(defaultServiceDiscoveryEnabled),
-						EnabledByDefault: ptr.To(defaultServiceDiscoveryEnabledByDefault),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -2561,8 +2516,7 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled:          ptr.To(valueTrue),
-						EnabledByDefault: ptr.To(defaultServiceDiscoveryEnabledByDefault),
+						Enabled: ptr.To(valueTrue),
 					},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),

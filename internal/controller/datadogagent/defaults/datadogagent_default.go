@@ -43,9 +43,6 @@ const (
 
 	defaultGPUMonitoringEnabled bool = false
 
-	defaultServiceDiscoveryEnabled          bool = false
-	defaultServiceDiscoveryEnabledByDefault bool = false
-
 	defaultAPMEnabled                   bool   = true
 	defaultAPMHostPortEnabled           bool   = false
 	defaultAPMHostPort                  int32  = 8126
@@ -305,12 +302,9 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	if ddaSpec.Features.ServiceDiscovery == nil {
 		ddaSpec.Features.ServiceDiscovery = &v2alpha1.ServiceDiscoveryFeatureConfig{}
 	}
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ServiceDiscovery.EnabledByDefault, defaultServiceDiscoveryEnabledByDefault)
-	// Only default Enabled to false when not enabled-by-default, so that Enabled=nil remains
-	// distinguishable from Enabled=false (explicit user opt-out) when EnabledByDefault=true.
-	if !apiutils.BoolValue(ddaSpec.Features.ServiceDiscovery.EnabledByDefault) {
-		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ServiceDiscovery.Enabled, defaultServiceDiscoveryEnabled)
-	}
+	// Enabled is intentionally not defaulted to false — Enabled=nil (not configured by user)
+	// must remain distinguishable from Enabled=false (explicit opt-out) so that the feature
+	// can be auto-activated by the operator in the future without exposing a CRD field.
 
 	// GPU monitoring feature
 	if ddaSpec.Features.GPU == nil {

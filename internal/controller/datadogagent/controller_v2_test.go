@@ -1753,7 +1753,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 			wantFunc: func(t *testing.T, c client.Client) {
 				expectedDDAI := getBaseDDAI(dda)
 				expectedDDAI.Annotations = map[string]string{
-					constants.MD5DDAIDeploymentAnnotationKey: "62d2822cc8547055dc8e2fca6f222a17",
+					constants.MD5DDAIDeploymentAnnotationKey: "d472c741d84f93e553772d29ba5ea914",
 				}
 
 				verifyDDAI(t, c, []v1alpha1.DatadogAgentInternal{expectedDDAI})
@@ -1785,7 +1785,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 				baseDDAI := getBaseDDAI(dda)
 				expectedDDAI := baseDDAI.DeepCopy()
 				expectedDDAI.Annotations = map[string]string{
-					constants.MD5DDAIDeploymentAnnotationKey: "c362b9a0aa0e2ad1a1d60f4ee8575c8f",
+					constants.MD5DDAIDeploymentAnnotationKey: "9d6165c057934517d4c0623699a4257a",
 				}
 				expectedDDAI.Spec.Features.ClusterChecks.UseClusterChecksRunners = ptr.To(true)
 				expectedDDAI.Spec.Global.Credentials = &v2alpha1.DatadogCredentials{
@@ -1861,7 +1861,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 				profileDDAI := getBaseDDAI(dda)
 				profileDDAI.Name = "foo-profile"
 				profileDDAI.Annotations = map[string]string{
-					constants.MD5DDAIDeploymentAnnotationKey: "2c3c1664f08fb6d6591294f2c878d1dd",
+					constants.MD5DDAIDeploymentAnnotationKey: "d868cbefaa12de8dfc8e94552dcf8528",
 				}
 				profileDDAI.Labels[constants.ProfileLabelKey] = "foo-profile"
 				profileDDAI.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -2095,7 +2095,7 @@ func getBaseDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 func getDefaultDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 	expectedDDAI := getBaseDDAI(dda)
 	expectedDDAI.Annotations = map[string]string{
-		constants.MD5DDAIDeploymentAnnotationKey: "7e6c12e645247762609327ab80b63d9e",
+		constants.MD5DDAIDeploymentAnnotationKey: "1a68caa8fd645f09d034b2b97a61f543",
 	}
 	expectedDDAI.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 		v2alpha1.NodeAgentComponentName: {

@@ -20,33 +20,6 @@ func init() {
 	featureBuilders = map[IDType]BuildFunc{}
 }
 
-// SystemProbeContainerRequiredByFeatures returns true if any registered feature
-// other than excludeID declares SystemProbeContainerName in its RequiredComponents
-// for the given DDA configuration.
-//
-// Because it iterates the feature registry, it is automatically correct when new
-// system-probe features are added — they self-register via their package init().
-func SystemProbeContainerRequiredByFeatures(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration, excludeID IDType) bool {
-	builderMutex.RLock()
-	defer builderMutex.RUnlock()
-
-	// Deep-copy the spec so that side-effecting Configure calls (e.g. USM merging
-	// Remote Config state) do not mutate the live spec.
-	specCopy := ddaSpec.DeepCopy()
-
-	for id, buildFunc := range featureBuilders {
-		if id == excludeID {
-			continue
-		}
-		feat := buildFunc(&Options{})
-		reqComp := feat.Configure(dda, specCopy, ddaRCStatus)
-		if slices.Contains(reqComp.Agent.Containers, common.SystemProbeContainerName) {
-			return true
-		}
-	}
-	return false
-}
-
 // Register use to register a Feature to the Feature factory.
 func Register(id IDType, buildFunc BuildFunc) error {
 	builderMutex.Lock()

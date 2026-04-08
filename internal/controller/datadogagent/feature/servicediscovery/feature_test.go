@@ -22,12 +22,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
-
-	// Blank imports trigger the init() of these packages, registering them in the
-	// feature factory. Tests that check SPL is suppressed when these features are
-	// active require them to be registered.
-	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cws"
-	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/npm"
 )
 
 func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
@@ -69,16 +63,6 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 		},
 	}
 
-	ddaEnabledByDefault := v2alpha1.DatadogAgent{
-		Spec: v2alpha1.DatadogAgentSpec{
-			Features: &v2alpha1.DatadogFeatures{
-				ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-					EnabledByDefault: ptr.To(true),
-				},
-			},
-		},
-	}
-
 	tests := test.FeatureTestSuite{
 		{
 			Name:          "service discovery not enabled",
@@ -94,36 +78,127 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 				WithWantFunc(getWantFunc(true, true)),
 		},
 		{
-			Name:          "system-probe-lite enabled by default - no system-probe fallback",
-			DDA:           &ddaEnabledByDefault,
+			Name:          "system-probe-lite not used when NPM also enabled",
+			DDA:           &ddaWithNPM,
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().
 				WithCreateFunc(createFuncWithSystemProbeContainer()).
-				WithWantFunc(getWantFunc(true, false)),
+				WithWantFunc(getWantFunc(false, true)),
+		},
+		{
+			Name:          "system-probe-lite not used when CWS also enabled",
+			DDA:           &ddaWithCWS,
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().
+				WithCreateFunc(createFuncWithSystemProbeContainer()).
+				WithWantFunc(getWantFunc(false, true)),
 		},
 	}
 
 	tests.Run(t, buildFeature)
+}
 
-	// These cases involve multiple registered features (npm, cws are imported via blank imports
-	// so they register in the factory). FeatureTestSuite is designed for one feature at a time,
-	// so we test service discovery's ManageNodeAgent output directly here.
-	for _, tc := range []struct {
-		name string
-		dda  *v2alpha1.DatadogAgent
+func Test_hasOtherSystemProbeFeatures(t *testing.T) {
+	tests := []struct {
+		name     string
+		features *v2alpha1.DatadogFeatures
+		want     bool
 	}{
-		{"system-probe-lite not used when NPM also enabled", &ddaWithNPM},
-		{"system-probe-lite not used when CWS also enabled", &ddaWithCWS},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			feat := buildFeature(nil)
-			reqComp := feat.Configure(tc.dda, &tc.dda.Spec, tc.dda.Status.RemoteConfigConfiguration)
-			assert.True(t, reqComp.IsEnabled())
+		{
+			name:     "nil features",
+			features: nil,
+			want:     false,
+		},
+		{
+			name:     "no other features",
+			features: &v2alpha1.DatadogFeatures{},
+			want:     false,
+		},
+		{
+			name: "NPM enabled",
+			features: &v2alpha1.DatadogFeatures{
+				NPM: &v2alpha1.NPMFeatureConfig{Enabled: ptr.To(true)},
+			},
+			want: true,
+		},
+		{
+			name: "CWS enabled",
+			features: &v2alpha1.DatadogFeatures{
+				CWS: &v2alpha1.CWSFeatureConfig{Enabled: ptr.To(true)},
+			},
+			want: true,
+		},
+		{
+			name: "USM enabled",
+			features: &v2alpha1.DatadogFeatures{
+				USM: &v2alpha1.USMFeatureConfig{Enabled: ptr.To(true)},
+			},
+			want: true,
+		},
+		{
+			name: "OOMKill enabled",
+			features: &v2alpha1.DatadogFeatures{
+				OOMKill: &v2alpha1.OOMKillFeatureConfig{Enabled: ptr.To(true)},
+			},
+			want: true,
+		},
+		{
+			name: "TCPQueueLength enabled",
+			features: &v2alpha1.DatadogFeatures{
+				TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{Enabled: ptr.To(true)},
+			},
+			want: true,
+		},
+		{
+			name: "EBPFCheck enabled",
+			features: &v2alpha1.DatadogFeatures{
+				EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{Enabled: ptr.To(true)},
+			},
+			want: true,
+		},
+		{
+			name: "CSPM enabled with RunInSystemProbe",
+			features: &v2alpha1.DatadogFeatures{
+				CSPM: &v2alpha1.CSPMFeatureConfig{
+					Enabled:          ptr.To(true),
+					RunInSystemProbe: ptr.To(true),
+				},
+			},
+			want: true,
+		},
+		{
+			name: "CSPM enabled without RunInSystemProbe",
+			features: &v2alpha1.DatadogFeatures{
+				CSPM: &v2alpha1.CSPMFeatureConfig{
+					Enabled: ptr.To(true),
+				},
+			},
+			want: false,
+		},
+		{
+			name: "GPU enabled with PrivilegedMode",
+			features: &v2alpha1.DatadogFeatures{
+				GPU: &v2alpha1.GPUFeatureConfig{
+					Enabled:        ptr.To(true),
+					PrivilegedMode: ptr.To(true),
+				},
+			},
+			want: true,
+		},
+		{
+			name: "GPU enabled without PrivilegedMode",
+			features: &v2alpha1.DatadogFeatures{
+				GPU: &v2alpha1.GPUFeatureConfig{
+					Enabled: ptr.To(true),
+				},
+			},
+			want: false,
+		},
+	}
 
-			tplManager, provider := createFuncWithSystemProbeContainer()(t)
-			assert.NoError(t, feat.ManageNodeAgent(tplManager, provider))
-
-			getWantFunc(false, true)(t, tplManager)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, hasOtherSystemProbeFeatures(tt.features))
 		})
 	}
 }
