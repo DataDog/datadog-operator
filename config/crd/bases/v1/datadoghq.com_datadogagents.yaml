@@ -2484,16 +2484,7 @@ spec:
                       description: ServiceDiscovery
                       properties:
                         enabled:
-                          description: |-
-                            Enables the service discovery check.
-                            Default: false
-                          type: boolean
-                        enabledByDefault:
-                          description: |-
-                            Indicates that the operator enabled this feature automatically rather than in response to an
-                            explicit user setting. When true, if `system-probe-lite` is unavailable, the container falls
-                            back to `sleep infinity` rather than `system-probe`, to avoid unexpected resource usage on
-                            older agent images. This field is managed by the operator and must not be set by users.
+                          description: Enables the service discovery check.
                           type: boolean
                         networkStats:
                           description: 'DEPRECATED: NetworkStats is no longer configurable and will be ignored. Scheduled for removal in v1.28.'
@@ -10958,16 +10949,7 @@ spec:
                           description: ServiceDiscovery
                           properties:
                             enabled:
-                              description: |-
-                                Enables the service discovery check.
-                                Default: false
-                              type: boolean
-                            enabledByDefault:
-                              description: |-
-                                Indicates that the operator enabled this feature automatically rather than in response to an
-                                explicit user setting. When true, if `system-probe-lite` is unavailable, the container falls
-                                back to `sleep infinity` rather than `system-probe`, to avoid unexpected resource usage on
-                                older agent images. This field is managed by the operator and must not be set by users.
+                              description: Enables the service discovery check.
                               type: boolean
                             networkStats:
                               description: 'DEPRECATED: NetworkStats is no longer configurable and will be ignored. Scheduled for removal in v1.28.'

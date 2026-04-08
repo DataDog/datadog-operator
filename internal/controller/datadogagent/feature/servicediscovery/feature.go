@@ -31,7 +31,6 @@ func buildFeature(*feature.Options) feature.Feature {
 }
 
 type serviceDiscoveryFeature struct {
-	userExplicitlyEnabled bool
 	// features holds a pointer to the live DDA features struct so that ManageNodeAgent
 	// can re-evaluate hasOtherSystemProbeFeatures after Remote Config state has been
 	// merged by other features' Configure calls (e.g. USM merges RC state into the spec).
@@ -51,12 +50,7 @@ func (f *serviceDiscoveryFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.D
 
 	sd := ddaSpec.Features.ServiceDiscovery
 
-	// Explicit Enabled=false always disables the feature, even if EnabledByDefault=true.
-	if sd.Enabled != nil && !*sd.Enabled {
-		return reqComp
-	}
-	// Feature requires either an explicit opt-in or a default enablement.
-	if !apiutils.BoolValue(sd.Enabled) && !apiutils.BoolValue(sd.EnabledByDefault) {
+	if !apiutils.BoolValue(sd.Enabled) {
 		return reqComp
 	}
 
@@ -66,22 +60,15 @@ func (f *serviceDiscoveryFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.D
 	}
 
 	f.features = ddaSpec.Features
-	f.userExplicitlyEnabled = apiutils.BoolValue(sd.Enabled)
 
 	return reqComp
 }
 
 // systemProbeLiteCommand returns the shell command for the system-probe container when
-// system-probe-lite is preferred. If userOptedIn is true (user explicitly enabled discovery),
-// system-probe is used as the fallback — the user has accepted the resource cost.
-// Otherwise (enabled by default), the fallback is sleep infinity to avoid unexpectedly
-// running system-probe on older agent images where the discovery feature may not be supported.
-func systemProbeLiteCommand(socketPath string, userOptedIn bool) string {
-	fallback := "sleep infinity"
-	if userOptedIn {
-		fallback = "system-probe --config=/etc/datadog-agent/system-probe.yaml"
-	}
-	return fmt.Sprintf("system-probe-lite run --socket %s --log-level ${DD_LOG_LEVEL:-info} || %s", socketPath, fallback)
+// system-probe-lite is preferred. If it is unavailable in the image, the container
+// falls back to the regular system-probe binary.
+func systemProbeLiteCommand(socketPath string) string {
+	return fmt.Sprintf("system-probe-lite run --socket %s --log-level ${DD_LOG_LEVEL:-info} || system-probe --config=/etc/datadog-agent/system-probe.yaml", socketPath)
 }
 
 // hasOtherSystemProbeFeatures returns true if any feature besides service discovery
@@ -163,7 +150,7 @@ func (f *serviceDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMa
 			c := &managers.PodTemplateSpec().Spec.Containers[i]
 			if c.Name == string(apicommon.SystemProbeContainerName) {
 				c.Command = []string{"/bin/sh", "-c"}
-				c.Args = []string{systemProbeLiteCommand(common.DefaultSystemProbeSocketPath, f.userExplicitlyEnabled)}
+				c.Args = []string{systemProbeLiteCommand(common.DefaultSystemProbeSocketPath)}
 				break
 			}
 		}

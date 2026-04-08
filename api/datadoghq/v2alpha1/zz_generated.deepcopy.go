@@ -3453,11 +3453,6 @@ func (in *ServiceDiscoveryFeatureConfig) DeepCopyInto(out *ServiceDiscoveryFeatu
 		*out = new(bool)
 		**out = **in
 	}
-	if in.EnabledByDefault != nil {
-		in, out := &in.EnabledByDefault, &out.EnabledByDefault
-		*out = new(bool)
-		**out = **in
-	}
 	if in.NetworkStats != nil {
 		in, out := &in.NetworkStats, &out.NetworkStats
 		*out = new(ServiceDiscoveryNetworkStatsConfig)
