@@ -251,7 +251,7 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 			Value: "false",
 		},
 		{
-			Name:  common.DDAPMEnabled,
+			Name:  constants.DDAPMEnabled,
 			Value: "false",
 		},
 		{

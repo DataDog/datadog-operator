@@ -36,7 +36,6 @@ const (
 
 	// Environment variable names
 	envNodeID        = "NODE_ID"
-	envDDAPMEnabled  = "DD_APM_ENABLED"
 	envAddress       = "ADDRESS"
 	envDriverRegSock = "DRIVER_REG_SOCK_PATH"
 

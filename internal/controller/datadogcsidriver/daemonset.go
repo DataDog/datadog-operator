@@ -17,6 +17,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
 )
 
@@ -129,7 +130,7 @@ func buildCSIDriverContainer(instance *datadoghqv1alpha1.DatadogCSIDriver, drive
 				},
 			},
 			{
-				Name:  envDDAPMEnabled,
+				Name:  constants.DDAPMEnabled,
 				Value: "true",
 			},
 		},
