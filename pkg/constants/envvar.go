@@ -14,4 +14,5 @@ const (
 	DDClusterName = "DD_CLUSTER_NAME"
 	DDLogLevel    = "DD_LOG_LEVEL"
 	DDHostName    = "DD_HOSTNAME"
+	DDAPMEnabled  = "DD_APM_ENABLED"
 )
