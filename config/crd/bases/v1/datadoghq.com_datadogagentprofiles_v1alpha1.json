@@ -41,6 +41,21 @@
                           "description": "ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.\nDefault : true",
                           "type": "boolean"
                         },
+                        "clusterAgentTlsVerification": {
+                          "additionalProperties": false,
+                          "description": "ClusterAgentTLSVerification configures TLS verification for Agent sidecar to Cluster Agent communication.",
+                          "properties": {
+                            "copyCaConfigMap": {
+                              "description": "CopyCaConfigMap enables automatic creation of a ConfigMap containing the Cluster Agent's CA certificate\nin namespaces where sidecar injection occurs.\nDefault: false",
+                              "type": "boolean"
+                            },
+                            "enabled": {
+                              "description": "Enabled enables TLS verification for agent sidecars communicating with the Cluster Agent.\nDefault: false",
+                              "type": "boolean"
+                            }
+                          },
+                          "type": "object"
+                        },
                         "enabled": {
                           "description": "Enabled enables Sidecar injections.\nDefault: false",
                           "type": "boolean"
@@ -630,6 +645,27 @@
                         "enabled": {
                           "description": "Enabled enables the Admission Controller mutation webhook.\nDefault: true",
                           "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "probe": {
+                      "additionalProperties": false,
+                      "description": "Probe holds the admission controller connectivity probe configuration.",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables the admission controller connectivity probe.\nThe probe periodically sends dry-run ConfigMap creation requests to verify the\nwebhook is reachable from the API server. Requires Cluster Agent 7.78.0+.\nDefault: true",
+                          "type": "boolean"
+                        },
+                        "gracePeriod": {
+                          "description": "GracePeriod is the number of seconds to wait at startup before the first probe.\nDefault: 60",
+                          "format": "int32",
+                          "type": "integer"
+                        },
+                        "interval": {
+                          "description": "Interval is the number of seconds between probe executions.\nDefault: 60",
+                          "format": "int32",
+                          "type": "integer"
                         }
                       },
                       "type": "object"
@@ -2573,10 +2609,10 @@
                     },
                     "networkStats": {
                       "additionalProperties": false,
-                      "description": "Enables the service discovery network stats collection.\nDefault: true",
+                      "description": "DEPRECATED: NetworkStats is no longer configurable and will be ignored. Scheduled for removal in v1.28.",
                       "properties": {
                         "enabled": {
-                          "description": "Enables the Service Discovery Network Stats feature.\nDefault: true",
+                          "description": "DEPRECATED: this field is ignored.",
                           "type": "boolean"
                         }
                       },
@@ -3531,6 +3567,10 @@
                 },
                 "useFIPSAgent": {
                   "description": "UseFIPSAgent enables the FIPS flavor of the Agent. If 'true', the FIPS proxy will always be disabled.\nDefault: 'false'",
+                  "type": "boolean"
+                },
+                "useVSock": {
+                  "description": "UseVSock allows the use of VSock communication between the Agent and containerized workloads.\nDefault: 'false'",
                   "type": "boolean"
                 }
               },

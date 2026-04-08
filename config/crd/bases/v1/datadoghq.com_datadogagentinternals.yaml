@@ -73,6 +73,21 @@ spec:
                                 ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.
                                 Default : true
                               type: boolean
+                            clusterAgentTlsVerification:
+                              description: ClusterAgentTLSVerification configures TLS verification for Agent sidecar to Cluster Agent communication.
+                              properties:
+                                copyCaConfigMap:
+                                  description: |-
+                                    CopyCaConfigMap enables automatic creation of a ConfigMap containing the Cluster Agent's CA certificate
+                                    in namespaces where sidecar injection occurs.
+                                    Default: false
+                                  type: boolean
+                                enabled:
+                                  description: |-
+                                    Enabled enables TLS verification for agent sidecars communicating with the Cluster Agent.
+                                    Default: false
+                                  type: boolean
+                              type: object
                             enabled:
                               description: |-
                                 Enabled enables Sidecar injections.
@@ -681,6 +696,29 @@ spec:
                                 Enabled enables the Admission Controller mutation webhook.
                                 Default: true
                               type: boolean
+                          type: object
+                        probe:
+                          description: Probe holds the admission controller connectivity probe configuration.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables the admission controller connectivity probe.
+                                The probe periodically sends dry-run ConfigMap creation requests to verify the
+                                webhook is reachable from the API server. Requires Cluster Agent 7.78.0+.
+                                Default: true
+                              type: boolean
+                            gracePeriod:
+                              description: |-
+                                GracePeriod is the number of seconds to wait at startup before the first probe.
+                                Default: 60
+                              format: int32
+                              type: integer
+                            interval:
+                              description: |-
+                                Interval is the number of seconds between probe executions.
+                                Default: 60
+                              format: int32
+                              type: integer
                           type: object
                         registry:
                           description: Registry defines an image registry for the admission controller.
@@ -2466,14 +2504,10 @@ spec:
                             Default: false
                           type: boolean
                         networkStats:
-                          description: |-
-                            Enables the service discovery network stats collection.
-                            Default: true
+                          description: 'DEPRECATED: NetworkStats is no longer configurable and will be ignored. Scheduled for removal in v1.28.'
                           properties:
                             enabled:
-                              description: |-
-                                Enables the Service Discovery Network Stats feature.
-                                Default: true
+                              description: 'DEPRECATED: this field is ignored.'
                               type: boolean
                           type: object
                       type: object
@@ -3374,6 +3408,11 @@ spec:
                     useFIPSAgent:
                       description: |-
                         UseFIPSAgent enables the FIPS flavor of the Agent. If 'true', the FIPS proxy will always be disabled.
+                        Default: 'false'
+                      type: boolean
+                    useVSock:
+                      description: |-
+                        UseVSock allows the use of VSock communication between the Agent and containerized workloads.
                         Default: 'false'
                       type: boolean
                   type: object
@@ -8466,6 +8505,21 @@ spec:
                                     ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.
                                     Default : true
                                   type: boolean
+                                clusterAgentTlsVerification:
+                                  description: ClusterAgentTLSVerification configures TLS verification for Agent sidecar to Cluster Agent communication.
+                                  properties:
+                                    copyCaConfigMap:
+                                      description: |-
+                                        CopyCaConfigMap enables automatic creation of a ConfigMap containing the Cluster Agent's CA certificate
+                                        in namespaces where sidecar injection occurs.
+                                        Default: false
+                                      type: boolean
+                                    enabled:
+                                      description: |-
+                                        Enabled enables TLS verification for agent sidecars communicating with the Cluster Agent.
+                                        Default: false
+                                      type: boolean
+                                  type: object
                                 enabled:
                                   description: |-
                                     Enabled enables Sidecar injections.
@@ -9074,6 +9128,29 @@ spec:
                                     Enabled enables the Admission Controller mutation webhook.
                                     Default: true
                                   type: boolean
+                              type: object
+                            probe:
+                              description: Probe holds the admission controller connectivity probe configuration.
+                              properties:
+                                enabled:
+                                  description: |-
+                                    Enabled enables the admission controller connectivity probe.
+                                    The probe periodically sends dry-run ConfigMap creation requests to verify the
+                                    webhook is reachable from the API server. Requires Cluster Agent 7.78.0+.
+                                    Default: true
+                                  type: boolean
+                                gracePeriod:
+                                  description: |-
+                                    GracePeriod is the number of seconds to wait at startup before the first probe.
+                                    Default: 60
+                                  format: int32
+                                  type: integer
+                                interval:
+                                  description: |-
+                                    Interval is the number of seconds between probe executions.
+                                    Default: 60
+                                  format: int32
+                                  type: integer
                               type: object
                             registry:
                               description: Registry defines an image registry for the admission controller.
@@ -10859,14 +10936,10 @@ spec:
                                 Default: false
                               type: boolean
                             networkStats:
-                              description: |-
-                                Enables the service discovery network stats collection.
-                                Default: true
+                              description: 'DEPRECATED: NetworkStats is no longer configurable and will be ignored. Scheduled for removal in v1.28.'
                               properties:
                                 enabled:
-                                  description: |-
-                                    Enables the Service Discovery Network Stats feature.
-                                    Default: true
+                                  description: 'DEPRECATED: this field is ignored.'
                                   type: boolean
                               type: object
                           type: object

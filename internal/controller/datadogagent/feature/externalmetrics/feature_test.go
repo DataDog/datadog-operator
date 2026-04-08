@@ -8,6 +8,8 @@ package externalmetrics
 import (
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -30,12 +32,12 @@ const (
 func TestExternalMetricsFeature(t *testing.T) {
 
 	secret := v2alpha1.DatadogCredentials{
-		APIKey: apiutils.NewStringPointer("12345"),
+		APIKey: ptr.To("12345"),
 		APISecret: &v2alpha1.SecretConfig{
 			SecretName: secretName,
 			KeyName:    apiKeyName,
 		},
-		AppKey: apiutils.NewStringPointer("09876"),
+		AppKey: ptr.To("09876"),
 	}
 
 	tests := test.FeatureTestSuite{
@@ -108,11 +110,11 @@ func newAgent(enabled, registerAPIService, useDDM, wpaController bool, secret v2
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
-					Enabled:            apiutils.NewBoolPointer(enabled),
-					RegisterAPIService: apiutils.NewBoolPointer(registerAPIService),
-					WPAController:      apiutils.NewBoolPointer(wpaController),
-					UseDatadogMetrics:  apiutils.NewBoolPointer(useDDM),
-					Port:               apiutils.NewInt32Pointer(8443),
+					Enabled:            ptr.To(enabled),
+					RegisterAPIService: ptr.To(registerAPIService),
+					WPAController:      ptr.To(wpaController),
+					UseDatadogMetrics:  ptr.To(useDDM),
+					Port:               ptr.To[int32](8443),
 					Endpoint: &v2alpha1.Endpoint{
 						Credentials: &secret,
 					},

@@ -8,6 +8,8 @@ package datadogslo
 import (
 	"context"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -37,11 +39,12 @@ import (
 )
 
 const (
-	defaultRequeuePeriod    = 60 * time.Second
-	defaultErrRequeuePeriod = 5 * time.Second
-	defaultForceSyncPeriod  = 60 * time.Minute
-	datadogSLOKind          = "DatadogSLO"
-	datadogSLOFinalizer     = "finalizer.slo.datadoghq.com"
+	defaultRequeuePeriod       = 60 * time.Second
+	defaultErrRequeuePeriod    = 5 * time.Second
+	defaultForceSyncPeriod     = 60 * time.Minute
+	datadogSLOKind             = "DatadogSLO"
+	datadogSLOFinalizer        = "finalizer.slo.datadoghq.com"
+	DDSLOForceSyncPeriodEnvVar = "DD_SLO_FORCE_SYNC_PERIOD"
 )
 
 type Reconciler struct {
@@ -90,6 +93,17 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	logger := r.log.WithValues("datadogslo", req.NamespacedName)
 	logger.Info("Reconciling Datadog SLO")
 	now := metav1.NewTime(time.Now())
+	forceSyncPeriod := defaultForceSyncPeriod
+
+	if userForceSyncPeriod, ok := os.LookupEnv(DDSLOForceSyncPeriodEnvVar); ok {
+		forceSyncPeriodInt, err := strconv.Atoi(userForceSyncPeriod)
+		if err != nil {
+			logger.Error(err, "Invalid value for SLO force sync period. Defaulting to 60 minutes.")
+		} else {
+			logger.V(1).Info("Setting SLO force sync period", "minutes", forceSyncPeriodInt)
+			forceSyncPeriod = time.Duration(forceSyncPeriodInt) * time.Minute
+		}
+	}
 
 	// Get instance
 	instance := &v1alpha1.DatadogSLO{}
@@ -138,7 +152,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	} else {
 		if instanceSpecHash != statusSpecHash {
 			shouldUpdate = true
-		} else if instance.Status.LastForceSyncTime == nil || (defaultForceSyncPeriod-now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0 {
+		} else if instance.Status.LastForceSyncTime == nil || (forceSyncPeriod-now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0 {
 			// Periodically force a sync with the API SLO to ensure parity
 			// Get SLO to make sure it exists before trying any updates. If it doesn't, set shouldCreate
 			_, err = r.get(instance)

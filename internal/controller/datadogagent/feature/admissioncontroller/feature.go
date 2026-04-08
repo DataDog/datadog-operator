@@ -13,6 +13,7 @@ import (
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -52,6 +53,8 @@ type admissionControllerFeature struct {
 	cwsInstrumentationMode    string
 
 	kubernetesAdmissionEvents *KubernetesAdmissionEventConfig
+
+	probeConfig *ProbeConfig
 }
 
 type ValidationConfig struct {
@@ -71,10 +74,18 @@ type AgentSidecarInjectionConfig struct {
 	imageTag                         string
 	selectors                        []*v2alpha1.Selector
 	profiles                         []*v2alpha1.Profile
+	tlsVerificationEnabled           *bool
+	tlsVerificationCopyCaConfigMap   *bool
 }
 
 type KubernetesAdmissionEventConfig struct {
 	enabled bool
+}
+
+type ProbeConfig struct {
+	enabled     bool
+	interval    int32
+	gracePeriod int32
 }
 
 func buildAdmissionControllerFeature(options *feature.Options) feature.Feature {
@@ -137,7 +148,7 @@ func (f *admissionControllerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 		f.localServiceName = constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec)
 		reqComp = feature.RequiredComponents{
 			ClusterAgent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: ptr.To(true),
 				Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
 			},
 		}
@@ -157,6 +168,23 @@ func (f *admissionControllerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 
 		if ac.KubernetesAdmissionEvents != nil && apiutils.BoolValue(ac.KubernetesAdmissionEvents.Enabled) {
 			f.kubernetesAdmissionEvents = &KubernetesAdmissionEventConfig{enabled: true}
+		}
+
+		f.probeConfig = &ProbeConfig{
+			enabled:     defaultProbeEnabled,
+			interval:    defaultProbeInterval,
+			gracePeriod: defaultProbeGracePeriod,
+		}
+		if ac.Probe != nil {
+			if ac.Probe.Enabled != nil {
+				f.probeConfig.enabled = apiutils.BoolValue(ac.Probe.Enabled)
+			}
+			if ac.Probe.Interval != nil {
+				f.probeConfig.interval = *ac.Probe.Interval
+			}
+			if ac.Probe.GracePeriod != nil {
+				f.probeConfig.gracePeriod = *ac.Probe.GracePeriod
+			}
 		}
 
 		_, f.networkPolicy = constants.IsNetworkPolicyEnabled(ddaSpec)
@@ -239,6 +267,16 @@ func (f *admissionControllerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 					f.agentSidecarConfig.profiles = append(f.agentSidecarConfig.profiles, newProfile)
 				}
 			}
+
+			// Configure TLS verification settings
+			if sidecarConfig.ClusterAgentTLSVerification != nil {
+				if sidecarConfig.ClusterAgentTLSVerification.Enabled != nil {
+					f.agentSidecarConfig.tlsVerificationEnabled = sidecarConfig.ClusterAgentTLSVerification.Enabled
+				}
+				if sidecarConfig.ClusterAgentTLSVerification.CopyCaConfigMap != nil {
+					f.agentSidecarConfig.tlsVerificationCopyCaConfigMap = sidecarConfig.ClusterAgentTLSVerification.CopyCaConfigMap
+				}
+			}
 		}
 
 	}
@@ -267,7 +305,7 @@ func (f *admissionControllerFeature) ManageDependencies(managers feature.Resourc
 	}
 
 	// rbac
-	if err := managers.RBACManager().AddClusterPolicyRules(ns, rbacName, f.serviceAccountName, getRBACClusterPolicyRules(f.webhookName, f.cwsInstrumentationEnabled, f.cwsInstrumentationMode)); err != nil {
+	if err := managers.RBACManager().AddClusterPolicyRules(ns, rbacName, f.serviceAccountName, f.getRBACClusterPolicyRules()); err != nil {
 		return err
 	}
 	if err := managers.RBACManager().AddPolicyRules(ns, rbacName, f.serviceAccountName, getRBACPolicyRules()); err != nil {
@@ -386,6 +424,23 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 		})
 	}
 
+	if f.probeConfig != nil {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDAdmissionControllerProbeEnabled,
+			Value: apiutils.BoolToString(&f.probeConfig.enabled),
+		})
+		if f.probeConfig.enabled {
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  DDAdmissionControllerProbeInterval,
+				Value: strconv.Itoa(int(f.probeConfig.interval)),
+			})
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  DDAdmissionControllerProbeGracePeriod,
+				Value: strconv.Itoa(int(f.probeConfig.gracePeriod)),
+			})
+		}
+	}
+
 	if f.agentCommunicationMode != "" {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  DDAdmissionControllerInjectConfigMode,
@@ -468,6 +523,19 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 			})
 		}
 
+		if f.agentSidecarConfig.tlsVerificationEnabled != nil {
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  DDAdmissionControllerAgentSidecarClusterAgentTLSVerificationEnabled,
+				Value: apiutils.BoolToString(f.agentSidecarConfig.tlsVerificationEnabled),
+			})
+		}
+
+		if f.agentSidecarConfig.tlsVerificationCopyCaConfigMap != nil {
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  DDAdmissionControllerAgentSidecarClusterAgentTLSVerificationCopyCaConfigMap,
+				Value: apiutils.BoolToString(f.agentSidecarConfig.tlsVerificationCopyCaConfigMap),
+			})
+		}
 	}
 
 	return nil
