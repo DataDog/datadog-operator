@@ -47,8 +47,6 @@ spec:
       enabled: true
     serviceDiscovery:
       enabled: true
-      networkStats:
-        enabled: true
     gpu:
       enabled: true
     eventCollection:

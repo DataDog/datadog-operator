@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -56,7 +58,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			DDA: testutils.NewDefaultDatadogAgentBuilder().
 				WithDogstatsdHostPortEnabled(true).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					HostNetwork: apiutils.NewBoolPointer(true),
+					HostNetwork: ptr.To(true),
 				}).
 				BuildWithDefaults(),
 			WantConfigure: true,
@@ -94,7 +96,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				WithDogstatsdHostPortEnabled(true).
 				WithDogstatsdHostPortConfig(1234).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					HostNetwork: apiutils.NewBoolPointer(true),
+					HostNetwork: ptr.To(true),
 				}).
 				BuildWithDefaults(),
 			WantConfigure: true,
@@ -241,6 +243,29 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			),
 		},
 		{
+			Name:          "uds enabled sets host socket path on cluster agent",
+			DDA:           testutils.NewDefaultDatadogAgentBuilder().BuildWithDefaults(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					clusterAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+					expectedEnvVars := []*corev1.EnvVar{
+						{
+							Name:  DDDogstatsdHostSocketPath,
+							Value: common.DogstatsdAPMSocketHostPath,
+						},
+						{
+							Name:  DDDogstatsdSocket,
+							Value: common.DogstatsdAPMSocketHostPath + "/" + common.DogstatsdSocketName,
+						},
+					}
+					assert.True(t, apiutils.IsEqualStruct(clusterAgentEnvVars, expectedEnvVars),
+						"Cluster Agent envvars \ndiff = %s", cmp.Diff(clusterAgentEnvVars, expectedEnvVars))
+				},
+			),
+		},
+		{
 			Name: "uds disabled",
 			DDA: testutils.NewDefaultDatadogAgentBuilder().
 				WithDogstatsdUnixDomainSocketConfigEnabled(false).BuildWithDefaults(),
@@ -248,6 +273,13 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					assertWants(t, mgrInterface, "11", []*corev1.VolumeMount(nil), []*corev1.Volume{}, []*corev1.EnvVar{getNonLocalTrafficEnvVar()}, nil, getWantContainerPorts())
+				},
+			),
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					clusterAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+					assert.Empty(t, clusterAgentEnvVars, "Cluster Agent should have no env vars when UDS is disabled")
 				},
 			),
 		},
@@ -279,6 +311,24 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					customEnvVars := append([]*corev1.EnvVar{}, getCustomEnvVar()...)
 
 					assertWants(t, mgrInterface, "12", customVolumeMounts, customVolumes, []*corev1.EnvVar{getNonLocalTrafficEnvVar()}, customEnvVars, getWantContainerPorts())
+				},
+			),
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					clusterAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+					expectedEnvVars := []*corev1.EnvVar{
+						{
+							Name:  DDDogstatsdHostSocketPath,
+							Value: customVolumePath,
+						},
+						{
+							Name:  DDDogstatsdSocket,
+							Value: customPath,
+						},
+					}
+					assert.True(t, apiutils.IsEqualStruct(clusterAgentEnvVars, expectedEnvVars),
+						"Cluster Agent envvars \ndiff = %s", cmp.Diff(clusterAgentEnvVars, expectedEnvVars))
 				},
 			),
 		},
