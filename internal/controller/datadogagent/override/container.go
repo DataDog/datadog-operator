@@ -44,9 +44,6 @@ func Container(containerName apicommon.AgentContainerName, manager feature.PodTe
 	addEnvsToInitContainer(containerName, manager, override.Env)
 	addVolMountsToInitContainer(containerName, manager, override.VolumeMounts)
 
-	overrideSeccompProfile(containerName, manager, override)
-	overrideAppArmorProfile(containerName, manager, override)
-
 	for i, container := range manager.PodTemplateSpec().Spec.Containers {
 		if container.Name == string(containerName) {
 			overrideContainer(&manager.PodTemplateSpec().Spec.Containers[i], override)
@@ -58,6 +55,9 @@ func Container(containerName apicommon.AgentContainerName, manager feature.PodTe
 			overrideInitContainer(&manager.PodTemplateSpec().Spec.InitContainers[i], override)
 		}
 	}
+
+	overrideSeccompProfile(containerName, manager, override)
+	overrideAppArmorProfile(containerName, manager, override)
 }
 
 func overrideLogLevel(containerName apicommon.AgentContainerName, manager feature.PodTemplateManagers, logLevel string) {
@@ -234,13 +234,27 @@ func overrideSeccompProfile(containerName apicommon.AgentContainerName, manager 
 
 func overrideAppArmorProfile(containerName apicommon.AgentContainerName, manager feature.PodTemplateManagers, override *v2alpha1.DatadogAgentGenericContainer) {
 	if override.AppArmorProfileName != nil {
-		var annotation string
+		effectiveName := string(containerName)
 		if override.Name != nil {
-			annotation = fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, *override.Name)
-		} else {
-			annotation = fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, containerName)
+			effectiveName = *override.Name
 		}
 
+		// Only add the AppArmor annotation if the container actually exists in the pod spec.
+		// This avoids invalid DaemonSet configurations when a container is not present
+		// (e.g. security-agent is absent when directSendFromSystemProbe is enabled).
+		containerExists := false
+		allContainers := append(manager.PodTemplateSpec().Spec.Containers, manager.PodTemplateSpec().Spec.InitContainers...)
+		for _, c := range allContainers {
+			if c.Name == effectiveName {
+				containerExists = true
+				break
+			}
+		}
+		if !containerExists {
+			return
+		}
+
+		annotation := fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, effectiveName)
 		manager.Annotation().AddAnnotation(annotation, *override.AppArmorProfileName)
 	}
 }

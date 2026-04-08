@@ -56,6 +56,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOQuery":                                                schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOQuery(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOSpec":                                                 schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOStatus":                                               schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOStatus(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOTimeSlice":                                            schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOTimeSlice(ref),
 	}
 }
 
@@ -2328,6 +2329,12 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOSpec(ref common.Re
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOQuery"),
 						},
 					},
+					"timeSlice": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TimeSlice defines the SLI specification for a time_slice SLO. Required if type is time_slice. It specifies a metric query and a comparator/threshold that determines what counts as good uptime.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOTimeSlice"),
+						},
+					},
 					"type": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Type is the type of the service level objective.",
@@ -2367,7 +2374,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOSpec(ref common.Re
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOControllerOptions", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOQuery", "k8s.io/apimachinery/pkg/api/resource.Quantity"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOControllerOptions", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOQuery", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOTimeSlice", "k8s.io/apimachinery/pkg/api/resource.Quantity"},
 	}
 }
 
@@ -2445,5 +2452,43 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOStatus(ref common.
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOTimeSlice(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogSLOTimeSlice defines the SLI specification for a time_slice SLO. It specifies a metric query and a comparator/threshold that determines what counts as good uptime. The operator automatically wraps the query into the formula and named query structure required by the Datadog API.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"query": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Query is a Datadog metric query string that produces the SLI value.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"comparator": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Comparator is the comparison operator used to compare the SLI value to the threshold.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"threshold": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Threshold is the value against which the SLI is compared using the comparator to determine if a time slice is good or bad.",
+							Ref:         ref("k8s.io/apimachinery/pkg/api/resource.Quantity"),
+						},
+					},
+				},
+				Required: []string{"query", "comparator", "threshold"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/api/resource.Quantity"},
 	}
 }

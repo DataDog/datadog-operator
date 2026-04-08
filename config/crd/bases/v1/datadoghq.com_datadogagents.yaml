@@ -29,6 +29,10 @@ spec:
         - jsonPath: .metadata.creationTimestamp
           name: age
           type: date
+        - jsonPath: .status.experiment.phase
+          name: experiment-phase
+          priority: 1
+          type: string
       name: v2alpha1
       schema:
         openAPIV3Schema:
@@ -73,6 +77,21 @@ spec:
                                 ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.
                                 Default : true
                               type: boolean
+                            clusterAgentTlsVerification:
+                              description: ClusterAgentTLSVerification configures TLS verification for Agent sidecar to Cluster Agent communication.
+                              properties:
+                                copyCaConfigMap:
+                                  description: |-
+                                    CopyCaConfigMap enables automatic creation of a ConfigMap containing the Cluster Agent's CA certificate
+                                    in namespaces where sidecar injection occurs.
+                                    Default: false
+                                  type: boolean
+                                enabled:
+                                  description: |-
+                                    Enabled enables TLS verification for agent sidecars communicating with the Cluster Agent.
+                                    Default: false
+                                  type: boolean
+                              type: object
                             enabled:
                               description: |-
                                 Enabled enables Sidecar injections.
@@ -8470,6 +8489,32 @@ spec:
                   x-kubernetes-list-map-keys:
                     - type
                   x-kubernetes-list-type: map
+                experiment:
+                  description: Experiment tracks the state of an active or recent Fleet Automation experiment.
+                  properties:
+                    generation:
+                      description: |-
+                        Generation is the DDA metadata.generation recorded when the experiment started.
+                        Used to detect manual spec changes while the experiment is running: if the
+                        current DDA generation differs from this value, the operator aborts the experiment.
+
+                        This value must be recorded after the DDA is patched for a startExperiment signal.
+                      format: int64
+                      type: integer
+                    id:
+                      description: ID is the unique experiment ID sent by Fleet Automation.
+                      type: string
+                    phase:
+                      description: Phase is the current state of the experiment.
+                      enum:
+                        - running
+                        - stopped
+                        - rollback
+                        - timeout
+                        - promoted
+                        - aborted
+                      type: string
+                  type: object
                 otelAgentGateway:
                   description: The actual state of the OTel Agent Gateway as a deployment.
                   properties:
@@ -8540,6 +8585,21 @@ spec:
                                     ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.
                                     Default : true
                                   type: boolean
+                                clusterAgentTlsVerification:
+                                  description: ClusterAgentTLSVerification configures TLS verification for Agent sidecar to Cluster Agent communication.
+                                  properties:
+                                    copyCaConfigMap:
+                                      description: |-
+                                        CopyCaConfigMap enables automatic creation of a ConfigMap containing the Cluster Agent's CA certificate
+                                        in namespaces where sidecar injection occurs.
+                                        Default: false
+                                      type: boolean
+                                    enabled:
+                                      description: |-
+                                        Enabled enables TLS verification for agent sidecars communicating with the Cluster Agent.
+                                        Default: false
+                                      type: boolean
+                                  type: object
                                 enabled:
                                   description: |-
                                     Enabled enables Sidecar injections.
