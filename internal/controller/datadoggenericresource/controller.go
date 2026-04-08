@@ -21,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
 	"github.com/DataDog/datadog-operator/internal/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
@@ -105,7 +106,8 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		return ctrl.Result{}, err
 	}
 
-	if result, err = r.handleFinalizer(logger, instance); ctrutils.ShouldReturn(result, err) {
+	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger), defaultRequeuePeriod, defaultErrRequeuePeriod)
+	if result, err = final.HandleFinalizer(ctx, instance, instance.Status.Id, datadogGenericResourceFinalizer); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}
 

@@ -18,7 +18,9 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
 	"github.com/DataDog/datadog-operator/pkg/condition"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
@@ -34,7 +36,8 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *v1alpha1
 	// }
 
 	// 2. Handle finalizer logic.
-	if result, err := r.handleFinalizer(ctx, instance, r.finalizeDDAI); utils.ShouldReturn(result, err) {
+	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(), 0, 0)
+	if result, err := final.HandleFinalizer(ctx, instance, "", constants.DatadogAgentInternalFinalizer); utils.ShouldReturn(result, err) {
 		return result, err
 	}
 

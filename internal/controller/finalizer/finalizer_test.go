@@ -74,7 +74,7 @@ func Test_HandleFinalizer(t *testing.T) {
 				},
 			},
 			finalizerShouldExists: false,
-			expectedResult:        ctrl.Result{},
+			expectedResult:        ctrl.Result{Requeue: true},
 			deleterFunc: func(ctx context.Context, k8sObj client.Object, datadogID string) error {
 				return nil
 			},

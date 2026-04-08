@@ -74,6 +74,8 @@ func (f *Finalizer) HandleFinalizer(ctx context.Context, clientObj client.Object
 				return ctrl.Result{Requeue: true, RequeueAfter: f.defaultErrRequeuePeriod}, err
 			}
 		}
+		// Requeue until the object is properly deleted by Kubernetes
+		return ctrl.Result{Requeue: true}, nil
 	}
 	return ctrl.Result{}, nil
 }

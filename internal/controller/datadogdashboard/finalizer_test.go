@@ -18,6 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
 )
 
 var (
@@ -58,7 +59,8 @@ func Test_handleFinalizer(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			reqLogger := testLogger.WithValues("test:", test.name)
 			_ = r.client.Create(context.TODO(), test.db)
-			_, err := r.handleFinalizer(reqLogger, test.db)
+			final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger), defaultRequeuePeriod, defaultErrRequeuePeriod)
+			_, err := final.HandleFinalizer(context.TODO(), test.db, test.db.Status.ID, datadogDashboardFinalizer)
 			assert.NoError(t, err)
 			if test.finalizerShouldExist {
 				assert.True(t, controllerutil.ContainsFinalizer(test.db, datadogDashboardFinalizer))

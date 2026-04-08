@@ -127,7 +127,7 @@ func Test_handleFinalizer(t *testing.T) {
 
 	reconciler := reconcilerForFinalizerTest(initialKubeObjects)
 
-	_, err := reconciler.handleFinalizer(context.Background(), ddai, reconciler.finalizeDDAI)
+	err := reconciler.finalizeDDAI(context.Background(), ddai)
 	assert.NoError(t, err)
 
 	// Check that the cluster roles associated with the Datadog Agent have been deleted
