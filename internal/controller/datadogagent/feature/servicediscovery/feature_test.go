@@ -23,6 +23,13 @@ import (
 )
 
 func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
+	ddaServiceDiscoveryUnset := v2alpha1.DatadogAgent{
+		Spec: v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
+			},
+		},
+	}
 	ddaServiceDiscoveryDisabled := v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
@@ -61,17 +68,12 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 		},
 	}
 
-	ddaEnabledByDefault := v2alpha1.DatadogAgent{
-		Spec: v2alpha1.DatadogAgentSpec{
-			Features: &v2alpha1.DatadogFeatures{
-				ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-					EnabledByDefault: apiutils.NewBoolPointer(true),
-				},
-			},
-		},
-	}
-
 	tests := test.FeatureTestSuite{
+		{
+			Name:          "service discovery not enabled when unset",
+			DDA:           &ddaServiceDiscoveryUnset,
+			WantConfigure: false,
+		},
 		{
 			Name:          "service discovery not enabled",
 			DDA:           ddaServiceDiscoveryDisabled.DeepCopy(),
@@ -83,7 +85,7 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().
 				WithCreateFunc(createFuncWithSystemProbeContainer()).
-				WithWantFunc(getWantFunc(true, true)),
+				WithWantFunc(getWantFunc(true)),
 		},
 		{
 			Name:          "system-probe-lite not used when NPM also enabled",
@@ -91,7 +93,7 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().
 				WithCreateFunc(createFuncWithSystemProbeContainer()).
-				WithWantFunc(getWantFunc(false, true)),
+				WithWantFunc(getWantFunc(false)),
 		},
 		{
 			Name:          "system-probe-lite not used when CWS also enabled",
@@ -99,15 +101,7 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().
 				WithCreateFunc(createFuncWithSystemProbeContainer()).
-				WithWantFunc(getWantFunc(false, true)),
-		},
-		{
-			Name:          "system-probe-lite enabled by default - no system-probe fallback",
-			DDA:           &ddaEnabledByDefault,
-			WantConfigure: true,
-			Agent: test.NewDefaultComponentTest().
-				WithCreateFunc(createFuncWithSystemProbeContainer()).
-				WithWantFunc(getWantFunc(true, false)),
+				WithWantFunc(getWantFunc(false)),
 		},
 	}
 
@@ -237,7 +231,7 @@ func createFuncWithSystemProbeContainer() func(testing.TB) (feature.PodTemplateM
 	}
 }
 
-func getWantFunc(useSPL bool, userOptedIn bool) func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+func getWantFunc(useSPL bool) func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 
@@ -346,7 +340,7 @@ func getWantFunc(useSPL bool, userOptedIn bool) func(t testing.TB, mgrInterface 
 			if c.Name == string(apicommon.SystemProbeContainerName) {
 				if useSPL {
 					assert.Equal(t, []string{"/bin/sh", "-c"}, c.Command, "System Probe command should be overridden for system-probe-lite")
-					assert.Equal(t, []string{systemProbeLiteCommand(common.DefaultSystemProbeSocketPath, userOptedIn)}, c.Args, "System Probe args mismatch")
+					assert.Equal(t, []string{systemProbeLiteCommand(common.DefaultSystemProbeSocketPath)}, c.Args, "System Probe args mismatch")
 				} else {
 					assert.Empty(t, c.Command, "System Probe command should not be overridden")
 					assert.Empty(t, c.Args, "System Probe args should not be overridden")
