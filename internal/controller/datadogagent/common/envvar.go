@@ -6,7 +6,6 @@
 package common
 
 const (
-	DDAPMEnabled                          = "DD_APM_ENABLED"
 	DDAPMInstrumentationInstallTime       = "DD_INSTRUMENTATION_INSTALL_TIME"
 	DDAPMInstrumentationInstallId         = "DD_INSTRUMENTATION_INSTALL_ID"
 	DDAPMInstrumentationInstallType       = "DD_INSTRUMENTATION_INSTALL_TYPE"
