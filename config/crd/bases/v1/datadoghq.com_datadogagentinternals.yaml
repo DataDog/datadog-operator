@@ -73,6 +73,21 @@ spec:
                                 ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.
                                 Default : true
                               type: boolean
+                            clusterAgentTlsVerification:
+                              description: ClusterAgentTLSVerification configures TLS verification for Agent sidecar to Cluster Agent communication.
+                              properties:
+                                copyCaConfigMap:
+                                  description: |-
+                                    CopyCaConfigMap enables automatic creation of a ConfigMap containing the Cluster Agent's CA certificate
+                                    in namespaces where sidecar injection occurs.
+                                    Default: false
+                                  type: boolean
+                                enabled:
+                                  description: |-
+                                    Enabled enables TLS verification for agent sidecars communicating with the Cluster Agent.
+                                    Default: false
+                                  type: boolean
+                              type: object
                             enabled:
                               description: |-
                                 Enabled enables Sidecar injections.
@@ -2489,14 +2504,10 @@ spec:
                             Default: false
                           type: boolean
                         networkStats:
-                          description: |-
-                            Enables the service discovery network stats collection.
-                            Default: true
+                          description: 'DEPRECATED: NetworkStats is no longer configurable and will be ignored. Scheduled for removal in v1.28.'
                           properties:
                             enabled:
-                              description: |-
-                                Enables the Service Discovery Network Stats feature.
-                                Default: true
+                              description: 'DEPRECATED: this field is ignored.'
                               type: boolean
                           type: object
                       type: object
@@ -3397,6 +3408,11 @@ spec:
                     useFIPSAgent:
                       description: |-
                         UseFIPSAgent enables the FIPS flavor of the Agent. If 'true', the FIPS proxy will always be disabled.
+                        Default: 'false'
+                      type: boolean
+                    useVSock:
+                      description: |-
+                        UseVSock allows the use of VSock communication between the Agent and containerized workloads.
                         Default: 'false'
                       type: boolean
                   type: object
@@ -8489,6 +8505,21 @@ spec:
                                     ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.
                                     Default : true
                                   type: boolean
+                                clusterAgentTlsVerification:
+                                  description: ClusterAgentTLSVerification configures TLS verification for Agent sidecar to Cluster Agent communication.
+                                  properties:
+                                    copyCaConfigMap:
+                                      description: |-
+                                        CopyCaConfigMap enables automatic creation of a ConfigMap containing the Cluster Agent's CA certificate
+                                        in namespaces where sidecar injection occurs.
+                                        Default: false
+                                      type: boolean
+                                    enabled:
+                                      description: |-
+                                        Enabled enables TLS verification for agent sidecars communicating with the Cluster Agent.
+                                        Default: false
+                                      type: boolean
+                                  type: object
                                 enabled:
                                   description: |-
                                     Enabled enables Sidecar injections.
@@ -10905,14 +10936,10 @@ spec:
                                 Default: false
                               type: boolean
                             networkStats:
-                              description: |-
-                                Enables the service discovery network stats collection.
-                                Default: true
+                              description: 'DEPRECATED: NetworkStats is no longer configurable and will be ignored. Scheduled for removal in v1.28.'
                               properties:
                                 enabled:
-                                  description: |-
-                                    Enables the Service Discovery Network Stats feature.
-                                    Default: true
+                                  description: 'DEPRECATED: this field is ignored.'
                                   type: boolean
                               type: object
                           type: object

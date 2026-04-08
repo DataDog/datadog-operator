@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
@@ -128,6 +130,65 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(kubeletCAVolumes, criSocketVolume),
 			wantVolumeMounts:          getExpectedVolumeMounts(kubeletCAVolumes, criSocketVolume),
 			wantVolumes:               getExpectedVolumes(kubeletCAVolumes, criSocketVolume),
+			want:                      assertAll,
+		},
+		{
+			name:                           "VSock enabled",
+			singleContainerStrategyEnabled: false,
+			dda: func() *v2alpha1.DatadogAgent {
+				dda := testutils.NewDatadogAgentBuilder().
+					WithCredentials("apiKey", "appKey").
+					BuildWithDefaults()
+				dda.Spec.Global.UseVSock = ptr.To(true)
+				return dda
+			}(),
+			wantCoreAgentEnvVars: nil,
+			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
+				{
+					Name: constants.DDAPIKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-secret",
+							},
+							Key: v2alpha1.DefaultAPIKeyKey,
+						},
+					},
+				},
+				{
+					Name: constants.DDAppKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-secret",
+							},
+							Key: v2alpha1.DefaultAPPKeyKey,
+						},
+					},
+				},
+				{
+					Name: DDClusterAgentAuthToken,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-token",
+							},
+							Key: common.DefaultTokenKey,
+						},
+					},
+				},
+				{
+					Name:  DDVSockAddr,
+					Value: "host",
+				},
+				{
+					Name:  DDRemoteAgentRegistryEnabled,
+					Value: "false",
+				},
+			}...),
+			wantCoreAgentVolumeMounts: nil,
+			wantVolumeMounts:          nil,
+			wantVolumes:               getExpectedVolumes(authVolume),
 			want:                      assertAll,
 		},
 		{
@@ -890,7 +951,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			podTemplateManager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
 			store := store.NewStore(tt.dda, storeOptions)
 			resourcesManager := feature.NewResourceManagers(store)
-			reqComp := feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)}
+			reqComp := feature.RequiredComponent{IsRequired: ptr.To(true)}
 			requiredComponents := feature.RequiredComponents{
 				ClusterAgent: reqComp,
 				Agent:        reqComp,
@@ -961,6 +1022,7 @@ type volumeConfig string
 
 const kubeletCAVolumes volumeConfig = "kubeletCA"
 const criSocketVolume volumeConfig = "criSocket"
+const authVolume volumeConfig = "auth"
 
 func getExpectedVolumes(configs ...volumeConfig) []*corev1.Volume {
 	volumes := []*corev1.Volume{}
@@ -983,6 +1045,19 @@ func getExpectedVolumes(configs ...volumeConfig) []*corev1.Volume {
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: dockerSocketPath,
+				},
+			},
+		})
+	}
+
+	if slices.Contains(configs, authVolume) {
+		volType := corev1.HostPathDirectoryOrCreate
+		volumes = append(volumes, &corev1.Volume{
+			Name: common.AuthVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: common.AuthVolumePath,
+					Type: &volType,
 				},
 			},
 		})
@@ -1223,7 +1298,7 @@ func Test_UseFIPSAgent(t *testing.T) {
 		},
 	})
 
-	reqComp := feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)}
+	reqComp := feature.RequiredComponent{IsRequired: ptr.To(true)}
 	requiredComponents := feature.RequiredComponents{
 		ClusterAgent: reqComp,
 		Agent:        reqComp,
@@ -1244,5 +1319,77 @@ func checkFIPSImages(t testing.TB, mgr *fake.PodTemplateManagers) {
 	}
 	for _, container := range mgr.PodTemplateSpec().Spec.InitContainers {
 		assert.True(t, strings.HasSuffix(container.Image, "-fips"), "Container %s has image %s", container.Name, container.Image)
+	}
+}
+
+func Test_ValidateFIPSVersions(t *testing.T) {
+	tests := []struct {
+		name           string
+		containers     []corev1.Container
+		initContainers []corev1.Container
+		wantErrors     int
+	}{
+		{
+			name: "no error: regular agent with fips, old version",
+			containers: []corev1.Container{
+				{Image: "gcr.io/datadoghq/agent:7.77.0-fips"},
+			},
+			wantErrors: 0,
+		},
+		{
+			name: "no error: ddot-collector with fips, sufficient version",
+			containers: []corev1.Container{
+				{Image: "gcr.io/datadoghq/ddot-collector:7.78.0-fips"},
+			},
+			wantErrors: 0,
+		},
+		{
+			name: "error: ddot-collector with fips, version below 7.78",
+			containers: []corev1.Container{
+				{Image: "gcr.io/datadoghq/ddot-collector:7.77.0-fips"},
+			},
+			wantErrors: 1,
+		},
+		{
+			name: "error: agent-full with fips, version below 7.78",
+			containers: []corev1.Container{
+				{Image: "gcr.io/datadoghq/agent:7.77.0-fips-full"},
+			},
+			wantErrors: 1,
+		},
+		{
+			name: "two errors: ddot-collector and agent-full both below 7.78",
+			containers: []corev1.Container{
+				{Image: "gcr.io/datadoghq/agent:7.77.0-fips-full"},
+				{Image: "gcr.io/datadoghq/ddot-collector:7.77.0-fips"},
+			},
+			wantErrors: 2,
+		},
+		{
+			name: "no error: regular agent init container with fips",
+			initContainers: []corev1.Container{
+				{Image: "gcr.io/datadoghq/agent:7.77.0-fips"},
+			},
+			wantErrors: 0,
+		},
+		{
+			name: "error: ddot-collector init container with fips below 7.78",
+			initContainers: []corev1.Container{
+				{Image: "gcr.io/datadoghq/ddot-collector:7.77.0-fips"},
+			},
+			wantErrors: 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mgr := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers:     tt.containers,
+					InitContainers: tt.initContainers,
+				},
+			})
+			errs := ValidateFIPSVersions(mgr)
+			assert.Len(t, errs, tt.wantErrors)
+		})
 	}
 }

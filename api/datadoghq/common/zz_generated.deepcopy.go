@@ -614,6 +614,11 @@ func (in *DatadogPodAutoscalerVerticalTargetStatus) DeepCopyInto(out *DatadogPod
 		*out = new(int32)
 		**out = **in
 	}
+	if in.Evicted != nil {
+		in, out := &in.Evicted, &out.Evicted
+		*out = new(int32)
+		**out = **in
+	}
 	if in.DesiredResources != nil {
 		in, out := &in.DesiredResources, &out.DesiredResources
 		*out = make([]DatadogPodAutoscalerContainerResources, len(*in))
