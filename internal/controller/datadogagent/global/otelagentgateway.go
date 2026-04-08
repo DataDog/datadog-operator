@@ -35,6 +35,11 @@ func applyOtelAgentGatewayResources(manager feature.PodTemplateManagers, ddaSpec
 		Value: "true",
 	})
 
+	manager.EnvVar().AddEnvVarToContainer(apicommon.OtelAgent, &corev1.EnvVar{
+		Name:  "DD_OTELCOLLECTOR_INSTALLATION_METHOD",
+		Value: "kubernetes",
+	})
+
 	// Enable gateway mode
 	manager.EnvVar().AddEnvVarToContainer(apicommon.OtelAgent, &corev1.EnvVar{
 		Name:  "DD_OTELCOLLECTOR_GATEWAY_MODE",
