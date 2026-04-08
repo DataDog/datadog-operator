@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -1053,7 +1054,7 @@ func TestReconciler_UpdateDatadogClient(t *testing.T) {
 				APIKey: "initial-api-key",
 				AppKey: "initial-app-key",
 			}
-			r, err := NewReconciler(client, initialCreds, scheme, testLogger, recorder, false, metricForwardersMgr)
+			r, err := NewReconciler(client, initialCreds, scheme, testLogger, recorder, false, false, metricForwardersMgr)
 			assert.NoError(t, err)
 
 			// Store original client and auth references
@@ -1087,4 +1088,60 @@ func TestReconciler_UpdateDatadogClient(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReconcileDatadogMonitor_ValidateOnlyMode(t *testing.T) {
+	eventBroadcaster := record.NewBroadcaster()
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogMonitor_ValidateOnlyMode"})
+
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
+
+	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if strings.Contains(r.URL.Path, "/validate") {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{}`))
+			return
+		}
+
+		// Any create/update request means validate-only mode was not respected.
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"errors":["unexpected create/update call in validate-only mode"]}`))
+	}))
+	defer httpServer.Close()
+
+	testConfig := datadogapi.NewConfiguration()
+	testConfig.HTTPClient = httpServer.Client()
+	apiClient := datadogapi.NewAPIClient(testConfig)
+	monitorsClient := datadogV1.NewMonitorsApi(apiClient)
+	testAuth := setupTestAuth(httpServer.URL)
+
+	r := &Reconciler{
+		client:        fake.NewClientBuilder().WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).Build(),
+		datadogClient: monitorsClient,
+		datadogAuth:   testAuth,
+		scheme:        s,
+		recorder:      recorder,
+		log:           logf.Log.WithName("validate-only-mode"),
+		validateOnly:  true,
+	}
+
+	dm := genericDatadogMonitor(r.client)
+
+	// First reconcile adds finalizer and requeues.
+	_, err := r.Reconcile(context.TODO(), dm)
+	assert.NoError(t, err)
+
+	// Second reconcile validates and must not create/update monitor.
+	_, err = r.Reconcile(context.TODO(), dm)
+	assert.NoError(t, err)
+
+	refreshed := &datadoghqv1alpha1.DatadogMonitor{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, refreshed)
+	assert.NoError(t, err)
+
+	assert.Equal(t, 0, refreshed.Status.ID, "validate-only mode must not create monitor IDs")
+	assert.Equal(t, datadoghqv1alpha1.MonitorStateSyncStatusOK, refreshed.Status.MonitorStateSyncStatus)
 }

@@ -72,11 +72,12 @@ type Reconciler struct {
 	scheme                 *runtime.Scheme
 	recorder               record.EventRecorder
 	operatorMetricsEnabled bool
+	validateOnly           bool
 	forwarders             pkgutils.MetricsForwardersManager
 }
 
 // NewReconciler returns a new Reconciler object
-func NewReconciler(client client.Client, creds config.Creds, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, operatorMetricsEnabled bool, metricForwardersMgr pkgutils.MetricsForwardersManager) (*Reconciler, error) {
+func NewReconciler(client client.Client, creds config.Creds, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, operatorMetricsEnabled bool, validateOnly bool, metricForwardersMgr pkgutils.MetricsForwardersManager) (*Reconciler, error) {
 	ddClient, err := datadogclient.InitDatadogMonitorClient(log, creds)
 	if err != nil {
 		return &Reconciler{}, err
@@ -90,6 +91,7 @@ func NewReconciler(client client.Client, creds config.Creds, scheme *runtime.Sch
 		log:                    log,
 		recorder:               recorder,
 		operatorMetricsEnabled: operatorMetricsEnabled,
+		validateOnly:           validateOnly,
 		forwarders:             metricForwardersMgr,
 	}, nil
 }
@@ -200,30 +202,44 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	// Create and update actions
 	if shouldCreate {
 		if isSupportedMonitorType(instance.Spec.Type) {
-			logger.V(1).Info("Creating monitor in Datadog")
-			// Make sure required tags are present
-			if !apiutils.BoolValue(instance.Spec.ControllerOptions.DisableRequiredTags) {
-				if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
-					return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
+			if r.validateOnly {
+				logger.V(1).Info("Validate-only mode enabled. Validating monitor without creating it in Datadog.")
+				if err = validateMonitor(r.datadogAuth, logger, r.datadogClient, instance); err == nil {
+					newStatus.MonitorStateSyncStatus = datadoghqv1alpha1.MonitorStateSyncStatusOK
 				}
-			}
-			if err = r.create(logger, instance, newStatus, now, instanceSpecHash); err != nil {
-				logger.Error(err, "error creating monitor")
+			} else {
+				logger.V(1).Info("Creating monitor in Datadog")
+				// Make sure required tags are present
+				if !apiutils.BoolValue(instance.Spec.ControllerOptions.DisableRequiredTags) {
+					if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
+						return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
+					}
+				}
+				if err = r.create(logger, instance, newStatus, now, instanceSpecHash); err != nil {
+					logger.Error(err, "error creating monitor")
+				}
 			}
 		} else {
 			err = fmt.Errorf("monitor type %v not supported", instance.Spec.Type)
 			logger.Error(err, "error creating monitor")
 		}
 	} else if shouldUpdate {
-		logger.V(1).Info("Updating monitor in Datadog")
-		// Make sure required tags are present
-		if !apiutils.BoolValue(instance.Spec.ControllerOptions.DisableRequiredTags) {
-			if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
-				return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
+		if r.validateOnly {
+			logger.V(1).Info("Validate-only mode enabled. Validating monitor without updating it in Datadog.")
+			if err = validateMonitor(r.datadogAuth, logger, r.datadogClient, instance); err == nil {
+				newStatus.MonitorStateSyncStatus = datadoghqv1alpha1.MonitorStateSyncStatusOK
 			}
-		}
-		if err = r.update(logger, instance, newStatus, now, instanceSpecHash); err != nil {
-			logger.Error(err, "error updating monitor", "Monitor ID", instance.Status.ID)
+		} else {
+			logger.V(1).Info("Updating monitor in Datadog")
+			// Make sure required tags are present
+			if !apiutils.BoolValue(instance.Spec.ControllerOptions.DisableRequiredTags) {
+				if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
+					return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
+				}
+			}
+			if err = r.update(logger, instance, newStatus, now, instanceSpecHash); err != nil {
+				logger.Error(err, "error updating monitor", "Monitor ID", instance.Status.ID)
+			}
 		}
 	}
 

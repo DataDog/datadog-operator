@@ -138,6 +138,7 @@ type options struct {
 	datadogAgentInternalEnabled            bool
 	createControllerRevisions              bool
 	datadogMonitorEnabled                  bool
+	datadogMonitorValidateOnly             bool
 	datadogSLOEnabled                      bool
 	operatorMetricsEnabled                 bool
 	maximumGoroutines                      int
@@ -177,6 +178,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.supportCilium, "supportCilium", false, "Support usage of Cilium network policies.")
 	flag.BoolVar(&opts.datadogAgentEnabled, "datadogAgentEnabled", true, "Enable the DatadogAgent controller")
 	flag.BoolVar(&opts.datadogMonitorEnabled, "datadogMonitorEnabled", false, "Enable the DatadogMonitor controller")
+	flag.BoolVar(&opts.datadogMonitorValidateOnly, "datadogMonitorValidateOnly", false, "Validate DatadogMonitor resources against Datadog API without creating or updating monitors")
 	flag.BoolVar(&opts.datadogSLOEnabled, "datadogSLOEnabled", false, "Enable the DatadogSLO controller")
 	flag.BoolVar(&opts.operatorMetricsEnabled, "operatorMetricsEnabled", true, "Enable sending operator metrics to Datadog")
 	flag.IntVar(&opts.maximumGoroutines, "maximumGoroutines", defaultMaximumGoroutines, "Override health check threshold for maximum number of goroutines.")
@@ -390,6 +392,7 @@ func run(opts *options) error {
 		DatadogAgentInternalEnabled:   opts.datadogAgentInternalEnabled,
 		CreateControllerRevisions:     opts.createControllerRevisions && opts.datadogAgentInternalEnabled, // Only enable if DDAI is also enabled.
 		DatadogMonitorEnabled:         opts.datadogMonitorEnabled,
+		DatadogMonitorValidateOnly:    opts.datadogMonitorValidateOnly,
 		DatadogSLOEnabled:             opts.datadogSLOEnabled,
 		OperatorMetricsEnabled:        opts.operatorMetricsEnabled,
 		V2APIEnabled:                  true,

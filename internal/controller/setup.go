@@ -50,6 +50,7 @@ type SetupOptions struct {
 	DatadogAgentEnabled           bool
 	DatadogAgentInternalEnabled   bool
 	DatadogMonitorEnabled         bool
+	DatadogMonitorValidateOnly    bool
 	DatadogSLOEnabled             bool
 	OperatorMetricsEnabled        bool
 	V2APIEnabled                  bool
@@ -190,6 +191,7 @@ func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, pInfo kubernet
 		Scheme:                 mgr.GetScheme(),
 		Recorder:               mgr.GetEventRecorderFor(monitorControllerName),
 		operatorMetricsEnabled: options.OperatorMetricsEnabled,
+		validateOnly:           options.DatadogMonitorValidateOnly,
 	}
 
 	// set CredentialManager callback - only if secret refresh is enabled
