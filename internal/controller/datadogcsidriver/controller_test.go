@@ -20,6 +20,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -48,9 +49,10 @@ func newTestReconciler(t *testing.T, objects ...client.Object) (*Reconciler, cli
 		WithStatusSubresource(&v1alpha1.DatadogCSIDriver{}).
 		Build()
 
-	logger := zap.New(zap.UseDevMode(true))
+	// Set the default controller-runtime logger so ctrl.LoggerFrom(ctx) works in tests
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 	recorder := record.NewFakeRecorder(10)
-	r := NewReconciler(c, s, logger, recorder)
+	r := NewReconciler(c, s, recorder)
 
 	return r, c
 }

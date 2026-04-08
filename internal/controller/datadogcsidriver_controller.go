@@ -8,7 +8,6 @@ package controller
 import (
 	"context"
 
-	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -29,7 +28,6 @@ import (
 // DatadogCSIDriverReconciler reconciles a DatadogCSIDriver object.
 type DatadogCSIDriverReconciler struct {
 	Client   client.Client
-	Log      logr.Logger
 	Scheme   *runtime.Scheme
 	Recorder record.EventRecorder
 	internal *datadogcsidriver.Reconciler
@@ -55,12 +53,14 @@ type DatadogCSIDriverReconciler struct {
 
 // Reconcile loop for DatadogCSIDriver.
 func (r *DatadogCSIDriverReconciler) Reconcile(ctx context.Context, instance *datadoghqv1alpha1.DatadogCSIDriver) (ctrl.Result, error) {
+	logger := ctrl.LoggerFrom(ctx).WithName("controllers").WithName("DatadogCSIDriver")
+	ctx = ctrl.LoggerInto(ctx, logger)
 	return r.internal.Reconcile(ctx, instance)
 }
 
 // SetupWithManager creates a new DatadogCSIDriver controller.
 func (r *DatadogCSIDriverReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.internal = datadogcsidriver.NewReconciler(r.Client, r.Scheme, r.Log, r.Recorder)
+	r.internal = datadogcsidriver.NewReconciler(r.Client, r.Scheme, r.Recorder)
 
 	or := reconcile.AsReconciler[*datadoghqv1alpha1.DatadogCSIDriver](r.Client, r)
 	return ctrl.NewControllerManagedBy(mgr).

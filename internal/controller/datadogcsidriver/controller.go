@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -38,27 +37,25 @@ const (
 type Reconciler struct {
 	client   client.Client
 	scheme   *runtime.Scheme
-	log      logr.Logger
 	recorder record.EventRecorder
 }
 
 // NewReconciler creates a new DatadogCSIDriver reconciler
-func NewReconciler(client client.Client, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) *Reconciler {
+func NewReconciler(client client.Client, scheme *runtime.Scheme, recorder record.EventRecorder) *Reconciler {
 	return &Reconciler{
 		client:   client,
 		scheme:   scheme,
-		log:      log,
 		recorder: recorder,
 	}
 }
 
 // Reconcile handles the reconciliation loop for DatadogCSIDriver
 func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogCSIDriver) (result ctrl.Result, retErr error) {
-	logger := r.log.WithValues("datadogcsidriver", fmt.Sprintf("%s/%s", instance.Namespace, instance.Name))
+	logger := ctrl.LoggerFrom(ctx)
 
 	// Handle deletion via finalizer
 	if !instance.DeletionTimestamp.IsZero() {
-		return r.handleDeletion(ctx, logger, instance)
+		return r.handleDeletion(ctx, instance)
 	}
 
 	// Ensure finalizer is set
@@ -104,7 +101,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogCS
 	instance.Status.Conditions = nil
 
 	// Reconcile CSIDriver object (cluster-scoped)
-	if err := r.reconcileCSIDriver(ctx, logger, instance); err != nil {
+	if err := r.reconcileCSIDriver(ctx, instance); err != nil {
 		meta.SetStatusCondition(&instance.Status.Conditions, metav1.Condition{
 			Type:               "Ready",
 			Status:             metav1.ConditionFalse,
@@ -116,7 +113,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogCS
 	}
 
 	// Reconcile DaemonSet (namespaced)
-	if err := r.reconcileDaemonSet(ctx, logger, instance); err != nil {
+	if err := r.reconcileDaemonSet(ctx, instance); err != nil {
 		meta.SetStatusCondition(&instance.Status.Conditions, metav1.Condition{
 			Type:               "Ready",
 			Status:             metav1.ConditionFalse,
@@ -138,11 +135,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogCS
 	return ctrl.Result{}, nil
 }
 
-func (r *Reconciler) handleDeletion(ctx context.Context, logger logr.Logger, instance *v1alpha1.DatadogCSIDriver) (ctrl.Result, error) {
+func (r *Reconciler) handleDeletion(ctx context.Context, instance *v1alpha1.DatadogCSIDriver) (ctrl.Result, error) {
 	if !controllerutil.ContainsFinalizer(instance, finalizerName) {
 		return ctrl.Result{}, nil
 	}
 
+	logger := ctrl.LoggerFrom(ctx)
 	logger.Info("Handling deletion, cleaning up CSIDriver object", "csidriver", csiDriverName)
 
 	csiDriver := &storagev1.CSIDriver{}
@@ -167,9 +165,10 @@ func (r *Reconciler) handleDeletion(ctx context.Context, logger logr.Logger, ins
 	return ctrl.Result{}, nil
 }
 
-func (r *Reconciler) reconcileCSIDriver(ctx context.Context, logger logr.Logger, instance *v1alpha1.DatadogCSIDriver) error {
+func (r *Reconciler) reconcileCSIDriver(ctx context.Context, instance *v1alpha1.DatadogCSIDriver) error {
 	desired := buildCSIDriverObject(instance)
 
+	logger := ctrl.LoggerFrom(ctx)
 	current := &storagev1.CSIDriver{}
 	err := r.client.Get(ctx, types.NamespacedName{Name: desired.Name}, current)
 	if err != nil {
@@ -198,13 +197,14 @@ func (r *Reconciler) reconcileCSIDriver(ctx context.Context, logger logr.Logger,
 	return nil
 }
 
-func (r *Reconciler) reconcileDaemonSet(ctx context.Context, logger logr.Logger, instance *v1alpha1.DatadogCSIDriver) error {
+func (r *Reconciler) reconcileDaemonSet(ctx context.Context, instance *v1alpha1.DatadogCSIDriver) error {
 	desired := buildDaemonSet(instance)
 
 	if err := controllerutil.SetControllerReference(instance, desired, r.scheme); err != nil {
 		return fmt.Errorf("setting owner reference: %w", err)
 	}
 
+	logger := ctrl.LoggerFrom(ctx)
 	nsName := types.NamespacedName{Name: desired.Name, Namespace: desired.Namespace}
 	current := &appsv1.DaemonSet{}
 	err := r.client.Get(ctx, nsName, current)
