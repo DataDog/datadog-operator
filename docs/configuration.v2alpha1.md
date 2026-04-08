@@ -35,6 +35,8 @@ spec:
 | --------- | ----------- |
 | features.admissionController.agentCommunicationMode | AgentCommunicationMode corresponds to the mode used by the Datadog application libraries to communicate with the Agent. It can be "hostip", "service", or "socket". |
 | features.admissionController.agentSidecarInjection.clusterAgentCommunicationEnabled | ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent. Default : true |
+| features.admissionController.agentSidecarInjection.clusterAgentTlsVerification.copyCaConfigMap | CopyCaConfigMap enables automatic creation of a ConfigMap containing the Cluster Agent's CA certificate in namespaces where sidecar injection occurs. Default: false |
+| features.admissionController.agentSidecarInjection.clusterAgentTlsVerification.enabled | Enables TLS verification for agent sidecars communicating with the Cluster Agent. Default: false |
 | features.admissionController.agentSidecarInjection.enabled | Enables Sidecar injections. Default: false |
 | features.admissionController.agentSidecarInjection.image.jmxEnabled | Define whether the Agent image should support JMX. To be used if the `Name` field does not correspond to a full image string. |
 | features.admissionController.agentSidecarInjection.image.name | Defines the Agent image name for the pod. You can provide this as: * `<NAME>` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd` for DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`. * `<NAME>:<TAG>` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag` and `[key].image.jmxEnabled` are ignored. * `<REGISTRY>/<NAME>:<TAG>` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified   like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored. |
@@ -200,7 +202,7 @@ spec:
 | features.sbom.host.analyzers | To use for SBOM collection. |
 | features.sbom.host.enabled | Enable this option to activate SBOM collection. Default: false |
 | features.serviceDiscovery.enabled | Enables the service discovery check. Default: false |
-| features.serviceDiscovery.networkStats.enabled | Enables the Service Discovery Network Stats feature. Default: true |
+| features.serviceDiscovery.networkStats.enabled | DEPRECATED: this field is ignored. |
 | features.tcpQueueLength.enabled | Enables the TCP queue length eBPF-based check. Default: false |
 | features.usm.enabled | Enables Universal Service Monitoring. Default: false |
 | global.checksTagCardinality | ChecksTagCardinality configures tag cardinality for the metrics collected by integrations (`low`, `orchestrator` or `high`). See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#tags-cardinality. Not set by default to avoid overriding existing DD_CHECKS_TAG_CARDINALITY configurations, the default value in the Agent is low. Ref: https://github.com/DataDog/datadog-agent/blob/856cf4a66142ce91fd4f8a278149436eb971184a/pkg/config/setup/config.go#L625. |
