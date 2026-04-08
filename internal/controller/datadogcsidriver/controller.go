@@ -143,11 +143,10 @@ func (r *Reconciler) handleDeletion(ctx context.Context, logger logr.Logger, ins
 		return ctrl.Result{}, nil
 	}
 
-	driverName := csiDriverName
-	logger.Info("Handling deletion, cleaning up CSIDriver object", "csidriver", driverName)
+	logger.Info("Handling deletion, cleaning up CSIDriver object", "csidriver", csiDriverName)
 
 	csiDriver := &storagev1.CSIDriver{}
-	err := r.client.Get(ctx, types.NamespacedName{Name: driverName}, csiDriver)
+	err := r.client.Get(ctx, types.NamespacedName{Name: csiDriverName}, csiDriver)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return ctrl.Result{}, fmt.Errorf("getting CSIDriver for deletion: %w", err)
@@ -157,8 +156,8 @@ func (r *Reconciler) handleDeletion(ctx context.Context, logger logr.Logger, ins
 		if err := r.client.Delete(ctx, csiDriver); err != nil && !apierrors.IsNotFound(err) {
 			return ctrl.Result{}, fmt.Errorf("deleting CSIDriver: %w", err)
 		}
-		logger.Info("Deleted CSIDriver object", "csidriver", driverName)
-		r.recorder.Eventf(instance, "Normal", "CSIDriverDeleted", "Deleted CSIDriver %s", driverName)
+		logger.Info("Deleted CSIDriver object", "csidriver", csiDriverName)
+		r.recorder.Eventf(instance, "Normal", "CSIDriverDeleted", "Deleted CSIDriver %s", csiDriverName)
 	}
 
 	controllerutil.RemoveFinalizer(instance, finalizerName)
