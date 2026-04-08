@@ -71,7 +71,6 @@ func (f *ForwardersManager) Register(obj client.Object) {
 	defer f.Unlock()
 	id := getObjID(obj) // nolint: ifshort
 	if _, found := f.metricsForwarders[id]; !found {
-		log.Info("New Datadog metrics forwarder registered", "ID", id)
 		f.metricsForwarders[id] = newMetricsForwarder(f.k8sClient, f.decryptor, obj, f.platformInfo, f.datadogAgentInternalEnabled, f.credsManager)
 		f.wg.Add(1)
 		go f.metricsForwarders[id].start(&f.wg)
@@ -81,9 +80,9 @@ func (f *ForwardersManager) Register(obj client.Object) {
 // Unregister stops a metricsForwarder when its corresponding MonitoredObject is deleted
 func (f *ForwardersManager) Unregister(obj client.Object) {
 	id := getObjID(obj)
-	log.Info("Unregistering metrics forwarder", "ID", id)
+	log.V(1).Info("Stopping Datadog metrics forwarder", "kind", getObjKind(obj), "namespace", obj.GetNamespace(), "name", obj.GetName())
 	if err := f.unregisterForwarder(id); err != nil {
-		log.Error(err, "cannot unregister metrics forwarder", "ID", id)
+		log.Error(err, "cannot unregister metrics forwarder", "kind", getObjKind(obj), "namespace", obj.GetNamespace(), "name", obj.GetName())
 
 		return
 	}
@@ -97,23 +96,23 @@ func (f *ForwardersManager) ProcessError(obj client.Object, reconcileErr error) 
 	if err != nil {
 		// Only auto-register if the object still exists and isn't being deleted
 		if f.shouldAutoRegister(obj) {
-			log.Info("Forwarder not found for error processing, attempting to register", "ID", id)
+			log.V(2).Info("Forwarder not found for error processing, attempting to register", "kind", getObjKind(obj), "namespace", obj.GetNamespace(), "name", obj.GetName())
 			f.Register(obj)
 
 			// Try again after registration
 			forwarder, err = f.getForwarder(id)
 			if err != nil {
-				log.Error(err, "cannot process error even after registration", "ID", id)
+				log.Error(err, "cannot process error even after registration", "kind", getObjKind(obj), "namespace", obj.GetNamespace(), "name", obj.GetName())
 				return
 			}
 		} else {
-			log.Info("Skipping auto-registration for deleted/non-existent object during error processing", "ID", id)
+			log.Info("Skipping auto-registration for deleted/non-existent object during error processing", "kind", getObjKind(obj), "namespace", obj.GetNamespace(), "name", obj.GetName())
 			return
 		}
 	}
 	if forwarder.isErrChanFull() {
 		// Discard sending the error to avoid blocking this method
-		log.Error(fmt.Errorf("metrics forwarder %s: blocked error forwarding", id), "cannot process error")
+		log.Error(fmt.Errorf("blocked error forwarding"), "cannot process error", "kind", getObjKind(obj), "namespace", obj.GetNamespace(), "name", obj.GetName())
 
 		return
 	}
@@ -125,13 +124,13 @@ func (f *ForwardersManager) ProcessEvent(obj client.Object, event Event) {
 	id := getObjID(obj)
 	forwarder, err := f.getForwarder(id)
 	if err != nil {
-		log.Error(err, "cannot process event")
+		log.Error(err, "cannot process event", "kind", getObjKind(obj), "namespace", obj.GetNamespace(), "name", obj.GetName())
 
 		return
 	}
 	if forwarder.isEventChanFull() {
 		// Discard sending the event to avoid blocking this method
-		log.Error(fmt.Errorf("metrics forwarder %s: blocked event forwarding", id), "cannot process event")
+		log.Error(fmt.Errorf("blocked event forwarding"), "cannot process event", "kind", getObjKind(obj), "namespace", obj.GetNamespace(), "name", obj.GetName())
 
 		return
 	}
@@ -154,8 +153,8 @@ func (f *ForwardersManager) MetricsForwarderStatusForObj(obj client.Object) *Con
 func (f *ForwardersManager) stopAllForwarders() {
 	f.Lock()
 	defer f.Unlock()
-	for id, forwarder := range f.metricsForwarders {
-		log.Info("Stopping metrics forwarder", "ID", id)
+	for _, forwarder := range f.metricsForwarders {
+		log.V(1).Info("Stopping Datadog metrics forwarder", "kind", forwarder.monitoredObjectKind, "namespace", forwarder.namespacedName.Namespace, "name", forwarder.namespacedName.Name)
 		forwarder.stop()
 	}
 	f.wg.Wait()
@@ -196,17 +195,17 @@ func (f *ForwardersManager) SetEnabledFeatures(dda client.Object, features []str
 	if err != nil {
 		// Only auto-register if the object still exists and isn't being deleted
 		if f.shouldAutoRegister(dda) {
-			log.Info("Forwarder not found, attempting to register", "ID", id)
+			log.V(2).Info("Forwarder not found, attempting to register", "kind", getObjKind(dda), "namespace", dda.GetNamespace(), "name", dda.GetName())
 			f.Register(dda)
 
 			// Try again after registration
 			forwarder, err = f.getForwarder(id)
 			if err != nil {
-				log.Error(err, "cannot set enabled features for object even after registration", "ID", id)
+				log.Error(err, "cannot set enabled features for object even after registration", "kind", getObjKind(dda), "namespace", dda.GetNamespace(), "name", dda.GetName())
 				return
 			}
 		} else {
-			log.Info("Skipping auto-registration for deleted/non-existent object", "ID", id)
+			log.Info("Skipping auto-registration for deleted/non-existent object", "kind", getObjKind(dda), "namespace", dda.GetNamespace(), "name", dda.GetName())
 			return
 		}
 	}
