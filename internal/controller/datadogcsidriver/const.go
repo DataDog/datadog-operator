@@ -10,6 +10,14 @@ const (
 	csiDsName = "datadog-csi-driver-node-server"
 	// csiDriverName is the default name of the CSIDriver Kubernetes object
 	csiDriverName = "k8s.csi.datadoghq.com"
+	// defaultCSIDriverImageName is the default CSI driver container image name
+	defaultCSIDriverImageName = "csi-driver"
+	// defaultRegistrarImageName is the default CSI node driver registrar image name
+	defaultRegistrarImageName = "csi-node-driver-registrar"
+	// defaultAPMSocketPath is the default host path to the APM socket
+	defaultAPMSocketPath = "/var/run/datadog/apm.socket"
+	// defaultDSDSocketPath is the default host path to the DogStatsD socket
+	defaultDSDSocketPath = "/var/run/datadog/dsd.socket"
 
 	// Volume names
 	pluginDirVolumeName       = "plugin-dir"

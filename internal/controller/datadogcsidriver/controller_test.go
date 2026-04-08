@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -111,11 +112,11 @@ func TestReconcile_CreatesResources(t *testing.T) {
 	require.Len(t, ds.Spec.Template.Spec.Containers, 2)
 	csiContainer := ds.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, v1alpha1.CSINodeDriverContainerName, csiContainer.Name)
-	assert.Equal(t, fmt.Sprintf("%s/%s:%s", defaultCSIDriverImageRegistry, defaultCSIDriverImageName, defaultCSIDriverImageTag), csiContainer.Image)
+	assert.Equal(t, fmt.Sprintf("%s/%s:%s", images.GCRContainerRegistry, defaultCSIDriverImageName, images.CSILatestImageVersion), csiContainer.Image)
 
 	registrarContainer := ds.Spec.Template.Spec.Containers[1]
 	assert.Equal(t, v1alpha1.CSINodeDriverRegistrarContainerName, registrarContainer.Name)
-	assert.Equal(t, fmt.Sprintf("%s/%s:%s", defaultRegistrarImageRegistry, defaultRegistrarImageName, defaultRegistrarImageTag), registrarContainer.Image)
+	assert.Equal(t, fmt.Sprintf("%s/%s:%s", images.SIGStorageRegistry, defaultRegistrarImageName, images.DefaultRegistrarImageVersion), registrarContainer.Image)
 
 	// Verify volumes exist
 	volumeNames := make([]string, 0, len(ds.Spec.Template.Spec.Volumes))

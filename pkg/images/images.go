@@ -27,6 +27,10 @@ const (
 	// Note: the regular agent -fips image predates this; this constant only applies to ddot-collector.
 	// Add "-0" so that pre-release versions are considered sufficient. https://github.com/Masterminds/semver#working-with-prerelease-versions
 	DDOTFIPSMinimumVersion = "7.78.0-0"
+	// CSILatestImageVersion corresponds to the latest stable Datadog CSIDriver release
+	CSILatestImageVersion = "1.2.1"
+	// DefaultRegistrarImageVersion corresponds to the default CSI registrar image used
+	DefaultRegistrarImageVersion = "v2.0.1"
 	// Datadog container registry
 	DatadogContainerRegistry = "registry.datadoghq.com"
 	// GCRContainerRegistry corresponds to the datadoghq GCR registry
@@ -42,6 +46,8 @@ const (
 	DefaultEuropeImageRegistry string = "eu.gcr.io/datadoghq"
 	DefaultAsiaImageRegistry   string = "asia.gcr.io/datadoghq"
 	DefaultGovImageRegistry    string = "public.ecr.aws/datadog"
+	// SIG Storage Kubernetes registry
+	SIGStorageRegistry = "registry.k8s.io/sig-storage"
 	// JMXTagSuffix tag suffix for agent JMX images
 	JMXTagSuffix = "-jmx"
 	// FIPSTagSuffix tag suffix for agent FIPS images
