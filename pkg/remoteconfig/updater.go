@@ -186,7 +186,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 	}
 	r.rcService = rcService
 
-	updaterTags := []string{}
+	updaterTags := []string{"updater_type:datadog-operator"}
 	if r.serviceConf.clusterName != "" {
 		updaterTags = append(updaterTags, "cluster_name:"+r.serviceConf.clusterName)
 	}
