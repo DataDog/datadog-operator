@@ -53,23 +53,29 @@ func newRevisionTestReconciler(t *testing.T) (*Reconciler, client.Client) {
 	return &Reconciler{client: c, scheme: scheme}, c
 }
 
-func mustListRevisions(t *testing.T, r *Reconciler, instance *v2alpha1.DatadogAgent) *appsv1.ControllerRevisionList {
+func mustListRevisions(t *testing.T, r *Reconciler, instance *v2alpha1.DatadogAgent) []appsv1.ControllerRevision {
 	t.Helper()
-	revList, err := r.listRevisions(context.Background(), instance)
+	revisions, err := r.listRevisions(context.Background(), instance)
 	require.NoError(t, err)
-	return revList
+	return revisions
+}
+
+func fetchRevisionByName(t *testing.T, c client.Client, namespace, name string) *appsv1.ControllerRevision {
+	t.Helper()
+	rev := &appsv1.ControllerRevision{}
+	require.NoError(t, c.Get(context.Background(), types.NamespacedName{Namespace: namespace, Name: name}, rev))
+	return rev
 }
 
 func TestEnsureRevision_CreatesOnFirstCall(t *testing.T) {
 	r, c := newRevisionTestReconciler(t)
 	instance := newRevisionTestOwner("test-dda", "default")
 
-	revName, err := r.ensureRevision(context.Background(), instance, mustListRevisions(t, r, instance))
+	name, err := r.ensureRevision(context.Background(), instance, mustListRevisions(t, r, instance), false)
 	require.NoError(t, err)
-	assert.NotEmpty(t, revName)
+	assert.NotEmpty(t, name)
 
-	rev := &appsv1.ControllerRevision{}
-	require.NoError(t, c.Get(context.Background(), types.NamespacedName{Namespace: "default", Name: revName}, rev))
+	rev := fetchRevisionByName(t, c, "default", name)
 	assert.NotEmpty(t, rev.Data.Raw)
 	assert.Equal(t, int64(1), rev.Revision)
 	assert.Len(t, rev.OwnerReferences, 1)
@@ -81,9 +87,9 @@ func TestEnsureRevision_Idempotent(t *testing.T) {
 	instance := newRevisionTestOwner("test-dda", "default")
 	instance.Annotations = map[string]string{"foo": "bar"}
 
-	name1, err := r.ensureRevision(context.Background(), instance, mustListRevisions(t, r, instance))
+	name1, err := r.ensureRevision(context.Background(), instance, mustListRevisions(t, r, instance), false)
 	require.NoError(t, err)
-	name2, err := r.ensureRevision(context.Background(), instance, mustListRevisions(t, r, instance))
+	name2, err := r.ensureRevision(context.Background(), instance, mustListRevisions(t, r, instance), false)
 	require.NoError(t, err)
 
 	assert.Equal(t, name1, name2)
@@ -100,9 +106,9 @@ func TestEnsureRevision_DifferentSpecsDifferentNames(t *testing.T) {
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
 
-	name1, err := r.ensureRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA))
+	name1, err := r.ensureRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), false)
 	require.NoError(t, err)
-	name2, err := r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB))
+	name2, err := r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), false)
 	require.NoError(t, err)
 
 	assert.NotEqual(t, name1, name2)
@@ -115,9 +121,9 @@ func TestEnsureRevision_DifferentAnnotationsDifferentNames(t *testing.T) {
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Annotations = map[string]string{"feature.datadoghq.com/beta": "true"}
 
-	name1, err := r.ensureRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA))
+	name1, err := r.ensureRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), false)
 	require.NoError(t, err)
-	name2, err := r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB))
+	name2, err := r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), false)
 	require.NoError(t, err)
 
 	assert.NotEqual(t, name1, name2)
@@ -137,9 +143,9 @@ func TestEnsureRevision_NonDatadogAnnotationsIgnored(t *testing.T) {
 		"some-other-tool/annotation":                       "value",
 	}
 
-	name1, err := r.ensureRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA))
+	name1, err := r.ensureRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), false)
 	require.NoError(t, err)
-	name2, err := r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB))
+	name2, err := r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), false)
 	require.NoError(t, err)
 
 	assert.Equal(t, name1, name2, "non-datadoghq annotations should not affect the revision snapshot")
@@ -163,7 +169,7 @@ func TestGCOldRevisions_KeepsCurrentAndPrevious(t *testing.T) {
 	}
 	names := make([]string, len(instances))
 	for i, inst := range instances {
-		name, err := r.ensureRevision(context.Background(), inst, mustListRevisions(t, r, inst))
+		name, err := r.ensureRevision(context.Background(), inst, mustListRevisions(t, r, inst), false)
 		require.NoError(t, err)
 		names[i] = name
 	}
@@ -191,18 +197,17 @@ func TestEnsureRevision_RevertBumpsRevision(t *testing.T) {
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
 
-	name1, err := r.ensureRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA))
+	name1, err := r.ensureRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), false)
 	require.NoError(t, err)
-	_, err = r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB))
+	_, err = r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), false)
 	require.NoError(t, err)
 
 	// Revert to spec A — should reuse name1 but bump its Revision.
-	name3, err := r.ensureRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA))
+	name3, err := r.ensureRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), false)
 	require.NoError(t, err)
 	assert.Equal(t, name1, name3, "revert should reuse same CR name")
 
-	rev := &appsv1.ControllerRevision{}
-	require.NoError(t, c.Get(context.Background(), types.NamespacedName{Namespace: "default", Name: name1}, rev))
+	rev := fetchRevisionByName(t, c, "default", name1)
 	assert.Equal(t, int64(3), rev.Revision, "revision should be bumped to max+1")
 }
 
@@ -213,9 +218,9 @@ func TestGCOldRevisions_KeepsTwoRevisions(t *testing.T) {
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
 
-	_, err := r.ensureRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA))
+	_, err := r.ensureRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), false)
 	require.NoError(t, err)
-	name2, err := r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB))
+	name2, err := r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), false)
 	require.NoError(t, err)
 
 	err = r.gcOldRevisions(context.Background(), instanceB, name2, mustListRevisions(t, r, instanceB))
@@ -245,14 +250,13 @@ func TestEnsureRevision_RevisionNumbersMonotonic(t *testing.T) {
 
 	names := make([]string, len(instances))
 	for i, inst := range instances {
-		name, err := r.ensureRevision(context.Background(), inst, mustListRevisions(t, r, inst))
+		name, err := r.ensureRevision(context.Background(), inst, mustListRevisions(t, r, inst), false)
 		require.NoError(t, err)
 		names[i] = name
 	}
 
 	for i, name := range names {
-		rev := &appsv1.ControllerRevision{}
-		require.NoError(t, c.Get(context.Background(), types.NamespacedName{Namespace: "default", Name: name}, rev))
+		rev := fetchRevisionByName(t, c, "default", name)
 		assert.Equal(t, int64(i+1), rev.Revision, "revision %d should be %d", i, i+1)
 	}
 }
@@ -261,10 +265,10 @@ func TestGCOldRevisions_NoPreviousWhenOnlyCurrent(t *testing.T) {
 	r, c := newRevisionTestReconciler(t)
 	instance := newRevisionTestOwner("test-dda", "default")
 
-	name, err := r.ensureRevision(context.Background(), instance, mustListRevisions(t, r, instance))
+	revName, err := r.ensureRevision(context.Background(), instance, mustListRevisions(t, r, instance), false)
 	require.NoError(t, err)
 
-	err = r.gcOldRevisions(context.Background(), instance, name, mustListRevisions(t, r, instance))
+	err = r.gcOldRevisions(context.Background(), instance, revName, mustListRevisions(t, r, instance))
 	require.NoError(t, err)
 
 	revList := &appsv1.ControllerRevisionList{}
@@ -281,7 +285,7 @@ func TestGCOldRevisions_DeletesMultipleOld(t *testing.T) {
 	for i, site := range sites {
 		inst := newRevisionTestOwner("test-dda", "default")
 		inst.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{Site: ptr.To(site)}}
-		name, err := r.ensureRevision(context.Background(), inst, mustListRevisions(t, r, inst))
+		name, err := r.ensureRevision(context.Background(), inst, mustListRevisions(t, r, inst), false)
 		require.NoError(t, err)
 		names[i] = name
 	}
@@ -309,30 +313,34 @@ func TestManageRevision_CreatesRevision(t *testing.T) {
 	r, _ := newRevisionTestReconciler(t)
 
 	instanceA := newRevisionTestOwner("test-dda", "default")
-	require.NoError(t, r.manageRevision(context.Background(), instanceA))
+	err := r.manageRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), nil)
+	require.NoError(t, err)
 
 	revList := mustListRevisions(t, r, instanceA)
-	assert.Len(t, revList.Items, 1, "one revision after first call")
+	assert.Len(t, revList, 1, "one revision after first call")
 
 	// Change spec and call again — should now have current and previous.
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
 
-	require.NoError(t, r.manageRevision(context.Background(), instanceB))
+	err = r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil)
+	require.NoError(t, err)
 
 	revList = mustListRevisions(t, r, instanceB)
-	assert.Len(t, revList.Items, 2, "current and previous kept after spec change")
+	assert.Len(t, revList, 2, "current and previous kept after spec change")
 }
 
 func TestManageRevision_Idempotent(t *testing.T) {
 	r, _ := newRevisionTestReconciler(t)
 	instance := newRevisionTestOwner("test-dda", "default")
 
-	require.NoError(t, r.manageRevision(context.Background(), instance))
-	require.NoError(t, r.manageRevision(context.Background(), instance))
+	err := r.manageRevision(context.Background(), instance, mustListRevisions(t, r, instance), nil)
+	require.NoError(t, err)
+	err = r.manageRevision(context.Background(), instance, mustListRevisions(t, r, instance), nil)
+	require.NoError(t, err)
 
 	revList := mustListRevisions(t, r, instance)
-	assert.Len(t, revList.Items, 1, "idempotent calls should not create duplicate revisions")
+	assert.Len(t, revList, 1, "idempotent calls should not create duplicate revisions")
 }
 
 // TestManageRevision_CurrentDeletedIsRecreated verifies that if the current
@@ -342,24 +350,26 @@ func TestManageRevision_CurrentDeletedIsRecreated(t *testing.T) {
 	r, c := newRevisionTestReconciler(t)
 	instance := newRevisionTestOwner("test-dda", "default")
 
-	require.NoError(t, r.manageRevision(context.Background(), instance))
+	err := r.manageRevision(context.Background(), instance, mustListRevisions(t, r, instance), nil)
+	require.NoError(t, err)
 
 	revList := mustListRevisions(t, r, instance)
-	require.Len(t, revList.Items, 1)
-	deletedName := revList.Items[0].Name
+	require.Len(t, revList, 1)
+	deletedName := revList[0].Name
 
 	// Simulate manual deletion.
-	require.NoError(t, c.Delete(context.Background(), &revList.Items[0]))
+	require.NoError(t, c.Delete(context.Background(), &revList[0]))
 
 	// Next reconcile should re-create the revision.
-	require.NoError(t, r.manageRevision(context.Background(), instance))
+	err = r.manageRevision(context.Background(), instance, mustListRevisions(t, r, instance), nil)
+	require.NoError(t, err)
 
 	revList = mustListRevisions(t, r, instance)
-	require.Len(t, revList.Items, 1)
+	require.Len(t, revList, 1)
 
 	// Content is identical so the name (hash-based) should be the same.
-	assert.Equal(t, deletedName, revList.Items[0].Name, "re-created revision should have the same name")
-	assert.Equal(t, int64(1), revList.Items[0].Revision)
+	assert.Equal(t, deletedName, revList[0].Name, "re-created revision should have the same name")
+	assert.Equal(t, int64(1), revList[0].Revision)
 }
 
 // TestManageRevision_PreviousDeletedContinuesNormally verifies that if the
@@ -372,15 +382,17 @@ func TestManageRevision_PreviousDeletedContinuesNormally(t *testing.T) {
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
 
-	require.NoError(t, r.manageRevision(context.Background(), instanceA))
-	require.NoError(t, r.manageRevision(context.Background(), instanceB))
+	err := r.manageRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), nil)
+	require.NoError(t, err)
+	err = r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil)
+	require.NoError(t, err)
 
 	revList := mustListRevisions(t, r, instanceB)
-	require.Len(t, revList.Items, 2)
+	require.Len(t, revList, 2)
 
 	// Identify and delete the previous (lower Revision number).
 	var prev appsv1.ControllerRevision
-	for _, rev := range revList.Items {
+	for _, rev := range revList {
 		if prev.Name == "" || rev.Revision < prev.Revision {
 			prev = rev
 		}
@@ -388,11 +400,89 @@ func TestManageRevision_PreviousDeletedContinuesNormally(t *testing.T) {
 	require.NoError(t, c.Delete(context.Background(), &prev))
 
 	// Next reconcile on the same spec should succeed and keep only the current.
-	require.NoError(t, r.manageRevision(context.Background(), instanceB))
+	err = r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil)
+	require.NoError(t, err)
 
 	revList = mustListRevisions(t, r, instanceB)
-	assert.Len(t, revList.Items, 1, "only current should remain after previous was deleted")
-	assert.Equal(t, int64(2), revList.Items[0].Revision)
+	assert.Len(t, revList, 1, "only current should remain after previous was deleted")
+	assert.Equal(t, int64(2), revList[0].Revision)
+}
+
+// TestGCOldRevisions_DeletesPreviousAfterRejectedExperiment verifies that when
+// the persisted experiment phase is a rejected terminal phase (Rollback, Timeout,
+// or Aborted), gcOldRevisions deletes the stale experiment revision instead of
+// keeping it as "previous". This prevents an immediate timeout if the same spec
+// is re-applied as a new experiment.
+func TestGCOldRevisions_DeletesPreviousAfterRejectedExperiment(t *testing.T) {
+	rejectedPhases := []v2alpha1.ExperimentPhase{
+		v2alpha1.ExperimentPhaseRollback,
+		v2alpha1.ExperimentPhaseTimeout,
+		v2alpha1.ExperimentPhaseAborted,
+	}
+
+	for _, phase := range rejectedPhases {
+		t.Run(string(phase), func(t *testing.T) {
+			r, c := newRevisionTestReconciler(t)
+
+			instanceA := newRevisionTestOwner("test-dda", "default")
+			instanceB := newRevisionTestOwner("test-dda", "default")
+			instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
+
+			nameA, err := r.ensureRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), false)
+			require.NoError(t, err)
+			_, err = r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), false)
+			require.NoError(t, err)
+
+			// Simulate the persisted status having a rejected terminal phase.
+			// current is instanceA (spec restored after rollback).
+			instanceA.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: phase}
+
+			err = r.gcOldRevisions(context.Background(), instanceA, nameA, mustListRevisions(t, r, instanceA))
+			require.NoError(t, err)
+
+			revList := &appsv1.ControllerRevisionList{}
+			require.NoError(t, c.List(context.Background(), revList))
+			assert.Len(t, revList.Items, 1, "experiment revision should be deleted after rejected phase")
+			assert.Equal(t, nameA, revList.Items[0].Name, "only the current (pre-experiment) revision should remain")
+		})
+	}
+}
+
+// TestGCOldRevisions_KeepsPreviousForNonRejectedPhases verifies that for
+// non-rejected experiment phases (Running, Promoted, or nil), the normal
+// "keep current + previous" behavior is preserved.
+func TestGCOldRevisions_KeepsPreviousForNonRejectedPhases(t *testing.T) {
+	nonRejectedPhases := []v2alpha1.ExperimentPhase{
+		v2alpha1.ExperimentPhaseRunning,
+		v2alpha1.ExperimentPhasePromoted,
+		"", // nil experiment
+	}
+
+	for _, phase := range nonRejectedPhases {
+		t.Run(string(phase)+"_or_nil", func(t *testing.T) {
+			r, c := newRevisionTestReconciler(t)
+
+			instanceA := newRevisionTestOwner("test-dda", "default")
+			instanceB := newRevisionTestOwner("test-dda", "default")
+			instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
+
+			_, err := r.ensureRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), false)
+			require.NoError(t, err)
+			nameB, err := r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), false)
+			require.NoError(t, err)
+
+			if phase != "" {
+				instanceB.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: phase}
+			}
+
+			err = r.gcOldRevisions(context.Background(), instanceB, nameB, mustListRevisions(t, r, instanceB))
+			require.NoError(t, err)
+
+			revList := &appsv1.ControllerRevisionList{}
+			require.NoError(t, c.List(context.Background(), revList))
+			assert.Len(t, revList.Items, 2, "current and previous should both be kept for non-rejected phase")
+		})
+	}
 }
 
 // TestListRevisions_ExcludesForeignOwner verifies that a ControllerRevision
@@ -428,5 +518,5 @@ func TestListRevisions_ExcludesForeignOwner(t *testing.T) {
 
 	revList, err := r.listRevisions(context.Background(), current)
 	require.NoError(t, err)
-	assert.Empty(t, revList.Items, "foreign revision should be excluded by UID filter")
+	assert.Empty(t, revList, "foreign revision should be excluded by UID filter")
 }

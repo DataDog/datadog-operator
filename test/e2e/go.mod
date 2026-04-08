@@ -5,7 +5,7 @@ go 1.25.8
 require (
 	github.com/DataDog/datadog-agent/test/e2e-framework v0.78.0-devel
 	github.com/DataDog/datadog-agent/test/fakeintake v0.78.0-devel
-	github.com/DataDog/datadog-api-client-go/v2 v2.55.0 // indirect
+	github.com/DataDog/datadog-api-client-go/v2 v2.56.0 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.41.5
 	github.com/aws/aws-sdk-go-v2/config v1.32.13
 	github.com/aws/aws-sdk-go-v2/service/cloudformation v1.71.9
@@ -23,7 +23,7 @@ require (
 require (
 	github.com/DataDog/datadog-operator v1.24.0
 	k8s.io/api v0.36.0-alpha.1
-	k8s.io/cli-runtime v0.34.6
+	k8s.io/cli-runtime v0.35.3
 	k8s.io/utils v0.0.0-20260108192941-914a6e750570
 )
 
@@ -269,10 +269,10 @@ require (
 	golang.org/x/mod v0.33.0 // indirect
 	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/oauth2 v0.35.0 // indirect
-	golang.org/x/sync v0.19.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/term v0.40.0 // indirect
-	golang.org/x/text v0.34.0 // indirect
+	golang.org/x/text v0.35.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 	golang.org/x/tools v0.42.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260226221140-a57be14db171 // indirect
@@ -288,14 +288,14 @@ require (
 	gopkg.in/zorkian/go-datadog-api.v2 v2.30.0 // indirect
 	helm.sh/helm/v3 v3.18.5 // indirect
 	k8s.io/apiextensions-apiserver v0.35.1 // indirect
-	k8s.io/apiserver v0.35.1 // indirect
-	k8s.io/component-base v0.35.1 // indirect
-	k8s.io/klog/v2 v2.130.1 // indirect
+	k8s.io/apiserver v0.35.3 // indirect
+	k8s.io/component-base v0.35.3 // indirect
+	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20260127142750-a19766b6e2d4 // indirect
-	k8s.io/kubectl v0.34.1 // indirect
+	k8s.io/kubectl v0.35.3 // indirect
 	lukechampine.com/frand v1.5.1 // indirect
 	oras.land/oras-go/v2 v2.6.0 // indirect
-	sigs.k8s.io/controller-runtime v0.22.4 // indirect
+	sigs.k8s.io/controller-runtime v0.22.5 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.1 // indirect

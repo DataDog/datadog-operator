@@ -37,6 +37,21 @@
                       "description": "ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.\nDefault : true",
                       "type": "boolean"
                     },
+                    "clusterAgentTlsVerification": {
+                      "additionalProperties": false,
+                      "description": "ClusterAgentTLSVerification configures TLS verification for Agent sidecar to Cluster Agent communication.",
+                      "properties": {
+                        "copyCaConfigMap": {
+                          "description": "CopyCaConfigMap enables automatic creation of a ConfigMap containing the Cluster Agent's CA certificate\nin namespaces where sidecar injection occurs.\nDefault: false",
+                          "type": "boolean"
+                        },
+                        "enabled": {
+                          "description": "Enabled enables TLS verification for agent sidecars communicating with the Cluster Agent.\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    },
                     "enabled": {
                       "description": "Enabled enables Sidecar injections.\nDefault: false",
                       "type": "boolean"
@@ -8190,6 +8205,21 @@
                         "clusterAgentCommunicationEnabled": {
                           "description": "ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.\nDefault : true",
                           "type": "boolean"
+                        },
+                        "clusterAgentTlsVerification": {
+                          "additionalProperties": false,
+                          "description": "ClusterAgentTLSVerification configures TLS verification for Agent sidecar to Cluster Agent communication.",
+                          "properties": {
+                            "copyCaConfigMap": {
+                              "description": "CopyCaConfigMap enables automatic creation of a ConfigMap containing the Cluster Agent's CA certificate\nin namespaces where sidecar injection occurs.\nDefault: false",
+                              "type": "boolean"
+                            },
+                            "enabled": {
+                              "description": "Enabled enables TLS verification for agent sidecars communicating with the Cluster Agent.\nDefault: false",
+                              "type": "boolean"
+                            }
+                          },
+                          "type": "object"
                         },
                         "enabled": {
                           "description": "Enabled enables Sidecar injections.\nDefault: false",
