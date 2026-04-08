@@ -166,17 +166,17 @@ jobs:
           mkdir -p ./dist/darwin
           mkdir -p ./dist/windows
       - name: Download linux binaries
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: kubectl-datadog-linux
           path: ./tmp-build/linux
       - name: Download darwin binaries
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: kubectl-datadog-darwin
           path: ./tmp-build/darwin
       - name: Download windows binaries
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: kubectl-datadog-windows
           path: ./tmp-build/windows
@@ -196,7 +196,7 @@ jobs:
       - name: Generate Plugin manifest
         run: ./hack/release/generate-plugin-manifest.sh ${{steps.tag.outputs.tag}}
       - name: Release
-        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
         with:
           body_path: dist/CHANGELOG.md
           prerelease: ${{ contains(github.ref, '-rc.') }}

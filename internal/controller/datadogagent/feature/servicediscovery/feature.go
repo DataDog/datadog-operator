@@ -10,6 +10,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -32,10 +33,12 @@ func buildFeature(*feature.Options) feature.Feature {
 
 type serviceDiscoveryFeature struct {
 	userExplicitlyEnabled bool
-	// features holds a pointer to the live DDA features struct so that ManageNodeAgent
-	// can re-evaluate hasOtherSystemProbeFeatures after Remote Config state has been
-	// merged by other features' Configure calls (e.g. USM merges RC state into the spec).
-	features *v2alpha1.DatadogFeatures
+	// dda, ddaSpec, ddaRCStatus are stored so that ManageNodeAgent can call
+	// feature.SystemProbeContainerRequiredByFeatures after all Configure calls have
+	// completed (including Remote Config state merges by other features such as USM).
+	dda         metav1.Object
+	ddaSpec     *v2alpha1.DatadogAgentSpec
+	ddaRCStatus *v2alpha1.RemoteConfigConfiguration
 }
 
 // ID returns the ID of the Feature
@@ -44,7 +47,7 @@ func (f *serviceDiscoveryFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *serviceDiscoveryFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+func (f *serviceDiscoveryFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	if ddaSpec.Features == nil || ddaSpec.Features.ServiceDiscovery == nil {
 		return reqComp
 	}
@@ -61,11 +64,13 @@ func (f *serviceDiscoveryFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.D
 	}
 
 	reqComp.Agent = feature.RequiredComponent{
-		IsRequired: apiutils.NewBoolPointer(true),
+		IsRequired: ptr.To(true),
 		Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
 	}
 
-	f.features = ddaSpec.Features
+	f.dda = dda
+	f.ddaSpec = ddaSpec
+	f.ddaRCStatus = ddaRCStatus
 	f.userExplicitlyEnabled = apiutils.BoolValue(sd.Enabled)
 
 	return reqComp
@@ -82,22 +87,6 @@ func systemProbeLiteCommand(socketPath string, userOptedIn bool) string {
 		fallback = "system-probe --config=/etc/datadog-agent/system-probe.yaml"
 	}
 	return fmt.Sprintf("system-probe-lite run --socket %s --log-level ${DD_LOG_LEVEL:-info} || %s", socketPath, fallback)
-}
-
-// hasOtherSystemProbeFeatures returns true if any feature besides service discovery
-// requires the full system-probe binary. When true, system-probe-lite cannot be used.
-func hasOtherSystemProbeFeatures(features *v2alpha1.DatadogFeatures) bool {
-	if features == nil {
-		return false
-	}
-	return (features.NPM != nil && apiutils.BoolValue(features.NPM.Enabled)) ||
-		(features.CWS != nil && apiutils.BoolValue(features.CWS.Enabled)) ||
-		(features.CSPM != nil && apiutils.BoolValue(features.CSPM.Enabled) && apiutils.BoolValue(features.CSPM.RunInSystemProbe)) ||
-		(features.USM != nil && apiutils.BoolValue(features.USM.Enabled)) ||
-		(features.OOMKill != nil && apiutils.BoolValue(features.OOMKill.Enabled)) ||
-		(features.TCPQueueLength != nil && apiutils.BoolValue(features.TCPQueueLength.Enabled)) ||
-		(features.EBPFCheck != nil && apiutils.BoolValue(features.EBPFCheck.Enabled)) ||
-		(features.GPU != nil && apiutils.BoolValue(features.GPU.Enabled) && apiutils.BoolValue(features.GPU.PrivilegedMode))
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
@@ -156,9 +145,9 @@ func (f *serviceDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMa
 	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, socketEnvVar)
 
 	// Direct PodTemplateSpec mutation: no managers API for command overrides.
-	// Re-evaluate here (not cached from Configure) so that RC state merged by other
-	// features' Configure calls (e.g. USM) is taken into account.
-	if !hasOtherSystemProbeFeatures(f.features) {
+	// Evaluated here (not during Configure) so that Remote Config state merged by
+	// other features' Configure calls (e.g. USM) is taken into account.
+	if !feature.SystemProbeContainerRequiredByFeatures(f.dda, f.ddaSpec, f.ddaRCStatus, feature.ServiceDiscoveryType) {
 		for i := range managers.PodTemplateSpec().Spec.Containers {
 			c := &managers.PodTemplateSpec().Spec.Containers[i]
 			if c.Name == string(apicommon.SystemProbeContainerName) {

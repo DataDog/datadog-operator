@@ -8,6 +8,8 @@ package servicediscovery
 import (
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -20,6 +22,12 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+
+	// Blank imports trigger the init() of these packages, registering them in the
+	// feature factory. Tests that check SPL is suppressed when these features are
+	// active require them to be registered.
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cws"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/npm"
 )
 
 func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
@@ -27,22 +35,22 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: ptr.To(false),
 				},
 			},
 		},
 	}
 	ddaServiceDiscoveryEnabled := ddaServiceDiscoveryDisabled.DeepCopy()
-	ddaServiceDiscoveryEnabled.Spec.Features.ServiceDiscovery.Enabled = apiutils.NewBoolPointer(true)
+	ddaServiceDiscoveryEnabled.Spec.Features.ServiceDiscovery.Enabled = ptr.To(true)
 
 	ddaWithNPM := v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(true),
+					Enabled: ptr.To(true),
 				},
 				NPM: &v2alpha1.NPMFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(true),
+					Enabled: ptr.To(true),
 				},
 			},
 		},
@@ -52,10 +60,10 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(true),
+					Enabled: ptr.To(true),
 				},
 				CWS: &v2alpha1.CWSFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(true),
+					Enabled: ptr.To(true),
 				},
 			},
 		},
@@ -65,7 +73,7 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-					EnabledByDefault: apiutils.NewBoolPointer(true),
+					EnabledByDefault: ptr.To(true),
 				},
 			},
 		},
@@ -86,22 +94,6 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 				WithWantFunc(getWantFunc(true, true)),
 		},
 		{
-			Name:          "system-probe-lite not used when NPM also enabled",
-			DDA:           &ddaWithNPM,
-			WantConfigure: true,
-			Agent: test.NewDefaultComponentTest().
-				WithCreateFunc(createFuncWithSystemProbeContainer()).
-				WithWantFunc(getWantFunc(false, true)),
-		},
-		{
-			Name:          "system-probe-lite not used when CWS also enabled",
-			DDA:           &ddaWithCWS,
-			WantConfigure: true,
-			Agent: test.NewDefaultComponentTest().
-				WithCreateFunc(createFuncWithSystemProbeContainer()).
-				WithWantFunc(getWantFunc(false, true)),
-		},
-		{
 			Name:          "system-probe-lite enabled by default - no system-probe fallback",
 			DDA:           &ddaEnabledByDefault,
 			WantConfigure: true,
@@ -112,109 +104,26 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 	}
 
 	tests.Run(t, buildFeature)
-}
 
-func Test_hasOtherSystemProbeFeatures(t *testing.T) {
-	tests := []struct {
-		name     string
-		features *v2alpha1.DatadogFeatures
-		want     bool
+	// These cases involve multiple registered features (npm, cws are imported via blank imports
+	// so they register in the factory). FeatureTestSuite is designed for one feature at a time,
+	// so we test service discovery's ManageNodeAgent output directly here.
+	for _, tc := range []struct {
+		name string
+		dda  *v2alpha1.DatadogAgent
 	}{
-		{
-			name:     "nil features",
-			features: nil,
-			want:     false,
-		},
-		{
-			name:     "no other features",
-			features: &v2alpha1.DatadogFeatures{},
-			want:     false,
-		},
-		{
-			name: "NPM enabled",
-			features: &v2alpha1.DatadogFeatures{
-				NPM: &v2alpha1.NPMFeatureConfig{Enabled: apiutils.NewBoolPointer(true)},
-			},
-			want: true,
-		},
-		{
-			name: "CWS enabled",
-			features: &v2alpha1.DatadogFeatures{
-				CWS: &v2alpha1.CWSFeatureConfig{Enabled: apiutils.NewBoolPointer(true)},
-			},
-			want: true,
-		},
-		{
-			name: "USM enabled",
-			features: &v2alpha1.DatadogFeatures{
-				USM: &v2alpha1.USMFeatureConfig{Enabled: apiutils.NewBoolPointer(true)},
-			},
-			want: true,
-		},
-		{
-			name: "OOMKill enabled",
-			features: &v2alpha1.DatadogFeatures{
-				OOMKill: &v2alpha1.OOMKillFeatureConfig{Enabled: apiutils.NewBoolPointer(true)},
-			},
-			want: true,
-		},
-		{
-			name: "TCPQueueLength enabled",
-			features: &v2alpha1.DatadogFeatures{
-				TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{Enabled: apiutils.NewBoolPointer(true)},
-			},
-			want: true,
-		},
-		{
-			name: "EBPFCheck enabled",
-			features: &v2alpha1.DatadogFeatures{
-				EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{Enabled: apiutils.NewBoolPointer(true)},
-			},
-			want: true,
-		},
-		{
-			name: "CSPM enabled with RunInSystemProbe",
-			features: &v2alpha1.DatadogFeatures{
-				CSPM: &v2alpha1.CSPMFeatureConfig{
-					Enabled:          apiutils.NewBoolPointer(true),
-					RunInSystemProbe: apiutils.NewBoolPointer(true),
-				},
-			},
-			want: true,
-		},
-		{
-			name: "CSPM enabled without RunInSystemProbe",
-			features: &v2alpha1.DatadogFeatures{
-				CSPM: &v2alpha1.CSPMFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(true),
-				},
-			},
-			want: false,
-		},
-		{
-			name: "GPU enabled with PrivilegedMode",
-			features: &v2alpha1.DatadogFeatures{
-				GPU: &v2alpha1.GPUFeatureConfig{
-					Enabled:        apiutils.NewBoolPointer(true),
-					PrivilegedMode: apiutils.NewBoolPointer(true),
-				},
-			},
-			want: true,
-		},
-		{
-			name: "GPU enabled without PrivilegedMode",
-			features: &v2alpha1.DatadogFeatures{
-				GPU: &v2alpha1.GPUFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(true),
-				},
-			},
-			want: false,
-		},
-	}
+		{"system-probe-lite not used when NPM also enabled", &ddaWithNPM},
+		{"system-probe-lite not used when CWS also enabled", &ddaWithCWS},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			feat := buildFeature(nil)
+			reqComp := feat.Configure(tc.dda, &tc.dda.Spec, tc.dda.Status.RemoteConfigConfiguration)
+			assert.True(t, reqComp.IsEnabled())
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, hasOtherSystemProbeFeatures(tt.features))
+			tplManager, provider := createFuncWithSystemProbeContainer()(t)
+			assert.NoError(t, feat.ManageNodeAgent(tplManager, provider))
+
+			getWantFunc(false, true)(t, tplManager)
 		})
 	}
 }

@@ -7,17 +7,12 @@ merge_freeze: false
 github_teams_restrictions:
   - agent-all
   - injection-platform
-  - container-app
-  - container-ecosystems
-  - container-platform
-  - container-helm-chart-maintainers
+  - container-apps-and-remediation
   - container-integrations
-  - container-t2
+  - container-tee
   - Documentation
-  - Vector
-github_users_restrictions:
-  - clamoriniere
-  - hkaj
+  - profiling-full-host
+  - action-platform
 ---
 schema-version: v1
 kind: mergegate

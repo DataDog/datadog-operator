@@ -8,6 +8,7 @@ package usm
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -58,7 +59,7 @@ func (f *usmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: ptr.To(true),
 				Containers: containers,
 			},
 		}

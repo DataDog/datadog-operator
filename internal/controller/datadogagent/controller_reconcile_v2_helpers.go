@@ -259,6 +259,7 @@ func generateNewStatusFromDDA(ddaStatus *datadoghqv2alpha1.DatadogAgentStatus) *
 		if ddaStatus.RemoteConfigConfiguration != nil {
 			status.RemoteConfigConfiguration = ddaStatus.RemoteConfigConfiguration
 		}
+		status.Experiment = ddaStatus.Experiment.DeepCopy()
 	}
 	return status
 }
