@@ -148,13 +148,18 @@ func (d *Daemon) resolveOperation(req remoteAPIRequest, signal string) (fleetMan
 // The first step updates the DDA spec with the experiment configuration.
 // The second step updates the DDA status to running, recording the experiment ID and generation.
 func (d *Daemon) startDatadogAgentExperiment(ctx context.Context, req remoteAPIRequest) error {
+	tempLogger := ctrl.LoggerFrom(ctx).WithValues("id", req.ID)
+	tempLogger.Info("Starting DatadogAgent experiment", "config", req.ExpectedState.ExperimentConfig)
 	op, err := d.resolveOperation(req, "start DatadogAgent experiment")
 	if err != nil {
+		tempLogger.Error(err, "Failed to resolve operation")
 		return err
 	}
 
 	logger := ctrl.LoggerFrom(ctx).WithValues("id", req.ID, "namespace", op.NamespacedName.Namespace, "name", op.NamespacedName.Name)
 	ctx = ctrl.LoggerInto(ctx, logger)
+
+	logger.Info("Starting k8s resource patch", "config", op.Config)
 
 	// Fetch current DDA to check signal preconditions.
 	dda := &v2alpha1.DatadogAgent{}
