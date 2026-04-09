@@ -16,12 +16,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -69,8 +69,8 @@ func newDDAForDDCSI(name, namespace string, csiEnabled, createDDCSI bool) *v2alp
 		Spec: v2alpha1.DatadogAgentSpec{
 			Global: &v2alpha1.GlobalConfig{
 				CSI: &v2alpha1.CSIConfig{
-					Enabled:                apiutils.NewBoolPointer(csiEnabled),
-					CreateDatadogCSIDriver: apiutils.NewBoolPointer(createDDCSI),
+					Enabled:                ptr.To(csiEnabled),
+					CreateDatadogCSIDriver: ptr.To(createDDCSI),
 				},
 			},
 		},
@@ -153,7 +153,7 @@ func TestReconcileDatadogCSIDriver_CleanupOnDisable(t *testing.T) {
 	require.NoError(t, err)
 
 	// Now disable
-	dda.Spec.Global.CSI.CreateDatadogCSIDriver = apiutils.NewBoolPointer(false)
+	dda.Spec.Global.CSI.CreateDatadogCSIDriver = ptr.To(false)
 	err = r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
 	require.NoError(t, err)
 
