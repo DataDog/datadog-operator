@@ -1,4 +1,4 @@
-image: registry.ddbuild.io/images/mirror/library/golang:1.25.8
+image: registry.ddbuild.io/images/mirror/library/golang:1.25.9
 variables:
   NIGHTLY_BUILD_CONDUCTOR_NAME: "operator-nightly-build"
   PROJECTNAME: "datadog-operator"
