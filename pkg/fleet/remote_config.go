@@ -6,12 +6,14 @@
 package fleet
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 // installerConfig is the fleet installer configuration received via RC.
@@ -61,10 +63,13 @@ type expectedState struct {
 
 // handleInstallerConfigUpdate returns an RC subscription callback that parses
 // UPDATER_AGENT payloads and forwards them as a map[configID]installerConfig to h.
-func handleInstallerConfigUpdate(h func(map[string]installerConfig) error) func(map[string]state.RawConfig, func(string, state.ApplyStatus)) {
+func handleInstallerConfigUpdate(ctx context.Context, h func(map[string]installerConfig) error) func(map[string]state.RawConfig, func(string, state.ApplyStatus)) {
 	return func(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) {
+		logger := ctrl.LoggerFrom(ctx)
 		configs := make(map[string]installerConfig, len(updates))
 		for cfgPath, raw := range updates {
+			logger.Info("Received UPDATER_AGENT payload", "cfgPath", cfgPath, "rawPayload", string(raw.Config))
+
 			var cfg installerConfig
 			if err := json.Unmarshal(raw.Config, &cfg); err != nil {
 				applyStatus(cfgPath, state.ApplyStatus{State: state.ApplyStateError, Error: fmt.Sprintf("failed to unmarshal installer config: %v", err)})
@@ -89,10 +94,13 @@ func handleInstallerConfigUpdate(h func(map[string]installerConfig) error) func(
 // handleUpdaterTaskUpdate returns an RC subscription callback that parses a single
 // UPDATER_TASK payload and forwards it as a remoteAPIRequest to h.
 // Requests that have already been executed (tracked by seen IDs) are ignored.
-func handleUpdaterTaskUpdate(h func(remoteAPIRequest) error) func(map[string]state.RawConfig, func(string, state.ApplyStatus)) {
+func handleUpdaterTaskUpdate(ctx context.Context, h func(remoteAPIRequest) error) func(map[string]state.RawConfig, func(string, state.ApplyStatus)) {
 	seen := make(map[string]struct{})
 	return func(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) {
+		logger := ctrl.LoggerFrom(ctx)
 		for cfgPath, raw := range updates {
+			logger.Info("Received UPDATER_TASK payload", "cfgPath", cfgPath, "rawPayload", string(raw.Config))
+
 			var req remoteAPIRequest
 			if err := json.Unmarshal(raw.Config, &req); err != nil {
 				applyStatus(cfgPath, state.ApplyStatus{State: state.ApplyStateError, Error: fmt.Sprintf("failed to unmarshal remote API request: %v", err)})
