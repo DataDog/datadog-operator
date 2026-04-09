@@ -9,7 +9,8 @@
         "ghcr.io/devcontainers/features/github-cli:1": {},
         "ghcr.io/devcontainer-community/devcontainer-features/yq:1": {},
         "ghcr.io/clamoriniere/claude-devcontainer-features/claude-code:1.0.6": {}
-    },
+},
+"remoteUser": "vscode",
     "mounts": [
         "source=${localWorkspaceFolder}/.devcontainer/claude-data/,target=/home/vscode/.claude,type=bind"
     ],
