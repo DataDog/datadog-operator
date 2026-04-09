@@ -58,10 +58,10 @@ func (d *Daemon) Start(ctx context.Context) error {
 	ctx = ctrl.LoggerInto(ctx, logger)
 	logger.Info("Starting Fleet daemon")
 
-	d.rcClient.Subscribe(state.ProductUpdaterAgent, handleInstallerConfigUpdate(func(configs map[string]installerConfig) error {
+	d.rcClient.Subscribe(state.ProductUpdaterAgent, handleInstallerConfigUpdate(ctx, func(configs map[string]installerConfig) error {
 		return d.handleConfigs(ctx, configs)
 	}))
-	d.rcClient.Subscribe(state.ProductUpdaterTask, handleUpdaterTaskUpdate(func(req remoteAPIRequest) error {
+	d.rcClient.Subscribe(state.ProductUpdaterTask, handleUpdaterTaskUpdate(ctx, func(req remoteAPIRequest) error {
 		return d.handleRemoteAPIRequest(ctx, req)
 	}))
 
@@ -82,12 +82,14 @@ func (d *Daemon) handleConfigs(ctx context.Context, configs map[string]installer
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	logger := ctrl.LoggerFrom(ctx)
+	logger.Info("Received installer configs", "configs", configs)
 	newConfigs := make(map[string]installerConfig, len(configs))
 	for _, cfg := range configs {
 		logger.Info("Received installer config", "id", cfg.ID, "operations", len(cfg.Operations))
 		newConfigs[cfg.ID] = cfg
 	}
 	d.configs = newConfigs
+	logger.Info("Updated installer configs", "configs", d.configs)
 	return nil
 }
 
@@ -104,7 +106,8 @@ func (d *Daemon) getConfig(id string) (installerConfig, error) {
 
 // handleRemoteAPIRequest dispatches the incoming task to the appropriate handler.
 func (d *Daemon) handleRemoteAPIRequest(ctx context.Context, req remoteAPIRequest) error {
-	ctrl.LoggerFrom(ctx).Info("Received remote API request", "id", req.ID, "package", req.Package, "method", req.Method)
+	logger := ctrl.LoggerFrom(ctx).WithValues("id", req.ID, "package", req.Package, "method", req.Method)
+	logger.Info("Received remote API request")
 
 	if !d.revisionsEnabled {
 		return fmt.Errorf("experiment signals require the CreateControllerRevisions and DatadogAgentInternal feature gates")

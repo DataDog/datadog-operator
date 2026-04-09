@@ -6,6 +6,7 @@
 package fleet
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
@@ -74,7 +75,7 @@ func marshalRawConfig(t *testing.T, v any) state.RawConfig {
 
 func TestInstallerConfigUpdate(t *testing.T) {
 	cb := &callbackMock{}
-	handler := handleInstallerConfigUpdate(cb.handleConfigs)
+	handler := handleInstallerConfigUpdate(context.Background(), cb.handleConfigs)
 
 	raw := marshalRawConfig(t, testInstallerConfig)
 	updates := map[string]state.RawConfig{"path/to/config": raw}
@@ -91,7 +92,7 @@ func TestInstallerConfigUpdate(t *testing.T) {
 
 func TestInstallerConfigUpdateBadConfig(t *testing.T) {
 	cb := &callbackMock{}
-	handler := handleInstallerConfigUpdate(cb.handleConfigs)
+	handler := handleInstallerConfigUpdate(context.Background(), cb.handleConfigs)
 
 	updates := map[string]state.RawConfig{
 		"path/to/config": {Config: []byte("not json")},
@@ -111,7 +112,7 @@ func TestInstallerConfigUpdateBadConfig(t *testing.T) {
 
 func TestInstallerConfigUpdateError(t *testing.T) {
 	cb := &callbackMock{}
-	handler := handleInstallerConfigUpdate(cb.handleConfigs)
+	handler := handleInstallerConfigUpdate(context.Background(), cb.handleConfigs)
 
 	raw := marshalRawConfig(t, testInstallerConfig)
 	updates := map[string]state.RawConfig{"path/to/config": raw}
@@ -134,7 +135,7 @@ func TestInstallerConfigUpdateError(t *testing.T) {
 
 func TestRemoteAPIRequest(t *testing.T) {
 	cb := &callbackMock{}
-	handler := handleUpdaterTaskUpdate(cb.handleRemoteAPIRequest)
+	handler := handleUpdaterTaskUpdate(context.Background(), cb.handleRemoteAPIRequest)
 
 	raw := marshalRawConfig(t, testRemoteAPIRequest)
 	updates := map[string]state.RawConfig{"path/to/task": raw}
@@ -152,7 +153,7 @@ func TestRemoteAPIRequest(t *testing.T) {
 
 func TestRemoteAPIRequestBadConfig(t *testing.T) {
 	cb := &callbackMock{}
-	handler := handleUpdaterTaskUpdate(cb.handleRemoteAPIRequest)
+	handler := handleUpdaterTaskUpdate(context.Background(), cb.handleRemoteAPIRequest)
 
 	updates := map[string]state.RawConfig{
 		"path/to/task": {Config: []byte("not json")},
@@ -172,7 +173,7 @@ func TestRemoteAPIRequestBadConfig(t *testing.T) {
 
 func TestRemoteAPIRequestError(t *testing.T) {
 	cb := &callbackMock{}
-	handler := handleUpdaterTaskUpdate(cb.handleRemoteAPIRequest)
+	handler := handleUpdaterTaskUpdate(context.Background(), cb.handleRemoteAPIRequest)
 
 	raw := marshalRawConfig(t, testRemoteAPIRequest)
 	updates := map[string]state.RawConfig{"path/to/task": raw}
@@ -194,7 +195,7 @@ func TestRemoteAPIRequestError(t *testing.T) {
 
 func TestRemoteAPIRequestIgnoresAlreadyExecutedRequests(t *testing.T) {
 	cb := &callbackMock{}
-	handler := handleUpdaterTaskUpdate(cb.handleRemoteAPIRequest)
+	handler := handleUpdaterTaskUpdate(context.Background(), cb.handleRemoteAPIRequest)
 
 	raw := marshalRawConfig(t, testRemoteAPIRequest)
 	updates := map[string]state.RawConfig{"path/to/task": raw}
