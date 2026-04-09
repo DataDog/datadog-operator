@@ -194,7 +194,7 @@ metadata:
       ]
     capabilities: Full Lifecycle
     categories: Monitoring, Logging & Tracing
-    createdAt: "2026-04-02 16:41:32"
+    createdAt: "2026-04-09 14:43:46"
     description: |-
       Datadog provides a modern monitoring and analytics platform. Gather metrics, logs and traces for full observability of your Kubernetes cluster with Datadog Operator.
 
@@ -202,7 +202,7 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.34.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/DataDog/datadog-operator
-    containerImage: gcr.io/datadoghq/operator:1.25.0
+    containerImage: gcr.io/datadoghq/operator:1.26.0-rc.1
     support: Datadog, Inc.
     features.operators.openshift.io/disconnected: "true"
     features.operators.openshift.io/fips-compliant: "false"
@@ -211,12 +211,12 @@ metadata:
     features.operators.openshift.io/token-auth-aws: "false"
     features.operators.openshift.io/token-auth-azure: "false"
     features.operators.openshift.io/token-auth-gcp: "false"
-    olm.skipRange: '>=1.7.0 <1.25.0'
+    olm.skipRange: '>=1.7.0 <1.26.0-rc.1'
   labels:
     operatorframework.io/arch.amd64: supported
     operatorframework.io/arch.arm64: supported
     operatorframework.io/os.linux: supported
-  name: datadog-operator.v1.25.0
+  name: datadog-operator.v1.26.0-rc.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -237,6 +237,9 @@ spec:
         kind: DatadogAgent
         name: datadogagents.datadoghq.com
         version: v2alpha1
+      - kind: DatadogCSIDriver
+        name: datadogcsidrivers.datadoghq.com
+        version: v1alpha1
       - description: DatadogDashboard is the Schema for the datadogdashboards API
         displayName: Datadog Dashboard
         kind: DatadogDashboard
@@ -255,6 +258,9 @@ spec:
         kind: DatadogMonitor
         name: datadogmonitors.datadoghq.com
         version: v1alpha1
+      - kind: DatadogPodAutoscalerClusterProfile
+        name: datadogpodautoscalerclusterprofiles.datadoghq.com
+        version: v1alpha2
       - description: DatadogPodAutoscaler is the Schema for the datadogpodautoscalers API
         displayName: Datadog Pod Autoscaler
         kind: DatadogPodAutoscaler
@@ -345,9 +351,16 @@ spec:
             - apiGroups:
                 - ""
               resources:
+                - pods/eviction
                 - pods/exec
               verbs:
                 - create
+            - apiGroups:
+                - ""
+              resources:
+                - pods/resize
+              verbs:
+                - patch
             - apiGroups:
                 - '*'
               resources:
@@ -381,7 +394,11 @@ spec:
               resources:
                 - controllerrevisions
               verbs:
+                - create
+                - delete
+                - get
                 - list
+                - patch
                 - watch
             - apiGroups:
                 - apps
@@ -401,10 +418,18 @@ spec:
                 - apps
               resources:
                 - replicasets
+              verbs:
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - apps
+              resources:
                 - statefulsets
               verbs:
                 - get
                 - list
+                - patch
                 - watch
             - apiGroups:
                 - argoproj.io
@@ -419,6 +444,7 @@ spec:
               resources:
                 - rollouts
               verbs:
+                - get
                 - list
                 - patch
                 - watch
@@ -511,6 +537,8 @@ spec:
                 - datadogagentprofiles/finalizers
                 - datadogagents
                 - datadogagents/finalizers
+                - datadogcsidrivers
+                - datadogcsidrivers/finalizers
                 - datadogdashboards
                 - datadoggenericresources
                 - datadoggenericresources/finalizers
@@ -533,6 +561,7 @@ spec:
                 - datadogagentinternals/status
                 - datadogagentprofiles/status
                 - datadogagents/status
+                - datadogcsidrivers/status
                 - datadogdashboards/status
                 - datadoggenericresources/status
                 - datadogmonitors/status
@@ -561,6 +590,8 @@ spec:
             - apiGroups:
                 - datadoghq.com
               resources:
+                - datadogpodautoscalerclusterprofiles
+                - datadogpodautoscalerclusterprofiles/status
                 - datadogpodautoscalers
                 - datadogpodautoscalers/status
               verbs:
@@ -752,6 +783,25 @@ spec:
             - apiGroups:
                 - storage.k8s.io
               resources:
+                - csidrivers
+              verbs:
+                - create
+                - list
+                - watch
+            - apiGroups:
+                - storage.k8s.io
+              resourceNames:
+                - k8s.csi.datadoghq.com
+              resources:
+                - csidrivers
+              verbs:
+                - delete
+                - get
+                - patch
+                - update
+            - apiGroups:
+                - storage.k8s.io
+              resources:
                 - storageclasses
                 - volumeattachments
               verbs:
@@ -821,7 +871,7 @@ spec:
                             fieldPath: metadata.namespace
                       - name: DD_TOOL_VERSION
                         value: redhat-community-operators
-                    image: gcr.io/datadoghq/operator:1.25.0
+                    image: gcr.io/datadoghq/operator:1.26.0-rc.1
                     imagePullPolicy: IfNotPresent
                     livenessProbe:
                       httpGet:
@@ -919,5 +969,5 @@ spec:
   minKubeVersion: 1.16.0
   provider:
     name: Datadog
-  version: 1.25.0
-  replaces: datadog-operator.v1.24.0
+  version: 1.26.0-rc.1
+  replaces: datadog-operator.v1.25.0
