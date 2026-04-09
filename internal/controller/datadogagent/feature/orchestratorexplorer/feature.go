@@ -28,8 +28,9 @@ import (
 )
 
 const (
-	currentDatadogPodAutoscalerResource = "datadoghq.com/v1alpha2/datadogpodautoscalers"
-	oldDatadogPodAutoscalerResource     = "datadoghq.com/v1alpha1/datadogpodautoscalers"
+	currentDatadogPodAutoscalerResource               = "datadoghq.com/v1alpha2/datadogpodautoscalers"
+	oldDatadogPodAutoscalerResource                   = "datadoghq.com/v1alpha1/datadogpodautoscalers"
+	currentDatadogPodAutoscalerClusterProfileResource = "datadoghq.com/v1alpha2/datadogpodautoscalerclusterprofiles"
 )
 
 func init() {
@@ -117,7 +118,7 @@ func (f *orchestratorExplorerFeature) Configure(dda metav1.Object, ddaSpec *v2al
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 		// Handle automatic addition of OOTB resources
-		// Autoscaling: Add DPA resource if enabled and replace older versions if present
+		// Autoscaling: Add DPA and DPACP resources if enabled and replace older versions if present
 		autoscaling := ddaSpec.Features.Autoscaling
 		if autoscaling != nil && autoscaling.Workload != nil && apiutils.BoolValue(autoscaling.Workload.Enabled) {
 			addRequired := true
@@ -130,6 +131,7 @@ func (f *orchestratorExplorerFeature) Configure(dda metav1.Object, ddaSpec *v2al
 			if addRequired {
 				f.customResources = append(f.customResources, currentDatadogPodAutoscalerResource)
 			}
+			f.customResources = append(f.customResources, currentDatadogPodAutoscalerClusterProfileResource)
 		}
 
 		// Unique the custom resources as the check will output a warning if there are duplicates

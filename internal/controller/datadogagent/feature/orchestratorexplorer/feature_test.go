@@ -102,6 +102,7 @@ instances:
   - skip_leader_election: false
     crd_collectors:
       - datadoghq.com/v1alpha1/watermarkpodautoscalers
+      - datadoghq.com/v1alpha2/datadogpodautoscalerclusterprofiles
       - datadoghq.com/v1alpha2/datadogpodautoscalers
 `
 
