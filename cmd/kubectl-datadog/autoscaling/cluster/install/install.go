@@ -226,7 +226,8 @@ func (o *options) run(cmd *cobra.Command) error {
 		return displayEKSAutoModeMessage(cmd, clusterName)
 	}
 
-	// Check for existing Karpenter installation
+	// Check for existing Karpenter installation via webhooks first,
+	// then fall back to Helm release secrets (handles crashed/absent webhooks).
 	if found, webhookNamespace, err := commonk8s.DetectActiveKarpenter(ctx, o.Clientset); err != nil {
 		return fmt.Errorf("failed to check for existing Karpenter installation: %w", err)
 	} else if found {
@@ -243,6 +244,33 @@ func (o *options) run(cmd *cobra.Command) error {
 		}
 		// It's ours — use the detected namespace for the rest of the install
 		karpenterNamespace = webhookNamespace
+	} else {
+		// No webhooks found — check for orphaned Helm releases (e.g. pods crashed).
+		helmFound, namespaces, helmErr := commonk8s.FindKarpenterHelmRelease(ctx, o.Clientset)
+		if helmErr != nil {
+			return fmt.Errorf("failed to search for Karpenter Helm releases: %w", helmErr)
+		}
+		if helmFound {
+			foundOurs := false
+			var externalNS string
+			for _, ns := range namespaces {
+				isOurs, _, checkErr := helm.IsOurRelease(ctx, o.ConfigFlags, ns, "karpenter")
+				if checkErr != nil {
+					return fmt.Errorf("failed to check Karpenter Helm release ownership in namespace %q: %w", ns, checkErr)
+				}
+				if isOurs {
+					// Our previous install exists but webhooks are gone — reuse its namespace.
+					karpenterNamespace = ns
+					foundOurs = true
+					break
+				}
+				externalNS = ns
+			}
+			if !foundOurs && externalNS != "" {
+				// Found Helm release(s) but none are ours — treat as external.
+				return displayExternalKarpenterMessage(cmd, clusterName, externalNS)
+			}
+		}
 	}
 
 	display.PrintBox(cmd.OutOrStdout(), "Installing Karpenter on cluster "+clusterName+".")
