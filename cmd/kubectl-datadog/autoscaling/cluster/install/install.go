@@ -28,6 +28,7 @@ import (
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clients"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/display"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/helm"
+	commonk8s "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/k8s"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/guess"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/k8s"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
@@ -37,7 +38,8 @@ import (
 )
 
 const (
-	karpenterOCIRegistry = "oci://public.ecr.aws/karpenter/karpenter"
+	// KarpenterOCIRegistry is the OCI registry URL for the Karpenter Helm chart.
+	KarpenterOCIRegistry = "oci://public.ecr.aws/karpenter/karpenter"
 )
 
 var (
@@ -224,6 +226,25 @@ func (o *options) run(cmd *cobra.Command) error {
 		return displayEKSAutoModeMessage(cmd, clusterName)
 	}
 
+	// Check for existing Karpenter installation
+	if found, webhookNamespace, err := commonk8s.DetectActiveKarpenter(ctx, o.Clientset); err != nil {
+		return fmt.Errorf("failed to check for existing Karpenter installation: %w", err)
+	} else if found {
+		if webhookNamespace == "" {
+			// Karpenter webhook found but uses a URL (external/out-of-cluster) — treat as external
+			return displayExternalKarpenterMessage(cmd, clusterName, "unknown (URL-based webhook)")
+		}
+		isOurs, _, checkErr := helm.IsOurRelease(ctx, o.ConfigFlags, webhookNamespace, "karpenter")
+		if checkErr != nil {
+			return fmt.Errorf("failed to check Karpenter Helm release ownership: %w", checkErr)
+		}
+		if !isOurs {
+			return displayExternalKarpenterMessage(cmd, clusterName, webhookNamespace)
+		}
+		// It's ours — use the detected namespace for the rest of the install
+		karpenterNamespace = webhookNamespace
+	}
+
 	display.PrintBox(cmd.OutOrStdout(), "Installing Karpenter on cluster "+clusterName+".")
 
 	cli, err := clients.Build(ctx, o.ConfigFlags, o.Clientset)
@@ -231,11 +252,11 @@ func (o *options) run(cmd *cobra.Command) error {
 		return fmt.Errorf("failed to build clients: %w", err)
 	}
 
-	if err = createCloudFormationStacks(ctx, cli, clusterName, karpenterNamespace); err != nil {
+	if err = CreateCloudFormationStacks(ctx, cli, clusterName, karpenterNamespace); err != nil {
 		return err
 	}
 
-	if err = updateAwsAuthConfigMap(ctx, cli, clusterName); err != nil {
+	if err = UpdateAwsAuthConfigMap(ctx, cli, clusterName); err != nil {
 		return err
 	}
 
@@ -243,14 +264,15 @@ func (o *options) run(cmd *cobra.Command) error {
 		return err
 	}
 
-	if err = createNodePoolResources(ctx, cmd, cli, clusterName, createKarpenterResources, inferenceMethod, debug); err != nil {
+	if err = CreateNodePoolResources(ctx, cmd, cli, clusterName, createKarpenterResources, inferenceMethod, debug); err != nil {
 		return err
 	}
 
 	return displaySuccessMessage(cmd, clusterName, createKarpenterResources)
 }
 
-func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, clusterName string, karpenterNamespace string) error {
+// CreateCloudFormationStacks creates or updates the Karpenter and DD-Karpenter CloudFormation stacks.
+func CreateCloudFormationStacks(ctx context.Context, cli *clients.Clients, clusterName string, karpenterNamespace string) error {
 	if err := aws.CreateOrUpdateStack(ctx, cli.CloudFormation, "dd-karpenter-"+clusterName+"-karpenter", KarpenterCfn, map[string]string{
 		"ClusterName": clusterName,
 	}); err != nil {
@@ -279,7 +301,8 @@ func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, clust
 	return nil
 }
 
-func updateAwsAuthConfigMap(ctx context.Context, cli *clients.Clients, clusterName string) error {
+// UpdateAwsAuthConfigMap ensures the Karpenter node role is in the aws-auth ConfigMap.
+func UpdateAwsAuthConfigMap(ctx context.Context, cli *clients.Clients, clusterName string) error {
 	awsAuthConfigMapPresent, err := guess.IsAwsAuthConfigMapPresent(ctx, cli.K8sClientset)
 	if err != nil {
 		return fmt.Errorf("failed to check if aws-auth ConfigMap is present: %w", err)
@@ -290,7 +313,6 @@ func updateAwsAuthConfigMap(ctx context.Context, cli *clients.Clients, clusterNa
 		return nil
 	}
 
-	// Get AWS account ID
 	callerIdentity, err := cli.STS.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
 	if err != nil {
 		return fmt.Errorf("failed to get identity caller: %w", err)
@@ -300,7 +322,6 @@ func updateAwsAuthConfigMap(ctx context.Context, cli *clients.Clients, clusterNa
 	}
 	accountID := *callerIdentity.Account
 
-	// Add role mapping in the `aws-auth` ConfigMap
 	if err = aws.EnsureAwsAuthRole(ctx, cli.K8sClientset, aws.RoleMapping{
 		RoleArn:  "arn:aws:iam::" + accountID + ":role/KarpenterNodeRole-" + clusterName,
 		Username: "system:node:{{EC2PrivateDNSName}}",
@@ -313,7 +334,12 @@ func updateAwsAuthConfigMap(ctx context.Context, cli *clients.Clients, clusterNa
 }
 
 func (o *options) installHelmChart(ctx context.Context, clusterName string, karpenterNamespace string, karpenterVersion string, debug bool) error {
-	actionConfig, err := helm.NewActionConfig(o.ConfigFlags, karpenterNamespace)
+	return InstallOrUpgradeHelmChart(ctx, o.ConfigFlags, clusterName, karpenterNamespace, karpenterVersion, debug)
+}
+
+// InstallOrUpgradeHelmChart installs or upgrades the Karpenter Helm chart with the plugin's standard values.
+func InstallOrUpgradeHelmChart(ctx context.Context, configFlags *genericclioptions.ConfigFlags, clusterName, karpenterNamespace, karpenterVersion string, debug bool) error {
+	actionConfig, err := helm.NewActionConfig(configFlags, karpenterNamespace)
 	if err != nil {
 		return err
 	}
@@ -349,14 +375,15 @@ func (o *options) installHelmChart(ctx context.Context, clusterName string, karp
 		},
 	}
 
-	if err = helm.CreateOrUpgrade(ctx, actionConfig, "karpenter", karpenterNamespace, karpenterOCIRegistry, karpenterVersion, values); err != nil {
+	if err = helm.CreateOrUpgrade(ctx, actionConfig, "karpenter", karpenterNamespace, KarpenterOCIRegistry, karpenterVersion, values); err != nil {
 		return fmt.Errorf("failed to create or update Helm release: %w", err)
 	}
 
 	return nil
 }
 
-func createNodePoolResources(ctx context.Context, cmd *cobra.Command, cli *clients.Clients, clusterName string, createResources CreateKarpenterResources, inferenceMethod InferenceMethod, debug bool) error {
+// CreateNodePoolResources infers and creates or updates Karpenter NodePool and EC2NodeClass resources.
+func CreateNodePoolResources(ctx context.Context, cmd *cobra.Command, cli *clients.Clients, clusterName string, createResources CreateKarpenterResources, inferenceMethod InferenceMethod, debug bool) error {
 	if createResources == CreateKarpenterResourcesNone {
 		return nil
 	}
@@ -416,6 +443,24 @@ func openAutoscalingSettingsURL(cmd *cobra.Command, clusterName string) string {
 	}
 
 	return color.New(color.Bold, color.Underline, color.FgBlue).Sprint(autoscalingSettingsURL)
+}
+
+func displayExternalKarpenterMessage(cmd *cobra.Command, clusterName string, existingNamespace string) error {
+	coloredURL := openAutoscalingSettingsURL(cmd, clusterName)
+
+	display.PrintBox(cmd.OutOrStdout(),
+		"Karpenter is already installed on cluster "+clusterName+".",
+		"",
+		"An existing Karpenter installation was detected",
+		"in namespace \""+existingNamespace+"\".",
+		"This installation was not created by kubectl-datadog.",
+		"",
+		"To use Datadog autoscaling with an existing Karpenter,",
+		"navigate to the Autoscaling settings page:",
+		coloredURL,
+	)
+
+	return fmt.Errorf("existing Karpenter installation detected in namespace %q", existingNamespace)
 }
 
 func displayEKSAutoModeMessage(cmd *cobra.Command, clusterName string) error {

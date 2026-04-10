@@ -8,6 +8,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/uninstall"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/upgrade"
 )
 
 // options provides information required by cluster command
@@ -33,6 +34,7 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 
 	cmd.AddCommand(install.New(streams))
 	cmd.AddCommand(uninstall.New(streams))
+	cmd.AddCommand(upgrade.New(streams))
 
 	o := newOptions(streams)
 	o.configFlags.AddFlags(cmd.Flags())
