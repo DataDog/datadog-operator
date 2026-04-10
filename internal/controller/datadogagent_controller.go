@@ -8,6 +8,7 @@ package controller
 import (
 	"context"
 	"reflect"
+	"strings"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
@@ -66,6 +67,9 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=deletecollection
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=deletecollection
 // +kubebuilder:rbac:groups=apiregistration.k8s.io,resources=apiservices,verbs=deletecollection
+
+// ControllerRevision snapshots
+// +kubebuilder:rbac:groups=apps,resources=controllerrevisions,verbs=get;list;watch;create;patch;delete
 
 // Configure Admission Controller
 // +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=validatingwebhookconfigurations;mutatingwebhookconfigurations,verbs=*
@@ -305,7 +309,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwar
 	}
 
 	or := reconcile.AsReconciler[*v2alpha1.DatadogAgent](r.Client, r)
-	if err := builder.For(&v2alpha1.DatadogAgent{}, builderOptions...).WithEventFilter(predicate.GenerationChangedPredicate{}).Complete(or); err != nil {
+	if err := builder.For(&v2alpha1.DatadogAgent{}, builderOptions...).WithEventFilter(predicate.Or(predicate.GenerationChangedPredicate{}, datadogAnnotationChangedPredicate(), experimentPhaseChangedPredicate())).Complete(or); err != nil {
 		return err
 	}
 
@@ -316,6 +320,69 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwar
 	r.internal = internal
 
 	return nil
+}
+
+// datadogAnnotationChangedPredicate returns a predicate that triggers reconciliation
+// only when annotations containing ".datadoghq.com/" change, ignoring unrelated annotation updates.
+func datadogAnnotationChangedPredicate() predicate.Predicate {
+	hasDDAnnotation := func(annotations map[string]string) bool {
+		for k := range annotations {
+			if strings.Contains(k, ".datadoghq.com/") {
+				return true
+			}
+		}
+		return false
+	}
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldAnnotations := e.ObjectOld.GetAnnotations()
+			newAnnotations := e.ObjectNew.GetAnnotations()
+			for k, v := range newAnnotations {
+				if strings.Contains(k, ".datadoghq.com/") && oldAnnotations[k] != v {
+					return true
+				}
+			}
+			for k := range oldAnnotations {
+				if strings.Contains(k, ".datadoghq.com/") {
+					if _, exists := newAnnotations[k]; !exists {
+						return true
+					}
+				}
+			}
+			return false
+		},
+		CreateFunc:  func(e event.CreateEvent) bool { return hasDDAnnotation(e.Object.GetAnnotations()) },
+		DeleteFunc:  func(e event.DeleteEvent) bool { return true },
+		GenericFunc: func(e event.GenericEvent) bool { return hasDDAnnotation(e.Object.GetAnnotations()) },
+	}
+}
+
+// experimentPhaseChangedPredicate returns a predicate that triggers reconciliation
+// when the experiment phase in the DDA status changes. This allows the operator to
+// react to RC signals (e.g. phase=stopped) which are status-only changes that do not
+// bump metadata.generation.
+func experimentPhaseChangedPredicate() predicate.Predicate {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldDDA, ok1 := e.ObjectOld.(*v2alpha1.DatadogAgent)
+			newDDA, ok2 := e.ObjectNew.(*v2alpha1.DatadogAgent)
+			if !ok1 || !ok2 {
+				return false
+			}
+			oldPhase := ""
+			if oldDDA.Status.Experiment != nil {
+				oldPhase = string(oldDDA.Status.Experiment.Phase)
+			}
+			newPhase := ""
+			if newDDA.Status.Experiment != nil {
+				newPhase = string(newDDA.Status.Experiment.Phase)
+			}
+			return oldPhase != newPhase
+		},
+		CreateFunc:  func(e event.CreateEvent) bool { return false },
+		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
+		GenericFunc: func(e event.GenericEvent) bool { return false },
+	}
 }
 
 func enqueueIfOwnedByDatadogAgent(ctx context.Context, obj client.Object) []reconcile.Request {

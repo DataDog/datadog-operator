@@ -19,6 +19,7 @@ var AllAgentContainers = map[common.AgentContainerName]struct{}{
 	common.HostProfiler:                     {},
 	common.AgentDataPlaneContainerName:      {},
 	common.PrivateActionRunnerContainerName: {},
+	common.FlightRecorderContainerName:      {},
 	// DCA containers
 	common.ClusterAgentContainerName: {},
 	// CCR container name is equivalent to core agent container name

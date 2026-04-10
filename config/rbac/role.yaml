@@ -110,7 +110,11 @@ rules:
   resources:
   - controllerrevisions
   verbs:
+  - create
+  - delete
+  - get
   - list
+  - patch
   - watch
 - apiGroups:
   - apps
@@ -249,6 +253,8 @@ rules:
   - datadogagentprofiles/finalizers
   - datadogagents
   - datadogagents/finalizers
+  - datadogcsidrivers
+  - datadogcsidrivers/finalizers
   - datadogdashboards
   - datadoggenericresources
   - datadoggenericresources/finalizers
@@ -271,6 +277,7 @@ rules:
   - datadogagentinternals/status
   - datadogagentprofiles/status
   - datadogagents/status
+  - datadogcsidrivers/status
   - datadogdashboards/status
   - datadoggenericresources/status
   - datadogmonitors/status
@@ -489,6 +496,25 @@ rules:
   verbs:
   - list
   - watch
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - csidrivers
+  verbs:
+  - create
+  - list
+  - watch
+- apiGroups:
+  - storage.k8s.io
+  resourceNames:
+  - k8s.csi.datadoghq.com
+  resources:
+  - csidrivers
+  verbs:
+  - delete
+  - get
+  - patch
+  - update
 - apiGroups:
   - storage.k8s.io
   resources:

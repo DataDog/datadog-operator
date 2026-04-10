@@ -60,7 +60,24 @@ func ApplyGlobalSettingsNodeAgent(logger logr.Logger, manager feature.PodTemplat
 	applyNodeAgentResources(manager, ddaSpec, singleContainerStrategyEnabled)
 }
 
-// ApplyGlobalSettings use to apply global setting to a PodTemplateSpec
+// ValidateFIPSVersions checks all containers in the pod template for FIPS version compatibility.
+// This must be called after all image overrides have been applied, so it sees the final image tags.
+func ValidateFIPSVersions(manager feature.PodTemplateManagers) []error {
+	var errs []error
+	for _, container := range manager.PodTemplateSpec().Spec.Containers {
+		if err := images.FromString(container.Image).FIPSVersionError(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	for _, container := range manager.PodTemplateSpec().Spec.InitContainers {
+		if err := images.FromString(container.Image).FIPSVersionError(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errs
+}
+
+// applyGlobalSettings applies global settings to a PodTemplateSpec.
 func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers, ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, resourcesManager feature.ResourceManagers, requiredComponents feature.RequiredComponents) {
 	config := ddaSpec.Global
 
@@ -303,9 +320,9 @@ func updateContainerImages(config *v2alpha1.GlobalConfig, podTemplateManager fea
 	}
 
 	for i, container := range podTemplateManager.PodTemplateSpec().Spec.InitContainers {
-		image = images.FromString(container.Image)
-		image.WithRegistry(*config.Registry)
-		image.WithFIPS(*config.UseFIPSAgent)
+		image = images.FromString(container.Image).
+			WithRegistry(*config.Registry).
+			WithFIPS(*config.UseFIPSAgent)
 		// Note: if an image tag override is configured, this image tag will be overwritten
 		podTemplateManager.PodTemplateSpec().Spec.InitContainers[i].Image = image.ToString()
 	}

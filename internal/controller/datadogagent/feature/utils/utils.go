@@ -6,8 +6,6 @@
 package utils
 
 import (
-	"strconv"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -21,10 +19,8 @@ const (
 	EnableADPAnnotation                   = "agent.datadoghq.com/adp-enabled"
 	EnableFineGrainedKubeletAuthz         = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
 	EnableHostProfilerAnnotation          = "agent.datadoghq.com/host-profiler-enabled"
-	HostProfilerConfigDataAnnotation      = "agent.datadoghq.com/host-profiler-configdata"
 
-	// Config map item must be `host-profiler-config.yaml`
-	HostProfilerConfigMapNameAnnotation = "agent.datadoghq.com/host-profiler-configmap-name"
+	EnableFlightRecorderAnnotation = "agent.datadoghq.com/flightrecorder-enabled"
 
 	EnablePrivateActionRunnerAnnotation     = "agent.datadoghq.com/private-action-runner-enabled"
 	PrivateActionRunnerConfigDataAnnotation = "agent.datadoghq.com/private-action-runner-configdata"
@@ -44,28 +40,12 @@ func agentSupportsRunInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	return utils.IsAboveMinVersion(images.AgentLatestVersion, ProcessConfigRunInCoreAgentMinVersion, nil)
 }
 
-// ShouldRunProcessChecksInCoreAgent determines whether allow process checks to run in core agent based on
-// environment variables and the agent version.
+// ShouldRunProcessChecksInCoreAgent determines whether process checks should run in the core agent
+// based on the agent version. Agents >= 7.60.0 support running process checks in the core agent.
+// Note: As of Agent 7.78, process checks always run in the core agent on Linux and the
+// DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED envvar is no longer recognized.
 func ShouldRunProcessChecksInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
-
-	// Prioritize env var override
-	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
-		for _, env := range nodeAgent.Env {
-			if env.Name == common.DDProcessConfigRunInCoreAgent {
-				val, err := strconv.ParseBool(env.Value)
-				if err == nil {
-					return val
-				}
-			}
-		}
-	}
-
-	// Check if agent version supports process checks running in core agent
-	if !agentSupportsRunInCoreAgent(ddaSpec) {
-		return false
-	}
-
-	return true
+	return agentSupportsRunInCoreAgent(ddaSpec)
 }
 
 func HasFeatureEnableAnnotation(dda metav1.Object, annotation string) bool {

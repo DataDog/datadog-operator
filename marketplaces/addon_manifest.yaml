@@ -7,9 +7,9 @@ metadata:
   namespace: datadog-agent
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.18.1
+    helm.sh/chart: datadog-operator-2.19.1
     app.kubernetes.io/instance: operator-eks-addon
-    app.kubernetes.io/version: "1.23.1"
+    app.kubernetes.io/version: "1.24.0"
     app.kubernetes.io/managed-by: eks-addon
 ---
 # Source: operator-eks-addon/charts/datadog-operator/charts/datadogCRDs/templates/datadoghq.com_datadogagentinternals_v1.yaml
@@ -20,7 +20,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.17.3
   name: datadogagentinternals.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.16.0'
+    helm.sh/chart: 'datadogCRDs-2.17.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -1173,6 +1173,12 @@ spec:
                                 Default: true
                               type: boolean
                           type: object
+                        runInSystemProbe:
+                          description: |-
+                            RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent.
+                            This is an experimental feature. Contact support before using.
+                            Default: false
+                          type: boolean
                       type: object
                     cws:
                       description: CWS (Cloud Workload Security) configuration.
@@ -1358,6 +1364,7 @@ spec:
                         tagCardinality:
                           description: |-
                             TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`).
+                            This setting only applies when OriginDetectionEnabled is true.
                             See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables
                             Cardinality default: low
                           type: string
@@ -1867,6 +1874,11 @@ spec:
                         collectDNSStats:
                           description: |-
                             CollectDNSStats enables DNS stat collection.
+                            Default: false
+                          type: boolean
+                        directSend:
+                          description: |-
+                            DirectSend enables CNM/USM to send data directly to the backend
                             Default: false
                           type: boolean
                         enableConntrack:
@@ -9166,6 +9178,12 @@ spec:
                                     Default: true
                                   type: boolean
                               type: object
+                            runInSystemProbe:
+                              description: |-
+                                RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent.
+                                This is an experimental feature. Contact support before using.
+                                Default: false
+                              type: boolean
                           type: object
                         cws:
                           description: CWS (Cloud Workload Security) configuration.
@@ -9351,6 +9369,7 @@ spec:
                             tagCardinality:
                               description: |-
                                 TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`).
+                                This setting only applies when OriginDetectionEnabled is true.
                                 See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables
                                 Cardinality default: low
                               type: string
@@ -9860,6 +9879,11 @@ spec:
                             collectDNSStats:
                               description: |-
                                 CollectDNSStats enables DNS stat collection.
+                                Default: false
+                              type: boolean
+                            directSend:
+                              description: |-
+                                DirectSend enables CNM/USM to send data directly to the backend
                                 Default: false
                               type: boolean
                             enableConntrack:
@@ -10404,7 +10428,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.17.3
   name: datadogagents.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.16.0'
+    helm.sh/chart: 'datadogCRDs-2.17.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -11025,6 +11049,8 @@ spec:
                             enabled:
                               type: boolean
                           type: object
+                        runInSystemProbe:
+                          type: boolean
                       type: object
                     cws:
                       properties:
@@ -11419,6 +11445,8 @@ spec:
                     npm:
                       properties:
                         collectDNSStats:
+                          type: boolean
+                        directSend:
                           type: boolean
                         enableConntrack:
                           type: boolean
@@ -15164,6 +15192,8 @@ spec:
                                 enabled:
                                   type: boolean
                               type: object
+                            runInSystemProbe:
+                              type: boolean
                           type: object
                         cws:
                           properties:
@@ -15559,6 +15589,8 @@ spec:
                           properties:
                             collectDNSStats:
                               type: boolean
+                            directSend:
+                              type: boolean
                             enableConntrack:
                               type: boolean
                             enabled:
@@ -15861,7 +15893,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.17.3
   name: datadogmetrics.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.16.0'
+    helm.sh/chart: 'datadogCRDs-2.17.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -15989,7 +16021,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.17.3
   name: datadogpodautoscalers.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.16.0'
+    helm.sh/chart: 'datadogCRDs-2.17.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -17481,6 +17513,24 @@ spec:
                   minItems: 1
                   type: array
                   x-kubernetes-list-type: atomic
+                options:
+                  description: Options defines optional behavior modifications for the autoscaler.
+                  properties:
+                    outOfMemory:
+                      description: OutOfMemory configures behavior when OOM events are detected.
+                      properties:
+                        bumpUpRatio:
+                          anyOf:
+                            - type: integer
+                            - type: string
+                          description: |-
+                            BumpUpRatio defines the ratio to multiply memory by when OOM is detected.
+                            For example, "1.2" means increase memory by 20%.
+                            Represented as a resource.Quantity to avoid floating point in CRDs.
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                      type: object
+                  type: object
                 owner:
                   description: |-
                     Owner defines the source of truth for this object (local or remote).
@@ -17725,9 +17775,9 @@ metadata:
   name: operator-eks-addon-datadog-operator
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.18.1
+    helm.sh/chart: datadog-operator-2.19.1
     app.kubernetes.io/instance: operator-eks-addon
-    app.kubernetes.io/version: "1.23.1"
+    app.kubernetes.io/version: "1.24.0"
     app.kubernetes.io/managed-by: eks-addon
 rules:
 - nonResourceURLs:
@@ -17845,6 +17895,14 @@ rules:
   - statefulsets
   verbs:
   - get
+  - list
+  - watch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - applications
+  - applicationsets
+  verbs:
   - list
   - watch
 - apiGroups:
@@ -18000,6 +18058,7 @@ rules:
   - watch
 - apiGroups:
   - datadoghq.com
+  - eks.amazonaws.com
   - karpenter.azure.com
   resources:
   - '*'
@@ -18014,6 +18073,7 @@ rules:
   - list
   - watch
 - apiGroups:
+  - eks.amazonaws.com
   - external.metrics.k8s.io
   - karpenter.k8s.aws
   resources:
@@ -18061,6 +18121,13 @@ rules:
   - list
   - patch
   - update
+  - watch
+- apiGroups:
+  - kustomize.toolkit.fluxcd.io
+  resources:
+  - kustomizations
+  verbs:
+  - list
   - watch
 - apiGroups:
   - metrics.eks.amazonaws.com
@@ -18153,6 +18220,18 @@ rules:
   verbs:
   - use
 - apiGroups:
+  - source.toolkit.fluxcd.io
+  resources:
+  - buckets
+  - externalartifacts
+  - gitrepositories
+  - helmcharts
+  - helmrepositories
+  - ocirepositories
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - storage.k8s.io
   resources:
   - storageclasses
@@ -18223,9 +18302,9 @@ metadata:
   namespace: datadog-agent
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.18.1
+    helm.sh/chart: datadog-operator-2.19.1
     app.kubernetes.io/instance: operator-eks-addon
-    app.kubernetes.io/version: "1.23.1"
+    app.kubernetes.io/version: "1.24.0"
     app.kubernetes.io/managed-by: eks-addon
 spec:
   replicas: 1
@@ -18251,7 +18330,7 @@ spec:
       serviceAccountName: operator-eks-addon-datadog-operator
       containers:
         - name: datadog-operator
-          image: "709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator:1.23.1"
+          image: "709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator:1.24.0"
           imagePullPolicy: IfNotPresent
           env:
             - name: WATCH_NAMESPACE
@@ -18272,6 +18351,10 @@ spec:
                   fieldPath: metadata.namespace
             - name: DD_TOOL_VERSION
               value: eks-addon
+            - name: DD_REGISTRY_OVERRIDE_ASIA
+              value: "true"
+            - name: DD_REGISTRY_OVERRIDE_EU
+              value: "true"
           args:
             - "-supportExtendedDaemonset=false"
             - "-logEncoder=json"
@@ -18286,6 +18369,7 @@ spec:
             - "-datadogDashboardEnabled=false"
             - "-datadogGenericResourceEnabled=false"
             - "-remoteConfigEnabled=false"
+            - "-remoteUpdatesEnabled=false"
             - "-datadogAgentInternalEnabled=true"
           ports:
             - name: metrics
@@ -18300,4 +18384,6 @@ spec:
           resources:
             {}
           volumeMounts:
+      nodeSelector:
+        kubernetes.io/os: linux
       volumes:

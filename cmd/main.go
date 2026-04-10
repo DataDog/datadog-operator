@@ -20,6 +20,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/DataDog/dd-trace-go.v1/profiler"
+	storagev1 "k8s.io/api/storage/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -48,6 +49,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/metadata"
+	"github.com/DataDog/datadog-operator/pkg/fleet"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
@@ -79,6 +81,7 @@ func init() {
 	utilruntime.Must(edsdatadoghqv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(datadoghqv2alpha1.AddToScheme(scheme))
 	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
+	utilruntime.Must(storagev1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -133,6 +136,7 @@ type options struct {
 	supportCilium                          bool
 	datadogAgentEnabled                    bool
 	datadogAgentInternalEnabled            bool
+	createControllerRevisions              bool
 	datadogMonitorEnabled                  bool
 	datadogSLOEnabled                      bool
 	operatorMetricsEnabled                 bool
@@ -140,8 +144,10 @@ type options struct {
 	introspectionEnabled                   bool
 	datadogAgentProfileEnabled             bool
 	remoteConfigEnabled                    bool
+	remoteUpdatesEnabled                   bool
 	datadogDashboardEnabled                bool
 	datadogGenericResourceEnabled          bool
+	datadogCSIDriverEnabled                bool
 
 	// Secret Backend options
 	secretBackendCommand  string
@@ -177,11 +183,14 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.introspectionEnabled, "introspectionEnabled", false, "Enable introspection (beta)")
 	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller")
 	flag.BoolVar(&opts.remoteConfigEnabled, "remoteConfigEnabled", false, "Enable RemoteConfig capabilities in the Operator (beta)")
+	flag.BoolVar(&opts.remoteUpdatesEnabled, "remoteUpdatesEnabled", false, "Enable Remote Updates capabilities in the Operator (beta)")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
 	flag.BoolVar(&opts.datadogGenericResourceEnabled, "datadogGenericResourceEnabled", false, "Enable the DatadogGenericResource controller")
+	flag.BoolVar(&opts.datadogCSIDriverEnabled, "datadogCSIDriverEnabled", false, "Enable the DatadogCSIDriver controller")
 
 	// DatadogAgentInternal
 	flag.BoolVar(&opts.datadogAgentInternalEnabled, "datadogAgentInternalEnabled", true, "Enable the DatadogAgentInternal controller")
+	flag.BoolVar(&opts.createControllerRevisions, "createControllerRevisions", false, "Enable creation of ControllerRevision snapshots on each DDA spec change")
 
 	// ExtendedDaemonset configuration
 	flag.BoolVar(&opts.supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
@@ -307,8 +316,10 @@ func run(opts *options) error {
 
 	}
 
-	// Client is needed when Creds should be resolved from DDA so cached client is fine
-	credsManager := config.NewCredentialManagerWithDecryptor(mgr.GetClient(), secrets.NewSecretBackend())
+	// Get call on a cached client initializes informer which requires list and watch permissions.
+	// If RBAC restricts list and watch permissions, the informer will log errors and may cause crash loops.
+	// Reader interface as returned from mgr.GetAPIReader() reads directly from API server bypassing cache and informer initialization.
+	credsManager := config.NewCredentialManagerWithDecryptor(mgr.GetAPIReader(), secrets.NewSecretBackend())
 	creds, err := credsManager.GetCredentials()
 
 	if opts.secretRefreshInterval > 0 && opts.secretBackendCommand == "" {
@@ -321,15 +332,22 @@ func run(opts *options) error {
 	customSetupHealthChecks(setupLog, mgr, &opts.maximumGoroutines)
 
 	if opts.remoteConfigEnabled {
+		rcUpdater := remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config"))
 		go func() {
 			// Block until this controller manager is elected leader. We presume the
 			// entire process will terminate if we lose leadership, so we don't need
 			// to handle that.
 			<-mgr.Elected()
 
-			err = remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config")).Setup(creds)
-			if err != nil {
-				setupErrorf(setupLog, err, "Unable to set up Remote Config service")
+			if rcErr := rcUpdater.Setup(creds); rcErr != nil {
+				setupErrorf(setupLog, rcErr, "Unable to set up Remote Config service")
+				return
+			}
+
+			if opts.remoteUpdatesEnabled {
+				if rcErr := setupFleetDaemon(setupLog, mgr, rcUpdater.Client()); rcErr != nil {
+					setupErrorf(setupLog, rcErr, "Unable to setup Fleet daemon")
+				}
 			}
 		}()
 	}
@@ -370,6 +388,7 @@ func run(opts *options) error {
 		SecretRefreshInterval:         opts.secretRefreshInterval,
 		DatadogAgentEnabled:           opts.datadogAgentEnabled,
 		DatadogAgentInternalEnabled:   opts.datadogAgentInternalEnabled,
+		CreateControllerRevisions:     opts.createControllerRevisions && opts.datadogAgentInternalEnabled, // Only enable if DDAI is also enabled.
 		DatadogMonitorEnabled:         opts.datadogMonitorEnabled,
 		DatadogSLOEnabled:             opts.datadogSLOEnabled,
 		OperatorMetricsEnabled:        opts.operatorMetricsEnabled,
@@ -378,6 +397,7 @@ func run(opts *options) error {
 		DatadogAgentProfileEnabled:    opts.datadogAgentProfileEnabled,
 		DatadogDashboardEnabled:       opts.datadogDashboardEnabled,
 		DatadogGenericResourceEnabled: opts.datadogGenericResourceEnabled,
+		DatadogCSIDriverEnabled:       opts.datadogCSIDriverEnabled,
 	}
 
 	versionInfo, platformInfo, err := getVersionAndPlatformInfo(rest.CopyConfig(mgr.GetConfig()))
@@ -618,6 +638,7 @@ func setupAndStartOperatorMetadataForwarder(logger logr.Logger, client client.Re
 		LeaderElectionEnabled:         options.enableLeaderElection,
 		ExtendedDaemonSetEnabled:      options.supportExtendedDaemonset,
 		RemoteConfigEnabled:           options.remoteConfigEnabled,
+		RemoteUpdatesEnabled:          options.remoteUpdatesEnabled,
 		IntrospectionEnabled:          options.introspectionEnabled,
 		ConfigDDURL:                   os.Getenv(constants.DDURL),
 		ConfigDDSite:                  os.Getenv(constants.DDSite),
@@ -647,4 +668,9 @@ func setupAndStartHelmMetadataForwarder(logger logr.Logger, mgr manager.Manager,
 	hmf := metadata.NewHelmMetadataForwarderWithManager(logger, mgr, client, kubernetesVersion, version.GetVersion(), credsManager)
 	// Register as a runnable with the manager - will be started after cache sync
 	return mgr.Add(hmf)
+}
+
+func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, rcClient remoteconfig.RCClient) error {
+	daemon := fleet.NewDaemon(logger.WithName("fleet"), rcClient)
+	return mgr.Add(daemon)
 }

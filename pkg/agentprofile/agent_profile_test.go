@@ -10,10 +10,11 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/utils/ptr"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/go-logr/logr"
@@ -360,8 +361,8 @@ func TestOverrideFromProfile(t *testing.T) {
 					},
 					PodAntiAffinity: profilePodAntiAffinity(),
 				},
-				PriorityClassName: apiutils.NewStringPointer("foo"),
-				RuntimeClassName:  apiutils.NewStringPointer("bar"),
+				PriorityClassName: ptr.To("foo"),
+				RuntimeClassName:  ptr.To("bar"),
 				UpdateStrategy: &apicommon.UpdateStrategy{
 					Type: "RollingUpdate",
 					RollingUpdate: &apicommon.RollingUpdate{
@@ -391,7 +392,7 @@ func TestOverrideFromProfile(t *testing.T) {
 			name:    "default profile, no overrides applied",
 			profile: exampleDefaultProfile(),
 			expectedOverride: v2alpha1.DatadogAgentComponentOverride{
-				Name: apiutils.NewStringPointer(""),
+				Name: ptr.To(""),
 				Affinity: &corev1.Affinity{
 					NodeAffinity: &corev1.NodeAffinity{
 						RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -759,7 +760,7 @@ func exampleFeatureOverrideProfile() v1alpha1.DatadogAgentProfile {
 			Config: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					GPU: &v2alpha1.GPUFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(true),
+						Enabled: ptr.To(true),
 					},
 				},
 				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -832,8 +833,8 @@ func configWithAllOverrides(cpuRequest string) *v2alpha1.DatadogAgentSpec {
 	return &v2alpha1.DatadogAgentSpec{
 		Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 			v2alpha1.NodeAgentComponentName: {
-				PriorityClassName: apiutils.NewStringPointer("foo"),
-				RuntimeClassName:  apiutils.NewStringPointer("bar"),
+				PriorityClassName: ptr.To("foo"),
+				RuntimeClassName:  ptr.To("bar"),
 				UpdateStrategy: &apicommon.UpdateStrategy{
 					Type: "RollingUpdate",
 					RollingUpdate: &apicommon.RollingUpdate{
@@ -1042,7 +1043,7 @@ func TestGetMaxUnavailable(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Name: apiutils.NewStringPointer("test"),
+							Name: ptr.To("test"),
 						},
 					},
 				},
@@ -1052,7 +1053,7 @@ func TestGetMaxUnavailable(t *testing.T) {
 					Config: &v2alpha1.DatadogAgentSpec{
 						Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 							v2alpha1.NodeAgentComponentName: {
-								PriorityClassName: apiutils.NewStringPointer("test"),
+								PriorityClassName: ptr.To("test"),
 							},
 						},
 					},
@@ -1087,7 +1088,7 @@ func TestGetMaxUnavailable(t *testing.T) {
 					Config: &v2alpha1.DatadogAgentSpec{
 						Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 							v2alpha1.NodeAgentComponentName: {
-								PriorityClassName: apiutils.NewStringPointer("test"),
+								PriorityClassName: ptr.To("test"),
 							},
 						},
 					},
