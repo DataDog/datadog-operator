@@ -86,9 +86,7 @@ func testStartRequest() remoteAPIRequest {
 	return remoteAPIRequest{
 		ID:     "exp-abc",
 		Method: methodStartDatadogAgentExperiment,
-		ExpectedState: expectedState{
-			ExperimentConfig: "test-config",
-		},
+		Params: experimentParams{Version: "test-config"},
 	}
 }
 
@@ -97,7 +95,7 @@ func testStartRequest() remoteAPIRequest {
 func TestStartDatadogAgentExperiment_ConfigNotFound(t *testing.T) {
 	d, _ := testDaemon(testDDAObject(""), testInstallerConfigWithDDA())
 	req := testStartRequest()
-	req.ExpectedState.ExperimentConfig = "nonexistent"
+	req.Params.Version = "nonexistent"
 	assert.Error(t, d.startDatadogAgentExperiment(context.Background(), req))
 }
 
@@ -117,7 +115,7 @@ func TestStartDatadogAgentExperiment_NoDDAOperation(t *testing.T) {
 	}
 	d, _ := testDaemon(testDDAObject(""), configs)
 	req := testStartRequest()
-	req.ExpectedState.ExperimentConfig = "no-dda-config"
+	req.Params.Version = "no-dda-config"
 	assert.Error(t, d.startDatadogAgentExperiment(context.Background(), req))
 }
 
@@ -196,22 +194,76 @@ func TestStartDatadogAgentExperiment_Success_OverwritesPreviousExperiment(t *tes
 	assert.NotEqual(t, "old-exp", dda.Status.Experiment.ID)
 }
 
+// --- resolveOperation: params.version matching tests ---
+
+func TestStartDatadogAgentExperiment_VersionMatchesInstallerConfig(t *testing.T) {
+	// Simulates the real payload pairing:
+	// - installer_config has id "cyg9-1ztz-cdnn" with an APM-enabling patch
+	// - updater_task has params.version "cyg9-1ztz-cdnn" linking them together
+	configs := map[string]installerConfig{
+		"aaaa-bbbb-cccc": {
+			ID: "aaaa-bbbb-cccc",
+			Operations: []fleetManagementOperation{
+				{
+					Operation:        OperationUpdate,
+					GroupVersionKind: testDDAGVK,
+					NamespacedName:   testDDANSN,
+					Config:           json.RawMessage(`{"spec":{"features":{"apm":{"enabled":true}}}}`),
+				},
+			},
+		},
+	}
+	d, c := testDaemon(testDDAObject(""), configs)
+	req := remoteAPIRequest{
+		ID:     "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+		Method: methodStartDatadogAgentExperiment,
+		Params: experimentParams{Version: "aaaa-bbbb-cccc"},
+		ExpectedState: expectedState{
+			Stable:       "0.0.1",
+			StableConfig: "0.0.1",
+			ClientID:     "aAbBcCdDeEfFgGhHiIjJk",
+		},
+	}
+	require.NoError(t, d.startDatadogAgentExperiment(context.Background(), req))
+
+	dda := &v2alpha1.DatadogAgent{}
+	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
+	require.NotNil(t, dda.Status.Experiment)
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, dda.Status.Experiment.Phase)
+	assert.Equal(t, req.ID, dda.Status.Experiment.ID)
+}
+
+func TestStartDatadogAgentExperiment_EmptyVersion(t *testing.T) {
+	d, _ := testDaemon(testDDAObject(""), testInstallerConfigWithDDA())
+	req := testStartRequest()
+	req.Params.Version = ""
+	assert.Error(t, d.startDatadogAgentExperiment(context.Background(), req))
+}
+
+func TestStartDatadogAgentExperiment_VersionMismatch(t *testing.T) {
+	// params.version doesn't match any installer config ID
+	d, _ := testDaemon(testDDAObject(""), testInstallerConfigWithDDA())
+	req := testStartRequest()
+	req.Params.Version = "xxxx-yyyy-zzzz" // no config with this ID
+	err := d.startDatadogAgentExperiment(context.Background(), req)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
 // --- stopDatadogAgentExperiment tests ---
 
 func testStopRequest() remoteAPIRequest {
 	return remoteAPIRequest{
 		ID:     "exp-abc",
 		Method: methodStopDatadogAgentExperiment,
-		ExpectedState: expectedState{
-			ExperimentConfig: "test-config",
-		},
+		Params: experimentParams{Version: "test-config"},
 	}
 }
 
 func TestStopDatadogAgentExperiment_ConfigNotFound(t *testing.T) {
 	d, _ := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseRunning), testInstallerConfigWithDDA())
 	req := testStopRequest()
-	req.ExpectedState.ExperimentConfig = "nonexistent"
+	req.Params.Version = "nonexistent"
 	assert.Error(t, d.stopDatadogAgentExperiment(context.Background(), req))
 }
 
@@ -277,16 +329,14 @@ func testPromoteRequest() remoteAPIRequest {
 	return remoteAPIRequest{
 		ID:     "exp-abc",
 		Method: methodPromoteDatadogAgentExperiment,
-		ExpectedState: expectedState{
-			ExperimentConfig: "test-config",
-		},
+		Params: experimentParams{Version: "test-config"},
 	}
 }
 
 func TestPromoteDatadogAgentExperiment_ConfigNotFound(t *testing.T) {
 	d, _ := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseRunning), testInstallerConfigWithDDA())
 	req := testPromoteRequest()
-	req.ExpectedState.ExperimentConfig = "nonexistent"
+	req.Params.Version = "nonexistent"
 	assert.Error(t, d.promoteDatadogAgentExperiment(context.Background(), req))
 }
 

@@ -41,7 +41,7 @@ var testInstallerConfig = installerConfig{
 var testRemoteAPIRequest = remoteAPIRequest{
 	ID:     "test",
 	Method: "some_method",
-	Params: json.RawMessage(`{}`),
+	Params: experimentParams{},
 }
 
 // callbackMock records calls made by the RC handler callbacks.
@@ -149,6 +149,47 @@ func TestRemoteAPIRequest(t *testing.T) {
 	cb.AssertCalled(t, "handleRemoteAPIRequest", testRemoteAPIRequest)
 	cb.AssertCalled(t, "applyStateCallback", "path/to/task", state.ApplyStatus{State: state.ApplyStateUnacknowledged})
 	cb.AssertCalled(t, "applyStateCallback", "path/to/task", state.ApplyStatus{State: state.ApplyStateAcknowledged})
+}
+
+func TestRemoteAPIRequestParsesParamsVersion(t *testing.T) {
+	// Verifies that a real UPDATER_TASK payload has params.version correctly parsed.
+	cb := &callbackMock{}
+	handler := handleUpdaterTaskUpdate(context.Background(), cb.handleRemoteAPIRequest)
+
+	rawPayload := []byte(`{
+		"id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+		"package_name": "datadog-operator",
+		"trace_id": "12345678901234567890",
+		"parent_span_id": "11111111111111111111",
+		"expected_state": {
+			"stable": "0.0.1",
+			"experiment": "",
+			"stable_config": "0.0.1",
+			"client_id": "aAbBcCdDeEfFgGhHiIjJk"
+		},
+		"method": "operator/start_datadogagent_experiment",
+		"params": {
+			"version": "aaaa-bbbb-cccc"
+		}
+	}`)
+
+	updates := map[string]state.RawConfig{
+		"datadog/2/UPDATER_TASK/a1b2c3d4/1234567890abcdef": {Config: rawPayload},
+	}
+
+	cb.On("handleRemoteAPIRequest", mock.MatchedBy(func(req remoteAPIRequest) bool {
+		return req.ID == "a1b2c3d4-e5f6-7890-abcd-ef1234567890" &&
+			req.Method == "operator/start_datadogagent_experiment" &&
+			req.Params.Version == "aaaa-bbbb-cccc" &&
+			req.ExpectedState.StableConfig == "0.0.1"
+	})).Return(nil)
+	cb.On("applyStateCallback", mock.Anything, mock.Anything).Return()
+
+	handler(updates, cb.applyStateCallback)
+
+	cb.AssertCalled(t, "handleRemoteAPIRequest", mock.MatchedBy(func(req remoteAPIRequest) bool {
+		return req.Params.Version == "aaaa-bbbb-cccc"
+	}))
 }
 
 func TestRemoteAPIRequestBadConfig(t *testing.T) {

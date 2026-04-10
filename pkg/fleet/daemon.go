@@ -58,7 +58,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 	ctx = ctrl.LoggerInto(ctx, logger)
 	logger.Info("Starting Fleet daemon")
 
-	d.rcClient.Subscribe(state.ProductUpdaterAgent, handleInstallerConfigUpdate(ctx, func(configs map[string]installerConfig) error {
+	d.rcClient.Subscribe(state.ProductInstallerConfig, handleInstallerConfigUpdate(ctx, func(configs map[string]installerConfig) error {
 		return d.handleConfigs(ctx, configs)
 	}))
 	d.rcClient.Subscribe(state.ProductUpdaterTask, handleUpdaterTaskUpdate(ctx, func(req remoteAPIRequest) error {
@@ -128,7 +128,13 @@ func (d *Daemon) handleRemoteAPIRequest(ctx context.Context, req remoteAPIReques
 // resolveOperation looks up the installer config for the request, validates its single
 // DatadogAgent operation, and fills in the canonical GVK. Returns the operation ready for use.
 func (d *Daemon) resolveOperation(req remoteAPIRequest, signal string) (fleetManagementOperation, error) {
-	cfg, err := d.getConfig(req.ExpectedState.ExperimentConfig)
+	// get params version from req
+	id := req.Params.Version
+	if id == "" {
+		return fleetManagementOperation{}, fmt.Errorf("%s: version is required", signal)
+	}
+	// match to d.configs[params.version] to get config
+	cfg, err := d.getConfig(id)
 	if err != nil {
 		return fleetManagementOperation{}, fmt.Errorf("%s: %w", signal, err)
 	}
@@ -152,7 +158,7 @@ func (d *Daemon) resolveOperation(req remoteAPIRequest, signal string) (fleetMan
 // The second step updates the DDA status to running, recording the experiment ID and generation.
 func (d *Daemon) startDatadogAgentExperiment(ctx context.Context, req remoteAPIRequest) error {
 	tempLogger := ctrl.LoggerFrom(ctx).WithValues("id", req.ID)
-	tempLogger.Info("Starting DatadogAgent experiment", "config", req.ExpectedState.ExperimentConfig)
+	tempLogger.Info("Starting DatadogAgent experiment", "config", req.Params.Version)
 	op, err := d.resolveOperation(req, "start DatadogAgent experiment")
 	if err != nil {
 		tempLogger.Error(err, "Failed to resolve operation")
