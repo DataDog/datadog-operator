@@ -120,18 +120,22 @@ func (o *options) run(cmd *cobra.Command) error {
 		clusterName = extractClusterName(rel.Config)
 	}
 	if clusterName == "" {
-		if name, err := clients.GetClusterNameFromKubeconfig(ctx, o.ConfigFlags); err != nil {
+		name, err := clients.GetClusterNameFromKubeconfig(ctx, o.ConfigFlags)
+		if err != nil {
 			return err
-		} else if name != "" {
+		}
+		if name != "" {
 			clusterName = name
 		} else {
 			return errors.New("cluster name must be specified either via --cluster-name, from the existing installation, or in the current kubeconfig context")
 		}
 	}
 
-	if autoModeEnabled, err := guess.IsEKSAutoModeEnabled(o.DiscoveryClient); err != nil {
+	autoModeEnabled, err := guess.IsEKSAutoModeEnabled(o.DiscoveryClient)
+	if err != nil {
 		return fmt.Errorf("failed to check for EKS auto-mode: %w", err)
-	} else if autoModeEnabled {
+	}
+	if autoModeEnabled {
 		return fmt.Errorf("EKS auto-mode is active on cluster %s; Karpenter is built into EKS auto-mode and cannot be upgraded separately", clusterName)
 	}
 
