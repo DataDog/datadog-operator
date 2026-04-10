@@ -123,6 +123,37 @@ func GetClusterNameFromKubeconfig(ctx context.Context, configFlags *genericcliop
 	return guess.GetClusterNameFromKubeconfig(ctx, kubeRawConfig, kubeContext), nil
 }
 
+// GetAccountIDFromKubeconfig attempts to extract the AWS account ID from the
+// kubeconfig context. Returns an empty string if the context is not an EKS ARN.
+func GetAccountIDFromKubeconfig(configFlags *genericclioptions.ConfigFlags) string {
+	kubeRawConfig, err := configFlags.ToRawKubeConfigLoader().RawConfig()
+	if err != nil {
+		return ""
+	}
+
+	kubeContext := ""
+	if configFlags.Context != nil {
+		kubeContext = *configFlags.Context
+	}
+	if kubeContext == "" {
+		kubeContext = kubeRawConfig.CurrentContext
+	}
+	if kubeContext == "" {
+		return ""
+	}
+
+	ctx, exists := kubeRawConfig.Contexts[kubeContext]
+	if !exists {
+		return ""
+	}
+
+	if parsed, err := arn.Parse(ctx.Cluster); err == nil {
+		return parsed.AccountID
+	}
+
+	return ""
+}
+
 // GetAWSAccountID returns the AWS account ID from the current credentials.
 func GetAWSAccountID(ctx context.Context, cli *Clients) (string, error) {
 	callerIdentity, err := cli.STS.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
@@ -138,12 +169,37 @@ func GetAWSAccountID(ctx context.Context, cli *Clients) (string, error) {
 // ValidateAWSAccountConsistency prevents accidental cross-account resource
 // deployment by verifying that the current AWS credentials and the target
 // EKS cluster belong to the same AWS account.
-func ValidateAWSAccountConsistency(ctx context.Context, cli *Clients, clusterName string) error {
+//
+// kubeconfigAccountID should be the account ID extracted from the kubeconfig
+// context ARN (via GetAccountIDFromKubeconfig). When non-empty, it is used
+// directly — this avoids relying on DescribeCluster with the credentials
+// being validated, which would give a false positive if both accounts
+// happen to have a cluster with the same name.
+//
+// When kubeconfigAccountID is empty (kubeconfig context is not an ARN),
+// falls back to DescribeCluster.
+func ValidateAWSAccountConsistency(ctx context.Context, cli *Clients, clusterName string, kubeconfigAccountID string) error {
 	credentialsAccountID, err := GetAWSAccountID(ctx, cli)
 	if err != nil {
 		return err
 	}
 
+	// Prefer the kubeconfig-derived account ID: it is independent of the
+	// AWS credentials and cannot be fooled by same-named clusters.
+	if kubeconfigAccountID != "" {
+		if credentialsAccountID != kubeconfigAccountID {
+			return &AccountMismatchError{
+				CredentialsAccountID: credentialsAccountID,
+				ClusterAccountID:     kubeconfigAccountID,
+				ClusterName:          clusterName,
+			}
+		}
+		return nil
+	}
+
+	// Fallback: resolve the cluster account via DescribeCluster. This uses
+	// the same credentials being validated, so it cannot detect a mismatch
+	// when both accounts have a cluster with the same name.
 	cluster, err := cli.EKS.DescribeCluster(ctx, &eks.DescribeClusterInput{
 		Name: awssdk.String(clusterName),
 	})
