@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/fatih/color"
 	"github.com/pkg/browser"
@@ -231,6 +230,10 @@ func (o *options) run(cmd *cobra.Command) error {
 		return fmt.Errorf("failed to build clients: %w", err)
 	}
 
+	if err = clients.ValidateAWSAccountConsistency(ctx, cli, clusterName); err != nil {
+		return err
+	}
+
 	if err = createCloudFormationStacks(ctx, cli, clusterName, karpenterNamespace); err != nil {
 		return err
 	}
@@ -290,15 +293,10 @@ func updateAwsAuthConfigMap(ctx context.Context, cli *clients.Clients, clusterNa
 		return nil
 	}
 
-	// Get AWS account ID
-	callerIdentity, err := cli.STS.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
+	accountID, err := clients.GetAWSAccountID(ctx, cli)
 	if err != nil {
-		return fmt.Errorf("failed to get identity caller: %w", err)
+		return err
 	}
-	if callerIdentity.Account == nil {
-		return errors.New("unable to determine AWS account ID from STS GetCallerIdentity")
-	}
-	accountID := *callerIdentity.Account
 
 	// Add role mapping in the `aws-auth` ConfigMap
 	if err = aws.EnsureAwsAuthRole(ctx, cli.K8sClientset, aws.RoleMapping{

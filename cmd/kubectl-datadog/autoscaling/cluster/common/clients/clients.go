@@ -4,9 +4,11 @@ package clients
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	awssdk "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -119,4 +121,74 @@ func GetClusterNameFromKubeconfig(ctx context.Context, configFlags *genericcliop
 	}
 
 	return guess.GetClusterNameFromKubeconfig(ctx, kubeRawConfig, kubeContext), nil
+}
+
+// GetAWSAccountID returns the AWS account ID from the current credentials.
+func GetAWSAccountID(ctx context.Context, cli *Clients) (string, error) {
+	callerIdentity, err := cli.STS.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
+	if err != nil {
+		return "", fmt.Errorf("failed to get AWS caller identity: %w", err)
+	}
+	if callerIdentity.Account == nil {
+		return "", errors.New("unable to determine AWS account ID from STS GetCallerIdentity")
+	}
+	return *callerIdentity.Account, nil
+}
+
+// ValidateAWSAccountConsistency prevents accidental cross-account resource
+// deployment by verifying that the current AWS credentials and the target
+// EKS cluster belong to the same AWS account.
+func ValidateAWSAccountConsistency(ctx context.Context, cli *Clients, clusterName string) error {
+	credentialsAccountID, err := GetAWSAccountID(ctx, cli)
+	if err != nil {
+		return err
+	}
+
+	cluster, err := cli.EKS.DescribeCluster(ctx, &eks.DescribeClusterInput{
+		Name: awssdk.String(clusterName),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to describe EKS cluster %s: %w", clusterName, err)
+	}
+	if cluster.Cluster == nil || cluster.Cluster.Arn == nil {
+		return fmt.Errorf("EKS cluster %s has no ARN", clusterName)
+	}
+
+	return validateAccountIDs(credentialsAccountID, *cluster.Cluster.Arn, clusterName)
+}
+
+// AccountMismatchError indicates that the AWS credentials and the EKS cluster
+// belong to different AWS accounts.
+type AccountMismatchError struct {
+	CredentialsAccountID string
+	ClusterAccountID     string
+	ClusterName          string
+}
+
+func (e *AccountMismatchError) Error() string {
+	return fmt.Sprintf(
+		"AWS account mismatch: current credentials belong to account %s, "+
+			"but EKS cluster %q belongs to account %s; "+
+			"ensure your AWS credentials and kubeconfig target the same AWS account",
+		e.CredentialsAccountID, e.ClusterName, e.ClusterAccountID,
+	)
+}
+
+// validateAccountIDs checks that the credentials account ID matches the
+// account ID extracted from the cluster ARN.
+func validateAccountIDs(credentialsAccountID string, clusterARN string, clusterName string) error {
+	clusterArn, err := arn.Parse(clusterARN)
+	if err != nil {
+		return fmt.Errorf("failed to parse EKS cluster ARN %q: %w", clusterARN, err)
+	}
+
+	if credentialsAccountID != clusterArn.AccountID {
+		return &AccountMismatchError{
+			CredentialsAccountID: credentialsAccountID,
+			ClusterAccountID:     clusterArn.AccountID,
+			ClusterName:          clusterName,
+		}
+	}
+
+	return nil
 }

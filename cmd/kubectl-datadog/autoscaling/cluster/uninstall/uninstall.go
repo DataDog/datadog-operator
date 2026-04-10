@@ -18,7 +18,6 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
-	"github.com/aws/aws-sdk-go-v2/service/sts"
 	karpawsv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/fatih/color"
 	"github.com/samber/lo"
@@ -135,6 +134,16 @@ func (o *options) run(cmd *cobra.Command) error {
 	cli, err := clients.Build(ctx, o.ConfigFlags, o.Clientset)
 	if err != nil {
 		return fmt.Errorf("failed to build clients: %w", err)
+	}
+
+	if err = clients.ValidateAWSAccountConsistency(ctx, cli, clusterName); err != nil {
+		var mismatch *clients.AccountMismatchError
+		if errors.As(err, &mismatch) {
+			return err
+		}
+		// The cluster may already be deleted or DescribeCluster may be
+		// unavailable; warn but proceed with cleanup.
+		log.Printf("Warning: AWS account consistency check failed: %v", err)
 	}
 
 	nodePoolNames, nodes := displayResourceSummary(ctx, cmd, cli, clusterName)
@@ -490,15 +499,10 @@ func removeAwsAuthConfigMapRole(ctx context.Context, cli *clients.Clients, clust
 		return nil
 	}
 
-	// Get AWS account ID
-	callerIdentity, err := cli.STS.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
+	accountID, err := clients.GetAWSAccountID(ctx, cli)
 	if err != nil {
-		return fmt.Errorf("failed to get identity caller: %w", err)
+		return err
 	}
-	if callerIdentity.Account == nil {
-		return errors.New("unable to determine AWS account ID from STS GetCallerIdentity")
-	}
-	accountID := *callerIdentity.Account
 
 	roleArn := "arn:aws:iam::" + accountID + ":role/KarpenterNodeRole-" + clusterName
 
