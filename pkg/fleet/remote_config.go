@@ -42,13 +42,13 @@ type fleetManagementOperation struct {
 
 // remoteAPIRequest is a task sent to the fleet daemon via RC.
 type remoteAPIRequest struct {
-	ID            string          `json:"id"`
-	Package       string          `json:"package_name"`
-	TraceID       string          `json:"trace_id"`
-	ParentSpanID  string          `json:"parent_span_id"`
-	ExpectedState expectedState   `json:"expected_state"`
-	Method        string          `json:"method"`
-	Params        json.RawMessage `json:"params"`
+	ID            string           `json:"id"`
+	Package       string           `json:"package_name"`
+	TraceID       string           `json:"trace_id"`
+	ParentSpanID  string           `json:"parent_span_id"`
+	ExpectedState expectedState    `json:"expected_state"`
+	Method        string           `json:"method"`
+	Params        experimentParams `json:"params"`
 }
 
 // expectedState describes the package state expected before executing the request.
@@ -61,6 +61,11 @@ type expectedState struct {
 	ClientID         string `json:"client_id"`
 }
 
+// experimentParams holds the parsed params for experiment methods.
+type experimentParams struct {
+	Version string `json:"version"`
+}
+
 // handleInstallerConfigUpdate returns an RC subscription callback that parses
 // UPDATER_AGENT payloads and forwards them as a map[configID]installerConfig to h.
 func handleInstallerConfigUpdate(ctx context.Context, h func(map[string]installerConfig) error) func(map[string]state.RawConfig, func(string, state.ApplyStatus)) {
@@ -68,7 +73,7 @@ func handleInstallerConfigUpdate(ctx context.Context, h func(map[string]installe
 		logger := ctrl.LoggerFrom(ctx)
 		configs := make(map[string]installerConfig, len(updates))
 		for cfgPath, raw := range updates {
-			logger.Info("Received UPDATER_AGENT payload", "cfgPath", cfgPath, "rawPayload", string(raw.Config))
+			logger.Info("Received INSTALLER_CONFIG payload", "cfgPath", cfgPath, "rawPayload", string(raw.Config))
 
 			var cfg installerConfig
 			if err := json.Unmarshal(raw.Config, &cfg); err != nil {
