@@ -120,7 +120,8 @@ func (o *options) run(cmd *cobra.Command) error {
 		clusterName = extractClusterName(rel.Config)
 	}
 	if clusterName == "" {
-		name, err := clients.GetClusterNameFromKubeconfig(ctx, o.ConfigFlags)
+		var name string
+		name, err = clients.GetClusterNameFromKubeconfig(ctx, o.ConfigFlags)
 		if err != nil {
 			return err
 		}
