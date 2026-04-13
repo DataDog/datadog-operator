@@ -26,7 +26,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	pkgutils "github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
@@ -49,10 +48,7 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 	defaults.DefaultDatadogAgentSpec(&instanceCopy.Spec)
 
 	// 4. Delegate to the main reconcile function.
-	if r.options.DatadogAgentInternalEnabled {
-		return r.reconcileInstanceV3(ctx, reqLogger, instanceCopy)
-	}
-	return r.reconcileInstanceV2(ctx, reqLogger, instanceCopy)
+	return r.reconcileInstanceV3(ctx, reqLogger, instanceCopy)
 }
 
 func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
@@ -142,109 +138,6 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 	// Prevent the reconcile loop from stopping by requeueing the DDAI object after a period of time
 	result.RequeueAfter = defaultRequeuePeriod
 	return r.updateStatusIfNeededV2(logger, instance, newDDAStatus, result, err, now)
-}
-
-func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
-	var result reconcile.Result
-	newStatus := instance.Status.DeepCopy()
-	now := metav1.Now()
-
-	configuredFeatures, enabledFeatures, requiredComponents := feature.BuildFeatures(instance, &instance.Spec, instance.Status.RemoteConfigConfiguration, reconcilerOptionsToFeatureOptions(&r.options, r.log))
-	// update list of enabled features for metrics forwarder
-	r.updateMetricsForwardersFeatures(instance, enabledFeatures)
-
-	// 1. Manage dependencies.
-	depsStore, resourceManagers := r.setupDependencies(instance, logger)
-
-	providerList := map[string]struct{}{kubernetes.LegacyProvider: {}}
-	k8sProvider := kubernetes.LegacyProvider
-	if r.options.IntrospectionEnabled {
-		nodeList, err := r.getNodeList(ctx)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-		providerList = kubernetes.GetProviderListFromNodeList(nodeList, logger)
-
-		k8sProvider = kubernetes.DefaultProvider
-		if len(providerList) == 1 {
-			for provider := range providerList {
-				k8sProvider = provider
-				break
-			}
-		} else if len(providerList) == 2 {
-			if _, ok := providerList[kubernetes.DefaultProvider]; ok {
-				for provider := range providerList {
-					if provider != kubernetes.DefaultProvider {
-						k8sProvider = provider
-						logger.Info("Multiple providers detected, using selected provider for cluster agent and dependencies", "provider", k8sProvider)
-						break
-					}
-				}
-			} else {
-				logger.Error(nil, "Multiple specialized providers detected, falling back to default provider for cluster agent and dependencies", "selected_provider", k8sProvider)
-			}
-		} else {
-			logger.Error(nil, "Multiple specialized providers detected, falling back to default provider for cluster agent and dependencies", "selected_provider", k8sProvider)
-		}
-	}
-
-	var err error
-	if err = r.manageGlobalDependencies(logger, instance, resourceManagers, requiredComponents); err != nil {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
-	}
-	if err = r.manageFeatureDependencies(logger, enabledFeatures, resourceManagers, k8sProvider); err != nil {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
-	}
-	if err = r.overrideDependencies(logger, resourceManagers, instance); err != nil {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
-	}
-
-	// 1. Apply and cleanup dependencies before reconciling components to ensure deps exist at reconciliation time.
-	if err = r.applyAndCleanupDependencies(ctx, logger, depsStore); err != nil {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
-	}
-
-	// 2. Reconcile each component using the component registry
-	params := &ReconcileComponentParams{
-		Logger:             logger,
-		DDA:                instance,
-		RequiredComponents: requiredComponents,
-		Features:           append(configuredFeatures, enabledFeatures...),
-		ResourceManagers:   resourceManagers,
-		Status:             newStatus,
-		Provider:           k8sProvider,
-		ProviderList:       providerList,
-	}
-
-	result, err = r.componentRegistry.ReconcileComponents(ctx, params)
-	if utils.ShouldReturn(result, err) {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
-	}
-
-	// 2.b. Node Agent and profiles
-	// TODO: ignore profiles and introspection for DDAI
-
-	if result, err = r.reconcileAgentProfiles(ctx, logger, instance, requiredComponents, append(configuredFeatures, enabledFeatures...), resourceManagers, newStatus, now); utils.ShouldReturn(result, err) {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
-	}
-
-	// TODO: this feels like it should be moved somewhere else
-	userSpecifiedClusterAgentToken := instance.Spec.Global.ClusterAgentToken != nil || instance.Spec.Global.ClusterAgentTokenSecret != nil
-	if !userSpecifiedClusterAgentToken {
-		ensureAutoGeneratedTokenInStatus(instance, newStatus, resourceManagers, logger)
-	}
-
-	// 3. Cleanup extraneous resources.
-	if err = r.cleanupExtraneousResources(ctx, logger, instance, newStatus, resourceManagers); err != nil {
-		logger.Error(err, "Error cleaning up extraneous resources")
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
-	}
-
-	// Always requeue
-	if result.IsZero() {
-		result.RequeueAfter = defaultRequeuePeriod
-	}
-	return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 }
 
 func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus, result reconcile.Result, currentError error, now metav1.Time) (reconcile.Result, error) {
@@ -349,7 +242,7 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 	for _, profile := range sortedProfiles {
 		maxUnavailable := agentprofile.GetMaxUnavailable(logger, ddaSpec, &profile, len(nodeList), &r.options.ExtendedDaemonsetOptions)
 		oldStatus := profile.Status
-		profileAppliedByNode, err = agentprofile.ApplyProfile(logger, &profile, nodeList, profileAppliedByNode, now, maxUnavailable, r.options.DatadogAgentInternalEnabled)
+		profileAppliedByNode, err = agentprofile.ApplyProfile(logger, &profile, nodeList, profileAppliedByNode, now, maxUnavailable)
 		if result, e := r.updateDAPStatus(ctx, logger, &profile, &oldStatus); utils.ShouldReturn(result, e) {
 			logger.Info("unable to update DatadogAgentProfile status", "error", e, "requeueAfter", result.RequeueAfter, "requeueIntent", !result.IsZero())
 		}

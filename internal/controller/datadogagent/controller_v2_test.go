@@ -57,7 +57,6 @@ type testCase struct {
 	wantFunc             func(t *testing.T, c client.Client)
 	profile              *v1alpha1.DatadogAgentProfile // For DDAI tests
 	profilesEnabled      bool                          // For DDAI tests
-	ddaiEnabled          bool                          // For DDAI tests
 	introspectionEnabled bool                          // For introspection tests
 }
 
@@ -67,9 +66,8 @@ func runTestCases(t *testing.T, tests []testCase, testFunc func(t *testing.T, tt
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a copy of opts for this test
 			testOpts := ReconcilerOptions{
-				DatadogAgentInternalEnabled: tt.ddaiEnabled,
-				DatadogAgentProfileEnabled:  tt.profilesEnabled,
-				IntrospectionEnabled:        tt.introspectionEnabled,
+				DatadogAgentProfileEnabled: tt.profilesEnabled,
+				IntrospectionEnabled:       tt.introspectionEnabled,
 			}
 
 			testFunc(t, tt, testOpts)
@@ -77,7 +75,10 @@ func runTestCases(t *testing.T, tests []testCase, testFunc func(t *testing.T, tt
 	}
 }
 
-// runDDAReconcilerTest runs test case using only the DDA reconciler
+// runDDAReconcilerTest runs test case using both DDA and DDAI reconcilers.
+// Since DDAI is always enabled, the DDA controller delegates resource creation
+// to the DDAI controller via reconcileInstanceV3, so the DDAI reconciler must
+// also run for resources (DaemonSets, Deployments, etc.) to be created.
 func runDDAReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	t.Helper()
 
@@ -89,7 +90,7 @@ func runDDAReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	recorder := eventBroadcaster.NewRecorder(s, corev1.EventSource{Component: "test"})
 	forwarders := dummyManager{}
 
-	c := buildClient(t, tt, s, false)
+	c := buildClient(t, tt, s)
 
 	// Create reconciler
 	r := &Reconciler{
@@ -103,6 +104,15 @@ func runDDAReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	}
 	r.initializeComponentRegistry()
 
+	ri, err := datadogagentinternal.NewReconciler(
+		datadogagentinternal.ReconcilerOptions{},
+		c,
+		kubernetes.PlatformInfo{},
+		s,
+		recorder,
+		forwarders)
+	assert.NoError(t, err, "Failed to create datadogagentinternal reconciler")
+
 	// Load or create DatadogAgent
 	var dda *v2alpha1.DatadogAgent
 	if tt.loadFunc != nil {
@@ -113,18 +123,28 @@ func runDDAReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 		_ = r.client.Create(context.TODO(), dda)
 	}
 
-	// Run reconciliation
-	got, err := r.Reconcile(context.TODO(), dda)
+	// Run DDA reconciliation (creates DDAI)
+	got, ddaErr := r.Reconcile(context.TODO(), dda)
 
 	// Assert on error expectation
 	if tt.wantErr {
-		assert.Error(t, err, "ReconcileDatadogAgent.Reconcile() expected an error")
+		assert.Error(t, ddaErr, "ReconcileDatadogAgent.Reconcile() expected an error")
 	} else {
-		assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() unexpected error: %v", err)
+		assert.NoError(t, ddaErr, "ReconcileDatadogAgent.Reconcile() unexpected error: %v", ddaErr)
 	}
 
 	// Assert on reconciliation result
 	assert.Equal(t, tt.want, got, "ReconcileDatadogAgent.Reconcile() unexpected result")
+
+	// Run DDAI reconciliation (creates DaemonSets, Deployments, etc.)
+	ddais := &v1alpha1.DatadogAgentInternalList{}
+	err = c.List(context.TODO(), ddais)
+	assert.NoError(t, err, "Failed to list datadogagentinternal")
+	for i := range ddais.Items {
+		ddai := &ddais.Items[i]
+		_, ddaiErr := ri.Reconcile(context.TODO(), ddai)
+		assert.NoError(t, ddaiErr, "Failed to reconcile datadogagentinternal")
+	}
 
 	// Run custom validation if provided
 	if tt.wantFunc != nil {
@@ -144,8 +164,7 @@ func runFullReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	recorder := eventBroadcaster.NewRecorder(s, corev1.EventSource{Component: "test"})
 	forwarders := dummyManager{}
 
-	opts.DatadogAgentInternalEnabled = true
-	c := buildClient(t, tt, s, true)
+	c := buildClient(t, tt, s)
 
 	// Create reconciler
 	r := &Reconciler{
@@ -205,7 +224,7 @@ func runFullReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	}
 }
 
-func buildClient(t *testing.T, tt testCase, s *runtime.Scheme, ddaiEnabled bool) client.Client {
+func buildClient(t *testing.T, tt testCase, s *runtime.Scheme) client.Client {
 	var builder *fake.ClientBuilder
 	if tt.clientBuilder != nil {
 		// Deep copy primarily to avoid adding CRD twice when running both DDA and full reconciler tests
@@ -222,12 +241,10 @@ func buildClient(t *testing.T, tt testCase, s *runtime.Scheme, ddaiEnabled bool)
 		builder = builder.WithObjects(tt.nodes...)
 	}
 
-	// Add DDAI CRD from file if DDAI is enabled
-	if tt.ddaiEnabled || ddaiEnabled {
-		crd, err := getDDAICRDFromConfig(s)
-		assert.NoError(t, err)
-		builder = builder.WithObjects(crd).WithStatusSubresource(&v1alpha1.DatadogAgentInternal{})
-	}
+	// Always add DDAI CRD since DDAI is always enabled
+	crd, err := getDDAICRDFromConfig(s)
+	assert.NoError(t, err)
+	builder = builder.WithObjects(crd).WithStatusSubresource(&v1alpha1.DatadogAgentInternal{})
 
 	return builder.Build()
 }
@@ -1740,8 +1757,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 
 	tests := []testCase{
 		{
-			name:        "[ddai] Create DDAI from minimal DDA",
-			ddaiEnabled: true,
+			name: "[ddai] Create DDAI from minimal DDA",
 			clientBuilder: fake.NewClientBuilder().
 				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}),
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
@@ -1760,8 +1776,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 			},
 		},
 		{
-			name:        "[ddai] Create DDAI from customized DDA",
-			ddaiEnabled: true,
+			name: "[ddai] Create DDAI from customized DDA",
 			clientBuilder: fake.NewClientBuilder().
 				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}),
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
@@ -1828,8 +1843,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 			},
 		},
 		{
-			name:        "[ddai] Create DDAI from minimal DDA and default profile",
-			ddaiEnabled: true,
+			name: "[ddai] Create DDAI from minimal DDA and default profile",
 			clientBuilder: fake.NewClientBuilder().
 				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}),
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
@@ -1844,8 +1858,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 			},
 		},
 		{
-			name:        "[ddai] Create DDAI from minimal DDA and user created profile",
-			ddaiEnabled: true,
+			name: "[ddai] Create DDAI from minimal DDA and user created profile",
 			clientBuilder: fake.NewClientBuilder().
 				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}).
 				WithObjects(fooProfile),
@@ -1933,8 +1946,8 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 
 // Test_StaleAgentPodCleanup tests that agent pods whose profile assignment has changed are deleted.
 // It exercises both code paths:
-//   - Non-DDAI path via runDDAReconcilerTest (DatadogAgentInternalEnabled=false): reconcileInstanceV2 → handleProfiles → cleanupPodsForProfilesThatNoLongerApply
-//   - DDAI path via runFullReconcilerTest (forces DatadogAgentInternalEnabled=true): reconcileInstanceV3 → reconcileProfiles → cleanupPodsForProfilesThatNoLongerApply
+//   - DDA-only path via runDDAReconcilerTest: reconcileInstanceV3
+//   - Full path via runFullReconcilerTest (DDA + DDAI reconcilers): reconcileInstanceV3 → reconcileProfiles → cleanupPodsForProfilesThatNoLongerApply
 func Test_StaleAgentPodCleanup(t *testing.T) {
 	const resourcesName = "foo"
 	const resourcesNamespace = "bar"
@@ -1944,7 +1957,7 @@ func Test_StaleAgentPodCleanup(t *testing.T) {
 	dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).BuildWithDefaults()
 
 	// newProfile selects nodes with label role=new-profile.
-	// Config.Override must be non-nil for the non-DDAI code path (DatadogAgentInternalEnabled=false).
+	// Config.Override is set for compatibility with profile validation.
 	newProfile := &v1alpha1.DatadogAgentProfile{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "new-profile",
@@ -1995,7 +2008,6 @@ func Test_StaleAgentPodCleanup(t *testing.T) {
 		{
 			name:            "stale agent pods from old profile are deleted when node profile assignment changes",
 			profilesEnabled: true,
-			ddaiEnabled:     false, // runFullReconcilerTest will force DatadogAgentInternalEnabled=true
 			nodes:           []client.Object{profileChangeNode},
 			clientBuilder: fake.NewClientBuilder().
 				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}).

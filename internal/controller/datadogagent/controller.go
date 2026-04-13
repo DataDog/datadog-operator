@@ -69,13 +69,12 @@ const (
 
 // ReconcilerOptions provides options read from command line
 type ReconcilerOptions struct {
-	ExtendedDaemonsetOptions    componentagent.ExtendedDaemonsetOptions
-	SupportCilium               bool
-	OperatorMetricsEnabled      bool
-	IntrospectionEnabled        bool
-	DatadogAgentProfileEnabled  bool
-	DatadogAgentInternalEnabled bool
-	CreateControllerRevisions   bool
+	ExtendedDaemonsetOptions   componentagent.ExtendedDaemonsetOptions
+	SupportCilium              bool
+	OperatorMetricsEnabled     bool
+	IntrospectionEnabled       bool
+	DatadogAgentProfileEnabled bool
+	CreateControllerRevisions  bool
 	// ExperimentTimeout overrides ExperimentDefaultTimeout. Zero means use the default.
 	ExperimentTimeout time.Duration
 }
