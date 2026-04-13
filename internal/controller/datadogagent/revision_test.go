@@ -174,7 +174,7 @@ func TestGCOldRevisions_KeepsCurrentAndPrevious(t *testing.T) {
 		names[i] = name
 	}
 
-	err := r.gcOldRevisions(context.Background(), instances[2], names[2], mustListRevisions(t, r, instances[2]))
+	err := r.gcOldRevisions(context.Background(), names[2], mustListRevisions(t, r, instances[2]))
 	require.NoError(t, err)
 
 	revList := &appsv1.ControllerRevisionList{}
@@ -223,7 +223,7 @@ func TestGCOldRevisions_KeepsTwoRevisions(t *testing.T) {
 	name2, err := r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), false)
 	require.NoError(t, err)
 
-	err = r.gcOldRevisions(context.Background(), instanceB, name2, mustListRevisions(t, r, instanceB))
+	err = r.gcOldRevisions(context.Background(), name2, mustListRevisions(t, r, instanceB))
 	require.NoError(t, err)
 
 	revList := &appsv1.ControllerRevisionList{}
@@ -268,7 +268,7 @@ func TestGCOldRevisions_NoPreviousWhenOnlyCurrent(t *testing.T) {
 	revName, err := r.ensureRevision(context.Background(), instance, mustListRevisions(t, r, instance), false)
 	require.NoError(t, err)
 
-	err = r.gcOldRevisions(context.Background(), instance, revName, mustListRevisions(t, r, instance))
+	err = r.gcOldRevisions(context.Background(), revName, mustListRevisions(t, r, instance))
 	require.NoError(t, err)
 
 	revList := &appsv1.ControllerRevisionList{}
@@ -291,7 +291,7 @@ func TestGCOldRevisions_DeletesMultipleOld(t *testing.T) {
 	}
 
 	current := newRevisionTestOwner("test-dda", "default")
-	err := r.gcOldRevisions(context.Background(), current, names[4], mustListRevisions(t, r, current))
+	err := r.gcOldRevisions(context.Background(), names[4], mustListRevisions(t, r, current))
 	require.NoError(t, err)
 
 	revList := &appsv1.ControllerRevisionList{}
@@ -408,81 +408,89 @@ func TestManageRevision_PreviousDeletedContinuesNormally(t *testing.T) {
 	assert.Equal(t, int64(2), revList[0].Revision)
 }
 
-// TestGCOldRevisions_DeletesPreviousAfterRejectedExperiment verifies that when
-// the persisted experiment phase is a rejected terminal phase (Rollback, Timeout,
-// or Aborted), gcOldRevisions deletes the stale experiment revision instead of
-// keeping it as "previous". This prevents an immediate timeout if the same spec
-// is re-applied as a new experiment.
-func TestGCOldRevisions_DeletesPreviousAfterRejectedExperiment(t *testing.T) {
-	rejectedPhases := []v2alpha1.ExperimentPhase{
-		v2alpha1.ExperimentPhaseRollback,
-		v2alpha1.ExperimentPhaseTimeout,
-		v2alpha1.ExperimentPhaseAborted,
-	}
+// TestEnsureRevision_RecreatesRolledBackRevision verifies that when a revision
+// has the experiment-rollback annotation, ensureRevision deletes and recreates
+// it to get a fresh CreationTimestamp. This prevents an immediate timeout when
+// the same experiment spec is re-applied after a previous experiment was rejected.
+func TestEnsureRevision_RecreatesRolledBackRevision(t *testing.T) {
+	r, c := newRevisionTestReconciler(t)
 
-	for _, phase := range rejectedPhases {
-		t.Run(string(phase), func(t *testing.T) {
-			r, c := newRevisionTestReconciler(t)
+	instanceA := newRevisionTestOwner("test-dda", "default")
+	instanceB := newRevisionTestOwner("test-dda", "default")
+	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
 
-			instanceA := newRevisionTestOwner("test-dda", "default")
-			instanceB := newRevisionTestOwner("test-dda", "default")
-			instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
+	_, err := r.ensureRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), false)
+	require.NoError(t, err)
+	nameB, err := r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), false)
+	require.NoError(t, err)
 
-			nameA, err := r.ensureRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), false)
-			require.NoError(t, err)
-			_, err = r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), false)
-			require.NoError(t, err)
+	// Annotate revB as rolled back (simulating what restorePreviousSpec does).
+	revB := fetchRevisionByName(t, c, "default", nameB)
+	revB.Annotations = map[string]string{annotationExperimentRollback: "true"}
+	require.NoError(t, c.Update(context.Background(), revB))
 
-			// Simulate the persisted status having a rejected terminal phase.
-			// current is instanceA (spec restored after rollback).
-			instanceA.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: phase}
+	// Re-apply the same experiment spec (instanceB). ensureRevision should
+	// delete+recreate the annotated revision with a fresh timestamp.
+	// (In real Kubernetes the CreationTimestamp is set server-side on create;
+	// the fake client doesn't refresh it, so we verify the annotation and
+	// revision number instead.)
+	nameB2, err := r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), false)
+	require.NoError(t, err)
+	assert.Equal(t, nameB, nameB2, "should reuse same name (same data hash)")
 
-			err = r.gcOldRevisions(context.Background(), instanceA, nameA, mustListRevisions(t, r, instanceA))
-			require.NoError(t, err)
-
-			revList := &appsv1.ControllerRevisionList{}
-			require.NoError(t, c.List(context.Background(), revList))
-			assert.Len(t, revList.Items, 1, "experiment revision should be deleted after rejected phase")
-			assert.Equal(t, nameA, revList.Items[0].Name, "only the current (pre-experiment) revision should remain")
-		})
-	}
+	revB2 := fetchRevisionByName(t, c, "default", nameB2)
+	assert.Empty(t, revB2.Annotations[annotationExperimentRollback], "rollback annotation should be cleared")
+	assert.Equal(t, int64(3), revB2.Revision, "revision number should be max+1")
 }
 
-// TestGCOldRevisions_KeepsPreviousForNonRejectedPhases verifies that for
-// non-rejected experiment phases (Running, Promoted, or nil), the normal
-// "keep current + previous" behavior is preserved.
-func TestGCOldRevisions_KeepsPreviousForNonRejectedPhases(t *testing.T) {
-	nonRejectedPhases := []v2alpha1.ExperimentPhase{
-		v2alpha1.ExperimentPhaseRunning,
-		v2alpha1.ExperimentPhasePromoted,
-		"", // nil experiment
-	}
+// TestEnsureRevision_SkipsRecreateWhenSkipBump verifies that rolled-back
+// revisions are NOT recreated when skipBump is true (during experiment rollback).
+func TestEnsureRevision_SkipsRecreateWhenSkipBump(t *testing.T) {
+	r, c := newRevisionTestReconciler(t)
 
-	for _, phase := range nonRejectedPhases {
-		t.Run(string(phase)+"_or_nil", func(t *testing.T) {
-			r, c := newRevisionTestReconciler(t)
+	instanceA := newRevisionTestOwner("test-dda", "default")
+	instanceB := newRevisionTestOwner("test-dda", "default")
+	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
 
-			instanceA := newRevisionTestOwner("test-dda", "default")
-			instanceB := newRevisionTestOwner("test-dda", "default")
-			instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
+	_, err := r.ensureRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), false)
+	require.NoError(t, err)
+	nameB, err := r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), false)
+	require.NoError(t, err)
 
-			_, err := r.ensureRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), false)
-			require.NoError(t, err)
-			nameB, err := r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), false)
-			require.NoError(t, err)
+	// Annotate revB as rolled back.
+	revB := fetchRevisionByName(t, c, "default", nameB)
+	revB.Annotations = map[string]string{annotationExperimentRollback: "true"}
+	require.NoError(t, c.Update(context.Background(), revB))
 
-			if phase != "" {
-				instanceB.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: phase}
-			}
+	// With skipBump=true, the annotated revision should be returned as-is.
+	nameB2, err := r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), true)
+	require.NoError(t, err)
+	assert.Equal(t, nameB, nameB2)
 
-			err = r.gcOldRevisions(context.Background(), instanceB, nameB, mustListRevisions(t, r, instanceB))
-			require.NoError(t, err)
+	revB2 := fetchRevisionByName(t, c, "default", nameB2)
+	assert.Equal(t, "true", revB2.Annotations[annotationExperimentRollback], "annotation should still be present")
+}
 
-			revList := &appsv1.ControllerRevisionList{}
-			require.NoError(t, c.List(context.Background(), revList))
-			assert.Len(t, revList.Items, 2, "current and previous should both be kept for non-rejected phase")
-		})
-	}
+// TestGCOldRevisions_AlwaysKeepsPrevious verifies that GC always keeps the
+// current and previous revisions regardless of experiment phase.
+func TestGCOldRevisions_AlwaysKeepsPrevious(t *testing.T) {
+	r, c := newRevisionTestReconciler(t)
+
+	instanceA := newRevisionTestOwner("test-dda", "default")
+	instanceB := newRevisionTestOwner("test-dda", "default")
+	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
+
+	_, err := r.ensureRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), false)
+	require.NoError(t, err)
+	nameB, err := r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), false)
+	require.NoError(t, err)
+
+	err = r.gcOldRevisions(context.Background(), nameB, mustListRevisions(t, r, instanceB))
+	require.NoError(t, err)
+
+	revList := &appsv1.ControllerRevisionList{}
+	require.NoError(t, c.List(context.Background(), revList))
+	assert.Len(t, revList.Items, 2, "current and previous should both be kept")
 }
 
 // TestListRevisions_ExcludesForeignOwner verifies that a ControllerRevision
