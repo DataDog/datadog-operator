@@ -123,8 +123,7 @@ func TestRollback_NoPreviousRevision(t *testing.T) {
 	instance := newRevisionTestOwner("test-dda", "default")
 
 	err := r.rollback(context.Background(), instance.ObjectMeta, "")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no previous revision")
+	require.NoError(t, err)
 }
 
 func TestHandleRollback_StoppedPhase(t *testing.T) {
@@ -311,16 +310,13 @@ func TestHandleRollback_PostRollbackSetsTimeout(t *testing.T) {
 // TestReapplySameSpecAfterRollback_NoImmediateTimeout is the end-to-end
 // regression test for the stale-revision bug.
 //
-// Without the fix: gcOldRevisions kept the experiment revision (rev2/B) after
-// rollback. When RC later re-applied spec B as a new experiment and set
-// phase=Running, findMostRecentMatchingRevision found the stale rev2 — its
-// CreationTimestamp predated the current experiment — so elapsed >= timeout
-// fired immediately and the operator rolled back again, making the re-apply
-// appear to have no effect.
+// Without the fix: the stale experiment revision's old CreationTimestamp caused
+// an immediate timeout when the same spec was re-applied as a new experiment.
 //
-// With the fix: gcOldRevisions deletes rev2 once phase=Rollback is persisted.
-// Re-applying spec B creates a fresh revision with a current timestamp, and
-// the timeout clock starts correctly.
+// With the fix: restorePreviousSpec annotates the experiment revision with the
+// rollback annotation. handleRollback skips the timeout check for annotated
+// revisions. ensureRevision deletes+recreates the annotated revision with a
+// fresh timestamp when the spec is re-applied.
 func TestReapplySameSpecAfterRollback_NoImmediateTimeout(t *testing.T) {
 	r, c := newRevisionTestReconciler(t)
 
@@ -343,35 +339,147 @@ func TestReapplySameSpecAfterRollback_NoImmediateTimeout(t *testing.T) {
 	}
 
 	// Rollback: RC sets phase=Stopped; operator restores spec A.
+	// restorePreviousSpec annotates the experiment revision (B) as rolled back.
 	instanceB.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseStopped}
 	rollbackStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceB.Status.Experiment.DeepCopy()}
 	require.NoError(t, r.handleRollback(context.Background(), instanceB, rollbackStatus, metav1.Now(), revList))
 	require.Equal(t, v2alpha1.ExperimentPhaseRollback, rollbackStatus.Experiment.Phase)
 
-	// Next reconcile: Rollback phase is now persisted in instance.Status.
-	// gcOldRevisions must delete the stale rev2 (B).
-	instanceA.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseRollback}
-	rollbackNewStatus := &v2alpha1.DatadogAgentStatus{Experiment: &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseRollback}}
-	require.NoError(t, r.manageRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), rollbackNewStatus))
-
+	// Verify the experiment revision was annotated.
 	remaining := mustListRevisions(t, r, instanceA)
-	require.Len(t, remaining, 1, "stale experiment revision (spec B) must be deleted once Rollback phase is persisted")
+	require.Len(t, remaining, 2, "both revisions should be kept (no aggressive GC)")
+	var annotatedCount int
+	for _, rev := range remaining {
+		if rev.Annotations[annotationExperimentRollback] == "true" {
+			annotatedCount++
+		}
+	}
+	assert.Equal(t, 1, annotatedCount, "exactly one revision should have the rollback annotation")
 
 	// RC re-applies spec B as a new experiment (sets spec=B, phase=Running).
-	// In the real reconcile loop manageExperiment (handleRollback) runs before
-	// manageRevision, so no revision for spec B exists at the time of the check.
-	// findMostRecentMatchingRevision returns nil → timeout check is skipped.
+	// handleRollback finds the annotated revision → skips timeout.
 	instanceB2 := newRevisionTestOwner("test-dda", "default")
 	instanceB2.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
 	instanceB2.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseRunning}
 
-	revListBeforeNewRevision := mustListRevisions(t, r, instanceB2)
-	require.Len(t, revListBeforeNewRevision, 1, "only rev1 (A) should exist before the new experiment's revision is created")
-
+	revListForNewExp := mustListRevisions(t, r, instanceB2)
 	newStatus2 := &v2alpha1.DatadogAgentStatus{Experiment: instanceB2.Status.Experiment.DeepCopy()}
-	require.NoError(t, r.handleRollback(context.Background(), instanceB2, newStatus2, metav1.Now(), revListBeforeNewRevision))
+	require.NoError(t, r.handleRollback(context.Background(), instanceB2, newStatus2, metav1.Now(), revListForNewExp))
 	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, newStatus2.Experiment.Phase,
 		"re-applying the same spec after rollback must not immediately time out")
+
+	// ensureRevision recreates the annotated revision with a fresh timestamp.
+	_, err := r.ensureRevision(context.Background(), instanceB2, mustListRevisions(t, r, instanceB2), false)
+	require.NoError(t, err)
+
+	finalRevs := mustListRevisions(t, r, instanceB2)
+	for _, rev := range finalRevs {
+		assert.Empty(t, rev.Annotations[annotationExperimentRollback],
+			"rollback annotation should be cleared after recreate")
+	}
+}
+
+// TestRestorePreviousSpec_ThreeRevisions_AnnotatesOnlyHighest verifies that
+// when 3+ revisions exist (e.g. GC failed on a prior reconcile), only the
+// highest-numbered revision (the experiment) is annotated — not older baselines.
+func TestRestorePreviousSpec_ThreeRevisions_AnnotatesOnlyHighest(t *testing.T) {
+	r, c := newRevisionTestReconciler(t)
+
+	// Build 3 revisions using ensureRevision directly (bypasses GC).
+	instanceA := newRevisionTestOwner("test-dda", "default")
+	rev1Name, err := r.ensureRevision(context.Background(), instanceA, nil, false)
+	require.NoError(t, err)
+
+	instanceB := newRevisionTestOwner("test-dda", "default")
+	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
+	rev2Name, err := r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), false)
+	require.NoError(t, err)
+
+	experimentSite := "datadoghq.eu"
+	instanceC := newRevisionTestOwner("test-dda", "default")
+	instanceC.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{Site: &experimentSite}}
+	rev3Name, err := r.ensureRevision(context.Background(), instanceC, mustListRevisions(t, r, instanceC), false)
+	require.NoError(t, err)
+
+	revList := mustListRevisions(t, r, instanceA)
+	require.Len(t, revList, 3, "need 3 revisions to test this scenario")
+
+	// rollback fetches the current DDA; create it with the experiment spec.
+	require.NoError(t, c.Create(context.Background(), instanceC))
+
+	// Trigger rollback via phase=stopped.
+	instanceC.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseStopped}
+	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceC.Status.Experiment.DeepCopy()}
+	require.NoError(t, r.restorePreviousSpec(context.Background(), instanceC.ObjectMeta, newStatus, revList, v2alpha1.ExperimentPhaseRollback))
+	assert.Equal(t, v2alpha1.ExperimentPhaseRollback, newStatus.Experiment.Phase)
+
+	// Verify: only rev3 (experiment, highest) is annotated.
+	// Rev1 (old baseline) and rev2 (rollback target) must NOT be annotated.
+	for _, rev := range mustListRevisions(t, r, instanceA) {
+		hasAnnotation := rev.Annotations[annotationExperimentRollback] == "true"
+		switch rev.Name {
+		case rev3Name:
+			assert.True(t, hasAnnotation, "rev3 (experiment, highest) should be annotated")
+		case rev2Name:
+			assert.False(t, hasAnnotation, "rev2 (rollback target) should NOT be annotated")
+		case rev1Name:
+			assert.False(t, hasAnnotation, "rev1 (old baseline) should NOT be annotated")
+		}
+	}
+}
+
+// TestAbortExperiment_ThreeRevisions_AnnotatesOnlyHighest verifies that when
+// 3+ revisions exist and abort fires, only the highest-numbered revision (the
+// experiment) is annotated — not older baselines.
+func TestAbortExperiment_ThreeRevisions_AnnotatesOnlyHighest(t *testing.T) {
+	r, _ := newRevisionTestReconciler(t)
+
+	// Build 3 revisions using ensureRevision directly (bypasses GC).
+	instanceA := newRevisionTestOwner("test-dda", "default")
+	rev1Name, err := r.ensureRevision(context.Background(), instanceA, nil, false)
+	require.NoError(t, err)
+
+	instanceB := newRevisionTestOwner("test-dda", "default")
+	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
+	rev2Name, err := r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), false)
+	require.NoError(t, err)
+
+	experimentSite := "datadoghq.eu"
+	instanceC := newRevisionTestOwner("test-dda", "default")
+	instanceC.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{Site: &experimentSite}}
+	rev3Name, err := r.ensureRevision(context.Background(), instanceC, mustListRevisions(t, r, instanceC), false)
+	require.NoError(t, err)
+
+	revList := mustListRevisions(t, r, instanceA)
+	require.Len(t, revList, 3)
+
+	// Set recent timestamps so timeout doesn't fire first.
+	for i := range revList {
+		revList[i].CreationTimestamp = metav1.Now()
+	}
+
+	// Simulate manual spec change (specD) — doesn't match any revision.
+	manualSite := "manual-change.example.com"
+	instanceD := newRevisionTestOwner("test-dda", "default")
+	instanceD.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{Site: &manualSite}}
+	instanceD.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseRunning}
+
+	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceD.Status.Experiment.DeepCopy()}
+	r.abortExperiment(context.Background(), instanceD, instanceD.Status.Experiment, newStatus, revList)
+	assert.Equal(t, v2alpha1.ExperimentPhaseAborted, newStatus.Experiment.Phase)
+
+	// Verify: only rev3 (experiment, highest) is annotated.
+	for _, rev := range mustListRevisions(t, r, instanceA) {
+		hasAnnotation := rev.Annotations[annotationExperimentRollback] == "true"
+		switch rev.Name {
+		case rev3Name:
+			assert.True(t, hasAnnotation, "rev3 (experiment, highest) should be annotated")
+		case rev2Name:
+			assert.False(t, hasAnnotation, "rev2 should NOT be annotated")
+		case rev1Name:
+			assert.False(t, hasAnnotation, "rev1 (old baseline) should NOT be annotated")
+		}
+	}
 }
 
 func TestHandleRollback_Timeout(t *testing.T) {

@@ -396,3 +396,267 @@ func Test_Experiment_AbortDoesNotRollback(t *testing.T) {
 	// Also verify the revision timestamp is not used as a proxy for time.Now() comparison.
 	_ = metav1.Now()
 }
+
+// Test_Experiment_Abort_AnnotatesOnlyExperimentRevision verifies that when an
+// experiment is aborted due to a manual spec change:
+//   - The experiment revision (highest at the time of abort) is annotated.
+//   - The new revision created by manageRevision for the manual-change spec
+//     is NOT annotated.
+//   - Subsequent reconciles do not re-annotate or spread the annotation.
+func Test_Experiment_Abort_AnnotatesOnlyExperimentRevision(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+	nsName := types.NamespacedName{Namespace: ns, Name: name}
+
+	r := newExperimentIntegrationReconciler(t, 0)
+
+	// Rev1: baseline.
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	// Rev2: experiment spec.
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+	reconcileN(t, r, ns, name, 1)
+	assert.Len(t, listOwnedRevisions(t, r.client, ns, uid), 2)
+
+	// Record the experiment revision name (highest Revision number).
+	var experimentRevName string
+	for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
+		if experimentRevName == "" || rev.Revision > 0 {
+			experimentRevName = rev.Name
+		}
+	}
+	maxRev := int64(0)
+	for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
+		if rev.Revision > maxRev {
+			maxRev = rev.Revision
+			experimentRevName = rev.Name
+		}
+	}
+
+	// Patch timestamps so timeout doesn't fire before abort.
+	for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
+		rev.CreationTimestamp = metav1.Now()
+		assert.NoError(t, r.client.Update(context.TODO(), &rev))
+	}
+
+	// Set phase=running.
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Status.Experiment = &v2alpha1.ExperimentStatus{
+		Phase: v2alpha1.ExperimentPhaseRunning,
+		ID:    "exp-1",
+	}
+	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
+
+	// User manually changes the spec — triggers abort.
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.Site = ptr.To("manual-change.example.com")
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+
+	// First reconcile: abort fires (manageExperiment), then manageRevision
+	// creates rev3 for the manual-change spec.
+	reconcileN(t, r, ns, name, 1)
+	assert.Equal(t, v2alpha1.ExperimentPhaseAborted, mustGetExperimentPhase(t, r, ns, name))
+
+	// Verify: only the experiment revision is annotated, not the new one.
+	revs := listOwnedRevisions(t, r.client, ns, uid)
+	for _, rev := range revs {
+		if rev.Name == experimentRevName {
+			assert.Equal(t, "true", rev.Annotations[annotationExperimentRollback],
+				"experiment revision %s should be annotated", rev.Name)
+		} else {
+			assert.NotEqual(t, "true", rev.Annotations[annotationExperimentRollback],
+				"non-experiment revision %s should NOT be annotated", rev.Name)
+		}
+	}
+
+	// Run additional reconciles — annotation state must be stable.
+	reconcileN(t, r, ns, name, 3)
+
+	revs = listOwnedRevisions(t, r.client, ns, uid)
+	annotatedNames := []string{}
+	for _, rev := range revs {
+		if rev.Annotations[annotationExperimentRollback] == "true" {
+			annotatedNames = append(annotatedNames, rev.Name)
+		}
+	}
+	assert.Equal(t, []string{experimentRevName}, annotatedNames,
+		"after multiple reconciles, only the original experiment revision should remain annotated")
+}
+
+// Test_Experiment_StoppedRollback_AnnotatesOnlyExperimentRevision verifies
+// that when an experiment is rolled back via phase=stopped:
+//   - The experiment revision is annotated with experiment-rollback.
+//   - The rollback target (baseline) revision is NOT annotated.
+//   - Subsequent reconciles do not spread or remove the annotation.
+func Test_Experiment_StoppedRollback_AnnotatesOnlyExperimentRevision(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+	nsName := types.NamespacedName{Namespace: ns, Name: name}
+
+	r := newExperimentIntegrationReconciler(t, 0)
+
+	// Rev1: baseline.
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	// Record baseline revision name.
+	baselineRevName := listOwnedRevisions(t, r.client, ns, uid)[0].Name
+
+	// Rev2: experiment spec.
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+	reconcileN(t, r, ns, name, 1)
+
+	// Identify experiment revision.
+	var experimentRevName string
+	for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
+		if rev.Name != baselineRevName {
+			experimentRevName = rev.Name
+		}
+	}
+	assert.NotEmpty(t, experimentRevName, "should have an experiment revision")
+
+	// RC writes phase=stopped → triggers rollback.
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Status.Experiment = &v2alpha1.ExperimentStatus{
+		Phase: v2alpha1.ExperimentPhaseStopped,
+		ID:    "exp-1",
+	}
+	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
+	reconcileN(t, r, ns, name, 2)
+
+	assert.Equal(t, v2alpha1.ExperimentPhaseRollback, mustGetExperimentPhase(t, r, ns, name))
+
+	// Verify: experiment revision annotated, baseline NOT annotated.
+	for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
+		if rev.Name == experimentRevName {
+			assert.Equal(t, "true", rev.Annotations[annotationExperimentRollback],
+				"experiment revision %s should be annotated after rollback", rev.Name)
+		} else {
+			assert.NotEqual(t, "true", rev.Annotations[annotationExperimentRollback],
+				"baseline revision %s should NOT be annotated", rev.Name)
+		}
+	}
+
+	// Run additional reconciles — annotation state must be stable.
+	reconcileN(t, r, ns, name, 3)
+
+	for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
+		if rev.Name == experimentRevName {
+			assert.Equal(t, "true", rev.Annotations[annotationExperimentRollback],
+				"experiment revision %s should still be annotated after extra reconciles", rev.Name)
+		} else {
+			assert.NotEqual(t, "true", rev.Annotations[annotationExperimentRollback],
+				"baseline revision %s should still NOT be annotated after extra reconciles", rev.Name)
+		}
+	}
+}
+
+// Test_Experiment_ReapplySameSpec_NoImmediateTimeout verifies the full
+// annotation-based revision recreate flow end-to-end:
+//
+//  1. Baseline spec → experiment spec → timeout rollback.
+//  2. Rollback annotates the experiment revision with experiment-rollback=true.
+//  3. Re-apply the same experiment spec.
+//  4. ensureRevision creates a new revision for the experiment spec (the content
+//     hash may differ from the original due to defaulting, but if it matches,
+//     the annotated revision is deleted+recreated with a fresh timestamp).
+//  5. A subsequent reconcile with phase=running does NOT immediately timeout.
+//
+// NOTE: The fake client doesn't set CreationTimestamp on Create (unlike the
+// real API server), so we manually patch timestamps to simulate fresh
+// revisions after the re-apply reconcile.
+func Test_Experiment_ReapplySameSpec_NoImmediateTimeout(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+	// Use a short timeout for the initial experiment so it times out quickly,
+	// then switch to a long timeout for the re-applied experiment so we can
+	// assert it does NOT timeout within a single reconcile.
+	const shortTimeout = 50 * time.Millisecond
+	const longTimeout = 5 * time.Second
+	nsName := types.NamespacedName{Namespace: ns, Name: name}
+
+	r := newExperimentIntegrationReconciler(t, shortTimeout)
+
+	// Step 1: Create baseline (rev1).
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	// Step 2: Apply experiment spec (rev2).
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+	reconcileN(t, r, ns, name, 1)
+	assert.Len(t, listOwnedRevisions(t, r.client, ns, uid), 2)
+
+	// Step 3: Set phase=running and let it timeout.
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Status.Experiment = &v2alpha1.ExperimentStatus{
+		Phase: v2alpha1.ExperimentPhaseRunning,
+		ID:    "exp-1",
+	}
+	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
+	time.Sleep(2 * shortTimeout)
+	reconcileN(t, r, ns, name, 2)
+
+	assert.Equal(t, v2alpha1.ExperimentPhaseTimeout, mustGetExperimentPhase(t, r, ns, name))
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	assert.Equal(t, "datadoghq.com", *dda.Spec.Global.Site, "spec should be rolled back")
+
+	// Verify the experiment revision is annotated as rolled back.
+	revs := listOwnedRevisions(t, r.client, ns, uid)
+	var annotatedCount int
+	for _, rev := range revs {
+		if rev.Annotations[annotationExperimentRollback] == "true" {
+			annotatedCount++
+		}
+	}
+	assert.Equal(t, 1, annotatedCount, "exactly one revision should have the rollback annotation")
+
+	// Switch to a long timeout so the re-applied experiment doesn't timeout
+	// within the reconcile's own execution time.
+	r.options.ExperimentTimeout = longTimeout
+
+	// Step 4: Clear experiment status (simulating fleet daemon acknowledging the
+	// rollback) and re-apply the same experiment spec.
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Status.Experiment = nil
+	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+
+	// This reconcile triggers ensureRevision which either:
+	// - matches the annotated revision (same content hash) → delete+recreate, or
+	// - creates a new revision (different hash due to defaulting differences).
+	// Either way, the current revision for this spec has no rollback annotation.
+	reconcileN(t, r, ns, name, 1)
+
+	// Step 5: Set phase=running again. Patch all revision timestamps to now so
+	// the timeout check works correctly with the fake client (which doesn't set
+	// CreationTimestamp on Create like the real API server).
+	revs = listOwnedRevisions(t, r.client, ns, uid)
+	assert.Len(t, revs, 2)
+	for i := range revs {
+		revs[i].CreationTimestamp = metav1.Now()
+		assert.NoError(t, r.client.Update(context.TODO(), &revs[i]))
+	}
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Status.Experiment = &v2alpha1.ExperimentStatus{
+		Phase: v2alpha1.ExperimentPhaseRunning,
+		ID:    "exp-2",
+	}
+	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
+
+	// Reconcile — should NOT timeout because the revision is fresh.
+	reconcileN(t, r, ns, name, 1)
+
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, mustGetExperimentPhase(t, r, ns, name),
+		"experiment should still be running — no immediate timeout after reapply")
+}
