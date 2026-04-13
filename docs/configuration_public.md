@@ -127,10 +127,10 @@ spec:
 : CustomBenchmarks contains CSPM benchmarks. The content of the ConfigMap will be merged with the benchmarks bundled with the agent. Any benchmarks with the same name as those existing in the agent will take precedence.
 
 `features.cspm.enabled`
-: Enables Cloud Security Posture Management. Default: false
+: Enables Cloud Security Posture Management, including Docker and Kubernetes benchmarks. Default: false
 
 `features.cspm.hostBenchmarks.enabled`
-: Enables host benchmarks. Default: true
+: Enables Linux host benchmarks. Requires `features.cspm.enabled` to be set to `true`. Default: true
 
 `features.cspm.runInSystemProbe`
 : RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent. This is an experimental feature. Contact support before using. Default: false
@@ -385,7 +385,7 @@ spec:
 : Enables the service discovery check. Default: false
 
 `features.serviceDiscovery.networkStats.enabled`
-: Enables the Service Discovery Network Stats feature. Default: true
+: DEPRECATED: this field is ignored.
 
 `features.tcpQueueLength.enabled`
 : Enables the TCP queue length eBPF-based check. Default: false
@@ -558,6 +558,9 @@ spec:
 `global.useFIPSAgent`
 : UseFIPSAgent enables the FIPS flavor of the Agent. If 'true', the FIPS proxy will always be disabled. Default: 'false'
 
+`global.useVSock`
+: UseVSock allows the use of VSock communication between the Agent and containerized workloads. Default: 'false'
+
 `override`
 : The default configurations of the agents
 
@@ -567,7 +570,7 @@ For a complete list of parameters, see the [Operator configuration spec][8].
 
 ## Override options
 
-The following table lists parameters that can be used to override default or global settings for individual components. `override` is a map with the following possible keys: `nodeAgent`, `clusterAgent`, or `clusterChecksRunner`. Maps and arrays have a type annotation in the table. In the parameter names, `component` refers to one of these component keys, and `container` refers to a specific container name within that component (such as `agent`, `cluster-agent`, `process-agent`, `trace-agent`, or `system-probe`).
+The following table lists parameters that can be used to override default or global settings for individual components. `override` is a map with the following possible keys: `nodeAgent`, `clusterAgent`, `otelAgentGateway`, or `clusterChecksRunner`. Maps and arrays have a type annotation in the table. In the parameter names, `component` refers to one of these component keys, and `container` refers to a specific container name within that component (such as `agent`, `cluster-agent`, `process-agent`, `trace-agent`, or `system-probe`).
 
 For example: the following manifest overrides the Node Agent's image and tag, in addition to the resource limits of the system probe container:
 
@@ -590,6 +593,7 @@ spec:
               memory: 1Gi
 {{< /highlight >}}
 In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.containers.system-probe.resources.limits` appear as `[component].image.name` and `[component].containers.[container].resources.limits`, respectively.
+
 
 {{% collapse-content title="Parameters" level="h4" expanded=true id="override-options-list" %}}
 `[component].affinity`

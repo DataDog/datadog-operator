@@ -24,7 +24,7 @@ const (
 )
 
 // DatadogPodAutoscalerUpdateStrategy defines the mode of the update policy.
-// +kubebuilder:validation:Enum:=Auto;Disabled
+// +kubebuilder:validation:Enum:=Auto;Disabled;TriggerRollout
 type DatadogPodAutoscalerUpdateStrategy string
 
 const (
@@ -33,6 +33,9 @@ const (
 
 	// DatadogPodAutoscalerDisabledUpdateStrategy will disable the update of the target workload.
 	DatadogPodAutoscalerDisabledUpdateStrategy DatadogPodAutoscalerUpdateStrategy = "Disabled"
+
+	// DatadogPodAutoscalerTriggerRolloutUpdateStrategy triggers a full pod rollout to apply vertical recommendations.
+	DatadogPodAutoscalerTriggerRolloutUpdateStrategy DatadogPodAutoscalerUpdateStrategy = "TriggerRollout"
 )
 
 // DatadogPodAutoscalerUpdatePolicy defines the policy to update the target workload.
@@ -40,6 +43,20 @@ const (
 type DatadogPodAutoscalerUpdatePolicy struct {
 	// Strategy defines the mode of the update policy.
 	Strategy DatadogPodAutoscalerUpdateStrategy `json:"strategy,omitempty"`
+
+	// Controls how long we wait before forcing an eviction when the kubelet reports a resize as pending.
+	// Must be greater than 0 and less than or equal to 3600 (1 hour).
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=3600
+	ResizePendingPeriod int32 `json:"resizePendingPeriod,omitempty"`
+
+	// Controls how long we wait before falling back to a full rollout when evictions are blocked.
+	// Must be greater than 0 and less than or equal to 3600 (1 hour).
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=3600
+	RolloutFallbackDelay int32 `json:"rolloutFallbackDelay,omitempty"`
 }
 
 //
@@ -526,6 +543,10 @@ type DatadogPodAutoscalerVerticalTargetStatus struct {
 	// Scaled is the current number of pods having desired resources
 	Scaled *int32 `json:"scaled,omitempty"`
 
+	// Evicted is the number of pods evicted as an in-place resize fallback during the
+	// current recommendation cycle. Resets when the recommendation changes.
+	Evicted *int32 `json:"evicted,omitempty"`
+
 	// DesiredResources is the desired resources for containers
 	DesiredResources []DatadogPodAutoscalerContainerResources `json:"desiredResources"`
 
@@ -542,6 +563,10 @@ type DatadogPodAutoscalerVerticalActionType string
 const (
 	// DatadogPodAutoscalerRolloutTriggeredVerticalActionType is the action when the controller triggers a rollout of the targetRef
 	DatadogPodAutoscalerRolloutTriggeredVerticalActionType DatadogPodAutoscalerVerticalActionType = "RolloutTriggered"
+	// DatadogPodAutoscalerResizeTriggeredVerticalActionType is the action when the controller triggers a resize of the pod resources of the targetRef
+	DatadogPodAutoscalerResizeTriggeredVerticalActionType DatadogPodAutoscalerVerticalActionType = "ResizeTriggered"
+	// DatadogPodAutoscalerResizeCompletedVerticalActionType is the action when all pods have completed an in-place resize cycle
+	DatadogPodAutoscalerResizeCompletedVerticalActionType DatadogPodAutoscalerVerticalActionType = "ResizeCompleted"
 )
 
 // DatadogPodAutoscalerVerticalAction represents a vertical action done by the controller

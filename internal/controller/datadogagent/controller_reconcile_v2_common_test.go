@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/utils/ptr"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -840,7 +841,7 @@ func Test_addDDAIStatusToDDAStatus(t *testing.T) {
 					RemoteConfigConfiguration: &v2alpha1.RemoteConfigConfiguration{
 						Features: &v2alpha1.DatadogFeatures{
 							CWS: &v2alpha1.CWSFeatureConfig{
-								Enabled: apiutils.NewBoolPointer(true),
+								Enabled: ptr.To(true),
 							},
 						},
 					},

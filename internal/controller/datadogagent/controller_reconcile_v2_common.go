@@ -826,5 +826,9 @@ func IsEqualStatus(current *v2alpha1.DatadogAgentStatus, newStatus *v2alpha1.Dat
 		return false
 	}
 
+	if !apiequality.Semantic.DeepEqual(current.Experiment, newStatus.Experiment) {
+		return false
+	}
+
 	return condition.IsEqualConditions(current.Conditions, newStatus.Conditions)
 }

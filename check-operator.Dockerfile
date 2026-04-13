@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM golang:1.25.7 AS builder
+FROM golang:1.25.9 AS builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -25,7 +25,7 @@ ARG LDFLAGS
 ARG GOARCH
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} go build -a -ldflags "${LDFLAGS}" -o check-operator cmd/check-operator/main.go
 
-FROM registry.access.redhat.com/ubi9/ubi-micro:latest
+FROM registry.access.redhat.com/ubi10/ubi-micro:latest
 WORKDIR /
 COPY --from=builder /workspace/check-operator .
 USER 1001
