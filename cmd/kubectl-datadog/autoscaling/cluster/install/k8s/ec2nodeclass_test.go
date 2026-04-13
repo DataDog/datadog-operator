@@ -7,7 +7,7 @@ import (
 )
 
 func TestAmiFamilyToAlias(t *testing.T) {
-	tests := []struct {
+	for _, tc := range []struct {
 		amiFamily string
 		expected  string
 	}{
@@ -19,11 +19,9 @@ func TestAmiFamilyToAlias(t *testing.T) {
 		{"Windows2025", "windows2025@latest"},
 		{"Custom", ""},
 		{"Unknown", ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.amiFamily, func(t *testing.T) {
-			assert.Equal(t, tt.expected, amiFamilyToAlias(tt.amiFamily))
+	} {
+		t.Run(tc.amiFamily, func(t *testing.T) {
+			assert.Equal(t, tc.expected, amiFamilyToAlias(tc.amiFamily))
 		})
 	}
 }

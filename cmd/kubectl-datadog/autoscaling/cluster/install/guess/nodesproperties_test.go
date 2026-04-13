@@ -7,7 +7,7 @@ import (
 )
 
 func TestDetectAMIFamilyFromImage(t *testing.T) {
-	tests := []struct {
+	for _, tc := range []struct {
 		imageName string
 		expected  string
 	}{
@@ -21,11 +21,9 @@ func TestDetectAMIFamilyFromImage(t *testing.T) {
 		{"Windows_Server-2022-English-Full-EKS_Optimized-1.30", "Windows2022"},
 		{"Windows_Server-2019-English-Full-EKS_Optimized-1.30", "Windows2019"},
 		{"some-custom-ami-name", "Custom"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.imageName, func(t *testing.T) {
-			assert.Equal(t, tt.expected, detectAMIFamilyFromImage(tt.imageName))
+	} {
+		t.Run(tc.imageName, func(t *testing.T) {
+			assert.Equal(t, tc.expected, detectAMIFamilyFromImage(tc.imageName))
 		})
 	}
 }
