@@ -18,4 +18,5 @@ const (
 	DDAPMInstrumentationLibVersions        = "DD_APM_INSTRUMENTATION_LIB_VERSIONS"
 	DDLanguageDetectionEnabled             = "DD_LANGUAGE_DETECTION_ENABLED"
 	DDLanguageDetectionReportingEnabled    = "DD_LANGUAGE_DETECTION_REPORTING_ENABLED"
+	DDTraceAgentHostSocketPath             = "DD_TRACE_AGENT_HOST_SOCKET_PATH"
 )

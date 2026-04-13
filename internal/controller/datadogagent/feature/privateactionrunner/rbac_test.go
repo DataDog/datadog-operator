@@ -13,7 +13,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
-func TestGetRBACPolicyRules(t *testing.T) {
+func TestGetClusterAgentRBACPolicyRules(t *testing.T) {
 	tests := []struct {
 		name               string
 		identitySecretName string
@@ -43,10 +43,10 @@ func TestGetRBACPolicyRules(t *testing.T) {
 			assert.Len(t, rules, 1, "Should have exactly one policy rule")
 
 			rule := rules[0]
-			assert.Equal(t, []string{rbac.CoreAPIGroup}, rule.APIGroups, "APIGroups should be core")
-			assert.Equal(t, []string{rbac.SecretsResource}, rule.Resources, "Resources should be secrets")
-			assert.Equal(t, []string{tt.expectedSecretName}, rule.ResourceNames, "ResourceNames should match expected secret name")
-			assert.ElementsMatch(t, []string{rbac.GetVerb, rbac.UpdateVerb, rbac.CreateVerb}, rule.Verbs, "Verbs should include get, update, and create")
+			assert.Equal(t, []string{rbac.CoreAPIGroup}, rule.APIGroups)
+			assert.Equal(t, []string{rbac.SecretsResource}, rule.Resources)
+			assert.Equal(t, []string{tt.expectedSecretName}, rule.ResourceNames)
+			assert.ElementsMatch(t, []string{rbac.GetVerb, rbac.UpdateVerb, rbac.CreateVerb}, rule.Verbs)
 		})
 	}
 }

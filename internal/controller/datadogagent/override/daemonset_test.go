@@ -8,9 +8,10 @@ package override
 import (
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/stretchr/testify/assert"
 
 	v1 "k8s.io/api/apps/v1"
@@ -26,70 +27,70 @@ func TestDaemonSet(t *testing.T) {
 	}{
 		{
 			daemonSet: makeDaemonSet(
-				apiutils.NewStringPointer("RollingUpdate"),
-				apiutils.NewStringPointer("50%"),
-				apiutils.NewStringPointer("50%"),
+				ptr.To("RollingUpdate"),
+				ptr.To("50%"),
+				ptr.To("50%"),
 			),
 			override: makeOverride(
-				apiutils.NewStringPointer("RollingUpdate"),
-				apiutils.NewStringPointer("0%"),
-				apiutils.NewStringPointer("0%"),
+				ptr.To("RollingUpdate"),
+				ptr.To("0%"),
+				ptr.To("0%"),
 			),
 			expected: makeDaemonSet(
-				apiutils.NewStringPointer("RollingUpdate"),
-				apiutils.NewStringPointer("0%"),
-				apiutils.NewStringPointer("0%"),
+				ptr.To("RollingUpdate"),
+				ptr.To("0%"),
+				ptr.To("0%"),
 			),
 		},
 		{
 			daemonSet: makeDaemonSet(
-				apiutils.NewStringPointer("RollingUpdate"),
-				apiutils.NewStringPointer("50%"),
-				apiutils.NewStringPointer("50%"),
+				ptr.To("RollingUpdate"),
+				ptr.To("50%"),
+				ptr.To("50%"),
 			),
 			override: makeOverride(
-				apiutils.NewStringPointer("OnDelete"),
+				ptr.To("OnDelete"),
 				nil,
 				nil,
 			),
 			expected: makeDaemonSet(
-				apiutils.NewStringPointer("OnDelete"),
+				ptr.To("OnDelete"),
 				nil,
-				nil,
-			),
-		},
-		{
-			daemonSet: makeDaemonSet(
-				apiutils.NewStringPointer("RollingUpdate"),
-				apiutils.NewStringPointer("50%"),
-				apiutils.NewStringPointer("50%"),
-			),
-			override: makeOverride(
-				apiutils.NewStringPointer("OnDelete"),
-				apiutils.NewStringPointer("50%"),
-				nil,
-			),
-			expected: makeDaemonSet(
-				apiutils.NewStringPointer("OnDelete"),
-				apiutils.NewStringPointer("50%"),
 				nil,
 			),
 		},
 		{
 			daemonSet: makeDaemonSet(
+				ptr.To("RollingUpdate"),
+				ptr.To("50%"),
+				ptr.To("50%"),
+			),
+			override: makeOverride(
+				ptr.To("OnDelete"),
+				ptr.To("50%"),
+				nil,
+			),
+			expected: makeDaemonSet(
+				ptr.To("OnDelete"),
+				ptr.To("50%"),
+				nil,
+			),
+		},
+		{
+			daemonSet: makeDaemonSet(
 				nil,
 				nil,
 				nil,
 			),
 			override: makeOverride(
-				apiutils.NewStringPointer("OnDelete"),
-				apiutils.NewStringPointer("25%"),
-				apiutils.NewStringPointer("25%"),
+				ptr.To("OnDelete"),
+				ptr.To("25%"),
+				ptr.To("25%"),
 			),
 			expected: makeDaemonSet(
-				apiutils.NewStringPointer("OnDelete"),
-				apiutils.NewStringPointer("25%"),
-				apiutils.NewStringPointer("25%"),
+				ptr.To("OnDelete"),
+				ptr.To("25%"),
+				ptr.To("25%"),
 			),
 		},
 	}
@@ -107,7 +108,7 @@ func TestDaemonSet(t *testing.T) {
 	}
 
 	override := v2alpha1.DatadogAgentComponentOverride{
-		Name: apiutils.NewStringPointer("new-name"),
+		Name: ptr.To("new-name"),
 	}
 
 	DaemonSet(&daemonSet, &override)
