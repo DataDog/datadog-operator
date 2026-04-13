@@ -242,15 +242,7 @@ func overrideAppArmorProfile(containerName apicommon.AgentContainerName, manager
 		// Only add the AppArmor annotation if the container actually exists in the pod spec.
 		// This avoids invalid DaemonSet configurations when a container is not present
 		// (e.g. security-agent is absent when directSendFromSystemProbe is enabled).
-		containerExists := false
-		allContainers := append(manager.PodTemplateSpec().Spec.Containers, manager.PodTemplateSpec().Spec.InitContainers...)
-		for _, c := range allContainers {
-			if c.Name == effectiveName {
-				containerExists = true
-				break
-			}
-		}
-		if !containerExists {
+		if !podSpecHasContainer(&manager.PodTemplateSpec().Spec, effectiveName) {
 			return
 		}
 
