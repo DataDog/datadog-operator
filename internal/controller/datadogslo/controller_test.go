@@ -120,6 +120,58 @@ func TestReconciler_Reconcile(t *testing.T) {
 			}),
 			expectedResult: ctrl.Result{RequeueAfter: defaultRequeuePeriod},
 		},
+		{
+			name: "Create time_slice SLO when not exists",
+			request: ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: resourceNamespace,
+					Name:      resourceName,
+				},
+			},
+			mockOn: func(t *testing.T, m *mockedFields) {
+				_ = m.k8sClient.Create(context.TODO(), timeSliceSLO())
+			},
+			datadogClientHandler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(defaultDatadogSLOResponse())
+			}),
+			expectedResult: ctrl.Result{RequeueAfter: defaultRequeuePeriod},
+		},
+		{
+			name: "Return error when creating time_slice SLO fails",
+			request: ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: resourceNamespace,
+					Name:      resourceName,
+				},
+			},
+			mockOn: func(t *testing.T, m *mockedFields) {
+				_ = m.k8sClient.Create(context.TODO(), timeSliceSLO())
+			},
+			datadogClientHandler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Error(w, "invalid data", http.StatusBadRequest)
+			}),
+			expectedResult: ctrl.Result{Requeue: false, RequeueAfter: defaultErrRequeuePeriod},
+		},
+		{
+			name: "Update time_slice SLO when ID exists",
+			request: ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: resourceNamespace,
+					Name:      resourceName,
+				},
+			},
+			mockOn: func(t *testing.T, m *mockedFields) {
+				slo := timeSliceSLO()
+				slo.Status.ID = "SLO123"
+				_ = m.k8sClient.Create(context.TODO(), slo)
+			},
+			datadogClientHandler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(defaultDatadogSLOResponse())
+			}),
+			expectedResult: ctrl.Result{RequeueAfter: defaultRequeuePeriod},
+		},
 	}
 
 	// Iterate through test cases
@@ -152,6 +204,31 @@ func TestReconciler_Reconcile(t *testing.T) {
 			res, _ := r.Reconcile(ctx, tt.request)
 			assert.Equal(t, tt.expectedResult, res)
 		})
+	}
+}
+
+func timeSliceSLO() *v1alpha1.DatadogSLO {
+	return &v1alpha1.DatadogSLO{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "DatadogSLO",
+			APIVersion: fmt.Sprintf("%s/%s", v1alpha1.GroupVersion.Group, v1alpha1.GroupVersion.Version),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: resourceNamespace,
+			Name:      resourceName,
+		},
+		Spec: v1alpha1.DatadogSLOSpec{
+			Name: "Test Time Slice SLO",
+			TimeSlice: &v1alpha1.DatadogSLOTimeSlice{
+				Query:      "trace.servlet.request{env:prod}",
+				Comparator: v1alpha1.DatadogSLOTimeSliceComparatorGreater,
+				Threshold:  resource.MustParse("5"),
+			},
+			Type:            v1alpha1.DatadogSLOTypeTimeSlice,
+			TargetThreshold: resource.MustParse("97.0"),
+			Timeframe:       v1alpha1.DatadogSLOTimeFrame7d,
+			Tags:            utils.GetRequiredTags(),
+		},
 	}
 }
 

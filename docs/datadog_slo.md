@@ -35,29 +35,75 @@ To deploy a `DatadogSLO` with the Datadog Operator, use the [`datadog-operator` 
         helm install my-datadog-operator datadog/datadog-operator -f values.yaml
         ```
 
-2. Create a file with the spec of your `DatadogSLO` deployment configuration. An example configuration is:
+2. Create a file with the spec of your `DatadogSLO` deployment configuration. The operator supports three SLO types: `metric`, `monitor`, and `time_slice`. Example configurations are shown below.
 
+    **Metric SLO** — measures the ratio of good events to total events using metric queries:
 
-    ```
+    ```yaml
     apiVersion: datadoghq.com/v1alpha1
     kind: DatadogSLO
     metadata:
-      name: example-slo
-      namespace: system 
+      name: example-metric-slo
+      namespace: system
     spec:
-      name: example-slo
+      name: example-metric-slo
       description: "This is an example metric SLO from datadog-operator"
+      type: "metric"
       query:
-        denominator: "sum:requests.total{service:example,env:prod}.as_count()"
         numerator: "sum:requests.success{service:example,env:prod}.as_count()"
+        denominator: "sum:requests.total{service:example,env:prod}.as_count()"
       tags:
         - "service:example"
         - "env:prod"
       targetThreshold: "99.9"
       timeframe: "7d"
-      type: "metric"
-
     ```
+
+    **Monitor SLO** — calculates SLO from the uptime of one or more existing Datadog monitors:
+
+    ```yaml
+    apiVersion: datadoghq.com/v1alpha1
+    kind: DatadogSLO
+    metadata:
+      name: example-monitor-slo
+      namespace: system
+    spec:
+      name: example-monitor-slo
+      description: "This is an example monitor SLO from datadog-operator"
+      type: "monitor"
+      monitorIDs:
+        - 12345678
+      tags:
+        - "service:example"
+        - "env:prod"
+      targetThreshold: "99.9"
+      timeframe: "7d"
+    ```
+
+    **Time-slice SLO** — evaluates a metric query against a threshold at each time interval to determine what fraction of time the service was in a good state. This type requires a `timeSlice` block with a `query`, a `comparator` (`>`, `>=`, `<`, `<=`), and a numeric `threshold`:
+
+    ```yaml
+    apiVersion: datadoghq.com/v1alpha1
+    kind: DatadogSLO
+    metadata:
+      name: example-time-slice-slo
+      namespace: system
+    spec:
+      name: example-time-slice-slo
+      description: "This is an example time-slice SLO from datadog-operator"
+      type: "time_slice"
+      timeSlice:
+        query: "trace.servlet.request{env:prod}"
+        comparator: ">"
+        threshold: "5"
+      tags:
+        - "service:example"
+        - "env:prod"
+      targetThreshold: "97"
+      timeframe: "7d"
+    ```
+
+    The operator wraps the `timeSlice.query` into the formula and named-query structure required by the Datadog API automatically — no manual formula configuration is needed.
 
 3. Deploy the `DatadogSLO` with the above configuration file:
 

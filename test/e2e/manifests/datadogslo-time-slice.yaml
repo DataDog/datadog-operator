@@ -1,0 +1,30 @@
+# Example DatadogSLO manifest for a time_slice SLO.
+# A time-slice SLO evaluates a metric query against a threshold at each time
+# interval and computes the fraction of time the service was in a good state.
+#
+# Prerequisites:
+#   - Datadog Operator v1.9+ deployed with datadogSLO.enabled=true
+#   - DD_API_KEY and DD_APP_KEY configured in the operator
+#
+# Deploy: kubectl apply -f datadogslo-time-slice.yaml
+# Delete:  kubectl delete -f datadogslo-time-slice.yaml
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogSLO
+metadata:
+  name: example-time-slice-slo
+  namespace: datadog
+spec:
+  name: example-time-slice-slo
+  description: "Time-slice SLO monitoring average request duration for the example service"
+  type: "time_slice"
+  timeSlice:
+    # Metric query that produces the SLI value at each time slice.
+    query: "trace.servlet.request{env:prod}"
+    # A time slice is considered good when the SLI value is > the threshold.
+    comparator: ">"
+    threshold: "5"
+  tags:
+    - "service:example"
+    - "env:prod"
+  targetThreshold: "97"
+  timeframe: "7d"
