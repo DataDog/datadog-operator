@@ -55,13 +55,12 @@ var testDDANSN = types.NamespacedName{Namespace: "datadog", Name: "datadog-agent
 func testDDAObject(phase v2alpha1.ExperimentPhase) *v2alpha1.DatadogAgent {
 	dda := &v2alpha1.DatadogAgent{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:       testDDANSN.Name,
-			Namespace:  testDDANSN.Namespace,
-			Generation: 1,
+			Name:      testDDANSN.Name,
+			Namespace: testDDANSN.Namespace,
 		},
 	}
 	if phase != "" {
-		dda.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: phase, ID: "old-exp", Generation: 1}
+		dda.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: phase, ID: "old-exp"}
 	}
 	return dda
 }
@@ -144,7 +143,6 @@ func TestStartDatadogAgentExperiment_Success_NilPhase(t *testing.T) {
 	require.NotNil(t, dda.Status.Experiment)
 	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, dda.Status.Experiment.Phase)
 	assert.Equal(t, req.ID, dda.Status.Experiment.ID)
-	assert.NotZero(t, dda.Status.Experiment.Generation)
 }
 
 func TestStartDatadogAgentExperiment_Success_FromRollback(t *testing.T) {
@@ -318,9 +316,8 @@ func TestStopDatadogAgentExperiment_Success_Running(t *testing.T) {
 	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
 	require.NotNil(t, dda.Status.Experiment)
 	assert.Equal(t, v2alpha1.ExperimentPhaseStopped, dda.Status.Experiment.Phase)
-	// ID and generation must be preserved.
+	// ID must be preserved.
 	assert.Equal(t, "old-exp", dda.Status.Experiment.ID)
-	assert.Equal(t, int64(1), dda.Status.Experiment.Generation)
 }
 
 // --- promoteDatadogAgentExperiment tests ---
@@ -390,9 +387,8 @@ func TestPromoteDatadogAgentExperiment_Success_Running(t *testing.T) {
 	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
 	require.NotNil(t, dda.Status.Experiment)
 	assert.Equal(t, v2alpha1.ExperimentPhasePromoted, dda.Status.Experiment.Phase)
-	// ID and generation must be preserved.
+	// ID must be preserved.
 	assert.Equal(t, "old-exp", dda.Status.Experiment.ID)
-	assert.Equal(t, int64(1), dda.Status.Experiment.Generation)
 }
 
 // --- validateOperation tests ---

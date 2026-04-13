@@ -21,22 +21,76 @@ import (
 func TestManageExperiment_AbortsOnManualChange(t *testing.T) {
 	r, _ := newRevisionTestReconciler(t)
 
-	instance := newRevisionTestOwner("test-dda", "default")
-	instance.Generation = 3
-	instance.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
-	instance.Status.Experiment = &v2alpha1.ExperimentStatus{
-		Phase:      v2alpha1.ExperimentPhaseRunning,
-		Generation: 2,
+	// Create two revisions: pre-experiment (specA) and experiment (specB).
+	instanceA := newRevisionTestOwner("test-dda", "default")
+	require.NoError(t, r.manageRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), nil))
+
+	instanceB := newRevisionTestOwner("test-dda", "default")
+	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
+	require.NoError(t, r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil))
+
+	// Simulate a manual spec change: specC doesn't match any revision.
+	instanceC := newRevisionTestOwner("test-dda", "default")
+	manualSite := "manual-change.example.com"
+	instanceC.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{Site: &manualSite}}
+	instanceC.Status.Experiment = &v2alpha1.ExperimentStatus{
+		Phase: v2alpha1.ExperimentPhaseRunning,
+	}
+
+	// Set recent timestamps so the timeout path in handleRollback does not fire.
+	revList := mustListRevisions(t, r, instanceC)
+	for i := range revList {
+		revList[i].CreationTimestamp = metav1.Now()
 	}
 
 	status := &v2alpha1.DatadogAgentStatus{
-		Experiment: instance.Status.Experiment.DeepCopy(),
+		Experiment: instanceC.Status.Experiment.DeepCopy(),
 	}
 
-	err := r.manageExperiment(context.Background(), instance, status, metav1.Now(), mustListRevisions(t, r, instance))
+	err := r.manageExperiment(context.Background(), instanceC, status, metav1.Now(), revList)
 	require.NoError(t, err)
 	require.NotNil(t, status.Experiment)
 	assert.Equal(t, v2alpha1.ExperimentPhaseAborted, status.Experiment.Phase)
+}
+
+// TestManageExperiment_ManualRevertToBaselineTerminatesViaTimeout verifies that
+// when the user manually reverts the spec to the pre-experiment value during a
+// running experiment, the experiment terminates via timeout rather than abort.
+// The revision-based abort check sees the spec matching the baseline revision
+// and treats it as a known state. The timeout path fires because the baseline
+// revision's old timestamp exceeds the threshold. The rollback is a no-op
+// (spec already matches target), and the phase is set to "timeout".
+func TestManageExperiment_ManualRevertToBaselineTerminatesViaTimeout(t *testing.T) {
+	r, c := newRevisionTestReconciler(t)
+
+	// Rev1: pre-experiment spec (specA).
+	instanceA := newRevisionTestOwner("test-dda", "default")
+	require.NoError(t, r.manageRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), nil))
+
+	// Rev2: experiment spec (specB).
+	instanceB := newRevisionTestOwner("test-dda", "default")
+	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
+	require.NoError(t, r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil))
+	require.NoError(t, c.Create(context.Background(), instanceA))
+
+	// User manually reverts to specA. The spec matches rev1 (the baseline),
+	// so abortExperiment won't fire. Instead, handleRollback detects timeout
+	// from rev1's old CreationTimestamp.
+	instanceA.Status.Experiment = &v2alpha1.ExperimentStatus{
+		Phase: v2alpha1.ExperimentPhaseRunning,
+	}
+
+	revList := mustListRevisions(t, r, instanceA)
+	// Ensure the baseline revision's timestamp is old enough to trigger timeout.
+	for i := range revList {
+		revList[i].CreationTimestamp = metav1.NewTime(time.Now().Add(-ExperimentDefaultTimeout - time.Minute))
+	}
+
+	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceA.Status.Experiment.DeepCopy()}
+	require.NoError(t, r.manageExperiment(context.Background(), instanceA, newStatus, metav1.Now(), revList))
+	// Abort does not fire — spec matches a known revision. Timeout fires instead
+	// because the matching revision's timestamp exceeds the threshold.
+	assert.Equal(t, v2alpha1.ExperimentPhaseTimeout, newStatus.Experiment.Phase)
 }
 
 func TestRollback_RestoresSpec(t *testing.T) {
@@ -172,14 +226,14 @@ func TestManageExperiment_TimeoutWinsOverSpuriousAbort(t *testing.T) {
 	require.NoError(t, r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil))
 	require.NoError(t, c.Create(context.Background(), instanceB))
 
-	// Simulate a post-409 reconcile: phase=running, but generation was bumped by the
-	// rollback spec update (instanceB.Generation != experiment.Generation), AND timeout
-	// has elapsed. abortExperiment would fire for the generation mismatch, but
-	// handleRollback must win and persist phase=timeout.
-	instanceB.Generation = 99
+	// Simulate a post-409 reconcile: phase=running, the spec was manually changed
+	// so it doesn't match any revision, AND timeout has elapsed. abortExperiment
+	// would fire for the revision mismatch, but handleRollback must win and
+	// persist phase=timeout.
+	manualSite := "manual-change.example.com"
+	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{Site: &manualSite}}
 	instanceB.Status.Experiment = &v2alpha1.ExperimentStatus{
-		Phase:      v2alpha1.ExperimentPhaseRunning,
-		Generation: 1,
+		Phase: v2alpha1.ExperimentPhaseRunning,
 	}
 
 	revList := mustListRevisions(t, r, instanceB)
@@ -236,11 +290,8 @@ func TestHandleRollback_PostRollbackSetsTimeout(t *testing.T) {
 
 	// The DDA in the cluster already has the rolled-back spec (instanceA's spec),
 	// as if reconcile-1 restored it but its status write 409'd.
-	// Generation is set to a realistic non-zero value: RC would have recorded
-	// instanceA.Generation when the experiment started.
 	instanceA.Status.Experiment = &v2alpha1.ExperimentStatus{
-		Phase:      v2alpha1.ExperimentPhaseRunning,
-		Generation: instanceA.Generation,
+		Phase: v2alpha1.ExperimentPhaseRunning,
 	}
 	require.NoError(t, c.Create(context.Background(), instanceA))
 

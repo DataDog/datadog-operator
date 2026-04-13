@@ -8194,11 +8194,6 @@
           "additionalProperties": false,
           "description": "Experiment tracks the state of an active or recent Fleet Automation experiment.",
           "properties": {
-            "generation": {
-              "description": "Generation is the DDA metadata.generation recorded when the experiment started.\nUsed to detect manual spec changes while the experiment is running: if the\ncurrent DDA generation differs from this value, the operator aborts the experiment.\n\nThis value must be recorded after the DDA is patched for a startExperiment signal.",
-              "format": "int64",
-              "type": "integer"
-            },
             "id": {
               "description": "ID is the unique experiment ID sent by Fleet Automation.",
               "type": "string"

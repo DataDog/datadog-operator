@@ -155,17 +155,17 @@ func (d *Daemon) resolveOperation(req remoteAPIRequest, signal string) (fleetMan
 
 // startDatadogAgentExperiment starts a DatadogAgent experiment.
 // The first step updates the DDA spec with the experiment configuration.
-// The second step updates the DDA status to running, recording the experiment ID and generation.
+// The second step updates the DDA status to running, recording the experiment ID.
 func (d *Daemon) startDatadogAgentExperiment(ctx context.Context, req remoteAPIRequest) error {
-	tempLogger := ctrl.LoggerFrom(ctx).WithValues("id", req.ID)
-	tempLogger.Info("Starting DatadogAgent experiment", "config", req.Params.Version)
+	logger := ctrl.LoggerFrom(ctx).WithValues("id", req.ID)
+	logger.Info("Starting DatadogAgent experiment", "config", req.Params.Version)
 	op, err := d.resolveOperation(req, "start DatadogAgent experiment")
 	if err != nil {
-		tempLogger.Error(err, "Failed to resolve operation")
+		logger.Error(err, "Failed to resolve operation")
 		return err
 	}
 
-	logger := ctrl.LoggerFrom(ctx).WithValues("id", req.ID, "namespace", op.NamespacedName.Namespace, "name", op.NamespacedName.Name)
+	logger = logger.WithValues("namespace", op.NamespacedName.Namespace, "name", op.NamespacedName.Name)
 	ctx = ctrl.LoggerInto(ctx, logger)
 
 	logger.Info("Starting k8s resource patch", "config", op.Config)
@@ -187,31 +187,22 @@ func (d *Daemon) startDatadogAgentExperiment(ctx context.Context, req remoteAPIR
 		return fmt.Errorf("start DatadogAgent experiment: failed to patch spec: %w", err)
 	}
 
-	// Re-fetch to get the generation that was bumped by the spec patch.
-	if err := retryWithBackoff(ctx, func() error {
-		return d.client.Get(ctx, op.NamespacedName, dda)
-	}); err != nil {
-		return fmt.Errorf("start DatadogAgent experiment: failed to re-fetch DatadogAgent: %w", err)
-	}
-	newGeneration := dda.Generation
-
-	// Update status: phase=running, record experiment ID and new generation.
+	// Update status: phase=running, record experiment ID.
 	// Re-fetch inside the retry to get the latest ResourceVersion on conflict.
 	if err := retryWithBackoff(ctx, func() error {
 		if err := d.client.Get(ctx, op.NamespacedName, dda); err != nil {
 			return err
 		}
 		dda.Status.Experiment = &v2alpha1.ExperimentStatus{
-			Phase:      v2alpha1.ExperimentPhaseRunning,
-			ID:         req.ID,
-			Generation: newGeneration,
+			Phase: v2alpha1.ExperimentPhaseRunning,
+			ID:    req.ID,
 		}
 		return d.client.Status().Update(ctx, dda)
 	}); err != nil {
 		return fmt.Errorf("start DatadogAgent experiment: failed to update status: %w", err)
 	}
 
-	logger.Info("Started DatadogAgent experiment", "generation", newGeneration)
+	logger.Info("Started DatadogAgent experiment")
 	return nil
 }
 

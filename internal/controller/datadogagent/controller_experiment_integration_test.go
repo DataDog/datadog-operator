@@ -79,9 +79,8 @@ func Test_Experiment_StoppedRollback(t *testing.T) {
 	// RC writes phase=stopped.
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
 	dda.Status.Experiment = &v2alpha1.ExperimentStatus{
-		Phase:      v2alpha1.ExperimentPhaseStopped,
-		Generation: dda.Generation,
-		ID:         "exp-1",
+		Phase: v2alpha1.ExperimentPhaseStopped,
+		ID:    "exp-1",
 	}
 	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
 
@@ -123,9 +122,8 @@ func Test_Experiment_TimeoutRollback(t *testing.T) {
 	// RC writes phase=running.
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
 	dda.Status.Experiment = &v2alpha1.ExperimentStatus{
-		Phase:      v2alpha1.ExperimentPhaseRunning,
-		Generation: dda.Generation,
-		ID:         "exp-1",
+		Phase: v2alpha1.ExperimentPhaseRunning,
+		ID:    "exp-1",
 	}
 	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
 
@@ -163,39 +161,31 @@ func Test_Experiment_AbortOnManualChange(t *testing.T) {
 	assert.NoError(t, r.client.Update(context.TODO(), dda))
 	reconcileN(t, r, ns, name, 1)
 
-	// The fake client does not auto-increment Generation on Update, so revisions
-	// end up with a zero CreationTimestamp (fake-client limitation). Patch them to
-	// a recent time so the timeout path in handleRollback is not accidentally
-	// triggered before the abort check runs.
+	// Patch revision timestamps to a recent time so the timeout path in
+	// handleRollback is not accidentally triggered before the abort check runs.
 	for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
 		rev.CreationTimestamp = metav1.Now()
 		assert.NoError(t, r.client.Update(context.TODO(), &rev))
 	}
 
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
-	// The fake client never increments Generation, so dda.Generation is always 0.
-	// Set experiment.Generation to a non-zero sentinel so the abortExperiment
-	// generation-mismatch check (instance.Generation != experiment.Generation) fires.
-	const experimentGen = int64(2)
 	dda.Status.Experiment = &v2alpha1.ExperimentStatus{
-		Phase:      v2alpha1.ExperimentPhaseRunning,
-		Generation: experimentGen,
-		ID:         "exp-1",
+		Phase: v2alpha1.ExperimentPhaseRunning,
+		ID:    "exp-1",
 	}
 	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
 
-	// User manually changes the spec — in a real cluster this bumps Generation past
-	// experimentGen. In the fake client Generation stays at 0, which differs from
-	// the experimentGen sentinel above, so the mismatch is already in place.
+	// User manually changes the spec — the new spec won't match any known revision,
+	// so abortExperiment detects it as a manual change.
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
-	dda.Spec.Global.Site = ptr.To("datadoghq.com")
+	dda.Spec.Global.Site = ptr.To("manual-change.example.com")
 	assert.NoError(t, r.client.Update(context.TODO(), dda))
 
 	reconcileN(t, r, ns, name, 1)
 
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
 	// Spec should be the user's manual change, not rolled back.
-	assert.Equal(t, "datadoghq.com", *dda.Spec.Global.Site)
+	assert.Equal(t, "manual-change.example.com", *dda.Spec.Global.Site)
 	assert.NotNil(t, dda.Status.Experiment)
 	assert.Equal(t, v2alpha1.ExperimentPhaseAborted, dda.Status.Experiment.Phase)
 }
@@ -232,9 +222,8 @@ func Test_Experiment_TimeoutPhase_IsStable(t *testing.T) {
 
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
 	dda.Status.Experiment = &v2alpha1.ExperimentStatus{
-		Phase:      v2alpha1.ExperimentPhaseRunning,
-		Generation: dda.Generation,
-		ID:         "exp-1",
+		Phase: v2alpha1.ExperimentPhaseRunning,
+		ID:    "exp-1",
 	}
 	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
 	time.Sleep(2 * timeout)
@@ -269,9 +258,8 @@ func Test_Experiment_RollbackPhase_IsStable(t *testing.T) {
 
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
 	dda.Status.Experiment = &v2alpha1.ExperimentStatus{
-		Phase:      v2alpha1.ExperimentPhaseStopped,
-		Generation: dda.Generation,
-		ID:         "exp-1",
+		Phase: v2alpha1.ExperimentPhaseStopped,
+		ID:    "exp-1",
 	}
 	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
 	reconcileN(t, r, ns, name, 2)
@@ -286,12 +274,12 @@ func Test_Experiment_RollbackPhase_IsStable(t *testing.T) {
 	assert.Equal(t, v2alpha1.ExperimentPhaseRollback, mustGetExperimentPhase(t, r, ns, name))
 }
 
-// Test_Experiment_RunningAfterTimeout_StaleGeneration verifies that if RC
-// writes phase=running after a timeout rollback has completed, the operator
-// fires timeout again idempotently: the pre-experiment revision is old enough
-// to exceed the timeout threshold, rollback is a no-op (spec already correct),
-// and phase=timeout is written again.
-func Test_Experiment_RunningAfterTimeout_StaleGeneration(t *testing.T) {
+// Test_Experiment_RunningAfterTimeout verifies that if RC writes phase=running
+// after a timeout rollback has completed, the operator fires timeout again
+// idempotently: the pre-experiment revision is old enough to exceed the timeout
+// threshold, rollback is a no-op (spec already correct), and phase=timeout is
+// written again.
+func Test_Experiment_RunningAfterTimeout(t *testing.T) {
 	const ns, name = "default", "test-dda"
 	const uid = types.UID("uid-1")
 	const timeout = 50 * time.Millisecond
@@ -309,22 +297,19 @@ func Test_Experiment_RunningAfterTimeout_StaleGeneration(t *testing.T) {
 
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
 	dda.Status.Experiment = &v2alpha1.ExperimentStatus{
-		Phase:      v2alpha1.ExperimentPhaseRunning,
-		Generation: dda.Generation,
-		ID:         "exp-1",
+		Phase: v2alpha1.ExperimentPhaseRunning,
+		ID:    "exp-1",
 	}
 	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
 	time.Sleep(2 * timeout)
 	reconcileN(t, r, ns, name, 2)
 	assert.Equal(t, v2alpha1.ExperimentPhaseTimeout, mustGetExperimentPhase(t, r, ns, name))
 
-	// RC writes phase=running again with the old (pre-rollback) generation — stale.
+	// RC writes phase=running again after the rollback already completed.
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
-	const staleGen = int64(99)
 	dda.Status.Experiment = &v2alpha1.ExperimentStatus{
-		Phase:      v2alpha1.ExperimentPhaseRunning,
-		Generation: staleGen,
-		ID:         "exp-1",
+		Phase: v2alpha1.ExperimentPhaseRunning,
+		ID:    "exp-1",
 	}
 	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
 
@@ -355,9 +340,8 @@ func Test_Experiment_StoppedAfterRollback(t *testing.T) {
 
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
 	dda.Status.Experiment = &v2alpha1.ExperimentStatus{
-		Phase:      v2alpha1.ExperimentPhaseStopped,
-		Generation: dda.Generation,
-		ID:         "exp-1",
+		Phase: v2alpha1.ExperimentPhaseStopped,
+		ID:    "exp-1",
 	}
 	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
 	reconcileN(t, r, ns, name, 2)
@@ -397,9 +381,8 @@ func Test_Experiment_AbortDoesNotRollback(t *testing.T) {
 	// Manually force phase=aborted (as if abort already happened).
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
 	dda.Status.Experiment = &v2alpha1.ExperimentStatus{
-		Phase:      v2alpha1.ExperimentPhaseAborted,
-		Generation: dda.Generation,
-		ID:         "exp-1",
+		Phase: v2alpha1.ExperimentPhaseAborted,
+		ID:    "exp-1",
 	}
 	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
 

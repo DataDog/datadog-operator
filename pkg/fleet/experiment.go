@@ -110,9 +110,14 @@ var experimentBackoff = wait.Backoff{
 // retryWithBackoff retries fn on any error with exponential backoff.
 // The total retry window is bounded by a 3-minute context timeout.
 func retryWithBackoff(ctx context.Context, fn func() error) error {
+	logger := ctrl.LoggerFrom(ctx)
+	logger.Info("Retrying with backoff", "backoff", experimentBackoff)
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
+	logger.Info("Context with timeout", "timeout", 3*time.Minute)
 	return retry.OnError(experimentBackoff, func(err error) bool {
+		logger.Info("Error", "error", err)
+		logger.Info("Context error", "error", ctx.Err())
 		return ctx.Err() == nil
 	}, fn)
 }
