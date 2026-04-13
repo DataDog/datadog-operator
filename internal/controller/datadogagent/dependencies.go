@@ -22,9 +22,9 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
-// setupDDADependenciesStore initializes a store specifically for DDA controller dependencies
-// when DatadogAgentInternalEnabled is true. The store is marked with IsDDAControllerStore
-// so that resources created by it are labeled and won't be cleaned up by the DDAI controller.
+// setupDDADependenciesStore initializes a store specifically for DDA controller dependencies.
+// The store is marked with IsDDAControllerStore so that resources created by it are labeled
+// and won't be cleaned up by the DDAI controller.
 func (r *Reconciler) setupDDADependenciesStore(instance *v2alpha1.DatadogAgent, logger logr.Logger) (*store.Store, feature.ResourceManagers) {
 	storeOptions := &store.StoreOptions{
 		SupportCilium:        r.options.SupportCilium,

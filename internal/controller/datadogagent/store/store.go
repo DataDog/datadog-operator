@@ -31,9 +31,9 @@ import (
 const (
 	// OperatorStoreLabelKey used to identified which resource is managed by the store.
 	OperatorStoreLabelKey = "operator.datadoghq.com/managed-by-store"
-	// ManagedByDDAControllerLabelKey used to identify resources managed by the DDA controller
-	// when DatadogAgentInternalEnabled is true. These resources should not be cleaned up
-	// by the DDAI controller to avoid competition between the two controllers.
+	// ManagedByDDAControllerLabelKey used to identify resources managed by the DDA controller.
+	// These resources should not be cleaned up by the DDAI controller to avoid competition
+	// between the two controllers.
 	ManagedByDDAControllerLabelKey = "operator.datadoghq.com/managed-by-dda-controller"
 )
 
@@ -88,8 +88,7 @@ type StoreOptions struct {
 	Scheme *runtime.Scheme
 	Logger logr.Logger
 
-	// IsDDAControllerStore indicates that this store is used by the DDA controller
-	// to manage dependencies when DatadogAgentInternalEnabled is true.
+	// IsDDAControllerStore indicates that this store is used by the DDA controller.
 	// Resources created by this store will be labeled with ManagedByDDAControllerLabelKey
 	// so they won't be cleaned up by the DDAI controller.
 	IsDDAControllerStore bool
@@ -112,9 +111,8 @@ func (ds *Store) AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) erro
 	}
 	obj.GetLabels()[OperatorStoreLabelKey] = "true"
 
-	// Add the DDA controller label when this store is used by the DDA controller
-	// with DatadogAgentInternalEnabled. This prevents DDAI controller from cleaning
-	// up these resources.
+	// Add the DDA controller label when this store is used by the DDA controller.
+	// This prevents the DDAI controller from cleaning up these resources.
 	if ds.isDDAControllerStore {
 		obj.GetLabels()[ManagedByDDAControllerLabelKey] = "true"
 	}
