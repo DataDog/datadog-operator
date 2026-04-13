@@ -62,6 +62,7 @@ func StartControllerSpan(ctx context.Context, resourceName string, extraTags ...
 
 	opts := []tracer.StartSpanOption{
 		tracer.ResourceName(resourceName),
+		tracer.Measured(),
 	}
 	if kind, ok := ctx.Value(contextKeyKind).(string); ok {
 		opts = append(opts, tracer.Tag("kind", kind))

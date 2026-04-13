@@ -1,6 +1,7 @@
 package datadogagent
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -872,7 +873,7 @@ func Test_addDDAIStatusToDDAStatus(t *testing.T) {
 				log:    logf.Log.WithName(tt.name),
 			}
 
-			err := r.addDDAIStatusToDDAStatus(&tt.status, tt.existingDDAI.ObjectMeta)
+			err := r.addDDAIStatusToDDAStatus(context.TODO(), &tt.status, tt.existingDDAI.ObjectMeta)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedStatus, tt.status)
 		})

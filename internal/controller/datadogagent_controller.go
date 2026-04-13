@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -24,8 +25,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlbuilder "sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -36,6 +39,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 // DatadogAgentReconciler reconciles a DatadogAgent object.
@@ -233,7 +237,20 @@ type DatadogAgentReconciler struct {
 
 // Reconcile loop for DatadogAgent.
 func (r *DatadogAgentReconciler) Reconcile(ctx context.Context, dda *v2alpha1.DatadogAgent) (ctrl.Result, error) {
-	return r.internal.Reconcile(ctx, dda)
+	var result ctrl.Result
+	var err error
+
+	ctx = trace.WithControllerContext(ctx, dda.Name, dda.Namespace, string(ctrlcontroller.ReconcileIDFromContext(ctx)), "DatadogAgent", "datadogagent")
+	span, ctx := trace.StartControllerSpan(ctx, "Reconcile")
+	defer func() { span.Finish(tracer.WithError(err)) }()
+
+	ctx = log.IntoContext(ctx, ctrl.LoggerFrom(ctx).WithValues(
+		"dd.trace_id", span.Context().TraceID(),
+		"dd.span_id", span.Context().SpanID(),
+	))
+
+	result, err = r.internal.Reconcile(ctx, dda)
+	return result, err
 }
 
 // SetupWithManager creates a new DatadogAgent controller.
