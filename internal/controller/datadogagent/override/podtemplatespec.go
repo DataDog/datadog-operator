@@ -193,6 +193,22 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	manager.PodTemplateSpec().Spec.Tolerations = append(manager.PodTemplateSpec().Spec.Tolerations, override.Tolerations...)
 
 	for annotationName, annotationVal := range override.Annotations {
+		// For AppArmor annotations, skip if the referenced container doesn't exist.
+		// This mirrors the check in overrideAppArmorProfile() and prevents invalid DaemonSet
+		// configurations when a container is absent (e.g. security-agent with directSendFromSystemProbe).
+		if containerName, ok := strings.CutPrefix(annotationName, common.AppArmorAnnotationKey+"/"); ok {
+			allContainers := append(manager.PodTemplateSpec().Spec.Containers, manager.PodTemplateSpec().Spec.InitContainers...)
+			containerExists := false
+			for _, c := range allContainers {
+				if c.Name == containerName {
+					containerExists = true
+					break
+				}
+			}
+			if !containerExists {
+				continue
+			}
+		}
 		manager.Annotation().AddAnnotation(annotationName, annotationVal)
 	}
 
