@@ -144,9 +144,6 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	if result, err = final.HandleFinalizer(ctx, instance, fmt.Sprint(instance.Status.ID), datadogMonitorFinalizer); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}
-	if !instance.GetDeletionTimestamp().IsZero() {
-		return ctrl.Result{RequeueAfter: defaultRequeuePeriod}, nil
-	}
 
 	// Validate the DatadogMonitor spec
 	if err = datadoghqv1alpha1.IsValidDatadogMonitor(&instance.Spec); err != nil {

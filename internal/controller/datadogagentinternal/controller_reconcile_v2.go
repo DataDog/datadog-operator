@@ -40,9 +40,6 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *v1alpha1
 	if result, err := final.HandleFinalizer(ctx, instance, "", constants.DatadogAgentInternalFinalizer); utils.ShouldReturn(result, err) {
 		return result, err
 	}
-	if !instance.GetDeletionTimestamp().IsZero() {
-		return reconcile.Result{Requeue: true}, nil
-	}
 
 	// 3. Set default values for GlobalConfig and Features
 	instanceCopy := instance.DeepCopy()

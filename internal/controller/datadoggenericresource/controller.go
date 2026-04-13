@@ -110,9 +110,6 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	if result, err = final.HandleFinalizer(ctx, instance, instance.Status.Id, datadogGenericResourceFinalizer); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}
-	if !instance.GetDeletionTimestamp().IsZero() {
-		return ctrl.Result{RequeueAfter: defaultRequeuePeriod}, nil
-	}
 
 	status := instance.Status.DeepCopy()
 	statusSpecHash := instance.Status.CurrentHash

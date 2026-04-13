@@ -7,6 +7,10 @@ package finalizer
 
 import (
 	"context"
+	"fmt"
+	"testing"
+	"time"
+
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,8 +21,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"testing"
-	"time"
 )
 
 type testResource struct {
@@ -36,6 +38,15 @@ func Test_HandleFinalizer(t *testing.T) {
 	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &testResource{})
 	finalizerName := "test_resource.finalizer"
 	metaNow := metav1.NewTime(time.Now())
+	requeuePeriod := time.Minute
+	errRequeuePeriod := time.Minute
+
+	noopDelete := func(ctx context.Context, k8sObj client.Object, datadogID string) error {
+		return nil
+	}
+	failDelete := func(ctx context.Context, k8sObj client.Object, datadogID string) error {
+		return fmt.Errorf("API error")
+	}
 
 	tests := []struct {
 		name                  string
@@ -46,7 +57,7 @@ func Test_HandleFinalizer(t *testing.T) {
 		deleterFunc           ResourceDeleteFunc
 	}{
 		{
-			name: "check if object deletion timestamp is empty add finalizer if not exists",
+			name: "not deleting, no finalizer: adds finalizer",
 			clientObject: testResource{
 				TypeMeta: metav1.TypeMeta{
 					Kind: "TestResource",
@@ -57,12 +68,25 @@ func Test_HandleFinalizer(t *testing.T) {
 			},
 			finalizerShouldExists: true,
 			expectedResult:        ctrl.Result{},
-			deleterFunc: func(ctx context.Context, k8sObj client.Object, datadogID string) error {
-				return nil
-			},
+			deleterFunc:           noopDelete,
 		},
 		{
-			name: "remove finalizer when deletion timestamp is set and finalizer is exits",
+			name: "not deleting, already has finalizer: no-op, proceed to reconciliation",
+			clientObject: testResource{
+				TypeMeta: metav1.TypeMeta{
+					Kind: "TestResource",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "test resource",
+					Finalizers: []string{finalizerName},
+				},
+			},
+			finalizerShouldExists: true,
+			expectedResult:        ctrl.Result{},
+			deleterFunc:           noopDelete,
+		},
+		{
+			name: "deleting, has finalizer, deleteFunc succeeds: removes finalizer, requeues with period",
 			clientObject: testResource{
 				TypeMeta: metav1.TypeMeta{
 					Kind: "TestResource",
@@ -74,28 +98,49 @@ func Test_HandleFinalizer(t *testing.T) {
 				},
 			},
 			finalizerShouldExists: false,
-			expectedResult:        ctrl.Result{},
-			deleterFunc: func(ctx context.Context, k8sObj client.Object, datadogID string) error {
-				return nil
-			},
+			expectedResult:        ctrl.Result{Requeue: true, RequeueAfter: requeuePeriod},
+			deleterFunc:           noopDelete,
 		},
+		{
+			name: "deleting, has finalizer, deleteFunc fails: keeps finalizer, requeues with error period",
+			clientObject: testResource{
+				TypeMeta: metav1.TypeMeta{
+					Kind: "TestResource",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "test resource",
+					DeletionTimestamp: &metaNow,
+					Finalizers:        []string{finalizerName},
+				},
+			},
+			finalizerShouldExists: true,
+			expectedResult:        ctrl.Result{Requeue: true, RequeueAfter: errRequeuePeriod},
+			expectedErr:           true,
+			deleterFunc:           failDelete,
+		},
+		// Note: "deleting, no finalizer" is not testable because the fake client
+		// (and the real API server) reject objects with a deletionTimestamp but no
+		// finalizers — Kubernetes would have already garbage-collected such objects.
 	}
 
 	for _, tt := range tests {
-		// arrange
-		fakeClient := fake.NewClientBuilder().WithObjects(&tt.clientObject).Build()
-		finalizer := NewFinalizer(testLogger, fakeClient, tt.deleterFunc, time.Minute, time.Minute)
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := fake.NewClientBuilder().WithObjects(&tt.clientObject).Build()
+			finalizer := NewFinalizer(testLogger, fakeClient, tt.deleterFunc, requeuePeriod, errRequeuePeriod)
 
-		// act
-		res, err := finalizer.HandleFinalizer(context.TODO(), &tt.clientObject, "123", finalizerName)
+			res, err := finalizer.HandleFinalizer(context.TODO(), &tt.clientObject, "123", finalizerName)
 
-		// assert
-		assert.NoError(t, err)
-		assert.Equal(t, tt.expectedResult, res)
-		if tt.finalizerShouldExists {
-			assert.True(t, controllerutil.ContainsFinalizer(&tt.clientObject, finalizerName))
-		} else {
-			assert.False(t, controllerutil.ContainsFinalizer(&tt.clientObject, finalizerName))
-		}
+			if tt.expectedErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, tt.expectedResult, res)
+			if tt.finalizerShouldExists {
+				assert.True(t, controllerutil.ContainsFinalizer(&tt.clientObject, finalizerName))
+			} else {
+				assert.False(t, controllerutil.ContainsFinalizer(&tt.clientObject, finalizerName))
+			}
+		})
 	}
 }

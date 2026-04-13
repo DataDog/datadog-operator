@@ -15,6 +15,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+// ResourceDeleteFunc performs controller-specific cleanup when a resource is being deleted.
+// If it returns an error, the finalizer is NOT removed — the object stays in a terminating
+// state and the controller retries on the next reconcile. If it returns nil, the finalizer
+// is removed and Kubernetes proceeds with deletion.
 type ResourceDeleteFunc func(ctx context.Context, k8sObj client.Object, datadogID string) error
 
 type Finalizer struct {
@@ -74,6 +78,10 @@ func (f *Finalizer) HandleFinalizer(ctx context.Context, clientObj client.Object
 				return ctrl.Result{Requeue: true, RequeueAfter: f.defaultErrRequeuePeriod}, err
 			}
 		}
+		// Requeue while the object is still being deleted. Use defaultRequeuePeriod
+		// to avoid hot-looping on clusters with many terminating objects. Controllers
+		// that pass 0 get an immediate requeue (Requeue: true with zero RequeueAfter).
+		return ctrl.Result{Requeue: true, RequeueAfter: f.defaultRequeuePeriod}, nil
 	}
 	return ctrl.Result{}, nil
 }
