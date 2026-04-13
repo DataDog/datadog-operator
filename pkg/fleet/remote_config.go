@@ -108,12 +108,14 @@ func handleUpdaterTaskUpdate(ctx context.Context, h func(remoteAPIRequest) error
 
 			var req remoteAPIRequest
 			if err := json.Unmarshal(raw.Config, &req); err != nil {
+				logger.Error(err, "Failed to unmarshal remote API request")
 				applyStatus(cfgPath, state.ApplyStatus{State: state.ApplyStateError, Error: fmt.Sprintf("failed to unmarshal remote API request: %v", err)})
 				continue
 			}
 
 			if _, ok := seen[req.ID]; ok {
 				// Already executed; acknowledge without re-running.
+				logger.Info("Remote API request already executed", "id", req.ID)
 				applyStatus(cfgPath, state.ApplyStatus{State: state.ApplyStateAcknowledged})
 				continue
 			}
@@ -122,6 +124,7 @@ func handleUpdaterTaskUpdate(ctx context.Context, h func(remoteAPIRequest) error
 			applyStatus(cfgPath, state.ApplyStatus{State: state.ApplyStateUnacknowledged})
 
 			if err := h(req); err != nil {
+				logger.Error(err, "Failed to handle remote API request")
 				applyStatus(cfgPath, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
 				continue
 			}
