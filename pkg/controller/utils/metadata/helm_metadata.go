@@ -192,8 +192,8 @@ func (hmf *HelmMetadataForwarder) canListWatch(ctx context.Context, resource str
 // https://github.com/kubernetes/client-go/blob/v0.35.0/tools/cache/shared_informer.go#L693-L697
 // Errors are logged but do not prevent the operator from starting
 func (hmf *HelmMetadataForwarder) Start(ctx context.Context) error {
-	hmf.configMapAccessEnabled = hmf.canListWatch(ctx, "configmaps")
-	if hmf.configMapAccessEnabled {
+	hmf.configMapAccessEnabled = false
+	if hmf.canListWatch(ctx, "configmaps") {
 		cmInformer, err := hmf.mgr.GetCache().GetInformer(ctx, &corev1.ConfigMap{})
 		if err != nil {
 			hmf.logger.Info("Unable to get ConfigMap informer, Helm metadata collection from ConfigMaps will be disabled", "error", err)
@@ -222,14 +222,16 @@ func (hmf *HelmMetadataForwarder) Start(ctx context.Context) error {
 			})
 			if err != nil {
 				hmf.logger.Info("Unable to add ConfigMap event handler, Helm metadata collection from ConfigMaps will be disabled", "error", err)
+			} else {
+				hmf.configMapAccessEnabled = true
 			}
 		}
 	} else {
 		hmf.logger.Info("No permission to list/watch ConfigMaps, Helm metadata collection from ConfigMaps will be disabled")
 	}
 
-	hmf.secretAccessEnabled = hmf.canListWatch(ctx, "secrets")
-	if hmf.secretAccessEnabled {
+	hmf.secretAccessEnabled = false
+	if hmf.canListWatch(ctx, "secrets") {
 		secretInformer, secretErr := hmf.mgr.GetCache().GetInformer(ctx, &corev1.Secret{})
 		if secretErr != nil {
 			hmf.logger.Info("Unable to get Secret informer, Helm metadata collection from Secrets will be disabled", "error", secretErr)
@@ -256,6 +258,8 @@ func (hmf *HelmMetadataForwarder) Start(ctx context.Context) error {
 			})
 			if secretErr != nil {
 				hmf.logger.Info("Unable to add Secret event handler, Helm metadata collection from Secrets will be disabled", "error", secretErr)
+			} else {
+				hmf.secretAccessEnabled = true
 			}
 		}
 	} else {
