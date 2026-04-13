@@ -314,6 +314,9 @@ func run(opts *options) error {
 	// Reader interface as returned from mgr.GetAPIReader() reads directly from API server bypassing cache and informer initialization.
 	credsManager := config.NewCredentialManagerWithDecryptor(mgr.GetAPIReader(), secrets.NewSecretBackend())
 	creds, err := credsManager.GetCredentials()
+	if err != nil {
+		setupLog.Error(err, "Unable to get credentials")
+	}
 
 	if opts.secretRefreshInterval > 0 && opts.secretBackendCommand == "" {
 		setupLog.Error(nil, "secretRefreshInterval is set but secretBackendCommand is not configured")
