@@ -570,9 +570,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			fieldManager, err := newFieldManager(tt.client, s, v1alpha1.GroupVersion.WithKind("DatadogAgentInternal"))
 
-			r, _ := NewReconciler(ReconcilerOptions{
-				DatadogAgentInternalEnabled: false,
-			}, tt.client, tt.platformInfo, s, logger, recorder, forwarders)
+			r, _ := NewReconciler(ReconcilerOptions{}, tt.client, tt.platformInfo, s, logger, recorder, forwarders)
 			r.fieldManager = fieldManager
 
 			// Setup DatadogAgent

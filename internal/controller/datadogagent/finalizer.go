@@ -13,12 +13,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 const (
@@ -34,12 +31,6 @@ func (r *Reconciler) deleteResource(reqLogger logr.Logger) finalizer.ResourceDel
 func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) error {
 	if r.options.OperatorMetricsEnabled {
 		r.forwarders.Unregister(obj)
-	}
-
-	if !r.options.DatadogAgentInternalEnabled {
-		// Namespaced resources from the store should be deleted automatically due to owner reference
-		// Delete cluster level resources
-		r.cleanUpClusterLevelResources(reqLogger, obj)
 	}
 
 	if err := r.profilesCleanup(); err != nil {
@@ -84,27 +75,5 @@ func (r *Reconciler) profilesCleanup() error {
 		}
 	}
 
-	return nil
-}
-
-func (r *Reconciler) cleanUpClusterLevelResources(reqLogger logr.Logger, dda client.Object) error {
-	// Cluster level resources must be deleted manually since they cannot have an owner reference
-	r.log.Info("Cleaning up cluster level resources")
-	deleteObjectsForResource(r.client, dda, kubernetes.ObjectFromKind(kubernetes.ClusterRolesKind, r.platformInfo))
-	deleteObjectsForResource(r.client, dda, kubernetes.ObjectFromKind(kubernetes.ClusterRoleBindingKind, r.platformInfo))
-	deleteObjectsForResource(r.client, dda, kubernetes.ObjectFromKind(kubernetes.APIServiceKind, r.platformInfo))
-
-	return nil
-}
-
-func deleteObjectsForResource(c client.Client, dda client.Object, kind client.Object) error {
-	matchingLabels := client.MatchingLabels{
-		store.OperatorStoreLabelKey:              "true",
-		kubernetes.AppKubernetesPartOfLabelKey:   object.NewPartOfLabelValue(dda).String(),
-		kubernetes.AppKubernetesManageByLabelKey: "datadog-operator",
-	}
-	if err := c.DeleteAllOf(context.TODO(), kind, matchingLabels); err != nil {
-		return err
-	}
 	return nil
 }

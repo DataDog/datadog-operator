@@ -248,11 +248,8 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwar
 		Owns(&corev1.ServiceAccount{}).
 		// We let PlatformInfo supply PDB object based on the current API version
 		Owns(r.PlatformInfo.CreatePDBObject()).
-		Owns(&networkingv1.NetworkPolicy{})
-
-	if r.Options.DatadogAgentInternalEnabled {
-		builder.Owns(&v1alpha1.DatadogAgentInternal{})
-	}
+		Owns(&networkingv1.NetworkPolicy{}).
+		Owns(&v1alpha1.DatadogAgentInternal{})
 
 	if r.Options.DatadogCSIDriverEnabled {
 		builder.Owns(&v1alpha1.DatadogCSIDriver{})
