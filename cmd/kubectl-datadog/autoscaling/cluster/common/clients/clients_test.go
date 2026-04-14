@@ -89,10 +89,10 @@ func TestValidateAccountIDs(t *testing.T) {
 
 func TestGetAccountIDFromKubeconfig(t *testing.T) {
 	tests := []struct {
-		name            string
-		kubeconfig      string
-		context         string
-		wantAccountID   string
+		name          string
+		kubeconfig    string
+		context       string
+		wantAccountID string
 	}{
 		{
 			name: "EKS ARN context extracts account ID",
