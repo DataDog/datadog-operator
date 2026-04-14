@@ -86,9 +86,10 @@ func testInstallerConfigWithDDA() map[string]installerConfig {
 
 func testStartRequest() remoteAPIRequest {
 	return remoteAPIRequest{
-		ID:     "exp-abc",
-		Method: methodStartDatadogAgentExperiment,
-		Params: experimentParams{Version: "test-config"},
+		ID:      "exp-abc",
+		Package: "datadog-operator",
+		Method:  methodStartDatadogAgentExperiment,
+		Params:  experimentParams{Version: "test-config"},
 	}
 }
 
@@ -126,9 +127,20 @@ func TestStartDatadogAgentExperiment_DDANotFound(t *testing.T) {
 	assert.Error(t, d.startDatadogAgentExperiment(context.Background(), testStartRequest()))
 }
 
-func TestStartDatadogAgentExperiment_Running(t *testing.T) {
-	d, _ := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseRunning), testInstallerConfigWithDDA())
-	assert.Error(t, d.startDatadogAgentExperiment(context.Background(), testStartRequest()))
+func TestStartDatadogAgentExperiment_Running_Idempotent(t *testing.T) {
+	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+	d, c := testDaemon(dda, testInstallerConfigWithDDA())
+	// Backend retries with a new task UUID; should be treated as idempotent.
+	req := testStartRequest()
+	req.ID = "retry-task-uuid"
+	require.NoError(t, d.startDatadogAgentExperiment(context.Background(), req))
+
+	// DDA should be unchanged — no re-patch, no status update.
+	got := &v2alpha1.DatadogAgent{}
+	require.NoError(t, c.Get(context.Background(), testDDANSN, got))
+	require.NotNil(t, got.Status.Experiment)
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, got.Status.Experiment.Phase)
+	assert.Equal(t, "old-exp", got.Status.Experiment.ID)
 }
 
 func TestStartDatadogAgentExperiment_Stopped(t *testing.T) {
@@ -255,9 +267,10 @@ func TestStartDatadogAgentExperiment_VersionMismatch(t *testing.T) {
 
 func testStopRequest() remoteAPIRequest {
 	return remoteAPIRequest{
-		ID:     "exp-abc",
-		Method: methodStopDatadogAgentExperiment,
-		Params: experimentParams{Version: "test-config"},
+		ID:      "exp-abc",
+		Package: "datadog-operator",
+		Method:  methodStopDatadogAgentExperiment,
+		Params:  experimentParams{Version: "test-config"},
 	}
 }
 
@@ -327,9 +340,10 @@ func TestStopDatadogAgentExperiment_Success_Running(t *testing.T) {
 
 func testPromoteRequest() remoteAPIRequest {
 	return remoteAPIRequest{
-		ID:     "exp-abc",
-		Method: methodPromoteDatadogAgentExperiment,
-		Params: experimentParams{Version: "test-config"},
+		ID:      "exp-abc",
+		Package: "datadog-operator",
+		Method:  methodPromoteDatadogAgentExperiment,
+		Params:  experimentParams{Version: "test-config"},
 	}
 }
 
@@ -355,8 +369,19 @@ func TestPromoteDatadogAgentExperiment_Aborted(t *testing.T) {
 	assert.Error(t, d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest()))
 }
 
+func TestPromoteDatadogAgentExperiment_NoExperimentVersion(t *testing.T) {
+	d, _ := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseRunning), testInstallerConfigWithDDA())
+	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1"},
+	}}
+	assert.Error(t, d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest()))
+}
+
 func TestPromoteDatadogAgentExperiment_NoOp_Rollback(t *testing.T) {
 	d, c := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseRollback), testInstallerConfigWithDDA())
+	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
+	}}
 	require.NoError(t, d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest()))
 
 	dda := &v2alpha1.DatadogAgent{}
@@ -366,6 +391,9 @@ func TestPromoteDatadogAgentExperiment_NoOp_Rollback(t *testing.T) {
 
 func TestPromoteDatadogAgentExperiment_NoOp_Timeout(t *testing.T) {
 	d, c := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseTimeout), testInstallerConfigWithDDA())
+	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
+	}}
 	require.NoError(t, d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest()))
 
 	dda := &v2alpha1.DatadogAgent{}
@@ -375,6 +403,9 @@ func TestPromoteDatadogAgentExperiment_NoOp_Timeout(t *testing.T) {
 
 func TestPromoteDatadogAgentExperiment_NoOp_Promoted(t *testing.T) {
 	d, c := testDaemon(testDDAObject(v2alpha1.ExperimentPhasePromoted), testInstallerConfigWithDDA())
+	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
+	}}
 	require.NoError(t, d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest()))
 
 	dda := &v2alpha1.DatadogAgent{}
@@ -384,6 +415,10 @@ func TestPromoteDatadogAgentExperiment_NoOp_Promoted(t *testing.T) {
 
 func TestPromoteDatadogAgentExperiment_Success_Running(t *testing.T) {
 	d, c := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseRunning), testInstallerConfigWithDDA())
+	rc := &mockRCClient{state: []*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
+	}}
+	d.rcClient = rc
 	require.NoError(t, d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest()))
 
 	dda := &v2alpha1.DatadogAgent{}
@@ -392,6 +427,12 @@ func TestPromoteDatadogAgentExperiment_Success_Running(t *testing.T) {
 	assert.Equal(t, v2alpha1.ExperimentPhasePromoted, dda.Status.Experiment.Phase)
 	// ID must be preserved.
 	assert.Equal(t, "old-exp", dda.Status.Experiment.ID)
+	// Stable should now be the old experiment, experiment should be cleared.
+	require.Len(t, rc.state, 1)
+	assert.Equal(t, "exp-1", rc.state[0].StableVersion)
+	assert.Equal(t, "", rc.state[0].ExperimentVersion)
+	assert.Equal(t, "exp-1", rc.state[0].StableConfigVersion)
+	assert.Equal(t, "", rc.state[0].ExperimentConfigVersion)
 }
 
 // --- validateOperation tests ---
