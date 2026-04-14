@@ -23,6 +23,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd/api"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -108,27 +109,11 @@ func Build(ctx context.Context, configFlags *genericclioptions.ConfigFlags, k8sC
 	}, nil
 }
 
-// GetClusterNameFromKubeconfig extracts the EKS cluster name from the current kubeconfig context.
-func GetClusterNameFromKubeconfig(ctx context.Context, configFlags *genericclioptions.ConfigFlags) (string, error) {
+// resolveKubeContext loads the kubeconfig and resolves the active context name.
+func resolveKubeContext(configFlags *genericclioptions.ConfigFlags) (api.Config, string, error) {
 	kubeRawConfig, err := configFlags.ToRawKubeConfigLoader().RawConfig()
 	if err != nil {
-		return "", fmt.Errorf("failed to get raw kubeconfig: %w", err)
-	}
-
-	kubeContext := ""
-	if configFlags.Context != nil {
-		kubeContext = *configFlags.Context
-	}
-
-	return guess.GetClusterNameFromKubeconfig(ctx, kubeRawConfig, kubeContext), nil
-}
-
-// GetAccountIDFromKubeconfig attempts to extract the AWS account ID from the
-// kubeconfig context. Returns an empty string if the context is not an EKS ARN.
-func GetAccountIDFromKubeconfig(configFlags *genericclioptions.ConfigFlags) string {
-	kubeRawConfig, err := configFlags.ToRawKubeConfigLoader().RawConfig()
-	if err != nil {
-		return ""
+		return api.Config{}, "", fmt.Errorf("failed to get raw kubeconfig: %w", err)
 	}
 
 	kubeContext := ""
@@ -138,16 +123,34 @@ func GetAccountIDFromKubeconfig(configFlags *genericclioptions.ConfigFlags) stri
 	if kubeContext == "" {
 		kubeContext = kubeRawConfig.CurrentContext
 	}
-	if kubeContext == "" {
+
+	return kubeRawConfig, kubeContext, nil
+}
+
+// GetClusterNameFromKubeconfig extracts the EKS cluster name from the current kubeconfig context.
+func GetClusterNameFromKubeconfig(ctx context.Context, configFlags *genericclioptions.ConfigFlags) (string, error) {
+	kubeRawConfig, kubeContext, err := resolveKubeContext(configFlags)
+	if err != nil {
+		return "", err
+	}
+
+	return guess.GetClusterNameFromKubeconfig(ctx, kubeRawConfig, kubeContext), nil
+}
+
+// GetAccountIDFromKubeconfig attempts to extract the AWS account ID from the
+// kubeconfig context. Returns an empty string if the context is not an EKS ARN.
+func GetAccountIDFromKubeconfig(configFlags *genericclioptions.ConfigFlags) string {
+	kubeRawConfig, kubeContext, err := resolveKubeContext(configFlags)
+	if err != nil || kubeContext == "" {
 		return ""
 	}
 
-	ctx, exists := kubeRawConfig.Contexts[kubeContext]
+	kubeCtx, exists := kubeRawConfig.Contexts[kubeContext]
 	if !exists {
 		return ""
 	}
 
-	if parsed, err := arn.Parse(ctx.Cluster); err == nil {
+	if parsed, err := arn.Parse(kubeCtx.Cluster); err == nil {
 		return parsed.AccountID
 	}
 
@@ -184,8 +187,6 @@ func ValidateAWSAccountConsistency(ctx context.Context, cli *Clients, clusterNam
 		return err
 	}
 
-	// Prefer the kubeconfig-derived account ID: it is independent of the
-	// AWS credentials and cannot be fooled by same-named clusters.
 	if kubeconfigAccountID != "" {
 		if credentialsAccountID != kubeconfigAccountID {
 			return &AccountMismatchError{
@@ -197,9 +198,6 @@ func ValidateAWSAccountConsistency(ctx context.Context, cli *Clients, clusterNam
 		return nil
 	}
 
-	// Fallback: resolve the cluster account via DescribeCluster. This uses
-	// the same credentials being validated, so it cannot detect a mismatch
-	// when both accounts have a cluster with the same name.
 	cluster, err := cli.EKS.DescribeCluster(ctx, &eks.DescribeClusterInput{
 		Name: awssdk.String(clusterName),
 	})
