@@ -303,10 +303,15 @@ func (d *Daemon) setTaskState(pkgName, taskID string, taskState pbgo.TaskState, 
 	updated := make([]*pbgo.PackageState, 0, len(current)+1)
 	found := false
 	for _, pkg := range current {
-		if pkg.Package == pkgName {
-			cloned := *pkg
-			cloned.Task = task
-			updated = append(updated, &cloned)
+		if pkg.GetPackage() == pkgName {
+			updated = append(updated, &pbgo.PackageState{
+				Package:                 pkg.GetPackage(),
+				StableVersion:           pkg.GetStableVersion(),
+				ExperimentVersion:       pkg.GetExperimentVersion(),
+				Task:                    task,
+				StableConfigVersion:     pkg.GetStableConfigVersion(),
+				ExperimentConfigVersion: pkg.GetExperimentConfigVersion(),
+			})
 			found = true
 		} else {
 			updated = append(updated, pkg)
