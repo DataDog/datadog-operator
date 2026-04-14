@@ -193,6 +193,14 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	manager.PodTemplateSpec().Spec.Tolerations = append(manager.PodTemplateSpec().Spec.Tolerations, override.Tolerations...)
 
 	for annotationName, annotationVal := range override.Annotations {
+		// For AppArmor annotations, skip if the referenced container doesn't exist.
+		// This mirrors the check in overrideAppArmorProfile() and prevents invalid DaemonSet
+		// configurations when a container is absent (e.g. security-agent with directSendFromSystemProbe).
+		if containerName, ok := strings.CutPrefix(annotationName, common.AppArmorAnnotationKey+"/"); ok {
+			if !podSpecHasContainer(&manager.PodTemplateSpec().Spec, containerName) {
+				continue
+			}
+		}
 		manager.Annotation().AddAnnotation(annotationName, annotationVal)
 	}
 
@@ -260,6 +268,14 @@ func overrideCustomConfigVolumes(logger logr.Logger, manager feature.PodTemplate
 		annotationKey := object.GetChecksumAnnotationKey(string(fileName))
 		manager.Annotation().AddAnnotation(annotationKey, hash)
 	}
+}
+
+// podSpecHasContainer reports whether the pod spec contains a (init)container with the given name.
+func podSpecHasContainer(podSpec *corev1.PodSpec, name string) bool {
+	allContainers := append(podSpec.Containers, podSpec.InitContainers...)
+	return slices.ContainsFunc(allContainers, func(c corev1.Container) bool {
+		return c.Name == name
+	})
 }
 
 func sortKeys(keysMap map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig) []v2alpha1.AgentConfigFileName {

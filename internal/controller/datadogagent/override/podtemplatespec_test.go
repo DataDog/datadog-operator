@@ -1037,6 +1037,59 @@ func TestPodTemplateSpec(t *testing.T) {
 			},
 		},
 		{
+			name: "AppArmor annotation in override.Annotations for existing container is added",
+			existingManager: func() *fake.PodTemplateManagers {
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
+				manager.PodTemplateSpec().Spec.Containers = []v1.Container{
+					{Name: string(apicommon.CoreAgentContainerName)},
+				}
+				return manager
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Annotations: map[string]string{
+					fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, apicommon.CoreAgentContainerName): "runtime/default",
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				annotation := fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, apicommon.CoreAgentContainerName)
+				assert.Equal(t, "runtime/default", manager.AnnotationMgr.Annotations[annotation])
+			},
+		},
+		{
+			name: "AppArmor annotation in override.Annotations for absent container is skipped",
+			existingManager: func() *fake.PodTemplateManagers {
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
+				manager.PodTemplateSpec().Spec.Containers = []v1.Container{
+					{Name: string(apicommon.CoreAgentContainerName)},
+				}
+				return manager
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Annotations: map[string]string{
+					fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, apicommon.SecurityAgentContainerName): "runtime/default",
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				annotation := fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, apicommon.SecurityAgentContainerName)
+				_, found := manager.AnnotationMgr.Annotations[annotation]
+				assert.False(t, found, "AppArmor annotation for absent container should not be added")
+			},
+		},
+		{
+			name: "non-AppArmor annotation in override.Annotations is always added",
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Annotations: map[string]string{
+					"some-other-annotation": "value",
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				assert.Equal(t, "value", manager.AnnotationMgr.Annotations["some-other-annotation"])
+			},
+		},
+		{
 			name: "Add CEL Workload Exclude",
 			existingManager: func() *fake.PodTemplateManagers {
 				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
