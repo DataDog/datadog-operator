@@ -203,7 +203,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 			logger.V(1).Info("Creating monitor in Datadog")
 			// Make sure required tags are present
 			if !apiutils.BoolValue(instance.Spec.ControllerOptions.DisableRequiredTags) {
-				if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
+				if result, err = r.checkRequiredTags(logger, instance); err != nil || !result.IsZero() {
 					return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
 				}
 			}
@@ -218,7 +218,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 		logger.V(1).Info("Updating monitor in Datadog")
 		// Make sure required tags are present
 		if !apiutils.BoolValue(instance.Spec.ControllerOptions.DisableRequiredTags) {
-			if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
+			if result, err = r.checkRequiredTags(logger, instance); err != nil || !result.IsZero() {
 				return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
 			}
 		}
@@ -228,7 +228,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	}
 
 	// If reconcile was successful, requeue with period defaultRequeuePeriod
-	if !result.Requeue && result.RequeueAfter == 0 {
+	if result.IsZero() {
 		result.RequeueAfter = defaultRequeuePeriod
 	}
 
