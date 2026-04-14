@@ -62,6 +62,8 @@ type RcServiceConfiguration struct {
 // RCClient is the interface for subscribing to RC product updates.
 type RCClient interface {
 	Subscribe(product string, fn func(update map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus)))
+	GetInstallerState() []*pbgo.PackageState
+	SetInstallerState(packages []*pbgo.PackageState)
 }
 
 // Client returns the underlying RC client.

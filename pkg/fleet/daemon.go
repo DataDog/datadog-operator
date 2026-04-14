@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"sync"
 
+	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -62,7 +63,14 @@ func (d *Daemon) Start(ctx context.Context) error {
 		return d.handleConfigs(ctx, configs)
 	}))
 	d.rcClient.Subscribe(state.ProductUpdaterTask, handleUpdaterTaskUpdate(ctx, func(req remoteAPIRequest) error {
-		return d.handleRemoteAPIRequest(ctx, req)
+		d.setTaskState(req.Package, req.ID, pbgo.TaskState_RUNNING, nil)
+		err := d.handleRemoteAPIRequest(ctx, req)
+		if err != nil {
+			d.setTaskState(req.Package, req.ID, pbgo.TaskState_ERROR, err)
+		} else {
+			d.setTaskState(req.Package, req.ID, pbgo.TaskState_DONE, nil)
+		}
+		return err
 	}))
 
 	<-ctx.Done()
@@ -274,6 +282,43 @@ func (d *Daemon) promoteDatadogAgentExperiment(ctx context.Context, req remoteAP
 
 	logger.Info("Promoted DatadogAgent experiment")
 	return nil
+}
+
+// setTaskState updates the Task field of the package entry in the RC installer state.
+// If the package is not yet present in the state, a new entry is added.
+// This is a no-op when rcClient is nil (e.g. in unit tests that construct Daemon directly).
+func (d *Daemon) setTaskState(pkgName, taskID string, taskState pbgo.TaskState, taskErr error) {
+	if d.rcClient == nil {
+		return
+	}
+	task := &pbgo.PackageStateTask{
+		Id:    taskID,
+		State: taskState,
+	}
+	if taskErr != nil {
+		task.Error = &pbgo.TaskError{Message: taskErr.Error()}
+	}
+
+	current := d.rcClient.GetInstallerState()
+	updated := make([]*pbgo.PackageState, 0, len(current)+1)
+	found := false
+	for _, pkg := range current {
+		if pkg.Package == pkgName {
+			cloned := *pkg
+			cloned.Task = task
+			updated = append(updated, &cloned)
+			found = true
+		} else {
+			updated = append(updated, pkg)
+		}
+	}
+	if !found {
+		updated = append(updated, &pbgo.PackageState{
+			Package: pkgName,
+			Task:    task,
+		})
+	}
+	d.rcClient.SetInstallerState(updated)
 }
 
 // getExperimentPhase returns the current experiment phase from a DDA's status,

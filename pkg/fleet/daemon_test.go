@@ -8,8 +8,11 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 
+	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
+	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -552,4 +555,109 @@ func TestCanPromote_Aborted(t *testing.T) {
 	isNoOp, err := canPromote(context.Background(), v2alpha1.ExperimentPhaseAborted)
 	assert.False(t, isNoOp)
 	assert.Error(t, err)
+}
+
+// --- mockRCClient ---
+
+// mockRCClient is a minimal RCClient used to test package state updates.
+type mockRCClient struct {
+	state []*pbgo.PackageState
+}
+
+func (m *mockRCClient) Subscribe(_ string, _ func(map[string]state.RawConfig, func(string, state.ApplyStatus))) {
+}
+
+func (m *mockRCClient) GetInstallerState() []*pbgo.PackageState {
+	return m.state
+}
+
+func (m *mockRCClient) SetInstallerState(packages []*pbgo.PackageState) {
+	m.state = packages
+}
+
+func testDaemonWithRC(initialState []*pbgo.PackageState) (*Daemon, *mockRCClient) {
+	rc := &mockRCClient{state: initialState}
+	d := &Daemon{
+		rcClient: rc,
+		configs:  make(map[string]installerConfig),
+	}
+	return d, rc
+}
+
+// --- setTaskState tests ---
+
+func TestSetTaskState_Running(t *testing.T) {
+	d, rc := testDaemonWithRC([]*pbgo.PackageState{
+		{Package: "datadog-operator", StableVersion: "1.0.0"},
+	})
+	d.setTaskState("datadog-operator", "task-1", pbgo.TaskState_RUNNING, nil)
+
+	require.Len(t, rc.state, 1)
+	pkg := rc.state[0]
+	assert.Equal(t, "datadog-operator", pkg.Package)
+	assert.Equal(t, "1.0.0", pkg.StableVersion)
+	require.NotNil(t, pkg.Task)
+	assert.Equal(t, "task-1", pkg.Task.Id)
+	assert.Equal(t, pbgo.TaskState_RUNNING, pkg.Task.State)
+	assert.Nil(t, pkg.Task.Error)
+}
+
+func TestSetTaskState_Done(t *testing.T) {
+	d, rc := testDaemonWithRC([]*pbgo.PackageState{
+		{Package: "datadog-operator", StableVersion: "1.0.0"},
+	})
+	d.setTaskState("datadog-operator", "task-1", pbgo.TaskState_DONE, nil)
+
+	require.Len(t, rc.state, 1)
+	require.NotNil(t, rc.state[0].Task)
+	assert.Equal(t, pbgo.TaskState_DONE, rc.state[0].Task.State)
+	assert.Nil(t, rc.state[0].Task.Error)
+}
+
+func TestSetTaskState_Error(t *testing.T) {
+	d, rc := testDaemonWithRC([]*pbgo.PackageState{
+		{Package: "datadog-operator", StableVersion: "1.0.0"},
+	})
+	d.setTaskState("datadog-operator", "task-1", pbgo.TaskState_ERROR, errors.New("something went wrong"))
+
+	require.Len(t, rc.state, 1)
+	require.NotNil(t, rc.state[0].Task)
+	assert.Equal(t, pbgo.TaskState_ERROR, rc.state[0].Task.State)
+	require.NotNil(t, rc.state[0].Task.Error)
+	assert.Equal(t, "something went wrong", rc.state[0].Task.Error.Message)
+}
+
+func TestSetTaskState_PackageNotInState(t *testing.T) {
+	d, rc := testDaemonWithRC([]*pbgo.PackageState{})
+	d.setTaskState("datadog-operator", "task-1", pbgo.TaskState_RUNNING, nil)
+
+	require.Len(t, rc.state, 1)
+	assert.Equal(t, "datadog-operator", rc.state[0].Package)
+	require.NotNil(t, rc.state[0].Task)
+	assert.Equal(t, pbgo.TaskState_RUNNING, rc.state[0].Task.State)
+}
+
+func TestSetTaskState_PreservesOtherPackages(t *testing.T) {
+	d, rc := testDaemonWithRC([]*pbgo.PackageState{
+		{Package: "other-package", StableVersion: "2.0.0"},
+		{Package: "datadog-operator", StableVersion: "1.0.0"},
+	})
+	d.setTaskState("datadog-operator", "task-1", pbgo.TaskState_DONE, nil)
+
+	require.Len(t, rc.state, 2)
+	// other-package must be unchanged
+	assert.Equal(t, "other-package", rc.state[0].Package)
+	assert.Nil(t, rc.state[0].Task)
+	// datadog-operator has task set
+	assert.Equal(t, "datadog-operator", rc.state[1].Package)
+	require.NotNil(t, rc.state[1].Task)
+	assert.Equal(t, pbgo.TaskState_DONE, rc.state[1].Task.State)
+}
+
+func TestSetTaskState_NilClient(t *testing.T) {
+	d := &Daemon{}
+	// Must not panic when rcClient is nil.
+	assert.NotPanics(t, func() {
+		d.setTaskState("datadog-operator", "task-1", pbgo.TaskState_RUNNING, nil)
+	})
 }
