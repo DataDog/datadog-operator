@@ -4,10 +4,11 @@ import (
 	"context"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
@@ -313,7 +314,7 @@ func Test_getDaemonSetNameFromDatadogAgent(t *testing.T) {
 				Spec: datadoghqv2alpha1.DatadogAgentSpec{
 					Override: map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
 						datadoghqv2alpha1.NodeAgentComponentName: {
-							Replicas: apiutils.NewInt32Pointer(10),
+							Replicas: ptr.To[int32](10),
 						},
 					},
 				},
@@ -329,8 +330,8 @@ func Test_getDaemonSetNameFromDatadogAgent(t *testing.T) {
 				Spec: datadoghqv2alpha1.DatadogAgentSpec{
 					Override: map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
 						datadoghqv2alpha1.NodeAgentComponentName: {
-							Name:     apiutils.NewStringPointer("bar"),
-							Replicas: apiutils.NewInt32Pointer(10),
+							Name:     ptr.To("bar"),
+							Replicas: ptr.To[int32](10),
 						},
 					},
 				},
@@ -346,8 +347,8 @@ func Test_getDaemonSetNameFromDatadogAgent(t *testing.T) {
 				Spec: datadoghqv2alpha1.DatadogAgentSpec{
 					Override: map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
 						datadoghqv2alpha1.ClusterAgentComponentName: {
-							Name:     apiutils.NewStringPointer("bar"),
-							Replicas: apiutils.NewInt32Pointer(10),
+							Name:     ptr.To("bar"),
+							Replicas: ptr.To[int32](10),
 						},
 					},
 				},
@@ -2030,225 +2031,225 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 	}
 }
 
-// func Test_cleanupPodsForProfilesThatNoLongerApply(t *testing.T) {
-// 	sch := runtime.NewScheme()
-// 	_ = scheme.AddToScheme(sch)
-// 	ctx := context.Background()
+func Test_cleanupPodsForProfilesThatNoLongerApply(t *testing.T) {
+	sch := runtime.NewScheme()
+	_ = scheme.AddToScheme(sch)
+	ctx := context.Background()
 
-// 	testCases := []struct {
-// 		name           string
-// 		description    string
-// 		profilesByNode map[string]types.NamespacedName
-// 		ddaNamespace   string
-// 		existingPods   []client.Object
-// 		wantPods       []corev1.Pod
-// 	}{
-// 		{
-// 			name:        "delete agent pod that shouldn't be running",
-// 			description: "pod-2 should be deleted",
-// 			profilesByNode: map[string]types.NamespacedName{
-// 				"node-1": {
-// 					Namespace: "foo",
-// 					Name:      "profile-1",
-// 				},
-// 				"node-2": {
-// 					Namespace: "foo",
-// 					Name:      "profile-2",
-// 				},
-// 				"node-default": {
-// 					Namespace: "",
-// 					Name:      "default",
-// 				},
-// 			},
-// 			ddaNamespace: "foo",
-// 			existingPods: []client.Object{
-// 				&corev1.Pod{
-// 					ObjectMeta: metav1.ObjectMeta{
-// 						Name:      "pod-1",
-// 						Namespace: "foo",
-// 						Labels: map[string]string{
-// 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-// 							constants.ProfileLabelKey:               "profile-1",
-// 						},
-// 					},
-// 					Spec: corev1.PodSpec{
-// 						NodeName: "node-1",
-// 					},
-// 				},
-// 				&corev1.Pod{
-// 					ObjectMeta: metav1.ObjectMeta{
-// 						Name:      "pod-2",
-// 						Namespace: "foo",
-// 						Labels: map[string]string{
-// 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-// 							constants.ProfileLabelKey:               "profile-1",
-// 						},
-// 					},
-// 					Spec: corev1.PodSpec{
-// 						NodeName: "node-2",
-// 					},
-// 				},
-// 			},
-// 			wantPods: []corev1.Pod{
-// 				{
-// 					ObjectMeta: metav1.ObjectMeta{
-// 						Name:      "pod-1",
-// 						Namespace: "foo",
-// 						Labels: map[string]string{
-// 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-// 							constants.ProfileLabelKey:               "profile-1",
-// 						},
-// 						ResourceVersion: "999",
-// 					},
-// 					Spec: corev1.PodSpec{
-// 						NodeName: "node-1",
-// 					},
-// 				},
-// 			},
-// 		},
-// 		{
-// 			name:        "delete default agent on profile node",
-// 			description: "pod-2 should be deleted",
-// 			profilesByNode: map[string]types.NamespacedName{
-// 				"node-1": {
-// 					Namespace: "foo",
-// 					Name:      "profile-1",
-// 				},
-// 				"node-2": {
-// 					Namespace: "foo",
-// 					Name:      "profile-2",
-// 				},
-// 				"node-default": {
-// 					Namespace: "",
-// 					Name:      "default",
-// 				},
-// 			},
-// 			ddaNamespace: "foo",
-// 			existingPods: []client.Object{
-// 				&corev1.Pod{
-// 					ObjectMeta: metav1.ObjectMeta{
-// 						Name:      "pod-1",
-// 						Namespace: "foo",
-// 						Labels: map[string]string{
-// 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-// 							constants.ProfileLabelKey:               "profile-1",
-// 						},
-// 					},
-// 					Spec: corev1.PodSpec{
-// 						NodeName: "node-1",
-// 					},
-// 				},
-// 				&corev1.Pod{
-// 					ObjectMeta: metav1.ObjectMeta{
-// 						Name:      "pod-default",
-// 						Namespace: "foo",
-// 						Labels: map[string]string{
-// 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-// 						},
-// 					},
-// 					Spec: corev1.PodSpec{
-// 						NodeName: "node-2",
-// 					},
-// 				},
-// 			},
-// 			wantPods: []corev1.Pod{
-// 				{
-// 					ObjectMeta: metav1.ObjectMeta{
-// 						Name:      "pod-1",
-// 						Namespace: "foo",
-// 						Labels: map[string]string{
-// 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-// 							constants.ProfileLabelKey:               "profile-1",
-// 						},
-// 						ResourceVersion: "999",
-// 					},
-// 					Spec: corev1.PodSpec{
-// 						NodeName: "node-1",
-// 					},
-// 				},
-// 			},
-// 		},
-// 		{
-// 			name:        "delete profile agent on default node",
-// 			description: "pod-2 should be deleted",
-// 			profilesByNode: map[string]types.NamespacedName{
-// 				"node-1": {
-// 					Namespace: "foo",
-// 					Name:      "profile-1",
-// 				},
-// 				"node-2": {
-// 					Namespace: "foo",
-// 					Name:      "profile-2",
-// 				},
-// 				"node-default": {
-// 					Namespace: "",
-// 					Name:      "default",
-// 				},
-// 			},
-// 			ddaNamespace: "foo",
-// 			existingPods: []client.Object{
-// 				&corev1.Pod{
-// 					ObjectMeta: metav1.ObjectMeta{
-// 						Name:      "pod-1",
-// 						Namespace: "foo",
-// 						Labels: map[string]string{
-// 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-// 							constants.ProfileLabelKey:               "profile-1",
-// 						},
-// 					},
-// 					Spec: corev1.PodSpec{
-// 						NodeName: "node-1",
-// 					},
-// 				},
-// 				&corev1.Pod{
-// 					ObjectMeta: metav1.ObjectMeta{
-// 						Name:      "pod-2",
-// 						Namespace: "foo",
-// 						Labels: map[string]string{
-// 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-// 							constants.ProfileLabelKey:               "profile-2",
-// 						},
-// 					},
-// 					Spec: corev1.PodSpec{
-// 						NodeName: "node-default",
-// 					},
-// 				},
-// 			},
-// 			wantPods: []corev1.Pod{
-// 				{
-// 					ObjectMeta: metav1.ObjectMeta{
-// 						Name:      "pod-1",
-// 						Namespace: "foo",
-// 						Labels: map[string]string{
-// 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-// 							constants.ProfileLabelKey:               "profile-1",
-// 						},
-// 						ResourceVersion: "999",
-// 					},
-// 					Spec: corev1.PodSpec{
-// 						NodeName: "node-1",
-// 					},
-// 				},
-// 			},
-// 		},
-// 	}
+	testCases := []struct {
+		name           string
+		description    string
+		profilesByNode map[string]types.NamespacedName
+		ddaNamespace   string
+		existingPods   []client.Object
+		wantPods       []corev1.Pod
+	}{
+		{
+			name:        "delete agent pod that shouldn't be running",
+			description: "pod-2 should be deleted",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-1": {
+					Namespace: "foo",
+					Name:      "profile-1",
+				},
+				"node-2": {
+					Namespace: "foo",
+					Name:      "profile-2",
+				},
+				"node-default": {
+					Namespace: "",
+					Name:      "default",
+				},
+			},
+			ddaNamespace: "foo",
+			existingPods: []client.Object{
+				&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "pod-1",
+						Namespace: "foo",
+						Labels: map[string]string{
+							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+							constants.ProfileLabelKey:                  "profile-1",
+						},
+					},
+					Spec: corev1.PodSpec{
+						NodeName: "node-1",
+					},
+				},
+				&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "pod-2",
+						Namespace: "foo",
+						Labels: map[string]string{
+							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+							constants.ProfileLabelKey:                  "profile-1",
+						},
+					},
+					Spec: corev1.PodSpec{
+						NodeName: "node-2",
+					},
+				},
+			},
+			wantPods: []corev1.Pod{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "pod-1",
+						Namespace: "foo",
+						Labels: map[string]string{
+							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+							constants.ProfileLabelKey:                  "profile-1",
+						},
+						ResourceVersion: "999",
+					},
+					Spec: corev1.PodSpec{
+						NodeName: "node-1",
+					},
+				},
+			},
+		},
+		{
+			name:        "delete default agent on profile node",
+			description: "pod-2 should be deleted",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-1": {
+					Namespace: "foo",
+					Name:      "profile-1",
+				},
+				"node-2": {
+					Namespace: "foo",
+					Name:      "profile-2",
+				},
+				"node-default": {
+					Namespace: "",
+					Name:      "default",
+				},
+			},
+			ddaNamespace: "foo",
+			existingPods: []client.Object{
+				&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "pod-1",
+						Namespace: "foo",
+						Labels: map[string]string{
+							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+							constants.ProfileLabelKey:                  "profile-1",
+						},
+					},
+					Spec: corev1.PodSpec{
+						NodeName: "node-1",
+					},
+				},
+				&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "pod-default",
+						Namespace: "foo",
+						Labels: map[string]string{
+							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+						},
+					},
+					Spec: corev1.PodSpec{
+						NodeName: "node-2",
+					},
+				},
+			},
+			wantPods: []corev1.Pod{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "pod-1",
+						Namespace: "foo",
+						Labels: map[string]string{
+							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+							constants.ProfileLabelKey:                  "profile-1",
+						},
+						ResourceVersion: "999",
+					},
+					Spec: corev1.PodSpec{
+						NodeName: "node-1",
+					},
+				},
+			},
+		},
+		{
+			name:        "delete profile agent on default node",
+			description: "pod-2 should be deleted",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-1": {
+					Namespace: "foo",
+					Name:      "profile-1",
+				},
+				"node-2": {
+					Namespace: "foo",
+					Name:      "profile-2",
+				},
+				"node-default": {
+					Namespace: "",
+					Name:      "default",
+				},
+			},
+			ddaNamespace: "foo",
+			existingPods: []client.Object{
+				&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "pod-1",
+						Namespace: "foo",
+						Labels: map[string]string{
+							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+							constants.ProfileLabelKey:                  "profile-1",
+						},
+					},
+					Spec: corev1.PodSpec{
+						NodeName: "node-1",
+					},
+				},
+				&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "pod-2",
+						Namespace: "foo",
+						Labels: map[string]string{
+							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+							constants.ProfileLabelKey:                  "profile-2",
+						},
+					},
+					Spec: corev1.PodSpec{
+						NodeName: "node-default",
+					},
+				},
+			},
+			wantPods: []corev1.Pod{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "pod-1",
+						Namespace: "foo",
+						Labels: map[string]string{
+							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+							constants.ProfileLabelKey:                  "profile-1",
+						},
+						ResourceVersion: "999",
+					},
+					Spec: corev1.PodSpec{
+						NodeName: "node-1",
+					},
+				},
+			},
+		},
+	}
 
-// 	for _, tt := range testCases {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(tt.existingPods...).Build()
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(tt.existingPods...).Build()
 
-// 			r := &Reconciler{
-// 				client: fakeClient,
-// 			}
+			r := &Reconciler{
+				client: fakeClient,
+			}
 
-// 			err := r.cleanupPodsForProfilesThatNoLongerApply(ctx, tt.profilesByNode, tt.ddaNamespace)
-// 			assert.NoError(t, err)
+			err := r.cleanupPodsForProfilesThatNoLongerApply(ctx, tt.profilesByNode, tt.ddaNamespace)
+			assert.NoError(t, err)
 
-// 			podList := &corev1.PodList{}
-// 			err = fakeClient.List(ctx, podList)
-// 			assert.NoError(t, err)
-// 			assert.Len(t, podList.Items, len(tt.wantPods))
-// 			assert.Equal(t, tt.wantPods, podList.Items)
-// 		})
-// 	}
-// }
+			podList := &corev1.PodList{}
+			err = fakeClient.List(ctx, podList)
+			assert.NoError(t, err)
+			assert.Len(t, podList.Items, len(tt.wantPods))
+			assert.Equal(t, tt.wantPods, podList.Items)
+		})
+	}
+}

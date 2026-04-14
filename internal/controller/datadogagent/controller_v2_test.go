@@ -13,10 +13,11 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/utils/ptr"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	common "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
@@ -58,28 +59,11 @@ type testCase struct {
 	profilesEnabled      bool                          // For DDAI tests
 	ddaiEnabled          bool                          // For DDAI tests
 	introspectionEnabled bool                          // For introspection tests
-	focus                bool                          // For debugging: run only focused tests if any are focused
 }
 
-// runTestCases runs test cases, respecting the focus field for debugging.
-// If any test has focus=true, only focused tests run. Otherwise all tests run.
+// runTestCases runs test cases
 func runTestCases(t *testing.T, tests []testCase, testFunc func(t *testing.T, tt testCase, opts ReconcilerOptions)) {
-	// Check if any test is focused
-	hasFocused := false
 	for _, tt := range tests {
-		if tt.focus {
-			hasFocused = true
-			break
-		}
-	}
-
-	// Run tests
-	for _, tt := range tests {
-		// Skip non-focused tests if any test is focused
-		if hasFocused && !tt.focus {
-			continue
-		}
-
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a copy of opts for this test
 			testOpts := ReconcilerOptions{
@@ -227,8 +211,10 @@ func buildClient(t *testing.T, tt testCase, s *runtime.Scheme, ddaiEnabled bool)
 		// Deep copy primarily to avoid adding CRD twice when running both DDA and full reconciler tests
 		copy := *tt.clientBuilder
 		builder = &copy
+		builder = builder.WithScheme(s)
 	} else {
 		builder = fake.NewClientBuilder().
+			WithScheme(s).
 			WithStatusSubresource(&appsv1.DaemonSet{}, &corev1.Node{}, &v2alpha1.DatadogAgent{})
 	}
 
@@ -473,7 +459,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			name: "DatadogAgent with FIPS enabled",
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				fipsConfig := v2alpha1.FIPSConfig{
-					Enabled: apiutils.NewBoolPointer(true),
+					Enabled: ptr.To(true),
 				}
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithFIPS(fipsConfig).
@@ -499,11 +485,11 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-						CreatePodDisruptionBudget: apiutils.NewBoolPointer(true),
+						CreatePodDisruptionBudget: ptr.To(true),
 					}).
 					WithClusterChecksUseCLCEnabled(true).
 					WithComponentOverride(v2alpha1.ClusterChecksRunnerComponentName, v2alpha1.DatadogAgentComponentOverride{
-						CreatePodDisruptionBudget: apiutils.NewBoolPointer(true),
+						CreatePodDisruptionBudget: ptr.To(true),
 					}).
 					Build()
 				_ = c.Create(context.TODO(), dda)
@@ -520,7 +506,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					}).
 					Build()
 				_ = c.Create(context.TODO(), dda)
@@ -571,7 +557,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					}).
 					WithStatus(v2alpha1.DatadogAgentStatus{
 						ClusterAgent: &v2alpha1.DeploymentStatus{
@@ -645,7 +631,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.ClusterChecksRunnerComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					}).
 					WithClusterChecksEnabled(true).
 					WithClusterChecksUseCLCEnabled(true).
@@ -752,7 +738,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithOTelAgentGatewayEnabled(true).
 					WithComponentOverride(v2alpha1.OtelAgentGatewayComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					}).
 					WithStatus(v2alpha1.DatadogAgentStatus{
 						OtelAgentGateway: &v2alpha1.DeploymentStatus{
@@ -792,7 +778,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithOTelAgentGatewayEnabled(true).
 					WithComponentOverride(v2alpha1.OtelAgentGatewayComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					}).
 					Build()
 				_ = c.Create(context.TODO(), dda)
@@ -817,8 +803,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name:  "CCR override with container resources when CCR disabled in features",
-			focus: true,
+			name: "CCR override with container resources when CCR disabled in features",
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithClusterChecksEnabled(true).
@@ -1125,6 +1110,20 @@ func getDsContainers(c client.Client, resourcesNamespace, dsName string) map[api
 	}
 
 	return dsContainers
+}
+
+func getDeploymentContainers(c client.Client, resourcesNamespace, deploymentName string) map[apicommon.AgentContainerName]corev1.Container {
+	deployment := &appsv1.Deployment{}
+	if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: deploymentName}, deployment); err != nil {
+		return nil
+	}
+
+	containers := map[apicommon.AgentContainerName]corev1.Container{}
+	for _, container := range deployment.Spec.Template.Spec.Containers {
+		containers[apicommon.AgentContainerName(container.Name)] = container
+	}
+
+	return containers
 }
 
 func Test_AutopilotOverrides(t *testing.T) {
@@ -1754,7 +1753,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 			wantFunc: func(t *testing.T, c client.Client) {
 				expectedDDAI := getBaseDDAI(dda)
 				expectedDDAI.Annotations = map[string]string{
-					constants.MD5DDAIDeploymentAnnotationKey: "14de5261867acd747eed18156cfec05e",
+					constants.MD5DDAIDeploymentAnnotationKey: "ccac39a3a007bad81d7baf8febc6445f",
 				}
 
 				verifyDDAI(t, c, []v1alpha1.DatadogAgentInternal{expectedDDAI})
@@ -1786,9 +1785,9 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 				baseDDAI := getBaseDDAI(dda)
 				expectedDDAI := baseDDAI.DeepCopy()
 				expectedDDAI.Annotations = map[string]string{
-					constants.MD5DDAIDeploymentAnnotationKey: "8a67dcccc7c2aa6a9bded5f2625d5611",
+					constants.MD5DDAIDeploymentAnnotationKey: "f2aa21d0ecced63c091ca2df3d31e451",
 				}
-				expectedDDAI.Spec.Features.ClusterChecks.UseClusterChecksRunners = apiutils.NewBoolPointer(true)
+				expectedDDAI.Spec.Features.ClusterChecks.UseClusterChecksRunners = ptr.To(true)
 				expectedDDAI.Spec.Global.Credentials = &v2alpha1.DatadogCredentials{
 					APISecret: &v2alpha1.SecretConfig{
 						SecretName: "custom-secret",
@@ -1862,21 +1861,21 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 				profileDDAI := getBaseDDAI(dda)
 				profileDDAI.Name = "foo-profile"
 				profileDDAI.Annotations = map[string]string{
-					constants.MD5DDAIDeploymentAnnotationKey: "579deacef04ebeb98d0c521df83bd6c4",
+					constants.MD5DDAIDeploymentAnnotationKey: "73e0cc1e445001e326507ac23654104e",
 				}
 				profileDDAI.Labels[constants.ProfileLabelKey] = "foo-profile"
 				profileDDAI.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.ClusterAgentComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					},
 					v2alpha1.ClusterChecksRunnerComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					},
 					v2alpha1.OtelAgentGatewayComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					},
 					v2alpha1.NodeAgentComponentName: {
-						Name: apiutils.NewStringPointer("foo-profile-agent"),
+						Name: ptr.To("foo-profile-agent"),
 						Labels: map[string]string{
 							constants.MD5AgentDeploymentProviderLabelKey: "",
 							"foo":                     "bar",
@@ -1932,6 +1931,96 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 	runTestCases(t, tests, runFullReconcilerTest)
 }
 
+// Test_StaleAgentPodCleanup tests that agent pods whose profile assignment has changed are deleted.
+// It exercises both code paths:
+//   - Non-DDAI path via runDDAReconcilerTest (DatadogAgentInternalEnabled=false): reconcileInstanceV2 → handleProfiles → cleanupPodsForProfilesThatNoLongerApply
+//   - DDAI path via runFullReconcilerTest (forces DatadogAgentInternalEnabled=true): reconcileInstanceV3 → reconcileProfiles → cleanupPodsForProfilesThatNoLongerApply
+func Test_StaleAgentPodCleanup(t *testing.T) {
+	const resourcesName = "foo"
+	const resourcesNamespace = "bar"
+
+	defaultRequeueDuration := 15 * time.Second
+
+	dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).BuildWithDefaults()
+
+	// newProfile selects nodes with label role=new-profile.
+	// Config.Override must be non-nil for the non-DDAI code path (DatadogAgentInternalEnabled=false).
+	newProfile := &v1alpha1.DatadogAgentProfile{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "new-profile",
+			Namespace: resourcesNamespace,
+		},
+		Spec: v1alpha1.DatadogAgentProfileSpec{
+			ProfileAffinity: &v1alpha1.ProfileAffinity{
+				ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
+					{
+						Key:      "role",
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"new-profile"},
+					},
+				},
+			},
+			Config: &v2alpha1.DatadogAgentSpec{
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {},
+				},
+			},
+		},
+	}
+	// profileChangeNode has been relabeled so it now matches new-profile
+	profileChangeNode := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "node1",
+			Labels: map[string]string{
+				"role": "new-profile",
+			},
+		},
+	}
+	// stalePod is still running on node1 but was created by the old-profile DaemonSet
+	stalePod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "agent-stale-pod",
+			Namespace: resourcesNamespace,
+			Labels: map[string]string{
+				apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+				constants.ProfileLabelKey:                  "old-profile",
+			},
+		},
+		Spec: corev1.PodSpec{
+			NodeName: "node1",
+		},
+	}
+
+	tests := []testCase{
+		{
+			name:            "stale agent pods from old profile are deleted when node profile assignment changes",
+			profilesEnabled: true,
+			ddaiEnabled:     false, // runFullReconcilerTest will force DatadogAgentInternalEnabled=true
+			nodes:           []client.Object{profileChangeNode},
+			clientBuilder: fake.NewClientBuilder().
+				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}).
+				WithObjects(newProfile, stalePod),
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				ddaCopy := dda.DeepCopy()
+				_ = c.Create(context.TODO(), ddaCopy)
+				return ddaCopy
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				podList := corev1.PodList{}
+				err := c.List(context.TODO(), &podList, client.InNamespace(resourcesNamespace))
+				assert.NoError(t, err)
+				assert.Empty(t, podList.Items,
+					"stale agent pods from old profile should be deleted when node profile assignment changes")
+			},
+		},
+	}
+
+	runTestCases(t, tests, runDDAReconcilerTest)
+	runTestCases(t, tests, runFullReconcilerTest)
+}
+
 func verifyDDAI(t *testing.T, c client.Client, expectedDDAI []v1alpha1.DatadogAgentInternal) {
 	ddaiList := v1alpha1.DatadogAgentInternalList{}
 	err := c.List(context.TODO(), &ddaiList)
@@ -1965,8 +2054,8 @@ func getBaseDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 					APIVersion:         "datadoghq.com/v2alpha1",
 					Kind:               "DatadogAgent",
 					Name:               dda.Name,
-					Controller:         apiutils.NewBoolPointer(true),
-					BlockOwnerDeletion: apiutils.NewBoolPointer(true),
+					Controller:         ptr.To(true),
+					BlockOwnerDeletion: ptr.To(true),
 				},
 			},
 			Finalizers: []string{constants.DatadogAgentInternalFinalizer},
@@ -2006,7 +2095,7 @@ func getBaseDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 func getDefaultDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 	expectedDDAI := getBaseDDAI(dda)
 	expectedDDAI.Annotations = map[string]string{
-		constants.MD5DDAIDeploymentAnnotationKey: "106a6d5bc739891eac15a46435073cc4",
+		constants.MD5DDAIDeploymentAnnotationKey: "f98c0497c66e2747f6d116970ab8f0b1",
 	}
 	expectedDDAI.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 		v2alpha1.NodeAgentComponentName: {
@@ -2096,4 +2185,143 @@ func verifyOtelAgentGatewayStatus(t *testing.T, c client.Client, namespace, ddaN
 	assert.NotNil(t, otelCondition, "OTel Agent Gateway condition should be set")
 	assert.Equal(t, metav1.ConditionTrue, otelCondition.Status, "OTel Agent Gateway condition should be True")
 	assert.Equal(t, "reconcile_succeed", otelCondition.Reason, "OTel Agent Gateway reconcile should succeed")
+}
+
+func Test_RegistryDefaultingBySite(t *testing.T) {
+	const resourcesName = "foo"
+	const resourcesNamespace = "bar"
+	const dsName = "foo-agent"
+	const dcaName = "foo-cluster-agent"
+	const ccrName = "foo-cluster-checks-runner"
+
+	defaultRequeueDuration := 15 * time.Second
+
+	type registryTestCase struct {
+		name         string
+		site         string
+		envVars      map[string]string
+		wantRegistry string
+	}
+
+	tests := []registryTestCase{
+		{
+			name:         "Europe site defaults to EU registry",
+			site:         "datadoghq.eu",
+			wantRegistry: images.DefaultEuropeImageRegistry,
+		},
+		{
+			name:         "Europe site with DD_REGISTRY_OVERRIDE_EU=true uses Datadog registry",
+			site:         "datadoghq.eu",
+			envVars:      map[string]string{"DD_REGISTRY_OVERRIDE_EU": "true"},
+			wantRegistry: images.DatadogContainerRegistry,
+		},
+		{
+			name:         "Asia site defaults to Asia registry",
+			site:         "ap1.datadoghq.com",
+			wantRegistry: images.DefaultAsiaImageRegistry,
+		},
+		{
+			name:         "Asia site with DD_REGISTRY_OVERRIDE_ASIA=true uses Datadog registry",
+			site:         "ap1.datadoghq.com",
+			envVars:      map[string]string{"DD_REGISTRY_OVERRIDE_ASIA": "true"},
+			wantRegistry: images.DatadogContainerRegistry,
+		},
+		{
+			name:         "Azure site defaults to Azure registry",
+			site:         "us3.datadoghq.com",
+			wantRegistry: images.DefaultAzureImageRegistry,
+		},
+		{
+			name:         "Azure site with DD_REGISTRY_OVERRIDE_AZURE=true uses Datadog registry",
+			site:         "us3.datadoghq.com",
+			envVars:      map[string]string{"DD_REGISTRY_OVERRIDE_AZURE": "true"},
+			wantRegistry: images.DatadogContainerRegistry,
+		},
+		{
+			name:         "Gov site defaults to Gov registry",
+			site:         "ddog-gov.com",
+			wantRegistry: images.DefaultGovImageRegistry,
+		},
+		{
+			name:         "default site without DD_REGISTRY_OVERRIDE_DEFAULT uses GCR registry",
+			site:         "datadoghq.com",
+			wantRegistry: images.DefaultImageRegistry,
+		},
+		{
+			name:         "default site with DD_REGISTRY_OVERRIDE_DEFAULT=true uses Datadog registry",
+			site:         "datadoghq.com",
+			envVars:      map[string]string{"DD_REGISTRY_OVERRIDE_DEFAULT": "true"},
+			wantRegistry: images.DatadogContainerRegistry,
+		},
+		// Verify that override env vars are site-scoped: setting overrides for other sites
+		// must not affect the current site's registry selection.
+		{
+			name: "EU site ignores non-EU override env vars",
+			site: "datadoghq.eu",
+			envVars: map[string]string{
+				"DD_REGISTRY_OVERRIDE_ASIA":    "true",
+				"DD_REGISTRY_OVERRIDE_AZURE":   "true",
+				"DD_REGISTRY_OVERRIDE_DEFAULT": "true",
+			},
+			wantRegistry: images.DefaultEuropeImageRegistry,
+		},
+		{
+			name: "default site ignores non-default override env vars",
+			site: "datadoghq.com",
+			envVars: map[string]string{
+				"DD_REGISTRY_OVERRIDE_EU":    "true",
+				"DD_REGISTRY_OVERRIDE_ASIA":  "true",
+				"DD_REGISTRY_OVERRIDE_AZURE": "true",
+			},
+			wantRegistry: images.DefaultImageRegistry,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for k, v := range tt.envVars {
+				t.Setenv(k, v)
+			}
+
+			site := tt.site
+			wantRegistry := tt.wantRegistry
+
+			tc := testCase{
+				loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+						WithClusterChecks(true, true).
+						Build()
+					dda.Spec.Global.Site = ptr.To(site)
+					_ = c.Create(context.TODO(), dda)
+					return dda
+				},
+				want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+				wantErr: false,
+				wantFunc: func(t *testing.T, c client.Client) {
+					// Node Agent
+					agentContainers := getDsContainers(c, resourcesNamespace, dsName)
+					assert.Equal(t,
+						fmt.Sprintf("%s/%s:%s", wantRegistry, images.DefaultAgentImageName, images.AgentLatestVersion),
+						agentContainers[apicommon.CoreAgentContainerName].Image,
+					)
+
+					// Cluster Agent
+					dcaContainers := getDeploymentContainers(c, resourcesNamespace, dcaName)
+					assert.Equal(t,
+						fmt.Sprintf("%s/%s:%s", wantRegistry, images.DefaultClusterAgentImageName, images.ClusterAgentLatestVersion),
+						dcaContainers[apicommon.ClusterAgentContainerName].Image,
+					)
+
+					// Cluster Checks Runner
+					ccrContainers := getDeploymentContainers(c, resourcesNamespace, ccrName)
+					assert.Equal(t,
+						fmt.Sprintf("%s/%s:%s", wantRegistry, images.DefaultAgentImageName, images.AgentLatestVersion),
+						ccrContainers[apicommon.ClusterChecksRunnersContainerName].Image,
+					)
+				},
+			}
+
+			runDDAReconcilerTest(t, tc, ReconcilerOptions{})
+		})
+	}
 }

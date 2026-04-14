@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
@@ -24,7 +25,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func Test_handleFinalizer(t *testing.T) {
@@ -49,8 +49,8 @@ func Test_handleFinalizer(t *testing.T) {
 		Spec: datadoghqv2alpha1.DatadogAgentSpec{
 			Global: &datadoghqv2alpha1.GlobalConfig{
 				Credentials: &datadoghqv2alpha1.DatadogCredentials{
-					APIKey: apiutils.NewStringPointer("apiKey"),
-					AppKey: apiutils.NewStringPointer("appKey"),
+					APIKey: ptr.To("apiKey"),
+					AppKey: ptr.To("appKey"),
 				},
 			},
 		},
@@ -128,7 +128,7 @@ func Test_handleFinalizer(t *testing.T) {
 
 	reconciler := reconcilerForFinalizerTest(initialKubeObjects)
 
-	_, err := reconciler.handleFinalizer(logf.Log.WithName("Handle DDAI Finalizer test"), ddai, reconciler.finalizeDDAI)
+	_, err := reconciler.handleFinalizer(context.Background(), ddai, reconciler.finalizeDDAI)
 	assert.NoError(t, err)
 
 	// Check that the cluster roles associated with the Datadog Agent have been deleted

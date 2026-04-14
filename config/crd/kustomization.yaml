@@ -4,15 +4,17 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-- bases/v1/datadoghq.com_datadogagents.yaml
-- bases/v1/datadoghq.com_datadogmetrics.yaml
-- bases/v1/datadoghq.com_datadogmonitors.yaml
-- bases/v1/datadoghq.com_datadogslos.yaml
-- bases/v1/datadoghq.com_datadogagentprofiles.yaml
-- bases/v1/datadoghq.com_datadogpodautoscalers.yaml
-- bases/v1/datadoghq.com_datadogdashboards.yaml
-- bases/v1/datadoghq.com_datadoggenericresources.yaml
-- bases/v1/datadoghq.com_datadogagentinternals.yaml
+  - bases/v1/datadoghq.com_datadogagents.yaml
+  - bases/v1/datadoghq.com_datadogmetrics.yaml
+  - bases/v1/datadoghq.com_datadogmonitors.yaml
+  - bases/v1/datadoghq.com_datadogslos.yaml
+  - bases/v1/datadoghq.com_datadogagentprofiles.yaml
+  - bases/v1/datadoghq.com_datadogpodautoscalers.yaml
+  - bases/v1/datadoghq.com_datadogpodautoscalerclusterprofiles.yaml
+  - bases/v1/datadoghq.com_datadogdashboards.yaml
+  - bases/v1/datadoghq.com_datadoggenericresources.yaml
+  - bases/v1/datadoghq.com_datadogagentinternals.yaml
+  - bases/v1/datadoghq.com_datadogcsidrivers.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 #patches:
@@ -41,4 +43,4 @@ resources:
 
 # the following config is for teaching kustomize how to do kustomization for CRDs.
 configurations:
-- kustomizeconfig.yaml
+  - kustomizeconfig.yaml

@@ -16,6 +16,7 @@ import (
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -84,6 +85,7 @@ type instrumentationConfig struct {
 	libVersions        map[string]string
 	languageDetection  *languageDetection
 	injector           *injector
+	injectionMode      string
 	targets            []v2alpha1.SSITarget
 }
 
@@ -157,7 +159,7 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: ptr.To(true),
 				Containers: []apicommon.AgentContainerName{
 					apicommon.CoreAgentContainerName,
 					apicommon.TraceAgentContainerName,
@@ -175,6 +177,7 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			f.singleStepInstrumentation.libVersions = apm.SingleStepInstrumentation.LibVersions
 			f.singleStepInstrumentation.languageDetection = &languageDetection{enabled: apiutils.BoolValue(ddaSpec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled)}
 			f.singleStepInstrumentation.injector = &injector{imageTag: apm.SingleStepInstrumentation.Injector.ImageTag}
+			f.singleStepInstrumentation.injectionMode = string(apm.SingleStepInstrumentation.InjectionMode)
 			if len(apm.SingleStepInstrumentation.Targets) > 0 {
 				if supportsInstrumentationTargets(ddaSpec) {
 					f.singleStepInstrumentation.targets = apm.SingleStepInstrumentation.Targets
@@ -183,7 +186,7 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 				}
 			}
 			reqComp.ClusterAgent = feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: ptr.To(true),
 				Containers: []apicommon.AgentContainerName{
 					apicommon.ClusterAgentContainerName,
 				},
@@ -208,6 +211,12 @@ func (f *apmFeature) shouldSetCustomInjectorImage() bool {
 		f.singleStepInstrumentation.enabled &&
 		f.singleStepInstrumentation.injector != nil &&
 		f.singleStepInstrumentation.injector.imageTag != ""
+}
+
+func (f *apmFeature) shouldSetInjectionMode() bool {
+	return f.singleStepInstrumentation != nil &&
+		f.singleStepInstrumentation.enabled &&
+		f.singleStepInstrumentation.injectionMode != ""
 }
 
 func (f *apmFeature) shouldEnableLanguageDetection() bool {
@@ -309,6 +318,16 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, provi
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+	if f.udsEnabled {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDTraceAgentHostSocketPath,
+			Value: filepath.Dir(f.udsHostFilepath),
+		})
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDAPMReceiverSocket,
+			Value: f.udsHostFilepath,
+		})
+	}
 	if f.singleStepInstrumentation != nil {
 		if len(f.singleStepInstrumentation.disabledNamespaces) > 0 && len(f.singleStepInstrumentation.enabledNamespaces) > 0 {
 			// This configuration is not supported
@@ -323,6 +342,13 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, pr
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 				Name:  DDAPMInstrumentationInjectorImageTag,
 				Value: f.singleStepInstrumentation.injector.imageTag,
+			})
+		}
+
+		if f.shouldSetInjectionMode() {
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  DDAPMInstrumentationInjectionMode,
+				Value: f.singleStepInstrumentation.injectionMode,
 			})
 		}
 
@@ -412,7 +438,7 @@ func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
 
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-		Name:  common.DDAPMEnabled,
+		Name:  constants.DDAPMEnabled,
 		Value: "true",
 	})
 

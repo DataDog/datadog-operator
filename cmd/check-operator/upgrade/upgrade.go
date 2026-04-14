@@ -245,7 +245,8 @@ func (o *Options) isDeploymentDone(status *v2alpha1.DeploymentStatus, minUpToDat
 }
 
 func (o *Options) printOutf(format string, a ...any) {
-	args := []any{time.Now().UTC().Format("2006-01-02T15:04:05.999Z"), o.UserNamespace, o.datadogAgentName}
+	args := make([]any, 0, 3+len(a))
+	args = append(args, time.Now().UTC().Format("2006-01-02T15:04:05.999Z"), o.UserNamespace, o.datadogAgentName)
 	args = append(args, a...)
 	_, _ = fmt.Fprintf(o.Out, "[%s] DatadogAgent '%s/%s': "+format+"\n", args...)
 }

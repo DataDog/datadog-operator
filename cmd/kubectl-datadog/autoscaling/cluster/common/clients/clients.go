@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	karpawsv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,6 +36,7 @@ type Clients struct {
 	CloudFormation *cloudformation.Client
 	EC2            *ec2.Client
 	EKS            *eks.Client
+	IAM            *iam.Client
 	STS            *sts.Client
 
 	// Kubernetes clients
@@ -97,6 +99,7 @@ func Build(ctx context.Context, configFlags *genericclioptions.ConfigFlags, k8sC
 		CloudFormation: cloudformation.NewFromConfig(awsConfig),
 		EC2:            ec2.NewFromConfig(awsConfig),
 		EKS:            eks.NewFromConfig(awsConfig),
+		IAM:            iam.NewFromConfig(awsConfig),
 		STS:            sts.NewFromConfig(awsConfig),
 		K8sClient:      k8sClient,
 		K8sClientset:   k8sClientset,

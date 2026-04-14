@@ -218,6 +218,12 @@ func (o *options) run(cmd *cobra.Command) error {
 		}
 	}
 
+	if autoModeEnabled, err := guess.IsEKSAutoModeEnabled(o.DiscoveryClient); err != nil {
+		return fmt.Errorf("failed to check for EKS auto-mode: %w", err)
+	} else if autoModeEnabled {
+		return displayEKSAutoModeMessage(cmd, clusterName)
+	}
+
 	display.PrintBox(cmd.OutOrStdout(), "Installing Karpenter on cluster "+clusterName+".")
 
 	cli, err := clients.Build(ctx, o.ConfigFlags, o.Clientset)
@@ -395,7 +401,7 @@ func createNodePoolResources(ctx context.Context, cmd *cobra.Command, cli *clien
 	return nil
 }
 
-func displaySuccessMessage(cmd *cobra.Command, clusterName string, createResources CreateKarpenterResources) error {
+func openAutoscalingSettingsURL(cmd *cobra.Command, clusterName string) string {
 	autoscalingSettingsURL := (&url.URL{
 		Scheme:   "https",
 		Host:     "app.datadoghq.com",
@@ -409,7 +415,28 @@ func displaySuccessMessage(cmd *cobra.Command, clusterName string, createResourc
 		log.Printf("Failed to open URL in browser: %v", err)
 	}
 
-	coloredURL := color.New(color.Bold, color.Underline, color.FgBlue).Sprint(autoscalingSettingsURL)
+	return color.New(color.Bold, color.Underline, color.FgBlue).Sprint(autoscalingSettingsURL)
+}
+
+func displayEKSAutoModeMessage(cmd *cobra.Command, clusterName string) error {
+	coloredURL := openAutoscalingSettingsURL(cmd, clusterName)
+
+	display.PrintBox(cmd.OutOrStdout(),
+		"EKS auto-mode is already active on cluster "+clusterName+".",
+		"",
+		"Karpenter is built into EKS auto-mode",
+		"and does not need to be installed separately.",
+		"",
+		"Navigate to the Autoscaling settings page",
+		"and select cluster to start generating recommendations:",
+		coloredURL,
+	)
+
+	return nil
+}
+
+func displaySuccessMessage(cmd *cobra.Command, clusterName string, createResources CreateKarpenterResources) error {
+	coloredURL := openAutoscalingSettingsURL(cmd, clusterName)
 
 	switch createResources {
 	case CreateKarpenterResourcesNone:

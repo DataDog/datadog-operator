@@ -8,11 +8,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/hostprofiler/defaultconfig"
-	hpdefaultconfig "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/hostprofiler/defaultconfig"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
@@ -21,22 +17,13 @@ import (
 )
 
 var (
-	defaultLocalObjectReferenceName = "-host-profiler-config"
-	tracingfsVolumeMount            = corev1.VolumeMount{
+	tracingfsVolumeMount = corev1.VolumeMount{
 		Name:      "tracingfs",
 		MountPath: "/sys/kernel/tracing",
 		ReadOnly:  true,
 	}
-	defaultVolumeMounts = []corev1.VolumeMount{
-		tracingfsVolumeMount,
-		{
-			Name:      hostProfilerVolumeName,
-			MountPath: common.ConfigVolumePath + "/" + hostProfilerConfigFileName,
-			SubPath:   hostProfilerConfigFileName,
-			ReadOnly:  true,
-		},
-	}
-	tracingfsVolume = corev1.Volume{
+	defaultVolumeMounts = []corev1.VolumeMount{tracingfsVolumeMount}
+	tracingfsVolume     = corev1.Volume{
 		Name: "tracingfs",
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
@@ -44,24 +31,12 @@ var (
 			},
 		},
 	}
-	defaultVolumes = func(objectName string) []corev1.Volume {
-		return []corev1.Volume{
-			tracingfsVolume,
-			{
-				Name: hostProfilerVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: objectName,
-						},
-					},
-				},
-			},
-		}
+	defaultVolumes = []corev1.Volume{tracingfsVolume}
+	wantIpcEnvVars = []*corev1.EnvVar{
+		{Name: common.DDAgentIpcPort, Value: "5009"},
+		{Name: common.DDAgentIpcConfigRefreshInterval, Value: "60"},
 	}
 )
-
-var defaultAnnotations = map[string]string{"checksum/host_profiler-custom-config": "7b48d4d7ca198be0a6d7d8c7a5ad5535"}
 
 func Test_hostProfilerFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
@@ -74,48 +49,12 @@ func Test_hostProfilerFeature_Configure(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
-			Name: "host profiler disabled with config",
-			DDA: testutils.NewDatadogAgentBuilder().
-				WithAnnotations(map[string]string{
-					"agent.datadoghq.com/host-profiler-enabled":    "false",
-					"agent.datadoghq.com/host-profiler-configdata": hpdefaultconfig.DefaultHostProfilerConfig,
-				}).
-				Build(),
-			WantConfigure: false,
-		},
-		// enabled
-		{
-			Name: "host profiler enabled with config",
-			DDA: testutils.NewDatadogAgentBuilder().
-				WithAnnotations(map[string]string{
-					"agent.datadoghq.com/host-profiler-enabled":    "true",
-					"agent.datadoghq.com/host-profiler-configdata": hpdefaultconfig.DefaultHostProfilerConfig,
-				}).
-				Build(),
-			WantConfigure:        true,
-			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent:                testExpectedAgent(apicommon.HostProfiler, defaultAnnotations, defaultVolumeMounts, defaultVolumes(defaultLocalObjectReferenceName)),
-		},
-		{
-			Name: "host profiler enabled with configMap",
-			DDA: testutils.NewDatadogAgentBuilder().
-				WithAnnotations(map[string]string{
-					"agent.datadoghq.com/host-profiler-enabled":        "true",
-					"agent.datadoghq.com/host-profiler-configmap-name": "user-provided-config-map",
-				}).
-				Build(),
-			WantConfigure:        true,
-			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent:                testExpectedAgent(apicommon.HostProfiler, map[string]string{}, defaultVolumeMounts, defaultVolumes("user-provided-config-map")),
-		},
-		{
-			Name: "host profiler enabled without config",
+			Name: "host profiler enabled",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAnnotations(map[string]string{"agent.datadoghq.com/host-profiler-enabled": "true"}).
 				Build(),
-			WantConfigure:        true,
-			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent:                testExpectedAgent(apicommon.HostProfiler, defaultAnnotations, defaultVolumeMounts, defaultVolumes(defaultLocalObjectReferenceName)),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts, defaultVolumes),
 		},
 	}
 	tests.Run(t, buildHostProfilerFeature)
@@ -123,7 +62,6 @@ func Test_hostProfilerFeature_Configure(t *testing.T) {
 
 func testExpectedAgent(
 	agentContainerName apicommon.AgentContainerName,
-	expectedAnnotations map[string]string,
 	expectedVolumeMount []corev1.VolumeMount,
 	expectedVolume []corev1.Volume) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
@@ -136,40 +74,14 @@ func testExpectedAgent(
 			volumes := mgr.VolumeMgr.Volumes
 			assert.True(t, apiutils.IsEqualStruct(volumes, expectedVolume), "Volumes \ndiff = %s", cmp.Diff(volumes, expectedVolume))
 
-			// annotations
-			agentAnnotations := mgr.AnnotationMgr.Annotations
-			assert.Equal(t, expectedAnnotations, agentAnnotations)
-
 			assert.Equal(t, true, mgr.Tpl.Spec.HostPID)
+
+			// IPC env vars
+			coreEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+			assert.True(t, apiutils.IsEqualStruct(coreEnvVars, wantIpcEnvVars), "Core agent IPC env vars \ndiff = %s", cmp.Diff(coreEnvVars, wantIpcEnvVars))
+
+			hostProfilerEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.HostProfiler]
+			assert.True(t, apiutils.IsEqualStruct(hostProfilerEnvVars, wantIpcEnvVars), "HostProfiler IPC env vars \ndiff = %s", cmp.Diff(hostProfilerEnvVars, wantIpcEnvVars))
 		},
-	)
-}
-
-func testExpectedDepsCreatedCM(t testing.TB, store store.StoreClient) {
-	// hacky to need to hardcode test name but unaware of a better approach that doesn't require
-	// modifying WantDependenciesFunc definition.
-	if t.Name() == "Test_hostProfilerFeature_Configure/host_profiler_enabled_with_configMap" {
-		// configMap is provided by user, no need to create it.
-		_, found := store.Get(kubernetes.ConfigMapKind, "", "-host-profiler-config")
-		assert.False(t, found)
-		return
-	}
-	if t.Name() == "Test_hostProfilerFeature_Configure/host_profiler_enabled_with_configMap_multi_items" {
-		// configMap is provided by user, no need to create it.
-		_, found := store.Get(kubernetes.ConfigMapKind, "", "-host-profiler-config")
-		assert.False(t, found)
-		return
-	}
-	configMapObject, found := store.Get(kubernetes.ConfigMapKind, "", "-host-profiler-config")
-	assert.True(t, found)
-
-	configMap := configMapObject.(*corev1.ConfigMap)
-	expectedCM := map[string]string{
-		"host-profiler-config.yaml": defaultconfig.DefaultHostProfilerConfig}
-
-	assert.True(
-		t,
-		apiutils.IsEqualStruct(configMap.Data, expectedCM),
-		"ConfigMap \ndiff = %s", cmp.Diff(configMap.Data, expectedCM),
 	)
 }

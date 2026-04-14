@@ -237,7 +237,7 @@ func mustWriteString(f io.StringWriter, b string) {
 }
 
 func getParameterDocs(path []string, props map[string]apiextensions.JSONSchemaProps) []parameterDoc {
-	parameterDocs := []parameterDoc{}
+	parameterDocs := make([]parameterDoc, 0, len(props))
 	for name, prop := range props {
 		parameterDocs = append(parameterDocs, getParameterDoc(path, name, prop)...)
 	}
@@ -264,7 +264,7 @@ func getParameterDoc(path []string, name string, prop apiextensions.JSONSchemaPr
 // - displayPath: used for building the display name (e.g., "livenessProbe.exec.command")
 // - annotationPath: used for looking up annotations (e.g., "containers.livenessProbe")
 func getParameterDocsPublic(displayPath []string, annotationPath []string, props map[string]apiextensions.JSONSchemaProps, annotations map[string]FieldAnnotation) []parameterDoc {
-	parameterDocs := []parameterDoc{}
+	parameterDocs := make([]parameterDoc, 0, len(props))
 	for name, prop := range props {
 		parameterDocs = append(parameterDocs, getParameterDocPublic(displayPath, annotationPath, name, prop, annotations)...)
 	}

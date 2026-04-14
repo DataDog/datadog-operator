@@ -12,12 +12,12 @@ import (
 	"time"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
-	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -42,7 +42,8 @@ type updateDepStatusComponentFunc func(deployment *appsv1.Deployment, newStatus 
 type updateDSStatusComponentFunc func(daemonsetName string, daemonset *appsv1.DaemonSet, newStatus *v1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
 type updateEDSStatusComponentFunc func(eds *edsv1alpha1.ExtendedDaemonSet, newStatus *v1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
 
-func (r *Reconciler) createOrUpdateDeployment(logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, deployment *appsv1.Deployment, newStatus *v1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateDepStatusComponentFunc) (reconcile.Result, error) {
+func (r *Reconciler) createOrUpdateDeployment(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, deployment *appsv1.Deployment, newStatus *v1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateDepStatusComponentFunc) (reconcile.Result, error) {
+	logger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
 	var result reconcile.Result
 	var err error
 
@@ -66,7 +67,7 @@ func (r *Reconciler) createOrUpdateDeployment(logger logr.Logger, ddai *v1alpha1
 
 	currentDeployment := &appsv1.Deployment{}
 	alreadyExists := true
-	err = r.client.Get(context.TODO(), nsName, currentDeployment)
+	err = r.client.Get(ctx, nsName, currentDeployment)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Info("deployment is not found")
@@ -89,7 +90,7 @@ func (r *Reconciler) createOrUpdateDeployment(logger logr.Logger, ddai *v1alpha1
 				return reconcile.Result{}, e
 			}
 			// use merge patch to replace the entire existing owner reference list
-			err = r.client.Patch(context.TODO(), currentDeployment, client.RawPatch(types.MergePatchType, patch))
+			err = r.client.Patch(ctx, currentDeployment, client.RawPatch(types.MergePatchType, patch))
 			if err != nil {
 				logger.Error(err, "Unable to patch Deployment owner reference")
 				updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, patchSucceeded, "Unable to patch Deployment owner reference")
@@ -99,7 +100,7 @@ func (r *Reconciler) createOrUpdateDeployment(logger logr.Logger, ddai *v1alpha1
 		}
 
 		if restartDeployment(deployment, currentDeployment) {
-			if err = deleteObjectAndOrphanDependents(context.TODO(), logger, r.client, deployment, deployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
+			if err = deleteObjectAndOrphanDependents(ctx, r.client, deployment, deployment.GetLabels()[apicommon.AgentDeploymentComponentLabelKey]); err != nil {
 				return result, err
 			}
 			return result, nil
@@ -124,11 +125,11 @@ func (r *Reconciler) createOrUpdateDeployment(logger logr.Logger, ddai *v1alpha1
 		updateDeployment := deployment.DeepCopy()
 		updateDeployment.Spec = *deployment.Spec.DeepCopy()
 		updateDeployment.Spec.Replicas = getReplicas(currentDeployment.Spec.Replicas, updateDeployment.Spec.Replicas)
-		updateDeployment.Annotations = mergeAnnotationsLabels(logger, currentDeployment.GetAnnotations(), deployment.GetAnnotations(), keepAnnotationsFilter)
-		updateDeployment.Labels = mergeAnnotationsLabels(logger, currentDeployment.GetLabels(), deployment.GetLabels(), keepLabelsFilter)
+		updateDeployment.Annotations = mergeAnnotationsLabels(ctx, currentDeployment.GetAnnotations(), deployment.GetAnnotations(), keepAnnotationsFilter)
+		updateDeployment.Labels = mergeAnnotationsLabels(ctx, currentDeployment.GetLabels(), deployment.GetLabels(), keepLabelsFilter)
 
 		now := metav1.NewTime(time.Now())
-		err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateDeployment, currentDeployment.ObjectMeta)
+		err = kubernetes.UpdateFromObject(ctx, r.client, updateDeployment, currentDeployment.ObjectMeta)
 		if err != nil {
 			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to update Deployment")
 			return reconcile.Result{}, err
@@ -139,7 +140,7 @@ func (r *Reconciler) createOrUpdateDeployment(logger logr.Logger, ddai *v1alpha1
 	} else {
 		now := metav1.NewTime(time.Now())
 
-		err = r.client.Create(context.TODO(), deployment)
+		err = r.client.Create(ctx, deployment)
 		if err != nil {
 			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, createSucceeded, "Unable to create Deployment")
 			return reconcile.Result{}, err
@@ -154,7 +155,8 @@ func (r *Reconciler) createOrUpdateDeployment(logger logr.Logger, ddai *v1alpha1
 	return result, err
 }
 
-func (r *Reconciler) createOrUpdateDaemonset(logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, daemonset *appsv1.DaemonSet, newStatus *v1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateDSStatusComponentFunc) (reconcile.Result, error) {
+func (r *Reconciler) createOrUpdateDaemonset(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, daemonset *appsv1.DaemonSet, newStatus *v1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateDSStatusComponentFunc) (reconcile.Result, error) {
+	logger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "DaemonSet", "object.namespace", daemonset.Namespace, "object.name", daemonset.Name)
 	var result reconcile.Result
 	var err error
 
@@ -171,7 +173,7 @@ func (r *Reconciler) createOrUpdateDaemonset(logger logr.Logger, ddai *v1alpha1.
 
 	currentDaemonset := &appsv1.DaemonSet{}
 	alreadyExists := true
-	err = r.client.Get(context.TODO(), nsName, currentDaemonset)
+	err = r.client.Get(ctx, nsName, currentDaemonset)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Info("daemonset is not found")
@@ -194,7 +196,7 @@ func (r *Reconciler) createOrUpdateDaemonset(logger logr.Logger, ddai *v1alpha1.
 				return reconcile.Result{}, e
 			}
 			// use merge patch to replace the entire existing owner reference list
-			err = r.client.Patch(context.TODO(), currentDaemonset, client.RawPatch(types.MergePatchType, patch))
+			err = r.client.Patch(ctx, currentDaemonset, client.RawPatch(types.MergePatchType, patch))
 			if err != nil {
 				logger.Error(err, "Unable to patch Daemonset owner reference")
 				updateStatusFunc(currentDaemonset.Name, currentDaemonset, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to patch Daemonset owner reference")
@@ -204,7 +206,7 @@ func (r *Reconciler) createOrUpdateDaemonset(logger logr.Logger, ddai *v1alpha1.
 		}
 
 		if restartDaemonset(daemonset, currentDaemonset) {
-			if err = deleteObjectAndOrphanDependents(context.TODO(), logger, r.client, daemonset, constants.DefaultAgentResourceSuffix); err != nil {
+			if err = deleteObjectAndOrphanDependents(ctx, r.client, daemonset, constants.DefaultAgentResourceSuffix); err != nil {
 				return result, err
 			}
 			return result, nil
@@ -235,7 +237,7 @@ func (r *Reconciler) createOrUpdateDaemonset(logger logr.Logger, ddai *v1alpha1.
 		// Template.Labels must include Spec.Selector.
 		// See https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/#pod-selector
 		daemonset.Spec.Selector = currentDaemonset.Spec.Selector
-		daemonset.Spec.Template.Labels = ensureSelectorInPodTemplateLabels(logger, daemonset.Spec.Selector, daemonset.Spec.Template.Labels)
+		daemonset.Spec.Template.Labels = ensureSelectorInPodTemplateLabels(ctx, daemonset.Spec.Selector, daemonset.Spec.Template.Labels)
 
 		// From here the PodTemplateSpec should be ready, we can generate the hash that will be used to compare this daemonset with the current one (if it exists).
 		var hash, daemonsetPodTemplateLabelHash string
@@ -268,14 +270,14 @@ func (r *Reconciler) createOrUpdateDaemonset(logger logr.Logger, ddai *v1alpha1.
 		// Copy possibly changed fields
 		updateDaemonset := daemonset.DeepCopy()
 		updateDaemonset.Spec = *daemonset.Spec.DeepCopy()
-		updateDaemonset.Annotations = mergeAnnotationsLabels(logger, currentDaemonset.GetAnnotations(), daemonset.GetAnnotations(), keepAnnotationsFilter)
-		updateDaemonset.Labels = mergeAnnotationsLabels(logger, currentDaemonset.GetLabels(), daemonset.GetLabels(), keepLabelsFilter)
+		updateDaemonset.Annotations = mergeAnnotationsLabels(ctx, currentDaemonset.GetAnnotations(), daemonset.GetAnnotations(), keepAnnotationsFilter)
+		updateDaemonset.Labels = mergeAnnotationsLabels(ctx, currentDaemonset.GetLabels(), daemonset.GetLabels(), keepLabelsFilter)
 		// manually remove the old profile label because mergeAnnotationsLabels
 		// won't filter labels with "datadoghq.com" in the key
 		delete(updateDaemonset.Labels, agentprofile.OldProfileLabelKey)
 
 		logger.Info("Updating Daemonset")
-		err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateDaemonset, currentDaemonset.ObjectMeta)
+		err = kubernetes.UpdateFromObject(ctx, r.client, updateDaemonset, currentDaemonset.ObjectMeta)
 		if err != nil {
 			updateStatusFunc(updateDaemonset.Name, updateDaemonset, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to update Daemonset")
 			return reconcile.Result{}, err
@@ -294,7 +296,7 @@ func (r *Reconciler) createOrUpdateDaemonset(logger logr.Logger, ddai *v1alpha1.
 		now := metav1.Now()
 		logger.Info("Creating Daemonset")
 
-		err = r.client.Create(context.TODO(), daemonset)
+		err = r.client.Create(ctx, daemonset)
 		if err != nil {
 			updateStatusFunc(daemonset.Name, nil, newStatus, now, metav1.ConditionFalse, createSucceeded, "Unable to create Daemonset")
 			return reconcile.Result{}, err
@@ -307,7 +309,8 @@ func (r *Reconciler) createOrUpdateDaemonset(logger logr.Logger, ddai *v1alpha1.
 	return result, err
 }
 
-func (r *Reconciler) createOrUpdateExtendedDaemonset(logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, eds *edsv1alpha1.ExtendedDaemonSet, newStatus *v1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateEDSStatusComponentFunc) (reconcile.Result, error) {
+func (r *Reconciler) createOrUpdateExtendedDaemonset(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, eds *edsv1alpha1.ExtendedDaemonSet, newStatus *v1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateEDSStatusComponentFunc) (reconcile.Result, error) {
+	logger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "ExtendedDaemonSet", "object.namespace", eds.Namespace, "object.name", eds.Name)
 	var result reconcile.Result
 	var err error
 
@@ -331,7 +334,7 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(logger logr.Logger, ddai *v
 
 	currentEDS := &edsv1alpha1.ExtendedDaemonSet{}
 	alreadyExists := true
-	err = r.client.Get(context.TODO(), nsName, currentEDS)
+	err = r.client.Get(ctx, nsName, currentEDS)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Info("ExtendedDaemonSet is not found")
@@ -354,7 +357,7 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(logger logr.Logger, ddai *v
 				return reconcile.Result{}, e
 			}
 			// use merge patch to replace the entire existing owner reference list
-			err = r.client.Patch(context.TODO(), currentEDS, client.RawPatch(types.MergePatchType, patch))
+			err = r.client.Patch(ctx, currentEDS, client.RawPatch(types.MergePatchType, patch))
 			if err != nil {
 				logger.Error(err, "Unable to patch ExtendedDaemonSet owner reference")
 				updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, patchSucceeded, "Unable to patch ExtendedDaemonSet owner reference")
@@ -385,11 +388,11 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(logger logr.Logger, ddai *v
 		// Copy possibly changed fields
 		updateEDS := eds.DeepCopy()
 		updateEDS.Spec = *eds.Spec.DeepCopy()
-		updateEDS.Annotations = mergeAnnotationsLabels(logger, currentEDS.GetAnnotations(), eds.GetAnnotations(), keepAnnotationsFilter)
-		updateEDS.Labels = mergeAnnotationsLabels(logger, currentEDS.GetLabels(), eds.GetLabels(), keepLabelsFilter)
+		updateEDS.Annotations = mergeAnnotationsLabels(ctx, currentEDS.GetAnnotations(), eds.GetAnnotations(), keepAnnotationsFilter)
+		updateEDS.Labels = mergeAnnotationsLabels(ctx, currentEDS.GetLabels(), eds.GetLabels(), keepLabelsFilter)
 
 		now := metav1.NewTime(time.Now())
-		err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateEDS, currentEDS.ObjectMeta)
+		err = kubernetes.UpdateFromObject(ctx, r.client, updateEDS, currentEDS.ObjectMeta)
 		if err != nil {
 			updateStatusFunc(updateEDS, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to update ExtendedDaemonSet")
 			return reconcile.Result{}, err
@@ -400,7 +403,7 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(logger logr.Logger, ddai *v
 	} else {
 		now := metav1.NewTime(time.Now())
 
-		err = r.client.Create(context.TODO(), eds)
+		err = r.client.Create(ctx, eds)
 		if err != nil {
 			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, createSucceeded, "Unable to create ExtendedDaemonSet")
 			return reconcile.Result{}, err
@@ -422,7 +425,8 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(logger logr.Logger, ddai *v
 // value to match the selector.
 // If the selector labels aren't present in the pod template labels, there will
 // be a `selector does not match template labels` error when updating the agent
-func ensureSelectorInPodTemplateLabels(logger logr.Logger, selector *metav1.LabelSelector, labels map[string]string) map[string]string {
+func ensureSelectorInPodTemplateLabels(ctx context.Context, selector *metav1.LabelSelector, labels map[string]string) map[string]string {
+	logger := ctrl.LoggerFrom(ctx)
 	if selector != nil {
 		if labels == nil {
 			labels = map[string]string{}

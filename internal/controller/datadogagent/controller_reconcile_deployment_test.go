@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -29,7 +31,6 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -54,7 +55,6 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 	// Load CRD from config folder
 	crd, err := getDDAICRDFromConfig(s)
 	assert.NoError(t, err)
-	clientBuilder := fake.NewClientBuilder().WithObjects(crd)
 
 	tests := []struct {
 		name         string
@@ -71,14 +71,14 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 		// Test 1: Override Conflict Detection - Both components should set OverrideConflictCondition
 		{
 			name:   "DCA override conflict detection via full reconcile",
-			client: clientBuilder.WithStatusSubresource(&appsv1.Deployment{}, &v2alpha1.DatadogAgent{}).Build(),
+			client: fake.NewClientBuilder().WithObjects(crd).WithStatusSubresource(&appsv1.Deployment{}, &v2alpha1.DatadogAgent{}).Build(),
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					Build()
 				// But disable via override to create conflict
 				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.ClusterAgentComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					},
 				}
 				_ = c.Create(context.TODO(), dda)
@@ -117,7 +117,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 		},
 		{
 			name:   "CCR override conflict detection via full reconcile",
-			client: clientBuilder.WithStatusSubresource(&appsv1.Deployment{}, &v2alpha1.DatadogAgent{}).Build(),
+			client: fake.NewClientBuilder().WithObjects(crd).WithStatusSubresource(&appsv1.Deployment{}, &v2alpha1.DatadogAgent{}).Build(),
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithClusterChecksUseCLCEnabled(true). // Enable CCR in features
@@ -125,7 +125,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 				// But disable CCR via override to create conflict
 				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.ClusterChecksRunnerComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					},
 				}
 				_ = c.Create(context.TODO(), dda)
@@ -171,7 +171,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 		// Test 2: Component Dependency Logic - CCR depends on DCA being enabled
 		{
 			name:   "CCR dependency check - DCA disabled",
-			client: clientBuilder.WithStatusSubresource(&appsv1.Deployment{}, &v2alpha1.DatadogAgent{}).Build(),
+			client: fake.NewClientBuilder().WithObjects(crd).WithStatusSubresource(&appsv1.Deployment{}, &v2alpha1.DatadogAgent{}).Build(),
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithClusterChecksUseCLCEnabled(true). // Enable CCR in features
@@ -179,7 +179,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 				// But disable DCA - CCR should be cleaned up due to dependency
 				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.ClusterAgentComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					},
 				}
 				_ = c.Create(context.TODO(), dda)
@@ -217,7 +217,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 		// Test 3: Cleanup Status Handling - Verify status is properly cleaned up
 		{
 			name:   "Deployment cleanup and status handling",
-			client: clientBuilder.WithStatusSubresource(&appsv1.Deployment{}, &v2alpha1.DatadogAgent{}).Build(),
+			client: fake.NewClientBuilder().WithObjects(crd).WithStatusSubresource(&appsv1.Deployment{}, &v2alpha1.DatadogAgent{}).Build(),
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				// First create DDA with both components enabled
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
@@ -247,10 +247,10 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 				// Now disable both components to test cleanup
 				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.ClusterAgentComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					},
 					v2alpha1.ClusterChecksRunnerComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					},
 				}
 				_ = c.Update(context.TODO(), dda)
@@ -297,7 +297,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 		// Test 4: Successful deployment creation for comparison
 		{
 			name:   "Both DCA and CCR successful deployment",
-			client: clientBuilder.WithStatusSubresource(&appsv1.Deployment{}, &v2alpha1.DatadogAgent{}).Build(),
+			client: fake.NewClientBuilder().WithObjects(crd).WithStatusSubresource(&appsv1.Deployment{}, &v2alpha1.DatadogAgent{}).Build(),
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 					WithClusterChecksUseCLCEnabled(true).
@@ -341,7 +341,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 		// Test 5: Error Handling Differences - DCA vs CCR behavior when deployment doesn't exist during cleanup
 		{
 			name:   "DCA cleanup when deployment doesn't exist",
-			client: clientBuilder.WithStatusSubresource(&appsv1.Deployment{}, &v2alpha1.DatadogAgent{}).Build(),
+			client: fake.NewClientBuilder().WithObjects(crd).WithStatusSubresource(&appsv1.Deployment{}, &v2alpha1.DatadogAgent{}).Build(),
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				// Create DDA with DCA enabled first
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
@@ -358,7 +358,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 				// This simulates the case where deployment doesn't exist but status does
 				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.ClusterAgentComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					},
 				}
 				_ = c.Update(context.TODO(), dda)
@@ -389,7 +389,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 		},
 		{
 			name:   "CCR cleanup when deployment doesn't exist",
-			client: clientBuilder.WithStatusSubresource(&appsv1.Deployment{}, &v2alpha1.DatadogAgent{}).Build(),
+			client: fake.NewClientBuilder().WithObjects(crd).WithStatusSubresource(&appsv1.Deployment{}, &v2alpha1.DatadogAgent{}).Build(),
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				// Create DDA with CCR enabled first
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
@@ -407,7 +407,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 				// This simulates the case where deployment doesn't exist but status does
 				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.ClusterChecksRunnerComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					},
 				}
 				_ = c.Update(context.TODO(), dda)
@@ -430,7 +430,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 		},
 		{
 			name:   "DCA cleanup when deployment exists",
-			client: clientBuilder.WithStatusSubresource(&appsv1.Deployment{}, &v2alpha1.DatadogAgent{}).Build(),
+			client: fake.NewClientBuilder().WithObjects(crd).WithStatusSubresource(&appsv1.Deployment{}, &v2alpha1.DatadogAgent{}).Build(),
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				// Create DDA with DCA enabled
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
@@ -465,7 +465,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 				// Now disable DCA via override to trigger cleanup of existing deployment
 				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.ClusterAgentComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					},
 				}
 				_ = c.Update(context.TODO(), dda)
@@ -500,7 +500,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 		// Test 6: RBAC Cleanup - DCA should clean up associated RBAC resources during cleanup
 		{
 			name:   "DCA RBAC cleanup during deployment cleanup",
-			client: clientBuilder.WithStatusSubresource(&appsv1.Deployment{}, &v2alpha1.DatadogAgent{}).Build(),
+			client: fake.NewClientBuilder().WithObjects(crd).WithStatusSubresource(&appsv1.Deployment{}, &v2alpha1.DatadogAgent{}).Build(),
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				// Create DDA with DCA enabled
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
@@ -529,7 +529,7 @@ func TestDeploymentReconciliationDifferences(t *testing.T) {
 				// Now disable DCA via override to trigger cleanup including RBAC cleanup
 				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.ClusterAgentComponentName: {
-						Disabled: apiutils.NewBoolPointer(true),
+						Disabled: ptr.To(true),
 					},
 				}
 				_ = c.Update(context.TODO(), dda)

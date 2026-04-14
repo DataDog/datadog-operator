@@ -7,6 +7,7 @@ package mapper
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"testing"
@@ -66,7 +67,7 @@ func TestRunConsecutive(t *testing.T) {
 		name         string
 		namespace    string
 		inputValues  string
-		expectedDDA  map[string]interface{}
+		expectedDDA  map[string]any
 		missingPaths []string
 	}{
 		{
@@ -76,7 +77,7 @@ datadog:
   site: "datadoghq.com"
 `,
 			namespace: "namespace-one",
-			expectedDDA: map[string]interface{}{
+			expectedDDA: map[string]any{
 				"metadata.name":      "first-dda-name",
 				"metadata.namespace": "namespace-one",
 				"spec.global.site":   "datadoghq.com",
@@ -88,7 +89,7 @@ datadog:
 datadog:
   site: "datadoghq.eu"
 `,
-			expectedDDA: map[string]interface{}{
+			expectedDDA: map[string]any{
 				"metadata.name":    "second-dda-name",
 				"spec.global.site": "datadoghq.eu",
 			},
@@ -102,7 +103,7 @@ datadog:
   logLevel: "debug"
 `,
 			namespace: "namespace-three",
-			expectedDDA: map[string]interface{}{
+			expectedDDA: map[string]any{
 				"metadata.name":        "third-dda-name",
 				"metadata.namespace":   "namespace-three",
 				"spec.global.site":     "us5.datadoghq.com",
@@ -140,7 +141,7 @@ func writeTestFile(t *testing.T, path, content string) {
 	require.NoError(t, os.WriteFile(path, []byte(content), 0644))
 }
 
-func assertValues(t *testing.T, values chartutil.Values, expected map[string]interface{}) {
+func assertValues(t *testing.T, values chartutil.Values, expected map[string]any) {
 	t.Helper()
 	for path, want := range expected {
 		got, err := values.PathValue(path)
@@ -149,7 +150,7 @@ func assertValues(t *testing.T, values chartutil.Values, expected map[string]int
 	}
 }
 
-func assertMissingPath(t *testing.T, values chartutil.Values, path string, msgAndArgs ...interface{}) {
+func assertMissingPath(t *testing.T, values chartutil.Values, path string, msgAndArgs ...any) {
 	t.Helper()
 	_, err := values.PathValue(path)
 	assert.Error(t, err, msgAndArgs...)
@@ -158,21 +159,21 @@ func assertMissingPath(t *testing.T, values chartutil.Values, path string, msgAn
 func TestMergeMapDeep(t *testing.T) {
 	tests := []struct {
 		name     string
-		map1     map[string]interface{}
-		map2     map[string]interface{}
-		expected map[string]interface{}
+		map1     map[string]any
+		map2     map[string]any
+		expected map[string]any
 	}{
 		{
 			name: "merge non-overlapping maps",
-			map1: map[string]interface{}{
+			map1: map[string]any{
 				"key1": "value1",
 				"key2": 42,
 			},
-			map2: map[string]interface{}{
+			map2: map[string]any{
 				"key3": "value3",
 				"key4": []string{"a", "b"},
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"key1": "value1",
 				"key2": 42,
 				"key3": "value3",
@@ -181,15 +182,15 @@ func TestMergeMapDeep(t *testing.T) {
 		},
 		{
 			name: "merge overlapping maps with simple values (map2 overwrites map1)",
-			map1: map[string]interface{}{
+			map1: map[string]any{
 				"key1": "value1",
 				"key2": 42,
 			},
-			map2: map[string]interface{}{
+			map2: map[string]any{
 				"key1": "newvalue1",
 				"key3": "value3",
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"key1": "newvalue1",
 				"key2": 42,
 				"key3": "value3",
@@ -197,41 +198,41 @@ func TestMergeMapDeep(t *testing.T) {
 		},
 		{
 			name: "merge nested maps",
-			map1: map[string]interface{}{
-				"config": map[string]interface{}{
-					"database": map[string]interface{}{
+			map1: map[string]any{
+				"config": map[string]any{
+					"database": map[string]any{
 						"host": "localhost",
 						"port": 5432,
 					},
-					"cache": map[string]interface{}{
+					"cache": map[string]any{
 						"enabled": true,
 					},
 				},
 				"version": "1.0",
 			},
-			map2: map[string]interface{}{
-				"config": map[string]interface{}{
-					"database": map[string]interface{}{
+			map2: map[string]any{
+				"config": map[string]any{
+					"database": map[string]any{
 						"port":     3306,
 						"username": "admin",
 					},
-					"logging": map[string]interface{}{
+					"logging": map[string]any{
 						"level": "debug",
 					},
 				},
 				"environment": "production",
 			},
-			expected: map[string]interface{}{
-				"config": map[string]interface{}{
-					"database": map[string]interface{}{
+			expected: map[string]any{
+				"config": map[string]any{
+					"database": map[string]any{
 						"host":     "localhost",
 						"port":     3306,
 						"username": "admin",
 					},
-					"cache": map[string]interface{}{
+					"cache": map[string]any{
 						"enabled": true,
 					},
-					"logging": map[string]interface{}{
+					"logging": map[string]any{
 						"level": "debug",
 					},
 				},
@@ -241,45 +242,45 @@ func TestMergeMapDeep(t *testing.T) {
 		},
 		{
 			name: "one map is empty",
-			map1: map[string]interface{}{
+			map1: map[string]any{
 				"key1": "value1",
 			},
-			map2: map[string]interface{}{},
-			expected: map[string]interface{}{
+			map2: map[string]any{},
+			expected: map[string]any{
 				"key1": "value1",
 			},
 		},
 		{
 			name:     "both maps are empty",
-			map1:     map[string]interface{}{},
-			map2:     map[string]interface{}{},
-			expected: map[string]interface{}{},
+			map1:     map[string]any{},
+			map2:     map[string]any{},
+			expected: map[string]any{},
 		},
 		{
 			name: "mixed value types",
-			map1: map[string]interface{}{
+			map1: map[string]any{
 				"string":  "text",
 				"number":  123,
 				"boolean": true,
-				"array":   []interface{}{1, 2, 3},
-				"nested": map[string]interface{}{
+				"array":   []any{1, 2, 3},
+				"nested": map[string]any{
 					"inner": "value",
 				},
 			},
-			map2: map[string]interface{}{
+			map2: map[string]any{
 				"string": "newtext",
 				"float":  3.14,
-				"nested": map[string]interface{}{
+				"nested": map[string]any{
 					"additional": "data",
 				},
 			},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"string":  "newtext",
 				"number":  123,
 				"boolean": true,
-				"array":   []interface{}{1, 2, 3},
+				"array":   []any{1, 2, 3},
 				"float":   3.14,
-				"nested": map[string]interface{}{
+				"nested": map[string]any{
 					"inner":      "value",
 					"additional": "data",
 				},
@@ -289,14 +290,10 @@ func TestMergeMapDeep(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			map1Copy := make(map[string]interface{})
-			for k, v := range tt.map1 {
-				map1Copy[k] = v
-			}
-			map2Copy := make(map[string]interface{})
-			for k, v := range tt.map2 {
-				map2Copy[k] = v
-			}
+			map1Copy := make(map[string]any)
+			maps.Copy(map1Copy, tt.map1)
+			map2Copy := make(map[string]any)
+			maps.Copy(map2Copy, tt.map2)
 
 			result := utils.MergeMapDeep(map1Copy, map2Copy)
 			assert.Equal(t, tt.expected, result)
@@ -310,16 +307,16 @@ func TestInsertAtPath(t *testing.T) {
 	tests := []struct {
 		name     string
 		path     string
-		val      interface{}
-		mapName  map[string]interface{}
-		expected map[string]interface{}
+		val      any
+		mapName  map[string]any
+		expected map[string]any
 	}{
 		{
 			name:    "simple single level path",
 			path:    "key",
 			val:     "value",
-			mapName: map[string]interface{}{},
-			expected: map[string]interface{}{
+			mapName: map[string]any{},
+			expected: map[string]any{
 				"key": "value",
 			},
 		},
@@ -327,10 +324,10 @@ func TestInsertAtPath(t *testing.T) {
 			name:    "three level nested path",
 			path:    "spec.global.site",
 			val:     "datadoghq.com",
-			mapName: map[string]interface{}{},
-			expected: map[string]interface{}{
-				"spec": map[string]interface{}{
-					"global": map[string]interface{}{
+			mapName: map[string]any{},
+			expected: map[string]any{
+				"spec": map[string]any{
+					"global": map[string]any{
 						"site": "datadoghq.com",
 					},
 				},
@@ -340,15 +337,15 @@ func TestInsertAtPath(t *testing.T) {
 			name:    "deep nested path",
 			path:    "spec.override.nodeAgent.containers.agent.resources.limits.memory",
 			val:     "512Mi",
-			mapName: map[string]interface{}{},
-			expected: map[string]interface{}{
-				"spec": map[string]interface{}{
-					"override": map[string]interface{}{
-						"nodeAgent": map[string]interface{}{
-							"containers": map[string]interface{}{
-								"agent": map[string]interface{}{
-									"resources": map[string]interface{}{
-										"limits": map[string]interface{}{
+			mapName: map[string]any{},
+			expected: map[string]any{
+				"spec": map[string]any{
+					"override": map[string]any{
+						"nodeAgent": map[string]any{
+							"containers": map[string]any{
+								"agent": map[string]any{
+									"resources": map[string]any{
+										"limits": map[string]any{
 											"memory": "512Mi",
 										},
 									},
@@ -363,17 +360,17 @@ func TestInsertAtPath(t *testing.T) {
 			name: "merge with existing map - non-overlapping",
 			path: "spec.global.site",
 			val:  "datadoghq.com",
-			mapName: map[string]interface{}{
-				"metadata": map[string]interface{}{
+			mapName: map[string]any{
+				"metadata": map[string]any{
 					"name": "datadog",
 				},
 			},
-			expected: map[string]interface{}{
-				"metadata": map[string]interface{}{
+			expected: map[string]any{
+				"metadata": map[string]any{
 					"name": "datadog",
 				},
-				"spec": map[string]interface{}{
-					"global": map[string]interface{}{
+				"spec": map[string]any{
+					"global": map[string]any{
 						"site": "datadoghq.com",
 					},
 				},
@@ -383,26 +380,26 @@ func TestInsertAtPath(t *testing.T) {
 			name: "merge with existing map - overlapping paths",
 			path: "spec.global.logLevel",
 			val:  "debug",
-			mapName: map[string]interface{}{
-				"spec": map[string]interface{}{
-					"global": map[string]interface{}{
+			mapName: map[string]any{
+				"spec": map[string]any{
+					"global": map[string]any{
 						"site": "datadoghq.com",
 					},
-					"features": map[string]interface{}{
-						"apm": map[string]interface{}{
+					"features": map[string]any{
+						"apm": map[string]any{
 							"enabled": true,
 						},
 					},
 				},
 			},
-			expected: map[string]interface{}{
-				"spec": map[string]interface{}{
-					"global": map[string]interface{}{
+			expected: map[string]any{
+				"spec": map[string]any{
+					"global": map[string]any{
 						"site":     "datadoghq.com",
 						"logLevel": "debug",
 					},
-					"features": map[string]interface{}{
-						"apm": map[string]interface{}{
+					"features": map[string]any{
+						"apm": map[string]any{
 							"enabled": true,
 						},
 					},
@@ -413,16 +410,16 @@ func TestInsertAtPath(t *testing.T) {
 			name: "overwrite existing value",
 			path: "spec.global.site",
 			val:  "datadoghq.eu",
-			mapName: map[string]interface{}{
-				"spec": map[string]interface{}{
-					"global": map[string]interface{}{
+			mapName: map[string]any{
+				"spec": map[string]any{
+					"global": map[string]any{
 						"site": "datadoghq.com",
 					},
 				},
 			},
-			expected: map[string]interface{}{
-				"spec": map[string]interface{}{
-					"global": map[string]interface{}{
+			expected: map[string]any{
+				"spec": map[string]any{
+					"global": map[string]any{
 						"site": "datadoghq.eu",
 					},
 				},
@@ -432,8 +429,8 @@ func TestInsertAtPath(t *testing.T) {
 			name:    "empty path",
 			path:    "",
 			val:     "",
-			mapName: map[string]interface{}{},
-			expected: map[string]interface{}{
+			mapName: map[string]any{},
+			expected: map[string]any{
 				"": "",
 			},
 		},
@@ -441,11 +438,11 @@ func TestInsertAtPath(t *testing.T) {
 			name:    "different value types - integer",
 			path:    "spec.override.clusterAgent.replicas",
 			val:     3,
-			mapName: map[string]interface{}{},
-			expected: map[string]interface{}{
-				"spec": map[string]interface{}{
-					"override": map[string]interface{}{
-						"clusterAgent": map[string]interface{}{
+			mapName: map[string]any{},
+			expected: map[string]any{
+				"spec": map[string]any{
+					"override": map[string]any{
+						"clusterAgent": map[string]any{
 							"replicas": 3,
 						},
 					},
@@ -456,11 +453,11 @@ func TestInsertAtPath(t *testing.T) {
 			name:    "different value types - boolean",
 			path:    "spec.features.apm.enabled",
 			val:     true,
-			mapName: map[string]interface{}{},
-			expected: map[string]interface{}{
-				"spec": map[string]interface{}{
-					"features": map[string]interface{}{
-						"apm": map[string]interface{}{
+			mapName: map[string]any{},
+			expected: map[string]any{
+				"spec": map[string]any{
+					"features": map[string]any{
+						"apm": map[string]any{
 							"enabled": true,
 						},
 					},
@@ -471,10 +468,10 @@ func TestInsertAtPath(t *testing.T) {
 			name:    "different value types - slice",
 			path:    "spec.global.tags",
 			val:     []string{"env:prod", "team:backend"},
-			mapName: map[string]interface{}{},
-			expected: map[string]interface{}{
-				"spec": map[string]interface{}{
-					"global": map[string]interface{}{
+			mapName: map[string]any{},
+			expected: map[string]any{
+				"spec": map[string]any{
+					"global": map[string]any{
 						"tags": []string{"env:prod", "team:backend"},
 					},
 				},
@@ -483,14 +480,14 @@ func TestInsertAtPath(t *testing.T) {
 		{
 			name:    "different value types - map",
 			path:    "spec.override.nodeAgent.resources",
-			val:     map[string]interface{}{"limits": map[string]interface{}{"memory": "1Gi"}},
-			mapName: map[string]interface{}{},
-			expected: map[string]interface{}{
-				"spec": map[string]interface{}{
-					"override": map[string]interface{}{
-						"nodeAgent": map[string]interface{}{
-							"resources": map[string]interface{}{
-								"limits": map[string]interface{}{
+			val:     map[string]any{"limits": map[string]any{"memory": "1Gi"}},
+			mapName: map[string]any{},
+			expected: map[string]any{
+				"spec": map[string]any{
+					"override": map[string]any{
+						"nodeAgent": map[string]any{
+							"resources": map[string]any{
+								"limits": map[string]any{
 									"memory": "1Gi",
 								},
 							},
@@ -504,10 +501,8 @@ func TestInsertAtPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Make a copy of the input map to avoid modifying the test data
-			mapNameCopy := make(map[string]interface{})
-			for k, v := range tt.mapName {
-				mapNameCopy[k] = v
-			}
+			mapNameCopy := make(map[string]any)
+			maps.Copy(mapNameCopy, tt.mapName)
 
 			result := utils.InsertAtPath(tt.path, tt.val, mapNameCopy)
 
@@ -525,12 +520,12 @@ func TestInsertAtPath(t *testing.T) {
 
 func TestInsertAtPathEdgeCases(t *testing.T) {
 	t.Run("nil_value", func(t *testing.T) {
-		mapName := map[string]interface{}{}
+		mapName := map[string]any{}
 		result := utils.InsertAtPath("spec.global.site", nil, mapName)
 
-		expected := map[string]interface{}{
-			"spec": map[string]interface{}{
-				"global": map[string]interface{}{
+		expected := map[string]any{
+			"spec": map[string]any{
+				"global": map[string]any{
 					"site": nil,
 				},
 			},
@@ -539,15 +534,15 @@ func TestInsertAtPathEdgeCases(t *testing.T) {
 	})
 
 	t.Run("path_with_multiple_dots", func(t *testing.T) {
-		mapName := map[string]interface{}{}
+		mapName := map[string]any{}
 		result := utils.InsertAtPath("a.b.c.d.e.f", "deep_value", mapName)
 
-		expected := map[string]interface{}{
-			"a": map[string]interface{}{
-				"b": map[string]interface{}{
-					"c": map[string]interface{}{
-						"d": map[string]interface{}{
-							"e": map[string]interface{}{
+		expected := map[string]any{
+			"a": map[string]any{
+				"b": map[string]any{
+					"c": map[string]any{
+						"d": map[string]any{
+							"e": map[string]any{
 								"f": "deep_value",
 							},
 						},
@@ -559,13 +554,13 @@ func TestInsertAtPathEdgeCases(t *testing.T) {
 	})
 
 	t.Run("path_with_numeric_keys", func(t *testing.T) {
-		mapName := map[string]interface{}{}
+		mapName := map[string]any{}
 		result := utils.InsertAtPath("spec.containers.0.name", "agent", mapName)
 
-		expected := map[string]interface{}{
-			"spec": map[string]interface{}{
-				"containers": map[string]interface{}{
-					"0": map[string]interface{}{
+		expected := map[string]any{
+			"spec": map[string]any{
+				"containers": map[string]any{
+					"0": map[string]any{
 						"name": "agent",
 					},
 				},
@@ -578,65 +573,65 @@ func TestInsertAtPathEdgeCases(t *testing.T) {
 func TestMergeOrSet(t *testing.T) {
 	tests := []struct {
 		name        string
-		interim     map[string]interface{}
+		interim     map[string]any
 		key         string
-		val         interface{}
-		wantInterim map[string]interface{}
+		val         any
+		wantInterim map[string]any
 	}{
 		{
 			name:    "simple set",
-			interim: map[string]interface{}{},
+			interim: map[string]any{},
 			key:     "foo.bar",
 			val:     "true",
-			wantInterim: map[string]interface{}{
+			wantInterim: map[string]any{
 				"foo.bar": "true",
 			},
 		},
 		{
 			name: "simple override",
-			interim: map[string]interface{}{
+			interim: map[string]any{
 				"foo.bar": "false",
 			},
 			key: "foo.bar",
 			val: "true",
-			wantInterim: map[string]interface{}{
+			wantInterim: map[string]any{
 				"foo.bar": "true",
 			},
 		},
 		{
 			name: "simple merge",
-			interim: map[string]interface{}{
+			interim: map[string]any{
 				"foo.bar": "true",
 			},
 			key: "bar.foo",
 			val: "true",
-			wantInterim: map[string]interface{}{
+			wantInterim: map[string]any{
 				"foo.bar": "true",
 				"bar.foo": "true",
 			},
 		},
 		{
 			name:    "set map",
-			interim: map[string]interface{}{},
+			interim: map[string]any{},
 			key:     "bar.foo",
-			val: map[string]interface{}{
+			val: map[string]any{
 				"foo": "bar",
 			},
-			wantInterim: map[string]interface{}{
-				"bar.foo": map[string]interface{}{
+			wantInterim: map[string]any{
+				"bar.foo": map[string]any{
 					"foo": "bar",
 				},
 			},
 		},
 		{
 			name: "merge maps at same key (non-overlapping)",
-			interim: map[string]interface{}{
-				"spec.global": map[string]interface{}{"site": "datadoghq.com"},
+			interim: map[string]any{
+				"spec.global": map[string]any{"site": "datadoghq.com"},
 			},
 			key: "spec.global",
-			val: map[string]interface{}{"logLevel": "debug"},
-			wantInterim: map[string]interface{}{
-				"spec.global": map[string]interface{}{
+			val: map[string]any{"logLevel": "debug"},
+			wantInterim: map[string]any{
+				"spec.global": map[string]any{
 					"site":     "datadoghq.com",
 					"logLevel": "debug",
 				},
@@ -644,59 +639,59 @@ func TestMergeOrSet(t *testing.T) {
 		},
 		{
 			name: "deep-merge nested maps",
-			interim: map[string]interface{}{
-				"spec.features": map[string]interface{}{
-					"apm": map[string]interface{}{"enabled": true},
+			interim: map[string]any{
+				"spec.features": map[string]any{
+					"apm": map[string]any{"enabled": true},
 				},
 			},
 			key: "spec.features",
-			val: map[string]interface{}{
-				"apm":  map[string]interface{}{"portEnabled": true},
-				"usm":  map[string]interface{}{"enabled": true},
-				"apm2": map[string]interface{}{"foo": "bar"},
+			val: map[string]any{
+				"apm":  map[string]any{"portEnabled": true},
+				"usm":  map[string]any{"enabled": true},
+				"apm2": map[string]any{"foo": "bar"},
 			},
-			wantInterim: map[string]interface{}{
-				"spec.features": map[string]interface{}{
-					"apm": map[string]interface{}{
+			wantInterim: map[string]any{
+				"spec.features": map[string]any{
+					"apm": map[string]any{
 						"enabled":     true,
 						"portEnabled": true,
 					},
-					"usm":  map[string]interface{}{"enabled": true},
-					"apm2": map[string]interface{}{"foo": "bar"},
+					"usm":  map[string]any{"enabled": true},
+					"apm2": map[string]any{"foo": "bar"},
 				},
 			},
 		},
 		{
 			name: "overwrite map with scalar",
-			interim: map[string]interface{}{
-				"spec.global": map[string]interface{}{"site": "datadoghq.com"},
+			interim: map[string]any{
+				"spec.global": map[string]any{"site": "datadoghq.com"},
 			},
 			key: "spec.global",
 			val: "not-a-map-anymore",
-			wantInterim: map[string]interface{}{
+			wantInterim: map[string]any{
 				"spec.global": "not-a-map-anymore",
 			},
 		},
 		{
 			name: "overwrite scalar with map",
-			interim: map[string]interface{}{
+			interim: map[string]any{
 				"spec.global": "string-value",
 			},
 			key: "spec.global",
-			val: map[string]interface{}{"site": "datadoghq.eu"},
-			wantInterim: map[string]interface{}{
-				"spec.global": map[string]interface{}{"site": "datadoghq.eu"},
+			val: map[string]any{"site": "datadoghq.eu"},
+			wantInterim: map[string]any{
+				"spec.global": map[string]any{"site": "datadoghq.eu"},
 			},
 		},
 		{
 			name: "merge chartutil.Values into map",
-			interim: map[string]interface{}{
-				"spec.global": map[string]interface{}{"site": "datadoghq.com"},
+			interim: map[string]any{
+				"spec.global": map[string]any{"site": "datadoghq.com"},
 			},
 			key: "spec.global",
 			val: chartutil.Values{"logLevel": "info"},
-			wantInterim: map[string]interface{}{
-				"spec.global": map[string]interface{}{
+			wantInterim: map[string]any{
+				"spec.global": map[string]any{
 					"site":     "datadoghq.com",
 					"logLevel": "info",
 				},
@@ -704,13 +699,13 @@ func TestMergeOrSet(t *testing.T) {
 		},
 		{
 			name: "merge map into chartutil.Values",
-			interim: map[string]interface{}{
+			interim: map[string]any{
 				"spec.global": chartutil.Values{"site": "datadoghq.com"},
 			},
 			key: "spec.global",
-			val: map[string]interface{}{"logLevel": "warn"},
-			wantInterim: map[string]interface{}{
-				"spec.global": map[string]interface{}{
+			val: map[string]any{"logLevel": "warn"},
+			wantInterim: map[string]any{
+				"spec.global": map[string]any{
 					"site":     "datadoghq.com",
 					"logLevel": "warn",
 				},
@@ -718,36 +713,36 @@ func TestMergeOrSet(t *testing.T) {
 		},
 		{
 			name:        "nil value should be ignored (no set)",
-			interim:     map[string]interface{}{},
+			interim:     map[string]any{},
 			key:         "spec.global.site",
 			val:         nil,
-			wantInterim: map[string]interface{}{},
+			wantInterim: map[string]any{},
 		},
 		{
 			name: "nil value should not override existing",
-			interim: map[string]interface{}{
+			interim: map[string]any{
 				"spec.global.site": "datadoghq.com",
 			},
 			key: "spec.global.site",
 			val: nil,
-			wantInterim: map[string]interface{}{
+			wantInterim: map[string]any{
 				"spec.global.site": "datadoghq.com",
 			},
 		},
 		{
 			name: "deep-merge overlapping nested keys",
-			interim: map[string]interface{}{
-				"a": map[string]interface{}{
-					"b": map[string]interface{}{"x": 1},
+			interim: map[string]any{
+				"a": map[string]any{
+					"b": map[string]any{"x": 1},
 				},
 			},
 			key: "a",
-			val: map[string]interface{}{
-				"b": map[string]interface{}{"y": 2},
+			val: map[string]any{
+				"b": map[string]any{"y": 2},
 			},
-			wantInterim: map[string]interface{}{
-				"a": map[string]interface{}{
-					"b": map[string]interface{}{"x": 1, "y": 2},
+			wantInterim: map[string]any{
+				"a": map[string]any{
+					"b": map[string]any{"x": 1, "y": 2},
 				},
 			},
 		},
@@ -767,15 +762,15 @@ func TestApplyDeprecationRules(t *testing.T) {
 		{
 			name: "bool OR: default - deprecated present",
 			sourceVals: chartutil.Values{
-				"datadog": map[string]interface{}{
-					"apm": map[string]interface{}{
+				"datadog": map[string]any{
+					"apm": map[string]any{
 						"enabled": true,
 					},
 				},
 			},
 			wantVals: chartutil.Values{
-				"datadog": map[string]interface{}{
-					"apm": map[string]interface{}{
+				"datadog": map[string]any{
+					"apm": map[string]any{
 						"portEnabled": true,
 					},
 				},
@@ -784,16 +779,16 @@ func TestApplyDeprecationRules(t *testing.T) {
 		{
 			name: "bool OR: both standard and deprecated present",
 			sourceVals: chartutil.Values{
-				"datadog": map[string]interface{}{
-					"apm": map[string]interface{}{
+				"datadog": map[string]any{
+					"apm": map[string]any{
 						"enabled":     true,
 						"portEnabled": true,
 					},
 				},
 			},
 			wantVals: chartutil.Values{
-				"datadog": map[string]interface{}{
-					"apm": map[string]interface{}{
+				"datadog": map[string]any{
+					"apm": map[string]any{
 						"portEnabled": true,
 					},
 				},
@@ -802,16 +797,16 @@ func TestApplyDeprecationRules(t *testing.T) {
 		{
 			name: "bool OR: both standard and deprecated present, standard takes precedence",
 			sourceVals: chartutil.Values{
-				"datadog": map[string]interface{}{
-					"apm": map[string]interface{}{
+				"datadog": map[string]any{
+					"apm": map[string]any{
 						"enabled":     false,
 						"portEnabled": true,
 					},
 				},
 			},
 			wantVals: chartutil.Values{
-				"datadog": map[string]interface{}{
-					"apm": map[string]interface{}{
+				"datadog": map[string]any{
+					"apm": map[string]any{
 						"portEnabled": true,
 					},
 				},
@@ -820,16 +815,16 @@ func TestApplyDeprecationRules(t *testing.T) {
 		{
 			name: "bool OR: standard false and deprecated true, truthy takes precedence",
 			sourceVals: chartutil.Values{
-				"datadog": map[string]interface{}{
-					"apm": map[string]interface{}{
+				"datadog": map[string]any{
+					"apm": map[string]any{
 						"enabled":     true,
 						"portEnabled": false,
 					},
 				},
 			},
 			wantVals: chartutil.Values{
-				"datadog": map[string]interface{}{
-					"apm": map[string]interface{}{
+				"datadog": map[string]any{
+					"apm": map[string]any{
 						"portEnabled": true,
 					},
 				},
@@ -838,66 +833,66 @@ func TestApplyDeprecationRules(t *testing.T) {
 		{
 			name: "bool OR: multiple deprecated candidates - simple",
 			sourceVals: chartutil.Values{
-				"agents": map[string]interface{}{
-					"networkPolicy": map[string]interface{}{
+				"agents": map[string]any{
+					"networkPolicy": map[string]any{
 						"create": true,
 					},
 				},
 			},
 			wantVals: chartutil.Values{
-				"datadog": map[string]interface{}{
-					"networkPolicy": map[string]interface{}{
+				"datadog": map[string]any{
+					"networkPolicy": map[string]any{
 						"create": true,
 					},
 				},
-				"agents": map[string]interface{}{
-					"networkPolicy": map[string]interface{}{},
+				"agents": map[string]any{
+					"networkPolicy": map[string]any{},
 				},
 			},
 		},
 		{
 			name: "bool OR: multiple deprecated candidates - complex",
 			sourceVals: chartutil.Values{
-				"agents": map[string]interface{}{
-					"networkPolicy": map[string]interface{}{
+				"agents": map[string]any{
+					"networkPolicy": map[string]any{
 						"create": true,
 					},
 				},
-				"clusterAgent": map[string]interface{}{
-					"networkPolicy": map[string]interface{}{
+				"clusterAgent": map[string]any{
+					"networkPolicy": map[string]any{
 						"create": false,
 					},
 				},
 			},
 			wantVals: chartutil.Values{
-				"datadog": map[string]interface{}{
-					"networkPolicy": map[string]interface{}{
+				"datadog": map[string]any{
+					"networkPolicy": map[string]any{
 						"create": true,
 					},
 				},
-				"agents": map[string]interface{}{
-					"networkPolicy": map[string]interface{}{},
+				"agents": map[string]any{
+					"networkPolicy": map[string]any{},
 				},
-				"clusterAgent": map[string]interface{}{
-					"networkPolicy": map[string]interface{}{},
+				"clusterAgent": map[string]any{
+					"networkPolicy": map[string]any{},
 				},
 			},
 		},
 		{
 			name: "bool OR: multiple deprecated candidates - complex w/extra keys",
 			sourceVals: chartutil.Values{
-				"agents": map[string]interface{}{
-					"networkPolicy": map[string]interface{}{
+				"agents": map[string]any{
+					"networkPolicy": map[string]any{
 						"create": true,
 						"flavor": "cilium",
 					},
 				},
-				"clusterAgent": map[string]interface{}{
-					"networkPolicy": map[string]interface{}{
+				"clusterAgent": map[string]any{
+					"networkPolicy": map[string]any{
 						"create": false,
 						"flavor": "cilium",
-						"cilium": map[string]interface{}{
-							"dnsSelector": map[string]interface{}{
+						"cilium": map[string]any{
+							"dnsSelector": map[string]any{
 								"foo": "bar",
 							},
 						},
@@ -905,21 +900,21 @@ func TestApplyDeprecationRules(t *testing.T) {
 				},
 			},
 			wantVals: chartutil.Values{
-				"datadog": map[string]interface{}{
-					"networkPolicy": map[string]interface{}{
+				"datadog": map[string]any{
+					"networkPolicy": map[string]any{
 						"create": true,
 					},
 				},
-				"agents": map[string]interface{}{
-					"networkPolicy": map[string]interface{}{
+				"agents": map[string]any{
+					"networkPolicy": map[string]any{
 						"flavor": "cilium",
 					},
 				},
-				"clusterAgent": map[string]interface{}{
-					"networkPolicy": map[string]interface{}{
+				"clusterAgent": map[string]any{
+					"networkPolicy": map[string]any{
 						"flavor": "cilium",
-						"cilium": map[string]interface{}{
-							"dnsSelector": map[string]interface{}{
+						"cilium": map[string]any{
+							"dnsSelector": map[string]any{
 								"foo": "bar",
 							},
 						},
@@ -930,23 +925,23 @@ func TestApplyDeprecationRules(t *testing.T) {
 		{
 			name: "bool OR: multiple deprecated candidates + standard - complex",
 			sourceVals: chartutil.Values{
-				"datadog": map[string]interface{}{
-					"networkPolicy": map[string]interface{}{
+				"datadog": map[string]any{
+					"networkPolicy": map[string]any{
 						"create": true,
 					},
 				},
-				"agents": map[string]interface{}{
-					"networkPolicy": map[string]interface{}{
+				"agents": map[string]any{
+					"networkPolicy": map[string]any{
 						"create": false,
 						"flavor": "cilium",
 					},
 				},
-				"clusterAgent": map[string]interface{}{
-					"networkPolicy": map[string]interface{}{
+				"clusterAgent": map[string]any{
+					"networkPolicy": map[string]any{
 						"create": false,
 						"flavor": "cilium",
-						"cilium": map[string]interface{}{
-							"dnsSelector": map[string]interface{}{
+						"cilium": map[string]any{
+							"dnsSelector": map[string]any{
 								"foo": "bar",
 							},
 						},
@@ -954,21 +949,21 @@ func TestApplyDeprecationRules(t *testing.T) {
 				},
 			},
 			wantVals: chartutil.Values{
-				"datadog": map[string]interface{}{
-					"networkPolicy": map[string]interface{}{
+				"datadog": map[string]any{
+					"networkPolicy": map[string]any{
 						"create": true,
 					},
 				},
-				"agents": map[string]interface{}{
-					"networkPolicy": map[string]interface{}{
+				"agents": map[string]any{
+					"networkPolicy": map[string]any{
 						"flavor": "cilium",
 					},
 				},
-				"clusterAgent": map[string]interface{}{
-					"networkPolicy": map[string]interface{}{
+				"clusterAgent": map[string]any{
+					"networkPolicy": map[string]any{
 						"flavor": "cilium",
-						"cilium": map[string]interface{}{
-							"dnsSelector": map[string]interface{}{
+						"cilium": map[string]any{
+							"dnsSelector": map[string]any{
 								"foo": "bar",
 							},
 						},
@@ -979,23 +974,23 @@ func TestApplyDeprecationRules(t *testing.T) {
 		{
 			name: "bool OR: multiple deprecated candidates + standard - truthy takes precedence",
 			sourceVals: chartutil.Values{
-				"datadog": map[string]interface{}{
-					"networkPolicy": map[string]interface{}{
+				"datadog": map[string]any{
+					"networkPolicy": map[string]any{
 						"create": false,
 					},
 				},
-				"agents": map[string]interface{}{
-					"networkPolicy": map[string]interface{}{
+				"agents": map[string]any{
+					"networkPolicy": map[string]any{
 						"create": true,
 						"flavor": "cilium",
 					},
 				},
-				"clusterAgent": map[string]interface{}{
-					"networkPolicy": map[string]interface{}{
+				"clusterAgent": map[string]any{
+					"networkPolicy": map[string]any{
 						"create": false,
 						"flavor": "cilium",
-						"cilium": map[string]interface{}{
-							"dnsSelector": map[string]interface{}{
+						"cilium": map[string]any{
+							"dnsSelector": map[string]any{
 								"foo": "bar",
 							},
 						},
@@ -1003,21 +998,21 @@ func TestApplyDeprecationRules(t *testing.T) {
 				},
 			},
 			wantVals: chartutil.Values{
-				"datadog": map[string]interface{}{
-					"networkPolicy": map[string]interface{}{
+				"datadog": map[string]any{
+					"networkPolicy": map[string]any{
 						"create": true,
 					},
 				},
-				"agents": map[string]interface{}{
-					"networkPolicy": map[string]interface{}{
+				"agents": map[string]any{
+					"networkPolicy": map[string]any{
 						"flavor": "cilium",
 					},
 				},
-				"clusterAgent": map[string]interface{}{
-					"networkPolicy": map[string]interface{}{
+				"clusterAgent": map[string]any{
+					"networkPolicy": map[string]any{
 						"flavor": "cilium",
-						"cilium": map[string]interface{}{
-							"dnsSelector": map[string]interface{}{
+						"cilium": map[string]any{
+							"dnsSelector": map[string]any{
 								"foo": "bar",
 							},
 						},
@@ -1028,15 +1023,15 @@ func TestApplyDeprecationRules(t *testing.T) {
 		{
 			name: "bool negation: default",
 			sourceVals: chartutil.Values{
-				"datadog": map[string]interface{}{
-					"systemProbe": map[string]interface{}{
+				"datadog": map[string]any{
+					"systemProbe": map[string]any{
 						"enableDefaultOsReleasePaths": true,
 					},
 				},
 			},
 			wantVals: chartutil.Values{
-				"datadog": map[string]interface{}{
-					"systemProbe":                  map[string]interface{}{},
+				"datadog": map[string]any{
+					"systemProbe":                  map[string]any{},
 					"disableDefaultOsReleasePaths": false,
 				},
 			},
@@ -1044,16 +1039,16 @@ func TestApplyDeprecationRules(t *testing.T) {
 		{
 			name: "bool negation: standard false and deprecated false - standard should take precedence",
 			sourceVals: chartutil.Values{
-				"datadog": map[string]interface{}{
-					"systemProbe": map[string]interface{}{
+				"datadog": map[string]any{
+					"systemProbe": map[string]any{
 						"enableDefaultOsReleasePaths": false,
 					},
 					"disableDefaultOsReleasePaths": false,
 				},
 			},
 			wantVals: chartutil.Values{
-				"datadog": map[string]interface{}{
-					"systemProbe":                  map[string]interface{}{},
+				"datadog": map[string]any{
+					"systemProbe":                  map[string]any{},
 					"disableDefaultOsReleasePaths": false,
 				},
 			},
@@ -1061,16 +1056,16 @@ func TestApplyDeprecationRules(t *testing.T) {
 		{
 			name: "bool negation: standard true and deprecated true - standard takes precedence",
 			sourceVals: chartutil.Values{
-				"datadog": map[string]interface{}{
-					"systemProbe": map[string]interface{}{
+				"datadog": map[string]any{
+					"systemProbe": map[string]any{
 						"enableDefaultOsReleasePaths": true,
 					},
 					"disableDefaultOsReleasePaths": true,
 				},
 			},
 			wantVals: chartutil.Values{
-				"datadog": map[string]interface{}{
-					"systemProbe":                  map[string]interface{}{},
+				"datadog": map[string]any{
+					"systemProbe":                  map[string]any{},
 					"disableDefaultOsReleasePaths": true,
 				},
 			},
@@ -1105,26 +1100,26 @@ func TestMappingProcessors(t *testing.T) {
 	tests := []struct {
 		name        string
 		funcName    string
-		interim     map[string]interface{}
+		interim     map[string]any
 		newPath     string
-		pathVal     interface{}
-		mapFuncArgs []interface{}
-		expectedMap map[string]interface{}
+		pathVal     any
+		mapFuncArgs []any
+		expectedMap map[string]any
 	}{
 		// mapSecretKeyName tests
 		{
 			name:     "mapSecretKeyName_apiSecret_empty_map",
 			funcName: "mapSecretKeyName",
-			interim:  map[string]interface{}{},
+			interim:  map[string]any{},
 			newPath:  "spec.global.credentials.apiSecret.secretName",
 			pathVal:  "my-api-secret",
-			mapFuncArgs: []interface{}{
-				map[string]interface{}{
+			mapFuncArgs: []any{
+				map[string]any{
 					"keyName":     "api-key",
 					"keyNamePath": "spec.global.credentials.apiSecret.keyName",
 				},
 			},
-			expectedMap: map[string]interface{}{
+			expectedMap: map[string]any{
 				"spec.global.credentials.apiSecret.secretName": "my-api-secret",
 				"spec.global.credentials.apiSecret.keyName":    "api-key",
 			},
@@ -1132,19 +1127,19 @@ func TestMappingProcessors(t *testing.T) {
 		{
 			name:     "mapSecretKeyName_apiSecret_existing_map",
 			funcName: "mapSecretKeyName",
-			interim: map[string]interface{}{
+			interim: map[string]any{
 				"spec.global.site":      "datadoghq.com",
 				"spec.agent.image.name": "datadog/agent",
 			},
 			newPath: "spec.global.credentials.apiSecret.secretName",
 			pathVal: "datadog-api-secret",
-			mapFuncArgs: []interface{}{
-				map[string]interface{}{
+			mapFuncArgs: []any{
+				map[string]any{
 					"keyName":     "api-key",
 					"keyNamePath": "spec.global.credentials.apiSecret.keyName",
 				},
 			},
-			expectedMap: map[string]interface{}{
+			expectedMap: map[string]any{
 				"spec.global.site":                             "datadoghq.com",
 				"spec.agent.image.name":                        "datadog/agent",
 				"spec.global.credentials.apiSecret.secretName": "datadog-api-secret",
@@ -1154,19 +1149,19 @@ func TestMappingProcessors(t *testing.T) {
 		{
 			name:     "mapSecretKeyName_apiSecret_overwrite",
 			funcName: "mapSecretKeyName",
-			interim: map[string]interface{}{
+			interim: map[string]any{
 				"spec.global.credentials.apiSecret.secretName": "old-secret",
 				"spec.global.credentials.apiSecret.keyName":    "old-key",
 			},
 			newPath: "spec.global.credentials.apiSecret.secretName",
 			pathVal: "new-api-secret",
-			mapFuncArgs: []interface{}{
-				map[string]interface{}{
+			mapFuncArgs: []any{
+				map[string]any{
 					"keyName":     "api-key",
 					"keyNamePath": "spec.global.credentials.apiSecret.keyName",
 				},
 			},
-			expectedMap: map[string]interface{}{
+			expectedMap: map[string]any{
 				"spec.global.credentials.apiSecret.secretName": "new-api-secret",
 				"spec.global.credentials.apiSecret.keyName":    "api-key",
 			},
@@ -1174,16 +1169,16 @@ func TestMappingProcessors(t *testing.T) {
 		{
 			name:     "mapSecretKeyName_appSecret_empty_map",
 			funcName: "mapSecretKeyName",
-			interim:  map[string]interface{}{},
+			interim:  map[string]any{},
 			newPath:  "spec.global.credentials.appSecret.secretName",
 			pathVal:  "my-app-secret",
-			mapFuncArgs: []interface{}{
-				map[string]interface{}{
+			mapFuncArgs: []any{
+				map[string]any{
 					"keyName":     "app-key",
 					"keyNamePath": "spec.global.credentials.appSecret.keyName",
 				},
 			},
-			expectedMap: map[string]interface{}{
+			expectedMap: map[string]any{
 				"spec.global.credentials.appSecret.secretName": "my-app-secret",
 				"spec.global.credentials.appSecret.keyName":    "app-key",
 			},
@@ -1191,19 +1186,19 @@ func TestMappingProcessors(t *testing.T) {
 		{
 			name:     "mapSecretKeyName_app_secret_with_existing_api_secret",
 			funcName: "mapSecretKeyName",
-			interim: map[string]interface{}{
+			interim: map[string]any{
 				"spec.global.credentials.apiSecret.secretName": "api-secret",
 				"spec.global.credentials.apiSecret.keyName":    "api-key",
 			},
 			newPath: "spec.global.credentials.appSecret.secretName",
 			pathVal: "datadog-app-secret",
-			mapFuncArgs: []interface{}{
-				map[string]interface{}{
+			mapFuncArgs: []any{
+				map[string]any{
 					"keyName":     "app-key",
 					"keyNamePath": "spec.global.credentials.appSecret.keyName",
 				},
 			},
-			expectedMap: map[string]interface{}{
+			expectedMap: map[string]any{
 				"spec.global.credentials.apiSecret.secretName": "api-secret",
 				"spec.global.credentials.apiSecret.keyName":    "api-key",
 				"spec.global.credentials.appSecret.secretName": "datadog-app-secret",
@@ -1213,19 +1208,19 @@ func TestMappingProcessors(t *testing.T) {
 		{
 			name:     "mapSecretKeyName_appSecret_overwrite",
 			funcName: "mapSecretKeyName",
-			interim: map[string]interface{}{
+			interim: map[string]any{
 				"spec.global.credentials.appSecret.secretName": "old-app-secret",
 				"spec.global.credentials.appSecret.keyName":    "old-app-key",
 			},
 			newPath: "spec.global.credentials.appSecret.secretName",
 			pathVal: "new-app-secret",
-			mapFuncArgs: []interface{}{
-				map[string]interface{}{
+			mapFuncArgs: []any{
+				map[string]any{
 					"keyName":     "app-key",
 					"keyNamePath": "spec.global.credentials.appSecret.keyName",
 				},
 			},
-			expectedMap: map[string]interface{}{
+			expectedMap: map[string]any{
 				"spec.global.credentials.appSecret.secretName": "new-app-secret",
 				"spec.global.credentials.appSecret.keyName":    "app-key",
 			},
@@ -1233,16 +1228,16 @@ func TestMappingProcessors(t *testing.T) {
 		{
 			name:     "mapSecretKeyName_tokenSecret_empty_map",
 			funcName: "mapSecretKeyName",
-			interim:  map[string]interface{}{},
+			interim:  map[string]any{},
 			newPath:  "spec.global.clusterAgentTokenSecret.secretName",
 			pathVal:  "my-token-secret",
-			mapFuncArgs: []interface{}{
-				map[string]interface{}{
+			mapFuncArgs: []any{
+				map[string]any{
 					"keyName":     "token",
 					"keyNamePath": "spec.global.clusterAgentTokenSecret.keyName",
 				},
 			},
-			expectedMap: map[string]interface{}{
+			expectedMap: map[string]any{
 				"spec.global.clusterAgentTokenSecret.secretName": "my-token-secret",
 				"spec.global.clusterAgentTokenSecret.keyName":    "token",
 			},
@@ -1250,19 +1245,19 @@ func TestMappingProcessors(t *testing.T) {
 		{
 			name:     "mapSecretKeyName_tokenSecret_with_existing_secrets",
 			funcName: "mapSecretKeyName",
-			interim: map[string]interface{}{
+			interim: map[string]any{
 				"spec.global.credentials.apiSecret.secretName": "api-secret",
 				"spec.global.credentials.appSecret.secretName": "app-secret",
 			},
 			newPath: "spec.global.clusterAgentTokenSecret.secretName",
-			mapFuncArgs: []interface{}{
-				map[string]interface{}{
+			mapFuncArgs: []any{
+				map[string]any{
 					"keyName":     "token",
 					"keyNamePath": "spec.global.clusterAgentTokenSecret.keyName",
 				},
 			},
 			pathVal: "cluster-agent-token",
-			expectedMap: map[string]interface{}{
+			expectedMap: map[string]any{
 				"spec.global.credentials.apiSecret.secretName":   "api-secret",
 				"spec.global.credentials.appSecret.secretName":   "app-secret",
 				"spec.global.clusterAgentTokenSecret.secretName": "cluster-agent-token",
@@ -1272,19 +1267,19 @@ func TestMappingProcessors(t *testing.T) {
 		{
 			name:     "mapSecretKeyName_tokenSecret_Key_overwrite",
 			funcName: "mapSecretKeyName",
-			interim: map[string]interface{}{
+			interim: map[string]any{
 				"spec.global.clusterAgentTokenSecret.secretName": "old-token-secret",
 				"spec.global.clusterAgentTokenSecret.keyName":    "old-token",
 			},
 			newPath: "spec.global.clusterAgentTokenSecret.secretName",
 			pathVal: "new-token-secret",
-			mapFuncArgs: []interface{}{
-				map[string]interface{}{
+			mapFuncArgs: []any{
+				map[string]any{
 					"keyName":     "token",
 					"keyNamePath": "spec.global.clusterAgentTokenSecret.keyName",
 				},
 			},
-			expectedMap: map[string]interface{}{
+			expectedMap: map[string]any{
 				"spec.global.clusterAgentTokenSecret.secretName": "new-token-secret",
 				"spec.global.clusterAgentTokenSecret.keyName":    "token",
 			},
@@ -1293,10 +1288,10 @@ func TestMappingProcessors(t *testing.T) {
 		{
 			name:     "mapSeccompProfile_localhost",
 			funcName: "mapSeccompProfile",
-			interim:  map[string]interface{}{},
+			interim:  map[string]any{},
 			newPath:  "spec.override.nodeAgent.containers.system-probe.securityContext.seccompProfile",
 			pathVal:  "localhost/system-probe",
-			expectedMap: map[string]interface{}{
+			expectedMap: map[string]any{
 				"spec.override.nodeAgent.containers.system-probe.securityContext.seccompProfile.type":             "Localhost",
 				"spec.override.nodeAgent.containers.system-probe.securityContext.seccompProfile.localhostProfile": "system-probe",
 			},
@@ -1304,20 +1299,20 @@ func TestMappingProcessors(t *testing.T) {
 		{
 			name:     "mapSeccompProfile_runtime_default",
 			funcName: "mapSeccompProfile",
-			interim:  map[string]interface{}{},
+			interim:  map[string]any{},
 			newPath:  "spec.override.nodeAgent.containers.system-probe.securityContext.seccompProfile",
 			pathVal:  "runtime/default",
-			expectedMap: map[string]interface{}{
+			expectedMap: map[string]any{
 				"spec.override.nodeAgent.containers.system-probe.securityContext.seccompProfile.type": "RuntimeDefault",
 			},
 		},
 		{
 			name:     "mapSeccompProfile_unconfined",
 			funcName: "mapSeccompProfile",
-			interim:  map[string]interface{}{},
+			interim:  map[string]any{},
 			newPath:  "spec.override.nodeAgent.containers.system-probe.securityContext.seccompProfile",
 			pathVal:  "unconfined",
-			expectedMap: map[string]interface{}{
+			expectedMap: map[string]any{
 				"spec.override.nodeAgent.containers.system-probe.securityContext.seccompProfile.type": "Unconfined",
 			},
 		},
@@ -1325,13 +1320,13 @@ func TestMappingProcessors(t *testing.T) {
 		{
 			name:     "mapSystemProbeAppArmor_no_features_enabled",
 			funcName: "mapSystemProbeAppArmor",
-			interim: map[string]interface{}{
+			interim: map[string]any{
 				"spec.features.cws.enabled": false,
 				"spec.features.npm.enabled": false,
 			},
 			newPath: "spec.override.nodeAgent.containers.system-probe.appArmorProfile",
 			pathVal: "unconfined",
-			expectedMap: map[string]interface{}{
+			expectedMap: map[string]any{
 				"spec.features.cws.enabled": false,
 				"spec.features.npm.enabled": false,
 			},
@@ -1339,14 +1334,14 @@ func TestMappingProcessors(t *testing.T) {
 		{
 			name:     "mapSystemProbeAppArmor_multiple_features_enabled",
 			funcName: "mapSystemProbeAppArmor",
-			interim: map[string]interface{}{
+			interim: map[string]any{
 				"spec.features.cws.enabled":            true,
 				"spec.features.npm.enabled":            false,
 				"spec.features.tcpQueueLength.enabled": true,
 			},
 			newPath: "spec.override.nodeAgent.containers.system-probe.appArmorProfile",
 			pathVal: "unconfined",
-			expectedMap: map[string]interface{}{
+			expectedMap: map[string]any{
 				"spec.features.cws.enabled":                                       true,
 				"spec.features.npm.enabled":                                       false,
 				"spec.features.tcpQueueLength.enabled":                            true,
@@ -1356,13 +1351,13 @@ func TestMappingProcessors(t *testing.T) {
 		{
 			name:     "mapSystemProbeAppArmor_gpu_enabled_privileged",
 			funcName: "mapSystemProbeAppArmor",
-			interim: map[string]interface{}{
+			interim: map[string]any{
 				"spec.features.gpu.enabled":        true,
 				"spec.features.gpu.privilegedMode": true,
 			},
 			newPath: "spec.override.nodeAgent.containers.system-probe.appArmorProfile",
 			pathVal: "unconfined",
-			expectedMap: map[string]interface{}{
+			expectedMap: map[string]any{
 				"spec.features.gpu.enabled":                                       true,
 				"spec.features.gpu.privilegedMode":                                true,
 				"spec.override.nodeAgent.containers.system-probe.appArmorProfile": "unconfined",
@@ -1371,13 +1366,13 @@ func TestMappingProcessors(t *testing.T) {
 		{
 			name:     "mapSystemProbeAppArmor_gpu_enabled_not_privileged",
 			funcName: "mapSystemProbeAppArmor",
-			interim: map[string]interface{}{
+			interim: map[string]any{
 				"spec.features.gpu.enabled":        true,
 				"spec.features.gpu.privilegedMode": false,
 			},
 			newPath: "spec.override.nodeAgent.containers.system-probe.appArmorProfile",
 			pathVal: "unconfined",
-			expectedMap: map[string]interface{}{
+			expectedMap: map[string]any{
 				"spec.features.gpu.enabled":        true,
 				"spec.features.gpu.privilegedMode": false,
 			},
@@ -1385,24 +1380,24 @@ func TestMappingProcessors(t *testing.T) {
 		{
 			name:     "mapSystemProbeAppArmor_empty_apparmor_value",
 			funcName: "mapSystemProbeAppArmor",
-			interim: map[string]interface{}{
+			interim: map[string]any{
 				"spec.features.cws.enabled": true,
 			},
 			newPath: "spec.override.nodeAgent.containers.system-probe.appArmorProfile",
 			pathVal: "",
-			expectedMap: map[string]interface{}{
+			expectedMap: map[string]any{
 				"spec.features.cws.enabled": true,
 			},
 		},
 		{
 			name:     "mapSystemProbeAppArmor_invalid_apparmor_type",
 			funcName: "mapSystemProbeAppArmor",
-			interim: map[string]interface{}{
+			interim: map[string]any{
 				"spec.features.cws.enabled": true,
 			},
 			newPath: "spec.override.nodeAgent.containers.system-probe.appArmorProfile",
 			pathVal: 123,
-			expectedMap: map[string]interface{}{
+			expectedMap: map[string]any{
 				"spec.features.cws.enabled": true,
 			},
 		},
@@ -1410,45 +1405,45 @@ func TestMappingProcessors(t *testing.T) {
 		{
 			name:        "mapLocalServiceName_empty_name",
 			funcName:    "mapLocalServiceName",
-			interim:     map[string]interface{}{},
+			interim:     map[string]any{},
 			newPath:     "spec.override.clusterAgent.config.external_metrics.local_service_name",
 			pathVal:     "",
-			expectedMap: map[string]interface{}{},
+			expectedMap: map[string]any{},
 		},
 		{
 			name:        "mapLocalServiceName_invalid_type",
 			funcName:    "mapLocalServiceName",
-			interim:     map[string]interface{}{},
+			interim:     map[string]any{},
 			newPath:     "spec.override.clusterAgent.config.external_metrics.local_service_name",
 			pathVal:     123,
-			expectedMap: map[string]interface{}{},
+			expectedMap: map[string]any{},
 		},
 		{
 			name:     "mapLocalServiceName_overwrite_existing",
 			funcName: "mapLocalServiceName",
-			interim: map[string]interface{}{
+			interim: map[string]any{
 				"spec.override.clusterAgent.config.external_metrics.local_service_name": "old-service",
 			},
 			newPath: "spec.override.clusterAgent.config.external_metrics.local_service_name",
 			pathVal: "new-service",
-			expectedMap: map[string]interface{}{
+			expectedMap: map[string]any{
 				"spec.override.clusterAgent.config.external_metrics.local_service_name": "new-service",
 			},
 		},
 		{
 			name:     "mapAppendEnvVar_add_env_var",
 			funcName: "mapAppendEnvVar",
-			interim:  map[string]interface{}{},
+			interim:  map[string]any{},
 			newPath:  "spec.override.nodeAgent.containers.agent.env",
 			pathVal:  "debug",
-			mapFuncArgs: []interface{}{
-				map[string]interface{}{
+			mapFuncArgs: []any{
+				map[string]any{
 					"name": "DD_LOG_LEVEL",
 				},
 			},
-			expectedMap: map[string]interface{}{
-				"spec.override.nodeAgent.containers.agent.env": []interface{}{
-					map[string]interface{}{
+			expectedMap: map[string]any{
+				"spec.override.nodeAgent.containers.agent.env": []any{
+					map[string]any{
 						"name":  "DD_LOG_LEVEL",
 						"value": "debug",
 					},
@@ -1458,9 +1453,9 @@ func TestMappingProcessors(t *testing.T) {
 		{
 			name:     "mapAppendEnvVar_add_to_existing_env_vars",
 			funcName: "mapAppendEnvVar",
-			interim: map[string]interface{}{
-				"spec.override.nodeAgent.containers.agent.env": []interface{}{
-					map[string]interface{}{
+			interim: map[string]any{
+				"spec.override.nodeAgent.containers.agent.env": []any{
+					map[string]any{
 						"name":  "EXISTING_VAR",
 						"value": "existing_value",
 					},
@@ -1468,18 +1463,18 @@ func TestMappingProcessors(t *testing.T) {
 			},
 			newPath: "spec.override.nodeAgent.containers.agent.env",
 			pathVal: "new_value",
-			mapFuncArgs: []interface{}{
-				map[string]interface{}{
+			mapFuncArgs: []any{
+				map[string]any{
 					"name": "NEW_VAR",
 				},
 			},
-			expectedMap: map[string]interface{}{
-				"spec.override.nodeAgent.containers.agent.env": []interface{}{
-					map[string]interface{}{
+			expectedMap: map[string]any{
+				"spec.override.nodeAgent.containers.agent.env": []any{
+					map[string]any{
 						"name":  "EXISTING_VAR",
 						"value": "existing_value",
 					},
-					map[string]interface{}{
+					map[string]any{
 						"name":  "NEW_VAR",
 						"value": "new_value",
 					},
@@ -1489,26 +1484,26 @@ func TestMappingProcessors(t *testing.T) {
 		{
 			name:     "mapAppendEnvVar_valueFrom",
 			funcName: "mapAppendEnvVar",
-			interim:  map[string]interface{}{},
+			interim:  map[string]any{},
 			newPath:  "spec.override.nodeAgent.env",
-			pathVal: map[string]interface{}{
-				"valueFrom": map[string]interface{}{
-					"fieldRef": map[string]interface{}{
+			pathVal: map[string]any{
+				"valueFrom": map[string]any{
+					"fieldRef": map[string]any{
 						"fieldPath": "status.hostIP",
 					},
 				},
 			},
-			mapFuncArgs: []interface{}{
-				map[string]interface{}{
+			mapFuncArgs: []any{
+				map[string]any{
 					"name": "DD_KUBERNETES_KUBELET_HOST",
 				},
 			},
-			expectedMap: map[string]interface{}{
-				"spec.override.nodeAgent.env": []interface{}{
-					map[string]interface{}{
+			expectedMap: map[string]any{
+				"spec.override.nodeAgent.env": []any{
+					map[string]any{
 						"name": "DD_KUBERNETES_KUBELET_HOST",
-						"valueFrom": map[string]interface{}{
-							"fieldRef": map[string]interface{}{
+						"valueFrom": map[string]any{
+							"fieldRef": map[string]any{
 								"fieldPath": "status.hostIP",
 							},
 						},
@@ -1519,45 +1514,45 @@ func TestMappingProcessors(t *testing.T) {
 		{
 			name:     "mapAppendEnvVar_valueFrom_existing_envVars",
 			funcName: "mapAppendEnvVar",
-			interim: map[string]interface{}{
-				"spec.override.nodeAgent.env": []interface{}{
-					map[string]interface{}{
+			interim: map[string]any{
+				"spec.override.nodeAgent.env": []any{
+					map[string]any{
 						"name":  "EXISTING_VAR",
 						"value": "existing_value",
 					},
-					map[string]interface{}{
+					map[string]any{
 						"name":  "EXISTING_VAR_2",
 						"value": "existing_value_2",
 					},
 				},
 			},
 			newPath: "spec.override.nodeAgent.env",
-			pathVal: map[string]interface{}{
-				"valueFrom": map[string]interface{}{
-					"fieldRef": map[string]interface{}{
+			pathVal: map[string]any{
+				"valueFrom": map[string]any{
+					"fieldRef": map[string]any{
 						"fieldPath": "status.hostIP",
 					},
 				},
 			},
-			mapFuncArgs: []interface{}{
-				map[string]interface{}{
+			mapFuncArgs: []any{
+				map[string]any{
 					"name": "DD_KUBERNETES_KUBELET_HOST",
 				},
 			},
-			expectedMap: map[string]interface{}{
-				"spec.override.nodeAgent.env": []interface{}{
-					map[string]interface{}{
+			expectedMap: map[string]any{
+				"spec.override.nodeAgent.env": []any{
+					map[string]any{
 						"name":  "EXISTING_VAR",
 						"value": "existing_value",
 					},
-					map[string]interface{}{
+					map[string]any{
 						"name":  "EXISTING_VAR_2",
 						"value": "existing_value_2",
 					},
-					map[string]interface{}{
+					map[string]any{
 						"name": "DD_KUBERNETES_KUBELET_HOST",
-						"valueFrom": map[string]interface{}{
-							"fieldRef": map[string]interface{}{
+						"valueFrom": map[string]any{
+							"fieldRef": map[string]any{
 								"fieldPath": "status.hostIP",
 							},
 						},
@@ -1568,17 +1563,17 @@ func TestMappingProcessors(t *testing.T) {
 		{
 			name:     "mapMergeEnvs_add_new_envs",
 			funcName: "mapMergeEnvs",
-			interim:  map[string]interface{}{},
+			interim:  map[string]any{},
 			newPath:  "spec.override.nodeAgent.containers.agent.env",
-			pathVal: []interface{}{
-				map[string]interface{}{
+			pathVal: []any{
+				map[string]any{
 					"name":  "VAR1",
 					"value": "value1",
 				},
 			},
-			expectedMap: map[string]interface{}{
-				"spec.override.nodeAgent.containers.agent.env": []interface{}{
-					map[string]interface{}{
+			expectedMap: map[string]any{
+				"spec.override.nodeAgent.containers.agent.env": []any{
+					map[string]any{
 						"name":  "VAR1",
 						"value": "value1",
 					},
@@ -1588,28 +1583,28 @@ func TestMappingProcessors(t *testing.T) {
 		{
 			name:     "mapMergeEnvs_add_to_existing_envs",
 			funcName: "mapMergeEnvs",
-			interim: map[string]interface{}{
-				"spec.override.nodeAgent.containers.agent.env": []interface{}{
-					map[string]interface{}{
+			interim: map[string]any{
+				"spec.override.nodeAgent.containers.agent.env": []any{
+					map[string]any{
 						"name":  "EXISTING_VAR",
 						"value": "existing_value",
 					},
 				},
 			},
 			newPath: "spec.override.nodeAgent.containers.agent.env",
-			pathVal: []interface{}{
-				map[string]interface{}{
+			pathVal: []any{
+				map[string]any{
 					"name":  "NEW_VAR",
 					"value": "new_value",
 				},
 			},
-			expectedMap: map[string]interface{}{
-				"spec.override.nodeAgent.containers.agent.env": []interface{}{
-					map[string]interface{}{
+			expectedMap: map[string]any{
+				"spec.override.nodeAgent.containers.agent.env": []any{
+					map[string]any{
 						"name":  "EXISTING_VAR",
 						"value": "existing_value",
 					},
-					map[string]interface{}{
+					map[string]any{
 						"name":  "NEW_VAR",
 						"value": "new_value",
 					},
@@ -1619,32 +1614,32 @@ func TestMappingProcessors(t *testing.T) {
 		{
 			name:     "mapMergeEnvs_avoid_duplicates",
 			funcName: "mapMergeEnvs",
-			interim: map[string]interface{}{
-				"spec.override.nodeAgent.containers.agent.env": []interface{}{
-					map[string]interface{}{
+			interim: map[string]any{
+				"spec.override.nodeAgent.containers.agent.env": []any{
+					map[string]any{
 						"name":  "EXISTING_VAR",
 						"value": "existing_value",
 					},
 				},
 			},
 			newPath: "spec.override.nodeAgent.containers.agent.env",
-			pathVal: []interface{}{
-				map[string]interface{}{
+			pathVal: []any{
+				map[string]any{
 					"name":  "EXISTING_VAR", // This should not be added again
 					"value": "existing_value",
 				},
-				map[string]interface{}{
+				map[string]any{
 					"name":  "NEW_VAR",
 					"value": "new_value",
 				},
 			},
-			expectedMap: map[string]interface{}{
-				"spec.override.nodeAgent.containers.agent.env": []interface{}{
-					map[string]interface{}{
+			expectedMap: map[string]any{
+				"spec.override.nodeAgent.containers.agent.env": []any{
+					map[string]any{
 						"name":  "EXISTING_VAR",
 						"value": "existing_value", // Keeps the original value
 					},
-					map[string]interface{}{
+					map[string]any{
 						"name":  "NEW_VAR",
 						"value": "new_value",
 					},
@@ -1654,32 +1649,32 @@ func TestMappingProcessors(t *testing.T) {
 		{
 			name:     "mapMergeEnvs_override_duplicates",
 			funcName: "mapMergeEnvs",
-			interim: map[string]interface{}{
-				"spec.override.nodeAgent.containers.agent.env": []interface{}{
-					map[string]interface{}{
+			interim: map[string]any{
+				"spec.override.nodeAgent.containers.agent.env": []any{
+					map[string]any{
 						"name":  "EXISTING_VAR",
 						"value": "existing_value",
 					},
 				},
 			},
 			newPath: "spec.override.nodeAgent.containers.agent.env",
-			pathVal: []interface{}{
-				map[string]interface{}{
+			pathVal: []any{
+				map[string]any{
 					"name":  "EXISTING_VAR", // This should override existing value
 					"value": "new_value",
 				},
-				map[string]interface{}{
+				map[string]any{
 					"name":  "NEW_VAR",
 					"value": "new_value",
 				},
 			},
-			expectedMap: map[string]interface{}{
-				"spec.override.nodeAgent.containers.agent.env": []interface{}{
-					map[string]interface{}{
+			expectedMap: map[string]any{
+				"spec.override.nodeAgent.containers.agent.env": []any{
+					map[string]any{
 						"name":  "EXISTING_VAR",
 						"value": "new_value", // New value overrides previous value
 					},
-					map[string]interface{}{
+					map[string]any{
 						"name":  "NEW_VAR",
 						"value": "new_value",
 					},
@@ -1689,21 +1684,21 @@ func TestMappingProcessors(t *testing.T) {
 		{
 			name:     "mapOverrideType_slice_to_string",
 			funcName: "mapOverrideType",
-			interim:  map[string]interface{}{},
+			interim:  map[string]any{},
 			newPath:  "spec.features.foo.bar",
-			mapFuncArgs: []interface{}{
-				map[string]interface{}{
+			mapFuncArgs: []any{
+				map[string]any{
 					"newPath": "spec.features.foo.bar",
 					"newType": "string",
 				},
 			},
-			pathVal: []map[string]interface{}{
+			pathVal: []map[string]any{
 				{
 					"someKey":    "someVal",
-					"anotherKey": map[string]interface{}{"foo": true},
+					"anotherKey": map[string]any{"foo": true},
 				},
 			},
-			expectedMap: map[string]interface{}{
+			expectedMap: map[string]any{
 				"spec.features.foo.bar": `- anotherKey:
     foo: true
   someKey: someVal
@@ -1713,16 +1708,16 @@ func TestMappingProcessors(t *testing.T) {
 		{
 			name:     "mapOverrideType_string_to_int",
 			funcName: "mapOverrideType",
-			interim:  map[string]interface{}{},
+			interim:  map[string]any{},
 			newPath:  "spec.features.foo.bar",
-			mapFuncArgs: []interface{}{
-				map[string]interface{}{
+			mapFuncArgs: []any{
+				map[string]any{
 					"newPath": "spec.features.foo.bar",
 					"newType": "int",
 				},
 			},
 			pathVal: "8080",
-			expectedMap: map[string]interface{}{
+			expectedMap: map[string]any{
 				"spec.features.foo.bar": 8080,
 			},
 		},

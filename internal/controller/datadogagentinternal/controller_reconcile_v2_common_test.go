@@ -1,15 +1,14 @@
 package datadogagentinternal
 
 import (
+	"context"
 	"testing"
 
 	assert "github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func Test_ensureSelectorInPodTemplateLabels(t *testing.T) {
-	logger := logf.Log.WithName("Test_ensureSelectorInPodTemplateLabels")
 
 	tests := []struct {
 		name              string
@@ -96,7 +95,7 @@ func Test_ensureSelectorInPodTemplateLabels(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			labels := ensureSelectorInPodTemplateLabels(logger, tt.selector, tt.podTemplateLabels)
+			labels := ensureSelectorInPodTemplateLabels(context.Background(), tt.selector, tt.podTemplateLabels)
 			assert.Equal(t, tt.expectedLabels, labels)
 		})
 	}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "enabledManagers": ["github-actions", "gomod"],
+  "minimumReleaseAge": "7 days",
+  "ignoreDeps": ["mstksg/get-package", "github.com/aws/smithy-go"],
+  "packageRules": [
+    {
+      "matchManagers": ["gomod"],
+      "matchDepNames": ["go"],
+      "enabled": false
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "labels": ["tooling", "qa/skip-qa"],
+      "schedule": ["before 6am on Monday"],
+      "groupName": "github actions"
+    },
+    {
+      "matchManagers": ["gomod"],
+      "labels": ["dependencies", "qa/skip-qa"],
+      "schedule": ["before 6am on Monday"],
+      "groupName": "go dependencies"
+    }
+  ]
+}

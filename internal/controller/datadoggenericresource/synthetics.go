@@ -63,10 +63,10 @@ func (h *SyntheticsBrowserTestHandler) deleteResourcefunc(r *Reconciler, instanc
 }
 
 // Synthetic tests (encompass browser and API tests): get
-func getSyntheticsTest(auth context.Context, client *datadogV1.SyntheticsApi, testID string) (datadogV1.SyntheticsTestDetails, error) {
+func getSyntheticsTest(auth context.Context, client *datadogV1.SyntheticsApi, testID string) (datadogV1.SyntheticsTestDetailsWithoutSteps, error) {
 	test, _, err := client.GetTest(auth, testID)
 	if err != nil {
-		return datadogV1.SyntheticsTestDetails{}, translateClientError(err, "error getting synthetic test")
+		return datadogV1.SyntheticsTestDetailsWithoutSteps{}, translateClientError(err, "error getting synthetic test")
 	}
 	return test, nil
 }

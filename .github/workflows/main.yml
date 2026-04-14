@@ -7,13 +7,13 @@ permissions:
   # packages: read
 env:
   PROJECTNAME: "datadog-operator"
-  GO_VERSION: 1.25.7
+  GO_VERSION: 1.25.9
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
-        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version: ${{ env.GO_VERSION }}
         id: go
@@ -32,8 +32,22 @@ jobs:
       - name: run unit tests and E2E tests (fake cluster)
         run: |
           make test
-      - uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+      - uses: codecov/codecov-action@1af58845a975a7985b0beb0cbe6fbbb71a41dbad # v5.5.3
         with:
           use_oidc: true
           files: cover.out,cover_integration.out
+          flags: unittests
+      - name: Get Datadog credentials
+        id: dd-sts
+        continue-on-error: true
+        uses: DataDog/dd-sts-action@2e8187910199bd93129520183c093e19aa585c75 # v1.0.0
+        with:
+          policy: datadog-operator
+      - name: Upload coverage to Datadog
+        if: steps.dd-sts.outputs.api_key != ''
+        continue-on-error: true
+        uses: DataDog/coverage-upload-github-action@d2cf302a39c05e0ad22063360a2bf6ce0cc4906c # v1
+        with:
+          api_key: ${{ steps.dd-sts.outputs.api_key }}
+          files: .
           flags: unittests

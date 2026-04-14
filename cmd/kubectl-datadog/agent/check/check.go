@@ -169,9 +169,7 @@ func (o *options) run(cmd *cobra.Command) error {
 	podChan := make(chan corev1.Pod, maxParallel)
 	var wg sync.WaitGroup
 	for i := 0; i < goRoutinesCount; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for pod := range podChan {
 				if pod.Status.Phase != "Running" {
 					cmd.Println(fmt.Sprintf("Ignoring pod: %s, phase: %s", pod.Name, pod.Status.Phase))
@@ -200,7 +198,7 @@ func (o *options) run(cmd *cobra.Command) error {
 					mutex.Unlock()
 				}
 			}
-		}()
+		})
 	}
 
 	for _, p := range pods {

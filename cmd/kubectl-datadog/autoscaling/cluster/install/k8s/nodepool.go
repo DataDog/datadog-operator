@@ -18,41 +18,33 @@ func CreateOrUpdateNodePool(ctx context.Context, client client.Client, np guess.
 
 	if architectures := np.GetArchitectures(); len(architectures) > 0 {
 		requirements = append(requirements, karpv1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      "kubernetes.io/arch",
-				Operator: corev1.NodeSelectorOpIn,
-				Values:   architectures,
-			},
+			Key:      "kubernetes.io/arch",
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   architectures,
 		})
 	}
 
 	if zones := np.GetZones(); len(zones) > 0 {
 		requirements = append(requirements, karpv1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      "topology.kubernetes.io/zone",
-				Operator: corev1.NodeSelectorOpIn,
-				Values:   zones,
-			},
+			Key:      "topology.kubernetes.io/zone",
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   zones,
 		})
 	}
 
 	if instanceFamilies := np.GetInstanceFamilies(); len(instanceFamilies) > 0 {
 		requirements = append(requirements, karpv1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      "karpenter.k8s.aws/instance-family",
-				Operator: corev1.NodeSelectorOpIn,
-				Values:   instanceFamilies,
-			},
+			Key:      "karpenter.k8s.aws/instance-family",
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   instanceFamilies,
 		})
 	}
 
 	if capacityTypes := np.GetCapacityTypes(); len(capacityTypes) > 0 {
 		requirements = append(requirements, karpv1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-				Key:      "karpenter.sh/capacity-type",
-				Operator: corev1.NodeSelectorOpIn,
-				Values:   capacityTypes,
-			},
+			Key:      "karpenter.sh/capacity-type",
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   capacityTypes,
 		})
 	}
 

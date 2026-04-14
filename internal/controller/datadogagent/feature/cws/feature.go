@@ -11,6 +11,7 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -50,6 +51,7 @@ type cwsFeature struct {
 	remoteConfigurationEnabled bool
 	directSendFromSystemProbe  bool
 	enforcementEnabled         bool
+	useVSock                   bool
 
 	owner  metav1.Object
 	logger logr.Logger
@@ -94,6 +96,9 @@ func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		if cwsConfig.Enforcement != nil {
 			f.enforcementEnabled = apiutils.BoolValue(cwsConfig.Enforcement.Enabled)
 		}
+		if ddaSpec.Global != nil {
+			f.useVSock = apiutils.BoolValue(ddaSpec.Global.UseVSock)
+		}
 		if cwsConfig.Network != nil {
 			f.networkEnabled = apiutils.BoolValue(cwsConfig.Network.Enabled)
 		}
@@ -118,7 +123,7 @@ func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: ptr.To(true),
 				Containers: reqContainers,
 			},
 		}
@@ -217,9 +222,19 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	}
 	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, enabledEnvVar)
 
+	socketPath := filepath.Join(common.SystemProbeSocketVolumePath, "runtime-security.sock")
+	if f.useVSock {
+		socketPath = "vsock:5020"
+
+		managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, &corev1.EnvVar{
+			Name:  DDRuntimeSecurityConfigEventGRPCServer,
+			Value: "security-agent",
+		})
+	}
+
 	runtimeSocketEnvVar := &corev1.EnvVar{
 		Name:  DDRuntimeSecurityConfigSocket,
-		Value: filepath.Join(common.SystemProbeSocketVolumePath, "runtime-security.sock"),
+		Value: socketPath,
 	}
 	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, runtimeSocketEnvVar)
 

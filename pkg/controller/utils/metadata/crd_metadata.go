@@ -73,7 +73,7 @@ type CRDInstance struct {
 	Namespace   string            `json:"namespace"`
 	APIVersion  string            `json:"api_version"`
 	UID         string            `json:"uid"`
-	Spec        interface{}       `json:"spec"`
+	Spec        any               `json:"spec"`
 	Labels      map[string]string `json:"labels,omitempty"`
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
@@ -117,7 +117,6 @@ func (cmf *CRDMetadataForwarder) sendMetadata() error {
 	crdsToSend := cmf.getCRDsToSend(allCRDs)
 
 	if len(crdsToSend) == 0 {
-		cmf.logger.V(1).Info("No changes or heartbeats due")
 		return nil
 	}
 
@@ -143,10 +142,6 @@ func (cmf *CRDMetadataForwarder) sendCRDMetadata(ctx context.Context, crdInstanc
 
 	payload := cmf.buildPayload(clusterUID, crdInstance)
 
-	cmf.logger.V(1).Info("Sending metadata HTTP request",
-		"kind", crdInstance.Kind,
-		"name", crdInstance.Name)
-
 	req, err := cmf.createRequest(payload)
 	if err != nil {
 		return fmt.Errorf("error creating request: %w", err)
@@ -165,8 +160,8 @@ func (cmf *CRDMetadataForwarder) sendCRDMetadata(ctx context.Context, crdInstanc
 		return fmt.Errorf("failed to read metadata response body: %w", err)
 	}
 
-	cmf.logger.V(1).Info("Read metadata response",
-		"status code", resp.StatusCode,
+	cmf.logger.V(2).Info("Sent metadata",
+		"statusCode", resp.StatusCode,
 		"body", string(body),
 		"kind", crdInstance.Kind,
 		"name", crdInstance.Name)
@@ -175,7 +170,7 @@ func (cmf *CRDMetadataForwarder) sendCRDMetadata(ctx context.Context, crdInstanc
 }
 
 // marshalToJSON marshals data to JSON, returning empty object on error
-func (cmf *CRDMetadataForwarder) marshalToJSON(data interface{}, fieldName string, crdInstance CRDInstance) []byte {
+func (cmf *CRDMetadataForwarder) marshalToJSON(data any, fieldName string, crdInstance CRDInstance) []byte {
 	if data == nil {
 		return nil
 	}
@@ -326,7 +321,7 @@ func (cmf *CRDMetadataForwarder) getCRDsToSend(crds []CRDInstance) []CRDInstance
 		key := buildCacheKey(crd)
 		newHash, err := hashCRD(crd)
 		if err != nil {
-			cmf.logger.V(1).Info("Failed to hash CRD", "error", err, "key", key)
+			cmf.logger.V(1).Info("Failed to hash CRD", "error", err, "kind", crd.Kind, "namespace", crd.Namespace, "name", crd.Name)
 			continue
 		}
 
@@ -339,7 +334,7 @@ func (cmf *CRDMetadataForwarder) getCRDsToSend(crds []CRDInstance) []CRDInstance
 				hash:     newHash,
 				lastSent: now,
 			}
-			cmf.logger.V(1).Info("New CRD detected", "key", key)
+			cmf.logger.V(1).Info("New CRD detected", "kind", crd.Kind, "namespace", crd.Namespace, "name", crd.Name)
 			continue
 		}
 
@@ -350,7 +345,7 @@ func (cmf *CRDMetadataForwarder) getCRDsToSend(crds []CRDInstance) []CRDInstance
 				hash:     newHash,
 				lastSent: now,
 			}
-			cmf.logger.V(1).Info("CRD change detected", "key", key)
+			cmf.logger.V(1).Info("CRD change detected", "kind", crd.Kind, "namespace", crd.Namespace, "name", crd.Name)
 			continue
 		}
 
@@ -359,8 +354,8 @@ func (cmf *CRDMetadataForwarder) getCRDsToSend(crds []CRDInstance) []CRDInstance
 		if timeSinceLastSend >= crdMetadataHeartbeatTTL {
 			toSend = append(toSend, crd)
 			cmf.crdCache[key].lastSent = now
-			cmf.logger.V(1).Info("CRD heartbeat due", "key", key,
-				"time_since_last_send", timeSinceLastSend.Round(time.Second))
+			cmf.logger.V(2).Info("CRD heartbeat due", "kind", crd.Kind, "namespace", crd.Namespace, "name", crd.Name,
+				"timeSinceLastSend", timeSinceLastSend.Round(time.Second))
 			continue
 		}
 	}
@@ -379,7 +374,7 @@ func (cmf *CRDMetadataForwarder) cleanupDeletedCRDs(currentCRDs []CRDInstance, s
 	}
 
 	for key := range cmf.crdCache {
-		cachedKind, _, found := strings.Cut(key, "/")
+		cachedKind, rest, found := strings.Cut(key, "/")
 		if !found {
 			continue
 		}
@@ -388,7 +383,8 @@ func (cmf *CRDMetadataForwarder) cleanupDeletedCRDs(currentCRDs []CRDInstance, s
 		if successfulKinds[cachedKind] {
 			if !currentKeys[key] {
 				delete(cmf.crdCache, key)
-				cmf.logger.V(1).Info("Removed deleted CRD from cache", "key", key)
+				cachedNS, cachedName, _ := strings.Cut(rest, "/")
+				cmf.logger.V(1).Info("Removed deleted CRD from cache", "kind", cachedKind, "namespace", cachedNS, "name", cachedName)
 			}
 		}
 	}
@@ -404,7 +400,7 @@ func buildCacheKey(crd CRDInstance) string {
 func hashCRD(crd CRDInstance) (string, error) {
 	// Hash spec, labels, and annotations together
 	hashable := struct {
-		Spec        interface{}       `json:"spec"`
+		Spec        any               `json:"spec"`
 		Labels      map[string]string `json:"labels,omitempty"`
 		Annotations map[string]string `json:"annotations,omitempty"`
 	}{

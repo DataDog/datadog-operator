@@ -15,6 +15,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
@@ -423,8 +424,8 @@ func Test_getCredentialsFromConfigMap(t *testing.T) {
 			want: Creds{
 				APIKey: "test-api-key",
 				AppKey: "test-app-key",
-				Site:   strPtr("datadoghq.eu"),
-				URL:    strPtr("https://api.datadoghq.eu"),
+				Site:   ptr.To("datadoghq.eu"),
+				URL:    ptr.To("https://api.datadoghq.eu"),
 			},
 			wantErr: false,
 			resetFunc: func() {
@@ -698,7 +699,7 @@ func Test_GetCredsWithDDAFallback_withConfigMapTier(t *testing.T) {
 			want: Creds{
 				APIKey: "env-api-key",
 				AppKey: "env-app-key",
-				Site:   strPtr("datadoghq.com"),
+				Site:   ptr.To("datadoghq.com"),
 			},
 			wantErr: false,
 			resetFunc: func() {
@@ -750,7 +751,7 @@ func Test_GetCredsWithDDAFallback_withConfigMapTier(t *testing.T) {
 			},
 			want: Creds{
 				APIKey: "configmap-api-key",
-				Site:   strPtr("datadoghq.eu"),
+				Site:   ptr.To("datadoghq.eu"),
 			},
 			wantErr: false,
 			resetFunc: func() {
@@ -785,7 +786,7 @@ func Test_GetCredsWithDDAFallback_withConfigMapTier(t *testing.T) {
 			},
 			want: Creds{
 				APIKey: "dda-api-key",
-				Site:   strPtr("datadoghq.com"),
+				Site:   ptr.To("datadoghq.com"),
 			},
 			wantErr: false,
 			resetFunc: func() {
@@ -819,9 +820,4 @@ func Test_GetCredsWithDDAFallback_withConfigMapTier(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Helper function to create string pointers
-func strPtr(s string) *string {
-	return &s
 }

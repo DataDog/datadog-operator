@@ -10,6 +10,8 @@ import (
 	"sort"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -88,14 +90,14 @@ func newAgent(workloadEnabled, clusterEnabled, admissionEnabled bool) *v2alpha1.
 			Features: &v2alpha1.DatadogFeatures{
 				Autoscaling: &v2alpha1.AutoscalingFeatureConfig{
 					Workload: &v2alpha1.WorkloadAutoscalingFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(workloadEnabled),
+						Enabled: ptr.To(workloadEnabled),
 					},
 					Cluster: &v2alpha1.ClusterAutoscalingFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(clusterEnabled),
+						Enabled: ptr.To(clusterEnabled),
 					},
 				},
 				AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(admissionEnabled),
+					Enabled: ptr.To(admissionEnabled),
 				},
 			},
 		},
@@ -113,7 +115,7 @@ func testRBACResources(t testing.TB, store store.StoreClient) {
 		{
 			Verbs:     []string{"*"},
 			APIGroups: []string{"datadoghq.com"},
-			Resources: []string{"datadogpodautoscalers", "datadogpodautoscalers/status"},
+			Resources: []string{"datadogpodautoscalers", "datadogpodautoscalers/status", "datadogpodautoscalerclusterprofiles", "datadogpodautoscalerclusterprofiles/status"},
 		},
 		{
 			Verbs:     []string{"create", "patch"},
@@ -132,20 +134,35 @@ func testRBACResources(t testing.TB, store store.StoreClient) {
 		},
 		{
 			Verbs:     []string{"patch"},
-			APIGroups: []string{"apps"},
-			Resources: []string{"deployments"},
+			APIGroups: []string{""},
+			Resources: []string{"pods/resize"},
 		},
 		{
-			Verbs:     []string{"patch"},
+			Verbs:     []string{"create"},
+			APIGroups: []string{""},
+			Resources: []string{"pods/eviction"},
+		},
+		{
+			Verbs:     []string{"get", "list", "watch", "patch"},
+			APIGroups: []string{"apps"},
+			Resources: []string{"deployments", "statefulsets"},
+		},
+		{
+			Verbs:     []string{"get", "list", "watch", "patch"},
 			APIGroups: []string{"argoproj.io"},
 			Resources: []string{"rollouts"},
+		},
+		{
+			Verbs:     []string{"get", "list", "watch"},
+			APIGroups: []string{""},
+			Resources: []string{"namespaces"},
 		},
 	}
 
 	if t.Name() == "TestAutoscalingFeature/cluster_autoscaling_enabled" {
 		policyRules = []rbacv1.PolicyRule{
 			{
-				Verbs:     []string{"get", "list", "watch", "create", "patch", "delete"},
+				Verbs:     []string{"get", "list", "watch", "create", "patch", "update", "delete"},
 				APIGroups: []string{"karpenter.sh"},
 				Resources: []string{"*"},
 			},
@@ -159,19 +176,29 @@ func testRBACResources(t testing.TB, store store.StoreClient) {
 				APIGroups: []string{"karpenter.k8s.aws"},
 				Resources: []string{"*"},
 			},
+			{
+				Verbs:     []string{"get", "list"},
+				APIGroups: []string{"eks.amazonaws.com"},
+				Resources: []string{"*"},
+			},
 		}
 	}
 
 	if t.Name() == "TestAutoscalingFeature/workload_and_cluster_autoscaling_enabled" {
 		policyRules = append(policyRules, []rbacv1.PolicyRule{
 			{
-				Verbs:     []string{"get", "list", "watch", "create", "patch", "delete"},
+				Verbs:     []string{"get", "list", "watch", "create", "patch", "update", "delete"},
 				APIGroups: []string{"karpenter.sh"},
 				Resources: []string{"*"},
 			},
 			{
 				Verbs:     []string{"get", "list"},
 				APIGroups: []string{"karpenter.k8s.aws"},
+				Resources: []string{"*"},
+			},
+			{
+				Verbs:     []string{"get", "list"},
+				APIGroups: []string{"eks.amazonaws.com"},
 				Resources: []string{"*"},
 			},
 		}...,

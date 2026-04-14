@@ -100,10 +100,6 @@ else
     echo "Warning: $actions_directory not found, skipping."
 fi
 
-# Run go work sync
-echo "Running go work sync..."
-go work sync
-
 # Update go.mod files
 go_mod_files="$ROOT/go.mod $ROOT/test/e2e/go.mod $ROOT/api/go.mod"
 for file in $go_mod_files; do
@@ -115,6 +111,10 @@ for file in $go_mod_files; do
         echo "Warning: $file not found, skipping."
     fi
 done
+
+# Run go work sync
+echo "Running go work sync..."
+go work sync
 
 # test/e2e is not in go.work, so we need to run go mod tidy separately
 echo "Running go mod tidy for test/e2e module..."
