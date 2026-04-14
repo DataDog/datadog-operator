@@ -244,6 +244,7 @@ spec:
                                 enum:
                                   - RequestsAndLimits
                                   - RequestsOnly
+                                  - CPURequestsRemoveLimitsMemoryRequestsAndLimits
                                 type: string
                               enabled:
                                 description: Enabled, if false, allows one to disable resource autoscaling for the container. Defaults to true.
