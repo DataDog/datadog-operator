@@ -185,6 +185,18 @@ func (d *Daemon) startDatadogAgentExperiment(ctx context.Context, req remoteAPIR
 	}
 
 	if err := canStart(getExperimentPhase(dda)); err != nil {
+		// If an experiment is already running, treat repeat start signals as idempotent.
+		// The backend retries with new task UUIDs until it sees an ack, and in-memory
+		// state (ExperimentConfigVersion) doesn't survive operator restarts, so we
+		// cannot reliably match on config version. The backend is responsible for not
+		// sending a start for a different experiment while one is already running.
+		if getExperimentPhase(dda) == v2alpha1.ExperimentPhaseRunning {
+			logger.Info("Experiment already running, acknowledging start signal as idempotent", "experimentID", dda.Status.Experiment.ID)
+			// Restore the experiment config version — it may have been lost on restart.
+			stable, _ := d.getPackageConfigVersions(req.Package)
+			d.setPackageConfigVersions(req.Package, stable, req.Params.Version)
+			return nil
+		}
 		return fmt.Errorf("start DatadogAgent experiment: %w", err)
 	}
 
@@ -209,6 +221,10 @@ func (d *Daemon) startDatadogAgentExperiment(ctx context.Context, req remoteAPIR
 	}); err != nil {
 		return fmt.Errorf("start DatadogAgent experiment: failed to update status: %w", err)
 	}
+
+	// Report the experiment config version to the backend.
+	stable, _ := d.getPackageConfigVersions(req.Package)
+	d.setPackageConfigVersions(req.Package, stable, req.Params.Version)
 
 	logger.Info("Started DatadogAgent experiment")
 	return nil
@@ -245,6 +261,10 @@ func (d *Daemon) stopDatadogAgentExperiment(ctx context.Context, req remoteAPIRe
 		return fmt.Errorf("stop DatadogAgent experiment: failed to update status: %w", err)
 	}
 
+	// Clear the experiment config version.
+	stable, _ := d.getPackageConfigVersions(req.Package)
+	d.setPackageConfigVersions(req.Package, stable, "")
+
 	logger.Info("Stopped DatadogAgent experiment")
 	return nil
 }
@@ -257,6 +277,12 @@ func (d *Daemon) promoteDatadogAgentExperiment(ctx context.Context, req remoteAP
 
 	ctx = ctrl.LoggerInto(ctx, ctrl.LoggerFrom(ctx).WithValues("id", req.ID, "namespace", op.NamespacedName.Namespace, "name", op.NamespacedName.Name))
 	logger := ctrl.LoggerFrom(ctx)
+
+	// Verify there is an active experiment to promote.
+	_, experiment := d.getPackageConfigVersions(req.Package)
+	if experiment == "" {
+		return fmt.Errorf("promote DatadogAgent experiment: no experiment config version set")
+	}
 
 	dda := &v2alpha1.DatadogAgent{}
 	if err := d.client.Get(ctx, op.NamespacedName, dda); err != nil {
@@ -279,6 +305,9 @@ func (d *Daemon) promoteDatadogAgentExperiment(ctx context.Context, req remoteAP
 	}); err != nil {
 		return fmt.Errorf("promote DatadogAgent experiment: failed to update status: %w", err)
 	}
+
+	// Promote: stable = old experiment, experiment = ""
+	d.setPackageConfigVersions(req.Package, experiment, "")
 
 	logger.Info("Promoted DatadogAgent experiment")
 	return nil
@@ -324,6 +353,86 @@ func (d *Daemon) setTaskState(pkgName, taskID string, taskState pbgo.TaskState, 
 		})
 	}
 	d.rcClient.SetInstallerState(updated)
+	d.logInstallerState("setTaskState")
+}
+
+// getPackageConfigVersions returns the current stable and experiment config versions
+// for the given package from the RC installer state.
+func (d *Daemon) getPackageConfigVersions(pkgName string) (stable, experiment string) {
+	if d.rcClient == nil {
+		return "", ""
+	}
+	for _, pkg := range d.rcClient.GetInstallerState() {
+		if pkg.GetPackage() == pkgName {
+			return pkg.GetStableConfigVersion(), pkg.GetExperimentConfigVersion()
+		}
+	}
+	return "", ""
+}
+
+// setPackageConfigVersions updates the stable and experiment version fields of the
+// package entry in the RC installer state. Both the config variants
+// (StableConfigVersion/ExperimentConfigVersion) and the package variants
+// (StableVersion/ExperimentVersion) are set to the same values.
+func (d *Daemon) setPackageConfigVersions(pkgName, stable, experiment string) {
+	if d.rcClient == nil {
+		return
+	}
+	current := d.rcClient.GetInstallerState()
+	updated := make([]*pbgo.PackageState, 0, len(current)+1)
+	found := false
+	for _, pkg := range current {
+		if pkg.GetPackage() == pkgName {
+			updated = append(updated, &pbgo.PackageState{
+				Package:                 pkg.GetPackage(),
+				StableVersion:           stable,
+				ExperimentVersion:       experiment,
+				Task:                    pkg.GetTask(),
+				StableConfigVersion:     stable,
+				ExperimentConfigVersion: experiment,
+			})
+			found = true
+		} else {
+			updated = append(updated, pkg)
+		}
+	}
+	if !found {
+		updated = append(updated, &pbgo.PackageState{
+			Package:                 pkgName,
+			StableVersion:           stable,
+			ExperimentVersion:       experiment,
+			StableConfigVersion:     stable,
+			ExperimentConfigVersion: experiment,
+		})
+	}
+	d.rcClient.SetInstallerState(updated)
+	d.logInstallerState("setPackageConfigVersions")
+}
+
+// logInstallerState logs the full installer state for debugging.
+func (d *Daemon) logInstallerState(caller string) {
+	if d.rcClient == nil {
+		return
+	}
+	logger := ctrl.Log.WithName("fleet-daemon")
+	for _, pkg := range d.rcClient.GetInstallerState() {
+		var taskID string
+		var taskState pbgo.TaskState
+		if pkg.GetTask() != nil {
+			taskID = pkg.GetTask().GetId()
+			taskState = pkg.GetTask().GetState()
+		}
+		logger.Info("Installer state",
+			"caller", caller,
+			"package", pkg.GetPackage(),
+			"stableVersion", pkg.GetStableVersion(),
+			"experimentVersion", pkg.GetExperimentVersion(),
+			"stableConfigVersion", pkg.GetStableConfigVersion(),
+			"experimentConfigVersion", pkg.GetExperimentConfigVersion(),
+			"taskID", taskID,
+			"taskState", taskState,
+		)
+	}
 }
 
 // getExperimentPhase returns the current experiment phase from a DDA's status,
