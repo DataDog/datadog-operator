@@ -29,13 +29,13 @@ func Test_updateStatusFromDashboard(t *testing.T) {
 			dashboard: func() datadogV1.Dashboard {
 				d := datadogV1.Dashboard{}
 				d.SetId("abc-123")
-				d.SetAuthorHandle("wassim.dhif@datadoghq.com")
+				d.SetAuthorHandle("user@example.com")
 				d.SetCreatedAt(createdAt)
 				return d
 			}(),
 			expectedStatus: v1alpha1.DatadogGenericResourceStatus{
 				Id:          "abc-123",
-				Creator:     "wassim.dhif@datadoghq.com",
+				Creator:     "user@example.com",
 				SyncStatus:  v1alpha1.DatadogSyncStatusOK,
 				CurrentHash: hash,
 			},
