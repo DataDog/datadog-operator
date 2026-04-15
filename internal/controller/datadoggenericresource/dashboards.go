@@ -65,7 +65,9 @@ func getDashboard(auth context.Context, client *datadogV1.DashboardsApi, dashboa
 
 func createDashboard(auth context.Context, client *datadogV1.DashboardsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.Dashboard, error) {
 	dashboardCreateData := &datadogV1.Dashboard{}
-	json.Unmarshal([]byte(instance.Spec.JsonSpec), dashboardCreateData)
+	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), dashboardCreateData); err != nil {
+		return datadogV1.Dashboard{}, translateClientError(err, "error unmarshalling dashboard spec")
+	}
 	dashboard, _, err := client.CreateDashboard(auth, *dashboardCreateData)
 	if err != nil {
 		return datadogV1.Dashboard{}, translateClientError(err, "error creating dashboard")
@@ -75,7 +77,9 @@ func createDashboard(auth context.Context, client *datadogV1.DashboardsApi, inst
 
 func updateDashboard(auth context.Context, client *datadogV1.DashboardsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.Dashboard, error) {
 	dashboardUpdateData := &datadogV1.Dashboard{}
-	json.Unmarshal([]byte(instance.Spec.JsonSpec), dashboardUpdateData)
+	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), dashboardUpdateData); err != nil {
+		return datadogV1.Dashboard{}, translateClientError(err, "error unmarshalling dashboard spec")
+	}
 	dashboardUpdated, _, err := client.UpdateDashboard(auth, instance.Status.Id, *dashboardUpdateData)
 	if err != nil {
 		return datadogV1.Dashboard{}, translateClientError(err, "error updating dashboard")
