@@ -22,13 +22,13 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 )
 
-// errStateDoesntMatch is returned by verifyExpectedState when the task's expected
+// stateDoesntMatchError is returned by verifyExpectedState when the task's expected
 // state doesn't match the operator's current installer state.
-type errStateDoesntMatch struct {
+type stateDoesntMatchError struct {
 	msg string
 }
 
-func (e *errStateDoesntMatch) Error() string { return e.msg }
+func (e *stateDoesntMatchError) Error() string { return e.msg }
 
 const (
 	methodStartDatadogAgentExperiment   = "operator/start_datadogagent_experiment"
@@ -47,6 +47,7 @@ type Daemon struct {
 	revisionsEnabled bool
 	mu               sync.RWMutex
 	configs          map[string]installerConfig // keyed by config ID; replaced on each RC update
+	experimentTarget types.NamespacedName       // DDA targeted by the current experiment; set on startExperiment
 }
 
 // NewDaemon creates a new Fleet Daemon. When revisionsEnabled is false, experiment
@@ -75,7 +76,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 		d.setTaskState(req.Package, req.ID, pbgo.TaskState_RUNNING, nil)
 		err := d.handleRemoteAPIRequest(ctx, req)
 		if err != nil {
-			var stateErr *errStateDoesntMatch
+			var stateErr *stateDoesntMatchError
 			if errors.As(err, &stateErr) {
 				d.setTaskState(req.Package, req.ID, pbgo.TaskState_INVALID_STATE, err)
 			} else {
@@ -128,11 +129,11 @@ func (d *Daemon) getConfig(id string) (installerConfig, error) {
 
 // verifyExpectedState checks that the config versions in the task's expected_state
 // match the operator's current installer state for the given package.
-// Returns *errStateDoesntMatch when they don't match.
+// Returns *stateDoesntMatchError when they don't match.
 func (d *Daemon) verifyExpectedState(req remoteAPIRequest) error {
 	stable, experiment := d.getPackageConfigVersions(req.Package)
 	if req.ExpectedState.StableConfig != stable || req.ExpectedState.ExperimentConfig != experiment {
-		return &errStateDoesntMatch{
+		return &stateDoesntMatchError{
 			msg: fmt.Sprintf(
 				"state mismatch for package %s: expected stable_config=%q experiment_config=%q, got stable_config=%q experiment_config=%q",
 				req.Package,
@@ -210,10 +211,18 @@ func (d *Daemon) startDatadogAgentExperiment(ctx context.Context, req remoteAPIR
 		return err
 	}
 
+	// Store the target DDA for promote/stop signals (which don't carry a config).
+	d.experimentTarget = op.NamespacedName
+
 	logger = logger.WithValues("namespace", op.NamespacedName.Namespace, "name", op.NamespacedName.Name)
 	ctx = ctrl.LoggerInto(ctx, logger)
 
 	logger.Info("Starting k8s resource patch", "config", op.Config)
+
+	// Check the operation
+	if op.Operation != OperationUpdate {
+		return fmt.Errorf("start DatadogAgent experiment: invalid operation: %s", op.Operation)
+	}
 
 	// Fetch current DDA to check signal preconditions.
 	dda := &v2alpha1.DatadogAgent{}
@@ -268,17 +277,17 @@ func (d *Daemon) startDatadogAgentExperiment(ctx context.Context, req remoteAPIR
 }
 
 func (d *Daemon) stopDatadogAgentExperiment(ctx context.Context, req remoteAPIRequest) error {
-	op, err := d.resolveOperation(req, "stop DatadogAgent experiment")
-	if err != nil {
-		return err
+	nsn := d.experimentTarget
+	if nsn.Name == "" {
+		return fmt.Errorf("stop DatadogAgent experiment: no experiment target set (was start called first?)")
 	}
 
-	ctx = ctrl.LoggerInto(ctx, ctrl.LoggerFrom(ctx).WithValues("id", req.ID, "namespace", op.NamespacedName.Namespace, "name", op.NamespacedName.Name))
+	ctx = ctrl.LoggerInto(ctx, ctrl.LoggerFrom(ctx).WithValues("id", req.ID, "namespace", nsn.Namespace, "name", nsn.Name))
 	logger := ctrl.LoggerFrom(ctx)
 
 	dda := &v2alpha1.DatadogAgent{}
-	if err := d.client.Get(ctx, op.NamespacedName, dda); err != nil {
-		return fmt.Errorf("stop DatadogAgent experiment: failed to get DatadogAgent %s: %w", op.NamespacedName, err)
+	if err := d.client.Get(ctx, nsn, dda); err != nil {
+		return fmt.Errorf("stop DatadogAgent experiment: failed to get DatadogAgent %s: %w", nsn, err)
 	}
 
 	if isNoOp, err := canStop(ctx, getExperimentPhase(dda)); err != nil {
@@ -289,7 +298,7 @@ func (d *Daemon) stopDatadogAgentExperiment(ctx context.Context, req remoteAPIRe
 
 	// Update status: set phase=stopped; leave ID and generation for the reconciler.
 	if err := retryWithBackoff(ctx, func() error {
-		if err := d.client.Get(ctx, op.NamespacedName, dda); err != nil {
+		if err := d.client.Get(ctx, nsn, dda); err != nil {
 			return err
 		}
 		dda.Status.Experiment.Phase = v2alpha1.ExperimentPhaseStopped
@@ -307,12 +316,12 @@ func (d *Daemon) stopDatadogAgentExperiment(ctx context.Context, req remoteAPIRe
 }
 
 func (d *Daemon) promoteDatadogAgentExperiment(ctx context.Context, req remoteAPIRequest) error {
-	op, err := d.resolveOperation(req, "promote DatadogAgent experiment")
-	if err != nil {
-		return err
+	nsn := d.experimentTarget
+	if nsn.Name == "" {
+		return fmt.Errorf("promote DatadogAgent experiment: no experiment target set (was start called first?)")
 	}
 
-	ctx = ctrl.LoggerInto(ctx, ctrl.LoggerFrom(ctx).WithValues("id", req.ID, "namespace", op.NamespacedName.Namespace, "name", op.NamespacedName.Name))
+	ctx = ctrl.LoggerInto(ctx, ctrl.LoggerFrom(ctx).WithValues("id", req.ID, "namespace", nsn.Namespace, "name", nsn.Name))
 	logger := ctrl.LoggerFrom(ctx)
 
 	// Verify there is an active experiment to promote.
@@ -322,8 +331,8 @@ func (d *Daemon) promoteDatadogAgentExperiment(ctx context.Context, req remoteAP
 	}
 
 	dda := &v2alpha1.DatadogAgent{}
-	if err := d.client.Get(ctx, op.NamespacedName, dda); err != nil {
-		return fmt.Errorf("promote DatadogAgent experiment: failed to get DatadogAgent %s: %w", op.NamespacedName, err)
+	if err := d.client.Get(ctx, nsn, dda); err != nil {
+		return fmt.Errorf("promote DatadogAgent experiment: failed to get DatadogAgent %s: %w", nsn, err)
 	}
 
 	if isNoOp, err := canPromote(ctx, getExperimentPhase(dda)); err != nil {
@@ -334,7 +343,7 @@ func (d *Daemon) promoteDatadogAgentExperiment(ctx context.Context, req remoteAP
 
 	// Update status: set phase=promoted; leave ID and generation intact.
 	if err := retryWithBackoff(ctx, func() error {
-		if err := d.client.Get(ctx, op.NamespacedName, dda); err != nil {
+		if err := d.client.Get(ctx, nsn, dda); err != nil {
 			return err
 		}
 		dda.Status.Experiment.Phase = v2alpha1.ExperimentPhasePromoted
