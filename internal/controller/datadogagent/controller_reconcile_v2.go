@@ -241,7 +241,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	}
 
 	// Always requeue
-	if !result.Requeue && result.RequeueAfter == 0 {
+	if result.IsZero() {
 		result.RequeueAfter = defaultRequeuePeriod
 	}
 	return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
@@ -351,7 +351,7 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 		oldStatus := profile.Status
 		profileAppliedByNode, err = agentprofile.ApplyProfile(logger, &profile, nodeList, profileAppliedByNode, now, maxUnavailable, r.options.DatadogAgentInternalEnabled)
 		if result, e := r.updateDAPStatus(ctx, logger, &profile, &oldStatus); utils.ShouldReturn(result, e) {
-			logger.Info("unable to update DatadogAgentProfile status", "error", e, "requeue", result.Requeue, "requeueAfter", result.RequeueAfter)
+			logger.Info("unable to update DatadogAgentProfile status", "error", e, "requeueAfter", result.RequeueAfter, "requeueIntent", !result.IsZero())
 		}
 		if err != nil {
 			// profile is invalid or conflicts

@@ -182,7 +182,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	}
 
 	// If reconcile was successful and uneventful, requeue with period defaultRequeuePeriod
-	if !result.Requeue && result.RequeueAfter == 0 {
+	if result.IsZero() {
 		result.RequeueAfter = defaultRequeuePeriod
 	}
 
