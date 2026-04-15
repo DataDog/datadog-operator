@@ -101,6 +101,12 @@ The pattern:
 3. Run `make generate && make manifests`
 4. Update conversion webhooks if needed (`datadogagent_conversion.go`)
 
+## Gotchas
+
+- CRD types file (`api/datadoghq/v2alpha1/datadogagent_types.go`) is ~92KB. Read only the section you need
+- `make test` is slow (builds + formats + licenses + all tests). For quick iteration use `go test ./...` or `make ci-test`
+- Run `make lint` before committing to catch issues early
+
 ## API Versions
 
 - **v2alpha1**: Current version for DatadogAgent
