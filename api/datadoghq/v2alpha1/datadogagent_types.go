@@ -509,6 +509,13 @@ type CWSFeatureConfig struct {
 	// +optional
 	DirectSendFromSystemProbe *bool `json:"directSendFromSystemProbe,omitempty"`
 
+	// SBOMEnabled enables the CWS SBOM resolver to track runtime package usage.
+	// When enabled, system-probe maps file accesses to packages and enriches
+	// SBOMs with LastSeenRunning timestamps ("package in use" feature).
+	// Requires CWS to be enabled. Default: false
+	// +optional
+	SBOMEnabled *bool `json:"sbomEnabled,omitempty"`
+
 	Enforcement         *CWSEnforcementConfig         `json:"enforcement,omitempty"`
 	Network             *CWSNetworkConfig             `json:"network,omitempty"`
 	SecurityProfiles    *CWSSecurityProfilesConfig    `json:"securityProfiles,omitempty"`

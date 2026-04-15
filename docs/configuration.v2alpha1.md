@@ -98,6 +98,7 @@ spec:
 | features.cws.enforcement.enabled | Enables Enforcement for Cloud Workload Security. Default: true |
 | features.cws.network.enabled | Enables Cloud Workload Security Network detections. Default: true |
 | features.cws.remoteConfiguration.enabled | Enables Remote Configuration for Cloud Workload Security. Default: true |
+| features.cws.sbomEnabled | SBOMEnabled enables the CWS SBOM resolver to track runtime package usage. When enabled, system-probe maps file accesses to packages and enriches SBOMs with LastSeenRunning timestamps ("package in use" feature). Requires CWS to be enabled. Default: false |
 | features.cws.securityProfiles.enabled | Enables Security Profiles collection for Cloud Workload Security. Default: true |
 | features.cws.syscallMonitorEnabled | SyscallMonitorEnabled enables Syscall Monitoring (recommended for troubleshooting only). Default: false |
 | features.dataPlane.dogstatsd.enabled | Configures the Data Plane to handle DogStatsD traffic. When enabled, DogStatsD is disabled in the Core Agent. Default: false |

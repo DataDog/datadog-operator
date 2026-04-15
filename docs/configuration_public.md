@@ -159,6 +159,9 @@ spec:
 `features.cws.remoteConfiguration.enabled`
 : Enables Remote Configuration for Cloud Workload Security. Default: true
 
+`features.cws.sbomEnabled`
+: SBOMEnabled enables the CWS SBOM resolver to track runtime package usage. When enabled, system-probe maps file accesses to packages and enriches SBOMs with LastSeenRunning timestamps ("package in use" feature). Requires CWS to be enabled. Default: false
+
 `features.cws.securityProfiles.enabled`
 : Enables Security Profiles collection for Cloud Workload Security. Default: true
 

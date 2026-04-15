@@ -1373,6 +1373,10 @@
                       },
                       "type": "object"
                     },
+                    "sbomEnabled": {
+                      "description": "SBOMEnabled enables the CWS SBOM resolver to track runtime package usage.\nWhen enabled, system-probe maps file accesses to packages and enriches\nSBOMs with LastSeenRunning timestamps (\"package in use\" feature).\nRequires CWS to be enabled. Default: false",
+                      "type": "boolean"
+                    },
                     "securityProfiles": {
                       "additionalProperties": false,
                       "properties": {
