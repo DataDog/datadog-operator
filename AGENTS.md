@@ -1,6 +1,6 @@
 # Datadog Operator - Agent Guide
 
-Kubernetes Operator for deploying and managing the Datadog Agent.
+Kubernetes Operator managing Datadog resources (Agent, Monitors, SLOs, Dashboards, etc.) via multiple controllers. The DatadogAgent controller is the most complex; other controllers are simpler and follow standard controller-runtime patterns.
 
 ## Build & Test Commands
 
