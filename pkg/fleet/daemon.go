@@ -7,6 +7,7 @@ package fleet
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -20,6 +21,14 @@ import (
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 )
+
+// errStateDoesntMatch is returned by verifyExpectedState when the task's expected
+// state doesn't match the operator's current installer state.
+type errStateDoesntMatch struct {
+	msg string
+}
+
+func (e *errStateDoesntMatch) Error() string { return e.msg }
 
 const (
 	methodStartDatadogAgentExperiment   = "operator/start_datadogagent_experiment"
@@ -66,7 +75,12 @@ func (d *Daemon) Start(ctx context.Context) error {
 		d.setTaskState(req.Package, req.ID, pbgo.TaskState_RUNNING, nil)
 		err := d.handleRemoteAPIRequest(ctx, req)
 		if err != nil {
-			d.setTaskState(req.Package, req.ID, pbgo.TaskState_ERROR, err)
+			var stateErr *errStateDoesntMatch
+			if errors.As(err, &stateErr) {
+				d.setTaskState(req.Package, req.ID, pbgo.TaskState_INVALID_STATE, err)
+			} else {
+				d.setTaskState(req.Package, req.ID, pbgo.TaskState_ERROR, err)
+			}
 		} else {
 			d.setTaskState(req.Package, req.ID, pbgo.TaskState_DONE, nil)
 		}
@@ -112,6 +126,24 @@ func (d *Daemon) getConfig(id string) (installerConfig, error) {
 	return cfg, nil
 }
 
+// verifyExpectedState checks that the config versions in the task's expected_state
+// match the operator's current installer state for the given package.
+// Returns *errStateDoesntMatch when they don't match.
+func (d *Daemon) verifyExpectedState(req remoteAPIRequest) error {
+	stable, experiment := d.getPackageConfigVersions(req.Package)
+	if req.ExpectedState.StableConfig != stable || req.ExpectedState.ExperimentConfig != experiment {
+		return &errStateDoesntMatch{
+			msg: fmt.Sprintf(
+				"state mismatch for package %s: expected stable_config=%q experiment_config=%q, got stable_config=%q experiment_config=%q",
+				req.Package,
+				req.ExpectedState.StableConfig, req.ExpectedState.ExperimentConfig,
+				stable, experiment,
+			),
+		}
+	}
+	return nil
+}
+
 // handleRemoteAPIRequest dispatches the incoming task to the appropriate handler.
 func (d *Daemon) handleRemoteAPIRequest(ctx context.Context, req remoteAPIRequest) error {
 	logger := ctrl.LoggerFrom(ctx).WithValues("id", req.ID, "package", req.Package, "method", req.Method)
@@ -119,6 +151,11 @@ func (d *Daemon) handleRemoteAPIRequest(ctx context.Context, req remoteAPIReques
 
 	if !d.revisionsEnabled {
 		return fmt.Errorf("experiment signals require the CreateControllerRevisions and DatadogAgentInternal feature gates")
+	}
+
+	if err := d.verifyExpectedState(req); err != nil {
+		logger.Error(err, "Expected state mismatch")
+		return err
 	}
 
 	switch req.Method {

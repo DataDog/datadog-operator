@@ -435,6 +435,74 @@ func TestPromoteDatadogAgentExperiment_Success_Running(t *testing.T) {
 	assert.Equal(t, "", rc.state[0].ExperimentConfigVersion)
 }
 
+// --- verifyExpectedState tests ---
+
+func TestVerifyExpectedState_Match(t *testing.T) {
+	d, rc := testDaemonWithRC([]*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "1.0.0", ExperimentConfigVersion: "2.0.0"},
+	})
+	d.rcClient = rc
+	req := remoteAPIRequest{
+		Package:       "datadog-operator",
+		ExpectedState: expectedState{StableConfig: "1.0.0", ExperimentConfig: "2.0.0"},
+	}
+	assert.NoError(t, d.verifyExpectedState(req))
+}
+
+func TestVerifyExpectedState_StableMismatch(t *testing.T) {
+	d, rc := testDaemonWithRC([]*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "1.0.0", ExperimentConfigVersion: ""},
+	})
+	d.rcClient = rc
+	req := remoteAPIRequest{
+		Package:       "datadog-operator",
+		ExpectedState: expectedState{StableConfig: "wrong", ExperimentConfig: ""},
+	}
+	err := d.verifyExpectedState(req)
+	require.Error(t, err)
+	var stateErr *errStateDoesntMatch
+	assert.True(t, errors.As(err, &stateErr))
+}
+
+func TestVerifyExpectedState_ExperimentMismatch(t *testing.T) {
+	d, rc := testDaemonWithRC([]*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "1.0.0", ExperimentConfigVersion: "2.0.0"},
+	})
+	d.rcClient = rc
+	req := remoteAPIRequest{
+		Package:       "datadog-operator",
+		ExpectedState: expectedState{StableConfig: "1.0.0", ExperimentConfig: "wrong"},
+	}
+	err := d.verifyExpectedState(req)
+	require.Error(t, err)
+	var stateErr *errStateDoesntMatch
+	assert.True(t, errors.As(err, &stateErr))
+}
+
+func TestVerifyExpectedState_NilClient(t *testing.T) {
+	// When rcClient is nil, getPackageConfigVersions returns ("", "").
+	// A request with empty expected state should pass.
+	d := &Daemon{}
+	req := remoteAPIRequest{
+		Package:       "datadog-operator",
+		ExpectedState: expectedState{StableConfig: "", ExperimentConfig: ""},
+	}
+	assert.NoError(t, d.verifyExpectedState(req))
+}
+
+func TestHandleRemoteAPIRequest_InvalidState(t *testing.T) {
+	d, _ := testDaemon(testDDAObject(""), testInstallerConfigWithDDA())
+	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "1.0.0", ExperimentConfigVersion: ""},
+	}}
+	req := testStartRequest()
+	req.ExpectedState = expectedState{StableConfig: "stale", ExperimentConfig: ""}
+	err := d.handleRemoteAPIRequest(context.Background(), req)
+	require.Error(t, err)
+	var stateErr *errStateDoesntMatch
+	assert.True(t, errors.As(err, &stateErr))
+}
+
 // --- validateOperation tests ---
 
 func TestValidateOperation_Valid(t *testing.T) {
