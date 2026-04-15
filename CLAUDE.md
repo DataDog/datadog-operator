@@ -1,1 +1,1 @@
-agent.md
+@AGENTS.md @CLAUDE_PERSONAL.md
