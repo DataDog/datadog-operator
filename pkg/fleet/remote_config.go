@@ -73,7 +73,7 @@ func handleInstallerConfigUpdate(ctx context.Context, h func(map[string]installe
 		logger := ctrl.LoggerFrom(ctx)
 		configs := make(map[string]installerConfig, len(updates))
 		for cfgPath, raw := range updates {
-			logger.Info("Received INSTALLER_CONFIG payload", "cfgPath", cfgPath, "rawPayload", string(raw.Config))
+			logger.V(1).Info("Received INSTALLER_CONFIG payload", "cfgPath", cfgPath, "rawPayload", string(raw.Config))
 
 			var cfg installerConfig
 			if err := json.Unmarshal(raw.Config, &cfg); err != nil {
@@ -104,7 +104,7 @@ func handleUpdaterTaskUpdate(ctx context.Context, h func(remoteAPIRequest) error
 	return func(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) {
 		logger := ctrl.LoggerFrom(ctx)
 		for cfgPath, raw := range updates {
-			logger.Info("Received UPDATER_TASK payload", "cfgPath", cfgPath, "rawPayload", string(raw.Config))
+			logger.V(1).Info("Received UPDATER_TASK payload", "cfgPath", cfgPath, "rawPayload", string(raw.Config))
 
 			var req remoteAPIRequest
 			if err := json.Unmarshal(raw.Config, &req); err != nil {

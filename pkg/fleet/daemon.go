@@ -105,14 +105,13 @@ func (d *Daemon) handleConfigs(ctx context.Context, configs map[string]installer
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	logger := ctrl.LoggerFrom(ctx)
-	logger.Info("Received installer configs", "configs", configs)
 	newConfigs := make(map[string]installerConfig, len(configs))
 	for _, cfg := range configs {
-		logger.Info("Received installer config", "id", cfg.ID, "operations", len(cfg.Operations))
+		logger.V(2).Info("Received installer config", "id", cfg.ID, "operations", len(cfg.Operations))
 		newConfigs[cfg.ID] = cfg
 	}
 	d.configs = newConfigs
-	logger.Info("Updated installer configs", "configs", d.configs)
+	logger.V(2).Info("Updated installer configs", "configs", d.configs)
 	return nil
 }
 
@@ -204,7 +203,7 @@ func (d *Daemon) resolveOperation(req remoteAPIRequest, signal string) (fleetMan
 // The second step updates the DDA status to running, recording the experiment ID.
 func (d *Daemon) startDatadogAgentExperiment(ctx context.Context, req remoteAPIRequest) error {
 	logger := ctrl.LoggerFrom(ctx).WithValues("id", req.ID)
-	logger.Info("Starting DatadogAgent experiment", "config", req.Params.Version)
+	logger.V(1).Info("Starting DatadogAgent experiment", "config", req.Params.Version)
 	op, err := d.resolveOperation(req, "start DatadogAgent experiment")
 	if err != nil {
 		logger.Error(err, "Failed to resolve operation")
@@ -216,8 +215,6 @@ func (d *Daemon) startDatadogAgentExperiment(ctx context.Context, req remoteAPIR
 
 	logger = logger.WithValues("namespace", op.NamespacedName.Namespace, "name", op.NamespacedName.Name)
 	ctx = ctrl.LoggerInto(ctx, logger)
-
-	logger.Info("Starting k8s resource patch", "config", op.Config)
 
 	// Check the operation
 	if op.Operation != OperationUpdate {
@@ -279,11 +276,12 @@ func (d *Daemon) startDatadogAgentExperiment(ctx context.Context, req remoteAPIR
 func (d *Daemon) stopDatadogAgentExperiment(ctx context.Context, req remoteAPIRequest) error {
 	nsn := d.experimentTarget
 	if nsn.Name == "" {
-		return fmt.Errorf("stop DatadogAgent experiment: no experiment target set (was start called first?)")
+		return fmt.Errorf("stop DatadogAgent experiment: no experiment target set")
 	}
 
 	ctx = ctrl.LoggerInto(ctx, ctrl.LoggerFrom(ctx).WithValues("id", req.ID, "namespace", nsn.Namespace, "name", nsn.Name))
 	logger := ctrl.LoggerFrom(ctx)
+	logger.V(1).Info("Stopping DatadogAgent experiment")
 
 	dda := &v2alpha1.DatadogAgent{}
 	if err := d.client.Get(ctx, nsn, dda); err != nil {
@@ -318,11 +316,12 @@ func (d *Daemon) stopDatadogAgentExperiment(ctx context.Context, req remoteAPIRe
 func (d *Daemon) promoteDatadogAgentExperiment(ctx context.Context, req remoteAPIRequest) error {
 	nsn := d.experimentTarget
 	if nsn.Name == "" {
-		return fmt.Errorf("promote DatadogAgent experiment: no experiment target set (was start called first?)")
+		return fmt.Errorf("promote DatadogAgent experiment: no experiment target set")
 	}
 
 	ctx = ctrl.LoggerInto(ctx, ctrl.LoggerFrom(ctx).WithValues("id", req.ID, "namespace", nsn.Namespace, "name", nsn.Name))
 	logger := ctrl.LoggerFrom(ctx)
+	logger.V(1).Info("Promoting DatadogAgent experiment")
 
 	// Verify there is an active experiment to promote.
 	_, experiment := d.getPackageConfigVersions(req.Package)
@@ -468,7 +467,7 @@ func (d *Daemon) logInstallerState(caller string) {
 			taskID = pkg.GetTask().GetId()
 			taskState = pkg.GetTask().GetState()
 		}
-		logger.Info("Installer state",
+		logger.V(1).Info("Installer state",
 			"caller", caller,
 			"package", pkg.GetPackage(),
 			"stableVersion", pkg.GetStableVersion(),
