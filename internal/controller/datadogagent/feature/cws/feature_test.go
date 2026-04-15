@@ -93,6 +93,11 @@ func Test_cwsFeature_Configure(t *testing.T) {
 		ddaCWSLiteEnforcementEnabled.Spec.Features.CWS.Enforcement.Enabled = ptr.To(true)
 	}
 
+	ddaCWSSBOMEnabled := ddaCWSLiteEnabled.DeepCopy()
+	{
+		ddaCWSSBOMEnabled.Spec.Features.CWS.SBOMEnabled = ptr.To(true)
+	}
+
 	tests := test.FeatureTestSuite{
 		{
 			Name:          "v2alpha1 CWS not enabled",
@@ -103,32 +108,38 @@ func Test_cwsFeature_Configure(t *testing.T) {
 			Name:          "v2alpha1 CWS enabled",
 			DDA:           ddaCWSLiteEnabled,
 			WantConfigure: true,
-			Agent:         cwsAgentNodeWantFunc(false, false, false),
+			Agent:         cwsAgentNodeWantFunc(false, false, false, false),
 		},
 		{
 			Name:          "v2alpha1 CWS enabled (with network, security profiles and remote configuration)",
 			DDA:           ddaCWSFullEnabled,
 			WantConfigure: true,
-			Agent:         cwsAgentNodeWantFunc(true, false, false),
+			Agent:         cwsAgentNodeWantFunc(true, false, false, false),
 		},
 		{
 			Name:          "v2alpha1 CWS enabled in direct sender mode",
 			DDA:           ddaCWSLiteDirectSendEnabled,
 			WantConfigure: true,
-			Agent:         cwsAgentNodeWantFunc(false, true, false),
+			Agent:         cwsAgentNodeWantFunc(false, true, false, false),
 		},
 		{
 			Name:          "v2alpha1 CWS enabled with enforcement",
 			DDA:           ddaCWSLiteEnforcementEnabled,
 			WantConfigure: true,
-			Agent:         cwsAgentNodeWantFunc(false, false, true),
+			Agent:         cwsAgentNodeWantFunc(false, false, true, false),
+		},
+		{
+			Name:          "v2alpha1 CWS enabled with SBOM",
+			DDA:           ddaCWSSBOMEnabled,
+			WantConfigure: true,
+			Agent:         cwsAgentNodeWantFunc(false, false, false, true),
 		},
 	}
 
 	tests.Run(t, buildCWSFeature)
 }
 
-func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool, enforcementEnabled bool) *test.ComponentTest {
+func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool, enforcementEnabled bool, sbomEnabled bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -196,6 +207,15 @@ func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool, enf
 					},
 				)
 			}
+			if sbomEnabled {
+				sysProbeWant = append(
+					sysProbeWant,
+					&corev1.EnvVar{
+						Name:  DDRuntimeSecurityConfigSBOMEnabled,
+						Value: "true",
+					},
+				)
+			}
 			sysProbeWant = append(
 				sysProbeWant,
 				&corev1.EnvVar{
@@ -212,6 +232,29 @@ func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool, enf
 			}
 			sysProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
 			assert.True(t, apiutils.IsEqualStruct(sysProbeEnvVars, sysProbeWant), "System probe envvars \ndiff = %s", cmp.Diff(sysProbeEnvVars, sysProbeWant))
+
+			coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+			if sbomEnabled {
+				coreAgentSBOMWant := []*corev1.EnvVar{
+					{
+						Name:  DDRuntimeSecurityConfigEnabled,
+						Value: "true",
+					},
+					{
+						Name:  DDRuntimeSecurityConfigSocket,
+						Value: "/var/run/sysprobe/runtime-security.sock",
+					},
+					{
+						Name:  DDRuntimeSecurityConfigSyscallMonitorEnabled,
+						Value: "true",
+					},
+					{
+						Name:  DDRuntimeSecurityConfigSBOMEnabled,
+						Value: "true",
+					},
+				}
+				assert.True(t, apiutils.IsEqualStruct(coreAgentEnvVars, coreAgentSBOMWant), "Core agent envvars \ndiff = %s", cmp.Diff(coreAgentEnvVars, coreAgentSBOMWant))
+			}
 
 			// check volume mounts
 			securityWantVolumeMount := []corev1.VolumeMount{

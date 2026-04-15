@@ -560,6 +560,11 @@ func (in *CWSFeatureConfig) DeepCopyInto(out *CWSFeatureConfig) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.SBOMEnabled != nil {
+		in, out := &in.SBOMEnabled, &out.SBOMEnabled
+		*out = new(bool)
+		**out = **in
+	}
 	if in.Enforcement != nil {
 		in, out := &in.Enforcement, &out.Enforcement
 		*out = new(CWSEnforcementConfig)

@@ -51,6 +51,7 @@ type cwsFeature struct {
 	remoteConfigurationEnabled bool
 	directSendFromSystemProbe  bool
 	enforcementEnabled         bool
+	sbomEnabled                bool
 	useVSock                   bool
 
 	owner  metav1.Object
@@ -92,6 +93,8 @@ func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.CWSIDType)
 		}
 		f.configMapName = constants.GetConfName(dda, f.customConfig, defaultCWSConf)
+
+		f.sbomEnabled = apiutils.BoolValue(cwsConfig.SBOMEnabled)
 
 		if cwsConfig.Enforcement != nil {
 			f.enforcementEnabled = apiutils.BoolValue(cwsConfig.Enforcement.Enabled)
@@ -276,6 +279,20 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 			Value: "true",
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, rcEnvVar)
+	}
+
+	if f.sbomEnabled {
+		sbomEnvVar := &corev1.EnvVar{
+			Name:  DDRuntimeSecurityConfigSBOMEnabled,
+			Value: "true",
+		}
+		managers.EnvVar().AddEnvVarToContainers(
+			[]apicommon.AgentContainerName{
+				apicommon.SystemProbeContainerName,
+				apicommon.CoreAgentContainerName,
+			},
+			sbomEnvVar,
+		)
 	}
 
 	policiesDirEnvVar := &corev1.EnvVar{
