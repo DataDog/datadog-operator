@@ -1134,6 +1134,26 @@ func TestContainer(t *testing.T) {
 			},
 		},
 		{
+			name:          "override app armor profile for non-existing container does not add annotation",
+			containerName: apicommon.SecurityAgentContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				// Pod spec does not contain the security-agent container
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{*agentContainer},
+					},
+				})
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				AppArmorProfileName: ptr.To("my-app-armor-profile"),
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				annotation := fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, apicommon.SecurityAgentContainerName)
+				_, found := manager.AnnotationMgr.Annotations[annotation]
+				assert.False(t, found, "AppArmor annotation should not be added when container does not exist in pod spec")
+			},
+		},
+		{
 			name:          "seccomp inline ConfigData adds checksum annotation",
 			containerName: apicommon.SystemProbeContainerName,
 			existingManager: func() *fake.PodTemplateManagers {

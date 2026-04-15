@@ -29,12 +29,13 @@ type expectedPorts struct {
 }
 
 type expectedEnvVars struct {
-	agent_ipc_port     expectedEnvVar
-	agent_ipc_refresh  expectedEnvVar
-	enabled            expectedEnvVar
-	extension_timeout  expectedEnvVar
-	extension_url      expectedEnvVar
-	converter_features expectedEnvVar
+	agent_ipc_port      expectedEnvVar
+	agent_ipc_refresh   expectedEnvVar
+	enabled             expectedEnvVar
+	extension_timeout   expectedEnvVar
+	extension_url       expectedEnvVar
+	converter_features  expectedEnvVar
+	installation_method expectedEnvVar
 }
 
 type expectedEnvVar struct {
@@ -64,6 +65,10 @@ var (
 		extension_timeout:  expectedEnvVar{},
 		extension_url:      expectedEnvVar{},
 		converter_features: expectedEnvVar{},
+		installation_method: expectedEnvVar{
+			present: true,
+			value:   "kubernetes",
+		},
 	}
 
 	onlyIpcEnvVars = expectedEnvVars{
@@ -74,6 +79,10 @@ var (
 		agent_ipc_refresh: expectedEnvVar{
 			present: true,
 			value:   "60",
+		},
+		installation_method: expectedEnvVar{
+			present: true,
+			value:   "kubernetes",
 		},
 	}
 	defaultVolumeMounts = []corev1.VolumeMount{
@@ -234,6 +243,10 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 						present: true,
 						value:   "health_check,zpages,pprof,ddflare",
 					},
+					installation_method: expectedEnvVar{
+						present: true,
+						value:   "kubernetes",
+					},
 				},
 				map[string]string{"checksum/otel_agent-custom-config": "b4ea5ecc5c7901d3b48c58622379ecfb"},
 				defaultVolumeMounts,
@@ -271,6 +284,10 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 					converter_features: expectedEnvVar{
 						present: true,
 						value:   "health_check,zpages,pprof,ddflare",
+					},
+					installation_method: expectedEnvVar{
+						present: true,
+						value:   "kubernetes",
 					},
 				},
 				map[string]string{"checksum/otel_agent-custom-config": "d9c73c9017a4fcb811da0e51f5044b3c"},
@@ -321,6 +338,10 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 					present: true,
 					value:   "13",
 				},
+				installation_method: expectedEnvVar{
+					present: true,
+					value:   "kubernetes",
+				},
 			},
 				defaultAnnotations,
 				defaultVolumeMounts,
@@ -347,6 +368,10 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				extension_url: expectedEnvVar{
 					present: true,
 					value:   "https://localhost:1234",
+				},
+				installation_method: expectedEnvVar{
+					present: true,
+					value:   "kubernetes",
 				},
 			},
 				defaultAnnotations,
@@ -383,6 +408,10 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				enabled: expectedEnvVar{
 					present: true,
 					value:   "true",
+				},
+				installation_method: expectedEnvVar{
+					present: true,
+					value:   "kubernetes",
 				},
 			},
 				defaultAnnotations,
@@ -544,6 +573,13 @@ func testExpectedAgent(
 				wantEnvVarsOTel = append(wantEnvVarsOTel, &corev1.EnvVar{
 					Name:  DDOtelCollectorConverterFeatures,
 					Value: expectedEnvVars.converter_features.value,
+				})
+			}
+
+			if expectedEnvVars.installation_method.present {
+				wantEnvVarsOTel = append(wantEnvVarsOTel, &corev1.EnvVar{
+					Name:  DDOtelCollectorInstallationMethod,
+					Value: expectedEnvVars.installation_method.value,
 				})
 			}
 

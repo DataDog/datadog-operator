@@ -1,4 +1,4 @@
-image: registry.ddbuild.io/images/mirror/library/golang:1.25.8
+image: registry.ddbuild.io/images/mirror/library/golang:1.25.9
 variables:
   NIGHTLY_BUILD_CONDUCTOR_NAME: "operator-nightly-build"
   PROJECTNAME: "datadog-operator"
@@ -530,6 +530,9 @@ publish_redhat_public_tag:
 publish_public_latest:
   stage: release-latest
   rules:
+    # Skip latest jobs for vX.Y.Z-rc.W tags
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/'
+      when: never
     - if: $CI_COMMIT_TAG
       when: manual
     - when: never
@@ -548,6 +551,28 @@ publish_public_latest_fips:
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
     IMG_DESTINATIONS: operator:latest-fips
+
+publish_public_rc_latest:
+  stage: release-latest
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/'
+      when: manual
+    - when: never
+  trigger:
+    project: DataDog/public-images
+    branch: main
+    strategy: depend
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
+    IMG_DESTINATIONS: operator:rc-latest
+    IMG_SIGNING: "false"
+    IMG_MERGE_STRATEGY: "index_oci"
+
+publish_public_rc_latest_fips:
+  extends: publish_public_rc_latest
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
+    IMG_DESTINATIONS: operator:rc-latest-fips
 
 publish_redhat_public_latest:
   stage: release-latest
@@ -585,22 +610,12 @@ trigger_internal_operator_image:
     RELEASE_PROD: "true"
 
 trigger_internal_operator_image_fips:
-  stage: release
-  rules:
-    - if: $CI_COMMIT_TAG
-    - when: never
-  trigger:
-    project: DataDog/images
-    branch: master
-    strategy: depend
+  extends: trigger_internal_operator_image
   variables:
     IMAGE_VERSION: tmpl-v2-fips
-    IMAGE_NAME: $PROJECTNAME
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips
     RELEASE_TAG: ${CI_COMMIT_REF_SLUG}-fips
     BUILD_TAG: ${CI_COMMIT_REF_SLUG}-fips
-    RELEASE_STAGING: "true"
-    RELEASE_PROD: "true"
 
 trigger_internal_operator_check_image:
   stage: release
@@ -619,6 +634,32 @@ trigger_internal_operator_check_image:
     BUILD_TAG: ${CI_COMMIT_REF_SLUG}
     RELEASE_STAGING: "true"
     RELEASE_PROD: "true"
+
+trigger_internal_operator_image_rc_latest:
+  stage: release-latest
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/'
+    - when: never
+  trigger:
+    project: DataDog/images
+    branch: master
+    strategy: depend
+  variables:
+    IMAGE_VERSION: tmpl-v2
+    IMAGE_NAME: $PROJECTNAME
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    RELEASE_TAG: rc-latest
+    BUILD_TAG: rc-latest
+    RELEASE_STAGING: "true"
+    RELEASE_PROD: "true"
+
+trigger_internal_operator_image_fips_rc_latest:
+  extends: trigger_internal_operator_image_rc_latest
+  variables:
+    IMAGE_VERSION: tmpl-v2-fips
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips
+    RELEASE_TAG: rc-latest-fips
+    BUILD_TAG: rc-latest-fips
 
 trigger_internal_operator_nightly_image:
   stage: release
