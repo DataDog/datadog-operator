@@ -230,8 +230,7 @@ func (o *options) run(cmd *cobra.Command) error {
 		return fmt.Errorf("failed to build clients: %w", err)
 	}
 
-	kubeconfigAccountID := clients.GetAccountIDFromKubeconfig(o.ConfigFlags)
-	if err = clients.ValidateAWSAccountConsistency(ctx, cli, clusterName, kubeconfigAccountID); err != nil {
+	if err = clients.ValidateAWSAccountConsistency(ctx, cli, clusterName, o.ConfigFlags); err != nil {
 		return err
 	}
 

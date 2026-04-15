@@ -137,9 +137,9 @@ func GetClusterNameFromKubeconfig(ctx context.Context, configFlags *genericcliop
 	return guess.GetClusterNameFromKubeconfig(ctx, kubeRawConfig, kubeContext), nil
 }
 
-// GetAccountIDFromKubeconfig attempts to extract the AWS account ID from the
+// getAccountIDFromKubeconfig attempts to extract the AWS account ID from the
 // kubeconfig context. Returns an empty string if the context is not an EKS ARN.
-func GetAccountIDFromKubeconfig(configFlags *genericclioptions.ConfigFlags) string {
+func getAccountIDFromKubeconfig(configFlags *genericclioptions.ConfigFlags) string {
 	kubeRawConfig, kubeContext, err := resolveKubeContext(configFlags)
 	if err != nil || kubeContext == "" {
 		return ""
@@ -173,42 +173,44 @@ func GetAWSAccountID(ctx context.Context, cli *Clients) (string, error) {
 // deployment by verifying that the current AWS credentials and the target
 // EKS cluster belong to the same AWS account.
 //
-// kubeconfigAccountID should be the account ID extracted from the kubeconfig
-// context ARN (via GetAccountIDFromKubeconfig). When non-empty, it is used
-// directly — this avoids relying on DescribeCluster with the credentials
-// being validated, which would give a false positive if both accounts
-// happen to have a cluster with the same name.
-//
-// When kubeconfigAccountID is empty (kubeconfig context is not an ARN),
-// falls back to DescribeCluster.
-func ValidateAWSAccountConsistency(ctx context.Context, cli *Clients, clusterName string, kubeconfigAccountID string) error {
+// The cluster's account ID is derived from the kubeconfig context ARN when
+// available. This is independent of the AWS credentials and cannot be fooled
+// by same-named clusters in different accounts. When the kubeconfig context
+// is not an ARN, falls back to DescribeCluster.
+func ValidateAWSAccountConsistency(ctx context.Context, cli *Clients, clusterName string, configFlags *genericclioptions.ConfigFlags) error {
 	credentialsAccountID, err := GetAWSAccountID(ctx, cli)
 	if err != nil {
 		return err
 	}
 
-	if kubeconfigAccountID != "" {
-		if credentialsAccountID != kubeconfigAccountID {
-			return &AccountMismatchError{
-				CredentialsAccountID: credentialsAccountID,
-				ClusterAccountID:     kubeconfigAccountID,
-				ClusterName:          clusterName,
-			}
+	clusterAccountID := getAccountIDFromKubeconfig(configFlags)
+	if clusterAccountID == "" {
+		cluster, err := cli.EKS.DescribeCluster(ctx, &eks.DescribeClusterInput{
+			Name: awssdk.String(clusterName),
+		})
+		if err != nil {
+			return fmt.Errorf("failed to describe EKS cluster %s: %w", clusterName, err)
 		}
-		return nil
+		if cluster.Cluster == nil || cluster.Cluster.Arn == nil {
+			return fmt.Errorf("EKS cluster %s has no ARN", clusterName)
+		}
+
+		clusterArn, err := arn.Parse(*cluster.Cluster.Arn)
+		if err != nil {
+			return fmt.Errorf("failed to parse EKS cluster ARN %q: %w", *cluster.Cluster.Arn, err)
+		}
+		clusterAccountID = clusterArn.AccountID
 	}
 
-	cluster, err := cli.EKS.DescribeCluster(ctx, &eks.DescribeClusterInput{
-		Name: awssdk.String(clusterName),
-	})
-	if err != nil {
-		return fmt.Errorf("failed to describe EKS cluster %s: %w", clusterName, err)
-	}
-	if cluster.Cluster == nil || cluster.Cluster.Arn == nil {
-		return fmt.Errorf("EKS cluster %s has no ARN", clusterName)
+	if credentialsAccountID != clusterAccountID {
+		return &AccountMismatchError{
+			CredentialsAccountID: credentialsAccountID,
+			ClusterAccountID:     clusterAccountID,
+			ClusterName:          clusterName,
+		}
 	}
 
-	return validateAccountIDs(credentialsAccountID, *cluster.Cluster.Arn, clusterName)
+	return nil
 }
 
 // AccountMismatchError indicates that the AWS credentials and the EKS cluster
@@ -226,23 +228,4 @@ func (e *AccountMismatchError) Error() string {
 			"ensure your AWS credentials and kubeconfig target the same AWS account",
 		e.CredentialsAccountID, e.ClusterName, e.ClusterAccountID,
 	)
-}
-
-// validateAccountIDs checks that the credentials account ID matches the
-// account ID extracted from the cluster ARN.
-func validateAccountIDs(credentialsAccountID string, clusterARN string, clusterName string) error {
-	clusterArn, err := arn.Parse(clusterARN)
-	if err != nil {
-		return fmt.Errorf("failed to parse EKS cluster ARN %q: %w", clusterARN, err)
-	}
-
-	if credentialsAccountID != clusterArn.AccountID {
-		return &AccountMismatchError{
-			CredentialsAccountID: credentialsAccountID,
-			ClusterAccountID:     clusterArn.AccountID,
-			ClusterName:          clusterName,
-		}
-	}
-
-	return nil
 }
