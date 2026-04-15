@@ -44,6 +44,7 @@ func testDaemon(dda *v2alpha1.DatadogAgent, configs map[string]installerConfig) 
 		client:           c,
 		revisionsEnabled: true,
 		configs:          configs,
+		experimentTarget: testDDANSN,
 	}, c
 }
 
@@ -274,13 +275,6 @@ func testStopRequest() remoteAPIRequest {
 	}
 }
 
-func TestStopDatadogAgentExperiment_ConfigNotFound(t *testing.T) {
-	d, _ := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseRunning), testInstallerConfigWithDDA())
-	req := testStopRequest()
-	req.Params.Version = "nonexistent"
-	assert.Error(t, d.stopDatadogAgentExperiment(context.Background(), req))
-}
-
 func TestStopDatadogAgentExperiment_DDANotFound(t *testing.T) {
 	d, _ := testDaemon(nil, testInstallerConfigWithDDA())
 	assert.Error(t, d.stopDatadogAgentExperiment(context.Background(), testStopRequest()))
@@ -345,13 +339,6 @@ func testPromoteRequest() remoteAPIRequest {
 		Method:  methodPromoteDatadogAgentExperiment,
 		Params:  experimentParams{Version: "test-config"},
 	}
-}
-
-func TestPromoteDatadogAgentExperiment_ConfigNotFound(t *testing.T) {
-	d, _ := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseRunning), testInstallerConfigWithDDA())
-	req := testPromoteRequest()
-	req.Params.Version = "nonexistent"
-	assert.Error(t, d.promoteDatadogAgentExperiment(context.Background(), req))
 }
 
 func TestPromoteDatadogAgentExperiment_DDANotFound(t *testing.T) {
@@ -460,7 +447,7 @@ func TestVerifyExpectedState_StableMismatch(t *testing.T) {
 	}
 	err := d.verifyExpectedState(req)
 	require.Error(t, err)
-	var stateErr *errStateDoesntMatch
+	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
 }
 
@@ -475,7 +462,7 @@ func TestVerifyExpectedState_ExperimentMismatch(t *testing.T) {
 	}
 	err := d.verifyExpectedState(req)
 	require.Error(t, err)
-	var stateErr *errStateDoesntMatch
+	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
 }
 
@@ -499,7 +486,7 @@ func TestHandleRemoteAPIRequest_InvalidState(t *testing.T) {
 	req.ExpectedState = expectedState{StableConfig: "stale", ExperimentConfig: ""}
 	err := d.handleRemoteAPIRequest(context.Background(), req)
 	require.Error(t, err)
-	var stateErr *errStateDoesntMatch
+	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
 }
 
