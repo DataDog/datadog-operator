@@ -610,22 +610,12 @@ trigger_internal_operator_image:
     RELEASE_PROD: "true"
 
 trigger_internal_operator_image_fips:
-  stage: release
-  rules:
-    - if: $CI_COMMIT_TAG
-    - when: never
-  trigger:
-    project: DataDog/images
-    branch: master
-    strategy: depend
+  extends: trigger_internal_operator_image
   variables:
     IMAGE_VERSION: tmpl-v2-fips
-    IMAGE_NAME: $PROJECTNAME
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips
     RELEASE_TAG: ${CI_COMMIT_REF_SLUG}-fips
     BUILD_TAG: ${CI_COMMIT_REF_SLUG}-fips
-    RELEASE_STAGING: "true"
-    RELEASE_PROD: "true"
 
 trigger_internal_operator_check_image:
   stage: release
