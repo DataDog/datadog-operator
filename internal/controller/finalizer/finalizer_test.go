@@ -55,9 +55,10 @@ func Test_HandleFinalizer(t *testing.T) {
 		expectedResult        ctrl.Result
 		expectedErr           bool
 		deleterFunc           ResourceDeleteFunc
+		requeuePeriodOverride *time.Duration // if set, overrides requeuePeriod
 	}{
 		{
-			name: "not deleting, no finalizer: adds finalizer and requeues",
+			name: "not deleting, no finalizer: adds finalizer and requeues with period",
 			clientObject: testResource{
 				TypeMeta: metav1.TypeMeta{
 					Kind: "TestResource",
@@ -69,6 +70,21 @@ func Test_HandleFinalizer(t *testing.T) {
 			finalizerShouldExists: true,
 			expectedResult:        ctrl.Result{RequeueAfter: requeuePeriod},
 			deleterFunc:           noopDelete,
+		},
+		{
+			name: "not deleting, no finalizer, zero period: adds finalizer and requeues immediately",
+			clientObject: testResource{
+				TypeMeta: metav1.TypeMeta{
+					Kind: "TestResource",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test resource 2",
+				},
+			},
+			finalizerShouldExists: true,
+			expectedResult:        ctrl.Result{Requeue: true},
+			deleterFunc:           noopDelete,
+			requeuePeriodOverride: durationPtr(0),
 		},
 		{
 			name: "not deleting, already has finalizer: no-op, proceed to reconciliation",
@@ -126,7 +142,11 @@ func Test_HandleFinalizer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := fake.NewClientBuilder().WithObjects(&tt.clientObject).Build()
-			finalizer := NewFinalizer(testLogger, fakeClient, tt.deleterFunc, requeuePeriod, errRequeuePeriod)
+			rp := requeuePeriod
+			if tt.requeuePeriodOverride != nil {
+				rp = *tt.requeuePeriodOverride
+			}
+			finalizer := NewFinalizer(testLogger, fakeClient, tt.deleterFunc, rp, errRequeuePeriod)
 
 			res, err := finalizer.HandleFinalizer(context.TODO(), &tt.clientObject, "123", finalizerName)
 
@@ -143,4 +163,8 @@ func Test_HandleFinalizer(t *testing.T) {
 			}
 		})
 	}
+}
+
+func durationPtr(d time.Duration) *time.Duration {
+	return &d
 }

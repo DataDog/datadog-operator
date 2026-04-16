@@ -63,7 +63,11 @@ func (f *Finalizer) HandleFinalizer(ctx context.Context, clientObj client.Object
 				return ctrl.Result{Requeue: true, RequeueAfter: f.defaultErrRequeuePeriod}, err
 			}
 			// Requeue after adding the finalizer so the next reconcile works
-			// with the updated object from the API server.
+			// with the updated object from the API server. Controllers that
+			// pass 0 get an immediate requeue (Requeue: true).
+			if f.defaultRequeuePeriod == 0 {
+				return ctrl.Result{Requeue: true}, nil
+			}
 			return ctrl.Result{RequeueAfter: f.defaultRequeuePeriod}, nil
 		}
 	} else {
