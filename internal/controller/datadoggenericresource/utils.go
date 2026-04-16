@@ -16,26 +16,45 @@ import (
 // mockSubresource is used to mock the subresource in tests
 const mockSubresource = "mock_resource"
 
+var (
+	mockResourceID      = "mock-id"
+	mockResourceCreator = "mock-creator"
+	mockGetErr          error
+	mockUpdateErr       error
+	mockDeleteErr       error
+	mockCreateCalls     int
+)
+
 type MockHandler struct{}
 
 func (h *MockHandler) createResourcefunc(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	status.Id = "mock-id"
+	mockCreateCalls++
+	status.Id = mockResourceID
 	status.Created = &now
 	status.LastForceSyncTime = &now
-	status.Creator = "mock-creator"
+	status.Creator = mockResourceCreator
 	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
 	status.CurrentHash = hash
 	return nil
 }
 
 func (h *MockHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return nil
+	return mockGetErr
 }
 func (h *MockHandler) updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return nil
+	return mockUpdateErr
 }
 func (h *MockHandler) deleteResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return nil
+	return mockDeleteErr
+}
+
+func resetMockHandlerState() {
+	mockResourceID = "mock-id"
+	mockResourceCreator = "mock-creator"
+	mockGetErr = nil
+	mockUpdateErr = nil
+	mockDeleteErr = nil
+	mockCreateCalls = 0
 }
 
 func apiDelete(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {

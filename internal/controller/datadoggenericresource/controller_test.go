@@ -121,6 +121,42 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 			},
 		},
 		{
+			name: "DatadogGenericResource recreates on update when remote resource is missing",
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				firstAction: func(c client.Client) {
+					_ = c.Create(context.TODO(), mockGenericResource())
+				},
+				firstReconcileCount: 2,
+				secondAction: func(c client.Client) {
+					mockResourceID = "mock-id-recreated"
+					mockUpdateErr = fmt.Errorf("error updating mock resource: 404 Not Found")
+					obj := &datadoghqv1alpha1.DatadogGenericResource{}
+					err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj)
+					assert.NoError(t, err)
+					obj.Spec.JsonSpec = "{\"bar\": \"baz\"}"
+					err = c.Update(context.TODO(), obj)
+					assert.NoError(t, err)
+				},
+				secondReconcileCount: 1,
+			},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantFunc: func(c client.Client) error {
+				obj := &datadoghqv1alpha1.DatadogGenericResource{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj); err != nil {
+					return err
+				}
+				hash, _ := comparison.GenerateMD5ForSpec(obj.Spec)
+				// Recreating the Datadog resource yields a fresh remote ID, so we only
+				// assert that the stored ID changed from the original one.
+				assert.NotEqual(t, "mock-id", obj.Status.Id)
+				assert.NotEmpty(t, obj.Status.Id)
+				assert.Equal(t, hash, obj.Status.CurrentHash)
+				assert.Equal(t, 2, mockCreateCalls)
+				return nil
+			},
+		},
+		{
 			name: "DatadogGenericResource exists, needs delete",
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -148,6 +184,8 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			resetMockHandlerState()
+
 			httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 			}))
