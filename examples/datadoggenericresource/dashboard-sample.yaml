@@ -1,0 +1,54 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogGenericResource
+metadata:
+  name: ddgr-dashboard-sample
+spec:
+  type: dashboard
+  jsonSpec: |-
+    {
+      "title": "Example Dashboard (DatadogGenericResource)",
+      "layout_type": "ordered",
+      "tags": [
+        "team:example"
+      ],
+      "widgets": [
+        {
+          "definition": {
+            "type": "timeseries",
+            "title": "System CPU Usage",
+            "title_size": "16",
+            "title_align": "left",
+            "show_legend": true,
+            "requests": [
+              {
+                "formulas": [
+                  {
+                    "formula": "query1"
+                  }
+                ],
+                "queries": [
+                  {
+                    "name": "query1",
+                    "data_source": "metrics",
+                    "query": "avg:system.cpu.user{*} by {host}"
+                  }
+                ],
+                "response_format": "timeseries",
+                "style": {
+                  "palette": "dog_classic",
+                  "line_type": "solid",
+                  "line_width": "normal"
+                },
+                "display_type": "line"
+              }
+            ]
+          },
+          "layout": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 3
+          }
+        }
+      ]
+    }
