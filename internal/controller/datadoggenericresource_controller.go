@@ -35,7 +35,8 @@ type DatadogGenericResourceReconciler struct {
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericresources/finalizers,verbs=get;list;watch;create;update;patch;delete
 
 func (r *DatadogGenericResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	ctx = ctrl.LoggerInto(ctx, ctrl.LoggerFrom(ctx).WithValues("datadoggenericresource", req.NamespacedName))
+	logger := ctrl.LoggerFrom(ctx).WithName("controllers").WithName("DatadogGenericResource").WithValues("kind", "DatadogGenericResource")
+	ctx = ctrl.LoggerInto(ctx, logger)
 	return r.internal.Reconcile(ctx, req)
 }
 
