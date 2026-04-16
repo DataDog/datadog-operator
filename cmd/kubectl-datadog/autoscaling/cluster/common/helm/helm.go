@@ -128,6 +128,44 @@ func upgrade(ctx context.Context, ac *action.Configuration, releaseName, namespa
 	return nil
 }
 
+// GetRelease retrieves the full Helm release including config values.
+func GetRelease(_ context.Context, ac *action.Configuration, releaseName string) (*release.Release, error) {
+	getAction := action.NewGet(ac)
+	rel, err := getAction.Run(releaseName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Helm release %s: %w", releaseName, err)
+	}
+	return rel, nil
+}
+
+// IsOurRelease checks whether a Karpenter Helm release in the given namespace
+// was installed by the kubectl-datadog plugin. Returns the release for reuse
+// by the caller.
+func IsOurRelease(ctx context.Context, configFlags *genericclioptions.ConfigFlags, namespace, releaseName string) (bool, *release.Release, error) {
+	actionConfig, err := NewActionConfig(configFlags, namespace)
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to create Helm action config for namespace %s: %w", namespace, err)
+	}
+
+	rel, err := GetRelease(ctx, actionConfig, releaseName)
+	if err != nil {
+		return false, nil, err
+	}
+
+	if rel == nil || rel.Config == nil {
+		return false, nil, nil
+	}
+
+	labels, ok := rel.Config["additionalLabels"].(map[string]any)
+	if !ok {
+		return false, rel, nil
+	}
+
+	managedBy, ok := labels["app.kubernetes.io/managed-by"].(string)
+	isOurs := ok && managedBy == "kubectl-datadog"
+	return isOurs, rel, nil
+}
+
 func Uninstall(ctx context.Context, ac *action.Configuration, releaseName string) error {
 	exist, err := Exists(ctx, ac, releaseName)
 	if err != nil {
