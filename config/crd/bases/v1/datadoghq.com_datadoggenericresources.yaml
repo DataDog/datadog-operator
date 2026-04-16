@@ -57,6 +57,7 @@ spec:
                 type:
                   description: Type is the type of the API object
                   enum:
+                    - dashboard
                     - downtime
                     - monitor
                     - notebook

@@ -40,6 +40,7 @@ const (
 
 type Reconciler struct {
 	client                  client.Client
+	datadogDashboardsClient *datadogV1.DashboardsApi
 	datadogSyntheticsClient *datadogV1.SyntheticsApi
 	datadogNotebooksClient  *datadogV1.NotebooksApi
 	datadogMonitorsClient   *datadogV1.MonitorsApi
@@ -58,6 +59,7 @@ func NewReconciler(client client.Client, creds config.Creds, scheme *runtime.Sch
 
 	return &Reconciler{
 		client:                  client,
+		datadogDashboardsClient: ddClient.DashboardsClient,
 		datadogSyntheticsClient: ddClient.SyntheticsClient,
 		datadogNotebooksClient:  ddClient.NotebooksClient,
 		datadogMonitorsClient:   ddClient.MonitorsClient,
@@ -75,6 +77,7 @@ func (r *Reconciler) UpdateDatadogClient(newCreds config.Creds) error {
 	if err != nil {
 		return fmt.Errorf("unable to create Datadog API Client in DatadogGenericResource: %w", err)
 	}
+	r.datadogDashboardsClient = ddClient.DashboardsClient
 	r.datadogSyntheticsClient = ddClient.SyntheticsClient
 	r.datadogNotebooksClient = ddClient.NotebooksClient
 	r.datadogMonitorsClient = ddClient.MonitorsClient
