@@ -299,6 +299,9 @@ func (d *Daemon) stopDatadogAgentExperiment(ctx context.Context, req remoteAPIRe
 		if err := d.client.Get(ctx, nsn, dda); err != nil {
 			return err
 		}
+		if dda.Status.Experiment == nil {
+			return fmt.Errorf("experiment status was cleared unexpectedly")
+		}
 		dda.Status.Experiment.Phase = v2alpha1.ExperimentPhaseStopped
 		return d.client.Status().Update(ctx, dda)
 	}); err != nil {
@@ -344,6 +347,9 @@ func (d *Daemon) promoteDatadogAgentExperiment(ctx context.Context, req remoteAP
 	if err := retryWithBackoff(ctx, func() error {
 		if err := d.client.Get(ctx, nsn, dda); err != nil {
 			return err
+		}
+		if dda.Status.Experiment == nil {
+			return fmt.Errorf("experiment status was cleared unexpectedly")
 		}
 		dda.Status.Experiment.Phase = v2alpha1.ExperimentPhasePromoted
 		return d.client.Status().Update(ctx, dda)
@@ -415,10 +421,11 @@ func (d *Daemon) getPackageConfigVersions(pkgName string) (stable, experiment st
 	return "", ""
 }
 
-// setPackageConfigVersions updates the stable and experiment version fields of the
-// package entry in the RC installer state. Both the config variants
-// (StableConfigVersion/ExperimentConfigVersion) and the package variants
-// (StableVersion/ExperimentVersion) are set to the same values.
+// setPackageConfigVersions updates the config version fields of the
+// package entry in the RC installer state. Only the config variants
+// (StableConfigVersion/ExperimentConfigVersion) are set; the package variants
+// (StableVersion/ExperimentVersion) are preserved since this is a config
+// experiment, not a package upgrade.
 func (d *Daemon) setPackageConfigVersions(pkgName, stable, experiment string) {
 	if d.rcClient == nil {
 		return
@@ -430,8 +437,8 @@ func (d *Daemon) setPackageConfigVersions(pkgName, stable, experiment string) {
 		if pkg.GetPackage() == pkgName {
 			updated = append(updated, &pbgo.PackageState{
 				Package:                 pkg.GetPackage(),
-				StableVersion:           stable,
-				ExperimentVersion:       experiment,
+				StableVersion:           pkg.GetStableVersion(),
+				ExperimentVersion:       pkg.GetExperimentVersion(),
 				Task:                    pkg.GetTask(),
 				StableConfigVersion:     stable,
 				ExperimentConfigVersion: experiment,
@@ -444,8 +451,6 @@ func (d *Daemon) setPackageConfigVersions(pkgName, stable, experiment string) {
 	if !found {
 		updated = append(updated, &pbgo.PackageState{
 			Package:                 pkgName,
-			StableVersion:           stable,
-			ExperimentVersion:       experiment,
 			StableConfigVersion:     stable,
 			ExperimentConfigVersion: experiment,
 		})

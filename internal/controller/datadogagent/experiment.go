@@ -32,6 +32,12 @@ const ExperimentDefaultTimeout = 15 * time.Minute
 // gets a fresh timestamp when the same spec is re-applied.
 const annotationExperimentRollback = "operator.datadoghq.com/experiment-rollback"
 
+// annotationExperimentPromoted marks a ControllerRevision whose experiment was
+// promoted. The annotation tells handleRollback to skip the timeout check so
+// the stale CreationTimestamp doesn't cause a false timeout when a subsequent
+// experiment starts before its own revision is created.
+const annotationExperimentPromoted = "operator.datadoghq.com/experiment-promoted"
+
 // manageExperiment handles all experiment state transitions for a reconcile cycle.
 // Must be called before manageRevision.
 func (r *Reconciler) manageExperiment(
@@ -50,6 +56,14 @@ func (r *Reconciler) manageExperiment(
 
 	if err := r.handleRollback(ctx, instance, newStatus, now, revList); err != nil {
 		return err
+	}
+	// Mark the highest revision when promoted so its stale timestamp doesn't
+	// cause a false timeout if a new experiment starts before manageRevision
+	// creates a fresh revision.
+	if experiment.Phase == v2alpha1.ExperimentPhasePromoted {
+		if rev := highestRevision(revList); rev != nil {
+			r.annotateRevision(ctx, rev, annotationExperimentPromoted)
+		}
 	}
 	r.abortExperiment(ctx, instance, experiment, newStatus, revList)
 	return nil
@@ -96,7 +110,7 @@ func (r *Reconciler) abortExperiment(
 	// Mark the experiment revision (highest-numbered) so its stale timestamp
 	// doesn't cause an immediate timeout if the same spec is re-applied.
 	if rev := highestRevision(revisions); rev != nil {
-		r.markRevisionRolledBack(ctx, rev)
+		r.annotateRevision(ctx, rev, annotationExperimentRollback)
 	}
 }
 
@@ -127,8 +141,15 @@ func (r *Reconciler) handleRollback(
 			// Fall back to the highest-numbered revision (the experiment revision)
 			// so we can still detect timeout even after a manual spec change.
 			rev = highestRevision(revisions)
+			// Only skip for annotations in the fallback path: the spec doesn't
+			// match any revision (e.g. new experiment before manageRevision runs).
+			// Annotations on fallback revisions indicate a prior experiment's
+			// terminal state — their stale timestamps must not cause false timeouts.
+			if rev != nil && (rev.Annotations[annotationExperimentRollback] == "true" || rev.Annotations[annotationExperimentPromoted] == "true") {
+				break
+			}
 		}
-		if rev != nil && rev.Annotations[annotationExperimentRollback] != "true" {
+		if rev != nil {
 			elapsed := now.Sub(rev.CreationTimestamp.Time)
 			if elapsed >= getExperimentTimeout(r.options.ExperimentTimeout) {
 				logger.Info("Experiment timed out, rolling back", "elapsed", elapsed.String())
@@ -164,7 +185,7 @@ func (r *Reconciler) restorePreviousSpec(
 	// and annotating old baselines would cause needless delete+recreate in
 	// ensureRevision if those specs are ever re-applied.
 	if rev := highestRevision(revisions); rev != nil && rev.Name != rollbackTarget {
-		r.markRevisionRolledBack(ctx, rev)
+		r.annotateRevision(ctx, rev, annotationExperimentRollback)
 	}
 	return nil
 }
@@ -280,11 +301,11 @@ func highestRevision(revisions []appsv1.ControllerRevision) *appsv1.ControllerRe
 	return result
 }
 
-// markRevisionRolledBack annotates a ControllerRevision with the rollback
-// annotation. This is best-effort: if the patch fails, the stale timestamp
-// remains but is no worse than the existing behavior.
-func (r *Reconciler) markRevisionRolledBack(ctx context.Context, rev *appsv1.ControllerRevision) {
-	if rev.Annotations[annotationExperimentRollback] == "true" {
+// annotateRevision sets the given annotation on a ControllerRevision.
+// This is best-effort: if the patch fails, the stale timestamp remains
+// but is no worse than the existing behavior.
+func (r *Reconciler) annotateRevision(ctx context.Context, rev *appsv1.ControllerRevision, annotation string) {
+	if rev.Annotations[annotation] == "true" {
 		return // already annotated
 	}
 	logger := ctrl.LoggerFrom(ctx).WithValues(
@@ -292,12 +313,12 @@ func (r *Reconciler) markRevisionRolledBack(ctx context.Context, rev *appsv1.Con
 		"object.namespace", rev.Namespace,
 		"object.name", rev.Name,
 	)
-	patch := []byte(`{"metadata":{"annotations":{"` + annotationExperimentRollback + `":"true"}}}`)
+	patch := []byte(`{"metadata":{"annotations":{"` + annotation + `":"true"}}}`)
 	if err := r.client.Patch(ctx, rev, client.RawPatch(types.MergePatchType, patch)); err != nil {
-		logger.Error(err, "Failed to annotate experiment revision as rolled back")
+		logger.Error(err, "Failed to annotate experiment revision", "annotation", annotation)
 		return
 	}
-	logger.Info("Marked experiment revision as rolled back")
+	logger.Info("Annotated experiment revision", "annotation", annotation)
 }
 
 func getExperimentTimeout(timeout time.Duration) time.Duration {

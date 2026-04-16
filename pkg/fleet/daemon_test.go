@@ -416,7 +416,8 @@ func TestPromoteDatadogAgentExperiment_Success_Running(t *testing.T) {
 	assert.Equal(t, "old-exp", dda.Status.Experiment.ID)
 	// Stable should now be the old experiment, experiment should be cleared.
 	require.Len(t, rc.state, 1)
-	assert.Equal(t, "exp-1", rc.state[0].StableVersion)
+	// StableVersion/ExperimentVersion are not set by config experiments.
+	assert.Equal(t, "", rc.state[0].StableVersion)
 	assert.Equal(t, "", rc.state[0].ExperimentVersion)
 	assert.Equal(t, "exp-1", rc.state[0].StableConfigVersion)
 	assert.Equal(t, "", rc.state[0].ExperimentConfigVersion)

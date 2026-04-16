@@ -11,6 +11,7 @@ import (
 	"math"
 	"time"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -107,12 +108,21 @@ var experimentBackoff = wait.Backoff{
 	Steps:    math.MaxInt32,
 }
 
-// retryWithBackoff retries fn on any error with exponential backoff.
+// isRetryable returns true for errors that are worth retrying (i.e. not permanent).
+func isRetryable(err error) bool {
+	return !apierrors.IsNotFound(err) &&
+		!apierrors.IsForbidden(err) &&
+		!apierrors.IsInvalid(err) &&
+		!apierrors.IsMethodNotSupported(err)
+}
+
+// retryWithBackoff retries fn on transient errors with exponential backoff.
 // The total retry window is bounded by a 3-minute context timeout.
+// Permanent errors (not-found, forbidden, invalid, method-not-supported) are not retried.
 func retryWithBackoff(ctx context.Context, fn func() error) error {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
 	return retry.OnError(experimentBackoff, func(err error) bool {
-		return ctx.Err() == nil
+		return ctx.Err() == nil && isRetryable(err)
 	}, fn)
 }

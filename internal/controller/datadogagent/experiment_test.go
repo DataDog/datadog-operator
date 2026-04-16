@@ -356,19 +356,15 @@ func TestReapplySameSpecAfterRollback_NoImmediateTimeout(t *testing.T) {
 	}
 	assert.Equal(t, 1, annotatedCount, "exactly one revision should have the rollback annotation")
 
-	// RC re-applies spec B as a new experiment (sets spec=B, phase=Running).
-	// handleRollback finds the annotated revision → skips timeout.
+	// RC re-applies spec B as a new experiment.
+	// In the real flow, the daemon patches the spec first, then a reconcile runs
+	// (with no experiment phase set) where ensureRevision recreates the annotated
+	// revision with a fresh timestamp. Only then does the daemon set phase=Running
+	// and the next reconcile calls handleRollback.
 	instanceB2 := newRevisionTestOwner("test-dda", "default")
 	instanceB2.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
-	instanceB2.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseRunning}
 
-	revListForNewExp := mustListRevisions(t, r, instanceB2)
-	newStatus2 := &v2alpha1.DatadogAgentStatus{Experiment: instanceB2.Status.Experiment.DeepCopy()}
-	require.NoError(t, r.handleRollback(context.Background(), instanceB2, newStatus2, metav1.Now(), revListForNewExp))
-	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, newStatus2.Experiment.Phase,
-		"re-applying the same spec after rollback must not immediately time out")
-
-	// ensureRevision recreates the annotated revision with a fresh timestamp.
+	// Step 1: ensureRevision recreates the annotated revision (fresh, no annotation).
 	_, err := r.ensureRevision(context.Background(), instanceB2, mustListRevisions(t, r, instanceB2), false)
 	require.NoError(t, err)
 
@@ -377,6 +373,21 @@ func TestReapplySameSpecAfterRollback_NoImmediateTimeout(t *testing.T) {
 		assert.Empty(t, rev.Annotations[annotationExperimentRollback],
 			"rollback annotation should be cleared after recreate")
 	}
+
+	// Fake client doesn't set CreationTimestamp on Create, so patch all
+	// revision timestamps to now to simulate fresh revisions.
+	for i := range finalRevs {
+		finalRevs[i].CreationTimestamp = metav1.Now()
+		require.NoError(t, c.Update(context.Background(), &finalRevs[i]))
+	}
+
+	// Step 2: daemon sets phase=Running, next reconcile calls handleRollback.
+	instanceB2.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseRunning}
+	revListForNewExp := mustListRevisions(t, r, instanceB2)
+	newStatus2 := &v2alpha1.DatadogAgentStatus{Experiment: instanceB2.Status.Experiment.DeepCopy()}
+	require.NoError(t, r.handleRollback(context.Background(), instanceB2, newStatus2, metav1.Now(), revListForNewExp))
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, newStatus2.Experiment.Phase,
+		"re-applying the same spec after rollback must not immediately time out")
 }
 
 // TestRestorePreviousSpec_ThreeRevisions_AnnotatesOnlyHighest verifies that
