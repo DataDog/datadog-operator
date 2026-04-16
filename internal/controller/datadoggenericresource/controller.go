@@ -114,13 +114,6 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 
 	status := instance.Status.DeepCopy()
 	statusSpecHash := instance.Status.CurrentHash
-
-	if err = v1alpha1.IsValidDatadogGenericResource(&instance.Spec); err != nil {
-		logger.Error(err, "invalid DatadogGenericResource")
-		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusValidateError, "ValidatingGenericResource", err)
-		return r.updateStatusIfNeeded(logger, instance, status, result)
-	}
-
 	instanceSpecHash, err := comparison.GenerateMD5ForSpec(&instance.Spec)
 
 	if err != nil {
