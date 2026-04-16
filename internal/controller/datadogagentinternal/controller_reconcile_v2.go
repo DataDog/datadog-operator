@@ -36,7 +36,7 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *v1alpha1
 	// }
 
 	// 2. Handle finalizer logic.
-	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(), 0, defaultErrRequeuePeriod)
+	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(), defaultErrRequeuePeriod, defaultErrRequeuePeriod)
 	if result, err := final.HandleFinalizer(ctx, instance, "", constants.DatadogAgentInternalFinalizer); utils.ShouldReturn(result, err) {
 		return result, err
 	}

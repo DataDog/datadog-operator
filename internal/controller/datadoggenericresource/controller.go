@@ -109,7 +109,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		return ctrl.Result{}, err
 	}
 
-	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger), 0, defaultErrRequeuePeriod)
+	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger), defaultErrRequeuePeriod, defaultErrRequeuePeriod)
 	if result, err = final.HandleFinalizer(ctx, instance, instance.Status.Id, datadogGenericResourceFinalizer); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}

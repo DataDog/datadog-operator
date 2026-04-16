@@ -71,7 +71,7 @@ func TestReconcileDatadogDashboard_Reconcile(t *testing.T) {
 					_ = c.Create(context.TODO(), genericDatadogDashboard())
 				},
 			},
-			wantResult: reconcile.Result{Requeue: true},
+			wantResult: reconcile.Result{RequeueAfter: defaultErrRequeuePeriod},
 			wantFunc: func(c client.Client) error {
 				db := &datadoghqv1alpha1.DatadogDashboard{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, db); err != nil {
