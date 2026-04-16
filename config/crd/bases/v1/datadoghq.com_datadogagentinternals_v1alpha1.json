@@ -2573,6 +2573,24 @@
                   "description": "Enable this option to activate SBOM collection.\nDefault: false",
                   "type": "boolean"
                 },
+                "enrichment": {
+                  "additionalProperties": false,
+                  "description": "SBOMEnrichmentConfig contains SBOM enrichment configuration.",
+                  "properties": {
+                    "usage": {
+                      "additionalProperties": false,
+                      "description": "Usage contains configuration for the \"package in use\" enrichment.",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enable this option to activate SBOM enrichment with runtime \"package in use\" detection.\nRequires system-probe for eBPF-based file access tracking.\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
                 "host": {
                   "additionalProperties": false,
                   "description": "SBOMTypeConfig contains configuration for a SBOM collection type.",
@@ -10741,6 +10759,24 @@
                     "enabled": {
                       "description": "Enable this option to activate SBOM collection.\nDefault: false",
                       "type": "boolean"
+                    },
+                    "enrichment": {
+                      "additionalProperties": false,
+                      "description": "SBOMEnrichmentConfig contains SBOM enrichment configuration.",
+                      "properties": {
+                        "usage": {
+                          "additionalProperties": false,
+                          "description": "Usage contains configuration for the \"package in use\" enrichment.",
+                          "properties": {
+                            "enabled": {
+                              "description": "Enable this option to activate SBOM enrichment with runtime \"package in use\" detection.\nRequires system-probe for eBPF-based file access tracking.\nDefault: false",
+                              "type": "boolean"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
                     },
                     "host": {
                       "additionalProperties": false,

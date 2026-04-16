@@ -2479,6 +2479,20 @@ spec:
                                 Enable this option to activate SBOM collection.
                                 Default: false
                               type: boolean
+                            enrichment:
+                              description: SBOMEnrichmentConfig contains SBOM enrichment configuration.
+                              properties:
+                                usage:
+                                  description: Usage contains configuration for the "package in use" enrichment.
+                                  properties:
+                                    enabled:
+                                      description: |-
+                                        Enable this option to activate SBOM enrichment with runtime "package in use" detection.
+                                        Requires system-probe for eBPF-based file access tracking.
+                                        Default: false
+                                      type: boolean
+                                  type: object
+                              type: object
                             host:
                               description: SBOMTypeConfig contains configuration for a SBOM collection type.
                               properties:
