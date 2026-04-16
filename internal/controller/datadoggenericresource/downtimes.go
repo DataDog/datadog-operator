@@ -14,41 +14,32 @@ import (
 
 type DowntimeHandler struct{}
 
-func (h *DowntimeHandler) createResourcefunc(r *Reconciler, ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+func (h *DowntimeHandler) createResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
 	createdDowntime, err := createDowntime(r.datadogAuth, r.datadogDowntimesClient, instance)
 	if err != nil {
-		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
-		return err
+		return CreateResult{}, err
 	}
-	status.Id = createdDowntime.Data.GetId()
 
-	// Extract created time from attributes
+	var createdTime *metav1.Time
 	if createdDowntime.Data.Attributes != nil && createdDowntime.Data.Attributes.Created != nil {
-		createdTime := metav1.NewTime(*createdDowntime.Data.Attributes.Created)
-		status.Created = &createdTime
-		status.LastForceSyncTime = &createdTime
-	} else {
-		status.Created = &now
-		status.LastForceSyncTime = &now
+		ct := metav1.NewTime(*createdDowntime.Data.Attributes.Created)
+		createdTime = &ct
 	}
 
-	// Extract creator from relationships
+	creator := "unknown"
 	if createdDowntime.Data.Relationships != nil &&
 		createdDowntime.Data.Relationships.CreatedBy != nil &&
 		createdDowntime.Data.Relationships.CreatedBy.Data.IsSet() {
-		createdByData := createdDowntime.Data.Relationships.CreatedBy.Data.Get()
-		if createdByData != nil {
-			status.Creator = createdByData.GetId()
-		} else {
-			status.Creator = "unknown"
+		if createdByData := createdDowntime.Data.Relationships.CreatedBy.Data.Get(); createdByData != nil {
+			creator = createdByData.GetId()
 		}
-	} else {
-		status.Creator = "unknown"
 	}
 
-	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
-	status.CurrentHash = hash
-	return nil
+	return CreateResult{
+		ID:          createdDowntime.Data.GetId(),
+		CreatedTime: createdTime,
+		Creator:     creator,
+	}, nil
 }
 
 func (h *DowntimeHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {

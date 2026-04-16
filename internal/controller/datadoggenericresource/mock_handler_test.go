@@ -1,8 +1,6 @@
 package datadoggenericresource
 
 import (
-	"context"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -28,15 +26,14 @@ func init() {
 // MockHandler is a test double for ResourceHandler.
 type MockHandler struct{}
 
-func (h *MockHandler) createResourcefunc(_ *Reconciler, _ context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+func (h *MockHandler) createResourcefunc(_ *Reconciler, _ *v1alpha1.DatadogGenericResource) (CreateResult, error) {
 	mockCreateCalls++
-	status.Id = mockResourceID
-	status.Created = &now
-	status.LastForceSyncTime = &now
-	status.Creator = mockResourceCreator
-	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
-	status.CurrentHash = hash
-	return nil
+	now := metav1.Now()
+	return CreateResult{
+		ID:          mockResourceID,
+		CreatedTime: &now,
+		Creator:     mockResourceCreator,
+	}, nil
 }
 
 func (h *MockHandler) getResourcefunc(_ *Reconciler, _ *v1alpha1.DatadogGenericResource) error {

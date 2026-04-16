@@ -17,25 +17,17 @@ import (
 
 type DashboardHandler struct{}
 
-func (h *DashboardHandler) createResourcefunc(r *Reconciler, ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+func (h *DashboardHandler) createResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
 	createdDashboard, err := createDashboard(r.datadogAuth, r.datadogDashboardsClient, instance)
 	if err != nil {
-		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
-		return err
+		return CreateResult{}, err
 	}
-	updateStatusFromDashboard(createdDashboard, status, hash)
-	return nil
-}
-
-// updateStatusFromDashboard populates the status fields from a Datadog Dashboard API response.
-func updateStatusFromDashboard(dashboard datadogV1.Dashboard, status *v1alpha1.DatadogGenericResourceStatus, hash string) {
-	status.Id = dashboard.GetId()
-	createdTime := metav1.NewTime(dashboard.GetCreatedAt())
-	status.Created = &createdTime
-	status.LastForceSyncTime = &createdTime
-	status.Creator = dashboard.GetAuthorHandle()
-	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
-	status.CurrentHash = hash
+	createdTime := metav1.NewTime(createdDashboard.GetCreatedAt())
+	return CreateResult{
+		ID:          createdDashboard.GetId(),
+		CreatedTime: &createdTime,
+		Creator:     createdDashboard.GetAuthorHandle(),
+	}, nil
 }
 
 func (h *DashboardHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {

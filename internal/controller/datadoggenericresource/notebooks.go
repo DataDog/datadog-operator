@@ -12,20 +12,17 @@ import (
 
 type NotebookHandler struct{}
 
-func (h *NotebookHandler) createResourcefunc(r *Reconciler, ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+func (h *NotebookHandler) createResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
 	createdNotebook, err := createNotebook(r.datadogAuth, r.datadogNotebooksClient, instance)
 	if err != nil {
-		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
-		return err
+		return CreateResult{}, err
 	}
-	status.Id = resourceInt64ToStringID(createdNotebook.Data.GetId())
 	createdTime := metav1.NewTime(*createdNotebook.Data.GetAttributes().Created)
-	status.Created = &createdTime
-	status.LastForceSyncTime = &createdTime
-	status.Creator = *createdNotebook.Data.GetAttributes().Author.Handle
-	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
-	status.CurrentHash = hash
-	return nil
+	return CreateResult{
+		ID:          resourceInt64ToStringID(createdNotebook.Data.GetId()),
+		CreatedTime: &createdTime,
+		Creator:     *createdNotebook.Data.GetAttributes().Author.Handle,
+	}, nil
 }
 
 func (h *NotebookHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {

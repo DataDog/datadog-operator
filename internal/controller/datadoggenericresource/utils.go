@@ -9,6 +9,7 @@ import (
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
@@ -30,7 +31,23 @@ func apiUpdate(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
 }
 
 func apiCreateAndUpdateStatus(r *Reconciler, ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	return getHandler(instance.Spec.Type).createResourcefunc(r, ctx, instance, status, now, hash)
+	result, err := getHandler(instance.Spec.Type).createResourcefunc(r, instance)
+	if err != nil {
+		ctrl.LoggerFrom(ctx).Error(err, "error creating resource", "type", instance.Spec.Type)
+		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
+		return err
+	}
+	createdTime := result.CreatedTime
+	if createdTime == nil {
+		createdTime = &now
+	}
+	status.Id = result.ID
+	status.Created = createdTime
+	status.LastForceSyncTime = createdTime
+	status.Creator = result.Creator
+	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
+	status.CurrentHash = hash
+	return nil
 }
 
 func getHandler(resourceType v1alpha1.SupportedResourcesType) ResourceHandler {

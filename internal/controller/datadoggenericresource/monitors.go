@@ -12,20 +12,17 @@ import (
 
 type MonitorHandler struct{}
 
-func (h *MonitorHandler) createResourcefunc(r *Reconciler, ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+func (h *MonitorHandler) createResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
 	createdMonitor, err := createMonitor(r.datadogAuth, r.datadogMonitorsClient, instance)
 	if err != nil {
-		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
-		return err
+		return CreateResult{}, err
 	}
-	status.Id = resourceInt64ToStringID(createdMonitor.GetId())
 	createdTime := metav1.NewTime(*createdMonitor.Created)
-	status.Created = &createdTime
-	status.LastForceSyncTime = &createdTime
-	status.Creator = *createdMonitor.GetCreator().Handle
-	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
-	status.CurrentHash = hash
-	return nil
+	return CreateResult{
+		ID:          resourceInt64ToStringID(createdMonitor.GetId()),
+		CreatedTime: &createdTime,
+		Creator:     *createdMonitor.GetCreator().Handle,
+	}, nil
 }
 
 func (h *MonitorHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {

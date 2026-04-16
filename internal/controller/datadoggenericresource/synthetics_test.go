@@ -1,24 +1,21 @@
 package datadoggenericresource
 
 import (
-	"context"
 	"testing"
 	"time"
 
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
-func Test_updateStatusFromSyntheticsTest(t *testing.T) {
-	hash := "test-hash"
-
+func Test_createResultFromSyntheticsTest(t *testing.T) {
 	tests := []struct {
 		name                 string
 		additionalProperties map[string]any
-		expectedStatus       v1alpha1.DatadogGenericResourceStatus
+		expectedID           string
+		expectedCreator      string
+		expectedCreatedTime  *metav1.Time // nil means caller should use fallback
 	}{
 		{
 			name: "valid properties",
@@ -28,14 +25,9 @@ func Test_updateStatusFromSyntheticsTest(t *testing.T) {
 					"handle": "test-handle",
 				},
 			},
-			expectedStatus: v1alpha1.DatadogGenericResourceStatus{
-				Id:                "123456789",
-				Creator:           "test-handle",
-				SyncStatus:        v1alpha1.DatadogSyncStatusOK,
-				CurrentHash:       hash,
-				Created:           &metav1.Time{Time: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
-				LastForceSyncTime: &metav1.Time{Time: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
-			},
+			expectedID:          "123456789",
+			expectedCreator:     "test-handle",
+			expectedCreatedTime: &metav1.Time{Time: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
 		},
 		{
 			name: "missing created_at",
@@ -44,14 +36,9 @@ func Test_updateStatusFromSyntheticsTest(t *testing.T) {
 					"handle": "test-handle",
 				},
 			},
-			expectedStatus: v1alpha1.DatadogGenericResourceStatus{
-				Id:                "123456789",
-				Creator:           "test-handle",
-				SyncStatus:        v1alpha1.DatadogSyncStatusOK,
-				CurrentHash:       hash,
-				Created:           &metav1.Time{Time: time.Now()},
-				LastForceSyncTime: &metav1.Time{Time: time.Now()},
-			},
+			expectedID:          "123456789",
+			expectedCreator:     "test-handle",
+			expectedCreatedTime: nil,
 		},
 		{
 			name: "invalid created_at",
@@ -61,28 +48,18 @@ func Test_updateStatusFromSyntheticsTest(t *testing.T) {
 					"handle": "test-handle",
 				},
 			},
-			expectedStatus: v1alpha1.DatadogGenericResourceStatus{
-				Id:                "123456789",
-				Creator:           "test-handle",
-				SyncStatus:        v1alpha1.DatadogSyncStatusOK,
-				CurrentHash:       hash,
-				Created:           &metav1.Time{Time: time.Now()},
-				LastForceSyncTime: &metav1.Time{Time: time.Now()},
-			},
+			expectedID:          "123456789",
+			expectedCreator:     "test-handle",
+			expectedCreatedTime: nil,
 		},
 		{
 			name: "missing created_by",
 			additionalProperties: map[string]any{
 				"created_at": "2024-01-01T00:00:00Z",
 			},
-			expectedStatus: v1alpha1.DatadogGenericResourceStatus{
-				Id:                "123456789",
-				Creator:           "",
-				SyncStatus:        v1alpha1.DatadogSyncStatusOK,
-				CurrentHash:       hash,
-				Created:           &metav1.Time{Time: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
-				LastForceSyncTime: &metav1.Time{Time: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
-			},
+			expectedID:          "123456789",
+			expectedCreator:     "",
+			expectedCreatedTime: &metav1.Time{Time: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
 		},
 		{
 			name: "missing handle in created_by",
@@ -90,31 +67,24 @@ func Test_updateStatusFromSyntheticsTest(t *testing.T) {
 				"created_at": "2024-01-01T00:00:00Z",
 				"created_by": map[string]any{},
 			},
-			expectedStatus: v1alpha1.DatadogGenericResourceStatus{
-				Id:                "123456789",
-				Creator:           "",
-				SyncStatus:        v1alpha1.DatadogSyncStatusOK,
-				CurrentHash:       hash,
-				Created:           &metav1.Time{Time: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
-				LastForceSyncTime: &metav1.Time{Time: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
-			},
+			expectedID:          "123456789",
+			expectedCreator:     "",
+			expectedCreatedTime: &metav1.Time{Time: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			status := &v1alpha1.DatadogGenericResourceStatus{}
 			syntheticTest := &datadogV1.SyntheticsAPITest{}
 			syntheticTest.SetPublicId("123456789")
-			err := updateStatusFromSyntheticsTest(syntheticTest, tt.additionalProperties, status, context.TODO(), hash)
-			assert.NoError(t, err)
-			assert.Equal(t, tt.expectedStatus.Id, status.Id)
-			assert.Equal(t, tt.expectedStatus.Creator, status.Creator)
-			assert.Equal(t, tt.expectedStatus.SyncStatus, status.SyncStatus)
-			assert.Equal(t, tt.expectedStatus.CurrentHash, status.CurrentHash)
-			// Compare time with a tolerance of 1 second (time.Now() is called in the function)
-			assert.True(t, status.Created.Time.Sub(tt.expectedStatus.Created.Time).Abs() < time.Second)
-			assert.True(t, status.LastForceSyncTime.Time.Sub(tt.expectedStatus.LastForceSyncTime.Time).Abs() < time.Second)
+			result := createResultFromSyntheticsTest(syntheticTest, tt.additionalProperties)
+			assert.Equal(t, tt.expectedID, result.ID)
+			assert.Equal(t, tt.expectedCreator, result.Creator)
+			if tt.expectedCreatedTime == nil {
+				assert.Nil(t, result.CreatedTime)
+			} else {
+				assert.Equal(t, tt.expectedCreatedTime.Time, result.CreatedTime.Time)
+			}
 		})
 	}
 }

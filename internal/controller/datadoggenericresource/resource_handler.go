@@ -1,15 +1,21 @@
 package datadoggenericresource
 
 import (
-	"context"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
+// CreateResult holds the resource metadata returned by a successful create API call.
+// CreatedTime is nil if the API response did not include a creation time; the caller will use `now` as fallback.
+type CreateResult struct {
+	ID          string
+	CreatedTime *metav1.Time
+	Creator     string
+}
+
 type ResourceHandler interface {
-	createResourcefunc(r *Reconciler, ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error
+	createResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) (CreateResult, error)
 	getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error
 	updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error
 	deleteResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error
