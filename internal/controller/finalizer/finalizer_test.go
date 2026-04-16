@@ -57,7 +57,7 @@ func Test_HandleFinalizer(t *testing.T) {
 		deleterFunc           ResourceDeleteFunc
 	}{
 		{
-			name: "not deleting, no finalizer: adds finalizer",
+			name: "not deleting, no finalizer: adds finalizer and requeues",
 			clientObject: testResource{
 				TypeMeta: metav1.TypeMeta{
 					Kind: "TestResource",
@@ -67,7 +67,7 @@ func Test_HandleFinalizer(t *testing.T) {
 				},
 			},
 			finalizerShouldExists: true,
-			expectedResult:        ctrl.Result{},
+			expectedResult:        ctrl.Result{RequeueAfter: requeuePeriod},
 			deleterFunc:           noopDelete,
 		},
 		{

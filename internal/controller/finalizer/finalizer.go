@@ -62,6 +62,9 @@ func (f *Finalizer) HandleFinalizer(ctx context.Context, clientObj client.Object
 			if err != nil {
 				return ctrl.Result{Requeue: true, RequeueAfter: f.defaultErrRequeuePeriod}, err
 			}
+			// Requeue after adding the finalizer so the next reconcile works
+			// with the updated object from the API server.
+			return ctrl.Result{RequeueAfter: f.defaultRequeuePeriod}, nil
 		}
 	} else {
 		f.logger.Info("Object being deleted", "kind", clientObj.GetObjectKind(), "finalizername", finalizerName)
