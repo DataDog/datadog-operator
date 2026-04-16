@@ -5,15 +5,16 @@ import (
 	"encoding/json"
 
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
-	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
 type MonitorHandler struct{}
 
-func (h *MonitorHandler) createResourcefunc(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+func (h *MonitorHandler) createResourcefunc(r *Reconciler, ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+	logger := ctrl.LoggerFrom(ctx)
 	createdMonitor, err := createMonitor(r.datadogAuth, r.datadogMonitorsClient, instance)
 	if err != nil {
 		logger.Error(err, "error creating monitor")

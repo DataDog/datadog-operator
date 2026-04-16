@@ -6,15 +6,16 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
-	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
 type SyntheticsAPITestHandler struct{}
 
-func (h *SyntheticsAPITestHandler) createResourcefunc(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+func (h *SyntheticsAPITestHandler) createResourcefunc(r *Reconciler, ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+	logger := ctrl.LoggerFrom(ctx)
 	createdTest, err := createSyntheticsAPITest(r.datadogAuth, r.datadogSyntheticsClient, instance)
 	if err != nil {
 		logger.Error(err, "error creating API test")
@@ -22,7 +23,7 @@ func (h *SyntheticsAPITestHandler) createResourcefunc(r *Reconciler, logger logr
 		return err
 	}
 	additionalProperties := createdTest.AdditionalProperties
-	return updateStatusFromSyntheticsTest(&createdTest, additionalProperties, status, logger, hash)
+	return updateStatusFromSyntheticsTest(&createdTest, additionalProperties, status, ctx, hash)
 }
 
 func (h *SyntheticsAPITestHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
@@ -39,7 +40,8 @@ func (h *SyntheticsAPITestHandler) deleteResourcefunc(r *Reconciler, instance *v
 
 type SyntheticsBrowserTestHandler struct{}
 
-func (h *SyntheticsBrowserTestHandler) createResourcefunc(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+func (h *SyntheticsBrowserTestHandler) createResourcefunc(r *Reconciler, ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+	logger := ctrl.LoggerFrom(ctx)
 	createdTest, err := createSyntheticBrowserTest(r.datadogAuth, r.datadogSyntheticsClient, instance)
 	if err != nil {
 		logger.Error(err, "error creating browser test")
@@ -47,7 +49,7 @@ func (h *SyntheticsBrowserTestHandler) createResourcefunc(r *Reconciler, logger 
 		return err
 	}
 	additionalProperties := createdTest.AdditionalProperties
-	return updateStatusFromSyntheticsTest(&createdTest, additionalProperties, status, logger, hash)
+	return updateStatusFromSyntheticsTest(&createdTest, additionalProperties, status, ctx, hash)
 }
 
 func (h *SyntheticsBrowserTestHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
@@ -129,7 +131,8 @@ func updateSyntheticsAPITest(auth context.Context, client *datadogV1.SyntheticsA
 }
 
 // updateStatusFromSyntheticsTest retrieves the common fields from a synthetic test (API, browser) and updates the status of the DatadogGenericResource
-func updateStatusFromSyntheticsTest(createdTest interface{ GetPublicId() string }, additionalProperties map[string]any, status *v1alpha1.DatadogGenericResourceStatus, logger logr.Logger, hash string) error {
+func updateStatusFromSyntheticsTest(createdTest interface{ GetPublicId() string }, additionalProperties map[string]any, status *v1alpha1.DatadogGenericResourceStatus, ctx context.Context, hash string) error {
+	logger := ctrl.LoggerFrom(ctx)
 	// All synthetic test types share this method
 	status.Id = createdTest.GetPublicId()
 
