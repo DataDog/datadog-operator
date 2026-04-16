@@ -31,8 +31,8 @@ const (
 )
 
 var (
-	testMgr, _  = ctrl.NewManager(&rest.Config{}, manager.Options{})
-	testLogger  = zap.New(zap.UseDevMode(true))
+	testMgr, _ = ctrl.NewManager(&rest.Config{}, manager.Options{})
+	testLogger = zap.New(zap.UseDevMode(true))
 )
 
 func Test_handleFinalizer(t *testing.T) {
