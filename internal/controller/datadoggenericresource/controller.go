@@ -92,8 +92,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 }
 
 func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	logger := ctrl.LoggerFrom(ctx).WithValues("datadoggenericresource", req.NamespacedName)
-	ctx = ctrl.LoggerInto(ctx, logger)
+	logger := ctrl.LoggerFrom(ctx)
 	logger.Info("Reconciling Datadog Generic Resource")
 	now := metav1.NewTime(time.Now())
 
