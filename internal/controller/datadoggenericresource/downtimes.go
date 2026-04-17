@@ -8,7 +8,6 @@ import (
 
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
@@ -16,14 +15,11 @@ import (
 type DowntimeHandler struct{}
 
 func (h *DowntimeHandler) createResourcefunc(r *Reconciler, ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	logger := ctrl.LoggerFrom(ctx)
 	createdDowntime, err := createDowntime(r.datadogAuth, r.datadogDowntimesClient, instance)
 	if err != nil {
-		logger.Error(err, "error creating downtime")
 		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
 		return err
 	}
-	logger.Info("created a new downtime", "downtime Id", createdDowntime.Data.GetId())
 	status.Id = createdDowntime.Data.GetId()
 
 	// Extract created time from attributes

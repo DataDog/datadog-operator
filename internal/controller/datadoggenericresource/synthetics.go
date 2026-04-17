@@ -15,10 +15,8 @@ import (
 type SyntheticsAPITestHandler struct{}
 
 func (h *SyntheticsAPITestHandler) createResourcefunc(r *Reconciler, ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	logger := ctrl.LoggerFrom(ctx)
 	createdTest, err := createSyntheticsAPITest(r.datadogAuth, r.datadogSyntheticsClient, instance)
 	if err != nil {
-		logger.Error(err, "error creating API test")
 		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
 		return err
 	}
@@ -41,10 +39,8 @@ func (h *SyntheticsAPITestHandler) deleteResourcefunc(r *Reconciler, instance *v
 type SyntheticsBrowserTestHandler struct{}
 
 func (h *SyntheticsBrowserTestHandler) createResourcefunc(r *Reconciler, ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	logger := ctrl.LoggerFrom(ctx)
 	createdTest, err := createSyntheticBrowserTest(r.datadogAuth, r.datadogSyntheticsClient, instance)
 	if err != nil {
-		logger.Error(err, "error creating browser test")
 		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
 		return err
 	}

@@ -11,7 +11,6 @@ import (
 
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
@@ -19,14 +18,11 @@ import (
 type DashboardHandler struct{}
 
 func (h *DashboardHandler) createResourcefunc(r *Reconciler, ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	logger := ctrl.LoggerFrom(ctx)
 	createdDashboard, err := createDashboard(r.datadogAuth, r.datadogDashboardsClient, instance)
 	if err != nil {
-		logger.Error(err, "error creating dashboard")
 		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
 		return err
 	}
-	logger.Info("created a new dashboard", "dashboard Id", createdDashboard.GetId())
 	updateStatusFromDashboard(createdDashboard, status, hash)
 	return nil
 }

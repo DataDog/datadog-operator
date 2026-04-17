@@ -6,7 +6,6 @@ import (
 
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
@@ -14,14 +13,11 @@ import (
 type MonitorHandler struct{}
 
 func (h *MonitorHandler) createResourcefunc(r *Reconciler, ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	logger := ctrl.LoggerFrom(ctx)
 	createdMonitor, err := createMonitor(r.datadogAuth, r.datadogMonitorsClient, instance)
 	if err != nil {
-		logger.Error(err, "error creating monitor")
 		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
 		return err
 	}
-	logger.Info("created a new monitor", "monitor Id", createdMonitor.GetId())
 	status.Id = resourceInt64ToStringID(createdMonitor.GetId())
 	createdTime := metav1.NewTime(*createdMonitor.Created)
 	status.Created = &createdTime
