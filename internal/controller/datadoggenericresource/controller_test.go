@@ -72,7 +72,7 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 					_ = c.Create(context.TODO(), mockGenericResource())
 				},
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultErrRequeuePeriod},
+			wantResult: reconcile.Result{Requeue: true},
 			wantFunc: func(c client.Client) error {
 				obj := &datadoghqv1alpha1.DatadogGenericResource{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj); err != nil {

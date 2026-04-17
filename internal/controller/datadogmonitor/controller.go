@@ -140,7 +140,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 
 	newStatus := instance.Status.DeepCopy()
 
-	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger), defaultRequeuePeriod, defaultErrRequeuePeriod)
+	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger), defaultErrRequeuePeriod)
 	if result, err = final.HandleFinalizer(ctx, instance, fmt.Sprint(instance.Status.ID), datadogMonitorFinalizer); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}
@@ -205,12 +205,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 			logger.V(1).Info("Creating monitor in Datadog")
 			// Make sure required tags are present
 			if !apiutils.BoolValue(instance.Spec.ControllerOptions.DisableRequiredTags) {
-				var tagsUpdated bool
-				tagsUpdated, err = r.checkRequiredTags(logger, instance)
-				if err != nil {
-					result.RequeueAfter = defaultErrRequeuePeriod
-					return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
-				} else if tagsUpdated {
+				if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
 					return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
 				}
 			}
@@ -225,12 +220,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 		logger.V(1).Info("Updating monitor in Datadog")
 		// Make sure required tags are present
 		if !apiutils.BoolValue(instance.Spec.ControllerOptions.DisableRequiredTags) {
-			var tagsUpdated bool
-			tagsUpdated, err = r.checkRequiredTags(logger, instance)
-			if err != nil {
-				result.RequeueAfter = defaultErrRequeuePeriod
-				return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
-			} else if tagsUpdated {
+			if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
 				return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
 			}
 		}
@@ -240,7 +230,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	}
 
 	// If reconcile was successful, requeue with period defaultRequeuePeriod
-	if result.IsZero() {
+	if !result.Requeue && result.RequeueAfter == 0 {
 		result.RequeueAfter = defaultRequeuePeriod
 	}
 
@@ -349,7 +339,7 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, datadogMonitor *da
 	return result, nil
 }
 
-func (r *Reconciler) checkRequiredTags(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor) (bool, error) {
+func (r *Reconciler) checkRequiredTags(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor) (ctrl.Result, error) {
 	tagsToAdd := []string{}
 	var found bool
 	tags := datadogMonitor.Spec.Tags
@@ -367,14 +357,15 @@ func (r *Reconciler) checkRequiredTags(logger logr.Logger, datadogMonitor *datad
 		if err != nil {
 			logger.Error(err, "failed to update DatadogMonitor with required tags")
 
-			return false, err
+			return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, err
 		}
 		logger.Info("Added required tags", "Monitor Namespace", datadogMonitor.Namespace, "Monitor Name", datadogMonitor.Name, "Monitor ID", datadogMonitor.Status.ID)
 
-		return true, nil
+		return ctrl.Result{RequeueAfter: defaultRequeuePeriod}, nil
 	}
 
-	return false, nil
+	// Proceed in reconcile loop without modifying result.
+	return ctrl.Result{}, nil
 }
 
 func getRequiredTags() []string {

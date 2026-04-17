@@ -17,7 +17,7 @@ import (
 
 // ShouldReturn returns if we should stop the reconcile loop based on result
 func ShouldReturn(result reconcile.Result, err error) bool {
-	return err != nil || !result.IsZero()
+	return err != nil || result.Requeue || result.RequeueAfter > 0
 }
 
 // GetDatadogLeaderElectionResourceName return the nome of the Resource managing the leader election token info.

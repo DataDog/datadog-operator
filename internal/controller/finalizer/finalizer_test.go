@@ -38,7 +38,6 @@ func Test_HandleFinalizer(t *testing.T) {
 	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &testResource{})
 	finalizerName := "test_resource.finalizer"
 	metaNow := metav1.NewTime(time.Now())
-	requeuePeriod := time.Minute
 	errRequeuePeriod := time.Minute
 
 	noopDelete := func(ctx context.Context, k8sObj client.Object, datadogID string) error {
@@ -57,7 +56,7 @@ func Test_HandleFinalizer(t *testing.T) {
 		deleterFunc           ResourceDeleteFunc
 	}{
 		{
-			name: "not deleting, no finalizer: adds finalizer and requeues with period",
+			name: "not deleting, no finalizer: adds finalizer and requeues immediately",
 			clientObject: testResource{
 				TypeMeta: metav1.TypeMeta{
 					Kind: "TestResource",
@@ -67,7 +66,7 @@ func Test_HandleFinalizer(t *testing.T) {
 				},
 			},
 			finalizerShouldExists: true,
-			expectedResult:        ctrl.Result{RequeueAfter: requeuePeriod},
+			expectedResult:        ctrl.Result{Requeue: true},
 			deleterFunc:           noopDelete,
 		},
 		{
@@ -86,7 +85,7 @@ func Test_HandleFinalizer(t *testing.T) {
 			deleterFunc:           noopDelete,
 		},
 		{
-			name: "deleting, has finalizer, deleteFunc succeeds: removes finalizer, requeues with period",
+			name: "deleting, has finalizer, deleteFunc succeeds: removes finalizer, requeues immediately",
 			clientObject: testResource{
 				TypeMeta: metav1.TypeMeta{
 					Kind: "TestResource",
@@ -98,7 +97,7 @@ func Test_HandleFinalizer(t *testing.T) {
 				},
 			},
 			finalizerShouldExists: false,
-			expectedResult:        ctrl.Result{Requeue: true, RequeueAfter: requeuePeriod},
+			expectedResult:        ctrl.Result{Requeue: true},
 			deleterFunc:           noopDelete,
 		},
 		{
@@ -126,7 +125,7 @@ func Test_HandleFinalizer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := fake.NewClientBuilder().WithObjects(&tt.clientObject).Build()
-			finalizer := NewFinalizer(testLogger, fakeClient, tt.deleterFunc, requeuePeriod, errRequeuePeriod)
+			finalizer := NewFinalizer(testLogger, fakeClient, tt.deleterFunc, errRequeuePeriod)
 
 			res, err := finalizer.HandleFinalizer(context.TODO(), &tt.clientObject, "123", finalizerName)
 

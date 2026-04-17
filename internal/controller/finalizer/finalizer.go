@@ -26,7 +26,6 @@ type Finalizer struct {
 	client     client.Client
 	deleteFunc ResourceDeleteFunc
 
-	defaultRequeuePeriod    time.Duration
 	defaultErrRequeuePeriod time.Duration
 }
 
@@ -34,14 +33,12 @@ func NewFinalizer(
 	logger logr.Logger,
 	client client.Client,
 	deleteFunc ResourceDeleteFunc,
-	defaultRequeuePeriod time.Duration,
 	defaultErrRequeuePeriod time.Duration,
 ) *Finalizer {
 	return &Finalizer{
 		logger:                  logger,
 		client:                  client,
 		deleteFunc:              deleteFunc,
-		defaultRequeuePeriod:    defaultRequeuePeriod,
 		defaultErrRequeuePeriod: defaultErrRequeuePeriod,
 	}
 }
@@ -62,9 +59,9 @@ func (f *Finalizer) HandleFinalizer(ctx context.Context, clientObj client.Object
 			if err != nil {
 				return ctrl.Result{Requeue: true, RequeueAfter: f.defaultErrRequeuePeriod}, err
 			}
-			// Requeue after adding the finalizer so the next reconcile works
-			// with the updated object from the API server.
-			return ctrl.Result{RequeueAfter: f.defaultRequeuePeriod}, nil
+			// Requeue immediately so the next reconcile works with the
+			// updated object from the API server.
+			return ctrl.Result{Requeue: true}, nil
 		}
 	} else {
 		f.logger.Info("Object being deleted", "kind", clientObj.GetObjectKind(), "finalizername", finalizerName)
@@ -81,10 +78,8 @@ func (f *Finalizer) HandleFinalizer(ctx context.Context, clientObj client.Object
 				return ctrl.Result{Requeue: true, RequeueAfter: f.defaultErrRequeuePeriod}, err
 			}
 		}
-		// Requeue while the object is still being deleted. Use defaultRequeuePeriod
-		// to avoid hot-looping on clusters with many terminating objects. Controllers
-		// that pass 0 get an immediate requeue (Requeue: true with zero RequeueAfter).
-		return ctrl.Result{Requeue: true, RequeueAfter: f.defaultRequeuePeriod}, nil
+		// Requeue while the object is still being deleted.
+		return ctrl.Result{Requeue: true}, nil
 	}
 	return ctrl.Result{}, nil
 }

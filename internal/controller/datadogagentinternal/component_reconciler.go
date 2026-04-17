@@ -166,7 +166,7 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 		}
 
 		// Merge result (preserve requeue settings)
-		if !res.IsZero() {
+		if res.Requeue || res.RequeueAfter > 0 {
 			result = res
 		}
 	}

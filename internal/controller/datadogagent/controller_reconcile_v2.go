@@ -41,7 +41,7 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 	}
 
 	// 2. Handle finalizer logic.
-	final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger), defaultErrRequeuePeriod, defaultErrRequeuePeriod)
+	final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger), defaultErrRequeuePeriod)
 	if result, err := final.HandleFinalizer(ctx, instance, "", datadogAgentFinalizer); utils.ShouldReturn(result, err) {
 		return result, err
 	}
@@ -243,7 +243,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	}
 
 	// Always requeue
-	if result.IsZero() {
+	if !result.Requeue && result.RequeueAfter == 0 {
 		result.RequeueAfter = defaultRequeuePeriod
 	}
 	return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
@@ -353,7 +353,7 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 		oldStatus := profile.Status
 		profileAppliedByNode, err = agentprofile.ApplyProfile(logger, &profile, nodeList, profileAppliedByNode, now, maxUnavailable, r.options.DatadogAgentInternalEnabled)
 		if result, e := r.updateDAPStatus(ctx, logger, &profile, &oldStatus); utils.ShouldReturn(result, e) {
-			logger.Info("unable to update DatadogAgentProfile status", "error", e, "requeueAfter", result.RequeueAfter, "requeueIntent", !result.IsZero())
+			logger.Info("unable to update DatadogAgentProfile status", "error", e, "requeue", result.Requeue, "requeueAfter", result.RequeueAfter)
 		}
 		if err != nil {
 			// profile is invalid or conflicts

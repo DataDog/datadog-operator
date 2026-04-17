@@ -79,7 +79,7 @@ func TestReconcile_CreatesResources(t *testing.T) {
 	// First reconcile: adds finalizer
 	result, err := r.Reconcile(ctx, instance)
 	require.NoError(t, err)
-	assert.True(t, result.IsZero())
+	assert.False(t, result.Requeue)
 
 	// Re-fetch the instance (finalizer was added)
 	err = c.Get(ctx, types.NamespacedName{Name: testName, Namespace: testNamespace}, instance)
@@ -89,7 +89,7 @@ func TestReconcile_CreatesResources(t *testing.T) {
 	// Second reconcile: creates CSIDriver + DaemonSet
 	result, err = r.Reconcile(ctx, instance)
 	require.NoError(t, err)
-	assert.True(t, result.IsZero())
+	assert.False(t, result.Requeue)
 
 	// Verify CSIDriver was created
 	csiDriver := &storagev1.CSIDriver{}

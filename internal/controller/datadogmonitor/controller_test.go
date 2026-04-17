@@ -76,7 +76,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 			args: args{
 				loadFunc: genericDatadogMonitor,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: reconcile.Result{Requeue: true},
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm); err != nil {
@@ -104,7 +104,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "DatadogMonitor exists, adds required tags before create",
+			name: "DatadogMonitor exists, check required tags",
 			args: args{
 				request:             newRequest(resourcesNamespace, resourcesName),
 				loadFunc:            genericDatadogMonitor,
@@ -117,7 +117,6 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 					return err
 				}
 				assert.Contains(t, dm.Spec.Tags, "generated:kubernetes")
-				assert.False(t, dm.Status.Primary)
 				return nil
 			},
 		},
