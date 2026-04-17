@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
+	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	karpawsv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -200,7 +201,12 @@ func ValidateAWSAccountConsistency(ctx context.Context, cli *Clients, clusterNam
 			Name: awssdk.String(clusterName),
 		})
 		if err != nil {
-			return fmt.Errorf("failed to describe EKS cluster %s: %w", clusterName, err)
+			wrapped := fmt.Errorf("failed to describe EKS cluster %s: %w", clusterName, err)
+			var notFound *ekstypes.ResourceNotFoundException
+			if errors.As(err, &notFound) {
+				return &ClusterLookupUnavailableError{Err: wrapped}
+			}
+			return wrapped
 		}
 		if cluster.Cluster == nil || cluster.Cluster.Arn == nil {
 			return fmt.Errorf("EKS cluster %s has no ARN", clusterName)
@@ -240,3 +246,17 @@ func (e *AccountMismatchError) Error() string {
 		e.CredentialsAccountID, e.ClusterName, e.ClusterAccountID,
 	)
 }
+
+// ClusterLookupUnavailableError wraps EKS.DescribeCluster failures with a
+// ResourceNotFoundException — the cluster does not exist (e.g. already
+// deleted). Callers such as uninstall may choose to proceed on this error.
+//
+// Other DescribeCluster failures (AccessDenied, throttling, wrong region,
+// transient API errors) and malformed responses (nil cluster, nil ARN,
+// unparseable ARN) are not wrapped and surface as hard errors.
+type ClusterLookupUnavailableError struct {
+	Err error
+}
+
+func (e *ClusterLookupUnavailableError) Error() string { return e.Err.Error() }
+func (e *ClusterLookupUnavailableError) Unwrap() error { return e.Err }

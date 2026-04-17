@@ -137,13 +137,12 @@ func (o *options) run(cmd *cobra.Command) error {
 	}
 
 	if err = clients.ValidateAWSAccountConsistency(ctx, cli, clusterName, o.ConfigFlags); err != nil {
-		var mismatch *clients.AccountMismatchError
-		if errors.As(err, &mismatch) {
+		var lookupUnavailable *clients.ClusterLookupUnavailableError
+		if !errors.As(err, &lookupUnavailable) {
 			return err
 		}
-		// The cluster may already be deleted or DescribeCluster may be
-		// unavailable; warn but proceed with cleanup.
-		log.Printf("Warning: AWS account consistency check failed: %v", err)
+		// The cluster may already be deleted; warn but proceed with cleanup.
+		log.Printf("Warning: AWS account consistency check skipped: %v", err)
 	}
 
 	nodePoolNames, nodes := displayResourceSummary(ctx, cmd, cli, clusterName)
