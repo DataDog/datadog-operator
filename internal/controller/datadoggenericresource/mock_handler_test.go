@@ -17,14 +17,10 @@ var (
 	mockCreateCalls     int
 )
 
-func init() {
-	handlers[mockSubresource] = &MockHandler{}
-}
-
 // MockHandler is a test double for ResourceHandler.
 type MockHandler struct{}
 
-func (h *MockHandler) createResourcefunc(_ *Reconciler, _ *v1alpha1.DatadogGenericResource) (CreateResult, error) {
+func (h *MockHandler) createResource(_ *v1alpha1.DatadogGenericResource) (CreateResult, error) {
 	mockCreateCalls++
 	now := metav1.Now()
 	return CreateResult{
@@ -34,15 +30,15 @@ func (h *MockHandler) createResourcefunc(_ *Reconciler, _ *v1alpha1.DatadogGener
 	}, nil
 }
 
-func (h *MockHandler) getResourcefunc(_ *Reconciler, _ *v1alpha1.DatadogGenericResource) error {
+func (h *MockHandler) getResource(_ *v1alpha1.DatadogGenericResource) error {
 	return mockGetErr
 }
 
-func (h *MockHandler) updateResourcefunc(_ *Reconciler, _ *v1alpha1.DatadogGenericResource) error {
+func (h *MockHandler) updateResource(_ *v1alpha1.DatadogGenericResource) error {
 	return mockUpdateErr
 }
 
-func (h *MockHandler) deleteResourcefunc(_ *Reconciler, _ *v1alpha1.DatadogGenericResource) error {
+func (h *MockHandler) deleteResource(_ *v1alpha1.DatadogGenericResource) error {
 	return mockDeleteErr
 }
 

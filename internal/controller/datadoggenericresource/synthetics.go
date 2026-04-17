@@ -11,48 +11,54 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
-type SyntheticsAPITestHandler struct{}
+type SyntheticsAPITestHandler struct {
+	auth   context.Context
+	client *datadogV1.SyntheticsApi
+}
 
-func (h *SyntheticsAPITestHandler) createResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
-	createdTest, err := createSyntheticsAPITest(r.datadogAuth, r.datadogSyntheticsClient, instance)
+func (h *SyntheticsAPITestHandler) createResource(instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
+	createdTest, err := createSyntheticsAPITest(h.auth, h.client, instance)
 	if err != nil {
 		return CreateResult{}, err
 	}
 	return createResultFromSyntheticsTest(&createdTest, createdTest.AdditionalProperties), nil
 }
 
-func (h *SyntheticsAPITestHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := getSyntheticsTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
+func (h *SyntheticsAPITestHandler) getResource(instance *v1alpha1.DatadogGenericResource) error {
+	_, err := getSyntheticsTest(h.auth, h.client, instance.Status.Id)
 	return err
 }
-func (h *SyntheticsAPITestHandler) updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := updateSyntheticsAPITest(r.datadogAuth, r.datadogSyntheticsClient, instance)
+func (h *SyntheticsAPITestHandler) updateResource(instance *v1alpha1.DatadogGenericResource) error {
+	_, err := updateSyntheticsAPITest(h.auth, h.client, instance)
 	return err
 }
-func (h *SyntheticsAPITestHandler) deleteResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return deleteSyntheticTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
+func (h *SyntheticsAPITestHandler) deleteResource(instance *v1alpha1.DatadogGenericResource) error {
+	return deleteSyntheticTest(h.auth, h.client, instance.Status.Id)
 }
 
-type SyntheticsBrowserTestHandler struct{}
+type SyntheticsBrowserTestHandler struct {
+	auth   context.Context
+	client *datadogV1.SyntheticsApi
+}
 
-func (h *SyntheticsBrowserTestHandler) createResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
-	createdTest, err := createSyntheticBrowserTest(r.datadogAuth, r.datadogSyntheticsClient, instance)
+func (h *SyntheticsBrowserTestHandler) createResource(instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
+	createdTest, err := createSyntheticBrowserTest(h.auth, h.client, instance)
 	if err != nil {
 		return CreateResult{}, err
 	}
 	return createResultFromSyntheticsTest(&createdTest, createdTest.AdditionalProperties), nil
 }
 
-func (h *SyntheticsBrowserTestHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := getSyntheticsTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
+func (h *SyntheticsBrowserTestHandler) getResource(instance *v1alpha1.DatadogGenericResource) error {
+	_, err := getSyntheticsTest(h.auth, h.client, instance.Status.Id)
 	return err
 }
-func (h *SyntheticsBrowserTestHandler) updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := updateSyntheticsBrowserTest(r.datadogAuth, r.datadogSyntheticsClient, instance)
+func (h *SyntheticsBrowserTestHandler) updateResource(instance *v1alpha1.DatadogGenericResource) error {
+	_, err := updateSyntheticsBrowserTest(h.auth, h.client, instance)
 	return err
 }
-func (h *SyntheticsBrowserTestHandler) deleteResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return deleteSyntheticTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
+func (h *SyntheticsBrowserTestHandler) deleteResource(instance *v1alpha1.DatadogGenericResource) error {
+	return deleteSyntheticTest(h.auth, h.client, instance.Status.Id)
 }
 
 // createResultFromSyntheticsTest extracts the common fields from a synthetic test API response.

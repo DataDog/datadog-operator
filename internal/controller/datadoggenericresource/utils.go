@@ -9,25 +9,20 @@ import (
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 )
 
-// handlers maps each supported resource type to its ResourceHandler implementation.
-// Tests can register additional entries (e.g. a mock handler) via init().
-var handlers = map[v1alpha1.SupportedResourcesType]ResourceHandler{
-	v1alpha1.Dashboard:             &DashboardHandler{},
-	v1alpha1.Downtime:              &DowntimeHandler{},
-	v1alpha1.Monitor:               &MonitorHandler{},
-	v1alpha1.Notebook:              &NotebookHandler{},
-	v1alpha1.SyntheticsAPITest:     &SyntheticsAPITestHandler{},
-	v1alpha1.SyntheticsBrowserTest: &SyntheticsBrowserTestHandler{},
-}
-
-func getHandler(resourceType v1alpha1.SupportedResourcesType) ResourceHandler {
-	h, ok := handlers[resourceType]
-	if !ok {
-		panic(unsupportedInstanceType(resourceType))
+// buildHandlers creates a handler for each supported resource type, each holding
+// its own API client and auth context from the given DatadogGenericClient.
+func buildHandlers(ddClient datadogclient.DatadogGenericClient) map[v1alpha1.SupportedResourcesType]ResourceHandler {
+	return map[v1alpha1.SupportedResourcesType]ResourceHandler{
+		v1alpha1.Dashboard:             &DashboardHandler{auth: ddClient.Auth, client: ddClient.DashboardsClient},
+		v1alpha1.Downtime:              &DowntimeHandler{auth: ddClient.Auth, client: ddClient.DowntimesClient},
+		v1alpha1.Monitor:               &MonitorHandler{auth: ddClient.Auth, client: ddClient.MonitorsClient},
+		v1alpha1.Notebook:              &NotebookHandler{auth: ddClient.Auth, client: ddClient.NotebooksClient},
+		v1alpha1.SyntheticsAPITest:     &SyntheticsAPITestHandler{auth: ddClient.Auth, client: ddClient.SyntheticsClient},
+		v1alpha1.SyntheticsBrowserTest: &SyntheticsBrowserTestHandler{auth: ddClient.Auth, client: ddClient.SyntheticsClient},
 	}
-	return h
 }
 
 func translateClientError(err error, msg string) error {

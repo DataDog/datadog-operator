@@ -12,10 +12,13 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
-type DowntimeHandler struct{}
+type DowntimeHandler struct {
+	auth   context.Context
+	client *datadogV2.DowntimesApi
+}
 
-func (h *DowntimeHandler) createResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
-	createdDowntime, err := createDowntime(r.datadogAuth, r.datadogDowntimesClient, instance)
+func (h *DowntimeHandler) createResource(instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
+	createdDowntime, err := createDowntime(h.auth, h.client, instance)
 	if err != nil {
 		return CreateResult{}, err
 	}
@@ -42,18 +45,18 @@ func (h *DowntimeHandler) createResourcefunc(r *Reconciler, instance *v1alpha1.D
 	}, nil
 }
 
-func (h *DowntimeHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := getDowntime(r.datadogAuth, r.datadogDowntimesClient, instance.Status.Id)
+func (h *DowntimeHandler) getResource(instance *v1alpha1.DatadogGenericResource) error {
+	_, err := getDowntime(h.auth, h.client, instance.Status.Id)
 	return err
 }
 
-func (h *DowntimeHandler) updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := updateDowntime(r.datadogAuth, r.datadogDowntimesClient, instance)
+func (h *DowntimeHandler) updateResource(instance *v1alpha1.DatadogGenericResource) error {
+	_, err := updateDowntime(h.auth, h.client, instance)
 	return err
 }
 
-func (h *DowntimeHandler) deleteResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return deleteDowntime(r.datadogAuth, r.datadogDowntimesClient, instance.Status.Id)
+func (h *DowntimeHandler) deleteResource(instance *v1alpha1.DatadogGenericResource) error {
+	return deleteDowntime(h.auth, h.client, instance.Status.Id)
 }
 
 func getDowntime(auth context.Context, client *datadogV2.DowntimesApi, downtimeID string) (datadogV2.DowntimeResponse, error) {

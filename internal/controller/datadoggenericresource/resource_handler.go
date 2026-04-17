@@ -14,9 +14,12 @@ type CreateResult struct {
 	Creator     string
 }
 
+// ResourceHandler defines the CRUD operations for a Datadog resource type.
+// Each implementation is stateful: it holds its own API client and auth context,
+// so the caller does not need to supply them.
 type ResourceHandler interface {
-	createResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) (CreateResult, error)
-	getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error
-	updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error
-	deleteResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error
+	createResource(instance *v1alpha1.DatadogGenericResource) (CreateResult, error)
+	getResource(instance *v1alpha1.DatadogGenericResource) error
+	updateResource(instance *v1alpha1.DatadogGenericResource) error
+	deleteResource(instance *v1alpha1.DatadogGenericResource) error
 }

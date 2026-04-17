@@ -14,6 +14,11 @@ import (
 )
 
 func Test_DashboardHandler_getHandler(t *testing.T) {
-	handler := getHandler(v1alpha1.Dashboard)
+	r := &Reconciler{
+		handlers: map[v1alpha1.SupportedResourcesType]ResourceHandler{
+			v1alpha1.Dashboard: &DashboardHandler{},
+		},
+	}
+	handler := r.getHandler(v1alpha1.Dashboard)
 	assert.IsType(t, &DashboardHandler{}, handler)
 }

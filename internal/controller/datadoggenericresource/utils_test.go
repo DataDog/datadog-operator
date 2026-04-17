@@ -13,18 +13,18 @@ import (
 )
 
 func Test_getHandler(t *testing.T) {
-	// Known types return a non-nil handler
-	for _, rt := range []v1alpha1.SupportedResourcesType{
-		v1alpha1.Dashboard, v1alpha1.Downtime, v1alpha1.Monitor,
-		v1alpha1.Notebook, v1alpha1.SyntheticsAPITest, v1alpha1.SyntheticsBrowserTest,
-		mockSubresource,
-	} {
-		assert.NotNil(t, getHandler(rt), "expected handler for %s", rt)
+	r := &Reconciler{
+		handlers: map[v1alpha1.SupportedResourcesType]ResourceHandler{
+			mockSubresource: &MockHandler{},
+		},
 	}
+
+	// Known type returns a non-nil handler
+	assert.NotNil(t, r.getHandler(mockSubresource))
 
 	// Unsupported type panics
 	assert.PanicsWithError(t, "unsupported type: unsupportedType", func() {
-		getHandler("unsupportedType")
+		r.getHandler("unsupportedType")
 	})
 }
 

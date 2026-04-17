@@ -15,10 +15,13 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
-type DashboardHandler struct{}
+type DashboardHandler struct {
+	auth   context.Context
+	client *datadogV1.DashboardsApi
+}
 
-func (h *DashboardHandler) createResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
-	createdDashboard, err := createDashboard(r.datadogAuth, r.datadogDashboardsClient, instance)
+func (h *DashboardHandler) createResource(instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
+	createdDashboard, err := createDashboard(h.auth, h.client, instance)
 	if err != nil {
 		return CreateResult{}, err
 	}
@@ -30,18 +33,18 @@ func (h *DashboardHandler) createResourcefunc(r *Reconciler, instance *v1alpha1.
 	}, nil
 }
 
-func (h *DashboardHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := getDashboard(r.datadogAuth, r.datadogDashboardsClient, instance.Status.Id)
+func (h *DashboardHandler) getResource(instance *v1alpha1.DatadogGenericResource) error {
+	_, err := getDashboard(h.auth, h.client, instance.Status.Id)
 	return err
 }
 
-func (h *DashboardHandler) updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := updateDashboard(r.datadogAuth, r.datadogDashboardsClient, instance)
+func (h *DashboardHandler) updateResource(instance *v1alpha1.DatadogGenericResource) error {
+	_, err := updateDashboard(h.auth, h.client, instance)
 	return err
 }
 
-func (h *DashboardHandler) deleteResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return deleteDashboard(r.datadogAuth, r.datadogDashboardsClient, instance.Status.Id)
+func (h *DashboardHandler) deleteResource(instance *v1alpha1.DatadogGenericResource) error {
+	return deleteDashboard(h.auth, h.client, instance.Status.Id)
 }
 
 func getDashboard(auth context.Context, client *datadogV1.DashboardsApi, dashboardID string) (datadogV1.Dashboard, error) {

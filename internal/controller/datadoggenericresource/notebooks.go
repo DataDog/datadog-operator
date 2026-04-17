@@ -10,10 +10,13 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
-type NotebookHandler struct{}
+type NotebookHandler struct {
+	auth   context.Context
+	client *datadogV1.NotebooksApi
+}
 
-func (h *NotebookHandler) createResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
-	createdNotebook, err := createNotebook(r.datadogAuth, r.datadogNotebooksClient, instance)
+func (h *NotebookHandler) createResource(instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
+	createdNotebook, err := createNotebook(h.auth, h.client, instance)
 	if err != nil {
 		return CreateResult{}, err
 	}
@@ -25,16 +28,16 @@ func (h *NotebookHandler) createResourcefunc(r *Reconciler, instance *v1alpha1.D
 	}, nil
 }
 
-func (h *NotebookHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := getNotebook(r.datadogAuth, r.datadogNotebooksClient, instance.Status.Id)
+func (h *NotebookHandler) getResource(instance *v1alpha1.DatadogGenericResource) error {
+	_, err := getNotebook(h.auth, h.client, instance.Status.Id)
 	return err
 }
-func (h *NotebookHandler) updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := updateNotebook(r.datadogAuth, r.datadogNotebooksClient, instance)
+func (h *NotebookHandler) updateResource(instance *v1alpha1.DatadogGenericResource) error {
+	_, err := updateNotebook(h.auth, h.client, instance)
 	return err
 }
-func (h *NotebookHandler) deleteResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return deleteNotebook(r.datadogAuth, r.datadogNotebooksClient, instance.Status.Id)
+func (h *NotebookHandler) deleteResource(instance *v1alpha1.DatadogGenericResource) error {
+	return deleteNotebook(h.auth, h.client, instance.Status.Id)
 }
 
 func getNotebook(auth context.Context, client *datadogV1.NotebooksApi, notebookStringID string) (datadogV1.NotebookResponse, error) {
