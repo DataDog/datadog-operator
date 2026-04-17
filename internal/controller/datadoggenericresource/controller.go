@@ -93,7 +93,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 
 func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	logger := ctrl.LoggerFrom(ctx)
-	logger.Info("Reconciling Datadog Generic Resource")
+	logger.Info("Reconciling DatadogGenericResource")
 	now := metav1.NewTime(time.Now())
 
 	instance := &v1alpha1.DatadogGenericResource{}
@@ -202,7 +202,7 @@ func (r *Reconciler) update(ctx context.Context, instance *v1alpha1.DatadogGener
 	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
 	status.LastForceSyncTime = &now
 
-	logger.Info("Updated Datadog Generic Resource", "Generic Resource Id", instance.Status.Id)
+	logger.Info("Updated DatadogGenericResource", "Generic Resource Id", instance.Status.Id)
 	return nil
 }
 

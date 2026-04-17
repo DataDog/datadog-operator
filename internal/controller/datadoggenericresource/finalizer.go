@@ -54,18 +54,18 @@ func (r *Reconciler) finalizeDatadogCustomResource(ctx context.Context, instance
 	logger := ctrl.LoggerFrom(ctx)
 	err := apiDelete(r, instance)
 	if err != nil {
-		logger.Error(err, "failed to finalize ", "custom resource Id", fmt.Sprint(instance.Status.Id))
+		logger.Error(err, "failed to finalize", "custom resource Id", fmt.Sprint(instance.Status.Id))
 
 		return
 	}
-	logger.Info("Successfully finalized DatadogGenericResource", "custom resource Id", fmt.Sprint(instance.Status.Id))
+	logger.V(1).Info("Successfully finalized DatadogGenericResource", "custom resource Id", fmt.Sprint(instance.Status.Id))
 	event := buildEventInfo(instance.Name, instance.Namespace, datadog.DeletionEvent)
 	r.recordEvent(instance, event)
 }
 
 func (r *Reconciler) addFinalizer(ctx context.Context, instance *datadoghqv1alpha1.DatadogGenericResource) error {
 	logger := ctrl.LoggerFrom(ctx)
-	logger.Info("Adding Finalizer for the DatadogGenericResource")
+	logger.V(1).Info("Adding finalizer")
 
 	controllerutil.AddFinalizer(instance, datadogGenericResourceFinalizer)
 
