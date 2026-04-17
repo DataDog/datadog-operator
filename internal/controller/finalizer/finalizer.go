@@ -29,11 +29,11 @@ type Finalizer struct {
 	client     client.Client
 	deleteFunc ResourceDeleteFunc
 
-	// deletionWaitPeriod is how often to requeue while waiting for Kubernetes
+	// defaultRequeuePeriod is how often to requeue while waiting for Kubernetes
 	// to garbage-collect the object after the finalizer has been removed.
 	// The add-finalizer path always uses an immediate requeue to avoid
 	// delaying the first real reconcile pass.
-	deletionWaitPeriod      time.Duration
+	defaultRequeuePeriod    time.Duration
 	defaultErrRequeuePeriod time.Duration
 }
 
@@ -41,14 +41,14 @@ func NewFinalizer(
 	logger logr.Logger,
 	client client.Client,
 	deleteFunc ResourceDeleteFunc,
-	deletionWaitPeriod time.Duration,
+	defaultRequeuePeriod time.Duration,
 	defaultErrRequeuePeriod time.Duration,
 ) *Finalizer {
 	return &Finalizer{
 		logger:                  logger,
 		client:                  client,
 		deleteFunc:              deleteFunc,
-		deletionWaitPeriod:      deletionWaitPeriod,
+		defaultRequeuePeriod:    defaultRequeuePeriod,
 		defaultErrRequeuePeriod: defaultErrRequeuePeriod,
 	}
 }
@@ -92,7 +92,7 @@ func (f *Finalizer) HandleFinalizer(ctx context.Context, clientObj client.Object
 		// Requeue on a slow cadence while waiting for Kubernetes to
 		// garbage-collect the object. Watch events will usually wake us up
 		// sooner; this is a safety net.
-		return ctrl.Result{RequeueAfter: f.deletionWaitPeriod}, nil
+		return ctrl.Result{RequeueAfter: f.defaultRequeuePeriod}, nil
 	}
 	return ctrl.Result{}, nil
 }

@@ -104,7 +104,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "DatadogMonitor exists, check required tags",
+			name: "DatadogMonitor exists, adds required tags before create",
 			args: args{
 				request:             newRequest(resourcesNamespace, resourcesName),
 				loadFunc:            genericDatadogMonitor,
@@ -117,6 +117,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 					return err
 				}
 				assert.Contains(t, dm.Spec.Tags, "generated:kubernetes")
+				assert.False(t, dm.Status.Primary)
 				return nil
 			},
 		},
