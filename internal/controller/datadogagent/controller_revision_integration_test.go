@@ -81,8 +81,7 @@ func newRevisionIntegrationReconciler(t *testing.T) (*Reconciler, client.Client)
 		log:          logf.Log.WithName(t.Name()),
 		forwarders:   dummyManager{},
 		options: ReconcilerOptions{
-			CreateControllerRevisions:   true,
-			DatadogAgentInternalEnabled: true,
+			CreateControllerRevisions: true,
 		},
 	}
 	r.initializeComponentRegistry()

@@ -1006,7 +1006,7 @@ func TestReconciler_UpdateDatadogClient(t *testing.T) {
 	recorder := record.NewFakeRecorder(10)
 	scheme := scheme.Scheme
 	client := fake.NewClientBuilder().Build()
-	metricForwardersMgr := datadog.NewForwardersManager(client, nil, false, nil)
+	metricForwardersMgr := datadog.NewForwardersManager(client, nil, nil)
 
 	tests := []struct {
 		name     string

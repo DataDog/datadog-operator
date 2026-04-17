@@ -18,7 +18,6 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
@@ -69,13 +68,12 @@ const (
 
 // ReconcilerOptions provides options read from command line
 type ReconcilerOptions struct {
-	ExtendedDaemonsetOptions    componentagent.ExtendedDaemonsetOptions
-	SupportCilium               bool
-	OperatorMetricsEnabled      bool
-	IntrospectionEnabled        bool
-	DatadogAgentProfileEnabled  bool
-	DatadogAgentInternalEnabled bool
-	CreateControllerRevisions   bool
+	ExtendedDaemonsetOptions   componentagent.ExtendedDaemonsetOptions
+	SupportCilium              bool
+	OperatorMetricsEnabled     bool
+	IntrospectionEnabled       bool
+	DatadogAgentProfileEnabled bool
+	CreateControllerRevisions  bool
 	// ExperimentTimeout overrides ExperimentDefaultTimeout. Zero means use the default.
 	ExperimentTimeout time.Duration
 }
@@ -130,12 +128,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, dda *v2alpha1.DatadogAgent) 
 
 	r.metricsForwarderProcessError(dda, err)
 	return resp, err
-}
-
-func reconcilerOptionsToFeatureOptions(opts *ReconcilerOptions, logger logr.Logger) *feature.Options {
-	return &feature.Options{
-		Logger: logger,
-	}
 }
 
 // metricsForwarderProcessError convert the reconciler errors into metrics if metrics forwarder is enabled

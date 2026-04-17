@@ -61,7 +61,6 @@ var (
 
 type WatchOptions struct {
 	DatadogAgentEnabled           bool
-	DatadogAgentInternalEnabled   bool
 	DatadogMonitorEnabled         bool
 	DatadogSLOEnabled             bool
 	DatadogAgentProfileEnabled    bool
@@ -180,7 +179,8 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		}
 	}
 
-	if opts.DatadogAgentInternalEnabled {
+	// Since v1.27, DDAI is always tied to DDA — no separate flag. Kept as DDA guard since DDAI cache is only needed when DDA is enabled.
+	if opts.DatadogAgentEnabled {
 		agentInternalNamespaces := GetWatchNamespacesFromEnv(logger, AgentWatchNamespaceEnvVar)
 		logger.Info("DatadogAgentInternal Enabled", "watching namespaces", slices.Collect(maps.Keys(agentInternalNamespaces)))
 		byObject[agentInternalObj] = cache.ByObject{
