@@ -120,6 +120,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		logger,
 		r.client,
 		r.deleteResource(logger),
+		defaultRequeuePeriod,
 		defaultErrRequeuePeriod,
 	)
 	if result, err = final.HandleFinalizer(ctx, instance, instance.Status.ID, datadogSLOFinalizer); ctrutils.ShouldReturn(result, err) {

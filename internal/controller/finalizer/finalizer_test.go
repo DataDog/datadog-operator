@@ -38,6 +38,7 @@ func Test_HandleFinalizer(t *testing.T) {
 	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &testResource{})
 	finalizerName := "test_resource.finalizer"
 	metaNow := metav1.NewTime(time.Now())
+	deletionWaitPeriod := 30 * time.Second
 	errRequeuePeriod := time.Minute
 
 	noopDelete := func(ctx context.Context, k8sObj client.Object, datadogID string) error {
@@ -85,7 +86,7 @@ func Test_HandleFinalizer(t *testing.T) {
 			deleterFunc:           noopDelete,
 		},
 		{
-			name: "deleting, has finalizer, deleteFunc succeeds: removes finalizer, requeues immediately",
+			name: "deleting, has finalizer, deleteFunc succeeds: removes finalizer, requeues on deletion-wait cadence",
 			clientObject: testResource{
 				TypeMeta: metav1.TypeMeta{
 					Kind: "TestResource",
@@ -97,7 +98,7 @@ func Test_HandleFinalizer(t *testing.T) {
 				},
 			},
 			finalizerShouldExists: false,
-			expectedResult:        ctrl.Result{Requeue: true},
+			expectedResult:        ctrl.Result{RequeueAfter: deletionWaitPeriod},
 			deleterFunc:           noopDelete,
 		},
 		{
@@ -125,7 +126,7 @@ func Test_HandleFinalizer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := fake.NewClientBuilder().WithObjects(&tt.clientObject).Build()
-			finalizer := NewFinalizer(testLogger, fakeClient, tt.deleterFunc, errRequeuePeriod)
+			finalizer := NewFinalizer(testLogger, fakeClient, tt.deleterFunc, deletionWaitPeriod, errRequeuePeriod)
 
 			res, err := finalizer.HandleFinalizer(context.TODO(), &tt.clientObject, "123", finalizerName)
 

@@ -101,7 +101,7 @@ func Test_handleFinalizer(t *testing.T) {
 			testGcr := &datadoghqv1alpha1.DatadogGenericResource{}
 			err := r.client.Get(context.TODO(), client.ObjectKey{Name: test.resourceName, Namespace: testNamespace}, testGcr)
 
-			final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger), defaultErrRequeuePeriod)
+			final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger), defaultRequeuePeriod, defaultErrRequeuePeriod)
 			_, err = final.HandleFinalizer(context.TODO(), testGcr, testGcr.Status.Id, datadogGenericResourceFinalizer)
 
 			assert.NoError(t, err)
