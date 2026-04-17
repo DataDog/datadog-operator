@@ -151,11 +151,15 @@ func getAccountIDFromKubeconfig(configFlags *genericclioptions.ConfigFlags) (str
 		return "", fmt.Errorf("kube context %q doesn’t exist", kubeContext)
 	}
 
+	// The kubeconfig cluster field may not be an ARN (e.g. plain name,
+	// eksctl FQDN). Treat that as a normal fallback, not an error.
+	if !arn.IsARN(kubeCtx.Cluster) {
+		return "", nil
+	}
+
 	parsed, err := arn.Parse(kubeCtx.Cluster)
 	if err != nil {
-		// The kubeconfig cluster field is not an ARN (e.g. plain name,
-		// eksctl FQDN). This is a normal fallback case, not an error.
-		return "", nil
+		return "", fmt.Errorf("failed to parse EKS cluster ARN %q: %w", kubeCtx.Cluster, err)
 	}
 
 	return parsed.AccountID, nil
