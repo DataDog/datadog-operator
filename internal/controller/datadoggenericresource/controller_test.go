@@ -3,6 +3,7 @@ package datadoggenericresource
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net/url"
 	"testing"
 
@@ -315,23 +316,8 @@ func TestReconciler_UpdateDatadogClient(t *testing.T) {
 	// captureHandlers snapshots the handlers map so we can detect replacement.
 	captureHandlers := func(r *Reconciler) map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler {
 		snapshot := make(map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler, len(r.handlers))
-		for k, v := range r.handlers {
-			snapshot[k] = v
-		}
+		maps.Copy(snapshot, r.handlers)
 		return snapshot
-	}
-
-	// handlersEqual returns true if every key maps to the same pointer.
-	handlersEqual := func(a, b map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler) bool {
-		if len(a) != len(b) {
-			return false
-		}
-		for k, va := range a {
-			if vb, ok := b[k]; !ok || va != vb {
-				return false
-			}
-		}
-		return true
 	}
 
 	tests := []struct {
@@ -391,11 +377,11 @@ func TestReconciler_UpdateDatadogClient(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 				// On error, handlers should remain unchanged
-				assert.True(t, handlersEqual(originalHandlers, newHandlers), "Expected handlers to remain the same on error")
+				assert.True(t, maps.Equal(originalHandlers, newHandlers), "Expected handlers to remain the same on error")
 			} else {
 				assert.NoError(t, err)
 				// On success, handlers should be recreated (different instances)
-				assert.False(t, handlersEqual(originalHandlers, newHandlers), "Expected handlers to be recreated on success")
+				assert.False(t, maps.Equal(originalHandlers, newHandlers), "Expected handlers to be recreated on success")
 			}
 		})
 	}
