@@ -13,30 +13,9 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
-// mockSubresource is used to mock the subresource in tests
-const mockSubresource = "mock_resource"
-
-type MockHandler struct{}
-
-func (h *MockHandler) createResourcefunc(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	status.Id = "mock-id"
-	status.Created = &now
-	status.LastForceSyncTime = &now
-	status.Creator = "mock-creator"
-	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
-	status.CurrentHash = hash
-	return nil
-}
-
-func (h *MockHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return nil
-}
-func (h *MockHandler) updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return nil
-}
-func (h *MockHandler) deleteResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return nil
-}
+// testHandlers allows tests to register additional handlers without coupling
+// production code to test-only types.
+var testHandlers map[v1alpha1.SupportedResourcesType]ResourceHandler
 
 func apiDelete(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
 	return getHandler(instance.Spec.Type).deleteResourcefunc(r, instance)
@@ -55,7 +34,12 @@ func apiCreateAndUpdateStatus(r *Reconciler, logger logr.Logger, instance *v1alp
 }
 
 func getHandler(resourceType v1alpha1.SupportedResourcesType) ResourceHandler {
+	if h, ok := testHandlers[resourceType]; ok {
+		return h
+	}
 	switch resourceType {
+	case v1alpha1.Dashboard:
+		return &DashboardHandler{}
 	case v1alpha1.Downtime:
 		return &DowntimeHandler{}
 	case v1alpha1.Monitor:
@@ -66,8 +50,6 @@ func getHandler(resourceType v1alpha1.SupportedResourcesType) ResourceHandler {
 		return &SyntheticsAPITestHandler{}
 	case v1alpha1.SyntheticsBrowserTest:
 		return &SyntheticsBrowserTestHandler{}
-	case mockSubresource:
-		return &MockHandler{}
 	default:
 		panic(unsupportedInstanceType(resourceType))
 	}

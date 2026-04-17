@@ -15,6 +15,8 @@ import (
 )
 
 func Test_apiCreateAndUpdateStatus(t *testing.T) {
+	resetMockHandlerState()
+
 	mockReconciler := &Reconciler{}
 	logger := &logr.Logger{}
 	instance := &v1alpha1.DatadogGenericResource{
@@ -36,6 +38,8 @@ func Test_apiCreateAndUpdateStatus(t *testing.T) {
 }
 
 func Test_apiGet(t *testing.T) {
+	resetMockHandlerState()
+
 	mockReconciler := &Reconciler{}
 	instance := &v1alpha1.DatadogGenericResource{
 		Spec: v1alpha1.DatadogGenericResourceSpec{
@@ -48,6 +52,8 @@ func Test_apiGet(t *testing.T) {
 }
 
 func Test_apiUpdate(t *testing.T) {
+	resetMockHandlerState()
+
 	mockReconciler := &Reconciler{}
 	instance := &v1alpha1.DatadogGenericResource{
 		Spec: v1alpha1.DatadogGenericResourceSpec{
@@ -60,6 +66,8 @@ func Test_apiUpdate(t *testing.T) {
 }
 
 func Test_apiDelete(t *testing.T) {
+	resetMockHandlerState()
+
 	mockReconciler := &Reconciler{}
 	instance := &v1alpha1.DatadogGenericResource{
 		Spec: v1alpha1.DatadogGenericResourceSpec{

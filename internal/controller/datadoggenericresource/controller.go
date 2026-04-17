@@ -39,6 +39,7 @@ const (
 
 type Reconciler struct {
 	client                  client.Client
+	datadogDashboardsClient *datadogV1.DashboardsApi
 	datadogSyntheticsClient *datadogV1.SyntheticsApi
 	datadogNotebooksClient  *datadogV1.NotebooksApi
 	datadogMonitorsClient   *datadogV1.MonitorsApi
@@ -57,6 +58,7 @@ func NewReconciler(client client.Client, creds config.Creds, scheme *runtime.Sch
 
 	return &Reconciler{
 		client:                  client,
+		datadogDashboardsClient: ddClient.DashboardsClient,
 		datadogSyntheticsClient: ddClient.SyntheticsClient,
 		datadogNotebooksClient:  ddClient.NotebooksClient,
 		datadogMonitorsClient:   ddClient.MonitorsClient,
@@ -74,6 +76,7 @@ func (r *Reconciler) UpdateDatadogClient(newCreds config.Creds) error {
 	if err != nil {
 		return fmt.Errorf("unable to create Datadog API Client in DatadogGenericResource: %w", err)
 	}
+	r.datadogDashboardsClient = ddClient.DashboardsClient
 	r.datadogSyntheticsClient = ddClient.SyntheticsClient
 	r.datadogNotebooksClient = ddClient.NotebooksClient
 	r.datadogMonitorsClient = ddClient.MonitorsClient
@@ -111,13 +114,6 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 
 	status := instance.Status.DeepCopy()
 	statusSpecHash := instance.Status.CurrentHash
-
-	if err = v1alpha1.IsValidDatadogGenericResource(&instance.Spec); err != nil {
-		logger.Error(err, "invalid DatadogGenericResource")
-		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusValidateError, "ValidatingGenericResource", err)
-		return r.updateStatusIfNeeded(logger, instance, status, result)
-	}
-
 	instanceSpecHash, err := comparison.GenerateMD5ForSpec(&instance.Spec)
 
 	if err != nil {
@@ -166,7 +162,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	}
 
 	// If reconcile was successful and uneventful, requeue with period defaultRequeuePeriod
-	if !result.Requeue && result.RequeueAfter == 0 {
+	if result.IsZero() {
 		result.RequeueAfter = defaultRequeuePeriod
 	}
 
@@ -183,6 +179,13 @@ func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogGeneri
 
 	err := apiUpdate(r, instance)
 	if err != nil {
+		if strings.Contains(err.Error(), ctrutils.NotFoundString) {
+			// If the remote resource was deleted out-of-band after we stored its ID,
+			// treat an update-time 404 as drift from the Kubernetes source of truth
+			// and recreate it immediately instead of waiting for the next force sync.
+			logger.Info("generic resource missing in Datadog during update; recreating", "generic resource Id", instance.Status.Id)
+			return r.create(logger, instance, status, now, hash)
+		}
 		logger.Error(err, "error updating generic resource", "generic resource Id", instance.Status.Id)
 		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusUpdateError, "UpdatingGenericResource", err)
 		return err
