@@ -14,9 +14,16 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
-// testHandlers allows tests to register additional handlers without coupling
-// production code to test-only types.
-var testHandlers map[v1alpha1.SupportedResourcesType]ResourceHandler
+// handlers maps each supported resource type to its ResourceHandler implementation.
+// Tests can register additional entries (e.g. a mock handler) via init().
+var handlers = map[v1alpha1.SupportedResourcesType]ResourceHandler{
+	v1alpha1.Dashboard:             &DashboardHandler{},
+	v1alpha1.Downtime:              &DowntimeHandler{},
+	v1alpha1.Monitor:               &MonitorHandler{},
+	v1alpha1.Notebook:              &NotebookHandler{},
+	v1alpha1.SyntheticsAPITest:     &SyntheticsAPITestHandler{},
+	v1alpha1.SyntheticsBrowserTest: &SyntheticsBrowserTestHandler{},
+}
 
 func apiDelete(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
 	return getHandler(instance.Spec.Type).deleteResourcefunc(r, instance)
@@ -51,25 +58,11 @@ func apiCreateAndUpdateStatus(r *Reconciler, ctx context.Context, instance *v1al
 }
 
 func getHandler(resourceType v1alpha1.SupportedResourcesType) ResourceHandler {
-	if h, ok := testHandlers[resourceType]; ok {
-		return h
-	}
-	switch resourceType {
-	case v1alpha1.Dashboard:
-		return &DashboardHandler{}
-	case v1alpha1.Downtime:
-		return &DowntimeHandler{}
-	case v1alpha1.Monitor:
-		return &MonitorHandler{}
-	case v1alpha1.Notebook:
-		return &NotebookHandler{}
-	case v1alpha1.SyntheticsAPITest:
-		return &SyntheticsAPITestHandler{}
-	case v1alpha1.SyntheticsBrowserTest:
-		return &SyntheticsBrowserTestHandler{}
-	default:
+	h, ok := handlers[resourceType]
+	if !ok {
 		panic(unsupportedInstanceType(resourceType))
 	}
+	return h
 }
 
 func translateClientError(err error, msg string) error {

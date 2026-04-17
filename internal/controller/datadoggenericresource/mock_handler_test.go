@@ -18,9 +18,7 @@ var (
 )
 
 func init() {
-	testHandlers = map[v1alpha1.SupportedResourcesType]ResourceHandler{
-		mockSubresource: &MockHandler{},
-	}
+	handlers[mockSubresource] = &MockHandler{}
 }
 
 // MockHandler is a test double for ResourceHandler.
