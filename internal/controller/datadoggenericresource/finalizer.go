@@ -52,7 +52,8 @@ func (r *Reconciler) handleFinalizer(ctx context.Context, instance *datadoghqv1a
 
 func (r *Reconciler) finalizeDatadogCustomResource(ctx context.Context, instance *datadoghqv1alpha1.DatadogGenericResource) {
 	logger := ctrl.LoggerFrom(ctx)
-	err := apiDelete(r, instance)
+	handler := getHandler(instance.Spec.Type)
+	err := handler.deleteResourcefunc(r, instance)
 	if err != nil {
 		logger.Error(err, "failed to delete", "custom resource Id", fmt.Sprint(instance.Status.Id))
 

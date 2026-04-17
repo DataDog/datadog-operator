@@ -1,7 +1,6 @@
 package datadoggenericresource
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -9,73 +8,24 @@ import (
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
-func Test_apiCreateAndUpdateStatus(t *testing.T) {
-	resetMockHandlerState()
-
-	mockReconciler := &Reconciler{}
-	instance := &v1alpha1.DatadogGenericResource{
-		Spec: v1alpha1.DatadogGenericResourceSpec{
-			Type: mockSubresource,
-		},
+func Test_getHandler(t *testing.T) {
+	// Known types return a non-nil handler
+	for _, rt := range []v1alpha1.SupportedResourcesType{
+		v1alpha1.Dashboard, v1alpha1.Downtime, v1alpha1.Monitor,
+		v1alpha1.Notebook, v1alpha1.SyntheticsAPITest, v1alpha1.SyntheticsBrowserTest,
+		mockSubresource,
+	} {
+		assert.NotNil(t, getHandler(rt), "expected handler for %s", rt)
 	}
-	status := &v1alpha1.DatadogGenericResourceStatus{}
 
-	// Valid subresource case
-	err := apiCreateAndUpdateStatus(mockReconciler, context.TODO(), instance, status, metav1.Now(), "test-hash")
-	assert.NoError(t, err)
-
-	// Invalid subresource case
-	instance.Spec.Type = "unsupportedType"
+	// Unsupported type panics
 	assert.PanicsWithError(t, "unsupported type: unsupportedType", func() {
-		apiCreateAndUpdateStatus(mockReconciler, context.TODO(), instance, status, metav1.Now(), "test-hash")
+		getHandler("unsupportedType")
 	})
-}
-
-func Test_apiGet(t *testing.T) {
-	resetMockHandlerState()
-
-	mockReconciler := &Reconciler{}
-	instance := &v1alpha1.DatadogGenericResource{
-		Spec: v1alpha1.DatadogGenericResourceSpec{
-			Type: mockSubresource,
-		},
-	}
-
-	err := apiGet(mockReconciler, instance)
-	assert.NoError(t, err)
-}
-
-func Test_apiUpdate(t *testing.T) {
-	resetMockHandlerState()
-
-	mockReconciler := &Reconciler{}
-	instance := &v1alpha1.DatadogGenericResource{
-		Spec: v1alpha1.DatadogGenericResourceSpec{
-			Type: mockSubresource,
-		},
-	}
-
-	err := apiUpdate(mockReconciler, instance)
-	assert.NoError(t, err)
-}
-
-func Test_apiDelete(t *testing.T) {
-	resetMockHandlerState()
-
-	mockReconciler := &Reconciler{}
-	instance := &v1alpha1.DatadogGenericResource{
-		Spec: v1alpha1.DatadogGenericResourceSpec{
-			Type: mockSubresource,
-		},
-	}
-
-	err := apiDelete(mockReconciler, instance)
-	assert.NoError(t, err)
 }
 
 func Test_translateClientError(t *testing.T) {

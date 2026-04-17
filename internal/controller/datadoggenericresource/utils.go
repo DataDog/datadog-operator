@@ -1,15 +1,12 @@
 package datadoggenericresource
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
@@ -23,38 +20,6 @@ var handlers = map[v1alpha1.SupportedResourcesType]ResourceHandler{
 	v1alpha1.Notebook:              &NotebookHandler{},
 	v1alpha1.SyntheticsAPITest:     &SyntheticsAPITestHandler{},
 	v1alpha1.SyntheticsBrowserTest: &SyntheticsBrowserTestHandler{},
-}
-
-func apiDelete(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return getHandler(instance.Spec.Type).deleteResourcefunc(r, instance)
-}
-
-func apiGet(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return getHandler(instance.Spec.Type).getResourcefunc(r, instance)
-}
-
-func apiUpdate(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return getHandler(instance.Spec.Type).updateResourcefunc(r, instance)
-}
-
-func apiCreateAndUpdateStatus(r *Reconciler, ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	result, err := getHandler(instance.Spec.Type).createResourcefunc(r, instance)
-	if err != nil {
-		ctrl.LoggerFrom(ctx).Error(err, "error creating resource", "type", instance.Spec.Type)
-		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
-		return err
-	}
-	createdTime := result.CreatedTime
-	if createdTime == nil {
-		createdTime = &now
-	}
-	status.Id = result.ID
-	status.Created = createdTime
-	status.LastForceSyncTime = createdTime
-	status.Creator = result.Creator
-	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
-	status.CurrentHash = hash
-	return nil
 }
 
 func getHandler(resourceType v1alpha1.SupportedResourcesType) ResourceHandler {

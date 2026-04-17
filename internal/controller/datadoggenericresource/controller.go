@@ -98,6 +98,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 		return result, err
 	}
 
+	handler := getHandler(instance.Spec.Type)
+
 	status := instance.Status.DeepCopy()
 	statusSpecHash := instance.Status.CurrentHash
 	instanceSpecHash, err := comparison.GenerateMD5ForSpec(&instance.Spec)
@@ -120,7 +122,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 		} else if instance.Status.LastForceSyncTime == nil || ((defaultForceSyncPeriod - now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0) {
 			// Periodically force a sync with the API to ensure parity
 			// Make sure it exists before trying any updates. If it doesn't, set shouldCreate
-			err = r.get(instance)
+			err = handler.getResourcefunc(r, instance)
 			if err != nil {
 				logger.Error(err, "error getting custom resource", "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
 				updateErrStatus(status, now, v1alpha1.DatadogSyncStatusGetError, "GettingCustomResource", err)
@@ -137,9 +139,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 	if shouldCreate || shouldUpdate {
 
 		if shouldCreate {
-			err = r.create(ctx, instance, status, now, instanceSpecHash)
+			err = r.create(ctx, handler, instance, status, now, instanceSpecHash)
 		} else if shouldUpdate {
-			err = r.update(ctx, instance, status, now, instanceSpecHash)
+			err = r.update(ctx, handler, instance, status, now, instanceSpecHash)
 		}
 
 		if err != nil {
@@ -155,23 +157,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 	return r.updateStatusIfNeeded(ctx, instance, status, result)
 }
 
-func (r *Reconciler) get(instance *v1alpha1.DatadogGenericResource) error {
-	return apiGet(r, instance)
-}
-
-func (r *Reconciler) update(ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+func (r *Reconciler) update(ctx context.Context, handler ResourceHandler, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
 	logger := ctrl.LoggerFrom(ctx)
 	// Update hash to reflect the spec we're attempting to sync (whether it succeeds or fails)
 	status.CurrentHash = hash
 
-	err := apiUpdate(r, instance)
+	err := handler.updateResourcefunc(r, instance)
 	if err != nil {
 		if strings.Contains(err.Error(), ctrutils.NotFoundString) {
 			// If the remote resource was deleted out-of-band after we stored its ID,
 			// treat an update-time 404 as drift from the Kubernetes source of truth
 			// and recreate it immediately instead of waiting for the next force sync.
 			logger.Info("generic resource missing in Datadog during update; recreating", "generic resource Id", instance.Status.Id)
-			return r.create(ctx, instance, status, now, hash)
+			return r.create(ctx, handler, instance, status, now, hash)
 		}
 		logger.Error(err, "error updating generic resource", "generic resource Id", instance.Status.Id)
 		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusUpdateError, "UpdatingGenericResource", err)
@@ -192,14 +190,27 @@ func (r *Reconciler) update(ctx context.Context, instance *v1alpha1.DatadogGener
 	return nil
 }
 
-func (r *Reconciler) create(ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+func (r *Reconciler) create(ctx context.Context, handler ResourceHandler, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
 	logger := ctrl.LoggerFrom(ctx)
 	logger.V(1).Info("Generic resource Id is not set; creating resource in Datadog")
 
-	err := apiCreateAndUpdateStatus(r, ctx, instance, status, now, hash)
+	result, err := handler.createResourcefunc(r, instance)
 	if err != nil {
+		logger.Error(err, "error creating resource", "type", instance.Spec.Type)
+		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
 		return err
 	}
+	createdTime := result.CreatedTime
+	if createdTime == nil {
+		createdTime = &now
+	}
+	status.Id = result.ID
+	status.Created = createdTime
+	status.LastForceSyncTime = createdTime
+	status.Creator = result.Creator
+	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
+	status.CurrentHash = hash
+
 	event := buildEventInfo(instance.Name, instance.Namespace, datadog.CreationEvent)
 	r.recordEvent(instance, event)
 
