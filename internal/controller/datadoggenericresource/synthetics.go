@@ -104,7 +104,9 @@ func deleteSyntheticTest(auth context.Context, client *datadogV1.SyntheticsApi, 
 // Browser test: create
 func createSyntheticBrowserTest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.SyntheticsBrowserTest, error) {
 	browserTestBody := &datadogV1.SyntheticsBrowserTest{}
-	json.Unmarshal([]byte(instance.Spec.JsonSpec), browserTestBody)
+	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), browserTestBody); err != nil {
+		return datadogV1.SyntheticsBrowserTest{}, translateClientError(err, "error unmarshalling browser test spec")
+	}
 	test, _, err := client.CreateSyntheticsBrowserTest(auth, *browserTestBody)
 	if err != nil {
 		return datadogV1.SyntheticsBrowserTest{}, translateClientError(err, "error creating browser test")
@@ -115,7 +117,9 @@ func createSyntheticBrowserTest(auth context.Context, client *datadogV1.Syntheti
 // Browser test: update
 func updateSyntheticsBrowserTest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.SyntheticsBrowserTest, error) {
 	browserTestBody := &datadogV1.SyntheticsBrowserTest{}
-	json.Unmarshal([]byte(instance.Spec.JsonSpec), browserTestBody)
+	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), browserTestBody); err != nil {
+		return datadogV1.SyntheticsBrowserTest{}, translateClientError(err, "error unmarshalling browser test spec")
+	}
 	testUpdated, _, err := client.UpdateBrowserTest(auth, instance.Status.Id, *browserTestBody)
 	if err != nil {
 		return datadogV1.SyntheticsBrowserTest{}, translateClientError(err, "error updating browser test")
@@ -126,7 +130,9 @@ func updateSyntheticsBrowserTest(auth context.Context, client *datadogV1.Synthet
 // API test: create
 func createSyntheticsAPITest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.SyntheticsAPITest, error) {
 	apiTestBody := &datadogV1.SyntheticsAPITest{}
-	json.Unmarshal([]byte(instance.Spec.JsonSpec), apiTestBody)
+	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), apiTestBody); err != nil {
+		return datadogV1.SyntheticsAPITest{}, translateClientError(err, "error unmarshalling API test spec")
+	}
 	test, _, err := client.CreateSyntheticsAPITest(auth, *apiTestBody)
 	if err != nil {
 		return datadogV1.SyntheticsAPITest{}, translateClientError(err, "error creating API test")
@@ -137,7 +143,9 @@ func createSyntheticsAPITest(auth context.Context, client *datadogV1.SyntheticsA
 // API test: update
 func updateSyntheticsAPITest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.SyntheticsAPITest, error) {
 	apiTestBody := &datadogV1.SyntheticsAPITest{}
-	json.Unmarshal([]byte(instance.Spec.JsonSpec), apiTestBody)
+	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), apiTestBody); err != nil {
+		return datadogV1.SyntheticsAPITest{}, translateClientError(err, "error unmarshalling API test spec")
+	}
 	testUpdated, _, err := client.UpdateAPITest(auth, instance.Status.Id, *apiTestBody)
 	if err != nil {
 		return datadogV1.SyntheticsAPITest{}, translateClientError(err, "error updating API test")

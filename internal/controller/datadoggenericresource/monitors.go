@@ -62,7 +62,9 @@ func deleteMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorS
 
 func createMonitor(auth context.Context, client *datadogV1.MonitorsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.Monitor, error) {
 	monitorBody := &datadogV1.Monitor{}
-	json.Unmarshal([]byte(instance.Spec.JsonSpec), monitorBody)
+	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), monitorBody); err != nil {
+		return datadogV1.Monitor{}, translateClientError(err, "error unmarshalling monitor spec")
+	}
 	monitor, _, err := client.CreateMonitor(auth, *monitorBody)
 	if err != nil {
 		return datadogV1.Monitor{}, translateClientError(err, "error creating monitor")
@@ -72,7 +74,9 @@ func createMonitor(auth context.Context, client *datadogV1.MonitorsApi, instance
 
 func updateMonitor(auth context.Context, client *datadogV1.MonitorsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.Monitor, error) {
 	monitorUpdateData := &datadogV1.MonitorUpdateRequest{}
-	json.Unmarshal([]byte(instance.Spec.JsonSpec), monitorUpdateData)
+	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), monitorUpdateData); err != nil {
+		return datadogV1.Monitor{}, translateClientError(err, "error unmarshalling monitor spec")
+	}
 	monitorID, err := resourceStringToInt64ID(instance.Status.Id)
 	if err != nil {
 		return datadogV1.Monitor{}, err
