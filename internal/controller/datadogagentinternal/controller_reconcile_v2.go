@@ -120,7 +120,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, instance *v1alpha1
 	}
 
 	// Always requeue
-	if !result.Requeue && result.RequeueAfter == 0 {
+	if result.IsZero() {
 		result.RequeueAfter = defaultRequeuePeriod
 	}
 	return r.updateStatusIfNeededV2(ctx, instance, newStatus, result, err, now)
