@@ -44,7 +44,6 @@ func testDaemon(dda *v2alpha1.DatadogAgent, configs map[string]installerConfig) 
 		client:           c,
 		revisionsEnabled: true,
 		configs:          configs,
-		experimentTarget: testDDANSN,
 	}, c
 }
 
@@ -77,7 +76,6 @@ func testInstallerConfigWithDDA() map[string]installerConfig {
 				{
 					Operation:        OperationUpdate,
 					GroupVersionKind: testDDAGVK,
-					NamespacedName:   testDDANSN,
 					Config:           json.RawMessage(`{}`),
 				},
 			},
@@ -90,7 +88,7 @@ func testStartRequest() remoteAPIRequest {
 		ID:      "exp-abc",
 		Package: "datadog-operator",
 		Method:  methodStartDatadogAgentExperiment,
-		Params:  experimentParams{Version: "test-config"},
+		Params:  experimentParams{Version: "test-config", NamespacedName: testDDANSN},
 	}
 }
 
@@ -111,7 +109,6 @@ func TestStartDatadogAgentExperiment_NoDDAOperation(t *testing.T) {
 				{
 					Operation:        OperationUpdate,
 					GroupVersionKind: schema.GroupVersionKind{Group: "other.io", Version: "v1", Kind: "Other"},
-					NamespacedName:   testDDANSN,
 					Config:           json.RawMessage(`{}`),
 				},
 			},
@@ -221,7 +218,6 @@ func TestStartDatadogAgentExperiment_VersionMatchesInstallerConfig(t *testing.T)
 				{
 					Operation:        OperationUpdate,
 					GroupVersionKind: testDDAGVK,
-					NamespacedName:   testDDANSN,
 					Config:           json.RawMessage(`{"spec":{"features":{"apm":{"enabled":true}}}}`),
 				},
 			},
@@ -231,7 +227,7 @@ func TestStartDatadogAgentExperiment_VersionMatchesInstallerConfig(t *testing.T)
 	req := remoteAPIRequest{
 		ID:     "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
 		Method: methodStartDatadogAgentExperiment,
-		Params: experimentParams{Version: "aaaa-bbbb-cccc"},
+		Params: experimentParams{Version: "aaaa-bbbb-cccc", NamespacedName: testDDANSN},
 		ExpectedState: expectedState{
 			Stable:       "0.0.1",
 			StableConfig: "0.0.1",
@@ -271,7 +267,7 @@ func testStopRequest() remoteAPIRequest {
 		ID:      "exp-abc",
 		Package: "datadog-operator",
 		Method:  methodStopDatadogAgentExperiment,
-		Params:  experimentParams{Version: "test-config"},
+		Params:  experimentParams{Version: "test-config", NamespacedName: testDDANSN},
 	}
 }
 
@@ -337,7 +333,7 @@ func testPromoteRequest() remoteAPIRequest {
 		ID:      "exp-abc",
 		Package: "datadog-operator",
 		Method:  methodPromoteDatadogAgentExperiment,
-		Params:  experimentParams{Version: "test-config"},
+		Params:  experimentParams{Version: "test-config", NamespacedName: testDDANSN},
 	}
 }
 
@@ -497,33 +493,15 @@ func TestValidateOperation_Valid(t *testing.T) {
 	op := fleetManagementOperation{
 		Operation:        OperationUpdate,
 		GroupVersionKind: testDDAGVK,
-		NamespacedName:   testDDANSN,
 		Config:           json.RawMessage(`{}`),
 	}
 	assert.NoError(t, validateOperation(op))
-}
-
-func TestValidateOperation_EmptyName(t *testing.T) {
-	op := fleetManagementOperation{
-		GroupVersionKind: testDDAGVK,
-		NamespacedName:   types.NamespacedName{Namespace: "datadog", Name: ""},
-	}
-	assert.Error(t, validateOperation(op))
-}
-
-func TestValidateOperation_EmptyNamespace(t *testing.T) {
-	op := fleetManagementOperation{
-		GroupVersionKind: testDDAGVK,
-		NamespacedName:   types.NamespacedName{Namespace: "", Name: "datadog-agent"},
-	}
-	assert.Error(t, validateOperation(op))
 }
 
 func TestValidateOperation_EmptyGroup_Allowed(t *testing.T) {
 	// Group is auto-detected from the cluster; empty group is valid input.
 	op := fleetManagementOperation{
 		GroupVersionKind: schema.GroupVersionKind{Group: "", Version: "", Kind: "DatadogAgent"},
-		NamespacedName:   testDDANSN,
 	}
 	assert.NoError(t, validateOperation(op))
 }
@@ -531,9 +509,29 @@ func TestValidateOperation_EmptyGroup_Allowed(t *testing.T) {
 func TestValidateOperation_WrongKind(t *testing.T) {
 	op := fleetManagementOperation{
 		GroupVersionKind: schema.GroupVersionKind{Group: "datadoghq.com", Version: "v2alpha1", Kind: "DatadogMonitor"},
-		NamespacedName:   testDDANSN,
 	}
 	assert.Error(t, validateOperation(op))
+}
+
+// --- parseTaskNSN tests ---
+
+func TestParseTaskNSN_Valid(t *testing.T) {
+	req := remoteAPIRequest{Params: experimentParams{NamespacedName: testDDANSN}}
+	nsn, err := parseTaskNSN(req, "test")
+	require.NoError(t, err)
+	assert.Equal(t, testDDANSN, nsn)
+}
+
+func TestParseTaskNSN_MissingName(t *testing.T) {
+	req := remoteAPIRequest{Params: experimentParams{NamespacedName: types.NamespacedName{Namespace: "datadog"}}}
+	_, err := parseTaskNSN(req, "test")
+	assert.Error(t, err)
+}
+
+func TestParseTaskNSN_MissingNamespace(t *testing.T) {
+	req := remoteAPIRequest{Params: experimentParams{NamespacedName: types.NamespacedName{Name: "datadog-agent"}}}
+	_, err := parseTaskNSN(req, "test")
+	assert.Error(t, err)
 }
 
 // --- canStart tests ---

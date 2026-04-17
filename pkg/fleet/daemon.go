@@ -47,7 +47,6 @@ type Daemon struct {
 	revisionsEnabled bool
 	mu               sync.RWMutex
 	configs          map[string]installerConfig // keyed by config ID; replaced on each RC update
-	experimentTarget types.NamespacedName       // DDA targeted by the current experiment; set on startExperiment
 }
 
 // NewDaemon creates a new Fleet Daemon. When revisionsEnabled is false, experiment
@@ -172,13 +171,12 @@ func (d *Daemon) handleRemoteAPIRequest(ctx context.Context, req remoteAPIReques
 
 // resolveOperation looks up the installer config for the request, validates its single
 // DatadogAgent operation, and fills in the canonical GVK. Returns the operation ready for use.
+// The target namespaced name is carried by the UPDATER_TASK itself (not the INSTALLER_CONFIG).
 func (d *Daemon) resolveOperation(req remoteAPIRequest, signal string) (fleetManagementOperation, error) {
-	// get params version from req
 	id := req.Params.Version
 	if id == "" {
 		return fleetManagementOperation{}, fmt.Errorf("%s: version is required", signal)
 	}
-	// match to d.configs[params.version] to get config
 	cfg, err := d.getConfig(id)
 	if err != nil {
 		return fleetManagementOperation{}, fmt.Errorf("%s: %w", signal, err)
@@ -204,16 +202,17 @@ func (d *Daemon) resolveOperation(req remoteAPIRequest, signal string) (fleetMan
 func (d *Daemon) startDatadogAgentExperiment(ctx context.Context, req remoteAPIRequest) error {
 	logger := ctrl.LoggerFrom(ctx).WithValues("id", req.ID)
 	logger.V(1).Info("Starting DatadogAgent experiment", "config", req.Params.Version)
+	nsn, err := parseTaskNSN(req, "start DatadogAgent experiment")
+	if err != nil {
+		return err
+	}
 	op, err := d.resolveOperation(req, "start DatadogAgent experiment")
 	if err != nil {
 		logger.Error(err, "Failed to resolve operation")
 		return err
 	}
 
-	// Store the target DDA for promote/stop signals (which don't carry a config).
-	d.experimentTarget = op.NamespacedName
-
-	logger = logger.WithValues("namespace", op.NamespacedName.Namespace, "name", op.NamespacedName.Name)
+	logger = logger.WithValues("namespace", nsn.Namespace, "name", nsn.Name)
 	ctx = ctrl.LoggerInto(ctx, logger)
 
 	// Check the operation
@@ -223,8 +222,8 @@ func (d *Daemon) startDatadogAgentExperiment(ctx context.Context, req remoteAPIR
 
 	// Fetch current DDA to check signal preconditions.
 	dda := &v2alpha1.DatadogAgent{}
-	if err := d.client.Get(ctx, op.NamespacedName, dda); err != nil {
-		return fmt.Errorf("start DatadogAgent experiment: failed to get DatadogAgent %s: %w", op.NamespacedName, err)
+	if err := d.client.Get(ctx, nsn, dda); err != nil {
+		return fmt.Errorf("start DatadogAgent experiment: failed to get DatadogAgent %s: %w", nsn, err)
 	}
 
 	if err := canStart(getExperimentPhase(dda)); err != nil {
@@ -253,7 +252,7 @@ func (d *Daemon) startDatadogAgentExperiment(ctx context.Context, req remoteAPIR
 	// Update status: phase=running, record experiment ID.
 	// Re-fetch inside the retry to get the latest ResourceVersion on conflict.
 	if err := retryWithBackoff(ctx, func() error {
-		if err := d.client.Get(ctx, op.NamespacedName, dda); err != nil {
+		if err := d.client.Get(ctx, nsn, dda); err != nil {
 			return err
 		}
 		dda.Status.Experiment = &v2alpha1.ExperimentStatus{
@@ -274,9 +273,9 @@ func (d *Daemon) startDatadogAgentExperiment(ctx context.Context, req remoteAPIR
 }
 
 func (d *Daemon) stopDatadogAgentExperiment(ctx context.Context, req remoteAPIRequest) error {
-	nsn := d.experimentTarget
-	if nsn.Name == "" {
-		return fmt.Errorf("stop DatadogAgent experiment: no experiment target set")
+	nsn, err := parseTaskNSN(req, "stop DatadogAgent experiment")
+	if err != nil {
+		return err
 	}
 
 	ctx = ctrl.LoggerInto(ctx, ctrl.LoggerFrom(ctx).WithValues("id", req.ID, "namespace", nsn.Namespace, "name", nsn.Name))
@@ -317,9 +316,9 @@ func (d *Daemon) stopDatadogAgentExperiment(ctx context.Context, req remoteAPIRe
 }
 
 func (d *Daemon) promoteDatadogAgentExperiment(ctx context.Context, req remoteAPIRequest) error {
-	nsn := d.experimentTarget
-	if nsn.Name == "" {
-		return fmt.Errorf("promote DatadogAgent experiment: no experiment target set")
+	nsn, err := parseTaskNSN(req, "promote DatadogAgent experiment")
+	if err != nil {
+		return err
 	}
 
 	ctx = ctrl.LoggerInto(ctx, ctrl.LoggerFrom(ctx).WithValues("id", req.ID, "namespace", nsn.Namespace, "name", nsn.Name))

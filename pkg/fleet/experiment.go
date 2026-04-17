@@ -12,6 +12,7 @@ import (
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -19,19 +20,24 @@ import (
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
-// validateOperation checks that a fleetManagementOperation has the fields
-// required to locate and act on a DatadogAgent resource.
+// validateOperation checks that a fleetManagementOperation targets a DatadogAgent resource.
 func validateOperation(op fleetManagementOperation) error {
-	if op.NamespacedName.Name == "" {
-		return fmt.Errorf("operation namespaced name must have a non-empty name")
-	}
-	if op.NamespacedName.Namespace == "" {
-		return fmt.Errorf("operation namespaced name must have a non-empty namespace")
-	}
 	if op.GroupVersionKind.Kind != "DatadogAgent" {
 		return fmt.Errorf("operation kind must be DatadogAgent, got %q", op.GroupVersionKind.Kind)
 	}
 	return nil
+}
+
+// parseTaskNSN extracts and validates the target namespaced name from an UPDATER_TASK request.
+func parseTaskNSN(req remoteAPIRequest, signal string) (types.NamespacedName, error) {
+	nsn := req.Params.NamespacedName
+	if nsn.Name == "" {
+		return types.NamespacedName{}, fmt.Errorf("%s: params.namespaced_name.name is required", signal)
+	}
+	if nsn.Namespace == "" {
+		return types.NamespacedName{}, fmt.Errorf("%s: params.namespaced_name.namespace is required", signal)
+	}
+	return nsn, nil
 }
 
 // canStart returns whether a start signal is allowed given the current experiment phase.
