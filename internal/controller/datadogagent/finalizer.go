@@ -12,11 +12,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
+	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -26,41 +25,10 @@ const (
 	datadogAgentFinalizer = "finalizer.agent.datadoghq.com"
 )
 
-type finalizerDadFunc func(reqLogger logr.Logger, dda client.Object) error
-
-func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, dda client.Object, finalizerDad finalizerDadFunc) (reconcile.Result, error) {
-	// Check if the DatadogAgent instance is marked to be deleted, which is
-	// indicated by the deletion timestamp being set.
-	isDadMarkedToBeDeleted := dda.GetDeletionTimestamp() != nil
-	if isDadMarkedToBeDeleted {
-		if controllerutil.ContainsFinalizer(dda, datadogAgentFinalizer) {
-			// Run finalization logic for datadogAgentFinalizer. If the
-			// finalization logic fails, don't remove the finalizer so
-			// that we can retry during the next reconciliation.
-			if err := finalizerDad(reqLogger, dda); err != nil {
-				return reconcile.Result{}, err
-			}
-
-			// Remove datadogAgentFinalizer. Once all finalizers have been
-			// removed, the object will be deleted.
-			controllerutil.RemoveFinalizer(dda, datadogAgentFinalizer)
-			err := r.client.Update(context.TODO(), dda)
-			if err != nil {
-				return reconcile.Result{}, err
-			}
-		}
-		return reconcile.Result{Requeue: true}, nil
+func (r *Reconciler) deleteResource(reqLogger logr.Logger) finalizer.ResourceDeleteFunc {
+	return func(ctx context.Context, k8sObj client.Object, datadogID string) error {
+		return r.finalizeDadV2(reqLogger, k8sObj)
 	}
-
-	// Add finalizer for this CR
-	if !controllerutil.ContainsFinalizer(dda, datadogAgentFinalizer) {
-		if err := r.addFinalizer(reqLogger, dda); err != nil {
-			return reconcile.Result{}, err
-		}
-		return reconcile.Result{Requeue: true}, nil
-	}
-
-	return reconcile.Result{}, nil
 }
 
 func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) error {
@@ -79,19 +47,6 @@ func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) err
 	}
 
 	reqLogger.Info("Successfully finalized DatadogAgent")
-	return nil
-}
-
-func (r *Reconciler) addFinalizer(reqLogger logr.Logger, dda client.Object) error {
-	reqLogger.Info("Adding Finalizer for the DatadogAgent")
-	controllerutil.AddFinalizer(dda, datadogAgentFinalizer)
-
-	// Update CR
-	err := r.client.Update(context.TODO(), dda)
-	if err != nil {
-		reqLogger.Error(err, "Failed to update DatadogAgent with finalizer")
-		return err
-	}
 	return nil
 }
 

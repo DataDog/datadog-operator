@@ -24,6 +24,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
 )
 
 const (
@@ -100,7 +101,8 @@ func Test_handleFinalizer(t *testing.T) {
 			testGcr := &datadoghqv1alpha1.DatadogGenericResource{}
 			err := r.client.Get(context.TODO(), client.ObjectKey{Name: test.resourceName, Namespace: testNamespace}, testGcr)
 
-			_, err = r.handleFinalizer(reqLogger, testGcr)
+			final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger), defaultRequeuePeriod, defaultErrRequeuePeriod)
+			_, err = final.HandleFinalizer(context.TODO(), testGcr, testGcr.Status.Id, datadogGenericResourceFinalizer)
 
 			assert.NoError(t, err)
 			if test.finalizerShouldExist {
