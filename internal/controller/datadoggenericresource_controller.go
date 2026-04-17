@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,8 +36,7 @@ type DatadogGenericResourceReconciler struct {
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericresources/finalizers,verbs=get;list;watch;create;update;patch;delete
 
 func (r *DatadogGenericResourceReconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGenericResource) (ctrl.Result, error) {
-	req := ctrl.Request{NamespacedName: types.NamespacedName{Namespace: instance.Namespace, Name: instance.Name}}
-	return r.internal.Reconcile(ctx, req)
+	return r.internal.Reconcile(ctx, instance)
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -14,7 +14,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -87,26 +86,13 @@ func (r *Reconciler) UpdateDatadogClient(newCreds config.Creds) error {
 	return nil
 }
 
-func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	return r.internalReconcile(ctx, request)
-}
-
-func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGenericResource) (reconcile.Result, error) {
 	logger := ctrl.LoggerFrom(ctx)
 	logger.Info("Reconciling DatadogGenericResource")
 	now := metav1.NewTime(time.Now())
 
-	instance := &v1alpha1.DatadogGenericResource{}
 	var result ctrl.Result
 	var err error
-
-	if err = r.client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: req.Name}, instance); err != nil {
-		if apierrors.IsNotFound(err) {
-			return ctrl.Result{}, nil
-		}
-
-		return ctrl.Result{}, err
-	}
 
 	if result, err = r.handleFinalizer(ctx, instance); ctrutils.ShouldReturn(result, err) {
 		return result, err
