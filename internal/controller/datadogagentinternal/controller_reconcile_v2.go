@@ -69,13 +69,13 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, instance *v1alpha1
 		if err = r.manageFeatureDependencies(enabledFeatures, resourceManagers); err != nil {
 			return r.updateStatusIfNeededV2(ctx, instance, newStatus, reconcile.Result{}, err, now)
 		}
-		if err = r.overrideDependencies(ctx, resourceManagers, instance); err != nil {
-			return r.updateStatusIfNeededV2(ctx, instance, newStatus, reconcile.Result{}, err, now)
-		}
-		// 1. Apply and cleanup dependencies before reconciling components to ensure deps exist at reconciliation time.
-		if err = r.applyAndCleanupDependencies(ctx, depsStore); err != nil {
-			return r.updateStatusIfNeededV2(ctx, instance, newStatus, reconcile.Result{}, err, now)
-		}
+	}
+	// Override dependencies (e.g. ConfigMaps from customConfigurations) apply to all DDAIs, including profiles
+	if err = r.overrideDependencies(ctx, resourceManagers, instance); err != nil {
+		return r.updateStatusIfNeededV2(ctx, instance, newStatus, reconcile.Result{}, err, now)
+	}
+	if err = r.applyAndCleanupDependencies(ctx, depsStore); err != nil {
+		return r.updateStatusIfNeededV2(ctx, instance, newStatus, reconcile.Result{}, err, now)
 	}
 
 	// 2. Reconcile each component (DCA, CCR, OTel Gateway) using the component registry.
