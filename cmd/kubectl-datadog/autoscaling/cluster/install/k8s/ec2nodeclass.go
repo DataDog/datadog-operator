@@ -84,6 +84,8 @@ func amiFamilyToAlias(amiFamily string) string {
 		return "windows2019@latest"
 	case "Windows2022":
 		return "windows2022@latest"
+	case "Windows2025":
+		return "windows2025@latest"
 	default:
 		return "" // Custom or unknown families don't have aliases
 	}

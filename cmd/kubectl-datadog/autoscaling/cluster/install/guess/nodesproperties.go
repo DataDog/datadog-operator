@@ -130,6 +130,8 @@ func detectAMIFamilyFromImage(imageName string) string {
 		return "AL2"
 	case strings.Contains(lowerName, "bottlerocket"):
 		return "Bottlerocket"
+	case strings.Contains(imageName, "Windows_Server-2025"):
+		return "Windows2025"
 	case strings.Contains(imageName, "Windows_Server-2022"):
 		return "Windows2022"
 	case strings.Contains(imageName, "Windows_Server-2019"):
