@@ -36,7 +36,7 @@ type DatadogGenericResourceReconciler struct {
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericresources/finalizers,verbs=get;list;watch;create;update;patch;delete
 
 func (r *DatadogGenericResourceReconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGenericResource) (ctrl.Result, error) {
-	return r.internal.ReconcileInstance(ctx, instance)
+	return r.internal.Reconcile(ctx, instance)
 }
 
 // SetupWithManager sets up the controller with the Manager.

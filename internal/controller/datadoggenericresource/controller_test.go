@@ -12,6 +12,7 @@ import (
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -221,7 +222,7 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 			var result ctrl.Result
 			var err error
 			for i := 0; i < tt.args.firstReconcileCount; i++ {
-				result, err = r.Reconcile(context.TODO(), tt.args.request)
+				result, err = reconcileRequest(r, context.TODO(), tt.args.request)
 			}
 
 			assert.NoError(t, err, "unexpected error: %v", err)
@@ -236,7 +237,7 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 				}
 			}
 			for i := 0; i < tt.args.secondReconcileCount; i++ {
-				_, err := r.Reconcile(context.TODO(), tt.args.request)
+				_, err := reconcileRequest(r, context.TODO(), tt.args.request)
 				assert.NoError(t, err, "unexpected error: %v", err)
 			}
 
@@ -260,6 +261,19 @@ func newRequest(ns, name string) reconcile.Request {
 			Name:      name,
 		},
 	}
+}
+
+// reconcileRequest mirrors reconcile.AsReconciler: fetches the object then calls Reconcile.
+// If the object is not found, it returns a zero Result with no error (matching controller-runtime behaviour).
+func reconcileRequest(r *Reconciler, ctx context.Context, req reconcile.Request) (ctrl.Result, error) {
+	instance := &datadoghqv1alpha1.DatadogGenericResource{}
+	if err := r.client.Get(ctx, req.NamespacedName, instance); err != nil {
+		if apierrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
+	}
+	return r.Reconcile(ctx, instance)
 }
 
 func mockGenericResource() *datadoghqv1alpha1.DatadogGenericResource {

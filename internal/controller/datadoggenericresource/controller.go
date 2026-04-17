@@ -14,7 +14,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -87,20 +86,7 @@ func (r *Reconciler) UpdateDatadogClient(newCreds config.Creds) error {
 	return nil
 }
 
-func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	instance := &v1alpha1.DatadogGenericResource{}
-	if err := r.client.Get(ctx, types.NamespacedName{Namespace: request.Namespace, Name: request.Name}, instance); err != nil {
-		if apierrors.IsNotFound(err) {
-			return ctrl.Result{}, nil
-		}
-		return ctrl.Result{}, err
-	}
-	return r.ReconcileInstance(ctx, instance)
-}
-
-// ReconcileInstance reconciles a pre-fetched DatadogGenericResource, skipping the initial client.Get.
-// Use this when the caller has already fetched the object (e.g. via reconcile.AsReconciler).
-func (r *Reconciler) ReconcileInstance(ctx context.Context, instance *v1alpha1.DatadogGenericResource) (reconcile.Result, error) {
+func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGenericResource) (reconcile.Result, error) {
 	logger := ctrl.LoggerFrom(ctx)
 	logger.Info("Reconciling DatadogGenericResource")
 	now := metav1.NewTime(time.Now())
