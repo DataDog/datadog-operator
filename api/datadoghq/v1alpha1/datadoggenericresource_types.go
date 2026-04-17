@@ -28,6 +28,7 @@ type DatadogGenericResourceSpec struct {
 	// +kubebuilder:validation:Enum=dashboard;downtime;monitor;notebook;synthetics_api_test;synthetics_browser_test
 	Type SupportedResourcesType `json:"type"`
 	// JsonSpec is the specification of the API object
+	// +kubebuilder:validation:MinLength=1
 	JsonSpec string `json:"jsonSpec"`
 }
 
