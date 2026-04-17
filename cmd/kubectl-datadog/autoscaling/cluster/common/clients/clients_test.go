@@ -78,7 +78,6 @@ users:
 - name: my-user
   user: {}
 `,
-			wantAccountID: "",
 		},
 		{
 			name: "eksctl format returns empty",
@@ -99,7 +98,6 @@ users:
 - name: eksctl-user
   user: {}
 `,
-			wantAccountID: "",
 		},
 		{
 			name: "explicit context override",
@@ -145,7 +143,8 @@ users:
 				flags.Context = &tt.context
 			}
 
-			got := getAccountIDFromKubeconfig(flags)
+			got, err := getAccountIDFromKubeconfig(flags)
+			assert.NoError(t, err)
 			assert.Equal(t, tt.wantAccountID, got)
 		})
 	}

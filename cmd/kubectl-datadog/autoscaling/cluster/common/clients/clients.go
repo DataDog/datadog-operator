@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
@@ -128,33 +129,36 @@ func resolveKubeContext(configFlags *genericclioptions.ConfigFlags) (api.Config,
 }
 
 // GetClusterNameFromKubeconfig extracts the EKS cluster name from the current kubeconfig context.
-func GetClusterNameFromKubeconfig(ctx context.Context, configFlags *genericclioptions.ConfigFlags) (string, error) {
+func GetClusterNameFromKubeconfig(configFlags *genericclioptions.ConfigFlags) (string, error) {
 	kubeRawConfig, kubeContext, err := resolveKubeContext(configFlags)
 	if err != nil {
 		return "", err
 	}
 
-	return guess.GetClusterNameFromKubeconfig(ctx, kubeRawConfig, kubeContext), nil
+	return guess.GetClusterNameFromKubeconfig(kubeRawConfig, kubeContext), nil
 }
 
 // getAccountIDFromKubeconfig attempts to extract the AWS account ID from the
 // kubeconfig context. Returns an empty string if the context is not an EKS ARN.
-func getAccountIDFromKubeconfig(configFlags *genericclioptions.ConfigFlags) string {
+func getAccountIDFromKubeconfig(configFlags *genericclioptions.ConfigFlags) (string, error) {
 	kubeRawConfig, kubeContext, err := resolveKubeContext(configFlags)
 	if err != nil || kubeContext == "" {
-		return ""
+		return "", err
 	}
 
 	kubeCtx, exists := kubeRawConfig.Contexts[kubeContext]
 	if !exists {
-		return ""
+		return "", fmt.Errorf("kube context %q doesn’t exist", kubeContext)
 	}
 
-	if parsed, err := arn.Parse(kubeCtx.Cluster); err == nil {
-		return parsed.AccountID
+	parsed, err := arn.Parse(kubeCtx.Cluster)
+	if err != nil {
+		// The kubeconfig cluster field is not an ARN (e.g. plain name,
+		// eksctl FQDN). This is a normal fallback case, not an error.
+		return "", nil
 	}
 
-	return ""
+	return parsed.AccountID, nil
 }
 
 // GetAWSAccountID returns the AWS account ID from the current credentials.
@@ -183,7 +187,10 @@ func ValidateAWSAccountConsistency(ctx context.Context, cli *Clients, clusterNam
 		return err
 	}
 
-	clusterAccountID := getAccountIDFromKubeconfig(configFlags)
+	clusterAccountID, err := getAccountIDFromKubeconfig(configFlags)
+	if err != nil {
+		log.Printf("Warning: failed to get AWS account ID from kubeconfig: %v", err)
+	}
 	if clusterAccountID == "" {
 		cluster, err := cli.EKS.DescribeCluster(ctx, &eks.DescribeClusterInput{
 			Name: awssdk.String(clusterName),

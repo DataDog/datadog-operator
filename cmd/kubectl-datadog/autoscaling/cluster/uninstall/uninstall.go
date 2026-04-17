@@ -120,7 +120,7 @@ func (o *options) run(cmd *cobra.Command) error {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(false), zap.WriteTo(cmd.ErrOrStderr())))
 
 	if clusterName == "" {
-		if name, err := clients.GetClusterNameFromKubeconfig(ctx, o.ConfigFlags); err != nil {
+		if name, err := clients.GetClusterNameFromKubeconfig(o.ConfigFlags); err != nil {
 			return err
 		} else if name != "" {
 			clusterName = name
