@@ -36,7 +36,6 @@ const (
 type fleetManagementOperation struct {
 	Operation        Operation               `json:"operation"`
 	GroupVersionKind schema.GroupVersionKind `json:"group_version_kind"`
-	NamespacedName   types.NamespacedName    `json:"namespaced_name"`
 	Config           json.RawMessage         `json:"config"`
 }
 
@@ -63,7 +62,8 @@ type expectedState struct {
 
 // experimentParams holds the parsed params for experiment methods.
 type experimentParams struct {
-	Version string `json:"version"`
+	Version        string               `json:"version"`
+	NamespacedName types.NamespacedName `json:"namespaced_name"`
 }
 
 // handleInstallerConfigUpdate returns an RC subscription callback that parses
