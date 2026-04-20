@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"testing"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
@@ -27,6 +28,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 )
 
 const (
@@ -200,12 +202,25 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 
 			testAuth := setupTestAuth(httpServer.URL)
 
+			parsedURL, _ := url.Parse(httpServer.URL)
+			testAPIURL := &datadogclient.ParsedAPIURL{
+				Host:     parsedURL.Host,
+				Protocol: parsedURL.Scheme,
+			}
+			os.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+			os.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+			defer os.Unsetenv("DD_API_KEY")
+			defer os.Unsetenv("DD_APP_KEY")
+			testCredsManager := config.NewCredentialManager(fake.NewClientBuilder().Build())
+
 			// Set up
 			r := &Reconciler{
 				client:                  fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
 				datadogSyntheticsClient: synthClient,
 				datadogNotebooksClient:  nbClient,
 				datadogAuth:             testAuth,
+				apiURL:                  testAPIURL,
+				credsManager:            testCredsManager,
 				scheme:                  s,
 				recorder:                recorder,
 				log:                     logf.Log.WithName(tt.name),
@@ -314,107 +329,4 @@ func setupTestAuth(apiURL string) context.Context {
 	})
 
 	return testAuth
-}
-
-// TestReconciler_UpdateDatadogClient tests the UpdateDatadogClient method of the Reconciler
-func TestReconciler_UpdateDatadogClient(t *testing.T) {
-	testLogger := zap.New(zap.UseDevMode(true))
-	recorder := record.NewFakeRecorder(10)
-	scheme := scheme.Scheme
-	client := fake.NewClientBuilder().Build()
-
-	initialCreds := config.Creds{
-		APIKey: "initial-api-key",
-		AppKey: "initial-app-key",
-	}
-
-	// Helper struct + function
-	type clientState struct {
-		syntheticsClient *datadogV1.SyntheticsApi
-		notebooksClient  *datadogV1.NotebooksApi
-		monitorsClient   *datadogV1.MonitorsApi
-		auth             context.Context
-	}
-
-	captureState := func(r *Reconciler) clientState {
-		return clientState{
-			syntheticsClient: r.datadogSyntheticsClient,
-			notebooksClient:  r.datadogNotebooksClient,
-			monitorsClient:   r.datadogMonitorsClient,
-			auth:             r.datadogAuth,
-		}
-	}
-
-	clientsEqual := func(a, b clientState) bool {
-		return a.syntheticsClient == b.syntheticsClient &&
-			a.notebooksClient == b.notebooksClient &&
-			a.monitorsClient == b.monitorsClient &&
-			a.auth == b.auth
-	}
-
-	tests := []struct {
-		name     string
-		newCreds config.Creds
-		wantErr  bool
-	}{
-		{
-			name: "valid credentials update",
-			newCreds: config.Creds{
-				APIKey: "test-api-key",
-				AppKey: "test-app-key",
-			},
-			wantErr: false,
-		},
-		{
-			name: "empty API key",
-			newCreds: config.Creds{
-				APIKey: "",
-				AppKey: "test-app-key",
-			},
-			wantErr: true,
-		},
-		{
-			name: "empty App key",
-			newCreds: config.Creds{
-				APIKey: "test-api-key",
-				AppKey: "",
-			},
-			wantErr: true,
-		},
-		{
-			name: "both keys empty",
-			newCreds: config.Creds{
-				APIKey: "",
-				AppKey: "",
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create reconciler with initial valid credentials
-			r, err := NewReconciler(client, initialCreds, scheme, testLogger, recorder)
-			assert.NoError(t, err)
-
-			// Capture original state
-			originalState := captureState(r)
-
-			// Call UpdateDatadogClient
-			err = r.UpdateDatadogClient(tt.newCreds)
-
-			// Capture new state
-			newState := captureState(r)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-				// On error, all clients should remain unchanged
-				assert.True(t, clientsEqual(originalState, newState), "Expected all clients to remain the same on error")
-			} else {
-				assert.NoError(t, err)
-				// On success, all clients should be recreated (different instances)
-				assert.False(t, clientsEqual(originalState, newState), "Expected all clients to be recreated on success")
-			}
-		})
-	}
 }

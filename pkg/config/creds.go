@@ -45,19 +45,9 @@ type CredentialManager struct {
 	creds            Creds
 	credsMutex       sync.Mutex
 	decryptorBackoff wait.Backoff
-	callbacks        []CredentialChangeCallback
-	callbackMutex    sync.RWMutex
 
 	ddaDecryptor secrets.Decryptor
 	ddaCredsMap  sync.Map
-}
-
-type CredentialChangeCallback func(newCreds Creds) error
-
-func (cm *CredentialManager) RegisterCallback(cb CredentialChangeCallback) {
-	cm.callbackMutex.Lock()
-	defer cm.callbackMutex.Unlock()
-	cm.callbacks = append(cm.callbacks, cb)
 }
 
 // NewCredentialManager returns a CredentialManager.
@@ -316,38 +306,12 @@ func (cm *CredentialManager) refresh(logger logr.Logger) error {
 	cm.credsMutex.Unlock()
 
 	newCreds, err := cm.GetCredentials()
-
 	if err != nil {
 		return err
 	}
 
 	if oldCreds != newCreds {
-		logger.Info("Credentials have changed, updating creds")
-		// callbacks
-		err = cm.notifyCallbacks(newCreds)
-
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// Recreate custom resource clients
-func (cm *CredentialManager) notifyCallbacks(newCreds Creds) error {
-	cm.callbackMutex.RLock()
-	defer cm.callbackMutex.RUnlock()
-
-	var errs []error
-	for _, cb := range cm.callbacks {
-		if err := cb(newCreds); err != nil {
-			errs = append(errs, err)
-		}
-	}
-
-	if len(errs) > 0 {
-		// combine multiple errors
-		return errors.Join(errs...)
+		logger.Info("Credentials have changed, cache updated")
 	}
 	return nil
 }
