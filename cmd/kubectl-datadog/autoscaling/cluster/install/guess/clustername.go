@@ -1,14 +1,13 @@
 package guess
 
 import (
-	"context"
 	"strings"
 
 	"k8s.io/client-go/tools/clientcmd/api"
 )
 
 // GetClusterNameFromKubeconfig attempts to extract the EKS cluster name from the current kubectl context
-func GetClusterNameFromKubeconfig(ctx context.Context, rawConfig api.Config, kubeContext string) (clusterName string) {
+func GetClusterNameFromKubeconfig(rawConfig api.Config, kubeContext string) (clusterName string) {
 	if kubeContext == "" {
 		kubeContext = rawConfig.CurrentContext
 	}

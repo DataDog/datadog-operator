@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/fatih/color"
 	"github.com/pkg/browser"
@@ -209,7 +208,7 @@ func (o *options) run(cmd *cobra.Command) error {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(false), zap.WriteTo(cmd.ErrOrStderr())))
 
 	if clusterName == "" {
-		if name, err := clients.GetClusterNameFromKubeconfig(ctx, o.ConfigFlags); err != nil {
+		if name, err := clients.GetClusterNameFromKubeconfig(o.ConfigFlags); err != nil {
 			return err
 		} else if name != "" {
 			clusterName = name
@@ -229,6 +228,10 @@ func (o *options) run(cmd *cobra.Command) error {
 	cli, err := clients.Build(ctx, o.ConfigFlags, o.Clientset)
 	if err != nil {
 		return fmt.Errorf("failed to build clients: %w", err)
+	}
+
+	if err = clients.ValidateAWSAccountConsistency(ctx, cli, clusterName, o.ConfigFlags); err != nil {
+		return err
 	}
 
 	if err = createCloudFormationStacks(ctx, cli, clusterName, karpenterNamespace); err != nil {
@@ -290,15 +293,10 @@ func updateAwsAuthConfigMap(ctx context.Context, cli *clients.Clients, clusterNa
 		return nil
 	}
 
-	// Get AWS account ID
-	callerIdentity, err := cli.STS.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
+	accountID, err := clients.GetAWSAccountID(ctx, cli)
 	if err != nil {
-		return fmt.Errorf("failed to get identity caller: %w", err)
+		return err
 	}
-	if callerIdentity.Account == nil {
-		return errors.New("unable to determine AWS account ID from STS GetCallerIdentity")
-	}
-	accountID := *callerIdentity.Account
 
 	// Add role mapping in the `aws-auth` ConfigMap
 	if err = aws.EnsureAwsAuthRole(ctx, cli.K8sClientset, aws.RoleMapping{

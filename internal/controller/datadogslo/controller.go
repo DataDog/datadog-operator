@@ -119,7 +119,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	final := finalizer.NewFinalizer(
 		logger,
 		r.client,
-		r.deleteResource(logger, instance),
+		r.deleteResource(logger),
 		defaultRequeuePeriod,
 		defaultErrRequeuePeriod,
 	)
@@ -317,7 +317,7 @@ func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogSLO, s
 	return nil
 }
 
-func (r *Reconciler) deleteResource(logger logr.Logger, instance *v1alpha1.DatadogSLO) finalizer.ResourceDeleteFunc {
+func (r *Reconciler) deleteResource(logger logr.Logger) finalizer.ResourceDeleteFunc {
 	return func(ctx context.Context, k8sObj client.Object, datadogID string) error {
 		if datadogID != "" {
 			kind := k8sObj.GetObjectKind().GroupVersionKind().Kind
@@ -330,7 +330,7 @@ func (r *Reconciler) deleteResource(logger logr.Logger, instance *v1alpha1.Datad
 				logger.Info("Successfully deleted object", "kind", kind, "ID", datadogID)
 			}
 		}
-		r.recordEvent(instance, buildEventInfo(k8sObj.GetName(), k8sObj.GetNamespace(), datadog.DeletionEvent))
+		r.recordEvent(k8sObj, buildEventInfo(k8sObj.GetName(), k8sObj.GetNamespace(), datadog.DeletionEvent))
 		return nil
 	}
 }

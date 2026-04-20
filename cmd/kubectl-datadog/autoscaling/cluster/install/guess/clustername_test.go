@@ -37,7 +37,7 @@ func TestGetClusterNameFromKubeConfig(t *testing.T) {
 			)
 			rawConfig, err := clientConfig.RawConfig()
 			require.NoError(t, err)
-			assert.Equal(t, tc.clusterName, GetClusterNameFromKubeconfig(t.Context(), rawConfig, tc.kubeContext))
+			assert.Equal(t, tc.clusterName, GetClusterNameFromKubeconfig(rawConfig, tc.kubeContext))
 		})
 	}
 }

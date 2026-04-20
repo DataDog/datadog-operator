@@ -526,7 +526,7 @@ func hostProfilerContainer(dda metav1.Object) corev1.Container {
 		// Note: Need to override image via annotation
 		Image: agentImage(),
 		Command: []string{
-			"/opt/datadog-agent/embedded/bin/full-host-profiler",
+			"host-profiler",
 			"--core-config=" + agentCustomConfigVolumePath,
 		},
 		Env:          commonEnvVars(dda),

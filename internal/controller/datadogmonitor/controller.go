@@ -29,6 +29,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -139,7 +140,8 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 
 	newStatus := instance.Status.DeepCopy()
 
-	if result, err = r.handleFinalizer(logger, instance); ctrutils.ShouldReturn(result, err) {
+	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger), defaultRequeuePeriod, defaultErrRequeuePeriod)
+	if result, err = final.HandleFinalizer(ctx, instance, fmt.Sprint(instance.Status.ID), datadogMonitorFinalizer); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}
 
