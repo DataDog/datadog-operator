@@ -20,13 +20,16 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	common "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/servicediscovery"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
+	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 
 	assert "github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -455,6 +458,33 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
+				}
+
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
+			},
+		},
+		{
+			name: "DatadogAgent with service discovery omitted and partial node agent image override follows inherited default image policy",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+						Image: &v2alpha1.AgentImageConfig{
+							PullPolicy: ptr.To(corev1.PullAlways),
+						},
+					}).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				expectedContainers := []string{
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+				}
+				if serviceDiscoveryEnabledForInheritedDefaultImage() {
+					expectedContainers = append(expectedContainers, string(apicommon.SystemProbeContainerName))
 				}
 
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
@@ -1858,17 +1888,15 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 			clientBuilder: fake.NewClientBuilder().
 				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}),
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				_ = c.Create(context.TODO(), dda)
-				return dda
+				ddaCopy := dda.DeepCopy()
+				_ = c.Create(context.TODO(), ddaCopy)
+				return ddaCopy
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
 			wantFunc: func(t *testing.T, c client.Client) {
 				expectedDDAI := getBaseDDAI(dda)
-				expectedDDAI.Annotations = map[string]string{
-					constants.MD5DDAIDeploymentAnnotationKey: "ccac39a3a007bad81d7baf8febc6445f",
-				}
-
+				setDDAIHash(t, &expectedDDAI)
 				verifyDDAI(t, c, []v1alpha1.DatadogAgentInternal{expectedDDAI})
 			},
 		},
@@ -1897,9 +1925,6 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 			wantFunc: func(t *testing.T, c client.Client) {
 				baseDDAI := getBaseDDAI(dda)
 				expectedDDAI := baseDDAI.DeepCopy()
-				expectedDDAI.Annotations = map[string]string{
-					constants.MD5DDAIDeploymentAnnotationKey: "f2aa21d0ecced63c091ca2df3d31e451",
-				}
 				expectedDDAI.Spec.Features.ClusterChecks.UseClusterChecksRunners = ptr.To(true)
 				expectedDDAI.Spec.Global.Credentials = &v2alpha1.DatadogCredentials{
 					APISecret: &v2alpha1.SecretConfig{
@@ -1936,7 +1961,7 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 						},
 					},
 				}
-
+				setDDAIHash(t, expectedDDAI)
 				verifyDDAI(t, c, []v1alpha1.DatadogAgentInternal{*expectedDDAI})
 			},
 		},
@@ -1990,19 +2015,47 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 			},
 		},
 		{
+			name:        "[ddai] Service discovery omitted with partial node agent image override follows inherited default image policy in DDAI",
+			ddaiEnabled: true,
+			clientBuilder: fake.NewClientBuilder().
+				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}),
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				ddaSD := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+						Image: &v2alpha1.AgentImageConfig{
+							PullPolicy: ptr.To(corev1.PullAlways),
+						},
+					}).
+					Build()
+				_ = c.Create(context.TODO(), ddaSD)
+				return ddaSD
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				ddai := getSingleDDAI(t, c)
+				assert.NotNil(t, ddai.Spec.Features.ServiceDiscovery)
+				assert.NotNil(t, ddai.Spec.Features.ServiceDiscovery.Enabled)
+				assert.Equal(t, serviceDiscoveryEnabledForInheritedDefaultImage(), *ddai.Spec.Features.ServiceDiscovery.Enabled)
+			},
+		},
+		{
 			name:        "[ddai] Create DDAI from minimal DDA and default profile",
 			ddaiEnabled: true,
 			clientBuilder: fake.NewClientBuilder().
 				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}),
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				_ = c.Create(context.TODO(), dda)
-				return dda
+				ddaCopy := dda.DeepCopy()
+				_ = c.Create(context.TODO(), ddaCopy)
+				return ddaCopy
 			},
 			profilesEnabled: true,
 			want:            reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr:         false,
 			wantFunc: func(t *testing.T, c client.Client) {
-				verifyDDAI(t, c, []v1alpha1.DatadogAgentInternal{getDefaultDDAI(dda)})
+				expectedDDAI := getDefaultDDAI(dda)
+				setDDAIHash(t, &expectedDDAI)
+				verifyDDAI(t, c, []v1alpha1.DatadogAgentInternal{expectedDDAI})
 			},
 		},
 		{
@@ -2012,19 +2065,20 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}).
 				WithObjects(fooProfile),
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				_ = c.Create(context.TODO(), dda)
-				return dda
+				ddaCopy := dda.DeepCopy()
+				_ = c.Create(context.TODO(), ddaCopy)
+				return ddaCopy
 			},
 			profilesEnabled: true,
 			profile:         fooProfile,
 			want:            reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr:         false,
 			wantFunc: func(t *testing.T, c client.Client) {
+				defaultDDAI := getDefaultDDAI(dda)
+				setDDAIHash(t, &defaultDDAI)
+
 				profileDDAI := getBaseDDAI(dda)
 				profileDDAI.Name = "foo-profile"
-				profileDDAI.Annotations = map[string]string{
-					constants.MD5DDAIDeploymentAnnotationKey: "73e0cc1e445001e326507ac23654104e",
-				}
 				profileDDAI.Labels[constants.ProfileLabelKey] = "foo-profile"
 				profileDDAI.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.ClusterAgentComponentName: {
@@ -2083,8 +2137,8 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 						},
 					},
 				}
-
-				verifyDDAI(t, c, []v1alpha1.DatadogAgentInternal{getDefaultDDAI(dda), profileDDAI})
+				setDDAIHash(t, &profileDDAI)
+				verifyDDAI(t, c, []v1alpha1.DatadogAgentInternal{defaultDDAI, profileDDAI})
 			},
 		},
 	}
@@ -2214,6 +2268,16 @@ func getSingleDDAI(t *testing.T, c client.Client) v1alpha1.DatadogAgentInternal 
 }
 
 func getBaseDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
+	var features *v2alpha1.DatadogFeatures
+	if dda.Spec.Features != nil {
+		features = dda.Spec.Features.DeepCopy()
+	}
+
+	var globalConfig *v2alpha1.GlobalConfig
+	if dda.Spec.Global != nil {
+		globalConfig = dda.Spec.Global.DeepCopy()
+	}
+
 	expectedDDAI := v1alpha1.DatadogAgentInternal{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            dda.Name,
@@ -2234,8 +2298,8 @@ func getBaseDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 			Finalizers: []string{constants.DatadogAgentInternalFinalizer},
 		},
 		Spec: v2alpha1.DatadogAgentSpec{
-			Features: dda.Spec.Features,
-			Global:   dda.Spec.Global,
+			Features: features,
+			Global:   globalConfig,
 			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 				v2alpha1.NodeAgentComponentName: {
 					Labels: map[string]string{
@@ -2245,6 +2309,7 @@ func getBaseDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 			},
 		},
 	}
+	servicediscovery.ResolveEnabled(&expectedDDAI.Spec)
 
 	expectedDDAI.Spec.Global.Credentials = &v2alpha1.DatadogCredentials{
 		APISecret: &v2alpha1.SecretConfig{
@@ -2267,9 +2332,6 @@ func getBaseDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 
 func getDefaultDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 	expectedDDAI := getBaseDDAI(dda)
-	expectedDDAI.Annotations = map[string]string{
-		constants.MD5DDAIDeploymentAnnotationKey: "f98c0497c66e2747f6d116970ab8f0b1",
-	}
 	expectedDDAI.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 		v2alpha1.NodeAgentComponentName: {
 			Labels: map[string]string{
@@ -2310,6 +2372,17 @@ func getDefaultDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 		},
 	}
 	return expectedDDAI
+}
+
+func setDDAIHash(t *testing.T, ddai *v1alpha1.DatadogAgentInternal) {
+	t.Helper()
+
+	_, err := comparison.SetMD5GenerationAnnotation(&ddai.ObjectMeta, ddai.Spec, constants.MD5DDAIDeploymentAnnotationKey)
+	assert.NoError(t, err, "failed to compute DDAI spec hash")
+}
+
+func serviceDiscoveryEnabledForInheritedDefaultImage() bool {
+	return pkgutils.IsAboveMinVersion(images.AgentLatestVersion, "7.78.0-0", nil)
 }
 
 func verifyOtelAgentGatewayDeployment(t *testing.T, c client.Client, namespace, ddaName string) {

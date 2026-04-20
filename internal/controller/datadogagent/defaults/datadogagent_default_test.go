@@ -213,9 +213,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -362,9 +360,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -461,9 +457,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -597,9 +591,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -758,9 +750,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -914,9 +904,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -1070,9 +1058,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -1235,9 +1221,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -1391,9 +1375,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -1550,9 +1532,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -1752,9 +1732,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -1877,9 +1855,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -2034,9 +2010,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -2214,9 +2188,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -2373,9 +2345,7 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: ptr.To(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-						Enabled: ptr.To(defaultServiceDiscoveryEnabled),
-					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					GPU: &v2alpha1.GPUFeatureConfig{
 						Enabled: ptr.To(defaultGPUMonitoringEnabled),
 					},
@@ -2680,86 +2650,40 @@ func Test_defaultFeatures(t *testing.T) {
 	}
 }
 
-func Test_defaultFeatures_ServiceDiscoveryDefaultingByVersion(t *testing.T) {
+func Test_defaultFeatures_ServiceDiscoveryEnabledRemainsUnsetWhenOmitted(t *testing.T) {
 	tests := []struct {
 		name    string
 		ddaSpec *v2alpha1.DatadogAgentSpec
-		want    bool
+		wantNil bool
 	}{
 		{
-			name: "omitted on default agent version stays disabled",
+			name: "omitted stays unset",
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{},
 			},
-			want: false,
+			wantNil: true,
 		},
 		{
-			name: "omitted on supported node agent version is auto-enabled",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{},
-				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-					v2alpha1.NodeAgentComponentName: {
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
-					},
-				},
-			},
-			want: true,
-		},
-		{
-			name: "omitted on unsupported node agent version stays disabled",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{},
-				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-					v2alpha1.NodeAgentComponentName: {
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.77.2"},
-					},
-				},
-			},
-			want: false,
-		},
-		{
-			name: "omitted on unparseable node agent version is auto-enabled",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{},
-				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-					v2alpha1.NodeAgentComponentName: {
-						Image: &v2alpha1.AgentImageConfig{Tag: "latest-dev"},
-					},
-				},
-			},
-			want: true,
-		},
-		{
-			name: "explicit false is preserved on supported node agent version",
+			name: "explicit false is preserved",
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
 						Enabled: ptr.To(false),
 					},
 				},
-				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-					v2alpha1.NodeAgentComponentName: {
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
-					},
-				},
 			},
-			want: false,
+			wantNil: false,
 		},
 		{
-			name: "explicit true is preserved on unsupported node agent version",
+			name: "explicit true is preserved",
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
 						Enabled: ptr.To(true),
 					},
 				},
-				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-					v2alpha1.NodeAgentComponentName: {
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.77.2"},
-					},
-				},
 			},
-			want: true,
+			wantNil: false,
 		},
 	}
 
@@ -2768,8 +2692,11 @@ func Test_defaultFeatures_ServiceDiscoveryDefaultingByVersion(t *testing.T) {
 			defaultFeaturesConfig(tt.ddaSpec)
 
 			assert.NotNil(t, tt.ddaSpec.Features.ServiceDiscovery)
-			assert.NotNil(t, tt.ddaSpec.Features.ServiceDiscovery.Enabled)
-			assert.Equal(t, tt.want, *tt.ddaSpec.Features.ServiceDiscovery.Enabled)
+			if tt.wantNil {
+				assert.Nil(t, tt.ddaSpec.Features.ServiceDiscovery.Enabled)
+			} else {
+				assert.NotNil(t, tt.ddaSpec.Features.ServiceDiscovery.Enabled)
+			}
 		})
 	}
 }
