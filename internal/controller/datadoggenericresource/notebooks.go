@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
-	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -13,14 +12,12 @@ import (
 
 type NotebookHandler struct{}
 
-func (h *NotebookHandler) createResourcefunc(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+func (h *NotebookHandler) createResourcefunc(r *Reconciler, ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
 	createdNotebook, err := createNotebook(r.datadogAuth, r.datadogNotebooksClient, instance)
 	if err != nil {
-		logger.Error(err, "error creating notebook")
 		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
 		return err
 	}
-	logger.Info("created a new notebook", "notebook Id", createdNotebook.Data.GetId())
 	status.Id = resourceInt64ToStringID(createdNotebook.Data.GetId())
 	createdTime := metav1.NewTime(*createdNotebook.Data.GetAttributes().Created)
 	status.Created = &createdTime

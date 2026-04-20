@@ -1,7 +1,8 @@
 package datadoggenericresource
 
 import (
-	"github.com/go-logr/logr"
+	"context"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -27,7 +28,7 @@ func init() {
 // MockHandler is a test double for ResourceHandler.
 type MockHandler struct{}
 
-func (h *MockHandler) createResourcefunc(_ *Reconciler, _ logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+func (h *MockHandler) createResourcefunc(_ *Reconciler, _ context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
 	mockCreateCalls++
 	status.Id = mockResourceID
 	status.Created = &now

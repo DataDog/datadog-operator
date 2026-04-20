@@ -1,13 +1,13 @@
 package datadoggenericresource
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
-	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -29,8 +29,8 @@ func apiUpdate(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
 	return getHandler(instance.Spec.Type).updateResourcefunc(r, instance)
 }
 
-func apiCreateAndUpdateStatus(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	return getHandler(instance.Spec.Type).createResourcefunc(r, logger, instance, status, now, hash)
+func apiCreateAndUpdateStatus(r *Reconciler, ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+	return getHandler(instance.Spec.Type).createResourcefunc(r, ctx, instance, status, now, hash)
 }
 
 func getHandler(resourceType v1alpha1.SupportedResourcesType) ResourceHandler {

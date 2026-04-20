@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -33,8 +32,8 @@ const (
 )
 
 var (
-	testMgr, _             = ctrl.NewManager(&rest.Config{}, manager.Options{})
-	testLogger logr.Logger = zap.New(zap.UseDevMode(true))
+	testMgr, _ = ctrl.NewManager(&rest.Config{}, manager.Options{})
+	testLogger = zap.New(zap.UseDevMode(true))
 )
 
 func Test_handleFinalizer(t *testing.T) {
@@ -97,9 +96,10 @@ func Test_handleFinalizer(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.testName, func(t *testing.T) {
-			reqLogger := testLogger.WithValues("test:", test.testName)
+			ctx := ctrl.LoggerInto(context.TODO(), testLogger.WithValues("test:", test.testName))
+			reqLogger := ctrl.LoggerFrom(ctx)
 			testGcr := &datadoghqv1alpha1.DatadogGenericResource{}
-			err := r.client.Get(context.TODO(), client.ObjectKey{Name: test.resourceName, Namespace: testNamespace}, testGcr)
+			err := r.client.Get(ctx, client.ObjectKey{Name: test.resourceName, Namespace: testNamespace}, testGcr)
 
 			final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger), defaultRequeuePeriod, defaultErrRequeuePeriod)
 			_, err = final.HandleFinalizer(context.TODO(), testGcr, testGcr.Status.Id, datadogGenericResourceFinalizer)

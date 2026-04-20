@@ -60,7 +60,7 @@ func (f *Finalizer) HandleFinalizer(ctx context.Context, clientObj client.Object
 		// The object is not being deleted. If it does not have a finalizer, add it and update the object.
 		if !controllerutil.ContainsFinalizer(clientObj, finalizerName) {
 			f.logger.Info("Object does not have a finalizer; adding finalizer",
-				"kind", clientObj.GetObjectKind(),
+				"kind", clientObj.GetObjectKind().GroupVersionKind().Kind,
 				"datadogID", datadogID,
 				"finalizername", finalizerName,
 			)
@@ -75,7 +75,7 @@ func (f *Finalizer) HandleFinalizer(ctx context.Context, clientObj client.Object
 			return ctrl.Result{Requeue: true}, nil
 		}
 	} else {
-		f.logger.Info("Object being deleted", "kind", clientObj.GetObjectKind(), "finalizername", finalizerName)
+		f.logger.Info("Object being deleted", "kind", clientObj.GetObjectKind().GroupVersionKind().Kind, "finalizername", finalizerName)
 		// The object is being deleted
 		if controllerutil.ContainsFinalizer(clientObj, finalizerName) {
 			// Delete resource
