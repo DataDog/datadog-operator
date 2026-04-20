@@ -36,42 +36,34 @@ const (
 )
 
 type Reconciler struct {
-	client   client.Client
-	handlers map[v1alpha1.SupportedResourcesType]ResourceHandler
-	scheme   *runtime.Scheme
-	log      logr.Logger
-	recorder record.EventRecorder
+	client       client.Client
+	clients      *datadogclient.GenericClients
+	credsManager *config.CredentialManager
+	scheme       *runtime.Scheme
+	log          logr.Logger
+	recorder     record.EventRecorder
+
+	// testHandlers allows tests to override handlers for specific resource types.
+	testHandlers map[v1alpha1.SupportedResourcesType]ResourceHandler
 }
 
-func NewReconciler(client client.Client, creds config.Creds, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
-	ddClient, err := datadogclient.InitDatadogGenericClient(log, creds)
-	if err != nil {
-		return &Reconciler{}, err
-	}
-
+func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
 	return &Reconciler{
-		client:   client,
-		handlers: buildHandlers(ddClient),
-		scheme:   scheme,
-		log:      log,
-		recorder: recorder,
+		client:       client,
+		clients:      datadogclient.InitGenericClients(),
+		credsManager: credsManager,
+		scheme:       scheme,
+		log:          log,
+		recorder:     recorder,
 	}, nil
 }
 
-func (r *Reconciler) UpdateDatadogClient(newCreds config.Creds) error {
-	r.log.Info("Recreating Datadog client due to credential change", "reconciler", "DatadogGenericResource")
-	ddClient, err := datadogclient.InitDatadogGenericClient(r.log, newCreds)
-	if err != nil {
-		return fmt.Errorf("unable to create Datadog API Client in DatadogGenericResource: %w", err)
+func (r *Reconciler) getHandler(auth context.Context, resourceType v1alpha1.SupportedResourcesType) ResourceHandler {
+	if h, ok := r.testHandlers[resourceType]; ok {
+		return h
 	}
-	r.handlers = buildHandlers(ddClient)
-
-	r.log.Info("Successfully recreated datadog client due to credential change", "reconciler", "DatadogGenericResource")
-	return nil
-}
-
-func (r *Reconciler) getHandler(resourceType v1alpha1.SupportedResourcesType) ResourceHandler {
-	h, ok := r.handlers[resourceType]
+	handlers := buildHandlers(r.clients, auth)
+	h, ok := handlers[resourceType]
 	if !ok {
 		panic(unsupportedInstanceType(resourceType))
 	}
@@ -81,17 +73,23 @@ func (r *Reconciler) getHandler(resourceType v1alpha1.SupportedResourcesType) Re
 func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGenericResource) (reconcile.Result, error) {
 	logger := ctrl.LoggerFrom(ctx)
 	logger.Info("Reconciling DatadogGenericResource")
+
+	auth, credErr := r.credsManager.GetAuth()
+	if credErr != nil {
+		return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, fmt.Errorf("unable to get credentials: %w", credErr)
+	}
+
 	now := metav1.NewTime(time.Now())
 
 	var result ctrl.Result
 	var err error
 
-	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger), defaultRequeuePeriod, defaultErrRequeuePeriod)
+	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger, auth), defaultRequeuePeriod, defaultErrRequeuePeriod)
 	if result, err = final.HandleFinalizer(ctx, instance, instance.Status.Id, datadogGenericResourceFinalizer); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}
 
-	handler := r.getHandler(instance.Spec.Type)
+	handler := r.getHandler(auth, instance.Spec.Type)
 
 	status := instance.Status.DeepCopy()
 	statusSpecHash := instance.Status.CurrentHash

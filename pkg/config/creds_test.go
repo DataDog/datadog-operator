@@ -223,11 +223,11 @@ func Test_getCredentials(t *testing.T) {
 
 func Test_refresh(t *testing.T) {
 	tests := []struct {
-		name        string
-		setupFunc   func(*CredentialManager) *secrets.DummyDecryptor
-		callbackHit bool
-		wantErr     bool
-		resetFunc   func()
+		name      string
+		setupFunc func(*CredentialManager) *secrets.DummyDecryptor
+		wantErr   bool
+		wantCreds Creds
+		resetFunc func()
 	}{
 		{
 			name: "no refresh when creds unchanged",
@@ -238,15 +238,15 @@ func Test_refresh(t *testing.T) {
 				cm.cacheCreds(Creds{APIKey: "same-api", AppKey: "same-app"})
 				return secrets.NewDummyDecryptor(0)
 			},
-			callbackHit: false,
-			wantErr:     false,
+			wantErr:   false,
+			wantCreds: Creds{APIKey: "same-api", AppKey: "same-app"},
 			resetFunc: func() {
 				os.Unsetenv("DD_API_KEY")
 				os.Unsetenv("DD_APP_KEY")
 			},
 		},
 		{
-			name: "refresh triggers callback on cred change",
+			name: "refresh updates cache on cred change",
 			setupFunc: func(cm *CredentialManager) *secrets.DummyDecryptor {
 				// Set different creds in cache vs env
 				os.Setenv("DD_API_KEY", "new-api")
@@ -254,8 +254,8 @@ func Test_refresh(t *testing.T) {
 				cm.cacheCreds(Creds{APIKey: "old-api", AppKey: "old-app"})
 				return secrets.NewDummyDecryptor(0)
 			},
-			callbackHit: true,
-			wantErr:     false,
+			wantErr:   false,
+			wantCreds: Creds{APIKey: "new-api", AppKey: "new-app"},
 			resetFunc: func() {
 				os.Unsetenv("DD_API_KEY")
 				os.Unsetenv("DD_APP_KEY")
@@ -268,9 +268,8 @@ func Test_refresh(t *testing.T) {
 				cm.cacheCreds(Creds{APIKey: "old-api", AppKey: "old-app"})
 				return secrets.NewDummyDecryptor(0)
 			},
-			callbackHit: false,
-			wantErr:     true,
-			resetFunc:   func() {},
+			wantErr:   true,
+			resetFunc: func() {},
 		},
 	}
 
@@ -283,17 +282,14 @@ func Test_refresh(t *testing.T) {
 			decryptor := tt.setupFunc(cm)
 			cm.secretBackend = decryptor
 
-			// Track if callback was called
-			var callbackCalled bool
-			cm.RegisterCallback(func(newCreds Creds) error {
-				callbackCalled = true
-				return nil
-			})
-
 			err := cm.refresh(logr.Logger{})
 
 			assert.Equal(t, tt.wantErr, err != nil)
-			assert.Equal(t, tt.callbackHit, callbackCalled)
+			if !tt.wantErr {
+				cachedCreds, cached := cm.getCredsFromCache()
+				assert.True(t, cached)
+				assert.EqualValues(t, tt.wantCreds, cachedCreds)
+			}
 		})
 	}
 }

@@ -23,12 +23,12 @@ import (
 
 // DatadogGenericResourceReconciler reconciles a DatadogGenericResource object
 type DatadogGenericResourceReconciler struct {
-	Client   client.Client
-	Creds    config.Creds
-	Log      logr.Logger
-	Scheme   *runtime.Scheme
-	Recorder record.EventRecorder
-	internal *ddgr.Reconciler
+	Client       client.Client
+	CredsManager *config.CredentialManager
+	Log          logr.Logger
+	Scheme       *runtime.Scheme
+	Recorder     record.EventRecorder
+	internal     *ddgr.Reconciler
 }
 
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericresources,verbs=get;list;watch;create;update;patch;delete
@@ -41,7 +41,7 @@ func (r *DatadogGenericResourceReconciler) Reconcile(ctx context.Context, instan
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *DatadogGenericResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	internal, err := ddgr.NewReconciler(r.Client, r.Creds, r.Scheme, r.Log, r.Recorder)
+	internal, err := ddgr.NewReconciler(r.Client, r.CredsManager, r.Scheme, r.Log, r.Recorder)
 	if err != nil {
 		return err
 	}
@@ -63,9 +63,4 @@ func (r *DatadogGenericResourceReconciler) SetupWithManager(mgr ctrl.Manager) er
 			return log
 		}).
 		Complete(or)
-}
-
-// Callback function for credential change from credential manager
-func (r *DatadogGenericResourceReconciler) onCredentialChange(newCreds config.Creds) error {
-	return r.internal.UpdateDatadogClient(newCreds)
 }
