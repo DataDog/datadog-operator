@@ -35,6 +35,7 @@ func newTestReconcilerForDDCSI(scheme *runtime.Scheme, platformInfo kubernetes.P
 		log:          logf.Log.WithName("test"),
 		recorder:     record.NewFakeRecorder(100),
 		platformInfo: platformInfo,
+		options:      ReconcilerOptions{DatadogCSIDriverEnabled: true},
 	}
 }
 
@@ -177,13 +178,21 @@ func TestReconcileDatadogCSIDriver_NoOverrideWhenNoTolerations(t *testing.T) {
 	assert.Nil(t, ddcsi.Spec.Override)
 }
 
-func TestReconcileDatadogCSIDriver_CRDNotAvailable(t *testing.T) {
-	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithoutDDCSI())
+func TestReconcileDatadogCSIDriver_ControllerDisabled(t *testing.T) {
+	// spec.global.csi.enabled=true but the operator was started without the DatadogCSIDriver
+	// controller. We must not silently create a CR that nobody would reconcile.
+	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
+	r.options.DatadogCSIDriverEnabled = false
 	dda := newDDAForDDCSI("test-dda", "default", true)
 
 	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "controller is not enabled")
+
+	// No DatadogCSIDriver CR should have been created.
+	ddcsi := &v1alpha1.DatadogCSIDriver{}
+	err = r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "CRD is not installed")
 }
 
 func TestReconcileDatadogCSIDriver_HelmManagedPresent(t *testing.T) {

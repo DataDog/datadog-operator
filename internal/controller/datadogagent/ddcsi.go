@@ -147,9 +147,12 @@ func nodeAgentTolerationsFromDDA(instance *v2alpha1.DatadogAgent) []corev1.Toler
 // Like DatadogAgentInternal, this treats the DatadogCSIDriver as a desired-state object: if someone
 // modifies it, the operator will reconcile it back to the desired state on the next loop.
 func (r *Reconciler) createOrUpdateDatadogCSIDriver(ctx context.Context, logger logr.Logger, instance *v2alpha1.DatadogAgent) error {
-	// Guard: check that the DatadogCSIDriver CRD is installed on the cluster.
-	if !r.platformInfo.IsResourceSupported(datadogCSIDriverKind) {
-		return fmt.Errorf("DatadogCSIDriver CRD is not installed on the cluster but spec.global.csi.enabled is true")
+	// Guard: the DatadogCSIDriver controller must be running; otherwise creating the CR is a
+	// silent failure because nothing would reconcile it into the CSI DaemonSet / cluster-scoped
+	// CSIDriver. (A missing CRD with the controller enabled is caught earlier at operator
+	// startup when the manager fails to sync the DatadogCSIDriver informer.)
+	if !r.options.DatadogCSIDriverEnabled {
+		return fmt.Errorf("DatadogCSIDriver controller is not enabled on the operator (--datadogCSIDriverEnabled=false) but spec.global.csi.enabled is true")
 	}
 
 	desired, err := r.buildDesiredDatadogCSIDriver(instance)
