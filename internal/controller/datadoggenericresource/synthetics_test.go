@@ -1,11 +1,11 @@
 package datadoggenericresource
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
-	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -13,7 +13,6 @@ import (
 )
 
 func Test_updateStatusFromSyntheticsTest(t *testing.T) {
-	mockLogger := logr.Discard()
 	hash := "test-hash"
 
 	tests := []struct {
@@ -107,7 +106,7 @@ func Test_updateStatusFromSyntheticsTest(t *testing.T) {
 			status := &v1alpha1.DatadogGenericResourceStatus{}
 			syntheticTest := &datadogV1.SyntheticsAPITest{}
 			syntheticTest.SetPublicId("123456789")
-			err := updateStatusFromSyntheticsTest(syntheticTest, tt.additionalProperties, status, mockLogger, hash)
+			err := updateStatusFromSyntheticsTest(syntheticTest, tt.additionalProperties, status, context.TODO(), hash)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedStatus.Id, status.Id)
 			assert.Equal(t, tt.expectedStatus.Creator, status.Creator)

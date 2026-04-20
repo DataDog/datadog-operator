@@ -1,13 +1,13 @@
 package datadoggenericresource
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
 	"testing"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
-	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -18,7 +18,6 @@ func Test_apiCreateAndUpdateStatus(t *testing.T) {
 	resetMockHandlerState()
 
 	mockReconciler := &Reconciler{}
-	logger := &logr.Logger{}
 	instance := &v1alpha1.DatadogGenericResource{
 		Spec: v1alpha1.DatadogGenericResourceSpec{
 			Type: mockSubresource,
@@ -27,13 +26,13 @@ func Test_apiCreateAndUpdateStatus(t *testing.T) {
 	status := &v1alpha1.DatadogGenericResourceStatus{}
 
 	// Valid subresource case
-	err := apiCreateAndUpdateStatus(mockReconciler, *logger, instance, status, metav1.Now(), "test-hash")
+	err := apiCreateAndUpdateStatus(mockReconciler, context.TODO(), instance, status, metav1.Now(), "test-hash")
 	assert.NoError(t, err)
 
 	// Invalid subresource case
 	instance.Spec.Type = "unsupportedType"
 	assert.PanicsWithError(t, "unsupported type: unsupportedType", func() {
-		apiCreateAndUpdateStatus(mockReconciler, *logger, instance, status, metav1.Now(), "test-hash")
+		apiCreateAndUpdateStatus(mockReconciler, context.TODO(), instance, status, metav1.Now(), "test-hash")
 	})
 }
 
