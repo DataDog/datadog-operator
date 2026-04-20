@@ -280,17 +280,12 @@ type LanguageDetectionConfig struct {
 // CSIConfig contains the config for Datadog CSI driver.
 type CSIConfig struct {
 	// Enables the usage of CSI driver in Datadog Agent.
-	// Requires installation of Datadog CSI Driver https://github.com/DataDog/helm-charts/tree/main/charts/datadog-csi-driver
+	// When true, the operator creates a DatadogCSIDriver custom resource to install the
+	// Datadog CSI driver, unless a Helm-managed `k8s.csi.datadoghq.com` CSIDriver is already
+	// present on the cluster (in which case the operator defers to it).
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
-
-	// CreateDatadogCSIDriver instructs the operator to create a DatadogCSIDriver custom resource
-	// when CSI is enabled. This requires the DatadogCSIDriver CRD to be installed and the
-	// DatadogCSIDriver controller to be enabled on the operator.
-	// Default: false
-	// +optional
-	CreateDatadogCSIDriver *bool `json:"createDatadogCSIDriver,omitempty"`
 }
 
 // InjectorConfig contains the configuration for the APM Injector.

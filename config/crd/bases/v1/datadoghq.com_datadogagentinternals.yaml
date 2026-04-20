@@ -2612,17 +2612,12 @@ spec:
                     csi:
                       description: CSI contains configuration for Datadog CSI Driver
                       properties:
-                        createDatadogCSIDriver:
-                          description: |-
-                            CreateDatadogCSIDriver instructs the operator to create a DatadogCSIDriver custom resource
-                            when CSI is enabled. This requires the DatadogCSIDriver CRD to be installed and the
-                            DatadogCSIDriver controller to be enabled on the operator.
-                            Default: false
-                          type: boolean
                         enabled:
                           description: |-
                             Enables the usage of CSI driver in Datadog Agent.
-                            Requires installation of Datadog CSI Driver https://github.com/DataDog/helm-charts/tree/main/charts/datadog-csi-driver
+                            When true, the operator creates a DatadogCSIDriver custom resource to install the
+                            Datadog CSI driver, unless a Helm-managed `k8s.csi.datadoghq.com` CSIDriver is already
+                            present on the cluster (in which case the operator defers to it).
                             Default: false
                           type: boolean
                       type: object

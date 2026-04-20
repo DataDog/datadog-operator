@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -25,8 +26,8 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-func newTestReconcilerForDDCSI(scheme *runtime.Scheme, platformInfo kubernetes.PlatformInfo) *Reconciler {
-	fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+func newTestReconcilerForDDCSI(scheme *runtime.Scheme, platformInfo kubernetes.PlatformInfo, initObjs ...runtime.Object) *Reconciler {
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(initObjs...).Build()
 	return &Reconciler{
 		client:       fakeClient,
 		scheme:       scheme,
@@ -40,6 +41,7 @@ func testScheme() *runtime.Scheme {
 	s := runtime.NewScheme()
 	_ = v1alpha1.AddToScheme(s)
 	_ = v2alpha1.AddToScheme(s)
+	_ = storagev1.AddToScheme(s)
 	return s
 }
 
@@ -59,8 +61,8 @@ func platformInfoWithoutDDCSI() kubernetes.PlatformInfo {
 	)
 }
 
-func newDDAForDDCSI(name, namespace string, csiEnabled, createDDCSI bool) *v2alpha1.DatadogAgent {
-	dda := &v2alpha1.DatadogAgent{
+func newDDAForDDCSI(name, namespace string, csiEnabled bool) *v2alpha1.DatadogAgent {
+	return &v2alpha1.DatadogAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
@@ -69,18 +71,27 @@ func newDDAForDDCSI(name, namespace string, csiEnabled, createDDCSI bool) *v2alp
 		Spec: v2alpha1.DatadogAgentSpec{
 			Global: &v2alpha1.GlobalConfig{
 				CSI: &v2alpha1.CSIConfig{
-					Enabled:                ptr.To(csiEnabled),
-					CreateDatadogCSIDriver: ptr.To(createDDCSI),
+					Enabled: ptr.To(csiEnabled),
 				},
 			},
 		},
 	}
-	return dda
+}
+
+func helmManagedCSIDriver() *storagev1.CSIDriver {
+	return &storagev1.CSIDriver{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: helmManagedCSIDriverName,
+			Labels: map[string]string{
+				kubernetes.AppKubernetesManageByLabelKey: helmManagedByLabelValue,
+			},
+		},
+	}
 }
 
 func TestReconcileDatadogCSIDriver_Disabled(t *testing.T) {
 	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
-	dda := newDDAForDDCSI("test-dda", "default", false, false)
+	dda := newDDAForDDCSI("test-dda", "default", false)
 
 	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
 	assert.NoError(t, err)
@@ -93,7 +104,7 @@ func TestReconcileDatadogCSIDriver_Disabled(t *testing.T) {
 
 func TestReconcileDatadogCSIDriver_EnabledAndCreated(t *testing.T) {
 	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
-	dda := newDDAForDDCSI("test-dda", "default", true, true)
+	dda := newDDAForDDCSI("test-dda", "default", true)
 
 	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
 	require.NoError(t, err)
@@ -111,28 +122,74 @@ func TestReconcileDatadogCSIDriver_EnabledAndCreated(t *testing.T) {
 
 func TestReconcileDatadogCSIDriver_CRDNotAvailable(t *testing.T) {
 	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithoutDDCSI())
-	dda := newDDAForDDCSI("test-dda", "default", true, true)
+	dda := newDDAForDDCSI("test-dda", "default", true)
 
 	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "CRD is not installed")
 }
 
-func TestReconcileDatadogCSIDriver_CSIEnabledButCreateFalse(t *testing.T) {
-	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
-	dda := newDDAForDDCSI("test-dda", "default", true, false)
+func TestReconcileDatadogCSIDriver_HelmManagedPresent(t *testing.T) {
+	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI(), helmManagedCSIDriver())
+	dda := newDDAForDDCSI("test-dda", "default", true)
 
 	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
-	assert.NoError(t, err)
+	require.NoError(t, err)
+
+	// DatadogCSIDriver must NOT be created when a Helm-managed CSIDriver exists.
+	ddcsi := &v1alpha1.DatadogCSIDriver{}
+	err = r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi)
+	assert.Error(t, err)
+}
+
+func TestReconcileDatadogCSIDriver_NonHelmManagedCSIDriverPresent(t *testing.T) {
+	// A CSIDriver exists with the Datadog name but without the Helm managed-by label.
+	// The operator should still create the DatadogCSIDriver — only Helm-managed installs are deferred to.
+	existing := &storagev1.CSIDriver{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: helmManagedCSIDriverName,
+			Labels: map[string]string{
+				kubernetes.AppKubernetesManageByLabelKey: "datadog-operator",
+			},
+		},
+	}
+	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI(), existing)
+	dda := newDDAForDDCSI("test-dda", "default", true)
+
+	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
+	require.NoError(t, err)
 
 	ddcsi := &v1alpha1.DatadogCSIDriver{}
 	err = r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi)
-	assert.Error(t, err) // Not found
+	require.NoError(t, err)
+}
+
+func TestReconcileDatadogCSIDriver_HelmManagedAppearsLater(t *testing.T) {
+	// Operator first creates the DatadogCSIDriver (no Helm install), then a Helm CSIDriver shows up
+	// on a later reconcile — the operator must clean up its own DatadogCSIDriver.
+	scheme := testScheme()
+	r := newTestReconcilerForDDCSI(scheme, platformInfoWithDDCSI())
+	dda := newDDAForDDCSI("test-dda", "default", true)
+
+	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
+	require.NoError(t, err)
+
+	ddcsi := &v1alpha1.DatadogCSIDriver{}
+	err = r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi)
+	require.NoError(t, err)
+
+	require.NoError(t, r.client.Create(context.Background(), helmManagedCSIDriver()))
+
+	err = r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
+	require.NoError(t, err)
+
+	err = r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi)
+	assert.Error(t, err)
 }
 
 func TestReconcileDatadogCSIDriver_Idempotent(t *testing.T) {
 	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
-	dda := newDDAForDDCSI("test-dda", "default", true, true)
+	dda := newDDAForDDCSI("test-dda", "default", true)
 
 	// First call creates
 	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
@@ -146,14 +203,14 @@ func TestReconcileDatadogCSIDriver_Idempotent(t *testing.T) {
 func TestReconcileDatadogCSIDriver_CleanupOnDisable(t *testing.T) {
 	scheme := testScheme()
 	r := newTestReconcilerForDDCSI(scheme, platformInfoWithDDCSI())
-	dda := newDDAForDDCSI("test-dda", "default", true, true)
+	dda := newDDAForDDCSI("test-dda", "default", true)
 
 	// Create the DatadogCSIDriver first
 	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
 	require.NoError(t, err)
 
 	// Now disable
-	dda.Spec.Global.CSI.CreateDatadogCSIDriver = ptr.To(false)
+	dda.Spec.Global.CSI.Enabled = ptr.To(false)
 	err = r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
 	require.NoError(t, err)
 
@@ -178,7 +235,7 @@ func TestReconcileDatadogCSIDriver_CleanupSkipsNotOwned(t *testing.T) {
 	require.NoError(t, err)
 
 	// Reconcile with CSI disabled — should NOT delete the unowned resource
-	dda := newDDAForDDCSI("test-dda", "default", false, false)
+	dda := newDDAForDDCSI("test-dda", "default", false)
 	err = r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
 	require.NoError(t, err)
 
@@ -190,7 +247,7 @@ func TestReconcileDatadogCSIDriver_CleanupSkipsNotOwned(t *testing.T) {
 
 func TestReconcileDatadogCSIDriver_UpdateOnSpecDrift(t *testing.T) {
 	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
-	dda := newDDAForDDCSI("test-dda", "default", true, true)
+	dda := newDDAForDDCSI("test-dda", "default", true)
 
 	// Create the DatadogCSIDriver via reconcile
 	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
@@ -218,7 +275,7 @@ func TestReconcileDatadogCSIDriver_UpdateOnSpecDrift(t *testing.T) {
 
 func TestReconcileDatadogCSIDriver_CleanupCRDNotAvailable(t *testing.T) {
 	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithoutDDCSI())
-	dda := newDDAForDDCSI("test-dda", "default", false, false)
+	dda := newDDAForDDCSI("test-dda", "default", false)
 
 	// Should not error when CRD is not available and cleanup is a no-op
 	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)

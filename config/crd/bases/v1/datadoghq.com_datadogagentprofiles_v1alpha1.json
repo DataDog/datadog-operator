@@ -2743,12 +2743,8 @@
                   "additionalProperties": false,
                   "description": "CSI contains configuration for Datadog CSI Driver",
                   "properties": {
-                    "createDatadogCSIDriver": {
-                      "description": "CreateDatadogCSIDriver instructs the operator to create a DatadogCSIDriver custom resource\nwhen CSI is enabled. This requires the DatadogCSIDriver CRD to be installed and the\nDatadogCSIDriver controller to be enabled on the operator.\nDefault: false",
-                      "type": "boolean"
-                    },
                     "enabled": {
-                      "description": "Enables the usage of CSI driver in Datadog Agent.\nRequires installation of Datadog CSI Driver https://github.com/DataDog/helm-charts/tree/main/charts/datadog-csi-driver\nDefault: false",
+                      "description": "Enables the usage of CSI driver in Datadog Agent.\nWhen true, the operator creates a DatadogCSIDriver custom resource to install the\nDatadog CSI driver, unless a Helm-managed `k8s.csi.datadoghq.com` CSIDriver is already\npresent on the cluster (in which case the operator defers to it).\nDefault: false",
                       "type": "boolean"
                     }
                   },

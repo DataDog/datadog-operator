@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	storagev1 "k8s.io/api/storage/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,10 +23,21 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-const datadogCSIDriverKind = "DatadogCSIDriver"
+const (
+	datadogCSIDriverKind = "DatadogCSIDriver"
+	// helmManagedCSIDriverName is the name of the CSIDriver object installed by the Datadog CSI
+	// driver Helm chart. When a CSIDriver with this name and a Helm managed-by label is present,
+	// the operator defers to it and does not create its own DatadogCSIDriver.
+	helmManagedCSIDriverName = "k8s.csi.datadoghq.com"
+	helmManagedByLabelValue  = "Helm"
+)
 
 // reconcileDatadogCSIDriver creates or deletes a DatadogCSIDriver custom resource based on the
 // DDA's spec.global.csi configuration.
+//
+// The operator creates a DatadogCSIDriver when spec.global.csi.enabled is true, unless a
+// Helm-managed CSIDriver named `k8s.csi.datadoghq.com` already exists on the cluster, in which
+// case we defer to it and do not manage a DatadogCSIDriver.
 //
 // This uses direct create/delete via the API client rather than the dependency store because the
 // store (store.Store) only supports built-in Kubernetes types via a hardcoded ObjectKind enum,
@@ -35,13 +47,37 @@ const datadogCSIDriverKind = "DatadogCSIDriver"
 func (r *Reconciler) reconcileDatadogCSIDriver(ctx context.Context, logger logr.Logger, instance *v2alpha1.DatadogAgent) error {
 	csiEnabled := instance.Spec.Global != nil &&
 		instance.Spec.Global.CSI != nil &&
-		apiutils.BoolValue(instance.Spec.Global.CSI.Enabled) &&
-		apiutils.BoolValue(instance.Spec.Global.CSI.CreateDatadogCSIDriver)
+		apiutils.BoolValue(instance.Spec.Global.CSI.Enabled)
 
-	if csiEnabled {
-		return r.createOrUpdateDatadogCSIDriver(ctx, logger, instance)
+	if !csiEnabled {
+		return r.cleanupDatadogCSIDriver(ctx, logger, instance)
 	}
-	return r.cleanupDatadogCSIDriver(ctx, logger, instance)
+
+	helmManaged, err := r.helmManagedCSIDriverExists(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to check for Helm-managed CSIDriver: %w", err)
+	}
+	if helmManaged {
+		logger.V(1).Info("Helm-managed CSIDriver detected, skipping DatadogCSIDriver creation", "name", helmManagedCSIDriverName)
+		return r.cleanupDatadogCSIDriver(ctx, logger, instance)
+	}
+
+	return r.createOrUpdateDatadogCSIDriver(ctx, logger, instance)
+}
+
+// helmManagedCSIDriverExists returns true if a CSIDriver named `k8s.csi.datadoghq.com` exists
+// with the `app.kubernetes.io/managed-by=Helm` label, signaling that the Datadog CSI driver
+// was installed via the Helm chart and the operator should defer to it.
+func (r *Reconciler) helmManagedCSIDriverExists(ctx context.Context) (bool, error) {
+	existing := &storagev1.CSIDriver{}
+	err := r.client.Get(ctx, types.NamespacedName{Name: helmManagedCSIDriverName}, existing)
+	if apierrors.IsNotFound(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return existing.Labels[kubernetes.AppKubernetesManageByLabelKey] == helmManagedByLabelValue, nil
 }
 
 // buildDesiredDatadogCSIDriver builds the desired DatadogCSIDriver object from the DDA spec.
@@ -66,7 +102,7 @@ func (r *Reconciler) buildDesiredDatadogCSIDriver(instance *v2alpha1.DatadogAgen
 func (r *Reconciler) createOrUpdateDatadogCSIDriver(ctx context.Context, logger logr.Logger, instance *v2alpha1.DatadogAgent) error {
 	// Guard: check that the DatadogCSIDriver CRD is installed on the cluster.
 	if !r.platformInfo.IsResourceSupported(datadogCSIDriverKind) {
-		return fmt.Errorf("DatadogCSIDriver CRD is not installed on the cluster but spec.global.csi.createDatadogCSIDriver is enabled")
+		return fmt.Errorf("DatadogCSIDriver CRD is not installed on the cluster but spec.global.csi.enabled is true")
 	}
 
 	desired, err := r.buildDesiredDatadogCSIDriver(instance)
