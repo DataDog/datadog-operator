@@ -279,10 +279,11 @@ type LanguageDetectionConfig struct {
 
 // CSIConfig contains the config for Datadog CSI driver.
 type CSIConfig struct {
-	// Enables the usage of CSI driver in Datadog Agent.
-	// When true, the operator creates a DatadogCSIDriver custom resource to install the
-	// Datadog CSI driver, unless a Helm-managed `k8s.csi.datadoghq.com` CSIDriver is already
-	// present on the cluster (in which case the operator defers to it).
+	// Enables the usage of CSI driver in Datadog Agent. When the operator is started with
+	// `--datadogCSIDriverEnabled=true`, it will also install the driver by creating a
+	// DatadogCSIDriver custom resource, unless a cluster-scoped `k8s.csi.datadoghq.com`
+	// CSIDriver is already present, in which case it defers to the existing installation
+	// (e.g. from the Datadog CSI driver Helm chart).
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`

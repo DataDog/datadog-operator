@@ -24,24 +24,26 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 const (
-	datadogCSIDriverKind = "DatadogCSIDriver"
-	// helmManagedCSIDriverName is the name of the CSIDriver object installed by the Datadog CSI
-	// driver Helm chart. When a CSIDriver with this name and a Helm managed-by label is present,
-	// the operator defers to it and does not create its own DatadogCSIDriver.
-	helmManagedCSIDriverName = "k8s.csi.datadoghq.com"
-	helmManagedByLabelValue  = "Helm"
+	datadogCSIDriverKind       = "DatadogCSIDriver"
+	datadogCSIDriverObjectName = "k8s.csi.datadoghq.com"
 )
 
 // reconcileDatadogCSIDriver creates or deletes a DatadogCSIDriver custom resource based on the
 // DDA's spec.global.csi configuration.
 //
-// The operator creates a DatadogCSIDriver when spec.global.csi.enabled is true, unless a
-// Helm-managed CSIDriver named `k8s.csi.datadoghq.com` already exists on the cluster, in which
-// case we defer to it and do not manage a DatadogCSIDriver.
+// Behavior (backward-compatible with the long-standing `csi.enabled` semantics):
+//
+//   - `csi.enabled=false`  → cleanup the DDA-owned DatadogCSIDriver CR if any.
+//   - `csi.enabled=true`   + operator flag `--datadogCSIDriverEnabled=false` (the default) →
+//     no-op. The DDA expects a CSI driver installed externally (e.g. the Datadog CSI driver
+//     Helm chart); the operator doesn't manage it.
+//   - `csi.enabled=true`   + operator flag `--datadogCSIDriverEnabled=true` → operator manages
+//     the driver. If our CR already exists, keep managing it (update path). If not, defer to a
+//     pre-existing cluster-scoped `k8s.csi.datadoghq.com` CSIDriver when one is present (don't
+//     collide with an external install); otherwise create our CR.
 //
 // This uses direct create/delete via the API client rather than the dependency store because the
 // store (store.Store) only supports built-in Kubernetes types via a hardcoded ObjectKind enum,
@@ -57,31 +59,29 @@ func (r *Reconciler) reconcileDatadogCSIDriver(ctx context.Context, logger logr.
 		return r.cleanupDatadogCSIDriver(ctx, logger, instance)
 	}
 
-	helmManaged, err := r.helmManagedCSIDriverExists(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to check for Helm-managed CSIDriver: %w", err)
-	}
-	if helmManaged {
-		logger.V(1).Info("Helm-managed CSIDriver detected, skipping DatadogCSIDriver creation", "name", helmManagedCSIDriverName)
-		return r.cleanupDatadogCSIDriver(ctx, logger, instance)
+	// csi.enabled=true is the long-standing signal that the Agent should use a CSI driver. The
+	// operator only takes over installing it when explicitly opted in via the operator flag.
+	// Otherwise we leave the driver to whoever installed it externally.
+	if !r.options.DatadogCSIDriverEnabled {
+		return nil
 	}
 
 	return r.createOrUpdateDatadogCSIDriver(ctx, logger, instance)
 }
 
-// helmManagedCSIDriverExists returns true if a CSIDriver named `k8s.csi.datadoghq.com` exists
-// with the `app.kubernetes.io/managed-by=Helm` label, signaling that the Datadog CSI driver
-// was installed via the Helm chart and the operator should defer to it.
-func (r *Reconciler) helmManagedCSIDriverExists(ctx context.Context) (bool, error) {
+// externalCSIDriverExists returns true if a cluster-scoped `k8s.csi.datadoghq.com` CSIDriver
+// is already installed on the cluster (by any tool such as Helm, manual apply, etc.).
+// Used only on the first-time create path to avoid colliding with an external install.
+func (r *Reconciler) externalCSIDriverExists(ctx context.Context) (bool, error) {
 	existing := &storagev1.CSIDriver{}
-	err := r.client.Get(ctx, types.NamespacedName{Name: helmManagedCSIDriverName}, existing)
+	err := r.client.Get(ctx, types.NamespacedName{Name: datadogCSIDriverObjectName}, existing)
 	if apierrors.IsNotFound(err) {
 		return false, nil
 	}
 	if err != nil {
 		return false, err
 	}
-	return existing.Labels[kubernetes.AppKubernetesManageByLabelKey] == helmManagedByLabelValue, nil
+	return true, nil
 }
 
 // buildDesiredDatadogCSIDriver builds the desired DatadogCSIDriver object from the DDA spec.
@@ -147,14 +147,6 @@ func nodeAgentTolerationsFromDDA(instance *v2alpha1.DatadogAgent) []corev1.Toler
 // Like DatadogAgentInternal, this treats the DatadogCSIDriver as a desired-state object: if someone
 // modifies it, the operator will reconcile it back to the desired state on the next loop.
 func (r *Reconciler) createOrUpdateDatadogCSIDriver(ctx context.Context, logger logr.Logger, instance *v2alpha1.DatadogAgent) error {
-	// Guard: the DatadogCSIDriver controller must be running; otherwise creating the CR is a
-	// silent failure because nothing would reconcile it into the CSI DaemonSet / cluster-scoped
-	// CSIDriver. (A missing CRD with the controller enabled is caught earlier at operator
-	// startup when the manager fails to sync the DatadogCSIDriver informer.)
-	if !r.options.DatadogCSIDriverEnabled {
-		return fmt.Errorf("DatadogCSIDriver controller is not enabled on the operator (--datadogCSIDriverEnabled=false) but spec.global.csi.enabled is true")
-	}
-
 	desired, err := r.buildDesiredDatadogCSIDriver(instance)
 	if err != nil {
 		return err
@@ -167,7 +159,18 @@ func (r *Reconciler) createOrUpdateDatadogCSIDriver(ctx context.Context, logger 
 			return fmt.Errorf("failed to get DatadogCSIDriver %s/%s: %w", desired.Namespace, desired.Name, err)
 		}
 
-		// Create a new DatadogCSIDriver.
+		// First-time create: if a cluster-scoped CSIDriver is already installed externally, defer
+		// to it rather than creating our CR (avoids colliding on the cluster-scoped object name).
+		// Once our CR exists, subsequent reconciles skip this check and go through the update path.
+		externalExists, checkErr := r.externalCSIDriverExists(ctx)
+		if checkErr != nil {
+			return fmt.Errorf("failed to check for external CSIDriver: %w", checkErr)
+		}
+		if externalExists {
+			logger.Info("External CSIDriver detected, not creating DatadogCSIDriver", "name", datadogCSIDriverObjectName)
+			return nil
+		}
+
 		logger.Info("Creating DatadogCSIDriver", "name", desired.Name, "namespace", desired.Namespace)
 		if err := r.client.Create(ctx, desired); err != nil {
 			return fmt.Errorf("failed to create DatadogCSIDriver %s/%s: %w", desired.Namespace, desired.Name, err)

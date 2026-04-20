@@ -2744,7 +2744,7 @@
                   "description": "CSI contains configuration for Datadog CSI Driver",
                   "properties": {
                     "enabled": {
-                      "description": "Enables the usage of CSI driver in Datadog Agent.\nWhen true, the operator creates a DatadogCSIDriver custom resource to install the\nDatadog CSI driver, unless a Helm-managed `k8s.csi.datadoghq.com` CSIDriver is already\npresent on the cluster (in which case the operator defers to it).\nDefault: false",
+                      "description": "Enables the usage of CSI driver in Datadog Agent. When the operator is started with\n`--datadogCSIDriverEnabled=true`, it will also install the driver by creating a\nDatadogCSIDriver custom resource, unless a cluster-scoped `k8s.csi.datadoghq.com`\nCSIDriver is already present, in which case it defers to the existing installation\n(e.g. from the Datadog CSI driver Helm chart).\nDefault: false",
                       "type": "boolean"
                     }
                   },

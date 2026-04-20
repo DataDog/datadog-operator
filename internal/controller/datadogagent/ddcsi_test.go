@@ -80,13 +80,10 @@ func newDDAForDDCSI(name, namespace string, csiEnabled bool) *v2alpha1.DatadogAg
 	}
 }
 
-func helmManagedCSIDriver() *storagev1.CSIDriver {
+func externalCSIDriver() *storagev1.CSIDriver {
 	return &storagev1.CSIDriver{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: helmManagedCSIDriverName,
-			Labels: map[string]string{
-				kubernetes.AppKubernetesManageByLabelKey: helmManagedByLabelValue,
-			},
+			Name: datadogCSIDriverObjectName,
 		},
 	}
 }
@@ -179,47 +176,26 @@ func TestReconcileDatadogCSIDriver_NoOverrideWhenNoTolerations(t *testing.T) {
 }
 
 func TestReconcileDatadogCSIDriver_ControllerDisabled(t *testing.T) {
-	// spec.global.csi.enabled=true but the operator was started without the DatadogCSIDriver
-	// controller. We must not silently create a CR that nobody would reconcile.
+	// Backward compat: spec.global.csi.enabled=true with --datadogCSIDriverEnabled=false (the
+	// default) must be a no-op. Existing users who set csi.enabled=true for an externally
+	// installed driver must not suddenly get a DDA-owned CR nor a reconcile error.
 	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
 	r.options.DatadogCSIDriverEnabled = false
 	dda := newDDAForDDCSI("test-dda", "default", true)
 
 	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "controller is not enabled")
-
-	// No DatadogCSIDriver CR should have been created.
-	ddcsi := &v1alpha1.DatadogCSIDriver{}
-	err = r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi)
-	assert.Error(t, err)
-}
-
-func TestReconcileDatadogCSIDriver_HelmManagedPresent(t *testing.T) {
-	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI(), helmManagedCSIDriver())
-	dda := newDDAForDDCSI("test-dda", "default", true)
-
-	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
 	require.NoError(t, err)
 
-	// DatadogCSIDriver must NOT be created when a Helm-managed CSIDriver exists.
+	// No DatadogCSIDriver CR created.
 	ddcsi := &v1alpha1.DatadogCSIDriver{}
 	err = r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi)
 	assert.Error(t, err)
 }
 
-func TestReconcileDatadogCSIDriver_NonHelmManagedCSIDriverPresent(t *testing.T) {
-	// A CSIDriver exists with the Datadog name but without the Helm managed-by label.
-	// The operator should still create the DatadogCSIDriver, only Helm-managed installs are deferred to.
-	existing := &storagev1.CSIDriver{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: helmManagedCSIDriverName,
-			Labels: map[string]string{
-				kubernetes.AppKubernetesManageByLabelKey: "datadog-operator",
-			},
-		},
-	}
-	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI(), existing)
+func TestReconcileDatadogCSIDriver_DefersToExternalCSIDriver(t *testing.T) {
+	// On the first-time create path, if a cluster-scoped `k8s.csi.datadoghq.com` CSIDriver is
+	// already installed (by any tool), the operator must defer and not create its own CR.
+	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI(), externalCSIDriver())
 	dda := newDDAForDDCSI("test-dda", "default", true)
 
 	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
@@ -227,30 +203,26 @@ func TestReconcileDatadogCSIDriver_NonHelmManagedCSIDriverPresent(t *testing.T) 
 
 	ddcsi := &v1alpha1.DatadogCSIDriver{}
 	err = r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi)
-	require.NoError(t, err)
+	assert.Error(t, err)
 }
 
-func TestReconcileDatadogCSIDriver_HelmManagedAppearsLater(t *testing.T) {
-	// Operator first creates the DatadogCSIDriver (no Helm install), then a Helm CSIDriver shows up
-	// On a later reconcile, the operator must clean up its own DatadogCSIDriver.
-	scheme := testScheme()
-	r := newTestReconcilerForDDCSI(scheme, platformInfoWithDDCSI())
+func TestReconcileDatadogCSIDriver_ExternalAppearsAfterCRCreated(t *testing.T) {
+	// Once our CR exists, we keep managing it. A later-appearing external CSIDriver must not
+	// cause us to abandon the CR: the external check only gates the first-time create.
+	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
 	dda := newDDAForDDCSI("test-dda", "default", true)
 
-	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
-	require.NoError(t, err)
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
 
 	ddcsi := &v1alpha1.DatadogCSIDriver{}
-	err = r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi)
-	require.NoError(t, err)
+	require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi))
 
-	require.NoError(t, r.client.Create(context.Background(), helmManagedCSIDriver()))
+	require.NoError(t, r.client.Create(context.Background(), externalCSIDriver()))
 
-	err = r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
-	require.NoError(t, err)
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
 
-	err = r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi)
-	assert.Error(t, err)
+	// Our CR must still be there.
+	require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi))
 }
 
 func TestReconcileDatadogCSIDriver_Idempotent(t *testing.T) {
