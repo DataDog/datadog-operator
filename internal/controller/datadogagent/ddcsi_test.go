@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -124,6 +125,56 @@ func TestReconcileDatadogCSIDriver_EnabledAndCreated(t *testing.T) {
 	assert.Equal(t, "test-dda", ddcsi.Labels[kubernetes.AppKubernetesInstanceLabelKey])
 	assert.Equal(t, "default-test--dda", ddcsi.Labels[kubernetes.AppKubernetesPartOfLabelKey])
 	assert.Equal(t, "datadog-agent-deployment", ddcsi.Labels[kubernetes.AppKubernetesNameLabelKey])
+}
+
+func TestReconcileDatadogCSIDriver_SpecFromDDA(t *testing.T) {
+	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
+	dda := newDDAForDDCSI("test-dda", "default", true)
+
+	apmPath := "/custom/apm.socket"
+	dsdPath := "/custom/dsd.socket"
+	dda.Spec.Features = &v2alpha1.DatadogFeatures{
+		APM: &v2alpha1.APMFeatureConfig{
+			UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{Path: ptr.To(apmPath)},
+		},
+		Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
+			UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{Path: ptr.To(dsdPath)},
+		},
+	}
+	nodeAgentTolerations := []corev1.Toleration{
+		{Key: "dedicated", Operator: corev1.TolerationOpEqual, Value: "datadog", Effect: corev1.TaintEffectNoSchedule},
+	}
+	dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+		v2alpha1.NodeAgentComponentName: {Tolerations: nodeAgentTolerations},
+	}
+
+	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
+	require.NoError(t, err)
+
+	ddcsi := &v1alpha1.DatadogCSIDriver{}
+	err = r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi)
+	require.NoError(t, err)
+
+	require.NotNil(t, ddcsi.Spec.APMSocketPath)
+	assert.Equal(t, apmPath, *ddcsi.Spec.APMSocketPath)
+	require.NotNil(t, ddcsi.Spec.DSDSocketPath)
+	assert.Equal(t, dsdPath, *ddcsi.Spec.DSDSocketPath)
+
+	require.NotNil(t, ddcsi.Spec.Override)
+	assert.Equal(t, nodeAgentTolerations, ddcsi.Spec.Override.Tolerations)
+}
+
+func TestReconcileDatadogCSIDriver_NoOverrideWhenNoTolerations(t *testing.T) {
+	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
+	dda := newDDAForDDCSI("test-dda", "default", true)
+
+	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
+	require.NoError(t, err)
+
+	ddcsi := &v1alpha1.DatadogCSIDriver{}
+	err = r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi)
+	require.NoError(t, err)
+	assert.Nil(t, ddcsi.Spec.Override)
 }
 
 func TestReconcileDatadogCSIDriver_CRDNotAvailable(t *testing.T) {

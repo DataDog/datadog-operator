@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -83,8 +84,10 @@ func (r *Reconciler) helmManagedCSIDriverExists(ctx context.Context) (bool, erro
 }
 
 // buildDesiredDatadogCSIDriver builds the desired DatadogCSIDriver object from the DDA spec.
-// Currently the spec is empty (the DatadogCSIDriver controller applies its own defaults).
-// In a follow-up, this will construct the spec based on relevant DDA fields.
+// The socket paths mirror the DDA's APM and DogStatsD UDS configuration so the CSI driver
+// exposes the same host paths the Agent is configured to use. The node-agent tolerations are
+// propagated through the CSI driver override so the driver pods are schedulable wherever the
+// node Agent runs.
 func (r *Reconciler) buildDesiredDatadogCSIDriver(instance *v2alpha1.DatadogAgent) (*v1alpha1.DatadogCSIDriver, error) {
 	ddcsi := &v1alpha1.DatadogCSIDriver{
 		ObjectMeta: metav1.ObjectMeta{
@@ -93,11 +96,50 @@ func (r *Reconciler) buildDesiredDatadogCSIDriver(instance *v2alpha1.DatadogAgen
 			Labels:      object.GetDefaultLabels(instance, instance.Name, common.GetAgentVersion(instance)),
 			Annotations: object.GetDefaultAnnotations(instance),
 		},
+		Spec: v1alpha1.DatadogCSIDriverSpec{
+			APMSocketPath: apmSocketPathFromDDA(instance),
+			DSDSocketPath: dsdSocketPathFromDDA(instance),
+		},
 	}
+
+	if tolerations := nodeAgentTolerationsFromDDA(instance); len(tolerations) > 0 {
+		ddcsi.Spec.Override = &v1alpha1.DatadogCSIDriverOverride{
+			Tolerations: tolerations,
+		}
+	}
+
 	if err := controllerutil.SetControllerReference(instance, ddcsi, r.scheme); err != nil {
 		return nil, fmt.Errorf("failed to set owner reference on DatadogCSIDriver: %w", err)
 	}
 	return ddcsi, nil
+}
+
+// apmSocketPathFromDDA returns the APM UDS path configured on the DDA, or nil if unset.
+func apmSocketPathFromDDA(instance *v2alpha1.DatadogAgent) *string {
+	if instance.Spec.Features == nil || instance.Spec.Features.APM == nil ||
+		instance.Spec.Features.APM.UnixDomainSocketConfig == nil {
+		return nil
+	}
+	return instance.Spec.Features.APM.UnixDomainSocketConfig.Path
+}
+
+// dsdSocketPathFromDDA returns the DogStatsD UDS path configured on the DDA, or nil if unset.
+func dsdSocketPathFromDDA(instance *v2alpha1.DatadogAgent) *string {
+	if instance.Spec.Features == nil || instance.Spec.Features.Dogstatsd == nil ||
+		instance.Spec.Features.Dogstatsd.UnixDomainSocketConfig == nil {
+		return nil
+	}
+	return instance.Spec.Features.Dogstatsd.UnixDomainSocketConfig.Path
+}
+
+// nodeAgentTolerationsFromDDA returns the tolerations configured for the nodeAgent component
+// override on the DDA, or nil if none are set.
+func nodeAgentTolerationsFromDDA(instance *v2alpha1.DatadogAgent) []corev1.Toleration {
+	override := instance.Spec.Override[v2alpha1.NodeAgentComponentName]
+	if override == nil {
+		return nil
+	}
+	return override.Tolerations
 }
 
 // createOrUpdateDatadogCSIDriver ensures a DatadogCSIDriver resource exists with the desired spec.
