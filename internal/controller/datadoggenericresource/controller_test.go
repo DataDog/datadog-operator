@@ -28,7 +28,6 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 )
 
 const (
@@ -202,11 +201,8 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 
 			testAuth := setupTestAuth(httpServer.URL)
 
-			parsedURL, _ := url.Parse(httpServer.URL)
-			testAPIURL := &datadogclient.ParsedAPIURL{
-				Host:     parsedURL.Host,
-				Protocol: parsedURL.Scheme,
-			}
+			os.Setenv("DD_URL", httpServer.URL)
+			defer os.Unsetenv("DD_URL")
 			os.Setenv("DD_API_KEY", "DUMMY_API_KEY")
 			os.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
 			defer os.Unsetenv("DD_API_KEY")
@@ -219,7 +215,6 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 				datadogSyntheticsClient: synthClient,
 				datadogNotebooksClient:  nbClient,
 				datadogAuth:             testAuth,
-				apiURL:                  testAPIURL,
 				credsManager:            testCredsManager,
 				scheme:                  s,
 				recorder:                recorder,

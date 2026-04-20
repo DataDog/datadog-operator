@@ -10,12 +10,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"testing"
 
+	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
+	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/stretchr/testify/assert"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -28,13 +28,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
-	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 )
 
 const (
@@ -443,23 +440,17 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 			testAuth := setupTestAuth(httpServer.URL)
 
 			// Set up
-			parsedURL, _ := url.Parse(httpServer.URL)
-			testAPIURL := &datadogclient.ParsedAPIURL{
-				Host:     parsedURL.Host,
-				Protocol: parsedURL.Scheme,
-			}
-
-			// Create a CredentialManager with test credentials
+			// Create a CredentialManager with test credentials pointing at the test server
 			os.Setenv("DD_API_KEY", "DUMMY_API_KEY")
 			os.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+			os.Setenv("DD_URL", httpServer.URL)
 			defer os.Unsetenv("DD_API_KEY")
 			defer os.Unsetenv("DD_APP_KEY")
+			defer os.Unsetenv("DD_URL")
 			testCredsManager := config.NewCredentialManager(fake.NewClientBuilder().Build())
-
 			r := &Reconciler{
 				client:        fake.NewClientBuilder().WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).Build(),
 				datadogClient: client,
-				apiURL:        testAPIURL,
 				credsManager:  testCredsManager,
 				scheme:        s,
 				recorder:      recorder,

@@ -45,7 +45,6 @@ type Reconciler struct {
 	datadogMonitorsClient   *datadogV1.MonitorsApi
 	datadogDowntimesClient  *datadogV2.DowntimesApi
 	datadogAuth             context.Context
-	apiURL                  *datadogclient.ParsedAPIURL
 	credsManager            *config.CredentialManager
 	scheme                  *runtime.Scheme
 	log                     logr.Logger
@@ -53,11 +52,6 @@ type Reconciler struct {
 }
 
 func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
-	apiURL, err := datadogclient.ParseURL(log)
-	if err != nil {
-		return &Reconciler{}, err
-	}
-
 	clients := datadogclient.InitGenericClients()
 
 	return &Reconciler{
@@ -67,7 +61,6 @@ func NewReconciler(client client.Client, credsManager *config.CredentialManager,
 		datadogNotebooksClient:  clients.NotebooksClient,
 		datadogMonitorsClient:   clients.MonitorsClient,
 		datadogDowntimesClient:  clients.DowntimesClient,
-		apiURL:                  apiURL,
 		credsManager:            credsManager,
 		scheme:                  scheme,
 		log:                     log,
@@ -79,11 +72,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 	logger := ctrl.LoggerFrom(ctx)
 	logger.Info("Reconciling DatadogGenericResource")
 
-	creds, credErr := r.credsManager.GetCredentials()
+	auth, credErr := r.credsManager.GetAuth()
 	if credErr != nil {
 		return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, fmt.Errorf("unable to get credentials: %w", credErr)
 	}
-	r.datadogAuth = datadogclient.GetAuth(creds, r.apiURL)
+	r.datadogAuth = auth
 
 	now := metav1.NewTime(time.Now())
 

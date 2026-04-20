@@ -68,7 +68,6 @@ const requiredTag = "generated:kubernetes"
 type Reconciler struct {
 	client                 client.Client
 	datadogClient          *datadogV1.MonitorsApi
-	apiURL                 *datadogclient.ParsedAPIURL
 	credsManager           *config.CredentialManager
 	log                    logr.Logger
 	scheme                 *runtime.Scheme
@@ -79,15 +78,9 @@ type Reconciler struct {
 
 // NewReconciler returns a new Reconciler object
 func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, operatorMetricsEnabled bool, metricForwardersMgr pkgutils.MetricsForwardersManager) (*Reconciler, error) {
-	apiURL, err := datadogclient.ParseURL(log)
-	if err != nil {
-		return &Reconciler{}, err
-	}
-
 	return &Reconciler{
 		client:                 client,
 		datadogClient:          datadogclient.InitMonitorClient(),
-		apiURL:                 apiURL,
 		credsManager:           credsManager,
 		scheme:                 scheme,
 		log:                    log,
@@ -113,11 +106,10 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	logger := r.log.WithValues("datadogmonitor", pkgutils.GetNamespacedName(instance))
 	logger.Info("Reconciling DatadogMonitor")
 
-	creds, credErr := r.credsManager.GetCredentials()
+	auth, credErr := r.credsManager.GetAuth()
 	if credErr != nil {
 		return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, fmt.Errorf("unable to get credentials: %w", credErr)
 	}
-	auth := datadogclient.GetAuth(creds, r.apiURL)
 
 	now := metav1.NewTime(time.Now())
 	forceSyncPeriod := defaultForceSyncPeriod

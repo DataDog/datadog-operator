@@ -50,22 +50,15 @@ const (
 type Reconciler struct {
 	client        client.Client
 	datadogClient *datadogV1.ServiceLevelObjectivesApi
-	apiURL        *datadogclient.ParsedAPIURL
 	credsManager  *config.CredentialManager
 	log           logr.Logger
 	recorder      record.EventRecorder
 }
 
 func NewReconciler(client client.Client, credsManager *config.CredentialManager, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
-	apiURL, err := datadogclient.ParseURL(log)
-	if err != nil {
-		return &Reconciler{}, err
-	}
-
 	return &Reconciler{
 		client:        client,
 		datadogClient: datadogclient.InitSLOClient(),
-		apiURL:        apiURL,
 		credsManager:  credsManager,
 		log:           log,
 		recorder:      recorder,
@@ -83,11 +76,10 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	logger := r.log.WithValues("datadogslo", req.NamespacedName)
 	logger.Info("Reconciling Datadog SLO")
 
-	creds, credErr := r.credsManager.GetCredentials()
+	auth, credErr := r.credsManager.GetAuth()
 	if credErr != nil {
 		return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, fmt.Errorf("unable to get credentials: %w", credErr)
 	}
-	auth := datadogclient.GetAuth(creds, r.apiURL)
 
 	now := metav1.NewTime(time.Now())
 	forceSyncPeriod := defaultForceSyncPeriod

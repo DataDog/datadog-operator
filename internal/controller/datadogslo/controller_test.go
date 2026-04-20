@@ -31,7 +31,6 @@ import (
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/DataDog/datadog-operator/internal/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
-	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
@@ -140,11 +139,8 @@ func TestReconciler_Reconcile(t *testing.T) {
 			client := datadogV1.NewServiceLevelObjectivesApi(apiClient)
 			_ = setupTestAuth(httpServer.URL)
 
-			parsedURL, _ := url.Parse(httpServer.URL)
-			testAPIURL := &datadogclient.ParsedAPIURL{
-				Host:     parsedURL.Host,
-				Protocol: parsedURL.Scheme,
-			}
+			os.Setenv("DD_URL", httpServer.URL)
+			defer os.Unsetenv("DD_URL")
 			os.Setenv("DD_API_KEY", "DUMMY_API_KEY")
 			os.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
 			defer os.Unsetenv("DD_API_KEY")
@@ -161,7 +157,6 @@ func TestReconciler_Reconcile(t *testing.T) {
 			r := &Reconciler{
 				client:        m.k8sClient,
 				datadogClient: client,
-				apiURL:        testAPIURL,
 				credsManager:  testCredsManager,
 				recorder:      recorder,
 				log:           testLogger,
