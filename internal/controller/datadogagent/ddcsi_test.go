@@ -118,6 +118,12 @@ func TestReconcileDatadogCSIDriver_EnabledAndCreated(t *testing.T) {
 	require.Len(t, ddcsi.OwnerReferences, 1)
 	assert.Equal(t, "test-dda", ddcsi.OwnerReferences[0].Name)
 	assert.True(t, *ddcsi.OwnerReferences[0].Controller)
+
+	// Default operator-managed labels should be present.
+	assert.Equal(t, "datadog-operator", ddcsi.Labels[kubernetes.AppKubernetesManageByLabelKey])
+	assert.Equal(t, "test-dda", ddcsi.Labels[kubernetes.AppKubernetesInstanceLabelKey])
+	assert.Equal(t, "default-test--dda", ddcsi.Labels[kubernetes.AppKubernetesPartOfLabelKey])
+	assert.Equal(t, "datadog-agent-deployment", ddcsi.Labels[kubernetes.AppKubernetesNameLabelKey])
 }
 
 func TestReconcileDatadogCSIDriver_CRDNotAvailable(t *testing.T) {

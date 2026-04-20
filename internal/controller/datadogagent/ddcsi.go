@@ -20,6 +20,8 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -86,8 +88,10 @@ func (r *Reconciler) helmManagedCSIDriverExists(ctx context.Context) (bool, erro
 func (r *Reconciler) buildDesiredDatadogCSIDriver(instance *v2alpha1.DatadogAgent) (*v1alpha1.DatadogCSIDriver, error) {
 	ddcsi := &v1alpha1.DatadogCSIDriver{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.Name,
-			Namespace: instance.Namespace,
+			Name:        instance.Name,
+			Namespace:   instance.Namespace,
+			Labels:      object.GetDefaultLabels(instance, instance.Name, common.GetAgentVersion(instance)),
+			Annotations: object.GetDefaultAnnotations(instance),
 		},
 	}
 	if err := controllerutil.SetControllerReference(instance, ddcsi, r.scheme); err != nil {
