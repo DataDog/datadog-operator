@@ -63,6 +63,7 @@ func (r *Reconciler) reconcileDatadogCSIDriver(ctx context.Context, logger logr.
 	// operator only takes over installing it when explicitly opted in via the operator flag.
 	// Otherwise we leave the driver to whoever installed it externally.
 	if !r.options.DatadogCSIDriverEnabled {
+		logger.V(1).Info("spec.global.csi.enabled is true but the DatadogCSIDriver controller is disabled on the operator (--datadogCSIDriverEnabled=false); the operator will not create the Datadog CSIDriver. Start the operator with --datadogCSIDriverEnabled=true to have the operator manage it automatically or install it externally.")
 		return nil
 	}
 
