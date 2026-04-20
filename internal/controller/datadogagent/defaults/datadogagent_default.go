@@ -14,6 +14,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/images"
+	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 // Default configuration values. These are the recommended settings for monitoring with Datadog in Kubernetes.
@@ -43,7 +44,8 @@ const (
 
 	defaultGPUMonitoringEnabled bool = false
 
-	defaultServiceDiscoveryEnabled bool = false
+	defaultServiceDiscoveryEnabled       bool = false
+	serviceDiscoveryAutoEnableMinVersion      = "7.78.0-0"
 
 	defaultAPMEnabled                   bool   = true
 	defaultAPMHostPortEnabled           bool   = false
@@ -304,7 +306,9 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	if ddaSpec.Features.ServiceDiscovery == nil {
 		ddaSpec.Features.ServiceDiscovery = &v2alpha1.ServiceDiscoveryFeatureConfig{}
 	}
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ServiceDiscovery.Enabled, defaultServiceDiscoveryEnabled)
+	if ddaSpec.Features.ServiceDiscovery.Enabled == nil {
+		ddaSpec.Features.ServiceDiscovery.Enabled = ptr.To(shouldEnableServiceDiscoveryByDefault(ddaSpec))
+	}
 
 	// GPU monitoring feature
 	if ddaSpec.Features.GPU == nil {
@@ -647,4 +651,16 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		ddaSpec.Features.DataPlane.Dogstatsd = &v2alpha1.DataPlaneDogstatsdConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.DataPlane.Dogstatsd.Enabled, defaultDataPlaneDogstatsdEnabled)
+}
+
+func shouldEnableServiceDiscoveryByDefault(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	fallback := ptr.To(true)
+
+	if ddaSpec.Override != nil {
+		if nodeAgent, found := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; found && nodeAgent != nil && nodeAgent.Image != nil {
+			return pkgutils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), serviceDiscoveryAutoEnableMinVersion, fallback)
+		}
+	}
+
+	return pkgutils.IsAboveMinVersion(images.AgentLatestVersion, serviceDiscoveryAutoEnableMinVersion, fallback)
 }

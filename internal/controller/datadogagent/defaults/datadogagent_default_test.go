@@ -2679,3 +2679,97 @@ func Test_defaultFeatures(t *testing.T) {
 		})
 	}
 }
+
+func Test_defaultFeatures_ServiceDiscoveryDefaultingByVersion(t *testing.T) {
+	tests := []struct {
+		name    string
+		ddaSpec *v2alpha1.DatadogAgentSpec
+		want    bool
+	}{
+		{
+			name: "omitted on default agent version stays disabled",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{},
+			},
+			want: false,
+		},
+		{
+			name: "omitted on supported node agent version is auto-enabled",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{},
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "omitted on unsupported node agent version stays disabled",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{},
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.77.2"},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "omitted on unparseable node agent version is auto-enabled",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{},
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {
+						Image: &v2alpha1.AgentImageConfig{Tag: "latest-dev"},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "explicit false is preserved on supported node agent version",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
+						Enabled: ptr.To(false),
+					},
+				},
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "explicit true is preserved on unsupported node agent version",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
+						Enabled: ptr.To(true),
+					},
+				},
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.77.2"},
+					},
+				},
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defaultFeaturesConfig(tt.ddaSpec)
+
+			assert.NotNil(t, tt.ddaSpec.Features.ServiceDiscovery)
+			assert.NotNil(t, tt.ddaSpec.Features.ServiceDiscovery.Enabled)
+			assert.Equal(t, tt.want, *tt.ddaSpec.Features.ServiceDiscovery.Enabled)
+		})
+	}
+}

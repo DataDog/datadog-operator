@@ -412,6 +412,106 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
+			name: "DatadogAgent with service discovery omitted and supported node agent version auto-enables system-probe",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
+					}).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				expectedContainers := []string{
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+					string(apicommon.SystemProbeContainerName),
+				}
+
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
+
+				agentContainers := getDsContainers(c, resourcesNamespace, dsName)
+				assertContainerHasEnvVar(t, agentContainers[apicommon.CoreAgentContainerName], "DD_DISCOVERY_ENABLED", "true")
+				assertContainerHasEnvVar(t, agentContainers[apicommon.SystemProbeContainerName], common.DDSystemProbeSocket, common.DefaultSystemProbeSocketPath)
+			},
+		},
+		{
+			name: "DatadogAgent with service discovery omitted and unsupported node agent version keeps system-probe disabled",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.77.2"},
+					}).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				expectedContainers := []string{
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+				}
+
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
+			},
+		},
+		{
+			name: "DatadogAgent with service discovery explicitly disabled keeps system-probe disabled",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
+					}).
+					Build()
+				dda.Spec.Features.ServiceDiscovery = &v2alpha1.ServiceDiscoveryFeatureConfig{
+					Enabled: ptr.To(false),
+				}
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				expectedContainers := []string{
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+				}
+
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
+			},
+		},
+		{
+			name: "DatadogAgent with service discovery explicitly enabled keeps system-probe enabled on unsupported node agent version",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.77.2"},
+					}).
+					Build()
+				dda.Spec.Features.ServiceDiscovery = &v2alpha1.ServiceDiscoveryFeatureConfig{
+					Enabled: ptr.To(true),
+				}
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				expectedContainers := []string{
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+					string(apicommon.SystemProbeContainerName),
+				}
+
+				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
+			},
+		},
+		{
 			name: "DatadogAgent with Private Action Runner enabled on node, create Daemonset with core, trace, and private-action-runner containers",
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
@@ -1126,6 +1226,19 @@ func getDeploymentContainers(c client.Client, resourcesNamespace, deploymentName
 	return containers
 }
 
+func assertContainerHasEnvVar(t *testing.T, container corev1.Container, name, value string) {
+	t.Helper()
+
+	for _, envVar := range container.Env {
+		if envVar.Name == name {
+			assert.Equal(t, value, envVar.Value)
+			return
+		}
+	}
+
+	t.Fatalf("env var %s not found in container %s", name, container.Name)
+}
+
 func Test_AutopilotOverrides(t *testing.T) {
 	const resourcesName, resourcesNamespace, dsName = "foo", "bar", "foo-agent"
 
@@ -1828,6 +1941,55 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 			},
 		},
 		{
+			name:        "[ddai] Auto-enable service discovery is propagated to DDAI on supported node agent version",
+			ddaiEnabled: true,
+			clientBuilder: fake.NewClientBuilder().
+				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}),
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				ddaSD := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
+					}).
+					Build()
+				_ = c.Create(context.TODO(), ddaSD)
+				return ddaSD
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				ddai := getSingleDDAI(t, c)
+				assert.NotNil(t, ddai.Spec.Features.ServiceDiscovery)
+				assert.NotNil(t, ddai.Spec.Features.ServiceDiscovery.Enabled)
+				assert.True(t, *ddai.Spec.Features.ServiceDiscovery.Enabled)
+			},
+		},
+		{
+			name:        "[ddai] Explicitly disabled service discovery remains disabled in DDAI",
+			ddaiEnabled: true,
+			clientBuilder: fake.NewClientBuilder().
+				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}),
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				ddaSD := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
+					}).
+					Build()
+				ddaSD.Spec.Features.ServiceDiscovery = &v2alpha1.ServiceDiscoveryFeatureConfig{
+					Enabled: ptr.To(false),
+				}
+				_ = c.Create(context.TODO(), ddaSD)
+				return ddaSD
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				ddai := getSingleDDAI(t, c)
+				assert.NotNil(t, ddai.Spec.Features.ServiceDiscovery)
+				assert.NotNil(t, ddai.Spec.Features.ServiceDiscovery.Enabled)
+				assert.False(t, *ddai.Spec.Features.ServiceDiscovery.Enabled)
+			},
+		},
+		{
 			name:        "[ddai] Create DDAI from minimal DDA and default profile",
 			ddaiEnabled: true,
 			clientBuilder: fake.NewClientBuilder().
@@ -2038,6 +2200,17 @@ func verifyDDAI(t *testing.T, c client.Client, expectedDDAI []v1alpha1.DatadogAg
 
 	}
 	assert.ElementsMatch(t, expectedDDAI, ddaiList.Items, "DDAI resources don't match")
+}
+
+func getSingleDDAI(t *testing.T, c client.Client) v1alpha1.DatadogAgentInternal {
+	t.Helper()
+
+	ddaiList := v1alpha1.DatadogAgentInternalList{}
+	err := c.List(context.TODO(), &ddaiList)
+	assert.NoError(t, err, "Failed to list DatadogAgentInternal resources")
+	assert.Len(t, ddaiList.Items, 1, "Expected exactly one DatadogAgentInternal resource")
+
+	return ddaiList.Items[0]
 }
 
 func getBaseDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {

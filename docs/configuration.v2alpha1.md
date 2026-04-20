@@ -201,7 +201,7 @@ spec:
 | features.sbom.enabled | Enable this option to activate SBOM collection. Default: false |
 | features.sbom.host.analyzers | To use for SBOM collection. |
 | features.sbom.host.enabled | Enable this option to activate SBOM collection. Default: false |
-| features.serviceDiscovery.enabled | Enables the service discovery check. Default: false |
+| features.serviceDiscovery.enabled | Enables the service discovery check. Default: true when omitted and the node Agent image is >= 7.78.0. Otherwise false. If the image version cannot be determined, it is treated as latest. |
 | features.serviceDiscovery.networkStats.enabled | DEPRECATED: this field is ignored. |
 | features.tcpQueueLength.enabled | Enables the TCP queue length eBPF-based check. Default: false |
 | features.usm.enabled | Enables Universal Service Monitoring. Default: false |

@@ -2501,7 +2501,8 @@ spec:
                             enabled:
                               description: |-
                                 Enables the service discovery check.
-                                Default: false
+                                Default: true when omitted and the node Agent image is >= 7.78.0. Otherwise false.
+                                If the image version cannot be determined, it is treated as latest.
                               type: boolean
                             networkStats:
                               description: 'DEPRECATED: NetworkStats is no longer configurable and will be ignored. Scheduled for removal in v1.28.'
