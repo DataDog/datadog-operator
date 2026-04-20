@@ -32,24 +32,24 @@ ARG GOARCH
 ARG FIPS_ENABLED
 RUN echo "FIPS_ENABLED is: $FIPS_ENABLED"
 RUN if [ "$FIPS_ENABLED" = "true" ]; then \
-      CGO_ENABLED=1 GOEXPERIMENT=boringcrypto GOOS=linux GOARCH=${GOARCH} go build -tags fips -a -ldflags "${LDFLAGS}" -o manager cmd/main.go; \
+    CGO_ENABLED=1 GOEXPERIMENT=boringcrypto GOOS=linux GOARCH=${GOARCH} go build -tags fips -a -ldflags "${LDFLAGS}" -o manager cmd/main.go; \
     else \
-      CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} go build -a -ldflags "${LDFLAGS}" -o manager cmd/main.go; \
+    CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} go build -a -ldflags "${LDFLAGS}" -o manager cmd/main.go; \
     fi
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} go build -a -ldflags "${LDFLAGS}" -o helpers cmd/helpers/main.go
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} go build -a -ldflags "${LDFLAGS}" -o yaml-mapper cmd/yaml-mapper/main.go
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:latest AS certs
+FROM registry.access.redhat.com/ubi10/ubi-minimal:latest AS certs
 
-FROM registry.access.redhat.com/ubi9/ubi-micro:latest
+FROM registry.access.redhat.com/ubi10/ubi-micro:latest
 
 LABEL name="datadog/operator"
 LABEL vendor="Datadog Inc."
 LABEL summary="The Datadog Operator aims at providing a new way to deploy the Datadog Agent on Kubernetes"
 LABEL description="Datadog provides a modern monitoring and analytics platform. Gather \
-      metrics, logs and traces for full observability of your Kubernetes cluster with \
-      Datadog Operator."
+    metrics, logs and traces for full observability of your Kubernetes cluster with \
+    Datadog Operator."
 LABEL maintainer="Datadog Inc."
 
 # ubi-micro variant does not have CA certificates installed

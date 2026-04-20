@@ -115,11 +115,11 @@ github_team = "cloud-network-monitoring"
 github_labels = ["team/cloud-network-monitoring"]
 
 [teams."OpenTelemetry"]
-jira_project = "OTEL"
+jira_project = "OTAGENT"
 jira_issue_type = "Task"
 jira_statuses = ["To Do", "In Progress", "Done"]
-github_team = "opentelemetry"
-github_labels = ["team/opentelemetry"]
+github_team = "opentelemetry-agent"
+github_labels = ["team/opentelemetry-agent"]
 exclude_members = ["ancostas", "Maascamp"]
 
 [teams."eBPF Platform"]

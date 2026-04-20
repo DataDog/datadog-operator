@@ -58,7 +58,8 @@ import (
 )
 
 const (
-	defaultRequeuePeriod = 15 * time.Second
+	defaultRequeuePeriod    = 15 * time.Second
+	defaultErrRequeuePeriod = 5 * time.Second
 )
 
 // ReconcilerOptions provides options read from command line

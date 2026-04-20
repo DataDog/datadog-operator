@@ -53,6 +53,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 		name                 string
 		request              ctrl.Request
 		expectedResult       ctrl.Result
+		reconcileCount       int // number of reconcile loops to run; defaults to 1
 		mockOn               func(t *testing.T, m *mockedFields)
 		datadogClientHandler http.HandlerFunc
 	}{
@@ -64,6 +65,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 					Name:      resourceName,
 				},
 			},
+			reconcileCount: 2,
 			mockOn: func(t *testing.T, m *mockedFields) {
 				_ = m.k8sClient.Create(context.TODO(), defaultSLO())
 			},
@@ -93,6 +95,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 					Name:      resourceName,
 				},
 			},
+			reconcileCount: 2,
 			mockOn: func(t *testing.T, m *mockedFields) {
 				_ = m.k8sClient.Create(context.TODO(), defaultSLO())
 			},
@@ -109,6 +112,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 					Name:      resourceName,
 				},
 			},
+			reconcileCount: 2,
 			mockOn: func(t *testing.T, m *mockedFields) {
 				slo := defaultSLO()
 				slo.Status.ID = "SLO123"
@@ -149,7 +153,14 @@ func TestReconciler_Reconcile(t *testing.T) {
 				log:           testLogger,
 			}
 
-			res, _ := r.Reconcile(ctx, tt.request)
+			reconcileCount := tt.reconcileCount
+			if reconcileCount == 0 {
+				reconcileCount = 1
+			}
+			var res ctrl.Result
+			for i := 0; i < reconcileCount; i++ {
+				res, _ = r.Reconcile(ctx, tt.request)
+			}
 			assert.Equal(t, tt.expectedResult, res)
 		})
 	}

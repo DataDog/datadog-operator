@@ -7,6 +7,7 @@ package datadogmonitor
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
 )
 
 var (
@@ -90,7 +92,8 @@ func Test_handleFinalizer(t *testing.T) {
 			testMonitor := &datadoghqv1alpha1.DatadogMonitor{}
 			_ = r.client.Get(context.TODO(), client.ObjectKey{Namespace: "foo", Name: test.objectName}, testMonitor)
 
-			_, err := r.handleFinalizer(reqLogger, testMonitor)
+			final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger), defaultRequeuePeriod, defaultErrRequeuePeriod)
+			_, err := final.HandleFinalizer(context.TODO(), testMonitor, fmt.Sprint(testMonitor.Status.ID), datadogMonitorFinalizer)
 
 			assert.NoError(t, err)
 			if test.finalizerShouldExist {

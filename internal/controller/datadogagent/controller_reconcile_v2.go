@@ -22,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
@@ -40,7 +41,8 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 	}
 
 	// 2. Handle finalizer logic.
-	if result, err := r.handleFinalizer(reqLogger, instance, r.finalizeDadV2); utils.ShouldReturn(result, err) {
+	final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger), defaultRequeuePeriod, defaultErrRequeuePeriod)
+	if result, err := final.HandleFinalizer(ctx, instance, "", datadogAgentFinalizer); utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
@@ -241,7 +243,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	}
 
 	// Always requeue
-	if !result.Requeue && result.RequeueAfter == 0 {
+	if result.IsZero() {
 		result.RequeueAfter = defaultRequeuePeriod
 	}
 	return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
@@ -351,7 +353,7 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 		oldStatus := profile.Status
 		profileAppliedByNode, err = agentprofile.ApplyProfile(logger, &profile, nodeList, profileAppliedByNode, now, maxUnavailable, r.options.DatadogAgentInternalEnabled)
 		if result, e := r.updateDAPStatus(ctx, logger, &profile, &oldStatus); utils.ShouldReturn(result, e) {
-			logger.Info("unable to update DatadogAgentProfile status", "error", e, "requeue", result.Requeue, "requeueAfter", result.RequeueAfter)
+			logger.Info("unable to update DatadogAgentProfile status", "error", e, "requeueAfter", result.RequeueAfter, "requeueIntent", !result.IsZero())
 		}
 		if err != nil {
 			// profile is invalid or conflicts

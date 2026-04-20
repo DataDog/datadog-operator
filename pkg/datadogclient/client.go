@@ -96,6 +96,7 @@ func InitDatadogDashboardClient(logger logr.Logger, creds config.Creds) (Datadog
 }
 
 type DatadogGenericClient struct {
+	DashboardsClient *datadogV1.DashboardsApi
 	SyntheticsClient *datadogV1.SyntheticsApi
 	NotebooksClient  *datadogV1.NotebooksApi
 	MonitorsClient   *datadogV1.MonitorsApi
@@ -111,6 +112,7 @@ func InitDatadogGenericClient(logger logr.Logger, creds config.Creds) (DatadogGe
 
 	configV1 := datadogapi.NewConfiguration()
 	apiClient := datadogapi.NewAPIClient(configV1)
+	dashboardsClient := datadogV1.NewDashboardsApi(apiClient)
 	syntheticsClient := datadogV1.NewSyntheticsApi(apiClient)
 	notebooksClient := datadogV1.NewNotebooksApi(apiClient)
 	monitorsClient := datadogV1.NewMonitorsApi(apiClient)
@@ -122,6 +124,7 @@ func InitDatadogGenericClient(logger logr.Logger, creds config.Creds) (DatadogGe
 	}
 
 	return DatadogGenericClient{
+		DashboardsClient: dashboardsClient,
 		SyntheticsClient: syntheticsClient,
 		NotebooksClient:  notebooksClient,
 		MonitorsClient:   monitorsClient,
