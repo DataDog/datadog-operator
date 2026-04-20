@@ -201,7 +201,7 @@ func TestReconcileDatadogCSIDriver_HelmManagedPresent(t *testing.T) {
 
 func TestReconcileDatadogCSIDriver_NonHelmManagedCSIDriverPresent(t *testing.T) {
 	// A CSIDriver exists with the Datadog name but without the Helm managed-by label.
-	// The operator should still create the DatadogCSIDriver — only Helm-managed installs are deferred to.
+	// The operator should still create the DatadogCSIDriver, only Helm-managed installs are deferred to.
 	existing := &storagev1.CSIDriver{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: helmManagedCSIDriverName,
@@ -223,7 +223,7 @@ func TestReconcileDatadogCSIDriver_NonHelmManagedCSIDriverPresent(t *testing.T) 
 
 func TestReconcileDatadogCSIDriver_HelmManagedAppearsLater(t *testing.T) {
 	// Operator first creates the DatadogCSIDriver (no Helm install), then a Helm CSIDriver shows up
-	// on a later reconcile — the operator must clean up its own DatadogCSIDriver.
+	// On a later reconcile, the operator must clean up its own DatadogCSIDriver.
 	scheme := testScheme()
 	r := newTestReconcilerForDDCSI(scheme, platformInfoWithDDCSI())
 	dda := newDDAForDDCSI("test-dda", "default", true)
@@ -291,7 +291,7 @@ func TestReconcileDatadogCSIDriver_CleanupSkipsNotOwned(t *testing.T) {
 	err := r.client.Create(context.Background(), ddcsi)
 	require.NoError(t, err)
 
-	// Reconcile with CSI disabled — should NOT delete the unowned resource
+	// Reconcile with CSI disabled, should NOT delete the unowned resource
 	dda := newDDAForDDCSI("test-dda", "default", false)
 	err = r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
 	require.NoError(t, err)
@@ -319,7 +319,7 @@ func TestReconcileDatadogCSIDriver_UpdateOnSpecDrift(t *testing.T) {
 	err = r.client.Update(context.Background(), existing)
 	require.NoError(t, err)
 
-	// Reconcile again — should update back to the desired state (empty spec)
+	// Reconcile again, should update back to the desired state (empty spec)
 	err = r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
 	require.NoError(t, err)
 
@@ -328,6 +328,36 @@ func TestReconcileDatadogCSIDriver_UpdateOnSpecDrift(t *testing.T) {
 	err = r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, updated)
 	require.NoError(t, err)
 	assert.Nil(t, updated.Spec.APMSocketPath)
+}
+
+func TestReconcileDatadogCSIDriver_UpdatePreservesFinalizers(t *testing.T) {
+	// The DatadogCSIDriver controller adds its cleanup finalizer to this object. An operator-driven
+	// spec-drift update must preserve it. Otherwise a subsequent delete/disable would bypass
+	// cleanup and leak the cluster-scoped CSIDriver.
+	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
+	dda := newDDAForDDCSI("test-dda", "default", true)
+
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+
+	existing := &v1alpha1.DatadogCSIDriver{}
+	require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, existing))
+	existing.Finalizers = append(existing.Finalizers, "finalizer.datadoghq.com/csi-driver")
+	require.NoError(t, r.client.Update(context.Background(), existing))
+
+	// Cause spec drift via the DDA (APM socket path).
+	dda.Spec.Features = &v2alpha1.DatadogFeatures{
+		APM: &v2alpha1.APMFeatureConfig{
+			UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{Path: ptr.To("/custom/apm.socket")},
+		},
+	}
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+
+	updated := &v1alpha1.DatadogCSIDriver{}
+	require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, updated))
+
+	require.NotNil(t, updated.Spec.APMSocketPath)
+	assert.Equal(t, "/custom/apm.socket", *updated.Spec.APMSocketPath)
+	assert.Contains(t, updated.Finalizers, "finalizer.datadoghq.com/csi-driver")
 }
 
 func TestReconcileDatadogCSIDriver_CleanupCRDNotAvailable(t *testing.T) {

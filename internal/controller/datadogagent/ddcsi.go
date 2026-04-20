@@ -16,6 +16,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -172,10 +173,22 @@ func (r *Reconciler) createOrUpdateDatadogCSIDriver(ctx context.Context, logger 
 	}
 
 	// Update if the spec has drifted from the desired state.
+	//
+	// Use a JSON merge patch rather than a full Update so only fields we actually own (.spec,
+	// labels, annotations) appear in the wire payload. Finalizers added by the DatadogCSIDriver
+	// controller (`finalizer.datadoghq.com/csi-driver`) and `.status` are not touched on
+	// `existing`, so they are absent from the diff and preserved on the server. Without this,
+	// a spec-drift update could wipe the finalizer and a subsequent DDA delete / CSI disable
+	// landing before it was re-added would leak the cluster-scoped `k8s.csi.datadoghq.com`.
 	if !apiequality.Semantic.DeepEqual(existing.Spec, desired.Spec) {
+		patchBase := existing.DeepCopy()
+		existing.Spec = desired.Spec
+		existing.Labels = desired.Labels
+		existing.Annotations = desired.Annotations
+
 		logger.Info("Updating DatadogCSIDriver", "name", desired.Name, "namespace", desired.Namespace)
-		if err := kubernetes.UpdateFromObject(ctx, r.client, desired, existing.ObjectMeta); err != nil {
-			return fmt.Errorf("failed to update DatadogCSIDriver %s/%s: %w", desired.Namespace, desired.Name, err)
+		if err := r.client.Patch(ctx, existing, client.MergeFrom(patchBase)); err != nil {
+			return fmt.Errorf("failed to patch DatadogCSIDriver %s/%s: %w", desired.Namespace, desired.Name, err)
 		}
 	}
 
