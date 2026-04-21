@@ -202,9 +202,9 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 			testAuth := setupTestAuth(httpServer.URL)
 
 			os.Setenv("DD_URL", httpServer.URL)
-			defer os.Unsetenv("DD_URL")
 			os.Setenv("DD_API_KEY", "DUMMY_API_KEY")
 			os.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+			defer os.Unsetenv("DD_URL")
 			defer os.Unsetenv("DD_API_KEY")
 			defer os.Unsetenv("DD_APP_KEY")
 			testCredsManager := config.NewCredentialManager(fake.NewClientBuilder().Build())
