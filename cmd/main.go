@@ -384,8 +384,6 @@ func run(opts *options) error {
 		},
 		SupportCilium:                 opts.supportCilium,
 		CredsManager:                  credsManager,
-		Creds:                         creds,
-		SecretRefreshInterval:         opts.secretRefreshInterval,
 		DatadogAgentEnabled:           opts.datadogAgentEnabled,
 		DatadogAgentInternalEnabled:   opts.datadogAgentInternalEnabled,
 		CreateControllerRevisions:     opts.createControllerRevisions && opts.datadogAgentInternalEnabled, // Only enable if DDAI is also enabled.

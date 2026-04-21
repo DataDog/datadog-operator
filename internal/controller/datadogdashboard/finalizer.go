@@ -20,10 +20,10 @@ const (
 	datadogDashboardFinalizer = "finalizer.datadoghq.com/dashboard"
 )
 
-func (r *Reconciler) deleteResource(logger logr.Logger) finalizer.ResourceDeleteFunc {
+func (r *Reconciler) deleteResource(logger logr.Logger, auth context.Context) finalizer.ResourceDeleteFunc {
 	return func(ctx context.Context, k8sObj client.Object, datadogID string) error {
 		if datadogID != "" {
-			err := deleteDashboard(r.datadogAuth, r.datadogClient, datadogID)
+			err := deleteDashboard(auth, r.datadogClient, datadogID)
 			if err != nil {
 				logger.Error(err, "failed to finalize dashboard", "dashboard ID", fmt.Sprint(datadogID))
 				return nil
