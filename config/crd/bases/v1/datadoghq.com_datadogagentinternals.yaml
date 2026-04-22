@@ -1695,6 +1695,15 @@ spec:
                             Default: {}
                           type: object
                       type: object
+                    kataContainers:
+                      description: Kata Containers monitoring
+                      properties:
+                        enabled:
+                          description: |-
+                            Enabled enables the Kata Containers core check.
+                            Default: false
+                          type: boolean
+                      type: object
                     kubeStateMetricsCore:
                       description: KubeStateMetricsCore check configuration.
                       properties:
@@ -10126,6 +10135,15 @@ spec:
                                 (Requires Agent and Cluster Agent 7.40.0+).
                                 Default: {}
                               type: object
+                          type: object
+                        kataContainers:
+                          description: Kata Containers monitoring
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables the Kata Containers core check.
+                                Default: false
+                              type: boolean
                           type: object
                         kubeStateMetricsCore:
                           description: KubeStateMetricsCore check configuration.
