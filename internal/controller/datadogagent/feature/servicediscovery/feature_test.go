@@ -185,6 +185,59 @@ func Test_serviceDiscoveryFeature_Configure_DefaultingByVersion(t *testing.T) {
 	}
 }
 
+func Test_serviceDiscoveryFeature_ResolveEnabled_InheritsDefaultVersionWhenImageVersionIsOmitted(t *testing.T) {
+	expected := serviceDiscoveryEnabledForVersion(images.AgentLatestVersion)
+
+	tests := []struct {
+		name    string
+		ddaSpec *v2alpha1.DatadogAgentSpec
+	}{
+		{
+			name: "no node agent override inherits default agent version",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{},
+			},
+		},
+		{
+			name: "partial node agent image override inherits default agent version",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{},
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {
+						Image: &v2alpha1.AgentImageConfig{
+							PullPolicy: ptr.To(corev1.PullAlways),
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "explicit default agent version matches inherited policy",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{},
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {
+						Image: &v2alpha1.AgentImageConfig{
+							Tag: images.AgentLatestVersion,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ResolveEnabled(tt.ddaSpec)
+
+			assert.Equal(t, expected, got)
+			assert.NotNil(t, tt.ddaSpec.Features.ServiceDiscovery)
+			assert.NotNil(t, tt.ddaSpec.Features.ServiceDiscovery.Enabled)
+			assert.Equal(t, expected, *tt.ddaSpec.Features.ServiceDiscovery.Enabled)
+		})
+	}
+}
+
 func serviceDiscoveryEnabledForVersion(version string) bool {
 	return pkgutils.IsAboveMinVersion(version, serviceDiscoveryAutoEnableMinVersion, nil)
 }

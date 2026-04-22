@@ -85,6 +85,9 @@ func resolveNodeAgentVersion(ddaSpec *v2alpha1.DatadogAgentSpec) string {
 		}
 	}
 
+	// No explicit node-agent image version means "inherit the default agent image version".
+	// This also applies to partial image overrides that only tweak settings such as pullPolicy:
+	// they do not change the effective image version used for version-gated defaulting.
 	return images.AgentLatestVersion
 }
 
