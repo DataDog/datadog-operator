@@ -7,57 +7,82 @@ import (
 
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
-type SyntheticsAPITestHandler struct{}
+type SyntheticsAPITestHandler struct {
+	auth   context.Context
+	client *datadogV1.SyntheticsApi
+}
 
-func (h *SyntheticsAPITestHandler) createResourcefunc(r *Reconciler, ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	createdTest, err := createSyntheticsAPITest(r.datadogAuth, r.datadogSyntheticsClient, instance)
+func (h *SyntheticsAPITestHandler) createResource(instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
+	createdTest, err := createSyntheticsAPITest(h.auth, h.client, instance)
 	if err != nil {
-		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
-		return err
+		return CreateResult{}, err
 	}
-	additionalProperties := createdTest.AdditionalProperties
-	return updateStatusFromSyntheticsTest(&createdTest, additionalProperties, status, ctx, hash)
+	return createResultFromSyntheticsTest(&createdTest, createdTest.AdditionalProperties), nil
 }
 
-func (h *SyntheticsAPITestHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := getSyntheticsTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
+func (h *SyntheticsAPITestHandler) getResource(instance *v1alpha1.DatadogGenericResource) error {
+	_, err := getSyntheticsTest(h.auth, h.client, instance.Status.Id)
 	return err
 }
-func (h *SyntheticsAPITestHandler) updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := updateSyntheticsAPITest(r.datadogAuth, r.datadogSyntheticsClient, instance)
+func (h *SyntheticsAPITestHandler) updateResource(instance *v1alpha1.DatadogGenericResource) error {
+	_, err := updateSyntheticsAPITest(h.auth, h.client, instance)
 	return err
 }
-func (h *SyntheticsAPITestHandler) deleteResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return deleteSyntheticTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
+func (h *SyntheticsAPITestHandler) deleteResource(instance *v1alpha1.DatadogGenericResource) error {
+	return deleteSyntheticTest(h.auth, h.client, instance.Status.Id)
 }
 
-type SyntheticsBrowserTestHandler struct{}
+type SyntheticsBrowserTestHandler struct {
+	auth   context.Context
+	client *datadogV1.SyntheticsApi
+}
 
-func (h *SyntheticsBrowserTestHandler) createResourcefunc(r *Reconciler, ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	createdTest, err := createSyntheticBrowserTest(r.datadogAuth, r.datadogSyntheticsClient, instance)
+func (h *SyntheticsBrowserTestHandler) createResource(instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
+	createdTest, err := createSyntheticBrowserTest(h.auth, h.client, instance)
 	if err != nil {
-		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
-		return err
+		return CreateResult{}, err
 	}
-	additionalProperties := createdTest.AdditionalProperties
-	return updateStatusFromSyntheticsTest(&createdTest, additionalProperties, status, ctx, hash)
+	return createResultFromSyntheticsTest(&createdTest, createdTest.AdditionalProperties), nil
 }
 
-func (h *SyntheticsBrowserTestHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := getSyntheticsTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
+func (h *SyntheticsBrowserTestHandler) getResource(instance *v1alpha1.DatadogGenericResource) error {
+	_, err := getSyntheticsTest(h.auth, h.client, instance.Status.Id)
 	return err
 }
-func (h *SyntheticsBrowserTestHandler) updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := updateSyntheticsBrowserTest(r.datadogAuth, r.datadogSyntheticsClient, instance)
+func (h *SyntheticsBrowserTestHandler) updateResource(instance *v1alpha1.DatadogGenericResource) error {
+	_, err := updateSyntheticsBrowserTest(h.auth, h.client, instance)
 	return err
 }
-func (h *SyntheticsBrowserTestHandler) deleteResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return deleteSyntheticTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
+func (h *SyntheticsBrowserTestHandler) deleteResource(instance *v1alpha1.DatadogGenericResource) error {
+	return deleteSyntheticTest(h.auth, h.client, instance.Status.Id)
+}
+
+// createResultFromSyntheticsTest extracts the common fields from a synthetic test API response.
+func createResultFromSyntheticsTest(createdTest interface{ GetPublicId() string }, additionalProperties map[string]any) CreateResult {
+	var createdTime *metav1.Time
+	if createdTimeString, ok := additionalProperties["created_at"].(string); ok {
+		if t, err := time.Parse(time.RFC3339, createdTimeString); err == nil {
+			ct := metav1.NewTime(t)
+			createdTime = &ct
+		}
+	}
+
+	creator := ""
+	if createdBy, ok := additionalProperties["created_by"].(map[string]any); ok {
+		if handle, ok := createdBy["handle"].(string); ok {
+			creator = handle
+		}
+	}
+
+	return CreateResult{
+		ID:          createdTest.GetPublicId(),
+		CreatedTime: createdTime,
+		Creator:     creator,
+	}
 }
 
 // Synthetic tests (encompass browser and API tests): get
@@ -85,7 +110,9 @@ func deleteSyntheticTest(auth context.Context, client *datadogV1.SyntheticsApi, 
 // Browser test: create
 func createSyntheticBrowserTest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.SyntheticsBrowserTest, error) {
 	browserTestBody := &datadogV1.SyntheticsBrowserTest{}
-	json.Unmarshal([]byte(instance.Spec.JsonSpec), browserTestBody)
+	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), browserTestBody); err != nil {
+		return datadogV1.SyntheticsBrowserTest{}, translateClientError(err, "error unmarshalling browser test spec")
+	}
 	test, _, err := client.CreateSyntheticsBrowserTest(auth, *browserTestBody)
 	if err != nil {
 		return datadogV1.SyntheticsBrowserTest{}, translateClientError(err, "error creating browser test")
@@ -96,7 +123,9 @@ func createSyntheticBrowserTest(auth context.Context, client *datadogV1.Syntheti
 // Browser test: update
 func updateSyntheticsBrowserTest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.SyntheticsBrowserTest, error) {
 	browserTestBody := &datadogV1.SyntheticsBrowserTest{}
-	json.Unmarshal([]byte(instance.Spec.JsonSpec), browserTestBody)
+	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), browserTestBody); err != nil {
+		return datadogV1.SyntheticsBrowserTest{}, translateClientError(err, "error unmarshalling browser test spec")
+	}
 	testUpdated, _, err := client.UpdateBrowserTest(auth, instance.Status.Id, *browserTestBody)
 	if err != nil {
 		return datadogV1.SyntheticsBrowserTest{}, translateClientError(err, "error updating browser test")
@@ -107,7 +136,9 @@ func updateSyntheticsBrowserTest(auth context.Context, client *datadogV1.Synthet
 // API test: create
 func createSyntheticsAPITest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.SyntheticsAPITest, error) {
 	apiTestBody := &datadogV1.SyntheticsAPITest{}
-	json.Unmarshal([]byte(instance.Spec.JsonSpec), apiTestBody)
+	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), apiTestBody); err != nil {
+		return datadogV1.SyntheticsAPITest{}, translateClientError(err, "error unmarshalling API test spec")
+	}
 	test, _, err := client.CreateSyntheticsAPITest(auth, *apiTestBody)
 	if err != nil {
 		return datadogV1.SyntheticsAPITest{}, translateClientError(err, "error creating API test")
@@ -118,54 +149,12 @@ func createSyntheticsAPITest(auth context.Context, client *datadogV1.SyntheticsA
 // API test: update
 func updateSyntheticsAPITest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.SyntheticsAPITest, error) {
 	apiTestBody := &datadogV1.SyntheticsAPITest{}
-	json.Unmarshal([]byte(instance.Spec.JsonSpec), apiTestBody)
+	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), apiTestBody); err != nil {
+		return datadogV1.SyntheticsAPITest{}, translateClientError(err, "error unmarshalling API test spec")
+	}
 	testUpdated, _, err := client.UpdateAPITest(auth, instance.Status.Id, *apiTestBody)
 	if err != nil {
 		return datadogV1.SyntheticsAPITest{}, translateClientError(err, "error updating API test")
 	}
 	return testUpdated, nil
-}
-
-// updateStatusFromSyntheticsTest retrieves the common fields from a synthetic test (API, browser) and updates the status of the DatadogGenericResource
-func updateStatusFromSyntheticsTest(createdTest interface{ GetPublicId() string }, additionalProperties map[string]any, status *v1alpha1.DatadogGenericResourceStatus, ctx context.Context, hash string) error {
-	logger := ctrl.LoggerFrom(ctx)
-	// All synthetic test types share this method
-	status.Id = createdTest.GetPublicId()
-
-	// Parse Created Time
-	createdTimeString, ok := additionalProperties["created_at"].(string)
-	if !ok {
-		logger.Error(nil, "missing or invalid created_at field, using current time")
-		createdTimeString = time.Now().Format(time.RFC3339)
-	}
-
-	createdTimeParsed, err := time.Parse(time.RFC3339, createdTimeString)
-	if err != nil {
-		logger.Error(err, "error parsing created time, using current time")
-		createdTimeParsed = time.Now()
-	}
-	createdTime := metav1.NewTime(createdTimeParsed)
-
-	// Update status fields
-	status.Created = &createdTime
-	status.LastForceSyncTime = &createdTime
-
-	// Update Creator
-	if createdBy, ok := additionalProperties["created_by"].(map[string]any); ok {
-		if handle, ok := createdBy["handle"].(string); ok {
-			status.Creator = handle
-		} else {
-			logger.Error(nil, "missing handle field in created_by")
-			status.Creator = ""
-		}
-	} else {
-		logger.Error(nil, "missing or invalid created_by field")
-		status.Creator = ""
-	}
-
-	// Update Sync Status and Hash
-	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
-	status.CurrentHash = hash
-
-	return nil
 }

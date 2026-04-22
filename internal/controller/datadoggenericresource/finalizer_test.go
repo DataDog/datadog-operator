@@ -42,6 +42,9 @@ func Test_handleFinalizer(t *testing.T) {
 	metaNow := metav1.NewTime(time.Now())
 
 	r := &Reconciler{
+		handlers: map[v1alpha1.SupportedResourcesType]ResourceHandler{
+			v1alpha1.Notebook: &MockHandler{},
+		},
 		client: fake.NewClientBuilder().
 			WithRuntimeObjects(
 				&datadoghqv1alpha1.DatadogGenericResource{

@@ -10,34 +10,34 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
-type NotebookHandler struct{}
+type NotebookHandler struct {
+	auth   context.Context
+	client *datadogV1.NotebooksApi
+}
 
-func (h *NotebookHandler) createResourcefunc(r *Reconciler, ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	createdNotebook, err := createNotebook(r.datadogAuth, r.datadogNotebooksClient, instance)
+func (h *NotebookHandler) createResource(instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
+	createdNotebook, err := createNotebook(h.auth, h.client, instance)
 	if err != nil {
-		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
-		return err
+		return CreateResult{}, err
 	}
-	status.Id = resourceInt64ToStringID(createdNotebook.Data.GetId())
 	createdTime := metav1.NewTime(*createdNotebook.Data.GetAttributes().Created)
-	status.Created = &createdTime
-	status.LastForceSyncTime = &createdTime
-	status.Creator = *createdNotebook.Data.GetAttributes().Author.Handle
-	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
-	status.CurrentHash = hash
-	return nil
+	return CreateResult{
+		ID:          resourceInt64ToStringID(createdNotebook.Data.GetId()),
+		CreatedTime: &createdTime,
+		Creator:     *createdNotebook.Data.GetAttributes().Author.Handle,
+	}, nil
 }
 
-func (h *NotebookHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := getNotebook(r.datadogAuth, r.datadogNotebooksClient, instance.Status.Id)
+func (h *NotebookHandler) getResource(instance *v1alpha1.DatadogGenericResource) error {
+	_, err := getNotebook(h.auth, h.client, instance.Status.Id)
 	return err
 }
-func (h *NotebookHandler) updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := updateNotebook(r.datadogAuth, r.datadogNotebooksClient, instance)
+func (h *NotebookHandler) updateResource(instance *v1alpha1.DatadogGenericResource) error {
+	_, err := updateNotebook(h.auth, h.client, instance)
 	return err
 }
-func (h *NotebookHandler) deleteResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return deleteNotebook(r.datadogAuth, r.datadogNotebooksClient, instance.Status.Id)
+func (h *NotebookHandler) deleteResource(instance *v1alpha1.DatadogGenericResource) error {
+	return deleteNotebook(h.auth, h.client, instance.Status.Id)
 }
 
 func getNotebook(auth context.Context, client *datadogV1.NotebooksApi, notebookStringID string) (datadogV1.NotebookResponse, error) {
@@ -65,7 +65,9 @@ func deleteNotebook(auth context.Context, client *datadogV1.NotebooksApi, notebo
 
 func createNotebook(auth context.Context, client *datadogV1.NotebooksApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.NotebookResponse, error) {
 	notebookCreateData := &datadogV1.NotebookCreateRequest{}
-	json.Unmarshal([]byte(instance.Spec.JsonSpec), notebookCreateData)
+	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), notebookCreateData); err != nil {
+		return datadogV1.NotebookResponse{}, translateClientError(err, "error unmarshalling notebook spec")
+	}
 	notebook, _, err := client.CreateNotebook(auth, *notebookCreateData)
 	if err != nil {
 		return datadogV1.NotebookResponse{}, translateClientError(err, "error creating notebook")
@@ -75,7 +77,9 @@ func createNotebook(auth context.Context, client *datadogV1.NotebooksApi, instan
 
 func updateNotebook(auth context.Context, client *datadogV1.NotebooksApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.NotebookResponse, error) {
 	notebookUpdateData := &datadogV1.NotebookUpdateRequest{}
-	json.Unmarshal([]byte(instance.Spec.JsonSpec), notebookUpdateData)
+	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), notebookUpdateData); err != nil {
+		return datadogV1.NotebookResponse{}, translateClientError(err, "error unmarshalling notebook spec")
+	}
 	notebookID, err := resourceStringToInt64ID(instance.Status.Id)
 	if err != nil {
 		return datadogV1.NotebookResponse{}, err

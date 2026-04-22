@@ -27,7 +27,8 @@ func (r *Reconciler) deleteResource(logger logr.Logger) finalizer.ResourceDelete
 		if !ok {
 			return fmt.Errorf("unexpected object type %T", k8sObj)
 		}
-		err := apiDelete(r, instance)
+		handler := r.getHandler(instance.Spec.Type)
+		err := handler.deleteResource(instance)
 		if err != nil {
 			logger.Error(err, "failed to finalize", "custom resource Id", fmt.Sprint(datadogID))
 			return nil

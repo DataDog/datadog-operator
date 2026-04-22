@@ -10,34 +10,34 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
-type MonitorHandler struct{}
+type MonitorHandler struct {
+	auth   context.Context
+	client *datadogV1.MonitorsApi
+}
 
-func (h *MonitorHandler) createResourcefunc(r *Reconciler, ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	createdMonitor, err := createMonitor(r.datadogAuth, r.datadogMonitorsClient, instance)
+func (h *MonitorHandler) createResource(instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
+	createdMonitor, err := createMonitor(h.auth, h.client, instance)
 	if err != nil {
-		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
-		return err
+		return CreateResult{}, err
 	}
-	status.Id = resourceInt64ToStringID(createdMonitor.GetId())
 	createdTime := metav1.NewTime(*createdMonitor.Created)
-	status.Created = &createdTime
-	status.LastForceSyncTime = &createdTime
-	status.Creator = *createdMonitor.GetCreator().Handle
-	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
-	status.CurrentHash = hash
-	return nil
+	return CreateResult{
+		ID:          resourceInt64ToStringID(createdMonitor.GetId()),
+		CreatedTime: &createdTime,
+		Creator:     *createdMonitor.GetCreator().Handle,
+	}, nil
 }
 
-func (h *MonitorHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := getMonitor(r.datadogAuth, r.datadogMonitorsClient, instance.Status.Id)
+func (h *MonitorHandler) getResource(instance *v1alpha1.DatadogGenericResource) error {
+	_, err := getMonitor(h.auth, h.client, instance.Status.Id)
 	return err
 }
-func (h *MonitorHandler) updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := updateMonitor(r.datadogAuth, r.datadogMonitorsClient, instance)
+func (h *MonitorHandler) updateResource(instance *v1alpha1.DatadogGenericResource) error {
+	_, err := updateMonitor(h.auth, h.client, instance)
 	return err
 }
-func (h *MonitorHandler) deleteResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return deleteMonitor(r.datadogAuth, r.datadogMonitorsClient, instance.Status.Id)
+func (h *MonitorHandler) deleteResource(instance *v1alpha1.DatadogGenericResource) error {
+	return deleteMonitor(h.auth, h.client, instance.Status.Id)
 }
 
 func getMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorStringID string) (datadogV1.Monitor, error) {
@@ -65,7 +65,9 @@ func deleteMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorS
 
 func createMonitor(auth context.Context, client *datadogV1.MonitorsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.Monitor, error) {
 	monitorBody := &datadogV1.Monitor{}
-	json.Unmarshal([]byte(instance.Spec.JsonSpec), monitorBody)
+	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), monitorBody); err != nil {
+		return datadogV1.Monitor{}, translateClientError(err, "error unmarshalling monitor spec")
+	}
 	monitor, _, err := client.CreateMonitor(auth, *monitorBody)
 	if err != nil {
 		return datadogV1.Monitor{}, translateClientError(err, "error creating monitor")
@@ -75,7 +77,9 @@ func createMonitor(auth context.Context, client *datadogV1.MonitorsApi, instance
 
 func updateMonitor(auth context.Context, client *datadogV1.MonitorsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.Monitor, error) {
 	monitorUpdateData := &datadogV1.MonitorUpdateRequest{}
-	json.Unmarshal([]byte(instance.Spec.JsonSpec), monitorUpdateData)
+	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), monitorUpdateData); err != nil {
+		return datadogV1.Monitor{}, translateClientError(err, "error unmarshalling monitor spec")
+	}
 	monitorID, err := resourceStringToInt64ID(instance.Status.Id)
 	if err != nil {
 		return datadogV1.Monitor{}, err
