@@ -6,6 +6,79 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestInstallMode_String(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		mode     InstallMode
+		expected string
+	}{
+		{
+			name:     "Fargate mode",
+			mode:     InstallModeFargate,
+			expected: "fargate",
+		},
+		{
+			name:     "Existing-nodes mode",
+			mode:     InstallModeExistingNodes,
+			expected: "existing-nodes",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.mode.String())
+		})
+	}
+}
+
+func TestInstallMode_Set(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		input       string
+		expected    InstallMode
+		expectError bool
+	}{
+		{
+			name:        "Set to fargate",
+			input:       "fargate",
+			expected:    InstallModeFargate,
+			expectError: false,
+		},
+		{
+			name:        "Set to existing-nodes",
+			input:       "existing-nodes",
+			expected:    InstallModeExistingNodes,
+			expectError: false,
+		},
+		{
+			name:        "Invalid value",
+			input:       "invalid",
+			expectError: true,
+		},
+		{
+			name:        "Empty value",
+			input:       "",
+			expectError: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var mode InstallMode
+			err := mode.Set(tc.input)
+
+			if tc.expectError {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), "install-mode must be one of fargate or existing-nodes")
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expected, mode)
+			}
+		})
+	}
+}
+
+func TestInstallMode_Type(t *testing.T) {
+	var mode InstallMode
+	assert.Equal(t, "InstallMode", mode.Type())
+}
+
 func TestCreateKarpenterResources_String(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
@@ -169,6 +242,8 @@ func TestValidate(t *testing.T) {
 	for _, tc := range []struct {
 		name                     string
 		args                     []string
+		installMode              InstallMode
+		fargateSubnets           []string
 		createKarpenterResources CreateKarpenterResources
 		inferenceMethod          InferenceMethod
 		expectError              bool
@@ -177,6 +252,7 @@ func TestValidate(t *testing.T) {
 		{
 			name:                     "Valid with nodes inference method",
 			args:                     []string{},
+			installMode:              InstallModeFargate,
 			createKarpenterResources: CreateKarpenterResourcesEC2NodeClass,
 			inferenceMethod:          InferenceMethodNodes,
 			expectError:              false,
@@ -184,6 +260,7 @@ func TestValidate(t *testing.T) {
 		{
 			name:                     "Valid with nodegroups inference method",
 			args:                     []string{},
+			installMode:              InstallModeFargate,
 			createKarpenterResources: CreateKarpenterResourcesEC2NodeClass,
 			inferenceMethod:          InferenceMethodNodeGroups,
 			expectError:              false,
@@ -191,6 +268,7 @@ func TestValidate(t *testing.T) {
 		{
 			name:                     "Valid with create none",
 			args:                     []string{},
+			installMode:              InstallModeFargate,
 			createKarpenterResources: CreateKarpenterResourcesNone,
 			inferenceMethod:          InferenceMethodNodes,
 			expectError:              false,
@@ -198,6 +276,24 @@ func TestValidate(t *testing.T) {
 		{
 			name:                     "Valid with create all",
 			args:                     []string{},
+			installMode:              InstallModeFargate,
+			createKarpenterResources: CreateKarpenterResourcesAll,
+			inferenceMethod:          InferenceMethodNodes,
+			expectError:              false,
+		},
+		{
+			name:                     "Valid with existing-nodes mode",
+			args:                     []string{},
+			installMode:              InstallModeExistingNodes,
+			createKarpenterResources: CreateKarpenterResourcesAll,
+			inferenceMethod:          InferenceMethodNodes,
+			expectError:              false,
+		},
+		{
+			name:                     "Valid with fargate-subnets in fargate mode",
+			args:                     []string{},
+			installMode:              InstallModeFargate,
+			fargateSubnets:           []string{"subnet-abc", "subnet-def"},
 			createKarpenterResources: CreateKarpenterResourcesAll,
 			inferenceMethod:          InferenceMethodNodes,
 			expectError:              false,
@@ -205,6 +301,7 @@ func TestValidate(t *testing.T) {
 		{
 			name:                     "Invalid with arguments",
 			args:                     []string{"arg1"},
+			installMode:              InstallModeFargate,
 			createKarpenterResources: CreateKarpenterResourcesEC2NodeClass,
 			inferenceMethod:          InferenceMethodNodes,
 			expectError:              true,
@@ -213,6 +310,7 @@ func TestValidate(t *testing.T) {
 		{
 			name:                     "Invalid with invalid inference method",
 			args:                     []string{},
+			installMode:              InstallModeFargate,
 			createKarpenterResources: CreateKarpenterResourcesEC2NodeClass,
 			inferenceMethod:          InferenceMethod("invalid"),
 			expectError:              true,
@@ -221,19 +319,45 @@ func TestValidate(t *testing.T) {
 		{
 			name:                     "Invalid with invalid create resources",
 			args:                     []string{},
+			installMode:              InstallModeFargate,
 			createKarpenterResources: CreateKarpenterResources("invalid"),
 			inferenceMethod:          InferenceMethodNodes,
 			expectError:              true,
 			errorContains:            "create-karpenter-resources must be one of none, ec2nodeclass or all",
 		},
+		{
+			name:                     "Invalid with invalid install mode",
+			args:                     []string{},
+			installMode:              InstallMode("invalid"),
+			createKarpenterResources: CreateKarpenterResourcesAll,
+			inferenceMethod:          InferenceMethodNodes,
+			expectError:              true,
+			errorContains:            "install-mode must be one of fargate or existing-nodes",
+		},
+		{
+			name:                     "Invalid fargate-subnets with existing-nodes mode",
+			args:                     []string{},
+			installMode:              InstallModeExistingNodes,
+			fargateSubnets:           []string{"subnet-abc"},
+			createKarpenterResources: CreateKarpenterResourcesAll,
+			inferenceMethod:          InferenceMethodNodes,
+			expectError:              true,
+			errorContains:            "--fargate-subnets can only be used with --install-mode=fargate",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			// Save and restore the global variables
+			oldMode := installMode
+			oldSubnets := fargateSubnets
 			oldCreate := createKarpenterResources
 			oldMethod := inferenceMethod
+			installMode = tc.installMode
+			fargateSubnets = tc.fargateSubnets
 			createKarpenterResources = tc.createKarpenterResources
 			inferenceMethod = tc.inferenceMethod
 			defer func() {
+				installMode = oldMode
+				fargateSubnets = oldSubnets
 				createKarpenterResources = oldCreate
 				inferenceMethod = oldMethod
 			}()

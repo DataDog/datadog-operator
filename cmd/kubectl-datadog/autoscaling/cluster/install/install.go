@@ -12,8 +12,11 @@ import (
 	"os/signal"
 	"slices"
 	"strconv"
+	"strings"
 	"syscall"
 
+	awssdk "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/fatih/color"
 	"github.com/pkg/browser"
@@ -40,12 +43,54 @@ const (
 )
 
 var (
+	//go:embed assets/karpenter.yaml
+	KarpenterCfn string
+
 	//go:embed assets/dd-karpenter.yaml
 	DdKarpenterCfn string
 
-	//go:embed assets/karpenter.yaml
-	KarpenterCfn string
+	//go:embed assets/dd-karpenter-fargate.yaml
+	DdKarpenterFargateCfn string
 )
+
+// installModeTagKey is the CloudFormation stack tag tracking the deployment's
+// install-mode. Stacks created before this tag was introduced are treated as
+// install-mode=existing-nodes.
+const installModeTagKey = "install-mode"
+
+// InstallMode defines how to run the Karpenter controller.
+type InstallMode string
+
+const (
+	// InstallModeFargate runs the Karpenter controller on dedicated Fargate nodes.
+	InstallModeFargate InstallMode = "fargate"
+	// InstallModeExistingNodes runs the Karpenter controller on existing cluster nodes.
+	InstallModeExistingNodes InstallMode = "existing-nodes"
+)
+
+// String returns the string representation of the InstallMode.
+func (i *InstallMode) String() string {
+	return string(*i)
+}
+
+// Set sets the InstallMode value from a string.
+func (i *InstallMode) Set(s string) error {
+	switch s {
+	case "fargate":
+		*i = InstallModeFargate
+	case "existing-nodes":
+		*i = InstallModeExistingNodes
+	default:
+		return fmt.Errorf("install-mode must be one of fargate or existing-nodes")
+	}
+
+	return nil
+}
+
+// Type returns the type name for pflag.
+func (_ *InstallMode) Type() string {
+	return "InstallMode"
+}
 
 // CreateKarpenterResources defines which Karpenter resources to create
 type CreateKarpenterResources string
@@ -123,6 +168,8 @@ var (
 	clusterName              string
 	karpenterNamespace       string
 	karpenterVersion         string
+	installMode              = InstallModeFargate
+	fargateSubnets           []string
 	createKarpenterResources = CreateKarpenterResourcesAll
 	inferenceMethod          = InferenceMethodNodeGroups
 	debug                    bool
@@ -168,6 +215,8 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd.Flags().StringVar(&clusterName, "cluster-name", "", "Name of the EKS cluster")
 	cmd.Flags().StringVar(&karpenterNamespace, "karpenter-namespace", "dd-karpenter", "Name of the Kubernetes namespace to deploy Karpenter into")
 	cmd.Flags().StringVar(&karpenterVersion, "karpenter-version", "", "Version of Karpenter to install (default to latest)")
+	cmd.Flags().Var(&installMode, "install-mode", "How to run the Karpenter controller: fargate (on dedicated Fargate nodes, default) or existing-nodes (on existing cluster nodes)")
+	cmd.Flags().StringSliceVar(&fargateSubnets, "fargate-subnets", nil, "Override auto-discovery of private subnets for the Fargate profile (comma-separated subnet IDs). Only used when --install-mode=fargate.")
 	cmd.Flags().Var(&createKarpenterResources, "create-karpenter-resources", "Which Karpenter resources to create: none, ec2nodeclass, all (default: all)")
 	cmd.Flags().Var(&inferenceMethod, "inference-method", "Method to infer EC2NodeClass and NodePool properties: nodes, nodegroups")
 	cmd.Flags().BoolVar(&debug, "debug", false, "Enable debug logs")
@@ -187,6 +236,14 @@ func (o *options) complete(cmd *cobra.Command, args []string) error {
 func (o *options) validate() error {
 	if len(o.args) > 0 {
 		return errors.New("no arguments are allowed")
+	}
+
+	if !slices.Contains([]InstallMode{InstallModeFargate, InstallModeExistingNodes}, installMode) {
+		return errors.New("install-mode must be one of fargate or existing-nodes")
+	}
+
+	if len(fargateSubnets) > 0 && installMode != InstallModeFargate {
+		return errors.New("--fargate-subnets can only be used with --install-mode=fargate")
 	}
 
 	if !slices.Contains([]CreateKarpenterResources{CreateKarpenterResourcesNone, CreateKarpenterResourcesEC2NodeClass, CreateKarpenterResourcesAll}, createKarpenterResources) {
@@ -234,7 +291,8 @@ func (o *options) run(cmd *cobra.Command) error {
 		return err
 	}
 
-	if err = createCloudFormationStacks(ctx, cli, clusterName, karpenterNamespace); err != nil {
+	irsaRoleArn, err := createCloudFormationStacks(ctx, cli, clusterName, karpenterNamespace, installMode, fargateSubnets)
+	if err != nil {
 		return err
 	}
 
@@ -242,7 +300,7 @@ func (o *options) run(cmd *cobra.Command) error {
 		return err
 	}
 
-	if err = o.installHelmChart(ctx, clusterName, karpenterNamespace, karpenterVersion, debug); err != nil {
+	if err = o.installHelmChart(ctx, clusterName, karpenterNamespace, karpenterVersion, debug, installMode, irsaRoleArn); err != nil {
 		return err
 	}
 
@@ -253,32 +311,144 @@ func (o *options) run(cmd *cobra.Command) error {
 	return displaySuccessMessage(cmd, clusterName, createKarpenterResources)
 }
 
-func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, clusterName string, karpenterNamespace string) error {
-	if err := aws.CreateOrUpdateStack(ctx, cli.CloudFormation, "dd-karpenter-"+clusterName+"-karpenter", KarpenterCfn, map[string]string{
+// createCloudFormationStacks creates (or updates) the CFN stacks required for
+// the selected install mode. Returns the IRSA role ARN when the mode is
+// fargate; empty string otherwise.
+func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, clusterName, karpenterNamespace string, mode InstallMode, fargateSubnetsOverride []string) (string, error) {
+	// The first stack (karpenter.yaml) is mode-independent — its resources
+	// (KarpenterNodeRole, KarpenterControllerPolicy, SQS, EventBridge) are
+	// identical in both modes, so no guardrail or install-mode tag is needed.
+	karpenterStackName := "dd-karpenter-" + clusterName + "-karpenter"
+	if err := aws.CreateOrUpdateStack(ctx, cli.CloudFormation, karpenterStackName, KarpenterCfn, map[string]string{
 		"ClusterName": clusterName,
-	}); err != nil {
-		return fmt.Errorf("failed to create or update Cloud Formation stack: %w", err)
+	}, nil); err != nil {
+		return "", fmt.Errorf("failed to create or update Cloud Formation stack: %w", err)
 	}
 
-	isUnmanagedEKSPIAInstalled, err := guess.IsThereUnmanagedEKSPodIdentityAgentInstalled(ctx, cli.EKS, clusterName)
+	describeOut, err := cli.EKS.DescribeCluster(ctx, &eks.DescribeClusterInput{Name: awssdk.String(clusterName)})
 	if err != nil {
-		return fmt.Errorf("failed to check if EKS pod identity agent is installed: %w", err)
+		return "", fmt.Errorf("failed to describe cluster %s: %w", clusterName, err)
 	}
+	cluster := describeOut.Cluster
+	supportsAPIAuth := guess.SupportsAPIAuthenticationMode(cluster)
 
-	supportsAPIAuth, err := guess.SupportsAPIAuthenticationMode(ctx, cli.EKS, clusterName)
+	ddStackName := "dd-karpenter-" + clusterName + "-dd-karpenter"
+	ddStack, err := aws.GetStack(ctx, cli.CloudFormation, ddStackName)
 	if err != nil {
-		return fmt.Errorf("failed to check cluster authentication mode: %w", err)
+		return "", err
 	}
-
-	if err := aws.CreateOrUpdateStack(ctx, cli.CloudFormation, "dd-karpenter-"+clusterName+"-dd-karpenter", DdKarpenterCfn, map[string]string{
-		"ClusterName":            clusterName,
-		"KarpenterNamespace":     karpenterNamespace,
-		"DeployPodIdentityAddon": strconv.FormatBool(!isUnmanagedEKSPIAInstalled),
-		"DeployNodeAccessEntry":  strconv.FormatBool(supportsAPIAuth),
-	}); err != nil {
-		return fmt.Errorf("failed to create or update Cloud Formation stack: %w", err)
+	if err := checkInstallModeTag(ddStack, mode); err != nil {
+		return "", err
 	}
+	modeTags := map[string]string{installModeTagKey: string(mode)}
 
+	switch mode {
+	case InstallModeExistingNodes:
+		isUnmanagedEKSPIAInstalled, err := guess.IsThereUnmanagedEKSPodIdentityAgentInstalled(ctx, cli.EKS, clusterName)
+		if err != nil {
+			return "", fmt.Errorf("failed to check if EKS pod identity agent is installed: %w", err)
+		}
+		if err := aws.CreateOrUpdateStackWithExisting(ctx, cli.CloudFormation, ddStackName, DdKarpenterCfn, map[string]string{
+			"ClusterName":            clusterName,
+			"KarpenterNamespace":     karpenterNamespace,
+			"DeployPodIdentityAddon": strconv.FormatBool(!isUnmanagedEKSPIAInstalled),
+			"DeployNodeAccessEntry":  strconv.FormatBool(supportsAPIAuth),
+		}, modeTags, ddStack); err != nil {
+			return "", fmt.Errorf("failed to create or update Cloud Formation stack: %w", err)
+		}
+		return "", nil
+
+	case InstallModeFargate:
+		issuerURL, err := guess.GetClusterOIDCIssuerURL(cluster)
+		if err != nil {
+			return "", fmt.Errorf("failed to get cluster OIDC issuer URL: %w", err)
+		}
+		oidcArn, err := guess.EnsureOIDCProvider(ctx, cli.IAM, issuerURL)
+		if err != nil {
+			return "", fmt.Errorf("failed to ensure OIDC provider: %w", err)
+		}
+
+		subnets := fargateSubnetsOverride
+		if len(subnets) == 0 {
+			subnets, err = guess.GetClusterPrivateSubnets(ctx, cli.EC2, cluster)
+			if err != nil {
+				return "", fmt.Errorf("failed to discover private subnets: %w", err)
+			}
+		}
+		// Sort so that different orderings of the same subnet set produce the
+		// same CloudFormation parameter value, making reruns idempotent and
+		// the immutability check order-independent.
+		slices.Sort(subnets)
+
+		if err = checkFargateStackImmutability(ddStack, karpenterNamespace, subnets); err != nil {
+			return "", err
+		}
+
+		if err = aws.CreateOrUpdateStackWithExisting(ctx, cli.CloudFormation, ddStackName, DdKarpenterFargateCfn, map[string]string{
+			"ClusterName":           clusterName,
+			"KarpenterNamespace":    karpenterNamespace,
+			"OIDCProviderArn":       oidcArn,
+			"OIDCProviderURL":       strings.TrimPrefix(issuerURL, "https://"),
+			"FargateSubnets":        strings.Join(subnets, ","),
+			"DeployNodeAccessEntry": strconv.FormatBool(supportsAPIAuth),
+		}, modeTags, ddStack); err != nil {
+			return "", fmt.Errorf("failed to create or update Cloud Formation stack: %w", err)
+		}
+
+		// Re-read the stack to pick up the outputs (not present pre-create).
+		updated, err := aws.GetStack(ctx, cli.CloudFormation, ddStackName)
+		if err != nil {
+			return "", fmt.Errorf("failed to read stack outputs: %w", err)
+		}
+		if updated == nil {
+			return "", fmt.Errorf("stack %s disappeared right after successful create/update", ddStackName)
+		}
+		irsaRoleArn := updated.OutputMap()["KarpenterRoleArn"]
+		if irsaRoleArn == "" {
+			return "", fmt.Errorf("stack %s did not produce a KarpenterRoleArn output", ddStackName)
+		}
+		return irsaRoleArn, nil
+
+	default:
+		return "", fmt.Errorf("unsupported install mode %q", mode)
+	}
+}
+
+// checkInstallModeTag verifies that an existing CFN stack's install-mode tag
+// matches the requested mode. Stacks created before this tag was introduced
+// have no tag and are treated as install-mode=existing-nodes.
+func checkInstallModeTag(stack *aws.Stack, expected InstallMode) error {
+	if stack == nil {
+		return nil // fresh install
+	}
+	existing := InstallModeExistingNodes
+	if tag, ok := stack.TagMap()[installModeTagKey]; ok && tag != "" {
+		existing = InstallMode(tag)
+	}
+	if existing != expected {
+		return fmt.Errorf("stack %s was created with --install-mode=%s; run 'kubectl datadog autoscaling cluster uninstall' first to switch to --install-mode=%s", awssdk.ToString(stack.StackName), existing, expected)
+	}
+	return nil
+}
+
+// checkFargateStackImmutability refuses to update an existing Fargate stack
+// when its KarpenterNamespace or FargateSubnets parameters differ from the
+// current ones. The underlying AWS::EKS::FargateProfile resource has a pinned
+// FargateProfileName and its Selectors/Subnets are CreateOnly properties; a
+// CloudFormation update with changed parameters would fail during replacement.
+func checkFargateStackImmutability(stack *aws.Stack, namespace string, subnets []string) error {
+	if stack == nil {
+		return nil // fresh install
+	}
+	stackName := awssdk.ToString(stack.StackName)
+	params := stack.ParameterMap()
+	if existing, ok := params["KarpenterNamespace"]; ok && existing != namespace {
+		return fmt.Errorf("stack %s was created with KarpenterNamespace=%s; run 'kubectl datadog autoscaling cluster uninstall' first to change it to %s", stackName, existing, namespace)
+	}
+	newSubnets := strings.Join(subnets, ",")
+	if existing, ok := params["FargateSubnets"]; ok && existing != newSubnets {
+		return fmt.Errorf("stack %s was created with FargateSubnets=%s; run 'kubectl datadog autoscaling cluster uninstall' first to change them to %s", stackName, existing, newSubnets)
+	}
 	return nil
 }
 
@@ -310,7 +480,7 @@ func updateAwsAuthConfigMap(ctx context.Context, cli *clients.Clients, clusterNa
 	return nil
 }
 
-func (o *options) installHelmChart(ctx context.Context, clusterName string, karpenterNamespace string, karpenterVersion string, debug bool) error {
+func (o *options) installHelmChart(ctx context.Context, clusterName, karpenterNamespace, karpenterVersion string, debug bool, mode InstallMode, irsaRoleArn string) error {
 	actionConfig, err := helm.NewActionConfig(o.ConfigFlags, karpenterNamespace)
 	if err != nil {
 		return err
@@ -324,6 +494,24 @@ func (o *options) installHelmChart(ctx context.Context, clusterName string, karp
 		return fmt.Errorf("failed to create registry client: %w", err)
 	}
 
+	if err = helm.CreateOrUpgrade(ctx, actionConfig, "karpenter", karpenterNamespace, karpenterOCIRegistry, karpenterVersion, karpenterHelmValues(clusterName, mode, irsaRoleArn)); err != nil {
+		return fmt.Errorf("failed to create or update Helm release: %w", err)
+	}
+
+	return nil
+}
+
+// karpenterHelmValues returns the Helm values for the Karpenter chart.
+//
+// resources are always set: the chart's default is {}, which in Fargate mode
+// falls back to Fargate's default (0.25 vCPU / 0.5 GiB) and OOMs the
+// controller, and in existing-nodes mode leaves the pod without any request.
+// 1 vCPU / 2 GiB is the smallest valid Fargate combination for 1 vCPU and
+// matches the chart's documented example for existing-nodes.
+//
+// In fargate mode, the service account is annotated with the IRSA role ARN so
+// the controller can assume the role via sts:AssumeRoleWithWebIdentity.
+func karpenterHelmValues(clusterName string, mode InstallMode, irsaRoleArn string) map[string]any {
 	values := map[string]any{
 		"additionalLabels": map[string]string{
 			"app.kubernetes.io/managed-by": "kubectl-datadog",
@@ -345,13 +533,21 @@ func (o *options) installHelmChart(ctx context.Context, clusterName string, karp
   }
 }`,
 		},
+		"resources": map[string]any{
+			"requests": map[string]string{"cpu": "1", "memory": "2Gi"},
+			"limits":   map[string]string{"cpu": "1", "memory": "2Gi"},
+		},
 	}
 
-	if err = helm.CreateOrUpgrade(ctx, actionConfig, "karpenter", karpenterNamespace, karpenterOCIRegistry, karpenterVersion, values); err != nil {
-		return fmt.Errorf("failed to create or update Helm release: %w", err)
+	if mode == InstallModeFargate {
+		values["serviceAccount"] = map[string]any{
+			"annotations": map[string]string{
+				"eks.amazonaws.com/role-arn": irsaRoleArn,
+			},
+		}
 	}
 
-	return nil
+	return values
 }
 
 func createNodePoolResources(ctx context.Context, cmd *cobra.Command, cli *clients.Clients, clusterName string, createResources CreateKarpenterResources, inferenceMethod InferenceMethod, debug bool) error {
