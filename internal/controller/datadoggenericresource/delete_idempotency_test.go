@@ -49,6 +49,27 @@ func newTestHTTPServer(statusCode int, body string) *httptest.Server {
 	}))
 }
 
+func Test_deleteMonitor_idempotent(t *testing.T) {
+	for _, tc := range defaultDeleteCases {
+		t.Run(tc.name, func(t *testing.T) {
+			server := newTestHTTPServer(tc.statusCode, tc.body)
+			defer server.Close()
+
+			cfg := datadogapi.NewConfiguration()
+			cfg.HTTPClient = server.Client()
+			client := datadogV1.NewMonitorsApi(datadogapi.NewAPIClient(cfg))
+			auth := setupTestAuth(server.URL)
+
+			err := deleteMonitor(auth, client, "12345")
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func Test_deleteNotebook_idempotent(t *testing.T) {
 	for _, tc := range defaultDeleteCases {
 		t.Run(tc.name, func(t *testing.T) {
