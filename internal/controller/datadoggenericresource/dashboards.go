@@ -80,7 +80,14 @@ func updateDashboard(auth context.Context, client *datadogV1.DashboardsApi, inst
 }
 
 func deleteDashboard(auth context.Context, client *datadogV1.DashboardsApi, dashboardID string) error {
-	if _, _, err := client.DeleteDashboard(auth, dashboardID); err != nil {
+	_, httpResponse, err := client.DeleteDashboard(auth, dashboardID)
+	if err != nil {
+		// Deletion is idempotent for finalization: if the dashboard was already removed
+		// in Datadog (for example from the UI), allow the Kubernetes finalizer to clear.
+		// Retry other errors (e.g. 400, 401, 429, 5XX).
+		if httpResponse != nil && httpResponse.StatusCode == 404 {
+			return nil
+		}
 		return translateClientError(err, "error deleting dashboard")
 	}
 	return nil

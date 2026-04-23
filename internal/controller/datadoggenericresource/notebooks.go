@@ -57,7 +57,14 @@ func deleteNotebook(auth context.Context, client *datadogV1.NotebooksApi, notebo
 	if err != nil {
 		return err
 	}
-	if _, err := client.DeleteNotebook(auth, notebookID); err != nil {
+	httpResponse, err := client.DeleteNotebook(auth, notebookID)
+	if err != nil {
+		// Deletion is idempotent for finalization: if the notebook was already removed
+		// in Datadog (for example from the UI), allow the Kubernetes finalizer to clear.
+		// Retry other errors (e.g. 400, 401, 429, 5XX).
+		if httpResponse != nil && httpResponse.StatusCode == 404 {
+			return nil
+		}
 		return translateClientError(err, "error deleting notebook")
 	}
 	return nil
