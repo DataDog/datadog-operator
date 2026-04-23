@@ -371,6 +371,10 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 	}
 	managers.EnvVar().AddEnvVarToContainer(targetContainer, runInSystemProbeEnvVar)
 
+	if f.runInSystemProbe {
+		managers.SecurityContext().AddCapabilitiesToContainer([]corev1.Capability{"KILL"}, apicommon.SystemProbeContainerName)
+	}
+
 	return nil
 }
 
