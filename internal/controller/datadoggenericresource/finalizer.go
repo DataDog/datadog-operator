@@ -31,7 +31,7 @@ func (r *Reconciler) deleteResource(logger logr.Logger) finalizer.ResourceDelete
 		err := handler.deleteResource(instance)
 		if err != nil {
 			logger.Error(err, "failed to finalize", "custom resource Id", fmt.Sprint(datadogID))
-			return nil
+			return err
 		}
 		logger.Info("Successfully finalized DatadogGenericResource", "custom resource Id", fmt.Sprint(datadogID))
 		event := buildEventInfo(k8sObj.GetName(), k8sObj.GetNamespace(), datadog.DeletionEvent)
