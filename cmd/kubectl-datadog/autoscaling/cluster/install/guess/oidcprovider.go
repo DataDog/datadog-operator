@@ -59,7 +59,7 @@ func EnsureOIDCProvider(ctx context.Context, iamClient OIDCProviderAPI, issuerUR
 			continue
 		}
 		getOut, getErr := iamClient.GetOpenIDConnectProvider(ctx, &iam.GetOpenIDConnectProviderInput{
-			OpenIDConnectProviderArn: aws.String(providerArn),
+			OpenIDConnectProviderArn: provider.Arn,
 		})
 		if getErr != nil {
 			return "", fmt.Errorf("failed to get OIDC provider %s: %w", providerArn, getErr)
@@ -124,10 +124,7 @@ func waitForOIDCProviderReadable(ctx context.Context, iamClient OIDCProviderAPI,
 // uppercase path ID must NOT collide with a different URL whose path only
 // differs by case.
 func normalizeOIDCURL(url string) string {
-	const httpsPrefix = "https://"
-	if len(url) >= len(httpsPrefix) && strings.EqualFold(url[:len(httpsPrefix)], httpsPrefix) {
-		url = url[len(httpsPrefix):]
-	}
+	url = strings.TrimPrefix(url, "https://")
 	slash := strings.Index(url, "/")
 	if slash < 0 {
 		return strings.ToLower(url)

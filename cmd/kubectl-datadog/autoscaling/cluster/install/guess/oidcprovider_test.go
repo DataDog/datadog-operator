@@ -17,7 +17,7 @@ type fakeIAM struct {
 	providers map[string]string // arn -> url (as stored by IAM, without https://)
 
 	createCalls int
-	createURL   string
+	createInput *iam.CreateOpenIDConnectProviderInput // captured on Create
 	createErr   error
 	listErr     error
 	getErr      error
@@ -47,136 +47,119 @@ func (f *fakeIAM) GetOpenIDConnectProvider(_ context.Context, params *iam.GetOpe
 
 func (f *fakeIAM) CreateOpenIDConnectProvider(_ context.Context, params *iam.CreateOpenIDConnectProviderInput, _ ...func(*iam.Options)) (*iam.CreateOpenIDConnectProviderOutput, error) {
 	f.createCalls++
-	f.createURL = aws.ToString(params.Url)
+	f.createInput = params
 	if f.createErr != nil {
 		return nil, f.createErr
 	}
-	arn := "arn:aws:iam::123456789012:oidc-provider/" + normalizeOIDCURL(f.createURL)
+	normalized := normalizeOIDCURL(aws.ToString(params.Url))
+	arn := "arn:aws:iam::123456789012:oidc-provider/" + normalized
 	if f.providers == nil {
 		f.providers = map[string]string{}
 	}
-	f.providers[arn] = normalizeOIDCURL(f.createURL)
+	f.providers[arn] = normalized
 	return &iam.CreateOpenIDConnectProviderOutput{OpenIDConnectProviderArn: aws.String(arn)}, nil
 }
 
-func TestEnsureOIDCProvider_AlreadyExists(t *testing.T) {
-	existingArn := "arn:aws:iam::123456789012:oidc-provider/oidc.eks.eu-west-3.amazonaws.com/id/ABCDEF"
-	f := &fakeIAM{
-		providers: map[string]string{
-			existingArn: "oidc.eks.eu-west-3.amazonaws.com/id/ABCDEF",
+func TestEnsureOIDCProvider(t *testing.T) {
+	const (
+		issuerURL   = "https://oidc.eks.eu-west-3.amazonaws.com/id/ABCDEF"
+		issuerStore = "oidc.eks.eu-west-3.amazonaws.com/id/ABCDEF"
+		issuerArn   = "arn:aws:iam::123456789012:oidc-provider/" + issuerStore
+	)
+
+	for _, tc := range []struct {
+		name          string
+		existing      map[string]string
+		listErr       error
+		createErr     error
+		issuerURL     string
+		expectError   bool
+		errorContains string
+		// When Create is NOT expected: expectArn is checked against the returned ARN.
+		// When Create IS expected: expectCreateURL holds the URL Create must receive.
+		expectArn       string
+		expectCreateURL string
+	}{
+		{
+			name:      "provider already exists",
+			existing:  map[string]string{issuerArn: issuerStore},
+			issuerURL: issuerURL,
+			expectArn: issuerArn,
 		},
-	}
-
-	arn, err := EnsureOIDCProvider(context.Background(), f, "https://oidc.eks.eu-west-3.amazonaws.com/id/ABCDEF")
-
-	require.NoError(t, err)
-	assert.Equal(t, existingArn, arn)
-	assert.Equal(t, 0, f.createCalls, "should not create when provider already exists")
-}
-
-func TestEnsureOIDCProvider_CaseInsensitiveHostMatch(t *testing.T) {
-	existingArn := "arn:aws:iam::123456789012:oidc-provider/oidc.eks.eu-west-3.amazonaws.com/id/ABCDEF"
-	f := &fakeIAM{
-		providers: map[string]string{
-			existingArn: "oidc.eks.eu-west-3.amazonaws.com/id/ABCDEF",
+		{
+			name:      "host match is case-insensitive (RFC 3986)",
+			existing:  map[string]string{issuerArn: issuerStore},
+			issuerURL: "https://OIDC.EKS.EU-WEST-3.AMAZONAWS.COM/id/ABCDEF",
+			expectArn: issuerArn,
 		},
-	}
-
-	// Scheme and host are case-insensitive per RFC 3986.
-	arn, err := EnsureOIDCProvider(context.Background(), f, "HTTPS://OIDC.EKS.EU-WEST-3.AMAZONAWS.COM/id/ABCDEF")
-
-	require.NoError(t, err)
-	assert.Equal(t, existingArn, arn)
-	assert.Equal(t, 0, f.createCalls)
-}
-
-func TestEnsureOIDCProvider_PathIsCaseSensitive(t *testing.T) {
-	// Two providers whose URLs differ only by path case must not be treated as
-	// equal: the path is case-sensitive per RFC 3986.
-	existingArn := "arn:aws:iam::123456789012:oidc-provider/oidc.eks.eu-west-3.amazonaws.com/id/abcdef"
-	f := &fakeIAM{
-		providers: map[string]string{
-			existingArn: "oidc.eks.eu-west-3.amazonaws.com/id/abcdef",
+		{
+			name: "path match is case-sensitive (RFC 3986)",
+			existing: map[string]string{
+				"arn:aws:iam::123456789012:oidc-provider/oidc.eks.eu-west-3.amazonaws.com/id/abcdef": "oidc.eks.eu-west-3.amazonaws.com/id/abcdef",
+			},
+			issuerURL:       issuerURL,
+			expectCreateURL: issuerURL,
 		},
+		{
+			name:            "creates when list is an empty map",
+			existing:        map[string]string{},
+			issuerURL:       "https://oidc.eks.eu-west-3.amazonaws.com/id/NEW",
+			expectCreateURL: "https://oidc.eks.eu-west-3.amazonaws.com/id/NEW",
+		},
+		{
+			name:            "creates when list is nil",
+			existing:        nil,
+			issuerURL:       "https://oidc.eks.eu-west-3.amazonaws.com/id/XYZ",
+			expectCreateURL: "https://oidc.eks.eu-west-3.amazonaws.com/id/XYZ",
+		},
+		{
+			name:          "list error propagates",
+			listErr:       errors.New("api throttled"),
+			issuerURL:     issuerURL,
+			expectError:   true,
+			errorContains: "failed to list OIDC providers",
+		},
+		{
+			name:          "create error propagates",
+			existing:      map[string]string{},
+			createErr:     errors.New("quota exceeded"),
+			issuerURL:     issuerURL,
+			expectError:   true,
+			errorContains: "failed to create OIDC provider",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := &fakeIAM{
+				providers: tc.existing,
+				listErr:   tc.listErr,
+				createErr: tc.createErr,
+			}
+
+			arn, err := EnsureOIDCProvider(t.Context(), f, tc.issuerURL)
+
+			if tc.expectError {
+				require.Error(t, err)
+				if tc.errorContains != "" {
+					assert.Contains(t, err.Error(), tc.errorContains)
+				}
+				return
+			}
+			require.NoError(t, err)
+
+			if tc.expectCreateURL == "" {
+				assert.Equal(t, 0, f.createCalls, "Create must not be called when an existing provider matches")
+				assert.Equal(t, tc.expectArn, arn)
+				return
+			}
+
+			assert.Equal(t, 1, f.createCalls)
+			require.NotNil(t, f.createInput)
+			assert.Equal(t, tc.expectCreateURL, aws.ToString(f.createInput.Url))
+			assert.Equal(t, []string{"sts.amazonaws.com"}, f.createInput.ClientIDList)
+			assert.Nil(t, f.createInput.ThumbprintList, "ThumbprintList must be omitted so IAM auto-fetches it")
+			assert.Contains(t, arn, "oidc-provider/")
+		})
 	}
-
-	arn, err := EnsureOIDCProvider(context.Background(), f, "https://oidc.eks.eu-west-3.amazonaws.com/id/ABCDEF")
-
-	require.NoError(t, err)
-	assert.NotEqual(t, existingArn, arn)
-	assert.Equal(t, 1, f.createCalls)
-}
-
-func TestEnsureOIDCProvider_CreatesWhenMissing(t *testing.T) {
-	f := &fakeIAM{providers: map[string]string{}}
-
-	arn, err := EnsureOIDCProvider(context.Background(), f, "https://oidc.eks.eu-west-3.amazonaws.com/id/NEW")
-
-	require.NoError(t, err)
-	assert.Equal(t, 1, f.createCalls)
-	assert.Equal(t, "https://oidc.eks.eu-west-3.amazonaws.com/id/NEW", f.createURL)
-	assert.Contains(t, arn, "oidc-provider/")
-}
-
-func TestEnsureOIDCProvider_CreatesWhenListEmpty(t *testing.T) {
-	f := &fakeIAM{}
-
-	_, err := EnsureOIDCProvider(context.Background(), f, "https://oidc.eks.eu-west-3.amazonaws.com/id/XYZ")
-
-	require.NoError(t, err)
-	assert.Equal(t, 1, f.createCalls)
-}
-
-func TestEnsureOIDCProvider_ListError(t *testing.T) {
-	f := &fakeIAM{listErr: errors.New("api throttled")}
-
-	_, err := EnsureOIDCProvider(context.Background(), f, "https://oidc.eks.eu-west-3.amazonaws.com/id/XYZ")
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to list OIDC providers")
-}
-
-func TestEnsureOIDCProvider_CreateError(t *testing.T) {
-	f := &fakeIAM{
-		providers: map[string]string{},
-		createErr: errors.New("quota exceeded"),
-	}
-
-	_, err := EnsureOIDCProvider(context.Background(), f, "https://oidc.eks.eu-west-3.amazonaws.com/id/XYZ")
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to create OIDC provider")
-}
-
-func TestEnsureOIDCProvider_CreateRequestsSTSClientID(t *testing.T) {
-	var capturedInput *iam.CreateOpenIDConnectProviderInput
-	captureIAM := &captureCreateIAM{inner: &fakeIAM{}}
-	captureIAM.capture = &capturedInput
-
-	_, err := EnsureOIDCProvider(context.Background(), captureIAM, "https://oidc.eks.eu-west-3.amazonaws.com/id/XYZ")
-	require.NoError(t, err)
-
-	require.NotNil(t, capturedInput)
-	assert.Equal(t, []string{"sts.amazonaws.com"}, capturedInput.ClientIDList)
-	assert.Nil(t, capturedInput.ThumbprintList, "ThumbprintList must be omitted so IAM auto-fetches it")
-}
-
-type captureCreateIAM struct {
-	inner   *fakeIAM
-	capture **iam.CreateOpenIDConnectProviderInput
-}
-
-func (c *captureCreateIAM) ListOpenIDConnectProviders(ctx context.Context, params *iam.ListOpenIDConnectProvidersInput, optFns ...func(*iam.Options)) (*iam.ListOpenIDConnectProvidersOutput, error) {
-	return c.inner.ListOpenIDConnectProviders(ctx, params, optFns...)
-}
-
-func (c *captureCreateIAM) GetOpenIDConnectProvider(ctx context.Context, params *iam.GetOpenIDConnectProviderInput, optFns ...func(*iam.Options)) (*iam.GetOpenIDConnectProviderOutput, error) {
-	return c.inner.GetOpenIDConnectProvider(ctx, params, optFns...)
-}
-
-func (c *captureCreateIAM) CreateOpenIDConnectProvider(ctx context.Context, params *iam.CreateOpenIDConnectProviderInput, optFns ...func(*iam.Options)) (*iam.CreateOpenIDConnectProviderOutput, error) {
-	*c.capture = params
-	return c.inner.CreateOpenIDConnectProvider(ctx, params, optFns...)
 }
 
 func TestGetClusterOIDCIssuerURL(t *testing.T) {

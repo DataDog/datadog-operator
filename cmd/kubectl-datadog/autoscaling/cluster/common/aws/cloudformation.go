@@ -39,13 +39,9 @@ func CreateOrUpdateStackWithExisting(ctx context.Context, client *cloudformation
 }
 
 func createOrUpdateStack(ctx context.Context, client *cloudformation.Client, stackName string, templateBody string, params map[string]string, extraTags map[string]string, exists bool) error {
-	parameters := make([]types.Parameter, 0, len(params))
-	for key, value := range params {
-		parameters = append(parameters, types.Parameter{
-			ParameterKey:   aws.String(key),
-			ParameterValue: aws.String(value),
-		})
-	}
+	parameters := lo.MapToSlice(params, func(key, value string) types.Parameter {
+		return types.Parameter{ParameterKey: aws.String(key), ParameterValue: aws.String(value)}
+	})
 	if exists {
 		return updateStack(ctx, client, stackName, templateBody, parameters, buildTags(extraTags))
 	} else {

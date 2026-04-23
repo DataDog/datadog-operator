@@ -54,8 +54,10 @@ func TestGetClusterPrivateSubnets(t *testing.T) {
 
 	for _, tc := range []struct {
 		name            string
+		cluster         *ekstypes.Cluster // overrides the default cluster built from clusterSubnets
 		clusterSubnets  []string
 		routeTables     []ec2types.RouteTable
+		ec2Err          error
 		expectedPrivate []string
 		expectError     bool
 		errorContains   string
@@ -189,18 +191,34 @@ func TestGetClusterPrivateSubnets(t *testing.T) {
 			},
 			expectedPrivate: []string{"subnet-tgw"},
 		},
+		{
+			name:          "cluster without VPC configuration",
+			cluster:       &ekstypes.Cluster{},
+			expectError:   true,
+			errorContains: "no VPC configuration",
+		},
+		{
+			name:           "DescribeRouteTables error propagates",
+			clusterSubnets: []string{"subnet-a"},
+			ec2Err:         errors.New("boom"),
+			expectError:    true,
+			errorContains:  "failed to describe route tables",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			cluster := &ekstypes.Cluster{
-				Name: aws.String("my-cluster"),
-				ResourcesVpcConfig: &ekstypes.VpcConfigResponse{
-					VpcId:     aws.String(vpcID),
-					SubnetIds: tc.clusterSubnets,
-				},
+			cluster := tc.cluster
+			if cluster == nil {
+				cluster = &ekstypes.Cluster{
+					Name: aws.String("my-cluster"),
+					ResourcesVpcConfig: &ekstypes.VpcConfigResponse{
+						VpcId:     aws.String(vpcID),
+						SubnetIds: tc.clusterSubnets,
+					},
+				}
 			}
-			ec2Client := &fakeEC2DescribeRouteTables{routeTables: tc.routeTables}
+			ec2Client := &fakeEC2DescribeRouteTables{routeTables: tc.routeTables, err: tc.ec2Err}
 
-			subnets, err := GetClusterPrivateSubnets(context.Background(), ec2Client, cluster)
+			subnets, err := GetClusterPrivateSubnets(t.Context(), ec2Client, cluster)
 
 			if tc.expectError {
 				require.Error(t, err)
@@ -214,29 +232,4 @@ func TestGetClusterPrivateSubnets(t *testing.T) {
 			assert.Equal(t, tc.expectedPrivate, subnets)
 		})
 	}
-}
-
-func TestGetClusterPrivateSubnets_NoVPCConfig(t *testing.T) {
-	ec2Client := &fakeEC2DescribeRouteTables{}
-
-	_, err := GetClusterPrivateSubnets(context.Background(), ec2Client, &ekstypes.Cluster{})
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no VPC configuration")
-}
-
-func TestGetClusterPrivateSubnets_DescribeRouteTablesError(t *testing.T) {
-	cluster := &ekstypes.Cluster{
-		Name: aws.String("my-cluster"),
-		ResourcesVpcConfig: &ekstypes.VpcConfigResponse{
-			VpcId:     aws.String("vpc-aaaa"),
-			SubnetIds: []string{"subnet-a"},
-		},
-	}
-	ec2Client := &fakeEC2DescribeRouteTables{err: errors.New("boom")}
-
-	_, err := GetClusterPrivateSubnets(context.Background(), ec2Client, cluster)
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to describe route tables")
 }
