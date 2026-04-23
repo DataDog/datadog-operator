@@ -27,6 +27,12 @@ func (r *Reconciler) deleteResource(logger logr.Logger) finalizer.ResourceDelete
 		if !ok {
 			return fmt.Errorf("unexpected object type %T", k8sObj)
 		}
+		if datadogID == "" {
+			logger.Info("No Datadog resource ID found; skipping remote deletion")
+			event := buildEventInfo(k8sObj.GetName(), k8sObj.GetNamespace(), datadog.DeletionEvent)
+			r.recordEvent(k8sObj, event)
+			return nil
+		}
 		handler := r.getHandler(instance.Spec.Type)
 		err := handler.deleteResource(instance)
 		if err != nil {
