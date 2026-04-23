@@ -19,6 +19,11 @@ const (
 	DDOrchestratorExplorerDDUrl                     = "DD_ORCHESTRATOR_EXPLORER_ORCHESTRATOR_DD_URL"
 	DDOrchestratorExplorerAdditionalEndpoints       = "DD_ORCHESTRATOR_ADDITIONAL_ENDPOINTS"
 	DDOrchestratorExplorerContainerScrubbingEnabled = "DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED"
+
+	// Network CRD collection — maps to orchestrator_explorer.custom_resources.ootb.* config keys
+	DDOrchestratorExplorerOOTBGatewayAPI         = "DD_ORCHESTRATOR_EXPLORER_CUSTOM_RESOURCES_OOTB_GATEWAY_API"
+	DDOrchestratorExplorerOOTBServiceMesh        = "DD_ORCHESTRATOR_EXPLORER_CUSTOM_RESOURCES_OOTB_SERVICE_MESH"
+	DDOrchestratorExplorerOOTBIngressControllers = "DD_ORCHESTRATOR_EXPLORER_CUSTOM_RESOURCES_OOTB_INGRESS_CONTROLLERS"
 )
 
 func (f *orchestratorExplorerFeature) getEnabledEnvVar() *corev1.EnvVar {
@@ -49,6 +54,15 @@ func (f *orchestratorExplorerFeature) getEnvVars() []*corev1.EnvVar {
 			Name:  DDOrchestratorExplorerDDUrl,
 			Value: f.ddURL,
 		})
+	}
+
+	if f.collectKubernetesNetworkResources {
+		trueVal := true
+		envVarsList = append(envVarsList,
+			&corev1.EnvVar{Name: DDOrchestratorExplorerOOTBGatewayAPI, Value: apiutils.BoolToString(&trueVal)},
+			&corev1.EnvVar{Name: DDOrchestratorExplorerOOTBServiceMesh, Value: apiutils.BoolToString(&trueVal)},
+			&corev1.EnvVar{Name: DDOrchestratorExplorerOOTBIngressControllers, Value: apiutils.BoolToString(&trueVal)},
+		)
 	}
 
 	return envVarsList
