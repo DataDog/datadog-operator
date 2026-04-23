@@ -15,6 +15,7 @@ var (
 	mockUpdateErr       error
 	mockDeleteErr       error
 	mockCreateCalls     int
+	mockDeleteCalls     int
 )
 
 // MockHandler is a test double for ResourceHandler.
@@ -39,6 +40,7 @@ func (h *MockHandler) updateResource(_ *v1alpha1.DatadogGenericResource) error {
 }
 
 func (h *MockHandler) deleteResource(_ *v1alpha1.DatadogGenericResource) error {
+	mockDeleteCalls++
 	return mockDeleteErr
 }
 
@@ -49,4 +51,5 @@ func resetMockHandlerState() {
 	mockUpdateErr = nil
 	mockDeleteErr = nil
 	mockCreateCalls = 0
+	mockDeleteCalls = 0
 }

@@ -76,7 +76,14 @@ func deleteDowntime(auth context.Context, client *datadogV2.DowntimesApi, downti
 	}
 	// Note: Downtimes canceled through the API are no longer active, but are retained for approximately two days before being permanently removed.
 	// The downtime may still appear in search results until it is permanently removed.
-	if _, err := client.CancelDowntime(auth, downtimeID); err != nil {
+	httpResponse, err := client.CancelDowntime(auth, downtimeID)
+	if err != nil {
+		// Deletion is idempotent for finalization: if the downtime was already
+		// permanently removed in Datadog (post 2-day retention), allow the
+		// Kubernetes finalizer to clear. Retry other errors (e.g. 400, 401, 429, 5XX).
+		if httpResponse != nil && httpResponse.StatusCode == 404 {
+			return nil
+		}
 		return translateClientError(err, "error deleting downtime")
 	}
 	return nil

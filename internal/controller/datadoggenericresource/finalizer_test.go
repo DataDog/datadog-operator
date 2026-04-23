@@ -7,6 +7,7 @@ package datadoggenericresource
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -116,4 +117,119 @@ func Test_handleFinalizer(t *testing.T) {
 		})
 	}
 
+}
+
+// Test_handleFinalizer_deleteErrorPropagates verifies that when the handler's
+// deleteResource returns an error (e.g. Datadog API rejected the delete with
+// 400 because the monitor is referenced by a composite), the shared Finalizer
+// propagates the error and keeps the finalizer in place. Before the CONS-8253
+// fix, this error was swallowed and the finalizer was removed, silently
+// orphaning the remote Datadog resource.
+func Test_handleFinalizer_deleteErrorPropagates(t *testing.T) {
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogGenericResource{})
+	metaNow := metav1.NewTime(time.Now())
+
+	defer resetMockHandlerState()
+	mockDeleteErr = errors.New("error deleting monitor: 400 Bad Request: monitor [12345] is referenced in composite monitors: [67890]")
+
+	obj := &datadoghqv1alpha1.DatadogGenericResource{
+		TypeMeta: metav1.TypeMeta{
+			Kind: genericResourceKind,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "genericresource-delete-blocked",
+			Namespace:         testNamespace,
+			Finalizers:        []string{datadogGenericResourceFinalizer},
+			DeletionTimestamp: &metaNow,
+		},
+		Spec: datadoghqv1alpha1.DatadogGenericResourceSpec{
+			Type: v1alpha1.Notebook,
+		},
+		Status: datadoghqv1alpha1.DatadogGenericResourceStatus{
+			Id: "12345",
+		},
+	}
+
+	r := &Reconciler{
+		handlers: map[v1alpha1.SupportedResourcesType]ResourceHandler{
+			v1alpha1.Notebook: &MockHandler{},
+		},
+		client: fake.NewClientBuilder().
+			WithRuntimeObjects(obj).
+			WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
+		scheme:   s,
+		log:      testLogger,
+		recorder: testMgr.GetEventRecorderFor(genericResourceKind),
+	}
+
+	ctx := ctrl.LoggerInto(context.TODO(), testLogger)
+	reqLogger := ctrl.LoggerFrom(ctx)
+	testGcr := &datadoghqv1alpha1.DatadogGenericResource{}
+	getErr := r.client.Get(ctx, client.ObjectKey{Name: obj.Name, Namespace: testNamespace}, testGcr)
+	assert.NoError(t, getErr)
+
+	final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger), defaultRequeuePeriod, defaultErrRequeuePeriod)
+	_, err := final.HandleFinalizer(context.TODO(), testGcr, testGcr.Status.Id, datadogGenericResourceFinalizer)
+
+	// The error must propagate up from the handler so the shared Finalizer
+	// skips RemoveFinalizer and requeues.
+	assert.Error(t, err)
+	// And the finalizer must still be present so the object stays in
+	// Terminating state until the underlying issue is resolved.
+	assert.True(t, controllerutil.ContainsFinalizer(testGcr, datadogGenericResourceFinalizer))
+}
+
+func Test_handleFinalizer_deleteWithoutStatusIDRemovesFinalizer(t *testing.T) {
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogGenericResource{})
+	metaNow := metav1.NewTime(time.Now())
+
+	defer resetMockHandlerState()
+	mockDeleteErr = errors.New("delete should not be called when status.id is empty")
+
+	obj := &datadoghqv1alpha1.DatadogGenericResource{
+		TypeMeta: metav1.TypeMeta{
+			Kind: genericResourceKind,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "genericresource-delete-without-status-id",
+			Namespace:         testNamespace,
+			Finalizers:        []string{datadogGenericResourceFinalizer},
+			DeletionTimestamp: &metaNow,
+		},
+		Spec: datadoghqv1alpha1.DatadogGenericResourceSpec{
+			Type: v1alpha1.Notebook,
+		},
+	}
+
+	r := &Reconciler{
+		handlers: map[v1alpha1.SupportedResourcesType]ResourceHandler{
+			v1alpha1.Notebook: &MockHandler{},
+		},
+		client: fake.NewClientBuilder().
+			WithRuntimeObjects(obj).
+			WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
+		scheme:   s,
+		log:      testLogger,
+		recorder: testMgr.GetEventRecorderFor(genericResourceKind),
+	}
+
+	ctx := ctrl.LoggerInto(context.TODO(), testLogger)
+	reqLogger := ctrl.LoggerFrom(ctx)
+	testGcr := &datadoghqv1alpha1.DatadogGenericResource{}
+	getErr := r.client.Get(ctx, client.ObjectKey{Name: obj.Name, Namespace: testNamespace}, testGcr)
+	assert.NoError(t, getErr)
+
+	final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger), defaultRequeuePeriod, defaultErrRequeuePeriod)
+	result, err := final.HandleFinalizer(context.TODO(), testGcr, testGcr.Status.Id, datadogGenericResourceFinalizer)
+
+	// Finalization should succeed because an empty status ID means there is no remote Datadog object to delete.
+	assert.NoError(t, err)
+	// Once the finalizer is cleared, reconciliation falls back to the normal post-delete requeue cadence.
+	assert.Equal(t, ctrl.Result{RequeueAfter: defaultRequeuePeriod}, result)
+	// The handler-level delete must be skipped entirely when there is no Datadog ID.
+	assert.Equal(t, 0, mockDeleteCalls)
+	// Clearing the finalizer allows Kubernetes garbage collection to complete the deletion.
+	assert.False(t, controllerutil.ContainsFinalizer(testGcr, datadogGenericResourceFinalizer))
 }

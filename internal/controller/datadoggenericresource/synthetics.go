@@ -101,7 +101,14 @@ func deleteSyntheticTest(auth context.Context, client *datadogV1.SyntheticsApi, 
 			ID,
 		},
 	}
-	if _, _, err := client.DeleteTests(auth, body); err != nil {
+	_, httpResponse, err := client.DeleteTests(auth, body)
+	if err != nil {
+		// Deletion is idempotent for finalization: if the synthetic test was already
+		// removed in Datadog (for example from the UI), allow the Kubernetes finalizer
+		// to clear. Retry other errors (e.g. 400, 401, 429, 5XX).
+		if httpResponse != nil && httpResponse.StatusCode == 404 {
+			return nil
+		}
 		return translateClientError(err, "error deleting synthetic test")
 	}
 	return nil
