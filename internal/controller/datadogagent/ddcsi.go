@@ -190,6 +190,14 @@ func (r *Reconciler) createOrUpdateDatadogCSIDriver(ctx context.Context, logger 
 		return nil
 	}
 
+	// Safety: if a DatadogCSIDriver with the same namespace/name exists but wasn't created by
+	// this DDA (no controller reference), don't touch it. Mirrors the cleanup guard below; avoids
+	// clobbering a standalone DatadogCSIDriver a user maintains with the same name as their DDA.
+	if !metav1.IsControlledBy(existing, instance) {
+		logger.V(1).Info("DatadogCSIDriver exists but is not owned by this DatadogAgent, skipping update", "name", existing.Name, "namespace", existing.Namespace)
+		return nil
+	}
+
 	// Update if the spec has drifted from the desired state.
 	//
 	// Use a JSON merge patch rather than a full Update so only fields we actually own (.spec,

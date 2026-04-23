@@ -330,6 +330,38 @@ func TestReconcileDatadogCSIDriver_CleanupSkipsNotOwned(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestReconcileDatadogCSIDriver_UpdateSkipsUnownedCR(t *testing.T) {
+	// If a DatadogCSIDriver with the same namespace/name already exists but wasn't created by
+	// this DDA (no controller ref), the update path must not clobber its spec/labels/annotations.
+	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
+
+	customPath := "/user/managed/apm.socket"
+	foreign := &v1alpha1.DatadogCSIDriver{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-dda",
+			Namespace: "default",
+			Labels:    map[string]string{"user.example.com/owner": "alice"},
+		},
+		Spec: v1alpha1.DatadogCSIDriverSpec{APMSocketPath: &customPath},
+	}
+	require.NoError(t, r.client.Create(context.Background(), foreign))
+
+	dda := newDDAForDDCSI("test-dda", "default", true)
+	dda.Spec.Features = &v2alpha1.DatadogFeatures{
+		APM: &v2alpha1.APMFeatureConfig{
+			UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{Path: ptr.To("/operator/apm.socket")},
+		},
+	}
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+
+	after := &v1alpha1.DatadogCSIDriver{}
+	require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, after))
+	require.NotNil(t, after.Spec.APMSocketPath)
+	assert.Equal(t, customPath, *after.Spec.APMSocketPath) // user's spec preserved
+	assert.Equal(t, "alice", after.Labels["user.example.com/owner"])
+	assert.Empty(t, after.OwnerReferences) // still no DDA ownerRef
+}
+
 func TestReconcileDatadogCSIDriver_UpdateOnSpecDrift(t *testing.T) {
 	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
 	dda := newDDAForDDCSI("test-dda", "default", true)
