@@ -175,6 +175,53 @@ func TestReconcileDatadogCSIDriver_NoOverrideWhenNoTolerations(t *testing.T) {
 	assert.Nil(t, ddcsi.Spec.Override)
 }
 
+func TestReconcileDatadogCSIDriver_ManageDisabledCleansUpAndDoesNotRecreate(t *testing.T) {
+	// Migration path: user opts out via manageDatadogCSIDriver=false while keeping csi.enabled=true.
+	// The operator must clean up the DDA-owned CR it created previously and not recreate it,
+	// letting the user take over with a DatadogCSIDriver CR they maintain themselves.
+	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
+	dda := newDDAForDDCSI("test-dda", "default", true)
+
+	// Initial reconcile: default management (field unset) creates the CR.
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+	ddcsi := &v1alpha1.DatadogCSIDriver{}
+	require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi))
+
+	// User opts out of management.
+	dda.Spec.Global.CSI.ManageDatadogCSIDriver = ptr.To(false)
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+
+	// DDA-owned CR is gone.
+	err := r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi)
+	assert.Error(t, err)
+
+	// Subsequent reconciles with manage=false must not recreate it.
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+	err = r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi)
+	assert.Error(t, err)
+}
+
+func TestReconcileDatadogCSIDriver_ManageDisabledSkipsForeignCR(t *testing.T) {
+	// When manage=false and a non-DDA-owned DatadogCSIDriver CR happens to exist at the same
+	// namespace/name, the cleanup must not touch it (cleanup's IsControlledBy guard).
+	scheme := testScheme()
+	r := newTestReconcilerForDDCSI(scheme, platformInfoWithDDCSI())
+
+	foreign := &v1alpha1.DatadogCSIDriver{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-dda", Namespace: "default"},
+	}
+	require.NoError(t, r.client.Create(context.Background(), foreign))
+
+	dda := newDDAForDDCSI("test-dda", "default", true)
+	dda.Spec.Global.CSI.ManageDatadogCSIDriver = ptr.To(false)
+
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+
+	// Foreign CR still exists.
+	existing := &v1alpha1.DatadogCSIDriver{}
+	assert.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, existing))
+}
+
 func TestReconcileDatadogCSIDriver_ControllerDisabled(t *testing.T) {
 	// Backward compat: spec.global.csi.enabled=true with --datadogCSIDriverEnabled=false (the
 	// default) must be a no-op. Existing users who set csi.enabled=true for an externally

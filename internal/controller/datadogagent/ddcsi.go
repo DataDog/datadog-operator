@@ -16,6 +16,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -37,6 +38,9 @@ const (
 // Behavior (backward-compatible with the long-standing `csi.enabled` semantics):
 //
 //   - `csi.enabled=false`  → cleanup the DDA-owned DatadogCSIDriver CR if any.
+//   - `csi.enabled=true`   + `manageDatadogCSIDriver=false` → user opts out of operator
+//     management; cleanup the DDA-owned CR so the user can take ownership of a DatadogCSIDriver
+//     CR they maintain themselves (migration path for customizations not exposed on the DDA).
 //   - `csi.enabled=true`   + operator flag `--datadogCSIDriverEnabled=false` (the default) →
 //     no-op. The DDA expects a CSI driver installed externally (e.g. the Datadog CSI driver
 //     Helm chart); the operator doesn't manage it.
@@ -55,7 +59,12 @@ func (r *Reconciler) reconcileDatadogCSIDriver(ctx context.Context, logger logr.
 		instance.Spec.Global.CSI != nil &&
 		apiutils.BoolValue(instance.Spec.Global.CSI.Enabled)
 
-	if !csiEnabled {
+	// Cleanup the operator-owned CR when either CSI is disabled entirely, or when the user has
+	// explicitly opted out of management (manageDatadogCSIDriver=false): typically a migration
+	// where they want to take ownership of a DatadogCSIDriver CR they maintain themselves.
+	// `||` short-circuits: if csiEnabled is false (which requires Global/CSI to be safely-nil-
+	// guarded), we never dereference `.ManageDatadogCSIDriver`
+	if !csiEnabled || !ptr.Deref(instance.Spec.Global.CSI.ManageDatadogCSIDriver, true) {
 		return r.cleanupDatadogCSIDriver(ctx, logger, instance)
 	}
 
@@ -168,7 +177,9 @@ func (r *Reconciler) createOrUpdateDatadogCSIDriver(ctx context.Context, logger 
 			return fmt.Errorf("failed to check for external CSIDriver: %w", checkErr)
 		}
 		if externalExists {
-			logger.Info("External CSIDriver detected, not creating DatadogCSIDriver", "name", datadogCSIDriverObjectName)
+			// Debug level: fires every reconcile while the external install remains — steady-state
+			// info, not an actionable event.
+			logger.V(1).Info("External CSIDriver detected, not creating DatadogCSIDriver", "name", datadogCSIDriverObjectName)
 			return nil
 		}
 

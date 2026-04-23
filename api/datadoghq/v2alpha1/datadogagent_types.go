@@ -287,6 +287,16 @@ type CSIConfig struct {
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// ManageDatadogCSIDriver controls whether the operator manages the DatadogCSIDriver custom
+	// resource on behalf of this DatadogAgent. Set to false to hand ownership over to a
+	// DatadogCSIDriver CR that you maintain yourself (useful for migrations where you need
+	// customizations not exposed on the DatadogAgent spec). When toggled from true to false,
+	// the operator cleans up the DDA-owned DatadogCSIDriver CR; you are then responsible for
+	// providing a replacement so CSI continues to work.
+	// Default: true
+	// +optional
+	ManageDatadogCSIDriver *bool `json:"manageDatadogCSIDriver,omitempty"`
 }
 
 // InjectorConfig contains the configuration for the APM Injector.
