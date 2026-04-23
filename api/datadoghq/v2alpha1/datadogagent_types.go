@@ -2395,13 +2395,6 @@ type ExperimentStatus struct {
 	// ID is the unique experiment ID sent by Fleet Automation.
 	// +optional
 	ID string `json:"id,omitempty"`
-	// Generation is the DDA metadata.generation recorded when the experiment started.
-	// Used to detect manual spec changes while the experiment is running: if the
-	// current DDA generation differs from this value, the operator aborts the experiment.
-	//
-	// This value must be recorded after the DDA is patched for a startExperiment signal.
-	// +optional
-	Generation int64 `json:"generation,omitempty"`
 }
 
 // DatadogAgentStatus defines the observed state of DatadogAgent.

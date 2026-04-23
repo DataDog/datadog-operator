@@ -1142,13 +1142,6 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_ExperimentStatus(ref common.
 							Format:      "",
 						},
 					},
-					"generation": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Generation is the DDA metadata.generation recorded when the experiment started. Used to detect manual spec changes while the experiment is running: if the current DDA generation differs from this value, the operator aborts the experiment.\n\nThis value must be recorded after the DDA is patched for a startExperiment signal.",
-							Type:        []string{"integer"},
-							Format:      "int64",
-						},
-					},
 				},
 			},
 		},
