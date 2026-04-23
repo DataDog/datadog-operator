@@ -212,7 +212,8 @@
                         "description": "Specifies whether recommendations are made to Requests and Limits (RequestsAndLimits) or Requests only (RequestsOnly).\nThe default is \"RequestsAndLimits\".",
                         "enum": [
                           "RequestsAndLimits",
-                          "RequestsOnly"
+                          "RequestsOnly",
+                          "CPURequestsRemoveLimitsMemoryRequestsAndLimits"
                         ],
                         "type": "string"
                       },

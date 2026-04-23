@@ -359,12 +359,21 @@ type DatadogPodAutoscalerConstraints struct {
 }
 
 // DatadogPodAutoscalerContainerControlledValues specifies which resource values should be controlled.
-// +kubebuilder:validation:Enum:=RequestsAndLimits;RequestsOnly
+// +kubebuilder:validation:Enum:=RequestsAndLimits;RequestsOnly;CPURequestsRemoveLimitsMemoryRequestsAndLimits
 type DatadogPodAutoscalerContainerControlledValues string
 
 const (
+	// DatadogPodAutoscalerContainerControlledValuesRequestsAndLimits controls both requests and limits for all resources (CPU and Memory).
 	DatadogPodAutoscalerContainerControlledValuesRequestsAndLimits DatadogPodAutoscalerContainerControlledValues = "RequestsAndLimits"
-	DatadogPodAutoscalerContainerControlledValuesRequestsOnly      DatadogPodAutoscalerContainerControlledValues = "RequestsOnly"
+
+	// DatadogPodAutoscalerContainerControlledValuesRequestsOnly controls only requests for all resources (CPU and Memory).
+	// Existing limits are left unchanged.
+	DatadogPodAutoscalerContainerControlledValuesRequestsOnly DatadogPodAutoscalerContainerControlledValues = "RequestsOnly"
+
+	// DatadogPodAutoscalerContainerControlledValuesCPURequestsRemoveLimitsMemoryRequestsAndLimits applies different strategies per resource:
+	// - CPU: only requests are controlled and any existing CPU limit is removed, allowing the container to burst freely and avoid CPU throttling.
+	// - Memory: both requests and limits are controlled.
+	DatadogPodAutoscalerContainerControlledValuesCPURequestsRemoveLimitsMemoryRequestsAndLimits DatadogPodAutoscalerContainerControlledValues = "CPURequestsRemoveLimitsMemoryRequestsAndLimits"
 )
 
 // DatadogPodAutoscalerContainerConstraints defines constraints that should always be respected for a container.
