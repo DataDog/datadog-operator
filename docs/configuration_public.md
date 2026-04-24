@@ -438,6 +438,18 @@ spec:
 `global.csi.manageDatadogCSIDriver`
 : ManageDatadogCSIDriver controls whether the operator manages the DatadogCSIDriver custom resource on behalf of this DatadogAgent. Set to false to hand ownership over to a DatadogCSIDriver CR that you maintain yourself (useful for migrations where you need customizations not exposed on the DatadogAgent spec). When toggled from true to false, the operator cleans up the DDA-owned DatadogCSIDriver CR; you are then responsible for providing a replacement so CSI continues to work. Default: true
 
+`global.csi.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution`
+: The scheduler will prefer to schedule pods to nodes that satisfy the affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node matches the corresponding matchExpressions; the node(s) with the highest sum are the most preferred.
+
+`global.csi.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms`
+: Required. A list of node selector terms. The terms are ORed.
+
+`global.csi.nodeSelector`
+: NodeSelector is a map of key-value pairs for CSI driver DaemonSet pod node selection.
+
+`global.csi.tolerations`
+: Configure the CSI driver DaemonSet pod tolerations.
+
 `global.dockerSocketPath`
 : Path to the docker runtime socket.
 

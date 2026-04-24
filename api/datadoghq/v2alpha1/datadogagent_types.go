@@ -297,6 +297,19 @@ type CSIConfig struct {
 	// Default: true
 	// +optional
 	ManageDatadogCSIDriver *bool `json:"manageDatadogCSIDriver,omitempty"`
+
+	// Tolerations configure the CSI driver DaemonSet pod tolerations.
+	// +optional
+	// +listType=atomic
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+
+	// NodeSelector is a map of key-value pairs for CSI driver DaemonSet pod node selection.
+	// +optional
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// NodeAffinity specifies node affinity scheduling rules for CSI driver DaemonSet pods.
+	// +optional
+	NodeAffinity *corev1.NodeAffinity `json:"nodeAffinity,omitempty"`
 }
 
 // InjectorConfig contains the configuration for the APM Injector.

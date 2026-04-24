@@ -96,9 +96,7 @@ func (r *Reconciler) externalCSIDriverExists(ctx context.Context) (bool, error) 
 
 // buildDesiredDatadogCSIDriver builds the desired DatadogCSIDriver object from the DDA spec.
 // The socket paths mirror the DDA's APM and DogStatsD UDS configuration so the CSI driver
-// exposes the same host paths the Agent is configured to use. The node-agent tolerations are
-// propagated through the CSI driver override so the driver pods are schedulable wherever the
-// node Agent runs.
+// exposes the same host paths the Agent is configured to use.
 func (r *Reconciler) buildDesiredDatadogCSIDriver(instance *v2alpha1.DatadogAgent) (*v1alpha1.DatadogCSIDriver, error) {
 	ddcsi := &v1alpha1.DatadogCSIDriver{
 		ObjectMeta: metav1.ObjectMeta{
@@ -113,9 +111,16 @@ func (r *Reconciler) buildDesiredDatadogCSIDriver(instance *v2alpha1.DatadogAgen
 		},
 	}
 
-	if tolerations := nodeAgentTolerationsFromDDA(instance); len(tolerations) > 0 {
-		ddcsi.Spec.Override = &v1alpha1.DatadogCSIDriverOverride{
-			Tolerations: tolerations,
+	csiConfig := instance.Spec.Global.CSI
+	if csiConfig != nil {
+		override := &v1alpha1.DatadogCSIDriverOverride{}
+		override.Tolerations = csiConfig.Tolerations
+		override.NodeSelector = csiConfig.NodeSelector
+		if csiConfig.NodeAffinity != nil {
+			override.Affinity = &corev1.Affinity{NodeAffinity: csiConfig.NodeAffinity}
+		}
+		if len(override.Tolerations) > 0 || len(override.NodeSelector) > 0 || override.Affinity != nil {
+			ddcsi.Spec.Override = override
 		}
 	}
 
@@ -141,16 +146,6 @@ func dsdSocketPathFromDDA(instance *v2alpha1.DatadogAgent) *string {
 		return nil
 	}
 	return instance.Spec.Features.Dogstatsd.UnixDomainSocketConfig.Path
-}
-
-// nodeAgentTolerationsFromDDA returns the tolerations configured for the nodeAgent component
-// override on the DDA, or nil if none are set.
-func nodeAgentTolerationsFromDDA(instance *v2alpha1.DatadogAgent) []corev1.Toleration {
-	override := instance.Spec.Override[v2alpha1.NodeAgentComponentName]
-	if override == nil {
-		return nil
-	}
-	return override.Tolerations
 }
 
 // createOrUpdateDatadogCSIDriver ensures a DatadogCSIDriver resource exists with the desired spec.

@@ -139,12 +139,10 @@ func TestReconcileDatadogCSIDriver_SpecFromDDA(t *testing.T) {
 			UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{Path: ptr.To(dsdPath)},
 		},
 	}
-	nodeAgentTolerations := []corev1.Toleration{
+	csiTolerations := []corev1.Toleration{
 		{Key: "dedicated", Operator: corev1.TolerationOpEqual, Value: "datadog", Effect: corev1.TaintEffectNoSchedule},
 	}
-	dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-		v2alpha1.NodeAgentComponentName: {Tolerations: nodeAgentTolerations},
-	}
+	dda.Spec.Global.CSI.Tolerations = csiTolerations
 
 	err := r.reconcileDatadogCSIDriver(context.Background(), r.log, dda)
 	require.NoError(t, err)
@@ -159,7 +157,45 @@ func TestReconcileDatadogCSIDriver_SpecFromDDA(t *testing.T) {
 	assert.Equal(t, dsdPath, *ddcsi.Spec.DSDSocketPath)
 
 	require.NotNil(t, ddcsi.Spec.Override)
-	assert.Equal(t, nodeAgentTolerations, ddcsi.Spec.Override.Tolerations)
+	assert.Equal(t, csiTolerations, ddcsi.Spec.Override.Tolerations)
+}
+
+func TestReconcileDatadogCSIDriver_NodeSelectorPropagated(t *testing.T) {
+	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
+	dda := newDDAForDDCSI("test-dda", "default", true)
+	dda.Spec.Global.CSI.NodeSelector = map[string]string{"kubernetes.io/os": "linux"}
+
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+
+	ddcsi := &v1alpha1.DatadogCSIDriver{}
+	require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi))
+	require.NotNil(t, ddcsi.Spec.Override)
+	assert.Equal(t, map[string]string{"kubernetes.io/os": "linux"}, ddcsi.Spec.Override.NodeSelector)
+}
+
+func TestReconcileDatadogCSIDriver_NodeAffinityPropagated(t *testing.T) {
+	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
+	dda := newDDAForDDCSI("test-dda", "default", true)
+	nodeAffinity := &corev1.NodeAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+			NodeSelectorTerms: []corev1.NodeSelectorTerm{
+				{
+					MatchExpressions: []corev1.NodeSelectorRequirement{
+						{Key: "topology.kubernetes.io/zone", Operator: corev1.NodeSelectorOpIn, Values: []string{"us-east-1a"}},
+					},
+				},
+			},
+		},
+	}
+	dda.Spec.Global.CSI.NodeAffinity = nodeAffinity
+
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+
+	ddcsi := &v1alpha1.DatadogCSIDriver{}
+	require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi))
+	require.NotNil(t, ddcsi.Spec.Override)
+	require.NotNil(t, ddcsi.Spec.Override.Affinity)
+	assert.Equal(t, nodeAffinity, ddcsi.Spec.Override.Affinity.NodeAffinity)
 }
 
 func TestReconcileDatadogCSIDriver_NoOverrideWhenNoTolerations(t *testing.T) {
