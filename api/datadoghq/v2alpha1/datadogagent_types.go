@@ -594,6 +594,7 @@ type SBOMFeatureConfig struct {
 
 	ContainerImage *SBOMContainerImageConfig `json:"containerImage,omitempty"`
 	Host           *SBOMHostConfig           `json:"host,omitempty"`
+	Enrichment     *SBOMEnrichmentConfig     `json:"enrichment,omitempty"`
 }
 
 // SBOMTypeConfig contains configuration for a SBOM collection type.
@@ -630,6 +631,22 @@ type SBOMContainerImageConfig struct {
 	// Default: false
 	// +optional
 	OverlayFSDirectScan bool `json:"overlayFSDirectScan,omitempty"`
+}
+
+// SBOMEnrichmentConfig contains SBOM enrichment configuration.
+type SBOMEnrichmentConfig struct {
+	// Usage contains configuration for the "package in use" enrichment.
+	// +optional
+	Usage *SBOMEnrichmentUsageConfig `json:"usage,omitempty"`
+}
+
+// SBOMEnrichmentUsageConfig contains configuration for the "package in use" SBOM enrichment.
+type SBOMEnrichmentUsageConfig struct {
+	// Enable this option to activate SBOM enrichment with runtime "package in use" detection.
+	// Requires system-probe for eBPF-based file access tracking.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // NPMFeatureConfig contains NPM (Network Performance Monitoring) feature configuration.
@@ -2421,13 +2438,6 @@ type ExperimentStatus struct {
 	// ID is the unique experiment ID sent by Fleet Automation.
 	// +optional
 	ID string `json:"id,omitempty"`
-	// Generation is the DDA metadata.generation recorded when the experiment started.
-	// Used to detect manual spec changes while the experiment is running: if the
-	// current DDA generation differs from this value, the operator aborts the experiment.
-	//
-	// This value must be recorded after the DDA is patched for a startExperiment signal.
-	// +optional
-	Generation int64 `json:"generation,omitempty"`
 }
 
 // DatadogAgentStatus defines the observed state of DatadogAgent.

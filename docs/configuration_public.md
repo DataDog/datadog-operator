@@ -375,6 +375,9 @@ spec:
 `features.sbom.enabled`
 : Enable this option to activate SBOM collection. Default: false
 
+`features.sbom.enrichment.usage.enabled`
+: Enable this option to activate SBOM enrichment with runtime "package in use" detection. Requires system-probe for eBPF-based file access tracking. Default: false
+
 `features.sbom.host.analyzers`
 : To use for SBOM collection.
 

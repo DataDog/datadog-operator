@@ -199,6 +199,7 @@ spec:
 | features.sbom.containerImage.overlayFSDirectScan | Enable this option to enable experimental overlayFS direct scan. Default: false |
 | features.sbom.containerImage.uncompressedLayersSupport | Enable this option to enable support for uncompressed layers. Default: false |
 | features.sbom.enabled | Enable this option to activate SBOM collection. Default: false |
+| features.sbom.enrichment.usage.enabled | Enable this option to activate SBOM enrichment with runtime "package in use" detection. Requires system-probe for eBPF-based file access tracking. Default: false |
 | features.sbom.host.analyzers | To use for SBOM collection. |
 | features.sbom.host.enabled | Enable this option to activate SBOM collection. Default: false |
 | features.serviceDiscovery.enabled | Enables the service discovery check. Default: false |

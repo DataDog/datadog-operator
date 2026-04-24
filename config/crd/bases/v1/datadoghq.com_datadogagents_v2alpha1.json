@@ -2573,6 +2573,24 @@
                   "description": "Enable this option to activate SBOM collection.\nDefault: false",
                   "type": "boolean"
                 },
+                "enrichment": {
+                  "additionalProperties": false,
+                  "description": "SBOMEnrichmentConfig contains SBOM enrichment configuration.",
+                  "properties": {
+                    "usage": {
+                      "additionalProperties": false,
+                      "description": "Usage contains configuration for the \"package in use\" enrichment.",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enable this option to activate SBOM enrichment with runtime \"package in use\" detection.\nRequires system-probe for eBPF-based file access tracking.\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
                 "host": {
                   "additionalProperties": false,
                   "description": "SBOMTypeConfig contains configuration for a SBOM collection type.",
@@ -8426,11 +8444,6 @@
           "additionalProperties": false,
           "description": "Experiment tracks the state of an active or recent Fleet Automation experiment.",
           "properties": {
-            "generation": {
-              "description": "Generation is the DDA metadata.generation recorded when the experiment started.\nUsed to detect manual spec changes while the experiment is running: if the\ncurrent DDA generation differs from this value, the operator aborts the experiment.\n\nThis value must be recorded after the DDA is patched for a startExperiment signal.",
-              "format": "int64",
-              "type": "integer"
-            },
             "id": {
               "description": "ID is the unique experiment ID sent by Fleet Automation.",
               "type": "string"
@@ -11066,6 +11079,24 @@
                     "enabled": {
                       "description": "Enable this option to activate SBOM collection.\nDefault: false",
                       "type": "boolean"
+                    },
+                    "enrichment": {
+                      "additionalProperties": false,
+                      "description": "SBOMEnrichmentConfig contains SBOM enrichment configuration.",
+                      "properties": {
+                        "usage": {
+                          "additionalProperties": false,
+                          "description": "Usage contains configuration for the \"package in use\" enrichment.",
+                          "properties": {
+                            "enabled": {
+                              "description": "Enable this option to activate SBOM enrichment with runtime \"package in use\" detection.\nRequires system-probe for eBPF-based file access tracking.\nDefault: false",
+                              "type": "boolean"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
                     },
                     "host": {
                       "additionalProperties": false,
