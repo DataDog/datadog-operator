@@ -133,7 +133,7 @@ func (r *Reconciler) handleRollback(
 	// stopped signal from RC: restore DDA spec and ack by setting phase to rollback.
 	case phase == v2alpha1.ExperimentPhaseStopped:
 		logger.Info("Experiment stopped, rolling back")
-		return r.restorePreviousSpec(ctx, instance.ObjectMeta, newStatus, revisions, v2alpha1.ExperimentPhaseRollback)
+		return r.restorePreviousSpec(ctx, instance, newStatus, revisions, v2alpha1.ExperimentPhaseRollback)
 	case phase == v2alpha1.ExperimentPhaseRunning:
 		rev := findMostRecentMatchingRevision(revisions, instance)
 		if rev == nil && len(revisions) >= 2 {
@@ -153,7 +153,7 @@ func (r *Reconciler) handleRollback(
 			elapsed := now.Sub(rev.CreationTimestamp.Time)
 			if elapsed >= getExperimentTimeout(r.options.ExperimentTimeout) {
 				logger.Info("Experiment timed out, rolling back", "elapsed", elapsed.String())
-				return r.restorePreviousSpec(ctx, instance.ObjectMeta, newStatus, revisions, v2alpha1.ExperimentPhaseTimeout)
+				return r.restorePreviousSpec(ctx, instance, newStatus, revisions, v2alpha1.ExperimentPhaseTimeout)
 			}
 		}
 	}
@@ -166,20 +166,38 @@ func (r *Reconciler) handleRollback(
 // experiment revision (the highest-numbered, non-rollback-target revision) with
 // the rollback annotation so its stale CreationTimestamp doesn't cause an
 // immediate timeout if the same spec is re-applied later.
+//
+// The terminal phase is also persisted via a targeted status subresource patch
+// so the phase transition lands in the same reconcile as the spec rollback,
+// without racing the full-status write in updateStatusIfNeededV2 (which could
+// otherwise 409 on the ResourceVersion bumped by the spec Update, deferring
+// the phase write to the next reconcile).
 func (r *Reconciler) restorePreviousSpec(
 	ctx context.Context,
-	instanceMeta metav1.ObjectMeta,
+	instance *v2alpha1.DatadogAgent,
 	newStatus *v2alpha1.DatadogAgentStatus,
 	revisions []appsv1.ControllerRevision,
 	terminalPhase v2alpha1.ExperimentPhase,
 ) error {
 	rollbackTarget := findRollbackTarget(revisions)
-	if err := r.rollback(ctx, instanceMeta, rollbackTarget); err != nil {
+	// Capture the observed phase before mutating newStatus. This is the phase
+	// our rollback decision is based on; if a concurrent writer has since
+	// changed it, our decision is outdated and the patch must not apply.
+	observedPhase := instance.Status.Experiment.Phase
+	if err := r.rollback(ctx, instance.ObjectMeta, rollbackTarget); err != nil {
 		return err
 	}
 	newStatus.Experiment.Phase = terminalPhase
-	// Mark the experiment revision (highest-numbered) so its stale timestamp
-	// doesn't cause an immediate timeout if the same spec is re-applied.
+	// Order matters: annotate the experiment revision BEFORE persisting the
+	// terminal phase. If the operator crashes between these two writes, the
+	// phase is still non-terminal on restart, handleRollback re-fires, and
+	// annotateRevision is idempotent — eventually both writes succeed. If the
+	// order were reversed, a crash between them would leave a terminal phase
+	// without the rollback annotation, and since handleRollback ignores
+	// terminal phases the revision would never get annotated, causing a
+	// future re-apply of the same spec to fire an immediate false timeout on
+	// the stale CreationTimestamp.
+	//
 	// Only annotate the highest revision rather than all non-rollback-target
 	// revisions: if GC failed on a prior reconcile there may be 3+ revisions,
 	// and annotating old baselines would cause needless delete+recreate in
@@ -187,7 +205,36 @@ func (r *Reconciler) restorePreviousSpec(
 	if rev := highestRevision(revisions); rev != nil && rev.Name != rollbackTarget {
 		r.annotateRevision(ctx, rev, annotationExperimentRollback)
 	}
+	r.patchExperimentPhase(ctx, instance, observedPhase, terminalPhase)
 	return nil
+}
+
+// patchExperimentPhase writes the terminal experiment phase via a targeted
+// status subresource JSON patch. This is narrower than updateStatusIfNeededV2's
+// full-status replace: concurrent writes to other status fields (e.g. by the
+// RC daemon) retain their own 409 protection on the full-status write, while
+// the terminal phase is guaranteed to land in the same reconcile as the
+// rollback.
+//
+// A `test` op guards the `replace`: the patch only applies if the server's
+// current phase still matches the phase the rollback decision was based on.
+// If another writer (e.g. the RC daemon promoting the experiment) has moved
+// the phase in between, the test op fails, the patch is rejected, and we
+// leave their decision untouched — mirroring the 409-and-retry semantics of
+// a full-status Update without the RV plumbing.
+//
+// The patch is applied to a DeepCopy so the client's response decoding does
+// not advance instance.ResourceVersion; the subsequent full-status write
+// retains its own 409 protection for every other status field.
+//
+// Best-effort: any error here (test failure or transient) is logged at V(1)
+// and the next reconcile will re-compute and retry.
+func (r *Reconciler) patchExperimentPhase(ctx context.Context, instance *v2alpha1.DatadogAgent, expectedCurrent, newPhase v2alpha1.ExperimentPhase) {
+	patch := fmt.Appendf(nil, `[{"op":"test","path":"/status/experiment/phase","value":%q},{"op":"replace","path":"/status/experiment/phase","value":%q}]`, expectedCurrent, newPhase)
+	scratch := instance.DeepCopy()
+	if err := r.client.Status().Patch(ctx, scratch, client.RawPatch(types.JSONPatchType, patch)); err != nil {
+		ctrl.LoggerFrom(ctx).V(1).Info("Experiment phase patch skipped (concurrent write or transient error), will retry on next reconcile", "error", err.Error(), "expectedCurrent", expectedCurrent, "new", newPhase)
+	}
 }
 
 // rollback restores the DDA spec from the named ControllerRevision.
