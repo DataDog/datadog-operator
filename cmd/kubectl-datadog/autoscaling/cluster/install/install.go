@@ -513,7 +513,7 @@ func (o *options) installHelmChart(ctx context.Context, clusterName, karpenterNa
 // the controller can assume the role via sts:AssumeRoleWithWebIdentity.
 func karpenterHelmValues(clusterName string, mode InstallMode, irsaRoleArn string) map[string]any {
 	values := map[string]any{
-		"additionalLabels": map[string]string{
+		"additionalLabels": map[string]any{
 			"app.kubernetes.io/managed-by": "kubectl-datadog",
 			"app.kubernetes.io/version":    version.GetVersion(),
 		},
@@ -535,15 +535,15 @@ func karpenterHelmValues(clusterName string, mode InstallMode, irsaRoleArn strin
 		},
 		"controller": map[string]any{
 			"resources": map[string]any{
-				"requests": map[string]string{"cpu": "1", "memory": "2Gi"},
-				"limits":   map[string]string{"cpu": "1", "memory": "2Gi"},
+				"requests": map[string]any{"cpu": "1", "memory": "2Gi"},
+				"limits":   map[string]any{"cpu": "1", "memory": "2Gi"},
 			},
 		},
 	}
 
 	if mode == InstallModeFargate {
 		values["serviceAccount"] = map[string]any{
-			"annotations": map[string]string{
+			"annotations": map[string]any{
 				"eks.amazonaws.com/role-arn": irsaRoleArn,
 			},
 		}
