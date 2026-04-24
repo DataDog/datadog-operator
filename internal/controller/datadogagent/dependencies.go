@@ -83,6 +83,13 @@ func (r *Reconciler) manageDDADependenciesWithDDAI(ctx context.Context, logger l
 		return errors.NewAggregate(err)
 	}
 
+	// DatadogCSIDriver: create or delete based on spec.global.csi configuration.
+	// This is managed outside the store because the store only supports built-in Kubernetes
+	// resource types. See ddcsi.go for details.
+	if err := r.reconcileDatadogCSIDriver(ctx, logger, instance); err != nil {
+		return err
+	}
+
 	return nil
 }
 
