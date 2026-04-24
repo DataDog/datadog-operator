@@ -96,6 +96,56 @@ func Test_Experiment_RollbackPersistsInSingleReconcile(t *testing.T) {
 	assert.Equal(t, v2alpha1.ExperimentPhaseTimeout, dda.Status.Experiment.Phase, "phase=timeout must persist in the same reconcile as the rollback")
 }
 
+// Test_Experiment_RollbackPreservesConcurrentStatusWrite verifies that the
+// targeted phase patch in restorePreviousSpec does not mutate the caller's
+// instance.ResourceVersion. A downstream writer (simulated by mutating the
+// stored status after the rollback has run but before updateStatusIfNeededV2
+// would fire) must retain 409 protection on the full-status replace.
+// Regression guard: if patchExperimentPhase were to patch the caller's
+// instance in-place, the client would decode the server response onto it and
+// advance ResourceVersion, causing the downstream full-status update to use a
+// fresh RV and silently overwrite any concurrent status write.
+func Test_Experiment_RollbackPreservesConcurrentStatusWrite(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+	nsName := types.NamespacedName{Namespace: ns, Name: name}
+
+	r := newExperimentIntegrationReconciler(t, 0)
+
+	// Fetch the instance as the reconcile would, and capture its RV.
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+	reconcileN(t, r, ns, name, 1)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseStopped, ID: "exp-1"}
+	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
+
+	// Snapshot what a reconcile loop would hold in memory at this point:
+	// the RV prior to invoking restorePreviousSpec.
+	snapshot := &v2alpha1.DatadogAgent{}
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, snapshot))
+	rvBefore := snapshot.ResourceVersion
+
+	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: snapshot.Status.Experiment.DeepCopy()}
+	revisions := mustListRevisions(t, r, snapshot)
+	assert.NoError(t, r.restorePreviousSpec(context.TODO(), snapshot, newStatus, revisions, v2alpha1.ExperimentPhaseRollback))
+
+	// The caller's in-memory instance RV must not have been advanced by the
+	// targeted status patch — otherwise a subsequent full-status write would
+	// skip its 409 protection.
+	assert.Equal(t, rvBefore, snapshot.ResourceVersion, "restorePreviousSpec must not mutate caller's ResourceVersion")
+
+	// Phase must still have landed on the server via the targeted patch.
+	after := &v2alpha1.DatadogAgent{}
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, after))
+	assert.Equal(t, v2alpha1.ExperimentPhaseRollback, after.Status.Experiment.Phase)
+}
+
 // Test_Experiment_StoppedRollback verifies that when RC writes phase=stopped,
 // the operator restores the previous spec and sets phase=rollback.
 func Test_Experiment_StoppedRollback(t *testing.T) {

@@ -204,9 +204,17 @@ func (r *Reconciler) restorePreviousSpec(
 // the terminal phase is guaranteed to land in the same reconcile as the
 // rollback. Best-effort: a transient failure here just means the next
 // reconcile will re-compute and retry.
+//
+// The patch is applied to a DeepCopy so the client's response decoding does
+// not advance instance.ResourceVersion. Keeping the caller's RV stale
+// preserves the 409 protection on the subsequent full-status write — any
+// concurrent writer that touched status between our initial fetch and this
+// patch will still cause that write to conflict and retry, rather than being
+// silently overwritten with our stale newStatus.
 func (r *Reconciler) patchExperimentPhase(ctx context.Context, instance *v2alpha1.DatadogAgent, phase v2alpha1.ExperimentPhase) {
 	patch := fmt.Appendf(nil, `{"status":{"experiment":{"phase":%q}}}`, phase)
-	if err := r.client.Status().Patch(ctx, instance, client.RawPatch(types.MergePatchType, patch)); err != nil {
+	scratch := instance.DeepCopy()
+	if err := r.client.Status().Patch(ctx, scratch, client.RawPatch(types.MergePatchType, patch)); err != nil {
 		ctrl.LoggerFrom(ctx).Error(err, "Failed to patch experiment phase, will retry on next reconcile", "phase", phase)
 	}
 }
