@@ -1399,8 +1399,8 @@ spec:
                             enabled:
                               description: |-
                                 Enabled configures the Data Plane to handle DogStatsD traffic.
-                                When enabled, DogStatsD is disabled in the Core Agent.
-                                Default: false
+                                When set to false, DogStatsD is handled by the Core Agent instead.
+                                Default: true
                               type: boolean
                           type: object
                         enabled:
@@ -9845,8 +9845,8 @@ spec:
                                 enabled:
                                   description: |-
                                     Enabled configures the Data Plane to handle DogStatsD traffic.
-                                    When enabled, DogStatsD is disabled in the Core Agent.
-                                    Default: false
+                                    When set to false, DogStatsD is handled by the Core Agent instead.
+                                    Default: true
                                   type: boolean
                               type: object
                             enabled:
