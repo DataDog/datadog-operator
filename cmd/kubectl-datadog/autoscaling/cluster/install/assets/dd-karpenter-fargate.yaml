@@ -27,9 +27,13 @@ Parameters:
       - "false"
 Resources:
   FargatePodExecutionRole:
+    # No RoleName set: cluster names can be up to 100 chars while IAM role
+    # names are capped at 64, so `${ClusterName}-karpenter-fargate-pod-execution`
+    # would overflow for clusters with names longer than 32 characters. Letting
+    # CloudFormation generate the physical name keeps installs working for
+    # every valid cluster name.
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub "${ClusterName}-karpenter-fargate-pod-execution"
       # Trust is scoped to our specific Fargate profile name so this role cannot
       # be used by other Fargate profiles that might exist on the same cluster.
       AssumeRolePolicyDocument:

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 )
+
+const stsAudience = "sts.amazonaws.com"
 
 // GetClusterOIDCIssuerURL returns the cluster's OIDC issuer URL, with its
 // `https://` prefix (as returned by the EKS API). Returns an error if the
@@ -33,6 +36,7 @@ type OIDCProviderAPI interface {
 	ListOpenIDConnectProviders(ctx context.Context, params *iam.ListOpenIDConnectProvidersInput, optFns ...func(*iam.Options)) (*iam.ListOpenIDConnectProvidersOutput, error)
 	GetOpenIDConnectProvider(ctx context.Context, params *iam.GetOpenIDConnectProviderInput, optFns ...func(*iam.Options)) (*iam.GetOpenIDConnectProviderOutput, error)
 	CreateOpenIDConnectProvider(ctx context.Context, params *iam.CreateOpenIDConnectProviderInput, optFns ...func(*iam.Options)) (*iam.CreateOpenIDConnectProviderOutput, error)
+	AddClientIDToOpenIDConnectProvider(ctx context.Context, params *iam.AddClientIDToOpenIDConnectProviderInput, optFns ...func(*iam.Options)) (*iam.AddClientIDToOpenIDConnectProviderOutput, error)
 }
 
 // EnsureOIDCProvider returns the ARN of an IAM OIDC provider for the given
@@ -65,13 +69,25 @@ func EnsureOIDCProvider(ctx context.Context, iamClient OIDCProviderAPI, issuerUR
 			return "", fmt.Errorf("failed to get OIDC provider %s: %w", providerArn, getErr)
 		}
 		if normalizeOIDCURL(aws.ToString(getOut.Url)) == targetURL {
+			// Ensure the STS audience is registered: the IRSA trust policy we
+			// install conditions on `aud = sts.amazonaws.com`, which requires
+			// that the provider itself lists that client ID. Providers
+			// bootstrapped by other tools (eksctl, Terraform) may omit it.
+			if !slices.Contains(getOut.ClientIDList, stsAudience) {
+				if _, addErr := iamClient.AddClientIDToOpenIDConnectProvider(ctx, &iam.AddClientIDToOpenIDConnectProviderInput{
+					OpenIDConnectProviderArn: provider.Arn,
+					ClientID:                 aws.String(stsAudience),
+				}); addErr != nil {
+					return "", fmt.Errorf("failed to add %s client ID to OIDC provider %s: %w", stsAudience, providerArn, addErr)
+				}
+			}
 			return providerArn, nil
 		}
 	}
 
 	createOut, err := iamClient.CreateOpenIDConnectProvider(ctx, &iam.CreateOpenIDConnectProviderInput{
 		Url:          aws.String(issuerURL),
-		ClientIDList: []string{"sts.amazonaws.com"},
+		ClientIDList: []string{stsAudience},
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to create OIDC provider for %s: %w", issuerURL, err)
