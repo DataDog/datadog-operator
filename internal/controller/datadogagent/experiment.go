@@ -166,6 +166,12 @@ func (r *Reconciler) handleRollback(
 // experiment revision (the highest-numbered, non-rollback-target revision) with
 // the rollback annotation so its stale CreationTimestamp doesn't cause an
 // immediate timeout if the same spec is re-applied later.
+//
+// The terminal phase is also persisted via a targeted status subresource patch
+// so the phase transition lands in the same reconcile as the spec rollback,
+// without racing the full-status write in updateStatusIfNeededV2 (which could
+// otherwise 409 on the ResourceVersion bumped by the spec Update, deferring
+// the phase write to the next reconcile).
 func (r *Reconciler) restorePreviousSpec(
 	ctx context.Context,
 	instance *v2alpha1.DatadogAgent,
@@ -178,6 +184,7 @@ func (r *Reconciler) restorePreviousSpec(
 		return err
 	}
 	newStatus.Experiment.Phase = terminalPhase
+	r.patchExperimentPhase(ctx, instance, terminalPhase)
 	// Mark the experiment revision (highest-numbered) so its stale timestamp
 	// doesn't cause an immediate timeout if the same spec is re-applied.
 	// Only annotate the highest revision rather than all non-rollback-target
@@ -190,10 +197,21 @@ func (r *Reconciler) restorePreviousSpec(
 	return nil
 }
 
+// patchExperimentPhase writes the terminal experiment phase via a targeted
+// status subresource merge patch. This is narrower than updateStatusIfNeededV2's
+// full-status replace: concurrent writes to other status fields (e.g. by the
+// RC daemon) retain their own 409 protection on the full-status write, while
+// the terminal phase is guaranteed to land in the same reconcile as the
+// rollback. Best-effort: a transient failure here just means the next
+// reconcile will re-compute and retry.
+func (r *Reconciler) patchExperimentPhase(ctx context.Context, instance *v2alpha1.DatadogAgent, phase v2alpha1.ExperimentPhase) {
+	patch := fmt.Appendf(nil, `{"status":{"experiment":{"phase":%q}}}`, phase)
+	if err := r.client.Status().Patch(ctx, instance, client.RawPatch(types.MergePatchType, patch)); err != nil {
+		ctrl.LoggerFrom(ctx).Error(err, "Failed to patch experiment phase, will retry on next reconcile", "phase", phase)
+	}
+}
+
 // rollback restores the DDA spec from the named ControllerRevision.
-// On success, instance.ResourceVersion is updated to the post-Update value so
-// the caller's in-flight status write uses a fresh ResourceVersion and avoids a
-// 409 that would defer the terminal phase write to the next reconcile.
 func (r *Reconciler) rollback(
 	ctx context.Context,
 	instance *v2alpha1.DatadogAgent,
@@ -226,9 +244,6 @@ func (r *Reconciler) rollback(
 	}
 	if bytes.Equal(currentSnap, cr.Data.Raw) {
 		ctrl.LoggerFrom(ctx).Info("Rollback spec already matches target, skipping update", "rollbackTarget", rollbackTarget)
-		// Sync the caller's ResourceVersion to the latest observed value so a
-		// concurrent-update status write doesn't 409.
-		instance.ResourceVersion = current.ResourceVersion
 		return nil
 	}
 
@@ -245,14 +260,7 @@ func (r *Reconciler) rollback(
 		Spec:       snapshot.Spec,
 	}
 	toUpdate.Annotations = merged
-	if err := r.client.Update(ctx, toUpdate); err != nil {
-		return err
-	}
-	// Propagate the post-Update ResourceVersion so the downstream status write
-	// in the same reconcile uses the fresh RV and the terminal phase is
-	// persisted without requiring a follow-up reconcile.
-	instance.ResourceVersion = toUpdate.ResourceVersion
-	return nil
+	return r.client.Update(ctx, toUpdate)
 }
 
 // findRollbackTarget returns the name of the previous ControllerRevision to restore.

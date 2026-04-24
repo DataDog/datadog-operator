@@ -56,6 +56,46 @@ func reconcileN(t *testing.T, r *Reconciler, ns, name string, n int) {
 	}
 }
 
+// Test_Experiment_RollbackPersistsInSingleReconcile verifies that the spec
+// rollback and the terminal phase write both land in the same reconcile —
+// i.e. the status update uses the post-rollback ResourceVersion rather than
+// 409'ing and deferring the phase write. Regression guard: without
+// ResourceVersion propagation, reconcile 2 could observe a post-rollback spec
+// matching an annotated, freshly-timestamped revision and skip the timeout
+// check, leaving phase=running.
+func Test_Experiment_RollbackPersistsInSingleReconcile(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+	const timeout = 50 * time.Millisecond
+	nsName := types.NamespacedName{Namespace: ns, Name: name}
+
+	r := newExperimentIntegrationReconciler(t, timeout)
+
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+	reconcileN(t, r, ns, name, 1)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Status.Experiment = &v2alpha1.ExperimentStatus{
+		Phase: v2alpha1.ExperimentPhaseRunning,
+		ID:    "exp-1",
+	}
+	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
+	time.Sleep(2 * timeout)
+
+	// Exactly one reconcile — both spec rollback and phase=timeout must persist.
+	reconcileN(t, r, ns, name, 1)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	assert.Equal(t, "datadoghq.com", *dda.Spec.Global.Site, "spec must be rolled back in the same reconcile")
+	assert.NotNil(t, dda.Status.Experiment)
+	assert.Equal(t, v2alpha1.ExperimentPhaseTimeout, dda.Status.Experiment.Phase, "phase=timeout must persist in the same reconcile as the rollback")
+}
+
 // Test_Experiment_StoppedRollback verifies that when RC writes phase=stopped,
 // the operator restores the previous spec and sets phase=rollback.
 func Test_Experiment_StoppedRollback(t *testing.T) {
