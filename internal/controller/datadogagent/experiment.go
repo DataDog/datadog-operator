@@ -133,7 +133,7 @@ func (r *Reconciler) handleRollback(
 	// stopped signal from RC: restore DDA spec and ack by setting phase to rollback.
 	case phase == v2alpha1.ExperimentPhaseStopped:
 		logger.Info("Experiment stopped, rolling back")
-		return r.restorePreviousSpec(ctx, instance.ObjectMeta, newStatus, revisions, v2alpha1.ExperimentPhaseRollback)
+		return r.restorePreviousSpec(ctx, instance, newStatus, revisions, v2alpha1.ExperimentPhaseRollback)
 	case phase == v2alpha1.ExperimentPhaseRunning:
 		rev := findMostRecentMatchingRevision(revisions, instance)
 		if rev == nil && len(revisions) >= 2 {
@@ -153,7 +153,7 @@ func (r *Reconciler) handleRollback(
 			elapsed := now.Sub(rev.CreationTimestamp.Time)
 			if elapsed >= getExperimentTimeout(r.options.ExperimentTimeout) {
 				logger.Info("Experiment timed out, rolling back", "elapsed", elapsed.String())
-				return r.restorePreviousSpec(ctx, instance.ObjectMeta, newStatus, revisions, v2alpha1.ExperimentPhaseTimeout)
+				return r.restorePreviousSpec(ctx, instance, newStatus, revisions, v2alpha1.ExperimentPhaseTimeout)
 			}
 		}
 	}
@@ -168,13 +168,13 @@ func (r *Reconciler) handleRollback(
 // immediate timeout if the same spec is re-applied later.
 func (r *Reconciler) restorePreviousSpec(
 	ctx context.Context,
-	instanceMeta metav1.ObjectMeta,
+	instance *v2alpha1.DatadogAgent,
 	newStatus *v2alpha1.DatadogAgentStatus,
 	revisions []appsv1.ControllerRevision,
 	terminalPhase v2alpha1.ExperimentPhase,
 ) error {
 	rollbackTarget := findRollbackTarget(revisions)
-	if err := r.rollback(ctx, instanceMeta, rollbackTarget); err != nil {
+	if err := r.rollback(ctx, instance, rollbackTarget); err != nil {
 		return err
 	}
 	newStatus.Experiment.Phase = terminalPhase
@@ -191,9 +191,12 @@ func (r *Reconciler) restorePreviousSpec(
 }
 
 // rollback restores the DDA spec from the named ControllerRevision.
+// On success, instance.ResourceVersion is updated to the post-Update value so
+// the caller's in-flight status write uses a fresh ResourceVersion and avoids a
+// 409 that would defer the terminal phase write to the next reconcile.
 func (r *Reconciler) rollback(
 	ctx context.Context,
-	instanceMeta metav1.ObjectMeta,
+	instance *v2alpha1.DatadogAgent,
 	rollbackTarget string,
 ) error {
 	if rollbackTarget == "" {
@@ -202,7 +205,7 @@ func (r *Reconciler) rollback(
 	}
 
 	cr := &appsv1.ControllerRevision{}
-	if err := r.client.Get(ctx, types.NamespacedName{Namespace: instanceMeta.Namespace, Name: rollbackTarget}, cr); err != nil {
+	if err := r.client.Get(ctx, types.NamespacedName{Namespace: instance.Namespace, Name: rollbackTarget}, cr); err != nil {
 		return fmt.Errorf("failed to get previous ControllerRevision %s: %w", rollbackTarget, err)
 	}
 
@@ -214,7 +217,7 @@ func (r *Reconciler) rollback(
 	// Re-fetch for the latest ResourceVersion and to check whether the spec is
 	// rolled back already. If it is, skip the update.
 	current := &v2alpha1.DatadogAgent{}
-	if err := r.client.Get(ctx, types.NamespacedName{Namespace: instanceMeta.Namespace, Name: instanceMeta.Name}, current); err != nil {
+	if err := r.client.Get(ctx, types.NamespacedName{Namespace: instance.Namespace, Name: instance.Name}, current); err != nil {
 		return fmt.Errorf("failed to get current DDA for rollback: %w", err)
 	}
 	currentSnap, err := json.Marshal(revisionSnapshot{Spec: current.Spec, Annotations: datadogAnnotations(current.GetAnnotations())})
@@ -223,6 +226,9 @@ func (r *Reconciler) rollback(
 	}
 	if bytes.Equal(currentSnap, cr.Data.Raw) {
 		ctrl.LoggerFrom(ctx).Info("Rollback spec already matches target, skipping update", "rollbackTarget", rollbackTarget)
+		// Sync the caller's ResourceVersion to the latest observed value so a
+		// concurrent-update status write doesn't 409.
+		instance.ResourceVersion = current.ResourceVersion
 		return nil
 	}
 
@@ -239,7 +245,14 @@ func (r *Reconciler) rollback(
 		Spec:       snapshot.Spec,
 	}
 	toUpdate.Annotations = merged
-	return r.client.Update(ctx, toUpdate)
+	if err := r.client.Update(ctx, toUpdate); err != nil {
+		return err
+	}
+	// Propagate the post-Update ResourceVersion so the downstream status write
+	// in the same reconcile uses the fresh RV and the terminal phase is
+	// persisted without requiring a follow-up reconcile.
+	instance.ResourceVersion = toUpdate.ResourceVersion
+	return nil
 }
 
 // findRollbackTarget returns the name of the previous ControllerRevision to restore.
