@@ -17,7 +17,11 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/images"
+	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 )
+
+const serviceDiscoveryAutoEnableMinVersion = "7.78.0-0"
 
 func init() {
 	if err := feature.Register(feature.ServiceDiscoveryType, buildFeature); err != nil {
@@ -39,15 +43,52 @@ func (f *serviceDiscoveryFeature) ID() feature.IDType {
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *serviceDiscoveryFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
-	if ddaSpec.Features != nil && ddaSpec.Features.ServiceDiscovery != nil && apiutils.BoolValue(ddaSpec.Features.ServiceDiscovery.Enabled) {
+	if ResolveEnabled(ddaSpec) {
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: ptr.To(true),
 			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
 		}
-
 	}
 
 	return reqComp
+}
+
+// ResolveEnabled applies service discovery's version-aware defaulting to ddaSpec when enabled is omitted.
+// It returns the resolved enabled value.
+func ResolveEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	if ddaSpec.Features == nil {
+		return false
+	}
+
+	if ddaSpec.Features.ServiceDiscovery == nil {
+		ddaSpec.Features.ServiceDiscovery = &v2alpha1.ServiceDiscoveryFeatureConfig{}
+	}
+
+	if ddaSpec.Features.ServiceDiscovery.Enabled == nil {
+		ddaSpec.Features.ServiceDiscovery.Enabled = ptr.To(shouldEnableServiceDiscoveryByDefault(ddaSpec))
+	}
+
+	return apiutils.BoolValue(ddaSpec.Features.ServiceDiscovery.Enabled)
+}
+
+func shouldEnableServiceDiscoveryByDefault(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	fallback := ptr.To(true)
+	return pkgutils.IsAboveMinVersion(resolveNodeAgentVersion(ddaSpec), serviceDiscoveryAutoEnableMinVersion, fallback)
+}
+
+func resolveNodeAgentVersion(ddaSpec *v2alpha1.DatadogAgentSpec) string {
+	if ddaSpec.Override != nil {
+		if nodeAgent, found := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; found && nodeAgent != nil && nodeAgent.Image != nil {
+			if version := common.GetAgentVersionFromImage(*nodeAgent.Image); version != "" {
+				return version
+			}
+		}
+	}
+
+	// No explicit node-agent image version means "inherit the default agent image version".
+	// This also applies to partial image overrides that only tweak settings such as pullPolicy:
+	// they do not change the effective image version used for version-gated defaulting.
+	return images.AgentLatestVersion
 }
 
 // ManageDependencies allows a feature to manage its dependencies.

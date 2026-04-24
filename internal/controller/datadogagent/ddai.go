@@ -21,6 +21,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/servicediscovery"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
@@ -70,6 +71,7 @@ func generateSpecFromDDA(dda *v2alpha1.DatadogAgent, ddai *v1alpha1.DatadogAgent
 	ddai.Spec = *dda.Spec.DeepCopy()
 	global.SetGlobalFromDDA(dda, ddai.Spec.Global)
 	override.SetOverrideFromDDA(dda, &ddai.Spec)
+	servicediscovery.ResolveEnabled(&ddai.Spec)
 	return nil
 }
 

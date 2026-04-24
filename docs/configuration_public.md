@@ -385,7 +385,7 @@ spec:
 : Enable this option to activate SBOM collection. Default: false
 
 `features.serviceDiscovery.enabled`
-: Enables the service discovery check. Default: false
+: Enables the service discovery check. Default: true when omitted and the node Agent image is >= 7.78.0. Otherwise false. If the image version cannot be determined, it is treated as latest.
 
 `features.serviceDiscovery.networkStats.enabled`
 : DEPRECATED: this field is ignored.
