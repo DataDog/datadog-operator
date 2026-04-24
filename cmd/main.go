@@ -671,6 +671,6 @@ func setupAndStartHelmMetadataForwarder(logger logr.Logger, mgr manager.Manager,
 }
 
 func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, rcClient remoteconfig.RCClient, revisionsEnabled bool) error {
-	daemon := fleet.NewDaemon(rcClient, mgr.GetClient(), revisionsEnabled)
+	daemon := fleet.NewDaemon(rcClient, mgr, revisionsEnabled)
 	return mgr.Add(daemon)
 }
