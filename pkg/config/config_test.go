@@ -38,6 +38,7 @@ func Test_CacheConfig(t *testing.T) {
 				DatadogAgentProfileEnabled:    true,
 				DatadogDashboardEnabled:       true,
 				DatadogGenericResourceEnabled: true,
+				DatadogCSIDriverEnabled:       true,
 			},
 
 			envConfig: map[string]string{
@@ -48,6 +49,7 @@ func Test_CacheConfig(t *testing.T) {
 				profileWatchNamespaceEnvVar:         "profileNs",
 				dashboardWatchNamespaceEnvVar:       "dashboardNs",
 				genericResourceWatchNamespaceEnvVar: "genericNs",
+				csiDriverWatchNamespaceEnvVar:       "csiDriverNs",
 			},
 
 			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"agentNs"}},
@@ -61,6 +63,40 @@ func Test_CacheConfig(t *testing.T) {
 				profileObj:         {configured: true, namespaces: []string{"profileNs"}},
 				podObj:             {configured: true, namespaces: []string{"agentNs"}},
 				nodeObj:            {configured: true, namespaces: nil},
+				csiDriverObj:       {configured: true, namespaces: []string{"csiDriverNs"}},
+			},
+		},
+		{
+			name: "CSIDriver enabled; falls back to WATCH_NAMESPACE when DD_CSIDRIVER_WATCH_NAMESPACE not set",
+			watchOptions: WatchOptions{
+				DatadogCSIDriverEnabled: true,
+			},
+
+			envConfig: map[string]string{
+				WatchNamespaceEnvVar: "commonNs",
+			},
+
+			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"commonNs"}},
+
+			wantObjectConfig: map[client.Object]objectConfig{
+				csiDriverObj: {configured: true, namespaces: []string{"commonNs"}},
+			},
+		},
+		{
+			name: "CSIDriver enabled; uses DD_CSIDRIVER_WATCH_NAMESPACE when set",
+			watchOptions: WatchOptions{
+				DatadogCSIDriverEnabled: true,
+			},
+
+			envConfig: map[string]string{
+				WatchNamespaceEnvVar:          "commonNs",
+				csiDriverWatchNamespaceEnvVar: "csiNs1,csiNs2",
+			},
+
+			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"commonNs"}},
+
+			wantObjectConfig: map[client.Object]objectConfig{
+				csiDriverObj: {configured: true, namespaces: []string{"csiNs1", "csiNs2"}},
 			},
 		},
 		{
@@ -86,6 +122,7 @@ func Test_CacheConfig(t *testing.T) {
 				profileObj:         {configured: true, namespaces: []string{"profileNs"}},
 				podObj:             {configured: true, namespaces: []string{"datadog"}},
 				nodeObj:            {configured: true, namespaces: nil},
+				csiDriverObj:       {configured: false},
 			},
 		},
 
@@ -114,6 +151,7 @@ func Test_CacheConfig(t *testing.T) {
 				profileObj:         {configured: true, namespaces: []string{"profileNs"}},
 				podObj:             {configured: true, namespaces: []string{"agentNs1", "agentNs2"}},
 				nodeObj:            {configured: true, namespaces: nil},
+				csiDriverObj:       {configured: false},
 			},
 		},
 		{
@@ -141,6 +179,7 @@ func Test_CacheConfig(t *testing.T) {
 				profileObj:         {configured: false},
 				podObj:             {configured: false},
 				nodeObj:            {configured: false},
+				csiDriverObj:       {configured: false},
 			},
 		},
 		{
@@ -169,6 +208,7 @@ func Test_CacheConfig(t *testing.T) {
 				profileObj:         {configured: false},
 				podObj:             {configured: false},
 				nodeObj:            {configured: true, namespaces: nil},
+				csiDriverObj:       {configured: false},
 			},
 		},
 	}

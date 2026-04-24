@@ -45,6 +45,8 @@ const (
 	profileWatchNamespaceEnvVar = "DD_AGENT_PROFILE_WATCH_NAMESPACE"
 	// SLOWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogSLO controller.
 	sloWatchNamespaceEnvVar = "DD_SLO_WATCH_NAMESPACE"
+	// CSIDriverWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogCSIDriver controller.
+	csiDriverWatchNamespaceEnvVar = "DD_CSIDRIVER_WATCH_NAMESPACE"
 )
 
 var (
@@ -55,6 +57,7 @@ var (
 	sloObj             = &datadoghqv1alpha1.DatadogSLO{}
 	profileObj         = &datadoghqv1alpha1.DatadogAgentProfile{}
 	agentInternalObj   = &datadoghqv1alpha1.DatadogAgentInternal{}
+	csiDriverObj       = &datadoghqv1alpha1.DatadogCSIDriver{}
 	podObj             = &corev1.Pod{}
 	nodeObj            = &corev1.Node{}
 )
@@ -68,6 +71,7 @@ type WatchOptions struct {
 	IntrospectionEnabled          bool
 	DatadogDashboardEnabled       bool
 	DatadogGenericResourceEnabled bool
+	DatadogCSIDriverEnabled       bool
 }
 
 // CacheOptions function configures Controller Runtime cache options on a resource level (supported in v0.16+).
@@ -185,6 +189,14 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		logger.Info("DatadogAgentInternal Enabled", "watching namespaces", slices.Collect(maps.Keys(agentInternalNamespaces)))
 		byObject[agentInternalObj] = cache.ByObject{
 			Namespaces: agentInternalNamespaces,
+		}
+	}
+
+	if opts.DatadogCSIDriverEnabled {
+		csiDriverNamespaces := GetWatchNamespacesFromEnv(logger, csiDriverWatchNamespaceEnvVar)
+		logger.Info("DatadogCSIDriver Enabled", "watching namespaces", slices.Collect(maps.Keys(csiDriverNamespaces)))
+		byObject[csiDriverObj] = cache.ByObject{
+			Namespaces: csiDriverNamespaces,
 		}
 	}
 
