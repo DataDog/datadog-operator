@@ -1705,6 +1705,17 @@
                   },
                   "type": "object"
                 },
+                "kataContainers": {
+                  "additionalProperties": false,
+                  "description": "Kata Containers monitoring",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables the Kata Containers core check.\nDefault: false",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
                 "kubeStateMetricsCore": {
                   "additionalProperties": false,
                   "description": "KubeStateMetricsCore check configuration.",
