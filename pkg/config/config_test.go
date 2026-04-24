@@ -64,6 +64,7 @@ func Test_CacheConfig(t *testing.T) {
 				podObj:             {configured: true, namespaces: []string{"agentNs"}},
 				nodeObj:            {configured: true, namespaces: nil},
 				csiDriverObj:       {configured: true, namespaces: []string{"csiDriverNs"}},
+				csiDaemonSetObj:    {configured: true, namespaces: []string{"csiDriverNs", "agentNs"}},
 			},
 		},
 		{
@@ -79,7 +80,8 @@ func Test_CacheConfig(t *testing.T) {
 			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"commonNs"}},
 
 			wantObjectConfig: map[client.Object]objectConfig{
-				csiDriverObj: {configured: true, namespaces: []string{"commonNs"}},
+				csiDriverObj:    {configured: true, namespaces: []string{"commonNs"}},
+				csiDaemonSetObj: {configured: true, namespaces: []string{"commonNs"}},
 			},
 		},
 		{
@@ -96,7 +98,28 @@ func Test_CacheConfig(t *testing.T) {
 			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"commonNs"}},
 
 			wantObjectConfig: map[client.Object]objectConfig{
-				csiDriverObj: {configured: true, namespaces: []string{"csiNs1", "csiNs2"}},
+				csiDriverObj:    {configured: true, namespaces: []string{"csiNs1", "csiNs2"}},
+				csiDaemonSetObj: {configured: true, namespaces: []string{"csiNs1", "csiNs2", "commonNs"}},
+			},
+		},
+		{
+			name: "CSIDriver in different namespace than Agent; DaemonSet cached in both",
+			watchOptions: WatchOptions{
+				DatadogAgentEnabled:     true,
+				DatadogCSIDriverEnabled: true,
+			},
+
+			envConfig: map[string]string{
+				AgentWatchNamespaceEnvVar:     "system",
+				csiDriverWatchNamespaceEnvVar: "default",
+			},
+
+			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"system"}},
+
+			wantObjectConfig: map[client.Object]objectConfig{
+				agentObj:        {configured: true, namespaces: []string{"system"}},
+				csiDriverObj:    {configured: true, namespaces: []string{"default"}},
+				csiDaemonSetObj: {configured: true, namespaces: []string{"system", "default"}},
 			},
 		},
 		{
