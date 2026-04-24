@@ -146,6 +146,54 @@ func Test_Experiment_RollbackPreservesConcurrentStatusWrite(t *testing.T) {
 	assert.Equal(t, v2alpha1.ExperimentPhaseRollback, after.Status.Experiment.Phase)
 }
 
+// Test_Experiment_RollbackDoesNotClobberConcurrentPhaseWrite verifies that
+// when a concurrent writer (e.g. the RC daemon accepting a promotion) has
+// moved `status.experiment.phase` between the reconcile's initial fetch and
+// the restorePreviousSpec patch, the targeted JSON patch's `test` op fails
+// and the concurrent phase is left intact — rather than silently overwritten
+// by our stale terminal-phase decision.
+func Test_Experiment_RollbackDoesNotClobberConcurrentPhaseWrite(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+	nsName := types.NamespacedName{Namespace: ns, Name: name}
+
+	r := newExperimentIntegrationReconciler(t, 0)
+
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+	reconcileN(t, r, ns, name, 1)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseStopped, ID: "exp-1"}
+	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
+
+	// Snapshot the observed state — as if a reconcile had just fetched.
+	snapshot := &v2alpha1.DatadogAgent{}
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, snapshot))
+
+	// Simulate a concurrent writer moving the phase to promoted *after* the
+	// operator fetched its view but *before* restorePreviousSpec runs.
+	concurrent := &v2alpha1.DatadogAgent{}
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, concurrent))
+	concurrent.Status.Experiment.Phase = v2alpha1.ExperimentPhasePromoted
+	assert.NoError(t, r.client.Status().Update(context.TODO(), concurrent))
+
+	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: snapshot.Status.Experiment.DeepCopy()}
+	revisions := mustListRevisions(t, r, snapshot)
+	assert.NoError(t, r.restorePreviousSpec(context.TODO(), snapshot, newStatus, revisions, v2alpha1.ExperimentPhaseRollback))
+
+	// The targeted patch's test op must have rejected our stale decision —
+	// the concurrent writer's promoted phase survives.
+	after := &v2alpha1.DatadogAgent{}
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, after))
+	assert.Equal(t, v2alpha1.ExperimentPhasePromoted, after.Status.Experiment.Phase,
+		"concurrent phase write must not be overwritten by a stale targeted patch")
+}
+
 // Test_Experiment_StoppedRollback verifies that when RC writes phase=stopped,
 // the operator restores the previous spec and sets phase=rollback.
 func Test_Experiment_StoppedRollback(t *testing.T) {
