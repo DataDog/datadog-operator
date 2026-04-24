@@ -450,8 +450,8 @@ func (in *CSIConfig) DeepCopyInto(out *CSIConfig) {
 		*out = new(bool)
 		**out = **in
 	}
-	if in.ManageDatadogCSIDriver != nil {
-		in, out := &in.ManageDatadogCSIDriver, &out.ManageDatadogCSIDriver
+	if in.AutoManage != nil {
+		in, out := &in.AutoManage, &out.AutoManage
 		*out = new(bool)
 		**out = **in
 	}

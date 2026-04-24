@@ -211,8 +211,8 @@ func TestReconcileDatadogCSIDriver_NoOverrideWhenNoTolerations(t *testing.T) {
 	assert.Nil(t, ddcsi.Spec.Override)
 }
 
-func TestReconcileDatadogCSIDriver_ManageDisabledCleansUpAndDoesNotRecreate(t *testing.T) {
-	// Migration path: user opts out via manageDatadogCSIDriver=false while keeping csi.enabled=true.
+func TestReconcileDatadogCSIDriver_AutoManageDisabledCleansUpAndDoesNotRecreate(t *testing.T) {
+	// Migration path: user opts out via autoManage=false while keeping csi.enabled=true.
 	// The operator must clean up the DDA-owned CR it created previously and not recreate it,
 	// letting the user take over with a DatadogCSIDriver CR they maintain themselves.
 	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
@@ -224,21 +224,21 @@ func TestReconcileDatadogCSIDriver_ManageDisabledCleansUpAndDoesNotRecreate(t *t
 	require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi))
 
 	// User opts out of management.
-	dda.Spec.Global.CSI.ManageDatadogCSIDriver = ptr.To(false)
+	dda.Spec.Global.CSI.AutoManage = ptr.To(false)
 	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
 
 	// DDA-owned CR is gone.
 	err := r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi)
 	assert.Error(t, err)
 
-	// Subsequent reconciles with manage=false must not recreate it.
+	// Subsequent reconciles with autoManage=false must not recreate it.
 	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
 	err = r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi)
 	assert.Error(t, err)
 }
 
-func TestReconcileDatadogCSIDriver_ManageDisabledSkipsForeignCR(t *testing.T) {
-	// When manage=false and a non-DDA-owned DatadogCSIDriver CR happens to exist at the same
+func TestReconcileDatadogCSIDriver_AutoManageDisabledSkipsForeignCR(t *testing.T) {
+	// When autoManage=false and a non-DDA-owned DatadogCSIDriver CR happens to exist at the same
 	// namespace/name, the cleanup must not touch it (cleanup's IsControlledBy guard).
 	scheme := testScheme()
 	r := newTestReconcilerForDDCSI(scheme, platformInfoWithDDCSI())
@@ -249,7 +249,7 @@ func TestReconcileDatadogCSIDriver_ManageDisabledSkipsForeignCR(t *testing.T) {
 	require.NoError(t, r.client.Create(context.Background(), foreign))
 
 	dda := newDDAForDDCSI("test-dda", "default", true)
-	dda.Spec.Global.CSI.ManageDatadogCSIDriver = ptr.To(false)
+	dda.Spec.Global.CSI.AutoManage = ptr.To(false)
 
 	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
 

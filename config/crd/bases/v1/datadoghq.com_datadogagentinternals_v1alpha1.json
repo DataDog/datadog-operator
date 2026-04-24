@@ -2739,12 +2739,12 @@
               "additionalProperties": false,
               "description": "CSI contains configuration for Datadog CSI Driver",
               "properties": {
-                "enabled": {
-                  "description": "Enables the usage of CSI driver in Datadog Agent. When the operator is started with\n`--datadogCSIDriverEnabled=true`, it will also install the driver by creating a\nDatadogCSIDriver custom resource, unless a cluster-scoped `k8s.csi.datadoghq.com`\nCSIDriver is already present, in which case it defers to the existing installation\n(e.g. from the Datadog CSI driver Helm chart).\nDefault: false",
+                "autoManage": {
+                  "description": "AutoManage controls whether the operator automatically manages the DatadogCSIDriver\ncustom resource on behalf of this DatadogAgent. Set to false to hand ownership over to a\nDatadogCSIDriver CR that you maintain yourself (useful for migrations where you need\ncustomizations not exposed on the DatadogAgent spec). When toggled from true to false,\nthe operator cleans up the DDA-owned DatadogCSIDriver CR; you are then responsible for\nproviding a replacement so CSI continues to work.\nDefault: true",
                   "type": "boolean"
                 },
-                "manageDatadogCSIDriver": {
-                  "description": "ManageDatadogCSIDriver controls whether the operator manages the DatadogCSIDriver custom\nresource on behalf of this DatadogAgent. Set to false to hand ownership over to a\nDatadogCSIDriver CR that you maintain yourself (useful for migrations where you need\ncustomizations not exposed on the DatadogAgent spec). When toggled from true to false,\nthe operator cleans up the DDA-owned DatadogCSIDriver CR; you are then responsible for\nproviding a replacement so CSI continues to work.\nDefault: true",
+                "enabled": {
+                  "description": "Enables the usage of CSI driver in Datadog Agent. When the operator is started with\n`--datadogCSIDriverEnabled=true`, it will also install the driver by creating a\nDatadogCSIDriver custom resource, unless a cluster-scoped `k8s.csi.datadoghq.com`\nCSIDriver is already present, in which case it defers to the existing installation\n(e.g. from the Datadog CSI driver Helm chart).\nDefault: false",
                   "type": "boolean"
                 },
                 "nodeAffinity": {

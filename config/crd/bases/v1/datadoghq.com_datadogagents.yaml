@@ -2616,6 +2616,16 @@ spec:
                     csi:
                       description: CSI contains configuration for Datadog CSI Driver
                       properties:
+                        autoManage:
+                          description: |-
+                            AutoManage controls whether the operator automatically manages the DatadogCSIDriver
+                            custom resource on behalf of this DatadogAgent. Set to false to hand ownership over to a
+                            DatadogCSIDriver CR that you maintain yourself (useful for migrations where you need
+                            customizations not exposed on the DatadogAgent spec). When toggled from true to false,
+                            the operator cleans up the DDA-owned DatadogCSIDriver CR; you are then responsible for
+                            providing a replacement so CSI continues to work.
+                            Default: true
+                          type: boolean
                         enabled:
                           description: |-
                             Enables the usage of CSI driver in Datadog Agent. When the operator is started with
@@ -2624,16 +2634,6 @@ spec:
                             CSIDriver is already present, in which case it defers to the existing installation
                             (e.g. from the Datadog CSI driver Helm chart).
                             Default: false
-                          type: boolean
-                        manageDatadogCSIDriver:
-                          description: |-
-                            ManageDatadogCSIDriver controls whether the operator manages the DatadogCSIDriver custom
-                            resource on behalf of this DatadogAgent. Set to false to hand ownership over to a
-                            DatadogCSIDriver CR that you maintain yourself (useful for migrations where you need
-                            customizations not exposed on the DatadogAgent spec). When toggled from true to false,
-                            the operator cleans up the DDA-owned DatadogCSIDriver CR; you are then responsible for
-                            providing a replacement so CSI continues to work.
-                            Default: true
                           type: boolean
                         nodeAffinity:
                           description: NodeAffinity specifies node affinity scheduling rules for CSI driver DaemonSet pods.

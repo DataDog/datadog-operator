@@ -38,7 +38,7 @@ const (
 // Behavior (backward-compatible with the long-standing `csi.enabled` semantics):
 //
 //   - `csi.enabled=false`  → cleanup the DDA-owned DatadogCSIDriver CR if any.
-//   - `csi.enabled=true`   + `manageDatadogCSIDriver=false` → user opts out of operator
+//   - `csi.enabled=true`   + `autoManage=false` → user opts out of operator
 //     management; cleanup the DDA-owned CR so the user can take ownership of a DatadogCSIDriver
 //     CR they maintain themselves (migration path for customizations not exposed on the DDA).
 //   - `csi.enabled=true`   + operator flag `--datadogCSIDriverEnabled=false` (the default) →
@@ -60,11 +60,11 @@ func (r *Reconciler) reconcileDatadogCSIDriver(ctx context.Context, logger logr.
 		apiutils.BoolValue(instance.Spec.Global.CSI.Enabled)
 
 	// Cleanup the operator-owned CR when either CSI is disabled entirely, or when the user has
-	// explicitly opted out of management (manageDatadogCSIDriver=false): typically a migration
-	// where they want to take ownership of a DatadogCSIDriver CR they maintain themselves.
+	// explicitly opted out of management (autoManage=false): typically a migration where they
+	// want to take ownership of a DatadogCSIDriver CR they maintain themselves.
 	// `||` short-circuits: if csiEnabled is false (which requires Global/CSI to be safely-nil-
-	// guarded), we never dereference `.ManageDatadogCSIDriver`
-	if !csiEnabled || !ptr.Deref(instance.Spec.Global.CSI.ManageDatadogCSIDriver, true) {
+	// guarded), we never dereference `.AutoManage`
+	if !csiEnabled || !ptr.Deref(instance.Spec.Global.CSI.AutoManage, true) {
 		return r.cleanupDatadogCSIDriver(ctx, logger, instance)
 	}
 
