@@ -115,14 +115,14 @@ func TestRollback_RestoresSpec(t *testing.T) {
 	require.NoError(t, c.Create(context.Background(), instanceB))
 
 	// Rollback from instanceB to prevRevision (specA).
-	require.NoError(t, r.rollback(context.Background(), instanceB, prevRevision))
+	require.NoError(t, r.rollback(context.Background(), instanceB.ObjectMeta, prevRevision))
 }
 
 func TestRollback_NoPreviousRevision(t *testing.T) {
 	r, _ := newRevisionTestReconciler(t)
 	instance := newRevisionTestOwner("test-dda", "default")
 
-	err := r.rollback(context.Background(), instance, "")
+	err := r.rollback(context.Background(), instance.ObjectMeta, "")
 	require.NoError(t, err)
 }
 
@@ -176,7 +176,7 @@ func TestRollback_PreservesNonDatadogAnnotations(t *testing.T) {
 	}
 	require.NoError(t, c.Create(context.Background(), instanceB))
 
-	require.NoError(t, r.rollback(context.Background(), instanceB, prevRevision))
+	require.NoError(t, r.rollback(context.Background(), instanceB.ObjectMeta, prevRevision))
 
 	updated := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), types.NamespacedName{Namespace: "default", Name: "test-dda"}, updated))

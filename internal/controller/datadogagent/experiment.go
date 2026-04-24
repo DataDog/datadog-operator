@@ -180,7 +180,7 @@ func (r *Reconciler) restorePreviousSpec(
 	terminalPhase v2alpha1.ExperimentPhase,
 ) error {
 	rollbackTarget := findRollbackTarget(revisions)
-	if err := r.rollback(ctx, instance, rollbackTarget); err != nil {
+	if err := r.rollback(ctx, instance.ObjectMeta, rollbackTarget); err != nil {
 		return err
 	}
 	newStatus.Experiment.Phase = terminalPhase
@@ -214,7 +214,7 @@ func (r *Reconciler) patchExperimentPhase(ctx context.Context, instance *v2alpha
 // rollback restores the DDA spec from the named ControllerRevision.
 func (r *Reconciler) rollback(
 	ctx context.Context,
-	instance *v2alpha1.DatadogAgent,
+	instanceMeta metav1.ObjectMeta,
 	rollbackTarget string,
 ) error {
 	if rollbackTarget == "" {
@@ -223,7 +223,7 @@ func (r *Reconciler) rollback(
 	}
 
 	cr := &appsv1.ControllerRevision{}
-	if err := r.client.Get(ctx, types.NamespacedName{Namespace: instance.Namespace, Name: rollbackTarget}, cr); err != nil {
+	if err := r.client.Get(ctx, types.NamespacedName{Namespace: instanceMeta.Namespace, Name: rollbackTarget}, cr); err != nil {
 		return fmt.Errorf("failed to get previous ControllerRevision %s: %w", rollbackTarget, err)
 	}
 
@@ -235,7 +235,7 @@ func (r *Reconciler) rollback(
 	// Re-fetch for the latest ResourceVersion and to check whether the spec is
 	// rolled back already. If it is, skip the update.
 	current := &v2alpha1.DatadogAgent{}
-	if err := r.client.Get(ctx, types.NamespacedName{Namespace: instance.Namespace, Name: instance.Name}, current); err != nil {
+	if err := r.client.Get(ctx, types.NamespacedName{Namespace: instanceMeta.Namespace, Name: instanceMeta.Name}, current); err != nil {
 		return fmt.Errorf("failed to get current DDA for rollback: %w", err)
 	}
 	currentSnap, err := json.Marshal(revisionSnapshot{Spec: current.Spec, Annotations: datadogAnnotations(current.GetAnnotations())})
