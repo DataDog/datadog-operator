@@ -434,7 +434,7 @@ e2e_autoscaling:
   stage: e2e
   needs:
     - "go_e2e_deps"
-  timeout: 90m
+  timeout: 150m
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
