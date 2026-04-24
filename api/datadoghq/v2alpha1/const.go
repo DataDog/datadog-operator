@@ -13,3 +13,12 @@ const (
 	// DefaultAPIKeyKey default api-key key (use in secret for instance).
 	DefaultAPIKeyKey = "api_key"
 )
+
+// Experiment signal annotations. The fleet daemon writes these annotations to
+// request state transitions; the reconciler clears them after processing.
+const (
+	// AnnotationExperimentID is the annotation key for the experiment signal ID.
+	AnnotationExperimentID = "experiment.datadoghq.com/id"
+	// AnnotationExperimentSignal is the annotation key for the experiment signal type.
+	AnnotationExperimentSignal = "experiment.datadoghq.com/signal"
+)

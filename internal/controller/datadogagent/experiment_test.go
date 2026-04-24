@@ -59,7 +59,8 @@ func TestManageExperiment_AbortsOnManualChange(t *testing.T) {
 // The revision-based abort check sees the spec matching the baseline revision
 // and treats it as a known state. The timeout path fires because the baseline
 // revision's old timestamp exceeds the threshold. The rollback is a no-op
-// (spec already matches target), and the phase is set to "timeout".
+// (spec already matches target), and the phase is set to "terminated" with
+// terminationReason "timed_out".
 func TestManageExperiment_ManualRevertToBaselineTerminatesViaTimeout(t *testing.T) {
 	r, c := newRevisionTestReconciler(t)
 
@@ -90,7 +91,8 @@ func TestManageExperiment_ManualRevertToBaselineTerminatesViaTimeout(t *testing.
 	require.NoError(t, r.manageExperiment(context.Background(), instanceA, newStatus, metav1.Now(), revList))
 	// Abort does not fire — spec matches a known revision. Timeout fires instead
 	// because the matching revision's timestamp exceeds the threshold.
-	assert.Equal(t, v2alpha1.ExperimentPhaseTimeout, newStatus.Experiment.Phase)
+	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, newStatus.Experiment.Phase)
+	assert.Equal(t, ExperimentTerminationReasonTimedOut, newStatus.Experiment.TerminationReason)
 }
 
 func TestRollback_RestoresSpec(t *testing.T) {
@@ -115,32 +117,36 @@ func TestRollback_RestoresSpec(t *testing.T) {
 	require.NoError(t, c.Create(context.Background(), instanceB))
 
 	// Rollback from instanceB to prevRevision (specA).
-	require.NoError(t, r.rollback(context.Background(), instanceB.ObjectMeta, prevRevision))
+	require.NoError(t, r.rollback(context.Background(), instanceB, prevRevision))
 }
 
 func TestRollback_NoPreviousRevision(t *testing.T) {
 	r, _ := newRevisionTestReconciler(t)
 	instance := newRevisionTestOwner("test-dda", "default")
 
-	err := r.rollback(context.Background(), instance.ObjectMeta, "")
+	err := r.rollback(context.Background(), instance, "")
 	require.NoError(t, err)
 }
 
-func TestHandleRollback_StoppedPhase(t *testing.T) {
+func TestProcessExperimentSignal_RollbackSignalRollsBack(t *testing.T) {
 	r, c := newRevisionTestReconciler(t)
 
 	// Create two revisions so we have a previous to roll back to.
 	instanceA := newRevisionTestOwner("test-dda", "default")
-	err := r.manageRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), nil)
-	require.NoError(t, err)
+	require.NoError(t, r.manageRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), nil))
 
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
-	err = r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil)
-	require.NoError(t, err)
+	require.NoError(t, r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil))
 
+	// Set annotations to signal rollback, and status to running (controller already processed start).
+	instanceB.Annotations = map[string]string{
+		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalRollback,
+		v2alpha1.AnnotationExperimentID:     "exp-1",
+	}
 	instanceB.Status.Experiment = &v2alpha1.ExperimentStatus{
-		Phase: v2alpha1.ExperimentPhaseStopped,
+		Phase: v2alpha1.ExperimentPhaseRunning,
+		ID:    "exp-1",
 	}
 
 	// rollback fetches the current DDA to compare specs; it must exist in the fake client.
@@ -148,9 +154,11 @@ func TestHandleRollback_StoppedPhase(t *testing.T) {
 
 	revList := mustListRevisions(t, r, instanceB)
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceB.Status.Experiment.DeepCopy()}
-	require.NoError(t, r.handleRollback(context.Background(), instanceB, newStatus, metav1.Now(), revList))
+	_, processErr := r.processExperimentSignal(context.Background(), instanceB, newStatus, revList)
+	require.NoError(t, processErr)
 	require.NotNil(t, newStatus.Experiment)
-	assert.Equal(t, v2alpha1.ExperimentPhaseRollback, newStatus.Experiment.Phase, "should ack stopped by setting phase to rollback")
+	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, newStatus.Experiment.Phase, "rollback signal should trigger terminated phase")
+	assert.Equal(t, ExperimentTerminationReasonStopped, newStatus.Experiment.TerminationReason)
 }
 
 func TestRollback_PreservesNonDatadogAnnotations(t *testing.T) {
@@ -176,7 +184,7 @@ func TestRollback_PreservesNonDatadogAnnotations(t *testing.T) {
 	}
 	require.NoError(t, c.Create(context.Background(), instanceB))
 
-	require.NoError(t, r.rollback(context.Background(), instanceB.ObjectMeta, prevRevision))
+	require.NoError(t, r.rollback(context.Background(), instanceB, prevRevision))
 
 	updated := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), types.NamespacedName{Namespace: "default", Name: "test-dda"}, updated))
@@ -198,23 +206,24 @@ func TestRestorePreviousSpec_PhaseSetOnlyOnSuccess(t *testing.T) {
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
 	require.NoError(t, r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil))
 
-	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseStopped}}
+	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseRunning}}
 
 	// rollback requires the DDA to exist in the fake client; don't create it so it errors.
-	err := r.restorePreviousSpec(context.Background(), instanceB.ObjectMeta, newStatus, mustListRevisions(t, r, instanceB), v2alpha1.ExperimentPhaseRollback)
+	err := r.restorePreviousSpec(context.Background(), instanceB, newStatus, mustListRevisions(t, r, instanceB), ExperimentTerminationReasonStopped)
 	require.Error(t, err)
 	// Phase must NOT have been set since rollback failed.
-	assert.Equal(t, v2alpha1.ExperimentPhaseStopped, newStatus.Experiment.Phase)
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, newStatus.Experiment.Phase)
 
 	// Now create the DDA so rollback can succeed.
 	require.NoError(t, c.Create(context.Background(), instanceB))
-	err = r.restorePreviousSpec(context.Background(), instanceB.ObjectMeta, newStatus, mustListRevisions(t, r, instanceB), v2alpha1.ExperimentPhaseRollback)
+	err = r.restorePreviousSpec(context.Background(), instanceB, newStatus, mustListRevisions(t, r, instanceB), ExperimentTerminationReasonStopped)
 	require.NoError(t, err)
-	assert.Equal(t, v2alpha1.ExperimentPhaseRollback, newStatus.Experiment.Phase)
+	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, newStatus.Experiment.Phase)
+	assert.Equal(t, ExperimentTerminationReasonStopped, newStatus.Experiment.TerminationReason)
 }
 
-func TestManageExperiment_TimeoutWinsOverSpuriousAbort(t *testing.T) {
-	r, c := newRevisionTestReconciler(t)
+func TestManageExperiment_ManualChangeAbortsInsteadOfTimeout(t *testing.T) {
+	r, _ := newRevisionTestReconciler(t)
 
 	// Create two revisions so rollback has a target.
 	instanceA := newRevisionTestOwner("test-dda", "default")
@@ -223,12 +232,11 @@ func TestManageExperiment_TimeoutWinsOverSpuriousAbort(t *testing.T) {
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
 	require.NoError(t, r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil))
-	require.NoError(t, c.Create(context.Background(), instanceB))
 
-	// Simulate a post-409 reconcile: phase=running, the spec was manually changed
-	// so it doesn't match any revision, AND timeout has elapsed. abortExperiment
-	// would fire for the revision mismatch, but handleRollback must win and
-	// persist phase=timeout.
+	// Simulate: phase=running, the spec was manually changed so it doesn't match
+	// any revision, AND timeout has elapsed. With the fix, handleRollback defers
+	// to abortExperiment when spec doesn't match any revision and len >= 2.
+	// The user's manual change takes precedence over timeout.
 	manualSite := "manual-change.example.com"
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{Site: &manualSite}}
 	instanceB.Status.Experiment = &v2alpha1.ExperimentStatus{
@@ -244,7 +252,7 @@ func TestManageExperiment_TimeoutWinsOverSpuriousAbort(t *testing.T) {
 
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceB.Status.Experiment.DeepCopy()}
 	require.NoError(t, r.manageExperiment(context.Background(), instanceB, newStatus, metav1.Now(), revList))
-	assert.Equal(t, v2alpha1.ExperimentPhaseTimeout, newStatus.Experiment.Phase)
+	assert.Equal(t, v2alpha1.ExperimentPhaseAborted, newStatus.Experiment.Phase)
 }
 
 func TestHandleRollback_NoTimeoutOnFirstReconcile(t *testing.T) {
@@ -269,13 +277,14 @@ func TestHandleRollback_NoTimeoutOnFirstReconcile(t *testing.T) {
 	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, newStatus.Experiment.Phase)
 }
 
-// TestHandleRollback_PostRollbackSetsTimeout verifies the reconcile-2 scenario:
+// TestHandleRollback_PostRollbackSetsTerminated verifies the reconcile-2 scenario:
 // the spec has already been restored to the pre-experiment value (e.g. by a
 // previous reconcile whose status write 409'd), so phase is still running and
 // the generation is mismatched. findMostRecentMatchingRevision finds the
 // pre-experiment revision (spec matches), elapsed is large, idempotent rollback
-// fires, and phase=timeout is set without a spec-update conflict.
-func TestHandleRollback_PostRollbackSetsTimeout(t *testing.T) {
+// fires, and phase=terminated with terminationReason=timed_out is set without a
+// spec-update conflict.
+func TestHandleRollback_PostRollbackSetsTerminated(t *testing.T) {
 	r, c := newRevisionTestReconciler(t)
 
 	// rev1: pre-experiment spec (instanceA).
@@ -304,7 +313,8 @@ func TestHandleRollback_PostRollbackSetsTimeout(t *testing.T) {
 
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceA.Status.Experiment.DeepCopy()}
 	require.NoError(t, r.handleRollback(context.Background(), instanceA, newStatus, metav1.Now(), revList))
-	assert.Equal(t, v2alpha1.ExperimentPhaseTimeout, newStatus.Experiment.Phase)
+	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, newStatus.Experiment.Phase)
+	assert.Equal(t, ExperimentTerminationReasonTimedOut, newStatus.Experiment.TerminationReason)
 }
 
 // TestReapplySameSpecAfterRollback_NoImmediateTimeout is the end-to-end
@@ -338,12 +348,18 @@ func TestReapplySameSpecAfterRollback_NoImmediateTimeout(t *testing.T) {
 		}
 	}
 
-	// Rollback: RC sets phase=Stopped; operator restores spec A.
+	// Rollback: RC sends rollback signal via annotation; operator restores spec A.
 	// restorePreviousSpec annotates the experiment revision (B) as rolled back.
-	instanceB.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseStopped}
+	instanceB.Annotations = map[string]string{
+		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalRollback,
+		v2alpha1.AnnotationExperimentID:     "exp-1",
+	}
+	instanceB.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseRunning, ID: "exp-1"}
 	rollbackStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceB.Status.Experiment.DeepCopy()}
-	require.NoError(t, r.handleRollback(context.Background(), instanceB, rollbackStatus, metav1.Now(), revList))
-	require.Equal(t, v2alpha1.ExperimentPhaseRollback, rollbackStatus.Experiment.Phase)
+	_, processErr := r.processExperimentSignal(context.Background(), instanceB, rollbackStatus, revList)
+	require.NoError(t, processErr)
+	require.Equal(t, v2alpha1.ExperimentPhaseTerminated, rollbackStatus.Experiment.Phase)
+	require.Equal(t, ExperimentTerminationReasonStopped, rollbackStatus.Experiment.TerminationReason)
 
 	// Verify the experiment revision was annotated.
 	remaining := mustListRevisions(t, r, instanceA)
@@ -418,11 +434,12 @@ func TestRestorePreviousSpec_ThreeRevisions_AnnotatesOnlyHighest(t *testing.T) {
 	// rollback fetches the current DDA; create it with the experiment spec.
 	require.NoError(t, c.Create(context.Background(), instanceC))
 
-	// Trigger rollback via phase=stopped.
-	instanceC.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseStopped}
+	// Trigger rollback.
+	instanceC.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseRunning}
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceC.Status.Experiment.DeepCopy()}
-	require.NoError(t, r.restorePreviousSpec(context.Background(), instanceC.ObjectMeta, newStatus, revList, v2alpha1.ExperimentPhaseRollback))
-	assert.Equal(t, v2alpha1.ExperimentPhaseRollback, newStatus.Experiment.Phase)
+	require.NoError(t, r.restorePreviousSpec(context.Background(), instanceC, newStatus, revList, ExperimentTerminationReasonStopped))
+	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, newStatus.Experiment.Phase)
+	assert.Equal(t, ExperimentTerminationReasonStopped, newStatus.Experiment.TerminationReason)
 
 	// Verify: only rev3 (experiment, highest) is annotated.
 	// Rev1 (old baseline) and rev2 (rollback target) must NOT be annotated.
@@ -523,5 +540,212 @@ func TestHandleRollback_Timeout(t *testing.T) {
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceB.Status.Experiment.DeepCopy()}
 	require.NoError(t, r.handleRollback(context.Background(), instanceB, newStatus, metav1.Now(), revList))
 	require.NotNil(t, newStatus.Experiment)
-	assert.Equal(t, v2alpha1.ExperimentPhaseTimeout, newStatus.Experiment.Phase)
+	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, newStatus.Experiment.Phase)
+	assert.Equal(t, ExperimentTerminationReasonTimedOut, newStatus.Experiment.TerminationReason)
+}
+
+// --- processExperimentSignal tests ---
+
+func TestProcessExperimentSignal_StartNewExperiment(t *testing.T) {
+	r, _ := newRevisionTestReconciler(t)
+	instance := newRevisionTestOwner("test-dda", "default")
+	instance.Annotations = map[string]string{
+		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalStart,
+		v2alpha1.AnnotationExperimentID:     "exp-new",
+	}
+
+	newStatus := &v2alpha1.DatadogAgentStatus{}
+	_, processErr := r.processExperimentSignal(context.Background(), instance, newStatus, nil)
+	require.NoError(t, processErr)
+	require.NotNil(t, newStatus.Experiment)
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, newStatus.Experiment.Phase)
+	assert.Equal(t, "exp-new", newStatus.Experiment.ID)
+}
+
+func TestProcessExperimentSignal_StartIdempotent(t *testing.T) {
+	r, _ := newRevisionTestReconciler(t)
+	instance := newRevisionTestOwner("test-dda", "default")
+	instance.Annotations = map[string]string{
+		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalStart,
+		v2alpha1.AnnotationExperimentID:     "exp-1",
+	}
+	instance.Status.Experiment = &v2alpha1.ExperimentStatus{
+		Phase: v2alpha1.ExperimentPhaseRunning,
+		ID:    "exp-1",
+	}
+
+	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instance.Status.Experiment.DeepCopy()}
+	_, processErr := r.processExperimentSignal(context.Background(), instance, newStatus, nil)
+	require.NoError(t, processErr)
+	// No change — already processed.
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, newStatus.Experiment.Phase)
+	assert.Equal(t, "exp-1", newStatus.Experiment.ID)
+}
+
+func TestProcessExperimentSignal_StartBlockedByRunningExperiment(t *testing.T) {
+	r, _ := newRevisionTestReconciler(t)
+	instance := newRevisionTestOwner("test-dda", "default")
+	instance.Annotations = map[string]string{
+		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalStart,
+		v2alpha1.AnnotationExperimentID:     "exp-new",
+	}
+	instance.Status.Experiment = &v2alpha1.ExperimentStatus{
+		Phase: v2alpha1.ExperimentPhaseRunning,
+		ID:    "exp-existing",
+	}
+
+	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instance.Status.Experiment.DeepCopy()}
+	_, processErr := r.processExperimentSignal(context.Background(), instance, newStatus, nil)
+	require.NoError(t, processErr)
+	// Refused — existing experiment still running.
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, newStatus.Experiment.Phase)
+	assert.Equal(t, "exp-existing", newStatus.Experiment.ID)
+}
+
+func TestProcessExperimentSignal_RollbackIDMismatch(t *testing.T) {
+	r, _ := newRevisionTestReconciler(t)
+	instance := newRevisionTestOwner("test-dda", "default")
+	instance.Annotations = map[string]string{
+		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalRollback,
+		v2alpha1.AnnotationExperimentID:     "wrong-id",
+	}
+	instance.Status.Experiment = &v2alpha1.ExperimentStatus{
+		Phase: v2alpha1.ExperimentPhaseRunning,
+		ID:    "exp-1",
+	}
+
+	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instance.Status.Experiment.DeepCopy()}
+	_, processErr := r.processExperimentSignal(context.Background(), instance, newStatus, nil)
+	require.NoError(t, processErr)
+	// No change — ID mismatch.
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, newStatus.Experiment.Phase)
+}
+
+func TestProcessExperimentSignal_RollbackTerminalPhaseNoOp(t *testing.T) {
+	r, _ := newRevisionTestReconciler(t)
+	instance := newRevisionTestOwner("test-dda", "default")
+	instance.Annotations = map[string]string{
+		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalRollback,
+		v2alpha1.AnnotationExperimentID:     "exp-1",
+	}
+	instance.Status.Experiment = &v2alpha1.ExperimentStatus{
+		Phase: v2alpha1.ExperimentPhaseTerminated,
+		ID:    "exp-1",
+	}
+
+	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instance.Status.Experiment.DeepCopy()}
+	_, processErr := r.processExperimentSignal(context.Background(), instance, newStatus, nil)
+	require.NoError(t, processErr)
+	// Already terminal — no-op.
+	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, newStatus.Experiment.Phase)
+}
+
+func TestProcessExperimentSignal_PromoteRunning(t *testing.T) {
+	r, _ := newRevisionTestReconciler(t)
+
+	// Create a revision matching the instance spec so promote sees a matching revision.
+	instance := newRevisionTestOwner("test-dda", "default")
+	require.NoError(t, r.manageRevision(context.Background(), instance, mustListRevisions(t, r, instance), nil))
+	// Create a second revision to satisfy len(revisions) >= 2.
+	instance2 := newRevisionTestOwner("test-dda", "default")
+	instance2.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
+	require.NoError(t, r.manageRevision(context.Background(), instance2, mustListRevisions(t, r, instance2), nil))
+
+	// Now promote back to the first spec (which has a matching revision).
+	instance.Annotations = map[string]string{
+		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalPromote,
+		v2alpha1.AnnotationExperimentID:     "exp-1",
+	}
+	instance.Status.Experiment = &v2alpha1.ExperimentStatus{
+		Phase: v2alpha1.ExperimentPhaseRunning,
+		ID:    "exp-1",
+	}
+
+	revList := mustListRevisions(t, r, instance)
+	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instance.Status.Experiment.DeepCopy()}
+	_, processErr := r.processExperimentSignal(context.Background(), instance, newStatus, revList)
+	require.NoError(t, processErr)
+	assert.Equal(t, v2alpha1.ExperimentPhasePromoted, newStatus.Experiment.Phase)
+}
+
+func TestProcessExperimentSignal_PromoteBeatsTimeout(t *testing.T) {
+	r, c := newRevisionTestReconciler(t)
+
+	// Create two revisions.
+	instanceA := newRevisionTestOwner("test-dda", "default")
+	require.NoError(t, r.manageRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), nil))
+
+	instanceB := newRevisionTestOwner("test-dda", "default")
+	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
+	require.NoError(t, r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil))
+	require.NoError(t, c.Create(context.Background(), instanceB))
+
+	// Set promote annotation and running phase with timeout elapsed.
+	instanceB.Annotations = map[string]string{
+		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalPromote,
+		v2alpha1.AnnotationExperimentID:     "exp-1",
+	}
+	instanceB.Status.Experiment = &v2alpha1.ExperimentStatus{
+		Phase: v2alpha1.ExperimentPhaseRunning,
+		ID:    "exp-1",
+	}
+
+	revList := mustListRevisions(t, r, instanceB)
+	for i := range revList {
+		revList[i].CreationTimestamp = metav1.NewTime(time.Now().Add(-ExperimentDefaultTimeout - time.Minute))
+	}
+
+	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceB.Status.Experiment.DeepCopy()}
+	// Run the full manageExperiment flow — processExperimentSignal runs first,
+	// sets promoted, then handleRollback sees the phase change and skips.
+	require.NoError(t, r.manageExperiment(context.Background(), instanceB, newStatus, metav1.Now(), revList))
+	assert.Equal(t, v2alpha1.ExperimentPhasePromoted, newStatus.Experiment.Phase, "promote should beat timeout")
+}
+
+func TestProcessExperimentSignal_NoAnnotations(t *testing.T) {
+	r, _ := newRevisionTestReconciler(t)
+	instance := newRevisionTestOwner("test-dda", "default")
+	instance.Status.Experiment = &v2alpha1.ExperimentStatus{
+		Phase: v2alpha1.ExperimentPhaseRunning,
+		ID:    "exp-1",
+	}
+
+	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instance.Status.Experiment.DeepCopy()}
+	_, processErr := r.processExperimentSignal(context.Background(), instance, newStatus, nil)
+	require.NoError(t, processErr)
+	// No annotations — no change.
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, newStatus.Experiment.Phase)
+}
+
+func TestProcessExperimentSignal_RollbackBeatsTimeout(t *testing.T) {
+	r, c := newRevisionTestReconciler(t)
+
+	// Create two revisions.
+	instanceA := newRevisionTestOwner("test-dda", "default")
+	require.NoError(t, r.manageRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), nil))
+
+	instanceB := newRevisionTestOwner("test-dda", "default")
+	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
+	require.NoError(t, r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil))
+	require.NoError(t, c.Create(context.Background(), instanceB))
+
+	// Set rollback annotation and running phase with timeout elapsed.
+	instanceB.Annotations = map[string]string{
+		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalRollback,
+		v2alpha1.AnnotationExperimentID:     "exp-1",
+	}
+	instanceB.Status.Experiment = &v2alpha1.ExperimentStatus{
+		Phase: v2alpha1.ExperimentPhaseRunning,
+		ID:    "exp-1",
+	}
+
+	revList := mustListRevisions(t, r, instanceB)
+	for i := range revList {
+		revList[i].CreationTimestamp = metav1.NewTime(time.Now().Add(-ExperimentDefaultTimeout - time.Minute))
+	}
+
+	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceB.Status.Experiment.DeepCopy()}
+	require.NoError(t, r.manageExperiment(context.Background(), instanceB, newStatus, metav1.Now(), revList))
+	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, newStatus.Experiment.Phase, "rollback should beat timeout")
+	assert.Equal(t, ExperimentTerminationReasonStopped, newStatus.Experiment.TerminationReason)
 }
