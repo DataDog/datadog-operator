@@ -182,6 +182,16 @@ func Test_Experiment_RollbackDoesNotClobberConcurrentPhaseWrite(t *testing.T) {
 	concurrent.Status.Experiment.Phase = v2alpha1.ExperimentPhasePromoted
 	assert.NoError(t, r.client.Status().Update(context.TODO(), concurrent))
 
+	// Identify the experiment revision for later annotation assertions.
+	var experimentRevName string
+	maxRev := int64(0)
+	for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
+		if rev.Revision > maxRev {
+			maxRev = rev.Revision
+			experimentRevName = rev.Name
+		}
+	}
+
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: snapshot.Status.Experiment.DeepCopy()}
 	revisions := mustListRevisions(t, r, snapshot)
 	assert.NoError(t, r.restorePreviousSpec(context.TODO(), snapshot, newStatus, revisions, v2alpha1.ExperimentPhaseRollback))
@@ -192,6 +202,20 @@ func Test_Experiment_RollbackDoesNotClobberConcurrentPhaseWrite(t *testing.T) {
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, after))
 	assert.Equal(t, v2alpha1.ExperimentPhasePromoted, after.Status.Experiment.Phase,
 		"concurrent phase write must not be overwritten by a stale targeted patch")
+
+	// The rollback annotation must still have landed on the experiment
+	// revision. Annotation is unconditional — it is NOT gated on the phase
+	// patch succeeding — so even when the test op rejects our stale phase
+	// decision, the annotation protects a future re-apply of the same spec
+	// from the stale CreationTimestamp path.
+	var annotated bool
+	for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
+		if rev.Name == experimentRevName && rev.Annotations[annotationExperimentRollback] == "true" {
+			annotated = true
+		}
+	}
+	assert.True(t, annotated,
+		"experiment revision must be annotated regardless of phase-patch outcome")
 }
 
 // Test_Experiment_StoppedRollback verifies that when RC writes phase=stopped,

@@ -188,9 +188,16 @@ func (r *Reconciler) restorePreviousSpec(
 		return err
 	}
 	newStatus.Experiment.Phase = terminalPhase
-	r.patchExperimentPhase(ctx, instance, observedPhase, terminalPhase)
-	// Mark the experiment revision (highest-numbered) so its stale timestamp
-	// doesn't cause an immediate timeout if the same spec is re-applied.
+	// Order matters: annotate the experiment revision BEFORE persisting the
+	// terminal phase. If the operator crashes between these two writes, the
+	// phase is still non-terminal on restart, handleRollback re-fires, and
+	// annotateRevision is idempotent — eventually both writes succeed. If the
+	// order were reversed, a crash between them would leave a terminal phase
+	// without the rollback annotation, and since handleRollback ignores
+	// terminal phases the revision would never get annotated, causing a
+	// future re-apply of the same spec to fire an immediate false timeout on
+	// the stale CreationTimestamp.
+	//
 	// Only annotate the highest revision rather than all non-rollback-target
 	// revisions: if GC failed on a prior reconcile there may be 3+ revisions,
 	// and annotating old baselines would cause needless delete+recreate in
@@ -198,6 +205,7 @@ func (r *Reconciler) restorePreviousSpec(
 	if rev := highestRevision(revisions); rev != nil && rev.Name != rollbackTarget {
 		r.annotateRevision(ctx, rev, annotationExperimentRollback)
 	}
+	r.patchExperimentPhase(ctx, instance, observedPhase, terminalPhase)
 	return nil
 }
 
