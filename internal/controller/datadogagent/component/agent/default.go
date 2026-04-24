@@ -288,9 +288,11 @@ func DefaultSyscallsForSystemProbe() []string {
 func syscallsForSystemProbe(ddaSpec *v2alpha1.DatadogAgentSpec) []string {
 	syscalls := DefaultSyscallsForSystemProbe()
 
-	if ddaSpec.Features.CWS != nil &&
-		ddaSpec.Features.CWS.Enabled != nil && *ddaSpec.Features.CWS.Enabled &&
-		ddaSpec.Features.CWS.Enforcement != nil && *ddaSpec.Features.CWS.Enforcement.Enabled {
+	if (ddaSpec.Features.CWS != nil && ddaSpec.Features.CWS.Enabled != nil && *ddaSpec.Features.CWS.Enabled &&
+		ddaSpec.Features.CWS.Enforcement != nil && ddaSpec.Features.CWS.Enforcement.Enabled != nil && *ddaSpec.Features.CWS.Enforcement.Enabled) ||
+		(ddaSpec.Features.CSPM != nil && ddaSpec.Features.CSPM.Enabled != nil && *ddaSpec.Features.CSPM.Enabled &&
+			ddaSpec.Features.CSPM.HostBenchmarks != nil && ddaSpec.Features.CSPM.HostBenchmarks.Enabled != nil && *ddaSpec.Features.CSPM.HostBenchmarks.Enabled &&
+			ddaSpec.Features.CSPM.RunInSystemProbe != nil && *ddaSpec.Features.CSPM.RunInSystemProbe) {
 		syscalls = append(syscalls, "kill")
 	}
 	return syscalls
