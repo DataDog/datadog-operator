@@ -533,9 +533,11 @@ func karpenterHelmValues(clusterName string, mode InstallMode, irsaRoleArn strin
   }
 }`,
 		},
-		"resources": map[string]any{
-			"requests": map[string]string{"cpu": "1", "memory": "2Gi"},
-			"limits":   map[string]string{"cpu": "1", "memory": "2Gi"},
+		"controller": map[string]any{
+			"resources": map[string]any{
+				"requests": map[string]string{"cpu": "1", "memory": "2Gi"},
+				"limits":   map[string]string{"cpu": "1", "memory": "2Gi"},
+			},
 		},
 	}
 

@@ -96,9 +96,9 @@ func TestEnsureOIDCProvider(t *testing.T) {
 		errorContains string
 		// When Create is NOT expected: expectArn is checked against the returned ARN.
 		// When Create IS expected: expectCreateURL holds the URL Create must receive.
-		expectArn        string
-		expectCreateURL  string
-		expectAddClient  bool // true when the existing provider must be patched to add the STS audience
+		expectArn       string
+		expectCreateURL string
+		expectAddClient bool // true when the existing provider must be patched to add the STS audience
 	}{
 		{
 			name:      "provider already exists with STS audience",
