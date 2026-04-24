@@ -406,6 +406,29 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			),
 		},
 		{
+			Name: "data plane enabled without explicit dogstatsd config - DSD routes to ADP by default",
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
+				WithDataPlaneEnabled(true).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					dsdDisabledEnvVar := &corev1.EnvVar{
+						Name:  common.DDDogstatsdEnabled,
+						Value: "false",
+					}
+
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+					assert.Contains(t, agentEnvVars, dsdDisabledEnvVar, "DD_USE_DOGSTATSD should be set to false when Data Plane is enabled (dogstatsd defaults to true)")
+
+					// Verify DogStatsD config is applied to ADP container
+					adpEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AgentDataPlaneContainerName]
+					assert.NotEmpty(t, adpEnvVars, "ADP container should have DogStatsD env vars when dogstatsd defaults to enabled")
+				},
+			),
+		},
+		{
 			Name: "data plane enabled via CRD with dogstatsd routed to ADP",
 			DDA: testutils.NewDefaultDatadogAgentBuilder().
 				WithDataPlaneEnabled(true).
