@@ -406,7 +406,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			),
 		},
 		{
-			Name: "data plane enabled without explicit dogstatsd config - DSD routes to ADP by default",
+			Name: "data plane enabled without explicit dogstatsd config with dogstatsd routed to ADP by default",
 			DDA: testutils.NewDefaultDatadogAgentBuilder().
 				WithDataPlaneEnabled(true).
 				BuildWithDefaults(),
