@@ -136,6 +136,57 @@ func Test_ksmFeature_Configure(t *testing.T) {
 			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {}),
 			ClusterChecksRunner: test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {}),
 		},
+		{
+			Name: "ksm-core with labelsAsTags",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithKSMLabelsAsTags(map[string]map[string]string{"pod": {"app": "app"}}).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: ksmClusterAgentWantFuncWithData(map[string]any{
+				"collect_crds":        true,
+				"collect_apiservices": true,
+				"collect_cr_metrics":  nil,
+				"labels_as_tags":      map[string]map[string]string{"pod": {"app": "app"}},
+				"annotations_as_tags": nil,
+				"tags":                nil,
+			}),
+			Agent: test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+		},
+		{
+			Name: "ksm-core with annotationsAsTags",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithKSMAnnotationsAsTags(map[string]map[string]string{"pod": {"version": "version"}}).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: ksmClusterAgentWantFuncWithData(map[string]any{
+				"collect_crds":        true,
+				"collect_apiservices": true,
+				"collect_cr_metrics":  nil,
+				"labels_as_tags":      nil,
+				"annotations_as_tags": map[string]map[string]string{"pod": {"version": "version"}},
+				"tags":                nil,
+			}),
+			Agent: test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+		},
+		{
+			Name: "ksm-core with tags",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithKSMTags([]string{"env:prod"}).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: ksmClusterAgentWantFuncWithData(map[string]any{
+				"collect_crds":        true,
+				"collect_apiservices": true,
+				"collect_cr_metrics":  nil,
+				"labels_as_tags":      nil,
+				"annotations_as_tags": nil,
+				"tags":                []string{"env:prod"},
+			}),
+			Agent: test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+		},
 	}
 
 	tests.Run(t, buildKSMFeature)
@@ -176,6 +227,9 @@ func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {
 					"collect_crds":        true,
 					"collect_apiservices": true,
 					"collect_cr_metrics":  nil,
+					"labels_as_tags":      nil,
+					"annotations_as_tags": nil,
+					"tags":                nil,
 				}
 				hash, err := comparison.GenerateMD5ForSpec(defaultConfigData)
 				assert.NoError(t, err)
@@ -185,6 +239,38 @@ func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {
 				annotations := mgr.AnnotationMgr.Annotations
 				assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Default config annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
 			}
+		},
+	)
+}
+
+// ksmClusterAgentWantFuncWithData builds a ClusterAgent want-func that asserts the annotation
+// hash matches the MD5 of configData. Use this for test cases where the DDA specifies
+// non-default values for the new KSM fields so the hash differs from the all-defaults case.
+func ksmClusterAgentWantFuncWithData(configData map[string]any) *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+			dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[mergerfake.AllContainers]
+
+			want := []*corev1.EnvVar{
+				{
+					Name:  DDKubeStateMetricsCoreEnabled,
+					Value: "true",
+				},
+				{
+					Name:  DDKubeStateMetricsCoreConfigMap,
+					Value: "-kube-state-metrics-core-config",
+				},
+			}
+			assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
+
+			hash, err := comparison.GenerateMD5ForSpec(configData)
+			assert.NoError(t, err)
+			wantAnnotations := map[string]string{
+				fmt.Sprintf(constants.MD5ChecksumAnnotationKey, feature.KubernetesStateCoreIDType): hash,
+			}
+			annotations := mgr.AnnotationMgr.Annotations
+			assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Config annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
 		},
 	)
 }

@@ -52,6 +52,9 @@ type ksmFeature struct {
 	collectCrMetrics           []v2alpha1.Resource
 	collectAPIServiceMetrics   bool
 	collectControllerRevisions bool
+	labelsAsTags               map[string]map[string]string
+	annotationsAsTags          map[string]map[string]string
+	tags                       []string
 
 	rbacSuffix         string
 	serviceAccountName string
@@ -93,6 +96,9 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		f.collectAPIServiceMetrics = true
 		f.collectCRDMetrics = true
 		f.collectCrMetrics = ddaSpec.Features.KubeStateMetricsCore.CollectCrMetrics
+		f.labelsAsTags = ddaSpec.Features.KubeStateMetricsCore.LabelsAsTags
+		f.annotationsAsTags = ddaSpec.Features.KubeStateMetricsCore.AnnotationsAsTags
+		f.tags = ddaSpec.Features.KubeStateMetricsCore.Tags
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 		// Determine CollectControllerRevisions setting
@@ -160,6 +166,9 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 				"collect_crds":        f.collectCRDMetrics,
 				"collect_apiservices": f.collectAPIServiceMetrics,
 				"collect_cr_metrics":  f.collectCrMetrics,
+				"labels_as_tags":      f.labelsAsTags,
+				"annotations_as_tags": f.annotationsAsTags,
+				"tags":                f.tags,
 			}
 
 			hash, err := comparison.GenerateMD5ForSpec(defaultConfigData)
@@ -184,6 +193,9 @@ type collectorOptions struct {
 	enableCRD                 bool
 	enableControllerRevisions bool
 	customResources           []v2alpha1.Resource
+	labelsAsTags              map[string]map[string]string
+	annotationsAsTags         map[string]map[string]string
+	tags                      []string
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
@@ -198,6 +210,9 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, provi
 		enableCRD:                 f.collectCRDMetrics,
 		enableControllerRevisions: f.collectControllerRevisions,
 		customResources:           f.collectCrMetrics,
+		labelsAsTags:              f.labelsAsTags,
+		annotationsAsTags:         f.annotationsAsTags,
+		tags:                      f.tags,
 	}
 	configCM, err := f.buildKSMCoreConfigMap(collectorOpts)
 	if err != nil {
