@@ -237,6 +237,9 @@ spec:
 `features.helmCheck.valuesAsTags`
 : ValuesAsTags collects Helm values from a release and uses them as tags (Requires Agent and Cluster Agent 7.40.0+). Default: {}
 
+`features.kubeStateMetricsCore.annotationsAsTags`
+: AnnotationsAsTags maps Kubernetes annotations to Datadog tags, scoped to the KSM check. Outer key is the Kubernetes resource kind; inner map is annotation name -> Datadog tag name. Example:   annotationsAsTags:     pod:       tags_datadoghq_com_version: version Annotation names must match the transformation done by kube-state-metrics (e.g. `tags.datadoghq.com/version` becomes `tags_datadoghq_com_version`). Note: the top-level `global.kubernetesResourcesAnnotationsAsTags` configures this at the agent level via environment variables. AnnotationsAsTags here writes into the KSM check instance config and applies only to KSM metrics.
+
 `features.kubeStateMetricsCore.collectCrMetrics`
 : `CollectCrMetrics` defines custom resources for the kube-state-metrics core check to collect.  The datadog agent uses the same logic as upstream `kube-state-metrics`. So is its configuration. The exact structure and existing fields of each item in this list can be found in: https://github.com/kubernetes/kube-state-metrics/blob/main/docs/metrics/extend/customresourcestate-metrics.md
 
@@ -245,6 +248,12 @@ spec:
 
 `features.kubeStateMetricsCore.enabled`
 : Enables Kube State Metrics Core. Default: true
+
+`features.kubeStateMetricsCore.labelsAsTags`
+: LabelsAsTags maps Kubernetes labels to Datadog tags, scoped to the KSM check. Outer key is the Kubernetes resource kind (e.g. "pod", "node", "deployment"); inner map is label name -> Datadog tag name. Example:   labelsAsTags:     pod:       app: app     node:       zone: zone Note: the top-level `global.kubernetesResourcesLabelsAsTags` configures this at the agent level via environment variables. LabelsAsTags here writes into the KSM check instance config and applies only to KSM metrics.
+
+`features.kubeStateMetricsCore.tags`
+: Contains static tags to attach to all KSM metrics. Format: `key:value` (for example, `env:prod`).
 
 `features.liveContainerCollection.enabled`
 : Enables container collection for the Live Container View. Default: true
