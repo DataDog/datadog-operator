@@ -671,6 +671,36 @@ func (builder *DatadogAgentBuilder) WithKSMCustomConf(customData string) *Datado
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithKSMTags(tags []string) *DatadogAgentBuilder {
+	builder.initKSM()
+	builder.datadogAgent.Spec.Features.KubeStateMetricsCore.Tags = tags
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithKSMLabelsAsTags(m map[string]map[string]string) *DatadogAgentBuilder {
+	builder.initKSM()
+	builder.datadogAgent.Spec.Features.KubeStateMetricsCore.LabelsAsTags = m
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithKSMAnnotationsAsTags(m map[string]map[string]string) *DatadogAgentBuilder {
+	builder.initKSM()
+	builder.datadogAgent.Spec.Features.KubeStateMetricsCore.AnnotationsAsTags = m
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithKSMCollectSecretMetrics(enabled bool) *DatadogAgentBuilder {
+	builder.initKSM()
+	builder.datadogAgent.Spec.Features.KubeStateMetricsCore.CollectSecretMetrics = ptr.To(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithKSMCollectConfigMaps(enabled bool) *DatadogAgentBuilder {
+	builder.initKSM()
+	builder.datadogAgent.Spec.Features.KubeStateMetricsCore.CollectConfigMaps = ptr.To(enabled)
+	return builder
+}
+
 // Orchestrator Explorer
 
 func (builder *DatadogAgentBuilder) initOE() {

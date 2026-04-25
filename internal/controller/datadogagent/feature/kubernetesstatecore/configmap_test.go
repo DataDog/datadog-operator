@@ -26,14 +26,16 @@ instances:
   - collectors:
       - pods
 `
-	defaultOptions := collectorOptions{}
-	optionsWithVPA := collectorOptions{enableVPA: true}
-	optionsWithCRD := collectorOptions{enableCRD: true}
-	optionsWithAPIService := collectorOptions{enableAPIService: true}
-	optionsWithControllerRevisions := collectorOptions{enableControllerRevisions: true}
+	defaultOptions := collectorOptions{collectSecrets: true, collectConfigMaps: true}
+	optionsWithVPA := collectorOptions{enableVPA: true, collectSecrets: true, collectConfigMaps: true}
+	optionsWithCRD := collectorOptions{enableCRD: true, collectSecrets: true, collectConfigMaps: true}
+	optionsWithAPIService := collectorOptions{enableAPIService: true, collectSecrets: true, collectConfigMaps: true}
+	optionsWithControllerRevisions := collectorOptions{enableControllerRevisions: true, collectSecrets: true, collectConfigMaps: true}
 
 	// Test custom resources
 	optionsWithCustomResources := collectorOptions{
+		collectSecrets:    true,
+		collectConfigMaps: true,
 		customResources: []v2alpha1.Resource{
 			{
 				GroupVersionKind: v2alpha1.GroupVersionKind{
@@ -45,7 +47,23 @@ instances:
 		},
 	}
 
+	optionsWithTags := collectorOptions{collectSecrets: true, collectConfigMaps: true, tags: []string{"env:prod", "team:cont-p"}}
+
+	optionsWithLabelsAsTags := collectorOptions{
+		collectSecrets:    true,
+		collectConfigMaps: true,
+		labelsAsTags:      map[string]map[string]string{"pod": {"app": "app"}},
+	}
+
+	optionsWithAnnotationsAsTags := collectorOptions{
+		collectSecrets:    true,
+		collectConfigMaps: true,
+		annotationsAsTags: map[string]map[string]string{"pod": {"tags_datadoghq_com_version": "version"}},
+	}
+
 	optionsWithMultipleCustomResources := collectorOptions{
+		collectSecrets:    true,
+		collectConfigMaps: true,
 		customResources: []v2alpha1.Resource{
 			{
 				GroupVersionKind: v2alpha1.GroupVersionKind{
@@ -66,7 +84,9 @@ instances:
 
 	// Combined options
 	optionsWithVPAAndCustomResources := collectorOptions{
-		enableVPA: true,
+		enableVPA:         true,
+		collectSecrets:    true,
+		collectConfigMaps: true,
 		customResources: []v2alpha1.Resource{
 			{
 				GroupVersionKind: v2alpha1.GroupVersionKind{
@@ -101,6 +121,7 @@ instances:
 				enable:                   true,
 				runInClusterChecksRunner: true,
 				configConfigMapName:      defaultKubeStateMetricsCoreConf,
+				collectorOpts:            defaultOptions,
 			},
 			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, defaultOptions)),
 		},
@@ -124,6 +145,7 @@ instances:
 				enable:                   true,
 				runInClusterChecksRunner: false,
 				configConfigMapName:      defaultKubeStateMetricsCoreConf,
+				collectorOpts:            defaultOptions,
 			},
 			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(false, defaultOptions)),
 		},
@@ -214,6 +236,39 @@ instances:
 				collectorOpts:            optionsWithCustomResources,
 			},
 			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(false, optionsWithCustomResources)),
+		},
+		{
+			name: "with tags",
+			fields: fields{
+				owner:                    owner,
+				enable:                   true,
+				runInClusterChecksRunner: true,
+				configConfigMapName:      defaultKubeStateMetricsCoreConf,
+				collectorOpts:            optionsWithTags,
+			},
+			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithTags)),
+		},
+		{
+			name: "with labelsAsTags",
+			fields: fields{
+				owner:                    owner,
+				enable:                   true,
+				runInClusterChecksRunner: true,
+				configConfigMapName:      defaultKubeStateMetricsCoreConf,
+				collectorOpts:            optionsWithLabelsAsTags,
+			},
+			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithLabelsAsTags)),
+		},
+		{
+			name: "with annotationsAsTags",
+			fields: fields{
+				owner:                    owner,
+				enable:                   true,
+				runInClusterChecksRunner: true,
+				configConfigMapName:      defaultKubeStateMetricsCoreConf,
+				collectorOpts:            optionsWithAnnotationsAsTags,
+			},
+			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithAnnotationsAsTags)),
 		},
 	}
 	for _, tt := range tests {

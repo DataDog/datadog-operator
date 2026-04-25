@@ -41,6 +41,19 @@ func buildDefaultConfigMap(namespace, cmName string, content string) *corev1.Con
 	return configMap
 }
 
+// writeYAMLBlock writes `    <key>:\n` followed by a YAML-encoded value,
+// indented to sit under the key inside the KSM check instance.
+// It ignores encode errors because bytes.Buffer.Write is infallible and
+// the callers pass well-typed maps/slices that cannot fail to marshal.
+func writeYAMLBlock(config *bytes.Buffer, key string, indent int, value any) {
+	config.WriteString("    " + key + ":\n")
+	iw := newIndentWriter(config, indent)
+	enc := yaml.NewEncoder(iw)
+	enc.SetIndent(2)
+	_ = enc.Encode(value)
+	enc.Close()
+}
+
 // KSM should be configured as a cluster check only when there are Cluster Check
 // Runners deployed.
 // This check is not designed to work on the DaemonSet Agent. That's why when
@@ -67,7 +80,6 @@ instances:
     - jobs
     - replicasets
     - deployments
-    - configmaps
     - services
     - endpoints
     - daemonsets
@@ -75,7 +87,6 @@ instances:
     - poddisruptionbudgets
     - limitranges
     - resourcequotas
-    - secrets
     - namespaces
     - persistentvolumeclaims
     - persistentvolumes
@@ -83,6 +94,13 @@ instances:
     - storageclasses
     - volumeattachments
 `)
+
+	if collectorOpts.collectSecrets {
+		config.WriteString("    - secrets\n")
+	}
+	if collectorOpts.collectConfigMaps {
+		config.WriteString("    - configmaps\n")
+	}
 
 	if collectorOpts.enableVPA {
 		config.WriteString("    - verticalpodautoscalers\n")
@@ -111,6 +129,18 @@ instances:
 		encoder.SetIndent(2) // Keep YAML's internal indentation
 		encoder.Encode(collectorOpts.customResources)
 		encoder.Close()
+	}
+
+	if len(collectorOpts.labelsAsTags) > 0 {
+		writeYAMLBlock(config, "labels_as_tags", 6, collectorOpts.labelsAsTags)
+	}
+
+	if len(collectorOpts.annotationsAsTags) > 0 {
+		writeYAMLBlock(config, "annotations_as_tags", 6, collectorOpts.annotationsAsTags)
+	}
+
+	if len(collectorOpts.tags) > 0 {
+		writeYAMLBlock(config, "tags", 4, collectorOpts.tags)
 	}
 
 	return config.String()

@@ -929,6 +929,53 @@ type KubeStateMetricsCoreFeatureConfig struct {
 	// +optional
 	// +listType=atomic
 	CollectCrMetrics []Resource `json:"collectCrMetrics,omitempty"`
+
+	// CollectSecretMetrics enables collection of metrics on Secrets.
+	// When false, the `secrets` collector and the RBAC permission to list/watch Secrets are omitted.
+	// Default: true
+	// +optional
+	CollectSecretMetrics *bool `json:"collectSecretMetrics,omitempty"`
+
+	// CollectConfigMaps enables collection of metrics on ConfigMaps.
+	// When false, the `configmaps` collector and the RBAC permission to list/watch ConfigMaps are omitted.
+	// Default: true
+	// +optional
+	CollectConfigMaps *bool `json:"collectConfigMaps,omitempty"`
+
+	// LabelsAsTags maps Kubernetes labels to Datadog tags, scoped to the KSM check.
+	// Outer key is the Kubernetes resource kind (e.g. "pod", "node", "deployment");
+	// inner map is label name -> Datadog tag name.
+	// Example:
+	//   labelsAsTags:
+	//     pod:
+	//       app: app
+	//     node:
+	//       zone: zone
+	// Note: the top-level `global.kubernetesResourcesLabelsAsTags` configures this at the agent level
+	// via environment variables. LabelsAsTags here writes into the KSM check instance config and
+	// applies only to KSM metrics.
+	// +optional
+	LabelsAsTags map[string]map[string]string `json:"labelsAsTags,omitempty"`
+
+	// AnnotationsAsTags maps Kubernetes annotations to Datadog tags, scoped to the KSM check.
+	// Outer key is the Kubernetes resource kind; inner map is annotation name -> Datadog tag name.
+	// Example:
+	//   annotationsAsTags:
+	//     pod:
+	//       tags_datadoghq_com_version: version
+	// Annotation names must match the transformation done by kube-state-metrics
+	// (e.g. `tags.datadoghq.com/version` becomes `tags_datadoghq_com_version`).
+	// Note: the top-level `global.kubernetesResourcesAnnotationsAsTags` configures this at the agent level
+	// via environment variables. AnnotationsAsTags here writes into the KSM check instance config and
+	// applies only to KSM metrics.
+	// +optional
+	AnnotationsAsTags map[string]map[string]string `json:"annotationsAsTags,omitempty"`
+
+	// Tags contains static tags to attach to all KSM metrics.
+	// Format: `key:value` (for example, `env:prod`).
+	// +optional
+	// +listType=atomic
+	Tags []string `json:"tags,omitempty"`
 }
 
 // Resource configures a custom resource for metric generation.

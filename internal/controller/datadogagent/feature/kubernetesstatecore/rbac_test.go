@@ -47,13 +47,15 @@ func TestGetRBACPolicyRules(t *testing.T) {
 	}{
 		{
 			name:               "default options",
-			collectorOpts:      collectorOptions{},
+			collectorOpts:      collectorOptions{collectSecrets: true, collectConfigMaps: true},
 			expectedExtraRules: []rbacv1.PolicyRule{},
 		},
 		{
 			name: "with API services enabled",
 			collectorOpts: collectorOptions{
-				enableAPIService: true,
+				collectSecrets:    true,
+				collectConfigMaps: true,
+				enableAPIService:  true,
 			},
 			expectedExtraRules: []rbacv1.PolicyRule{
 				{
@@ -66,7 +68,9 @@ func TestGetRBACPolicyRules(t *testing.T) {
 		{
 			name: "with CRD enabled",
 			collectorOpts: collectorOptions{
-				enableCRD: true,
+				collectSecrets:    true,
+				collectConfigMaps: true,
+				enableCRD:         true,
 			},
 			expectedExtraRules: []rbacv1.PolicyRule{
 				{
@@ -79,6 +83,8 @@ func TestGetRBACPolicyRules(t *testing.T) {
 		{
 			name: "with single custom resource",
 			collectorOpts: collectorOptions{
+				collectSecrets:    true,
+				collectConfigMaps: true,
 				customResources: []v2alpha1.Resource{
 					{
 						GroupVersionKind: v2alpha1.GroupVersionKind{
@@ -100,6 +106,8 @@ func TestGetRBACPolicyRules(t *testing.T) {
 		{
 			name: "with multiple custom resources in same API group",
 			collectorOpts: collectorOptions{
+				collectSecrets:    true,
+				collectConfigMaps: true,
 				customResources: []v2alpha1.Resource{
 					{
 						GroupVersionKind: v2alpha1.GroupVersionKind{
@@ -133,6 +141,8 @@ func TestGetRBACPolicyRules(t *testing.T) {
 		{
 			name: "with multiple custom resources in different API groups",
 			collectorOpts: collectorOptions{
+				collectSecrets:    true,
+				collectConfigMaps: true,
 				customResources: []v2alpha1.Resource{
 					{
 						GroupVersionKind: v2alpha1.GroupVersionKind{
@@ -166,6 +176,8 @@ func TestGetRBACPolicyRules(t *testing.T) {
 		{
 			name: "with custom resource specifying ResourcePlural",
 			collectorOpts: collectorOptions{
+				collectSecrets:    true,
+				collectConfigMaps: true,
 				customResources: []v2alpha1.Resource{
 					{
 						GroupVersionKind: v2alpha1.GroupVersionKind{
@@ -188,6 +200,8 @@ func TestGetRBACPolicyRules(t *testing.T) {
 		{
 			name: "with duplicate custom resources",
 			collectorOpts: collectorOptions{
+				collectSecrets:    true,
+				collectConfigMaps: true,
 				customResources: []v2alpha1.Resource{
 					{
 						GroupVersionKind: v2alpha1.GroupVersionKind{
@@ -221,7 +235,9 @@ func TestGetRBACPolicyRules(t *testing.T) {
 		{
 			name: "combined options with VPA and custom resources",
 			collectorOpts: collectorOptions{
-				enableVPA: true,
+				collectSecrets:    true,
+				collectConfigMaps: true,
+				enableVPA:         true,
 				customResources: []v2alpha1.Resource{
 					{
 						GroupVersionKind: v2alpha1.GroupVersionKind{
@@ -243,6 +259,8 @@ func TestGetRBACPolicyRules(t *testing.T) {
 		{
 			name: "with wildcard kind",
 			collectorOpts: collectorOptions{
+				collectSecrets:    true,
+				collectConfigMaps: true,
 				customResources: []v2alpha1.Resource{
 					{
 						GroupVersionKind: v2alpha1.GroupVersionKind{
@@ -261,24 +279,87 @@ func TestGetRBACPolicyRules(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:               "collectSecrets=false drops secrets from core rule",
+			collectorOpts:      collectorOptions{collectSecrets: false, collectConfigMaps: true},
+			expectedExtraRules: []rbacv1.PolicyRule{},
+		},
+		{
+			name:               "collectConfigMaps=false drops configmaps from core rule",
+			collectorOpts:      collectorOptions{collectSecrets: true, collectConfigMaps: false},
+			expectedExtraRules: []rbacv1.PolicyRule{},
+		},
+		{
+			name:               "both collectSecrets and collectConfigMaps false drops both resources",
+			collectorOpts:      collectorOptions{collectSecrets: false, collectConfigMaps: false},
+			expectedExtraRules: []rbacv1.PolicyRule{},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			rules := getRBACPolicyRules(tc.collectorOpts)
 
-			// check base rules
+			// check base rules — build an adjusted expected core rule based on collector flags
 			for _, expectedRule := range expectedBaseRules {
+				// For the core API rule, filter out resources that have been disabled
+				effectiveRule := expectedRule
+				if slices.Contains(expectedRule.APIGroups, rbac.CoreAPIGroup) {
+					adjustedResources := slices.Clone(expectedRule.Resources)
+					if !tc.collectorOpts.collectSecrets {
+						adjustedResources = slices.DeleteFunc(adjustedResources, func(s string) bool { return s == rbac.SecretsResource })
+					}
+					if !tc.collectorOpts.collectConfigMaps {
+						adjustedResources = slices.DeleteFunc(adjustedResources, func(s string) bool { return s == rbac.ConfigMapsResource })
+					}
+					effectiveRule = rbacv1.PolicyRule{
+						APIGroups: expectedRule.APIGroups,
+						Resources: adjustedResources,
+						Verbs:     expectedRule.Verbs,
+					}
+				}
+
 				found := false
 				for _, rule := range rules {
-					if slices.Equal(rule.APIGroups, expectedRule.APIGroups) &&
-						slices.Equal(rule.Resources, expectedRule.Resources) &&
-						slices.Equal(rule.Verbs, expectedRule.Verbs) {
+					if slices.Equal(rule.APIGroups, effectiveRule.APIGroups) &&
+						slices.Equal(rule.Resources, effectiveRule.Resources) &&
+						slices.Equal(rule.Verbs, effectiveRule.Verbs) {
 						found = true
 						break
 					}
 				}
-				assert.True(t, found, "Expected base rule not found: %+v", expectedRule)
+				assert.True(t, found, "Expected base rule not found: %+v", effectiveRule)
+			}
+
+			// When collectSecrets=false, verify secrets do not appear in any rule
+			if !tc.collectorOpts.collectSecrets {
+				for _, rule := range rules {
+					for _, r := range rule.Resources {
+						assert.NotEqual(t, rbac.SecretsResource, r, "secrets should not appear when collectSecrets=false")
+					}
+				}
+			}
+
+			// When collectConfigMaps=false, verify configmaps do not appear in any rule
+			if !tc.collectorOpts.collectConfigMaps {
+				for _, rule := range rules {
+					for _, r := range rule.Resources {
+						assert.NotEqual(t, rbac.ConfigMapsResource, r, "configmaps should not appear when collectConfigMaps=false")
+					}
+				}
+			}
+
+			expectedCount := 13
+			if !tc.collectorOpts.collectSecrets {
+				expectedCount--
+			}
+			if !tc.collectorOpts.collectConfigMaps {
+				expectedCount--
+			}
+			for _, rule := range rules {
+				if slices.Contains(rule.APIGroups, rbac.CoreAPIGroup) {
+					assert.Len(t, rule.Resources, expectedCount, "core API rule should have %d resources", expectedCount)
+				}
 			}
 
 			// check custom rules
