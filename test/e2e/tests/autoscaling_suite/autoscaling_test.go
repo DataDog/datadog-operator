@@ -20,6 +20,7 @@ import (
 	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -246,6 +247,36 @@ func (s *autoscalingSuite) TestAutoscalingDefault() {
 	})
 }
 
+func (s *autoscalingSuite) TestAutoscalingInstallModeFargate() {
+	ctx := s.T().Context()
+
+	s.Run("Install with install-mode=fargate", func() {
+		s.testInstall("--install-mode=fargate")
+		s.verifyKarpenterPodsComputeType(ctx, true)
+		s.waitForAllPodsRunning(ctx)
+	})
+
+	s.Run("Uninstall cleans up resources", func() {
+		s.testUninstall()
+		s.waitForPendingPods(ctx, 1)
+	})
+}
+
+func (s *autoscalingSuite) TestAutoscalingInstallModeExistingNodes() {
+	ctx := s.T().Context()
+
+	s.Run("Install with install-mode=existing-nodes", func() {
+		s.testInstall("--install-mode=existing-nodes")
+		s.verifyKarpenterPodsComputeType(ctx, false)
+		s.waitForAllPodsRunning(ctx)
+	})
+
+	s.Run("Uninstall cleans up resources", func() {
+		s.testUninstall()
+		s.waitForPendingPods(ctx, 1)
+	})
+}
+
 func (s *autoscalingSuite) TestAutoscalingNoNodePool() {
 	ctx := s.T().Context()
 
@@ -374,6 +405,39 @@ func (s *autoscalingSuite) verifyKarpenterInstalled(ctx context.Context) {
 	s.Assert().Truef(exists, "Karpenter Helm release not found")
 
 	t.Log("Karpenter installation verified successfully")
+}
+
+// verifyKarpenterPodsComputeType asserts that all Karpenter controller pods
+// run on a Fargate node (if wantFargate) or on a non-Fargate node (if not),
+// as reported by the `eks.amazonaws.com/compute-type` node label.
+func (s *autoscalingSuite) verifyKarpenterPodsComputeType(ctx context.Context, wantFargate bool) {
+	t := s.T()
+
+	const selector = "app.kubernetes.io/name=karpenter"
+	client := s.Env().KubernetesCluster.Client()
+
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		pods, err := client.CoreV1().Pods(karpenterNamespace).List(ctx, metav1.ListOptions{
+			LabelSelector: selector,
+		})
+		require.NoError(c, err, "listing Karpenter pods")
+		require.NotEmpty(c, pods.Items, "no Karpenter controller pod found")
+
+		for _, pod := range pods.Items {
+			require.Equalf(c, corev1.PodRunning, pod.Status.Phase, "pod %s is %s, want Running", pod.Name, pod.Status.Phase)
+			require.NotEmptyf(c, pod.Spec.NodeName, "pod %s has no node assigned", pod.Name)
+
+			node, err := client.CoreV1().Nodes().Get(ctx, pod.Spec.NodeName, metav1.GetOptions{})
+			require.NoErrorf(c, err, "getting node %s hosting pod %s", pod.Spec.NodeName, pod.Name)
+
+			computeType := node.Labels["eks.amazonaws.com/compute-type"]
+			if wantFargate {
+				assert.Equalf(c, "fargate", computeType, "pod %s should run on Fargate; got node %s with compute-type=%q", pod.Name, node.Name, computeType)
+			} else {
+				assert.NotEqualf(c, "fargate", computeType, "pod %s should NOT run on Fargate; got node %s with compute-type=%q", pod.Name, node.Name, computeType)
+			}
+		}
+	}, 10*time.Minute, 10*time.Second)
 }
 
 // verifyCleanUninstall verifies that all Karpenter resources have been cleaned up

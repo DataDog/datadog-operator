@@ -56,7 +56,7 @@ ENVTEST_K8S_VERSION = 1.30
 # (E2E provisioning can hang; having a finite timeout ensures we get goroutine dumps
 # instead of the CI job timing out with no actionable logs.)
 E2E_GO_TEST_TIMEOUT ?= 55m
-E2E_AUTOSCALING_GO_TEST_TIMEOUT ?= 80m
+E2E_AUTOSCALING_GO_TEST_TIMEOUT ?= 140m
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
