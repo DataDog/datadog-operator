@@ -23,12 +23,10 @@ const (
 // +k8s:openapi-gen=true
 type DatadogCSIDriverSpec struct {
 	// CSIDriverImage is the image configuration for the main CSI node driver container.
-	// Default image: gcr.io/datadoghq/csi-driver:1.2.1
 	// +optional
 	CSIDriverImage *v2alpha1.AgentImageConfig `json:"csiDriverImage,omitempty"`
 
 	// RegistrarImage is the image configuration for the CSI node driver registrar sidecar.
-	// Default image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.0.1
 	// +optional
 	RegistrarImage *v2alpha1.AgentImageConfig `json:"registrarImage,omitempty"`
 
