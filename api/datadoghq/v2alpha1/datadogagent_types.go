@@ -748,8 +748,8 @@ type DataPlaneFeatureConfig struct {
 // +k8s:openapi-gen=true
 type DataPlaneDogstatsdConfig struct {
 	// Enabled configures the Data Plane to handle DogStatsD traffic.
-	// When enabled, DogStatsD is disabled in the Core Agent.
-	// Default: false
+	// When set to false, DogStatsD is handled by the Core Agent instead.
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }

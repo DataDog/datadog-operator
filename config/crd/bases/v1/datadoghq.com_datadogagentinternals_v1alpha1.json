@@ -1395,7 +1395,7 @@
                   "description": "Dogstatsd configures DogStatsD handling by the Data Plane.",
                   "properties": {
                     "enabled": {
-                      "description": "Enabled configures the Data Plane to handle DogStatsD traffic.\nWhen enabled, DogStatsD is disabled in the Core Agent.\nDefault: false",
+                      "description": "Enabled configures the Data Plane to handle DogStatsD traffic.\nWhen set to false, DogStatsD is handled by the Core Agent instead.\nDefault: true",
                       "type": "boolean"
                     }
                   },
@@ -9814,7 +9814,7 @@
                       "description": "Dogstatsd configures DogStatsD handling by the Data Plane.",
                       "properties": {
                         "enabled": {
-                          "description": "Enabled configures the Data Plane to handle DogStatsD traffic.\nWhen enabled, DogStatsD is disabled in the Core Agent.\nDefault: false",
+                          "description": "Enabled configures the Data Plane to handle DogStatsD traffic.\nWhen set to false, DogStatsD is handled by the Core Agent instead.\nDefault: true",
                           "type": "boolean"
                         }
                       },
