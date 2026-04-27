@@ -165,6 +165,7 @@ spec:
 | features.orchestratorExplorer.ddUrl | Override the API endpoint for the Orchestrator Explorer. URL Default: "https://orchestrator.datadoghq.com". |
 | features.orchestratorExplorer.enabled | Enables the Orchestrator Explorer. Default: true |
 | features.orchestratorExplorer.extraTags | Additional tags to associate with the collected data in the form of `a b c`. This is a Cluster Agent option distinct from DD_TAGS that is used in the Orchestrator Explorer. |
+| features.orchestratorExplorer.networkCRDs.enabled | Enables collection of network topology CRDs. Default: false |
 | features.orchestratorExplorer.scrubContainers | ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ). Default: true |
 | features.otelAgentGateway.conf.configData | ConfigData corresponds to the configuration file content. |
 | features.otelAgentGateway.conf.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
