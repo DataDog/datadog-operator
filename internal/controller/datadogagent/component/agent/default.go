@@ -288,11 +288,15 @@ func DefaultSyscallsForSystemProbe() []string {
 func syscallsForSystemProbe(ddaSpec *v2alpha1.DatadogAgentSpec) []string {
 	syscalls := DefaultSyscallsForSystemProbe()
 
-	if (ddaSpec.Features.CWS != nil && ddaSpec.Features.CWS.Enabled != nil && *ddaSpec.Features.CWS.Enabled &&
-		ddaSpec.Features.CWS.Enforcement != nil && ddaSpec.Features.CWS.Enforcement.Enabled != nil && *ddaSpec.Features.CWS.Enforcement.Enabled) ||
-		(ddaSpec.Features.CSPM != nil && ddaSpec.Features.CSPM.Enabled != nil && *ddaSpec.Features.CSPM.Enabled &&
-			ddaSpec.Features.CSPM.HostBenchmarks != nil && ddaSpec.Features.CSPM.HostBenchmarks.Enabled != nil && *ddaSpec.Features.CSPM.HostBenchmarks.Enabled &&
-			ddaSpec.Features.CSPM.RunInSystemProbe != nil && *ddaSpec.Features.CSPM.RunInSystemProbe) {
+	if (ddaSpec.Features.CWS != nil &&
+		ptr.Deref(ddaSpec.Features.CWS.Enabled, false) &&
+		ddaSpec.Features.CWS.Enforcement != nil &&
+		ptr.Deref(ddaSpec.Features.CWS.Enforcement.Enabled, false)) ||
+		(ddaSpec.Features.CSPM != nil &&
+			ptr.Deref(ddaSpec.Features.CSPM.Enabled, false) &&
+			ddaSpec.Features.CSPM.HostBenchmarks != nil &&
+			ptr.Deref(ddaSpec.Features.CSPM.HostBenchmarks.Enabled, false) &&
+			ptr.Deref(ddaSpec.Features.CSPM.RunInSystemProbe, false)) {
 		syscalls = append(syscalls, "kill")
 	}
 	return syscalls
