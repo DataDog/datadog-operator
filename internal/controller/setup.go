@@ -140,6 +140,7 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes
 			IntrospectionEnabled:        options.IntrospectionEnabled,
 			DatadogAgentProfileEnabled:  options.DatadogAgentProfileEnabled,
 			DatadogAgentInternalEnabled: options.DatadogAgentInternalEnabled,
+			DatadogCSIDriverEnabled:     options.DatadogCSIDriverEnabled,
 			CreateControllerRevisions:   options.CreateControllerRevisions,
 		},
 	}).SetupWithManager(mgr, metricForwardersMgr)
