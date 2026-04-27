@@ -721,13 +721,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriverSpec(ref com
 				Properties: map[string]spec.Schema{
 					"csiDriverImage": {
 						SchemaProps: spec.SchemaProps{
-							Description: "CSIDriverImage is the image configuration for the main CSI node driver container. Default image: gcr.io/datadoghq/csi-driver:1.2.1",
+							Description: "CSIDriverImage is the image configuration for the main CSI node driver container.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AgentImageConfig"),
 						},
 					},
 					"registrarImage": {
 						SchemaProps: spec.SchemaProps{
-							Description: "RegistrarImage is the image configuration for the CSI node driver registrar sidecar. Default image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.0.1",
+							Description: "RegistrarImage is the image configuration for the CSI node driver registrar sidecar.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AgentImageConfig"),
 						},
 					},
