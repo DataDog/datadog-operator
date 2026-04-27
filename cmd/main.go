@@ -299,6 +299,7 @@ func run(opts *options) error {
 			IntrospectionEnabled:          opts.introspectionEnabled,
 			DatadogDashboardEnabled:       opts.datadogDashboardEnabled,
 			DatadogGenericResourceEnabled: opts.datadogGenericResourceEnabled,
+			DatadogCSIDriverEnabled:       opts.datadogCSIDriverEnabled,
 		}),
 		// UsePriorityQueue makes all controllers use the priority queue, which
 		// directly registers workqueue metrics into controller-runtime's metrics
