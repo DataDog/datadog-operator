@@ -397,7 +397,10 @@ func (cm *CredentialManager) getCredsFromCache() (Creds, bool) {
 	return Creds{}, false
 }
 
-func (cm *CredentialManager) refresh(logger logr.Logger) error {
+// Refresh fetches fresh credentials from the secret backend and swaps them
+// into the cache atomically. If the fetch fails, the existing cached
+// credentials are preserved.
+func (cm *CredentialManager) Refresh(logger logr.Logger) error {
 	newCreds, err := cm.fetchCredentials()
 	if err != nil {
 		return err
@@ -422,7 +425,7 @@ func (cm *CredentialManager) StartCredentialRefreshRoutine(interval time.Duratio
 
 	for {
 		<-ticker.C
-		if err := cm.refresh(logger); err != nil {
+		if err := cm.Refresh(logger); err != nil {
 			logger.Error(err, "Failed to refresh credentials")
 		}
 	}

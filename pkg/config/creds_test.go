@@ -284,7 +284,7 @@ func Test_refresh(t *testing.T) {
 			decryptor := tt.setupFunc(cm)
 			cm.secretBackend = decryptor
 
-			err := cm.refresh(logr.Logger{})
+			err := cm.Refresh(logr.Logger{})
 
 			assert.Equal(t, tt.wantErr, err != nil)
 			if !tt.wantErr {
@@ -874,6 +874,83 @@ func Test_GetAuth(t *testing.T) {
 		assert.Nil(t, auth.Value(datadogapi.ContextServerIndex))
 		assert.Nil(t, auth.Value(datadogapi.ContextServerVariables))
 	})
+}
+
+// Test_RefreshThenGetAuth verifies the end-to-end credential refresh flow:
+// GetAuth returns initial credentials, then after credentials change and
+// refresh() runs, subsequent GetAuth calls return the new credentials.
+func Test_RefreshThenGetAuth(t *testing.T) {
+	os.Setenv("DD_API_KEY", "initial-api")
+	os.Setenv("DD_APP_KEY", "initial-app")
+	defer os.Unsetenv("DD_API_KEY")
+	defer os.Unsetenv("DD_APP_KEY")
+
+	s := testutils_test.TestScheme()
+	client := fake.NewClientBuilder().WithScheme(s).Build()
+	cm := NewCredentialManager(client)
+
+	// First GetAuth should return the initial keys
+	auth, err := cm.GetAuth()
+	assert.NoError(t, err)
+	keys := auth.Value(datadogapi.ContextAPIKeys).(map[string]datadogapi.APIKey)
+	assert.Equal(t, "initial-api", keys["apiKeyAuth"].Key)
+	assert.Equal(t, "initial-app", keys["appKeyAuth"].Key)
+
+	// Simulate credential rotation: env vars change
+	os.Setenv("DD_API_KEY", "rotated-api")
+	os.Setenv("DD_APP_KEY", "rotated-app")
+
+	// GetAuth still returns old cached credentials (cache hasn't been refreshed)
+	auth, err = cm.GetAuth()
+	assert.NoError(t, err)
+	keys = auth.Value(datadogapi.ContextAPIKeys).(map[string]datadogapi.APIKey)
+	assert.Equal(t, "initial-api", keys["apiKeyAuth"].Key, "should still return cached credentials before refresh")
+
+	// Run refresh — this should swap credentials atomically
+	err = cm.Refresh(logr.Logger{})
+	assert.NoError(t, err)
+
+	// Now GetAuth should return the rotated keys
+	auth, err = cm.GetAuth()
+	assert.NoError(t, err)
+	keys = auth.Value(datadogapi.ContextAPIKeys).(map[string]datadogapi.APIKey)
+	assert.Equal(t, "rotated-api", keys["apiKeyAuth"].Key)
+	assert.Equal(t, "rotated-app", keys["appKeyAuth"].Key)
+}
+
+// Test_RefreshPreservesCredsOnFailure verifies that when refresh() fails
+// (e.g. env vars removed), the old cached credentials are preserved and
+// GetAuth continues to return them.
+func Test_RefreshPreservesCredsOnFailure(t *testing.T) {
+	os.Setenv("DD_API_KEY", "good-api")
+	os.Setenv("DD_APP_KEY", "good-app")
+	defer os.Unsetenv("DD_API_KEY")
+	defer os.Unsetenv("DD_APP_KEY")
+
+	s := testutils_test.TestScheme()
+	client := fake.NewClientBuilder().WithScheme(s).Build()
+	cm := NewCredentialManager(client)
+
+	// Prime the cache via GetAuth
+	auth, err := cm.GetAuth()
+	assert.NoError(t, err)
+	keys := auth.Value(datadogapi.ContextAPIKeys).(map[string]datadogapi.APIKey)
+	assert.Equal(t, "good-api", keys["apiKeyAuth"].Key)
+
+	// Simulate failure: unset env vars so fetchCredentials returns an error
+	os.Unsetenv("DD_API_KEY")
+	os.Unsetenv("DD_APP_KEY")
+
+	// Refresh should fail
+	err = cm.Refresh(logr.Logger{})
+	assert.Error(t, err)
+
+	// GetAuth should still return the old cached credentials
+	auth, err = cm.GetAuth()
+	assert.NoError(t, err)
+	keys = auth.Value(datadogapi.ContextAPIKeys).(map[string]datadogapi.APIKey)
+	assert.Equal(t, "good-api", keys["apiKeyAuth"].Key)
+	assert.Equal(t, "good-app", keys["appKeyAuth"].Key)
 }
 
 func Test_GetCredsWithDDAFallback_withConfigMapTier(t *testing.T) {

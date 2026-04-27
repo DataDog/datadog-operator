@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync"
 	"testing"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
@@ -499,6 +500,82 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReconcileDatadogMonitor_CredentialRefresh(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	eventBroadcaster := record.NewBroadcaster()
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogMonitor_Reconcile"})
+
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
+
+	// Track the API key seen by the mock Datadog server on each request.
+	var lastSeenAPIKey string
+	var mu sync.Mutex
+
+	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		lastSeenAPIKey = r.Header.Get("Dd-Api-Key")
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+	}))
+	defer httpServer.Close()
+
+	testConfig := datadogapi.NewConfiguration()
+	testConfig.HTTPClient = httpServer.Client()
+	apiClient := datadogapi.NewAPIClient(testConfig)
+	ddClient := datadogV1.NewMonitorsApi(apiClient)
+
+	t.Setenv("DD_URL", httpServer.URL)
+	t.Setenv("DD_API_KEY", "api-1")
+	t.Setenv("DD_APP_KEY", "app-1")
+
+	credsManager := config.NewCredentialManager(fake.NewClientBuilder().Build())
+
+	r := &Reconciler{
+		client:        fake.NewClientBuilder().WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).Build(),
+		datadogClient: ddClient,
+		credsManager:  credsManager,
+		scheme:        s,
+		recorder:      recorder,
+		log:           logf.Log.WithName("credential-refresh-test"),
+	}
+
+	dm := genericDatadogMonitor(r.client)
+
+	// Reconcile 3 times: add finalizer → add required tags → create monitor
+	for i := 0; i < 3; i++ {
+		_, err := r.Reconcile(context.TODO(), dm)
+		assert.NoError(t, err)
+		// Re-fetch to pick up finalizer/tag updates
+		r.client.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm)
+	}
+
+	// Assert the server saw the initial API key
+	mu.Lock()
+	assert.Equal(t, "api-1", lastSeenAPIKey, "server should have received initial API key")
+	mu.Unlock()
+
+	t.Setenv("DD_API_KEY", "api-2")
+	t.Setenv("DD_APP_KEY", "app-2")
+
+	err := credsManager.Refresh(logf.Log)
+	assert.NoError(t, err)
+
+	// Trigger another reconcile (force sync by zeroing the last sync time)
+	r.client.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm)
+	dm.Status.MonitorLastForceSyncTime = nil
+	r.client.Status().Update(context.TODO(), dm)
+
+	_, err = r.Reconcile(context.TODO(), dm)
+	assert.NoError(t, err)
+
+	// Assert the server now sees the rotated API key
+	mu.Lock()
+	assert.Equal(t, "api-2", lastSeenAPIKey, "server should have received rotated API key after refresh")
+	mu.Unlock()
 }
 
 func newRequest(ns, name string) *v1alpha1.DatadogMonitor {
