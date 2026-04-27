@@ -67,16 +67,22 @@ instances:
     - jobs
     - replicasets
     - deployments
-    - configmaps
-    - services
+`)
+	if collectorOpts.collectConfigMaps {
+		config.WriteString("    - configmaps\n")
+	}
+	config.WriteString(`    - services
     - endpoints
     - daemonsets
     - horizontalpodautoscalers
     - poddisruptionbudgets
     - limitranges
     - resourcequotas
-    - secrets
-    - namespaces
+`)
+	if collectorOpts.collectSecrets {
+		config.WriteString("    - secrets\n")
+	}
+	config.WriteString(`    - namespaces
     - persistentvolumeclaims
     - persistentvolumes
     - ingresses
