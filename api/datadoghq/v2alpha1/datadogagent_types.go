@@ -279,11 +279,37 @@ type LanguageDetectionConfig struct {
 
 // CSIConfig contains the config for Datadog CSI driver.
 type CSIConfig struct {
-	// Enables the usage of CSI driver in Datadog Agent.
-	// Requires installation of Datadog CSI Driver https://github.com/DataDog/helm-charts/tree/main/charts/datadog-csi-driver
+	// Enables the usage of CSI driver in Datadog Agent. When the operator is started with
+	// `--datadogCSIDriverEnabled=true`, it will also install the driver by creating a
+	// DatadogCSIDriver custom resource, unless a cluster-scoped `k8s.csi.datadoghq.com`
+	// CSIDriver is already present, in which case it defers to the existing installation
+	// (e.g. from the Datadog CSI driver Helm chart).
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// AutoManage controls whether the operator automatically manages the DatadogCSIDriver
+	// custom resource on behalf of this DatadogAgent. Set to false to hand ownership over to a
+	// DatadogCSIDriver CR that you maintain yourself (useful for migrations where you need
+	// customizations not exposed on the DatadogAgent spec). When toggled from true to false,
+	// the operator cleans up the DDA-owned DatadogCSIDriver CR; you are then responsible for
+	// providing a replacement so CSI continues to work.
+	// Default: true
+	// +optional
+	AutoManage *bool `json:"autoManage,omitempty"`
+
+	// Tolerations configure the CSI driver DaemonSet pod tolerations.
+	// +optional
+	// +listType=atomic
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+
+	// NodeSelector is a map of key-value pairs for CSI driver DaemonSet pod node selection.
+	// +optional
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// NodeAffinity specifies node affinity scheduling rules for CSI driver DaemonSet pods.
+	// +optional
+	NodeAffinity *corev1.NodeAffinity `json:"nodeAffinity,omitempty"`
 }
 
 // InjectorConfig contains the configuration for the APM Injector.
