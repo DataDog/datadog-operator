@@ -1,0 +1,10 @@
+issuer: https://vault.us1.staging.dog/v1/identity/oidc
+
+subject: "f012f0b0-d135-9dd7-7f53-44a4d5cb50ca"
+
+claim_pattern:
+  email: "rapid-agent-delivery.operatorrelease@kubernetes.us1.ddbuild.io"
+
+permissions:
+  contents: read
+  pull_requests: write
