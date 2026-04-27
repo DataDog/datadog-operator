@@ -151,6 +151,25 @@ func TestStartDatadogAgentExperiment_Running_Idempotent(t *testing.T) {
 	assert.Equal(t, "old-exp", got.Status.Experiment.ID)
 }
 
+func TestStartDatadogAgentExperiment_Running_Idempotent_RestoresConfigVersion(t *testing.T) {
+	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+	d, _ := testDaemon(dda, testInstallerConfigWithDDA())
+	// Simulate post-restart: rcClient exists but has no config versions yet.
+	rc := &mockRCClient{state: []*pbgo.PackageState{
+		{Package: "datadog-operator"},
+	}}
+	d.rcClient = rc
+
+	// Retry the same start request — idempotent path should restore config version.
+	req := testStartRequest()
+	req.ID = "old-exp"
+	require.NoError(t, d.startDatadogAgentExperiment(context.Background(), req))
+
+	require.Len(t, rc.state, 1)
+	assert.Equal(t, req.Params.Version, rc.state[0].ExperimentConfigVersion,
+		"idempotent start path should restore experiment config version")
+}
+
 func TestStartDatadogAgentExperiment_Running_DifferentID(t *testing.T) {
 	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
 	d, _ := testDaemon(dda, testInstallerConfigWithDDA())
@@ -638,6 +657,32 @@ func TestWaitForPhase_ImmediateSuccess(t *testing.T) {
 
 	err := pw.waitForPhase(context.Background(), testDDANSN, "old-exp", acceptPhase(v2alpha1.ExperimentPhaseRunning))
 	assert.NoError(t, err)
+}
+
+func TestWaitForPhase_AlreadyAtExpectedPhase(t *testing.T) {
+	// The DDA is already at the expected phase before waitForPhase is called.
+	// No informer event is needed — the synchronous Get check should return immediately.
+	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+	s := testFleetScheme()
+	c := fake.NewClientBuilder().WithScheme(s).WithObjects(dda).WithStatusSubresource(dda).Build()
+	pw := testPhaseWatcher(c)
+
+	err := pw.waitForPhase(context.Background(), testDDANSN, "old-exp", acceptPhase(v2alpha1.ExperimentPhaseRunning))
+	assert.NoError(t, err)
+}
+
+func TestWaitForPhase_AlreadyTerminal(t *testing.T) {
+	// The DDA is already at a terminal phase that doesn't match the expected phase.
+	// The synchronous Get check should detect this and return an error immediately
+	// without waiting for an informer event.
+	dda := testDDAObject(v2alpha1.ExperimentPhaseTerminated)
+	s := testFleetScheme()
+	c := fake.NewClientBuilder().WithScheme(s).WithObjects(dda).WithStatusSubresource(dda).Build()
+	pw := testPhaseWatcher(c)
+
+	err := pw.waitForPhase(context.Background(), testDDANSN, "old-exp", acceptPhase(v2alpha1.ExperimentPhaseRunning))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "terminal phase")
 }
 
 func TestWaitForPhase_Timeout(t *testing.T) {

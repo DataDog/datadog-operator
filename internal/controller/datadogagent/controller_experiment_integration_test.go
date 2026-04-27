@@ -153,8 +153,8 @@ func Test_Experiment_StoppedRollback(t *testing.T) {
 	assert.Len(t, listOwnedRevisions(t, r.client, ns, uid), 2)
 	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, mustGetExperimentPhase(t, r, ns, name))
 
-	// Daemon writes rollback signal annotation.
-	simulateDaemonRollback(t, r.client, nsName, "exp-1")
+	// Daemon writes rollback signal annotation with its own task ID (different from start).
+	simulateDaemonRollback(t, r.client, nsName, "stop-1")
 
 	// First reconcile: rollback triggered (spec restored, status update may conflict).
 	// Second reconcile: spec already correct, status update succeeds.
@@ -307,8 +307,8 @@ func Test_Experiment_TerminatedPhase_IsStable(t *testing.T) {
 	reconcileN(t, r, ns, name, 1)
 	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, mustGetExperimentPhase(t, r, ns, name))
 
-	// Daemon writes rollback signal annotation.
-	simulateDaemonRollback(t, r.client, nsName, "exp-1")
+	// Daemon writes rollback signal annotation with its own task ID.
+	simulateDaemonRollback(t, r.client, nsName, "stop-1")
 	reconcileN(t, r, ns, name, 2)
 
 	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, mustGetExperimentPhase(t, r, ns, name))
@@ -381,15 +381,15 @@ func Test_Experiment_StopAfterRollback(t *testing.T) {
 	reconcileN(t, r, ns, name, 1)
 	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, mustGetExperimentPhase(t, r, ns, name))
 
-	// Daemon writes rollback signal → triggers rollback.
-	simulateDaemonRollback(t, r.client, nsName, "exp-1")
+	// Daemon writes rollback signal with its own task ID → triggers rollback.
+	simulateDaemonRollback(t, r.client, nsName, "stop-1")
 	reconcileN(t, r, ns, name, 2)
 	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, mustGetExperimentPhase(t, r, ns, name))
 
 	// Daemon writes rollback signal again after rollback already completed.
 	// processRollbackSignal checks isTerminalPhase(terminated) == true,
 	// so it's a no-op.
-	simulateDaemonRollback(t, r.client, nsName, "exp-1")
+	simulateDaemonRollback(t, r.client, nsName, "stop-2")
 	reconcileN(t, r, ns, name, 2)
 
 	// Spec should still be the rolled-back spec; phase=terminated unchanged.
@@ -576,8 +576,8 @@ func Test_Experiment_StopRollback_AnnotatesOnlyExperimentRevision(t *testing.T) 
 	reconcileN(t, r, ns, name, 1)
 	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, mustGetExperimentPhase(t, r, ns, name))
 
-	// Daemon writes rollback signal annotation → triggers rollback.
-	simulateDaemonRollback(t, r.client, nsName, "exp-1")
+	// Daemon writes rollback signal annotation with its own task ID → triggers rollback.
+	simulateDaemonRollback(t, r.client, nsName, "stop-1")
 	reconcileN(t, r, ns, name, 2)
 
 	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, mustGetExperimentPhase(t, r, ns, name))
@@ -638,8 +638,8 @@ func Test_Experiment_PromoteThenNewExperiment_NoImmediateTimeout(t *testing.T) {
 	assert.Len(t, listOwnedRevisions(t, r.client, ns, uid), 2)
 	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, mustGetExperimentPhase(t, r, ns, name))
 
-	// Daemon writes promote signal (experiment succeeded, keep the new spec).
-	simulateDaemonPromote(t, r.client, nsName, "exp-1")
+	// Daemon writes promote signal with its own task ID (experiment succeeded, keep the new spec).
+	simulateDaemonPromote(t, r.client, nsName, "promote-1")
 
 	// Reconcile processes the promote signal: sets phase=promoted, annotates the
 	// revision, then ensureRevision sees the annotation and recreates it with
@@ -702,8 +702,8 @@ func Test_Experiment_Promoted_DoesNotRecreateRevision(t *testing.T) {
 		}
 	}
 
-	// Daemon writes promote signal.
-	simulateDaemonPromote(t, r.client, nsName, "exp-1")
+	// Daemon writes promote signal with its own task ID.
+	simulateDaemonPromote(t, r.client, nsName, "promote-1")
 
 	// First reconcile processes promote signal → sets newStatus.Phase=promoted.
 	// Second reconcile sees instance.Status.Phase=promoted → annotates revision.
@@ -770,7 +770,7 @@ func Test_Experiment_StateTransitions(t *testing.T) {
 				t.Helper()
 				simulateDaemonStart(t, r.client, nsName, "exp-1")
 				reconcileN(t, r, ns, name, 1)
-				simulateDaemonPromote(t, r.client, nsName, "exp-1")
+				simulateDaemonPromote(t, r.client, nsName, "promote-1")
 				// Reconcile processes promote → annotates the experiment revision.
 				reconcileN(t, r, ns, name, 1)
 			},
@@ -782,7 +782,7 @@ func Test_Experiment_StateTransitions(t *testing.T) {
 				t.Helper()
 				simulateDaemonStart(t, r.client, nsName, "exp-1")
 				reconcileN(t, r, ns, name, 1)
-				simulateDaemonRollback(t, r.client, nsName, "exp-1")
+				simulateDaemonRollback(t, r.client, nsName, "stop-1")
 				// Two reconciles: first restores spec (status conflicts),
 				// second persists phase=terminated.
 				reconcileN(t, r, ns, name, 2)
@@ -837,7 +837,7 @@ func Test_Experiment_StateTransitions(t *testing.T) {
 			name: "rollback",
 			action: func(t *testing.T, r *Reconciler, ns, name string, uid types.UID, nsName types.NamespacedName, dda *v2alpha1.DatadogAgent) {
 				t.Helper()
-				simulateDaemonRollback(t, r.client, nsName, "exp-2")
+				simulateDaemonRollback(t, r.client, nsName, "stop-2")
 				reconcileN(t, r, ns, name, 2)
 			},
 			expect: v2alpha1.ExperimentPhaseTerminated,
@@ -847,7 +847,7 @@ func Test_Experiment_StateTransitions(t *testing.T) {
 			name: "promote",
 			action: func(t *testing.T, r *Reconciler, ns, name string, uid types.UID, nsName types.NamespacedName, dda *v2alpha1.DatadogAgent) {
 				t.Helper()
-				simulateDaemonPromote(t, r.client, nsName, "exp-2")
+				simulateDaemonPromote(t, r.client, nsName, "promote-2")
 				reconcileN(t, r, ns, name, 1)
 			},
 			expect: v2alpha1.ExperimentPhasePromoted,

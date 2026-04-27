@@ -237,6 +237,22 @@ func (pw *phaseWatcher) waitForPhase(ctx context.Context, nsn types.NamespacedNa
 		pw.mu.Unlock()
 	}()
 
+	// Check the current phase before blocking — the reconciler may have
+	// already transitioned before the waiter was registered, in which case
+	// no further informer event will fire.
+	current := &v2alpha1.DatadogAgent{}
+	if err := pw.k8sClient.Get(ctx, nsn, current); err == nil && current.Status.Experiment != nil {
+		done, acceptErr := accept(current.Status.Experiment.Phase)
+		if done {
+			if acceptErr != nil {
+				logger.Info("Unexpected phase already present", "phase", current.Status.Experiment.Phase, "error", acceptErr)
+				return acceptErr
+			}
+			logger.V(1).Info("Expected phase already present", "phase", current.Status.Experiment.Phase)
+			return nil
+		}
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, phaseWaitTimeout)
 	defer cancel()
 

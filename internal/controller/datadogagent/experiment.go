@@ -164,10 +164,10 @@ func (r *Reconciler) processExperimentSignal(
 		acted, err = r.processStartSignal(ctx, annotationID, currentPhase, currentID, newStatus)
 
 	case v2alpha1.ExperimentSignalRollback:
-		acted, err = r.processRollbackSignal(ctx, instance, annotationID, currentPhase, currentID, newStatus, revisions)
+		acted, err = r.processRollbackSignal(ctx, instance, annotationID, currentPhase, newStatus, revisions)
 
 	case v2alpha1.ExperimentSignalPromote:
-		acted, err = r.processPromoteSignal(ctx, instance, annotationID, currentPhase, currentID, newStatus, revisions)
+		acted, err = r.processPromoteSignal(ctx, instance, currentPhase, newStatus, revisions)
 
 	default:
 		logger.Info("Unknown experiment signal, ignoring")
@@ -220,7 +220,6 @@ func (r *Reconciler) processRollbackSignal(
 	instance *v2alpha1.DatadogAgent,
 	annotationID string,
 	currentPhase v2alpha1.ExperimentPhase,
-	currentID string,
 	newStatus *v2alpha1.DatadogAgentStatus,
 	revisions []appsv1.ControllerRevision,
 ) (bool, error) {
@@ -233,12 +232,6 @@ func (r *Reconciler) processRollbackSignal(
 	}
 
 	if currentPhase == v2alpha1.ExperimentPhaseRunning {
-		// ID mismatch: can't rollback an experiment we don't know about.
-		if annotationID != currentID {
-			logger.Info("Ignoring rollback signal: annotation ID doesn't match status experiment ID", "currentID", currentID)
-			return true, nil
-		}
-
 		// Check if spec was manually changed (user edit takes precedence over rollback).
 		if len(revisions) >= 2 && findMostRecentMatchingRevision(revisions, instance) == nil {
 			logger.Info("Aborting experiment instead of rolling back: spec was manually changed")
@@ -281,9 +274,7 @@ func (r *Reconciler) processRollbackSignal(
 func (r *Reconciler) processPromoteSignal(
 	ctx context.Context,
 	instance *v2alpha1.DatadogAgent,
-	annotationID string,
 	currentPhase v2alpha1.ExperimentPhase,
-	currentID string,
 	newStatus *v2alpha1.DatadogAgentStatus,
 	revisions []appsv1.ControllerRevision,
 ) (bool, error) {
@@ -298,12 +289,6 @@ func (r *Reconciler) processPromoteSignal(
 	// Can't promote if not running.
 	if currentPhase != v2alpha1.ExperimentPhaseRunning {
 		logger.Info("Promote signal ignored: no running experiment", "phase", currentPhase)
-		return true, nil
-	}
-
-	// ID mismatch: can't promote an experiment we don't know about.
-	if annotationID != currentID {
-		logger.Info("Ignoring promote signal: annotation ID doesn't match status experiment ID", "currentID", currentID)
 		return true, nil
 	}
 

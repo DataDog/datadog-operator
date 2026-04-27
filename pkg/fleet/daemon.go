@@ -258,6 +258,9 @@ func (d *Daemon) startDatadogAgentExperiment(ctx context.Context, req remoteAPIR
 			// there's nothing to do. If it hasn't yet, the watcher will pick it up.
 			if dda.Status.Experiment != nil && dda.Status.Experiment.Phase == v2alpha1.ExperimentPhaseRunning && dda.Status.Experiment.ID == req.ID {
 				logger.V(1).Info("Experiment already running, skipping patch")
+				// Restore in-memory config version — it may be empty after a restart.
+				stable, _ := d.getPackageConfigVersions(req.Package)
+				d.setPackageConfigVersions(req.Package, stable, req.Params.Version)
 				return nil
 			}
 			logger.V(1).Info("Annotation already set, skipping patch")

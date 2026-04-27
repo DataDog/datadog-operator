@@ -139,10 +139,11 @@ func TestProcessExperimentSignal_RollbackSignalRollsBack(t *testing.T) {
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
 	require.NoError(t, r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil))
 
-	// Set annotations to signal rollback, and status to running (controller already processed start).
+	// Set annotations to signal rollback (different task ID), and status to running
+	// (controller already processed start with a different ID).
 	instanceB.Annotations = map[string]string{
 		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalRollback,
-		v2alpha1.AnnotationExperimentID:     "exp-1",
+		v2alpha1.AnnotationExperimentID:     "stop-1",
 	}
 	instanceB.Status.Experiment = &v2alpha1.ExperimentStatus{
 		Phase: v2alpha1.ExperimentPhaseRunning,
@@ -348,11 +349,11 @@ func TestReapplySameSpecAfterRollback_NoImmediateTimeout(t *testing.T) {
 		}
 	}
 
-	// Rollback: RC sends rollback signal via annotation; operator restores spec A.
+	// Rollback: RC sends rollback signal via annotation (different task ID); operator restores spec A.
 	// restorePreviousSpec annotates the experiment revision (B) as rolled back.
 	instanceB.Annotations = map[string]string{
 		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalRollback,
-		v2alpha1.AnnotationExperimentID:     "exp-1",
+		v2alpha1.AnnotationExperimentID:     "stop-1",
 	}
 	instanceB.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseRunning, ID: "exp-1"}
 	rollbackStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceB.Status.Experiment.DeepCopy()}
@@ -602,12 +603,15 @@ func TestProcessExperimentSignal_StartBlockedByRunningExperiment(t *testing.T) {
 	assert.Equal(t, "exp-existing", newStatus.Experiment.ID)
 }
 
-func TestProcessExperimentSignal_RollbackIDMismatch(t *testing.T) {
+// TestProcessExperimentSignal_RollbackDifferentID verifies that a rollback
+// signal with a different annotation ID (normal for stop requests which have
+// their own task ID) still triggers rollback of the running experiment.
+func TestProcessExperimentSignal_RollbackDifferentID(t *testing.T) {
 	r, _ := newRevisionTestReconciler(t)
 	instance := newRevisionTestOwner("test-dda", "default")
 	instance.Annotations = map[string]string{
 		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalRollback,
-		v2alpha1.AnnotationExperimentID:     "wrong-id",
+		v2alpha1.AnnotationExperimentID:     "stop-task-id",
 	}
 	instance.Status.Experiment = &v2alpha1.ExperimentStatus{
 		Phase: v2alpha1.ExperimentPhaseRunning,
@@ -617,8 +621,8 @@ func TestProcessExperimentSignal_RollbackIDMismatch(t *testing.T) {
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instance.Status.Experiment.DeepCopy()}
 	_, processErr := r.processExperimentSignal(context.Background(), instance, newStatus, nil)
 	require.NoError(t, processErr)
-	// No change — ID mismatch.
-	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, newStatus.Experiment.Phase)
+	// Rollback proceeds despite different annotation ID.
+	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, newStatus.Experiment.Phase)
 }
 
 func TestProcessExperimentSignal_RollbackTerminalPhaseNoOp(t *testing.T) {
@@ -652,9 +656,10 @@ func TestProcessExperimentSignal_PromoteRunning(t *testing.T) {
 	require.NoError(t, r.manageRevision(context.Background(), instance2, mustListRevisions(t, r, instance2), nil))
 
 	// Now promote back to the first spec (which has a matching revision).
+	// The promote signal has its own task ID, different from the start experiment ID.
 	instance.Annotations = map[string]string{
 		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalPromote,
-		v2alpha1.AnnotationExperimentID:     "exp-1",
+		v2alpha1.AnnotationExperimentID:     "promote-1",
 	}
 	instance.Status.Experiment = &v2alpha1.ExperimentStatus{
 		Phase: v2alpha1.ExperimentPhaseRunning,
@@ -680,10 +685,10 @@ func TestProcessExperimentSignal_PromoteBeatsTimeout(t *testing.T) {
 	require.NoError(t, r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil))
 	require.NoError(t, c.Create(context.Background(), instanceB))
 
-	// Set promote annotation and running phase with timeout elapsed.
+	// Set promote annotation (different task ID) and running phase with timeout elapsed.
 	instanceB.Annotations = map[string]string{
 		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalPromote,
-		v2alpha1.AnnotationExperimentID:     "exp-1",
+		v2alpha1.AnnotationExperimentID:     "promote-1",
 	}
 	instanceB.Status.Experiment = &v2alpha1.ExperimentStatus{
 		Phase: v2alpha1.ExperimentPhaseRunning,
@@ -729,10 +734,10 @@ func TestProcessExperimentSignal_RollbackBeatsTimeout(t *testing.T) {
 	require.NoError(t, r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil))
 	require.NoError(t, c.Create(context.Background(), instanceB))
 
-	// Set rollback annotation and running phase with timeout elapsed.
+	// Set rollback annotation (different task ID) and running phase with timeout elapsed.
 	instanceB.Annotations = map[string]string{
 		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalRollback,
-		v2alpha1.AnnotationExperimentID:     "exp-1",
+		v2alpha1.AnnotationExperimentID:     "stop-1",
 	}
 	instanceB.Status.Experiment = &v2alpha1.ExperimentStatus{
 		Phase: v2alpha1.ExperimentPhaseRunning,
