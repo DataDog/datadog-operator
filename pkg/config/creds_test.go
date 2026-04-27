@@ -9,14 +9,16 @@ import (
 	"os"
 	"testing"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	testutils_test "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
-	"github.com/DataDog/datadog-operator/pkg/secrets"
+	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	testutils_test "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
+	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
 func Test_getCredentials(t *testing.T) {
@@ -654,6 +656,224 @@ func Test_getCredentialsFromConfigMap(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_parseAPIURL(t *testing.T) {
+	tests := []struct {
+		name         string
+		envVars      map[string]string
+		wantNil      bool
+		wantHost     string
+		wantProtocol string
+		wantErr      bool
+	}{
+		{
+			name:    "no env vars set returns nil",
+			envVars: map[string]string{},
+			wantNil: true,
+			wantErr: false,
+		},
+		{
+			name:         "DD_DD_URL set",
+			envVars:      map[string]string{"DD_DD_URL": "https://api.example.com"},
+			wantHost:     "api.example.com",
+			wantProtocol: "https",
+		},
+		{
+			name: "DD_DD_URL takes precedence over DD_URL and DD_SITE",
+			envVars: map[string]string{
+				"DD_DD_URL": "https://ddurl.example.com",
+				"DD_URL":    "https://url.example.com",
+				"DD_SITE":   "datadoghq.eu",
+			},
+			wantHost:     "ddurl.example.com",
+			wantProtocol: "https",
+		},
+		{
+			name: "DD_URL used when DD_DD_URL is empty",
+			envVars: map[string]string{
+				"DD_URL":  "http://url.example.com",
+				"DD_SITE": "datadoghq.eu",
+			},
+			wantHost:     "url.example.com",
+			wantProtocol: "http",
+		},
+		{
+			name:         "DD_SITE used when DD_DD_URL and DD_URL are empty",
+			envVars:      map[string]string{"DD_SITE": "datadoghq.eu"},
+			wantHost:     "api.datadoghq.eu",
+			wantProtocol: "https",
+		},
+		{
+			name:         "DD_SITE trims whitespace",
+			envVars:      map[string]string{"DD_SITE": "  datadoghq.com  "},
+			wantHost:     "api.datadoghq.com",
+			wantProtocol: "https",
+		},
+		{
+			name:    "invalid URL returns error",
+			envVars: map[string]string{"DD_DD_URL": "://bad-url"},
+			wantErr: true,
+		},
+		{
+			name:    "URL with missing scheme returns error",
+			envVars: map[string]string{"DD_DD_URL": "api.example.com"},
+			wantErr: true,
+		},
+		{
+			name:    "URL with missing host returns error",
+			envVars: map[string]string{"DD_DD_URL": "https://"},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Clear env first
+			os.Unsetenv("DD_DD_URL")
+			os.Unsetenv("DD_URL")
+			os.Unsetenv("DD_SITE")
+			for k, v := range tt.envVars {
+				os.Setenv(k, v)
+			}
+			defer func() {
+				for k := range tt.envVars {
+					os.Unsetenv(k)
+				}
+			}()
+
+			cm := &CredentialManager{}
+			err := cm.parseAPIURL()
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, cm.apiURL)
+				return
+			}
+			assert.NoError(t, err)
+			if tt.wantNil {
+				assert.Nil(t, cm.apiURL)
+				return
+			}
+			assert.NotNil(t, cm.apiURL)
+			assert.Equal(t, tt.wantHost, cm.apiURL.Host)
+			assert.Equal(t, tt.wantProtocol, cm.apiURL.Protocol)
+		})
+	}
+}
+
+func Test_GetAuth(t *testing.T) {
+	t.Run("returns error when credentials missing", func(t *testing.T) {
+		os.Unsetenv("DD_API_KEY")
+		os.Unsetenv("DD_APP_KEY")
+		s := testutils_test.TestScheme()
+		client := fake.NewClientBuilder().WithScheme(s).Build()
+		cm := NewCredentialManager(client)
+		auth, err := cm.GetAuth()
+		assert.Error(t, err)
+		assert.Nil(t, auth)
+	})
+
+	t.Run("auth context contains API and APP keys, no server overrides when no URL set", func(t *testing.T) {
+		os.Setenv("DD_API_KEY", "my-api-key")
+		os.Setenv("DD_APP_KEY", "my-app-key")
+		os.Unsetenv("DD_DD_URL")
+		os.Unsetenv("DD_URL")
+		os.Unsetenv("DD_SITE")
+		defer func() {
+			os.Unsetenv("DD_API_KEY")
+			os.Unsetenv("DD_APP_KEY")
+		}()
+
+		s := testutils_test.TestScheme()
+		client := fake.NewClientBuilder().WithScheme(s).Build()
+		cm := NewCredentialManager(client)
+		auth, err := cm.GetAuth()
+		assert.NoError(t, err)
+		assert.NotNil(t, auth)
+
+		keys, ok := auth.Value(datadogapi.ContextAPIKeys).(map[string]datadogapi.APIKey)
+		assert.True(t, ok)
+		assert.Equal(t, "my-api-key", keys["apiKeyAuth"].Key)
+		assert.Equal(t, "my-app-key", keys["appKeyAuth"].Key)
+
+		// No server overrides
+		assert.Nil(t, auth.Value(datadogapi.ContextServerIndex))
+		assert.Nil(t, auth.Value(datadogapi.ContextServerVariables))
+	})
+
+	t.Run("auth context sets server variables when DD_SITE is configured", func(t *testing.T) {
+		os.Setenv("DD_API_KEY", "my-api-key")
+		os.Setenv("DD_APP_KEY", "my-app-key")
+		os.Setenv("DD_SITE", "datadoghq.eu")
+		defer func() {
+			os.Unsetenv("DD_API_KEY")
+			os.Unsetenv("DD_APP_KEY")
+			os.Unsetenv("DD_SITE")
+		}()
+
+		s := testutils_test.TestScheme()
+		client := fake.NewClientBuilder().WithScheme(s).Build()
+		cm := NewCredentialManager(client)
+		auth, err := cm.GetAuth()
+		assert.NoError(t, err)
+
+		idx, ok := auth.Value(datadogapi.ContextServerIndex).(int)
+		assert.True(t, ok)
+		assert.Equal(t, 1, idx)
+
+		vars, ok := auth.Value(datadogapi.ContextServerVariables).(map[string]string)
+		assert.True(t, ok)
+		assert.Equal(t, "api.datadoghq.eu", vars["name"])
+		assert.Equal(t, "https", vars["protocol"])
+	})
+
+	t.Run("apiURL is parsed only once (sync.Once) — subsequent env changes ignored", func(t *testing.T) {
+		os.Setenv("DD_API_KEY", "my-api-key")
+		os.Setenv("DD_APP_KEY", "my-app-key")
+		os.Setenv("DD_SITE", "datadoghq.eu")
+		defer func() {
+			os.Unsetenv("DD_API_KEY")
+			os.Unsetenv("DD_APP_KEY")
+			os.Unsetenv("DD_SITE")
+		}()
+
+		s := testutils_test.TestScheme()
+		client := fake.NewClientBuilder().WithScheme(s).Build()
+		cm := NewCredentialManager(client)
+
+		_, err := cm.GetAuth()
+		assert.NoError(t, err)
+
+		// Change env after first call; should be ignored due to sync.Once
+		os.Setenv("DD_SITE", "datadoghq.com")
+		// Reset cache so GetCredentials re-runs but apiURL parse is cached.
+		cm.cacheCreds(Creds{})
+
+		auth, err := cm.GetAuth()
+		assert.NoError(t, err)
+		vars, ok := auth.Value(datadogapi.ContextServerVariables).(map[string]string)
+		assert.True(t, ok)
+		assert.Equal(t, "api.datadoghq.eu", vars["name"], "apiURL should be cached from first parse")
+	})
+
+	t.Run("invalid API URL is logged and ignored, no server overrides applied", func(t *testing.T) {
+		os.Setenv("DD_API_KEY", "my-api-key")
+		os.Setenv("DD_APP_KEY", "my-app-key")
+		os.Setenv("DD_DD_URL", "://invalid")
+		defer func() {
+			os.Unsetenv("DD_API_KEY")
+			os.Unsetenv("DD_APP_KEY")
+			os.Unsetenv("DD_DD_URL")
+		}()
+
+		s := testutils_test.TestScheme()
+		client := fake.NewClientBuilder().WithScheme(s).Build()
+		cm := NewCredentialManager(client)
+		auth, err := cm.GetAuth()
+		assert.NoError(t, err)
+		assert.Nil(t, auth.Value(datadogapi.ContextServerIndex))
+		assert.Nil(t, auth.Value(datadogapi.ContextServerVariables))
+	})
 }
 
 func Test_GetCredsWithDDAFallback_withConfigMapTier(t *testing.T) {
