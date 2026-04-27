@@ -13,13 +13,25 @@ import (
 	k8stesting "k8s.io/client-go/testing"
 )
 
-// TestKarpenterClusterRoleSelectorContract pins the exact label selector we
-// match against. Subsequent tests build fake objects via the same constants,
-// so a typo in the constants would silently make those tests pass while real
-// Karpenter installs stop matching — this assertion locks down the contract
-// against the chart's documented label.
-func TestKarpenterClusterRoleSelectorContract(t *testing.T) {
-	assert.Equal(t, "app.kubernetes.io/name=karpenter", karpenterClusterRoleSelector)
+// karpenterCoreRules is the minimal set of rules that uniquely identifies a
+// Karpenter ClusterRole: the chart's clusterrole-core.yaml hard-codes the
+// karpenter.sh API group with nodepools/nodeclaims, so any real Karpenter
+// install produces a ClusterRole containing them.
+var karpenterCoreRules = []rbacv1.PolicyRule{
+	{
+		APIGroups: []string{"karpenter.sh"},
+		Resources: []string{"nodepools", "nodeclaims"},
+		Verbs:     []string{"get", "list", "watch"},
+	},
+}
+
+// TestKarpenterAPIGroupContract pins the API group fingerprint we match
+// against. Subsequent tests build fake objects via the same constant, so a
+// typo here would silently make them pass while real Karpenter installs stop
+// matching — this assertion locks down the contract against the chart's
+// hard-coded apiGroup.
+func TestKarpenterAPIGroupContract(t *testing.T) {
+	assert.Equal(t, "karpenter.sh", karpenterAPIGroup)
 }
 
 func TestIsForeignKarpenterInstalled(t *testing.T) {
@@ -29,23 +41,32 @@ func TestIsForeignKarpenterInstalled(t *testing.T) {
 		expected bool
 	}{
 		{
-			name:     "no Karpenter ClusterRoles on the cluster",
+			name:     "no ClusterRoles on the cluster",
 			objects:  nil,
+			expected: false,
+		},
+		{
+			name: "no Karpenter ClusterRoles among unrelated ones",
+			objects: []runtime.Object{
+				clusterRole("system:auth-delegator", nil, []rbacv1.PolicyRule{
+					{APIGroups: []string{"authentication.k8s.io"}, Resources: []string{"tokenreviews"}, Verbs: []string{"create"}},
+				}),
+			},
 			expected: false,
 		},
 		{
 			name: "only kubectl-datadog ClusterRoles",
 			objects: []runtime.Object{
 				clusterRole("karpenter", map[string]string{
-					karpenterChartNameLabel:      karpenterChartNameValue,
+					"app.kubernetes.io/name":     "karpenter",
 					"app.kubernetes.io/instance": "karpenter",
 					InstalledByLabel:             InstalledByValue,
-				}),
+				}, karpenterCoreRules),
 				clusterRole("karpenter-core", map[string]string{
-					karpenterChartNameLabel:      karpenterChartNameValue,
+					"app.kubernetes.io/name":     "karpenter",
 					"app.kubernetes.io/instance": "karpenter",
 					InstalledByLabel:             InstalledByValue,
-				}),
+				}, karpenterCoreRules),
 			},
 			expected: false,
 		},
@@ -53,10 +74,24 @@ func TestIsForeignKarpenterInstalled(t *testing.T) {
 			name: "foreign ClusterRole without our sentinel",
 			objects: []runtime.Object{
 				clusterRole("karpenter", map[string]string{
-					karpenterChartNameLabel:        karpenterChartNameValue,
+					"app.kubernetes.io/name":       "karpenter",
 					"app.kubernetes.io/instance":   "karpenter",
 					"app.kubernetes.io/managed-by": "Helm",
-				}),
+				}, karpenterCoreRules),
+			},
+			expected: true,
+		},
+		{
+			name: "foreign Karpenter installed with custom nameOverride",
+			// Helm chart with `nameOverride: my-karpenter` renames both the
+			// ClusterRole and its app.kubernetes.io/name label. The rules,
+			// however, still reference karpenter.sh — so we must detect it.
+			objects: []runtime.Object{
+				clusterRole("my-karpenter-core", map[string]string{
+					"app.kubernetes.io/name":       "my-karpenter",
+					"app.kubernetes.io/instance":   "my-karpenter",
+					"app.kubernetes.io/managed-by": "Helm",
+				}, karpenterCoreRules),
 			},
 			expected: true,
 		},
@@ -64,22 +99,27 @@ func TestIsForeignKarpenterInstalled(t *testing.T) {
 			name: "mix of ours and foreign returns true",
 			objects: []runtime.Object{
 				clusterRole("karpenter-core", map[string]string{
-					karpenterChartNameLabel:      karpenterChartNameValue,
+					"app.kubernetes.io/name":     "karpenter",
 					"app.kubernetes.io/instance": "karpenter",
 					InstalledByLabel:             InstalledByValue,
-				}),
+				}, karpenterCoreRules),
 				clusterRole("karpenter", map[string]string{
-					karpenterChartNameLabel:      karpenterChartNameValue,
+					"app.kubernetes.io/name":     "karpenter",
 					"app.kubernetes.io/instance": "their-release",
-				}),
+				}, karpenterCoreRules),
 			},
 			expected: true,
 		},
 		{
-			name: "ClusterRole without the karpenter selector label is ignored",
+			name: "ClusterRole with karpenter-looking labels but no karpenter.sh rules is ignored",
+			// Defensive: a user-authored ClusterRole that happens to carry
+			// `app.kubernetes.io/name=karpenter` but no actual Karpenter
+			// rules must not trigger the guard.
 			objects: []runtime.Object{
-				clusterRole("unrelated", map[string]string{
-					karpenterChartNameLabel: "something-else",
+				clusterRole("fake-karpenter", map[string]string{
+					"app.kubernetes.io/name": "karpenter",
+				}, []rbacv1.PolicyRule{
+					{APIGroups: []string{""}, Resources: []string{"configmaps"}, Verbs: []string{"get"}},
 				}),
 			},
 			expected: false,
@@ -88,9 +128,9 @@ func TestIsForeignKarpenterInstalled(t *testing.T) {
 			name: "foreign sentinel value is treated as foreign",
 			objects: []runtime.Object{
 				clusterRole("karpenter", map[string]string{
-					karpenterChartNameLabel: karpenterChartNameValue,
-					InstalledByLabel:        "someone-else",
-				}),
+					"app.kubernetes.io/name": "karpenter",
+					InstalledByLabel:         "someone-else",
+				}, karpenterCoreRules),
 			},
 			expected: true,
 		},
@@ -114,15 +154,16 @@ func TestIsForeignKarpenterInstalled(t *testing.T) {
 		_, err := IsForeignKarpenterInstalled(t.Context(), clientset)
 
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to list Karpenter ClusterRoles")
+		assert.Contains(t, err.Error(), "failed to list ClusterRoles")
 	})
 }
 
-func clusterRole(name string, labels map[string]string) *rbacv1.ClusterRole {
+func clusterRole(name string, labels map[string]string, rules []rbacv1.PolicyRule) *rbacv1.ClusterRole {
 	return &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   name,
 			Labels: labels,
 		},
+		Rules: rules,
 	}
 }
