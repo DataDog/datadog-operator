@@ -11,16 +11,19 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 )
 
 func Test_getHandler(t *testing.T) {
 	r := &Reconciler{
-		clients: &datadogclient.GenericClients{},
+		handlerBuilder: func(_ context.Context) map[v1alpha1.SupportedResourcesType]ResourceHandler {
+			return map[v1alpha1.SupportedResourcesType]ResourceHandler{
+				mockSubresource: &MockHandler{},
+			}
+		},
 	}
 
-	// Known type returns a non-nil handler (buildHandlers creates all types)
-	assert.NotNil(t, r.getHandler(context.Background(), v1alpha1.Dashboard))
+	// Known type returns a non-nil handler
+	assert.NotNil(t, r.getHandler(context.Background(), mockSubresource))
 
 	// Unsupported type panics
 	assert.PanicsWithError(t, "unsupported type: unsupportedType", func() {

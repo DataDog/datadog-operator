@@ -25,7 +25,6 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 )
 
 const (
@@ -190,15 +189,15 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 			os.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
 			defer os.Unsetenv("DD_API_KEY")
 			defer os.Unsetenv("DD_APP_KEY")
-			testCredsManager := config.NewCredentialManager(fake.NewClientBuilder().Build())
 
-			// Set up — use mock handlers so tests don't hit real APIs
+			// Set up — use mock handler builder so tests don't hit real APIs
 			r := &Reconciler{
 				client:       fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
-				clients:      &datadogclient.GenericClients{},
-				credsManager: testCredsManager,
-				testHandlers: map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{
-					mockSubresource: &MockHandler{},
+				credsManager: config.NewCredentialManager(fake.NewClientBuilder().Build()),
+				handlerBuilder: func(_ context.Context) map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler {
+					return map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{
+						mockSubresource: &MockHandler{},
+					}
 				},
 				scheme:   s,
 				recorder: recorder,

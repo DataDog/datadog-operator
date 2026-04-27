@@ -35,34 +35,34 @@ const (
 	datadogGenericResourceKind = "DatadogGenericResource"
 )
 
-type Reconciler struct {
-	client       client.Client
-	clients      *datadogclient.GenericClients
-	credsManager *config.CredentialManager
-	scheme       *runtime.Scheme
-	log          logr.Logger
-	recorder     record.EventRecorder
+// handlerBuilderFunc builds resource handlers for a given auth context.
+type handlerBuilderFunc func(auth context.Context) map[v1alpha1.SupportedResourcesType]ResourceHandler
 
-	// testHandlers allows tests to override handlers for specific resource types.
-	testHandlers map[v1alpha1.SupportedResourcesType]ResourceHandler
+type Reconciler struct {
+	client         client.Client
+	credsManager   *config.CredentialManager
+	handlerBuilder handlerBuilderFunc
+	scheme         *runtime.Scheme
+	log            logr.Logger
+	recorder       record.EventRecorder
 }
 
 func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
+	clients := datadogclient.InitGenericClients()
 	return &Reconciler{
 		client:       client,
-		clients:      datadogclient.InitGenericClients(),
 		credsManager: credsManager,
-		scheme:       scheme,
-		log:          log,
-		recorder:     recorder,
+		handlerBuilder: func(auth context.Context) map[v1alpha1.SupportedResourcesType]ResourceHandler {
+			return buildHandlers(clients, auth)
+		},
+		scheme:   scheme,
+		log:      log,
+		recorder: recorder,
 	}, nil
 }
 
 func (r *Reconciler) getHandler(auth context.Context, resourceType v1alpha1.SupportedResourcesType) ResourceHandler {
-	if h, ok := r.testHandlers[resourceType]; ok {
-		return h
-	}
-	handlers := buildHandlers(r.clients, auth)
+	handlers := r.handlerBuilder(auth)
 	h, ok := handlers[resourceType]
 	if !ok {
 		panic(unsupportedInstanceType(resourceType))
@@ -84,12 +84,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 	var result ctrl.Result
 	var err error
 
-	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger, auth), defaultRequeuePeriod, defaultErrRequeuePeriod)
+	handler := r.getHandler(auth, instance.Spec.Type)
+
+	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger, handler), defaultRequeuePeriod, defaultErrRequeuePeriod)
 	if result, err = final.HandleFinalizer(ctx, instance, instance.Status.Id, datadogGenericResourceFinalizer); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}
-
-	handler := r.getHandler(auth, instance.Spec.Type)
 
 	status := instance.Status.DeepCopy()
 	statusSpecHash := instance.Status.CurrentHash

@@ -25,7 +25,6 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
-	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 )
 
 const (
@@ -44,11 +43,6 @@ func Test_handleFinalizer(t *testing.T) {
 	metaNow := metav1.NewTime(time.Now())
 
 	r := &Reconciler{
-		clients: &datadogclient.GenericClients{},
-		testHandlers: map[v1alpha1.SupportedResourcesType]ResourceHandler{
-			v1alpha1.Notebook: &MockHandler{},
-		},
-
 		client: fake.NewClientBuilder().
 			WithRuntimeObjects(
 				&datadoghqv1alpha1.DatadogGenericResource{
@@ -108,7 +102,7 @@ func Test_handleFinalizer(t *testing.T) {
 			testGcr := &datadoghqv1alpha1.DatadogGenericResource{}
 			err := r.client.Get(ctx, client.ObjectKey{Name: test.resourceName, Namespace: testNamespace}, testGcr)
 
-			final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger, context.Background()), defaultRequeuePeriod, defaultErrRequeuePeriod)
+			final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger, &MockHandler{}), defaultRequeuePeriod, defaultErrRequeuePeriod)
 			_, err = final.HandleFinalizer(context.TODO(), testGcr, testGcr.Status.Id, datadogGenericResourceFinalizer)
 
 			assert.NoError(t, err)
@@ -155,11 +149,6 @@ func Test_handleFinalizer_deleteErrorPropagates(t *testing.T) {
 	}
 
 	r := &Reconciler{
-		clients: &datadogclient.GenericClients{},
-		testHandlers: map[v1alpha1.SupportedResourcesType]ResourceHandler{
-			v1alpha1.Notebook: &MockHandler{},
-		},
-
 		client: fake.NewClientBuilder().
 			WithRuntimeObjects(obj).
 			WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
@@ -174,7 +163,7 @@ func Test_handleFinalizer_deleteErrorPropagates(t *testing.T) {
 	getErr := r.client.Get(ctx, client.ObjectKey{Name: obj.Name, Namespace: testNamespace}, testGcr)
 	assert.NoError(t, getErr)
 
-	final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger, context.Background()), defaultRequeuePeriod, defaultErrRequeuePeriod)
+	final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger, &MockHandler{}), defaultRequeuePeriod, defaultErrRequeuePeriod)
 	_, err := final.HandleFinalizer(context.TODO(), testGcr, testGcr.Status.Id, datadogGenericResourceFinalizer)
 
 	// The error must propagate up from the handler so the shared Finalizer
@@ -209,11 +198,6 @@ func Test_handleFinalizer_deleteWithoutStatusIDRemovesFinalizer(t *testing.T) {
 	}
 
 	r := &Reconciler{
-		clients: &datadogclient.GenericClients{},
-		testHandlers: map[v1alpha1.SupportedResourcesType]ResourceHandler{
-			v1alpha1.Notebook: &MockHandler{},
-		},
-
 		client: fake.NewClientBuilder().
 			WithRuntimeObjects(obj).
 			WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
@@ -228,7 +212,7 @@ func Test_handleFinalizer_deleteWithoutStatusIDRemovesFinalizer(t *testing.T) {
 	getErr := r.client.Get(ctx, client.ObjectKey{Name: obj.Name, Namespace: testNamespace}, testGcr)
 	assert.NoError(t, getErr)
 
-	final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger, context.Background()), defaultRequeuePeriod, defaultErrRequeuePeriod)
+	final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger, &MockHandler{}), defaultRequeuePeriod, defaultErrRequeuePeriod)
 	result, err := final.HandleFinalizer(context.TODO(), testGcr, testGcr.Status.Id, datadogGenericResourceFinalizer)
 
 	// Finalization should succeed because an empty status ID means there is no remote Datadog object to delete.
