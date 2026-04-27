@@ -28,6 +28,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clients"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clusterinfo"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/display"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/helm"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/guess"
@@ -306,6 +307,10 @@ func (o *options) run(cmd *cobra.Command) error {
 
 	if err = createNodePoolResources(ctx, cmd, cli, clusterName, createKarpenterResources, inferenceMethod, debug); err != nil {
 		return err
+	}
+
+	if err = recordClusterInfo(ctx, cli, clusterName, karpenterNamespace); err != nil {
+		log.Printf("Warning: %v", err)
 	}
 
 	return displaySuccessMessage(cmd, clusterName, createKarpenterResources)
@@ -594,6 +599,21 @@ func createNodePoolResources(ctx context.Context, cmd *cobra.Command, cli *clien
 		}
 	}
 
+	return nil
+}
+
+// recordClusterInfo classifies every node by its current management method
+// and writes the snapshot to a ConfigMap. The information is consumed by the
+// follow-up migration step.
+func recordClusterInfo(ctx context.Context, cli *clients.Clients, clusterName, namespace string) error {
+	info, err := clusterinfo.Classify(ctx, cli.K8sClientset, cli.Autoscaling, clusterName)
+	if err != nil {
+		return fmt.Errorf("failed to classify cluster nodes: %w", err)
+	}
+	if err := clusterinfo.Persist(ctx, cli.K8sClient, namespace, info); err != nil {
+		return fmt.Errorf("failed to write %s ConfigMap: %w", clusterinfo.ConfigMapName, err)
+	}
+	log.Printf("Wrote node-management snapshot to ConfigMap %s/%s.", namespace, clusterinfo.ConfigMapName)
 	return nil
 }
 
