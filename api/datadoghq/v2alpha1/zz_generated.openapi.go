@@ -1298,6 +1298,74 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_KubeStateMetricsCoreFeatureC
 							},
 						},
 					},
+					"labelsAsTags": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LabelsAsTags maps Kubernetes labels to Datadog tags, scoped to the KSM check. The outer key is the Kubernetes resource kind (for example, \"pod\", \"node\", \"deployment\"), and the inner map is label name -> Datadog tag name. Example:\n  labelsAsTags:\n    pod:\n      app: app\n    node:\n      zone: zone\nNOTE: The top-level `global.kubernetesResourcesLabelsAsTags` configures this at the Agent level via environment variables. LabelsAsTags here writes to the KSM check instance config and applies only to KSM metrics.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type: []string{"object"},
+										AdditionalProperties: &spec.SchemaOrBool{
+											Allows: true,
+											Schema: &spec.Schema{
+												SchemaProps: spec.SchemaProps{
+													Default: "",
+													Type:    []string{"string"},
+													Format:  "",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+					"annotationsAsTags": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AnnotationsAsTags maps Kubernetes annotations to Datadog tags, scoped to the KSM check. The outer key is the Kubernetes resource kind, and the inner map is annotation name -> Datadog tag name. Example:\n  annotationsAsTags:\n    pod:\n      tags_datadoghq_com_version: version\nAnnotation names must match the transformation done by kube-state-metrics (for example, `tags.datadoghq.com/version` becomes `tags_datadoghq_com_version`). NOTE: The top-level `global.kubernetesResourcesAnnotationsAsTags` configures this at the Agent level via environment variables. AnnotationsAsTags here writes to the KSM check instance config and applies only to KSM metrics.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type: []string{"object"},
+										AdditionalProperties: &spec.SchemaOrBool{
+											Allows: true,
+											Schema: &spec.Schema{
+												SchemaProps: spec.SchemaProps{
+													Default: "",
+													Type:    []string{"string"},
+													Format:  "",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+					"tags": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Tags contains static tags to attach to all KSM metrics. Format: `key:value` (for example, `env:prod`).",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},

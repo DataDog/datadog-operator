@@ -52,6 +52,9 @@ type ksmFeature struct {
 	collectCrMetrics           []v2alpha1.Resource
 	collectAPIServiceMetrics   bool
 	collectControllerRevisions bool
+	labelsAsTags               map[string]map[string]string
+	annotationsAsTags          map[string]map[string]string
+	tags                       []string
 
 	rbacSuffix         string
 	serviceAccountName string
@@ -93,6 +96,9 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		f.collectAPIServiceMetrics = true
 		f.collectCRDMetrics = true
 		f.collectCrMetrics = ddaSpec.Features.KubeStateMetricsCore.CollectCrMetrics
+		f.labelsAsTags = ddaSpec.Features.KubeStateMetricsCore.LabelsAsTags
+		f.annotationsAsTags = ddaSpec.Features.KubeStateMetricsCore.AnnotationsAsTags
+		f.tags = ddaSpec.Features.KubeStateMetricsCore.Tags
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 		// Determine CollectControllerRevisions setting
@@ -161,6 +167,18 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 				"collect_apiservices": f.collectAPIServiceMetrics,
 				"collect_cr_metrics":  f.collectCrMetrics,
 			}
+			// Add new optional fields to the checksum only when they are set, so that
+			// existing KSM users upgrading without configuring these new fields keep
+			// the same checksum (and therefore avoid an unnecessary Cluster Agent roll).
+			if len(f.labelsAsTags) > 0 {
+				defaultConfigData["labels_as_tags"] = f.labelsAsTags
+			}
+			if len(f.annotationsAsTags) > 0 {
+				defaultConfigData["annotations_as_tags"] = f.annotationsAsTags
+			}
+			if len(f.tags) > 0 {
+				defaultConfigData["tags"] = f.tags
+			}
 
 			hash, err := comparison.GenerateMD5ForSpec(defaultConfigData)
 			if err != nil {
@@ -184,6 +202,9 @@ type collectorOptions struct {
 	enableCRD                 bool
 	enableControllerRevisions bool
 	customResources           []v2alpha1.Resource
+	labelsAsTags              map[string]map[string]string
+	annotationsAsTags         map[string]map[string]string
+	tags                      []string
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
@@ -198,6 +219,9 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, provi
 		enableCRD:                 f.collectCRDMetrics,
 		enableControllerRevisions: f.collectControllerRevisions,
 		customResources:           f.collectCrMetrics,
+		labelsAsTags:              f.labelsAsTags,
+		annotationsAsTags:         f.annotationsAsTags,
+		tags:                      f.tags,
 	}
 	configCM, err := f.buildKSMCoreConfigMap(collectorOpts)
 	if err != nil {

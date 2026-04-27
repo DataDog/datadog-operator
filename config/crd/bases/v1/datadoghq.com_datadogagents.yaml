@@ -1702,6 +1702,21 @@ spec:
                     kubeStateMetricsCore:
                       description: KubeStateMetricsCore check configuration.
                       properties:
+                        annotationsAsTags:
+                          additionalProperties:
+                            additionalProperties:
+                              type: string
+                            type: object
+                          description: |-
+                            AnnotationsAsTags maps Kubernetes annotations to Datadog tags, scoped to the KSM check.
+                            The outer key is the Kubernetes resource kind, and the inner map is annotation name -> Datadog tag name.
+                            Example:
+                              annotationsAsTags:
+                                pod:
+                                  tags_datadoghq_com_version: version
+                            Annotation names must match the transformation done by kube-state-metrics (for example, `tags.datadoghq.com/version` becomes `tags_datadoghq_com_version`).
+                            NOTE: The top-level `global.kubernetesResourcesAnnotationsAsTags` configures this at the Agent level via environment variables. AnnotationsAsTags here writes to the KSM check instance config and applies only to KSM metrics.
+                          type: object
                         collectCrMetrics:
                           description: |-
                             `CollectCrMetrics` defines custom resources for the kube-state-metrics core check to collect.
@@ -1913,6 +1928,31 @@ spec:
                             Enabled enables Kube State Metrics Core.
                             Default: true
                           type: boolean
+                        labelsAsTags:
+                          additionalProperties:
+                            additionalProperties:
+                              type: string
+                            type: object
+                          description: |-
+                            LabelsAsTags maps Kubernetes labels to Datadog tags, scoped to the KSM check.
+                            The outer key is the Kubernetes resource kind (for example, "pod", "node", "deployment"),
+                            and the inner map is label name -> Datadog tag name.
+                            Example:
+                              labelsAsTags:
+                                pod:
+                                  app: app
+                                node:
+                                  zone: zone
+                            NOTE: The top-level `global.kubernetesResourcesLabelsAsTags` configures this at the Agent level via environment variables. LabelsAsTags here writes to the KSM check instance config and applies only to KSM metrics.
+                          type: object
+                        tags:
+                          description: |-
+                            Tags contains static tags to attach to all KSM metrics.
+                            Format: `key:value` (for example, `env:prod`).
+                          items:
+                            type: string
+                          type: array
+                          x-kubernetes-list-type: atomic
                       type: object
                     liveContainerCollection:
                       description: LiveContainerCollection configuration.
@@ -10215,6 +10255,21 @@ spec:
                         kubeStateMetricsCore:
                           description: KubeStateMetricsCore check configuration.
                           properties:
+                            annotationsAsTags:
+                              additionalProperties:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                              description: |-
+                                AnnotationsAsTags maps Kubernetes annotations to Datadog tags, scoped to the KSM check.
+                                The outer key is the Kubernetes resource kind, and the inner map is annotation name -> Datadog tag name.
+                                Example:
+                                  annotationsAsTags:
+                                    pod:
+                                      tags_datadoghq_com_version: version
+                                Annotation names must match the transformation done by kube-state-metrics (for example, `tags.datadoghq.com/version` becomes `tags_datadoghq_com_version`).
+                                NOTE: The top-level `global.kubernetesResourcesAnnotationsAsTags` configures this at the Agent level via environment variables. AnnotationsAsTags here writes to the KSM check instance config and applies only to KSM metrics.
+                              type: object
                             collectCrMetrics:
                               description: |-
                                 `CollectCrMetrics` defines custom resources for the kube-state-metrics core check to collect.
@@ -10426,6 +10481,31 @@ spec:
                                 Enabled enables Kube State Metrics Core.
                                 Default: true
                               type: boolean
+                            labelsAsTags:
+                              additionalProperties:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                              description: |-
+                                LabelsAsTags maps Kubernetes labels to Datadog tags, scoped to the KSM check.
+                                The outer key is the Kubernetes resource kind (for example, "pod", "node", "deployment"),
+                                and the inner map is label name -> Datadog tag name.
+                                Example:
+                                  labelsAsTags:
+                                    pod:
+                                      app: app
+                                    node:
+                                      zone: zone
+                                NOTE: The top-level `global.kubernetesResourcesLabelsAsTags` configures this at the Agent level via environment variables. LabelsAsTags here writes to the KSM check instance config and applies only to KSM metrics.
+                              type: object
+                            tags:
+                              description: |-
+                                Tags contains static tags to attach to all KSM metrics.
+                                Format: `key:value` (for example, `env:prod`).
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: atomic
                           type: object
                         liveContainerCollection:
                           description: LiveContainerCollection configuration.
