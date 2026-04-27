@@ -123,6 +123,10 @@ manager: sync generate lint managergobuild ## Build manager binary
 managergobuild: ## Build only manager go binary (no lint/generate)
 	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
 
+.PHONY: build-renderer
+build-renderer: ## Build operator-render binary
+	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/operator-render ./cmd/operator-render
+
 .PHONY: run
 run: generate lint manifests ## Run against the configured Kubernetes cluster in ~/.kube/config
 	go run ./cmd/main.go
@@ -150,6 +154,7 @@ manifests: generate-manifests patch-crds ## Generate manifests e.g. CRD, RBAC et
 .PHONY: generate-manifests
 generate-manifests: $(CONTROLLER_GEN)
 	$(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=manager-role paths="./api/..." paths="./internal/controller/..." output:crd:artifacts:config=config/crd/bases/v1
+	cp config/crd/bases/v1/datadoghq.com_datadogagentinternals.yaml cmd/operator-render/crds/datadoghq.com_datadogagentinternals.yaml
 
 .PHONY: generate
 generate: $(CONTROLLER_GEN) generate-openapi generate-docs ## Generate code
