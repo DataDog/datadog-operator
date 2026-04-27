@@ -23,7 +23,7 @@
         },
         "csiDriverImage": {
           "additionalProperties": false,
-          "description": "CSIDriverImage is the image configuration for the main CSI node driver container.\nDefault image: gcr.io/datadoghq/csi-driver:1.2.1",
+          "description": "CSIDriverImage is the image configuration for the main CSI node driver container.",
           "properties": {
             "jmxEnabled": {
               "description": "Define whether the Agent image should support JMX.\nTo be used if the `Name` field does not correspond to a full image string.",
@@ -3855,7 +3855,7 @@
         },
         "registrarImage": {
           "additionalProperties": false,
-          "description": "RegistrarImage is the image configuration for the CSI node driver registrar sidecar.\nDefault image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.0.1",
+          "description": "RegistrarImage is the image configuration for the CSI node driver registrar sidecar.",
           "properties": {
             "jmxEnabled": {
               "description": "Define whether the Agent image should support JMX.\nTo be used if the `Name` field does not correspond to a full image string.",
