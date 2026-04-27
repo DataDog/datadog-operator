@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -112,8 +113,10 @@ func (f *usmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplate
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	// enable HostPID for system-probe
-	managers.PodTemplateSpec().Spec.HostPID = true
+	// enable HostPID for system-probe (not supported on GKE Autopilot)
+	if provider != kubernetes.GKEAutopilotProvider {
+		managers.PodTemplateSpec().Spec.HostPID = true
+	}
 
 	// annotations
 	managers.Annotation().AddAnnotation(common.SystemProbeAppArmorAnnotationKey, common.SystemProbeAppArmorAnnotationValue)
@@ -199,4 +202,17 @@ func (f *usmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManag
 
 func (f *usmFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
+}
+
+// NodeAgentProviderCapabilities returns provider-conditional mount removals.
+// debugfs is not in the GKE Autopilot WorkloadAllowlist for process-agent.
+func (f *usmFeature) NodeAgentProviderCapabilities() feature.NodeAgentProviderCapabilities {
+	return feature.NodeAgentProviderCapabilities{
+		RemoveMounts: []feature.ProviderRule[feature.ContainerMountRef]{
+			{
+				Item:             feature.ContainerMountRef{VolumeName: common.DebugfsVolumeName, Containers: []apicommon.AgentContainerName{apicommon.ProcessAgentContainerName}},
+				IncludeProviders: []string{kubernetes.GKEAutopilotProvider},
+			},
+		},
+	}
 }

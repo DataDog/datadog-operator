@@ -19,7 +19,11 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
+
+// autopilotPointerDirHostPath is the fixed pointerdir host path on GKE Autopilot.
+const autopilotPointerDirHostPath = "/var/autopilot/addon/datadog/logs"
 
 func init() {
 	err := feature.Register(feature.LogCollectionIDType, buildLogCollectionFeature)
@@ -101,18 +105,18 @@ func (f *logCollectionFeature) ManageClusterAgent(managers feature.PodTemplateMa
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
 func (f *logCollectionFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
+	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers)
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *logCollectionFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.manageNodeAgent(apicommon.CoreAgentContainerName, managers, provider)
+	f.manageNodeAgent(apicommon.CoreAgentContainerName, managers)
 	return nil
 }
 
-func (f *logCollectionFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
+func (f *logCollectionFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers) error {
 	// pointerdir volume mount (replace default empty dir volume)
 	pointerVol, pointerVolMount := volume.GetVolumes(pointerVolumeName, f.tempStoragePath, pointerVolumePath, false)
 	managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&pointerVolMount, agentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)
@@ -170,4 +174,19 @@ func (f *logCollectionFeature) ManageClusterChecksRunner(managers feature.PodTem
 
 func (f *logCollectionFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
 	return nil
+}
+
+// NodeAgentProviderCapabilities returns provider-conditional volume removals.
+// Container log and symlink paths are not in the GKE Autopilot WorkloadAllowlist.
+func (f *logCollectionFeature) NodeAgentProviderCapabilities() feature.NodeAgentProviderCapabilities {
+	autopilotPointerVol, _ := volume.GetVolumes(pointerVolumeName, autopilotPointerDirHostPath, pointerVolumePath, false)
+	return feature.NodeAgentProviderCapabilities{
+		OverrideVolumes: []feature.ProviderRule[corev1.Volume]{
+			{Item: autopilotPointerVol, IncludeProviders: []string{kubernetes.GKEAutopilotProvider}},
+		},
+		RemoveVolumes: []feature.ProviderRule[string]{
+			{Item: containerLogVolumeName, IncludeProviders: []string{kubernetes.GKEAutopilotProvider}},
+			{Item: symlinkContainerVolumeName, IncludeProviders: []string{kubernetes.GKEAutopilotProvider}},
+		},
+	}
 }

@@ -161,6 +161,9 @@ func runTest(t *testing.T, tt FeatureTest) {
 				_ = feat.ManageSingleContainerNodeAgent(tplManager, provider)
 			} else {
 				_ = feat.ManageNodeAgent(tplManager, provider)
+				if paf, ok := feat.(feature.ProviderAwareFeature); ok {
+					feature.ApplyNodeAgentProviderCapabilities(tplManager, provider, paf.NodeAgentProviderCapabilities())
+				}
 			}
 
 			tt.Agent.WantFunc(t, tplManager)

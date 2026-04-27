@@ -25,6 +25,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -253,10 +254,33 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentCon
 	if f.udsEnabled {
 		udsHostFolder := filepath.Dir(f.udsHostFilepath)
 		sockName := filepath.Base(f.udsHostFilepath)
-		socketVol, socketVolMount := volume.GetVolumes(common.DogstatsdSocketVolumeName, udsHostFolder, common.DogstatsdSocketLocalPath, false)
-		volType := corev1.HostPathDirectoryOrCreate // We need to create the directory on the host if it does not exist.
 
-		socketVol.VolumeSource.HostPath.Type = &volType
+		var socketVol corev1.Volume
+		var socketVolMount corev1.VolumeMount
+		if provider == kubernetes.GKEAutopilotProvider {
+			// Autopilot nodes have no host socket directory; use emptyDir instead.
+			socketVol = corev1.Volume{
+				Name:         common.DogstatsdSocketVolumeName,
+				VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+			}
+			socketVolMount = corev1.VolumeMount{
+				Name:      common.DogstatsdSocketVolumeName,
+				MountPath: common.DogstatsdSocketLocalPath,
+			}
+			// system-probe and process-agent only read from the emptyDir socket;
+			// Autopilot allowlist requires ReadOnly=true for non-owner containers.
+			readOnlySocketMount := corev1.VolumeMount{
+				Name:      common.DogstatsdSocketVolumeName,
+				MountPath: common.DogstatsdSocketLocalPath,
+				ReadOnly:  true,
+			}
+			managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&readOnlySocketMount, apicommon.SystemProbeContainerName, merger.OverrideCurrentVolumeMountMergeFunction)
+			managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&readOnlySocketMount, apicommon.ProcessAgentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)
+		} else {
+			socketVol, socketVolMount = volume.GetVolumes(common.DogstatsdSocketVolumeName, udsHostFolder, common.DogstatsdSocketLocalPath, false)
+			volType := corev1.HostPathDirectoryOrCreate
+			socketVol.VolumeSource.HostPath.Type = &volType
+		}
 		managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&socketVolMount, agentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)
 		managers.Volume().AddVolume(&socketVol)
 		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
@@ -274,7 +298,8 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentCon
 			Name:  DDDogstatsdOriginDetectionClient,
 			Value: "true",
 		})
-		if f.udsEnabled {
+		// hostPID is required for origin detection via UDS but is not supported on GKE Autopilot.
+		if f.udsEnabled && provider != kubernetes.GKEAutopilotProvider {
 			managers.PodTemplateSpec().Spec.HostPID = true
 		}
 		// Tag cardinality is only configured if origin detection is enabled.

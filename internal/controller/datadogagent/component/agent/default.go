@@ -7,7 +7,6 @@ package agent
 
 import (
 	"fmt"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -692,10 +691,6 @@ func commonEnvVars(dda metav1.Object) []corev1.EnvVar {
 			Value: secrets.GetDefaultDCATokenSecretName(dda),
 		},
 		{
-			Name:  common.DDAuthTokenFilePath,
-			Value: filepath.Join(common.AuthVolumePath, "token"),
-		},
-		{
 			Name: common.DDKubeletHost,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
@@ -820,6 +815,7 @@ func volumeMountsForCoreAgent() []corev1.VolumeMount {
 		common.GetVolumeMountForAuth(false),
 		common.GetVolumeMountForInstallInfo(),
 		common.GetVolumeMountForConfig(),
+		common.GetVolumeMountForAuth(false),
 		common.GetVolumeMountForProc(),
 		common.GetVolumeMountForCgroups(),
 		common.GetVolumeMountForDogstatsdSocket(false),
