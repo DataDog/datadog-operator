@@ -49,7 +49,7 @@ type Reconciler struct {
 	recorder      record.EventRecorder
 }
 
-func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
+func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) *Reconciler {
 	return &Reconciler{
 		client:        client,
 		datadogClient: datadogclient.InitDashboardClient(),
@@ -57,7 +57,7 @@ func NewReconciler(client client.Client, credsManager *config.CredentialManager,
 		scheme:        scheme,
 		log:           log,
 		recorder:      recorder,
-	}, nil
+	}
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {

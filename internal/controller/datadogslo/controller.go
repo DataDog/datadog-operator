@@ -55,14 +55,14 @@ type Reconciler struct {
 	recorder      record.EventRecorder
 }
 
-func NewReconciler(client client.Client, credsManager *config.CredentialManager, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
+func NewReconciler(client client.Client, credsManager *config.CredentialManager, log logr.Logger, recorder record.EventRecorder) *Reconciler {
 	return &Reconciler{
 		client:        client,
 		datadogClient: datadogclient.InitSLOClient(),
 		credsManager:  credsManager,
 		log:           log,
 		recorder:      recorder,
-	}, nil
+	}
 }
 
 var _ reconcile.Reconciler = (*Reconciler)(nil)

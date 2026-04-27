@@ -40,16 +40,12 @@ func (r *DatadogSLOReconciler) Reconcile(ctx context.Context, req reconcile.Requ
 }
 
 func (r *DatadogSLOReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	internal, err := datadogslo.NewReconciler(r.Client, r.CredsManager, r.Log, r.Recorder)
-	if err != nil {
-		return err
-	}
-	r.internal = internal
+	r.internal = datadogslo.NewReconciler(r.Client, r.CredsManager, r.Log, r.Recorder)
 	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.DatadogSLO{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{})
 
-	err = builder.Complete(r)
+	err := builder.Complete(r)
 	if err != nil {
 		return err
 	}

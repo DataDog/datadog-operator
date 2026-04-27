@@ -59,7 +59,7 @@ type CredentialManager struct {
 	credsMutex       sync.Mutex
 	decryptorBackoff wait.Backoff
 
-	apiUrlSync sync.Once
+	apiURLSync sync.Once
 	apiURL     *parsedAPIUrl
 
 	ddaDecryptor secrets.Decryptor
@@ -154,10 +154,9 @@ func (cm *CredentialManager) GetAuth() (context.Context, error) {
 		},
 	)
 
-	cm.apiUrlSync.Do(func() {
-		err := cm.parseAPIURL()
-		if err != nil {
-			cm.logger.Info("Failed to parse API URL", "error", err)
+	cm.apiURLSync.Do(func() {
+		if cm.parseAPIURL() != nil {
+			cm.logger.Error(cm.parseAPIURL(), "Failed to parse API URL")
 		}
 	})
 

@@ -41,11 +41,7 @@ func (r *DatadogGenericResourceReconciler) Reconcile(ctx context.Context, instan
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *DatadogGenericResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	internal, err := ddgr.NewReconciler(r.Client, r.CredsManager, r.Scheme, r.Log, r.Recorder)
-	if err != nil {
-		return err
-	}
-	r.internal = internal
+	r.internal = ddgr.NewReconciler(r.Client, r.CredsManager, r.Scheme, r.Log, r.Recorder)
 
 	or := reconcile.AsReconciler[*v1alpha1.DatadogGenericResource](r.Client, r)
 	return ctrl.NewControllerManagedBy(mgr).

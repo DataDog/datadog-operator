@@ -77,7 +77,7 @@ type Reconciler struct {
 }
 
 // NewReconciler returns a new Reconciler object
-func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, operatorMetricsEnabled bool, metricForwardersMgr pkgutils.MetricsForwardersManager) (*Reconciler, error) {
+func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, operatorMetricsEnabled bool, metricForwardersMgr pkgutils.MetricsForwardersManager) *Reconciler {
 	return &Reconciler{
 		client:                 client,
 		datadogClient:          datadogclient.InitMonitorClient(),
@@ -87,7 +87,7 @@ func NewReconciler(client client.Client, credsManager *config.CredentialManager,
 		recorder:               recorder,
 		operatorMetricsEnabled: operatorMetricsEnabled,
 		forwarders:             metricForwardersMgr,
-	}, nil
+	}
 }
 
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context

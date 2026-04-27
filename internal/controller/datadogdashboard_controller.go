@@ -41,17 +41,13 @@ func (r *DatadogDashboardReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *DatadogDashboardReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	internal, err := datadogdashboard.NewReconciler(r.Client, r.CredsManager, r.Scheme, r.Log, r.Recorder)
-	if err != nil {
-		return err
-	}
-	r.internal = internal
+	r.internal = datadogdashboard.NewReconciler(r.Client, r.CredsManager, r.Scheme, r.Log, r.Recorder)
 
 	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.DatadogDashboard{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{})
 
-	err = builder.Complete(r)
+	err := builder.Complete(r)
 
 	if err != nil {
 		return err

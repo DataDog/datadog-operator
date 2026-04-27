@@ -46,11 +46,7 @@ func (r *DatadogMonitorReconciler) Reconcile(ctx context.Context, instance *data
 
 // SetupWithManager creates a new DatadogMonitor controller.
 func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager, metricForwardersMgr datadog.MetricsForwardersManager) error {
-	internal, err := datadogmonitor.NewReconciler(r.Client, r.CredsManager, r.Scheme, r.Log, r.Recorder, r.operatorMetricsEnabled, metricForwardersMgr)
-	if err != nil {
-		return err
-	}
-	r.internal = internal
+	r.internal = datadogmonitor.NewReconciler(r.Client, r.CredsManager, r.Scheme, r.Log, r.Recorder, r.operatorMetricsEnabled, metricForwardersMgr)
 
 	builder := ctrl.NewControllerManagedBy(mgr)
 

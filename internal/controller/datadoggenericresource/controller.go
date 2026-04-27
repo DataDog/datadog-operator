@@ -47,7 +47,7 @@ type Reconciler struct {
 	recorder       record.EventRecorder
 }
 
-func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
+func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) *Reconciler {
 	clients := datadogclient.InitGenericClients()
 	return &Reconciler{
 		client:       client,
@@ -58,7 +58,7 @@ func NewReconciler(client client.Client, credsManager *config.CredentialManager,
 		scheme:   scheme,
 		log:      log,
 		recorder: recorder,
-	}, nil
+	}
 }
 
 func (r *Reconciler) getHandler(auth context.Context, resourceType v1alpha1.SupportedResourcesType) ResourceHandler {
