@@ -254,6 +254,10 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwar
 		builder.Owns(&v1alpha1.DatadogAgentInternal{})
 	}
 
+	if r.Options.DatadogCSIDriverEnabled {
+		builder.Owns(&v1alpha1.DatadogCSIDriver{})
+	}
+
 	if r.Options.DatadogAgentProfileEnabled {
 		builder.Watches(
 			&v1alpha1.DatadogAgentProfile{},
