@@ -59,8 +59,7 @@ type CredentialManager struct {
 	credsMutex       sync.Mutex
 	decryptorBackoff wait.Backoff
 
-	apiURLSync sync.Once
-	apiURL     *parsedAPIUrl
+	apiURL *parsedAPIUrl
 
 	ddaDecryptor secrets.Decryptor
 	ddaCredsMap  sync.Map
@@ -68,7 +67,7 @@ type CredentialManager struct {
 
 // NewCredentialManager returns a CredentialManager.
 func NewCredentialManagerWithDecryptor(client client.Reader, decryptor secrets.Decryptor) *CredentialManager {
-	return &CredentialManager{
+	cm := &CredentialManager{
 		logger:        ctrl.Log.WithName("credentials-manager"),
 		client:        client,
 		secretBackend: decryptor,
@@ -82,12 +81,17 @@ func NewCredentialManagerWithDecryptor(client client.Reader, decryptor secrets.D
 		ddaDecryptor: decryptor,
 		ddaCredsMap:  sync.Map{},
 	}
+
+	if err := cm.parseAPIURL(); err != nil {
+		cm.logger.Error(err, "Failed to parse API URL")
+	}
+	return cm
 }
 
 // TODO deprecate in favor of NewCredentialManagerWithDecryptor
 // NewCredentialManager returns a CredentialManager.
 func NewCredentialManager(client client.Reader) *CredentialManager {
-	return &CredentialManager{
+	cm := &CredentialManager{
 		logger:        ctrl.Log.WithName("credentials-manager"),
 		client:        client,
 		secretBackend: secrets.NewSecretBackend(),
@@ -99,6 +103,11 @@ func NewCredentialManager(client client.Reader) *CredentialManager {
 			Cap:      20 * time.Second,
 		},
 	}
+
+	if err := cm.parseAPIURL(); err != nil {
+		cm.logger.Error(err, "Failed to parse API URL")
+	}
+	return cm
 }
 
 // parseAPIURL parses the API URL from environment variables and stores it.
@@ -153,12 +162,6 @@ func (cm *CredentialManager) GetAuth() (context.Context, error) {
 			},
 		},
 	)
-
-	cm.apiURLSync.Do(func() {
-		if cm.parseAPIURL() != nil {
-			cm.logger.Error(cm.parseAPIURL(), "Failed to parse API URL")
-		}
-	})
 
 	if cm.apiURL != nil {
 		auth = context.WithValue(auth, datadogapi.ContextServerIndex, 1)
