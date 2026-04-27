@@ -179,6 +179,16 @@ func (cm *CredentialManager) GetCredentials() (Creds, error) {
 		return creds, nil
 	}
 
+	creds, err := cm.fetchCredentials()
+	if err != nil {
+		return Creds{}, err
+	}
+	cm.cacheCreds(creds)
+	return creds, nil
+}
+
+// fetchCredentials reads credentials from env vars and decrypts them if needed.
+func (cm *CredentialManager) fetchCredentials() (Creds, error) {
 	apiKey := os.Getenv(constants.DDAPIKey)
 	appKey := os.Getenv(constants.DDAppKey)
 
@@ -215,10 +225,7 @@ func (cm *CredentialManager) GetCredentials() (Creds, error) {
 		}
 	}
 
-	creds := Creds{APIKey: apiKey, AppKey: appKey}
-	cm.cacheCreds(creds)
-
-	return creds, nil
+	return Creds{APIKey: apiKey, AppKey: appKey}, nil
 }
 
 // GetCredentialsForMetadata retrieves credentials for metadata endpoints.
@@ -388,15 +395,15 @@ func (cm *CredentialManager) getCredsFromCache() (Creds, bool) {
 }
 
 func (cm *CredentialManager) refresh(logger logr.Logger) error {
-	cm.credsMutex.Lock()
-	oldCreds := cm.creds
-	cm.creds = Creds{}
-	cm.credsMutex.Unlock()
-
-	newCreds, err := cm.GetCredentials()
+	newCreds, err := cm.fetchCredentials()
 	if err != nil {
 		return err
 	}
+
+	cm.credsMutex.Lock()
+	oldCreds := cm.creds
+	cm.creds = newCreds
+	cm.credsMutex.Unlock()
 
 	if oldCreds != newCreds {
 		logger.Info("Credentials have changed, cache updated")
