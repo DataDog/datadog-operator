@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"testing"
 
 	"k8s.io/utils/ptr"
@@ -214,6 +215,91 @@ func TestDefaultSyscallsForSystemProbe(t *testing.T) {
 			assert.Equal(t, tt.expectedSyscalls, syscalls)
 		})
 	}
+}
+
+func TestHostProfilerContainer(t *testing.T) {
+	dda := &metav1.ObjectMeta{Name: "foo", Namespace: "default", Labels: map[string]string{}}
+
+	containers := agentOptimizedContainers(dda, []apicommon.AgentContainerName{
+		apicommon.CoreAgentContainerName,
+		apicommon.HostProfiler,
+	})
+	assert.Len(t, containers, 2)
+
+	c := containers[1]
+	assert.Equal(t, string(apicommon.HostProfiler), c.Name)
+	assert.NotNil(t, c.SecurityContext)
+	assert.Nil(t, c.SecurityContext.Privileged, "host-profiler should not run as privileged")
+	assert.NotNil(t, c.SecurityContext.SeccompProfile)
+	assert.Equal(t, corev1.SeccompProfileTypeLocalhost, c.SecurityContext.SeccompProfile.Type)
+	assert.Equal(t, common.HostProfilerSeccompProfileName, *c.SecurityContext.SeccompProfile.LocalhostProfile)
+}
+
+func TestInitHostProfilerSeccompSetupContainer(t *testing.T) {
+	dda := &metav1.ObjectMeta{Name: "foo", Namespace: "default", Labels: map[string]string{}}
+
+	initContainers := initContainers(dda, []apicommon.AgentContainerName{apicommon.HostProfiler})
+
+	var setupContainer *corev1.Container
+	for i := range initContainers {
+		if initContainers[i].Name == "host-profiler-seccomp-setup" {
+			setupContainer = &initContainers[i]
+			break
+		}
+	}
+	assert.NotNil(t, setupContainer, "host-profiler-seccomp-setup init container should exist")
+	dst := fmt.Sprintf("%s/%s", common.SeccompRootVolumePath, common.HostProfilerSeccompProfileName)
+	assert.Contains(t, setupContainer.Command, dst, "cp command should copy to the kubelet seccomp path")
+
+	mountNames := map[string]bool{}
+	for _, m := range setupContainer.VolumeMounts {
+		mountNames[m.Name] = true
+	}
+	assert.True(t, mountNames[common.HostProfilerSecurityVolumeName])
+	assert.True(t, mountNames[common.SeccompRootVolumeName])
+}
+
+func TestDefaultCapabilitiesForHostProfiler(t *testing.T) {
+	caps := DefaultCapabilitiesForHostProfiler()
+
+	capSet := make(map[corev1.Capability]bool)
+	for _, c := range caps {
+		capSet[c] = true
+	}
+
+	assert.False(t, capSet["SYS_ADMIN"], "host-profiler should not have SYS_ADMIN")
+	assert.True(t, capSet["BPF"], "host-profiler requires BPF for eBPF programs")
+	assert.True(t, capSet["PERFMON"], "host-profiler requires PERFMON for perf_event_open")
+	assert.True(t, capSet["CHECKPOINT_RESTORE"], "host-profiler requires CHECKPOINT_RESTORE for /proc/<pid>/map_files access")
+	assert.True(t, capSet["SYS_PTRACE"], "host-profiler requires SYS_PTRACE for process tracing")
+}
+
+func TestDefaultSyscallsForHostProfiler(t *testing.T) {
+	syscalls := DefaultSyscallsForHostProfiler()
+
+	syscallSet := make(map[string]bool)
+	for _, s := range syscalls {
+		syscallSet[s] = true
+	}
+
+	assert.NotEmpty(t, syscalls)
+	assert.True(t, syscallSet["bpf"], "host-profiler requires bpf syscall")
+	assert.True(t, syscallSet["perf_event_open"], "host-profiler requires perf_event_open")
+	assert.True(t, syscallSet["openat"], "host-profiler requires openat for /proc/<pid>/map_files access")
+	assert.True(t, syscallSet["read"], "host-profiler requires read")
+	assert.False(t, syscallSet["ptrace"], "host-profiler should not need ptrace syscall (uses /proc instead)")
+}
+
+func TestDefaultSeccompConfigDataForHostProfiler(t *testing.T) {
+	data := DefaultSeccompConfigDataForHostProfiler()
+
+	assert.Contains(t, data, common.HostProfilerSeccompKey, "seccomp configmap should have the host-profiler key")
+
+	profile := data[common.HostProfilerSeccompKey]
+	assert.Contains(t, profile, "SCMP_ACT_ERRNO", "default action should be SCMP_ACT_ERRNO")
+	assert.Contains(t, profile, "SCMP_ACT_ALLOW", "syscalls should be allowed")
+	assert.Contains(t, profile, `"bpf"`, "bpf syscall must be in the profile")
+	assert.Contains(t, profile, `"perf_event_open"`, "perf_event_open syscall must be in the profile")
 }
 
 func TestPrivateActionRunnerContainer(t *testing.T) {
