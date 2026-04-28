@@ -44,16 +44,24 @@ const karpenterControllerImageRepoSuffix = "karpenter/controller"
 // Matches the chunk size used by GetNodesProperties.
 const deploymentListChunkSize = 100
 
-// ForeignKarpenter is the location of a Karpenter controller Deployment that
-// was not produced by this plugin.
+// ForeignKarpenter is the location of a Karpenter controller Deployment
+// that conflicts with the install we're about to perform — either a
+// third-party install or a previous kubectl-datadog install in a different
+// namespace, both of which would race the new controller on the
+// cluster-scoped Karpenter CRDs.
 type ForeignKarpenter struct {
 	Namespace string
 	Name      string
 }
 
 // FindForeignKarpenterInstallation returns the location of a Karpenter
-// controller Deployment running on the cluster that was not produced by
-// this plugin, or nil when none is found.
+// controller Deployment running on the cluster that this `install` run
+// would conflict with, or nil when none is found. `targetNamespace` is the
+// namespace the install would deploy into; only a kubectl-datadog
+// Deployment in that namespace is treated as ours and skipped — an
+// existing kubectl-datadog Deployment in a *different* namespace would
+// race the new one on the cluster-scoped Karpenter CRDs, so we surface
+// it too.
 //
 // Detection scans every Deployment for a container that either sets the
 // chart-emitted `KARPENTER_SERVICE` env var or runs an image whose
@@ -64,12 +72,11 @@ type ForeignKarpenter struct {
 // container signal is the only one that distinguishes "Karpenter is
 // actually running" from "something has read access to its CRs".
 //
-// Deployments bearing our InstalledByLabel sentinel are skipped. The list
-// is paginated with an early exit on the first foreign match: dense
-// clusters with thousands of Deployments do not need to be fully
+// The list is paginated with an early exit on the first foreign match:
+// dense clusters with thousands of Deployments do not need to be fully
 // materialised in memory just to answer "is there at least one foreign
 // Karpenter Deployment".
-func FindForeignKarpenterInstallation(ctx context.Context, clientset kubernetes.Interface) (*ForeignKarpenter, error) {
+func FindForeignKarpenterInstallation(ctx context.Context, clientset kubernetes.Interface, targetNamespace string) (*ForeignKarpenter, error) {
 	var cont string
 	for {
 		deps, err := clientset.AppsV1().Deployments(metav1.NamespaceAll).List(ctx, metav1.ListOptions{
@@ -84,7 +91,7 @@ func FindForeignKarpenterInstallation(ctx context.Context, clientset kubernetes.
 			if !hasKarpenterControllerContainer(dep.Spec.Template.Spec.Containers) {
 				continue
 			}
-			if dep.Labels[InstalledByLabel] == InstalledByValue {
+			if dep.Namespace == targetNamespace && dep.Labels[InstalledByLabel] == InstalledByValue {
 				continue
 			}
 			log.Printf("Detected foreign Karpenter Deployment %s/%s", dep.Namespace, dep.Name)

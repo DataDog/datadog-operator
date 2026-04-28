@@ -56,10 +56,13 @@ func TestImageRepoEndsWith(t *testing.T) {
 }
 
 func TestFindForeignKarpenterInstallation(t *testing.T) {
+	const ourNamespace = "dd-karpenter"
+
 	for _, tc := range []struct {
-		name     string
-		objects  []runtime.Object
-		expected *ForeignKarpenter
+		name            string
+		objects         []runtime.Object
+		targetNamespace string
+		expected        *ForeignKarpenter
 	}{
 		{
 			name:     "no Deployments on the cluster",
@@ -75,14 +78,46 @@ func TestFindForeignKarpenterInstallation(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name: "only kubectl-datadog Karpenter Deployment",
+			name: "only kubectl-datadog Karpenter Deployment in our target namespace",
 			objects: []runtime.Object{
-				deployment("dd-karpenter", "karpenter",
+				deployment(ourNamespace, "karpenter",
 					map[string]string{InstalledByLabel: InstalledByValue},
 					karpenterControllerImage,
 				),
 			},
-			expected: nil,
+			targetNamespace: ourNamespace,
+			expected:        nil,
+		},
+		{
+			name: "kubectl-datadog Deployment in another namespace is foreign when targeting a different namespace",
+			// User has an existing kubectl-datadog install in dd-karpenter and
+			// reruns `install --karpenter-namespace=other-ns`. The controller
+			// in dd-karpenter would race the new one we'd deploy in other-ns
+			// on the cluster-scoped CRDs, so it must surface as foreign even
+			// though it carries our sentinel.
+			objects: []runtime.Object{
+				deployment(ourNamespace, "karpenter",
+					map[string]string{InstalledByLabel: InstalledByValue},
+					karpenterControllerImage,
+				),
+			},
+			targetNamespace: "other-ns",
+			expected:        &ForeignKarpenter{Namespace: ourNamespace, Name: "karpenter"},
+		},
+		{
+			name: "empty targetNamespace surfaces every Karpenter controller, even sentinel-labeled",
+			// Defensive: an empty targetNamespace means no namespace
+			// qualifies as ours, so any matching controller surfaces as
+			// foreign. The CLI never sends an empty value (the flag has a
+			// default), but the detector should fail closed.
+			objects: []runtime.Object{
+				deployment(ourNamespace, "karpenter",
+					map[string]string{InstalledByLabel: InstalledByValue},
+					karpenterControllerImage,
+				),
+			},
+			targetNamespace: "",
+			expected:        &ForeignKarpenter{Namespace: ourNamespace, Name: "karpenter"},
 		},
 		{
 			name: "foreign Karpenter Deployment without our sentinel",
@@ -112,15 +147,16 @@ func TestFindForeignKarpenterInstallation(t *testing.T) {
 			expected: &ForeignKarpenter{Namespace: "autoscaling", Name: "my-karpenter"},
 		},
 		{
-			name: "mix of ours and foreign returns the foreign one",
+			name: "mix of ours-in-target-namespace and foreign returns the foreign one",
 			objects: []runtime.Object{
-				deployment("dd-karpenter", "karpenter",
+				deployment(ourNamespace, "karpenter",
 					map[string]string{InstalledByLabel: InstalledByValue},
 					karpenterControllerImage,
 				),
 				deployment("karpenter", "karpenter", nil, karpenterControllerImage),
 			},
-			expected: &ForeignKarpenter{Namespace: "karpenter", Name: "karpenter"},
+			targetNamespace: ourNamespace,
+			expected:        &ForeignKarpenter{Namespace: "karpenter", Name: "karpenter"},
 		},
 		{
 			name: "Datadog Cluster Agent Deployment with karpenter.sh RBAC is not the controller",
@@ -175,7 +211,7 @@ func TestFindForeignKarpenterInstallation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			clientset := fake.NewSimpleClientset(tc.objects...)
 
-			result, err := FindForeignKarpenterInstallation(t.Context(), clientset)
+			result, err := FindForeignKarpenterInstallation(t.Context(), clientset, tc.targetNamespace)
 
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, result)
@@ -188,7 +224,7 @@ func TestFindForeignKarpenterInstallation(t *testing.T) {
 			return true, nil, apierrors.NewServiceUnavailable("test failure")
 		})
 
-		_, err := FindForeignKarpenterInstallation(t.Context(), clientset)
+		_, err := FindForeignKarpenterInstallation(t.Context(), clientset, ourNamespace)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to list Deployments")
@@ -236,7 +272,7 @@ func TestFindForeignKarpenterInstallation(t *testing.T) {
 			return true, pages[len(calls)-1], nil
 		})
 
-		result, err := FindForeignKarpenterInstallation(t.Context(), clientset)
+		result, err := FindForeignKarpenterInstallation(t.Context(), clientset, "dd-karpenter")
 
 		require.NoError(t, err)
 		assert.Equal(t, &ForeignKarpenter{Namespace: "their-ns", Name: "their-karpenter"}, result)

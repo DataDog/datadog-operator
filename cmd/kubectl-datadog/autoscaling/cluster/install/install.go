@@ -280,7 +280,7 @@ func (o *options) run(cmd *cobra.Command) error {
 		return displayEKSAutoModeMessage(cmd, clusterName)
 	}
 
-	if foreign, err := guess.FindForeignKarpenterInstallation(ctx, o.Clientset); err != nil {
+	if foreign, err := guess.FindForeignKarpenterInstallation(ctx, o.Clientset, karpenterNamespace); err != nil {
 		return fmt.Errorf("failed to check for an existing Karpenter installation: %w", err)
 	} else if foreign != nil {
 		return displayForeignKarpenterMessage(cmd, clusterName, foreign)
