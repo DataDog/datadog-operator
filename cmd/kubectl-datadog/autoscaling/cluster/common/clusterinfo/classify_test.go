@@ -217,7 +217,7 @@ func TestClassify_ClusterAutoscalerDetection(t *testing.T) {
 		{
 			name:   "by image substring",
 			deploy: deploymentWith("custom", "scaler", nil, "registry.k8s.io/autoscaling/cluster-autoscaler:v1.30.0"),
-			want:   ClusterAutoscaler{Present: true, Namespace: "custom", Name: "scaler"},
+			want:   ClusterAutoscaler{Present: true, Namespace: "custom", Name: "scaler", Version: "v1.30.0"},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -225,6 +225,52 @@ func TestClassify_ClusterAutoscalerDetection(t *testing.T) {
 			info, err := Classify(t.Context(), clientset, &fakeASG{}, "c")
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, info.ClusterAutoscaler)
+		})
+	}
+}
+
+func TestClassify_ClusterAutoscalerVersion(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		deploy *appsv1.Deployment
+		want   string
+	}{
+		{
+			name:   "from image tag",
+			deploy: deploymentWith("kube-system", "cluster-autoscaler", nil, "registry.k8s.io/autoscaling/cluster-autoscaler:v1.30.0"),
+			want:   "v1.30.0",
+		},
+		{
+			name:   "image tag wins over label",
+			deploy: deploymentWith("kube-system", "cluster-autoscaler", map[string]string{"app.kubernetes.io/version": "v9.9.9"}, "registry.k8s.io/autoscaling/cluster-autoscaler:v1.30.0"),
+			want:   "v1.30.0",
+		},
+		{
+			name:   "tag with digest suffix",
+			deploy: deploymentWith("kube-system", "cluster-autoscaler", nil, "registry.k8s.io/autoscaling/cluster-autoscaler:v1.30.0@sha256:abcdef"),
+			want:   "v1.30.0",
+		},
+		{
+			name:   "registry with port and tag",
+			deploy: deploymentWith("kube-system", "cluster-autoscaler", nil, "localhost:5000/cluster-autoscaler:v1.31.0"),
+			want:   "v1.31.0",
+		},
+		{
+			name:   "fallback to deployment label when image is digest only",
+			deploy: deploymentWith("kube-system", "cluster-autoscaler", map[string]string{"app.kubernetes.io/version": "v1.32.0"}, "registry.k8s.io/autoscaling/cluster-autoscaler@sha256:abcdef"),
+			want:   "v1.32.0",
+		},
+		{
+			name:   "no tag, no label",
+			deploy: deploymentWith("kube-system", "cluster-autoscaler", nil, "registry.k8s.io/autoscaling/cluster-autoscaler@sha256:abcdef"),
+			want:   "",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			clientset := fake.NewSimpleClientset(tc.deploy)
+			info, err := Classify(t.Context(), clientset, &fakeASG{}, "c")
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, info.ClusterAutoscaler.Version)
 		})
 	}
 }

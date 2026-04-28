@@ -44,4 +44,5 @@ type ClusterAutoscaler struct {
 	Present   bool   `yaml:"present"`
 	Namespace string `yaml:"namespace,omitempty"`
 	Name      string `yaml:"name,omitempty"`
+	Version   string `yaml:"version,omitempty"`
 }

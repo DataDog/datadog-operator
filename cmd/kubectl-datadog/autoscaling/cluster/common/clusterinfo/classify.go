@@ -202,6 +202,7 @@ func detectClusterAutoscaler(ctx context.Context, k8sClient kubernetes.Interface
 		Present:   true,
 		Namespace: matches[0].Namespace,
 		Name:      matches[0].Name,
+		Version:   extractClusterAutoscalerVersion(matches[0]),
 	}, nil
 }
 
@@ -223,4 +224,40 @@ func isClusterAutoscaler(d appsv1.Deployment, _ int) bool {
 	return lo.SomeBy(d.Spec.Template.Spec.Containers, func(c corev1.Container) bool {
 		return strings.Contains(c.Image, "cluster-autoscaler")
 	})
+}
+
+// extractClusterAutoscalerVersion returns the running cluster-autoscaler
+// version. Prefers the image tag of the matching container (the source of
+// truth) and falls back to the `app.kubernetes.io/version` label on the
+// Deployment or its pod template (set by most Helm charts). Empty when
+// neither is available — e.g. an image referenced by digest only and no
+// version label.
+func extractClusterAutoscalerVersion(d appsv1.Deployment) string {
+	for _, c := range d.Spec.Template.Spec.Containers {
+		if !strings.Contains(c.Image, "cluster-autoscaler") {
+			continue
+		}
+		if tag := imageTag(c.Image); tag != "" {
+			return tag
+		}
+	}
+	if v := d.Labels["app.kubernetes.io/version"]; v != "" {
+		return v
+	}
+	return d.Spec.Template.Labels["app.kubernetes.io/version"]
+}
+
+// imageTag extracts the tag portion of an OCI image reference, stripping
+// any `@sha256:...` digest. Returns empty when no tag is set (for instance,
+// digest-only references or bare image names).
+func imageTag(image string) string {
+	if i := strings.Index(image, "@"); i >= 0 {
+		image = image[:i]
+	}
+	// The last colon is the tag separator only if it is not followed by a
+	// path component — otherwise it's a registry port (e.g. `localhost:5000/foo`).
+	if i := strings.LastIndex(image, ":"); i >= 0 && !strings.Contains(image[i+1:], "/") {
+		return image[i+1:]
+	}
+	return ""
 }
