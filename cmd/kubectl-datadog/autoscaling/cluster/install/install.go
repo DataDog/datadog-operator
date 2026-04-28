@@ -280,10 +280,10 @@ func (o *options) run(cmd *cobra.Command) error {
 		return displayEKSAutoModeMessage(cmd, clusterName)
 	}
 
-	if foreign, err := guess.IsForeignKarpenterInstalled(ctx, o.Clientset); err != nil {
+	if foreign, err := guess.FindForeignKarpenterInstallation(ctx, o.Clientset); err != nil {
 		return fmt.Errorf("failed to check for an existing Karpenter installation: %w", err)
-	} else if foreign {
-		return displayForeignKarpenterMessage(cmd, clusterName)
+	} else if foreign != nil {
+		return displayForeignKarpenterMessage(cmd, clusterName, foreign)
 	}
 
 	display.PrintBox(cmd.OutOrStdout(), "Installing Karpenter on cluster "+clusterName+".")
@@ -638,11 +638,12 @@ func displayEKSAutoModeMessage(cmd *cobra.Command, clusterName string) error {
 	return nil
 }
 
-func displayForeignKarpenterMessage(cmd *cobra.Command, clusterName string) error {
+func displayForeignKarpenterMessage(cmd *cobra.Command, clusterName string, foreign *guess.ForeignKarpenter) error {
 	coloredURL := openAutoscalingSettingsURL(cmd, clusterName)
 
 	display.PrintBox(cmd.OutOrStdout(),
-		"Karpenter is already installed on cluster "+clusterName+".",
+		"Karpenter is already installed on cluster "+clusterName+":",
+		"Deployment "+foreign.Namespace+"/"+foreign.Name+".",
 		"",
 		"kubectl-datadog has nothing to install.",
 		"",

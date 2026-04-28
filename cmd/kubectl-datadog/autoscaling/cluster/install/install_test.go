@@ -250,7 +250,7 @@ func TestKarpenterHelmValues(t *testing.T) {
 		labels, ok := values["additionalLabels"].(map[string]any)
 		require.True(t, ok, "additionalLabels must be a map")
 		assert.Equal(t, guess.InstalledByValue, labels[guess.InstalledByLabel],
-			"installed-by sentinel must match what IsForeignKarpenterInstalled looks for")
+			"installed-by sentinel must match what FindForeignKarpenterInstallation looks for")
 		assert.Contains(t, labels, guess.InstallerVersionLabel)
 
 		settings, ok := values["settings"].(map[string]any)
@@ -286,11 +286,14 @@ func TestDisplayForeignKarpenterMessage(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(&bytes.Buffer{})
 
-	err := displayForeignKarpenterMessage(cmd, "my-cluster")
+	foreign := &guess.ForeignKarpenter{Namespace: "karpenter", Name: "karpenter"}
+	err := displayForeignKarpenterMessage(cmd, "my-cluster", foreign)
 	require.NoError(t, err, "foreign Karpenter is a successful no-op, not an error")
 
 	rendered := out.String()
-	assert.Contains(t, rendered, "Karpenter is already installed on cluster my-cluster.")
+	assert.Contains(t, rendered, "Karpenter is already installed on cluster my-cluster")
+	assert.Contains(t, rendered, "Deployment karpenter/karpenter.",
+		"the message must surface the foreign install's namespace/name so the user can locate it")
 	assert.Contains(t, rendered, "kubectl-datadog has nothing to install.")
 	assert.Contains(t, rendered, "Autoscaling settings page")
 	assert.Contains(t, rendered, "kube_cluster_name%3Amy-cluster",
