@@ -6,6 +6,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
@@ -82,6 +83,18 @@ func testExpectedAgent(
 
 			hostProfilerEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.HostProfiler]
 			assert.True(t, apiutils.IsEqualStruct(hostProfilerEnvVars, wantIpcEnvVars), "HostProfiler IPC env vars \ndiff = %s", cmp.Diff(hostProfilerEnvVars, wantIpcEnvVars))
+
+			// Security context capabilities
+			hostProfilerCapabilities := mgr.SecurityContextMgr.CapabilitiesByC[apicommon.HostProfiler]
+			expectedCapabilities := agent.DefaultCapabilitiesForHostProfiler()
+			assert.True(t, apiutils.IsEqualStruct(hostProfilerCapabilities, expectedCapabilities), "HostProfiler capabilities \ndiff = %s", cmp.Diff(hostProfilerCapabilities, expectedCapabilities))
+
+			// AppArmor annotation
+			expectedAnnotations := map[string]string{
+				common.AppArmorAnnotationKey + "/" + string(apicommon.HostProfiler): "unconfined",
+			}
+			annotations := mgr.AnnotationMgr.Annotations
+			assert.True(t, apiutils.IsEqualStruct(annotations, expectedAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, expectedAnnotations))
 		},
 	)
 }

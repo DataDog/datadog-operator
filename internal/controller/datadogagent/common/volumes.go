@@ -332,6 +332,28 @@ func GetVolumeForSeccomp() corev1.Volume {
 	}
 }
 
+// GetVolumeMountForHostProfilerSecurity returns the VolumeMount for host-profiler-security
+func GetVolumeMountForHostProfilerSecurity() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      HostProfilerSecurityVolumeName,
+		MountPath: HostProfilerSecurityVolumePath,
+	}
+}
+
+// GetVolumeForHostProfilerSecurity returns the Volume for host-profiler-security
+func GetVolumeForHostProfilerSecurity(owner metav1.Object) corev1.Volume {
+	return corev1.Volume{
+		Name: HostProfilerSecurityVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: GetDefaultHostProfilerSeccompConfigMapName(owner),
+				},
+			},
+		},
+	}
+}
+
 // GetVolumeForRunPath returns the volume for the agent run path
 func GetVolumeForRunPath() corev1.Volume {
 	return corev1.Volume{
