@@ -25,13 +25,14 @@ var karpenterCoreRules = []rbacv1.PolicyRule{
 	},
 }
 
-// TestKarpenterAPIGroupContract pins the API group fingerprint we match
-// against. Subsequent tests build fake objects via the same constant, so a
-// typo here would silently make them pass while real Karpenter installs stop
-// matching — this assertion locks down the contract against the chart's
-// hard-coded apiGroup.
-func TestKarpenterAPIGroupContract(t *testing.T) {
+// TestKarpenterControllerFingerprintContract pins the API group + resources
+// fingerprint we match against. Subsequent tests build fake objects via the
+// same constants, so a typo would silently make them pass while real
+// Karpenter installs stop matching — this assertion locks down the contract
+// against the chart's hard-coded clusterrole-core.yaml.
+func TestKarpenterControllerFingerprintContract(t *testing.T) {
 	assert.Equal(t, "karpenter.sh", karpenterAPIGroup)
+	assert.Equal(t, []string{"nodepools", "nodeclaims"}, karpenterControllerResources)
 }
 
 func TestIsForeignKarpenterInstalled(t *testing.T) {
@@ -133,6 +134,36 @@ func TestIsForeignKarpenterInstalled(t *testing.T) {
 				}, karpenterCoreRules),
 			},
 			expected: true,
+		},
+		{
+			name: "split rules with only nodepools or only nodeclaims still match",
+			// The chart's clusterrole-core.yaml splits write permissions
+			// across separate rules — one per resource. Each rule on its
+			// own must carry the controller fingerprint.
+			objects: []runtime.Object{
+				clusterRole("their-karpenter", nil, []rbacv1.PolicyRule{
+					{APIGroups: []string{"karpenter.sh"}, Resources: []string{"nodeclaims", "nodeclaims/status"}, Verbs: []string{"create", "delete", "update", "patch"}},
+					{APIGroups: []string{"karpenter.sh"}, Resources: []string{"nodepools", "nodepools/status"}, Verbs: []string{"update", "patch"}},
+				}),
+			},
+			expected: true,
+		},
+		{
+			name: "Datadog Operator role with karpenter.sh wildcard is not a controller",
+			// The Datadog Operator's own ClusterRole grants `karpenter.sh/*`
+			// to manage Karpenter CRs as part of cluster autoscaling
+			// recommendations — but the operator is not a Karpenter
+			// controller. A wildcard-only rule must not trigger the guard.
+			objects: []runtime.Object{
+				clusterRole("datadog-operator-manager-role", nil, []rbacv1.PolicyRule{
+					{
+						APIGroups: []string{"karpenter.sh"},
+						Resources: []string{"*"},
+						Verbs:     []string{"create", "delete", "get", "list", "patch", "update", "watch"},
+					},
+				}),
+			},
+			expected: false,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

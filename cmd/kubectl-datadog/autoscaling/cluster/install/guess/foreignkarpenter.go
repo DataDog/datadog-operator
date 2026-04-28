@@ -22,13 +22,19 @@ const (
 	InstallerVersionLabel = "autoscaling.datadoghq.com/installer-version"
 )
 
-// karpenterAPIGroup is the API group every Karpenter controller's ClusterRole
-// must reference: the chart's clusterrole.yaml and clusterrole-core.yaml
-// templates hard-code rules on `karpenter.sh` for nodepools/nodeclaims, which
-// is the structural fingerprint of a Karpenter install. Unlike the
-// `app.kubernetes.io/name` label this is not affected by the chart's
-// `nameOverride`, raw kubectl apply renames, or ArgoCD label rewrites.
+// karpenterAPIGroup is the API group the upstream v1 Karpenter chart's
+// controller ClusterRole references. Unlike the `app.kubernetes.io/name`
+// label this is not affected by the chart's `nameOverride`, raw kubectl
+// apply renames, or ArgoCD label rewrites.
 const karpenterAPIGroup = "karpenter.sh"
+
+// karpenterControllerResources are resources the upstream v1 Karpenter
+// chart's clusterrole-core.yaml spells out explicitly. We require at least
+// one of them to be named in addition to the api group, because a wildcard
+// rule on `karpenter.sh/*` does not identify the controller — the Datadog
+// Operator's own ClusterRole carries such a wildcard to manage Karpenter
+// custom resources without being a Karpenter controller itself.
+var karpenterControllerResources = []string{"nodepools", "nodeclaims"}
 
 // clusterRoleListChunkSize bounds the size of a single List response so we
 // don't pull thousands of ClusterRoles into memory at once on dense clusters.
@@ -37,12 +43,13 @@ const clusterRoleListChunkSize = 100
 
 // IsForeignKarpenterInstalled reports whether a Karpenter installation that
 // was not produced by this plugin is running on the cluster. Detection lists
-// every ClusterRole and looks for rules on the `karpenter.sh` API group,
-// which the chart hard-codes for nodepools/nodeclaims regardless of
-// `nameOverride` or other metadata customizations. ClusterRoles bearing our
-// InstalledByLabel sentinel are skipped. ClusterRoles are deleted by `helm
-// uninstall`, unlike the CRDs in `crds/`, so a leftover-only state returns
-// false.
+// every ClusterRole and looks for rules that name both the `karpenter.sh`
+// API group AND at least one Karpenter controller resource (`nodepools` or
+// `nodeclaims`) — the structural fingerprint of a Karpenter controller's
+// ClusterRole, regardless of `nameOverride` or other metadata
+// customizations. ClusterRoles bearing our InstalledByLabel sentinel are
+// skipped. ClusterRoles are deleted by `helm uninstall`, unlike the CRDs in
+// `crds/`, so a leftover-only state returns false.
 //
 // The list is paginated with an early exit on the first foreign match: dense
 // clusters with thousands of ClusterRoles do not need to be fully materialised
@@ -59,7 +66,7 @@ func IsForeignKarpenterInstalled(ctx context.Context, clientset kubernetes.Inter
 		}
 
 		for _, cr := range crs.Items {
-			if !hasKarpenterAPIGroupRule(cr.Rules) {
+			if !hasKarpenterControllerRule(cr.Rules) {
 				continue
 			}
 			if cr.Labels[InstalledByLabel] == InstalledByValue {
@@ -76,12 +83,19 @@ func IsForeignKarpenterInstalled(ctx context.Context, clientset kubernetes.Inter
 	}
 }
 
-// hasKarpenterAPIGroupRule reports whether any rule grants permissions on the
-// karpenter.sh API group. We don't constrain on resource names: any rule
-// touching the group is enough to identify a Karpenter ClusterRole, and a
-// looser check stays robust against upstream resource additions.
-func hasKarpenterAPIGroupRule(rules []rbacv1.PolicyRule) bool {
+// hasKarpenterControllerRule reports whether any rule explicitly grants
+// permissions on a Karpenter controller resource (`nodepools` or
+// `nodeclaims`) under the `karpenter.sh` API group. A wildcard rule on
+// `karpenter.sh/*` (e.g. the Datadog Operator's own role for managing
+// Karpenter custom resources) does not match: the upstream v1 Karpenter
+// chart spells out specific resource names on its controller ClusterRole.
+func hasKarpenterControllerRule(rules []rbacv1.PolicyRule) bool {
 	return lo.ContainsBy(rules, func(rule rbacv1.PolicyRule) bool {
-		return slices.Contains(rule.APIGroups, karpenterAPIGroup)
+		if !slices.Contains(rule.APIGroups, karpenterAPIGroup) {
+			return false
+		}
+		return lo.SomeBy(karpenterControllerResources, func(resource string) bool {
+			return slices.Contains(rule.Resources, resource)
+		})
 	})
 }
