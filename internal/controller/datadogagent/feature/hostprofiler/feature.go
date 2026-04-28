@@ -11,6 +11,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 )
@@ -81,6 +82,12 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 
 	// Host PID
 	managers.PodTemplateSpec().Spec.HostPID = *ptr.To(true)
+
+	// Security context capabilities
+	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForHostProfiler(), apicommon.HostProfiler)
+
+	// AppArmor annotation
+	managers.Annotation().AddAnnotation(common.AppArmorAnnotationKey+"/"+string(apicommon.HostProfiler), "unconfined")
 
 	// Tracingfs volume
 	volumeTracingfs := corev1.Volume{

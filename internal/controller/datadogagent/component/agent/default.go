@@ -75,6 +75,18 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, agentComponent feature.Re
 	}
 }
 
+// DefaultCapabilitiesForHostProfiler returns the default Security Context
+// Capabilities for the Host Profiler container
+func DefaultCapabilitiesForHostProfiler() []corev1.Capability {
+	return []corev1.Capability{
+		"SYS_ADMIN",
+		"SYS_PTRACE",
+		"SYS_RESOURCE",
+		"DAC_READ_SEARCH",
+		"SYSLOG",
+	}
+}
+
 // DefaultCapabilitiesForSystemProbe returns the default Security Context
 // Capabilities for the System Probe container
 func DefaultCapabilitiesForSystemProbe() []corev1.Capability {
@@ -348,6 +360,153 @@ func DefaultSeccompConfigDataForSystemProbe(ddaSpec *v2alpha1.DatadogAgentSpec) 
 	}
 }
 
+// DefaultSyscallsForHostProfiler returns the default syscalls for the Host Profiler
+func DefaultSyscallsForHostProfiler() []string {
+	return []string{
+		"accept4",
+		"access",
+		"arch_prctl",
+		"bind",
+		"bpf",
+		"brk",
+		"capget",
+		"capset",
+		"chdir",
+		"chmod",
+		"clone",
+		"clone3",
+		"close",
+		"close_range",
+		"connect",
+		"dup",
+		"dup2",
+		"dup3",
+		"epoll_create1",
+		"epoll_ctl",
+		"epoll_pwait",
+		"epoll_wait",
+		"eventfd2",
+		"execve",
+		"exit",
+		"exit_group",
+		"faccessat2",
+		"fcntl",
+		"fdatasync",
+		"fstat",
+		"fstatfs",
+		"fsync",
+		"futex",
+		"getcwd",
+		"getdents64",
+		"getpeername",
+		"getpid",
+		"getppid",
+		"getpriority",
+		"getrandom",
+		"getsockname",
+		"getsockopt",
+		"gettid",
+		"getrlimit",
+		"gettimeofday",
+		"getuid",
+		"ioctl",
+		"listen",
+		"lseek",
+		"madvise",
+		"memfd_create",
+		"mmap",
+		"mprotect",
+		"mremap",
+		"munmap",
+		"nanosleep",
+		"newfstatat",
+		"openat",
+		"openat2",
+		"perf_event_open",
+		"pidfd_open",
+		"pidfd_send_signal",
+		"pipe2",
+		"prctl",
+		"pread64",
+		"prlimit64",
+		"process_vm_readv",
+		"read",
+		"readlinkat",
+		"recvfrom",
+		"recvmsg",
+		"restart_syscall",
+		"rseq",
+		"rt_sigaction",
+		"rt_sigprocmask",
+		"rt_sigreturn",
+		"sched_getaffinity",
+		"sched_yield",
+		"seccomp",
+		"sendmsg",
+		"sendto",
+		"set_robust_list",
+		"set_tid_address",
+		"setgid",
+		"setgroups",
+		"setpgid",
+		"setresgid",
+		"setresuid",
+		"setrlimit",
+		"setsid",
+		"setsockopt",
+		"setuid",
+		"sigaltstack",
+		"socket",
+		"socketpair",
+		"statfs",
+		"statx",
+		"sysinfo",
+		"tgkill",
+		"umask",
+		"uname",
+		"unlinkat",
+		"wait4",
+		"waitid",
+		"write",
+	}
+}
+
+// DefaultSeccompConfigDataForHostProfiler returns configmap data for the default host-profiler seccomp profile
+func DefaultSeccompConfigDataForHostProfiler() map[string]string {
+	syscalls := fmt.Sprintf(`["%s"]`, strings.Join(DefaultSyscallsForHostProfiler(), `","`))
+
+	return map[string]string{
+		common.HostProfilerSeccompKey: fmt.Sprintf(`{
+			"defaultAction": "SCMP_ACT_ERRNO",
+			"architectures": [
+				"SCMP_ARCH_X86_64",
+				"SCMP_ARCH_AARCH64"
+			],
+			"syscalls": [
+				{
+				"names": %s,
+				"action": "SCMP_ACT_ALLOW"
+				},
+				{
+				"names": [
+					"kill"
+				],
+				"action": "SCMP_ACT_ALLOW",
+				"args": [
+					{
+					"index": 1,
+					"value": 0,
+					"op": "SCMP_CMP_EQ"
+					}
+				],
+				"comment": "allow process liveness check via kill(pid, 0)"
+				}
+			]
+		}
+		`, syscalls),
+	}
+}
+
 // GetAgentRoleName returns the name of the role for the Agent
 func GetAgentRoleName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultAgentResourceSuffix)
@@ -371,8 +530,11 @@ func initContainers(dda metav1.Object, requiredContainers []apicommon.AgentConta
 		initConfigContainer(dda),
 	}
 	for _, containerName := range requiredContainers {
-		if containerName == apicommon.SystemProbeContainerName {
+		switch containerName {
+		case apicommon.SystemProbeContainerName:
 			initContainers = append(initContainers, initSeccompSetupContainer())
+		case apicommon.HostProfiler:
+			initContainers = append(initContainers, initHostProfilerSeccompSetupContainer())
 		}
 	}
 
@@ -534,7 +696,10 @@ func hostProfilerContainer(dda metav1.Object) corev1.Container {
 		Ports:        []corev1.ContainerPort{},
 		SecurityContext: &corev1.SecurityContext{
 			ReadOnlyRootFilesystem: ptr.To(true),
-			Privileged:             ptr.To(true),
+			SeccompProfile: &corev1.SeccompProfile{
+				Type:             corev1.SeccompProfileTypeLocalhost,
+				LocalhostProfile: ptr.To(common.HostProfilerSeccompProfileName),
+			},
 		},
 	}
 }
@@ -666,6 +831,19 @@ func initSeccompSetupContainer() corev1.Container {
 			fmt.Sprintf("%s/%s", common.SeccompRootVolumePath, common.SystemProbeSeccompProfileName),
 		},
 		VolumeMounts: volumeMountsForSeccompSetup(),
+	}
+}
+
+func initHostProfilerSeccompSetupContainer() corev1.Container {
+	return corev1.Container{
+		Name:  "host-profiler-seccomp-setup",
+		Image: agentImage(),
+		Command: []string{
+			"cp",
+			fmt.Sprintf("%s/%s", common.HostProfilerSecurityVolumePath, common.HostProfilerSeccompKey),
+			fmt.Sprintf("%s/%s", common.SeccompRootVolumePath, common.HostProfilerSeccompProfileName),
+		},
+		VolumeMounts: volumeMountsForHostProfilerSeccompSetup(),
 	}
 }
 
@@ -801,14 +979,19 @@ func volumesForAgent(dda metav1.Object, requiredContainers []apicommon.AgentCont
 		common.GetVolumeForTmp(),
 	}
 
+	needsSeccompRoot := false
 	for _, containerName := range requiredContainers {
-		if containerName == apicommon.SystemProbeContainerName {
-			sysProbeVolumes := []corev1.Volume{
-				common.GetVolumeForSecurity(dda),
-				common.GetVolumeForSeccomp(),
-			}
-			volumes = append(volumes, sysProbeVolumes...)
+		switch containerName {
+		case apicommon.SystemProbeContainerName:
+			volumes = append(volumes, common.GetVolumeForSecurity(dda))
+			needsSeccompRoot = true
+		case apicommon.HostProfiler:
+			volumes = append(volumes, common.GetVolumeForHostProfilerSecurity(dda))
+			needsSeccompRoot = true
 		}
+	}
+	if needsSeccompRoot {
+		volumes = append(volumes, common.GetVolumeForSeccomp())
 	}
 
 	return volumes
@@ -890,6 +1073,13 @@ func volumeMountsForPrivateActionRunner() []corev1.VolumeMount {
 func volumeMountsForSeccompSetup() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		common.GetVolumeMountForSecurity(),
+		common.GetVolumeMountForSeccomp(),
+	}
+}
+
+func volumeMountsForHostProfilerSeccompSetup() []corev1.VolumeMount {
+	return []corev1.VolumeMount{
+		common.GetVolumeMountForHostProfilerSecurity(),
 		common.GetVolumeMountForSeccomp(),
 	}
 }
