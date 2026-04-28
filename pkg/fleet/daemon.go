@@ -47,6 +47,7 @@ type Daemon struct {
 	revisionsEnabled bool
 	mu               sync.RWMutex
 	configs          map[string]installerConfig // keyed by config ID; replaced on each RC update
+	taskMu           sync.Mutex                 // serializes UPDATER_TASK execution
 }
 
 // NewDaemon creates a new Fleet Daemon. When revisionsEnabled is false, experiment
@@ -72,19 +73,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 		return d.handleConfigs(ctx, configs)
 	}))
 	d.rcClient.Subscribe(state.ProductUpdaterTask, handleUpdaterTaskUpdate(ctx, func(req remoteAPIRequest) error {
-		d.setTaskState(req.Package, req.ID, pbgo.TaskState_RUNNING, nil)
-		err := d.handleRemoteAPIRequest(ctx, req)
-		if err != nil {
-			var stateErr *stateDoesntMatchError
-			if errors.As(err, &stateErr) {
-				d.setTaskState(req.Package, req.ID, pbgo.TaskState_INVALID_STATE, err)
-			} else {
-				d.setTaskState(req.Package, req.ID, pbgo.TaskState_ERROR, err)
-			}
-		} else {
-			d.setTaskState(req.Package, req.ID, pbgo.TaskState_DONE, nil)
-		}
-		return err
+		return d.handleTask(ctx, req)
 	}))
 
 	<-ctx.Done()
@@ -96,6 +85,26 @@ func (d *Daemon) Start(ctx context.Context) error {
 // The daemon only runs on the elected leader.
 func (d *Daemon) NeedLeaderElection() bool {
 	return true
+}
+
+// handleTask serializes UPDATER_TASK execution so at most one task runs at a time,
+// matching the datadog-agent's single-writer model and preventing races in setTaskState.
+func (d *Daemon) handleTask(ctx context.Context, req remoteAPIRequest) error {
+	d.taskMu.Lock()
+	defer d.taskMu.Unlock()
+	d.setTaskState(req.Package, req.ID, pbgo.TaskState_RUNNING, nil)
+	err := d.handleRemoteAPIRequest(ctx, req)
+	if err != nil {
+		var stateErr *stateDoesntMatchError
+		if errors.As(err, &stateErr) {
+			d.setTaskState(req.Package, req.ID, pbgo.TaskState_INVALID_STATE, err)
+		} else {
+			d.setTaskState(req.Package, req.ID, pbgo.TaskState_ERROR, err)
+		}
+	} else {
+		d.setTaskState(req.Package, req.ID, pbgo.TaskState_DONE, nil)
+	}
+	return err
 }
 
 // handleConfigs replaces the stored installer configs with the latest RC update.
@@ -290,6 +299,10 @@ func (d *Daemon) stopDatadogAgentExperiment(ctx context.Context, req remoteAPIRe
 	if isNoOp, err := canStop(ctx, getExperimentPhase(dda)); err != nil {
 		return fmt.Errorf("stop DatadogAgent experiment: %w", err)
 	} else if isNoOp {
+		// The spec rollback already happened (e.g. timeout), but the experiment
+		// config version still needs to be cleared so the backend can issue new tasks.
+		stable, _ := d.getPackageConfigVersions(req.Package)
+		d.setPackageConfigVersions(req.Package, stable, "")
 		return nil
 	}
 
@@ -339,6 +352,10 @@ func (d *Daemon) promoteDatadogAgentExperiment(ctx context.Context, req remoteAP
 	if isNoOp, err := canPromote(ctx, getExperimentPhase(dda)); err != nil {
 		return fmt.Errorf("promote DatadogAgent experiment: %w", err)
 	} else if isNoOp {
+		// The experiment is already in a terminal state. Clear the experiment
+		// config version so the backend can issue new tasks.
+		stable, _ := d.getPackageConfigVersions(req.Package)
+		d.setPackageConfigVersions(req.Package, stable, "")
 		return nil
 	}
 

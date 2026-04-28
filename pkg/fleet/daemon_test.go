@@ -756,3 +756,46 @@ func TestSetTaskState_NilClient(t *testing.T) {
 		d.setTaskState("datadog-operator", "task-1", pbgo.TaskState_RUNNING, nil)
 	})
 }
+
+// --- handleTask state-transition tests ---
+
+func testDaemonFull(dda *v2alpha1.DatadogAgent, configs map[string]installerConfig, rcState []*pbgo.PackageState) (*Daemon, client.Client, *mockRCClient) {
+	d, c := testDaemon(dda, configs)
+	rc := &mockRCClient{state: rcState}
+	d.rcClient = rc
+	return d, c, rc
+}
+
+func TestHandleTask_Done(t *testing.T) {
+	rc := []*pbgo.PackageState{{Package: "datadog-operator", StableConfigVersion: "0.0.1"}}
+	d, _, m := testDaemonFull(testDDAObject(""), testInstallerConfigWithDDA(), rc)
+	req := testStartRequest()
+	req.ExpectedState = expectedState{StableConfig: "0.0.1"}
+	require.NoError(t, d.handleTask(context.Background(), req))
+	require.NotNil(t, m.state[0].Task)
+	assert.Equal(t, pbgo.TaskState_DONE, m.state[0].Task.State)
+}
+
+func TestHandleTask_Error(t *testing.T) {
+	rc := []*pbgo.PackageState{{Package: "datadog-operator", StableConfigVersion: "0.0.1"}}
+	d, _, m := testDaemonFull(testDDAObject(""), testInstallerConfigWithDDA(), rc)
+	req := testStartRequest()
+	req.Method = "unknown/method"
+	req.ExpectedState = expectedState{StableConfig: "0.0.1"}
+	err := d.handleTask(context.Background(), req)
+	require.Error(t, err)
+	require.NotNil(t, m.state[0].Task)
+	assert.Equal(t, pbgo.TaskState_ERROR, m.state[0].Task.State)
+	require.NotNil(t, m.state[0].Task.Error)
+}
+
+func TestHandleTask_InvalidState(t *testing.T) {
+	rc := []*pbgo.PackageState{{Package: "datadog-operator", StableConfigVersion: "0.0.1"}}
+	d, _, m := testDaemonFull(testDDAObject(""), testInstallerConfigWithDDA(), rc)
+	req := testStartRequest()
+	req.ExpectedState = expectedState{StableConfig: "wrong-version"}
+	err := d.handleTask(context.Background(), req)
+	require.Error(t, err)
+	require.NotNil(t, m.state[0].Task)
+	assert.Equal(t, pbgo.TaskState_INVALID_STATE, m.state[0].Task.State)
+}
