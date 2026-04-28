@@ -156,6 +156,59 @@ func TestIsForeignKarpenterInstalled(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to list ClusterRoles")
 	})
+
+	t.Run("pagination follows Continue token across pages and short-circuits on first foreign match", func(t *testing.T) {
+		// Three pages: an empty page with a non-empty Continue token
+		// (the API server may legitimately return one), a page with only
+		// our own ClusterRole, and a page where the foreign install lives.
+		// We expect the function to walk pages 1 and 2, find the foreign on
+		// page 3, and stop. Page 4 must never be requested.
+		pages := []*rbacv1.ClusterRoleList{
+			{
+				ListMeta: metav1.ListMeta{Continue: "page2"},
+				Items:    nil,
+			},
+			{
+				ListMeta: metav1.ListMeta{Continue: "page3"},
+				Items: []rbacv1.ClusterRole{
+					*clusterRole("karpenter", map[string]string{
+						InstalledByLabel: InstalledByValue,
+					}, karpenterCoreRules),
+				},
+			},
+			{
+				ListMeta: metav1.ListMeta{Continue: "page4"},
+				Items: []rbacv1.ClusterRole{
+					*clusterRole("their-karpenter", map[string]string{
+						"app.kubernetes.io/instance": "their-release",
+					}, karpenterCoreRules),
+				},
+			},
+			{
+				Items: []rbacv1.ClusterRole{
+					*clusterRole("never-fetched", nil, karpenterCoreRules),
+				},
+			},
+		}
+
+		clientset := fake.NewSimpleClientset()
+		var calls []string
+		clientset.PrependReactor("list", "clusterroles", func(action k8stesting.Action) (bool, runtime.Object, error) {
+			opts := action.(k8stesting.ListActionImpl).GetListOptions()
+			calls = append(calls, opts.Continue)
+			assert.EqualValues(t, clusterRoleListChunkSize, opts.Limit, "Limit must be set so the API server can chunk")
+			require.Less(t, len(calls)-1, len(pages),
+				"reactor would over-fetch beyond the synthetic pages — early-exit broken")
+			return true, pages[len(calls)-1], nil
+		})
+
+		result, err := IsForeignKarpenterInstalled(t.Context(), clientset)
+
+		require.NoError(t, err)
+		assert.True(t, result)
+		assert.Equal(t, []string{"", "page2", "page3"}, calls,
+			"each call must forward the previous page's Continue token, and page 4 must never be requested")
+	})
 }
 
 func clusterRole(name string, labels map[string]string, rules []rbacv1.PolicyRule) *rbacv1.ClusterRole {
