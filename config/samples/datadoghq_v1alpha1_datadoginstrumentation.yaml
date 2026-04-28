@@ -1,0 +1,29 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogInstrumentation
+metadata:
+  name: redis-check
+  namespace: cache
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: redis-workload
+  config:
+    checks:
+      - integration: redisdb
+        containerImage:
+          - redis
+        initConfig: {}
+        instances:
+          - host: "%%host%%"
+            port: 6379
+            password: "12345678"
+            tags:
+              - service:redis
+              - env:dev
+        logs:
+          - source: redis
+            service: redis
+            tags:
+              - service:redis
+              - env:dev
