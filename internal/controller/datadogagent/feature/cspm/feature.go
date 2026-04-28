@@ -252,6 +252,7 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 	capabilities := []corev1.Capability{
 		"AUDIT_CONTROL",
 		"AUDIT_READ",
+		"KILL",
 	}
 	managers.SecurityContext().AddCapabilitiesToContainer(capabilities, targetContainer)
 
