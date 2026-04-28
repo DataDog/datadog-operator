@@ -65,7 +65,7 @@ func IsForeignKarpenterInstalled(ctx context.Context, clientset kubernetes.Inter
 			if cr.Labels[InstalledByLabel] == InstalledByValue {
 				continue
 			}
-			log.Printf("Detected foreign Karpenter ClusterRole %q (instance=%q)", cr.Name, cr.Labels["app.kubernetes.io/instance"])
+			log.Printf("Detected foreign Karpenter ClusterRole")
 			return true, nil
 		}
 
