@@ -304,6 +304,39 @@ func TestValidate(t *testing.T) {
 	}
 }
 
+func TestNew(t *testing.T) {
+	// Building the cobra command exercises the flag-registration block in
+	// New, which is otherwise unreachable from resolveOptions/validate
+	// tests but is the part most likely to silently break a user's command
+	// line on rename.
+	cmd := New(noopStreams())
+	require.NotNil(t, cmd)
+	assert.Equal(t, "update", cmd.Use)
+
+	for _, name := range []string{
+		"cluster-name",
+		"karpenter-namespace",
+		"karpenter-version",
+		"install-mode",
+		"fargate-subnets",
+		"create-karpenter-resources",
+		"inference-method",
+		"debug",
+	} {
+		assert.NotNilf(t, cmd.Flags().Lookup(name), "--%s flag must be registered", name)
+	}
+}
+
+func TestComplete(t *testing.T) {
+	// complete just stashes the positional args and delegates to common.Init,
+	// which is exercised by the common package — pin the args plumbing so a
+	// future refactor cannot silently swallow them.
+	o := newOptions(noopStreams())
+	cmd := New(noopStreams())
+	require.NoError(t, o.complete(cmd, []string{"x", "y"}))
+	assert.Equal(t, []string{"x", "y"}, o.args)
+}
+
 func TestNewOptionsDefaults(t *testing.T) {
 	// The default for --create-karpenter-resources is the key UX difference
 	// between install (all) and update (none) — pin it so the contract does
