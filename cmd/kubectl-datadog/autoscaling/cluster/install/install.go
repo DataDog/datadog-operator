@@ -281,6 +281,12 @@ func (o *options) run(cmd *cobra.Command) error {
 		return displayEKSAutoModeMessage(cmd, clusterName)
 	}
 
+	if foreign, err := guess.FindForeignKarpenterInstallation(ctx, o.Clientset, karpenterNamespace); err != nil {
+		return fmt.Errorf("failed to check for an existing Karpenter installation: %w", err)
+	} else if foreign != nil {
+		return displayForeignKarpenterMessage(cmd, clusterName, foreign)
+	}
+
 	display.PrintBox(cmd.OutOrStdout(), "Installing Karpenter on cluster "+clusterName+".")
 
 	cli, err := clients.Build(ctx, o.ConfigFlags, o.Clientset)
@@ -518,9 +524,10 @@ func (o *options) installHelmChart(ctx context.Context, clusterName, karpenterNa
 // the controller can assume the role via sts:AssumeRoleWithWebIdentity.
 func karpenterHelmValues(clusterName string, mode InstallMode, irsaRoleArn string) map[string]any {
 	values := map[string]any{
+		// See guess.InstalledByLabel for why these keys are Datadog-namespaced.
 		"additionalLabels": map[string]any{
-			"app.kubernetes.io/managed-by": "kubectl-datadog",
-			"app.kubernetes.io/version":    version.GetVersion(),
+			guess.InstalledByLabel:      guess.InstalledByValue,
+			guess.InstallerVersionLabel: version.GetVersion(),
 		},
 		"settings": map[string]any{
 			"clusterName":       clusterName,
@@ -642,6 +649,23 @@ func displayEKSAutoModeMessage(cmd *cobra.Command, clusterName string) error {
 		"",
 		"Karpenter is built into EKS auto-mode",
 		"and does not need to be installed separately.",
+		"",
+		"Navigate to the Autoscaling settings page",
+		"and select cluster to start generating recommendations:",
+		coloredURL,
+	)
+
+	return nil
+}
+
+func displayForeignKarpenterMessage(cmd *cobra.Command, clusterName string, foreign *guess.ForeignKarpenter) error {
+	coloredURL := openAutoscalingSettingsURL(cmd, clusterName)
+
+	display.PrintBox(cmd.OutOrStdout(),
+		"Karpenter is already installed on cluster "+clusterName+":",
+		"Deployment "+foreign.Namespace+"/"+foreign.Name+".",
+		"",
+		"kubectl-datadog has nothing to install.",
 		"",
 		"Navigate to the Autoscaling settings page",
 		"and select cluster to start generating recommendations:",
