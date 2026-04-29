@@ -102,21 +102,9 @@ func TestStartDatadogAgentExperiment_ConfigNotFound(t *testing.T) {
 }
 
 func TestStartDatadogAgentExperiment_NoDDAOperation(t *testing.T) {
-	configs := map[string]installerConfig{
-		"no-dda-config": {
-			ID: "no-dda-config",
-			Operations: []fleetManagementOperation{
-				{
-					Operation:        OperationUpdate,
-					GroupVersionKind: schema.GroupVersionKind{Group: "other.io", Version: "v1", Kind: "Other"},
-					Config:           json.RawMessage(`{}`),
-				},
-			},
-		},
-	}
-	d, _ := testDaemon(testDDAObject(""), configs)
+	d, _ := testDaemon(testDDAObject(""), testInstallerConfigWithDDA())
 	req := testStartRequest()
-	req.Params.Version = "no-dda-config"
+	req.Params.GroupVersionKind = schema.GroupVersionKind{Group: "other.io", Version: "v1", Kind: "Other"}
 	assert.Error(t, d.startDatadogAgentExperiment(context.Background(), req))
 }
 
@@ -203,6 +191,26 @@ func TestStartDatadogAgentExperiment_Success_OverwritesPreviousExperiment(t *tes
 	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, dda.Status.Experiment.Phase)
 	assert.Equal(t, req.ID, dda.Status.Experiment.ID)
 	assert.NotEqual(t, "old-exp", dda.Status.Experiment.ID)
+}
+
+// --- resolveOperation: GVK source tests ---
+
+func TestResolveOperation_GVKFromTaskParams(t *testing.T) {
+	d, _ := testDaemon(testDDAObject(""), testInstallerConfigWithDDA())
+	req := testStartRequest()
+	req.Params.GroupVersionKind = schema.GroupVersionKind{Group: "datadoghq.com", Version: "v2alpha1", Kind: "DatadogAgent"}
+	op, err := d.resolveOperation(req, "test")
+	require.NoError(t, err)
+	assert.Equal(t, req.Params.GroupVersionKind, op.GroupVersionKind)
+}
+
+func TestResolveOperation_GVKFallback(t *testing.T) {
+	d, _ := testDaemon(testDDAObject(""), testInstallerConfigWithDDA())
+	req := testStartRequest()
+	// No GVK in task params — should fall back to the canonical default.
+	op, err := d.resolveOperation(req, "test")
+	require.NoError(t, err)
+	assert.Equal(t, v2alpha1.GroupVersion.WithKind("DatadogAgent"), op.GroupVersionKind)
 }
 
 // --- resolveOperation: params.version matching tests ---
