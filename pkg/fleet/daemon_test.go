@@ -361,39 +361,54 @@ func TestPromoteDatadogAgentExperiment_NoExperimentVersion(t *testing.T) {
 }
 
 func TestPromoteDatadogAgentExperiment_NoOp_Rollback(t *testing.T) {
-	d, c := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseRollback), testInstallerConfigWithDDA())
-	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+	rc := &mockRCClient{state: []*pbgo.PackageState{
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
 	}}
+	d, c := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseRollback), testInstallerConfigWithDDA())
+	d.rcClient = rc
 	require.NoError(t, d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest()))
 
 	dda := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
 	assert.Equal(t, v2alpha1.ExperimentPhaseRollback, dda.Status.Experiment.Phase)
+	// Rolled back: stable stays, experiment cleared.
+	assert.Equal(t, "stable-1", rc.state[0].StableConfigVersion)
+	assert.Equal(t, "", rc.state[0].ExperimentConfigVersion)
 }
 
 func TestPromoteDatadogAgentExperiment_NoOp_Timeout(t *testing.T) {
-	d, c := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseTimeout), testInstallerConfigWithDDA())
-	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+	rc := &mockRCClient{state: []*pbgo.PackageState{
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
 	}}
+	d, c := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseTimeout), testInstallerConfigWithDDA())
+	d.rcClient = rc
 	require.NoError(t, d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest()))
 
 	dda := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
 	assert.Equal(t, v2alpha1.ExperimentPhaseTimeout, dda.Status.Experiment.Phase)
+	// Timed out: stable stays, experiment cleared.
+	assert.Equal(t, "stable-1", rc.state[0].StableConfigVersion)
+	assert.Equal(t, "", rc.state[0].ExperimentConfigVersion)
 }
 
 func TestPromoteDatadogAgentExperiment_NoOp_Promoted(t *testing.T) {
-	d, c := testDaemon(testDDAObject(v2alpha1.ExperimentPhasePromoted), testInstallerConfigWithDDA())
-	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+	// Simulates daemon crash between status update and setPackageConfigVersions:
+	// phase=Promoted but installer state still has the experiment version.
+	// The no-op path must complete the promotion by moving exp → stable.
+	rc := &mockRCClient{state: []*pbgo.PackageState{
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
 	}}
+	d, c := testDaemon(testDDAObject(v2alpha1.ExperimentPhasePromoted), testInstallerConfigWithDDA())
+	d.rcClient = rc
 	require.NoError(t, d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest()))
 
 	dda := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
 	assert.Equal(t, v2alpha1.ExperimentPhasePromoted, dda.Status.Experiment.Phase)
+	// Promoted: experiment version moves to stable, experiment cleared.
+	assert.Equal(t, "exp-1", rc.state[0].StableConfigVersion)
+	assert.Equal(t, "", rc.state[0].ExperimentConfigVersion)
 }
 
 func TestPromoteDatadogAgentExperiment_Success_Running(t *testing.T) {

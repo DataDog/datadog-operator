@@ -352,10 +352,18 @@ func (d *Daemon) promoteDatadogAgentExperiment(ctx context.Context, req remoteAP
 	if isNoOp, err := canPromote(ctx, getExperimentPhase(dda)); err != nil {
 		return fmt.Errorf("promote DatadogAgent experiment: %w", err)
 	} else if isNoOp {
-		// The experiment is already in a terminal state. Clear the experiment
-		// config version so the backend can issue new tasks.
-		stable, _ := d.getPackageConfigVersions(req.Package)
-		d.setPackageConfigVersions(req.Package, stable, "")
+		stable, exp := d.getPackageConfigVersions(req.Package)
+		if getExperimentPhase(dda) == v2alpha1.ExperimentPhasePromoted {
+			// The experiment was already promoted (e.g. daemon crashed between the
+			// status update and setPackageConfigVersions). Finish the promotion by
+			// moving the experiment version to stable so the backend gets the correct
+			// baseline for future expected_state checks.
+			d.setPackageConfigVersions(req.Package, exp, "")
+		} else {
+			// The experiment was rolled back (stopped/rollback/timeout). Just clear
+			// the experiment version so the backend can issue new tasks.
+			d.setPackageConfigVersions(req.Package, stable, "")
+		}
 		return nil
 	}
 
