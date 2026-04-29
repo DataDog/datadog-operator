@@ -18,8 +18,7 @@ type DatadogInstrumentationSpec struct {
 	TargetRef autoscalingv2.CrossVersionObjectReference `json:"targetRef"`
 
 	// Config defines the Datadog instrumentation configuration to apply to the target workload.
-	// +optional
-	Config *DatadogInstrumentationConfig `json:"config,omitempty"`
+	Config DatadogInstrumentationConfig `json:"config"`
 }
 
 // DatadogInstrumentationConfig defines workload-scoped instrumentation configuration.
@@ -56,25 +55,71 @@ type DatadogInstrumentationCheckConfig struct {
 	Logs []DatadogInstrumentationLogConfig `json:"logs,omitempty"`
 }
 
-// DatadogInstrumentationLogConfig defines common log collection fields.
+// DatadogInstrumentationLogConfig defines Agent log collection configuration fields.
+// +kubebuilder:pruning:PreserveUnknownFields
 type DatadogInstrumentationLogConfig struct {
-	// Source sets the log source name.
+	// Type is the type of log input source. Common values include tcp, udp, file, windows_event, docker, and journald.
 	// +optional
-	Source string `json:"source,omitempty"`
+	Type string `json:"type,omitempty"`
+
+	// Port is the port for listening to logs when type is tcp or udp.
+	// +optional
+	Port *int32 `json:"port,omitempty"`
+
+	// Path is the file path for gathering logs when type is file or journald.
+	// +optional
+	Path string `json:"path,omitempty"`
+
+	// ChannelPath is the Windows event channel path when type is windows_event.
+	// +optional
+	ChannelPath string `json:"channel_path,omitempty"`
 
 	// Service sets the log service name.
 	// +optional
 	Service string `json:"service,omitempty"`
+
+	// Source sets the log source name.
+	// +optional
+	Source string `json:"source,omitempty"`
+
+	// IncludeUnits lists journald units to include when type is journald.
+	// +optional
+	// +listType=set
+	IncludeUnits []string `json:"include_units,omitempty"`
+
+	// ExcludePaths lists matching files to exclude when type is file and path contains a wildcard.
+	// +optional
+	// +listType=set
+	ExcludePaths []string `json:"exclude_paths,omitempty"`
+
+	// ExcludeUnits lists journald units to exclude when type is journald.
+	// +optional
+	// +listType=set
+	ExcludeUnits []string `json:"exclude_units,omitempty"`
+
+	// SourceCategory sets the source category attribute.
+	// +optional
+	SourceCategory string `json:"sourcecategory,omitempty"`
+
+	// StartPosition sets where the Agent starts reading for file and journald tailers.
+	// Common values include beginning, end, forceBeginning, and forceEnd.
+	// +optional
+	StartPosition string `json:"start_position,omitempty"`
+
+	// Encoding sets the file encoding when type is file.
+	// Common values include utf-16-le, utf-16-be, and shift-jis.
+	// +optional
+	Encoding string `json:"encoding,omitempty"`
 
 	// Tags sets additional tags on collected logs.
 	// +optional
 	// +listType=set
 	Tags []string `json:"tags,omitempty"`
 
-	// ProcessingRules contains Agent log processing rules.
+	// LogProcessingRules contains Agent log processing rules for this log source.
 	// +optional
 	// +listType=atomic
-	ProcessingRules []runtime.RawExtension `json:"processingRules,omitempty"`
+	LogProcessingRules []runtime.RawExtension `json:"log_processing_rules,omitempty"`
 }
 
 // DatadogInstrumentationStatus defines the observed state of DatadogInstrumentation.
