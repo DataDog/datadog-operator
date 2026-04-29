@@ -2,6 +2,7 @@ package guess
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"slices"
@@ -44,6 +45,27 @@ const karpenterControllerImageRepoSuffix = "karpenter/controller"
 // Matches the chunk size used by GetNodesProperties.
 const deploymentListChunkSize = 100
 
+// errStopScan is a sentinel returned by visit callbacks to stop the
+// Deployment scan once the caller has found what it needs. Stripped at the
+// scan boundary so it never leaks to callers.
+var errStopScan = errors.New("stop scan")
+
+// KarpenterInstallation describes a Karpenter controller Deployment found on
+// the cluster. The label fields capture the kubectl-datadog sentinel labels
+// when present so callers can tell our installation apart from a third-party
+// one.
+type KarpenterInstallation struct {
+	Namespace        string
+	Name             string
+	InstalledBy      string
+	InstallerVersion string
+}
+
+// IsOwn reports whether the installation was created by kubectl-datadog.
+func (k *KarpenterInstallation) IsOwn() bool {
+	return k != nil && k.InstalledBy == InstalledByValue
+}
+
 // ForeignKarpenter is the location of a Karpenter controller Deployment
 // that conflicts with the install we're about to perform — either a
 // third-party install or a previous kubectl-datadog install in a different
@@ -52,6 +74,24 @@ const deploymentListChunkSize = 100
 type ForeignKarpenter struct {
 	Namespace string
 	Name      string
+}
+
+// FindAnyKarpenterInstallation returns the first Karpenter controller
+// Deployment running on the cluster, or nil. Detection signals are the same
+// as FindForeignKarpenterInstallation (KARPENTER_SERVICE env var, or
+// `karpenter/controller` image suffix); the returned struct exposes the
+// kubectl-datadog sentinel labels so callers can decide whether the
+// installation is theirs.
+//
+// Used by `update` to require a kubectl-datadog Karpenter exists before
+// touching CFN stacks or the Helm release.
+func FindAnyKarpenterInstallation(ctx context.Context, clientset kubernetes.Interface) (*KarpenterInstallation, error) {
+	var found *KarpenterInstallation
+	err := scanKarpenterInstallations(ctx, clientset, func(k *KarpenterInstallation) error {
+		found = k
+		return errStopScan
+	})
+	return found, err
 }
 
 // FindForeignKarpenterInstallation returns the location of a Karpenter
@@ -63,20 +103,36 @@ type ForeignKarpenter struct {
 // race the new one on the cluster-scoped Karpenter CRDs, so we surface
 // it too.
 //
-// Detection scans every Deployment for a container that either sets the
-// chart-emitted `KARPENTER_SERVICE` env var or runs an image whose
-// repository ends with `karpenter/controller`. Looking at the running
-// controller is more robust than RBAC-based detection — monitoring or
-// management roles legitimately hold permissions on the `karpenter.sh` API
-// group without running a controller, and a Deployment that matches either
-// container signal is the only one that distinguishes "Karpenter is
-// actually running" from "something has read access to its CRs".
-//
-// The list is paginated with an early exit on the first foreign match:
-// dense clusters with thousands of Deployments do not need to be fully
-// materialised in memory just to answer "is there at least one foreign
-// Karpenter Deployment".
+// The scan short-circuits on the first foreign match: dense clusters with
+// thousands of Deployments do not need to be fully materialised in memory
+// just to answer "is there at least one foreign Karpenter Deployment".
 func FindForeignKarpenterInstallation(ctx context.Context, clientset kubernetes.Interface, targetNamespace string) (*ForeignKarpenter, error) {
+	var found *ForeignKarpenter
+	err := scanKarpenterInstallations(ctx, clientset, func(k *KarpenterInstallation) error {
+		if k.IsOwn() && k.Namespace == targetNamespace {
+			return nil
+		}
+		log.Printf("Detected foreign Karpenter Deployment %s/%s", k.Namespace, k.Name)
+		found = &ForeignKarpenter{Namespace: k.Namespace, Name: k.Name}
+		return errStopScan
+	})
+	return found, err
+}
+
+// scanKarpenterInstallations walks every Deployment cluster-wide and invokes
+// visit on each one whose pod spec matches the Karpenter controller
+// fingerprint. Returning errStopScan from visit halts the walk; any other
+// error propagates. Looking at the running controller is more robust than
+// RBAC-based detection — monitoring or management roles legitimately hold
+// permissions on the `karpenter.sh` API group without running a controller,
+// and a Deployment that matches either container signal is the only one
+// that distinguishes "Karpenter is actually running" from "something has
+// read access to its CRs".
+//
+// The list is paginated with an early exit on the first errStopScan: dense
+// clusters with thousands of Deployments do not need to be fully materialised
+// in memory just to answer "is there at least one matching Deployment".
+func scanKarpenterInstallations(ctx context.Context, clientset kubernetes.Interface, visit func(*KarpenterInstallation) error) error {
 	var cont string
 	for {
 		deps, err := clientset.AppsV1().Deployments(metav1.NamespaceAll).List(ctx, metav1.ListOptions{
@@ -84,23 +140,30 @@ func FindForeignKarpenterInstallation(ctx context.Context, clientset kubernetes.
 			Continue: cont,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to list Deployments: %w", err)
+			return fmt.Errorf("failed to list Deployments: %w", err)
 		}
 
 		for _, dep := range deps.Items {
 			if !hasKarpenterControllerContainer(dep.Spec.Template.Spec.Containers) {
 				continue
 			}
-			if dep.Namespace == targetNamespace && dep.Labels[InstalledByLabel] == InstalledByValue {
-				continue
+			err := visit(&KarpenterInstallation{
+				Namespace:        dep.Namespace,
+				Name:             dep.Name,
+				InstalledBy:      dep.Labels[InstalledByLabel],
+				InstallerVersion: dep.Labels[InstallerVersionLabel],
+			})
+			if errors.Is(err, errStopScan) {
+				return nil
 			}
-			log.Printf("Detected foreign Karpenter Deployment %s/%s", dep.Namespace, dep.Name)
-			return &ForeignKarpenter{Namespace: dep.Namespace, Name: dep.Name}, nil
+			if err != nil {
+				return err
+			}
 		}
 
 		cont = deps.Continue
 		if cont == "" {
-			return nil, nil
+			return nil
 		}
 	}
 }

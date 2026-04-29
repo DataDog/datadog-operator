@@ -281,6 +281,84 @@ func TestFindForeignKarpenterInstallation(t *testing.T) {
 	})
 }
 
+func TestFindAnyKarpenterInstallation(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		objects  []runtime.Object
+		expected *KarpenterInstallation
+	}{
+		{
+			name:     "no Deployments on the cluster",
+			objects:  nil,
+			expected: nil,
+		},
+		{
+			name: "no Karpenter Deployment among unrelated ones",
+			objects: []runtime.Object{
+				deployment("kube-system", "coredns", nil, "registry.k8s.io/coredns/coredns:v1.10.1"),
+				deployment("default", "nginx", nil, "nginx:1.25"),
+			},
+			expected: nil,
+		},
+		{
+			name: "kubectl-datadog installation surfaces with sentinel labels",
+			objects: []runtime.Object{
+				deployment("dd-karpenter", "karpenter",
+					map[string]string{
+						InstalledByLabel:      InstalledByValue,
+						InstallerVersionLabel: "v1.2.3",
+					},
+					karpenterControllerImage,
+				),
+			},
+			expected: &KarpenterInstallation{
+				Namespace:        "dd-karpenter",
+				Name:             "karpenter",
+				InstalledBy:      InstalledByValue,
+				InstallerVersion: "v1.2.3",
+			},
+		},
+		{
+			name: "third-party installation surfaces with empty sentinel fields",
+			objects: []runtime.Object{
+				deployment("karpenter", "karpenter", nil, karpenterControllerImage),
+			},
+			expected: &KarpenterInstallation{
+				Namespace:        "karpenter",
+				Name:             "karpenter",
+				InstalledBy:      "",
+				InstallerVersion: "",
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			clientset := fake.NewSimpleClientset(tc.objects...)
+
+			result, err := FindAnyKarpenterInstallation(t.Context(), clientset)
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestKarpenterInstallationIsOwn(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		k        *KarpenterInstallation
+		expected bool
+	}{
+		{"nil receiver is not ours", nil, false},
+		{"empty InstalledBy is not ours", &KarpenterInstallation{}, false},
+		{"foreign InstalledBy is not ours", &KarpenterInstallation{InstalledBy: "someone-else"}, false},
+		{"matching sentinel is ours", &KarpenterInstallation{InstalledBy: InstalledByValue}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.k.IsOwn())
+		})
+	}
+}
+
 func deployment(namespace, name string, labels map[string]string, image string) *appsv1.Deployment {
 	return deploymentWithEnv(namespace, name, labels, image, nil)
 }
