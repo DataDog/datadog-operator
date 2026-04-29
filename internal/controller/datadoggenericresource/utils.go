@@ -1,7 +1,6 @@
 package datadoggenericresource
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -14,15 +13,15 @@ import (
 )
 
 // buildHandlers creates a handler for each supported resource type, each holding
-// its own API client and a fresh auth context.
-func buildHandlers(clients *datadogclient.GenericClients, auth context.Context) map[v1alpha1.SupportedResourcesType]ResourceHandler {
+// its own API client. Auth is passed per-call via the ResourceHandler methods.
+func buildHandlers(clients *datadogclient.GenericClients) map[v1alpha1.SupportedResourcesType]ResourceHandler {
 	return map[v1alpha1.SupportedResourcesType]ResourceHandler{
-		v1alpha1.Dashboard:             &DashboardHandler{auth: auth, client: clients.DashboardsClient},
-		v1alpha1.Downtime:              &DowntimeHandler{auth: auth, client: clients.DowntimesClient},
-		v1alpha1.Monitor:               &MonitorHandler{auth: auth, client: clients.MonitorsClient},
-		v1alpha1.Notebook:              &NotebookHandler{auth: auth, client: clients.NotebooksClient},
-		v1alpha1.SyntheticsAPITest:     &SyntheticsAPITestHandler{auth: auth, client: clients.SyntheticsClient},
-		v1alpha1.SyntheticsBrowserTest: &SyntheticsBrowserTestHandler{auth: auth, client: clients.SyntheticsClient},
+		v1alpha1.Dashboard:             &DashboardHandler{client: clients.DashboardsClient},
+		v1alpha1.Downtime:              &DowntimeHandler{client: clients.DowntimesClient},
+		v1alpha1.Monitor:               &MonitorHandler{client: clients.MonitorsClient},
+		v1alpha1.Notebook:              &NotebookHandler{client: clients.NotebooksClient},
+		v1alpha1.SyntheticsAPITest:     &SyntheticsAPITestHandler{client: clients.SyntheticsClient},
+		v1alpha1.SyntheticsBrowserTest: &SyntheticsBrowserTestHandler{client: clients.SyntheticsClient},
 	}
 }
 

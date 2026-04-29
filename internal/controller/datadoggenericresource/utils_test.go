@@ -1,7 +1,6 @@
 package datadoggenericresource
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -15,19 +14,17 @@ import (
 
 func Test_getHandler(t *testing.T) {
 	r := &Reconciler{
-		handlerBuilder: func(_ context.Context) map[v1alpha1.SupportedResourcesType]ResourceHandler {
-			return map[v1alpha1.SupportedResourcesType]ResourceHandler{
-				mockSubresource: &MockHandler{},
-			}
+		handlers: map[v1alpha1.SupportedResourcesType]ResourceHandler{
+			mockSubresource: &MockHandler{},
 		},
 	}
 
 	// Known type returns a non-nil handler
-	assert.NotNil(t, r.getHandler(context.Background(), mockSubresource))
+	assert.NotNil(t, r.getHandler(mockSubresource))
 
 	// Unsupported type panics
 	assert.PanicsWithError(t, "unsupported type: unsupportedType", func() {
-		r.getHandler(context.Background(), "unsupportedType")
+		r.getHandler("unsupportedType")
 	})
 }
 

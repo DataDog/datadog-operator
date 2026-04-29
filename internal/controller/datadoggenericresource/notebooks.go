@@ -11,12 +11,11 @@ import (
 )
 
 type NotebookHandler struct {
-	auth   context.Context
 	client *datadogV1.NotebooksApi
 }
 
-func (h *NotebookHandler) createResource(instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
-	createdNotebook, err := createNotebook(h.auth, h.client, instance)
+func (h *NotebookHandler) createResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) (CreateResult, error) {
+	createdNotebook, err := createNotebook(auth, h.client, instance)
 	if err != nil {
 		return CreateResult{}, err
 	}
@@ -28,16 +27,16 @@ func (h *NotebookHandler) createResource(instance *v1alpha1.DatadogGenericResour
 	}, nil
 }
 
-func (h *NotebookHandler) getResource(instance *v1alpha1.DatadogGenericResource) error {
-	_, err := getNotebook(h.auth, h.client, instance.Status.Id)
+func (h *NotebookHandler) getResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) error {
+	_, err := getNotebook(auth, h.client, instance.Status.Id)
 	return err
 }
-func (h *NotebookHandler) updateResource(instance *v1alpha1.DatadogGenericResource) error {
-	_, err := updateNotebook(h.auth, h.client, instance)
+func (h *NotebookHandler) updateResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) error {
+	_, err := updateNotebook(auth, h.client, instance)
 	return err
 }
-func (h *NotebookHandler) deleteResource(instance *v1alpha1.DatadogGenericResource) error {
-	return deleteNotebook(h.auth, h.client, instance.Status.Id)
+func (h *NotebookHandler) deleteResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) error {
+	return deleteNotebook(auth, h.client, instance.Status.Id)
 }
 
 func getNotebook(auth context.Context, client *datadogV1.NotebooksApi, notebookStringID string) (datadogV1.NotebookResponse, error) {

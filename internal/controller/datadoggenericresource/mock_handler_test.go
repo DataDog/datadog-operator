@@ -1,6 +1,8 @@
 package datadoggenericresource
 
 import (
+	"context"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -21,7 +23,7 @@ var (
 // MockHandler is a test double for ResourceHandler.
 type MockHandler struct{}
 
-func (h *MockHandler) createResource(_ *v1alpha1.DatadogGenericResource) (CreateResult, error) {
+func (h *MockHandler) createResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) (CreateResult, error) {
 	mockCreateCalls++
 	now := metav1.Now()
 	return CreateResult{
@@ -31,15 +33,15 @@ func (h *MockHandler) createResource(_ *v1alpha1.DatadogGenericResource) (Create
 	}, nil
 }
 
-func (h *MockHandler) getResource(_ *v1alpha1.DatadogGenericResource) error {
+func (h *MockHandler) getResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) error {
 	return mockGetErr
 }
 
-func (h *MockHandler) updateResource(_ *v1alpha1.DatadogGenericResource) error {
+func (h *MockHandler) updateResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) error {
 	return mockUpdateErr
 }
 
-func (h *MockHandler) deleteResource(_ *v1alpha1.DatadogGenericResource) error {
+func (h *MockHandler) deleteResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) error {
 	mockDeleteCalls++
 	return mockDeleteErr
 }

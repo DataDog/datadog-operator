@@ -194,10 +194,8 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 			r := &Reconciler{
 				client:       fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
 				credsManager: config.NewCredentialManager(fake.NewClientBuilder().Build()),
-				handlerBuilder: func(_ context.Context) map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler {
-					return map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{
-						mockSubresource: &MockHandler{},
-					}
+				handlers: map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{
+					mockSubresource: &MockHandler{},
 				},
 				scheme:   s,
 				recorder: recorder,

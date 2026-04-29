@@ -11,12 +11,11 @@ import (
 )
 
 type MonitorHandler struct {
-	auth   context.Context
 	client *datadogV1.MonitorsApi
 }
 
-func (h *MonitorHandler) createResource(instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
-	createdMonitor, err := createMonitor(h.auth, h.client, instance)
+func (h *MonitorHandler) createResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) (CreateResult, error) {
+	createdMonitor, err := createMonitor(auth, h.client, instance)
 	if err != nil {
 		return CreateResult{}, err
 	}
@@ -28,16 +27,16 @@ func (h *MonitorHandler) createResource(instance *v1alpha1.DatadogGenericResourc
 	}, nil
 }
 
-func (h *MonitorHandler) getResource(instance *v1alpha1.DatadogGenericResource) error {
-	_, err := getMonitor(h.auth, h.client, instance.Status.Id)
+func (h *MonitorHandler) getResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) error {
+	_, err := getMonitor(auth, h.client, instance.Status.Id)
 	return err
 }
-func (h *MonitorHandler) updateResource(instance *v1alpha1.DatadogGenericResource) error {
-	_, err := updateMonitor(h.auth, h.client, instance)
+func (h *MonitorHandler) updateResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) error {
+	_, err := updateMonitor(auth, h.client, instance)
 	return err
 }
-func (h *MonitorHandler) deleteResource(instance *v1alpha1.DatadogGenericResource) error {
-	return deleteMonitor(h.auth, h.client, instance.Status.Id)
+func (h *MonitorHandler) deleteResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) error {
+	return deleteMonitor(auth, h.client, instance.Status.Id)
 }
 
 func getMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorStringID string) (datadogV1.Monitor, error) {
