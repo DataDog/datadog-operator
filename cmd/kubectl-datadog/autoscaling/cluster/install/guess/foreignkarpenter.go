@@ -2,15 +2,18 @@ package guess
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"slices"
 	"strings"
 
-	"github.com/samber/lo"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/pager"
 )
 
 // Datadog-namespaced labels written via the Karpenter chart's additionalLabels.
@@ -38,11 +41,6 @@ const karpenterServiceEnvName = "KARPENTER_SERVICE"
 // component-aware (not a substring) so `team/karpenter/controllers` or
 // `someone/karpenter/controller-something` do not false-positive.
 const karpenterControllerImageRepoSuffix = "karpenter/controller"
-
-// deploymentListChunkSize bounds the size of a single List response so we
-// don't pull thousands of Deployments into memory at once on dense clusters.
-// Matches the chunk size used by GetNodesProperties.
-const deploymentListChunkSize = 100
 
 // ForeignKarpenter is the location of a Karpenter controller Deployment
 // that conflicts with the install we're about to perform — either a
@@ -77,32 +75,28 @@ type ForeignKarpenter struct {
 // materialised in memory just to answer "is there at least one foreign
 // Karpenter Deployment".
 func FindForeignKarpenterInstallation(ctx context.Context, clientset kubernetes.Interface, targetNamespace string) (*ForeignKarpenter, error) {
-	var cont string
-	for {
-		deps, err := clientset.AppsV1().Deployments(metav1.NamespaceAll).List(ctx, metav1.ListOptions{
-			Limit:    deploymentListChunkSize,
-			Continue: cont,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to list Deployments: %w", err)
-		}
+	errFound := errors.New("foreign Karpenter found")
 
-		for _, dep := range deps.Items {
-			if !hasKarpenterControllerContainer(dep.Spec.Template.Spec.Containers) {
-				continue
-			}
-			if dep.Namespace == targetNamespace && dep.Labels[InstalledByLabel] == InstalledByValue {
-				continue
-			}
-			log.Printf("Detected foreign Karpenter Deployment %s/%s", dep.Namespace, dep.Name)
-			return &ForeignKarpenter{Namespace: dep.Namespace, Name: dep.Name}, nil
+	var result *ForeignKarpenter
+	p := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+		return clientset.AppsV1().Deployments(metav1.NamespaceAll).List(ctx, opts)
+	})
+	err := p.EachListItem(ctx, metav1.ListOptions{}, func(obj runtime.Object) error {
+		dep := obj.(*appsv1.Deployment)
+		if !hasKarpenterControllerContainer(dep.Spec.Template.Spec.Containers) {
+			return nil
 		}
-
-		cont = deps.Continue
-		if cont == "" {
-			return nil, nil
+		if dep.Namespace == targetNamespace && dep.Labels[InstalledByLabel] == InstalledByValue {
+			return nil
 		}
+		log.Printf("Detected foreign Karpenter Deployment %s/%s", dep.Namespace, dep.Name)
+		result = &ForeignKarpenter{Namespace: dep.Namespace, Name: dep.Name}
+		return errFound
+	})
+	if err != nil && !errors.Is(err, errFound) {
+		return nil, fmt.Errorf("failed to list Deployments: %w", err)
 	}
+	return result, nil
 }
 
 // hasKarpenterControllerContainer reports whether any container in the pod
@@ -110,11 +104,11 @@ func FindForeignKarpenterInstallation(ctx context.Context, clientset kubernetes.
 // chart-unconditional KARPENTER_SERVICE env var; secondary is the canonical
 // `karpenter/controller` image repository tail.
 func hasKarpenterControllerContainer(containers []corev1.Container) bool {
-	return lo.ContainsBy(containers, isKarpenterControllerContainer)
+	return slices.ContainsFunc(containers, isKarpenterControllerContainer)
 }
 
 func isKarpenterControllerContainer(c corev1.Container) bool {
-	if lo.ContainsBy(c.Env, func(e corev1.EnvVar) bool { return e.Name == karpenterServiceEnvName }) {
+	if slices.ContainsFunc(c.Env, func(e corev1.EnvVar) bool { return e.Name == karpenterServiceEnvName }) {
 		return true
 	}
 	return imageRepoEndsWith(c.Image, karpenterControllerImageRepoSuffix)
