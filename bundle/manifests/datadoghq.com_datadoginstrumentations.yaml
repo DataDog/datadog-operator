@@ -176,9 +176,6 @@ spec:
                     - kind
                     - name
                   type: object
-                  x-kubernetes-validations:
-                    - message: targetRef.apiVersion is required
-                      rule: has(self.apiVersion)
               required:
                 - config
                 - targetRef

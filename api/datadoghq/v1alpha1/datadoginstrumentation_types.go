@@ -14,7 +14,6 @@ import (
 // DatadogInstrumentationSpec defines the desired state of DatadogInstrumentation.
 type DatadogInstrumentationSpec struct {
 	// TargetRef is the reference to the workload resource to instrument.
-	// +kubebuilder:validation:XValidation:rule="has(self.apiVersion)",message="targetRef.apiVersion is required"
 	TargetRef autoscalingv2.CrossVersionObjectReference `json:"targetRef"`
 
 	// Config defines the Datadog instrumentation configuration to apply to the target workload.
