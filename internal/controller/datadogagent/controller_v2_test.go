@@ -20,7 +20,6 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	common "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/servicediscovery"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
 	"github.com/DataDog/datadog-operator/pkg/condition"
@@ -254,10 +253,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
 			wantFunc: func(t *testing.T, c client.Client) {
-				expectedContainers := []string{
-					string(apicommon.CoreAgentContainerName),
-					string(apicommon.TraceAgentContainerName),
-				}
+				expectedContainers := expectedAgentContainersForInheritedDefaultImage()
 
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 			},
@@ -274,10 +270,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
 			wantFunc: func(t *testing.T, c client.Client) {
-				expectedContainers := []string{
-					string(apicommon.CoreAgentContainerName),
-					string(apicommon.TraceAgentContainerName),
-				}
+				expectedContainers := expectedAgentContainersForInheritedDefaultImage()
 
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 			},
@@ -294,9 +287,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
 			wantFunc: func(t *testing.T, c client.Client) {
-				expectedContainers := []string{
-					string(apicommon.UnprivilegedSingleAgentContainerName),
-				}
+				expectedContainers := expectedSingleContainerStrategyContainersForInheritedDefaultImage()
 
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 			},
@@ -314,10 +305,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
 			wantFunc: func(t *testing.T, c client.Client) {
-				expectedContainers := []string{
-					string(apicommon.CoreAgentContainerName),
-					string(apicommon.TraceAgentContainerName),
-				}
+				expectedContainers := expectedAgentContainersForInheritedDefaultImage()
 
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 			},
@@ -335,9 +323,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
 			wantFunc: func(t *testing.T, c client.Client) {
-				expectedContainers := []string{
-					string(apicommon.UnprivilegedSingleAgentContainerName),
-				}
+				expectedContainers := expectedSingleContainerStrategyContainersForInheritedDefaultImage()
 
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 			},
@@ -558,6 +544,9 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 					string(apicommon.TraceAgentContainerName),
 					string(apicommon.PrivateActionRunnerContainerName),
 				}
+				if serviceDiscoveryEnabledForInheritedDefaultImage() {
+					expectedContainers = append(expectedContainers, string(apicommon.SystemProbeContainerName))
+				}
 
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 			},
@@ -604,6 +593,9 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 					string(apicommon.FIPSProxyContainerName),
+				}
+				if serviceDiscoveryEnabledForInheritedDefaultImage() {
+					expectedContainers = append(expectedContainers, string(apicommon.SystemProbeContainerName))
 				}
 
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
@@ -1074,6 +1066,9 @@ func Test_otelImageTags(t *testing.T) {
 					string(apicommon.TraceAgentContainerName),
 					string(apicommon.OtelAgent),
 				}
+				if serviceDiscoveryEnabledForInheritedDefaultImage() {
+					expectedContainers = append(expectedContainers, string(apicommon.SystemProbeContainerName))
+				}
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
@@ -1297,6 +1292,9 @@ func Test_AutopilotOverrides(t *testing.T) {
 			},
 			wantFunc: func(t *testing.T, c client.Client) {
 				expectedContainers := []string{string(apicommon.CoreAgentContainerName)}
+				if serviceDiscoveryEnabledForInheritedDefaultImage() {
+					expectedContainers = append(expectedContainers, string(apicommon.SystemProbeContainerName))
+				}
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 
 				ds := &appsv1.DaemonSet{}
@@ -1379,6 +1377,9 @@ func Test_AutopilotOverrides(t *testing.T) {
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
+				}
+				if serviceDiscoveryEnabledForInheritedDefaultImage() {
+					expectedContainers = append(expectedContainers, string(apicommon.SystemProbeContainerName))
 				}
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 
@@ -1966,29 +1967,6 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 			},
 		},
 		{
-			name:        "[ddai] Auto-enable service discovery is propagated to DDAI on supported node agent version",
-			ddaiEnabled: true,
-			clientBuilder: fake.NewClientBuilder().
-				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}),
-			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				ddaSD := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
-					}).
-					Build()
-				_ = c.Create(context.TODO(), ddaSD)
-				return ddaSD
-			},
-			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
-			wantErr: false,
-			wantFunc: func(t *testing.T, c client.Client) {
-				ddai := getSingleDDAI(t, c)
-				assert.NotNil(t, ddai.Spec.Features.ServiceDiscovery)
-				assert.NotNil(t, ddai.Spec.Features.ServiceDiscovery.Enabled)
-				assert.True(t, *ddai.Spec.Features.ServiceDiscovery.Enabled)
-			},
-		},
-		{
 			name:        "[ddai] Explicitly disabled service discovery remains disabled in DDAI",
 			ddaiEnabled: true,
 			clientBuilder: fake.NewClientBuilder().
@@ -2012,31 +1990,6 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 				assert.NotNil(t, ddai.Spec.Features.ServiceDiscovery)
 				assert.NotNil(t, ddai.Spec.Features.ServiceDiscovery.Enabled)
 				assert.False(t, *ddai.Spec.Features.ServiceDiscovery.Enabled)
-			},
-		},
-		{
-			name:        "[ddai] Service discovery omitted with partial node agent image override follows inherited default image policy in DDAI",
-			ddaiEnabled: true,
-			clientBuilder: fake.NewClientBuilder().
-				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}),
-			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				ddaSD := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Image: &v2alpha1.AgentImageConfig{
-							PullPolicy: ptr.To(corev1.PullAlways),
-						},
-					}).
-					Build()
-				_ = c.Create(context.TODO(), ddaSD)
-				return ddaSD
-			},
-			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
-			wantErr: false,
-			wantFunc: func(t *testing.T, c client.Client) {
-				ddai := getSingleDDAI(t, c)
-				assert.NotNil(t, ddai.Spec.Features.ServiceDiscovery)
-				assert.NotNil(t, ddai.Spec.Features.ServiceDiscovery.Enabled)
-				assert.Equal(t, serviceDiscoveryEnabledForInheritedDefaultImage(), *ddai.Spec.Features.ServiceDiscovery.Enabled)
 			},
 		},
 		{
@@ -2309,8 +2262,6 @@ func getBaseDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 			},
 		},
 	}
-	servicediscovery.ResolveEnabled(&expectedDDAI.Spec)
-
 	expectedDDAI.Spec.Global.Credentials = &v2alpha1.DatadogCredentials{
 		APISecret: &v2alpha1.SecretConfig{
 			SecretName: "foo-secret",
@@ -2383,6 +2334,24 @@ func setDDAIHash(t *testing.T, ddai *v1alpha1.DatadogAgentInternal) {
 
 func serviceDiscoveryEnabledForInheritedDefaultImage() bool {
 	return pkgutils.IsAboveMinVersion(images.AgentLatestVersion, "7.78.0-0", nil)
+}
+
+func expectedAgentContainersForInheritedDefaultImage() []string {
+	containers := []string{
+		string(apicommon.CoreAgentContainerName),
+		string(apicommon.TraceAgentContainerName),
+	}
+	if serviceDiscoveryEnabledForInheritedDefaultImage() {
+		containers = append(containers, string(apicommon.SystemProbeContainerName))
+	}
+	return containers
+}
+
+func expectedSingleContainerStrategyContainersForInheritedDefaultImage() []string {
+	if serviceDiscoveryEnabledForInheritedDefaultImage() {
+		return expectedAgentContainersForInheritedDefaultImage()
+	}
+	return []string{string(apicommon.UnprivilegedSingleAgentContainerName)}
 }
 
 func verifyOtelAgentGatewayDeployment(t *testing.T, c client.Client, namespace, ddaName string) {
