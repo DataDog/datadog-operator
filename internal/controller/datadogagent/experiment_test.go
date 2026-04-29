@@ -754,3 +754,51 @@ func TestProcessExperimentSignal_RollbackBeatsTimeout(t *testing.T) {
 	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, newStatus.Experiment.Phase, "rollback should beat timeout")
 	assert.Equal(t, ExperimentTerminationReasonStopped, newStatus.Experiment.TerminationReason)
 }
+
+func TestManageExperiment_StartSignalDoesNotClearAnnotationsPrematurely(t *testing.T) {
+	r, c := newRevisionTestReconciler(t)
+
+	// Create a DDA with a start signal annotation but no active experiment status.
+	// processExperimentSignal should create the experiment in newStatus,
+	// and annotations must NOT be cleared (they'll be cleared on the next reconcile).
+	instance := newRevisionTestOwner("test-dda", "default")
+	instance.Annotations = map[string]string{
+		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalStart,
+		v2alpha1.AnnotationExperimentID:     "new-exp",
+	}
+	require.NoError(t, c.Create(context.Background(), instance))
+
+	newStatus := &v2alpha1.DatadogAgentStatus{}
+	require.NoError(t, r.manageExperiment(context.Background(), instance, newStatus, metav1.Now(), nil))
+
+	// The experiment should have been created in newStatus.
+	require.NotNil(t, newStatus.Experiment)
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, newStatus.Experiment.Phase)
+
+	// Annotations should still be present — not prematurely cleared.
+	got := &v2alpha1.DatadogAgent{}
+	require.NoError(t, c.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, got))
+	assert.Equal(t, v2alpha1.ExperimentSignalStart, got.Annotations[v2alpha1.AnnotationExperimentSignal],
+		"start signal annotations should not be cleared when experiment was just created")
+}
+
+func TestManageExperiment_ClearsNoOpSignalWhenNoExperiment(t *testing.T) {
+	r, c := newRevisionTestReconciler(t)
+
+	// Create a DDA with a signal annotation but no active experiment status.
+	instance := newRevisionTestOwner("test-dda", "default")
+	instance.Annotations = map[string]string{
+		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalRollback,
+		v2alpha1.AnnotationExperimentID:     "stale-1",
+	}
+	require.NoError(t, c.Create(context.Background(), instance))
+
+	newStatus := &v2alpha1.DatadogAgentStatus{}
+	require.NoError(t, r.manageExperiment(context.Background(), instance, newStatus, metav1.Now(), nil))
+
+	// Annotations should have been cleared.
+	got := &v2alpha1.DatadogAgent{}
+	require.NoError(t, c.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, got))
+	assert.Empty(t, got.Annotations[v2alpha1.AnnotationExperimentSignal], "no-op signal should be cleared")
+	assert.Empty(t, got.Annotations[v2alpha1.AnnotationExperimentID], "no-op signal ID should be cleared")
+}

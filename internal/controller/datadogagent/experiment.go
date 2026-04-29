@@ -83,6 +83,18 @@ func (r *Reconciler) manageExperiment(
 
 	experiment := instance.Status.Experiment
 	if experiment == nil {
+		// No active experiment. If a signal was processed but did NOT create
+		// a new experiment (i.e. it was a no-op like rollback/promote with
+		// nothing to act on), clear the annotations so they don't get
+		// reprocessed on every reconcile. Skip clearing when the signal
+		// actually mutated status (e.g. a start signal that created an
+		// experiment) — annotations will be cleared on the next reconcile
+		// after the status update succeeds.
+		if pendingClearID != "" && newStatus.Experiment == nil {
+			if clearErr := r.clearExperimentAnnotations(ctx, instance, pendingClearID); clearErr != nil {
+				ctrl.LoggerFrom(ctx).Error(clearErr, "Failed to clear experiment annotations, will retry on next reconcile")
+			}
+		}
 		return nil
 	}
 

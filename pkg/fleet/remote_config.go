@@ -34,10 +34,8 @@ const (
 // fleetManagementOperation is a single fleet operation for config management of a Kubernetes resource.
 // Config is a JSON merge patch (no strategic merge patch).
 type fleetManagementOperation struct {
-	Operation        Operation               `json:"operation"`
-	GroupVersionKind schema.GroupVersionKind `json:"group_version_kind"`
-	NamespacedName   types.NamespacedName    `json:"namespaced_name"`
-	Config           json.RawMessage         `json:"config"`
+	Operation Operation       `json:"operation"`
+	Config    json.RawMessage `json:"config"`
 }
 
 // remoteAPIRequest is a task sent to the fleet daemon via RC.
@@ -63,9 +61,9 @@ type expectedState struct {
 
 // experimentParams holds the parsed params for experiment methods.
 type experimentParams struct {
-	Version   string `json:"version"`
-	Namespace string `json:"namespace,omitempty"`
-	Name      string `json:"name,omitempty"`
+	Version          string                  `json:"version"`
+	GroupVersionKind schema.GroupVersionKind `json:"group_version_kind"`
+	NamespacedName   types.NamespacedName    `json:"namespaced_name"`
 }
 
 // handleInstallerConfigUpdate returns an RC subscription callback that parses

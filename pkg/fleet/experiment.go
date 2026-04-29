@@ -26,19 +26,25 @@ import (
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
-// validateOperation checks that a fleetManagementOperation has the fields
-// required to locate and act on a DatadogAgent resource.
-func validateOperation(op fleetManagementOperation) error {
-	if op.NamespacedName.Name == "" {
-		return fmt.Errorf("operation namespaced name must have a non-empty name")
+// validateParams checks that experimentParams has the fields required to locate
+// and act on a DatadogAgent resource.
+func validateParams(p experimentParams) error {
+	if p.NamespacedName.Name == "" {
+		return fmt.Errorf("params namespaced_name must have a non-empty name")
 	}
-	if op.NamespacedName.Namespace == "" {
-		return fmt.Errorf("operation namespaced name must have a non-empty namespace")
+	if p.NamespacedName.Namespace == "" {
+		return fmt.Errorf("params namespaced_name must have a non-empty namespace")
 	}
-	if op.GroupVersionKind.Kind != "DatadogAgent" {
-		return fmt.Errorf("operation kind must be DatadogAgent, got %q", op.GroupVersionKind.Kind)
+	if p.GroupVersionKind.Kind != "DatadogAgent" {
+		return fmt.Errorf("params kind must be DatadogAgent, got %q", p.GroupVersionKind.Kind)
 	}
 	return nil
+}
+
+// resolvedOperation holds the resolved data needed to execute an experiment operation.
+type resolvedOperation struct {
+	NamespacedName types.NamespacedName
+	Config         json.RawMessage
 }
 
 // experimentBackoff is the retry backoff for k8s operations during experiment signals.
@@ -88,6 +94,9 @@ func buildSignalPatch(signal, id string, config ...json.RawMessage) ([]byte, err
 		if err := json.Unmarshal(config[0], &specPatch); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 		}
+		// Top-level maps.Copy is safe because the config currently only contains
+		// "spec" keys and never "metadata". If the config ever includes metadata,
+		// this will need a deep merge to avoid overwriting the signal annotations.
 		maps.Copy(patch, specPatch)
 	}
 
@@ -100,27 +109,35 @@ func buildSignalPatch(signal, id string, config ...json.RawMessage) ([]byte, err
 // (signal=rollback) and returns an error.
 const phaseWaitTimeout = 5 * time.Minute
 
-// phaseAcceptFunc determines whether an observed phase satisfies the wait condition.
+// phaseAcceptFunc determines whether an observed experiment status satisfies the
+// wait condition. It receives the full ExperimentStatus (which may be nil) so
+// that accept functions can key on the experiment ID, not just the phase.
 // It returns (done bool, err error):
 //   - (true, nil): expected phase observed — ack success.
 //   - (true, error): unexpected terminal phase — ack error.
 //   - (false, nil): keep waiting.
-type phaseAcceptFunc func(phase v2alpha1.ExperimentPhase) (bool, error)
+type phaseAcceptFunc func(status *v2alpha1.ExperimentStatus) (bool, error)
 
-// acceptPhase returns a phaseAcceptFunc that accepts any of the given phases.
-// If the observed phase is terminal but not in the accept set, it returns an error.
-// If the observed phase is non-terminal and not in the accept set, it keeps waiting.
-func acceptPhase(phases ...v2alpha1.ExperimentPhase) phaseAcceptFunc {
+// acceptPhase returns a phaseAcceptFunc that accepts any of the given phases,
+// but only when the status belongs to the specified experiment ID.
+// If the status is nil or the ID doesn't match, it keeps waiting (the expected
+// experiment hasn't started yet). If the ID matches and the phase is terminal
+// but not in the accept set, it returns an error.
+func acceptPhase(experimentID string, phases ...v2alpha1.ExperimentPhase) phaseAcceptFunc {
 	accept := make(map[v2alpha1.ExperimentPhase]struct{}, len(phases))
 	for _, p := range phases {
 		accept[p] = struct{}{}
 	}
-	return func(phase v2alpha1.ExperimentPhase) (bool, error) {
-		if _, ok := accept[phase]; ok {
+	return func(status *v2alpha1.ExperimentStatus) (bool, error) {
+		if status == nil || status.ID != experimentID {
+			// Wrong experiment or no experiment — keep waiting.
+			return false, nil
+		}
+		if _, ok := accept[status.Phase]; ok {
 			return true, nil
 		}
-		if isTerminalPhase(phase) {
-			return true, fmt.Errorf("expected phase %v, got terminal phase %q", phases, phase)
+		if isTerminalPhase(status.Phase) {
+			return true, fmt.Errorf("expected phase %v, got terminal phase %q", phases, status.Phase)
 		}
 		return false, nil
 	}
@@ -197,11 +214,7 @@ func (pw *phaseWatcher) evaluate(dda *v2alpha1.DatadogAgent) {
 		return
 	}
 
-	if dda.Status.Experiment == nil {
-		return
-	}
-
-	done, err := w.accept(dda.Status.Experiment.Phase)
+	done, err := w.accept(dda.Status.Experiment)
 	if !done {
 		return
 	}
@@ -237,12 +250,12 @@ func (pw *phaseWatcher) waitForPhase(ctx context.Context, nsn types.NamespacedNa
 		pw.mu.Unlock()
 	}()
 
-	// Check the current phase before blocking — the reconciler may have
+	// Check the current status before blocking — the reconciler may have
 	// already transitioned before the waiter was registered, in which case
 	// no further informer event will fire.
 	current := &v2alpha1.DatadogAgent{}
-	if err := pw.k8sClient.Get(ctx, nsn, current); err == nil && current.Status.Experiment != nil {
-		done, acceptErr := accept(current.Status.Experiment.Phase)
+	if err := pw.k8sClient.Get(ctx, nsn, current); err == nil {
+		done, acceptErr := accept(current.Status.Experiment)
 		if done {
 			if acceptErr != nil {
 				logger.Info("Unexpected phase already present", "phase", current.Status.Experiment.Phase, "error", acceptErr)
