@@ -43,7 +43,7 @@ func (f *serviceDiscoveryFeature) ID() feature.IDType {
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *serviceDiscoveryFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
-	if ResolveEnabled(ddaSpec) {
+	if resolveEnabled(ddaSpec) {
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: ptr.To(true),
 			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
@@ -53,9 +53,9 @@ func (f *serviceDiscoveryFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.D
 	return reqComp
 }
 
-// ResolveEnabled applies service discovery's version-aware defaulting to ddaSpec when enabled is omitted.
+// resolveEnabled applies service discovery's version-aware defaulting to ddaSpec when enabled is omitted.
 // It returns the resolved enabled value.
-func ResolveEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+func resolveEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	if ddaSpec.Features == nil {
 		return false
 	}
@@ -72,23 +72,13 @@ func ResolveEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 }
 
 func shouldEnableServiceDiscoveryByDefault(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
-	fallback := ptr.To(true)
-	return pkgutils.IsAboveMinVersion(resolveNodeAgentVersion(ddaSpec), serviceDiscoveryAutoEnableMinVersion, fallback)
-}
-
-func resolveNodeAgentVersion(ddaSpec *v2alpha1.DatadogAgentSpec) string {
-	if ddaSpec.Override != nil {
-		if nodeAgent, found := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; found && nodeAgent != nil && nodeAgent.Image != nil {
-			if version := common.GetAgentVersionFromImage(*nodeAgent.Image); version != "" {
-				return version
-			}
+	// Agent version must be >= 7.78.0 to enable service discovery by default.
+	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
+		if nodeAgent != nil && nodeAgent.Image != nil {
+			return pkgutils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), serviceDiscoveryAutoEnableMinVersion, ptr.To(true))
 		}
 	}
-
-	// No explicit node-agent image version means "inherit the default agent image version".
-	// This also applies to partial image overrides that only tweak settings such as pullPolicy:
-	// they do not change the effective image version used for version-gated defaulting.
-	return images.AgentLatestVersion
+	return pkgutils.IsAboveMinVersion(images.AgentLatestVersion, serviceDiscoveryAutoEnableMinVersion, nil)
 }
 
 // ManageDependencies allows a feature to manage its dependencies.

@@ -185,7 +185,7 @@ func Test_serviceDiscoveryFeature_Configure_DefaultingByVersion(t *testing.T) {
 	}
 }
 
-func Test_serviceDiscoveryFeature_ResolveEnabled_InheritsDefaultVersionWhenImageVersionIsOmitted(t *testing.T) {
+func Test_serviceDiscoveryFeature_resolveEnabled_InheritsDefaultVersionWhenImageVersionIsOmitted(t *testing.T) {
 	expected := serviceDiscoveryEnabledForVersion(images.AgentLatestVersion)
 
 	tests := []struct {
@@ -228,7 +228,7 @@ func Test_serviceDiscoveryFeature_ResolveEnabled_InheritsDefaultVersionWhenImage
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ResolveEnabled(tt.ddaSpec)
+			got := resolveEnabled(tt.ddaSpec)
 
 			assert.Equal(t, expected, got)
 			assert.NotNil(t, tt.ddaSpec.Features.ServiceDiscovery)
