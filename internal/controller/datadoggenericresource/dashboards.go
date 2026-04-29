@@ -15,41 +15,36 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
-type DashboardHandler struct{}
+type DashboardHandler struct {
+	auth   context.Context
+	client *datadogV1.DashboardsApi
+}
 
-func (h *DashboardHandler) createResourcefunc(r *Reconciler, ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	createdDashboard, err := createDashboard(r.datadogAuth, r.datadogDashboardsClient, instance)
+func (h *DashboardHandler) createResource(instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
+	createdDashboard, err := createDashboard(h.auth, h.client, instance)
 	if err != nil {
-		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
-		return err
+		return CreateResult{}, err
 	}
-	updateStatusFromDashboard(createdDashboard, status, hash)
-	return nil
+	createdTime := metav1.NewTime(createdDashboard.GetCreatedAt())
+	return CreateResult{
+		ID:          createdDashboard.GetId(),
+		CreatedTime: &createdTime,
+		Creator:     createdDashboard.GetAuthorHandle(),
+	}, nil
 }
 
-// updateStatusFromDashboard populates the status fields from a Datadog Dashboard API response.
-func updateStatusFromDashboard(dashboard datadogV1.Dashboard, status *v1alpha1.DatadogGenericResourceStatus, hash string) {
-	status.Id = dashboard.GetId()
-	createdTime := metav1.NewTime(dashboard.GetCreatedAt())
-	status.Created = &createdTime
-	status.LastForceSyncTime = &createdTime
-	status.Creator = dashboard.GetAuthorHandle()
-	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
-	status.CurrentHash = hash
-}
-
-func (h *DashboardHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := getDashboard(r.datadogAuth, r.datadogDashboardsClient, instance.Status.Id)
+func (h *DashboardHandler) getResource(instance *v1alpha1.DatadogGenericResource) error {
+	_, err := getDashboard(h.auth, h.client, instance.Status.Id)
 	return err
 }
 
-func (h *DashboardHandler) updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := updateDashboard(r.datadogAuth, r.datadogDashboardsClient, instance)
+func (h *DashboardHandler) updateResource(instance *v1alpha1.DatadogGenericResource) error {
+	_, err := updateDashboard(h.auth, h.client, instance)
 	return err
 }
 
-func (h *DashboardHandler) deleteResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return deleteDashboard(r.datadogAuth, r.datadogDashboardsClient, instance.Status.Id)
+func (h *DashboardHandler) deleteResource(instance *v1alpha1.DatadogGenericResource) error {
+	return deleteDashboard(h.auth, h.client, instance.Status.Id)
 }
 
 func getDashboard(auth context.Context, client *datadogV1.DashboardsApi, dashboardID string) (datadogV1.Dashboard, error) {
@@ -85,7 +80,14 @@ func updateDashboard(auth context.Context, client *datadogV1.DashboardsApi, inst
 }
 
 func deleteDashboard(auth context.Context, client *datadogV1.DashboardsApi, dashboardID string) error {
-	if _, _, err := client.DeleteDashboard(auth, dashboardID); err != nil {
+	_, httpResponse, err := client.DeleteDashboard(auth, dashboardID)
+	if err != nil {
+		// Deletion is idempotent for finalization: if the dashboard was already removed
+		// in Datadog (for example from the UI), allow the Kubernetes finalizer to clear.
+		// Retry other errors (e.g. 400, 401, 429, 5XX).
+		if httpResponse != nil && httpResponse.StatusCode == 404 {
+			return nil
+		}
 		return translateClientError(err, "error deleting dashboard")
 	}
 	return nil

@@ -166,7 +166,7 @@ spec:
 : SyscallMonitorEnabled enables Syscall Monitoring (recommended for troubleshooting only). Default: false
 
 `features.dataPlane.dogstatsd.enabled`
-: Configures the Data Plane to handle DogStatsD traffic. When enabled, DogStatsD is disabled in the Core Agent. Default: false
+: Configures the Data Plane to handle DogStatsD traffic. When set to false, DogStatsD is handled by the Core Agent instead. Default: true
 
 `features.dataPlane.enabled`
 : Enables the Data Plane. Default: false
@@ -375,6 +375,9 @@ spec:
 `features.sbom.enabled`
 : Enable this option to activate SBOM collection. Default: false
 
+`features.sbom.enrichment.usage.enabled`
+: Enable this option to activate SBOM enrichment with runtime "package in use" detection. Requires system-probe for eBPF-based file access tracking. Default: false
+
 `features.sbom.host.analyzers`
 : To use for SBOM collection.
 
@@ -432,8 +435,23 @@ spec:
 `global.criSocketPath`
 : Path to the container runtime socket (if different from Docker).
 
+`global.csi.autoManage`
+: AutoManage controls whether the operator automatically manages the DatadogCSIDriver custom resource on behalf of this DatadogAgent. Set to false to hand ownership over to a DatadogCSIDriver CR that you maintain yourself (useful for migrations where you need customizations not exposed on the DatadogAgent spec). When toggled from true to false, the operator cleans up the DDA-owned DatadogCSIDriver CR; you are then responsible for providing a replacement so CSI continues to work. Default: true
+
 `global.csi.enabled`
-: Enables the usage of CSI driver in Datadog Agent. Requires installation of Datadog CSI Driver https://github.com/DataDog/helm-charts/tree/main/charts/datadog-csi-driver Default: false
+: Enables the usage of CSI driver in Datadog Agent. When the operator is started with `--datadogCSIDriverEnabled=true`, it will also install the driver by creating a DatadogCSIDriver custom resource, unless a cluster-scoped `k8s.csi.datadoghq.com` CSIDriver is already present, in which case it defers to the existing installation (e.g. from the Datadog CSI driver Helm chart). Default: false
+
+`global.csi.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution`
+: The scheduler will prefer to schedule pods to nodes that satisfy the affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node matches the corresponding matchExpressions; the node(s) with the highest sum are the most preferred.
+
+`global.csi.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms`
+: Required. A list of node selector terms. The terms are ORed.
+
+`global.csi.nodeSelector`
+: NodeSelector is a map of key-value pairs for CSI driver DaemonSet pod node selection.
+
+`global.csi.tolerations`
+: Configure the CSI driver DaemonSet pod tolerations.
 
 `global.dockerSocketPath`
 : Path to the docker runtime socket.

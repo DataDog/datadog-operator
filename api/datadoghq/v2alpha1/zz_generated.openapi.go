@@ -300,7 +300,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DataPlaneDogstatsdConfig(ref
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enabled configures the Data Plane to handle DogStatsD traffic. When enabled, DogStatsD is disabled in the Core Agent. Default: false",
+							Description: "Enabled configures the Data Plane to handle DogStatsD traffic. When set to false, DogStatsD is handled by the Core Agent instead. Default: true",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -1140,13 +1140,6 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_ExperimentStatus(ref common.
 							Description: "ID is the unique experiment ID sent by Fleet Automation.",
 							Type:        []string{"string"},
 							Format:      "",
-						},
-					},
-					"generation": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Generation is the DDA metadata.generation recorded when the experiment started. Used to detect manual spec changes while the experiment is running: if the current DDA generation differs from this value, the operator aborts the experiment.\n\nThis value must be recorded after the DDA is patched for a startExperiment signal.",
-							Type:        []string{"integer"},
-							Format:      "int64",
 						},
 					},
 				},

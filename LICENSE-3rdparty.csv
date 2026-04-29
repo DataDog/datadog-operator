@@ -50,6 +50,7 @@ core,github.com/aws/aws-sdk-go-v2/internal/configsources,Apache-2.0
 core,github.com/aws/aws-sdk-go-v2/internal/endpoints/v2,Apache-2.0
 core,github.com/aws/aws-sdk-go-v2/internal/ini,Apache-2.0
 core,github.com/aws/aws-sdk-go-v2/internal/sync/singleflight,BSD-3-Clause
+core,github.com/aws/aws-sdk-go-v2/service/autoscaling,Apache-2.0
 core,github.com/aws/aws-sdk-go-v2/service/cloudformation,Apache-2.0
 core,github.com/aws/aws-sdk-go-v2/service/ec2,Apache-2.0
 core,github.com/aws/aws-sdk-go-v2/service/eks,Apache-2.0

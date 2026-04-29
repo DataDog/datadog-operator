@@ -1,57 +1,27 @@
 package datadoggenericresource
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 )
 
-// testHandlers allows tests to register additional handlers without coupling
-// production code to test-only types.
-var testHandlers map[v1alpha1.SupportedResourcesType]ResourceHandler
-
-func apiDelete(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return getHandler(instance.Spec.Type).deleteResourcefunc(r, instance)
-}
-
-func apiGet(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return getHandler(instance.Spec.Type).getResourcefunc(r, instance)
-}
-
-func apiUpdate(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return getHandler(instance.Spec.Type).updateResourcefunc(r, instance)
-}
-
-func apiCreateAndUpdateStatus(r *Reconciler, ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	return getHandler(instance.Spec.Type).createResourcefunc(r, ctx, instance, status, now, hash)
-}
-
-func getHandler(resourceType v1alpha1.SupportedResourcesType) ResourceHandler {
-	if h, ok := testHandlers[resourceType]; ok {
-		return h
-	}
-	switch resourceType {
-	case v1alpha1.Dashboard:
-		return &DashboardHandler{}
-	case v1alpha1.Downtime:
-		return &DowntimeHandler{}
-	case v1alpha1.Monitor:
-		return &MonitorHandler{}
-	case v1alpha1.Notebook:
-		return &NotebookHandler{}
-	case v1alpha1.SyntheticsAPITest:
-		return &SyntheticsAPITestHandler{}
-	case v1alpha1.SyntheticsBrowserTest:
-		return &SyntheticsBrowserTestHandler{}
-	default:
-		panic(unsupportedInstanceType(resourceType))
+// buildHandlers creates a handler for each supported resource type, each holding
+// its own API client and auth context from the given DatadogGenericClient.
+func buildHandlers(ddClient datadogclient.DatadogGenericClient) map[v1alpha1.SupportedResourcesType]ResourceHandler {
+	return map[v1alpha1.SupportedResourcesType]ResourceHandler{
+		v1alpha1.Dashboard:             &DashboardHandler{auth: ddClient.Auth, client: ddClient.DashboardsClient},
+		v1alpha1.Downtime:              &DowntimeHandler{auth: ddClient.Auth, client: ddClient.DowntimesClient},
+		v1alpha1.Monitor:               &MonitorHandler{auth: ddClient.Auth, client: ddClient.MonitorsClient},
+		v1alpha1.Notebook:              &NotebookHandler{auth: ddClient.Auth, client: ddClient.NotebooksClient},
+		v1alpha1.SyntheticsAPITest:     &SyntheticsAPITestHandler{auth: ddClient.Auth, client: ddClient.SyntheticsClient},
+		v1alpha1.SyntheticsBrowserTest: &SyntheticsBrowserTestHandler{auth: ddClient.Auth, client: ddClient.SyntheticsClient},
 	}
 }
 

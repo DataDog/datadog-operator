@@ -62,6 +62,8 @@ type RcServiceConfiguration struct {
 // RCClient is the interface for subscribing to RC product updates.
 type RCClient interface {
 	Subscribe(product string, fn func(update map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus)))
+	GetInstallerState() []*pbgo.PackageState
+	SetInstallerState(packages []*pbgo.PackageState)
 }
 
 // Client returns the underlying RC client.
@@ -186,9 +188,13 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 	}
 	r.rcService = rcService
 
+	updaterTags := []string{"updater_type:datadog-operator"}
+	if r.serviceConf.clusterName != "" {
+		updaterTags = append(updaterTags, "cluster_name:"+r.serviceConf.clusterName)
+	}
 	rcClient, err := client.NewClient(
 		rcService,
-		client.WithUpdater(),
+		client.WithUpdater(updaterTags...),
 		client.WithProducts(state.ProductAgentConfig, state.ProductOrchestratorK8sCRDs),
 		client.WithDirectorRootOverride(r.serviceConf.cfg.GetString("site"), r.serviceConf.cfg.GetString("remote_configuration.director_root")),
 		client.WithPollInterval(pollInterval),

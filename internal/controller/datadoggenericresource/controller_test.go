@@ -3,13 +3,11 @@ package datadoggenericresource
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
+	"maps"
 	"net/url"
 	"testing"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
-	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -187,28 +185,15 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			resetMockHandlerState()
 
-			httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-			}))
-			defer httpServer.Close()
-
-			testConfig := datadogapi.NewConfiguration()
-			testConfig.HTTPClient = httpServer.Client()
-			apiClient := datadogapi.NewAPIClient(testConfig)
-			synthClient := datadogV1.NewSyntheticsApi(apiClient)
-			nbClient := datadogV1.NewNotebooksApi(apiClient)
-
-			testAuth := setupTestAuth(httpServer.URL)
-
 			// Set up
 			r := &Reconciler{
-				client:                  fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
-				datadogSyntheticsClient: synthClient,
-				datadogNotebooksClient:  nbClient,
-				datadogAuth:             testAuth,
-				scheme:                  s,
-				recorder:                recorder,
-				log:                     logf.Log.WithName(tt.name),
+				client: fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
+				handlers: map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{
+					mockSubresource: &MockHandler{},
+				},
+				scheme:   s,
+				recorder: recorder,
+				log:      logf.Log.WithName(tt.name),
 			}
 
 			// First action
@@ -328,28 +313,11 @@ func TestReconciler_UpdateDatadogClient(t *testing.T) {
 		AppKey: "initial-app-key",
 	}
 
-	// Helper struct + function
-	type clientState struct {
-		syntheticsClient *datadogV1.SyntheticsApi
-		notebooksClient  *datadogV1.NotebooksApi
-		monitorsClient   *datadogV1.MonitorsApi
-		auth             context.Context
-	}
-
-	captureState := func(r *Reconciler) clientState {
-		return clientState{
-			syntheticsClient: r.datadogSyntheticsClient,
-			notebooksClient:  r.datadogNotebooksClient,
-			monitorsClient:   r.datadogMonitorsClient,
-			auth:             r.datadogAuth,
-		}
-	}
-
-	clientsEqual := func(a, b clientState) bool {
-		return a.syntheticsClient == b.syntheticsClient &&
-			a.notebooksClient == b.notebooksClient &&
-			a.monitorsClient == b.monitorsClient &&
-			a.auth == b.auth
+	// captureHandlers snapshots the handlers map so we can detect replacement.
+	captureHandlers := func(r *Reconciler) map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler {
+		snapshot := make(map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler, len(r.handlers))
+		maps.Copy(snapshot, r.handlers)
+		return snapshot
 	}
 
 	tests := []struct {
@@ -397,23 +365,23 @@ func TestReconciler_UpdateDatadogClient(t *testing.T) {
 			r, err := NewReconciler(client, initialCreds, scheme, testLogger, recorder)
 			assert.NoError(t, err)
 
-			// Capture original state
-			originalState := captureState(r)
+			// Capture original handlers
+			originalHandlers := captureHandlers(r)
 
 			// Call UpdateDatadogClient
 			err = r.UpdateDatadogClient(tt.newCreds)
 
-			// Capture new state
-			newState := captureState(r)
+			// Capture new handlers
+			newHandlers := captureHandlers(r)
 
 			if tt.wantErr {
 				assert.Error(t, err)
-				// On error, all clients should remain unchanged
-				assert.True(t, clientsEqual(originalState, newState), "Expected all clients to remain the same on error")
+				// On error, handlers should remain unchanged
+				assert.True(t, maps.Equal(originalHandlers, newHandlers), "Expected handlers to remain the same on error")
 			} else {
 				assert.NoError(t, err)
-				// On success, all clients should be recreated (different instances)
-				assert.False(t, clientsEqual(originalState, newState), "Expected all clients to be recreated on success")
+				// On success, handlers should be recreated (different instances)
+				assert.False(t, maps.Equal(originalHandlers, newHandlers), "Expected handlers to be recreated on success")
 			}
 		})
 	}

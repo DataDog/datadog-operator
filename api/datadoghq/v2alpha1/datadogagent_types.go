@@ -279,11 +279,37 @@ type LanguageDetectionConfig struct {
 
 // CSIConfig contains the config for Datadog CSI driver.
 type CSIConfig struct {
-	// Enables the usage of CSI driver in Datadog Agent.
-	// Requires installation of Datadog CSI Driver https://github.com/DataDog/helm-charts/tree/main/charts/datadog-csi-driver
+	// Enables the usage of CSI driver in Datadog Agent. When the operator is started with
+	// `--datadogCSIDriverEnabled=true`, it will also install the driver by creating a
+	// DatadogCSIDriver custom resource, unless a cluster-scoped `k8s.csi.datadoghq.com`
+	// CSIDriver is already present, in which case it defers to the existing installation
+	// (e.g. from the Datadog CSI driver Helm chart).
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// AutoManage controls whether the operator automatically manages the DatadogCSIDriver
+	// custom resource on behalf of this DatadogAgent. Set to false to hand ownership over to a
+	// DatadogCSIDriver CR that you maintain yourself (useful for migrations where you need
+	// customizations not exposed on the DatadogAgent spec). When toggled from true to false,
+	// the operator cleans up the DDA-owned DatadogCSIDriver CR; you are then responsible for
+	// providing a replacement so CSI continues to work.
+	// Default: true
+	// +optional
+	AutoManage *bool `json:"autoManage,omitempty"`
+
+	// Tolerations configure the CSI driver DaemonSet pod tolerations.
+	// +optional
+	// +listType=atomic
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+
+	// NodeSelector is a map of key-value pairs for CSI driver DaemonSet pod node selection.
+	// +optional
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// NodeAffinity specifies node affinity scheduling rules for CSI driver DaemonSet pods.
+	// +optional
+	NodeAffinity *corev1.NodeAffinity `json:"nodeAffinity,omitempty"`
 }
 
 // InjectorConfig contains the configuration for the APM Injector.
@@ -568,6 +594,7 @@ type SBOMFeatureConfig struct {
 
 	ContainerImage *SBOMContainerImageConfig `json:"containerImage,omitempty"`
 	Host           *SBOMHostConfig           `json:"host,omitempty"`
+	Enrichment     *SBOMEnrichmentConfig     `json:"enrichment,omitempty"`
 }
 
 // SBOMTypeConfig contains configuration for a SBOM collection type.
@@ -604,6 +631,22 @@ type SBOMContainerImageConfig struct {
 	// Default: false
 	// +optional
 	OverlayFSDirectScan bool `json:"overlayFSDirectScan,omitempty"`
+}
+
+// SBOMEnrichmentConfig contains SBOM enrichment configuration.
+type SBOMEnrichmentConfig struct {
+	// Usage contains configuration for the "package in use" enrichment.
+	// +optional
+	Usage *SBOMEnrichmentUsageConfig `json:"usage,omitempty"`
+}
+
+// SBOMEnrichmentUsageConfig contains configuration for the "package in use" SBOM enrichment.
+type SBOMEnrichmentUsageConfig struct {
+	// Enable this option to activate SBOM enrichment with runtime "package in use" detection.
+	// Requires system-probe for eBPF-based file access tracking.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // NPMFeatureConfig contains NPM (Network Performance Monitoring) feature configuration.
@@ -706,8 +749,8 @@ type DataPlaneFeatureConfig struct {
 // +k8s:openapi-gen=true
 type DataPlaneDogstatsdConfig struct {
 	// Enabled configures the Data Plane to handle DogStatsD traffic.
-	// When enabled, DogStatsD is disabled in the Core Agent.
-	// Default: false
+	// When set to false, DogStatsD is handled by the Core Agent instead.
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
@@ -2396,13 +2439,6 @@ type ExperimentStatus struct {
 	// ID is the unique experiment ID sent by Fleet Automation.
 	// +optional
 	ID string `json:"id,omitempty"`
-	// Generation is the DDA metadata.generation recorded when the experiment started.
-	// Used to detect manual spec changes while the experiment is running: if the
-	// current DDA generation differs from this value, the operator aborts the experiment.
-	//
-	// This value must be recorded after the DDA is patched for a startExperiment signal.
-	// +optional
-	Generation int64 `json:"generation,omitempty"`
 }
 
 // DatadogAgentStatus defines the observed state of DatadogAgent.

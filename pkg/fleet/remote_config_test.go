@@ -6,23 +6,34 @@
 package fleet
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // Test data
 
 var testInstallerConfig = installerConfig{
 	ID: "test",
-	FileOperations: []installerConfigFileOperation{
+	Operations: []fleetManagementOperation{
 		{
-			FileOperationType: "write",
-			FilePath:          "/etc/datadog-agent/config.yaml",
-			Patch:             json.RawMessage(`{"key":"value"}`),
+			Operation: OperationUpdate,
+			GroupVersionKind: schema.GroupVersionKind{
+				Group:   "datadoghq.com",
+				Version: "v2alpha1",
+				Kind:    "DatadogAgent",
+			},
+			NamespacedName: types.NamespacedName{
+				Namespace: "datadog",
+				Name:      "datadog-agent",
+			},
+			Config: json.RawMessage(`{"spec":{"features":{"apm":{"enabled":true}}}}`),
 		},
 	},
 }
@@ -30,7 +41,7 @@ var testInstallerConfig = installerConfig{
 var testRemoteAPIRequest = remoteAPIRequest{
 	ID:     "test",
 	Method: "some_method",
-	Params: json.RawMessage(`{}`),
+	Params: experimentParams{},
 }
 
 // callbackMock records calls made by the RC handler callbacks.
@@ -64,7 +75,7 @@ func marshalRawConfig(t *testing.T, v any) state.RawConfig {
 
 func TestInstallerConfigUpdate(t *testing.T) {
 	cb := &callbackMock{}
-	handler := handleInstallerConfigUpdate(cb.handleConfigs)
+	handler := handleInstallerConfigUpdate(context.Background(), cb.handleConfigs)
 
 	raw := marshalRawConfig(t, testInstallerConfig)
 	updates := map[string]state.RawConfig{"path/to/config": raw}
@@ -81,7 +92,7 @@ func TestInstallerConfigUpdate(t *testing.T) {
 
 func TestInstallerConfigUpdateBadConfig(t *testing.T) {
 	cb := &callbackMock{}
-	handler := handleInstallerConfigUpdate(cb.handleConfigs)
+	handler := handleInstallerConfigUpdate(context.Background(), cb.handleConfigs)
 
 	updates := map[string]state.RawConfig{
 		"path/to/config": {Config: []byte("not json")},
@@ -101,7 +112,7 @@ func TestInstallerConfigUpdateBadConfig(t *testing.T) {
 
 func TestInstallerConfigUpdateError(t *testing.T) {
 	cb := &callbackMock{}
-	handler := handleInstallerConfigUpdate(cb.handleConfigs)
+	handler := handleInstallerConfigUpdate(context.Background(), cb.handleConfigs)
 
 	raw := marshalRawConfig(t, testInstallerConfig)
 	updates := map[string]state.RawConfig{"path/to/config": raw}
@@ -124,23 +135,66 @@ func TestInstallerConfigUpdateError(t *testing.T) {
 
 func TestRemoteAPIRequest(t *testing.T) {
 	cb := &callbackMock{}
-	handler := handleUpdaterTaskUpdate(cb.handleRemoteAPIRequest)
+	handler := handleUpdaterTaskUpdate(context.Background(), cb.handleRemoteAPIRequest)
 
 	raw := marshalRawConfig(t, testRemoteAPIRequest)
 	updates := map[string]state.RawConfig{"path/to/task": raw}
 
 	cb.On("handleRemoteAPIRequest", testRemoteAPIRequest).Return(nil)
+	cb.On("applyStateCallback", "path/to/task", state.ApplyStatus{State: state.ApplyStateUnacknowledged}).Return()
 	cb.On("applyStateCallback", "path/to/task", state.ApplyStatus{State: state.ApplyStateAcknowledged}).Return()
 
 	handler(updates, cb.applyStateCallback)
 
 	cb.AssertCalled(t, "handleRemoteAPIRequest", testRemoteAPIRequest)
+	cb.AssertCalled(t, "applyStateCallback", "path/to/task", state.ApplyStatus{State: state.ApplyStateUnacknowledged})
 	cb.AssertCalled(t, "applyStateCallback", "path/to/task", state.ApplyStatus{State: state.ApplyStateAcknowledged})
+}
+
+func TestRemoteAPIRequestParsesParamsVersion(t *testing.T) {
+	// Verifies that a real UPDATER_TASK payload has params.version correctly parsed.
+	cb := &callbackMock{}
+	handler := handleUpdaterTaskUpdate(context.Background(), cb.handleRemoteAPIRequest)
+
+	rawPayload := []byte(`{
+		"id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+		"package_name": "datadog-operator",
+		"trace_id": "12345678901234567890",
+		"parent_span_id": "11111111111111111111",
+		"expected_state": {
+			"stable": "0.0.1",
+			"experiment": "",
+			"stable_config": "0.0.1",
+			"client_id": "aAbBcCdDeEfFgGhHiIjJk"
+		},
+		"method": "operator/start_datadogagent_experiment",
+		"params": {
+			"version": "aaaa-bbbb-cccc"
+		}
+	}`)
+
+	updates := map[string]state.RawConfig{
+		"datadog/2/UPDATER_TASK/a1b2c3d4/1234567890abcdef": {Config: rawPayload},
+	}
+
+	cb.On("handleRemoteAPIRequest", mock.MatchedBy(func(req remoteAPIRequest) bool {
+		return req.ID == "a1b2c3d4-e5f6-7890-abcd-ef1234567890" &&
+			req.Method == "operator/start_datadogagent_experiment" &&
+			req.Params.Version == "aaaa-bbbb-cccc" &&
+			req.ExpectedState.StableConfig == "0.0.1"
+	})).Return(nil)
+	cb.On("applyStateCallback", mock.Anything, mock.Anything).Return()
+
+	handler(updates, cb.applyStateCallback)
+
+	cb.AssertCalled(t, "handleRemoteAPIRequest", mock.MatchedBy(func(req remoteAPIRequest) bool {
+		return req.Params.Version == "aaaa-bbbb-cccc"
+	}))
 }
 
 func TestRemoteAPIRequestBadConfig(t *testing.T) {
 	cb := &callbackMock{}
-	handler := handleUpdaterTaskUpdate(cb.handleRemoteAPIRequest)
+	handler := handleUpdaterTaskUpdate(context.Background(), cb.handleRemoteAPIRequest)
 
 	updates := map[string]state.RawConfig{
 		"path/to/task": {Config: []byte("not json")},
@@ -160,12 +214,13 @@ func TestRemoteAPIRequestBadConfig(t *testing.T) {
 
 func TestRemoteAPIRequestError(t *testing.T) {
 	cb := &callbackMock{}
-	handler := handleUpdaterTaskUpdate(cb.handleRemoteAPIRequest)
+	handler := handleUpdaterTaskUpdate(context.Background(), cb.handleRemoteAPIRequest)
 
 	raw := marshalRawConfig(t, testRemoteAPIRequest)
 	updates := map[string]state.RawConfig{"path/to/task": raw}
 
 	cb.On("handleRemoteAPIRequest", testRemoteAPIRequest).Return(assert.AnError)
+	cb.On("applyStateCallback", "path/to/task", state.ApplyStatus{State: state.ApplyStateUnacknowledged}).Return()
 	cb.On("applyStateCallback", "path/to/task", mock.MatchedBy(func(s state.ApplyStatus) bool {
 		return s.State == state.ApplyStateError && s.Error != ""
 	})).Return()
@@ -173,6 +228,7 @@ func TestRemoteAPIRequestError(t *testing.T) {
 	handler(updates, cb.applyStateCallback)
 
 	cb.AssertCalled(t, "handleRemoteAPIRequest", testRemoteAPIRequest)
+	cb.AssertCalled(t, "applyStateCallback", "path/to/task", state.ApplyStatus{State: state.ApplyStateUnacknowledged})
 	cb.AssertCalled(t, "applyStateCallback", "path/to/task", mock.MatchedBy(func(s state.ApplyStatus) bool {
 		return s.State == state.ApplyStateError
 	}))
@@ -180,22 +236,23 @@ func TestRemoteAPIRequestError(t *testing.T) {
 
 func TestRemoteAPIRequestIgnoresAlreadyExecutedRequests(t *testing.T) {
 	cb := &callbackMock{}
-	handler := handleUpdaterTaskUpdate(cb.handleRemoteAPIRequest)
+	handler := handleUpdaterTaskUpdate(context.Background(), cb.handleRemoteAPIRequest)
 
 	raw := marshalRawConfig(t, testRemoteAPIRequest)
 	updates := map[string]state.RawConfig{"path/to/task": raw}
 
 	cb.On("handleRemoteAPIRequest", testRemoteAPIRequest).Return(nil)
+	cb.On("applyStateCallback", "path/to/task", state.ApplyStatus{State: state.ApplyStateUnacknowledged}).Return()
 	cb.On("applyStateCallback", "path/to/task", state.ApplyStatus{State: state.ApplyStateAcknowledged}).Return()
 
-	// First call — should invoke the handler.
+	// First call — should invoke the handler; sends Unacknowledged then Acknowledged.
 	handler(updates, cb.applyStateCallback)
 	cb.AssertNumberOfCalls(t, "handleRemoteAPIRequest", 1)
 
-	// Second call with same request ID — handler must NOT be called again.
+	// Second call with same request ID — handler must NOT be called again; sends only Acknowledged.
 	handler(updates, cb.applyStateCallback)
 	cb.AssertNumberOfCalls(t, "handleRemoteAPIRequest", 1)
 
-	// applyStateCallback is called both times (acknowledge on repeat).
-	cb.AssertNumberOfCalls(t, "applyStateCallback", 2)
+	// First call: Unacknowledged + Acknowledged. Second call: Acknowledged only.
+	cb.AssertNumberOfCalls(t, "applyStateCallback", 3)
 }

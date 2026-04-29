@@ -139,7 +139,7 @@ const (
 
 	defaultControlPlaneMonitoringEnabled bool = true
 
-	defaultDataPlaneDogstatsdEnabled bool = false
+	defaultDataPlaneDogstatsdEnabled bool = true
 )
 
 // DefaultDatadogAgentSpec defaults the DatadogAgentSpec GlobalConfig and Features.

@@ -78,10 +78,11 @@ func IsDataPlaneEnabled(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) b
 }
 
 // IsDataPlaneDogstatsdEnabled returns true if the Data Plane should handle DogStatsD.
+// Defaults to true: when data_plane.enabled=true, ADP handles DogStatsD unless explicitly disabled.
 func IsDataPlaneDogstatsdEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	if ddaSpec.Features != nil && ddaSpec.Features.DataPlane != nil &&
 		ddaSpec.Features.DataPlane.Dogstatsd != nil && ddaSpec.Features.DataPlane.Dogstatsd.Enabled != nil {
 		return *ddaSpec.Features.DataPlane.Dogstatsd.Enabled
 	}
-	return false
+	return true
 }

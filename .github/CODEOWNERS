@@ -22,7 +22,7 @@ README.md               @DataDog/documentation  @DataDog/container-platform
 /internal/controller/datadogagent/feature/controlplanemonitoring    @DataDog/container-integrations @DataDog/container-platform
 /internal/controller/datadogagent/feature/cspm                      @DataDog/agent-security         @DataDog/container-platform
 /internal/controller/datadogagent/feature/cws                       @DataDog/agent-security         @DataDog/container-platform
-/internal/controller/datadogagent/feature/dataplane                 @DataDog/agent-metric-pipelines @DataDog/container-platform
+/internal/controller/datadogagent/feature/dataplane                 @DataDog/agent-data-plane       @DataDog/container-platform
 /internal/controller/datadogagent/feature/dogstatsd                 @DataDog/agent-metric-pipelines @DataDog/container-platform
 /internal/controller/datadogagent/feature/dummy                     @DataDog/container-platform
 /internal/controller/datadogagent/feature/ebpfcheck                 @DataDog/ebpf-platform          @DataDog/container-platform

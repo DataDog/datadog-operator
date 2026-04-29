@@ -16,19 +16,19 @@ import (
 
 const (
 	// AgentLatestVersion corresponds to the latest stable agent release
-	AgentLatestVersion = "7.77.2"
+	AgentLatestVersion = "7.78.1"
 	// ClusterAgentLatestVersion corresponds to the latest stable cluster-agent release
-	ClusterAgentLatestVersion = "7.77.2"
+	ClusterAgentLatestVersion = "7.78.1"
 	// DdotCollectorLatestVersion corresponds to the latest stable ddot-collector release
-	DdotCollectorLatestVersion = "7.77.2"
+	DdotCollectorLatestVersion = "7.78.1"
 	// FIPSProxyLatestVersion corresponds to the latest stable fips-proxy release
-	FIPSProxyLatestVersion = "1.1.21"
+	FIPSProxyLatestVersion = "1.1.23"
 	// DDOTFIPSMinimumVersion is the minimum version at which ddot-collector publishes a -fips variant.
 	// Note: the regular agent -fips image predates this; this constant only applies to ddot-collector.
 	// Add "-0" so that pre-release versions are considered sufficient. https://github.com/Masterminds/semver#working-with-prerelease-versions
 	DDOTFIPSMinimumVersion = "7.78.0-0"
 	// CSILatestImageVersion corresponds to the latest stable Datadog CSIDriver release
-	CSILatestImageVersion = "1.2.1"
+	CSILatestImageVersion = "1.2.2"
 	// DefaultRegistrarImageVersion corresponds to the default CSI registrar image used
 	DefaultRegistrarImageVersion = "v2.0.1"
 	// Datadog container registry

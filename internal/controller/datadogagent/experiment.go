@@ -17,12 +17,26 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
 // ExperimentDefaultTimeout is the duration after which a running experiment is automatically rolled back.
 const ExperimentDefaultTimeout = 15 * time.Minute
+
+// annotationExperimentRollback marks a ControllerRevision whose experiment was
+// rejected (rollback, timeout, or abort). The annotation tells handleRollback
+// to skip the timeout check (the CreationTimestamp is stale from the previous
+// experiment) and tells ensureRevision to delete+recreate the revision so it
+// gets a fresh timestamp when the same spec is re-applied.
+const annotationExperimentRollback = "operator.datadoghq.com/experiment-rollback"
+
+// annotationExperimentPromoted marks a ControllerRevision whose experiment was
+// promoted. The annotation tells handleRollback to skip the timeout check so
+// the stale CreationTimestamp doesn't cause a false timeout when a subsequent
+// experiment starts before its own revision is created.
+const annotationExperimentPromoted = "operator.datadoghq.com/experiment-promoted"
 
 // manageExperiment handles all experiment state transitions for a reconcile cycle.
 // Must be called before manageRevision.
@@ -43,19 +57,28 @@ func (r *Reconciler) manageExperiment(
 	if err := r.handleRollback(ctx, instance, newStatus, now, revList); err != nil {
 		return err
 	}
-	abortExperiment(ctx, instance.Generation, experiment, newStatus)
+	// Mark the highest revision when promoted so its stale timestamp doesn't
+	// cause a false timeout if a new experiment starts before manageRevision
+	// creates a fresh revision.
+	if experiment.Phase == v2alpha1.ExperimentPhasePromoted {
+		if rev := highestRevision(revList); rev != nil {
+			r.annotateRevision(ctx, rev, annotationExperimentPromoted)
+		}
+	}
+	r.abortExperiment(ctx, instance, experiment, newStatus, revList)
 	return nil
 }
 
 // abortExperiment marks the experiment as aborted in newStatus if a manual spec
-// change is detected (DDA generation differs from the recorded experiment generation).
+// change is detected (current spec doesn't match any known ControllerRevision).
 // It is a no-op if handleRollback has already set a terminal phase (e.g. timeout),
 // preventing spurious abort logs and phase overwrites.
-func abortExperiment(
+func (r *Reconciler) abortExperiment(
 	ctx context.Context,
-	instanceGeneration int64,
+	instance *v2alpha1.DatadogAgent,
 	experiment *v2alpha1.ExperimentStatus,
 	newStatus *v2alpha1.DatadogAgentStatus,
+	revisions []appsv1.ControllerRevision,
 ) {
 	if experiment.Phase != v2alpha1.ExperimentPhaseRunning {
 		return
@@ -64,11 +87,31 @@ func abortExperiment(
 		// handleRollback already determined a terminal phase (e.g. timeout); don't overwrite or log.
 		return
 	}
-	if experiment.Generation == 0 || instanceGeneration == experiment.Generation {
+	// On the first reconcile after experiment start, the new revision hasn't
+	// been created yet (manageExperiment runs before manageRevision). With
+	// only one revision (the pre-experiment baseline), the current spec won't
+	// match it — but that's expected, not a manual change. Skip the check
+	// when fewer than 2 revisions exist.
+	if len(revisions) < 2 {
+		return
+	}
+	if findMostRecentMatchingRevision(revisions, instance) != nil {
+		// Spec matches a known revision — no manual change detected.
+		// Edge case: if the user manually reverts to the pre-experiment spec, it
+		// matches the baseline revision, so abort does not fire. The experiment
+		// still terminates via timeout (the baseline revision's old timestamp
+		// exceeds the timeout threshold), and the rollback is a no-op because
+		// the spec already matches the target. The phase will read "timeout"
+		// rather than "aborted", but the end state is correct.
 		return
 	}
 	ctrl.LoggerFrom(ctx).Info("Aborting experiment due to manual spec change")
 	newStatus.Experiment.Phase = v2alpha1.ExperimentPhaseAborted
+	// Mark the experiment revision (highest-numbered) so its stale timestamp
+	// doesn't cause an immediate timeout if the same spec is re-applied.
+	if rev := highestRevision(revisions); rev != nil {
+		r.annotateRevision(ctx, rev, annotationExperimentRollback)
+	}
 }
 
 // handleRollback checks if the experiment needs rollback (explicit stop or timeout).
@@ -93,6 +136,19 @@ func (r *Reconciler) handleRollback(
 		return r.restorePreviousSpec(ctx, instance.ObjectMeta, newStatus, revisions, v2alpha1.ExperimentPhaseRollback)
 	case phase == v2alpha1.ExperimentPhaseRunning:
 		rev := findMostRecentMatchingRevision(revisions, instance)
+		if rev == nil && len(revisions) >= 2 {
+			// Spec was manually changed — no revision matches the current spec.
+			// Fall back to the highest-numbered revision (the experiment revision)
+			// so we can still detect timeout even after a manual spec change.
+			rev = highestRevision(revisions)
+			// Only skip for annotations in the fallback path: the spec doesn't
+			// match any revision (e.g. new experiment before manageRevision runs).
+			// Annotations on fallback revisions indicate a prior experiment's
+			// terminal state — their stale timestamps must not cause false timeouts.
+			if rev != nil && (rev.Annotations[annotationExperimentRollback] == "true" || rev.Annotations[annotationExperimentPromoted] == "true") {
+				break
+			}
+		}
 		if rev != nil {
 			elapsed := now.Sub(rev.CreationTimestamp.Time)
 			if elapsed >= getExperimentTimeout(r.options.ExperimentTimeout) {
@@ -106,7 +162,10 @@ func (r *Reconciler) handleRollback(
 }
 
 // restorePreviousSpec restores the DDA spec from the previous ControllerRevision
-// and, on success, sets the terminal experiment phase.
+// and, on success, sets the terminal experiment phase. It also marks the
+// experiment revision (the highest-numbered, non-rollback-target revision) with
+// the rollback annotation so its stale CreationTimestamp doesn't cause an
+// immediate timeout if the same spec is re-applied later.
 func (r *Reconciler) restorePreviousSpec(
 	ctx context.Context,
 	instanceMeta metav1.ObjectMeta,
@@ -114,10 +173,20 @@ func (r *Reconciler) restorePreviousSpec(
 	revisions []appsv1.ControllerRevision,
 	terminalPhase v2alpha1.ExperimentPhase,
 ) error {
-	if err := r.rollback(ctx, instanceMeta, findRollbackTarget(revisions)); err != nil {
+	rollbackTarget := findRollbackTarget(revisions)
+	if err := r.rollback(ctx, instanceMeta, rollbackTarget); err != nil {
 		return err
 	}
 	newStatus.Experiment.Phase = terminalPhase
+	// Mark the experiment revision (highest-numbered) so its stale timestamp
+	// doesn't cause an immediate timeout if the same spec is re-applied.
+	// Only annotate the highest revision rather than all non-rollback-target
+	// revisions: if GC failed on a prior reconcile there may be 3+ revisions,
+	// and annotating old baselines would cause needless delete+recreate in
+	// ensureRevision if those specs are ever re-applied.
+	if rev := highestRevision(revisions); rev != nil && rev.Name != rollbackTarget {
+		r.annotateRevision(ctx, rev, annotationExperimentRollback)
+	}
 	return nil
 }
 
@@ -128,7 +197,8 @@ func (r *Reconciler) rollback(
 	rollbackTarget string,
 ) error {
 	if rollbackTarget == "" {
-		return fmt.Errorf("no previous revision to roll back to")
+		ctrl.LoggerFrom(ctx).Info("No previous revision to roll back to, skipping spec restore")
+		return nil
 	}
 
 	cr := &appsv1.ControllerRevision{}
@@ -159,6 +229,9 @@ func (r *Reconciler) rollback(
 	// Merge snapshot annotations (Datadog-only keys) on top of current annotations
 	// so that non-Datadog annotations (user metadata, tooling labels, etc.) are preserved.
 	merged := maps.Clone(current.Annotations)
+	if merged == nil {
+		merged = make(map[string]string, len(snapshot.Annotations))
+	}
 	maps.Copy(merged, snapshot.Annotations)
 
 	toUpdate := &v2alpha1.DatadogAgent{
@@ -215,6 +288,37 @@ func findMostRecentMatchingRevision(revisions []appsv1.ControllerRevision, insta
 		}
 	}
 	return result
+}
+
+// highestRevision returns the revision with the largest Revision number.
+func highestRevision(revisions []appsv1.ControllerRevision) *appsv1.ControllerRevision {
+	var result *appsv1.ControllerRevision
+	for i := range revisions {
+		if result == nil || revisions[i].Revision > result.Revision {
+			result = &revisions[i]
+		}
+	}
+	return result
+}
+
+// annotateRevision sets the given annotation on a ControllerRevision.
+// This is best-effort: if the patch fails, the stale timestamp remains
+// but is no worse than the existing behavior.
+func (r *Reconciler) annotateRevision(ctx context.Context, rev *appsv1.ControllerRevision, annotation string) {
+	if rev.Annotations[annotation] == "true" {
+		return // already annotated
+	}
+	logger := ctrl.LoggerFrom(ctx).WithValues(
+		"object.kind", "ControllerRevision",
+		"object.namespace", rev.Namespace,
+		"object.name", rev.Name,
+	)
+	patch := []byte(`{"metadata":{"annotations":{"` + annotation + `":"true"}}}`)
+	if err := r.client.Patch(ctx, rev, client.RawPatch(types.MergePatchType, patch)); err != nil {
+		logger.Error(err, "Failed to annotate experiment revision", "annotation", annotation)
+		return
+	}
+	logger.Info("Annotated experiment revision", "annotation", annotation)
 }
 
 func getExperimentTimeout(timeout time.Duration) time.Duration {
