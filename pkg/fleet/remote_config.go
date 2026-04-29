@@ -62,8 +62,9 @@ type expectedState struct {
 
 // experimentParams holds the parsed params for experiment methods.
 type experimentParams struct {
-	Version        string               `json:"version"`
-	NamespacedName types.NamespacedName `json:"namespaced_name"`
+	Version          string                  `json:"version"`
+	NamespacedName   types.NamespacedName    `json:"namespaced_name"`
+	GroupVersionKind schema.GroupVersionKind `json:"group_version_kind"`
 }
 
 // handleInstallerConfigUpdate returns an RC subscription callback that parses

@@ -196,11 +196,15 @@ func (d *Daemon) resolveOperation(req remoteAPIRequest, signal string) (fleetMan
 	}
 	op := cfg.Operations[0]
 
+	gvk := req.Params.GroupVersionKind
+	if gvk.Kind == "" {
+		gvk = v2alpha1.GroupVersion.WithKind("DatadogAgent")
+	}
+	op.GroupVersionKind = gvk
+
 	if err := validateOperation(op); err != nil {
 		return fleetManagementOperation{}, fmt.Errorf("%s: invalid operation: %w", signal, err)
 	}
-
-	op.GroupVersionKind = v2alpha1.GroupVersion.WithKind("DatadogAgent")
 
 	return op, nil
 }
