@@ -8,10 +8,12 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/samber/lo"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/pager"
 )
 
 // Datadog-namespaced labels written via the Karpenter chart's additionalLabels.
@@ -39,11 +41,6 @@ const karpenterServiceEnvName = "KARPENTER_SERVICE"
 // component-aware (not a substring) so `team/karpenter/controllers` or
 // `someone/karpenter/controller-something` do not false-positive.
 const karpenterControllerImageRepoSuffix = "karpenter/controller"
-
-// deploymentListChunkSize bounds the size of a single List response so we
-// don't pull thousands of Deployments into memory at once on dense clusters.
-// Matches the chunk size used by GetNodesProperties.
-const deploymentListChunkSize = 100
 
 // errStopScan is a sentinel returned by visit callbacks to stop the
 // Deployment scan once the caller has found what it needs. Stripped at the
@@ -119,53 +116,35 @@ func FindForeignKarpenterInstallation(ctx context.Context, clientset kubernetes.
 	return found, err
 }
 
-// scanKarpenterInstallations walks every Deployment cluster-wide and invokes
-// visit on each one whose pod spec matches the Karpenter controller
-// fingerprint. Returning errStopScan from visit halts the walk; any other
-// error propagates. Looking at the running controller is more robust than
-// RBAC-based detection — monitoring or management roles legitimately hold
-// permissions on the `karpenter.sh` API group without running a controller,
-// and a Deployment that matches either container signal is the only one
-// that distinguishes "Karpenter is actually running" from "something has
-// read access to its CRs".
-//
-// The list is paginated with an early exit on the first errStopScan: dense
-// clusters with thousands of Deployments do not need to be fully materialised
-// in memory just to answer "is there at least one matching Deployment".
+// scanKarpenterInstallations walks every Deployment cluster-wide via
+// pager.ListPager and invokes visit on each one whose pod spec matches the
+// Karpenter controller fingerprint. Returning errStopScan from visit halts
+// the walk; any other error propagates. Looking at the running controller is
+// more robust than RBAC-based detection — monitoring or management roles
+// legitimately hold permissions on the `karpenter.sh` API group without
+// running a controller, and a Deployment that matches either container
+// signal is the only one that distinguishes "Karpenter is actually running"
+// from "something has read access to its CRs".
 func scanKarpenterInstallations(ctx context.Context, clientset kubernetes.Interface, visit func(*KarpenterInstallation) error) error {
-	var cont string
-	for {
-		deps, err := clientset.AppsV1().Deployments(metav1.NamespaceAll).List(ctx, metav1.ListOptions{
-			Limit:    deploymentListChunkSize,
-			Continue: cont,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to list Deployments: %w", err)
-		}
-
-		for _, dep := range deps.Items {
-			if !hasKarpenterControllerContainer(dep.Spec.Template.Spec.Containers) {
-				continue
-			}
-			err := visit(&KarpenterInstallation{
-				Namespace:        dep.Namespace,
-				Name:             dep.Name,
-				InstalledBy:      dep.Labels[InstalledByLabel],
-				InstallerVersion: dep.Labels[InstallerVersionLabel],
-			})
-			if errors.Is(err, errStopScan) {
-				return nil
-			}
-			if err != nil {
-				return err
-			}
-		}
-
-		cont = deps.Continue
-		if cont == "" {
+	p := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+		return clientset.AppsV1().Deployments(metav1.NamespaceAll).List(ctx, opts)
+	})
+	err := p.EachListItem(ctx, metav1.ListOptions{}, func(obj runtime.Object) error {
+		dep := obj.(*appsv1.Deployment)
+		if !hasKarpenterControllerContainer(dep.Spec.Template.Spec.Containers) {
 			return nil
 		}
+		return visit(&KarpenterInstallation{
+			Namespace:        dep.Namespace,
+			Name:             dep.Name,
+			InstalledBy:      dep.Labels[InstalledByLabel],
+			InstallerVersion: dep.Labels[InstallerVersionLabel],
+		})
+	})
+	if err != nil && !errors.Is(err, errStopScan) {
+		return fmt.Errorf("failed to list Deployments: %w", err)
 	}
+	return nil
 }
 
 // hasKarpenterControllerContainer reports whether any container in the pod
@@ -173,14 +152,10 @@ func scanKarpenterInstallations(ctx context.Context, clientset kubernetes.Interf
 // chart-unconditional KARPENTER_SERVICE env var; secondary is the canonical
 // `karpenter/controller` image repository tail.
 func hasKarpenterControllerContainer(containers []corev1.Container) bool {
-	return lo.ContainsBy(containers, isKarpenterControllerContainer)
-}
-
-func isKarpenterControllerContainer(c corev1.Container) bool {
-	if lo.ContainsBy(c.Env, func(e corev1.EnvVar) bool { return e.Name == karpenterServiceEnvName }) {
-		return true
-	}
-	return imageRepoEndsWith(c.Image, karpenterControllerImageRepoSuffix)
+	return slices.ContainsFunc(containers, func(c corev1.Container) bool {
+		return slices.ContainsFunc(c.Env, func(e corev1.EnvVar) bool { return e.Name == karpenterServiceEnvName }) ||
+			imageRepoEndsWith(c.Image, karpenterControllerImageRepoSuffix)
+	})
 }
 
 // imageRepoEndsWith reports whether `image`'s repository path (with tag and

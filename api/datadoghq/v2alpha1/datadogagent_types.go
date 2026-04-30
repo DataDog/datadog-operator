@@ -686,7 +686,8 @@ type USMFeatureConfig struct {
 // ServiceDiscoveryFeatureConfig configures the service discovery check feature.
 type ServiceDiscoveryFeatureConfig struct {
 	// Enables the service discovery check.
-	// Default: false
+	// Default: true when omitted and the node Agent image is >= 7.78.0. Otherwise false.
+	// If the image version cannot be determined, it is treated as latest.
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
