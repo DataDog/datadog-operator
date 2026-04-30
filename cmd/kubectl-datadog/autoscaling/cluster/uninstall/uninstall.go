@@ -39,6 +39,7 @@ import (
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/display"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/helm"
 	commonk8s "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/k8s"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/guess"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
@@ -563,8 +564,8 @@ func deleteKarpenterInstanceProfiles(ctx context.Context, cli *clients.Clients, 
 
 func listCloudFormationStacks(ctx context.Context, cli *clients.Clients, clusterName string) ([]string, error) {
 	stackNames := []string{
-		"dd-karpenter-" + clusterName + "-karpenter",
-		"dd-karpenter-" + clusterName + "-dd-karpenter",
+		install.KarpenterStackName(clusterName),
+		install.DDKarpenterStackName(clusterName),
 	}
 
 	var existing []string
@@ -581,11 +582,11 @@ func listCloudFormationStacks(ctx context.Context, cli *clients.Clients, cluster
 }
 
 func deleteCloudFormationStacks(ctx context.Context, cli *clients.Clients, clusterName string) error {
-	if err := aws.DeleteStack(ctx, cli.CloudFormation, "dd-karpenter-"+clusterName+"-dd-karpenter"); err != nil {
+	if err := aws.DeleteStack(ctx, cli.CloudFormation, install.DDKarpenterStackName(clusterName)); err != nil {
 		return fmt.Errorf("failed to delete dd-karpenter CloudFormation stack: %w", err)
 	}
 
-	if err := aws.DeleteStack(ctx, cli.CloudFormation, "dd-karpenter-"+clusterName+"-karpenter"); err != nil {
+	if err := aws.DeleteStack(ctx, cli.CloudFormation, install.KarpenterStackName(clusterName)); err != nil {
 		return fmt.Errorf("failed to delete karpenter CloudFormation stack: %w", err)
 	}
 

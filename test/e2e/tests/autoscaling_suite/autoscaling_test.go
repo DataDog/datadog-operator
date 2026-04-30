@@ -319,6 +319,60 @@ func (s *autoscalingSuite) TestAutoscalingInferenceMethodNodes() {
 	})
 }
 
+// TestAutoscalingUpdate exercises the `update` command's auto-detection of
+// immutable parameters and refusal to act on an empty cluster.
+func (s *autoscalingSuite) TestAutoscalingUpdate() {
+	ctx := s.T().Context()
+
+	s.Run("Update refuses on a cluster without prior install", func() {
+		updateCtx, cancel := context.WithTimeout(s.T().Context(), 5*time.Minute)
+		defer cancel()
+		output, err := s.runKubectlDatadog(updateCtx, "autoscaling", "cluster", "update", "--cluster-name", s.clusterName)
+		require.Errorf(s.T(), err, "Update should fail when no Karpenter is installed. Output:\n%s", output)
+		assert.Contains(s.T(), output, "no Karpenter installation found",
+			"Update without prior install should surface the explanatory error to the user")
+	})
+
+	s.Run("Install with explicit fargate mode", func() {
+		s.testInstall("--install-mode=fargate")
+		s.waitForAllPodsRunning(ctx)
+	})
+
+	s.Run("Update with no flags auto-detects every immutable parameter", func() {
+		// No --install-mode, --karpenter-namespace, --fargate-subnets:
+		// update must read them back from the dd-karpenter CFN stack.
+		s.testUpdate()
+		s.waitForAllPodsRunning(ctx)
+	})
+
+	s.Run("Update is idempotent", func() {
+		s.testUpdate()
+		s.waitForAllPodsRunning(ctx)
+	})
+
+	s.Run("Update with --create-karpenter-resources=all regenerates resources", func() {
+		s.testUpdate("--create-karpenter-resources=all")
+		s.waitForAllPodsRunning(ctx)
+	})
+
+	s.Run("Update rejects a contradictory --install-mode", func() {
+		updateCtx, cancel := context.WithTimeout(s.T().Context(), 5*time.Minute)
+		defer cancel()
+		output, err := s.runKubectlDatadog(updateCtx,
+			"autoscaling", "cluster", "update",
+			"--cluster-name", s.clusterName,
+			"--install-mode=existing-nodes")
+		require.Errorf(s.T(), err, "Update should reject a contradictory --install-mode. Output:\n%s", output)
+		assert.Contains(s.T(), output, "--install-mode=existing-nodes",
+			"the error must echo the user's flag so they understand which value was wrong")
+	})
+
+	s.Run("Uninstall cleans up resources", func() {
+		s.testUninstall()
+		s.waitForPendingPods(ctx, 1)
+	})
+}
+
 // testInstall tests the default install flow
 func (s *autoscalingSuite) testInstall(extraArgs ...string) {
 	t := s.T()
@@ -332,6 +386,23 @@ func (s *autoscalingSuite) testInstall(extraArgs ...string) {
 	t.Logf("Install output:\n%s", output)
 
 	// Verify installation
+	s.verifyKarpenterInstalled(ctx)
+}
+
+// testUpdate runs the update command and verifies that the existing
+// installation is still in place afterwards. extraArgs lets callers exercise
+// flag overrides; with no flags, update auto-detects every immutable
+// parameter from the dd-karpenter CFN stack.
+func (s *autoscalingSuite) testUpdate(extraArgs ...string) {
+	t := s.T()
+	ctx, cancel := context.WithTimeout(t.Context(), 25*time.Minute)
+	defer cancel()
+
+	args := append([]string{"autoscaling", "cluster", "update", "--cluster-name", s.clusterName}, extraArgs...)
+	output, err := s.runKubectlDatadog(ctx, args...)
+	require.NoErrorf(t, err, "Update command failed. Output:\n%s", output)
+	t.Logf("Update output:\n%s", output)
+
 	s.verifyKarpenterInstalled(ctx)
 }
 

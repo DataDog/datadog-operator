@@ -2,14 +2,50 @@ package install
 
 import (
 	"bytes"
+	"io"
 	"testing"
 
-	"github.com/spf13/cobra"
+	awssdk "github.com/aws/aws-sdk-go-v2/aws"
+	cfntypes "github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/guess"
 )
+
+// stackFixture builds a fake aws.Stack with the requested install-mode tag and
+// parameters so check helpers and DetectedInstallMode can be unit-tested
+// without an AWS client.
+func stackFixture(installModeTag string, params map[string]string) *aws.Stack {
+	stack := &cfntypes.Stack{
+		StackName: awssdk.String("dd-karpenter-mycluster-dd-karpenter"),
+	}
+	if installModeTag != "" {
+		stack.Tags = append(stack.Tags, cfntypes.Tag{
+			Key:   awssdk.String(InstallModeTagKey),
+			Value: awssdk.String(installModeTag),
+		})
+	}
+	for k, v := range params {
+		stack.Parameters = append(stack.Parameters, cfntypes.Parameter{
+			ParameterKey:   awssdk.String(k),
+			ParameterValue: awssdk.String(v),
+		})
+	}
+	return &aws.Stack{Stack: stack}
+}
+
+// noopStreams returns IOStreams that drop all output, for tests that only
+// exercise pure logic and do not need to assert on rendered text.
+func noopStreams() genericclioptions.IOStreams {
+	return genericclioptions.IOStreams{
+		In:     io.NopCloser(nil),
+		Out:    io.Discard,
+		ErrOut: io.Discard,
+	}
+}
 
 func TestInstallMode_String(t *testing.T) {
 	for _, tc := range []struct {
@@ -250,7 +286,7 @@ func TestKarpenterHelmValues(t *testing.T) {
 		labels, ok := values["additionalLabels"].(map[string]any)
 		require.True(t, ok, "additionalLabels must be a map")
 		assert.Equal(t, guess.InstalledByValue, labels[guess.InstalledByLabel],
-			"installed-by sentinel must match what FindForeignKarpenterInstallation looks for")
+			"installed-by sentinel must match what FindKarpenterInstallation looks for")
 		assert.Contains(t, labels, guess.InstallerVersionLabel)
 
 		settings, ok := values["settings"].(map[string]any)
@@ -282,12 +318,13 @@ func TestDisplayForeignKarpenterMessage(t *testing.T) {
 	t.Setenv("PATH", "")
 
 	out := &bytes.Buffer{}
-	cmd := &cobra.Command{}
-	cmd.SetOut(out)
-	cmd.SetErr(&bytes.Buffer{})
+	streams := genericclioptions.IOStreams{
+		Out:    out,
+		ErrOut: &bytes.Buffer{},
+	}
 
-	foreign := &guess.ForeignKarpenter{Namespace: "karpenter", Name: "karpenter"}
-	err := displayForeignKarpenterMessage(cmd, "my-cluster", foreign)
+	foreign := &guess.KarpenterInstallation{Namespace: "karpenter", Name: "karpenter"}
+	err := displayForeignKarpenterMessage(streams, "my-cluster", foreign)
 	require.NoError(t, err, "foreign Karpenter is a successful no-op, not an error")
 
 	rendered := out.String()
@@ -298,6 +335,206 @@ func TestDisplayForeignKarpenterMessage(t *testing.T) {
 	assert.Contains(t, rendered, "Autoscaling settings page")
 	assert.Contains(t, rendered, "kube_cluster_name%3Amy-cluster",
 		"the linked URL must point at the cluster's autoscaling settings")
+}
+
+func TestKarpenterStackName(t *testing.T) {
+	// The mode-independent stack name is what uninstall and update both rely
+	// on to find the install — pin it so a rename does not silently break
+	// either command.
+	assert.Equal(t, "dd-karpenter-prod-eu-karpenter", KarpenterStackName("prod-eu"))
+}
+
+func TestDDKarpenterStackName(t *testing.T) {
+	// Same reasoning as TestKarpenterStackName — the dd-karpenter (mode-
+	// specific) stack name is the source of truth for update's install-mode
+	// auto-detection, so the format is part of the contract with previously
+	// installed clusters.
+	assert.Equal(t, "dd-karpenter-prod-eu-dd-karpenter", DDKarpenterStackName("prod-eu"))
+}
+
+func TestDetectedInstallMode(t *testing.T) {
+	t.Run("fargate tag returns InstallModeFargate", func(t *testing.T) {
+		stack := stackFixture("fargate", nil)
+		assert.Equal(t, InstallModeFargate, DetectedInstallMode(stack))
+	})
+
+	t.Run("existing-nodes tag returns InstallModeExistingNodes", func(t *testing.T) {
+		stack := stackFixture("existing-nodes", nil)
+		assert.Equal(t, InstallModeExistingNodes, DetectedInstallMode(stack))
+	})
+
+	t.Run("missing tag defaults to existing-nodes for legacy stacks", func(t *testing.T) {
+		// Stacks created before the install-mode tag was introduced predate
+		// the Fargate mode entirely, so existing-nodes is the correct
+		// fallback.
+		stack := stackFixture("", nil)
+		assert.Equal(t, InstallModeExistingNodes, DetectedInstallMode(stack))
+	})
+
+	t.Run("unknown tag value is surfaced verbatim so callers can reject it", func(t *testing.T) {
+		// DetectedInstallMode is a pure decoder — it does not validate the
+		// tag value. Callers (update.resolveOptions) inspect the returned
+		// mode and reject unsupported values with a clear error.
+		stack := stackFixture("custom", nil)
+		assert.Equal(t, InstallMode("custom"), DetectedInstallMode(stack))
+	})
+}
+
+func TestCheckInstallModeTag(t *testing.T) {
+	t.Run("nil stack accepts any mode (fresh install)", func(t *testing.T) {
+		require.NoError(t, checkInstallModeTag(nil, InstallModeFargate))
+		require.NoError(t, checkInstallModeTag(nil, InstallModeExistingNodes))
+	})
+
+	t.Run("matching mode is accepted", func(t *testing.T) {
+		stack := stackFixture("fargate", nil)
+		require.NoError(t, checkInstallModeTag(stack, InstallModeFargate))
+	})
+
+	t.Run("mismatched mode is rejected with explanatory error", func(t *testing.T) {
+		stack := stackFixture("fargate", nil)
+		err := checkInstallModeTag(stack, InstallModeExistingNodes)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "fargate")
+		assert.Contains(t, err.Error(), "existing-nodes")
+		assert.Contains(t, err.Error(), "uninstall")
+	})
+
+	t.Run("legacy untagged stack matches existing-nodes", func(t *testing.T) {
+		// Symmetric with TestDetectedInstallMode — a legacy stack must let
+		// existing-nodes installs proceed without forcing an uninstall.
+		stack := stackFixture("", nil)
+		require.NoError(t, checkInstallModeTag(stack, InstallModeExistingNodes))
+	})
+}
+
+func TestCheckFargateStackImmutability(t *testing.T) {
+	t.Run("nil stack accepts anything (fresh install)", func(t *testing.T) {
+		require.NoError(t, checkFargateStackImmutability(nil, "dd-karpenter", []string{"subnet-a"}))
+	})
+
+	t.Run("matching namespace and subnets pass", func(t *testing.T) {
+		stack := stackFixture("fargate", map[string]string{
+			"KarpenterNamespace": "dd-karpenter",
+			"FargateSubnets":     "subnet-a,subnet-b",
+		})
+		require.NoError(t, checkFargateStackImmutability(stack, "dd-karpenter", []string{"subnet-a", "subnet-b"}))
+	})
+
+	t.Run("mismatched namespace is rejected", func(t *testing.T) {
+		stack := stackFixture("fargate", map[string]string{
+			"KarpenterNamespace": "dd-karpenter",
+			"FargateSubnets":     "subnet-a",
+		})
+		err := checkFargateStackImmutability(stack, "other-ns", []string{"subnet-a"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "KarpenterNamespace=dd-karpenter")
+		assert.Contains(t, err.Error(), "uninstall")
+	})
+
+	t.Run("mismatched subnets are rejected", func(t *testing.T) {
+		stack := stackFixture("fargate", map[string]string{
+			"KarpenterNamespace": "dd-karpenter",
+			"FargateSubnets":     "subnet-a,subnet-b",
+		})
+		err := checkFargateStackImmutability(stack, "dd-karpenter", []string{"subnet-c"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "FargateSubnets=subnet-a,subnet-b")
+	})
+}
+
+func TestNew(t *testing.T) {
+	// Building the cobra command exercises the flag-registration block in
+	// New, which is otherwise unreachable from validate-only tests but is
+	// the part most likely to silently break a user's command line on
+	// rename.
+	cmd := New(noopStreams())
+	require.NotNil(t, cmd)
+	assert.Equal(t, "install", cmd.Use)
+
+	for _, name := range []string{
+		"cluster-name",
+		"karpenter-namespace",
+		"karpenter-version",
+		"install-mode",
+		"fargate-subnets",
+		"create-karpenter-resources",
+		"inference-method",
+		"debug",
+	} {
+		assert.NotNilf(t, cmd.Flags().Lookup(name), "--%s flag must be registered", name)
+	}
+}
+
+func TestComplete(t *testing.T) {
+	// complete just stashes the positional args and delegates to common.Init,
+	// which is exercised by the common package — pin the args plumbing so a
+	// future refactor cannot silently swallow them.
+	o := newOptions(noopStreams())
+	cmd := New(noopStreams())
+	require.NoError(t, o.complete(cmd, []string{"x", "y"}))
+	assert.Equal(t, []string{"x", "y"}, o.args)
+}
+
+func TestNewOptionsDefaults(t *testing.T) {
+	// install's default --create-karpenter-resources=all is the key UX
+	// difference vs update (none); pin it so the contract does not silently
+	// drift.
+	o := newOptions(noopStreams())
+	assert.Equal(t, InstallModeFargate, o.installMode)
+	assert.Equal(t, CreateKarpenterResourcesAll, o.createKarpenterResources,
+		"install must default to --create-karpenter-resources=all so a fresh install lays down EC2NodeClass and NodePool resources")
+	assert.Equal(t, InferenceMethodNodeGroups, o.inferenceMethod)
+}
+
+func TestDisplayEKSAutoModeMessage(t *testing.T) {
+	// Empty PATH neutralises browser.OpenURL — see TestDisplayForeignKarpenterMessage.
+	t.Setenv("PATH", "")
+
+	out := &bytes.Buffer{}
+	streams := genericclioptions.IOStreams{
+		Out:    out,
+		ErrOut: &bytes.Buffer{},
+	}
+
+	require.NoError(t, displayEKSAutoModeMessage(streams, "my-cluster"),
+		"EKS auto-mode is a successful no-op, not an error")
+
+	rendered := out.String()
+	assert.Contains(t, rendered, "EKS auto-mode is already active on cluster my-cluster")
+	assert.Contains(t, rendered, "Karpenter is built into EKS auto-mode")
+	assert.Contains(t, rendered, "kube_cluster_name%3Amy-cluster",
+		"the linked URL must point at the cluster's autoscaling settings")
+}
+
+func TestDisplaySuccessMessage(t *testing.T) {
+	// Empty PATH neutralises browser.OpenURL — see TestDisplayForeignKarpenterMessage.
+	t.Setenv("PATH", "")
+
+	t.Run("none mode advertises the partial-config follow-up flags", func(t *testing.T) {
+		out := &bytes.Buffer{}
+		streams := genericclioptions.IOStreams{Out: out, ErrOut: &bytes.Buffer{}}
+
+		require.NoError(t, displaySuccessMessage(streams, "my-cluster", CreateKarpenterResourcesNone))
+
+		rendered := out.String()
+		assert.Contains(t, rendered, "partially configured")
+		assert.Contains(t, rendered, "--create-karpenter-resources=ec2nodeclass")
+		assert.Contains(t, rendered, "kube_cluster_name%3Amy-cluster")
+	})
+
+	t.Run("ec2nodeclass and all modes share the ready message", func(t *testing.T) {
+		for _, mode := range []CreateKarpenterResources{CreateKarpenterResourcesEC2NodeClass, CreateKarpenterResourcesAll} {
+			out := &bytes.Buffer{}
+			streams := genericclioptions.IOStreams{Out: out, ErrOut: &bytes.Buffer{}}
+
+			require.NoError(t, displaySuccessMessage(streams, "my-cluster", mode))
+
+			rendered := out.String()
+			assert.Contains(t, rendered, "ready to be enabled", "mode=%s", mode)
+			assert.Contains(t, rendered, "kube_cluster_name%3Amy-cluster", "mode=%s", mode)
+		}
+	})
 }
 
 func TestValidate(t *testing.T) {
@@ -408,24 +645,12 @@ func TestValidate(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			// Save and restore the global variables
-			oldMode := installMode
-			oldSubnets := fargateSubnets
-			oldCreate := createKarpenterResources
-			oldMethod := inferenceMethod
-			installMode = tc.installMode
-			fargateSubnets = tc.fargateSubnets
-			createKarpenterResources = tc.createKarpenterResources
-			inferenceMethod = tc.inferenceMethod
-			defer func() {
-				installMode = oldMode
-				fargateSubnets = oldSubnets
-				createKarpenterResources = oldCreate
-				inferenceMethod = oldMethod
-			}()
-
 			o := &options{
-				args: tc.args,
+				args:                     tc.args,
+				installMode:              tc.installMode,
+				fargateSubnets:           tc.fargateSubnets,
+				createKarpenterResources: tc.createKarpenterResources,
+				inferenceMethod:          tc.inferenceMethod,
 			}
 
 			err := o.validate()
