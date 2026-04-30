@@ -104,14 +104,10 @@ func FindForeignKarpenterInstallation(ctx context.Context, clientset kubernetes.
 // chart-unconditional KARPENTER_SERVICE env var; secondary is the canonical
 // `karpenter/controller` image repository tail.
 func hasKarpenterControllerContainer(containers []corev1.Container) bool {
-	return slices.ContainsFunc(containers, isKarpenterControllerContainer)
-}
-
-func isKarpenterControllerContainer(c corev1.Container) bool {
-	if slices.ContainsFunc(c.Env, func(e corev1.EnvVar) bool { return e.Name == karpenterServiceEnvName }) {
-		return true
-	}
-	return imageRepoEndsWith(c.Image, karpenterControllerImageRepoSuffix)
+	return slices.ContainsFunc(containers, func(c corev1.Container) bool {
+		return slices.ContainsFunc(c.Env, func(e corev1.EnvVar) bool { return e.Name == karpenterServiceEnvName }) ||
+			imageRepoEndsWith(c.Image, karpenterControllerImageRepoSuffix)
+	})
 }
 
 // imageRepoEndsWith reports whether `image`'s repository path (with tag and
