@@ -33,7 +33,7 @@ func (r *Reconciler) deleteResource(logger logr.Logger, auth context.Context, ha
 			r.recordEvent(k8sObj, event)
 			return nil
 		}
-		err := handler.deleteResource(instance, auth)
+		err := handler.deleteResource(auth, instance)
 		if err != nil {
 			logger.Error(err, "failed to finalize", "custom resource Id", fmt.Sprint(datadogID))
 			return err

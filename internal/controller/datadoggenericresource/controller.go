@@ -106,7 +106,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 		} else if instance.Status.LastForceSyncTime == nil || ((defaultForceSyncPeriod - now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0) {
 			// Periodically force a sync with the API to ensure parity
 			// Make sure it exists before trying any updates. If it doesn't, set shouldCreate
-			err = handler.getResource(instance, auth)
+			err = handler.getResource(auth, instance)
 			if err != nil {
 				logger.Error(err, "error getting custom resource", "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
 				updateErrStatus(status, now, v1alpha1.DatadogSyncStatusGetError, "GettingCustomResource", err)
@@ -146,7 +146,7 @@ func (r *Reconciler) update(ctx context.Context, auth context.Context, handler R
 	// Update hash to reflect the spec we're attempting to sync (whether it succeeds or fails)
 	status.CurrentHash = hash
 
-	err := handler.updateResource(instance, auth)
+	err := handler.updateResource(auth, instance)
 	if err != nil {
 		if strings.Contains(err.Error(), ctrutils.NotFoundString) {
 			// If the remote resource was deleted out-of-band after we stored its ID,
@@ -178,7 +178,7 @@ func (r *Reconciler) create(ctx context.Context, auth context.Context, handler R
 	logger := ctrl.LoggerFrom(ctx)
 	logger.V(1).Info("Generic resource Id is not set; creating resource in Datadog")
 
-	result, err := handler.createResource(instance, auth)
+	result, err := handler.createResource(auth, instance)
 	if err != nil {
 		logger.Error(err, "error creating resource", "type", instance.Spec.Type)
 		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)

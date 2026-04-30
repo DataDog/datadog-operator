@@ -14,7 +14,7 @@ type NotebookHandler struct {
 	client *datadogV1.NotebooksApi
 }
 
-func (h *NotebookHandler) createResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) (CreateResult, error) {
+func (h *NotebookHandler) createResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
 	createdNotebook, err := createNotebook(auth, h.client, instance)
 	if err != nil {
 		return CreateResult{}, err
@@ -27,15 +27,15 @@ func (h *NotebookHandler) createResource(instance *v1alpha1.DatadogGenericResour
 	}, nil
 }
 
-func (h *NotebookHandler) getResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) error {
+func (h *NotebookHandler) getResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
 	_, err := getNotebook(auth, h.client, instance.Status.Id)
 	return err
 }
-func (h *NotebookHandler) updateResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) error {
+func (h *NotebookHandler) updateResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
 	_, err := updateNotebook(auth, h.client, instance)
 	return err
 }
-func (h *NotebookHandler) deleteResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) error {
+func (h *NotebookHandler) deleteResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
 	return deleteNotebook(auth, h.client, instance.Status.Id)
 }
 

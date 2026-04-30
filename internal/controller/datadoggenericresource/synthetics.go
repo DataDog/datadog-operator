@@ -15,7 +15,7 @@ type SyntheticsAPITestHandler struct {
 	client *datadogV1.SyntheticsApi
 }
 
-func (h *SyntheticsAPITestHandler) createResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) (CreateResult, error) {
+func (h *SyntheticsAPITestHandler) createResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
 	createdTest, err := createSyntheticsAPITest(auth, h.client, instance)
 	if err != nil {
 		return CreateResult{}, err
@@ -23,15 +23,15 @@ func (h *SyntheticsAPITestHandler) createResource(instance *v1alpha1.DatadogGene
 	return createResultFromSyntheticsTest(&createdTest, createdTest.AdditionalProperties), nil
 }
 
-func (h *SyntheticsAPITestHandler) getResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) error {
+func (h *SyntheticsAPITestHandler) getResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
 	_, err := getSyntheticsTest(auth, h.client, instance.Status.Id)
 	return err
 }
-func (h *SyntheticsAPITestHandler) updateResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) error {
+func (h *SyntheticsAPITestHandler) updateResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
 	_, err := updateSyntheticsAPITest(auth, h.client, instance)
 	return err
 }
-func (h *SyntheticsAPITestHandler) deleteResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) error {
+func (h *SyntheticsAPITestHandler) deleteResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
 	return deleteSyntheticTest(auth, h.client, instance.Status.Id)
 }
 
@@ -39,7 +39,7 @@ type SyntheticsBrowserTestHandler struct {
 	client *datadogV1.SyntheticsApi
 }
 
-func (h *SyntheticsBrowserTestHandler) createResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) (CreateResult, error) {
+func (h *SyntheticsBrowserTestHandler) createResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
 	createdTest, err := createSyntheticBrowserTest(auth, h.client, instance)
 	if err != nil {
 		return CreateResult{}, err
@@ -47,15 +47,15 @@ func (h *SyntheticsBrowserTestHandler) createResource(instance *v1alpha1.Datadog
 	return createResultFromSyntheticsTest(&createdTest, createdTest.AdditionalProperties), nil
 }
 
-func (h *SyntheticsBrowserTestHandler) getResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) error {
+func (h *SyntheticsBrowserTestHandler) getResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
 	_, err := getSyntheticsTest(auth, h.client, instance.Status.Id)
 	return err
 }
-func (h *SyntheticsBrowserTestHandler) updateResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) error {
+func (h *SyntheticsBrowserTestHandler) updateResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
 	_, err := updateSyntheticsBrowserTest(auth, h.client, instance)
 	return err
 }
-func (h *SyntheticsBrowserTestHandler) deleteResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) error {
+func (h *SyntheticsBrowserTestHandler) deleteResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
 	return deleteSyntheticTest(auth, h.client, instance.Status.Id)
 }
 

@@ -13,23 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/utils/ptr"
-
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	common "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
-	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
-	"github.com/DataDog/datadog-operator/pkg/condition"
-	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"github.com/DataDog/datadog-operator/pkg/images"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-	"github.com/DataDog/datadog-operator/pkg/testutils"
-	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
-
 	assert "github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -41,11 +24,27 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
+	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
+	"github.com/DataDog/datadog-operator/pkg/condition"
+	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/images"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
+	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 type testCase struct {
@@ -161,14 +160,13 @@ func runFullReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	}
 	r.initializeComponentRegistry()
 
-	ri, err := datadogagentinternal.NewReconciler(
+	ri := datadogagentinternal.NewReconciler(
 		datadogagentinternal.ReconcilerOptions{},
 		c,
 		kubernetes.PlatformInfo{},
 		s,
 		recorder,
 		forwarders)
-	assert.NoError(t, err, "Failed to create datadogagentinternal reconciler")
 
 	// Load or create DatadogAgent
 	var dda *v2alpha1.DatadogAgent
@@ -186,13 +184,13 @@ func runFullReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	if tt.wantErr {
 		assert.Error(t, ddaErr, "ReconcileDatadogAgent.Reconcile() expected an error")
 	} else {
-		assert.NoError(t, ddaErr, "ReconcileDatadogAgent.Reconcile() unexpected error: %v", err)
+		assert.NoError(t, ddaErr, "ReconcileDatadogAgent.Reconcile() unexpected error: %v", ddaErr)
 	}
 	// Assert on reconciliation result
 	assert.Equal(t, tt.want, ddaGot, "ReconcileDatadogAgent.Reconcile() unexpected result")
 
 	ddais := &v1alpha1.DatadogAgentInternalList{}
-	err = c.List(context.TODO(), ddais)
+	err := c.List(context.TODO(), ddais)
 	assert.NoError(t, err, "Failed to list datadogagentinternal")
 	assert.NotEmpty(t, ddais.Items, "Expected at least 1 ddai")
 	for i := range ddais.Items {

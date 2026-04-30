@@ -23,7 +23,7 @@ var (
 // MockHandler is a test double for ResourceHandler.
 type MockHandler struct{}
 
-func (h *MockHandler) createResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) (CreateResult, error) {
+func (h *MockHandler) createResource(context.Context, *v1alpha1.DatadogGenericResource) (CreateResult, error) {
 	mockCreateCalls++
 	now := metav1.Now()
 	return CreateResult{
@@ -33,15 +33,15 @@ func (h *MockHandler) createResource(instance *v1alpha1.DatadogGenericResource, 
 	}, nil
 }
 
-func (h *MockHandler) getResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) error {
+func (h *MockHandler) getResource(context.Context, *v1alpha1.DatadogGenericResource) error {
 	return mockGetErr
 }
 
-func (h *MockHandler) updateResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) error {
+func (h *MockHandler) updateResource(context.Context, *v1alpha1.DatadogGenericResource) error {
 	return mockUpdateErr
 }
 
-func (h *MockHandler) deleteResource(instance *v1alpha1.DatadogGenericResource, auth context.Context) error {
+func (h *MockHandler) deleteResource(context.Context, *v1alpha1.DatadogGenericResource) error {
 	mockDeleteCalls++
 	return mockDeleteErr
 }
