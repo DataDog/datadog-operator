@@ -2622,7 +2622,7 @@
                   "description": "ServiceDiscovery",
                   "properties": {
                     "enabled": {
-                      "description": "Enables the service discovery check.\nDefault: false",
+                      "description": "Enables the service discovery check.\nDefault: true when omitted and the node Agent image is \u003e= 7.78.0. Otherwise false.\nIf the image version cannot be determined, it is treated as latest.",
                       "type": "boolean"
                     },
                     "networkStats": {

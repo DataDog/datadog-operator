@@ -43,8 +43,6 @@ const (
 
 	defaultGPUMonitoringEnabled bool = false
 
-	defaultServiceDiscoveryEnabled bool = false
-
 	defaultAPMEnabled                   bool   = true
 	defaultAPMHostPortEnabled           bool   = false
 	defaultAPMHostPort                  int32  = 8126
@@ -304,7 +302,6 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	if ddaSpec.Features.ServiceDiscovery == nil {
 		ddaSpec.Features.ServiceDiscovery = &v2alpha1.ServiceDiscoveryFeatureConfig{}
 	}
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ServiceDiscovery.Enabled, defaultServiceDiscoveryEnabled)
 
 	// GPU monitoring feature
 	if ddaSpec.Features.GPU == nil {
