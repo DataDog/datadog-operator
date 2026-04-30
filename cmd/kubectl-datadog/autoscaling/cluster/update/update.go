@@ -155,7 +155,7 @@ func (o *options) run(cmd *cobra.Command) error {
 
 	// Refuse if no kubectl-datadog Karpenter is installed, or if a foreign
 	// one occupies the cluster — we never modify what we did not install.
-	k, err := guess.FindAnyKarpenterInstallation(ctx, o.Clientset)
+	k, err := guess.FindKarpenterInstallation(ctx, o.Clientset)
 	if err != nil {
 		return fmt.Errorf("failed to check for an existing Karpenter installation: %w", err)
 	}
@@ -185,27 +185,6 @@ func (o *options) run(cmd *cobra.Command) error {
 	opts, err := o.resolveOptions(cmd.Flags().Changed, clusterName, ddStack)
 	if err != nil {
 		return err
-	}
-
-	// FindAnyKarpenterInstallation only inspects the first matching
-	// Deployment, so a foreign install elsewhere on the cluster could slip
-	// past the earlier guard if our Deployment was returned first. Re-scan
-	// against the resolved namespace and refuse before delegating —
-	// install.Run would otherwise treat the foreign install as a no-op
-	// success.
-	if foreign, err := guess.FindForeignKarpenterInstallation(ctx, o.Clientset, opts.KarpenterNamespace); err != nil {
-		return fmt.Errorf("failed to check for additional Karpenter installations: %w", err)
-	} else if foreign != nil {
-		// FindForeignKarpenterInstallation also surfaces a kubectl-datadog
-		// Deployment running in a different namespace, so the message is
-		// kept tool-agnostic.
-		display.PrintBox(o.Out,
-			"An additional Karpenter installation was found on cluster "+clusterName+":",
-			"Deployment "+foreign.Namespace+"/"+foreign.Name+".",
-			"",
-			"kubectl-datadog will not update while another Karpenter controller coexists.",
-		)
-		return fmt.Errorf("refusing to update while another Karpenter installation %s/%s coexists", foreign.Namespace, foreign.Name)
 	}
 
 	return install.Run(ctx, o.IOStreams, o.ConfigFlags, o.Clientset, opts)
@@ -253,10 +232,9 @@ func (o *options) resolveOptions(changed func(name string) bool, clusterName str
 		InferenceMethod:          o.inferenceMethod,
 		Debug:                    o.debug,
 		ActionLabel:              "Updating",
-		// run() pre-scans for a foreign Karpenter both before resolving
-		// the namespace and after, so install.Run does not need to scan
-		// a third time.
-		SkipForeignKarpenterCheck: true,
+		// run() has already scanned for an existing Karpenter, so install.Run
+		// does not need to repeat the cluster-wide List.
+		SkipKarpenterCheck: true,
 	}
 
 	if changed("karpenter-namespace") {

@@ -190,11 +190,10 @@ type RunOptions struct {
 	// to "Updating".
 	ActionLabel string
 
-	// SkipForeignKarpenterCheck disables Run's own foreign-Karpenter scan.
+	// SkipKarpenterCheck disables Run's own Karpenter detection scan.
 	// Set by callers (currently update) that have already scanned the
-	// cluster's Deployments to validate the absence of a foreign install,
-	// to avoid a redundant cluster-wide List.
-	SkipForeignKarpenterCheck bool
+	// cluster's Deployments, to avoid a redundant cluster-wide List.
+	SkipKarpenterCheck bool
 }
 
 // KarpenterStackName is the name of the mode-independent CloudFormation stack
@@ -354,11 +353,13 @@ func Run(ctx context.Context, streams genericclioptions.IOStreams, configFlags *
 		return displayEKSAutoModeMessage(streams, opts.ClusterName)
 	}
 
-	if !opts.SkipForeignKarpenterCheck {
-		if foreign, err := guess.FindForeignKarpenterInstallation(ctx, clientset, opts.KarpenterNamespace); err != nil {
+	if !opts.SkipKarpenterCheck {
+		k, err := guess.FindKarpenterInstallation(ctx, clientset)
+		if err != nil {
 			return fmt.Errorf("failed to check for an existing Karpenter installation: %w", err)
-		} else if foreign != nil {
-			return displayForeignKarpenterMessage(streams, opts.ClusterName, foreign)
+		}
+		if k != nil && !k.IsOwn() {
+			return displayForeignKarpenterMessage(streams, opts.ClusterName, k)
 		}
 	}
 
@@ -735,7 +736,7 @@ func displayEKSAutoModeMessage(streams genericclioptions.IOStreams, clusterName 
 	return nil
 }
 
-func displayForeignKarpenterMessage(streams genericclioptions.IOStreams, clusterName string, foreign *guess.ForeignKarpenter) error {
+func displayForeignKarpenterMessage(streams genericclioptions.IOStreams, clusterName string, foreign *guess.KarpenterInstallation) error {
 	coloredURL := openAutoscalingSettingsURL(streams, clusterName)
 
 	display.PrintBox(streams.Out,

@@ -55,226 +55,7 @@ func TestImageRepoEndsWith(t *testing.T) {
 	}
 }
 
-func TestFindForeignKarpenterInstallation(t *testing.T) {
-	const ourNamespace = "dd-karpenter"
-
-	for _, tc := range []struct {
-		name            string
-		objects         []runtime.Object
-		targetNamespace string
-		expected        *ForeignKarpenter
-	}{
-		{
-			name:     "no Deployments on the cluster",
-			objects:  nil,
-			expected: nil,
-		},
-		{
-			name: "no Karpenter Deployment among unrelated ones",
-			objects: []runtime.Object{
-				deployment("kube-system", "coredns", nil, "registry.k8s.io/coredns/coredns:v1.10.1"),
-				deployment("default", "nginx", nil, "nginx:1.25"),
-			},
-			expected: nil,
-		},
-		{
-			name: "only kubectl-datadog Karpenter Deployment in our target namespace",
-			objects: []runtime.Object{
-				deployment(ourNamespace, "karpenter",
-					map[string]string{InstalledByLabel: InstalledByValue},
-					karpenterControllerImage,
-				),
-			},
-			targetNamespace: ourNamespace,
-			expected:        nil,
-		},
-		{
-			name: "kubectl-datadog Deployment in another namespace is foreign when targeting a different namespace",
-			// User has an existing kubectl-datadog install in dd-karpenter and
-			// reruns `install --karpenter-namespace=other-ns`. The controller
-			// in dd-karpenter would race the new one we'd deploy in other-ns
-			// on the cluster-scoped CRDs, so it must surface as foreign even
-			// though it carries our sentinel.
-			objects: []runtime.Object{
-				deployment(ourNamespace, "karpenter",
-					map[string]string{InstalledByLabel: InstalledByValue},
-					karpenterControllerImage,
-				),
-			},
-			targetNamespace: "other-ns",
-			expected:        &ForeignKarpenter{Namespace: ourNamespace, Name: "karpenter"},
-		},
-		{
-			name: "empty targetNamespace surfaces every Karpenter controller, even sentinel-labeled",
-			// Defensive: an empty targetNamespace means no namespace
-			// qualifies as ours, so any matching controller surfaces as
-			// foreign. The CLI never sends an empty value (the flag has a
-			// default), but the detector should fail closed.
-			objects: []runtime.Object{
-				deployment(ourNamespace, "karpenter",
-					map[string]string{InstalledByLabel: InstalledByValue},
-					karpenterControllerImage,
-				),
-			},
-			targetNamespace: "",
-			expected:        &ForeignKarpenter{Namespace: ourNamespace, Name: "karpenter"},
-		},
-		{
-			name: "foreign Karpenter Deployment without our sentinel",
-			objects: []runtime.Object{
-				deployment("karpenter", "karpenter", nil, karpenterControllerImage),
-			},
-			expected: &ForeignKarpenter{Namespace: "karpenter", Name: "karpenter"},
-		},
-		{
-			name: "foreign Karpenter installed via a private mirror still matches",
-			// Users behind a private registry rewrite the image but keep the
-			// `karpenter/controller` path so the marker still hits.
-			objects: []runtime.Object{
-				deployment("kube-system", "their-karpenter", nil,
-					"012345678901.dkr.ecr.us-west-2.amazonaws.com/karpenter/controller:1.10.0",
-				),
-			},
-			expected: &ForeignKarpenter{Namespace: "kube-system", Name: "their-karpenter"},
-		},
-		{
-			name: "foreign Karpenter installed with custom nameOverride",
-			// nameOverride only renames the Deployment object itself; the
-			// controller still pulls public.ecr.aws/karpenter/controller.
-			objects: []runtime.Object{
-				deployment("autoscaling", "my-karpenter", nil, karpenterControllerImage),
-			},
-			expected: &ForeignKarpenter{Namespace: "autoscaling", Name: "my-karpenter"},
-		},
-		{
-			name: "mix of ours-in-target-namespace and foreign returns the foreign one",
-			objects: []runtime.Object{
-				deployment(ourNamespace, "karpenter",
-					map[string]string{InstalledByLabel: InstalledByValue},
-					karpenterControllerImage,
-				),
-				deployment("karpenter", "karpenter", nil, karpenterControllerImage),
-			},
-			targetNamespace: ourNamespace,
-			expected:        &ForeignKarpenter{Namespace: "karpenter", Name: "karpenter"},
-		},
-		{
-			name: "Datadog Cluster Agent Deployment with karpenter.sh RBAC is not the controller",
-			// The DD chart's cluster-agent grants karpenter.sh permissions to
-			// inspect Karpenter resources, but its Deployment runs the
-			// cluster-agent image and does not set KARPENTER_SERVICE. It
-			// must not trigger the guard.
-			objects: []runtime.Object{
-				deployment("datadog-agent", "datadog-cluster-agent", nil,
-					"gcr.io/datadoghq/cluster-agent:7.78.1",
-				),
-			},
-			expected: nil,
-		},
-		{
-			name: "hardened image without canonical path is matched via KARPENTER_SERVICE env",
-			// Docker Hardened Images / Chainguard ship Karpenter under
-			// repositories like `cgr.dev/chainguard/karpenter` whose path
-			// does not end in `karpenter/controller`. The chart still sets
-			// the KARPENTER_SERVICE env on the controller container; that
-			// env name is the more robust signal.
-			objects: []runtime.Object{
-				deploymentWithEnv("kube-system", "their-karpenter", nil,
-					"cgr.dev/chainguard/karpenter:1.0",
-					[]corev1.EnvVar{{Name: "KARPENTER_SERVICE", Value: "their-karpenter"}},
-				),
-			},
-			expected: &ForeignKarpenter{Namespace: "kube-system", Name: "their-karpenter"},
-		},
-		{
-			name: "image with `controllers` plural does not false-positive",
-			// Defensive: a workload named `team/karpenter/controllers`
-			// (note plural) must not match the canonical-suffix check.
-			objects: []runtime.Object{
-				deployment("team-ns", "controllers", nil,
-					"team/karpenter/controllers:v1",
-				),
-			},
-			expected: nil,
-		},
-		{
-			name: "foreign sentinel value is treated as foreign",
-			objects: []runtime.Object{
-				deployment("karpenter", "karpenter",
-					map[string]string{InstalledByLabel: "someone-else"},
-					karpenterControllerImage,
-				),
-			},
-			expected: &ForeignKarpenter{Namespace: "karpenter", Name: "karpenter"},
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			clientset := fake.NewSimpleClientset(tc.objects...)
-
-			result, err := FindForeignKarpenterInstallation(t.Context(), clientset, tc.targetNamespace)
-
-			require.NoError(t, err)
-			assert.Equal(t, tc.expected, result)
-		})
-	}
-
-	t.Run("API list error propagates", func(t *testing.T) {
-		clientset := fake.NewSimpleClientset()
-		clientset.PrependReactor("list", "deployments", func(_ k8stesting.Action) (bool, runtime.Object, error) {
-			return true, nil, apierrors.NewServiceUnavailable("test failure")
-		})
-
-		_, err := FindForeignKarpenterInstallation(t.Context(), clientset, ourNamespace)
-
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to list Deployments")
-	})
-
-	t.Run("pagination forwards Continue tokens across pages", func(t *testing.T) {
-		// Three pages with the foreign install on the last one, exercising
-		// cross-page Continue token forwarding.
-		pages := []*appsv1.DeploymentList{
-			{
-				ListMeta: metav1.ListMeta{Continue: "page2"},
-				Items:    nil,
-			},
-			{
-				ListMeta: metav1.ListMeta{Continue: "page3"},
-				Items: []appsv1.Deployment{
-					*deployment("dd-karpenter", "karpenter",
-						map[string]string{InstalledByLabel: InstalledByValue},
-						karpenterControllerImage,
-					),
-				},
-			},
-			{
-				Items: []appsv1.Deployment{
-					*deployment("their-ns", "their-karpenter", nil, karpenterControllerImage),
-				},
-			},
-		}
-
-		clientset := fake.NewSimpleClientset()
-		var calls []string
-		clientset.PrependReactor("list", "deployments", func(action k8stesting.Action) (bool, runtime.Object, error) {
-			opts := action.(k8stesting.ListActionImpl).GetListOptions()
-			calls = append(calls, opts.Continue)
-			assert.NotZero(t, opts.Limit, "Limit must be set so the API server can chunk")
-			require.Less(t, len(calls)-1, len(pages),
-				"reactor would over-fetch beyond the synthetic pages")
-			return true, pages[len(calls)-1], nil
-		})
-
-		result, err := FindForeignKarpenterInstallation(t.Context(), clientset, "dd-karpenter")
-
-		require.NoError(t, err)
-		assert.Equal(t, &ForeignKarpenter{Namespace: "their-ns", Name: "their-karpenter"}, result)
-		assert.Equal(t, []string{"", "page2", "page3"}, calls,
-			"each call must forward the previous page's Continue token")
-	})
-}
-
-func TestFindAnyKarpenterInstallation(t *testing.T) {
+func TestFindKarpenterInstallation(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		objects  []runtime.Object
@@ -317,22 +98,161 @@ func TestFindAnyKarpenterInstallation(t *testing.T) {
 				deployment("karpenter", "karpenter", nil, karpenterControllerImage),
 			},
 			expected: &KarpenterInstallation{
-				Namespace:        "karpenter",
-				Name:             "karpenter",
-				InstalledBy:      "",
-				InstallerVersion: "",
+				Namespace: "karpenter",
+				Name:      "karpenter",
+			},
+		},
+		{
+			name: "foreign Karpenter installed via a private mirror still matches",
+			// Users behind a private registry rewrite the image but keep the
+			// `karpenter/controller` path so the marker still hits.
+			objects: []runtime.Object{
+				deployment("kube-system", "their-karpenter", nil,
+					"012345678901.dkr.ecr.us-west-2.amazonaws.com/karpenter/controller:1.10.0",
+				),
+			},
+			expected: &KarpenterInstallation{
+				Namespace: "kube-system",
+				Name:      "their-karpenter",
+			},
+		},
+		{
+			name: "foreign Karpenter installed with custom nameOverride",
+			// nameOverride only renames the Deployment object itself; the
+			// controller still pulls public.ecr.aws/karpenter/controller.
+			objects: []runtime.Object{
+				deployment("autoscaling", "my-karpenter", nil, karpenterControllerImage),
+			},
+			expected: &KarpenterInstallation{
+				Namespace: "autoscaling",
+				Name:      "my-karpenter",
+			},
+		},
+		{
+			name: "Datadog Cluster Agent Deployment with karpenter.sh RBAC is not the controller",
+			// The DD chart's cluster-agent grants karpenter.sh permissions to
+			// inspect Karpenter resources, but its Deployment runs the
+			// cluster-agent image and does not set KARPENTER_SERVICE. It
+			// must not trigger the guard.
+			objects: []runtime.Object{
+				deployment("datadog-agent", "datadog-cluster-agent", nil,
+					"gcr.io/datadoghq/cluster-agent:7.78.1",
+				),
+			},
+			expected: nil,
+		},
+		{
+			name: "hardened image without canonical path is matched via KARPENTER_SERVICE env",
+			// Docker Hardened Images / Chainguard ship Karpenter under
+			// repositories like `cgr.dev/chainguard/karpenter` whose path
+			// does not end in `karpenter/controller`. The chart still sets
+			// the KARPENTER_SERVICE env on the controller container; that
+			// env name is the more robust signal.
+			objects: []runtime.Object{
+				deploymentWithEnv("kube-system", "their-karpenter", nil,
+					"cgr.dev/chainguard/karpenter:1.0",
+					[]corev1.EnvVar{{Name: "KARPENTER_SERVICE", Value: "their-karpenter"}},
+				),
+			},
+			expected: &KarpenterInstallation{
+				Namespace: "kube-system",
+				Name:      "their-karpenter",
+			},
+		},
+		{
+			name: "image with `controllers` plural does not false-positive",
+			// Defensive: a workload named `team/karpenter/controllers`
+			// (note plural) must not match the canonical-suffix check.
+			objects: []runtime.Object{
+				deployment("team-ns", "controllers", nil,
+					"team/karpenter/controllers:v1",
+				),
+			},
+			expected: nil,
+		},
+		{
+			name: "foreign sentinel value carries through to InstalledBy",
+			objects: []runtime.Object{
+				deployment("karpenter", "karpenter",
+					map[string]string{InstalledByLabel: "someone-else"},
+					karpenterControllerImage,
+				),
+			},
+			expected: &KarpenterInstallation{
+				Namespace:   "karpenter",
+				Name:        "karpenter",
+				InstalledBy: "someone-else",
 			},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			clientset := fake.NewSimpleClientset(tc.objects...)
 
-			result, err := FindAnyKarpenterInstallation(t.Context(), clientset)
+			result, err := FindKarpenterInstallation(t.Context(), clientset)
 
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, result)
 		})
 	}
+
+	t.Run("API list error propagates", func(t *testing.T) {
+		clientset := fake.NewSimpleClientset()
+		clientset.PrependReactor("list", "deployments", func(_ k8stesting.Action) (bool, runtime.Object, error) {
+			return true, nil, apierrors.NewServiceUnavailable("test failure")
+		})
+
+		_, err := FindKarpenterInstallation(t.Context(), clientset)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to list Deployments")
+	})
+
+	t.Run("pagination forwards Continue tokens across pages", func(t *testing.T) {
+		// Three pages with the Karpenter installation on the last one,
+		// exercising cross-page Continue token forwarding.
+		pages := []*appsv1.DeploymentList{
+			{
+				ListMeta: metav1.ListMeta{Continue: "page2"},
+				Items:    nil,
+			},
+			{
+				ListMeta: metav1.ListMeta{Continue: "page3"},
+				Items: []appsv1.Deployment{
+					*deployment("default", "nginx", nil, "nginx:1.25"),
+				},
+			},
+			{
+				Items: []appsv1.Deployment{
+					*deployment("dd-karpenter", "karpenter",
+						map[string]string{InstalledByLabel: InstalledByValue},
+						karpenterControllerImage,
+					),
+				},
+			},
+		}
+
+		clientset := fake.NewSimpleClientset()
+		var calls []string
+		clientset.PrependReactor("list", "deployments", func(action k8stesting.Action) (bool, runtime.Object, error) {
+			opts := action.(k8stesting.ListActionImpl).GetListOptions()
+			calls = append(calls, opts.Continue)
+			assert.NotZero(t, opts.Limit, "Limit must be set so the API server can chunk")
+			require.Less(t, len(calls)-1, len(pages),
+				"reactor would over-fetch beyond the synthetic pages")
+			return true, pages[len(calls)-1], nil
+		})
+
+		result, err := FindKarpenterInstallation(t.Context(), clientset)
+
+		require.NoError(t, err)
+		assert.Equal(t, &KarpenterInstallation{
+			Namespace:   "dd-karpenter",
+			Name:        "karpenter",
+			InstalledBy: InstalledByValue,
+		}, result)
+		assert.Equal(t, []string{"", "page2", "page3"}, calls,
+			"each call must forward the previous page's Continue token")
+	})
 }
 
 func TestKarpenterInstallationIsOwn(t *testing.T) {
