@@ -20,7 +20,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 )
 
 // stateDoesntMatchError is returned by verifyExpectedState when the task's expected
@@ -40,6 +39,14 @@ const (
 var _ manager.Runnable = &Daemon{}
 var _ manager.LeaderElectionRunnable = &Daemon{}
 
+// RCClient is the small subset of Remote Config client behavior used by the
+// Fleet daemon.
+type RCClient interface {
+	Subscribe(product string, fn func(update map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus)))
+	GetInstallerState() []*pbgo.PackageState
+	SetInstallerState(packages []*pbgo.PackageState)
+}
+
 // Daemon subscribes to fleet-specific RC products (installer configs and tasks)
 // and runs after leader election as a controller-runtime Runnable.
 //
@@ -48,7 +55,7 @@ var _ manager.LeaderElectionRunnable = &Daemon{}
 // reads or writes status.experiment.phase — that is the reconciler's exclusive
 // responsibility.
 type Daemon struct {
-	rcClient         remoteconfig.RCClient
+	rcClient         RCClient
 	client           client.Client
 	cache            ctrlcache.Cache
 	revisionsEnabled bool
@@ -61,7 +68,7 @@ type Daemon struct {
 // NewDaemon creates a new Fleet Daemon. When revisionsEnabled is false, experiment
 // signals are rejected because the reconciler cannot process them without the
 // ControllerRevision machinery.
-func NewDaemon(rcClient remoteconfig.RCClient, mgr manager.Manager, revisionsEnabled bool) *Daemon {
+func NewDaemon(rcClient RCClient, mgr manager.Manager, revisionsEnabled bool) *Daemon {
 	return &Daemon{
 		rcClient:         rcClient,
 		client:           mgr.GetClient(),
