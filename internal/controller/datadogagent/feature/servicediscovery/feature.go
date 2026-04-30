@@ -34,6 +34,7 @@ func buildFeature(*feature.Options) feature.Feature {
 }
 
 type serviceDiscoveryFeature struct {
+	useSystemProbeLite bool
 }
 
 // ID returns the ID of the Feature
@@ -43,7 +44,9 @@ func (f *serviceDiscoveryFeature) ID() feature.IDType {
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *serviceDiscoveryFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+	f.useSystemProbeLite = false
 	if resolveEnabled(ddaSpec) {
+		f.useSystemProbeLite = shouldEnableServiceDiscoveryByDefault(ddaSpec)
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: ptr.To(true),
 			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
@@ -127,6 +130,13 @@ func (f *serviceDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMa
 
 	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName}, enableEnvVar)
 	managers.EnvVar().AddEnvVarToInitContainer(apicommon.InitConfigContainerName, enableEnvVar)
+
+	if f.useSystemProbeLite {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, &corev1.EnvVar{
+			Name:  DDServiceDiscoveryUseSystemProbeLite,
+			Value: "true",
+		})
+	}
 
 	socketEnvVar := &corev1.EnvVar{
 		Name:  common.DDSystemProbeSocket,

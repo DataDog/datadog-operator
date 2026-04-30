@@ -424,6 +424,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 
 				agentContainers := getDsContainers(c, resourcesNamespace, dsName)
 				assertContainerHasEnvVar(t, agentContainers[apicommon.CoreAgentContainerName], "DD_DISCOVERY_ENABLED", "true")
+				assertContainerHasEnvVar(t, agentContainers[apicommon.SystemProbeContainerName], "DD_DISCOVERY_USE_SYSTEM_PROBE_LITE", "true")
 				assertContainerHasEnvVar(t, agentContainers[apicommon.SystemProbeContainerName], common.DDSystemProbeSocket, common.DefaultSystemProbeSocketPath)
 			},
 		},

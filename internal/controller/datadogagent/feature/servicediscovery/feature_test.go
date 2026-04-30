@@ -38,6 +38,13 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 	}
 	ddaServiceDiscoveryEnabled := ddaServiceDiscoveryDisabled.DeepCopy()
 	ddaServiceDiscoveryEnabled.Spec.Features.ServiceDiscovery.Enabled = ptr.To(true)
+	ddaServiceDiscoveryEnabled.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+		v2alpha1.NodeAgentComponentName: {
+			Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
+		},
+	}
+	ddaServiceDiscoveryEnabledUnsupportedVersion := ddaServiceDiscoveryEnabled.DeepCopy()
+	ddaServiceDiscoveryEnabledUnsupportedVersion.Spec.Override[v2alpha1.NodeAgentComponentName].Image = &v2alpha1.AgentImageConfig{Tag: "7.77.2"}
 
 	tests := test.FeatureTestSuite{
 		{
@@ -49,7 +56,13 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 			Name:          "service discovery enabled",
 			DDA:           ddaServiceDiscoveryEnabled,
 			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(getWantFunc()),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(getWantFunc(true)),
+		},
+		{
+			Name:          "service discovery enabled on unsupported version",
+			DDA:           ddaServiceDiscoveryEnabledUnsupportedVersion,
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(getWantFunc(false)),
 		},
 	}
 
@@ -242,7 +255,7 @@ func serviceDiscoveryEnabledForVersion(version string) bool {
 	return pkgutils.IsAboveMinVersion(version, serviceDiscoveryAutoEnableMinVersion, nil)
 }
 
-func getWantFunc() func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+func getWantFunc(wantSystemProbeLite bool) func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 
@@ -334,11 +347,19 @@ func getWantFunc() func(t testing.TB, mgrInterface feature.PodTemplateManagers) 
 				Name:  DDServiceDiscoveryEnabled,
 				Value: "true",
 			},
-			{
+		}
+		if wantSystemProbeLite {
+			wantSPEnvVars = append(wantSPEnvVars, &corev1.EnvVar{
+				Name:  DDServiceDiscoveryUseSystemProbeLite,
+				Value: "true",
+			})
+		}
+		wantSPEnvVars = append(wantSPEnvVars,
+			&corev1.EnvVar{
 				Name:  common.DDSystemProbeSocket,
 				Value: common.DefaultSystemProbeSocketPath,
 			},
-		}
+		)
 
 		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantAgentEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantAgentEnvVars))
