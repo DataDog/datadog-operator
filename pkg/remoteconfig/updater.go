@@ -41,11 +41,35 @@ const (
 
 type RemoteConfigUpdater struct {
 	kubeClient  kubeclient.Client
-	rcClient    *client.Client
-	rcService   *service.CoreAgentService
+	rcClient    rcRuntimeClient
+	rcService   rcService
 	serviceConf RcServiceConfiguration
 	logger      logr.Logger
 	mu          sync.RWMutex
+
+	lifecycleMu         sync.Mutex
+	activeAPIKey        string
+	subscriptions       []rcSubscription
+	installerState      []*pbgo.PackageState
+	remoteConfigFactory rcRuntimeFactory
+}
+
+type rcRuntimeFactory func(conf RcServiceConfiguration) (rcService, rcRuntimeClient, error)
+
+type rcService interface {
+	Start()
+	Stop() error
+}
+
+type rcRuntimeClient interface {
+	RCClient
+	Start()
+	Close()
+}
+
+type rcSubscription struct {
+	product string
+	fn      func(update map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus))
 }
 
 type RcServiceConfiguration struct {
@@ -68,7 +92,7 @@ type RCClient interface {
 
 // Client returns the underlying RC client.
 func (r *RemoteConfigUpdater) Client() RCClient {
-	return r.rcClient
+	return r
 }
 
 // DatadogProductRemoteConfig  is an interface for Datadog product remote configuration
@@ -135,98 +159,90 @@ type dummyTelemetryReporter struct{}
 func (d dummyTelemetryReporter) IncRateLimit() {}
 func (d dummyTelemetryReporter) IncTimeout()   {}
 
-func (r *RemoteConfigUpdater) Setup(creds config.Creds) error {
-	apiKey := creds.APIKey
-	if apiKey == "" {
+func (r *RemoteConfigUpdater) Setup(credsManager *config.CredentialManager) error {
+	creds, err := credsManager.GetCredentials()
+	if err != nil {
+		return err
+	}
+	if creds.APIKey == "" {
 		return errors.New("error obtaining API key")
 	}
 
+	r.lifecycleMu.Lock()
+	defer r.lifecycleMu.Unlock()
+	if r.rcClient != nil || r.rcService != nil {
+		return nil
+	}
+
+	if err := r.startRuntime(creds.APIKey); err != nil {
+		return err
+	}
+	r.activeAPIKey = creds.APIKey
+	return nil
+}
+
+// startRuntime will start the remote configuration client and service. This must be called a held lock.
+func (r *RemoteConfigUpdater) startRuntime(apiKey string) error {
 	site := os.Getenv(constants.DDSite) // TODO support DD_URL as well
 	clusterName := os.Getenv(constants.DDClusterName)
 	directorRoot := os.Getenv("DD_REMOTE_CONFIGURATION_DIRECTOR_ROOT")
 	configRoot := os.Getenv("DD_REMOTE_CONFIGURATION_CONFIG_ROOT")
 	endpoint := os.Getenv("DD_REMOTE_CONFIGURATION_RC_DD_URL")
 
-	if r.rcClient == nil && r.rcService == nil {
-		// Setup rcClient and rcService
-		err := r.Start(apiKey, site, clusterName, directorRoot, configRoot, endpoint)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-
+	return r.startRuntimeWithConfig(apiKey, site, clusterName, directorRoot, configRoot, endpoint)
 }
 
-func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName string, directorRoot string, configRoot string, endpoint string) error {
-
+func (r *RemoteConfigUpdater) startRuntimeWithConfig(apiKey string, site string, clusterName string, directorRoot string, configRoot string, endpoint string) error {
 	r.logger.Info("Starting Remote Configuration client and service")
 
-	err := r.configureService(apiKey, site, clusterName, directorRoot, configRoot, endpoint)
+	serviceConf, err := r.newServiceConfiguration(apiKey, site, clusterName, directorRoot, configRoot, endpoint)
 	if err != nil {
 		r.logger.Error(err, "Failed to configure Remote Configuration service")
 		return err
 	}
 
-	rcService, err := service.NewService(
-		r.serviceConf.cfg,
-		"",
-		r.serviceConf.baseRawURL,
-		r.serviceConf.hostname,
-		func() []string { return []string{"cluster_name:" + r.serviceConf.clusterName} },
-		r.serviceConf.telemetryReporter,
-		r.serviceConf.agentVersion,
-		service.WithAPIKey(apiKey),
-		service.WithDatabaseFileName(filepath.Join(r.serviceConf.rcDatabaseDir, fmt.Sprintf("remote-config-%s.db", uuid.New()))),
-		service.WithDirectorRootOverride(r.serviceConf.cfg.GetString("site"), r.serviceConf.cfg.GetString("remote_configuration.director_root")),
-		service.WithConfigRootOverride(r.serviceConf.cfg.GetString("site"), r.serviceConf.cfg.GetString("remote_configuration.config_root")),
-	)
+	newService, newClient, err := r.remoteConfigFactory(serviceConf)
 	if err != nil {
-		r.logger.Error(err, "Failed to create Remote Configuration service")
+		r.logger.Error(err, "Failed to create Remote Configuration runtime")
 		return err
 	}
-	r.rcService = rcService
 
-	updaterTags := []string{"updater_type:datadog-operator"}
-	if r.serviceConf.clusterName != "" {
-		updaterTags = append(updaterTags, "cluster_name:"+r.serviceConf.clusterName)
-	}
-	rcClient, err := client.NewClient(
-		rcService,
-		client.WithUpdater(updaterTags...),
-		client.WithProducts(state.ProductAgentConfig, state.ProductOrchestratorK8sCRDs),
-		client.WithDirectorRootOverride(r.serviceConf.cfg.GetString("site"), r.serviceConf.cfg.GetString("remote_configuration.director_root")),
-		client.WithPollInterval(pollInterval),
-	)
-	if err != nil {
-		r.logger.Error(err, "Failed to create Remote Configuration client")
-		return err
-	}
-	r.rcClient = rcClient
-	rcClient.SetInstallerState([]*pbgo.PackageState{
-		{
-			Package:             "datadog-operator",
-			StableVersion:       "0.0.1",
-			StableConfigVersion: "0.0.1",
-		},
-	})
+	oldSvc := r.rcService
+	oldClient := r.rcClient
 
-	rcService.Start()
+	newClient.SetInstallerState(r.installerState)
+
+	newService.Start()
 	r.logger.Info("Remote Configuration service started")
 
-	rcClient.Start()
+	for _, subscription := range r.subscriptions {
+		newClient.Subscribe(subscription.product, subscription.fn)
+	}
+
+	newClient.Start()
 	r.logger.Info("Remote Configuration client started")
 
-	rcClient.Subscribe(string(state.ProductAgentConfig), r.agentConfigUpdateCallback)
+	r.serviceConf = serviceConf
+	r.rcService = newService
+	r.rcClient = newClient
 
-	rcClient.Subscribe(string(state.ProductOrchestratorK8sCRDs), r.crdConfigUpdateCallback)
+	// Clean up old service/client after the new ones are setup and swapped.
+	if oldSvc != nil {
+		if err := oldSvc.Stop(); err != nil {
+			// The new runtime is already active; returning this error would leave
+			// activeAPIKey stale and cause repeated restart attempts.
+			r.logger.Error(err, "Failed to stop previous Remote Configuration service")
+		}
+	}
+	if oldClient != nil {
+		oldClient.Close()
+	}
 
 	return nil
 }
 
-// configureService fills the configuration needed to start the rc service
-func (r *RemoteConfigUpdater) configureService(apiKey, site, clusterName, directorRoot, configRoot, endpoint string) error {
+// newServiceConfiguration builds the configuration needed to start the rc service.
+func (r *RemoteConfigUpdater) newServiceConfiguration(apiKey, site, clusterName, directorRoot, configRoot, endpoint string) (RcServiceConfiguration, error) {
 	cfg := model.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
 
 	cfg.SetWithoutSource("api_key", apiKey)
@@ -242,10 +258,10 @@ func (r *RemoteConfigUpdater) configureService(apiKey, site, clusterName, direct
 	// TODO consider different dir
 	baseDir := filepath.Join(os.TempDir(), "datadog-operator")
 	if err := os.MkdirAll(baseDir, 0777); err != nil {
-		return err
+		return RcServiceConfiguration{}, err
 	}
 
-	serviceConf := RcServiceConfiguration{
+	return RcServiceConfiguration{
 		cfg:               cfg,
 		apiKey:            apiKey,
 		baseRawURL:        endpoint,
@@ -255,9 +271,43 @@ func (r *RemoteConfigUpdater) configureService(apiKey, site, clusterName, direct
 		// TODO fix when other values accepted
 		agentVersion:  "7.50.0",
 		rcDatabaseDir: baseDir,
+	}, nil
+}
+
+func defaultRCFactory(conf RcServiceConfiguration) (rcService, rcRuntimeClient, error) {
+	rcService, err := service.NewService(
+		conf.cfg,
+		"",
+		conf.baseRawURL,
+		conf.hostname,
+		func() []string { return []string{"cluster_name:" + conf.clusterName} },
+		conf.telemetryReporter,
+		conf.agentVersion,
+		service.WithAPIKey(conf.apiKey),
+		service.WithDatabaseFileName(filepath.Join(conf.rcDatabaseDir, fmt.Sprintf("remote-config-%s.db", uuid.New()))),
+		service.WithDirectorRootOverride(conf.cfg.GetString("site"), conf.cfg.GetString("remote_configuration.director_root")),
+		service.WithConfigRootOverride(conf.cfg.GetString("site"), conf.cfg.GetString("remote_configuration.config_root")),
+	)
+	if err != nil {
+		return nil, nil, err
 	}
-	r.serviceConf = serviceConf
-	return nil
+
+	updaterTags := []string{"updater_type:datadog-operator"}
+	if conf.clusterName != "" {
+		updaterTags = append(updaterTags, "cluster_name:"+conf.clusterName)
+	}
+	rcClient, err := client.NewClient(
+		rcService,
+		client.WithUpdater(updaterTags...),
+		client.WithProducts(state.ProductAgentConfig, state.ProductOrchestratorK8sCRDs),
+		client.WithDirectorRootOverride(conf.cfg.GetString("site"), conf.cfg.GetString("remote_configuration.director_root")),
+		client.WithPollInterval(pollInterval),
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return rcService, rcClient, nil
 }
 
 // getEndpoint returns the Remote Config endpoint, based on `site` and the prefix
@@ -266,6 +316,77 @@ func getEndpoint(prefix, site string) string {
 		return prefix + strings.TrimSpace(site)
 	}
 	return prefix + defaultSite
+}
+
+func (r *RemoteConfigUpdater) Subscribe(product string, fn func(update map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus))) {
+	r.lifecycleMu.Lock()
+	defer r.lifecycleMu.Unlock()
+
+	subscription := rcSubscription{product: product, fn: fn}
+	r.subscriptions = append(r.subscriptions, subscription)
+	if r.rcClient != nil {
+		r.rcClient.Subscribe(product, fn)
+	}
+}
+
+func (r *RemoteConfigUpdater) GetInstallerState() []*pbgo.PackageState {
+	r.lifecycleMu.Lock()
+	defer r.lifecycleMu.Unlock()
+	if r.rcClient != nil {
+		return r.rcClient.GetInstallerState()
+	}
+	return r.installerState
+}
+
+func (r *RemoteConfigUpdater) SetInstallerState(packages []*pbgo.PackageState) {
+	r.lifecycleMu.Lock()
+	defer r.lifecycleMu.Unlock()
+
+	// Save the installer state in the updater so that it can be used to restore the state of the installer
+	// when swapping out remote config clients.
+	r.installerState = packages
+	if r.rcClient != nil {
+		r.rcClient.SetInstallerState(packages)
+	}
+}
+
+func (r *RemoteConfigUpdater) syncCredentials(credsManager *config.CredentialManager) error {
+	creds, err := credsManager.GetCredentials()
+	if err != nil {
+		return err
+	}
+	if creds.APIKey == "" {
+		return errors.New("error obtaining API key")
+	}
+
+	r.lifecycleMu.Lock()
+	defer r.lifecycleMu.Unlock()
+
+	if creds.APIKey == r.activeAPIKey {
+		return nil
+	}
+
+	oldAPIKey := r.activeAPIKey
+	if err := r.startRuntime(creds.APIKey); err != nil {
+		return err
+	}
+	r.activeAPIKey = creds.APIKey
+	r.logger.Info("Remote Configuration credentials changed, runtime restarted", "previous_api_key_set", oldAPIKey != "", "current_api_key_set", creds.APIKey != "")
+	return nil
+}
+
+func (r *RemoteConfigUpdater) StartCredentialWatchRoutine(credsManager *config.CredentialManager, interval time.Duration) {
+	r.logger.Info("Starting Remote Configuration credential watch routine", "interval", interval)
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		<-ticker.C
+		if err := r.syncCredentials(credsManager); err != nil {
+			r.logger.Error(err, "Failed to sync Remote Configuration credentials")
+		}
+	}
 }
 
 // getAndUpdateDatadogAgent is used to prevent race conditions when updating the DDA's status
@@ -585,6 +706,9 @@ func (r *RemoteConfigUpdater) updateInstanceStatus(dda v2alpha1.DatadogAgent, co
 }
 
 func (r *RemoteConfigUpdater) Stop() error {
+	r.lifecycleMu.Lock()
+	defer r.lifecycleMu.Unlock()
+
 	if r.rcService != nil {
 		err := r.rcService.Stop()
 		if err != nil {
@@ -600,8 +724,21 @@ func (r *RemoteConfigUpdater) Stop() error {
 }
 
 func NewRemoteConfigUpdater(client kubeclient.Client, logger logr.Logger) *RemoteConfigUpdater {
-	return &RemoteConfigUpdater{
+	r := &RemoteConfigUpdater{
 		kubeClient: client,
 		logger:     logger,
+		installerState: []*pbgo.PackageState{
+			{
+				Package:             "datadog-operator",
+				StableVersion:       "0.0.1",
+				StableConfigVersion: "0.0.1",
+			},
+		},
+		remoteConfigFactory: defaultRCFactory,
 	}
+	r.subscriptions = []rcSubscription{
+		{product: state.ProductAgentConfig, fn: r.agentConfigUpdateCallback},
+		{product: state.ProductOrchestratorK8sCRDs, fn: r.crdConfigUpdateCallback},
+	}
+	return r
 }
