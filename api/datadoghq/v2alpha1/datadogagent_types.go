@@ -90,6 +90,8 @@ type DatadogFeatures struct {
 	ServiceDiscovery *ServiceDiscoveryFeatureConfig `json:"serviceDiscovery,omitempty"`
 	// GPU monitoring
 	GPU *GPUFeatureConfig `json:"gpu,omitempty"`
+	// Kata Containers monitoring
+	KataContainers *KataContainersFeatureConfig `json:"kataContainers,omitempty"`
 	// DataPlane configuration for the Agent Data Plane.
 	// Agent Data Plane is a high-performance sidecar that handles data ingestion.
 	// +optional
@@ -729,6 +731,14 @@ type GPUFeatureConfig struct {
 	// Default: false
 	// +optional
 	PatchCgroupPermissions *bool `json:"patchCgroupPermissions,omitempty"`
+}
+
+// KataContainersFeatureConfig contains the Kata Containers monitoring configuration.
+type KataContainersFeatureConfig struct {
+	// Enabled enables the Kata Containers core check.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // DataPlaneFeatureConfig contains the Data Plane configuration.
