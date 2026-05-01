@@ -2,7 +2,7 @@ module github.com/DataDog/datadog-operator
 
 go 1.25.7
 
-toolchain go1.25.9
+toolchain go1.26.2
 
 require (
 	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.63.0-rc.1 // indirect
