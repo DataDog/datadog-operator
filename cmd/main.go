@@ -57,8 +57,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/version"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	// nolint:gci
-	// +kubebuilder:scaffold:imports
 )
 
 const (
@@ -321,7 +319,7 @@ func run(opts *options) error {
 	// If RBAC restricts list and watch permissions, the informer will log errors and may cause crash loops.
 	// Reader interface as returned from mgr.GetAPIReader() reads directly from API server bypassing cache and informer initialization.
 	credsManager := config.NewCredentialManagerWithDecryptor(mgr.GetAPIReader(), secrets.NewSecretBackend())
-	creds, err := credsManager.GetCredentials()
+	_, err = credsManager.GetCredentials()
 
 	if opts.secretRefreshInterval > 0 && opts.secretBackendCommand == "" {
 		setupLog.Error(nil, "secretRefreshInterval is set but secretBackendCommand is not configured")
@@ -340,9 +338,12 @@ func run(opts *options) error {
 			// to handle that.
 			<-mgr.Elected()
 
-			if rcErr := rcUpdater.Setup(creds); rcErr != nil {
+			if rcErr := rcUpdater.Setup(credsManager); rcErr != nil {
 				setupErrorf(setupLog, rcErr, "Unable to set up Remote Config service")
 				return
+			}
+			if opts.secretBackendCommand != "" && opts.secretRefreshInterval > 0 {
+				go rcUpdater.StartCredentialWatchRoutine(credsManager, opts.secretRefreshInterval)
 			}
 
 			if opts.remoteUpdatesEnabled {
