@@ -196,19 +196,20 @@ func TestRestorePreviousSpec_PhaseSetOnlyOnSuccess(t *testing.T) {
 
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
+	instanceB.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseStopped}
 	require.NoError(t, r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil))
 
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseStopped}}
 
 	// rollback requires the DDA to exist in the fake client; don't create it so it errors.
-	err := r.restorePreviousSpec(context.Background(), instanceB.ObjectMeta, newStatus, mustListRevisions(t, r, instanceB), v2alpha1.ExperimentPhaseRollback)
+	err := r.restorePreviousSpec(context.Background(), instanceB, newStatus, mustListRevisions(t, r, instanceB), v2alpha1.ExperimentPhaseRollback)
 	require.Error(t, err)
 	// Phase must NOT have been set since rollback failed.
 	assert.Equal(t, v2alpha1.ExperimentPhaseStopped, newStatus.Experiment.Phase)
 
 	// Now create the DDA so rollback can succeed.
 	require.NoError(t, c.Create(context.Background(), instanceB))
-	err = r.restorePreviousSpec(context.Background(), instanceB.ObjectMeta, newStatus, mustListRevisions(t, r, instanceB), v2alpha1.ExperimentPhaseRollback)
+	err = r.restorePreviousSpec(context.Background(), instanceB, newStatus, mustListRevisions(t, r, instanceB), v2alpha1.ExperimentPhaseRollback)
 	require.NoError(t, err)
 	assert.Equal(t, v2alpha1.ExperimentPhaseRollback, newStatus.Experiment.Phase)
 }
@@ -421,7 +422,7 @@ func TestRestorePreviousSpec_ThreeRevisions_AnnotatesOnlyHighest(t *testing.T) {
 	// Trigger rollback via phase=stopped.
 	instanceC.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseStopped}
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceC.Status.Experiment.DeepCopy()}
-	require.NoError(t, r.restorePreviousSpec(context.Background(), instanceC.ObjectMeta, newStatus, revList, v2alpha1.ExperimentPhaseRollback))
+	require.NoError(t, r.restorePreviousSpec(context.Background(), instanceC, newStatus, revList, v2alpha1.ExperimentPhaseRollback))
 	assert.Equal(t, v2alpha1.ExperimentPhaseRollback, newStatus.Experiment.Phase)
 
 	// Verify: only rev3 (experiment, highest) is annotated.
