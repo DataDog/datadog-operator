@@ -52,6 +52,8 @@ type ksmFeature struct {
 	collectCrMetrics           []v2alpha1.Resource
 	collectAPIServiceMetrics   bool
 	collectControllerRevisions bool
+	collectSecrets             bool
+	collectConfigMaps          bool
 
 	rbacSuffix         string
 	serviceAccountName string
@@ -94,6 +96,15 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		f.collectCRDMetrics = true
 		f.collectCrMetrics = ddaSpec.Features.KubeStateMetricsCore.CollectCrMetrics
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
+
+		f.collectSecrets = true
+		if ddaSpec.Features.KubeStateMetricsCore.CollectSecretMetrics != nil {
+			f.collectSecrets = *ddaSpec.Features.KubeStateMetricsCore.CollectSecretMetrics
+		}
+		f.collectConfigMaps = true
+		if ddaSpec.Features.KubeStateMetricsCore.CollectConfigMaps != nil {
+			f.collectConfigMaps = *ddaSpec.Features.KubeStateMetricsCore.CollectConfigMaps
+		}
 
 		// Determine CollectControllerRevisions setting
 		// Default to true, then check version requirements
@@ -162,6 +173,17 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 				"collect_cr_metrics":  f.collectCrMetrics,
 			}
 
+			// Only include new toggles in the hash when explicitly set in the CR,
+			// so existing users who don't set the field see no annotation change on upgrade.
+			collectSecretsExplicit := ddaSpec.Features.KubeStateMetricsCore.CollectSecretMetrics != nil
+			collectConfigMapsExplicit := ddaSpec.Features.KubeStateMetricsCore.CollectConfigMaps != nil
+			if collectSecretsExplicit {
+				defaultConfigData["collect_secrets"] = f.collectSecrets
+			}
+			if collectConfigMapsExplicit {
+				defaultConfigData["collect_configmaps"] = f.collectConfigMaps
+			}
+
 			hash, err := comparison.GenerateMD5ForSpec(defaultConfigData)
 			if err != nil {
 				f.logger.Error(err, "couldn't generate hash for default ksm core config")
@@ -183,6 +205,8 @@ type collectorOptions struct {
 	enableAPIService          bool
 	enableCRD                 bool
 	enableControllerRevisions bool
+	collectSecrets            bool
+	collectConfigMaps         bool
 	customResources           []v2alpha1.Resource
 }
 
@@ -197,6 +221,8 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, provi
 		enableAPIService:          f.collectAPIServiceMetrics,
 		enableCRD:                 f.collectCRDMetrics,
 		enableControllerRevisions: f.collectControllerRevisions,
+		collectSecrets:            f.collectSecrets,
+		collectConfigMaps:         f.collectConfigMaps,
 		customResources:           f.collectCrMetrics,
 	}
 	configCM, err := f.buildKSMCoreConfigMap(collectorOpts)

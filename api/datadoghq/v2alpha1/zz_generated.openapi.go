@@ -1298,6 +1298,20 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_KubeStateMetricsCoreFeatureC
 							},
 						},
 					},
+					"collectSecretMetrics": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CollectSecretMetrics enables collection of metrics on Secrets. When false, the `secrets` collector and the RBAC permission to list/watch Secrets are omitted. Default: true",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"collectConfigMaps": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CollectConfigMaps enables collection of metrics on ConfigMaps. When false, the `configmaps` collector and the RBAC permission to list/watch ConfigMaps are omitted. Default: true",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
