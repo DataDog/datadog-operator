@@ -2412,22 +2412,30 @@ type RemoteConfigConfiguration struct {
 }
 
 // ExperimentPhase is the lifecycle phase of a Fleet Automation experiment.
-// +kubebuilder:validation:Enum=running;stopped;rollback;timeout;promoted;aborted
+// +kubebuilder:validation:Enum=running;terminated;promoted;aborted
 type ExperimentPhase string
 
 const (
-	// ExperimentPhaseRunning is set by RC when an experiment starts (startExperiment).
+	// ExperimentPhaseRunning is set by the reconciler when it processes a start signal.
 	ExperimentPhaseRunning ExperimentPhase = "running"
-	// ExperimentPhaseStopped is set by RC to request a rollback (stopExperiment).
-	ExperimentPhaseStopped ExperimentPhase = "stopped"
-	// ExperimentPhaseRollback is set by the operator after processing a stopped signal and restoring the previous spec.
-	ExperimentPhaseRollback ExperimentPhase = "rollback"
-	// ExperimentPhaseTimeout is set by the operator when the experiment exceeds the timeout and is auto-rolled back.
-	ExperimentPhaseTimeout ExperimentPhase = "timeout"
-	// ExperimentPhasePromoted is set by RC when an experiment succeeds (promoteExperiment).
+	// ExperimentPhaseTerminated is set by the reconciler after restoring the previous spec,
+	// either due to an explicit rollback signal or a timeout. The TerminationReason field
+	// distinguishes the cause.
+	ExperimentPhaseTerminated ExperimentPhase = "terminated"
+	// ExperimentPhasePromoted is set by the reconciler when a promote signal is processed.
 	ExperimentPhasePromoted ExperimentPhase = "promoted"
-	// ExperimentPhaseAborted is set by the operator when a manual spec change is detected during a running experiment.
+	// ExperimentPhaseAborted is set by the reconciler when a manual spec change is detected during a running experiment.
 	ExperimentPhaseAborted ExperimentPhase = "aborted"
+)
+
+// Experiment signal values written to the AnnotationExperimentSignal annotation.
+const (
+	// ExperimentSignalStart requests a new experiment to begin.
+	ExperimentSignalStart = "start"
+	// ExperimentSignalRollback requests the current experiment to roll back.
+	ExperimentSignalRollback = "rollback"
+	// ExperimentSignalPromote requests the current experiment to be promoted.
+	ExperimentSignalPromote = "promote"
 )
 
 // ExperimentStatus defines the state of a Fleet Automation experiment.
@@ -2436,9 +2444,13 @@ type ExperimentStatus struct {
 	// Phase is the current state of the experiment.
 	// +optional
 	Phase ExperimentPhase `json:"phase,omitempty"`
-	// ID is the unique experiment ID sent by Fleet Automation.
+	// ID is the RC task ID that triggered this experiment state.
 	// +optional
 	ID string `json:"id,omitempty"`
+	// TerminationReason distinguishes why the experiment was terminated.
+	// Only set when Phase is "terminated".
+	// +optional
+	TerminationReason string `json:"terminationReason,omitempty"`
 }
 
 // DatadogAgentStatus defines the observed state of DatadogAgent.
