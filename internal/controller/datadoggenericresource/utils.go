@@ -13,15 +13,15 @@ import (
 )
 
 // buildHandlers creates a handler for each supported resource type, each holding
-// its own API client and auth context from the given DatadogGenericClient.
-func buildHandlers(ddClient datadogclient.DatadogGenericClient) map[v1alpha1.SupportedResourcesType]ResourceHandler {
+// its own API client. Auth is passed per-call via the ResourceHandler methods.
+func buildHandlers(clients *datadogclient.GenericClients) map[v1alpha1.SupportedResourcesType]ResourceHandler {
 	return map[v1alpha1.SupportedResourcesType]ResourceHandler{
-		v1alpha1.Dashboard:             &DashboardHandler{auth: ddClient.Auth, client: ddClient.DashboardsClient},
-		v1alpha1.Downtime:              &DowntimeHandler{auth: ddClient.Auth, client: ddClient.DowntimesClient},
-		v1alpha1.Monitor:               &MonitorHandler{auth: ddClient.Auth, client: ddClient.MonitorsClient},
-		v1alpha1.Notebook:              &NotebookHandler{auth: ddClient.Auth, client: ddClient.NotebooksClient},
-		v1alpha1.SyntheticsAPITest:     &SyntheticsAPITestHandler{auth: ddClient.Auth, client: ddClient.SyntheticsClient},
-		v1alpha1.SyntheticsBrowserTest: &SyntheticsBrowserTestHandler{auth: ddClient.Auth, client: ddClient.SyntheticsClient},
+		v1alpha1.Dashboard:             &DashboardHandler{client: clients.DashboardsClient},
+		v1alpha1.Downtime:              &DowntimeHandler{client: clients.DowntimesClient},
+		v1alpha1.Monitor:               &MonitorHandler{client: clients.MonitorsClient},
+		v1alpha1.Notebook:              &NotebookHandler{client: clients.NotebooksClient},
+		v1alpha1.SyntheticsAPITest:     &SyntheticsAPITestHandler{client: clients.SyntheticsClient},
+		v1alpha1.SyntheticsBrowserTest: &SyntheticsBrowserTestHandler{client: clients.SyntheticsClient},
 	}
 }
 

@@ -59,7 +59,7 @@ func Test_handleFinalizer(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			reqLogger := testLogger.WithValues("test:", test.name)
 			_ = r.client.Create(context.TODO(), test.db)
-			final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger), defaultRequeuePeriod, defaultErrRequeuePeriod)
+			final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger, context.Background()), defaultRequeuePeriod, defaultErrRequeuePeriod)
 			_, err := final.HandleFinalizer(context.TODO(), test.db, test.db.Status.ID, datadogDashboardFinalizer)
 			assert.NoError(t, err)
 			if test.finalizerShouldExist {

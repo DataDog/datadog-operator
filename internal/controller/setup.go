@@ -45,8 +45,6 @@ type SetupOptions struct {
 	SupportExtendedDaemonset      ExtendedDaemonsetOptions
 	SupportCilium                 bool
 	CredsManager                  *config.CredentialManager
-	Creds                         config.Creds
-	SecretRefreshInterval         time.Duration
 	DatadogAgentEnabled           bool
 	DatadogAgentInternalEnabled   bool
 	DatadogMonitorEnabled         bool
@@ -186,16 +184,11 @@ func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, pInfo kubernet
 
 	monitorReconciler := &DatadogMonitorReconciler{
 		Client:                 mgr.GetClient(),
-		Creds:                  options.Creds,
+		CredsManager:           options.CredsManager,
 		Log:                    ctrl.Log.WithName("controllers").WithName(monitorControllerName),
 		Scheme:                 mgr.GetScheme(),
 		Recorder:               mgr.GetEventRecorderFor(monitorControllerName),
 		operatorMetricsEnabled: options.OperatorMetricsEnabled,
-	}
-
-	// set CredentialManager callback - only if secret refresh is enabled
-	if options.CredsManager != nil && options.SecretRefreshInterval > 0 {
-		options.CredsManager.RegisterCallback(monitorReconciler.onCredentialChange)
 	}
 
 	return monitorReconciler.SetupWithManager(mgr, metricForwardersMgr)
@@ -208,15 +201,11 @@ func startDatadogDashboard(logger logr.Logger, mgr manager.Manager, pInfo kubern
 	}
 
 	dashboardReconciler := &DatadogDashboardReconciler{
-		Client:   mgr.GetClient(),
-		Creds:    options.Creds,
-		Log:      ctrl.Log.WithName("controllers").WithName(dashboardControllerName),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor(dashboardControllerName),
-	}
-
-	if options.CredsManager != nil && options.SecretRefreshInterval > 0 {
-		options.CredsManager.RegisterCallback(dashboardReconciler.onCredentialChange)
+		Client:       mgr.GetClient(),
+		CredsManager: options.CredsManager,
+		Log:          ctrl.Log.WithName("controllers").WithName(dashboardControllerName),
+		Scheme:       mgr.GetScheme(),
+		Recorder:     mgr.GetEventRecorderFor(dashboardControllerName),
 	}
 
 	return dashboardReconciler.SetupWithManager(mgr)
@@ -229,15 +218,11 @@ func startDatadogGenericResource(logger logr.Logger, mgr manager.Manager, pInfo 
 	}
 
 	genericResourceReconciler := &DatadogGenericResourceReconciler{
-		Client:   mgr.GetClient(),
-		Creds:    options.Creds,
-		Log:      ctrl.Log.WithName("controllers").WithName(genericResourceControllerName),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor(genericResourceControllerName),
-	}
-
-	if options.CredsManager != nil && options.SecretRefreshInterval > 0 {
-		options.CredsManager.RegisterCallback(genericResourceReconciler.onCredentialChange)
+		Client:       mgr.GetClient(),
+		CredsManager: options.CredsManager,
+		Log:          ctrl.Log.WithName("controllers").WithName(genericResourceControllerName),
+		Scheme:       mgr.GetScheme(),
+		Recorder:     mgr.GetEventRecorderFor(genericResourceControllerName),
 	}
 
 	return genericResourceReconciler.SetupWithManager(mgr)
@@ -250,16 +235,13 @@ func startDatadogSLO(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.P
 	}
 
 	sloReconciler := &DatadogSLOReconciler{
-		Client:   mgr.GetClient(),
-		Creds:    options.Creds,
-		Log:      ctrl.Log.WithName("controllers").WithName(sloControllerName),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor(sloControllerName),
+		Client:       mgr.GetClient(),
+		CredsManager: options.CredsManager,
+		Log:          ctrl.Log.WithName("controllers").WithName(sloControllerName),
+		Scheme:       mgr.GetScheme(),
+		Recorder:     mgr.GetEventRecorderFor(sloControllerName),
 	}
 
-	if options.CredsManager != nil && options.SecretRefreshInterval > 0 {
-		options.CredsManager.RegisterCallback(sloReconciler.onCredentialChange)
-	}
 	return sloReconciler.SetupWithManager(mgr)
 }
 

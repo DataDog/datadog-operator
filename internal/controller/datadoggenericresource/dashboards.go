@@ -16,12 +16,11 @@ import (
 )
 
 type DashboardHandler struct {
-	auth   context.Context
 	client *datadogV1.DashboardsApi
 }
 
-func (h *DashboardHandler) createResource(instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
-	createdDashboard, err := createDashboard(h.auth, h.client, instance)
+func (h *DashboardHandler) createResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
+	createdDashboard, err := createDashboard(auth, h.client, instance)
 	if err != nil {
 		return CreateResult{}, err
 	}
@@ -33,18 +32,18 @@ func (h *DashboardHandler) createResource(instance *v1alpha1.DatadogGenericResou
 	}, nil
 }
 
-func (h *DashboardHandler) getResource(instance *v1alpha1.DatadogGenericResource) error {
-	_, err := getDashboard(h.auth, h.client, instance.Status.Id)
+func (h *DashboardHandler) getResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
+	_, err := getDashboard(auth, h.client, instance.Status.Id)
 	return err
 }
 
-func (h *DashboardHandler) updateResource(instance *v1alpha1.DatadogGenericResource) error {
-	_, err := updateDashboard(h.auth, h.client, instance)
+func (h *DashboardHandler) updateResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
+	_, err := updateDashboard(auth, h.client, instance)
 	return err
 }
 
-func (h *DashboardHandler) deleteResource(instance *v1alpha1.DatadogGenericResource) error {
-	return deleteDashboard(h.auth, h.client, instance.Status.Id)
+func (h *DashboardHandler) deleteResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
+	return deleteDashboard(auth, h.client, instance.Status.Id)
 }
 
 func getDashboard(auth context.Context, client *datadogV1.DashboardsApi, dashboardID string) (datadogV1.Dashboard, error) {

@@ -92,7 +92,7 @@ func Test_handleFinalizer(t *testing.T) {
 			testMonitor := &datadoghqv1alpha1.DatadogMonitor{}
 			_ = r.client.Get(context.TODO(), client.ObjectKey{Namespace: "foo", Name: test.objectName}, testMonitor)
 
-			final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger), defaultRequeuePeriod, defaultErrRequeuePeriod)
+			final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger, context.Background()), defaultRequeuePeriod, defaultErrRequeuePeriod)
 			_, err := final.HandleFinalizer(context.TODO(), testMonitor, fmt.Sprint(testMonitor.Status.ID), datadogMonitorFinalizer)
 
 			assert.NoError(t, err)
