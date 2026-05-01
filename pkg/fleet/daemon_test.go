@@ -44,7 +44,6 @@ func testDaemon(dda *v2alpha1.DatadogAgent, configs map[string]installerConfig) 
 		client:           c,
 		revisionsEnabled: true,
 		configs:          configs,
-		experimentTarget: testDDANSN,
 	}, c
 }
 
@@ -77,7 +76,6 @@ func testInstallerConfigWithDDA() map[string]installerConfig {
 				{
 					Operation:        OperationUpdate,
 					GroupVersionKind: testDDAGVK,
-					NamespacedName:   testDDANSN,
 					Config:           json.RawMessage(`{}`),
 				},
 			},
@@ -90,7 +88,7 @@ func testStartRequest() remoteAPIRequest {
 		ID:      "exp-abc",
 		Package: "datadog-operator",
 		Method:  methodStartDatadogAgentExperiment,
-		Params:  experimentParams{Version: "test-config"},
+		Params:  experimentParams{Version: "test-config", NamespacedName: testDDANSN},
 	}
 }
 
@@ -111,7 +109,6 @@ func TestStartDatadogAgentExperiment_NoDDAOperation(t *testing.T) {
 				{
 					Operation:        OperationUpdate,
 					GroupVersionKind: schema.GroupVersionKind{Group: "other.io", Version: "v1", Kind: "Other"},
-					NamespacedName:   testDDANSN,
 					Config:           json.RawMessage(`{}`),
 				},
 			},
@@ -221,7 +218,6 @@ func TestStartDatadogAgentExperiment_VersionMatchesInstallerConfig(t *testing.T)
 				{
 					Operation:        OperationUpdate,
 					GroupVersionKind: testDDAGVK,
-					NamespacedName:   testDDANSN,
 					Config:           json.RawMessage(`{"spec":{"features":{"apm":{"enabled":true}}}}`),
 				},
 			},
@@ -231,7 +227,7 @@ func TestStartDatadogAgentExperiment_VersionMatchesInstallerConfig(t *testing.T)
 	req := remoteAPIRequest{
 		ID:     "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
 		Method: methodStartDatadogAgentExperiment,
-		Params: experimentParams{Version: "aaaa-bbbb-cccc"},
+		Params: experimentParams{Version: "aaaa-bbbb-cccc", NamespacedName: testDDANSN},
 		ExpectedState: expectedState{
 			Stable:       "0.0.1",
 			StableConfig: "0.0.1",
@@ -271,7 +267,7 @@ func testStopRequest() remoteAPIRequest {
 		ID:      "exp-abc",
 		Package: "datadog-operator",
 		Method:  methodStopDatadogAgentExperiment,
-		Params:  experimentParams{Version: "test-config"},
+		Params:  experimentParams{Version: "test-config", NamespacedName: testDDANSN},
 	}
 }
 
@@ -337,7 +333,7 @@ func testPromoteRequest() remoteAPIRequest {
 		ID:      "exp-abc",
 		Package: "datadog-operator",
 		Method:  methodPromoteDatadogAgentExperiment,
-		Params:  experimentParams{Version: "test-config"},
+		Params:  experimentParams{Version: "test-config", NamespacedName: testDDANSN},
 	}
 }
 
@@ -365,39 +361,54 @@ func TestPromoteDatadogAgentExperiment_NoExperimentVersion(t *testing.T) {
 }
 
 func TestPromoteDatadogAgentExperiment_NoOp_Rollback(t *testing.T) {
-	d, c := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseRollback), testInstallerConfigWithDDA())
-	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+	rc := &mockRCClient{state: []*pbgo.PackageState{
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
 	}}
+	d, c := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseRollback), testInstallerConfigWithDDA())
+	d.rcClient = rc
 	require.NoError(t, d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest()))
 
 	dda := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
 	assert.Equal(t, v2alpha1.ExperimentPhaseRollback, dda.Status.Experiment.Phase)
+	// Rolled back: stable stays, experiment cleared.
+	assert.Equal(t, "stable-1", rc.state[0].StableConfigVersion)
+	assert.Equal(t, "", rc.state[0].ExperimentConfigVersion)
 }
 
 func TestPromoteDatadogAgentExperiment_NoOp_Timeout(t *testing.T) {
-	d, c := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseTimeout), testInstallerConfigWithDDA())
-	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+	rc := &mockRCClient{state: []*pbgo.PackageState{
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
 	}}
+	d, c := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseTimeout), testInstallerConfigWithDDA())
+	d.rcClient = rc
 	require.NoError(t, d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest()))
 
 	dda := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
 	assert.Equal(t, v2alpha1.ExperimentPhaseTimeout, dda.Status.Experiment.Phase)
+	// Timed out: stable stays, experiment cleared.
+	assert.Equal(t, "stable-1", rc.state[0].StableConfigVersion)
+	assert.Equal(t, "", rc.state[0].ExperimentConfigVersion)
 }
 
 func TestPromoteDatadogAgentExperiment_NoOp_Promoted(t *testing.T) {
-	d, c := testDaemon(testDDAObject(v2alpha1.ExperimentPhasePromoted), testInstallerConfigWithDDA())
-	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+	// Simulates daemon crash between status update and setPackageConfigVersions:
+	// phase=Promoted but installer state still has the experiment version.
+	// The no-op path must complete the promotion by moving exp → stable.
+	rc := &mockRCClient{state: []*pbgo.PackageState{
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
 	}}
+	d, c := testDaemon(testDDAObject(v2alpha1.ExperimentPhasePromoted), testInstallerConfigWithDDA())
+	d.rcClient = rc
 	require.NoError(t, d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest()))
 
 	dda := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
 	assert.Equal(t, v2alpha1.ExperimentPhasePromoted, dda.Status.Experiment.Phase)
+	// Promoted: experiment version moves to stable, experiment cleared.
+	assert.Equal(t, "exp-1", rc.state[0].StableConfigVersion)
+	assert.Equal(t, "", rc.state[0].ExperimentConfigVersion)
 }
 
 func TestPromoteDatadogAgentExperiment_Success_Running(t *testing.T) {
@@ -497,33 +508,15 @@ func TestValidateOperation_Valid(t *testing.T) {
 	op := fleetManagementOperation{
 		Operation:        OperationUpdate,
 		GroupVersionKind: testDDAGVK,
-		NamespacedName:   testDDANSN,
 		Config:           json.RawMessage(`{}`),
 	}
 	assert.NoError(t, validateOperation(op))
-}
-
-func TestValidateOperation_EmptyName(t *testing.T) {
-	op := fleetManagementOperation{
-		GroupVersionKind: testDDAGVK,
-		NamespacedName:   types.NamespacedName{Namespace: "datadog", Name: ""},
-	}
-	assert.Error(t, validateOperation(op))
-}
-
-func TestValidateOperation_EmptyNamespace(t *testing.T) {
-	op := fleetManagementOperation{
-		GroupVersionKind: testDDAGVK,
-		NamespacedName:   types.NamespacedName{Namespace: "", Name: "datadog-agent"},
-	}
-	assert.Error(t, validateOperation(op))
 }
 
 func TestValidateOperation_EmptyGroup_Allowed(t *testing.T) {
 	// Group is auto-detected from the cluster; empty group is valid input.
 	op := fleetManagementOperation{
 		GroupVersionKind: schema.GroupVersionKind{Group: "", Version: "", Kind: "DatadogAgent"},
-		NamespacedName:   testDDANSN,
 	}
 	assert.NoError(t, validateOperation(op))
 }
@@ -531,9 +524,29 @@ func TestValidateOperation_EmptyGroup_Allowed(t *testing.T) {
 func TestValidateOperation_WrongKind(t *testing.T) {
 	op := fleetManagementOperation{
 		GroupVersionKind: schema.GroupVersionKind{Group: "datadoghq.com", Version: "v2alpha1", Kind: "DatadogMonitor"},
-		NamespacedName:   testDDANSN,
 	}
 	assert.Error(t, validateOperation(op))
+}
+
+// --- parseTaskNSN tests ---
+
+func TestParseTaskNSN_Valid(t *testing.T) {
+	req := remoteAPIRequest{Params: experimentParams{NamespacedName: testDDANSN}}
+	nsn, err := parseTaskNSN(req, "test")
+	require.NoError(t, err)
+	assert.Equal(t, testDDANSN, nsn)
+}
+
+func TestParseTaskNSN_MissingName(t *testing.T) {
+	req := remoteAPIRequest{Params: experimentParams{NamespacedName: types.NamespacedName{Namespace: "datadog"}}}
+	_, err := parseTaskNSN(req, "test")
+	assert.Error(t, err)
+}
+
+func TestParseTaskNSN_MissingNamespace(t *testing.T) {
+	req := remoteAPIRequest{Params: experimentParams{NamespacedName: types.NamespacedName{Name: "datadog-agent"}}}
+	_, err := parseTaskNSN(req, "test")
+	assert.Error(t, err)
 }
 
 // --- canStart tests ---
@@ -757,4 +770,47 @@ func TestSetTaskState_NilClient(t *testing.T) {
 	assert.NotPanics(t, func() {
 		d.setTaskState("datadog-operator", "task-1", pbgo.TaskState_RUNNING, nil)
 	})
+}
+
+// --- handleTask state-transition tests ---
+
+func testDaemonFull(dda *v2alpha1.DatadogAgent, configs map[string]installerConfig, rcState []*pbgo.PackageState) (*Daemon, client.Client, *mockRCClient) {
+	d, c := testDaemon(dda, configs)
+	rc := &mockRCClient{state: rcState}
+	d.rcClient = rc
+	return d, c, rc
+}
+
+func TestHandleTask_Done(t *testing.T) {
+	rc := []*pbgo.PackageState{{Package: "datadog-operator", StableConfigVersion: "0.0.1"}}
+	d, _, m := testDaemonFull(testDDAObject(""), testInstallerConfigWithDDA(), rc)
+	req := testStartRequest()
+	req.ExpectedState = expectedState{StableConfig: "0.0.1"}
+	require.NoError(t, d.handleTask(context.Background(), req))
+	require.NotNil(t, m.state[0].Task)
+	assert.Equal(t, pbgo.TaskState_DONE, m.state[0].Task.State)
+}
+
+func TestHandleTask_Error(t *testing.T) {
+	rc := []*pbgo.PackageState{{Package: "datadog-operator", StableConfigVersion: "0.0.1"}}
+	d, _, m := testDaemonFull(testDDAObject(""), testInstallerConfigWithDDA(), rc)
+	req := testStartRequest()
+	req.Method = "unknown/method"
+	req.ExpectedState = expectedState{StableConfig: "0.0.1"}
+	err := d.handleTask(context.Background(), req)
+	require.Error(t, err)
+	require.NotNil(t, m.state[0].Task)
+	assert.Equal(t, pbgo.TaskState_ERROR, m.state[0].Task.State)
+	require.NotNil(t, m.state[0].Task.Error)
+}
+
+func TestHandleTask_InvalidState(t *testing.T) {
+	rc := []*pbgo.PackageState{{Package: "datadog-operator", StableConfigVersion: "0.0.1"}}
+	d, _, m := testDaemonFull(testDDAObject(""), testInstallerConfigWithDDA(), rc)
+	req := testStartRequest()
+	req.ExpectedState = expectedState{StableConfig: "wrong-version"}
+	err := d.handleTask(context.Background(), req)
+	require.Error(t, err)
+	require.NotNil(t, m.state[0].Task)
+	assert.Equal(t, pbgo.TaskState_INVALID_STATE, m.state[0].Task.State)
 }

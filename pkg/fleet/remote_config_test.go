@@ -29,10 +29,6 @@ var testInstallerConfig = installerConfig{
 				Version: "v2alpha1",
 				Kind:    "DatadogAgent",
 			},
-			NamespacedName: types.NamespacedName{
-				Namespace: "datadog",
-				Name:      "datadog-agent",
-			},
 			Config: json.RawMessage(`{"spec":{"features":{"apm":{"enabled":true}}}}`),
 		},
 	},
@@ -41,7 +37,9 @@ var testInstallerConfig = installerConfig{
 var testRemoteAPIRequest = remoteAPIRequest{
 	ID:     "test",
 	Method: "some_method",
-	Params: experimentParams{},
+	Params: experimentParams{
+		NamespacedName: types.NamespacedName{Namespace: "datadog", Name: "datadog-agent"},
+	},
 }
 
 // callbackMock records calls made by the RC handler callbacks.
