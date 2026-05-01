@@ -35,6 +35,34 @@ func buildOOMKillFeature(options *feature.Options) feature.Feature {
 
 type oomKillFeature struct{}
 
+// NodeAgentProviderCapabilities returns provider-conditional volumes for oomkill.
+func (f *oomKillFeature) NodeAgentProviderCapabilities() feature.NodeAgentProviderCapabilities {
+	srcVol, srcMount := volume.GetVolumes(common.SrcVolumeName, common.SrcVolumePath, common.SrcVolumePath, true)
+	modulesVol, modulesMount := volume.GetVolumes(common.ModulesVolumeName, common.ModulesVolumePath, common.ModulesVolumePath, true)
+	return feature.NodeAgentProviderCapabilities{
+		Volumes: []feature.ProviderRule[feature.VolumeAndMount]{
+			{
+				// modules: excluded on GKE Autopilot (no host kernel modules)
+				Item: feature.VolumeAndMount{
+					Volume:     modulesVol,
+					Mount:      modulesMount,
+					Containers: []apicommon.AgentContainerName{apicommon.SystemProbeContainerName},
+				},
+				ExcludeProviders: []string{kubernetes.GKEAutopilotProvider},
+			},
+			{
+				// src: excluded on GKE COS and GKE Autopilot (no /usr/src on CO-RE nodes)
+				Item: feature.VolumeAndMount{
+					Volume:     srcVol,
+					Mount:      srcMount,
+					Containers: []apicommon.AgentContainerName{apicommon.SystemProbeContainerName},
+				},
+				ExcludeProviders: []string{kubernetes.GKECosProvider, kubernetes.GKEAutopilotProvider},
+			},
+		},
+	}
+}
+
 // ID returns the ID of the Feature
 func (f *oomKillFeature) ID() feature.IDType {
 	return feature.OOMKillIDType
@@ -73,22 +101,10 @@ func (f *oomKillFeature) ManageSingleContainerNodeAgent(managers feature.PodTemp
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
+// Provider-conditional volumes (src, modules) are handled by NodeAgentProviderCapabilities.
 func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// security context capabilities
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommon.SystemProbeContainerName)
-
-	// modules volume mount
-	modulesVol, modulesVolMount := volume.GetVolumes(common.ModulesVolumeName, common.ModulesVolumePath, common.ModulesVolumePath, true)
-	managers.VolumeMount().AddVolumeMountToContainer(&modulesVolMount, apicommon.SystemProbeContainerName)
-	managers.Volume().AddVolume(&modulesVol)
-
-	// src volume mount
-	_, providerValue := kubernetes.GetProviderLabelKeyValue(provider)
-	if providerValue != kubernetes.GKECosType {
-		srcVol, srcVolMount := volume.GetVolumes(common.SrcVolumeName, common.SrcVolumePath, common.SrcVolumePath, true)
-		managers.VolumeMount().AddVolumeMountToContainer(&srcVolMount, apicommon.SystemProbeContainerName)
-		managers.Volume().AddVolume(&srcVol)
-	}
 
 	// debugfs volume mount
 	debugfsVol, debugfsVolMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false)
