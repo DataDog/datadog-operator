@@ -184,9 +184,9 @@ func (f *dogstatsdFeature) ManageSingleContainerNodeAgent(managers feature.PodTe
 // It should do nothing if the feature doesn't need to configure it.
 func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// When the Data Plane feature is enabled, and handling DogStatsD, we apply the DSD configuration to the Data Plane
-	// container instead. The Core Agent observes `data_plane.enabled` (via DD_DATA_PLANE_ENABLED set by the dataplane
-	// feature) and delegates DogStatsD to the Data Plane on its own — no explicit `DD_USE_DOGSTATSD=false` override is
-	// required.
+	// container instead. The Core Agent observes both `data_plane.enabled` and `data_plane.dogstatsd.enabled` (via
+	// DD_DATA_PLANE_ENABLED and DD_DATA_PLANE_DOGSTATSD_ENABLED set by the dataplane feature) to decide whether to run
+	// DogStatsD itself or delegate it to the Data Plane — no explicit `DD_USE_DOGSTATSD=false` override is required.
 	if f.dataPlaneEnabled && f.dataPlaneDogstatsdEnabled {
 		f.manageNodeAgent(apicommon.AgentDataPlaneContainerName, managers, provider)
 	} else {

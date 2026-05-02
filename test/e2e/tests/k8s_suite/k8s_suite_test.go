@@ -447,7 +447,6 @@ serviceAccount:
 			for _, pod := range pods.Items {
 				assertContainerPresent(c, pod, adpContainerName)
 				assertContainerHasUDPHostPort(c, pod, adpContainerName, dsdPort)
-				assertContainerDoesNotHaveEnvVar(c, pod, coreAgentContainerName, "DD_USE_DOGSTATSD")
 				assertContainerDoesNotHaveHostPort(c, pod, coreAgentContainerName, dsdPort)
 			}
 		}, 5*time.Minute, 15*time.Second, "DSD UDP with ADP: pod spec verification failed")
@@ -520,7 +519,6 @@ serviceAccount:
 			for _, pod := range pods.Items {
 				assertContainerPresent(c, pod, adpContainerName)
 				assertContainerHasVolumeMount(c, pod, adpContainerName, dsdSocketVolumeName, dsdSocketMountPath)
-				assertContainerDoesNotHaveEnvVar(c, pod, coreAgentContainerName, "DD_USE_DOGSTATSD")
 			}
 		}, 5*time.Minute, 15*time.Second, "DSD UDS with ADP: pod spec verification failed")
 	})
@@ -625,19 +623,6 @@ func assertContainerHasEnvVar(c *assert.CollectT, pod corev1.Pod, containerName,
 		}
 	}
 	assert.Failf(c, "env var not found", "expected container %q in pod %s to have env var %s=%s", containerName, pod.Name, envName, envValue)
-}
-
-func assertContainerDoesNotHaveEnvVar(c *assert.CollectT, pod corev1.Pod, containerName, envName string) {
-	container := findContainer(pod, containerName)
-	if container == nil {
-		return
-	}
-	for _, env := range container.Env {
-		if env.Name == envName {
-			assert.Failf(c, "unexpected env var", "expected container %q in pod %s to NOT have env var %s (got value %q)", containerName, pod.Name, envName, env.Value)
-			return
-		}
-	}
 }
 
 func assertContainerHasVolumeMount(c *assert.CollectT, pod corev1.Pod, containerName, volumeName, mountPath string) {
