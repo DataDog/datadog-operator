@@ -397,7 +397,8 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
-					assert.Contains(t, agentEnvVars, dsdDisabledEnvVar, "DD_USE_DOGSTATSD should be set to false when Data Plane DogStatsD is enabled")
+					// Core Agent observes data_plane.enabled and delegates DSD to ADP without an explicit override.
+					assert.NotContains(t, agentEnvVars, dsdDisabledEnvVar, "DD_USE_DOGSTATSD should not be set on the Core Agent when Data Plane handles DogStatsD")
 
 					// Verify DogStatsD config is applied to ADP container
 					adpEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AgentDataPlaneContainerName]
@@ -420,7 +421,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
-					assert.Contains(t, agentEnvVars, dsdDisabledEnvVar, "DD_USE_DOGSTATSD should be set to false when Data Plane is enabled (dogstatsd defaults to true)")
+					assert.NotContains(t, agentEnvVars, dsdDisabledEnvVar, "DD_USE_DOGSTATSD should not be set on the Core Agent when Data Plane is enabled (dogstatsd defaults to true)")
 
 					// Verify DogStatsD config is applied to ADP container
 					adpEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AgentDataPlaneContainerName]
@@ -444,7 +445,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
-					assert.Contains(t, agentEnvVars, dsdDisabledEnvVar, "DD_USE_DOGSTATSD should be set to false when Data Plane DogStatsD is enabled")
+					assert.NotContains(t, agentEnvVars, dsdDisabledEnvVar, "DD_USE_DOGSTATSD should not be set on the Core Agent when Data Plane handles DogStatsD")
 
 					// Verify DogStatsD config is applied to ADP container
 					adpEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AgentDataPlaneContainerName]
