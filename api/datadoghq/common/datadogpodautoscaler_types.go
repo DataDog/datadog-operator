@@ -428,6 +428,12 @@ type DatadogPodAutoscalerOptions struct {
 	// OutOfMemory configures behavior when OOM events are detected.
 	// +optional
 	OutOfMemory *DatadogPodAutoscalerOutOfMemoryOptions `json:"outOfMemory,omitempty"`
+
+	// Burstable, if true, removes CPU limits from containers while keeping CPU request recommendations,
+	// granting the pod a Burstable QoS class and allowing it to consume idle node CPU capacity beyond its requests.
+	// If not set, the default value is determined by the Cluster Agent setting autoscaling.workload.options.burstable.
+	// +optional
+	Burstable *bool `json:"burstable,omitempty"`
 }
 
 // DatadogPodAutoscalerOutOfMemoryOptions configures the behavior when out-of-memory events are detected.
@@ -438,6 +444,16 @@ type DatadogPodAutoscalerOutOfMemoryOptions struct {
 	// Represented as a resource.Quantity to avoid floating point in CRDs.
 	// +optional
 	BumpUpRatio *resource.Quantity `json:"bumpUpRatio,omitempty"`
+}
+
+// DatadogPodAutoscalerOptionsStatus reflects the effective options applied by the autoscaler.
+// +kubebuilder:object:generate=true
+type DatadogPodAutoscalerOptionsStatus struct {
+	// Burstable is the effective value of the burstable setting applied by the autoscaler.
+	// When not set in the spec, this reflects the default determined by the Cluster Agent
+	// setting autoscaling.workload.options.burstable.
+	// +optional
+	Burstable *bool `json:"burstable,omitempty"`
 }
 
 // DatadogPodAutoscalerStatus defines the observed state of DatadogPodAutoscaler
@@ -454,6 +470,10 @@ type DatadogPodAutoscalerStatus struct {
 	// CurrentReplicas is the current number of pods for the targetRef observed by the controller.
 	// +optional
 	CurrentReplicas *int32 `json:"currentReplicas,omitempty"`
+
+	// Options reflects the effective options applied by the autoscaler.
+	// +optional
+	Options *DatadogPodAutoscalerOptionsStatus `json:"options,omitempty"`
 
 	// Conditions describe the current state of the DatadogPodAutoscaler operations.
 	// +patchMergeKey=type

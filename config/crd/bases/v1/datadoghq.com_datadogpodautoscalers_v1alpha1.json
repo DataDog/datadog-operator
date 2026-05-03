@@ -876,6 +876,17 @@
           },
           "type": "object"
         },
+        "options": {
+          "additionalProperties": false,
+          "description": "Options reflects the effective options applied by the autoscaler.",
+          "properties": {
+            "burstable": {
+              "description": "Burstable is the effective value of the burstable setting applied by the autoscaler.\nWhen not set in the spec, this reflects the default determined by the Cluster Agent\nsetting autoscaling.workload.options.burstable.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
         "vertical": {
           "additionalProperties": false,
           "description": "Vertical is the status of the vertical scaling, if activated.",
