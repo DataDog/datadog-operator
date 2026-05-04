@@ -77,7 +77,7 @@ core,github.com/containerd/containerd,Apache-2.0
 core,github.com/containerd/errdefs,Apache-2.0
 core,github.com/containerd/log,Apache-2.0
 core,github.com/containerd/platforms,Apache-2.0
-core,github.com/cyphar/filepath-securejoin,BSD-3-Clause
+core,github.com/cyphar/filepath-securejoin,MPL-2.0
 core,github.com/davecgh/go-spew/spew,ISC
 core,github.com/dsnet/compress,BSD-3-Clause
 core,github.com/dustin/go-humanize,MIT
