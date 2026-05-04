@@ -56,11 +56,15 @@ type RemoteConfigUpdater struct {
 
 type rcRuntimeFactory func(conf RcServiceConfiguration) (rcService, rcRuntimeClient, error)
 
+// rcService abstracts the RC service for testability. In production this is *service.CoreAgentService.
 type rcService interface {
 	Start()
 	Stop() error
 }
 
+// rcRuntimeClient abstracts the inner RC client that gets swapped on key rotation.
+// In production this is *client.Client. The outer RemoteConfigUpdater implements RCClient
+// as a stable wrapper so callers aren't aware of client replacement.
 type rcRuntimeClient interface {
 	RCClient
 	Start()
@@ -88,11 +92,6 @@ type RCClient interface {
 	Subscribe(product string, fn func(update map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus)))
 	GetInstallerState() []*pbgo.PackageState
 	SetInstallerState(packages []*pbgo.PackageState)
-}
-
-// Client returns the underlying RC client.
-func (r *RemoteConfigUpdater) Client() RCClient {
-	return r
 }
 
 // DatadogProductRemoteConfig  is an interface for Datadog product remote configuration
@@ -181,19 +180,16 @@ func (r *RemoteConfigUpdater) Setup(credsManager *config.CredentialManager) erro
 	return nil
 }
 
-// startRuntime will start the remote configuration client and service. This must be called a held lock.
+// startRuntime creates a new RC service and client for the given API key, swapping out any
+// existing runtime. Must be called with lifecycleMu held.
 func (r *RemoteConfigUpdater) startRuntime(apiKey string) error {
+	r.logger.Info("Starting Remote Configuration client and service")
+
 	site := os.Getenv(constants.DDSite) // TODO support DD_URL as well
 	clusterName := os.Getenv(constants.DDClusterName)
 	directorRoot := os.Getenv("DD_REMOTE_CONFIGURATION_DIRECTOR_ROOT")
 	configRoot := os.Getenv("DD_REMOTE_CONFIGURATION_CONFIG_ROOT")
 	endpoint := os.Getenv("DD_REMOTE_CONFIGURATION_RC_DD_URL")
-
-	return r.startRuntimeWithConfig(apiKey, site, clusterName, directorRoot, configRoot, endpoint)
-}
-
-func (r *RemoteConfigUpdater) startRuntimeWithConfig(apiKey string, site string, clusterName string, directorRoot string, configRoot string, endpoint string) error {
-	r.logger.Info("Starting Remote Configuration client and service")
 
 	serviceConf, err := r.newServiceConfiguration(apiKey, site, clusterName, directorRoot, configRoot, endpoint)
 	if err != nil {
@@ -227,7 +223,7 @@ func (r *RemoteConfigUpdater) startRuntimeWithConfig(apiKey string, site string,
 	r.rcService = newService
 	r.rcClient = newClient
 
-	// Clean up old service/client after the new ones are setup and swapped.
+	// Clean up old service/client after the new one is set up.
 	if oldSvc != nil {
 		if err := oldSvc.Stop(); err != nil {
 			// The new runtime is already active; returning this error would leave
