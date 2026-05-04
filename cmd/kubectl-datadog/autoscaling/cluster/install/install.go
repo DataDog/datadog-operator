@@ -281,10 +281,12 @@ func (o *options) run(cmd *cobra.Command) error {
 		return displayEKSAutoModeMessage(cmd, clusterName)
 	}
 
-	if foreign, err := guess.FindForeignKarpenterInstallation(ctx, o.Clientset, karpenterNamespace); err != nil {
+	k, err := guess.FindKarpenterInstallation(ctx, o.Clientset)
+	if err != nil {
 		return fmt.Errorf("failed to check for an existing Karpenter installation: %w", err)
-	} else if foreign != nil {
-		return displayForeignKarpenterMessage(cmd, clusterName, foreign)
+	}
+	if k != nil && (!k.IsOwn() || k.Namespace != karpenterNamespace) {
+		return displayForeignKarpenterMessage(cmd, clusterName, k)
 	}
 
 	display.PrintBox(cmd.OutOrStdout(), "Installing Karpenter on cluster "+clusterName+".")
@@ -658,7 +660,7 @@ func displayEKSAutoModeMessage(cmd *cobra.Command, clusterName string) error {
 	return nil
 }
 
-func displayForeignKarpenterMessage(cmd *cobra.Command, clusterName string, foreign *guess.ForeignKarpenter) error {
+func displayForeignKarpenterMessage(cmd *cobra.Command, clusterName string, foreign *guess.KarpenterInstallation) error {
 	coloredURL := openAutoscalingSettingsURL(cmd, clusterName)
 
 	display.PrintBox(cmd.OutOrStdout(),
