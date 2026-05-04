@@ -80,7 +80,7 @@ type RcServiceConfiguration struct {
 	clusterName       string
 	telemetryReporter service.RcTelemetryReporter
 	agentVersion      string
-	rcDatabaseDir     string
+	rcDatabaseFile    string
 }
 
 // RCClient is the interface for subscribing to RC product updates.
@@ -209,6 +209,7 @@ func (r *RemoteConfigUpdater) startRuntimeWithConfig(apiKey string, site string,
 
 	oldSvc := r.rcService
 	oldClient := r.rcClient
+	oldDBFile := r.serviceConf.rcDatabaseFile
 
 	newClient.SetInstallerState(r.installerState)
 
@@ -236,6 +237,11 @@ func (r *RemoteConfigUpdater) startRuntimeWithConfig(apiKey string, site string,
 	}
 	if oldClient != nil {
 		oldClient.Close()
+	}
+	if oldDBFile != "" {
+		if err := os.Remove(oldDBFile); err != nil && !os.IsNotExist(err) {
+			r.logger.Error(err, "Failed to remove old Remote Configuration database file", "file", oldDBFile)
+		}
 	}
 
 	return nil
@@ -269,8 +275,8 @@ func (r *RemoteConfigUpdater) newServiceConfiguration(apiKey, site, clusterName,
 		clusterName:       clusterName,
 		telemetryReporter: dummyTelemetryReporter{},
 		// TODO fix when other values accepted
-		agentVersion:  "7.50.0",
-		rcDatabaseDir: baseDir,
+		agentVersion:   "7.50.0",
+		rcDatabaseFile: filepath.Join(baseDir, fmt.Sprintf("remote-config-%s.db", uuid.New())),
 	}, nil
 }
 
@@ -284,7 +290,7 @@ func defaultRCFactory(conf RcServiceConfiguration) (rcService, rcRuntimeClient, 
 		conf.telemetryReporter,
 		conf.agentVersion,
 		service.WithAPIKey(conf.apiKey),
-		service.WithDatabaseFileName(filepath.Join(conf.rcDatabaseDir, fmt.Sprintf("remote-config-%s.db", uuid.New()))),
+		service.WithDatabaseFileName(conf.rcDatabaseFile),
 		service.WithDirectorRootOverride(conf.cfg.GetString("site"), conf.cfg.GetString("remote_configuration.director_root")),
 		service.WithConfigRootOverride(conf.cfg.GetString("site"), conf.cfg.GetString("remote_configuration.config_root")),
 	)
