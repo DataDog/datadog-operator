@@ -465,6 +465,48 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				},
 			),
 		},
+		{
+			Name: "data plane + dogstatsd enabled on Agent >= 7.75 - no DD_USE_DOGSTATSD=false override",
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
+				WithDataPlaneEnabled(true).
+				WithDataPlaneDogstatsdEnabled(true).
+				WithNodeAgentTag("7.75.0").
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+					dsdDisabledEnvVar := &corev1.EnvVar{
+						Name:  common.DDDogstatsdEnabled,
+						Value: "false",
+					}
+					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+					assert.NotContains(t, agentEnvVars, dsdDisabledEnvVar, "DD_USE_DOGSTATSD should NOT be set on Agent >= 7.75 — it delegates via data_plane config")
+				},
+			),
+		},
+		{
+			Name: "data plane + dogstatsd enabled on Agent < 7.75 - DD_USE_DOGSTATSD=false set to prevent bind conflict",
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
+				WithDataPlaneEnabled(true).
+				WithDataPlaneDogstatsdEnabled(true).
+				WithNodeAgentTag("7.74.0").
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+					dsdDisabledEnvVar := &corev1.EnvVar{
+						Name:  common.DDDogstatsdEnabled,
+						Value: "false",
+					}
+					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+					assert.Contains(t, agentEnvVars, dsdDisabledEnvVar, "DD_USE_DOGSTATSD=false must be set on Agent < 7.75 to prevent Core Agent DSD binding the same port as ADP")
+				},
+			),
+		},
 	}
 
 	tests.Run(t, buildDogstatsdFeature)
