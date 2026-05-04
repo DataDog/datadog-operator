@@ -17,6 +17,11 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/allowlistsynchronizer"
 )
 
+// DDKubeletUseAPIServer is the env var that toggles the Agent's use of the
+// Kubernetes API server (instead of the kubelet) to discover pods. It is
+// required on GKE Autopilot, where the kubelet endpoint is not reachable.
+const DDKubeletUseAPIServer = "DD_KUBELET_USE_API_SERVER"
+
 var (
 	forbiddenAgentVolumes = map[string]struct{}{
 		common.AuthVolumeName:            {},
@@ -66,7 +71,14 @@ func IsAutopilotEnabled(obj metav1.Object) bool {
 
 func applyExperimentalAutopilotOverrides(dda metav1.Object, manager feature.PodTemplateManagers) {
 	if IsAutopilotEnabled(dda) {
-		allowlistsynchronizer.CreateAllowlistSynchronizer()
+		allowlistsynchronizer.CreateAllowlistSynchronizer(getExperimentalAnnotation(dda, ExperimentalAutopilotAllowlistVersionSubkey))
+
+		// On Autopilot the kubelet endpoint is not reachable, so the Agent must
+		// use the API server to discover pods.
+		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  DDKubeletUseAPIServer,
+			Value: "true",
+		})
 
 		if manager.PodTemplateSpec().Labels == nil {
 			manager.PodTemplateSpec().Labels = map[string]string{}
