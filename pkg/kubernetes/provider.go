@@ -47,6 +47,13 @@ const (
 	// EKS label prefixes for provider detection
 	eksLabelPrefix    = "eks.amazonaws.com/"
 	eksctlLabelPrefix = "alpha.eksctl.io/"
+
+	// GKEAutopilotProvider is the provider string for GKE Autopilot clusters.
+	// Driven by annotation in POC; node-label-based detection is a production concern.
+	GKEAutopilotProvider = "gke-autopilot"
+
+	// GKECosProvider is the full provider string for GKE Container-Optimized OS nodes.
+	GKECosProvider = "gke-cos"
 )
 
 // ProviderValue allowlist

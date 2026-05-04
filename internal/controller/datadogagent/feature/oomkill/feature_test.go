@@ -62,16 +62,6 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 
 		wantSystemProbeVolMounts := []corev1.VolumeMount{
 			{
-				Name:      common.ModulesVolumeName,
-				MountPath: common.ModulesVolumePath,
-				ReadOnly:  true,
-			},
-			{
-				Name:      common.SrcVolumeName,
-				MountPath: common.SrcVolumePath,
-				ReadOnly:  true,
-			},
-			{
 				Name:      common.DebugfsVolumeName,
 				MountPath: common.DebugfsPath,
 				ReadOnly:  false,
@@ -80,6 +70,16 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 				Name:      common.SystemProbeSocketVolumeName,
 				MountPath: common.SystemProbeSocketVolumePath,
 				ReadOnly:  false,
+			},
+			{
+				Name:      common.ModulesVolumeName,
+				MountPath: common.ModulesVolumePath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      common.SrcVolumeName,
+				MountPath: common.SrcVolumePath,
+				ReadOnly:  true,
 			},
 		}
 
@@ -91,6 +91,20 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 
 		// check volumes
 		wantVolumes := []corev1.Volume{
+			{
+				Name: common.DebugfsVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: common.DebugfsPath,
+					},
+				},
+			},
+			{
+				Name: common.SystemProbeSocketVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
 			{
 				Name: common.ModulesVolumeName,
 				VolumeSource: corev1.VolumeSource{
@@ -105,20 +119,6 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: common.SrcVolumePath,
 					},
-				},
-			},
-			{
-				Name: common.DebugfsVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: common.DebugfsPath,
-					},
-				},
-			},
-			{
-				Name: common.SystemProbeSocketVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
 		}
