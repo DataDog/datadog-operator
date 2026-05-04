@@ -59,9 +59,9 @@ type dogstatsdFeature struct {
 	forceEnableLocalService bool
 	localServiceName        string
 
-	dataPlaneEnabled              bool
-	dataPlaneDogstatsdEnabled     bool
-	agentSupportsADPDelegation    bool
+	dataPlaneEnabled           bool
+	dataPlaneDogstatsdEnabled  bool
+	agentSupportsADPDelegation bool
 
 	nonLocalTraffic bool
 
