@@ -18,7 +18,7 @@ func TestKarpenterHelmValues(t *testing.T) {
 		labels, ok := values["additionalLabels"].(map[string]any)
 		require.True(t, ok, "additionalLabels must be a map")
 		assert.Equal(t, guess.InstalledByValue, labels[guess.InstalledByLabel],
-			"installed-by sentinel must match what FindForeignKarpenterInstallation looks for")
+			"installed-by sentinel must match what FindKarpenterInstallation looks for")
 		assert.Contains(t, labels, guess.InstallerVersionLabel)
 
 		settings, ok := values["settings"].(map[string]any)
@@ -54,7 +54,7 @@ func TestDisplayForeignKarpenterMessage(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(&bytes.Buffer{})
 
-	foreign := &guess.ForeignKarpenter{Namespace: "karpenter", Name: "karpenter"}
+	foreign := &guess.KarpenterInstallation{Namespace: "karpenter", Name: "karpenter"}
 	err := displayForeignKarpenterMessage(cmd, "my-cluster", foreign)
 	require.NoError(t, err, "foreign Karpenter is a successful no-op, not an error")
 
