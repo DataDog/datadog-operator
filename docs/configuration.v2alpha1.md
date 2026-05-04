@@ -79,6 +79,7 @@ spec:
 | features.asm.sca.enabled | Enables Software Composition Analysis (SCA). Default: false |
 | features.asm.threats.enabled | Enables ASM App & API Protection. Default: false |
 | features.autoscaling.cluster.enabled | Enables the cluster autoscaling product. (Requires Cluster Agent 7.74.0+) Default: false |
+| features.autoscaling.cluster.spot.enabled | Enables the cluster spot scheduling product. (Requires Cluster Agent 7.79.0+) Default: false |
 | features.autoscaling.workload.enabled | Enables the workload autoscaling product. Default: false |
 | features.clusterChecks.enabled | Enables Cluster Checks scheduling in the Cluster Agent. Default: true |
 | features.clusterChecks.useClusterChecksRunners | Enabled enables Cluster Checks Runners to run all Cluster Checks. Default: false |
