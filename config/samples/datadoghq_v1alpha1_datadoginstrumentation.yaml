@@ -1,29 +1,31 @@
 apiVersion: datadoghq.com/v1alpha1
 kind: DatadogInstrumentation
 metadata:
-  name: redis-check
-  namespace: cache
+  name: sample-instrumentation
 spec:
   targetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: redis-workload
+    name: sample-workload
   config:
     checks:
-      - integration: redisdb
+      - integration: openmetrics
         containerImage:
-          - redis
+          - sample-app
         initConfig: {}
         instances:
-          - host: "%%host%%"
-            port: 6379
-            password: "12345678"
+          - openmetrics_endpoint: "http://%%host%%:8080/metrics"
+            namespace: sample
+            metrics:
+              - sample_requests_total
             tags:
-              - service:redis
+              - service:sample-app
               - env:dev
         logs:
-          - source: redis
-            service: redis
+          - type: file
+            path: /var/log/sample-app/*.log
+            source: sample-app
+            service: sample-app
             tags:
-              - service:redis
+              - service:sample-app
               - env:dev
