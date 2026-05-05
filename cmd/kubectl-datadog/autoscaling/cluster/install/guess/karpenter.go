@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/google/go-containerregistry/pkg/name"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -98,27 +99,28 @@ func FindKarpenterInstallation(ctx context.Context, clientset kubernetes.Interfa
 func hasKarpenterControllerContainer(containers []corev1.Container) bool {
 	return slices.ContainsFunc(containers, func(c corev1.Container) bool {
 		return slices.ContainsFunc(c.Env, func(e corev1.EnvVar) bool { return e.Name == karpenterServiceEnvName }) ||
-			imageRepoEndsWith(c.Image, karpenterControllerImageRepoSuffix)
+			imageRepoPathHasSuffix(c.Image, karpenterControllerImageRepoSuffix)
 	})
 }
 
-// imageRepoEndsWith reports whether `image`'s repository path (with tag and
-// digest stripped) ends with the slash-separated path components in `suffix`.
-//
-// Stripping order matters because of registries with ports
-// (`registry.local:5000/...`): digest comes off first (everything after `@`),
-// then a tag is recognised only when the last `:` lies after the last `/` —
-// otherwise the registry's port colon would be mistaken for a tag separator.
-func imageRepoEndsWith(image, suffix string) bool {
+// imageRepoPathHasSuffix reports whether `image`'s repository path (registry
+// stripped, tag and digest discarded) ends with the slash-separated path
+// components in `suffix`. Match is component-aware so
+// `team/karpenter/controllers` (plural) does not satisfy a
+// `karpenter/controller` suffix.
+func imageRepoPathHasSuffix(image, suffix string) bool {
+	// Strip a trailing `@digest` so we tolerate combined `tag@digest` forms
+	// (which pkg/name parses as a Digest, not a Tag) and malformed digest
+	// strings (which would otherwise make pkg/name reject the whole image).
 	if i := strings.Index(image, "@"); i >= 0 {
 		image = image[:i]
 	}
-	lastSlash := strings.LastIndex(image, "/")
-	if lastColon := strings.LastIndex(image, ":"); lastColon > lastSlash {
-		image = image[:lastColon]
+	ref, err := name.ParseReference(image, name.WeakValidation)
+	if err != nil {
+		return false
 	}
 	suffixParts := strings.Split(suffix, "/")
-	imageParts := strings.Split(image, "/")
+	imageParts := strings.Split(ref.Context().RepositoryStr(), "/")
 	if len(imageParts) < len(suffixParts) {
 		return false
 	}
