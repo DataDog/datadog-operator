@@ -67,6 +67,56 @@ metadata:
         },
         {
           "apiVersion": "datadoghq.com/v1alpha1",
+          "kind": "DatadogInstrumentation",
+          "metadata": {
+            "name": "sample-instrumentation"
+          },
+          "spec": {
+            "targetRef": {
+              "apiVersion": "apps/v1",
+              "kind": "Deployment",
+              "name": "sample-workload"
+            },
+            "config": {
+              "checks": [
+                {
+                  "integration": "openmetrics",
+                  "containerImage": [
+                    "sample-app"
+                  ],
+                  "initConfig": {},
+                  "instances": [
+                    {
+                      "openmetrics_endpoint": "http://%%host%%:8080/metrics",
+                      "namespace": "sample",
+                      "metrics": [
+                        "sample_requests_total"
+                      ],
+                      "tags": [
+                        "service:sample-app",
+                        "env:dev"
+                      ]
+                    }
+                  ],
+                  "logs": [
+                    {
+                      "type": "file",
+                      "path": "/var/log/sample-app/*.log",
+                      "source": "sample-app",
+                      "service": "sample-app",
+                      "tags": [
+                        "service:sample-app",
+                        "env:dev"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "apiVersion": "datadoghq.com/v1alpha1",
           "kind": "DatadogMetric",
           "metadata": {
             "name": "datadogmetric-sample"
@@ -247,6 +297,11 @@ spec:
         version: v1alpha1
       - kind: DatadogGenericResource
         name: datadoggenericresources.datadoghq.com
+        version: v1alpha1
+      - description: DatadogInstrumentation is the Schema for the datadoginstrumentations API.
+        displayName: Datadog Instrumentation
+        kind: DatadogInstrumentation
+        name: datadoginstrumentations.datadoghq.com
         version: v1alpha1
       - description: DatadogMetric allows autoscaling on arbitrary Datadog query
         displayName: Datadog Metric
