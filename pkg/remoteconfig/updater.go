@@ -32,6 +32,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/metadata"
+	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 const (
@@ -204,8 +205,8 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 	rcClient.SetInstallerState([]*pbgo.PackageState{
 		{
 			Package:             "datadog-operator",
-			StableVersion:       "0.0.1",
-			StableConfigVersion: "0.0.1",
+			StableVersion:       version.Version,
+			StableConfigVersion: "empty",
 		},
 	})
 
