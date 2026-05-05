@@ -28,7 +28,7 @@ func TestKarpenterControllerFingerprintContract(t *testing.T) {
 	assert.Equal(t, "karpenter/controller", karpenterControllerImageRepoSuffix)
 }
 
-func TestImageRepoEndsWith(t *testing.T) {
+func TestImageRepoPathHasSuffix(t *testing.T) {
 	for _, tc := range []struct {
 		image    string
 		suffix   string
@@ -50,7 +50,7 @@ func TestImageRepoEndsWith(t *testing.T) {
 		{"controller", "karpenter/controller", false},
 	} {
 		t.Run(tc.image, func(t *testing.T) {
-			assert.Equal(t, tc.expected, imageRepoEndsWith(tc.image, tc.suffix))
+			assert.Equal(t, tc.expected, imageRepoPathHasSuffix(tc.image, tc.suffix))
 		})
 	}
 }

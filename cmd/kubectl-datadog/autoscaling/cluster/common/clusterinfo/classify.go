@@ -12,6 +12,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 	astypes "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
+	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -244,17 +245,22 @@ func extractClusterAutoscalerVersion(d appsv1.Deployment) string {
 	return d.Spec.Template.Labels["app.kubernetes.io/version"]
 }
 
-// imageTag extracts the tag portion of an OCI image reference, stripping
-// any `@sha256:...` digest. Returns empty when no tag is set (for instance,
-// digest-only references or bare image names).
+// imageTag extracts the tag portion of an OCI image reference. Returns empty
+// when no tag is set (digest-only references or bare image names).
 func imageTag(image string) string {
+	// pkg/name parses a combined `tag@digest` reference as a Digest, dropping
+	// the tag — strip the digest first so the tag is preserved.
 	if i := strings.Index(image, "@"); i >= 0 {
 		image = image[:i]
 	}
-	// The last colon is the tag separator only if it is not followed by a
-	// path component — otherwise it's a registry port (e.g. `localhost:5000/foo`).
-	if i := strings.LastIndex(image, ":"); i >= 0 && !strings.Contains(image[i+1:], "/") {
-		return image[i+1:]
+	// WithDefaultTag("") suppresses the implicit `latest` so a missing tag
+	// surfaces as an empty TagStr rather than the default.
+	ref, err := name.ParseReference(image, name.WeakValidation, name.WithDefaultTag(""))
+	if err != nil {
+		return ""
+	}
+	if t, ok := ref.(name.Tag); ok {
+		return t.TagStr()
 	}
 	return ""
 }
