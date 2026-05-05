@@ -201,9 +201,13 @@ func (d *Daemon) handleRemoteAPIRequest(ctx context.Context, req remoteAPIReques
 // resolveOperation looks up the installer config for the request, validates the
 // task params, and returns the resolved namespace/name and config for the single
 // DatadogAgent operation.
-func (d *Daemon) resolveOperation(req remoteAPIRequest, signal string) (resolvedOperation, error) {
+func (d *Daemon) resolveOperation(req remoteAPIRequest, signal experimentSignal) (resolvedOperation, error) {
 	if err := validateParams(req.Params); err != nil {
 		return resolvedOperation{}, fmt.Errorf("%s: invalid params: %w", signal, err)
+	}
+
+	if signal != signalStartDatadogAgentExperiment {
+		return resolvedOperation{NamespacedName: req.Params.NamespacedName}, nil
 	}
 
 	id := req.Params.Version
@@ -237,7 +241,7 @@ func (d *Daemon) resolveOperation(req remoteAPIRequest, signal string) (resolved
 func (d *Daemon) startDatadogAgentExperiment(ctx context.Context, req remoteAPIRequest) error {
 	logger := ctrl.LoggerFrom(ctx).WithValues("id", req.ID)
 	logger.V(1).Info("Starting DatadogAgent experiment", "config", req.Params.Version)
-	op, err := d.resolveOperation(req, "start DatadogAgent experiment")
+	op, err := d.resolveOperation(req, signalStartDatadogAgentExperiment)
 	if err != nil {
 		logger.Error(err, "Failed to resolve operation")
 		return err
@@ -308,7 +312,7 @@ func (d *Daemon) startDatadogAgentExperiment(ctx context.Context, req remoteAPIR
 // If the phase is already terminal, the patch is skipped. After writing, the
 // daemon waits for any terminal phase before acking the task to RC.
 func (d *Daemon) stopDatadogAgentExperiment(ctx context.Context, req remoteAPIRequest) error {
-	op, err := d.resolveOperation(req, "stop DatadogAgent experiment")
+	op, err := d.resolveOperation(req, signalStopDatadogAgentExperiment)
 	if err != nil {
 		return err
 	}
@@ -386,7 +390,7 @@ func (d *Daemon) stopDatadogAgentExperiment(ctx context.Context, req remoteAPIRe
 // If the phase is already promoted, the patch is skipped. After writing, the
 // daemon waits for phase=promoted before acking the task to RC.
 func (d *Daemon) promoteDatadogAgentExperiment(ctx context.Context, req remoteAPIRequest) error {
-	op, err := d.resolveOperation(req, "promote DatadogAgent experiment")
+	op, err := d.resolveOperation(req, signalPromoteDatadogAgentExperiment)
 	if err != nil {
 		return err
 	}

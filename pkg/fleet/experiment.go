@@ -41,6 +41,15 @@ func validateParams(p experimentParams) error {
 	return nil
 }
 
+// experimentSignal is the signal value passed to resolveOperation, used as an error prefix.
+type experimentSignal string
+
+const (
+	signalStartDatadogAgentExperiment   experimentSignal = "start DatadogAgent experiment"
+	signalStopDatadogAgentExperiment    experimentSignal = "stop DatadogAgent experiment"
+	signalPromoteDatadogAgentExperiment experimentSignal = "promote DatadogAgent experiment"
+)
+
 // resolvedOperation holds the resolved data needed to execute an experiment operation.
 type resolvedOperation struct {
 	NamespacedName types.NamespacedName
