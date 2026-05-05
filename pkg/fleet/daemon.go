@@ -13,13 +13,11 @@ import (
 
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 )
 
@@ -54,8 +52,16 @@ type Daemon struct {
 	revisionsEnabled bool
 	mu               sync.RWMutex
 	configs          map[string]installerConfig // keyed by config ID; replaced on each RC update
-	watcher          *phaseWatcher
-	taskMu           sync.Mutex // serializes UPDATER_TASK execution
+	taskMu           sync.Mutex                 // serializes task dispatch and package task-state updates
+	// pendingOps feeds the live in-memory worker. This is intentionally not
+	// durable: daemon-owned DDA pending annotations are the crash-recovery
+	// source of truth, while this channel just carries newly accepted ops to the
+	// current process.
+	pendingOps chan pendingOperation
+	// statusUpdates carries DDA informer events into the live worker. The worker
+	// evaluates reconciler-owned status.experiment and may rebuild pending ops
+	// from daemon-owned DDA annotations after restart.
+	statusUpdates chan ddaStatusSnapshot
 }
 
 // NewDaemon creates a new Fleet Daemon. When revisionsEnabled is false, experiment
@@ -68,6 +74,8 @@ func NewDaemon(rcClient remoteconfig.RCClient, mgr manager.Manager, revisionsEna
 		cache:            mgr.GetCache(),
 		revisionsEnabled: revisionsEnabled,
 		configs:          make(map[string]installerConfig),
+		pendingOps:       make(chan pendingOperation, 32),
+		statusUpdates:    make(chan ddaStatusSnapshot, 128),
 	}
 }
 
@@ -78,22 +86,20 @@ func (d *Daemon) Start(ctx context.Context) error {
 	ctx = ctrl.LoggerInto(ctx, logger)
 	logger.Info("Starting Fleet daemon")
 
-	// Set up the DDA informer and phase watcher for experiment acks.
-	// When cache is nil (unit tests), watcher stays nil and phase waits are skipped.
+	// Set up the DDA informer used by the background completion worker.
+	// When cache is nil (unit tests), informer-driven completion is skipped.
 	if d.cache != nil {
-		ddaInformer, err := d.cache.GetInformer(ctx, &v2alpha1.DatadogAgent{})
-		if err != nil {
-			return fmt.Errorf("failed to get DatadogAgent informer: %w", err)
+		if err := d.installDDAStatusForwarder(ctx); err != nil {
+			return err
 		}
-		d.watcher = newPhaseWatcher(ddaInformer, d.client)
-		logger.Info("Phase watcher initialized with DDA informer")
+		logger.Info("Pending operation worker initialized with DDA informer")
 	}
 
 	d.rcClient.Subscribe(state.ProductInstallerConfig, handleInstallerConfigUpdate(ctx, func(configs map[string]installerConfig) error {
 		return d.handleConfigs(ctx, configs)
 	}))
-	d.rcClient.Subscribe(state.ProductUpdaterTask, handleUpdaterTaskUpdate(ctx, func(req remoteAPIRequest) error {
-		return d.handleTask(ctx, req)
+	d.rcClient.Subscribe(state.ProductUpdaterTask, handleUpdaterTaskUpdate(ctx, func(req remoteAPIRequest, complete func(error)) error {
+		return d.handleTask(ctx, req, complete)
 	}))
 
 	<-ctx.Done()
@@ -107,13 +113,10 @@ func (d *Daemon) NeedLeaderElection() bool {
 	return true
 }
 
-// handleTask serializes UPDATER_TASK execution so at most one task runs at a time,
-// matching the datadog-agent's single-writer model and preventing races in setTaskState.
-func (d *Daemon) handleTask(ctx context.Context, req remoteAPIRequest) error {
+// handleTask serializes task dispatch bookkeeping and package task-state updates.
+func (d *Daemon) handleTask(ctx context.Context, req remoteAPIRequest, complete func(error)) error {
 	d.taskMu.Lock()
-	defer d.taskMu.Unlock()
-	d.setTaskState(req.Package, req.ID, pbgo.TaskState_RUNNING, nil)
-	err := d.handleRemoteAPIRequest(ctx, req)
+	op, err := d.handleRemoteAPIRequest(ctx, req)
 	if err != nil {
 		var stateErr *stateDoesntMatchError
 		if errors.As(err, &stateErr) {
@@ -121,10 +124,28 @@ func (d *Daemon) handleTask(ctx context.Context, req remoteAPIRequest) error {
 		} else {
 			d.setTaskState(req.Package, req.ID, pbgo.TaskState_ERROR, err)
 		}
-	} else {
-		d.setTaskState(req.Package, req.ID, pbgo.TaskState_DONE, nil)
+		d.taskMu.Unlock()
+		return err
 	}
-	return err
+	if op == nil {
+		// Synchronous no-op/idempotent path: nothing needs background tracking.
+		d.setTaskState(req.Package, req.ID, pbgo.TaskState_DONE, nil)
+		d.taskMu.Unlock()
+		if complete != nil {
+			complete(nil)
+		}
+		return nil
+	}
+	// Async path: mark the task RUNNING only after the DDA patch/no-op decision
+	// has succeeded, so a crash cannot leave RC in RUNNING before the durable
+	// DDA pending record exists.
+	d.setTaskState(req.Package, req.ID, pbgo.TaskState_RUNNING, nil)
+	d.taskMu.Unlock()
+	// Async path: the operation was durably recorded on the DDA, so the live
+	// worker only needs the transient callback before it starts tracking it.
+	op.complete = complete
+	d.pendingOps <- *op
+	return nil
 }
 
 // handleConfigs replaces the stored installer configs with the latest RC update.
@@ -173,17 +194,17 @@ func (d *Daemon) verifyExpectedState(req remoteAPIRequest) error {
 }
 
 // handleRemoteAPIRequest dispatches the incoming task to the appropriate handler.
-func (d *Daemon) handleRemoteAPIRequest(ctx context.Context, req remoteAPIRequest) error {
+func (d *Daemon) handleRemoteAPIRequest(ctx context.Context, req remoteAPIRequest) (*pendingOperation, error) {
 	logger := ctrl.LoggerFrom(ctx).WithValues("id", req.ID, "package", req.Package, "method", req.Method)
 	logger.Info("Received remote API request")
 
 	if !d.revisionsEnabled {
-		return fmt.Errorf("experiment signals require the CreateControllerRevisions and DatadogAgentInternal feature gates")
+		return nil, fmt.Errorf("experiment signals require the CreateControllerRevisions and DatadogAgentInternal feature gates")
 	}
 
 	if err := d.verifyExpectedState(req); err != nil {
 		logger.Error(err, "Expected state mismatch")
-		return err
+		return nil, err
 	}
 
 	switch req.Method {
@@ -194,269 +215,8 @@ func (d *Daemon) handleRemoteAPIRequest(ctx context.Context, req remoteAPIReques
 	case methodPromoteDatadogAgentExperiment:
 		return d.promoteDatadogAgentExperiment(ctx, req)
 	default:
-		return fmt.Errorf("unknown method: %s", req.Method)
+		return nil, fmt.Errorf("unknown method: %s", req.Method)
 	}
-}
-
-// resolveOperation looks up the installer config for the request, validates the
-// task params, and returns the resolved namespace/name and config for the single
-// DatadogAgent operation.
-func (d *Daemon) resolveOperation(req remoteAPIRequest, signal experimentSignal) (resolvedOperation, error) {
-	if err := validateParams(req.Params); err != nil {
-		return resolvedOperation{}, fmt.Errorf("%s: invalid params: %w", signal, err)
-	}
-
-	if signal != signalStartDatadogAgentExperiment {
-		return resolvedOperation{NamespacedName: req.Params.NamespacedName}, nil
-	}
-
-	id := req.Params.Version
-	if id == "" {
-		return resolvedOperation{}, fmt.Errorf("%s: version is required", signal)
-	}
-
-	cfg, err := d.getConfig(id)
-	if err != nil {
-		return resolvedOperation{}, fmt.Errorf("%s: %w", signal, err)
-	}
-
-	if len(cfg.Operations) != 1 {
-		return resolvedOperation{}, fmt.Errorf("%s: config %s must have exactly 1 operation, got %d", signal, cfg.ID, len(cfg.Operations))
-	}
-	if cfg.Operations[0].Operation != OperationUpdate {
-		return resolvedOperation{}, fmt.Errorf("%s: invalid operation: %s", signal, cfg.Operations[0].Operation)
-	}
-
-	return resolvedOperation{
-		NamespacedName: req.Params.NamespacedName,
-		Config:         cfg.Operations[0].Config,
-	}, nil
-}
-
-// startDatadogAgentExperiment starts a DatadogAgent experiment by atomically
-// patching both the DDA spec (experiment config) and experiment signal annotations.
-// If the annotation ID already matches and the reconciler has already set
-// phase=running, the patch is skipped. After writing, the daemon waits for the
-// reconciler to set phase=running before acking the task to RC.
-func (d *Daemon) startDatadogAgentExperiment(ctx context.Context, req remoteAPIRequest) error {
-	logger := ctrl.LoggerFrom(ctx).WithValues("id", req.ID)
-	logger.V(1).Info("Starting DatadogAgent experiment", "config", req.Params.Version)
-	op, err := d.resolveOperation(req, signalStartDatadogAgentExperiment)
-	if err != nil {
-		logger.Error(err, "Failed to resolve operation")
-		return err
-	}
-
-	logger = logger.WithValues("namespace", op.NamespacedName.Namespace, "name", op.NamespacedName.Name)
-	ctx = ctrl.LoggerInto(ctx, logger)
-
-	// Check if this experiment is already running — skip the patch if so.
-	skipPatch := false
-	dda := &v2alpha1.DatadogAgent{}
-	if err := d.client.Get(ctx, op.NamespacedName, dda); err == nil {
-		if dda.Annotations[v2alpha1.AnnotationExperimentID] == req.ID {
-			// Same ID already annotated. If the reconciler already set phase=running,
-			// there's nothing to do. If it hasn't yet, the watcher will pick it up.
-			if dda.Status.Experiment != nil && dda.Status.Experiment.Phase == v2alpha1.ExperimentPhaseRunning && dda.Status.Experiment.ID == req.ID {
-				logger.V(1).Info("Experiment already running, skipping patch")
-				// Restore in-memory config version — it may be empty after a restart.
-				stable, _ := d.getPackageConfigVersions(req.Package)
-				d.setPackageConfigVersions(req.Package, stable, req.Params.Version)
-				return nil
-			}
-			logger.V(1).Info("Annotation already set, skipping patch")
-			skipPatch = true
-		}
-		// Different experiment is already running — error.
-		if !skipPatch && dda.Status.Experiment != nil && dda.Status.Experiment.Phase == v2alpha1.ExperimentPhaseRunning && dda.Status.Experiment.ID != req.ID {
-			return fmt.Errorf("start DatadogAgent experiment: experiment %q already running", dda.Status.Experiment.ID)
-		}
-	}
-
-	if !skipPatch {
-		// Build atomic patch: spec + annotations in a single MergePatch.
-		patch, err := buildSignalPatch(v2alpha1.ExperimentSignalStart, req.ID, op.Config)
-		if err != nil {
-			return fmt.Errorf("start DatadogAgent experiment: %w", err)
-		}
-
-		dda = &v2alpha1.DatadogAgent{}
-		dda.Name = op.NamespacedName.Name
-		dda.Namespace = op.NamespacedName.Namespace
-		if err := retryWithBackoff(ctx, func() error {
-			return d.client.Patch(ctx, dda, client.RawPatch(types.MergePatchType, patch), client.FieldOwner("fleet-daemon"))
-		}); err != nil {
-			return fmt.Errorf("start DatadogAgent experiment: failed to patch: %w", err)
-		}
-
-		logger.Info("Wrote start signal")
-	}
-
-	// Wait for the reconciler to process the annotation and set phase=running.
-	if d.watcher != nil {
-		logger.V(1).Info("Waiting for phase=running")
-		if err := d.watcher.waitForPhase(ctx, op.NamespacedName, req.ID, acceptPhase(req.ID, v2alpha1.ExperimentPhaseRunning)); err != nil {
-			return fmt.Errorf("start DatadogAgent experiment: %w", err)
-		}
-	}
-
-	// Report the experiment config version after confirmed transition.
-	stable, _ := d.getPackageConfigVersions(req.Package)
-	d.setPackageConfigVersions(req.Package, stable, req.Params.Version)
-
-	logger.Info("Started DatadogAgent experiment")
-	return nil
-}
-
-// stopDatadogAgentExperiment writes a rollback signal annotation on the DDA.
-// If the phase is already terminal, the patch is skipped. After writing, the
-// daemon waits for any terminal phase before acking the task to RC.
-func (d *Daemon) stopDatadogAgentExperiment(ctx context.Context, req remoteAPIRequest) error {
-	op, err := d.resolveOperation(req, signalStopDatadogAgentExperiment)
-	if err != nil {
-		return err
-	}
-
-	ctx = ctrl.LoggerInto(ctx, ctrl.LoggerFrom(ctx).WithValues("id", req.ID, "namespace", op.NamespacedName.Namespace, "name", op.NamespacedName.Name))
-	logger := ctrl.LoggerFrom(ctx)
-	logger.V(1).Info("Stopping DatadogAgent experiment")
-
-	// Guard:
-	//   - status=nil: no active experiment object, so stop is a no-op.
-	//   - terminal: already finished, so stop is a no-op.
-	//   - phase="": allow through for Transition 6 recovery
-	//     ("spec patched, phase never written").
-	//   - phase=running: normal rollback path.
-	dda := &v2alpha1.DatadogAgent{}
-	expectedExperimentID := req.ID
-	if getErr := d.client.Get(ctx, op.NamespacedName, dda); getErr == nil {
-		if dda.Status.Experiment == nil {
-			logger.V(1).Info("No active experiment to stop, clearing config version")
-			stable, _ := d.getPackageConfigVersions(req.Package)
-			d.setPackageConfigVersions(req.Package, stable, "")
-			return nil
-		}
-		if isTerminalPhase(dda.Status.Experiment.Phase) {
-			logger.V(1).Info("Already in terminal phase, clearing config version", "phase", dda.Status.Experiment.Phase)
-			stable, _ := d.getPackageConfigVersions(req.Package)
-			d.setPackageConfigVersions(req.Package, stable, "")
-			return nil
-		}
-		switch dda.Status.Experiment.Phase {
-		case v2alpha1.ExperimentPhaseRunning:
-			expectedExperimentID = dda.Status.Experiment.ID
-		case "":
-			// Transition 6 recovery uses the rollback signal's task ID.
-			expectedExperimentID = req.ID
-		default:
-			return fmt.Errorf("stop DatadogAgent experiment: cannot stop, current phase is %q", dda.Status.Experiment.Phase)
-		}
-	}
-
-	// Write rollback signal annotation.
-	patch, err := buildSignalPatch(v2alpha1.ExperimentSignalRollback, req.ID)
-	if err != nil {
-		return fmt.Errorf("stop DatadogAgent experiment: %w", err)
-	}
-	dda = &v2alpha1.DatadogAgent{}
-	dda.Name = op.NamespacedName.Name
-	dda.Namespace = op.NamespacedName.Namespace
-	if err := retryWithBackoff(ctx, func() error {
-		return d.client.Patch(ctx, dda, client.RawPatch(types.MergePatchType, patch), client.FieldOwner("fleet-daemon"))
-	}); err != nil {
-		return fmt.Errorf("stop DatadogAgent experiment: failed to patch annotation: %w", err)
-	}
-
-	logger.Info("Wrote rollback signal")
-
-	// Wait for the reconciler to process the annotation and reach a terminal phase.
-	// Stop acks on any terminal phase (terminated, promoted, aborted) — "already done."
-	if d.watcher != nil {
-		logger.V(1).Info("Waiting for terminal phase")
-		if err := d.watcher.waitForPhase(ctx, op.NamespacedName, req.ID, acceptPhase(expectedExperimentID, v2alpha1.ExperimentPhaseTerminated, v2alpha1.ExperimentPhasePromoted, v2alpha1.ExperimentPhaseAborted)); err != nil {
-			return fmt.Errorf("stop DatadogAgent experiment: %w", err)
-		}
-	}
-
-	// Clear the experiment config version after confirmed transition.
-	stable, _ := d.getPackageConfigVersions(req.Package)
-	d.setPackageConfigVersions(req.Package, stable, "")
-
-	logger.Info("Stopped DatadogAgent experiment")
-	return nil
-}
-
-// promoteDatadogAgentExperiment writes a promote signal annotation on the DDA.
-// If the phase is already promoted, the patch is skipped. After writing, the
-// daemon waits for phase=promoted before acking the task to RC.
-func (d *Daemon) promoteDatadogAgentExperiment(ctx context.Context, req remoteAPIRequest) error {
-	op, err := d.resolveOperation(req, signalPromoteDatadogAgentExperiment)
-	if err != nil {
-		return err
-	}
-
-	ctx = ctrl.LoggerInto(ctx, ctrl.LoggerFrom(ctx).WithValues("id", req.ID, "namespace", op.NamespacedName.Namespace, "name", op.NamespacedName.Name))
-	logger := ctrl.LoggerFrom(ctx)
-	logger.V(1).Info("Promoting DatadogAgent experiment")
-
-	// Verify there is an active experiment to promote.
-	_, experiment := d.getPackageConfigVersions(req.Package)
-	if experiment == "" {
-		return fmt.Errorf("promote DatadogAgent experiment: no experiment config version set")
-	}
-
-	// Guard: only patch if there is a running experiment. The reconciler's
-	// processPromoteSignal only transitions from running.
-	dda := &v2alpha1.DatadogAgent{}
-	expectedExperimentID := req.ID
-	if getErr := d.client.Get(ctx, op.NamespacedName, dda); getErr == nil {
-		if dda.Status.Experiment == nil || dda.Status.Experiment.Phase != v2alpha1.ExperimentPhaseRunning {
-			currentPhase := ""
-			if dda.Status.Experiment != nil {
-				currentPhase = string(dda.Status.Experiment.Phase)
-			}
-			// Already promoted — swap stable ← experiment and clear experiment,
-			// matching the normal success path. This handles daemon restarts
-			// where the controller promoted but RC state wasn't updated yet.
-			if dda.Status.Experiment != nil && dda.Status.Experiment.Phase == v2alpha1.ExperimentPhasePromoted {
-				logger.V(1).Info("Already promoted, updating config versions")
-				d.setPackageConfigVersions(req.Package, experiment, "")
-				return nil
-			}
-			return fmt.Errorf("promote DatadogAgent experiment: cannot promote, current phase is %q", currentPhase)
-		}
-		expectedExperimentID = dda.Status.Experiment.ID
-	}
-
-	// Write promote signal annotation.
-	patch, err := buildSignalPatch(v2alpha1.ExperimentSignalPromote, req.ID)
-	if err != nil {
-		return fmt.Errorf("promote DatadogAgent experiment: %w", err)
-	}
-	dda = &v2alpha1.DatadogAgent{}
-	dda.Name = op.NamespacedName.Name
-	dda.Namespace = op.NamespacedName.Namespace
-	if err := retryWithBackoff(ctx, func() error {
-		return d.client.Patch(ctx, dda, client.RawPatch(types.MergePatchType, patch), client.FieldOwner("fleet-daemon"))
-	}); err != nil {
-		return fmt.Errorf("promote DatadogAgent experiment: failed to patch annotation: %w", err)
-	}
-
-	logger.Info("Wrote promote signal")
-
-	// Wait for the reconciler to process the annotation and set phase=promoted.
-	if d.watcher != nil {
-		logger.V(1).Info("Waiting for phase=promoted")
-		if err := d.watcher.waitForPhase(ctx, op.NamespacedName, req.ID, acceptPhase(expectedExperimentID, v2alpha1.ExperimentPhasePromoted)); err != nil {
-			return fmt.Errorf("promote DatadogAgent experiment: %w", err)
-		}
-	}
-
-	// Promote: stable = old experiment, experiment = ""
-	d.setPackageConfigVersions(req.Package, experiment, "")
-
-	logger.Info("Promoted DatadogAgent experiment")
-	return nil
 }
 
 // setTaskState updates the Task field of the package entry in the RC installer state.

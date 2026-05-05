@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -45,6 +46,8 @@ func testDaemon(dda *v2alpha1.DatadogAgent, configs map[string]installerConfig) 
 		client:           c,
 		revisionsEnabled: true,
 		configs:          configs,
+		pendingOps:       make(chan pendingOperation, 32),
+		statusUpdates:    make(chan ddaStatusSnapshot, 32),
 	}, c
 }
 
@@ -56,6 +59,8 @@ var testDDAGVK = schema.GroupVersionKind{
 
 var testDDANSN = types.NamespacedName{Namespace: "datadog", Name: "datadog-agent"}
 
+const testExperimentID = "test-config"
+
 func testDDAObject(phase v2alpha1.ExperimentPhase) *v2alpha1.DatadogAgent {
 	dda := &v2alpha1.DatadogAgent{
 		ObjectMeta: metav1.ObjectMeta{
@@ -64,17 +69,68 @@ func testDDAObject(phase v2alpha1.ExperimentPhase) *v2alpha1.DatadogAgent {
 		},
 	}
 	if phase != "" {
-		dda.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: phase, ID: "old-exp"}
+		dda.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: phase, ID: testExperimentID}
 		// Set experiment annotations to match status — this is the state the daemon
 		// would see after the controller has processed the start signal.
 		if dda.Annotations == nil {
 			dda.Annotations = make(map[string]string)
 		}
-		dda.Annotations[v2alpha1.AnnotationExperimentID] = "old-exp"
+		dda.Annotations[v2alpha1.AnnotationExperimentID] = testExperimentID
 		dda.Annotations[v2alpha1.AnnotationExperimentSignal] = v2alpha1.ExperimentSignalStart
 	}
 	return dda
 }
+
+func syncTaskErr(op *pendingOperation, err error) error {
+	if err == nil && op != nil {
+		return errors.New("unexpected pending operation")
+	}
+	return err
+}
+
+func requireSyncNoError(t *testing.T, op *pendingOperation, err error) {
+	t.Helper()
+	require.NoError(t, err)
+	require.Nil(t, op)
+}
+
+func requirePendingNoError(t *testing.T, op *pendingOperation, err error) *pendingOperation {
+	t.Helper()
+	require.NoError(t, err)
+	require.NotNil(t, op)
+	return op
+}
+
+func requireStartQueued(t *testing.T, d *Daemon, req remoteAPIRequest) *pendingOperation {
+	t.Helper()
+	op, err := d.startDatadogAgentExperiment(context.Background(), req)
+	op = requirePendingNoError(t, op, err)
+	op.complete = noopComplete
+	return op
+}
+
+func requireStopQueued(t *testing.T, d *Daemon, req remoteAPIRequest) *pendingOperation {
+	t.Helper()
+	op, err := d.stopDatadogAgentExperiment(context.Background(), req)
+	op = requirePendingNoError(t, op, err)
+	op.complete = noopComplete
+	return op
+}
+
+func requirePromoteQueued(t *testing.T, d *Daemon, req remoteAPIRequest) *pendingOperation {
+	t.Helper()
+	op, err := d.promoteDatadogAgentExperiment(context.Background(), req)
+	op = requirePendingNoError(t, op, err)
+	op.complete = noopComplete
+	return op
+}
+
+func requireOperationSuccess(t *testing.T, d *Daemon, op *pendingOperation) {
+	t.Helper()
+	d.finishPendingOperation(context.Background(), *op, nil)
+}
+
+func noopComplete(error) {}
 
 func testInstallerConfigWithDDA() map[string]installerConfig {
 	return map[string]installerConfig{
@@ -109,19 +165,19 @@ func TestStartDatadogAgentExperiment_ConfigNotFound(t *testing.T) {
 	d, _ := testDaemon(testDDAObject(""), testInstallerConfigWithDDA())
 	req := testStartRequest()
 	req.Params.Version = "nonexistent"
-	assert.Error(t, d.startDatadogAgentExperiment(context.Background(), req))
+	assert.Error(t, syncTaskErr(d.startDatadogAgentExperiment(context.Background(), req)))
 }
 
 func TestStartDatadogAgentExperiment_WrongGVK(t *testing.T) {
 	d, _ := testDaemon(testDDAObject(""), testInstallerConfigWithDDA())
 	req := testStartRequest()
 	req.Params.GroupVersionKind = schema.GroupVersionKind{Group: "other.io", Version: "v1", Kind: "Other"}
-	assert.Error(t, d.startDatadogAgentExperiment(context.Background(), req))
+	assert.Error(t, syncTaskErr(d.startDatadogAgentExperiment(context.Background(), req)))
 }
 
 func TestStartDatadogAgentExperiment_DDANotFound(t *testing.T) {
 	d, _ := testDaemon(nil, testInstallerConfigWithDDA()) // no DDA pre-created
-	assert.Error(t, d.startDatadogAgentExperiment(context.Background(), testStartRequest()))
+	assert.Error(t, syncTaskErr(d.startDatadogAgentExperiment(context.Background(), testStartRequest())))
 }
 
 func TestStartDatadogAgentExperiment_Running_Idempotent(t *testing.T) {
@@ -129,15 +185,16 @@ func TestStartDatadogAgentExperiment_Running_Idempotent(t *testing.T) {
 	d, c := testDaemon(dda, testInstallerConfigWithDDA())
 	// Same experiment ID retried — should be a no-op since it's already running.
 	req := testStartRequest()
-	req.ID = "old-exp"
-	require.NoError(t, d.startDatadogAgentExperiment(context.Background(), req))
+	req.Params.Version = testExperimentID
+	op, err := d.startDatadogAgentExperiment(context.Background(), req)
+	requireSyncNoError(t, op, err)
 
 	// DDA should be unchanged — no re-patch, no status update.
 	got := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, got))
 	require.NotNil(t, got.Status.Experiment)
 	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, got.Status.Experiment.Phase)
-	assert.Equal(t, "old-exp", got.Status.Experiment.ID)
+	assert.Equal(t, testExperimentID, got.Status.Experiment.ID)
 }
 
 func TestStartDatadogAgentExperiment_Running_Idempotent_RestoresConfigVersion(t *testing.T) {
@@ -151,8 +208,9 @@ func TestStartDatadogAgentExperiment_Running_Idempotent_RestoresConfigVersion(t 
 
 	// Retry the same start request — idempotent path should restore config version.
 	req := testStartRequest()
-	req.ID = "old-exp"
-	require.NoError(t, d.startDatadogAgentExperiment(context.Background(), req))
+	req.Params.Version = testExperimentID
+	op, err := d.startDatadogAgentExperiment(context.Background(), req)
+	requireSyncNoError(t, op, err)
 
 	require.Len(t, rc.state, 1)
 	assert.Equal(t, req.Params.Version, rc.state[0].ExperimentConfigVersion,
@@ -161,44 +219,58 @@ func TestStartDatadogAgentExperiment_Running_Idempotent_RestoresConfigVersion(t 
 
 func TestStartDatadogAgentExperiment_Running_DifferentID(t *testing.T) {
 	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
-	d, _ := testDaemon(dda, testInstallerConfigWithDDA())
-	// Different experiment ID while one is already running — should be rejected.
+	configs := testInstallerConfigWithDDA()
+	configs["different-exp"] = installerConfig{
+		ID: "different-exp",
+		Operations: []fleetManagementOperation{
+			{
+				Operation: OperationUpdate,
+				Config:    json.RawMessage(`{}`),
+			},
+		},
+	}
+	d, _ := testDaemon(dda, configs)
+	// Different experiment version while one is already running — should be rejected.
 	req := testStartRequest()
-	req.ID = "different-exp"
-	assert.Error(t, d.startDatadogAgentExperiment(context.Background(), req))
+	req.Params.Version = "different-exp"
+	assert.Error(t, syncTaskErr(d.startDatadogAgentExperiment(context.Background(), req)))
 }
 
 func TestStartDatadogAgentExperiment_Success_NilPhase(t *testing.T) {
 	d, c := testDaemon(testDDAObject(""), testInstallerConfigWithDDA())
 	req := testStartRequest()
-	require.NoError(t, d.startDatadogAgentExperiment(context.Background(), req))
+	requireStartQueued(t, d, req)
 
 	dda := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
 	// Daemon writes annotations, not status. Status is written by the controller.
-	assert.Equal(t, req.ID, dda.Annotations[v2alpha1.AnnotationExperimentID])
+	assert.Equal(t, req.Params.Version, dda.Annotations[v2alpha1.AnnotationExperimentID])
 	assert.Equal(t, v2alpha1.ExperimentSignalStart, dda.Annotations[v2alpha1.AnnotationExperimentSignal])
+	assert.Equal(t, req.ID, dda.Annotations[v2alpha1.AnnotationPendingTaskID])
+	assert.Equal(t, string(pendingIntentStart), dda.Annotations[v2alpha1.AnnotationPendingAction])
+	assert.Equal(t, req.Params.Version, dda.Annotations[v2alpha1.AnnotationPendingExperimentID])
+	assert.Equal(t, req.Package, dda.Annotations[v2alpha1.AnnotationPendingPackage])
 }
 
 func TestStartDatadogAgentExperiment_Success_FromTerminated(t *testing.T) {
 	d, c := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseTerminated), testInstallerConfigWithDDA())
 	req := testStartRequest()
-	require.NoError(t, d.startDatadogAgentExperiment(context.Background(), req))
+	requireStartQueued(t, d, req)
 
 	dda := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
-	assert.Equal(t, req.ID, dda.Annotations[v2alpha1.AnnotationExperimentID])
+	assert.Equal(t, req.Params.Version, dda.Annotations[v2alpha1.AnnotationExperimentID])
 	assert.Equal(t, v2alpha1.ExperimentSignalStart, dda.Annotations[v2alpha1.AnnotationExperimentSignal])
 }
 
 func TestStartDatadogAgentExperiment_Success_FromAborted(t *testing.T) {
 	d, c := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseAborted), testInstallerConfigWithDDA())
 	req := testStartRequest()
-	require.NoError(t, d.startDatadogAgentExperiment(context.Background(), req))
+	requireStartQueued(t, d, req)
 
 	dda := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
-	assert.Equal(t, req.ID, dda.Annotations[v2alpha1.AnnotationExperimentID])
+	assert.Equal(t, req.Params.Version, dda.Annotations[v2alpha1.AnnotationExperimentID])
 	assert.Equal(t, v2alpha1.ExperimentSignalStart, dda.Annotations[v2alpha1.AnnotationExperimentSignal])
 }
 
@@ -207,13 +279,12 @@ func TestStartDatadogAgentExperiment_Success_OverwritesPreviousExperiment(t *tes
 	// The old experiment's annotations must be fully replaced.
 	d, c := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseTerminated), testInstallerConfigWithDDA())
 	req := testStartRequest()
-	require.NoError(t, d.startDatadogAgentExperiment(context.Background(), req))
+	requireStartQueued(t, d, req)
 
 	dda := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
-	assert.Equal(t, req.ID, dda.Annotations[v2alpha1.AnnotationExperimentID])
+	assert.Equal(t, req.Params.Version, dda.Annotations[v2alpha1.AnnotationExperimentID])
 	assert.Equal(t, v2alpha1.ExperimentSignalStart, dda.Annotations[v2alpha1.AnnotationExperimentSignal])
-	assert.NotEqual(t, "old-exp", dda.Annotations[v2alpha1.AnnotationExperimentID])
 }
 
 // --- resolveOperation: params.version matching tests ---
@@ -248,11 +319,11 @@ func TestStartDatadogAgentExperiment_VersionMatchesInstallerConfig(t *testing.T)
 			ClientID:     "aAbBcCdDeEfFgGhHiIjJk",
 		},
 	}
-	require.NoError(t, d.startDatadogAgentExperiment(context.Background(), req))
+	requireStartQueued(t, d, req)
 
 	dda := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
-	assert.Equal(t, req.ID, dda.Annotations[v2alpha1.AnnotationExperimentID])
+	assert.Equal(t, req.Params.Version, dda.Annotations[v2alpha1.AnnotationExperimentID])
 	assert.Equal(t, v2alpha1.ExperimentSignalStart, dda.Annotations[v2alpha1.AnnotationExperimentSignal])
 }
 
@@ -260,7 +331,7 @@ func TestStartDatadogAgentExperiment_EmptyVersion(t *testing.T) {
 	d, _ := testDaemon(testDDAObject(""), testInstallerConfigWithDDA())
 	req := testStartRequest()
 	req.Params.Version = ""
-	assert.Error(t, d.startDatadogAgentExperiment(context.Background(), req))
+	assert.Error(t, syncTaskErr(d.startDatadogAgentExperiment(context.Background(), req)))
 }
 
 func TestStartDatadogAgentExperiment_VersionMismatch(t *testing.T) {
@@ -268,7 +339,7 @@ func TestStartDatadogAgentExperiment_VersionMismatch(t *testing.T) {
 	d, _ := testDaemon(testDDAObject(""), testInstallerConfigWithDDA())
 	req := testStartRequest()
 	req.Params.Version = "xxxx-yyyy-zzzz" // no config with this ID
-	err := d.startDatadogAgentExperiment(context.Background(), req)
+	err := syncTaskErr(d.startDatadogAgentExperiment(context.Background(), req))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
@@ -290,7 +361,7 @@ func testStopRequest() remoteAPIRequest {
 
 func TestStopDatadogAgentExperiment_DDANotFound(t *testing.T) {
 	d, _ := testDaemon(nil, testInstallerConfigWithDDA())
-	assert.Error(t, d.stopDatadogAgentExperiment(context.Background(), testStopRequest()))
+	assert.Error(t, syncTaskErr(d.stopDatadogAgentExperiment(context.Background(), testStopRequest())))
 }
 
 func TestStopDatadogAgentExperiment_NilExperiment_NoOp(t *testing.T) {
@@ -300,7 +371,8 @@ func TestStopDatadogAgentExperiment_NilExperiment_NoOp(t *testing.T) {
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
 	}}
 	d.rcClient = rc
-	require.NoError(t, d.stopDatadogAgentExperiment(context.Background(), testStopRequest()))
+	op, err := d.stopDatadogAgentExperiment(context.Background(), testStopRequest())
+	requireSyncNoError(t, op, err)
 
 	dda := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
@@ -310,29 +382,44 @@ func TestStopDatadogAgentExperiment_NilExperiment_NoOp(t *testing.T) {
 	assert.Empty(t, rc.state[0].ExperimentConfigVersion)
 }
 
-func TestStopDatadogAgentExperiment_EmptyPhase_WritesRollback(t *testing.T) {
-	// Empty phase with a status object is Transition 6: spec patched but phase
-	// never written. The rollback annotation must still be sent.
+func TestStopDatadogAgentExperiment_NilExperiment_WithStartAnnotation_WritesRollback(t *testing.T) {
 	dda := testDDAObject("")
-	dda.Status.Experiment = &v2alpha1.ExperimentStatus{ID: "old-exp", Phase: ""}
+	dda.Annotations = map[string]string{
+		v2alpha1.AnnotationExperimentID:     testExperimentID,
+		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalStart,
+	}
 	d, c := testDaemon(dda, testInstallerConfigWithDDA())
-	require.NoError(t, d.stopDatadogAgentExperiment(context.Background(), testStopRequest()))
+	requireStopQueued(t, d, testStopRequest())
 
 	got := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, got))
 	assert.Equal(t, v2alpha1.ExperimentSignalRollback, got.Annotations[v2alpha1.AnnotationExperimentSignal])
-	assert.Equal(t, "exp-abc", got.Annotations[v2alpha1.AnnotationExperimentID])
+	assert.Equal(t, testExperimentID, got.Annotations[v2alpha1.AnnotationExperimentID])
+}
+
+func TestStopDatadogAgentExperiment_EmptyPhase_WritesRollback(t *testing.T) {
+	// Empty phase with a status object is Transition 6: spec patched but phase
+	// never written. The rollback annotation must still be sent.
+	dda := testDDAObject("")
+	dda.Status.Experiment = &v2alpha1.ExperimentStatus{ID: testExperimentID, Phase: ""}
+	d, c := testDaemon(dda, testInstallerConfigWithDDA())
+	requireStopQueued(t, d, testStopRequest())
+
+	got := &v2alpha1.DatadogAgent{}
+	require.NoError(t, c.Get(context.Background(), testDDANSN, got))
+	assert.Equal(t, v2alpha1.ExperimentSignalRollback, got.Annotations[v2alpha1.AnnotationExperimentSignal])
+	assert.Equal(t, testExperimentID, got.Annotations[v2alpha1.AnnotationExperimentID])
 }
 
 func TestStopDatadogAgentExperiment_Success_Running(t *testing.T) {
 	d, c := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseRunning), testInstallerConfigWithDDA())
-	require.NoError(t, d.stopDatadogAgentExperiment(context.Background(), testStopRequest()))
+	requireStopQueued(t, d, testStopRequest())
 
 	dda := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
 	// Daemon writes rollback annotation, not status. Status is written by the controller.
 	assert.Equal(t, v2alpha1.ExperimentSignalRollback, dda.Annotations[v2alpha1.AnnotationExperimentSignal])
-	assert.Equal(t, "exp-abc", dda.Annotations[v2alpha1.AnnotationExperimentID])
+	assert.Equal(t, testExperimentID, dda.Annotations[v2alpha1.AnnotationExperimentID])
 }
 
 func TestStopDatadogAgentExperiment_Success_Terminated(t *testing.T) {
@@ -342,7 +429,8 @@ func TestStopDatadogAgentExperiment_Success_Terminated(t *testing.T) {
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
 	}}
 	d.rcClient = rc
-	require.NoError(t, d.stopDatadogAgentExperiment(context.Background(), testStopRequest()))
+	op, err := d.stopDatadogAgentExperiment(context.Background(), testStopRequest())
+	requireSyncNoError(t, op, err)
 	assert.Equal(t, "stable-1", rc.state[0].StableConfigVersion)
 	assert.Empty(t, rc.state[0].ExperimentConfigVersion, "experiment config version should be cleared")
 }
@@ -354,7 +442,8 @@ func TestStopDatadogAgentExperiment_Success_Promoted(t *testing.T) {
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
 	}}
 	d.rcClient = rc
-	require.NoError(t, d.stopDatadogAgentExperiment(context.Background(), testStopRequest()))
+	op, err := d.stopDatadogAgentExperiment(context.Background(), testStopRequest())
+	requireSyncNoError(t, op, err)
 	assert.Equal(t, "stable-1", rc.state[0].StableConfigVersion)
 	assert.Empty(t, rc.state[0].ExperimentConfigVersion, "experiment config version should be cleared")
 }
@@ -366,7 +455,8 @@ func TestStopDatadogAgentExperiment_Success_Aborted(t *testing.T) {
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
 	}}
 	d.rcClient = rc
-	require.NoError(t, d.stopDatadogAgentExperiment(context.Background(), testStopRequest()))
+	op, err := d.stopDatadogAgentExperiment(context.Background(), testStopRequest())
+	requireSyncNoError(t, op, err)
 	assert.Equal(t, "stable-1", rc.state[0].StableConfigVersion)
 	assert.Empty(t, rc.state[0].ExperimentConfigVersion, "experiment config version should be cleared")
 }
@@ -375,7 +465,7 @@ func TestStopDatadogAgentExperiment_UnexpectedPhase_Error(t *testing.T) {
 	dda := testDDAObject("")
 	dda.Status.Experiment = &v2alpha1.ExperimentStatus{ID: "exp-1", Phase: "weird"}
 	d, _ := testDaemon(dda, testInstallerConfigWithDDA())
-	err := d.stopDatadogAgentExperiment(context.Background(), testStopRequest())
+	err := syncTaskErr(d.stopDatadogAgentExperiment(context.Background(), testStopRequest()))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot stop")
 }
@@ -397,7 +487,7 @@ func testPromoteRequest() remoteAPIRequest {
 
 func TestPromoteDatadogAgentExperiment_DDANotFound(t *testing.T) {
 	d, _ := testDaemon(nil, testInstallerConfigWithDDA())
-	assert.Error(t, d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest()))
+	assert.Error(t, syncTaskErr(d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest())))
 }
 
 func TestPromoteDatadogAgentExperiment_NoExperimentVersion(t *testing.T) {
@@ -405,7 +495,7 @@ func TestPromoteDatadogAgentExperiment_NoExperimentVersion(t *testing.T) {
 	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
 		{Package: "datadog-operator", StableConfigVersion: "stable-1"},
 	}}
-	assert.Error(t, d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest()))
+	assert.Error(t, syncTaskErr(d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest())))
 }
 
 func TestPromoteDatadogAgentExperiment_NilPhase_Error(t *testing.T) {
@@ -414,7 +504,7 @@ func TestPromoteDatadogAgentExperiment_NilPhase_Error(t *testing.T) {
 	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
 	}}
-	err := d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest())
+	err := syncTaskErr(d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest()))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot promote")
 }
@@ -425,13 +515,15 @@ func TestPromoteDatadogAgentExperiment_Success_Running(t *testing.T) {
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
 	}}
 	d.rcClient = rc
-	require.NoError(t, d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest()))
+	op := requirePromoteQueued(t, d, testPromoteRequest())
 
 	dda := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
 	// Daemon writes promote annotation, not status. Status is written by the controller.
 	assert.Equal(t, v2alpha1.ExperimentSignalPromote, dda.Annotations[v2alpha1.AnnotationExperimentSignal])
-	assert.Equal(t, "exp-abc", dda.Annotations[v2alpha1.AnnotationExperimentID])
+	assert.Equal(t, testExperimentID, dda.Annotations[v2alpha1.AnnotationExperimentID])
+	assert.Equal(t, "exp-1", dda.Annotations[v2alpha1.AnnotationPendingResultVersion])
+	requireOperationSuccess(t, d, op)
 	// Stable should now be the old experiment, experiment should be cleared.
 	require.Len(t, rc.state, 1)
 	// StableVersion/ExperimentVersion are not set by config experiments.
@@ -447,7 +539,7 @@ func TestPromoteDatadogAgentExperiment_Terminated_Error(t *testing.T) {
 	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
 	}}
-	err := d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest())
+	err := syncTaskErr(d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest()))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot promote")
 	assert.Contains(t, err.Error(), "terminated")
@@ -461,7 +553,8 @@ func TestPromoteDatadogAgentExperiment_Success_Promoted(t *testing.T) {
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
 	}}
 	d.rcClient = rc
-	require.NoError(t, d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest()))
+	op, err := d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest())
+	requireSyncNoError(t, op, err)
 	assert.Equal(t, "exp-1", rc.state[0].StableConfigVersion, "stable should be promoted to experiment version")
 	assert.Empty(t, rc.state[0].ExperimentConfigVersion, "experiment config version should be cleared")
 }
@@ -528,7 +621,7 @@ func TestHandleRemoteAPIRequest_InvalidState(t *testing.T) {
 	}}
 	req := testStartRequest()
 	req.ExpectedState = expectedState{StableConfig: "stale", ExperimentConfig: ""}
-	err := d.handleRemoteAPIRequest(context.Background(), req)
+	_, err := d.handleRemoteAPIRequest(context.Background(), req)
 	require.Error(t, err)
 	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
@@ -699,7 +792,7 @@ func TestAcceptPhase_SinglePhase_OtherTerminalErrors(t *testing.T) {
 // testPhaseWatcher creates a phaseWatcher without an informer for unit tests.
 // Use pw.evaluate() to simulate informer events.
 func testPhaseWatcher(c client.Client) *phaseWatcher {
-	return &phaseWatcher{k8sClient: c}
+	return &phaseWatcher{k8sClient: c, waiters: make(map[uint64]*phaseWaiter)}
 }
 
 func TestWaitForPhase_ImmediateSuccess(t *testing.T) {
@@ -717,7 +810,7 @@ func TestWaitForPhase_ImmediateSuccess(t *testing.T) {
 		pw.evaluate(dda)
 	}()
 
-	err := pw.waitForPhase(context.Background(), testDDANSN, "old-exp", acceptPhase("old-exp", v2alpha1.ExperimentPhaseRunning))
+	err := pw.waitForPhase(context.Background(), testDDANSN, testExperimentID, acceptPhase(testExperimentID, v2alpha1.ExperimentPhaseRunning))
 	assert.NoError(t, err)
 }
 
@@ -729,7 +822,7 @@ func TestWaitForPhase_AlreadyAtExpectedPhase(t *testing.T) {
 	c := fake.NewClientBuilder().WithScheme(s).WithObjects(dda).WithStatusSubresource(dda).Build()
 	pw := testPhaseWatcher(c)
 
-	err := pw.waitForPhase(context.Background(), testDDANSN, "old-exp", acceptPhase("old-exp", v2alpha1.ExperimentPhaseRunning))
+	err := pw.waitForPhase(context.Background(), testDDANSN, testExperimentID, acceptPhase(testExperimentID, v2alpha1.ExperimentPhaseRunning))
 	assert.NoError(t, err)
 }
 
@@ -740,7 +833,7 @@ func TestWaitForPhase_AlreadyTerminal_SameID(t *testing.T) {
 	c := fake.NewClientBuilder().WithScheme(s).WithObjects(dda).WithStatusSubresource(dda).Build()
 	pw := testPhaseWatcher(c)
 
-	err := pw.waitForPhase(context.Background(), testDDANSN, "old-exp", acceptPhase("old-exp", v2alpha1.ExperimentPhaseRunning))
+	err := pw.waitForPhase(context.Background(), testDDANSN, testExperimentID, acceptPhase(testExperimentID, v2alpha1.ExperimentPhaseRunning))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "terminal phase")
 }
@@ -749,7 +842,7 @@ func TestWaitForPhase_StaleTerminated_DifferentID(t *testing.T) {
 	// The DDA has a stale terminated status from a previous experiment.
 	// acceptPhase should ignore it (wrong ID) and keep waiting.
 	// Since no informer event delivers the right ID, this should time out.
-	dda := testDDAObject(v2alpha1.ExperimentPhaseTerminated) // ID = "old-exp"
+	dda := testDDAObject(v2alpha1.ExperimentPhaseTerminated) // ID = testExperimentID
 	s := testFleetScheme()
 	c := fake.NewClientBuilder().WithScheme(s).WithObjects(dda).WithStatusSubresource(dda).Build()
 	pw := testPhaseWatcher(c)
@@ -798,7 +891,7 @@ func TestWaitForPhase_UnexpectedTerminal(t *testing.T) {
 		pw.evaluate(dda)
 	}()
 
-	err := pw.waitForPhase(context.Background(), testDDANSN, "old-exp", acceptPhase("old-exp", v2alpha1.ExperimentPhaseRunning))
+	err := pw.waitForPhase(context.Background(), testDDANSN, testExperimentID, acceptPhase(testExperimentID, v2alpha1.ExperimentPhaseRunning))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "terminal phase")
 }
@@ -814,7 +907,7 @@ func TestPhaseWatcher_Evaluate_WrongNamespace(t *testing.T) {
 		ch:     make(chan phaseResult, 1),
 	}
 	pw.mu.Lock()
-	pw.current = w
+	pw.waiters[0] = w
 	pw.mu.Unlock()
 
 	wrongDDA := &v2alpha1.DatadogAgent{
@@ -844,7 +937,7 @@ func TestPhaseWatcher_Evaluate_WrongExperimentID(t *testing.T) {
 		ch:     make(chan phaseResult, 1),
 	}
 	pw.mu.Lock()
-	pw.current = w
+	pw.waiters[0] = w
 	pw.mu.Unlock()
 
 	staleDDA := &v2alpha1.DatadogAgent{
@@ -879,22 +972,24 @@ func TestPhaseWatcher_Evaluate_NoWaiter(t *testing.T) {
 func TestStartDatadogAgentExperiment_Idempotent_AnnotationAlreadyApplied(t *testing.T) {
 	dda := testDDAObject("")
 	dda.Annotations = map[string]string{
-		v2alpha1.AnnotationExperimentID:     "exp-abc",
+		v2alpha1.AnnotationExperimentID:     testExperimentID,
 		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalStart,
 	}
 	d, _ := testDaemon(dda, testInstallerConfigWithDDA())
 	req := testStartRequest()
-	require.NoError(t, d.startDatadogAgentExperiment(context.Background(), req))
+	op, err := d.startDatadogAgentExperiment(context.Background(), req)
+	requirePendingNoError(t, op, err)
 }
 
 // --- Start with running experiment and same ID (controller already processed) ---
 
 func TestStartDatadogAgentExperiment_Idempotent_ControllerAlreadyProcessed(t *testing.T) {
 	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
-	dda.Status.Experiment.ID = "exp-abc" // controller already set this
+	dda.Status.Experiment.ID = testExperimentID // controller already set this
 	d, _ := testDaemon(dda, testInstallerConfigWithDDA())
 	req := testStartRequest()
-	require.NoError(t, d.startDatadogAgentExperiment(context.Background(), req))
+	op, err := d.startDatadogAgentExperiment(context.Background(), req)
+	requireSyncNoError(t, op, err)
 }
 
 // --- Stop idempotency with annotation already applied ---
@@ -903,7 +998,8 @@ func TestStopDatadogAgentExperiment_Idempotent_AnnotationAlreadyApplied(t *testi
 	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
 	dda.Annotations[v2alpha1.AnnotationExperimentSignal] = v2alpha1.ExperimentSignalRollback
 	d, _ := testDaemon(dda, testInstallerConfigWithDDA())
-	require.NoError(t, d.stopDatadogAgentExperiment(context.Background(), testStopRequest()))
+	op, err := d.stopDatadogAgentExperiment(context.Background(), testStopRequest())
+	requirePendingNoError(t, op, err)
 }
 
 // --- Promote idempotency with annotation already applied ---
@@ -915,7 +1011,8 @@ func TestPromoteDatadogAgentExperiment_Idempotent_AnnotationAlreadyApplied(t *te
 	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
 	}}
-	require.NoError(t, d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest()))
+	op, err := d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest())
+	requirePendingNoError(t, op, err)
 }
 
 // --- Fix 2: stop/promote non-running guard tests ---
@@ -926,7 +1023,7 @@ func TestPromoteDatadogAgentExperiment_Aborted_Error(t *testing.T) {
 	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
 	}}
-	err := d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest())
+	err := syncTaskErr(d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest()))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot promote")
 	assert.Contains(t, err.Error(), "aborted")
@@ -935,39 +1032,46 @@ func TestPromoteDatadogAgentExperiment_Aborted_Error(t *testing.T) {
 // --- Fix 3: RC state timing tests ---
 
 func TestStartDatadogAgentExperiment_ConfigVersionSetAfterSuccess(t *testing.T) {
-	// Verify config version is set after successful start (no watcher = immediate).
+	// Verify config version is set only after successful completion.
 	d, _ := testDaemon(testDDAObject(""), testInstallerConfigWithDDA())
 	rc := &mockRCClient{state: []*pbgo.PackageState{
 		{Package: "datadog-operator", StableConfigVersion: "stable-1"},
 	}}
 	d.rcClient = rc
 	req := testStartRequest()
-	require.NoError(t, d.startDatadogAgentExperiment(context.Background(), req))
+	op := requireStartQueued(t, d, req)
+	require.Empty(t, rc.state[0].ExperimentConfigVersion)
+	requireOperationSuccess(t, d, op)
 
 	assert.Equal(t, req.Params.Version, rc.state[0].ExperimentConfigVersion)
 }
 
 func TestStopDatadogAgentExperiment_ConfigVersionClearedAfterSuccess(t *testing.T) {
-	// Without watcher, stop clears config version immediately after patch.
+	// Stop clears config version only after successful completion.
 	d, _ := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseRunning), testInstallerConfigWithDDA())
 	rc := &mockRCClient{state: []*pbgo.PackageState{
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
 	}}
 	d.rcClient = rc
-	require.NoError(t, d.stopDatadogAgentExperiment(context.Background(), testStopRequest()))
+	op := requireStopQueued(t, d, testStopRequest())
+	assert.Equal(t, "exp-1", rc.state[0].ExperimentConfigVersion)
+	requireOperationSuccess(t, d, op)
 
 	assert.Equal(t, "stable-1", rc.state[0].StableConfigVersion)
 	assert.Empty(t, rc.state[0].ExperimentConfigVersion)
 }
 
 func TestPromoteDatadogAgentExperiment_ConfigVersionUpdatedAfterSuccess(t *testing.T) {
-	// Without watcher, promote updates config version immediately after patch.
+	// Promote updates config versions only after successful completion.
 	d, _ := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseRunning), testInstallerConfigWithDDA())
 	rc := &mockRCClient{state: []*pbgo.PackageState{
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
 	}}
 	d.rcClient = rc
-	require.NoError(t, d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest()))
+	op := requirePromoteQueued(t, d, testPromoteRequest())
+	assert.Equal(t, "stable-1", rc.state[0].StableConfigVersion)
+	assert.Equal(t, "exp-1", rc.state[0].ExperimentConfigVersion)
+	requireOperationSuccess(t, d, op)
 
 	assert.Equal(t, "exp-1", rc.state[0].StableConfigVersion)
 	assert.Empty(t, rc.state[0].ExperimentConfigVersion)
@@ -994,8 +1098,10 @@ func (m *mockRCClient) SetInstallerState(packages []*pbgo.PackageState) {
 func testDaemonWithRC(initialState []*pbgo.PackageState) (*Daemon, *mockRCClient) {
 	rc := &mockRCClient{state: initialState}
 	d := &Daemon{
-		rcClient: rc,
-		configs:  make(map[string]installerConfig),
+		rcClient:      rc,
+		configs:       make(map[string]installerConfig),
+		pendingOps:    make(chan pendingOperation, 32),
+		statusUpdates: make(chan ddaStatusSnapshot, 32),
 	}
 	return d, rc
 }
@@ -1092,9 +1198,9 @@ func TestHandleTask_Done(t *testing.T) {
 	d, _, m := testDaemonFull(testDDAObject(""), testInstallerConfigWithDDA(), rc)
 	req := testStartRequest()
 	req.ExpectedState = expectedState{StableConfig: "0.0.1"}
-	require.NoError(t, d.handleTask(context.Background(), req))
+	require.NoError(t, d.handleTask(context.Background(), req, noopComplete))
 	require.NotNil(t, m.state[0].Task)
-	assert.Equal(t, pbgo.TaskState_DONE, m.state[0].Task.State)
+	assert.Equal(t, pbgo.TaskState_RUNNING, m.state[0].Task.State)
 }
 
 func TestHandleTask_Error(t *testing.T) {
@@ -1103,7 +1209,7 @@ func TestHandleTask_Error(t *testing.T) {
 	req := testStartRequest()
 	req.Method = "unknown/method"
 	req.ExpectedState = expectedState{StableConfig: "0.0.1"}
-	err := d.handleTask(context.Background(), req)
+	err := d.handleTask(context.Background(), req, noopComplete)
 	require.Error(t, err)
 	require.NotNil(t, m.state[0].Task)
 	assert.Equal(t, pbgo.TaskState_ERROR, m.state[0].Task.State)
@@ -1115,8 +1221,256 @@ func TestHandleTask_InvalidState(t *testing.T) {
 	d, _, m := testDaemonFull(testDDAObject(""), testInstallerConfigWithDDA(), rc)
 	req := testStartRequest()
 	req.ExpectedState = expectedState{StableConfig: "wrong-version"}
-	err := d.handleTask(context.Background(), req)
+	err := d.handleTask(context.Background(), req, noopComplete)
 	require.Error(t, err)
 	require.NotNil(t, m.state[0].Task)
 	assert.Equal(t, pbgo.TaskState_INVALID_STATE, m.state[0].Task.State)
+}
+
+func TestReconcileTimedOutExperiment_ClearsExperimentConfigVersion(t *testing.T) {
+	d, rc := testDaemonWithRC([]*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: testExperimentID},
+	})
+	dda := testDDAObject(v2alpha1.ExperimentPhaseTerminated)
+	dda.Status.Experiment.TerminationReason = "timed_out"
+
+	d.reconcileTimedOutExperiment(context.Background(), newDDAStatusSnapshot(dda))
+
+	require.Len(t, rc.state, 1)
+	assert.Equal(t, "stable-1", rc.state[0].StableConfigVersion)
+	assert.Empty(t, rc.state[0].ExperimentConfigVersion)
+}
+
+func TestReconcileTimedOutExperiment_IgnoresNonTimeoutTermination(t *testing.T) {
+	d, rc := testDaemonWithRC([]*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: testExperimentID},
+	})
+	dda := testDDAObject(v2alpha1.ExperimentPhaseTerminated)
+	dda.Status.Experiment.TerminationReason = "stopped"
+
+	d.reconcileTimedOutExperiment(context.Background(), newDDAStatusSnapshot(dda))
+
+	require.Len(t, rc.state, 1)
+	assert.Equal(t, "stable-1", rc.state[0].StableConfigVersion)
+	assert.Equal(t, testExperimentID, rc.state[0].ExperimentConfigVersion)
+}
+
+func TestRunPendingOperationWorker_SupersedesOlderOperation(t *testing.T) {
+	d, _ := testDaemon(testDDAObject(""), testInstallerConfigWithDDA())
+	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1"},
+	}}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go d.runPendingOperationWorker(ctx)
+
+	oldResult := make(chan error, 1)
+	d.pendingOps <- pendingOperation{
+		intent:       pendingIntentStart,
+		taskID:       "task-1",
+		packageName:  "datadog-operator",
+		nsn:          testDDANSN,
+		experimentID: "exp-1",
+		complete: func(err error) {
+			oldResult <- err
+		},
+	}
+	d.pendingOps <- pendingOperation{
+		intent:       pendingIntentStop,
+		taskID:       "task-2",
+		packageName:  "datadog-operator",
+		nsn:          testDDANSN,
+		experimentID: "exp-2",
+		complete:     noopComplete,
+	}
+
+	select {
+	case err := <-oldResult:
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "superseded")
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for superseded operation result")
+	}
+
+	rc := d.rcClient.(*mockRCClient)
+	require.NotNil(t, rc.state[0].Task)
+	assert.Equal(t, "task-1", rc.state[0].Task.Id)
+	assert.Equal(t, pbgo.TaskState_INVALID_STATE, rc.state[0].Task.State)
+}
+
+func TestRunPendingOperationWorker_CompletesStatusUpdateForNonDefaultPackage(t *testing.T) {
+	d, _ := testDaemon(testDDAObject(""), testInstallerConfigWithDDA())
+	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+		{Package: "other-package", StableConfigVersion: "stable-1"},
+	}}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go d.runPendingOperationWorker(ctx)
+
+	result := make(chan error, 1)
+	d.pendingOps <- pendingOperation{
+		intent:       pendingIntentStart,
+		taskID:       "task-1",
+		packageName:  "other-package",
+		nsn:          testDDANSN,
+		experimentID: testExperimentID,
+		complete: func(err error) {
+			result <- err
+		},
+	}
+
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		d.statusUpdates <- newDDAStatusSnapshot(testDDAObject(v2alpha1.ExperimentPhaseRunning))
+	}()
+
+	select {
+	case err := <-result:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for pending operation completion")
+	}
+
+	rc := d.rcClient.(*mockRCClient)
+	require.NotNil(t, rc.state[0].Task)
+	assert.Equal(t, "task-1", rc.state[0].Task.Id)
+	assert.Equal(t, pbgo.TaskState_DONE, rc.state[0].Task.State)
+	assert.Equal(t, testExperimentID, rc.state[0].ExperimentConfigVersion)
+}
+
+func TestFinishPendingOperation_ClearsPendingAnnotations(t *testing.T) {
+	d, c := testDaemon(testDDAObject(""), testInstallerConfigWithDDA())
+	req := testStartRequest()
+	op := requireStartQueued(t, d, req)
+
+	d.finishPendingOperation(context.Background(), *op, nil)
+
+	dda := &v2alpha1.DatadogAgent{}
+	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
+	assert.Empty(t, dda.Annotations[v2alpha1.AnnotationPendingTaskID])
+	assert.Empty(t, dda.Annotations[v2alpha1.AnnotationPendingAction])
+	assert.Empty(t, dda.Annotations[v2alpha1.AnnotationPendingExperimentID])
+	assert.Empty(t, dda.Annotations[v2alpha1.AnnotationPendingPackage])
+}
+
+func TestStartDatadogAgentExperiment_OverwritesStalePendingResultVersion(t *testing.T) {
+	dda := testDDAObject("")
+	if dda.Annotations == nil {
+		dda.Annotations = map[string]string{}
+	}
+	dda.Annotations[v2alpha1.AnnotationPendingResultVersion] = "stale-promote-version"
+
+	d, c := testDaemon(dda, testInstallerConfigWithDDA())
+	req := testStartRequest()
+	op := requireStartQueued(t, d, req)
+
+	got := &v2alpha1.DatadogAgent{}
+	require.NoError(t, c.Get(context.Background(), testDDANSN, got))
+	assert.Empty(t, got.Annotations[v2alpha1.AnnotationPendingResultVersion])
+
+	d.finishPendingOperation(context.Background(), *op, nil)
+
+	require.NoError(t, c.Get(context.Background(), testDDANSN, got))
+	assert.Empty(t, got.Annotations[v2alpha1.AnnotationPendingResultVersion])
+}
+
+func TestRunPendingOperationWorker_RecoversPendingOperationFromAnnotations(t *testing.T) {
+	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+	dda.Annotations[v2alpha1.AnnotationPendingTaskID] = "task-1"
+	dda.Annotations[v2alpha1.AnnotationPendingAction] = string(pendingIntentStart)
+	dda.Annotations[v2alpha1.AnnotationPendingExperimentID] = testExperimentID
+	dda.Annotations[v2alpha1.AnnotationPendingPackage] = "datadog-operator"
+
+	d, c := testDaemon(dda, testInstallerConfigWithDDA())
+	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1"},
+	}}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	tracker := newOperationTracker(d, ctrl.Log.WithName("test"))
+	tracker.onStatusUpdate(ctx, newDDAStatusSnapshot(dda))
+
+	rc := d.rcClient.(*mockRCClient)
+	require.NotNil(t, rc.state[0].Task)
+	assert.Equal(t, "task-1", rc.state[0].Task.Id)
+	assert.Equal(t, pbgo.TaskState_DONE, rc.state[0].Task.State)
+	assert.Equal(t, testExperimentID, rc.state[0].ExperimentConfigVersion)
+
+	got := &v2alpha1.DatadogAgent{}
+	require.NoError(t, c.Get(context.Background(), testDDANSN, got))
+	assert.Empty(t, got.Annotations[v2alpha1.AnnotationPendingTaskID])
+	assert.Empty(t, got.Annotations[v2alpha1.AnnotationPendingAction])
+	assert.Empty(t, got.Annotations[v2alpha1.AnnotationPendingExperimentID])
+	assert.Empty(t, got.Annotations[v2alpha1.AnnotationPendingPackage])
+}
+
+func TestRunPendingOperationWorker_RecoversPromoteResultVersionFromAnnotations(t *testing.T) {
+	dda := testDDAObject(v2alpha1.ExperimentPhasePromoted)
+	dda.Annotations[v2alpha1.AnnotationPendingTaskID] = "task-1"
+	dda.Annotations[v2alpha1.AnnotationPendingAction] = string(pendingIntentPromote)
+	dda.Annotations[v2alpha1.AnnotationPendingExperimentID] = testExperimentID
+	dda.Annotations[v2alpha1.AnnotationPendingPackage] = "datadog-operator"
+	dda.Annotations[v2alpha1.AnnotationPendingResultVersion] = "exp-1"
+
+	d, c := testDaemon(dda, testInstallerConfigWithDDA())
+	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
+	}}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	tracker := newOperationTracker(d, ctrl.Log.WithName("test"))
+	tracker.onStatusUpdate(ctx, newDDAStatusSnapshot(dda))
+
+	rc := d.rcClient.(*mockRCClient)
+	require.NotNil(t, rc.state[0].Task)
+	assert.Equal(t, "task-1", rc.state[0].Task.Id)
+	assert.Equal(t, pbgo.TaskState_DONE, rc.state[0].Task.State)
+	assert.Equal(t, "exp-1", rc.state[0].StableConfigVersion)
+	assert.Empty(t, rc.state[0].ExperimentConfigVersion)
+
+	got := &v2alpha1.DatadogAgent{}
+	require.NoError(t, c.Get(context.Background(), testDDANSN, got))
+	assert.Empty(t, got.Annotations[v2alpha1.AnnotationPendingResultVersion])
+}
+
+func TestRunPendingOperationWorker_DuplicateRedeliveryRestoresLiveCallback(t *testing.T) {
+	dda := testDDAObject("")
+	dda.Annotations = map[string]string{}
+	dda.Annotations[v2alpha1.AnnotationPendingTaskID] = "task-1"
+	dda.Annotations[v2alpha1.AnnotationPendingAction] = string(pendingIntentStart)
+	dda.Annotations[v2alpha1.AnnotationPendingExperimentID] = testExperimentID
+	dda.Annotations[v2alpha1.AnnotationPendingPackage] = "datadog-operator"
+
+	d, _ := testDaemon(dda, testInstallerConfigWithDDA())
+	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1"},
+	}}
+
+	tracker := newOperationTracker(d, ctrl.Log.WithName("test"))
+	tracker.onStatusUpdate(context.Background(), newDDAStatusSnapshot(dda))
+
+	result := make(chan error, 1)
+	tracker.enqueue(context.Background(), pendingOperation{
+		intent:       pendingIntentStart,
+		taskID:       "task-1",
+		packageName:  "datadog-operator",
+		nsn:          testDDANSN,
+		experimentID: testExperimentID,
+		complete: func(err error) {
+			result <- err
+		},
+	})
+
+	tracker.onStatusUpdate(context.Background(), newDDAStatusSnapshot(testDDAObject(v2alpha1.ExperimentPhaseRunning)))
+
+	select {
+	case err := <-result:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for duplicate redelivery completion callback")
+	}
 }

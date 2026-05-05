@@ -11,17 +11,12 @@ import (
 	"fmt"
 	"maps"
 	"math"
-	"sync"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
-	toolscache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
@@ -112,12 +107,6 @@ func buildSignalPatch(signal, id string, config ...json.RawMessage) ([]byte, err
 	return json.Marshal(patch)
 }
 
-// phaseWaitTimeout is the maximum time the daemon waits for the reconciler
-// to process an annotation and transition the experiment phase. If the expected
-// phase is not observed within this window, the daemon writes a self-abort
-// (signal=rollback) and returns an error.
-const phaseWaitTimeout = 5 * time.Minute
-
 // phaseAcceptFunc determines whether an observed experiment status satisfies the
 // wait condition. It receives the full ExperimentStatus (which may be nil) so
 // that accept functions can key on the experiment ID, not just the phase.
@@ -159,150 +148,5 @@ func isTerminalPhase(phase v2alpha1.ExperimentPhase) bool {
 		return true
 	default:
 		return false
-	}
-}
-
-// phaseResult is the outcome delivered through the phaseWatcher channel.
-type phaseResult struct {
-	phase v2alpha1.ExperimentPhase
-	err   error
-}
-
-// phaseWaiter holds the registration for a single in-flight phase wait.
-type phaseWaiter struct {
-	nsn    types.NamespacedName
-	accept phaseAcceptFunc
-	ch     chan phaseResult
-}
-
-// phaseWatcher uses a DDA informer to observe experiment phase transitions.
-// Only one waiter is active at a time (serial delivery guarantee from RC).
-type phaseWatcher struct {
-	k8sClient client.Client
-
-	mu      sync.Mutex
-	current *phaseWaiter
-}
-
-// newPhaseWatcher creates a phaseWatcher and registers an event handler on the
-// provided DDA informer. The informer's UpdateFunc evaluates the active waiter's
-// accept function whenever a DDA status changes.
-func newPhaseWatcher(informer cache.Informer, k8sClient client.Client) *phaseWatcher {
-	pw := &phaseWatcher{k8sClient: k8sClient}
-
-	informer.AddEventHandler(toolscache.FilteringResourceEventHandler{
-		FilterFunc: func(obj any) bool {
-			dda, ok := obj.(*v2alpha1.DatadogAgent)
-			return ok && dda.Status.Experiment != nil
-		},
-		Handler: toolscache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj any) {
-				pw.evaluate(obj.(*v2alpha1.DatadogAgent))
-			},
-			UpdateFunc: func(_, newObj any) {
-				pw.evaluate(newObj.(*v2alpha1.DatadogAgent))
-			},
-		},
-	})
-
-	return pw
-}
-
-// evaluate checks if the DDA matches the active waiter and signals it if done.
-func (pw *phaseWatcher) evaluate(dda *v2alpha1.DatadogAgent) {
-	pw.mu.Lock()
-	w := pw.current
-	pw.mu.Unlock()
-
-	if w == nil {
-		return
-	}
-
-	nsn := types.NamespacedName{Namespace: dda.Namespace, Name: dda.Name}
-	if nsn != w.nsn {
-		return
-	}
-
-	done, err := w.accept(dda.Status.Experiment)
-	if !done {
-		return
-	}
-
-	// Non-blocking send — only one waiter reads, buffer size 1.
-	select {
-	case w.ch <- phaseResult{phase: dda.Status.Experiment.Phase, err: err}:
-	default:
-	}
-}
-
-// waitForPhase registers a waiter and blocks until the accept function is
-// satisfied or the phaseWaitTimeout elapses. On timeout, it writes a self-abort
-// (signal=rollback) and returns an error.
-func (pw *phaseWatcher) waitForPhase(ctx context.Context, nsn types.NamespacedName, experimentID string, accept phaseAcceptFunc) error {
-	logger := ctrl.LoggerFrom(ctx)
-
-	w := &phaseWaiter{
-		nsn:    nsn,
-		accept: accept,
-		ch:     make(chan phaseResult, 1),
-	}
-
-	pw.mu.Lock()
-	pw.current = w
-	pw.mu.Unlock()
-
-	defer func() {
-		pw.mu.Lock()
-		if pw.current == w {
-			pw.current = nil
-		}
-		pw.mu.Unlock()
-	}()
-
-	// Check the current status before blocking — the reconciler may have
-	// already transitioned before the waiter was registered, in which case
-	// no further informer event will fire.
-	current := &v2alpha1.DatadogAgent{}
-	if err := pw.k8sClient.Get(ctx, nsn, current); err == nil {
-		done, acceptErr := accept(current.Status.Experiment)
-		if done {
-			if acceptErr != nil {
-				logger.Info("Unexpected phase already present", "phase", current.Status.Experiment.Phase, "error", acceptErr)
-				return acceptErr
-			}
-			logger.V(1).Info("Expected phase already present", "phase", current.Status.Experiment.Phase)
-			return nil
-		}
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, phaseWaitTimeout)
-	defer cancel()
-
-	select {
-	case result := <-w.ch:
-		if result.err != nil {
-			logger.Info("Unexpected phase observed", "phase", result.phase, "error", result.err)
-			return result.err
-		}
-		logger.V(1).Info("Expected phase observed", "phase", result.phase)
-		return nil
-
-	case <-ctx.Done():
-		// Timeout — self-abort by writing rollback annotation.
-		logger.Info("Phase wait timed out, writing self-abort rollback signal")
-		selfAbortCtx, selfAbortCancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer selfAbortCancel()
-		patch, patchErr := buildSignalPatch(v2alpha1.ExperimentSignalRollback, experimentID)
-		if patchErr != nil {
-			logger.Error(patchErr, "Failed to build self-abort rollback patch")
-		} else {
-			dda := &v2alpha1.DatadogAgent{}
-			dda.Name = nsn.Name
-			dda.Namespace = nsn.Namespace
-			if patchErr = pw.k8sClient.Patch(selfAbortCtx, dda, client.RawPatch(types.MergePatchType, patch), client.FieldOwner("fleet-daemon")); patchErr != nil {
-				logger.Error(patchErr, "Failed to write self-abort rollback signal")
-			}
-		}
-		return fmt.Errorf("timed out waiting for expected phase transition after %s", phaseWaitTimeout)
 	}
 }

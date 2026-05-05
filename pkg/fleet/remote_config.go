@@ -9,11 +9,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+)
+
+type requestState uint8
+
+const (
+	requestStatePending requestState = iota
+	requestStateDone
 )
 
 // installerConfig is the fleet installer configuration received via RC.
@@ -99,8 +107,9 @@ func handleInstallerConfigUpdate(ctx context.Context, h func(map[string]installe
 // handleUpdaterTaskUpdate returns an RC subscription callback that parses a single
 // UPDATER_TASK payload and forwards it as a remoteAPIRequest to h.
 // Requests that have already been executed (tracked by seen IDs) are ignored.
-func handleUpdaterTaskUpdate(ctx context.Context, h func(remoteAPIRequest) error) func(map[string]state.RawConfig, func(string, state.ApplyStatus)) {
-	seen := make(map[string]struct{})
+func handleUpdaterTaskUpdate(ctx context.Context, h func(remoteAPIRequest, func(error)) error) func(map[string]state.RawConfig, func(string, state.ApplyStatus)) {
+	seen := make(map[string]requestState)
+	var seenMu sync.Mutex
 	return func(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) {
 		logger := ctrl.LoggerFrom(ctx)
 		for cfgPath, raw := range updates {
@@ -113,24 +122,48 @@ func handleUpdaterTaskUpdate(ctx context.Context, h func(remoteAPIRequest) error
 				continue
 			}
 
-			if _, ok := seen[req.ID]; ok {
-				// Already executed; acknowledge without re-running.
-				logger.Info("Remote API request already executed", "id", req.ID)
-				applyStatus(cfgPath, state.ApplyStatus{State: state.ApplyStateAcknowledged})
+			seenMu.Lock()
+			currentState, ok := seen[req.ID]
+			seenMu.Unlock()
+			if ok {
+				switch currentState {
+				case requestStatePending:
+					logger.Info("Remote API request already in flight", "id", req.ID)
+					applyStatus(cfgPath, state.ApplyStatus{State: state.ApplyStateUnacknowledged})
+				case requestStateDone:
+					logger.Info("Remote API request already executed", "id", req.ID)
+					applyStatus(cfgPath, state.ApplyStatus{State: state.ApplyStateAcknowledged})
+				}
 				continue
 			}
 
 			// Signal received and parsed; notify the backend before applying.
 			applyStatus(cfgPath, state.ApplyStatus{State: state.ApplyStateUnacknowledged})
+			seenMu.Lock()
+			seen[req.ID] = requestStatePending
+			seenMu.Unlock()
 
-			if err := h(req); err != nil {
-				logger.Error(err, "Failed to handle remote API request")
-				applyStatus(cfgPath, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
-				continue
+			var completeOnce sync.Once
+			complete := func(err error) {
+				completeOnce.Do(func() {
+					seenMu.Lock()
+					if err != nil {
+						delete(seen, req.ID)
+						seenMu.Unlock()
+						applyStatus(cfgPath, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
+						return
+					}
+					seen[req.ID] = requestStateDone
+					seenMu.Unlock()
+					applyStatus(cfgPath, state.ApplyStatus{State: state.ApplyStateAcknowledged})
+				})
 			}
 
-			seen[req.ID] = struct{}{}
-			applyStatus(cfgPath, state.ApplyStatus{State: state.ApplyStateAcknowledged})
+			if err := h(req, complete); err != nil {
+				logger.Error(err, "Failed to handle remote API request")
+				complete(err)
+				continue
+			}
 		}
 	}
 }

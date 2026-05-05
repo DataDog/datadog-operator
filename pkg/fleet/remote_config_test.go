@@ -43,9 +43,13 @@ func (c *callbackMock) handleConfigs(configs map[string]installerConfig) error {
 	return args.Error(0)
 }
 
-func (c *callbackMock) handleRemoteAPIRequest(req remoteAPIRequest) error {
+func (c *callbackMock) handleRemoteAPIRequest(req remoteAPIRequest, complete func(error)) error {
 	args := c.Called(req)
-	return args.Error(0)
+	if err := args.Error(0); err != nil {
+		return err
+	}
+	complete(nil)
+	return nil
 }
 
 func (c *callbackMock) applyStateCallback(id string, status state.ApplyStatus) {
@@ -252,5 +256,35 @@ func TestRemoteAPIRequestIgnoresAlreadyExecutedRequests(t *testing.T) {
 	cb.AssertNumberOfCalls(t, "handleRemoteAPIRequest", 1)
 
 	// First call: Unacknowledged + Acknowledged. Second call: Acknowledged only.
+	cb.AssertNumberOfCalls(t, "applyStateCallback", 3)
+}
+
+func TestRemoteAPIRequestIgnoresAlreadyPendingRequests(t *testing.T) {
+	cb := &callbackMock{}
+	release := make(chan struct{})
+	done := make(chan struct{})
+	callCount := 0
+	handler := handleUpdaterTaskUpdate(context.Background(), func(req remoteAPIRequest, complete func(error)) error {
+		callCount++
+		go func() {
+			<-release
+			complete(nil)
+			close(done)
+		}()
+		return nil
+	})
+
+	raw := marshalRawConfig(t, testRemoteAPIRequest)
+	updates := map[string]state.RawConfig{"path/to/task": raw}
+
+	cb.On("applyStateCallback", "path/to/task", state.ApplyStatus{State: state.ApplyStateUnacknowledged}).Return().Twice()
+	cb.On("applyStateCallback", "path/to/task", state.ApplyStatus{State: state.ApplyStateAcknowledged}).Return().Once()
+
+	handler(updates, cb.applyStateCallback)
+	handler(updates, cb.applyStateCallback)
+	close(release)
+	<-done
+
+	assert.Equal(t, 1, callCount)
 	cb.AssertNumberOfCalls(t, "applyStateCallback", 3)
 }
