@@ -82,6 +82,24 @@ func DDKarpenterStackName(clusterName string) string {
 	return "dd-karpenter-" + clusterName + "-dd-karpenter"
 }
 
+// InstallModeTagKey is the CloudFormation stack tag tracking the deployment's
+// install-mode. Stacks created before this tag was introduced have no tag and
+// are treated as install-mode=existing-nodes.
+const InstallModeTagKey = "install-mode"
+
+// DetectedInstallMode reads the install-mode tag from a CFN stack. Stacks
+// created before this tag was introduced have no tag and default to
+// existing-nodes for backward compatibility.
+func DetectedInstallMode(stack *aws.Stack) InstallMode {
+	if stack == nil {
+		return ""
+	}
+	if tag, ok := stack.TagMap()[InstallModeTagKey]; ok && tag != "" {
+		return InstallMode(tag)
+	}
+	return InstallModeExistingNodes
+}
+
 // Run converges the cluster towards the Karpenter deployment described by
 // opts. It is idempotent: calling it twice with the same opts is a no-op on
 // the second run.

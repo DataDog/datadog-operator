@@ -1,10 +1,6 @@
 package apply
 
-import (
-	"fmt"
-
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
-)
+import "fmt"
 
 // InstallMode defines how to run the Karpenter controller.
 type InstallMode string
@@ -15,11 +11,6 @@ const (
 	// InstallModeExistingNodes runs the Karpenter controller on existing cluster nodes.
 	InstallModeExistingNodes InstallMode = "existing-nodes"
 )
-
-// InstallModeTagKey is the CloudFormation stack tag tracking the deployment's
-// install-mode. Stacks created before this tag was introduced have no tag and
-// are treated as install-mode=existing-nodes.
-const InstallModeTagKey = "install-mode"
 
 // String returns the string representation of the InstallMode.
 func (i *InstallMode) String() string {
@@ -41,19 +32,6 @@ func (i *InstallMode) Set(s string) error {
 }
 
 // Type returns the type name for pflag.
-func (*InstallMode) Type() string {
+func (_ *InstallMode) Type() string {
 	return "InstallMode"
-}
-
-// DetectedInstallMode reads the install-mode tag from a CFN stack. Stacks
-// created before this tag was introduced have no tag and default to
-// existing-nodes for backward compatibility.
-func DetectedInstallMode(stack *aws.Stack) InstallMode {
-	if stack == nil {
-		return ""
-	}
-	if tag, ok := stack.TagMap()[InstallModeTagKey]; ok && tag != "" {
-		return InstallMode(tag)
-	}
-	return InstallModeExistingNodes
 }
