@@ -1,37 +1,34 @@
 package install
 
-import "fmt"
+import (
+	"fmt"
 
-// InstallMode defines how to run the Karpenter controller.
-type InstallMode string
-
-const (
-	// InstallModeFargate runs the Karpenter controller on dedicated Fargate nodes.
-	InstallModeFargate InstallMode = "fargate"
-	// InstallModeExistingNodes runs the Karpenter controller on existing cluster nodes.
-	InstallModeExistingNodes InstallMode = "existing-nodes"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/apply"
 )
 
-// String returns the string representation of the InstallMode.
-func (i *InstallMode) String() string {
+// installMode is the pflag.Value wrapper used to bind the install command's
+// --install-mode flag. Only `install` exposes that flag; `update` auto-detects
+// the install mode from the CloudFormation stack and never accepts it as a
+// flag, so the wrapper lives in this package rather than in `apply`.
+type installMode apply.InstallMode
+
+// String returns the string representation of the install mode.
+func (i *installMode) String() string {
 	return string(*i)
 }
 
-// Set sets the InstallMode value from a string.
-func (i *InstallMode) Set(s string) error {
-	switch s {
-	case "fargate":
-		*i = InstallModeFargate
-	case "existing-nodes":
-		*i = InstallModeExistingNodes
+// Set parses a string into an install mode, rejecting unknown values.
+func (i *installMode) Set(s string) error {
+	switch apply.InstallMode(s) {
+	case apply.InstallModeFargate, apply.InstallModeExistingNodes:
+		*i = installMode(s)
+		return nil
 	default:
 		return fmt.Errorf("install-mode must be one of fargate or existing-nodes")
 	}
-
-	return nil
 }
 
-// Type returns the type name for pflag.
-func (_ *InstallMode) Type() string {
+// Type returns the type name surfaced by pflag in usage strings.
+func (*installMode) Type() string {
 	return "InstallMode"
 }
