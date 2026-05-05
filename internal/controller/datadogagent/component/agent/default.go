@@ -79,11 +79,13 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, agentComponent feature.Re
 // Capabilities for the Host Profiler container
 func DefaultCapabilitiesForHostProfiler() []corev1.Capability {
 	return []corev1.Capability{
-		"SYS_ADMIN",
+		"BPF",
+		"PERFMON",
 		"SYS_PTRACE",
 		"SYS_RESOURCE",
 		"DAC_READ_SEARCH",
 		"SYSLOG",
+		"CHECKPOINT_RESTORE",
 	}
 }
 
