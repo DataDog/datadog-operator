@@ -111,6 +111,26 @@ func GetDefaultClusterAgentClusterRolePolicyRules(_ metav1.Object) []rbacv1.Poli
 			Verbs:     []string{rbac.GetVerb, rbac.ListVerb},
 		},
 		{
+			APIGroups: []string{rbac.DatadogAPIGroup},
+			Resources: []string{rbac.DatadogInstrumentationsResource},
+			Verbs: []string{
+				rbac.GetVerb,
+				rbac.ListVerb,
+				rbac.WatchVerb,
+				rbac.PatchVerb,
+				rbac.UpdateVerb,
+			},
+		},
+		{
+			APIGroups: []string{rbac.DatadogAPIGroup},
+			Resources: []string{rbac.DatadogInstrumentationsStatusResource},
+			Verbs: []string{
+				rbac.GetVerb,
+				rbac.PatchVerb,
+				rbac.UpdateVerb,
+			},
+		},
+		{
 			NonResourceURLs: []string{rbac.VersionURL, rbac.HealthzURL, rbac.MetricsURL},
 			Verbs:           []string{rbac.GetVerb},
 		},
