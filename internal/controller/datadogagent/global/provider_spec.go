@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -18,6 +19,13 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
+
+// containerResourceDefault specifies default resource requests/limits for a named container.
+// Applied with "fill if zero" semantics — only written when the container has no existing requests/limits.
+type containerResourceDefault struct {
+	ContainerName apicommon.AgentContainerName
+	Resources     corev1.ResourceRequirements
+}
 
 // ProviderAnnotationKey is the annotation on a DDAI that declares the provider string.
 // The POC drives provider detection from this annotation rather than node labels.
@@ -37,6 +45,9 @@ type globalNodeAgentSpec struct {
 	// RemoveMounts lists specific container-volume mount pairs to strip for a provider.
 	// Applied inside ApplyGlobalNodeAgentSpec, before features run.
 	RemoveMounts []feature.ProviderRule[feature.ContainerMountRef]
+	// ContainerResources sets default resource requests/limits per container.
+	// Applied with "fill if zero" semantics after DDA override runs, so explicit DDA values always win.
+	ContainerResources []feature.ProviderRule[containerResourceDefault]
 	// CRISocketRoot is the host CRI socket directory; used to fix the init-config mount path.
 	CRISocketRoot string
 }
@@ -178,6 +189,56 @@ func nodeAgentGlobalSpec(provider string) globalNodeAgentSpec {
 				IncludeProviders: []string{kubernetes.GKEAutopilotProvider},
 			},
 		},
+		ContainerResources: []feature.ProviderRule[containerResourceDefault]{
+			{
+				Item: containerResourceDefault{
+					ContainerName: apicommon.CoreAgentContainerName,
+					Resources: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("200m"),
+							corev1.ResourceMemory: resource.MustParse("256Mi"),
+						},
+					},
+				},
+				IncludeProviders: []string{kubernetes.GKEAutopilotProvider},
+			},
+			{
+				Item: containerResourceDefault{
+					ContainerName: apicommon.TraceAgentContainerName,
+					Resources: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("100m"),
+							corev1.ResourceMemory: resource.MustParse("200Mi"),
+						},
+					},
+				},
+				IncludeProviders: []string{kubernetes.GKEAutopilotProvider},
+			},
+			{
+				Item: containerResourceDefault{
+					ContainerName: apicommon.ProcessAgentContainerName,
+					Resources: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("100m"),
+							corev1.ResourceMemory: resource.MustParse("200Mi"),
+						},
+					},
+				},
+				IncludeProviders: []string{kubernetes.GKEAutopilotProvider},
+			},
+			{
+				Item: containerResourceDefault{
+					ContainerName: apicommon.SystemProbeContainerName,
+					Resources: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("100m"),
+							corev1.ResourceMemory: resource.MustParse("400Mi"),
+						},
+					},
+				},
+				IncludeProviders: []string{kubernetes.GKEAutopilotProvider},
+			},
+		},
 	}
 
 	return spec
@@ -218,10 +279,34 @@ func ApplyGlobalNodeAgentSpec(mgr feature.PodTemplateManagers, provider string) 
 		}
 	}
 
+	for _, rule := range spec.ContainerResources {
+		if feature.ShouldApply(provider, rule.IncludeProviders, rule.ExcludeProviders) {
+			applyDefaultContainerResources(mgr.PodTemplateSpec(), rule.Item)
+		}
+	}
+
 	// Autopilot imperative overrides that cannot be expressed as ProviderRules.
 	if provider == kubernetes.GKEAutopilotProvider {
 		applyAutopilotInitContainerOverrides(mgr, spec.CRISocketRoot)
 		applyAutopilotContainerCommandOverrides(mgr)
+	}
+}
+
+// applyDefaultContainerResources sets resource requests/limits on a container only when
+// the container is present and has no existing requests or limits set.
+func applyDefaultContainerResources(tmpl *corev1.PodTemplateSpec, d containerResourceDefault) {
+	for i := range tmpl.Spec.Containers {
+		if tmpl.Spec.Containers[i].Name != string(d.ContainerName) {
+			continue
+		}
+		c := &tmpl.Spec.Containers[i]
+		if c.Resources.Requests == nil && d.Resources.Requests != nil {
+			c.Resources.Requests = d.Resources.Requests.DeepCopy()
+		}
+		if c.Resources.Limits == nil && d.Resources.Limits != nil {
+			c.Resources.Limits = d.Resources.Limits.DeepCopy()
+		}
+		return
 	}
 }
 
