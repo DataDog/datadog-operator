@@ -8,11 +8,11 @@ package clusteragent
 import (
 	"testing"
 
+	assert "github.com/stretchr/testify/require"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
-	assert "github.com/stretchr/testify/require"
-	rbacv1 "k8s.io/api/rbac/v1"
 )
 
 func TestGetDefaultClusterAgentClusterRolePolicyRulesDatadogInstrumentation(t *testing.T) {
@@ -24,15 +24,12 @@ func TestGetDefaultClusterAgentClusterRolePolicyRulesDatadogInstrumentation(t *t
 				rbac.GetVerb,
 				rbac.ListVerb,
 				rbac.WatchVerb,
-				rbac.PatchVerb,
-				rbac.UpdateVerb,
 			},
 		},
 		{
 			APIGroups: []string{rbac.DatadogAPIGroup},
 			Resources: []string{rbac.DatadogInstrumentationsStatusResource},
 			Verbs: []string{
-				rbac.GetVerb,
 				rbac.PatchVerb,
 				rbac.UpdateVerb,
 			},
