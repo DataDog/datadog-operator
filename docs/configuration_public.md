@@ -571,7 +571,7 @@ spec:
 : The built-in secret backend type to use (e.g., `k8s.secrets`, `docker.secrets`, `aws.secrets`). Alternative to Command; when Type is set, the Agent uses the built-in backend to resolve secrets. Requires Agent 7.70+.
 
 `global.site`
-: Is the Datadog intake site Agent data are sent to. Set this to your Datadog site ({{< region-param key="dd_site" code="true" >}}). Default: ‘datadoghq.com’
+: Is the Datadog intake site Agent data are sent to. Set this to your Datadog site ({{< region-param key="dd_site" code="true" >}}). Default: 'datadoghq.com'
 
 `global.tags`
 : Contains a list of tags to attach to every metric, event and service check collected. Learn more about tagging: https://docs.datadoghq.com/tagging/
