@@ -118,7 +118,7 @@ func TestValidate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			o := &options{
 				args:                     tc.args,
-				installMode:              installMode(tc.installMode),
+				installMode:              tc.installMode,
 				fargateSubnets:           tc.fargateSubnets,
 				createKarpenterResources: tc.createKarpenterResources,
 				inferenceMethod:          tc.inferenceMethod,

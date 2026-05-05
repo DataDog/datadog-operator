@@ -1,27 +1,25 @@
-package install
+package apply
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/apply"
 )
 
 func TestInstallMode_String(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
-		mode     installMode
+		mode     InstallMode
 		expected string
 	}{
 		{
 			name:     "Fargate mode",
-			mode:     installMode(apply.InstallModeFargate),
+			mode:     InstallModeFargate,
 			expected: "fargate",
 		},
 		{
 			name:     "Existing-nodes mode",
-			mode:     installMode(apply.InstallModeExistingNodes),
+			mode:     InstallModeExistingNodes,
 			expected: "existing-nodes",
 		},
 	} {
@@ -35,19 +33,19 @@ func TestInstallMode_Set(t *testing.T) {
 	for _, tc := range []struct {
 		name        string
 		input       string
-		expected    installMode
+		expected    InstallMode
 		expectError bool
 	}{
 		{
 			name:        "Set to fargate",
 			input:       "fargate",
-			expected:    installMode(apply.InstallModeFargate),
+			expected:    InstallModeFargate,
 			expectError: false,
 		},
 		{
 			name:        "Set to existing-nodes",
 			input:       "existing-nodes",
-			expected:    installMode(apply.InstallModeExistingNodes),
+			expected:    InstallModeExistingNodes,
 			expectError: false,
 		},
 		{
@@ -62,7 +60,7 @@ func TestInstallMode_Set(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			var mode installMode
+			var mode InstallMode
 			err := mode.Set(tc.input)
 
 			if tc.expectError {
@@ -77,6 +75,6 @@ func TestInstallMode_Set(t *testing.T) {
 }
 
 func TestInstallMode_Type(t *testing.T) {
-	var mode installMode
+	var mode InstallMode
 	assert.Equal(t, "InstallMode", mode.Type())
 }

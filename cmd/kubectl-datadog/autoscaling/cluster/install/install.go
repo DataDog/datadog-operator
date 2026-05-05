@@ -33,7 +33,7 @@ type options struct {
 	clusterName              string
 	karpenterNamespace       string
 	karpenterVersion         string
-	installMode              installMode
+	installMode              apply.InstallMode
 	fargateSubnets           []string
 	createKarpenterResources apply.CreateKarpenterResources
 	inferenceMethod          apply.InferenceMethod
@@ -43,7 +43,7 @@ type options struct {
 func newOptions(streams genericclioptions.IOStreams) *options {
 	o := &options{
 		IOStreams:                streams,
-		installMode:              installMode(apply.InstallModeFargate),
+		installMode:              apply.InstallModeFargate,
 		createKarpenterResources: apply.CreateKarpenterResourcesAll,
 		inferenceMethod:          apply.InferenceMethodNodeGroups,
 	}
@@ -97,12 +97,11 @@ func (o *options) validate() error {
 		return errors.New("no arguments are allowed")
 	}
 
-	mode := apply.InstallMode(o.installMode)
-	if !slices.Contains([]apply.InstallMode{apply.InstallModeFargate, apply.InstallModeExistingNodes}, mode) {
+	if !slices.Contains([]apply.InstallMode{apply.InstallModeFargate, apply.InstallModeExistingNodes}, o.installMode) {
 		return errors.New("install-mode must be one of fargate or existing-nodes")
 	}
 
-	if len(o.fargateSubnets) > 0 && mode != apply.InstallModeFargate {
+	if len(o.fargateSubnets) > 0 && o.installMode != apply.InstallModeFargate {
 		return errors.New("--fargate-subnets can only be used with --install-mode=fargate")
 	}
 
@@ -130,7 +129,7 @@ func (o *options) run() error {
 		ClusterName:              clusterName,
 		KarpenterNamespace:       o.karpenterNamespace,
 		KarpenterVersion:         o.karpenterVersion,
-		InstallMode:              apply.InstallMode(o.installMode),
+		InstallMode:              o.installMode,
 		FargateSubnets:           o.fargateSubnets,
 		CreateKarpenterResources: o.createKarpenterResources,
 		InferenceMethod:          o.inferenceMethod,
