@@ -10,5 +10,6 @@ const (
 	DDAutoscalingFailoverEnabled = "DD_AUTOSCALING_FAILOVER_ENABLED"
 	DDAutoscalingFailoverMetrics = "DD_AUTOSCALING_FAILOVER_METRICS"
 
-	DDAutoscalingClusterEnabled = "DD_AUTOSCALING_CLUSTER_ENABLED"
+	DDAutoscalingClusterEnabled     = "DD_AUTOSCALING_CLUSTER_ENABLED"
+	DDAutoscalingClusterSpotEnabled = "DD_AUTOSCALING_CLUSTER_SPOT_ENABLED"
 )

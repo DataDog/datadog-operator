@@ -108,6 +108,9 @@ spec:
 `features.autoscaling.cluster.enabled`
 : Enables the cluster autoscaling product. (Requires Cluster Agent 7.74.0+) Default: false
 
+`features.autoscaling.cluster.spot.enabled`
+: Enables the cluster spot scheduling product. (Requires Cluster Agent 7.79.0+) Default: false
+
 `features.autoscaling.workload.enabled`
 : Enables the workload autoscaling product. Default: false
 

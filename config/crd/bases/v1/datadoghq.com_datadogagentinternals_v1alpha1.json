@@ -1145,6 +1145,17 @@
                     "enabled": {
                       "description": "Enabled enables the cluster autoscaling product.\n(Requires Cluster Agent 7.74.0+)\nDefault: false",
                       "type": "boolean"
+                    },
+                    "spot": {
+                      "additionalProperties": false,
+                      "description": "Spot contains the configuration for the spot instance scheduling sub-feature.\nRequires cluster autoscaling to be enabled.\n(Requires Cluster Agent 7.79.0+)",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables the cluster spot scheduling product.\n(Requires Cluster Agent 7.79.0+)\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
                     }
                   },
                   "type": "object"
@@ -9564,6 +9575,17 @@
                         "enabled": {
                           "description": "Enabled enables the cluster autoscaling product.\n(Requires Cluster Agent 7.74.0+)\nDefault: false",
                           "type": "boolean"
+                        },
+                        "spot": {
+                          "additionalProperties": false,
+                          "description": "Spot contains the configuration for the spot instance scheduling sub-feature.\nRequires cluster autoscaling to be enabled.\n(Requires Cluster Agent 7.79.0+)",
+                          "properties": {
+                            "enabled": {
+                              "description": "Enabled enables the cluster spot scheduling product.\n(Requires Cluster Agent 7.79.0+)\nDefault: false",
+                              "type": "boolean"
+                            }
+                          },
+                          "type": "object"
                         }
                       },
                       "type": "object"
