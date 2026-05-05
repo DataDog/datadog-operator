@@ -265,6 +265,11 @@ func TestClassify_ClusterAutoscalerVersion(t *testing.T) {
 			deploy: deploymentWith("kube-system", "cluster-autoscaler", nil, "registry.k8s.io/autoscaling/cluster-autoscaler@sha256:abcdef"),
 			want:   "",
 		},
+		{
+			name:   "malformed image falls back to label",
+			deploy: deploymentWith("kube-system", "cluster-autoscaler", map[string]string{"app.kubernetes.io/version": "v1.99.0"}, "cluster-autoscaler-:::"),
+			want:   "v1.99.0",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			clientset := fake.NewSimpleClientset(tc.deploy)

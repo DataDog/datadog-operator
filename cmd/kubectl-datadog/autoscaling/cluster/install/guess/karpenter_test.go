@@ -48,6 +48,8 @@ func TestImageRepoPathHasSuffix(t *testing.T) {
 		{"public.ecr.aws/karpenter/karpenter:1.0", "karpenter/controller", false},
 		{"cgr.dev/chainguard/karpenter:1.0", "karpenter/controller", false},
 		{"controller", "karpenter/controller", false},
+		{"", "karpenter/controller", false},
+		{"::malformed::reference::", "karpenter/controller", false},
 	} {
 		t.Run(tc.image, func(t *testing.T) {
 			assert.Equal(t, tc.expected, imageRepoPathHasSuffix(tc.image, tc.suffix))
