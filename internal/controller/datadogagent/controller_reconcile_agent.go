@@ -32,6 +32,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
@@ -116,6 +117,11 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		}
 
 		experimental.ApplyExperimentalOverrides(logger, dda, podManagers)
+
+		// Apply host volume mount propagation from global config
+		if dda.Spec.Global != nil {
+			volume.ApplyMountPropagation(podManagers.PodTemplateSpec(), dda.Spec.Global.HostVolumeMountPropagation)
+		}
 
 		if disabledByOverride {
 			if agentEnabled {
@@ -220,6 +226,11 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	}
 
 	experimental.ApplyExperimentalOverrides(logger, dda, podManagers)
+
+	// Apply host volume mount propagation from global config
+	if dda.Spec.Global != nil {
+		volume.ApplyMountPropagation(podManagers.PodTemplateSpec(), dda.Spec.Global.HostVolumeMountPropagation)
+	}
 
 	if disabledByOverride {
 		if agentEnabled {

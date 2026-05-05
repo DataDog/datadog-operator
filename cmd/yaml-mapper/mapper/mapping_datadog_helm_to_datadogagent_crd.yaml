@@ -421,7 +421,7 @@ datadog.gpuMonitoring.runtimeClassName: spec.features.gpu.requiredRuntimeClassNa
 datadog.helmCheck.collectEvents: spec.features.helmCheck.collectEvents
 datadog.helmCheck.enabled: spec.features.helmCheck.enabled
 datadog.helmCheck.valuesAsTags: spec.features.helmCheck.valuesAsTags
-datadog.hostVolumeMountPropagation: ""
+datadog.hostVolumeMountPropagation: spec.global.hostVolumeMountPropagation
 datadog.ignoreAutoConfig: ""
 datadog.kubeStateMetricsCore.annotationsAsTags: ""
 datadog.kubeStateMetricsCore.collectApiServicesMetrics: ""
