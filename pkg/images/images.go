@@ -21,6 +21,9 @@ const (
 	ClusterAgentLatestVersion = "7.78.1"
 	// DdotCollectorLatestVersion corresponds to the latest stable ddot-collector release
 	DdotCollectorLatestVersion = "7.78.1"
+	// DdotCollectorLatestVersion corresponds to the latest stable host-profiler release
+	// todo: the host profiler will be first released in 7.80.0
+	HostProfilerLatestVersion = "n/a"
 	// FIPSProxyLatestVersion corresponds to the latest stable fips-proxy release
 	FIPSProxyLatestVersion = "1.1.23"
 	// DDOTFIPSMinimumVersion is the minimum version at which ddot-collector publishes a -fips variant.
@@ -58,6 +61,7 @@ const (
 	DefaultAgentImageName         string = "agent"
 	DefaultClusterAgentImageName  string = "cluster-agent"
 	DefaultDdotCollectorImageName string = "ddot-collector"
+	DefaultHostProfilerImageName  string = "ddot-ebpf"
 )
 
 // imageHasTag identifies whether an image string contains a tag suffix
@@ -159,6 +163,12 @@ func GetLatestAgentImage() string {
 // GetLatestDdotCollectorImage returns the latest ddot collector image
 func GetLatestDdotCollectorImage() string {
 	image := newImage(DefaultImageRegistry, DefaultDdotCollectorImageName, DdotCollectorLatestVersion, false, false, false)
+	return image.ToString()
+}
+
+// GetLatestHostProfilerImage returns the latest ddot collector image
+func GetLatestHostProfilerImage() string {
+	image := newImage(DefaultImageRegistry, DefaultHostProfilerImageName, HostProfilerLatestVersion, false, false, false)
 	return image.ToString()
 }
 
