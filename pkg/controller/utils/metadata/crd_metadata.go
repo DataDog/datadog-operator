@@ -12,12 +12,13 @@ import (
 	"fmt"
 	"io"
 	"maps"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -25,23 +26,26 @@ import (
 )
 
 const (
-	crdMetadataInterval     = 1 * time.Minute
-	crdMetadataHeartbeatTTL = 10 * time.Minute
+	crdHeartbeatInterval = 10 * time.Minute
+	crdNumWorkers        = 3
 )
 
-// crdCacheEntry tracks both the hash and last sent time for heartbeat detection
-type crdCacheEntry struct {
+// crdSnapshot holds the last-sent CRDInstance and its content hash, keyed by EncodeKey().
+type crdSnapshot struct {
+	instance CRDInstance
 	hash     string
-	lastSent time.Time
 }
 
 type CRDMetadataForwarder struct {
 	*SharedMetadata
 
+	mgr         manager.Manager
 	enabledCRDs EnabledCRDKindsConfig
 
-	crdCache   map[string]*crdCacheEntry
-	cacheMutex sync.RWMutex
+	runner *InformerWorkQueue
+
+	// crdSnapshots is keyed by "<Kind>/<namespace>/<name>" and stores *crdSnapshot.
+	crdSnapshots sync.Map
 }
 
 type CRDMetadataPayload struct {
@@ -85,53 +89,70 @@ type EnabledCRDKindsConfig struct {
 	DatadogAgentProfileEnabled  bool
 }
 
-// NewCRDMetadataForwarder creates a new instance of the CRD metadata forwarder
-func NewCRDMetadataForwarder(logger logr.Logger, k8sClient client.Reader, kubernetesVersion string, operatorVersion string, credsManager *config.CredentialManager, config EnabledCRDKindsConfig) *CRDMetadataForwarder {
+// NewCRDMetadataForwarder creates a new CRD metadata forwarder. The forwarder must be
+// registered with the manager via mgr.Add(...) by the caller.
+func NewCRDMetadataForwarder(
+	logger logr.Logger,
+	mgr manager.Manager,
+	kubernetesVersion string,
+	operatorVersion string,
+	credsManager *config.CredentialManager,
+	cfg EnabledCRDKindsConfig,
+) *CRDMetadataForwarder {
 	forwarderLogger := logger.WithName("crd")
-	return &CRDMetadataForwarder{
-		SharedMetadata: NewSharedMetadata(forwarderLogger, k8sClient, kubernetesVersion, operatorVersion, credsManager),
-		enabledCRDs:    config,
-		crdCache:       make(map[string]*crdCacheEntry),
+	cmf := &CRDMetadataForwarder{
+		SharedMetadata: NewSharedMetadata(forwarderLogger, mgr.GetClient(), kubernetesVersion, operatorVersion, credsManager),
+		mgr:            mgr,
+		enabledCRDs:    cfg,
 	}
+	cmf.runner = NewInformerWorkQueue(
+		forwarderLogger,
+		mgr,
+		crdNumWorkers,
+		crdHeartbeatInterval,
+		cmf.processKey,
+		cmf.handleDelete,
+		cmf.heartbeat,
+	)
+	return cmf
 }
 
-// Start starts the CRD metadata forwarder
-func (cmf *CRDMetadataForwarder) Start() {
-	cmf.logger.Info("Starting metadata forwarder")
-
-	ticker := time.NewTicker(crdMetadataInterval)
-	go func() {
-		for range ticker.C {
-			if err := cmf.sendMetadata(); err != nil {
-				cmf.logger.V(1).Info("Error while sending metadata", "error", err)
-			}
-		}
-	}()
-}
-
-func (cmf *CRDMetadataForwarder) sendMetadata() error {
-	ctx, cancel := context.WithTimeout(context.Background(), DefaultOperationTimeout)
-	defer cancel()
-
-	allCRDs, listSuccess := cmf.getAllActiveCRDs(ctx)
-	crdsToSend := cmf.getCRDsToSend(allCRDs)
-
-	if len(crdsToSend) == 0 {
-		return nil
+// Start implements manager.Runnable. Registers informer watches for each enabled
+// CRD kind and then runs the InformerWorkQueue until ctx is cancelled.
+func (cmf *CRDMetadataForwarder) Start(ctx context.Context) error {
+	if cmf.enabledCRDs.DatadogAgentEnabled {
+		cmf.runner.AddWatch(ctx, WatchTarget{
+			Object:   &v2alpha1.DatadogAgent{},
+			Group:    "datadoghq.com",
+			Resource: "datadogagents",
+			Kind:     "DatadogAgent",
+		})
+	}
+	if cmf.enabledCRDs.DatadogAgentInternalEnabled {
+		cmf.runner.AddWatch(ctx, WatchTarget{
+			Object:   &v1alpha1.DatadogAgentInternal{},
+			Group:    "datadoghq.com",
+			Resource: "datadogagentinternals",
+			Kind:     "DatadogAgentInternal",
+		})
+	}
+	if cmf.enabledCRDs.DatadogAgentProfileEnabled {
+		cmf.runner.AddWatch(ctx, WatchTarget{
+			Object:   &v1alpha1.DatadogAgentProfile{},
+			Group:    "datadoghq.com",
+			Resource: "datadogagentprofiles",
+			Kind:     "DatadogAgentProfile",
+		})
 	}
 
-	cmf.logger.V(1).Info("Sending metadata", "count", len(crdsToSend))
-
-	// Send individual payloads for each CRD
-	for _, crd := range crdsToSend {
-		if err := cmf.sendCRDMetadata(ctx, crd); err != nil {
-			cmf.logger.V(1).Info("Failed to send metadata", "error", err,
-				"kind", crd.Kind, "name", crd.Name, "namespace", crd.Namespace)
-		}
-	}
-
-	cmf.cleanupDeletedCRDs(allCRDs, listSuccess)
+	go cmf.runner.Run(ctx)
 	return nil
+}
+
+// NeedLeaderElection implements manager.LeaderElectionRunnable. CRD metadata sends
+// must be deduplicated across operator replicas.
+func (cmf *CRDMetadataForwarder) NeedLeaderElection() bool {
+	return true
 }
 
 func (cmf *CRDMetadataForwarder) sendCRDMetadata(ctx context.Context, crdInstance CRDInstance) error {
@@ -222,180 +243,6 @@ func (cmf *CRDMetadataForwarder) buildPayload(clusterUID string, crdInstance CRD
 	return jsonPayload
 }
 
-// getAllActiveCRDs returns all active CRDs and a map of list successes for each CRD type
-// Currently only DatadogAgent, DatadogAgentInternal, and DatadogAgentProfile are collected
-func (cmf *CRDMetadataForwarder) getAllActiveCRDs(ctx context.Context) ([]CRDInstance, map[string]bool) {
-	var crds []CRDInstance
-	listSuccess := make(map[string]bool)
-
-	if cmf.k8sClient == nil {
-		return crds, listSuccess
-	}
-	// DDA
-	if cmf.enabledCRDs.DatadogAgentEnabled {
-		ddaList := &v2alpha1.DatadogAgentList{}
-		if err := cmf.k8sClient.List(ctx, ddaList); err == nil {
-			listSuccess["DatadogAgent"] = true
-			for _, dda := range ddaList.Items {
-				annotations := maps.Clone(dda.Annotations)
-				delete(annotations, "kubectl.kubernetes.io/last-applied-configuration")
-
-				crds = append(crds, CRDInstance{
-					Kind:        "DatadogAgent",
-					Name:        dda.Name,
-					Namespace:   dda.Namespace,
-					APIVersion:  dda.APIVersion,
-					UID:         string(dda.UID),
-					Spec:        dda.Spec,
-					Labels:      dda.Labels,
-					Annotations: annotations,
-				})
-			}
-		} else {
-			cmf.logger.V(1).Info("Error listing DatadogAgents", "error", err)
-		}
-	}
-
-	// DDAI
-	if cmf.enabledCRDs.DatadogAgentInternalEnabled {
-		ddaiList := &v1alpha1.DatadogAgentInternalList{}
-		if err := cmf.k8sClient.List(ctx, ddaiList); err == nil {
-			listSuccess["DatadogAgentInternal"] = true
-			for _, ddai := range ddaiList.Items {
-				annotations := maps.Clone(ddai.Annotations)
-				delete(annotations, "kubectl.kubernetes.io/last-applied-configuration")
-
-				crds = append(crds, CRDInstance{
-					Kind:        "DatadogAgentInternal",
-					Name:        ddai.Name,
-					Namespace:   ddai.Namespace,
-					APIVersion:  ddai.APIVersion,
-					UID:         string(ddai.UID),
-					Spec:        ddai.Spec,
-					Labels:      ddai.Labels,
-					Annotations: annotations,
-				})
-			}
-		} else {
-			cmf.logger.V(1).Info("Error listing DatadogAgentInternals", "error", err)
-		}
-	}
-
-	// DAP
-	if cmf.enabledCRDs.DatadogAgentProfileEnabled {
-		dapList := &v1alpha1.DatadogAgentProfileList{}
-		if err := cmf.k8sClient.List(ctx, dapList); err == nil {
-			listSuccess["DatadogAgentProfile"] = true
-			for _, dap := range dapList.Items {
-				annotations := maps.Clone(dap.Annotations)
-				delete(annotations, "kubectl.kubernetes.io/last-applied-configuration")
-
-				crds = append(crds, CRDInstance{
-					Kind:        "DatadogAgentProfile",
-					Name:        dap.Name,
-					Namespace:   dap.Namespace,
-					APIVersion:  dap.APIVersion,
-					UID:         string(dap.UID),
-					Spec:        dap.Spec,
-					Labels:      dap.Labels,
-					Annotations: annotations,
-				})
-			}
-		} else {
-			cmf.logger.V(1).Info("Error listing DatadogAgentProfiles", "error", err)
-		}
-	}
-
-	return crds, listSuccess
-}
-
-// getCRDsToSend returns CRDs that need to be sent due to changes or heartbeat
-func (cmf *CRDMetadataForwarder) getCRDsToSend(crds []CRDInstance) []CRDInstance {
-	cmf.cacheMutex.Lock()
-	defer cmf.cacheMutex.Unlock()
-
-	now := time.Now()
-	var toSend []CRDInstance
-
-	for _, crd := range crds {
-		key := buildCacheKey(crd)
-		newHash, err := hashCRD(crd)
-		if err != nil {
-			cmf.logger.V(1).Info("Failed to hash CRD", "error", err, "kind", crd.Kind, "namespace", crd.Namespace, "name", crd.Name)
-			continue
-		}
-
-		cacheEntry, exists := cmf.crdCache[key]
-
-		// New CRD (never seen before)
-		if !exists {
-			toSend = append(toSend, crd)
-			cmf.crdCache[key] = &crdCacheEntry{
-				hash:     newHash,
-				lastSent: now,
-			}
-			cmf.logger.V(1).Info("New CRD detected", "kind", crd.Kind, "namespace", crd.Namespace, "name", crd.Name)
-			continue
-		}
-
-		// Hash changed (spec/labels/annotations modified)
-		if cacheEntry.hash != newHash {
-			toSend = append(toSend, crd)
-			cmf.crdCache[key] = &crdCacheEntry{
-				hash:     newHash,
-				lastSent: now,
-			}
-			cmf.logger.V(1).Info("CRD change detected", "kind", crd.Kind, "namespace", crd.Namespace, "name", crd.Name)
-			continue
-		}
-
-		// Heartbeat needed (unchanged but 10+ minutes since last send)
-		timeSinceLastSend := now.Sub(cacheEntry.lastSent)
-		if timeSinceLastSend >= crdMetadataHeartbeatTTL {
-			toSend = append(toSend, crd)
-			cmf.crdCache[key].lastSent = now
-			cmf.logger.V(2).Info("CRD heartbeat due", "kind", crd.Kind, "namespace", crd.Namespace, "name", crd.Name,
-				"timeSinceLastSend", timeSinceLastSend.Round(time.Second))
-			continue
-		}
-	}
-
-	return toSend
-}
-
-// cleanupDeletedCRDs removes cache entries for CRDs that got deleted
-func (cmf *CRDMetadataForwarder) cleanupDeletedCRDs(currentCRDs []CRDInstance, successfulKinds map[string]bool) {
-	cmf.cacheMutex.Lock()
-	defer cmf.cacheMutex.Unlock()
-
-	currentKeys := make(map[string]bool)
-	for _, crd := range currentCRDs {
-		currentKeys[buildCacheKey(crd)] = true
-	}
-
-	for key := range cmf.crdCache {
-		cachedKind, rest, found := strings.Cut(key, "/")
-		if !found {
-			continue
-		}
-
-		// Only clean up cache for kinds that were successfully listed
-		if successfulKinds[cachedKind] {
-			if !currentKeys[key] {
-				delete(cmf.crdCache, key)
-				cachedNS, cachedName, _ := strings.Cut(rest, "/")
-				cmf.logger.V(1).Info("Removed deleted CRD from cache", "kind", cachedKind, "namespace", cachedNS, "name", cachedName)
-			}
-		}
-	}
-}
-
-// Cache helper functions
-// buildCacheKey builds a unique key for a CRD instance, with format "kind/namespace/name"
-func buildCacheKey(crd CRDInstance) string {
-	return fmt.Sprintf("%s/%s/%s", crd.Kind, crd.Namespace, crd.Name)
-}
-
 // hashCRD computes a SHA256 hash of the CRD spec, labels, and annotations for change detection
 func hashCRD(crd CRDInstance) (string, error) {
 	// Hash spec, labels, and annotations together
@@ -415,4 +262,139 @@ func hashCRD(crd CRDInstance) (string, error) {
 	}
 	hash := sha256.Sum256(hashableJSON)
 	return fmt.Sprintf("%x", hash), nil
+}
+
+// processKey fetches the CRD by kind/namespace/name, builds a CRDInstance, hashes,
+// compares against the last snapshot, and sends if new or changed.
+func (cmf *CRDMetadataForwarder) processKey(ctx context.Context, kind, namespace, name string) error {
+	instance, err := cmf.fetchCRDInstance(ctx, kind, namespace, name)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to fetch %s/%s/%s: %w", kind, namespace, name, err)
+	}
+	if instance == nil {
+		return nil
+	}
+
+	newHash, err := hashCRD(*instance)
+	if err != nil {
+		cmf.logger.V(1).Info("Failed to hash CRD", "error", err,
+			"kind", kind, "namespace", namespace, "name", name)
+		return nil
+	}
+
+	key := EncodeKey(kind, namespace, name)
+	if existing, ok := cmf.crdSnapshots.Load(key); ok {
+		if existing.(*crdSnapshot).hash == newHash {
+			return nil
+		}
+	}
+
+	// Store the new snapshot before sending so a concurrent heartbeat tick can't
+	// observe and re-send the stale (previous) snapshot after this send completes.
+	// On send failure, mark the hash empty so the workqueue retry detects a
+	// mismatch and re-sends instead of being short-circuited by the cache.
+	cmf.crdSnapshots.Store(key, &crdSnapshot{instance: *instance, hash: newHash})
+	if err := cmf.sendCRDMetadata(ctx, *instance); err != nil {
+		cmf.crdSnapshots.Store(key, &crdSnapshot{instance: *instance, hash: ""})
+		cmf.logger.V(1).Info("Failed to send CRD metadata", "error", err,
+			"kind", kind, "namespace", namespace, "name", name)
+		return err
+	}
+	return nil
+}
+
+// fetchCRDInstance gets the typed object from the cache and converts to CRDInstance.
+// Returns (nil, nil) if the kind is unknown.
+func (cmf *CRDMetadataForwarder) fetchCRDInstance(ctx context.Context, kind, namespace, name string) (*CRDInstance, error) {
+	switch kind {
+	case "DatadogAgent":
+		dda := &v2alpha1.DatadogAgent{}
+		if err := cmf.k8sClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, dda); err != nil {
+			return nil, err
+		}
+		return crdInstanceFromDDA(dda), nil
+	case "DatadogAgentInternal":
+		ddai := &v1alpha1.DatadogAgentInternal{}
+		if err := cmf.k8sClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, ddai); err != nil {
+			return nil, err
+		}
+		return crdInstanceFromDDAI(ddai), nil
+	case "DatadogAgentProfile":
+		dap := &v1alpha1.DatadogAgentProfile{}
+		if err := cmf.k8sClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, dap); err != nil {
+			return nil, err
+		}
+		return crdInstanceFromDAP(dap), nil
+	default:
+		cmf.logger.V(1).Info("Unknown CRD kind", "kind", kind)
+		return nil, nil
+	}
+}
+
+func cleanedAnnotations(in map[string]string) map[string]string {
+	out := maps.Clone(in)
+	delete(out, "kubectl.kubernetes.io/last-applied-configuration")
+	return out
+}
+
+func crdInstanceFromDDA(dda *v2alpha1.DatadogAgent) *CRDInstance {
+	return &CRDInstance{
+		Kind:        "DatadogAgent",
+		Name:        dda.Name,
+		Namespace:   dda.Namespace,
+		APIVersion:  dda.APIVersion,
+		UID:         string(dda.UID),
+		Spec:        dda.Spec,
+		Labels:      dda.Labels,
+		Annotations: cleanedAnnotations(dda.Annotations),
+	}
+}
+
+func crdInstanceFromDDAI(ddai *v1alpha1.DatadogAgentInternal) *CRDInstance {
+	return &CRDInstance{
+		Kind:        "DatadogAgentInternal",
+		Name:        ddai.Name,
+		Namespace:   ddai.Namespace,
+		APIVersion:  ddai.APIVersion,
+		UID:         string(ddai.UID),
+		Spec:        ddai.Spec,
+		Labels:      ddai.Labels,
+		Annotations: cleanedAnnotations(ddai.Annotations),
+	}
+}
+
+func crdInstanceFromDAP(dap *v1alpha1.DatadogAgentProfile) *CRDInstance {
+	return &CRDInstance{
+		Kind:        "DatadogAgentProfile",
+		Name:        dap.Name,
+		Namespace:   dap.Namespace,
+		APIVersion:  dap.APIVersion,
+		UID:         string(dap.UID),
+		Spec:        dap.Spec,
+		Labels:      dap.Labels,
+		Annotations: cleanedAnnotations(dap.Annotations),
+	}
+}
+
+// handleDelete is the DeleteFunc callback for InformerWorkQueue.
+func (cmf *CRDMetadataForwarder) handleDelete(kind, namespace, name string) {
+	key := EncodeKey(kind, namespace, name)
+	cmf.crdSnapshots.Delete(key)
+	cmf.logger.V(1).Info("Removed deleted CRD from snapshot store",
+		"kind", kind, "namespace", namespace, "name", name)
+}
+
+// heartbeat is the HeartbeatFunc callback for InformerWorkQueue.
+func (cmf *CRDMetadataForwarder) heartbeat(ctx context.Context) {
+	cmf.crdSnapshots.Range(func(key, value any) bool {
+		snap := value.(*crdSnapshot)
+		if err := cmf.sendCRDMetadata(ctx, snap.instance); err != nil {
+			cmf.logger.V(1).Info("Failed to send CRD metadata during heartbeat",
+				"key", key, "error", err)
+		}
+		return true
+	})
 }

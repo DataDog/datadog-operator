@@ -422,12 +422,16 @@ func run(opts *options) error {
 		return setupErrorf(setupLog, err, "Unable to setup Helm metadata forwarder")
 	}
 
-	// Start ticker-based metadata forwarders after leader election
+	// Register CRD metadata forwarder as a manager Runnable
+	if err = setupAndStartCRDMetadataForwarder(metadataLog, mgr, versionInfo.String(), opts, options.CredsManager); err != nil {
+		return setupErrorf(setupLog, err, "Unable to setup CRD metadata forwarder")
+	}
+
+	// Operator metadata forwarder still uses a poll loop; start after leader election.
 	go func() {
 		<-mgr.Elected()
-		setupLog.Info("Starting metadata forwarders")
+		setupLog.Info("Starting operator metadata forwarder")
 		setupAndStartOperatorMetadataForwarder(metadataLog, mgr.GetClient(), versionInfo.String(), opts, options.CredsManager)
-		setupAndStartCRDMetadataForwarder(metadataLog, mgr.GetClient(), versionInfo.String(), opts, options.CredsManager)
 	}()
 
 	// +kubebuilder:scaffold:builder
@@ -647,10 +651,10 @@ func setupAndStartOperatorMetadataForwarder(logger logr.Logger, client client.Re
 	omf.Start()
 }
 
-func setupAndStartCRDMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options, credsManager *config.CredentialManager) {
+func setupAndStartCRDMetadataForwarder(logger logr.Logger, mgr manager.Manager, kubernetesVersion string, options *options, credsManager *config.CredentialManager) error {
 	cmf := metadata.NewCRDMetadataForwarder(
 		logger,
-		client,
+		mgr,
 		kubernetesVersion,
 		version.GetVersion(),
 		credsManager,
@@ -660,7 +664,7 @@ func setupAndStartCRDMetadataForwarder(logger logr.Logger, client client.Reader,
 			DatadogAgentProfileEnabled:  options.datadogAgentProfileEnabled,
 		},
 	)
-	cmf.Start()
+	return mgr.Add(cmf)
 }
 
 func setupAndStartHelmMetadataForwarder(logger logr.Logger, mgr manager.Manager, client client.Reader, kubernetesVersion string, credsManager *config.CredentialManager) error {
