@@ -5,8 +5,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -102,4 +104,42 @@ func (r *Runner) Cleanup(ctx context.Context) error {
 		}
 	}
 	return fmt.Errorf("cleanup timed out; some DDGRs may remain")
+}
+
+// Fill creates Count DDGRs in parallel with bounded concurrency.
+// Each DDGR is labeled loadtest=ddgr-perf and named <prefix>-<i:04d>.
+// Already-existing DDGRs are tolerated (idempotent restart).
+func (r *Runner) Fill(ctx context.Context) error {
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(r.cfg.FillConcurrency)
+	var mu sync.Mutex
+	done := 0
+	for i := 0; i < r.cfg.Count; i++ {
+		i := i
+		g.Go(func() error {
+			ddgr := &v1alpha1.DatadogGenericResource{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      r.ddgrName(i),
+					Namespace: r.cfg.Namespace,
+					Labels:    map[string]string{labelKey: labelValue},
+				},
+				Spec: v1alpha1.DatadogGenericResourceSpec{
+					Type:     v1alpha1.Monitor,
+					JsonSpec: BuildMonitorJSON(i, 0),
+				},
+			}
+			if err := r.cli.Create(gctx, ddgr); err != nil && !apierrors.IsAlreadyExists(err) {
+				return fmt.Errorf("create %s: %w", ddgr.Name, err)
+			}
+			mu.Lock()
+			done++
+			d := done
+			mu.Unlock()
+			if d%50 == 0 || d == r.cfg.Count {
+				log.Printf("phase=fill created=%d/%d", d, r.cfg.Count)
+			}
+			return nil
+		})
+	}
+	return g.Wait()
 }

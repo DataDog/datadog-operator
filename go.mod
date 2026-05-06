@@ -67,6 +67,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/samber/lo v1.52.0
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8
+	golang.org/x/sync v0.20.0
 	golang.org/x/text v0.35.0
 	helm.sh/helm/v3 v3.20.2
 	k8s.io/kubectl v0.35.3
@@ -268,7 +269,6 @@ require (
 	golang.org/x/mod v0.33.0 // indirect
 	golang.org/x/net v0.50.0 // indirect
 	golang.org/x/oauth2 v0.34.0 // indirect
-	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/term v0.40.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
