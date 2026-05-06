@@ -8,7 +8,6 @@ package apply
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"net/url"
 	"slices"
@@ -463,20 +462,13 @@ func openAutoscalingSettingsURL(streams genericclioptions.IOStreams, clusterName
 		RawQuery: url.Values{"query": []string{"kube_cluster_name:" + clusterName}}.Encode(),
 	}).String()
 
-	browser.Stdout = writerOrDiscard(streams.Out)
-	browser.Stderr = writerOrDiscard(streams.ErrOut)
+	browser.Stdout = streams.Out
+	browser.Stderr = streams.ErrOut
 	if err := browser.OpenURL(autoscalingSettingsURL); err != nil {
 		log.Printf("Failed to open URL in browser: %v", err)
 	}
 
 	return color.New(color.Bold, color.Underline, color.FgBlue).Sprint(autoscalingSettingsURL)
-}
-
-func writerOrDiscard(w io.Writer) io.Writer {
-	if w == nil {
-		return io.Discard
-	}
-	return w
 }
 
 func displayEKSAutoModeMessage(streams genericclioptions.IOStreams, clusterName string) error {
