@@ -162,11 +162,8 @@ func Render(opts Options) ([]client.Object, *runtime.Scheme, error) {
 	// Two passes are needed: the first pass adds the finalizer and returns
 	// Requeue=true; the second pass does the real work.
 	ddaOpts := datadogagent.ReconcilerOptions{
-		DatadogAgentInternalEnabled: true,
-		DatadogAgentProfileEnabled:  opts.ProfileEnabled,
-		SupportCilium:               opts.SupportCilium,
-		OperatorMetricsEnabled:      false,
-		IntrospectionEnabled:        false,
+		DatadogAgentProfileEnabled: opts.ProfileEnabled,
+		SupportCilium:              opts.SupportCilium,
 	}
 	ddaReconciler, err := datadogagent.NewReconciler(ddaOpts, fakeClient, platformInfo, scheme, logr.Discard(), recorder, noopForwarder{})
 	if err != nil {
@@ -201,13 +198,9 @@ func Render(opts Options) ([]client.Object, *runtime.Scheme, error) {
 	}
 
 	ddaiOpts := datadogagentinternal.ReconcilerOptions{
-		SupportCilium:          opts.SupportCilium,
-		OperatorMetricsEnabled: false,
+		SupportCilium: opts.SupportCilium,
 	}
-	ddaiReconciler, err := datadogagentinternal.NewReconciler(ddaiOpts, fakeClient, platformInfo, scheme, recorder, noopForwarder{})
-	if err != nil {
-		return nil, nil, fmt.Errorf("creating DDAI reconciler: %w", err)
-	}
+	ddaiReconciler := datadogagentinternal.NewReconciler(ddaiOpts, fakeClient, platformInfo, scheme, recorder, noopForwarder{})
 
 	for i := range ddaiList.Items {
 		ddai := &ddaiList.Items[i]

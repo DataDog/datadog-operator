@@ -18,7 +18,8 @@ Because it runs the real reconciler code, output changes whenever the operator l
 ## Build
 
 ```bash
-make build-renderer
+make build-renderer   # just this binary
+make build            # all binaries (manager, kubectl-datadog, operator-render)
 ```
 
 The binary is written to `bin/<platform>/operator-render`.
@@ -32,12 +33,12 @@ Usage:
   operator-render --dda <file> [flags]
 
 Flags:
-  --dda <file>           Path to DatadogAgent YAML file (required)
-  --dap <file>           Path to DatadogAgentProfile YAML file (repeatable)
-  --profiles-enabled      Enable DatadogAgentProfile reconciliation (independent of --dap inputs)
-  --output <file>        Write output to file instead of stdout
-  --format yaml|json     Output format (default: yaml)
-  --support-cilium       Emit CiliumNetworkPolicy resources in addition to NetworkPolicy
+  --dda <file>          Path to DatadogAgent YAML file (required)
+  --dap <file>          Path to DatadogAgentProfile YAML file (repeatable)
+  --profiles-enabled    Enable DatadogAgentProfile reconciliation (independent of --dap inputs)
+  --output <file>       Write output to file instead of stdout
+  --format yaml|json    Output format (default: yaml)
+  --support-cilium      Emit CiliumNetworkPolicy resources in addition to NetworkPolicy
 ```
 
 ## Example usage
@@ -118,7 +119,9 @@ Resources are emitted in dependency order: RBAC first, then config, then workloa
 
 Within each kind, resources are sorted alphabetically by `namespace/name`.
 
-The following metadata fields are stripped for stable output:
+The top-level `status` stanza is stripped from every resource (always server-side runtime state, never meaningful in a rendered manifest).
+
+The following metadata fields are also stripped for stable output:
 
 - `resourceVersion`
 - `uid`
