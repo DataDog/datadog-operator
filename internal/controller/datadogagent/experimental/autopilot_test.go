@@ -157,11 +157,20 @@ func TestApplyExperimentalAutopilotOverrides_RemovesAuthTokenFilePathAndAuthMoun
 						{Name: common.LogDatadogVolumeName},
 					},
 				},
+				{
+					Name: string(apicommon.SeccompSetupContainerName),
+					VolumeMounts: []v1.VolumeMount{
+						{Name: common.SeccompSecurityVolumeName, ReadOnly: false},
+						{Name: common.SeccompRootVolumeName, ReadOnly: false},
+					},
+				},
 			},
 			Volumes: []v1.Volume{
 				{Name: common.LogDatadogVolumeName},
 				{Name: common.AuthVolumeName},
 				{Name: common.DogstatsdSocketVolumeName},
+				{Name: common.SeccompSecurityVolumeName},
+				{Name: common.SeccompRootVolumeName},
 				{Name: common.ProcdirVolumeName},
 				{Name: common.CgroupsVolumeName},
 			},
@@ -222,6 +231,9 @@ func TestApplyExperimentalAutopilotOverrides_RemovesAuthTokenFilePathAndAuthMoun
 		}
 		for _, m := range c.VolumeMounts {
 			assert.NotEqual(t, common.AuthVolumeName, m.Name, "init container %s should not keep auth mount on autopilot", c.Name)
+			if c.Name == string(apicommon.SeccompSetupContainerName) && m.Name == common.SeccompSecurityVolumeName {
+				assert.True(t, m.ReadOnly, "seccomp-setup datadog-agent-security mount should be read-only on autopilot")
+			}
 		}
 	}
 
