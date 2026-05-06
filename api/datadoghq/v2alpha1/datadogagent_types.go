@@ -1914,6 +1914,13 @@ type GlobalConfig struct {
 	// Default: 'false'
 	// +optional
 	UseVSock *bool `json:"useVSock,omitempty"`
+
+	// HostVolumeMountPropagation determines how mounts are propagated from the host to the Agent containers
+	// and the other way around for host path volumes.
+	// ref: https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation
+	// +kubebuilder:validation:Enum=None;HostToContainer;Bidirectional
+	// +optional
+	HostVolumeMountPropagation *corev1.MountPropagationMode `json:"hostVolumeMountPropagation,omitempty"`
 }
 
 // DatadogCredentials is a generic structure that holds credentials to access Datadog.

@@ -23,6 +23,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
@@ -222,6 +223,11 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 		err := utilerrors.NewAggregate(errs)
 		component.UpdateStatus(deployment, params.Status, now, metav1.ConditionFalse, fmt.Sprintf("%s FIPS version error", component.Name()), err.Error())
 		return result, err
+	}
+
+	// Apply host volume mount propagation from global config
+	if params.DDAI.Spec.Global != nil {
+		volume.ApplyMountPropagation(podManagers.PodTemplateSpec(), params.DDAI.Spec.Global.HostVolumeMountPropagation)
 	}
 
 	res, err := r.reconciler.createOrUpdateDeployment(ctx, params.DDAI, deployment, params.Status, component.UpdateStatus)

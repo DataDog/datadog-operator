@@ -252,6 +252,7 @@ spec:
 | global.fips.resources.limits | Resource limits for the FIPS sidecar. See https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#resource-requests-and-limits-of-pod-and-container . |
 | global.fips.resources.requests | Resource requests for the FIPS sidecar. If undefined, defaults to global.fips.resources.limits (if set), then to an implementation-defined value. See https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#resource-requests-and-limits-of-pod-and-container . |
 | global.fips.useHTTPS | If true, enables HTTPS on the FIPS sidecar. Default: false |
+| global.hostVolumeMountPropagation | HostVolumeMountPropagation determines how mounts are propagated from the host to the Agent containers and the other way around for host path volumes. ref: https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation |
 | global.kubelet.agentCAPath | AgentCAPath is the container path where the kubelet CA certificate is stored. Default: '/var/run/host-kubelet-ca.crt' if hostCAPath is set, else '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt' |
 | global.kubelet.host.configMapKeyRef.key | The key to select. |
 | global.kubelet.host.configMapKeyRef.name | Of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names |
