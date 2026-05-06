@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -142,4 +143,81 @@ func (r *Runner) Fill(ctx context.Context) error {
 		})
 	}
 	return g.Wait()
+}
+
+// Churn runs an update loop until cfg.Duration elapses or ctx is canceled.
+// Each tick: list current DDGRs, deterministically pick cfg.ChurnPercent%
+// of them, and PATCH each by mutating the embedded monitor's message field.
+// The flipped spec hash triggers an update reconcile in the operator.
+func (r *Runner) Churn(ctx context.Context) error {
+	deadline := time.Now().Add(r.cfg.Duration)
+	tickCtx, cancel := context.WithDeadline(ctx, deadline)
+	defer cancel()
+
+	ticker := time.NewTicker(r.cfg.ChurnInterval)
+	defer ticker.Stop()
+
+	tick := 0
+	for {
+		select {
+		case <-tickCtx.Done():
+			return nil
+		case <-ticker.C:
+			tick++
+			start := time.Now()
+			patched, failed := r.churnTick(tickCtx, tick)
+			log.Printf("phase=churn tick=%d patched=%d failed=%d elapsed=%s",
+				tick, patched, failed, time.Since(start).Round(time.Millisecond))
+		}
+	}
+}
+
+func (r *Runner) churnTick(ctx context.Context, tick int) (patched, failed int) {
+	var list v1alpha1.DatadogGenericResourceList
+	if err := r.cli.List(ctx, &list,
+		client.InNamespace(r.cfg.Namespace),
+		client.MatchingLabels{labelKey: labelValue},
+	); err != nil {
+		log.Printf("list error tick=%d: %v", tick, err)
+		return 0, 0
+	}
+	names := make([]string, len(list.Items))
+	for i, item := range list.Items {
+		names[i] = item.Name
+	}
+	targets := PickChurnTargets(names, r.cfg.ChurnPercent, r.cfg.Seed, tick)
+
+	for _, name := range targets {
+		var ddgr v1alpha1.DatadogGenericResource
+		if err := r.cli.Get(ctx, client.ObjectKey{Name: name, Namespace: r.cfg.Namespace}, &ddgr); err != nil {
+			failed++
+			continue
+		}
+		original := ddgr.DeepCopy()
+		idx, ok := indexFromName(name, r.cfg.NamePrefix)
+		if !ok {
+			failed++
+			continue
+		}
+		ddgr.Spec.JsonSpec = BuildMonitorJSON(idx, tick)
+		if err := r.cli.Patch(ctx, &ddgr, client.MergeFrom(original)); err != nil {
+			failed++
+			continue
+		}
+		patched++
+	}
+	return patched, failed
+}
+
+// indexFromName parses "<prefix>-0042" → 42.
+func indexFromName(name, prefix string) (int, bool) {
+	suffix := strings.TrimPrefix(name, prefix+"-")
+	if suffix == name {
+		return 0, false
+	}
+	var n int
+	if _, err := fmt.Sscanf(suffix, "%d", &n); err != nil {
+		return 0, false
+	}
+	return n, true
 }
