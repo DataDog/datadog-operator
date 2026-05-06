@@ -47,5 +47,20 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	_ = ctx
+	r, err := NewRunner(cfg)
+	if err != nil {
+		log.Fatalf("init: %v", err)
+	}
+
+	switch cfg.Mode {
+	case "run":
+		err = r.Run(ctx)
+	case "cleanup":
+		err = r.Cleanup(ctx)
+	default:
+		log.Fatalf("unknown --mode=%q (must be run|cleanup)", cfg.Mode)
+	}
+	if err != nil {
+		log.Fatalf("error: %v", err)
+	}
 }

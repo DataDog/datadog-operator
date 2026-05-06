@@ -221,3 +221,34 @@ func indexFromName(name, prefix string) (int, bool) {
 	}
 	return n, true
 }
+
+// Run runs the full lifecycle: ensureNamespace → Fill → Churn → Cleanup.
+// Cleanup is invoked even if Fill or Churn returns early (e.g. ctx canceled).
+func (r *Runner) Run(ctx context.Context) error {
+	if err := r.ensureNamespace(ctx); err != nil {
+		return fmt.Errorf("namespace: %w", err)
+	}
+	defer func() {
+		// best-effort cleanup with a fresh context (parent may be canceled)
+		cleanCtx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+		if err := r.Cleanup(cleanCtx); err != nil {
+			log.Printf("cleanup error: %v", err)
+		}
+	}()
+
+	log.Printf("phase=fill count=%d concurrency=%d", r.cfg.Count, r.cfg.FillConcurrency)
+	fillStart := time.Now()
+	if err := r.Fill(ctx); err != nil {
+		return fmt.Errorf("fill: %w", err)
+	}
+	log.Printf("phase=fill-complete elapsed=%s", time.Since(fillStart).Round(time.Second))
+
+	log.Printf("phase=churn percent=%d interval=%s duration=%s",
+		r.cfg.ChurnPercent, r.cfg.ChurnInterval, r.cfg.Duration)
+	if err := r.Churn(ctx); err != nil {
+		return fmt.Errorf("churn: %w", err)
+	}
+	log.Printf("phase=churn-complete")
+	return nil
+}
