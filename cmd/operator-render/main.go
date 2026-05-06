@@ -9,14 +9,17 @@ import (
 	"flag"
 	"fmt"
 	"os"
+
+	"github.com/DataDog/datadog-operator/internal/controller/testutils/renderer"
 )
 
 func main() {
 	var (
-		ddaFile       string
-		outputFile    string
-		format        string
-		supportCilium bool
+		ddaFile        string
+		outputFile     string
+		format         string
+		supportCilium  bool
+		profileEnabled bool
 	)
 
 	var dapFiles []string
@@ -25,6 +28,7 @@ func main() {
 	flag.StringVar(&outputFile, "output", "", "Output file path (default: stdout)")
 	flag.StringVar(&format, "format", "yaml", "Output format: yaml or json")
 	flag.BoolVar(&supportCilium, "support-cilium", false, "Generate CiliumNetworkPolicy resources")
+	flag.BoolVar(&profileEnabled, "profiles-enabled", false, "Enable DatadogAgentProfile reconciliation (independent of --dap inputs)")
 	flag.Func("dap", "Path to DatadogAgentProfile YAML file (repeatable)", func(s string) error {
 		dapFiles = append(dapFiles, s)
 		return nil
@@ -41,20 +45,29 @@ func main() {
 		os.Exit(1)
 	}
 
-	opts := renderOptions{
-		DDAFile:        ddaFile,
-		DAPFiles:       dapFiles,
-		SupportCilium:  supportCilium,
-		ProfileEnabled: len(dapFiles) > 0,
+	dda, err := renderer.LoadDDA(ddaFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
 	}
-
-	resources, scheme, err := render(opts)
+	daps, err := renderer.LoadDAPs(dapFiles)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
 
-	out, err := serialize(resources, scheme, format)
+	resources, scheme, err := renderer.Render(renderer.Options{
+		DDA:            dda,
+		DAPs:           daps,
+		ProfileEnabled: profileEnabled,
+		SupportCilium:  supportCilium,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+
+	out, err := renderer.Serialize(resources, scheme, format)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error serializing output: %v\n", err)
 		os.Exit(1)

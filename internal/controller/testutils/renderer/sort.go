@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package main
+package renderer
 
 import (
 	"fmt"
@@ -59,9 +59,9 @@ func resolveKind(obj client.Object, scheme *runtime.Scheme) string {
 	return kind
 }
 
-// sortResources orders resources by dependency order (kindOrder) and then
+// SortResources orders resources by dependency order (kindOrder) and then
 // alphabetically by namespace/name within each kind.
-func sortResources(objects []client.Object, scheme *runtime.Scheme) []client.Object {
+func SortResources(objects []client.Object, scheme *runtime.Scheme) []client.Object {
 	sorted := make([]client.Object, len(objects))
 	copy(sorted, objects)
 	slices.SortStableFunc(sorted, func(a, b client.Object) int {

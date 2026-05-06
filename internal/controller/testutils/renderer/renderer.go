@@ -3,12 +3,19 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package main
+// Package renderer simulates the Datadog Operator's reconciliation loop offline.
+// Given a DatadogAgent (and optional DatadogAgentProfiles), Render returns the
+// complete set of Kubernetes resources the operator would create — without
+// needing a running cluster. Useful for golden-file regression tests and the
+// operator-render CLI.
+package renderer
 
 import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
+	goruntime "runtime"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
@@ -23,7 +30,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/yaml"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -31,18 +37,21 @@ import (
 	datadogagentinternal "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-
-	_ "embed"
 )
 
-//go:embed crds/datadoghq.com_datadogagentinternals.yaml
-var ddaiCRDYAML []byte
-
-type renderOptions struct {
-	DDAFile        string
-	DAPFiles       []string
-	SupportCilium  bool
+// Options configures a Render invocation.
+type Options struct {
+	// DDA is the input DatadogAgent. Required.
+	DDA *datadoghqv2alpha1.DatadogAgent
+	// DAPs are optional DatadogAgentProfiles. They are passed to the
+	// reconciler regardless of ProfileEnabled, but only take effect when
+	// ProfileEnabled is true.
+	DAPs []*datadoghqv1alpha1.DatadogAgentProfile
+	// ProfileEnabled toggles DatadogAgentProfile reconciliation, mirroring
+	// the operator's --datadogAgentProfileEnabled flag.
 	ProfileEnabled bool
+	// SupportCilium emits CiliumNetworkPolicy resources alongside NetworkPolicy.
+	SupportCilium bool
 }
 
 // noopForwarder satisfies datadog.MetricsForwardersManager with no-op methods.
@@ -56,7 +65,9 @@ func (noopForwarder) ProcessEvent(client.Object, datadog.Event)                 
 func (noopForwarder) MetricsForwarderStatusForObj(client.Object) *datadog.ConditionCommon { return nil }
 func (noopForwarder) SetEnabledFeatures(client.Object, []string)                          {}
 
-func buildScheme() *runtime.Scheme {
+// BuildScheme returns a runtime.Scheme registered with all the API groups the
+// operator's reconcilers and resource builders need.
+func BuildScheme() *runtime.Scheme {
 	s := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(s))
 	utilruntime.Must(apiregistrationv1.AddToScheme(s))
@@ -67,45 +78,28 @@ func buildScheme() *runtime.Scheme {
 	return s
 }
 
-func loadDDA(path string) (*datadoghqv2alpha1.DatadogAgent, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("reading %s: %w", path, err)
-	}
-	dda := &datadoghqv2alpha1.DatadogAgent{}
-	if err := yaml.Unmarshal(data, dda); err != nil {
-		return nil, fmt.Errorf("parsing %s: %w", path, err)
-	}
-	if dda.Name == "" {
-		return nil, fmt.Errorf("%s: DatadogAgent has no name", path)
-	}
-	return dda, nil
-}
-
-func loadDAPs(paths []string) ([]*datadoghqv1alpha1.DatadogAgentProfile, error) {
-	daps := make([]*datadoghqv1alpha1.DatadogAgentProfile, 0, len(paths))
-	for _, path := range paths {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil, fmt.Errorf("reading %s: %w", path, err)
-		}
-		dap := &datadoghqv1alpha1.DatadogAgentProfile{}
-		if err := yaml.Unmarshal(data, dap); err != nil {
-			return nil, fmt.Errorf("parsing %s: %w", path, err)
-		}
-		if dap.Name == "" {
-			return nil, fmt.Errorf("%s: DatadogAgentProfile has no name", path)
-		}
-		daps = append(daps, dap)
-	}
-	return daps, nil
-}
-
+// loadDDAICRD reads the DatadogAgentInternal CRD from config/crd/bases/v1/.
+// The CRD must be pre-loaded in the fake client because newFieldManager()
+// inside the V3 reconciler does a client.Get to read its OpenAPI schema.
+//
+// The path is resolved at compile time via runtime.Caller, so the binary
+// only works when run against the source tree it was built from.
 func loadDDAICRD(scheme *runtime.Scheme) (*apiextensionsv1.CustomResourceDefinition, error) {
-	codecs := serializer.NewCodecFactory(scheme)
-	obj, _, err := codecs.UniversalDeserializer().Decode(ddaiCRDYAML, nil, &apiextensionsv1.CustomResourceDefinition{})
+	_, filename, _, ok := goruntime.Caller(0)
+	if !ok {
+		return nil, fmt.Errorf("unable to resolve renderer source path")
+	}
+	// internal/controller/testutils/renderer/ → repo root is 4 levels up.
+	path := filepath.Join(filepath.Dir(filename), "..", "..", "..", "..",
+		"config", "crd", "bases", "v1", "datadoghq.com_datadogagentinternals.yaml")
+	body, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("decoding embedded DDAI CRD: %w", err)
+		return nil, fmt.Errorf("reading DDAI CRD at %s: %w", path, err)
+	}
+	codecs := serializer.NewCodecFactory(scheme)
+	obj, _, err := codecs.UniversalDeserializer().Decode(body, nil, &apiextensionsv1.CustomResourceDefinition{})
+	if err != nil {
+		return nil, fmt.Errorf("decoding DDAI CRD: %w", err)
 	}
 	crd, ok := obj.(*apiextensionsv1.CustomResourceDefinition)
 	if !ok {
@@ -114,25 +108,31 @@ func loadDDAICRD(scheme *runtime.Scheme) (*apiextensionsv1.CustomResourceDefinit
 	return crd, nil
 }
 
-// render runs the operator reconcilers against the provided DDA and DAPs
-// using a fake client, and returns all Kubernetes resources the operator would create.
-// The scheme is also returned so callers can restore GVK on the collected objects.
-func render(opts renderOptions) ([]client.Object, *runtime.Scheme, error) {
+// Render runs the operator reconcilers against the provided DDA and DAPs using
+// a fake client, and returns all Kubernetes resources the operator would
+// create. The returned scheme can be used to restore GVK on the collected
+// objects (for serialization).
+func Render(opts Options) ([]client.Object, *runtime.Scheme, error) {
+	if opts.DDA == nil {
+		return nil, nil, fmt.Errorf("Options.DDA is required")
+	}
+	if opts.DDA.Name == "" {
+		return nil, nil, fmt.Errorf("DatadogAgent has no name")
+	}
+	for i, dap := range opts.DAPs {
+		if dap == nil {
+			return nil, nil, fmt.Errorf("DAP at index %d is nil", i)
+		}
+		if dap.Name == "" {
+			return nil, nil, fmt.Errorf("DAP at index %d has no name", i)
+		}
+	}
+
 	// Silence all controller-runtime logging
 	ctrl.SetLogger(logr.Discard())
 
 	ctx := context.Background()
-	scheme := buildScheme()
-
-	dda, err := loadDDA(opts.DDAFile)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	daps, err := loadDAPs(opts.DAPFiles)
-	if err != nil {
-		return nil, nil, err
-	}
+	scheme := BuildScheme()
 
 	crd, err := loadDDAICRD(scheme)
 	if err != nil {
@@ -142,8 +142,8 @@ func render(opts renderOptions) ([]client.Object, *runtime.Scheme, error) {
 	// Build fake client pre-populated with DDA, DAPs, and the DDAI CRD.
 	// The DDAI CRD is required by newFieldManager() inside reconcileInstanceV3.
 	// StatusSubresource registration ensures Status().Update() calls work correctly.
-	initObjs := []client.Object{dda, crd}
-	for _, dap := range daps {
+	initObjs := []client.Object{opts.DDA, crd}
+	for _, dap := range opts.DAPs {
 		initObjs = append(initObjs, dap)
 	}
 	fakeClient := fake.NewClientBuilder().
@@ -155,7 +155,7 @@ func render(opts renderOptions) ([]client.Object, *runtime.Scheme, error) {
 		).
 		Build()
 
-	recorder := record.NewBroadcaster().NewRecorder(scheme, corev1.EventSource{Component: "operator-render"})
+	recorder := record.NewBroadcaster().NewRecorder(scheme, corev1.EventSource{Component: "operator-renderer"})
 	platformInfo := kubernetes.PlatformInfo{} // zero value → modern k8s: policy/v1 PDB, no Cilium unless opted in
 
 	// ── Stage 1: DDA reconciler ─────────────────────────────────────────────
@@ -174,13 +174,13 @@ func render(opts renderOptions) ([]client.Object, *runtime.Scheme, error) {
 	}
 
 	// Pass 1: adds finalizer, returns Requeue=true
-	if _, err = ddaReconciler.Reconcile(ctx, dda); err != nil {
+	if _, err = ddaReconciler.Reconcile(ctx, opts.DDA); err != nil {
 		return nil, nil, fmt.Errorf("DDA reconcile (finalizer pass): %w", err)
 	}
 
 	// Re-fetch DDA so it carries the finalizer that was persisted to the fake client
 	updatedDDA := &datadoghqv2alpha1.DatadogAgent{}
-	if err = fakeClient.Get(ctx, client.ObjectKeyFromObject(dda), updatedDDA); err != nil {
+	if err = fakeClient.Get(ctx, client.ObjectKeyFromObject(opts.DDA), updatedDDA); err != nil {
 		return nil, nil, fmt.Errorf("re-fetching DDA after finalizer pass: %w", err)
 	}
 

@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package main
+package renderer
 
 import (
 	"bytes"
@@ -28,11 +28,12 @@ var dynamicFields = []string{
 	"managedFields",
 }
 
-// serialize converts resources to YAML or JSON with consistent, sorted key ordering.
+// Serialize converts resources to YAML or JSON with consistent, sorted key ordering.
 // Key ordering is guaranteed because we round-trip through map[string]interface{} first;
 // encoding/json sorts map keys alphabetically, and sigs.k8s.io/yaml converts via JSON.
-func serialize(objects []client.Object, scheme *runtime.Scheme, format string) ([]byte, error) {
-	sorted := sortResources(objects, scheme)
+// Supported formats: "yaml" (default), "json".
+func Serialize(objects []client.Object, scheme *runtime.Scheme, format string) ([]byte, error) {
+	sorted := SortResources(objects, scheme)
 
 	docs := make([][]byte, 0, len(sorted))
 	for _, obj := range sorted {
