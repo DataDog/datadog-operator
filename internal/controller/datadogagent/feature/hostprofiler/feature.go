@@ -46,7 +46,11 @@ func (o *hostProfilerFeature) ID() feature.IDType {
 }
 
 func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
-	o.hostProfilerEnabled = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerAnnotation)
+	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerAnnotation) {
+		o.logger.Info("DEPRECATION WARNING: annotation 'agent.datadoghq.com/host-profiler-enabled' is deprecated; use 'spec.features.hostProfiler.enabled' instead")
+	}
+
+	o.hostProfilerEnabled = featureutils.IsHostProfilerEnabled(dda, ddaSpec)
 
 	var reqComp feature.RequiredComponents
 	if o.hostProfilerEnabled {
