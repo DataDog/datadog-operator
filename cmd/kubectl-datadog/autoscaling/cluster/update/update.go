@@ -64,7 +64,7 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 	o := newOptions(streams)
 	cmd := &cobra.Command{
 		Use:          "update",
-		Short:        "Update an existing kubectl-datadog Karpenter installation on an EKS cluster",
+		Short:        "Update an existing autoscaling installation on an EKS cluster",
 		Example:      fmt.Sprintf(updateExample, "kubectl datadog autoscaling cluster"),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {

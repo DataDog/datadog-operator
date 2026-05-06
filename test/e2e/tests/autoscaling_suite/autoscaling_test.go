@@ -404,10 +404,14 @@ func (s *autoscalingSuite) testUpdate(extraArgs ...string) {
 	ctx, cancel := context.WithTimeout(t.Context(), 25*time.Minute)
 	defer cancel()
 
+	// Run update
 	args := append([]string{"autoscaling", "cluster", "update", "--cluster-name", s.clusterName}, extraArgs...)
 	output, err := s.runKubectlDatadog(ctx, args...)
 	require.NoErrorf(t, err, "Update command failed. Output:\n%s", output)
 	t.Logf("Update output:\n%s", output)
+
+	// Verify installation
+	s.verifyKarpenterInstalled(ctx)
 }
 
 // testUninstall tests that uninstall removes all resources
