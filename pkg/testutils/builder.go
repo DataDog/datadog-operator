@@ -1275,3 +1275,17 @@ func (builder *DatadogAgentBuilder) WithStatus(status v2alpha1.DatadogAgentStatu
 	builder.datadogAgent.Status = status
 	return builder
 }
+
+// KataContainers
+
+func (builder *DatadogAgentBuilder) initKataContainers() {
+	if builder.datadogAgent.Spec.Features.KataContainers == nil {
+		builder.datadogAgent.Spec.Features.KataContainers = &v2alpha1.KataContainersFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithKataContainersEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initKataContainers()
+	builder.datadogAgent.Spec.Features.KataContainers.Enabled = ptr.To(enabled)
+	return builder
+}
