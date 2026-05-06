@@ -159,6 +159,9 @@ func applyExperimentalAutopilotOverrides(dda metav1.Object, manager feature.PodT
 		for idx := range manager.PodTemplateSpec().Spec.InitContainers {
 			vm := []corev1.VolumeMount{}
 			for _, m := range manager.PodTemplateSpec().Spec.InitContainers[idx].VolumeMounts {
+				if m.Name == common.SeccompSecurityVolumeName {
+					m.ReadOnly = true
+				}
 				if _, found := forbiddenInitMounts[m.Name]; !found {
 					vm = append(vm, m)
 				}
