@@ -208,10 +208,9 @@ func (f *usmFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers
 // debugfs is not in the GKE Autopilot WorkloadAllowlist for process-agent.
 func (f *usmFeature) NodeAgentProviderCapabilities() feature.NodeAgentProviderCapabilities {
 	return feature.NodeAgentProviderCapabilities{
-		RemoveMounts: []feature.ProviderRule[feature.ContainerMountRef]{
-			{
-				Item:             feature.ContainerMountRef{VolumeName: common.DebugfsVolumeName, Containers: []apicommon.AgentContainerName{apicommon.ProcessAgentContainerName}},
-				IncludeProviders: []string{kubernetes.GKEAutopilotProvider},
+		kubernetes.GKEAutopilotProvider: {
+			RemoveMounts: []feature.ContainerMountRef{
+				{VolumeName: common.DebugfsVolumeName, Containers: []apicommon.AgentContainerName{apicommon.ProcessAgentContainerName}},
 			},
 		},
 	}

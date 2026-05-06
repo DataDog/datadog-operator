@@ -178,15 +178,23 @@ func (f *logCollectionFeature) ManageOtelAgentGateway(managers feature.PodTempla
 
 // NodeAgentProviderCapabilities returns provider-conditional volume removals.
 // Container log and symlink paths are not in the GKE Autopilot WorkloadAllowlist.
+// pointerdir is replaced with the Autopilot-specific host path (remove + re-add).
 func (f *logCollectionFeature) NodeAgentProviderCapabilities() feature.NodeAgentProviderCapabilities {
-	autopilotPointerVol, _ := volume.GetVolumes(pointerVolumeName, autopilotPointerDirHostPath, pointerVolumePath, false)
+	autopilotPointerVol, autopilotPointerMount := volume.GetVolumes(pointerVolumeName, autopilotPointerDirHostPath, pointerVolumePath, false)
 	return feature.NodeAgentProviderCapabilities{
-		OverrideVolumes: []feature.ProviderRule[corev1.Volume]{
-			{Item: autopilotPointerVol, IncludeProviders: []string{kubernetes.GKEAutopilotProvider}},
-		},
-		RemoveVolumes: []feature.ProviderRule[string]{
-			{Item: containerLogVolumeName, IncludeProviders: []string{kubernetes.GKEAutopilotProvider}},
-			{Item: symlinkContainerVolumeName, IncludeProviders: []string{kubernetes.GKEAutopilotProvider}},
+		kubernetes.GKEAutopilotProvider: {
+			RemoveVolumes: []string{
+				pointerVolumeName,
+				containerLogVolumeName,
+				symlinkContainerVolumeName,
+			},
+			Volumes: []feature.VolumeAndMount{
+				{
+					Volume:     autopilotPointerVol,
+					Mount:      autopilotPointerMount,
+					Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName},
+				},
+			},
 		},
 	}
 }

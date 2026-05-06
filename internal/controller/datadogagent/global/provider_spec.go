@@ -31,167 +31,49 @@ type containerResourceDefault struct {
 // The POC drives provider detection from this annotation rather than node labels.
 const ProviderAnnotationKey = "datadoghq.com/provider"
 
-// globalNodeAgentSpec holds all provider-conditional mutations for the node
-// agent pod template.
-type globalNodeAgentSpec struct {
-	Volumes        []feature.ProviderRule[feature.VolumeAndMount]
-	EnvVars        []feature.ProviderRule[feature.EnvVarSet]
-	ImageRegistry  []feature.ProviderRule[string]
-	PodLabels      []feature.ProviderRule[map[string]string]
-	PodAnnotations []feature.ProviderRule[map[string]string]
-	// RemoveVolumes lists volume names to strip entirely (volume + all mounts) for a provider.
-	// Applied inside ApplyGlobalNodeAgentSpec, before features run.
-	RemoveVolumes []feature.ProviderRule[string]
-	// RemoveMounts lists specific container-volume mount pairs to strip for a provider.
-	// Applied inside ApplyGlobalNodeAgentSpec, before features run.
-	RemoveMounts []feature.ProviderRule[feature.ContainerMountRef]
-	// ContainerResources sets default resource requests/limits per container.
-	// Applied with "fill if zero" semantics after DDA override runs, so explicit DDA values always win.
-	ContainerResources []feature.ProviderRule[containerResourceDefault]
-	// CRISocketRoot is the host CRI socket directory; used to fix the init-config mount path.
-	CRISocketRoot string
+// globalProviderCapabilities extends ProviderCapabilities with fields that are
+// global-spec-specific (not available in the feature-level ProviderCapabilities).
+type globalProviderCapabilities struct {
+	feature.ProviderCapabilities
+	ImageRegistry      string
+	PodLabels          map[string]string
+	PodAnnotations     map[string]string
+	ContainerResources []containerResourceDefault
 }
 
-// nodeAgentGlobalSpec builds the globalNodeAgentSpec for the given provider.
-func nodeAgentGlobalSpec(provider string) globalNodeAgentSpec {
-	criSocketRoot := common.RuntimeDirVolumePath
-	hostDataRoot := "/var/lib/datadog-agent"
-	if provider == kubernetes.GKEAutopilotProvider {
-		criSocketRoot = "/var/run/containerd"
-		hostDataRoot = "/var/autopilot/addon/datadog"
-	}
-
-	// CRI socket: HostPath replaces the default /var/run volume on Autopilot
+// nodeAgentGlobalSpec builds the full provider registry for the node agent pod
+// template. The "" key is the baseline applied to all providers; provider-keyed
+// entries are applied on top (removals first, then additions).
+func nodeAgentGlobalSpec() map[string]globalProviderCapabilities {
 	criSocketVol, criSocketMount := objvolume.GetVolumes(
 		common.CriSocketVolumeName,
-		criSocketRoot,
-		common.HostCriSocketPathPrefix+criSocketRoot,
+		"/var/run/containerd",
+		common.HostCriSocketPathPrefix+"/var/run/containerd",
 		true,
 	)
-
-	// pointerdir: on Autopilot replace the default EmptyDir with a HostPath
 	pointerdirVol, pointerdirMount := objvolume.GetVolumes(
 		common.RunPathVolumeName,
-		hostDataRoot,
+		"/var/autopilot/addon/datadog",
 		common.RunPathVolumeMount,
 		false,
 	)
 
-	spec := globalNodeAgentSpec{
-		CRISocketRoot: criSocketRoot,
-		Volumes: []feature.ProviderRule[feature.VolumeAndMount]{
-			// pointerdir: override EmptyDir with HostPath on Autopilot
-			{
-				Item: feature.VolumeAndMount{
-					Volume:     pointerdirVol,
-					Mount:      pointerdirMount,
-					Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName},
-				},
-				IncludeProviders: []string{kubernetes.GKEAutopilotProvider},
-			},
-			// CRI socket: override default /var/run path on Autopilot
-			{
-				Item: feature.VolumeAndMount{
-					Volume: criSocketVol,
-					Mount:  criSocketMount,
-					Containers: []apicommon.AgentContainerName{
-						apicommon.CoreAgentContainerName,
-						apicommon.ProcessAgentContainerName,
-						apicommon.TraceAgentContainerName,
-						apicommon.SecurityAgentContainerName,
-						apicommon.AgentDataPlaneContainerName,
+	return map[string]globalProviderCapabilities{
+		"": {
+			ProviderCapabilities: feature.ProviderCapabilities{
+				EnvVars: []feature.EnvVarSet{
+					{
+						EnvVar: corev1.EnvVar{
+							Name:  common.DDAuthTokenFilePath,
+							Value: filepath.Join(common.AuthVolumePath, "token"),
+						},
 					},
 				},
-				IncludeProviders: []string{kubernetes.GKEAutopilotProvider},
 			},
 		},
-		EnvVars: []feature.ProviderRule[feature.EnvVarSet]{
-			// DD_AUTH_TOKEN_FILE_PATH: all containers except Autopilot
-			{
-				Item: feature.EnvVarSet{
-					EnvVar: corev1.EnvVar{
-						Name:  common.DDAuthTokenFilePath,
-						Value: filepath.Join(common.AuthVolumePath, "token"),
-					},
-				},
-				ExcludeProviders: []string{kubernetes.GKEAutopilotProvider},
-			},
-			// GKE Autopilot: cloud provider metadata env var
-			{
-				Item: feature.EnvVarSet{
-					EnvVar: corev1.EnvVar{
-						Name:  "DD_CLOUD_PROVIDER_METADATA",
-						Value: `["gcp"]`,
-					},
-				},
-				IncludeProviders: []string{kubernetes.GKEAutopilotProvider},
-			},
-			// GKE Autopilot: disable HTTPS kubelet port (Autopilot uses HTTP)
-			{
-				Item: feature.EnvVarSet{
-					EnvVar: corev1.EnvVar{
-						Name:  "DD_KUBERNETES_HTTPS_KUBELET_PORT",
-						Value: "0",
-					},
-				},
-				IncludeProviders: []string{kubernetes.GKEAutopilotProvider},
-			},
-			// GKE Autopilot: provider kind tag consumed by the agent
-			{
-				Item: feature.EnvVarSet{
-					EnvVar: corev1.EnvVar{
-						Name:  "DD_PROVIDER_KIND",
-						Value: kubernetes.GKEAutopilotProvider,
-					},
-				},
-				IncludeProviders: []string{kubernetes.GKEAutopilotProvider},
-			},
-		},
-		ImageRegistry: []feature.ProviderRule[string]{
-			{
-				Item:             "gcr.io/datadoghq",
-				IncludeProviders: []string{kubernetes.GKEAutopilotProvider},
-			},
-		},
-		PodLabels: []feature.ProviderRule[map[string]string]{
-			{
-				Item:             map[string]string{"env.datadoghq.com/kind": kubernetes.GKEAutopilotProvider},
-				IncludeProviders: []string{kubernetes.GKEAutopilotProvider},
-			},
-		},
-		PodAnnotations: []feature.ProviderRule[map[string]string]{
-			{
-				Item:             map[string]string{"autopilot.gke.io/no-connect": "true"},
-				IncludeProviders: []string{kubernetes.GKEAutopilotProvider},
-			},
-		},
-		// RemoveVolumes and RemoveMounts strip base-template volumes before features run.
-		RemoveVolumes: []feature.ProviderRule[string]{
-			// auth-token volume is absent on GKE Autopilot (not in the Workload Allowlist).
-			{Item: common.AuthVolumeName, IncludeProviders: []string{kubernetes.GKEAutopilotProvider}},
-			// tmp EmptyDir is not permitted on GKE Autopilot (not in the Workload Allowlist).
-			{Item: common.TmpVolumeName, IncludeProviders: []string{kubernetes.GKEAutopilotProvider}},
-		},
-		RemoveMounts: []feature.ProviderRule[feature.ContainerMountRef]{
-			// procdir is not permitted on trace-agent in the Autopilot Workload Allowlist.
-			{
-				Item:             feature.ContainerMountRef{VolumeName: common.ProcdirVolumeName, Containers: []apicommon.AgentContainerName{apicommon.TraceAgentContainerName}},
-				IncludeProviders: []string{kubernetes.GKEAutopilotProvider},
-			},
-			// cgroups is not permitted on trace-agent in the Autopilot Workload Allowlist.
-			{
-				Item:             feature.ContainerMountRef{VolumeName: common.CgroupsVolumeName, Containers: []apicommon.AgentContainerName{apicommon.TraceAgentContainerName}},
-				IncludeProviders: []string{kubernetes.GKEAutopilotProvider},
-			},
-			// system-probe does not mount pointerdir on GKE Autopilot.
-			{
-				Item:             feature.ContainerMountRef{VolumeName: common.RunPathVolumeName, Containers: []apicommon.AgentContainerName{apicommon.SystemProbeContainerName}},
-				IncludeProviders: []string{kubernetes.GKEAutopilotProvider},
-			},
-		},
-		ContainerResources: []feature.ProviderRule[containerResourceDefault]{
-			{
-				Item: containerResourceDefault{
+		kubernetes.GKEAutopilotProvider: {
+			ContainerResources: []containerResourceDefault{
+				{
 					ContainerName: apicommon.CoreAgentContainerName,
 					Resources: corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
@@ -200,10 +82,7 @@ func nodeAgentGlobalSpec(provider string) globalNodeAgentSpec {
 						},
 					},
 				},
-				IncludeProviders: []string{kubernetes.GKEAutopilotProvider},
-			},
-			{
-				Item: containerResourceDefault{
+				{
 					ContainerName: apicommon.TraceAgentContainerName,
 					Resources: corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
@@ -212,10 +91,7 @@ func nodeAgentGlobalSpec(provider string) globalNodeAgentSpec {
 						},
 					},
 				},
-				IncludeProviders: []string{kubernetes.GKEAutopilotProvider},
-			},
-			{
-				Item: containerResourceDefault{
+				{
 					ContainerName: apicommon.ProcessAgentContainerName,
 					Resources: corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
@@ -224,10 +100,7 @@ func nodeAgentGlobalSpec(provider string) globalNodeAgentSpec {
 						},
 					},
 				},
-				IncludeProviders: []string{kubernetes.GKEAutopilotProvider},
-			},
-			{
-				Item: containerResourceDefault{
+				{
 					ContainerName: apicommon.SystemProbeContainerName,
 					Resources: corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
@@ -236,58 +109,114 @@ func nodeAgentGlobalSpec(provider string) globalNodeAgentSpec {
 						},
 					},
 				},
-				IncludeProviders: []string{kubernetes.GKEAutopilotProvider},
 			},
+			ProviderCapabilities: feature.ProviderCapabilities{
+				Volumes: []feature.VolumeAndMount{
+					// pointerdir: replace default EmptyDir with Autopilot HostPath
+					{
+						Volume:     pointerdirVol,
+						Mount:      pointerdirMount,
+						Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName},
+					},
+					// CRI socket: override /var/run with Autopilot containerd path
+					{
+						Volume: criSocketVol,
+						Mount:  criSocketMount,
+						Containers: []apicommon.AgentContainerName{
+							apicommon.CoreAgentContainerName,
+							apicommon.ProcessAgentContainerName,
+							apicommon.TraceAgentContainerName,
+							apicommon.SecurityAgentContainerName,
+							apicommon.AgentDataPlaneContainerName,
+						},
+					},
+				},
+				EnvVars: []feature.EnvVarSet{
+					{
+						EnvVar: corev1.EnvVar{
+							Name:  "DD_CLOUD_PROVIDER_METADATA",
+							Value: `["gcp"]`,
+						},
+					},
+					{
+						EnvVar: corev1.EnvVar{
+							Name:  "DD_KUBERNETES_HTTPS_KUBELET_PORT",
+							Value: "0",
+						},
+					},
+					{
+						EnvVar: corev1.EnvVar{
+							Name:  "DD_PROVIDER_KIND",
+							Value: kubernetes.GKEAutopilotProvider,
+						},
+					},
+				},
+				RemoveVolumes: []string{
+					// auth-token is absent on GKE Autopilot (not in the Workload Allowlist).
+					common.AuthVolumeName,
+					// tmp EmptyDir is not permitted on GKE Autopilot.
+					common.TmpVolumeName,
+				},
+				RemoveMounts: []feature.ContainerMountRef{
+					// procdir is not permitted on trace-agent in the Autopilot Workload Allowlist.
+					{VolumeName: common.ProcdirVolumeName, Containers: []apicommon.AgentContainerName{apicommon.TraceAgentContainerName}},
+					// cgroups is not permitted on trace-agent in the Autopilot Workload Allowlist.
+					{VolumeName: common.CgroupsVolumeName, Containers: []apicommon.AgentContainerName{apicommon.TraceAgentContainerName}},
+					// system-probe does not mount pointerdir on GKE Autopilot.
+					{VolumeName: common.RunPathVolumeName, Containers: []apicommon.AgentContainerName{apicommon.SystemProbeContainerName}},
+				},
+				RemoveEnvVars: []string{
+					// auth-token env var is absent on Autopilot (volume removed above).
+					common.DDAuthTokenFilePath,
+				},
+			},
+			ImageRegistry:  "gcr.io/datadoghq",
+			PodLabels:      map[string]string{"env.datadoghq.com/kind": kubernetes.GKEAutopilotProvider},
+			PodAnnotations: map[string]string{"autopilot.gke.io/no-connect": "true"},
 		},
 	}
-
-	return spec
 }
 
 // ApplyGlobalNodeAgentSpec applies all provider-conditional mutations for the
 // node agent pod template. Call this once, before features run.
 func ApplyGlobalNodeAgentSpec(mgr feature.PodTemplateManagers, provider string) {
-	spec := nodeAgentGlobalSpec(provider)
-	feature.ApplyNodeAgentProviderCapabilities(mgr, provider, feature.NodeAgentProviderCapabilities{
-		Volumes:       spec.Volumes,
-		EnvVars:       spec.EnvVars,
-		RemoveVolumes: spec.RemoveVolumes,
-		RemoveMounts:  spec.RemoveMounts,
-	})
+	spec := nodeAgentGlobalSpec()
 
-	for _, rule := range spec.ImageRegistry {
-		if feature.ShouldApply(provider, rule.IncludeProviders, rule.ExcludeProviders) {
-			overrideImageRegistry(mgr, rule.Item)
-		}
+	// Extract the common ProviderCapabilities for each entry and delegate to
+	// the feature-level applier (handles baseline + provider removals/additions).
+	featureCaps := make(feature.NodeAgentProviderCapabilities, len(spec))
+	for k, v := range spec {
+		featureCaps[k] = v.ProviderCapabilities
 	}
+	feature.ApplyNodeAgentProviderCapabilities(mgr, provider, featureCaps)
 
-	for _, rule := range spec.PodLabels {
-		if feature.ShouldApply(provider, rule.IncludeProviders, rule.ExcludeProviders) {
-			if mgr.PodTemplateSpec().Labels == nil {
-				mgr.PodTemplateSpec().Labels = map[string]string{}
+	// Apply provider-specific global fields.
+	if provider != "" {
+		if providerCaps, ok := spec[provider]; ok {
+			for _, r := range providerCaps.ContainerResources {
+				applyDefaultContainerResources(mgr.PodTemplateSpec(), r)
 			}
-			maps.Copy(mgr.PodTemplateSpec().Labels, rule.Item)
-		}
-	}
-
-	for _, rule := range spec.PodAnnotations {
-		if feature.ShouldApply(provider, rule.IncludeProviders, rule.ExcludeProviders) {
-			if mgr.PodTemplateSpec().Annotations == nil {
-				mgr.PodTemplateSpec().Annotations = map[string]string{}
+			if providerCaps.ImageRegistry != "" {
+				overrideImageRegistry(mgr, providerCaps.ImageRegistry)
 			}
-			maps.Copy(mgr.PodTemplateSpec().Annotations, rule.Item)
+			if providerCaps.PodLabels != nil {
+				if mgr.PodTemplateSpec().Labels == nil {
+					mgr.PodTemplateSpec().Labels = map[string]string{}
+				}
+				maps.Copy(mgr.PodTemplateSpec().Labels, providerCaps.PodLabels)
+			}
+			if providerCaps.PodAnnotations != nil {
+				if mgr.PodTemplateSpec().Annotations == nil {
+					mgr.PodTemplateSpec().Annotations = map[string]string{}
+				}
+				maps.Copy(mgr.PodTemplateSpec().Annotations, providerCaps.PodAnnotations)
+			}
 		}
 	}
 
-	for _, rule := range spec.ContainerResources {
-		if feature.ShouldApply(provider, rule.IncludeProviders, rule.ExcludeProviders) {
-			applyDefaultContainerResources(mgr.PodTemplateSpec(), rule.Item)
-		}
-	}
-
-	// Autopilot imperative overrides that cannot be expressed as ProviderRules.
+	// Imperative overrides that cannot be expressed as ProviderCapabilities entries.
 	if provider == kubernetes.GKEAutopilotProvider {
-		applyAutopilotInitContainerOverrides(mgr, spec.CRISocketRoot)
+		applyAutopilotInitContainerOverrides(mgr, "/var/run/containerd")
 		applyAutopilotContainerCommandOverrides(mgr)
 	}
 }

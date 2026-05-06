@@ -6,21 +6,10 @@
 package feature
 
 import (
-	"slices"
-
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 )
-
-// ProviderRule wraps any config item with provider inclusion/exclusion lists.
-// Empty IncludeProviders means the rule applies to all providers.
-// ExcludeProviders takes priority over IncludeProviders.
-type ProviderRule[T any] struct {
-	Item             T
-	IncludeProviders []string
-	ExcludeProviders []string
-}
 
 // VolumeAndMount groups a pod-level volume with a container volume mount.
 // Volume is added to the pod spec; Mount is added to each listed container.
@@ -44,20 +33,23 @@ type ContainerMountRef struct {
 	Containers []apicommon.AgentContainerName
 }
 
-// NodeAgentProviderCapabilities holds provider-conditional volumes and env vars
-// that a feature contributes to the node agent pod template.
-type NodeAgentProviderCapabilities struct {
-	Volumes []ProviderRule[VolumeAndMount]
-	EnvVars []ProviderRule[EnvVarSet]
-	// RemoveVolumes lists volume names to remove entirely (volume + all mounts).
-	RemoveVolumes []ProviderRule[string]
-	// RemoveMounts lists specific container-volume mount pairs to strip.
-	RemoveMounts []ProviderRule[ContainerMountRef]
-	// OverrideVolumes replaces named volumes in the pod spec post-feature.
-	// Only the volume source is swapped; existing mounts are unaffected since
-	// they reference volumes by name.
-	OverrideVolumes []ProviderRule[corev1.Volume]
+// ProviderCapabilities holds the volumes, env vars, and removals for a
+// specific provider entry in a NodeAgentProviderCapabilities map.
+type ProviderCapabilities struct {
+	Volumes       []VolumeAndMount
+	EnvVars       []EnvVarSet
+	// RemoveVolumes strips named volumes (vol + all mounts) before provider additions run.
+	RemoveVolumes []string
+	// RemoveMounts strips specific container-volume mount pairs before provider additions run.
+	RemoveMounts  []ContainerMountRef
+	// RemoveEnvVars strips env vars by name before provider additions run.
+	RemoveEnvVars []string
 }
+
+// NodeAgentProviderCapabilities maps a provider string to its capabilities.
+// The empty string key "" is the baseline applied to all providers first.
+// Provider-specific entries are then applied on top: removals first, additions second.
+type NodeAgentProviderCapabilities = map[string]ProviderCapabilities
 
 // ProviderAwareFeature is an optional interface for features that vary behaviour
 // by provider. Features that have no provider-specific variation do not need
@@ -67,60 +59,53 @@ type ProviderAwareFeature interface {
 	NodeAgentProviderCapabilities() NodeAgentProviderCapabilities
 }
 
-// ShouldApply returns true when the rule should be applied for the given provider.
-func ShouldApply(provider string, include, exclude []string) bool {
-	if slices.Contains(exclude, provider) {
-		return false
-	}
-	if len(include) == 0 {
-		return true
-	}
-	return slices.Contains(include, provider)
-}
-
-// ApplyNodeAgentProviderCapabilities applies all provider-conditional mutations
-// from a NodeAgentProviderCapabilities in order: additions, then removals, then
-// volume source overrides. Call this after ManageNodeAgent so that volumes added
-// by the feature are in scope for removal and override.
+// ApplyNodeAgentProviderCapabilities applies all provider-conditional mutations.
+// The baseline ("") entry is applied first. The provider-specific entry is then
+// applied: removals run before additions so a provider can replace a baseline item
+// by removing it and re-adding a modified version.
 func ApplyNodeAgentProviderCapabilities(mgr PodTemplateManagers, provider string, caps NodeAgentProviderCapabilities) {
-	addedVolumes := make(map[string]bool)
-	for _, rule := range caps.Volumes {
-		if ShouldApply(provider, rule.IncludeProviders, rule.ExcludeProviders) {
-			if !addedVolumes[rule.Item.Volume.Name] {
-				mgr.Volume().AddVolume(&rule.Item.Volume)
-				addedVolumes[rule.Item.Volume.Name] = true
-			}
-			mgr.VolumeMount().AddVolumeMountToContainers(&rule.Item.Mount, rule.Item.Containers)
-		}
+	if len(caps) == 0 {
+		return
 	}
-	for _, rule := range caps.EnvVars {
-		if ShouldApply(provider, rule.IncludeProviders, rule.ExcludeProviders) {
-			if len(rule.Item.Containers) == 0 {
-				mgr.EnvVar().AddEnvVar(&rule.Item.EnvVar)
+
+	applyAdditions := func(c ProviderCapabilities) {
+		addedVolumes := make(map[string]bool)
+		for _, vm := range c.Volumes {
+			if !addedVolumes[vm.Volume.Name] {
+				mgr.Volume().AddVolume(&vm.Volume)
+				addedVolumes[vm.Volume.Name] = true
+			}
+			mgr.VolumeMount().AddVolumeMountToContainers(&vm.Mount, vm.Containers)
+		}
+		for _, ev := range c.EnvVars {
+			if len(ev.Containers) == 0 {
+				mgr.EnvVar().AddEnvVar(&ev.EnvVar)
 			} else {
-				mgr.EnvVar().AddEnvVarToContainers(rule.Item.Containers, &rule.Item.EnvVar)
+				mgr.EnvVar().AddEnvVarToContainers(ev.Containers, &ev.EnvVar)
 			}
 		}
 	}
-	tmpl := mgr.PodTemplateSpec()
-	for _, rule := range caps.RemoveVolumes {
-		if ShouldApply(provider, rule.IncludeProviders, rule.ExcludeProviders) {
-			stripVolume(tmpl, rule.Item)
+
+	applyRemovals := func(c ProviderCapabilities) {
+		tmpl := mgr.PodTemplateSpec()
+		for _, name := range c.RemoveVolumes {
+			stripVolume(tmpl, name)
+		}
+		for _, ref := range c.RemoveMounts {
+			stripMounts(tmpl, ref.VolumeName, ref.Containers)
+		}
+		for _, name := range c.RemoveEnvVars {
+			stripEnvVar(tmpl, name)
 		}
 	}
-	for _, rule := range caps.RemoveMounts {
-		if ShouldApply(provider, rule.IncludeProviders, rule.ExcludeProviders) {
-			stripMounts(tmpl, rule.Item.VolumeName, rule.Item.Containers)
-		}
+
+	if baseline, ok := caps[""]; ok {
+		applyAdditions(baseline)
 	}
-	for _, rule := range caps.OverrideVolumes {
-		if ShouldApply(provider, rule.IncludeProviders, rule.ExcludeProviders) {
-			for i := range tmpl.Spec.Volumes {
-				if tmpl.Spec.Volumes[i].Name == rule.Item.Name {
-					tmpl.Spec.Volumes[i] = rule.Item
-					break
-				}
-			}
+	if provider != "" {
+		if providerCaps, ok := caps[provider]; ok {
+			applyRemovals(providerCaps)
+			applyAdditions(providerCaps)
 		}
 	}
 }
@@ -161,11 +146,31 @@ func stripMounts(tmpl *corev1.PodTemplateSpec, volumeName string, containers []a
 	}
 }
 
+// stripEnvVar removes an env var by name from every container and init container.
+func stripEnvVar(tmpl *corev1.PodTemplateSpec, name string) {
+	for i := range tmpl.Spec.Containers {
+		tmpl.Spec.Containers[i].Env = removeEnvVarByName(tmpl.Spec.Containers[i].Env, name)
+	}
+	for i := range tmpl.Spec.InitContainers {
+		tmpl.Spec.InitContainers[i].Env = removeEnvVarByName(tmpl.Spec.InitContainers[i].Env, name)
+	}
+}
+
 func removeMountByName(mounts []corev1.VolumeMount, name string) []corev1.VolumeMount {
 	out := mounts[:0]
 	for _, m := range mounts {
 		if m.Name != name {
 			out = append(out, m)
+		}
+	}
+	return out
+}
+
+func removeEnvVarByName(envs []corev1.EnvVar, name string) []corev1.EnvVar {
+	out := envs[:0]
+	for _, e := range envs {
+		if e.Name != name {
+			out = append(out, e)
 		}
 	}
 	return out

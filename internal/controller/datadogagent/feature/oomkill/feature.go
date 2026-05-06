@@ -35,30 +35,16 @@ func buildOOMKillFeature(options *feature.Options) feature.Feature {
 
 type oomKillFeature struct{}
 
-// NodeAgentProviderCapabilities returns provider-conditional volumes for oomkill.
+// NodeAgentProviderCapabilities returns provider-conditional volume removals for oomkill.
+// modules and src are added unconditionally in ManageNodeAgent; GKE COS removes src
+// (no /usr/src on COS nodes); GKE Autopilot removes both (CO-RE, no host kernel modules).
 func (f *oomKillFeature) NodeAgentProviderCapabilities() feature.NodeAgentProviderCapabilities {
-	srcVol, srcMount := volume.GetVolumes(common.SrcVolumeName, common.SrcVolumePath, common.SrcVolumePath, true)
-	modulesVol, modulesMount := volume.GetVolumes(common.ModulesVolumeName, common.ModulesVolumePath, common.ModulesVolumePath, true)
 	return feature.NodeAgentProviderCapabilities{
-		Volumes: []feature.ProviderRule[feature.VolumeAndMount]{
-			{
-				// modules: excluded on GKE Autopilot (no host kernel modules)
-				Item: feature.VolumeAndMount{
-					Volume:     modulesVol,
-					Mount:      modulesMount,
-					Containers: []apicommon.AgentContainerName{apicommon.SystemProbeContainerName},
-				},
-				ExcludeProviders: []string{kubernetes.GKEAutopilotProvider},
-			},
-			{
-				// src: excluded on GKE COS and GKE Autopilot (no /usr/src on CO-RE nodes)
-				Item: feature.VolumeAndMount{
-					Volume:     srcVol,
-					Mount:      srcMount,
-					Containers: []apicommon.AgentContainerName{apicommon.SystemProbeContainerName},
-				},
-				ExcludeProviders: []string{kubernetes.GKECosProvider, kubernetes.GKEAutopilotProvider},
-			},
+		kubernetes.GKECosProvider: {
+			RemoveVolumes: []string{common.SrcVolumeName},
+		},
+		kubernetes.GKEAutopilotProvider: {
+			RemoveVolumes: []string{common.SrcVolumeName, common.ModulesVolumeName},
 		},
 	}
 }
@@ -101,11 +87,17 @@ func (f *oomKillFeature) ManageSingleContainerNodeAgent(managers feature.PodTemp
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-// Provider-conditional volumes (src, modules) are handled by NodeAgentProviderCapabilities.
 func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// security context capabilities
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommon.SystemProbeContainerName)
 
+	// modules and src volumes — removed on GKE COS and/or Autopilot by NodeAgentProviderCapabilities
+	modulesVol, modulesVolMount := volume.GetVolumes(common.ModulesVolumeName, common.ModulesVolumePath, common.ModulesVolumePath, true)
+	managers.VolumeMount().AddVolumeMountToContainer(&modulesVolMount, apicommon.SystemProbeContainerName)
+	managers.Volume().AddVolume(&modulesVol)
+	srcVol, srcVolMount := volume.GetVolumes(common.SrcVolumeName, common.SrcVolumePath, common.SrcVolumePath, true)
+	managers.VolumeMount().AddVolumeMountToContainer(&srcVolMount, apicommon.SystemProbeContainerName)
+	managers.Volume().AddVolume(&srcVol)
 	// debugfs volume mount
 	debugfsVol, debugfsVolMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false)
 	managers.Volume().AddVolume(&debugfsVol)

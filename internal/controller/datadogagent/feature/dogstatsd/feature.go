@@ -178,8 +178,7 @@ func (f *dogstatsdFeature) ManageClusterAgent(managers feature.PodTemplateManage
 // It should do nothing if the feature doesn't need to configure it.
 func (f *dogstatsdFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
-	// NodeAgentProviderCapabilities is not invoked for single-container strategy, so
-	// UDS socket volumes are wired up here directly.
+	// NodeAgentProviderCapabilities is not invoked for single-container, so handle UDS volumes here.
 	f.manageUDSVolumes(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
 
 	// When the Data Plane feature is enabled, and handling DogStatsD, we have to disable DSD on the Core Agent by
@@ -208,15 +207,27 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers,
 	//
 	// While we _could_ leave the DSD-specific configuration set on the Core Agent -- it doesn't matter as long as DSD
 	// is disabled -- it's cleaner to remove it entirely to avoid confusion.
+	agentContainerName := apicommon.CoreAgentContainerName
 	if f.dataPlaneEnabled && f.dataPlaneDogstatsdEnabled {
-		f.manageNodeAgent(apicommon.AgentDataPlaneContainerName, managers, provider)
-
+		agentContainerName = apicommon.AgentDataPlaneContainerName
+		f.manageNodeAgent(agentContainerName, managers, provider)
 		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 			Name:  common.DDDogstatsdEnabled,
 			Value: "false",
 		})
 	} else {
-		f.manageNodeAgent(apicommon.CoreAgentContainerName, managers, provider)
+		f.manageNodeAgent(agentContainerName, managers, provider)
+	}
+
+	// UDS HostPath socket — added unconditionally here; NodeAgentProviderCapabilities removes
+	// and replaces it with EmptyDir on GKE Autopilot.
+	if f.udsEnabled {
+		udsHostFolder := filepath.Dir(f.udsHostFilepath)
+		socketVol, socketVolMount := volume.GetVolumes(common.DogstatsdSocketVolumeName, udsHostFolder, common.DogstatsdSocketLocalPath, false)
+		volType := corev1.HostPathDirectoryOrCreate
+		socketVol.VolumeSource.HostPath.Type = &volType
+		managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&socketVolMount, agentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)
+		managers.Volume().AddVolume(&socketVol)
 	}
 
 	return nil
@@ -253,7 +264,6 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentCon
 	})
 	managers.Port().AddPortToContainer(agentContainerName, dogstatsdPort)
 
-	// uds — volumes are added via NodeAgentProviderCapabilities (or manageUDSVolumes for single-container)
 	if f.udsEnabled {
 		sockName := filepath.Base(f.udsHostFilepath)
 		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
@@ -321,9 +331,54 @@ func (f *dogstatsdFeature) ManageOtelAgentGateway(managers feature.PodTemplateMa
 	return nil
 }
 
+// NodeAgentProviderCapabilities returns the Autopilot UDS override when UDS is enabled.
+// ManageNodeAgent adds a HostPath socket unconditionally; GKE Autopilot removes it and
+// substitutes an EmptyDir (HostPath volumes are not in the Autopilot Workload Allowlist).
+func (f *dogstatsdFeature) NodeAgentProviderCapabilities() feature.NodeAgentProviderCapabilities {
+	if !f.udsEnabled {
+		return feature.NodeAgentProviderCapabilities{}
+	}
+
+	agentContainerName := apicommon.CoreAgentContainerName
+	if f.dataPlaneEnabled && f.dataPlaneDogstatsdEnabled {
+		agentContainerName = apicommon.AgentDataPlaneContainerName
+	}
+
+	emptyDirVol := corev1.Volume{
+		Name:         common.DogstatsdSocketVolumeName,
+		VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+	}
+	emptyDirMount := corev1.VolumeMount{
+		Name:      common.DogstatsdSocketVolumeName,
+		MountPath: common.DogstatsdSocketLocalPath,
+	}
+	emptyDirMountReadOnly := corev1.VolumeMount{
+		Name:      common.DogstatsdSocketVolumeName,
+		MountPath: common.DogstatsdSocketLocalPath,
+		ReadOnly:  true,
+	}
+
+	return feature.NodeAgentProviderCapabilities{
+		kubernetes.GKEAutopilotProvider: {
+			// AddVolume with override-merge replaces the HostPath source with EmptyDir.
+			// Existing mounts on all containers (including trace-agent from default.go) stay intact.
+			Volumes: []feature.VolumeAndMount{
+				{
+					Volume:     emptyDirVol,
+					Mount:      emptyDirMount,
+					Containers: []apicommon.AgentContainerName{agentContainerName},
+				},
+				{
+					Volume:     emptyDirVol,
+					Mount:      emptyDirMountReadOnly,
+					Containers: []apicommon.AgentContainerName{apicommon.SystemProbeContainerName, apicommon.ProcessAgentContainerName},
+				},
+			},
+		},
+	}
+}
+
 // manageUDSVolumes adds the UDS socket volume and mounts for the given agent container.
-// Called directly from ManageSingleContainerNodeAgent since NodeAgentProviderCapabilities is not
-// invoked for that path. The normal ManageNodeAgent path gets volumes from NodeAgentProviderCapabilities.
 func (f *dogstatsdFeature) manageUDSVolumes(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) {
 	if !f.udsEnabled {
 		return
@@ -356,67 +411,3 @@ func (f *dogstatsdFeature) manageUDSVolumes(agentContainerName apicommon.AgentCo
 	managers.Volume().AddVolume(&socketVol)
 }
 
-// NodeAgentProviderCapabilities returns provider-conditional UDS socket volume rules.
-// On default providers a HostPath volume is used; on GKE Autopilot an EmptyDir replaces it
-// and system-probe / process-agent get read-only mounts (required by the Autopilot allowlist).
-func (f *dogstatsdFeature) NodeAgentProviderCapabilities() feature.NodeAgentProviderCapabilities {
-	if !f.udsEnabled {
-		return feature.NodeAgentProviderCapabilities{}
-	}
-
-	udsHostFolder := filepath.Dir(f.udsHostFilepath)
-	agentContainerName := apicommon.CoreAgentContainerName
-	if f.dataPlaneEnabled && f.dataPlaneDogstatsdEnabled {
-		agentContainerName = apicommon.AgentDataPlaneContainerName
-	}
-
-	volType := corev1.HostPathDirectoryOrCreate
-	hostPathVol, hostPathMount := volume.GetVolumes(common.DogstatsdSocketVolumeName, udsHostFolder, common.DogstatsdSocketLocalPath, false)
-	hostPathVol.VolumeSource.HostPath.Type = &volType
-
-	emptyDirVol := corev1.Volume{
-		Name:         common.DogstatsdSocketVolumeName,
-		VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
-	}
-	emptyDirMount := corev1.VolumeMount{
-		Name:      common.DogstatsdSocketVolumeName,
-		MountPath: common.DogstatsdSocketLocalPath,
-	}
-	emptyDirMountReadOnly := corev1.VolumeMount{
-		Name:      common.DogstatsdSocketVolumeName,
-		MountPath: common.DogstatsdSocketLocalPath,
-		ReadOnly:  true,
-	}
-
-	return feature.NodeAgentProviderCapabilities{
-		Volumes: []feature.ProviderRule[feature.VolumeAndMount]{
-			// Default: HostPath socket directory.
-			{
-				Item: feature.VolumeAndMount{
-					Volume:     hostPathVol,
-					Mount:      hostPathMount,
-					Containers: []apicommon.AgentContainerName{agentContainerName},
-				},
-				ExcludeProviders: []string{kubernetes.GKEAutopilotProvider},
-			},
-			// Autopilot: EmptyDir socket (owner container, writable).
-			{
-				Item: feature.VolumeAndMount{
-					Volume:     emptyDirVol,
-					Mount:      emptyDirMount,
-					Containers: []apicommon.AgentContainerName{agentContainerName},
-				},
-				IncludeProviders: []string{kubernetes.GKEAutopilotProvider},
-			},
-			// Autopilot: same EmptyDir volume (deduped), read-only for system-probe and process-agent.
-			{
-				Item: feature.VolumeAndMount{
-					Volume:     emptyDirVol,
-					Mount:      emptyDirMountReadOnly,
-					Containers: []apicommon.AgentContainerName{apicommon.SystemProbeContainerName, apicommon.ProcessAgentContainerName},
-				},
-				IncludeProviders: []string{kubernetes.GKEAutopilotProvider},
-			},
-		},
-	}
-}
