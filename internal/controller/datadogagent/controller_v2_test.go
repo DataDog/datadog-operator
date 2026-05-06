@@ -1303,6 +1303,7 @@ func Test_AutopilotOverrides(t *testing.T) {
 				assert.NoError(t, err, "Failed to get DaemonSet %s/%s", resourcesNamespace, dsName)
 				assertNoDanglingVolumeMounts(t, ds.Spec.Template.Spec)
 				assertNoEnvVarInPodSpec(t, ds.Spec.Template.Spec, common.DDAuthTokenFilePath)
+				assertSeccompSecurityMountReadOnly(t, ds.Spec.Template.Spec)
 
 				forbiddenVolumes := map[string]struct{}{
 					common.AuthVolumeName:            {},
@@ -1391,6 +1392,7 @@ func Test_AutopilotOverrides(t *testing.T) {
 				assert.NoError(t, err, "Failed to get DaemonSet %s/%s", resourcesNamespace, dsName)
 				assertNoDanglingVolumeMounts(t, ds.Spec.Template.Spec)
 				assertNoEnvVarInPodSpec(t, ds.Spec.Template.Spec, common.DDAuthTokenFilePath)
+				assertSeccompSecurityMountReadOnly(t, ds.Spec.Template.Spec)
 
 				traceAgentFound := false
 				for _, ctn := range ds.Spec.Template.Spec.Containers {
@@ -1772,6 +1774,22 @@ func assertNoEnvVarInPodSpec(t *testing.T, podSpec corev1.PodSpec, name string) 
 	for _, container := range podSpec.Containers {
 		for _, env := range container.Env {
 			assert.NotEqual(t, name, env.Name, "container %s should not have env var %s", container.Name, name)
+		}
+	}
+}
+
+func assertSeccompSecurityMountReadOnly(t *testing.T, podSpec corev1.PodSpec) {
+	t.Helper()
+
+	for _, container := range podSpec.InitContainers {
+		if container.Name != string(apicommon.SeccompSetupContainerName) {
+			continue
+		}
+		for _, mount := range container.VolumeMounts {
+			if mount.Name == common.SeccompSecurityVolumeName {
+				assert.True(t, mount.ReadOnly, "init container %s should mount %s read-only", container.Name, mount.Name)
+				return
+			}
 		}
 	}
 }

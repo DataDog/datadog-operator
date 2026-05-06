@@ -295,6 +295,7 @@ func GetVolumeMountForSecurity() corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:      SeccompSecurityVolumeName,
 		MountPath: SeccompSecurityVolumePath,
+		ReadOnly:  true,
 	}
 }
 
