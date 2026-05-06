@@ -21,7 +21,7 @@ const (
 	datadogMonitorFinalizer = "finalizer.monitor.datadoghq.com"
 )
 
-func (r *Reconciler) deleteResource(logger logr.Logger) finalizer.ResourceDeleteFunc {
+func (r *Reconciler) deleteResource(logger logr.Logger, auth context.Context) finalizer.ResourceDeleteFunc {
 	return func(ctx context.Context, k8sObj client.Object, datadogID string) error {
 		dm, ok := k8sObj.(*datadoghqv1alpha1.DatadogMonitor)
 		if !ok {
@@ -33,7 +33,7 @@ func (r *Reconciler) deleteResource(logger logr.Logger) finalizer.ResourceDelete
 		}
 
 		if dm.Status.Primary {
-			err := deleteMonitor(r.datadogAuth, r.datadogClient, dm.Status.ID)
+			err := deleteMonitor(auth, r.datadogClient, dm.Status.ID)
 			if err != nil {
 				logger.Error(err, "failed to finalize monitor", "Monitor ID", fmt.Sprint(dm.Status.ID))
 				return err

@@ -88,6 +88,28 @@ serviceAccount:
 		lastTestName = testName
 		s.UpdateEnv(provisioners.KubernetesProvisioner(opts...))
 	}
+	// applyDDA tears down any in-stack DatadogAgent before installing the new
+	// one. Used instead of updateEnv whenever a subtest applies a DDA.
+	//
+	// Why the explicit two-step swap: applying a new DDA on top of a previous
+	// one does delete+create concurrently, which can leave the new agent
+	// DaemonSet pod stuck on resources still owned by the previous DDA. The
+	// most visible cases are:
+	//   - K8s <1.20: the legacy SA-token controller can't keep up with the SA
+	//     delete+create churn during the swap, so the new agent pod sits in
+	//     FailedMount on its auto-generated <sa>-token-<rand> Secret;
+	//   - host-port subtests (APM hostPort, DSD UDP): the previous agent pod
+	//     hasn't released the port yet when the new pod tries to bind.
+	// Both manifest as "agent pod never reaches Running" on the new DDA.
+	applyDDA := func(testName string, opts []provisioners.KubernetesProvisionerOption) {
+		cleanupOpts := []provisioners.KubernetesProvisionerOption{
+			provisioners.WithTestName(testName),
+			provisioners.WithoutDDA(),
+		}
+		cleanupOpts = append(cleanupOpts, defaultProvisionerOpts...)
+		updateEnv(testName, cleanupOpts)
+		updateEnv(testName, opts)
+	}
 	t.Cleanup(func() {
 		if lastTestName == "" {
 			return
@@ -131,7 +153,7 @@ serviceAccount:
 			provisioners.WithLocal(s.local),
 		}
 
-		updateEnv("e2e-operator-minimal-dda", provisionerOptions)
+		applyDDA("e2e-operator-minimal-dda", provisionerOptions)
 
 		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 		s.Assert().NoError(err)
@@ -197,7 +219,7 @@ serviceAccount:
 			provisioners.WithLocal(s.local),
 		}
 
-		updateEnv("e2e-operator-ksm-ccr", provisionerOptions)
+		applyDDA("e2e-operator-ksm-ccr", provisionerOptions)
 
 		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 		s.Assert().NoError(err)
@@ -238,7 +260,7 @@ serviceAccount:
 		provisionerOptions = append(provisionerOptions, defaultProvisionerOpts...)
 
 		// Add nginx with annotations
-		updateEnv("e2e-operator-autodiscovery", provisionerOptions)
+		applyDDA("e2e-operator-autodiscovery", provisionerOptions)
 
 		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 		s.Assert().NoError(err)
@@ -284,7 +306,7 @@ serviceAccount:
 			provisioners.WithLocal(s.local),
 		}
 
-		updateEnv("e2e-operator-logs-collection", provisionerOptions)
+		applyDDA("e2e-operator-logs-collection", provisionerOptions)
 
 		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 		s.Assert().NoError(err)
@@ -307,17 +329,6 @@ serviceAccount:
 	})
 
 	s.T().Run("APM hostPort k8s service UDP works", func(t *testing.T) {
-
-		// Cleanup to avoid potential lingering DatadogAgent
-		// Avoid race with the new Agent not being able to bind to the hostPort
-		withoutDDAProvisionerOptions := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-apm"),
-			provisioners.WithoutDDA(),
-			provisioners.WithLocal(s.local),
-		}
-		withoutDDAProvisionerOptions = append(withoutDDAProvisionerOptions, defaultProvisionerOpts...)
-		updateEnv("e2e-operator-apm", withoutDDAProvisionerOptions)
-
 		var apmAgentSelector = ",agent.datadoghq.com/name=datadog-agent-apm"
 		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "apm", "datadog-agent-apm.yaml"))
 		assert.NoError(s.T(), err)
@@ -342,7 +353,7 @@ serviceAccount:
 		ddaProvisionerOptions = append(ddaProvisionerOptions, defaultProvisionerOpts...)
 
 		// Deploy APM DatadogAgent and tracegen
-		updateEnv("e2e-operator-apm", ddaProvisionerOptions)
+		applyDDA("e2e-operator-apm", ddaProvisionerOptions)
 
 		// Verify traces collection on agent pod
 		s.EventuallyWithTf(func(c *assert.CollectT) {
@@ -372,14 +383,6 @@ serviceAccount:
 
 	// --- Subtest: DSD UDP, ADP disabled ---
 	s.T().Run("DSD UDP without ADP", func(t *testing.T) {
-		// Deploy without DDA first to avoid host port binding races
-		withoutDDAOpts := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-dsd-udp"),
-			provisioners.WithoutDDA(),
-		}
-		withoutDDAOpts = append(withoutDDAOpts, defaultProvisionerOpts...)
-		updateEnv("e2e-operator-dsd-udp", withoutDDAOpts)
-
 		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "datadog-agent-dsd-udp.yaml"))
 		assert.NoError(s.T(), err)
 
@@ -395,7 +398,7 @@ serviceAccount:
 			provisioners.WithDDAOptions(ddaOpts...),
 		}
 		provisionerOpts = append(provisionerOpts, defaultProvisionerOpts...)
-		updateEnv("e2e-operator-dsd-udp", provisionerOpts)
+		applyDDA("e2e-operator-dsd-udp", provisionerOpts)
 
 		agentSelector := common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-dsd-udp"
 
@@ -415,14 +418,6 @@ serviceAccount:
 
 	// --- Subtest: DSD UDP, ADP enabled ---
 	s.T().Run("DSD UDP with ADP", func(t *testing.T) {
-		// Deploy without DDA first to avoid host port binding races
-		withoutDDAOpts := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-dsd-udp-adp"),
-			provisioners.WithoutDDA(),
-		}
-		withoutDDAOpts = append(withoutDDAOpts, defaultProvisionerOpts...)
-		updateEnv("e2e-operator-dsd-udp-adp", withoutDDAOpts)
-
 		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "datadog-agent-dsd-udp-adp.yaml"))
 		assert.NoError(s.T(), err)
 
@@ -438,7 +433,7 @@ serviceAccount:
 			provisioners.WithDDAOptions(ddaOpts...),
 		}
 		provisionerOpts = append(provisionerOpts, defaultProvisionerOpts...)
-		updateEnv("e2e-operator-dsd-udp-adp", provisionerOpts)
+		applyDDA("e2e-operator-dsd-udp-adp", provisionerOpts)
 
 		agentSelector := common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-dsd-udp-adp"
 
@@ -452,7 +447,6 @@ serviceAccount:
 			for _, pod := range pods.Items {
 				assertContainerPresent(c, pod, adpContainerName)
 				assertContainerHasUDPHostPort(c, pod, adpContainerName, dsdPort)
-				assertContainerHasEnvVar(c, pod, coreAgentContainerName, "DD_USE_DOGSTATSD", "false")
 				assertContainerDoesNotHaveHostPort(c, pod, coreAgentContainerName, dsdPort)
 			}
 		}, 5*time.Minute, 15*time.Second, "DSD UDP with ADP: pod spec verification failed")
@@ -475,7 +469,7 @@ serviceAccount:
 			provisioners.WithDDAOptions(ddaOpts...),
 		}
 		provisionerOpts = append(provisionerOpts, defaultProvisionerOpts...)
-		updateEnv("e2e-operator-dsd-uds", provisionerOpts)
+		applyDDA("e2e-operator-dsd-uds", provisionerOpts)
 
 		agentSelector := common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-dsd-uds"
 
@@ -511,7 +505,7 @@ serviceAccount:
 			provisioners.WithDDAOptions(ddaOpts...),
 		}
 		provisionerOpts = append(provisionerOpts, defaultProvisionerOpts...)
-		updateEnv("e2e-operator-dsd-uds-adp", provisionerOpts)
+		applyDDA("e2e-operator-dsd-uds-adp", provisionerOpts)
 
 		agentSelector := common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-dsd-uds-adp"
 
@@ -525,7 +519,6 @@ serviceAccount:
 			for _, pod := range pods.Items {
 				assertContainerPresent(c, pod, adpContainerName)
 				assertContainerHasVolumeMount(c, pod, adpContainerName, dsdSocketVolumeName, dsdSocketMountPath)
-				assertContainerHasEnvVar(c, pod, coreAgentContainerName, "DD_USE_DOGSTATSD", "false")
 			}
 		}, 5*time.Minute, 15*time.Second, "DSD UDS with ADP: pod spec verification failed")
 	})

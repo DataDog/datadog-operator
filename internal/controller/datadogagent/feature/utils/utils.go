@@ -16,9 +16,13 @@ import (
 
 const (
 	ProcessConfigRunInCoreAgentMinVersion = "7.60.0-0"
-	EnableADPAnnotation                   = "agent.datadoghq.com/adp-enabled"
-	EnableFineGrainedKubeletAuthz         = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
-	EnableHostProfilerAnnotation          = "agent.datadoghq.com/host-profiler-enabled"
+	// ADPDogstatsdDelegationMinVersion is the minimum Agent version that natively disables Core Agent
+	// DogStatsD when data_plane.enabled and data_plane.dogstatsd.enabled are both true. Below this
+	// version the Operator must set DD_USE_DOGSTATSD=false explicitly to avoid a bind conflict.
+	ADPDogstatsdDelegationMinVersion = "7.75.0-0"
+	EnableADPAnnotation              = "agent.datadoghq.com/adp-enabled"
+	EnableFineGrainedKubeletAuthz    = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
+	EnableHostProfilerAnnotation     = "agent.datadoghq.com/host-profiler-enabled"
 
 	EnableFlightRecorderAnnotation = "agent.datadoghq.com/flightrecorder-enabled"
 
@@ -60,6 +64,18 @@ func GetFeatureConfigAnnotation(dda metav1.Object, annotation string) (string, b
 	return value, ok
 }
 
+// AgentSupportsADPDogstatsdDelegation returns true if the agent version is >= 7.75.0, meaning it
+// natively disables Core DogStatsD when data_plane.enabled + data_plane.dogstatsd.enabled are true.
+// For older agents the Operator must set DD_USE_DOGSTATSD=false explicitly.
+func AgentSupportsADPDogstatsdDelegation(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
+		if nodeAgent.Image != nil {
+			return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), ADPDogstatsdDelegationMinVersion, nil)
+		}
+	}
+	return utils.IsAboveMinVersion(images.AgentLatestVersion, ADPDogstatsdDelegationMinVersion, nil)
+}
+
 // IsDataPlaneEnabled returns true if the Data Plane is enabled.
 // CRD configuration takes precedence over the annotation.
 // If the annotation is used, a deprecation warning is logged.
@@ -78,10 +94,11 @@ func IsDataPlaneEnabled(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) b
 }
 
 // IsDataPlaneDogstatsdEnabled returns true if the Data Plane should handle DogStatsD.
+// Defaults to true: when data_plane.enabled=true, ADP handles DogStatsD unless explicitly disabled.
 func IsDataPlaneDogstatsdEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	if ddaSpec.Features != nil && ddaSpec.Features.DataPlane != nil &&
 		ddaSpec.Features.DataPlane.Dogstatsd != nil && ddaSpec.Features.DataPlane.Dogstatsd.Enabled != nil {
 		return *ddaSpec.Features.DataPlane.Dogstatsd.Enabled
 	}
-	return false
+	return true
 }

@@ -107,11 +107,7 @@ func (r *DatadogAgentInternalReconciler) SetupWithManager(mgr ctrl.Manager, metr
 		return err
 	}
 
-	internal, err := datadogagentinternal.NewReconciler(r.Options, r.Client, r.PlatformInfo, r.Scheme, r.Recorder, metricForwardersMgr)
-	if err != nil {
-		return err
-	}
-	r.internal = internal
+	r.internal = datadogagentinternal.NewReconciler(r.Options, r.Client, r.PlatformInfo, r.Scheme, r.Recorder, metricForwardersMgr)
 
 	return nil
 }

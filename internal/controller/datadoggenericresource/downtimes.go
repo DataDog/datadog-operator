@@ -13,12 +13,11 @@ import (
 )
 
 type DowntimeHandler struct {
-	auth   context.Context
 	client *datadogV2.DowntimesApi
 }
 
-func (h *DowntimeHandler) createResource(instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
-	createdDowntime, err := createDowntime(h.auth, h.client, instance)
+func (h *DowntimeHandler) createResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) (CreateResult, error) {
+	createdDowntime, err := createDowntime(auth, h.client, instance)
 	if err != nil {
 		return CreateResult{}, err
 	}
@@ -45,18 +44,18 @@ func (h *DowntimeHandler) createResource(instance *v1alpha1.DatadogGenericResour
 	}, nil
 }
 
-func (h *DowntimeHandler) getResource(instance *v1alpha1.DatadogGenericResource) error {
-	_, err := getDowntime(h.auth, h.client, instance.Status.Id)
+func (h *DowntimeHandler) getResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
+	_, err := getDowntime(auth, h.client, instance.Status.Id)
 	return err
 }
 
-func (h *DowntimeHandler) updateResource(instance *v1alpha1.DatadogGenericResource) error {
-	_, err := updateDowntime(h.auth, h.client, instance)
+func (h *DowntimeHandler) updateResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
+	_, err := updateDowntime(auth, h.client, instance)
 	return err
 }
 
-func (h *DowntimeHandler) deleteResource(instance *v1alpha1.DatadogGenericResource) error {
-	return deleteDowntime(h.auth, h.client, instance.Status.Id)
+func (h *DowntimeHandler) deleteResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
+	return deleteDowntime(auth, h.client, instance.Status.Id)
 }
 
 func getDowntime(auth context.Context, client *datadogV2.DowntimesApi, downtimeID string) (datadogV2.DowntimeResponse, error) {

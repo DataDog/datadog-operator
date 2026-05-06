@@ -11,6 +11,7 @@ import (
 	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
@@ -38,6 +39,7 @@ import (
 type Clients struct {
 	// AWS clients
 	Config         awssdk.Config
+	Autoscaling    *autoscaling.Client
 	CloudFormation *cloudformation.Client
 	EC2            *ec2.Client
 	EKS            *eks.Client
@@ -101,6 +103,7 @@ func Build(ctx context.Context, configFlags *genericclioptions.ConfigFlags, k8sC
 
 	return &Clients{
 		Config:         awsConfig,
+		Autoscaling:    autoscaling.NewFromConfig(awsConfig),
 		CloudFormation: cloudformation.NewFromConfig(awsConfig),
 		EC2:            ec2.NewFromConfig(awsConfig),
 		EKS:            eks.NewFromConfig(awsConfig),
