@@ -115,6 +115,7 @@ core,github.com/golang/snappy,BSD-3-Clause
 core,github.com/google/btree,Apache-2.0
 core,github.com/google/cel-go,Apache-2.0
 core,github.com/google/gnostic-models,Apache-2.0
+core,github.com/google/go-containerregistry/pkg/name,Apache-2.0
 core,github.com/google/pprof/profile,Apache-2.0
 core,github.com/google/uuid,BSD-3-Clause
 core,github.com/gorilla/websocket,BSD-2-Clause
