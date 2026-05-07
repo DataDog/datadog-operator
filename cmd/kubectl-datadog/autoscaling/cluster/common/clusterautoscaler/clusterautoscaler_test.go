@@ -30,9 +30,9 @@ func deploymentWithReplicas(namespace, name string, replicas int32, image string
 
 func TestFindInstallation(t *testing.T) {
 	for _, tc := range []struct {
-		name    string
-		deploy  *appsv1.Deployment
-		want    *Installation
+		name   string
+		deploy *appsv1.Deployment
+		want   *Installation
 	}{
 		{
 			name:   "no deployment",
