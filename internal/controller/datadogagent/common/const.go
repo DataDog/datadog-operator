@@ -119,7 +119,7 @@ const (
 	LogDatadogVolumeName      = "logdatadog"
 	LogDatadogVolumePath      = "/var/log/datadog"
 	DefaultLogTempStoragePath = "/var/lib/datadog-agent/logs"
-	TmpVolumeName             = "tmp"
+	TmpVolumeName             = "tmpdir"
 	TmpVolumePath             = "/tmp"
 	CertificatesVolumeName    = "certificates"
 	CertificatesVolumePath    = "/etc/datadog-agent/certificates"
