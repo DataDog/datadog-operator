@@ -139,6 +139,92 @@ func TestApplyExperimentalAutopilotOverrides_NPMSurvives(t *testing.T) {
 	}
 }
 
+func TestApplyExperimentalAutopilotOverrides_LogCollectionStoragePath(t *testing.T) {
+	tests := []struct {
+		name             string
+		autopilotEnabled bool
+		inputPath        string
+		wantPath         string
+	}{
+		{
+			name:             "autopilot enabled rewrites log collection storage hostPath",
+			autopilotEnabled: true,
+			inputPath:        common.DefaultLogTempStoragePath,
+			wantPath:         autopilotLogCollectionStoragePath,
+		},
+		{
+			name:             "autopilot disabled preserves log collection storage hostPath",
+			autopilotEnabled: false,
+			inputPath:        common.DefaultLogTempStoragePath,
+			wantPath:         common.DefaultLogTempStoragePath,
+		},
+		{
+			name:             "autopilot enabled rewrites custom log collection storage hostPath",
+			autopilotEnabled: true,
+			inputPath:        "/custom/log/storage",
+			wantPath:         autopilotLogCollectionStoragePath,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{
+				Spec: v1.PodSpec{
+					Volumes: []v1.Volume{
+						{
+							Name: common.RunPathVolumeName,
+							VolumeSource: v1.VolumeSource{
+								HostPath: &v1.HostPathVolumeSource{
+									Path: tt.inputPath,
+								},
+							},
+						},
+					},
+				},
+			})
+
+			dda := &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{}},
+			}
+			if tt.autopilotEnabled {
+				dda.Annotations[getExperimentalAnnotationKey(ExperimentalAutopilotSubkey)] = "true"
+			}
+
+			applyExperimentalAutopilotOverrides(dda, manager)
+
+			volumes := manager.PodTemplateSpec().Spec.Volumes
+			if assert.Len(t, volumes, 1) && assert.NotNil(t, volumes[0].HostPath) {
+				assert.Equal(t, tt.wantPath, volumes[0].HostPath.Path)
+			}
+		})
+	}
+}
+
+func TestApplyExperimentalAutopilotOverrides_RunPathEmptyDirIsPreserved(t *testing.T) {
+	manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{
+		Spec: v1.PodSpec{
+			Volumes: []v1.Volume{
+				common.GetVolumeForRunPath(),
+			},
+		},
+	})
+	dda := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				getExperimentalAnnotationKey(ExperimentalAutopilotSubkey): "true",
+			},
+		},
+	}
+
+	applyExperimentalAutopilotOverrides(dda, manager)
+
+	volumes := manager.PodTemplateSpec().Spec.Volumes
+	if assert.Len(t, volumes, 1) {
+		assert.Nil(t, volumes[0].HostPath)
+		assert.NotNil(t, volumes[0].EmptyDir)
+	}
+}
+
 func TestApplyExperimentalAutopilotOverrides_RemovesAuthTokenFilePathAndAuthMounts(t *testing.T) {
 	authEnv := []v1.EnvVar{
 		{Name: common.DDAuthTokenFilePath, Value: "/etc/datadog-agent/auth/token"},
