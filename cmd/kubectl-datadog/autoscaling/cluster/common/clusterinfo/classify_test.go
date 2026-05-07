@@ -17,7 +17,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	fakediscovery "k8s.io/client-go/discovery/fake"
@@ -25,6 +24,7 @@ import (
 	k8stesting "k8s.io/client-go/testing"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/karpenter"
 )
@@ -96,16 +96,10 @@ func deploymentWith(namespace, name string, labels map[string]string, image stri
 	}
 }
 
-// nodePool builds a synthetic Karpenter NodePool unstructured for the
-// controller-runtime fake client. We use the dynamic-typed shape here for
-// the same reason classify.go does — keeps Karpenter API types out of the
-// kubectl-datadog binary.
-func nodePool(name string, labels map[string]string) *unstructured.Unstructured {
-	u := &unstructured.Unstructured{}
-	u.SetGroupVersionKind(schema.GroupVersionKind{Group: "karpenter.sh", Version: "v1", Kind: "NodePool"})
-	u.SetName(name)
-	u.SetLabels(labels)
-	return u
+func nodePool(name string, labels map[string]string) *karpv1.NodePool {
+	return &karpv1.NodePool{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Labels: labels},
+	}
 }
 
 // classifyOpts builds a minimal ClassifyInput for the existing tests that
@@ -122,14 +116,16 @@ func classifyOpts(clientset *fake.Clientset, asg AutoscalingDescriber) ClassifyI
 	}
 }
 
-// newCtrlFake returns a controller-runtime fake client preloaded with the
-// Karpenter NodePool list type so List() does not return NoMatchError. Tests
-// that need to seed NodePools build their own client via WithObjects.
+// newCtrlFake returns a controller-runtime fake client with the Karpenter
+// NodePool types registered, mirroring the production scheme built by
+// common/clients.Build. Tests that need to seed NodePools pass them as
+// `npObjs`.
 func newCtrlFake(npObjs ...ctrlclient.Object) ctrlclient.Client {
-	scheme := runtime.NewScheme()
-	scheme.AddKnownTypeWithName(schema.GroupVersionKind{Group: "karpenter.sh", Version: "v1", Kind: "NodePoolList"}, &unstructured.UnstructuredList{})
-	scheme.AddKnownTypeWithName(schema.GroupVersionKind{Group: "karpenter.sh", Version: "v1", Kind: "NodePool"}, &unstructured.Unstructured{})
-	return ctrlfake.NewClientBuilder().WithScheme(scheme).WithObjects(npObjs...).Build()
+	gv := schema.GroupVersion{Group: "karpenter.sh", Version: "v1"}
+	sch := runtime.NewScheme()
+	sch.AddKnownTypes(gv, &karpv1.NodePool{}, &karpv1.NodePoolList{})
+	metav1.AddToGroupVersion(sch, gv)
+	return ctrlfake.NewClientBuilder().WithScheme(sch).WithObjects(npObjs...).Build()
 }
 
 func newDiscoveryFake(autoMode bool) *fakediscovery.FakeDiscovery {

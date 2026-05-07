@@ -17,13 +17,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/pager"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	commonaws "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clusterautoscaler"
@@ -221,11 +220,6 @@ func addToBucket(info *ClusterInfo, mgr NodeManager, entity, nodeName string) {
 	bucket[entity] = entry
 }
 
-// nodePoolGVK is the GroupVersionKind for the upstream Karpenter NodePool
-// resource. We use the dynamic-typed list path (UnstructuredList) so the
-// kubectl-datadog binary does not have to import the Karpenter API types.
-var nodePoolGVK = schema.GroupVersionKind{Group: "karpenter.sh", Version: "v1", Kind: "NodePoolList"}
-
 // enrichKarpenterOwnership lists every NodePool labelled by a Datadog
 // autoscaling product and ensures the Karpenter bucket reflects them as
 // ManagedByDatadog. The label is "autoscaling.datadoghq.com/created" alone
@@ -242,8 +236,7 @@ var nodePoolGVK = schema.GroupVersionKind{Group: "karpenter.sh", Version: "v1", 
 // transient list error never fails the snapshot — the bucket simply isn't
 // enriched.
 func enrichKarpenterOwnership(ctx context.Context, ctrlClient client.Client, info *ClusterInfo) {
-	list := &unstructured.UnstructuredList{}
-	list.SetGroupVersionKind(nodePoolGVK)
+	list := &karpv1.NodePoolList{}
 	err := ctrlClient.List(ctx, list, client.MatchingLabels{nodePoolDatadogCreatedLabel: "true"})
 	if err != nil {
 		if meta.IsNoMatchError(err) {
@@ -262,9 +255,9 @@ func enrichKarpenterOwnership(ctx context.Context, ctrlClient client.Client, inf
 		info.NodeManagement[NodeManagerKarpenter] = bucket
 	}
 	for _, np := range list.Items {
-		entry := bucket[np.GetName()]
+		entry := bucket[np.Name]
 		entry.ManagedByDatadog = true
-		bucket[np.GetName()] = entry
+		bucket[np.Name] = entry
 	}
 }
 
