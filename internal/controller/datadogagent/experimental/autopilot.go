@@ -23,6 +23,9 @@ import (
 // required on GKE Autopilot, where the kubelet endpoint is not reachable.
 const DDKubeletUseAPIServer = "DD_KUBELET_USE_API_SERVER"
 
+// DDCloudProviderMetadata restricts host alias collection to GCP metadata.
+const DDCloudProviderMetadata = "DD_CLOUD_PROVIDER_METADATA"
+
 const autopilotLogCollectionStoragePath = "/var/autopilot/addon/datadog/logs"
 
 var (
@@ -116,6 +119,10 @@ func applyExperimentalAutopilotOverrides(dda metav1.Object, manager feature.PodT
 		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 			Name:  DDKubeletUseAPIServer,
 			Value: "true",
+		})
+		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  DDCloudProviderMetadata,
+			Value: `["gcp"]`,
 		})
 
 		if manager.PodTemplateSpec().Labels == nil {
