@@ -135,7 +135,6 @@ type options struct {
 	edsSlowStartAdditiveIncrease           string
 	supportCilium                          bool
 	datadogAgentEnabled                    bool
-	datadogAgentInternalEnabled            bool
 	createControllerRevisions              bool
 	datadogMonitorEnabled                  bool
 	datadogSLOEnabled                      bool
@@ -189,7 +188,6 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.datadogCSIDriverEnabled, "datadogCSIDriverEnabled", false, "Enable the DatadogCSIDriver controller")
 
 	// DatadogAgentInternal
-	flag.BoolVar(&opts.datadogAgentInternalEnabled, "datadogAgentInternalEnabled", true, "Enable the DatadogAgentInternal controller")
 	flag.BoolVar(&opts.createControllerRevisions, "createControllerRevisions", false, "Enable creation of ControllerRevision snapshots on each DDA spec change")
 
 	// ExtendedDaemonset configuration
@@ -234,10 +232,6 @@ func run(opts *options) error {
 		return nil
 	}
 	version.PrintVersionLogs(setupLog)
-
-	if !opts.datadogAgentInternalEnabled {
-		setupLog.Error(nil, "[WARNING] DatadogAgentInternal controller is disabled. This flag will be removed in Operator v1.27 and enabling DatadogAgentInternal will be required.")
-	}
 
 	// submits the maximum go routine setting as a metric
 	metrics.MaxGoroutines.Set(float64(opts.maximumGoroutines))
@@ -292,7 +286,6 @@ func run(opts *options) error {
 		RetryPeriod:                &retryPeriod,
 		Cache: config.CacheOptions(setupLog, config.WatchOptions{
 			DatadogAgentEnabled:           opts.datadogAgentEnabled,
-			DatadogAgentInternalEnabled:   opts.datadogAgentInternalEnabled,
 			DatadogMonitorEnabled:         opts.datadogMonitorEnabled,
 			DatadogSLOEnabled:             opts.datadogSLOEnabled,
 			DatadogAgentProfileEnabled:    opts.datadogAgentProfileEnabled,
@@ -322,6 +315,9 @@ func run(opts *options) error {
 	// Reader interface as returned from mgr.GetAPIReader() reads directly from API server bypassing cache and informer initialization.
 	credsManager := config.NewCredentialManagerWithDecryptor(mgr.GetAPIReader(), secrets.NewSecretBackend())
 	creds, err := credsManager.GetCredentials()
+	if err != nil {
+		setupLog.Error(err, "Unable to get credentials")
+	}
 
 	if opts.secretRefreshInterval > 0 && opts.secretBackendCommand == "" {
 		setupLog.Error(nil, "secretRefreshInterval is set but secretBackendCommand is not configured")
@@ -346,25 +342,9 @@ func run(opts *options) error {
 			}
 
 			if opts.remoteUpdatesEnabled {
-				if rcErr := setupFleetDaemon(setupLog, mgr, rcUpdater.Client(), opts.createControllerRevisions && opts.datadogAgentInternalEnabled); rcErr != nil {
+				if rcErr := setupFleetDaemon(setupLog, mgr, rcUpdater.Client(), opts.createControllerRevisions && opts.datadogAgentEnabled); rcErr != nil {
 					setupErrorf(setupLog, rcErr, "Unable to setup Fleet daemon")
 				}
-			}
-		}()
-	}
-
-	// Cleanup leftover DatadogAgentInternal resources if DDAI controller is disabled
-	if opts.datadogAgentEnabled && !opts.datadogAgentInternalEnabled {
-		go func() {
-			// Block until this controller manager is elected leader and controllers are set up
-			<-mgr.Elected()
-
-			// Wait a bit more to ensure reconciliation has had a chance to patch ownerRefs
-			time.Sleep(60 * time.Second)
-
-			setupLog.Info("Starting cleanup of DatadogAgentInternal resources")
-			if err = controller.CleanupDatadogAgentInternalResources(setupLog, restConfig); err != nil {
-				setupLog.Error(err, "Failed to cleanup DatadogAgentInternal resources")
 			}
 		}()
 	}
@@ -386,8 +366,7 @@ func run(opts *options) error {
 		SupportCilium:                 opts.supportCilium,
 		CredsManager:                  credsManager,
 		DatadogAgentEnabled:           opts.datadogAgentEnabled,
-		DatadogAgentInternalEnabled:   opts.datadogAgentInternalEnabled,
-		CreateControllerRevisions:     opts.createControllerRevisions && opts.datadogAgentInternalEnabled, // Only enable if DDAI is also enabled.
+		CreateControllerRevisions:     opts.createControllerRevisions && opts.datadogAgentEnabled,
 		DatadogMonitorEnabled:         opts.datadogMonitorEnabled,
 		DatadogSLOEnabled:             opts.datadogSLOEnabled,
 		OperatorMetricsEnabled:        opts.operatorMetricsEnabled,
@@ -633,15 +612,16 @@ func setupAndStartOperatorMetadataForwarder(logger logr.Logger, client client.Re
 		DatadogSLOEnabled:             options.datadogSLOEnabled,
 		DatadogGenericResourceEnabled: options.datadogGenericResourceEnabled,
 		DatadogAgentProfileEnabled:    options.datadogAgentProfileEnabled,
-		DatadogAgentInternalEnabled:   options.datadogAgentInternalEnabled,
-		LeaderElectionEnabled:         options.enableLeaderElection,
-		ExtendedDaemonSetEnabled:      options.supportExtendedDaemonset,
-		RemoteConfigEnabled:           options.remoteConfigEnabled,
-		RemoteUpdatesEnabled:          options.remoteUpdatesEnabled,
-		IntrospectionEnabled:          options.introspectionEnabled,
-		ConfigDDURL:                   os.Getenv(constants.DDURL),
-		ConfigDDSite:                  os.Getenv(constants.DDSite),
-		ResourceCounts:                make(map[string]int),
+		// Since v1.27, DDAI is always tied to DDA — no separate flag. Kept in telemetry for metric continuity.
+		DatadogAgentInternalEnabled: options.datadogAgentEnabled,
+		LeaderElectionEnabled:       options.enableLeaderElection,
+		ExtendedDaemonSetEnabled:    options.supportExtendedDaemonset,
+		RemoteConfigEnabled:         options.remoteConfigEnabled,
+		RemoteUpdatesEnabled:        options.remoteUpdatesEnabled,
+		IntrospectionEnabled:        options.introspectionEnabled,
+		ConfigDDURL:                 os.Getenv(constants.DDURL),
+		ConfigDDSite:                os.Getenv(constants.DDSite),
+		ResourceCounts:              make(map[string]int),
 	}
 
 	omf.Start()
@@ -655,8 +635,9 @@ func setupAndStartCRDMetadataForwarder(logger logr.Logger, client client.Reader,
 		version.GetVersion(),
 		credsManager,
 		metadata.EnabledCRDKindsConfig{
-			DatadogAgentEnabled:         options.datadogAgentEnabled,
-			DatadogAgentInternalEnabled: options.datadogAgentInternalEnabled,
+			DatadogAgentEnabled: options.datadogAgentEnabled,
+			// Since v1.27, DDAI is always tied to DDA — no separate flag. Kept in telemetry for metric continuity.
+			DatadogAgentInternalEnabled: options.datadogAgentEnabled,
 			DatadogAgentProfileEnabled:  options.datadogAgentProfileEnabled,
 		},
 	)

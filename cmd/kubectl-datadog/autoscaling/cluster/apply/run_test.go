@@ -1,12 +1,12 @@
-package install
+package apply
 
 import (
 	"bytes"
 	"testing"
 
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/karpenter"
 )
@@ -50,12 +50,10 @@ func TestDisplayForeignKarpenterMessage(t *testing.T) {
 	t.Setenv("PATH", "")
 
 	out := &bytes.Buffer{}
-	cmd := &cobra.Command{}
-	cmd.SetOut(out)
-	cmd.SetErr(&bytes.Buffer{})
+	streams := genericclioptions.IOStreams{Out: out, ErrOut: &bytes.Buffer{}}
 
 	foreign := &karpenter.Installation{Namespace: "karpenter", Name: "karpenter"}
-	err := displayForeignKarpenterMessage(cmd, "my-cluster", foreign)
+	err := displayForeignKarpenterMessage(streams, "my-cluster", foreign)
 	require.NoError(t, err, "foreign Karpenter is a successful no-op, not an error")
 
 	rendered := out.String()

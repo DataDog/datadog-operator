@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/guess"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/guess"
 )
 
 // Clients holds all AWS and Kubernetes client instances needed for
@@ -140,6 +140,24 @@ func GetClusterNameFromKubeconfig(configFlags *genericclioptions.ConfigFlags) (s
 	}
 
 	return guess.GetClusterNameFromKubeconfig(kubeRawConfig, kubeContext), nil
+}
+
+// ResolveClusterName returns explicit when non-empty, otherwise infers the
+// cluster name from the kubeconfig context. Returns an error when neither
+// source provides a name so callers do not have to repeat the same fallback
+// boilerplate in every cobra command.
+func ResolveClusterName(configFlags *genericclioptions.ConfigFlags, explicit string) (string, error) {
+	if explicit != "" {
+		return explicit, nil
+	}
+	name, err := GetClusterNameFromKubeconfig(configFlags)
+	if err != nil {
+		return "", err
+	}
+	if name == "" {
+		return "", errors.New("cluster name must be specified either via --cluster-name or in the current kubeconfig context")
+	}
+	return name, nil
 }
 
 // getAccountIDFromKubeconfig attempts to extract the AWS account ID from the
