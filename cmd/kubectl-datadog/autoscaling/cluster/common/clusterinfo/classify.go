@@ -272,10 +272,6 @@ func enrichKarpenterOwnership(ctx context.Context, ctrlClient client.Client, inf
 // profile stays `ManagedByDatadog: false` and a warning is logged.
 func enrichFargateOwnership(ctx context.Context, eksClient EKSDescriber, clusterName string, info *ClusterInfo) {
 	bucket := info.NodeManagement[NodeManagerFargate]
-	if len(bucket) == 0 {
-		return
-	}
-
 	for entity, entry := range bucket {
 		if entity == "" {
 			// Nodes whose Fargate profile name we couldn't read from
