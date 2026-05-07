@@ -71,6 +71,49 @@ func TestApplyExperimentalAutopilotOverrides_KubeletUseAPIServerEnvVar(t *testin
 	}
 }
 
+func TestApplyExperimentalAutopilotOverrides_CloudProviderMetadataEnvVar(t *testing.T) {
+	tests := []struct {
+		name              string
+		autopilotEnabled  bool
+		expectEnvVarValue string // empty means env var should NOT be present
+	}{
+		{
+			name:              "autopilot enabled restricts cloud provider metadata to GCP",
+			autopilotEnabled:  true,
+			expectEnvVarValue: `["gcp"]`,
+		},
+		{
+			name:              "autopilot disabled does not set cloud provider metadata",
+			autopilotEnabled:  false,
+			expectEnvVarValue: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
+
+			dda := &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{}},
+			}
+			if tt.autopilotEnabled {
+				dda.Annotations[getExperimentalAnnotationKey(ExperimentalAutopilotSubkey)] = "true"
+			}
+
+			applyExperimentalAutopilotOverrides(dda, manager)
+
+			got := findEnvVar(manager.EnvVarMgr.EnvVarsByC[mergerfake.AllContainers], DDCloudProviderMetadata)
+			if tt.expectEnvVarValue == "" {
+				assert.Nil(t, got, "DD_CLOUD_PROVIDER_METADATA should not be set when autopilot is disabled")
+				return
+			}
+			if assert.NotNil(t, got, "DD_CLOUD_PROVIDER_METADATA should be set when autopilot is enabled") {
+				assert.Equal(t, tt.expectEnvVarValue, got.Value)
+			}
+		})
+	}
+}
+
 // TestApplyExperimentalAutopilotOverrides_NPMSurvives asserts that the volumes,
 // mounts, and HostPID required by the NPM feature on the system-probe container
 // are NOT stripped by the Autopilot overrides. NPM on Autopilot relies on the
