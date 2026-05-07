@@ -22,6 +22,8 @@ import (
 // required on GKE Autopilot, where the kubelet endpoint is not reachable.
 const DDKubeletUseAPIServer = "DD_KUBELET_USE_API_SERVER"
 
+const autopilotLogCollectionStoragePath = "/var/autopilot/addon/datadog/logs"
+
 var (
 	forbiddenAgentVolumes = map[string]struct{}{
 		common.AuthVolumeName:            {},
@@ -129,6 +131,10 @@ func applyExperimentalAutopilotOverrides(dda metav1.Object, manager feature.PodT
 		v := manager.PodTemplateSpec().Spec.Volumes[:0]
 		for _, vol := range manager.PodTemplateSpec().Spec.Volumes {
 			if _, found := forbiddenAgentVolumes[vol.Name]; !found {
+				// The GKE Autopilot WorkloadAllowlist only permits this hostPath for log tailing metadata.
+				if vol.Name == common.RunPathVolumeName && vol.HostPath != nil {
+					vol.HostPath.Path = autopilotLogCollectionStoragePath
+				}
 				v = append(v, vol)
 			}
 		}
