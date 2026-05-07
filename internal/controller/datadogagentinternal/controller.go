@@ -89,9 +89,7 @@ func (r *Reconciler) initializeComponentRegistry() {
 }
 
 // NewReconciler returns a reconciler for DatadogAgent
-func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo kubernetes.PlatformInfo,
-	scheme *runtime.Scheme, recorder record.EventRecorder, metricForwardersMgr datadog.MetricsForwardersManager,
-) (*Reconciler, error) {
+func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo kubernetes.PlatformInfo, scheme *runtime.Scheme, recorder record.EventRecorder, metricForwardersMgr datadog.MetricsForwardersManager) *Reconciler {
 	r := &Reconciler{
 		options:      options,
 		client:       client,
@@ -104,7 +102,7 @@ func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo
 	// Initialize component registry
 	r.initializeComponentRegistry()
 
-	return r, nil
+	return r
 }
 
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context

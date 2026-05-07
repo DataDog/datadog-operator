@@ -14,11 +14,11 @@ import (
 )
 
 // ValidateDatadogAgentProfileSpec is used to check if a DatadogAgentProfileSpec is valid
-func ValidateDatadogAgentProfileSpec(spec *DatadogAgentProfileSpec, datadogAgentInternalEnabled bool) error {
+func ValidateDatadogAgentProfileSpec(spec *DatadogAgentProfileSpec) error {
 	if err := validateProfileAffinity(spec.ProfileAffinity); err != nil {
 		return err
 	}
-	if err := validateConfig(spec.Config, datadogAgentInternalEnabled); err != nil {
+	if err := validateConfig(spec.Config); err != nil {
 		return err
 	}
 
@@ -39,19 +39,16 @@ func validateProfileAffinity(profileAffinity *ProfileAffinity) error {
 	return nil
 }
 
-func validateConfig(spec *v2alpha1.DatadogAgentSpec, datadogAgentInternalEnabled bool) error {
+func validateConfig(spec *v2alpha1.DatadogAgentSpec) error {
 	if spec == nil {
 		return undefinedError("config")
 	}
-	if err := validateFeatures(spec.Features, datadogAgentInternalEnabled); err != nil {
+	if err := validateFeatures(spec.Features); err != nil {
 		return err
 	}
 	// global is not supported
 	if spec.Global != nil {
 		return unsupportedError("global")
-	}
-	if !datadogAgentInternalEnabled && spec.Override == nil {
-		return undefinedError("config override")
 	}
 	for component, override := range spec.Override {
 		if err := validateOverride(component, override); err != nil {
@@ -62,12 +59,9 @@ func validateConfig(spec *v2alpha1.DatadogAgentSpec, datadogAgentInternalEnabled
 	return nil
 }
 
-func validateFeatures(features *v2alpha1.DatadogFeatures, datadogAgentInternalEnabled bool) error {
+func validateFeatures(features *v2alpha1.DatadogFeatures) error {
 	if features == nil {
 		return nil
-	}
-	if !datadogAgentInternalEnabled {
-		return fmt.Errorf("the 'features' field is only supported when DatadogAgentInternal is enabled")
 	}
 
 	// Only GPU feature is currently supported in DatadogAgentProfile context.

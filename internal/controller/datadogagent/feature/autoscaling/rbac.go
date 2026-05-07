@@ -11,7 +11,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
-func getDCAClusterPolicyRules(workloadEnabled, clusterEnabled bool) []rbacv1.PolicyRule {
+func getDCAClusterPolicyRules(f *autoscalingFeature) []rbacv1.PolicyRule {
 	pr := []rbacv1.PolicyRule{
 		{
 			// Ability to generate events
@@ -26,7 +26,7 @@ func getDCAClusterPolicyRules(workloadEnabled, clusterEnabled bool) []rbacv1.Pol
 		},
 	}
 
-	if workloadEnabled {
+	if f.workloadEnabled {
 		pr = append(pr, []rbacv1.PolicyRule{
 			{
 				// Access to own CRD
@@ -69,27 +69,6 @@ func getDCAClusterPolicyRules(workloadEnabled, clusterEnabled bool) []rbacv1.Pol
 				Verbs:     []string{rbac.PatchVerb},
 			},
 			{
-				// In-place resize: evicting pods that cannot resize in-place
-				APIGroups: []string{rbac.CoreAPIGroup},
-				Resources: []string{rbac.PodsEvictionResource},
-				Verbs:     []string{rbac.CreateVerb},
-			},
-			{
-				// Patching workloads to trigger rollout.
-				// List/Watch for profiles
-				APIGroups: []string{rbac.AppsAPIGroup},
-				Resources: []string{
-					rbac.DeploymentsResource,
-					rbac.StatefulsetsResource,
-				},
-				Verbs: []string{
-					rbac.GetVerb,
-					rbac.ListVerb,
-					rbac.WatchVerb,
-					rbac.PatchVerb,
-				},
-			},
-			{
 				APIGroups: []string{rbac.ArgoProjAPIGroup},
 				Resources: []string{rbac.Rollout},
 				Verbs: []string{
@@ -113,7 +92,32 @@ func getDCAClusterPolicyRules(workloadEnabled, clusterEnabled bool) []rbacv1.Pol
 		)
 	}
 
-	if clusterEnabled {
+	if f.workloadEnabled || f.clusterSpotEnabled {
+		pr = append(pr, []rbacv1.PolicyRule{
+			{
+				// Patching workloads to trigger rollout / write spot-disabled-until annotation during on-demand fallback
+				APIGroups: []string{rbac.AppsAPIGroup},
+				Resources: []string{
+					rbac.DeploymentsResource,
+					rbac.StatefulsetsResource,
+				},
+				Verbs: []string{
+					rbac.GetVerb,
+					rbac.ListVerb,
+					rbac.WatchVerb,
+					rbac.PatchVerb,
+				},
+			},
+			{
+				// Evict pods: in-place resize / pending spot pods during on-demand fallback
+				APIGroups: []string{rbac.CoreAPIGroup},
+				Resources: []string{rbac.PodsEvictionResource},
+				Verbs:     []string{rbac.CreateVerb},
+			},
+		}...)
+	}
+
+	if f.clusterEnabled {
 		pr = append(pr, []rbacv1.PolicyRule{
 			{
 				// Update Karpenter resources
@@ -148,5 +152,6 @@ func getDCAClusterPolicyRules(workloadEnabled, clusterEnabled bool) []rbacv1.Pol
 		}...,
 		)
 	}
+
 	return pr
 }

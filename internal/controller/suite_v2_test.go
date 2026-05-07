@@ -14,6 +14,7 @@ package controller
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -23,9 +24,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
-
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -33,11 +31,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/testutils"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-
 	"github.com/DataDog/datadog-operator/pkg/config"
-	// +kubebuilder:scaffold:imports
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
@@ -96,11 +93,16 @@ var _ = BeforeSuite(func(ctx context.Context) {
 		Scheme: scheme.Scheme,
 	})
 
+	err = os.Setenv("DD_API_KEY", "dummy_api_key")
+	Expect(err).ToNot(HaveOccurred())
+	err = os.Setenv("DD_APP_KEY", "dummy_app_key")
+	Expect(err).ToNot(HaveOccurred())
+
 	options := SetupOptions{
 		SupportExtendedDaemonset: ExtendedDaemonsetOptions{
 			Enabled: false,
 		},
-		Creds:                      config.Creds{APIKey: "dummy_api_key", AppKey: "dummy_app_key"},
+		CredsManager:               config.NewCredentialManager(mgr.GetClient()),
 		DatadogAgentEnabled:        true,
 		DatadogMonitorEnabled:      true,
 		DatadogAgentProfileEnabled: true,
@@ -127,5 +129,10 @@ var _ = AfterSuite(func() {
 		mgrCancel()
 	}
 	err := testEnv.Stop()
+	Expect(err).ToNot(HaveOccurred())
+
+	err = os.Unsetenv("DD_API_KEY")
+	Expect(err).ToNot(HaveOccurred())
+	err = os.Unsetenv("DD_APP_KEY")
 	Expect(err).ToNot(HaveOccurred())
 })

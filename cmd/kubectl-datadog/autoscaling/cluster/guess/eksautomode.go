@@ -2,8 +2,8 @@ package guess
 
 import (
 	"fmt"
+	"slices"
 
-	"github.com/samber/lo"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/discovery"
@@ -20,7 +20,7 @@ func IsEKSAutoModeEnabled(discoveryClient discovery.DiscoveryInterface) (bool, e
 		return false, fmt.Errorf("failed to query eks.amazonaws.com/v1 API group: %w", err)
 	}
 
-	return lo.ContainsBy(resources.APIResources, func(r metav1.APIResource) bool {
+	return slices.ContainsFunc(resources.APIResources, func(r metav1.APIResource) bool {
 		return r.Name == "nodeclasses"
 	}), nil
 }

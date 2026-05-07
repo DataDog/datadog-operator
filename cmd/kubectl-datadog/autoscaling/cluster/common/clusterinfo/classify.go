@@ -2,29 +2,30 @@ package clusterinfo
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"log"
 	"maps"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 	astypes "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
+	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/pager"
 )
 
-const (
-	nodeListChunkSize = 100
-	// describeASGInstancesMaxIDs is the documented per-call limit of
-	// autoscaling:DescribeAutoScalingInstances. Sending more triggers a
-	// ValidationError at the API.
-	describeASGInstancesMaxIDs = 50
-)
+// describeASGInstancesMaxIDs is the documented per-call limit of
+// autoscaling:DescribeAutoScalingInstances. Sending more triggers a
+// ValidationError at the API.
+const describeASGInstancesMaxIDs = 50
 
 // awsProviderIDRegexp matches the AWS provider ID for EC2-backed nodes.
 // Format: aws:///<az>/i-<hex>. Fargate nodes use a different shape and
@@ -79,38 +80,30 @@ type asgCandidate struct {
 func classifyByLabels(ctx context.Context, k8sClient kubernetes.Interface, info *ClusterInfo) ([]asgCandidate, error) {
 	var candidates []asgCandidate
 
-	var cont string
-	for {
-		list, err := k8sClient.CoreV1().Nodes().List(ctx, metav1.ListOptions{
-			Limit:    nodeListChunkSize,
-			Continue: cont,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to list nodes: %w", err)
+	p := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+		return k8sClient.CoreV1().Nodes().List(ctx, opts)
+	})
+	if err := p.EachListItem(ctx, metav1.ListOptions{}, func(obj runtime.Object) error {
+		node := obj.(*corev1.Node)
+		if mgr, entity, ok := classifyNodeByLabel(node); ok {
+			addToBucket(info, mgr, entity, node.Name)
+			return nil
 		}
 
-		for _, node := range list.Items {
-			if mgr, entity, ok := classifyNodeByLabel(&node); ok {
-				addToBucket(info, mgr, entity, node.Name)
-				continue
-			}
-
-			matches := awsProviderIDRegexp.FindStringSubmatch(node.Spec.ProviderID)
-			if len(matches) == 2 {
-				candidates = append(candidates, asgCandidate{
-					instanceID: matches[1],
-					nodeName:   node.Name,
-				})
-			} else {
-				addToBucket(info, NodeManagerUnknown, node.Spec.ProviderID, node.Name)
-			}
+		matches := awsProviderIDRegexp.FindStringSubmatch(node.Spec.ProviderID)
+		if len(matches) == 2 {
+			candidates = append(candidates, asgCandidate{
+				instanceID: matches[1],
+				nodeName:   node.Name,
+			})
+		} else {
+			addToBucket(info, NodeManagerUnknown, node.Spec.ProviderID, node.Name)
 		}
-
-		cont = list.Continue
-		if cont == "" {
-			return candidates, nil
-		}
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("failed to list nodes: %w", err)
 	}
+	return candidates, nil
 }
 
 // classifyNodeByLabel applies steps 1-3 of the decision tree using only the
@@ -181,34 +174,39 @@ func addToBucket(info *ClusterInfo, mgr NodeManager, entity, nodeName string) {
 }
 
 // detectClusterAutoscaler scans Deployments cluster-wide and returns the
-// first match. A match is any Deployment with name "cluster-autoscaler", a
-// well-known label, or a container image referencing "cluster-autoscaler".
-// Multiple matches yield a warning but only the first is recorded.
+// first matching one encountered. A match is any Deployment with name
+// "cluster-autoscaler", a well-known label, or a container image referencing
+// "cluster-autoscaler". The cluster-wide enumeration order is unspecified, so
+// when several matches coexist (a configuration we don't expect in practice),
+// which one wins is non-deterministic — we accept that to keep the scan
+// short-circuited and avoid materialising every Deployment in memory.
 func detectClusterAutoscaler(ctx context.Context, k8sClient kubernetes.Interface) (ClusterAutoscaler, error) {
-	list, err := k8sClient.AppsV1().Deployments(corev1.NamespaceAll).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return ClusterAutoscaler{}, err
-	}
+	errFound := errors.New("cluster-autoscaler found")
 
-	matches := lo.Filter(list.Items, isClusterAutoscaler)
-	if len(matches) == 0 {
-		return ClusterAutoscaler{}, nil
+	var result ClusterAutoscaler
+	p := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+		return k8sClient.AppsV1().Deployments(corev1.NamespaceAll).List(ctx, opts)
+	})
+	err := p.EachListItem(ctx, metav1.ListOptions{}, func(obj runtime.Object) error {
+		dep := obj.(*appsv1.Deployment)
+		if !isClusterAutoscaler(*dep) {
+			return nil
+		}
+		result = ClusterAutoscaler{
+			Present:   true,
+			Namespace: dep.Namespace,
+			Name:      dep.Name,
+			Version:   extractClusterAutoscalerVersion(*dep),
+		}
+		return errFound
+	})
+	if err != nil && !errors.Is(err, errFound) {
+		return ClusterAutoscaler{}, fmt.Errorf("failed to list Deployments: %w", err)
 	}
-	if len(matches) > 1 {
-		log.Printf("Warning: %d Deployments match cluster-autoscaler heuristics; recording the first one (%s/%s).",
-			len(matches), matches[0].Namespace, matches[0].Name)
-	}
-	return ClusterAutoscaler{
-		Present:   true,
-		Namespace: matches[0].Namespace,
-		Name:      matches[0].Name,
-		Version:   extractClusterAutoscalerVersion(matches[0]),
-	}, nil
+	return result, nil
 }
 
-// isClusterAutoscaler matches lo.Filter's predicate signature so it can be
-// passed directly without a wrapper.
-func isClusterAutoscaler(d appsv1.Deployment, _ int) bool {
+func isClusterAutoscaler(d appsv1.Deployment) bool {
 	// A Deployment scaled to zero is effectively disabled; ignoring it lets
 	// users who already stopped CA (per the Karpenter migration guide) get
 	// `Present: false` in the snapshot. A nil Replicas defaults to 1 per the
@@ -221,7 +219,7 @@ func isClusterAutoscaler(d appsv1.Deployment, _ int) bool {
 		d.Labels["k8s-app"] == "cluster-autoscaler" {
 		return true
 	}
-	return lo.SomeBy(d.Spec.Template.Spec.Containers, func(c corev1.Container) bool {
+	return slices.ContainsFunc(d.Spec.Template.Spec.Containers, func(c corev1.Container) bool {
 		return strings.Contains(c.Image, "cluster-autoscaler")
 	})
 }
@@ -247,17 +245,22 @@ func extractClusterAutoscalerVersion(d appsv1.Deployment) string {
 	return d.Spec.Template.Labels["app.kubernetes.io/version"]
 }
 
-// imageTag extracts the tag portion of an OCI image reference, stripping
-// any `@sha256:...` digest. Returns empty when no tag is set (for instance,
-// digest-only references or bare image names).
+// imageTag extracts the tag portion of an OCI image reference. Returns empty
+// when no tag is set (digest-only references or bare image names).
 func imageTag(image string) string {
+	// pkg/name parses a combined `tag@digest` reference as a Digest, dropping
+	// the tag — strip the digest first so the tag is preserved.
 	if i := strings.Index(image, "@"); i >= 0 {
 		image = image[:i]
 	}
-	// The last colon is the tag separator only if it is not followed by a
-	// path component — otherwise it's a registry port (e.g. `localhost:5000/foo`).
-	if i := strings.LastIndex(image, ":"); i >= 0 && !strings.Contains(image[i+1:], "/") {
-		return image[i+1:]
+	// WithDefaultTag("") suppresses the implicit `latest` so a missing tag
+	// surfaces as an empty TagStr rather than the default.
+	ref, err := name.ParseReference(image, name.WeakValidation, name.WithDefaultTag(""))
+	if err != nil {
+		return ""
+	}
+	if t, ok := ref.(name.Tag); ok {
+		return t.TagStr()
 	}
 	return ""
 }

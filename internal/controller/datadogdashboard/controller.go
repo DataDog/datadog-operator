@@ -43,40 +43,21 @@ const (
 type Reconciler struct {
 	client        client.Client
 	datadogClient *datadogV1.DashboardsApi
-	datadogAuth   context.Context
+	credsManager  *config.CredentialManager
 	scheme        *runtime.Scheme
 	log           logr.Logger
 	recorder      record.EventRecorder
 }
 
-func NewReconciler(client client.Client, creds config.Creds, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
-	ddClient, err := datadogclient.InitDatadogDashboardClient(log, creds)
-	if err != nil {
-		return &Reconciler{}, err
-	}
-
+func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) *Reconciler {
 	return &Reconciler{
 		client:        client,
-		datadogClient: ddClient.Client,
-		datadogAuth:   ddClient.Auth,
+		datadogClient: datadogclient.InitDashboardClient(),
+		credsManager:  credsManager,
 		scheme:        scheme,
 		log:           log,
 		recorder:      recorder,
-	}, nil
-}
-
-func (r *Reconciler) UpdateDatadogClient(newCreds config.Creds) error {
-	r.log.Info("Recreating Datadog client due to credential change", "reconciler", "DatadogDashboard")
-	ddClient, err := datadogclient.InitDatadogDashboardClient(r.log, newCreds)
-	if err != nil {
-		return fmt.Errorf("unable to create Datadog API Client in DatadogDashboard: %w", err)
 	}
-	r.datadogClient = ddClient.Client
-	r.datadogAuth = ddClient.Auth
-
-	r.log.Info("Successfully recreated datadog client due to credential change", "reconciler", "DatadogDashboard")
-
-	return nil
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -86,6 +67,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	logger := r.log.WithValues("datadogdashboard", req.NamespacedName)
 	logger.Info("Reconciling Datadog Dashboard")
+
+	auth, credErr := r.credsManager.GetAuth()
+	if credErr != nil {
+		return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, fmt.Errorf("unable to get credentials: %w", credErr)
+	}
+
 	now := metav1.NewTime(time.Now())
 
 	forceSyncPeriod := defaultForceSyncPeriod
@@ -112,7 +99,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		return ctrl.Result{}, err
 	}
 
-	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger), defaultRequeuePeriod, defaultErrRequeuePeriod)
+	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger, auth), defaultRequeuePeriod, defaultErrRequeuePeriod)
 	if result, err = final.HandleFinalizer(ctx, instance, instance.Status.ID, datadogDashboardFinalizer); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}
@@ -147,7 +134,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		} else if instance.Status.LastForceSyncTime == nil || ((forceSyncPeriod - now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0) {
 			// Periodically force a sync with the API to ensure parity
 			// Get Dashboard to make sure it exists before trying any updates. If it doesn't, set shouldCreate
-			_, err = r.get(instance)
+			_, err = r.get(auth, instance)
 			if err != nil {
 				logger.Error(err, "error getting Dashboard", "Dashboard ID", instance.Status.ID)
 				updateErrStatus(status, now, v1alpha1.DatadoggDashboardSyncStatusGetError, "GettingDashboard", err)
@@ -162,20 +149,10 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	}
 
 	if shouldCreate || shouldUpdate {
-		// Check that required tags are present
-		// tagsUpdated, err := r.checkRequiredTags(logger, instance)
-		// if err != nil {
-		// 	result.RequeueAfter = defaultErrRequeuePeriod
-		// 	return r.updateStatusIfNeeded(logger, instance, status, result)
-		// } else if tagsUpdated {
-		// 	// A reconcile is triggered by the update
-		// 	return r.updateStatusIfNeeded(logger, instance, status, result)
-		// }
-
 		if shouldCreate {
-			err = r.create(logger, instance, status, now, instanceSpecHash)
+			err = r.create(auth, logger, instance, status, now, instanceSpecHash)
 		} else if shouldUpdate {
-			err = r.update(logger, instance, status, now, instanceSpecHash)
+			err = r.update(auth, logger, instance, status, now, instanceSpecHash)
 		}
 
 		if err != nil {
@@ -191,15 +168,15 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	return r.updateStatusIfNeeded(logger, instance, status, result)
 }
 
-func (r *Reconciler) get(instance *v1alpha1.DatadogDashboard) (datadogV1.Dashboard, error) {
-	return getDashboard(r.datadogAuth, r.datadogClient, instance.Status.ID)
+func (r *Reconciler) get(auth context.Context, instance *v1alpha1.DatadogDashboard) (datadogV1.Dashboard, error) {
+	return getDashboard(auth, r.datadogClient, instance.Status.ID)
 }
 
-func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogDashboard, status *v1alpha1.DatadogDashboardStatus, now metav1.Time, hash string) error {
+func (r *Reconciler) update(auth context.Context, logger logr.Logger, instance *v1alpha1.DatadogDashboard, status *v1alpha1.DatadogDashboardStatus, now metav1.Time, hash string) error {
 	// Update hash to reflect the spec we're attempting to sync (whether it succeeds or fails)
 	status.CurrentHash = hash
 
-	if _, err := updateDashboard(r.datadogAuth, logger, r.datadogClient, instance); err != nil {
+	if _, err := updateDashboard(auth, logger, r.datadogClient, instance); err != nil {
 		logger.Error(err, "error updating Dashboard", "Dashboard ID", instance.Status.ID)
 		updateErrStatus(status, now, v1alpha1.DatadogDashboardSyncStatusUpdateError, "UpdatingDasboard", err)
 		return err
@@ -217,11 +194,11 @@ func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogDashbo
 	return nil
 }
 
-func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogDashboard, status *v1alpha1.DatadogDashboardStatus, now metav1.Time, hash string) error {
+func (r *Reconciler) create(auth context.Context, logger logr.Logger, instance *v1alpha1.DatadogDashboard, status *v1alpha1.DatadogDashboardStatus, now metav1.Time, hash string) error {
 	logger.V(1).Info("Dashboard ID is not set; creating Dashboard in Datadog")
 
 	// Create Dashboard in Datadog
-	createdDashboard, err := createDashboard(r.datadogAuth, logger, r.datadogClient, instance)
+	createdDashboard, err := createDashboard(auth, logger, r.datadogClient, instance)
 	if err != nil {
 		logger.Error(err, "error creating Dashboard")
 		updateErrStatus(status, now, v1alpha1.DatadogDashboardSyncStatusCreateError, "CreatingDashboard", err)
@@ -245,26 +222,6 @@ func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogDashbo
 
 	return nil
 }
-
-// NOTE: commented out for now since 'generated:kubernetes' is not allowed as a tag in the dashboards API
-// func (r *Reconciler) checkRequiredTags(logger logr.Logger, instance *v1alpha1.DatadogDashboard) (bool, error) {
-// 	tags := instance.Spec.Tags
-// 	// TagsToAdd is an empty string for now because "generated" tag keys are not allowed in the Dashboards API
-// 	tagsToAdd := []string{}
-// 	if len(tagsToAdd) > 0 {
-// 		tags = append(tags, tagsToAdd...)
-// 		instance.Spec.Tags = tags
-// 		err := r.client.Update(context.TODO(), instance)
-// 		if err != nil {
-// 			logger.Error(err, "failed to update DatadogDashboard with required tags")
-// 			return false, err
-// 		}
-// 		logger.Info("Added required tags", "Dashboard ID", instance.Status.ID)
-// 		return true, nil
-// 	}
-
-// 	return false, nil
-// }
 
 func updateErrStatus(status *v1alpha1.DatadogDashboardStatus, now metav1.Time, syncStatus v1alpha1.DatadogDashboardSyncStatus, reason string, err error) {
 	condition.UpdateFailureStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeError, reason, err)

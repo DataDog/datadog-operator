@@ -447,7 +447,6 @@ serviceAccount:
 			for _, pod := range pods.Items {
 				assertContainerPresent(c, pod, adpContainerName)
 				assertContainerHasUDPHostPort(c, pod, adpContainerName, dsdPort)
-				assertContainerHasEnvVar(c, pod, coreAgentContainerName, "DD_USE_DOGSTATSD", "false")
 				assertContainerDoesNotHaveHostPort(c, pod, coreAgentContainerName, dsdPort)
 			}
 		}, 5*time.Minute, 15*time.Second, "DSD UDP with ADP: pod spec verification failed")
@@ -520,7 +519,6 @@ serviceAccount:
 			for _, pod := range pods.Items {
 				assertContainerPresent(c, pod, adpContainerName)
 				assertContainerHasVolumeMount(c, pod, adpContainerName, dsdSocketVolumeName, dsdSocketMountPath)
-				assertContainerHasEnvVar(c, pod, coreAgentContainerName, "DD_USE_DOGSTATSD", "false")
 			}
 		}, 5*time.Minute, 15*time.Second, "DSD UDS with ADP: pod spec verification failed")
 	})

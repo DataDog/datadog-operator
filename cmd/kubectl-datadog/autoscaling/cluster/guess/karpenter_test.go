@@ -28,7 +28,7 @@ func TestKarpenterControllerFingerprintContract(t *testing.T) {
 	assert.Equal(t, "karpenter/controller", karpenterControllerImageRepoSuffix)
 }
 
-func TestImageRepoEndsWith(t *testing.T) {
+func TestImageRepoPathHasSuffix(t *testing.T) {
 	for _, tc := range []struct {
 		image    string
 		suffix   string
@@ -48,21 +48,20 @@ func TestImageRepoEndsWith(t *testing.T) {
 		{"public.ecr.aws/karpenter/karpenter:1.0", "karpenter/controller", false},
 		{"cgr.dev/chainguard/karpenter:1.0", "karpenter/controller", false},
 		{"controller", "karpenter/controller", false},
+		{"", "karpenter/controller", false},
+		{"::malformed::reference::", "karpenter/controller", false},
 	} {
 		t.Run(tc.image, func(t *testing.T) {
-			assert.Equal(t, tc.expected, imageRepoEndsWith(tc.image, tc.suffix))
+			assert.Equal(t, tc.expected, imageRepoPathHasSuffix(tc.image, tc.suffix))
 		})
 	}
 }
 
-func TestFindForeignKarpenterInstallation(t *testing.T) {
-	const ourNamespace = "dd-karpenter"
-
+func TestFindKarpenterInstallation(t *testing.T) {
 	for _, tc := range []struct {
-		name            string
-		objects         []runtime.Object
-		targetNamespace string
-		expected        *ForeignKarpenter
+		name     string
+		objects  []runtime.Object
+		expected *KarpenterInstallation
 	}{
 		{
 			name:     "no Deployments on the cluster",
@@ -78,53 +77,32 @@ func TestFindForeignKarpenterInstallation(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name: "only kubectl-datadog Karpenter Deployment in our target namespace",
+			name: "kubectl-datadog installation surfaces with sentinel labels",
 			objects: []runtime.Object{
-				deployment(ourNamespace, "karpenter",
-					map[string]string{InstalledByLabel: InstalledByValue},
+				deployment("dd-karpenter", "karpenter",
+					map[string]string{
+						InstalledByLabel:      InstalledByValue,
+						InstallerVersionLabel: "v1.2.3",
+					},
 					karpenterControllerImage,
 				),
 			},
-			targetNamespace: ourNamespace,
-			expected:        nil,
-		},
-		{
-			name: "kubectl-datadog Deployment in another namespace is foreign when targeting a different namespace",
-			// User has an existing kubectl-datadog install in dd-karpenter and
-			// reruns `install --karpenter-namespace=other-ns`. The controller
-			// in dd-karpenter would race the new one we'd deploy in other-ns
-			// on the cluster-scoped CRDs, so it must surface as foreign even
-			// though it carries our sentinel.
-			objects: []runtime.Object{
-				deployment(ourNamespace, "karpenter",
-					map[string]string{InstalledByLabel: InstalledByValue},
-					karpenterControllerImage,
-				),
+			expected: &KarpenterInstallation{
+				Namespace:        "dd-karpenter",
+				Name:             "karpenter",
+				InstalledBy:      InstalledByValue,
+				InstallerVersion: "v1.2.3",
 			},
-			targetNamespace: "other-ns",
-			expected:        &ForeignKarpenter{Namespace: ourNamespace, Name: "karpenter"},
 		},
 		{
-			name: "empty targetNamespace surfaces every Karpenter controller, even sentinel-labeled",
-			// Defensive: an empty targetNamespace means no namespace
-			// qualifies as ours, so any matching controller surfaces as
-			// foreign. The CLI never sends an empty value (the flag has a
-			// default), but the detector should fail closed.
-			objects: []runtime.Object{
-				deployment(ourNamespace, "karpenter",
-					map[string]string{InstalledByLabel: InstalledByValue},
-					karpenterControllerImage,
-				),
-			},
-			targetNamespace: "",
-			expected:        &ForeignKarpenter{Namespace: ourNamespace, Name: "karpenter"},
-		},
-		{
-			name: "foreign Karpenter Deployment without our sentinel",
+			name: "third-party installation surfaces with empty sentinel fields",
 			objects: []runtime.Object{
 				deployment("karpenter", "karpenter", nil, karpenterControllerImage),
 			},
-			expected: &ForeignKarpenter{Namespace: "karpenter", Name: "karpenter"},
+			expected: &KarpenterInstallation{
+				Namespace: "karpenter",
+				Name:      "karpenter",
+			},
 		},
 		{
 			name: "foreign Karpenter installed via a private mirror still matches",
@@ -135,7 +113,10 @@ func TestFindForeignKarpenterInstallation(t *testing.T) {
 					"012345678901.dkr.ecr.us-west-2.amazonaws.com/karpenter/controller:1.10.0",
 				),
 			},
-			expected: &ForeignKarpenter{Namespace: "kube-system", Name: "their-karpenter"},
+			expected: &KarpenterInstallation{
+				Namespace: "kube-system",
+				Name:      "their-karpenter",
+			},
 		},
 		{
 			name: "foreign Karpenter installed with custom nameOverride",
@@ -144,19 +125,10 @@ func TestFindForeignKarpenterInstallation(t *testing.T) {
 			objects: []runtime.Object{
 				deployment("autoscaling", "my-karpenter", nil, karpenterControllerImage),
 			},
-			expected: &ForeignKarpenter{Namespace: "autoscaling", Name: "my-karpenter"},
-		},
-		{
-			name: "mix of ours-in-target-namespace and foreign returns the foreign one",
-			objects: []runtime.Object{
-				deployment(ourNamespace, "karpenter",
-					map[string]string{InstalledByLabel: InstalledByValue},
-					karpenterControllerImage,
-				),
-				deployment("karpenter", "karpenter", nil, karpenterControllerImage),
+			expected: &KarpenterInstallation{
+				Namespace: "autoscaling",
+				Name:      "my-karpenter",
 			},
-			targetNamespace: ourNamespace,
-			expected:        &ForeignKarpenter{Namespace: "karpenter", Name: "karpenter"},
 		},
 		{
 			name: "Datadog Cluster Agent Deployment with karpenter.sh RBAC is not the controller",
@@ -184,7 +156,10 @@ func TestFindForeignKarpenterInstallation(t *testing.T) {
 					[]corev1.EnvVar{{Name: "KARPENTER_SERVICE", Value: "their-karpenter"}},
 				),
 			},
-			expected: &ForeignKarpenter{Namespace: "kube-system", Name: "their-karpenter"},
+			expected: &KarpenterInstallation{
+				Namespace: "kube-system",
+				Name:      "their-karpenter",
+			},
 		},
 		{
 			name: "image with `controllers` plural does not false-positive",
@@ -198,20 +173,24 @@ func TestFindForeignKarpenterInstallation(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name: "foreign sentinel value is treated as foreign",
+			name: "foreign sentinel value carries through to InstalledBy",
 			objects: []runtime.Object{
 				deployment("karpenter", "karpenter",
 					map[string]string{InstalledByLabel: "someone-else"},
 					karpenterControllerImage,
 				),
 			},
-			expected: &ForeignKarpenter{Namespace: "karpenter", Name: "karpenter"},
+			expected: &KarpenterInstallation{
+				Namespace:   "karpenter",
+				Name:        "karpenter",
+				InstalledBy: "someone-else",
+			},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			clientset := fake.NewSimpleClientset(tc.objects...)
 
-			result, err := FindForeignKarpenterInstallation(t.Context(), clientset, tc.targetNamespace)
+			result, err := FindKarpenterInstallation(t.Context(), clientset)
 
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, result)
@@ -224,16 +203,15 @@ func TestFindForeignKarpenterInstallation(t *testing.T) {
 			return true, nil, apierrors.NewServiceUnavailable("test failure")
 		})
 
-		_, err := FindForeignKarpenterInstallation(t.Context(), clientset, ourNamespace)
+		_, err := FindKarpenterInstallation(t.Context(), clientset)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to list Deployments")
 	})
 
-	t.Run("pagination follows Continue token across pages and short-circuits on first foreign match", func(t *testing.T) {
-		// Three pages: an empty page with a non-empty Continue token, a page
-		// with only our own Deployment, and a page where the foreign install
-		// lives. Page 4 must never be requested.
+	t.Run("pagination forwards Continue tokens across pages", func(t *testing.T) {
+		// Three pages with the Karpenter installation on the last one,
+		// exercising cross-page Continue token forwarding.
 		pages := []*appsv1.DeploymentList{
 			{
 				ListMeta: metav1.ListMeta{Continue: "page2"},
@@ -242,21 +220,15 @@ func TestFindForeignKarpenterInstallation(t *testing.T) {
 			{
 				ListMeta: metav1.ListMeta{Continue: "page3"},
 				Items: []appsv1.Deployment{
+					*deployment("default", "nginx", nil, "nginx:1.25"),
+				},
+			},
+			{
+				Items: []appsv1.Deployment{
 					*deployment("dd-karpenter", "karpenter",
 						map[string]string{InstalledByLabel: InstalledByValue},
 						karpenterControllerImage,
 					),
-				},
-			},
-			{
-				ListMeta: metav1.ListMeta{Continue: "page4"},
-				Items: []appsv1.Deployment{
-					*deployment("their-ns", "their-karpenter", nil, karpenterControllerImage),
-				},
-			},
-			{
-				Items: []appsv1.Deployment{
-					*deployment("never", "fetched", nil, karpenterControllerImage),
 				},
 			},
 		}
@@ -266,19 +238,71 @@ func TestFindForeignKarpenterInstallation(t *testing.T) {
 		clientset.PrependReactor("list", "deployments", func(action k8stesting.Action) (bool, runtime.Object, error) {
 			opts := action.(k8stesting.ListActionImpl).GetListOptions()
 			calls = append(calls, opts.Continue)
-			assert.EqualValues(t, deploymentListChunkSize, opts.Limit, "Limit must be set so the API server can chunk")
+			assert.NotZero(t, opts.Limit, "Limit must be set so the API server can chunk")
 			require.Less(t, len(calls)-1, len(pages),
-				"reactor would over-fetch beyond the synthetic pages — early-exit broken")
+				"reactor would over-fetch beyond the synthetic pages")
 			return true, pages[len(calls)-1], nil
 		})
 
-		result, err := FindForeignKarpenterInstallation(t.Context(), clientset, "dd-karpenter")
+		result, err := FindKarpenterInstallation(t.Context(), clientset)
 
 		require.NoError(t, err)
-		assert.Equal(t, &ForeignKarpenter{Namespace: "their-ns", Name: "their-karpenter"}, result)
+		assert.Equal(t, &KarpenterInstallation{
+			Namespace:   "dd-karpenter",
+			Name:        "karpenter",
+			InstalledBy: InstalledByValue,
+		}, result)
 		assert.Equal(t, []string{"", "page2", "page3"}, calls,
-			"each call must forward the previous page's Continue token, and page 4 must never be requested")
+			"each call must forward the previous page's Continue token")
 	})
+
+	t.Run("first match wins when multiple Karpenters coexist", func(t *testing.T) {
+		// Multiple Karpenter controllers on a single cluster is an
+		// out-of-band corrupted state — install/update guards prevent it
+		// in normal use. The helper does not enumerate further than the
+		// first match, so callers must not assume it surfaces every
+		// installation; pin the contract so the trade-off cannot drift.
+		page := &appsv1.DeploymentList{
+			Items: []appsv1.Deployment{
+				*deployment("dd-karpenter", "karpenter",
+					map[string]string{InstalledByLabel: InstalledByValue},
+					karpenterControllerImage,
+				),
+				*deployment("their-ns", "their-karpenter", nil, karpenterControllerImage),
+			},
+		}
+
+		clientset := fake.NewSimpleClientset()
+		clientset.PrependReactor("list", "deployments", func(_ k8stesting.Action) (bool, runtime.Object, error) {
+			return true, page, nil
+		})
+
+		result, err := FindKarpenterInstallation(t.Context(), clientset)
+
+		require.NoError(t, err)
+		assert.Equal(t, &KarpenterInstallation{
+			Namespace:   "dd-karpenter",
+			Name:        "karpenter",
+			InstalledBy: InstalledByValue,
+		}, result, "the first Karpenter Deployment encountered must be returned, not a 'preferred' one")
+	})
+}
+
+func TestKarpenterInstallationIsOwn(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		k        *KarpenterInstallation
+		expected bool
+	}{
+		{"nil receiver is not ours", nil, false},
+		{"empty InstalledBy is not ours", &KarpenterInstallation{}, false},
+		{"foreign InstalledBy is not ours", &KarpenterInstallation{InstalledBy: "someone-else"}, false},
+		{"matching sentinel is ours", &KarpenterInstallation{InstalledBy: InstalledByValue}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.k.IsOwn())
+		})
+	}
 }
 
 func deployment(namespace, name string, labels map[string]string, image string) *appsv1.Deployment {

@@ -1440,6 +1440,21 @@ type ClusterAutoscalingFeatureConfig struct {
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// Spot contains the configuration for the spot instance scheduling sub-feature.
+	// Requires cluster autoscaling to be enabled.
+	// (Requires Cluster Agent 7.79.0+)
+	// +optional
+	Spot *SpotAutoscalingFeatureConfig `json:"spot,omitempty"`
+}
+
+// SpotAutoscalingFeatureConfig contains the configuration for the spot instance scheduling product.
+type SpotAutoscalingFeatureConfig struct {
+	// Enabled enables the cluster spot scheduling product.
+	// (Requires Cluster Agent 7.79.0+)
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // ClusterChecksFeatureConfig contains the Cluster Checks feature configuration.

@@ -1179,6 +1179,19 @@ spec:
                                 (Requires Cluster Agent 7.74.0+)
                                 Default: false
                               type: boolean
+                            spot:
+                              description: |-
+                                Spot contains the configuration for the spot instance scheduling sub-feature.
+                                Requires cluster autoscaling to be enabled.
+                                (Requires Cluster Agent 7.79.0+)
+                              properties:
+                                enabled:
+                                  description: |-
+                                    Enabled enables the cluster spot scheduling product.
+                                    (Requires Cluster Agent 7.79.0+)
+                                    Default: false
+                                  type: boolean
+                              type: object
                           type: object
                         workload:
                           description: Workload contains the configuration for the workload autoscaling product.
@@ -9939,6 +9952,19 @@ spec:
                                     (Requires Cluster Agent 7.74.0+)
                                     Default: false
                                   type: boolean
+                                spot:
+                                  description: |-
+                                    Spot contains the configuration for the spot instance scheduling sub-feature.
+                                    Requires cluster autoscaling to be enabled.
+                                    (Requires Cluster Agent 7.79.0+)
+                                  properties:
+                                    enabled:
+                                      description: |-
+                                        Enabled enables the cluster spot scheduling product.
+                                        (Requires Cluster Agent 7.79.0+)
+                                        Default: false
+                                      type: boolean
+                                  type: object
                               type: object
                             workload:
                               description: Workload contains the configuration for the workload autoscaling product.
