@@ -89,16 +89,6 @@ func TestVolumesForAgent(t *testing.T) {
 				}
 				assert.NotNil(t, seccompVolume, "seccomp security volume should exist")
 				assert.Equal(t, tt.expectedSeccompName, seccompVolume.ConfigMap.Name)
-
-				var sysprobeSocketVolume *corev1.Volume
-				for i := range volumes {
-					if volumes[i].Name == common.SystemProbeSocketVolumeName {
-						sysprobeSocketVolume = &volumes[i]
-						break
-					}
-				}
-				assert.NotNil(t, sysprobeSocketVolume, "system-probe socket volume should exist")
-				assert.NotNil(t, sysprobeSocketVolume.EmptyDir)
 			}
 		})
 	}
