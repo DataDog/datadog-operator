@@ -260,25 +260,6 @@ func GetVolumeMountForCgroups() corev1.VolumeMount {
 	}
 }
 
-// GetVolumeForSystemProbeSocket returns the volume with the system-probe socket directory.
-func GetVolumeForSystemProbeSocket() corev1.Volume {
-	return corev1.Volume{
-		Name: SystemProbeSocketVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{},
-		},
-	}
-}
-
-// GetVolumeMountForSystemProbeSocket returns the VolumeMount with the system-probe socket directory.
-func GetVolumeMountForSystemProbeSocket(readOnly bool) corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:      SystemProbeSocketVolumeName,
-		MountPath: SystemProbeSocketVolumePath,
-		ReadOnly:  readOnly,
-	}
-}
-
 // GetVolumeMountForDogstatsdSocket returns the VolumeMount with the Dogstatsd socket
 func GetVolumeMountForDogstatsdSocket(readOnly bool) corev1.VolumeMount {
 	return corev1.VolumeMount{

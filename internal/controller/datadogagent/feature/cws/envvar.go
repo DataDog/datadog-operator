@@ -7,10 +7,8 @@ package cws
 
 const (
 	DDRuntimeSecurityConfigEnabled                    = "DD_RUNTIME_SECURITY_CONFIG_ENABLED"
-	DDRuntimeSecurityConfigActivityDumpOutputDir      = "DD_RUNTIME_SECURITY_CONFIG_ACTIVITY_DUMP_LOCAL_STORAGE_OUTPUT_DIRECTORY"
 	DDRuntimeSecurityConfigPoliciesDir                = "DD_RUNTIME_SECURITY_CONFIG_POLICIES_DIR"
 	DDRuntimeSecurityConfigRemoteTaggerEnabled        = "DD_RUNTIME_SECURITY_CONFIG_REMOTE_TAGGER"
-	DDRuntimeSecurityConfigSecurityProfileDir         = "DD_RUNTIME_SECURITY_CONFIG_SECURITY_PROFILE_DIR"
 	DDRuntimeSecurityConfigSocket                     = "DD_RUNTIME_SECURITY_CONFIG_SOCKET"
 	DDRuntimeSecurityConfigSyscallMonitorEnabled      = "DD_RUNTIME_SECURITY_CONFIG_SYSCALL_MONITOR_ENABLED"
 	DDRuntimeSecurityConfigNetworkEnabled             = "DD_RUNTIME_SECURITY_CONFIG_NETWORK_ENABLED"
