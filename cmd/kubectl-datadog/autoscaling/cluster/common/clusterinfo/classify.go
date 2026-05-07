@@ -27,6 +27,7 @@ import (
 	"k8s.io/client-go/tools/pager"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	commonaws "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/eksautomode"
 	commonk8s "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/k8s"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/karpenter"
@@ -41,15 +42,6 @@ const describeASGInstancesMaxIDs = 50
 // Format: aws:///<az>/i-<hex>. Fargate nodes use a different shape and
 // must therefore be classified by label before reaching this regex.
 var awsProviderIDRegexp = regexp.MustCompile(`^aws:///[^/]+/(i-[0-9a-f]+)$`)
-
-// fargateProfileManagedByTagKey is the Fargate-profile tag asserted to
-// identify a profile created by kubectl-datadog. The tag is propagated from
-// the CloudFormation stack tags written by common/aws/cloudformation.go.
-const fargateProfileManagedByTagKey = "managed-by"
-
-// fargateProfileManagedByTagValue is the expected tag value for profiles we
-// own.
-const fargateProfileManagedByTagValue = "kubectl-datadog"
 
 // nodePoolDatadogCreatedLabel is the label set by every Datadog autoscaling
 // product (kubectl-datadog AND the cluster agent) on the NodePools they
@@ -308,7 +300,7 @@ func enrichFargateOwnership(ctx context.Context, eksClient EKSDescriber, cluster
 			continue
 		}
 		if out.FargateProfile != nil &&
-			out.FargateProfile.Tags[fargateProfileManagedByTagKey] == fargateProfileManagedByTagValue {
+			out.FargateProfile.Tags[commonaws.ManagedByTag] == commonaws.ManagedByTagValue {
 			entry.ManagedByDatadog = true
 			bucket[entity] = entry
 		}
