@@ -877,6 +877,7 @@ func volumeMountsForSystemProbe() []corev1.VolumeMount {
 		common.GetVolumeMountForAuth(true),
 		common.GetVolumeMountForConfig(),
 		common.GetVolumeMountForProc(),
+		common.GetVolumeMountForRunPath(),
 		common.GetVolumeMountForTmp(),
 	}
 }
