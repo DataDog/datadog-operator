@@ -1,7 +1,6 @@
 package k8s
 
 import (
-	"context"
 	"errors"
 	"testing"
 
@@ -18,39 +17,94 @@ func deployment(namespace, name string) *appsv1.Deployment {
 	return &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}
 }
 
-func TestFindFirstDeployment_NoMatch(t *testing.T) {
-	cli := fake.NewSimpleClientset(deployment("ns", "a"), deployment("ns", "b"))
+func TestFindFirstDeployment(t *testing.T) {
+	abc := []runtime.Object{deployment("ns", "a"), deployment("ns", "b"), deployment("ns", "c")}
 
-	got, err := FindFirstDeployment(context.Background(), cli, func(*appsv1.Deployment) bool { return false })
+	for _, tc := range []struct {
+		name      string
+		objects   []runtime.Object
+		predicate func(*appsv1.Deployment) bool
+		wantName  string // empty means the expected result is nil
+		wantCalls int
+	}{
+		{
+			name:      "empty cluster",
+			objects:   nil,
+			predicate: func(*appsv1.Deployment) bool { return true },
+			wantName:  "",
+			wantCalls: 0,
+		},
+		{
+			name:      "single deployment, no match",
+			objects:   []runtime.Object{deployment("ns", "a")},
+			predicate: func(*appsv1.Deployment) bool { return false },
+			wantName:  "",
+			wantCalls: 1,
+		},
+		{
+			name:      "single deployment, match",
+			objects:   []runtime.Object{deployment("ns", "a")},
+			predicate: func(*appsv1.Deployment) bool { return true },
+			wantName:  "a",
+			wantCalls: 1,
+		},
+		{
+			name:      "many deployments, no match",
+			objects:   abc,
+			predicate: func(*appsv1.Deployment) bool { return false },
+			wantName:  "",
+			wantCalls: 3,
+		},
+		{
+			name:      "many deployments, first matches (short-circuits)",
+			objects:   abc,
+			predicate: func(*appsv1.Deployment) bool { return true },
+			wantName:  "a",
+			wantCalls: 1,
+		},
+		{
+			name:      "many deployments, middle matches",
+			objects:   abc,
+			predicate: func(d *appsv1.Deployment) bool { return d.Name == "b" },
+			wantName:  "b",
+			wantCalls: 2,
+		},
+		{
+			name:      "many deployments, last matches (full scan)",
+			objects:   abc,
+			predicate: func(d *appsv1.Deployment) bool { return d.Name == "c" },
+			wantName:  "c",
+			wantCalls: 3,
+		},
+		{
+			name:      "multiple match, first encountered wins",
+			objects:   abc,
+			predicate: func(d *appsv1.Deployment) bool { return d.Name == "b" || d.Name == "c" },
+			wantName:  "b",
+			wantCalls: 2,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cli := fake.NewSimpleClientset(tc.objects...)
+			calls := 0
+			counting := func(d *appsv1.Deployment) bool {
+				calls++
+				return tc.predicate(d)
+			}
 
-	require.NoError(t, err)
-	assert.Nil(t, got)
-}
+			got, err := FindFirstDeployment(t.Context(), cli, counting)
 
-func TestFindFirstDeployment_ReturnsFirstMatch(t *testing.T) {
-	cli := fake.NewSimpleClientset(deployment("ns", "a"), deployment("ns", "b"), deployment("ns", "c"))
-
-	got, err := FindFirstDeployment(context.Background(), cli, func(d *appsv1.Deployment) bool {
-		return d.Name == "b" || d.Name == "c"
-	})
-
-	require.NoError(t, err)
-	require.NotNil(t, got)
-	assert.Contains(t, []string{"b", "c"}, got.Name)
-}
-
-func TestFindFirstDeployment_ShortCircuits(t *testing.T) {
-	cli := fake.NewSimpleClientset(deployment("ns", "a"), deployment("ns", "b"), deployment("ns", "c"))
-
-	calls := 0
-	got, err := FindFirstDeployment(context.Background(), cli, func(d *appsv1.Deployment) bool {
-		calls++
-		return true
-	})
-
-	require.NoError(t, err)
-	require.NotNil(t, got)
-	assert.Equal(t, 1, calls, "predicate must stop being called after the first match")
+			require.NoError(t, err)
+			if tc.wantName == "" {
+				assert.Nil(t, got)
+			} else {
+				require.NotNil(t, got)
+				assert.Equal(t, tc.wantName, got.Name)
+			}
+			assert.Equal(t, tc.wantCalls, calls,
+				"predicate must be called exactly until the first match (or to exhaustion when none matches)")
+		})
+	}
 }
 
 func TestFindFirstDeployment_PropagatesListError(t *testing.T) {
@@ -60,7 +114,7 @@ func TestFindFirstDeployment_PropagatesListError(t *testing.T) {
 		return true, nil, listErr
 	})
 
-	got, err := FindFirstDeployment(context.Background(), cli, func(*appsv1.Deployment) bool { return true })
+	got, err := FindFirstDeployment(t.Context(), cli, func(*appsv1.Deployment) bool { return true })
 
 	require.Error(t, err)
 	assert.ErrorIs(t, err, listErr)
