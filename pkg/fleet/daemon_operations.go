@@ -243,35 +243,49 @@ func (d *Daemon) planStart(ctx context.Context, req remoteAPIRequest, op resolve
 }
 
 func (d *Daemon) planStop(ctx context.Context, req remoteAPIRequest, op resolvedOperation) (operationPlan, error) {
-	experimentID := req.Params.Version
-	expectedExperimentID := experimentID
 	dda := &v2alpha1.DatadogAgent{}
-	if getErr := d.client.Get(ctx, op.NamespacedName, dda); getErr == nil {
-		if dda.Status.Experiment == nil {
-			if dda.Annotations[v2alpha1.AnnotationExperimentID] != experimentID || dda.Annotations[v2alpha1.AnnotationExperimentSignal] != v2alpha1.ExperimentSignalStart {
-				// Truly idle object: no experiment status and no matching in-flight
-				// start signal to roll back.
-				d.clearExperimentConfigVersion(req.Package)
-				return operationPlan{noop: true}, nil
+	if getErr := d.client.Get(ctx, op.NamespacedName, dda); getErr != nil {
+		return operationPlan{}, fmt.Errorf("stop DatadogAgent experiment: failed to get DatadogAgent: %w", getErr)
+	}
+
+	// Stop requests intentionally do not use params.version as the experiment
+	// identity. verifyExpectedState already guarded the RC state transition, so
+	// rollback should target whichever experiment is currently recorded on the
+	// DDA: status first, then an in-flight start annotation, then RC state.
+	experimentID := dda.Annotations[v2alpha1.AnnotationExperimentID]
+	if dda.Status.Experiment != nil && dda.Status.Experiment.ID != "" {
+		experimentID = dda.Status.Experiment.ID
+	}
+	if experimentID == "" {
+		_, experimentID = d.getPackageConfigVersions(req.Package)
+	}
+
+	if dda.Status.Experiment == nil {
+		if experimentID == "" || dda.Annotations[v2alpha1.AnnotationExperimentSignal] != v2alpha1.ExperimentSignalStart {
+			// Truly idle object: no experiment status and no in-flight start
+			// signal to roll back.
+			d.clearExperimentConfigVersion(req.Package)
+			return operationPlan{noop: true}, nil
+		}
+	} else {
+		if isTerminalPhase(dda.Status.Experiment.Phase) {
+			// Stop is idempotent once the experiment is already terminal.
+			d.clearExperimentConfigVersion(req.Package)
+			return operationPlan{noop: true}, nil
+		}
+		switch dda.Status.Experiment.Phase {
+		case v2alpha1.ExperimentPhaseRunning:
+			if experimentID == "" {
+				return operationPlan{}, fmt.Errorf("stop DatadogAgent experiment: running experiment is missing an ID")
 			}
-		} else {
-			if isTerminalPhase(dda.Status.Experiment.Phase) {
-				// Stop is idempotent once the experiment is already terminal.
-				d.clearExperimentConfigVersion(req.Package)
-				return operationPlan{noop: true}, nil
+		case "":
+			// Transition 6 recovery: the spec/start signal was already applied,
+			// but the reconciler has not written a phase yet.
+			if experimentID == "" {
+				return operationPlan{}, fmt.Errorf("stop DatadogAgent experiment: current experiment is missing an ID")
 			}
-			switch dda.Status.Experiment.Phase {
-			case v2alpha1.ExperimentPhaseRunning:
-				if dda.Status.Experiment.ID != experimentID {
-					return operationPlan{}, fmt.Errorf("stop DatadogAgent experiment: running experiment %q does not match requested version %q", dda.Status.Experiment.ID, experimentID)
-				}
-			case "":
-				// Transition 6 recovery: the spec/start signal was already applied,
-				// but the reconciler has not written a phase yet.
-				expectedExperimentID = experimentID
-			default:
-				return operationPlan{}, fmt.Errorf("stop DatadogAgent experiment: cannot stop, current phase is %q", dda.Status.Experiment.Phase)
-			}
+		default:
+			return operationPlan{}, fmt.Errorf("stop DatadogAgent experiment: cannot stop, current phase is %q", dda.Status.Experiment.Phase)
 		}
 	}
 	patch, err := buildSignalPatch(v2alpha1.ExperimentSignalRollback, experimentID)
@@ -280,7 +294,7 @@ func (d *Daemon) planStop(ctx context.Context, req remoteAPIRequest, op resolved
 	}
 	return operationPlan{
 		patch:   patch,
-		pending: d.newPendingOperation(pendingIntentStop, req, op.NamespacedName, expectedExperimentID),
+		pending: d.newPendingOperation(pendingIntentStop, req, op.NamespacedName, experimentID),
 	}, nil
 }
 

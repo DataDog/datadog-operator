@@ -389,7 +389,10 @@ func TestStopDatadogAgentExperiment_NilExperiment_WithStartAnnotation_WritesRoll
 		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalStart,
 	}
 	d, c := testDaemon(dda, testInstallerConfigWithDDA())
-	requireStopQueued(t, d, testStopRequest())
+	req := testStopRequest()
+	req.Params.Version = "ignored-request-version"
+	op := requireStopQueued(t, d, req)
+	assert.Equal(t, testExperimentID, op.experimentID)
 
 	got := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, got))
@@ -418,6 +421,19 @@ func TestStopDatadogAgentExperiment_Success_Running(t *testing.T) {
 	dda := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
 	// Daemon writes rollback annotation, not status. Status is written by the controller.
+	assert.Equal(t, v2alpha1.ExperimentSignalRollback, dda.Annotations[v2alpha1.AnnotationExperimentSignal])
+	assert.Equal(t, testExperimentID, dda.Annotations[v2alpha1.AnnotationExperimentID])
+}
+
+func TestStopDatadogAgentExperiment_Running_IgnoresRequestVersion(t *testing.T) {
+	d, c := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseRunning), testInstallerConfigWithDDA())
+	req := testStopRequest()
+	req.Params.Version = "ignored-request-version"
+	op := requireStopQueued(t, d, req)
+	assert.Equal(t, testExperimentID, op.experimentID)
+
+	dda := &v2alpha1.DatadogAgent{}
+	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
 	assert.Equal(t, v2alpha1.ExperimentSignalRollback, dda.Annotations[v2alpha1.AnnotationExperimentSignal])
 	assert.Equal(t, testExperimentID, dda.Annotations[v2alpha1.AnnotationExperimentID])
 }
