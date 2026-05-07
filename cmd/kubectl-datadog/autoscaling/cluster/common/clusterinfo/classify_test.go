@@ -96,12 +96,6 @@ func deploymentWith(namespace, name string, labels map[string]string, image stri
 	}
 }
 
-func deploymentWithReplicas(namespace, name string, replicas int32, image string) *appsv1.Deployment {
-	d := deploymentWith(namespace, name, nil, image)
-	d.Spec.Replicas = &replicas
-	return d
-}
-
 // nodePool builds a synthetic Karpenter NodePool unstructured for the
 // controller-runtime fake client. We use the dynamic-typed shape here for
 // the same reason classify.go does — keeps Karpenter API types out of the
@@ -274,119 +268,22 @@ func TestClassify_ASGAPIError(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to describe autoscaling instances")
 }
 
+// TestClassify_ClusterAutoscalerDetection is a wiring smoke test: when the
+// cluster-autoscaler is present, the snapshot's Autoscaling.ClusterAutoscaler
+// reflects it. The detailed predicate-level coverage (label variants,
+// version extraction, scaled-to-zero, etc.) lives in the
+// common/clusterautoscaler package's own tests.
 func TestClassify_ClusterAutoscalerDetection(t *testing.T) {
-	for _, tc := range []struct {
-		name   string
-		deploy *appsv1.Deployment
-		want   ClusterAutoscaler
-	}{
-		{
-			name:   "by name",
-			deploy: deploymentWith("kube-system", "cluster-autoscaler", nil, "registry.k8s.io/some-image:v1"),
-			want:   ClusterAutoscaler{Present: true, Namespace: "kube-system", Name: "cluster-autoscaler"},
-		},
-		{
-			name: "by app.kubernetes.io/name",
-			deploy: deploymentWith("autoscaler", "ca-renamed",
-				map[string]string{"app.kubernetes.io/name": "cluster-autoscaler"},
-				"registry.k8s.io/foo:v1"),
-			want: ClusterAutoscaler{Present: true, Namespace: "autoscaler", Name: "ca-renamed"},
-		},
-		{
-			name: "by k8s-app",
-			deploy: deploymentWith("autoscaler", "ca-renamed",
-				map[string]string{"k8s-app": "cluster-autoscaler"},
-				"registry.k8s.io/foo:v1"),
-			want: ClusterAutoscaler{Present: true, Namespace: "autoscaler", Name: "ca-renamed"},
-		},
-		{
-			name:   "by image substring",
-			deploy: deploymentWith("custom", "scaler", nil, "registry.k8s.io/autoscaling/cluster-autoscaler:v1.30.0"),
-			want:   ClusterAutoscaler{Present: true, Namespace: "custom", Name: "scaler", Version: "v1.30.0"},
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			clientset := fake.NewSimpleClientset(tc.deploy)
-			info, err := Classify(t.Context(), classifyOpts(clientset, &fakeASG{}))
-			require.NoError(t, err)
-			assert.Equal(t, tc.want, info.Autoscaling.ClusterAutoscaler)
-		})
-	}
-}
-
-func TestClassify_ClusterAutoscalerVersion(t *testing.T) {
-	for _, tc := range []struct {
-		name   string
-		deploy *appsv1.Deployment
-		want   string
-	}{
-		{
-			name:   "from image tag",
-			deploy: deploymentWith("kube-system", "cluster-autoscaler", nil, "registry.k8s.io/autoscaling/cluster-autoscaler:v1.30.0"),
-			want:   "v1.30.0",
-		},
-		{
-			name:   "image tag wins over label",
-			deploy: deploymentWith("kube-system", "cluster-autoscaler", map[string]string{"app.kubernetes.io/version": "v9.9.9"}, "registry.k8s.io/autoscaling/cluster-autoscaler:v1.30.0"),
-			want:   "v1.30.0",
-		},
-		{
-			name:   "tag with digest suffix",
-			deploy: deploymentWith("kube-system", "cluster-autoscaler", nil, "registry.k8s.io/autoscaling/cluster-autoscaler:v1.30.0@sha256:abcdef"),
-			want:   "v1.30.0",
-		},
-		{
-			name:   "registry with port and tag",
-			deploy: deploymentWith("kube-system", "cluster-autoscaler", nil, "localhost:5000/cluster-autoscaler:v1.31.0"),
-			want:   "v1.31.0",
-		},
-		{
-			name:   "fallback to deployment label when image is digest only",
-			deploy: deploymentWith("kube-system", "cluster-autoscaler", map[string]string{"app.kubernetes.io/version": "v1.32.0"}, "registry.k8s.io/autoscaling/cluster-autoscaler@sha256:abcdef"),
-			want:   "v1.32.0",
-		},
-		{
-			name:   "no tag, no label",
-			deploy: deploymentWith("kube-system", "cluster-autoscaler", nil, "registry.k8s.io/autoscaling/cluster-autoscaler@sha256:abcdef"),
-			want:   "",
-		},
-		{
-			name:   "malformed image falls back to label",
-			deploy: deploymentWith("kube-system", "cluster-autoscaler", map[string]string{"app.kubernetes.io/version": "v1.99.0"}, "cluster-autoscaler-:::"),
-			want:   "v1.99.0",
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			clientset := fake.NewSimpleClientset(tc.deploy)
-			info, err := Classify(t.Context(), classifyOpts(clientset, &fakeASG{}))
-			require.NoError(t, err)
-			assert.Equal(t, tc.want, info.Autoscaling.ClusterAutoscaler.Version)
-		})
-	}
-}
-
-func TestClassify_NoClusterAutoscaler(t *testing.T) {
 	clientset := fake.NewSimpleClientset(
-		// Karpenter must not be detected as cluster-autoscaler.
-		deploymentWith("dd-karpenter", "karpenter", nil, "public.ecr.aws/karpenter/karpenter:v1.9.0"),
+		deploymentWith("kube-system", "cluster-autoscaler", nil, "registry.k8s.io/autoscaling/cluster-autoscaler:v1.30.0"),
 	)
-	info, err := Classify(t.Context(), classifyOpts(clientset, &fakeASG{}))
-	require.NoError(t, err)
-	assert.False(t, info.Autoscaling.ClusterAutoscaler.Present)
-	assert.Empty(t, info.Autoscaling.ClusterAutoscaler.Namespace)
-	assert.Empty(t, info.Autoscaling.ClusterAutoscaler.Name)
-}
 
-func TestClassify_ClusterAutoscalerScaledToZero(t *testing.T) {
-	// A user following the Karpenter migration guide may have already
-	// scaled the cluster-autoscaler Deployment to 0. We want Present: false
-	// so the migration tooling doesn't repeatedly nag the user about it.
-	clientset := fake.NewSimpleClientset(
-		deploymentWithReplicas("kube-system", "cluster-autoscaler", 0, "registry.k8s.io/autoscaling/cluster-autoscaler:v1.30.0"),
-	)
 	info, err := Classify(t.Context(), classifyOpts(clientset, &fakeASG{}))
+
 	require.NoError(t, err)
-	assert.False(t, info.Autoscaling.ClusterAutoscaler.Present)
+	assert.Equal(t,
+		ClusterAutoscaler{Present: true, Namespace: "kube-system", Name: "cluster-autoscaler", Version: "v1.30.0"},
+		info.Autoscaling.ClusterAutoscaler)
 }
 
 // karpenterControllerImage is the upstream chart's default — pinned in the

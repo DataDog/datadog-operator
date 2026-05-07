@@ -6,7 +6,6 @@ import (
 	"log"
 	"maps"
 	"regexp"
-	"slices"
 	"strings"
 	"time"
 
@@ -15,7 +14,6 @@ import (
 	astypes "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/samber/lo"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,8 +26,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	commonaws "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clusterautoscaler"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/eksautomode"
-	commonk8s "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/k8s"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/karpenter"
 )
 
@@ -307,21 +305,21 @@ func enrichFargateOwnership(ctx context.Context, eksClient EKSDescriber, cluster
 	}
 }
 
-// detectClusterAutoscaler returns the running cluster-autoscaler Deployment,
-// or a zero-value ClusterAutoscaler if none is found.
+// detectClusterAutoscaler returns the running cluster-autoscaler, or a
+// zero-value ClusterAutoscaler if none is found.
 func detectClusterAutoscaler(ctx context.Context, k8sClient kubernetes.Interface) (ClusterAutoscaler, error) {
-	dep, err := commonk8s.FindFirstDeployment(ctx, k8sClient, isActiveClusterAutoscaler)
+	inst, err := clusterautoscaler.FindInstallation(ctx, k8sClient)
 	if err != nil {
 		return ClusterAutoscaler{}, err
 	}
-	if dep == nil {
+	if inst == nil {
 		return ClusterAutoscaler{}, nil
 	}
 	return ClusterAutoscaler{
 		Present:   true,
-		Namespace: dep.Namespace,
-		Name:      dep.Name,
-		Version:   commonk8s.ExtractDeploymentVersion(dep, isClusterAutoscalerContainer),
+		Namespace: inst.Namespace,
+		Name:      inst.Name,
+		Version:   inst.Version,
 	}, nil
 }
 
@@ -354,24 +352,4 @@ func detectEKSAutoMode(disco discovery.DiscoveryInterface) EKSAutoMode {
 		return EKSAutoMode{}
 	}
 	return EKSAutoMode{Enabled: enabled}
-}
-
-// isActiveClusterAutoscaler is the predicate identifying a running legacy
-// cluster-autoscaler. A Deployment scaled to zero replicas is treated as
-// disabled (the Karpenter migration guide recommends scaling CA to zero
-// before adopting Karpenter).
-func isActiveClusterAutoscaler(d *appsv1.Deployment) bool {
-	if d.Spec.Replicas != nil && *d.Spec.Replicas == 0 {
-		return false
-	}
-	if d.Name == "cluster-autoscaler" ||
-		d.Labels["app.kubernetes.io/name"] == "cluster-autoscaler" ||
-		d.Labels["k8s-app"] == "cluster-autoscaler" {
-		return true
-	}
-	return slices.ContainsFunc(d.Spec.Template.Spec.Containers, isClusterAutoscalerContainer)
-}
-
-func isClusterAutoscalerContainer(c corev1.Container) bool {
-	return strings.Contains(c.Image, "cluster-autoscaler")
 }

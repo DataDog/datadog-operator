@@ -67,29 +67,29 @@ func (k *Installation) IsOwn() bool {
 // agents legitimately hold permissions on the karpenter.sh API group without
 // running a controller.
 func FindInstallation(ctx context.Context, clientset kubernetes.Interface) (*Installation, error) {
-	dep, err := commonk8s.FindFirstDeployment(ctx, clientset, matchesController)
+	dep, err := commonk8s.FindFirstDeployment(ctx, clientset, matchesDeployment)
 	if err != nil || dep == nil {
 		return nil, err
 	}
 	return &Installation{
 		Namespace:        dep.Namespace,
 		Name:             dep.Name,
-		Version:          commonk8s.ExtractDeploymentVersion(dep, isControllerContainer),
+		Version:          commonk8s.ExtractDeploymentVersion(dep, matchesContainer),
 		InstalledBy:      dep.Labels[InstalledByLabel],
 		InstallerVersion: dep.Labels[InstallerVersionLabel],
 	}, nil
 }
 
-// matchesController reports whether the Deployment runs the Karpenter
+// matchesDeployment reports whether the Deployment runs the Karpenter
 // controller. The primary signal is the KARPENTER_SERVICE env var on a
 // container; the secondary is the canonical `karpenter/controller` image
 // repository tail. See karpenterServiceEnvName and
 // karpenterControllerImageRepoSuffix for the rationale.
-func matchesController(d *appsv1.Deployment) bool {
-	return slices.ContainsFunc(d.Spec.Template.Spec.Containers, isControllerContainer)
+func matchesDeployment(d *appsv1.Deployment) bool {
+	return slices.ContainsFunc(d.Spec.Template.Spec.Containers, matchesContainer)
 }
 
-func isControllerContainer(c corev1.Container) bool {
+func matchesContainer(c corev1.Container) bool {
 	return slices.ContainsFunc(c.Env, func(e corev1.EnvVar) bool { return e.Name == karpenterServiceEnvName }) ||
 		imageRepoPathHasSuffix(c.Image, karpenterControllerImageRepoSuffix)
 }
