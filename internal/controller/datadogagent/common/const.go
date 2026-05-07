@@ -158,8 +158,9 @@ const (
 	HostRunPath       = "/run"
 	HostRunMountPath  = "/host/run"
 
-	RunPathVolumeName  = "pointerdir"
-	RunPathVolumeMount = "/opt/datadog-agent/run"
+	RunPathVolumeName    = "pointerdir"
+	RunPathVolumeMount   = "/opt/datadog-agent/run"
+	LogRegistryVolumeName = "logregistry"
 
 	FlightRecorderSocketVolumeName = "flightrecorder-socket"
 	FlightRecorderSocketPath       = "/var/run/datadog/flightrecorder"

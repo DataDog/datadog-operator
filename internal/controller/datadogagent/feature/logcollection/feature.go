@@ -17,7 +17,6 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 )
 
@@ -113,10 +112,24 @@ func (f *logCollectionFeature) ManageNodeAgent(managers feature.PodTemplateManag
 }
 
 func (f *logCollectionFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
-	// pointerdir volume mount (replace default empty dir volume)
-	pointerVol, pointerVolMount := volume.GetVolumes(pointerVolumeName, f.tempStoragePath, pointerVolumePath, false)
-	managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&pointerVolMount, agentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)
-	managers.Volume().AddVolumeWithMergeFunc(&pointerVol, merger.OverrideCurrentVolumeMergeFunction)
+	// registry.json volume: FileOrCreate hostPath so Kubernetes creates a file (not a directory)
+	// when registry.json doesn't yet exist on the node, mounted directly — no SubPath needed.
+	hostPathFileOrCreate := corev1.HostPathFileOrCreate
+	registryVol := corev1.Volume{
+		Name: registryVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: f.tempStoragePath + "/" + registrySubPath,
+				Type: &hostPathFileOrCreate,
+			},
+		},
+	}
+	registryVolMount := corev1.VolumeMount{
+		Name:      registryVolumeName,
+		MountPath: registryVolumePath,
+	}
+	managers.VolumeMount().AddVolumeMountToContainer(&registryVolMount, agentContainerName)
+	managers.Volume().AddVolume(&registryVol)
 
 	// pod logs volume mount
 	podLogVol, podLogVolMount := volume.GetVolumes(podLogVolumeName, f.podLogsPath, podLogVolumePath, true)

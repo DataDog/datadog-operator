@@ -149,11 +149,11 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					hostPathFileOrCreate := corev1.HostPathFileOrCreate
 					wantVolumeMounts := []*corev1.VolumeMount{
 						{
-							Name:      pointerVolumeName,
-							MountPath: pointerVolumePath,
-							ReadOnly:  false,
+							Name:      registryVolumeName,
+							MountPath: registryVolumePath,
 						},
 						{
 							Name:      podLogVolumeName,
@@ -173,10 +173,11 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 					}
 					wantVolumes := []*corev1.Volume{
 						{
-							Name: pointerVolumeName,
+							Name: registryVolumeName,
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
-									Path: "/custom/temp/storage",
+									Path: "/custom/temp/storage/" + registrySubPath,
+									Type: &hostPathFileOrCreate,
 								},
 							},
 						},
@@ -217,12 +218,14 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 }
 
 func getWantVolumes() []*corev1.Volume {
+	hostPathFileOrCreate := corev1.HostPathFileOrCreate
 	wantVolumes := []*corev1.Volume{
 		{
-			Name: pointerVolumeName,
+			Name: registryVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: common.DefaultLogTempStoragePath,
+					Path: common.DefaultLogTempStoragePath + "/" + registrySubPath,
+					Type: &hostPathFileOrCreate,
 				},
 			},
 		},
@@ -257,9 +260,8 @@ func getWantVolumes() []*corev1.Volume {
 func getWantVolumeMounts() []*corev1.VolumeMount {
 	wantVolumeMounts := []*corev1.VolumeMount{
 		{
-			Name:      pointerVolumeName,
-			MountPath: pointerVolumePath,
-			ReadOnly:  false,
+			Name:      registryVolumeName,
+			MountPath: registryVolumePath,
 		},
 		{
 			Name:      podLogVolumeName,
