@@ -1,24 +1,27 @@
-package install
+// Package apply contains the convergence logic shared between the `install`
+// and `update` cobra commands. Both subcommands ultimately call Run with a
+// RunOptions describing the desired Karpenter deployment; Run creates or
+// updates the CloudFormation stacks, the Helm release, the aws-auth role, the
+// optional EC2NodeClass/NodePool resources and the cluster-info ConfigMap.
+package apply
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"net/url"
-	"os/signal"
 	"slices"
 	"strconv"
 	"strings"
-	"syscall"
 
 	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/fatih/color"
 	"github.com/pkg/browser"
-	"github.com/spf13/cobra"
 	"helm.sh/helm/v3/pkg/registry"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
@@ -27,8 +30,8 @@ import (
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clusterinfo"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/display"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/helm"
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/guess"
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/k8s"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/guess"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/k8s"
 	"github.com/DataDog/datadog-operator/pkg/version"
 
 	_ "embed"
@@ -49,117 +52,149 @@ var (
 	DdKarpenterFargateCfn string
 )
 
-// installModeTagKey is the CloudFormation stack tag tracking the deployment's
-// install-mode. Stacks created before this tag was introduced are treated as
-// install-mode=existing-nodes.
-const installModeTagKey = "install-mode"
+// RunOptions captures every parameter that callers (the install and update
+// cobra commands) feed into Run.
+type RunOptions struct {
+	ClusterName              string
+	KarpenterNamespace       string
+	KarpenterVersion         string
+	InstallMode              InstallMode
+	FargateSubnets           []string
+	CreateKarpenterResources CreateKarpenterResources
+	InferenceMethod          InferenceMethod
+	Debug                    bool
+	// ActionLabel prefixes the opening "<label> Karpenter on cluster <c>."
+	// box. install passes "Installing", update passes "Updating".
+	ActionLabel string
+}
 
-func (o *options) run(cmd *cobra.Command) error {
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
+// KarpenterStackName returns the name of the mode-independent CloudFormation
+// stack carrying the KarpenterNodeRole, controller policy, SQS queue and
+// EventBridge rules.
+func KarpenterStackName(clusterName string) string {
+	return "dd-karpenter-" + clusterName + "-karpenter"
+}
 
-	log.SetOutput(cmd.OutOrStderr())
-	ctrl.SetLogger(zap.New(zap.UseDevMode(false), zap.WriteTo(cmd.ErrOrStderr())))
+// DDKarpenterStackName returns the name of the mode-dependent CloudFormation
+// stack: aws-auth role, optional Fargate profile, IRSA role, etc.
+func DDKarpenterStackName(clusterName string) string {
+	return "dd-karpenter-" + clusterName + "-dd-karpenter"
+}
 
-	if clusterName == "" {
-		if name, err := clients.GetClusterNameFromKubeconfig(o.ConfigFlags); err != nil {
-			return err
-		} else if name != "" {
-			clusterName = name
-		} else {
-			return errors.New("cluster name must be specified either via --cluster-name or in the current kubeconfig context")
-		}
+// InstallModeTagKey is the CloudFormation stack tag tracking the deployment's
+// install-mode. Stacks created before this tag was introduced have no tag and
+// are treated as install-mode=existing-nodes.
+const InstallModeTagKey = "install-mode"
+
+// DetectedInstallMode reads the install-mode tag from a CFN stack. Stacks
+// created before this tag was introduced have no tag and default to
+// existing-nodes for backward compatibility.
+func DetectedInstallMode(stack *aws.Stack) InstallMode {
+	if stack == nil {
+		return ""
 	}
+	if tag, ok := stack.TagMap()[InstallModeTagKey]; ok && tag != "" {
+		return InstallMode(tag)
+	}
+	return InstallModeExistingNodes
+}
 
-	if autoModeEnabled, err := guess.IsEKSAutoModeEnabled(o.DiscoveryClient); err != nil {
+// Run converges the cluster towards the Karpenter deployment described by
+// opts. It is idempotent: calling it twice with the same opts is a no-op on
+// the second run.
+func Run(ctx context.Context, streams genericclioptions.IOStreams, configFlags *genericclioptions.ConfigFlags, clientset *kubernetes.Clientset, opts RunOptions) error {
+	log.SetOutput(streams.ErrOut)
+	ctrl.SetLogger(zap.New(zap.UseDevMode(false), zap.WriteTo(streams.ErrOut)))
+
+	if autoModeEnabled, err := guess.IsEKSAutoModeEnabled(clientset.Discovery()); err != nil {
 		return fmt.Errorf("failed to check for EKS auto-mode: %w", err)
 	} else if autoModeEnabled {
-		return displayEKSAutoModeMessage(cmd, clusterName)
+		return displayEKSAutoModeMessage(streams, opts.ClusterName)
 	}
 
-	k, err := guess.FindKarpenterInstallation(ctx, o.Clientset)
+	k, err := guess.FindKarpenterInstallation(ctx, clientset)
 	if err != nil {
 		return fmt.Errorf("failed to check for an existing Karpenter installation: %w", err)
 	}
-	if k != nil && (!k.IsOwn() || k.Namespace != karpenterNamespace) {
-		return displayForeignKarpenterMessage(cmd, clusterName, k)
+	if k != nil && (!k.IsOwn() || k.Namespace != opts.KarpenterNamespace) {
+		return displayForeignKarpenterMessage(streams, opts.ClusterName, k)
 	}
 
-	display.PrintBox(cmd.OutOrStdout(), "Installing Karpenter on cluster "+clusterName+".")
+	display.PrintBox(streams.Out, opts.ActionLabel+" Karpenter on cluster "+opts.ClusterName+".")
 
-	cli, err := clients.Build(ctx, o.ConfigFlags, o.Clientset)
+	cli, err := clients.Build(ctx, configFlags, clientset)
 	if err != nil {
 		return fmt.Errorf("failed to build clients: %w", err)
 	}
 
-	if err = clients.ValidateAWSAccountConsistency(ctx, cli, clusterName, o.ConfigFlags); err != nil {
+	if err = clients.ValidateAWSAccountConsistency(ctx, cli, opts.ClusterName, configFlags); err != nil {
 		return err
 	}
 
-	irsaRoleArn, err := createCloudFormationStacks(ctx, cli, clusterName, karpenterNamespace, installMode, fargateSubnets)
+	irsaRoleArn, err := createCloudFormationStacks(ctx, cli, opts)
 	if err != nil {
 		return err
 	}
 
-	if err = updateAwsAuthConfigMap(ctx, cli, clusterName); err != nil {
+	if err = updateAwsAuthConfigMap(ctx, cli, opts.ClusterName); err != nil {
 		return err
 	}
 
-	if err = o.installHelmChart(ctx, clusterName, karpenterNamespace, karpenterVersion, debug, installMode, irsaRoleArn); err != nil {
+	if err = installHelmChart(ctx, configFlags, opts, irsaRoleArn); err != nil {
 		return err
 	}
 
-	if err = createNodePoolResources(ctx, cmd, cli, clusterName, createKarpenterResources, inferenceMethod, debug); err != nil {
+	if err = createNodePoolResources(ctx, streams, cli, opts); err != nil {
 		return err
 	}
 
-	if err = recordClusterInfo(ctx, cli, clusterName, karpenterNamespace); err != nil {
+	if err = recordClusterInfo(ctx, cli, opts.ClusterName, opts.KarpenterNamespace); err != nil {
 		log.Printf("Warning: %v", err)
 	}
 
-	return displaySuccessMessage(cmd, clusterName, createKarpenterResources)
+	return displaySuccessMessage(streams, opts.ClusterName, opts.CreateKarpenterResources)
 }
 
 // createCloudFormationStacks creates (or updates) the CFN stacks required for
 // the selected install mode. Returns the IRSA role ARN when the mode is
 // fargate; empty string otherwise.
-func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, clusterName, karpenterNamespace string, mode InstallMode, fargateSubnetsOverride []string) (string, error) {
+func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, opts RunOptions) (string, error) {
 	// The first stack (karpenter.yaml) is mode-independent — its resources
 	// (KarpenterNodeRole, KarpenterControllerPolicy, SQS, EventBridge) are
 	// identical in both modes, so no guardrail or install-mode tag is needed.
-	karpenterStackName := "dd-karpenter-" + clusterName + "-karpenter"
+	karpenterStackName := KarpenterStackName(opts.ClusterName)
 	if err := aws.CreateOrUpdateStack(ctx, cli.CloudFormation, karpenterStackName, KarpenterCfn, map[string]string{
-		"ClusterName": clusterName,
+		"ClusterName": opts.ClusterName,
 	}, nil); err != nil {
 		return "", fmt.Errorf("failed to create or update Cloud Formation stack: %w", err)
 	}
 
-	describeOut, err := cli.EKS.DescribeCluster(ctx, &eks.DescribeClusterInput{Name: awssdk.String(clusterName)})
+	describeOut, err := cli.EKS.DescribeCluster(ctx, &eks.DescribeClusterInput{Name: awssdk.String(opts.ClusterName)})
 	if err != nil {
-		return "", fmt.Errorf("failed to describe cluster %s: %w", clusterName, err)
+		return "", fmt.Errorf("failed to describe cluster %s: %w", opts.ClusterName, err)
 	}
 	cluster := describeOut.Cluster
 	supportsAPIAuth := guess.SupportsAPIAuthenticationMode(cluster)
 
-	ddStackName := "dd-karpenter-" + clusterName + "-dd-karpenter"
+	ddStackName := DDKarpenterStackName(opts.ClusterName)
 	ddStack, err := aws.GetStack(ctx, cli.CloudFormation, ddStackName)
 	if err != nil {
 		return "", err
 	}
-	if err := checkInstallModeTag(ddStack, mode); err != nil {
+	if err := checkInstallModeTag(ddStack, opts.InstallMode); err != nil {
 		return "", err
 	}
-	modeTags := map[string]string{installModeTagKey: string(mode)}
+	modeTags := map[string]string{InstallModeTagKey: string(opts.InstallMode)}
 
-	switch mode {
+	switch opts.InstallMode {
 	case InstallModeExistingNodes:
-		isUnmanagedEKSPIAInstalled, err := guess.IsThereUnmanagedEKSPodIdentityAgentInstalled(ctx, cli.EKS, clusterName)
+		isUnmanagedEKSPIAInstalled, err := guess.IsThereUnmanagedEKSPodIdentityAgentInstalled(ctx, cli.EKS, opts.ClusterName)
 		if err != nil {
 			return "", fmt.Errorf("failed to check if EKS pod identity agent is installed: %w", err)
 		}
 		if err := aws.CreateOrUpdateStackWithExisting(ctx, cli.CloudFormation, ddStackName, DdKarpenterCfn, map[string]string{
-			"ClusterName":            clusterName,
-			"KarpenterNamespace":     karpenterNamespace,
+			"ClusterName":            opts.ClusterName,
+			"KarpenterNamespace":     opts.KarpenterNamespace,
 			"DeployPodIdentityAddon": strconv.FormatBool(!isUnmanagedEKSPIAInstalled),
 			"DeployNodeAccessEntry":  strconv.FormatBool(supportsAPIAuth),
 		}, modeTags, ddStack); err != nil {
@@ -177,7 +212,7 @@ func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, clust
 			return "", fmt.Errorf("failed to ensure OIDC provider: %w", err)
 		}
 
-		subnets := fargateSubnetsOverride
+		subnets := opts.FargateSubnets
 		if len(subnets) == 0 {
 			subnets, err = guess.GetClusterPrivateSubnets(ctx, cli.EC2, cluster)
 			if err != nil {
@@ -189,13 +224,13 @@ func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, clust
 		// the immutability check order-independent.
 		slices.Sort(subnets)
 
-		if err = checkFargateStackImmutability(ddStack, karpenterNamespace, subnets); err != nil {
+		if err = checkFargateStackImmutability(ddStack, opts.KarpenterNamespace, subnets); err != nil {
 			return "", err
 		}
 
 		if err = aws.CreateOrUpdateStackWithExisting(ctx, cli.CloudFormation, ddStackName, DdKarpenterFargateCfn, map[string]string{
-			"ClusterName":           clusterName,
-			"KarpenterNamespace":    karpenterNamespace,
+			"ClusterName":           opts.ClusterName,
+			"KarpenterNamespace":    opts.KarpenterNamespace,
 			"OIDCProviderArn":       oidcArn,
 			"OIDCProviderURL":       strings.TrimPrefix(issuerURL, "https://"),
 			"FargateSubnets":        strings.Join(subnets, ","),
@@ -219,7 +254,7 @@ func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, clust
 		return irsaRoleArn, nil
 
 	default:
-		return "", fmt.Errorf("unsupported install mode %q", mode)
+		return "", fmt.Errorf("unsupported install mode %q", opts.InstallMode)
 	}
 }
 
@@ -230,10 +265,7 @@ func checkInstallModeTag(stack *aws.Stack, expected InstallMode) error {
 	if stack == nil {
 		return nil // fresh install
 	}
-	existing := InstallModeExistingNodes
-	if tag, ok := stack.TagMap()[installModeTagKey]; ok && tag != "" {
-		existing = InstallMode(tag)
-	}
+	existing := DetectedInstallMode(stack)
 	if existing != expected {
 		return fmt.Errorf("stack %s was created with --install-mode=%s; run 'kubectl datadog autoscaling cluster uninstall' first to switch to --install-mode=%s", awssdk.ToString(stack.StackName), existing, expected)
 	}
@@ -289,21 +321,21 @@ func updateAwsAuthConfigMap(ctx context.Context, cli *clients.Clients, clusterNa
 	return nil
 }
 
-func (o *options) installHelmChart(ctx context.Context, clusterName, karpenterNamespace, karpenterVersion string, debug bool, mode InstallMode, irsaRoleArn string) error {
-	actionConfig, err := helm.NewActionConfig(o.ConfigFlags, karpenterNamespace)
+func installHelmChart(ctx context.Context, configFlags *genericclioptions.ConfigFlags, opts RunOptions, irsaRoleArn string) error {
+	actionConfig, err := helm.NewActionConfig(configFlags, opts.KarpenterNamespace)
 	if err != nil {
 		return err
 	}
 
 	if actionConfig.RegistryClient, err = registry.NewClient(
-		registry.ClientOptDebug(debug),
+		registry.ClientOptDebug(opts.Debug),
 		registry.ClientOptEnableCache(true),
 		registry.ClientOptWriter(log.Writer()),
 	); err != nil {
 		return fmt.Errorf("failed to create registry client: %w", err)
 	}
 
-	if err = helm.CreateOrUpgrade(ctx, actionConfig, "karpenter", karpenterNamespace, karpenterOCIRegistry, karpenterVersion, karpenterHelmValues(clusterName, mode, irsaRoleArn)); err != nil {
+	if err = helm.CreateOrUpgrade(ctx, actionConfig, "karpenter", opts.KarpenterNamespace, karpenterOCIRegistry, opts.KarpenterVersion, karpenterHelmValues(opts.ClusterName, opts.InstallMode, irsaRoleArn)); err != nil {
 		return fmt.Errorf("failed to create or update Helm release: %w", err)
 	}
 
@@ -362,15 +394,15 @@ func karpenterHelmValues(clusterName string, mode InstallMode, irsaRoleArn strin
 	return values
 }
 
-func createNodePoolResources(ctx context.Context, cmd *cobra.Command, cli *clients.Clients, clusterName string, createResources CreateKarpenterResources, inferenceMethod InferenceMethod, debug bool) error {
-	if createResources == CreateKarpenterResourcesNone {
+func createNodePoolResources(ctx context.Context, streams genericclioptions.IOStreams, cli *clients.Clients, opts RunOptions) error {
+	if opts.CreateKarpenterResources == CreateKarpenterResourcesNone {
 		return nil
 	}
 
 	var nodePoolsSet *guess.NodePoolsSet
 	var err error
 
-	switch inferenceMethod {
+	switch opts.InferenceMethod {
 	case InferenceMethodNodes:
 		nodePoolsSet, err = guess.GetNodesProperties(ctx, cli.K8sClientset, cli.EC2)
 		if err != nil {
@@ -378,25 +410,25 @@ func createNodePoolResources(ctx context.Context, cmd *cobra.Command, cli *clien
 		}
 
 	case InferenceMethodNodeGroups:
-		nodePoolsSet, err = guess.GetNodeGroupsProperties(ctx, cli.EKS, cli.EC2, clusterName)
+		nodePoolsSet, err = guess.GetNodeGroupsProperties(ctx, cli.EKS, cli.EC2, opts.ClusterName)
 		if err != nil {
 			return fmt.Errorf("failed to gather node groups properties: %w", err)
 		}
 	}
 
-	if debug {
-		cmd.Printf("Creating the following resources:\n %s\n", spew.Sdump(nodePoolsSet))
+	if opts.Debug {
+		fmt.Fprintf(streams.Out, "Creating the following resources:\n %s\n", spew.Sdump(nodePoolsSet))
 	}
 
-	if createResources == CreateKarpenterResourcesEC2NodeClass || createResources == CreateKarpenterResourcesAll {
+	if opts.CreateKarpenterResources == CreateKarpenterResourcesEC2NodeClass || opts.CreateKarpenterResources == CreateKarpenterResourcesAll {
 		for _, nc := range nodePoolsSet.GetEC2NodeClasses() {
-			if err = k8s.CreateOrUpdateEC2NodeClass(ctx, cli.K8sClient, clusterName, nc); err != nil {
+			if err = k8s.CreateOrUpdateEC2NodeClass(ctx, cli.K8sClient, opts.ClusterName, nc); err != nil {
 				return fmt.Errorf("failed to create or update EC2NodeClass %s: %w", nc.GetName(), err)
 			}
 		}
 	}
 
-	if createResources == CreateKarpenterResourcesAll {
+	if opts.CreateKarpenterResources == CreateKarpenterResourcesAll {
 		for _, np := range nodePoolsSet.GetNodePools() {
 			if err = k8s.CreateOrUpdateNodePool(ctx, cli.K8sClient, np); err != nil {
 				return fmt.Errorf("failed to create or update NodePool %s: %w", np.GetName(), err)
@@ -422,7 +454,7 @@ func recordClusterInfo(ctx context.Context, cli *clients.Clients, clusterName, n
 	return nil
 }
 
-func openAutoscalingSettingsURL(cmd *cobra.Command, clusterName string) string {
+func openAutoscalingSettingsURL(streams genericclioptions.IOStreams, clusterName string) string {
 	autoscalingSettingsURL := (&url.URL{
 		Scheme:   "https",
 		Host:     "app.datadoghq.com",
@@ -430,8 +462,8 @@ func openAutoscalingSettingsURL(cmd *cobra.Command, clusterName string) string {
 		RawQuery: url.Values{"query": []string{"kube_cluster_name:" + clusterName}}.Encode(),
 	}).String()
 
-	browser.Stdout = cmd.OutOrStdout()
-	browser.Stderr = cmd.ErrOrStderr()
+	browser.Stdout = streams.Out
+	browser.Stderr = streams.ErrOut
 	if err := browser.OpenURL(autoscalingSettingsURL); err != nil {
 		log.Printf("Failed to open URL in browser: %v", err)
 	}
@@ -439,10 +471,10 @@ func openAutoscalingSettingsURL(cmd *cobra.Command, clusterName string) string {
 	return color.New(color.Bold, color.Underline, color.FgBlue).Sprint(autoscalingSettingsURL)
 }
 
-func displayEKSAutoModeMessage(cmd *cobra.Command, clusterName string) error {
-	coloredURL := openAutoscalingSettingsURL(cmd, clusterName)
+func displayEKSAutoModeMessage(streams genericclioptions.IOStreams, clusterName string) error {
+	coloredURL := openAutoscalingSettingsURL(streams, clusterName)
 
-	display.PrintBox(cmd.OutOrStdout(),
+	display.PrintBox(streams.Out,
 		"EKS auto-mode is already active on cluster "+clusterName+".",
 		"",
 		"Karpenter is built into EKS auto-mode",
@@ -456,10 +488,10 @@ func displayEKSAutoModeMessage(cmd *cobra.Command, clusterName string) error {
 	return nil
 }
 
-func displayForeignKarpenterMessage(cmd *cobra.Command, clusterName string, foreign *guess.KarpenterInstallation) error {
-	coloredURL := openAutoscalingSettingsURL(cmd, clusterName)
+func displayForeignKarpenterMessage(streams genericclioptions.IOStreams, clusterName string, foreign *guess.KarpenterInstallation) error {
+	coloredURL := openAutoscalingSettingsURL(streams, clusterName)
 
-	display.PrintBox(cmd.OutOrStdout(),
+	display.PrintBox(streams.Out,
 		"Karpenter is already installed on cluster "+clusterName+":",
 		"Deployment "+foreign.Namespace+"/"+foreign.Name+".",
 		"",
@@ -473,12 +505,12 @@ func displayForeignKarpenterMessage(cmd *cobra.Command, clusterName string, fore
 	return nil
 }
 
-func displaySuccessMessage(cmd *cobra.Command, clusterName string, createResources CreateKarpenterResources) error {
-	coloredURL := openAutoscalingSettingsURL(cmd, clusterName)
+func displaySuccessMessage(streams genericclioptions.IOStreams, clusterName string, createResources CreateKarpenterResources) error {
+	coloredURL := openAutoscalingSettingsURL(streams, clusterName)
 
 	switch createResources {
 	case CreateKarpenterResourcesNone:
-		display.PrintBox(cmd.OutOrStdout(),
+		display.PrintBox(streams.Out,
 			"✅ Datadog cluster autoscaling is partially configured.",
 			"",
 			"No Karpenter resources were created.",
@@ -489,7 +521,7 @@ func displaySuccessMessage(cmd *cobra.Command, clusterName string, createResourc
 			coloredURL,
 		)
 	case CreateKarpenterResourcesEC2NodeClass, CreateKarpenterResourcesAll:
-		display.PrintBox(cmd.OutOrStdout(),
+		display.PrintBox(streams.Out,
 			"✅ Datadog cluster autoscaling is now ready to be enabled.",
 			"",
 			"Navigate to the Autoscaling settings page",

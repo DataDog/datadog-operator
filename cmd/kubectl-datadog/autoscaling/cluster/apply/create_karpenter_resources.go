@@ -1,4 +1,4 @@
-package install
+package apply
 
 import "fmt"
 
