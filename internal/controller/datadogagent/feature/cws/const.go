@@ -12,6 +12,7 @@ const (
 	securityAgentRuntimeCustomPoliciesVolumePath = "/etc/datadog-agent-runtime-policies"
 	securityAgentRuntimePoliciesDirVolumeName    = "runtimepoliciesdir"
 	securityAgentRuntimePoliciesDirVolumePath    = "/etc/datadog-agent/runtime-security.d"
+	securityAgentRuntimeProfilesDirVolumePath    = "/var/run/sysprobe/runtime-security/profiles"
 
 	// DefaultCWSConf default CWS ConfigMap name
 	defaultCWSConf string = "cws-config"

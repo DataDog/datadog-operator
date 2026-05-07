@@ -238,6 +238,18 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	}
 	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, runtimeSocketEnvVar)
 
+	activityDumpOutputDirEnvVar := &corev1.EnvVar{
+		Name:  DDRuntimeSecurityConfigActivityDumpOutputDir,
+		Value: securityAgentRuntimeProfilesDirVolumePath,
+	}
+	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, activityDumpOutputDirEnvVar)
+
+	securityProfileDirEnvVar := &corev1.EnvVar{
+		Name:  DDRuntimeSecurityConfigSecurityProfileDir,
+		Value: securityAgentRuntimeProfilesDirVolumePath,
+	}
+	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, securityProfileDirEnvVar)
+
 	if f.syscallMonitorEnabled {
 		monitorEnvVar := &corev1.EnvVar{
 			Name:  DDRuntimeSecurityConfigSyscallMonitorEnabled,

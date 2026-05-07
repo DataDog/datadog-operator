@@ -166,6 +166,14 @@ func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool, enf
 					Value: "/var/run/sysprobe/runtime-security.sock",
 				},
 				{
+					Name:  DDRuntimeSecurityConfigActivityDumpOutputDir,
+					Value: securityAgentRuntimeProfilesDirVolumePath,
+				},
+				{
+					Name:  DDRuntimeSecurityConfigSecurityProfileDir,
+					Value: securityAgentRuntimeProfilesDirVolumePath,
+				},
+				{
 					Name:  DDRuntimeSecurityConfigSyscallMonitorEnabled,
 					Value: "true",
 				},
