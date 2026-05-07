@@ -74,7 +74,7 @@ func FindInstallation(ctx context.Context, clientset kubernetes.Interface) (*Ins
 	return &Installation{
 		Namespace:        dep.Namespace,
 		Name:             dep.Name,
-		Version:          commonk8s.ExtractDeploymentVersion(*dep, isControllerContainer),
+		Version:          commonk8s.ExtractDeploymentVersion(dep, isControllerContainer),
 		InstalledBy:      dep.Labels[InstalledByLabel],
 		InstallerVersion: dep.Labels[InstallerVersionLabel],
 	}, nil
@@ -85,7 +85,7 @@ func FindInstallation(ctx context.Context, clientset kubernetes.Interface) (*Ins
 // container; the secondary is the canonical `karpenter/controller` image
 // repository tail. See karpenterServiceEnvName and
 // karpenterControllerImageRepoSuffix for the rationale.
-func matchesController(d appsv1.Deployment) bool {
+func matchesController(d *appsv1.Deployment) bool {
 	return slices.ContainsFunc(d.Spec.Template.Spec.Containers, isControllerContainer)
 }
 

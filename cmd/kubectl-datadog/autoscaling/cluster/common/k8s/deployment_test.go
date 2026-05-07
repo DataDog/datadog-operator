@@ -21,7 +21,7 @@ func deployment(namespace, name string) *appsv1.Deployment {
 func TestFindFirstDeployment_NoMatch(t *testing.T) {
 	cli := fake.NewSimpleClientset(deployment("ns", "a"), deployment("ns", "b"))
 
-	got, err := FindFirstDeployment(context.Background(), cli, func(appsv1.Deployment) bool { return false })
+	got, err := FindFirstDeployment(context.Background(), cli, func(*appsv1.Deployment) bool { return false })
 
 	require.NoError(t, err)
 	assert.Nil(t, got)
@@ -30,7 +30,7 @@ func TestFindFirstDeployment_NoMatch(t *testing.T) {
 func TestFindFirstDeployment_ReturnsFirstMatch(t *testing.T) {
 	cli := fake.NewSimpleClientset(deployment("ns", "a"), deployment("ns", "b"), deployment("ns", "c"))
 
-	got, err := FindFirstDeployment(context.Background(), cli, func(d appsv1.Deployment) bool {
+	got, err := FindFirstDeployment(context.Background(), cli, func(d *appsv1.Deployment) bool {
 		return d.Name == "b" || d.Name == "c"
 	})
 
@@ -43,7 +43,7 @@ func TestFindFirstDeployment_ShortCircuits(t *testing.T) {
 	cli := fake.NewSimpleClientset(deployment("ns", "a"), deployment("ns", "b"), deployment("ns", "c"))
 
 	calls := 0
-	got, err := FindFirstDeployment(context.Background(), cli, func(d appsv1.Deployment) bool {
+	got, err := FindFirstDeployment(context.Background(), cli, func(d *appsv1.Deployment) bool {
 		calls++
 		return true
 	})
@@ -60,7 +60,7 @@ func TestFindFirstDeployment_PropagatesListError(t *testing.T) {
 		return true, nil, listErr
 	})
 
-	got, err := FindFirstDeployment(context.Background(), cli, func(appsv1.Deployment) bool { return true })
+	got, err := FindFirstDeployment(context.Background(), cli, func(*appsv1.Deployment) bool { return true })
 
 	require.Error(t, err)
 	assert.ErrorIs(t, err, listErr)

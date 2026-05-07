@@ -329,7 +329,7 @@ func detectClusterAutoscaler(ctx context.Context, k8sClient kubernetes.Interface
 		Present:   true,
 		Namespace: dep.Namespace,
 		Name:      dep.Name,
-		Version:   commonk8s.ExtractDeploymentVersion(*dep, isClusterAutoscalerContainer),
+		Version:   commonk8s.ExtractDeploymentVersion(dep, isClusterAutoscalerContainer),
 	}, nil
 }
 
@@ -368,7 +368,7 @@ func detectEKSAutoMode(disco discovery.DiscoveryInterface) EKSAutoMode {
 // cluster-autoscaler. A Deployment scaled to zero replicas is treated as
 // disabled (the Karpenter migration guide recommends scaling CA to zero
 // before adopting Karpenter).
-func isActiveClusterAutoscaler(d appsv1.Deployment) bool {
+func isActiveClusterAutoscaler(d *appsv1.Deployment) bool {
 	if d.Spec.Replicas != nil && *d.Spec.Replicas == 0 {
 		return false
 	}

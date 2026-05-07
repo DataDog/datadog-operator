@@ -27,7 +27,7 @@ import (
 func FindFirstDeployment(
 	ctx context.Context,
 	client kubernetes.Interface,
-	predicate func(appsv1.Deployment) bool,
+	predicate func(*appsv1.Deployment) bool,
 ) (*appsv1.Deployment, error) {
 	errFound := errors.New("first match")
 
@@ -37,7 +37,7 @@ func FindFirstDeployment(
 	})
 	err := p.EachListItem(ctx, metav1.ListOptions{}, func(obj runtime.Object) error {
 		dep := obj.(*appsv1.Deployment)
-		if predicate(*dep) {
+		if predicate(dep) {
 			found = dep
 			return errFound
 		}
@@ -55,7 +55,7 @@ func FindFirstDeployment(
 // label on the Deployment or its pod template (set by most Helm charts).
 // Empty when neither is available — e.g. an image referenced by digest only
 // and no version label.
-func ExtractDeploymentVersion(d appsv1.Deployment, containerMatch func(corev1.Container) bool) string {
+func ExtractDeploymentVersion(d *appsv1.Deployment, containerMatch func(corev1.Container) bool) string {
 	for _, c := range d.Spec.Template.Spec.Containers {
 		if !containerMatch(c) {
 			continue
