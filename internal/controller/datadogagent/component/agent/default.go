@@ -259,6 +259,7 @@ func DefaultSyscallsForSystemProbe() []string {
 		"setsockopt",
 		"setuid",
 		"setuid32",
+		"shutdown",
 		"sigaltstack",
 		"socket",
 		"socketcall",
@@ -282,6 +283,7 @@ func DefaultSyscallsForSystemProbe() []string {
 		"waitid",
 		"waitpid",
 		"write",
+		"writev",
 	}
 }
 
