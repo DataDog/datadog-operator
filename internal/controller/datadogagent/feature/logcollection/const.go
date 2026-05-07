@@ -12,8 +12,8 @@ const (
 	pointerVolumePath          = common.RunPathVolumeMount
 	podLogVolumeName           = "logpodpath"
 	podLogVolumePath           = "/var/log/pods"
-	containerLogVolumeName     = "logcontainerpath"
+	containerLogVolumeName     = "logdockercontainerpath"
 	containerLogVolumePath     = "/var/lib/docker/containers"
-	symlinkContainerVolumeName = "symlinkcontainerpath"
+	symlinkContainerVolumeName = "logscontainerspath"
 	symlinkContainerVolumePath = "/var/log/containers"
 )
