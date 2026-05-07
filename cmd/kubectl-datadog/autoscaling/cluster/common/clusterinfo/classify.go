@@ -10,6 +10,7 @@ import (
 	"time"
 
 	awssdk "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 	astypes "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
@@ -54,10 +55,12 @@ type AutoscalingDescriber interface {
 	DescribeAutoScalingInstances(ctx context.Context, in *autoscaling.DescribeAutoScalingInstancesInput, opts ...func(*autoscaling.Options)) (*autoscaling.DescribeAutoScalingInstancesOutput, error)
 }
 
-// EKSDescriber is the subset of *eks.Client used by Classify (Fargate
-// ownership detection). Defined as an interface so tests can substitute a
-// fake without spinning up AWS SDK middleware.
+// EKSDescriber is the subset of *eks.Client used by Classify (cluster
+// identity lookup and Fargate ownership detection). Defined as an
+// interface so tests can substitute a fake without spinning up AWS SDK
+// middleware.
 type EKSDescriber interface {
+	DescribeCluster(ctx context.Context, in *eks.DescribeClusterInput, opts ...func(*eks.Options)) (*eks.DescribeClusterOutput, error)
 	DescribeFargateProfile(ctx context.Context, in *eks.DescribeFargateProfileInput, opts ...func(*eks.Options)) (*eks.DescribeFargateProfileOutput, error)
 }
 
@@ -83,6 +86,7 @@ func Classify(ctx context.Context, in ClassifyInput) (*ClusterInfo, error) {
 		GeneratedAt:    time.Now().UTC(),
 		NodeManagement: map[NodeManager]map[string]NodeManagerEntry{},
 	}
+	info.ClusterARN, info.Region = describeClusterIdentity(ctx, in.EKS, in.ClusterName)
 
 	asgCandidates, err := classifyByLabels(ctx, in.K8sClient, info)
 	if err != nil {
@@ -330,6 +334,29 @@ func detectKarpenter(ctx context.Context, k8sClient kubernetes.Interface) (Karpe
 		ManagedByDatadog: inst.IsOwn(),
 		InstallerVersion: inst.InstallerVersion,
 	}, nil
+}
+
+// describeClusterIdentity returns the cluster's full ARN and the AWS region
+// extracted from it. Best-effort: any failure (DescribeCluster error,
+// missing ARN, malformed ARN) yields ("", "") and a logged warning — the
+// snapshot is still useful without these identifiers.
+func describeClusterIdentity(ctx context.Context, eksClient EKSDescriber, clusterName string) (clusterARN, region string) {
+	out, err := eksClient.DescribeCluster(ctx, &eks.DescribeClusterInput{Name: awssdk.String(clusterName)})
+	if err != nil {
+		log.Printf("Warning: failed to describe cluster %q: %v", clusterName, err)
+		return "", ""
+	}
+	if out.Cluster == nil || out.Cluster.Arn == nil {
+		log.Printf("Warning: cluster %q has no ARN in DescribeCluster response", clusterName)
+		return "", ""
+	}
+	clusterARN = *out.Cluster.Arn
+	parsed, err := arn.Parse(clusterARN)
+	if err != nil {
+		log.Printf("Warning: failed to parse cluster ARN %q: %v", clusterARN, err)
+		return clusterARN, ""
+	}
+	return clusterARN, parsed.Region
 }
 
 // detectEKSAutoMode reports whether EKS auto-mode is active. Failures are

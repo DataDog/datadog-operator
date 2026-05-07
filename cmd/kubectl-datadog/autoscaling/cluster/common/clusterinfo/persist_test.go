@@ -17,6 +17,8 @@ func sampleInfo() *ClusterInfo {
 	return &ClusterInfo{
 		APIVersion:  APIVersion,
 		ClusterName: "test-cluster",
+		ClusterARN:  "arn:aws:eks:eu-west-3:013364996899:cluster/test-cluster",
+		Region:      "eu-west-3",
 		GeneratedAt: time.Date(2026, 4, 27, 14, 33, 0, 0, time.UTC),
 		NodeManagement: map[NodeManager]map[string]NodeManagerEntry{
 			NodeManagerFargate: {
@@ -86,6 +88,8 @@ func TestPersist_YAMLShape(t *testing.T) {
 		"managedByDatadog: true",
 		"installerVersion: v0.7.0",
 		"enabled: false",
+		"clusterArn: arn:aws:eks:eu-west-3:013364996899:cluster/test-cluster",
+		"region: eu-west-3",
 	} {
 		assert.Contains(t, rendered, want, "wire format must keep the documented keys")
 	}

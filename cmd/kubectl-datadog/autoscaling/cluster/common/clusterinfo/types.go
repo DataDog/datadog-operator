@@ -32,6 +32,8 @@ const (
 type ClusterInfo struct {
 	APIVersion     string                                      `yaml:"apiVersion"`
 	ClusterName    string                                      `yaml:"clusterName"`
+	ClusterARN     string                                      `yaml:"clusterArn,omitempty"`
+	Region         string                                      `yaml:"region,omitempty"`
 	GeneratedAt    time.Time                                   `yaml:"generatedAt"`
 	NodeManagement map[NodeManager]map[string]NodeManagerEntry `yaml:"nodeManagement"`
 	Autoscaling    Autoscaling                                 `yaml:"autoscaling"`

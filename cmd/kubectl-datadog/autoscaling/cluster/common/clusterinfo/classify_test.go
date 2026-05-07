@@ -54,12 +54,24 @@ func (f *fakeASG) DescribeAutoScalingInstances(_ context.Context, in *autoscalin
 	return out, nil
 }
 
-// fakeEKS implements EKSDescriber, returning a static profileName->tags map.
-// Names absent from the map yield ResourceNotFoundException so tests can
-// also exercise the failure path.
+// fakeEKS implements EKSDescriber, returning a static profileName->tags map
+// and a configurable cluster ARN. Names absent from the profiles map yield
+// ResourceNotFoundException so tests can also exercise the failure path.
 type fakeEKS struct {
-	profiles map[string]map[string]string
-	err      error
+	profiles   map[string]map[string]string
+	clusterARN string
+	err        error
+}
+
+func (f *fakeEKS) DescribeCluster(_ context.Context, in *eks.DescribeClusterInput, _ ...func(*eks.Options)) (*eks.DescribeClusterOutput, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	cluster := &ekstypes.Cluster{Name: in.Name}
+	if f.clusterARN != "" {
+		cluster.Arn = awssdk.String(f.clusterARN)
+	}
+	return &eks.DescribeClusterOutput{Cluster: cluster}, nil
 }
 
 func (f *fakeEKS) DescribeFargateProfile(_ context.Context, in *eks.DescribeFargateProfileInput, _ ...func(*eks.Options)) (*eks.DescribeFargateProfileOutput, error) {
@@ -154,6 +166,31 @@ func TestClassify_EmptyCluster(t *testing.T) {
 	assert.False(t, info.Autoscaling.Karpenter.Present)
 	assert.False(t, info.Autoscaling.EKSAutoMode.Enabled)
 	assert.Empty(t, asg.calls, "no candidates should mean no AWS API calls")
+}
+
+func TestClassify_ClusterIdentity(t *testing.T) {
+	clientset := fake.NewSimpleClientset()
+	in := classifyOpts(clientset, &fakeASG{})
+	in.EKS = &fakeEKS{clusterARN: "arn:aws:eks:eu-west-3:013364996899:cluster/test-cluster"}
+
+	info, err := Classify(t.Context(), in)
+
+	require.NoError(t, err)
+	assert.Equal(t, "arn:aws:eks:eu-west-3:013364996899:cluster/test-cluster", info.ClusterARN)
+	assert.Equal(t, "eu-west-3", info.Region, "region must be parsed out of the ARN")
+}
+
+func TestClassify_ClusterIdentity_DescribeError(t *testing.T) {
+	// DescribeCluster failure must not fail the whole snapshot — the rest
+	// of the information remains useful.
+	clientset := fake.NewSimpleClientset()
+	in := classifyOpts(clientset, &fakeASG{})
+	in.EKS = &fakeEKS{err: errors.New("AccessDenied")}
+
+	info, err := Classify(t.Context(), in)
+	require.NoError(t, err, "best-effort: API errors must not fail Classify")
+	assert.Empty(t, info.ClusterARN)
+	assert.Empty(t, info.Region)
 }
 
 func TestClassify_AllBucketsByLabel(t *testing.T) {
