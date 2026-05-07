@@ -233,6 +233,8 @@ func TestHostProfilerContainer(t *testing.T) {
 	assert.NotNil(t, c.SecurityContext.SeccompProfile)
 	assert.Equal(t, corev1.SeccompProfileTypeLocalhost, c.SecurityContext.SeccompProfile.Type)
 	assert.Equal(t, common.HostProfilerSeccompProfileName, *c.SecurityContext.SeccompProfile.LocalhostProfile)
+	assert.NotNil(t, c.SecurityContext.Capabilities)
+	assert.Contains(t, c.SecurityContext.Capabilities.Drop, corev1.Capability("ALL"), "host-profiler should drop all capabilities by default")
 }
 
 func TestInitHostProfilerSeccompSetupContainer(t *testing.T) {

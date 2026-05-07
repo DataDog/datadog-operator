@@ -702,6 +702,9 @@ func hostProfilerContainer(dda metav1.Object) corev1.Container {
 				Type:             corev1.SeccompProfileTypeLocalhost,
 				LocalhostProfile: ptr.To(common.HostProfilerSeccompProfileName),
 			},
+			Capabilities: &corev1.Capabilities{
+				Drop: []corev1.Capability{"ALL"},
+			},
 		},
 	}
 }
