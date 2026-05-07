@@ -810,6 +810,7 @@ func volumesForAgent(dda metav1.Object, requiredContainers []apicommon.AgentCont
 	for _, containerName := range requiredContainers {
 		if containerName == apicommon.SystemProbeContainerName {
 			sysProbeVolumes := []corev1.Volume{
+				common.GetVolumeForSystemProbeSocket(),
 				common.GetVolumeForSecurity(dda),
 				common.GetVolumeForSeccomp(),
 			}
@@ -876,9 +877,8 @@ func volumeMountsForSystemProbe() []corev1.VolumeMount {
 		common.GetVolumeMountForLogs(),
 		common.GetVolumeMountForAuth(true),
 		common.GetVolumeMountForConfig(),
-		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForProc(),
-		common.GetVolumeMountForRunPath(),
+		common.GetVolumeMountForSystemProbeSocket(false),
 		common.GetVolumeMountForTmp(),
 	}
 }
