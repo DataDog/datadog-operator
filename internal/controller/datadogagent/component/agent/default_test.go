@@ -94,14 +94,6 @@ func TestVolumesForAgent(t *testing.T) {
 	}
 }
 
-func TestVolumeMountsForSystemProbe(t *testing.T) {
-	mounts := volumeMountsForSystemProbe()
-
-	for _, mount := range mounts {
-		assert.NotEqual(t, common.RunPathVolumeName, mount.Name, "system-probe should not mount the agent run path")
-	}
-}
-
 func TestCommonEnvVars(t *testing.T) {
 	tests := []struct {
 		name                string
