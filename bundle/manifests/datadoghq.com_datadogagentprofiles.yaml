@@ -1266,6 +1266,19 @@ spec:
                                   (Requires Cluster Agent 7.74.0+)
                                   Default: false
                                 type: boolean
+                              spot:
+                                description: |-
+                                  Spot contains the configuration for the spot instance scheduling sub-feature.
+                                  Requires cluster autoscaling to be enabled.
+                                  (Requires Cluster Agent 7.79.0+)
+                                properties:
+                                  enabled:
+                                    description: |-
+                                      Enabled enables the cluster spot scheduling product.
+                                      (Requires Cluster Agent 7.79.0+)
+                                      Default: false
+                                    type: boolean
+                                type: object
                             type: object
                           workload:
                             description: Workload contains the configuration for the
@@ -1501,8 +1514,8 @@ spec:
                               enabled:
                                 description: |-
                                   Enabled configures the Data Plane to handle DogStatsD traffic.
-                                  When enabled, DogStatsD is disabled in the Core Agent.
-                                  Default: false
+                                  When set to false, DogStatsD is handled by the Core Agent instead.
+                                  Default: true
                                 type: boolean
                             type: object
                           enabled:
@@ -2667,6 +2680,22 @@ spec:
                               Enable this option to activate SBOM collection.
                               Default: false
                             type: boolean
+                          enrichment:
+                            description: SBOMEnrichmentConfig contains SBOM enrichment
+                              configuration.
+                            properties:
+                              usage:
+                                description: Usage contains configuration for the
+                                  "package in use" enrichment.
+                                properties:
+                                  enabled:
+                                    description: |-
+                                      Enable this option to activate SBOM enrichment with runtime "package in use" detection.
+                                      Requires system-probe for eBPF-based file access tracking.
+                                      Default: false
+                                    type: boolean
+                                type: object
+                            type: object
                           host:
                             description: SBOMTypeConfig contains configuration for
                               a SBOM collection type.
@@ -2690,7 +2719,8 @@ spec:
                           enabled:
                             description: |-
                               Enables the service discovery check.
-                              Default: false
+                              Default: true when omitted and the node Agent image is >= 7.78.0. Otherwise false.
+                              If the image version cannot be determined, it is treated as latest.
                             type: boolean
                           networkStats:
                             description: 'DEPRECATED: NetworkStats is no longer configurable
