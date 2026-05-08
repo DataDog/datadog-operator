@@ -17,11 +17,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 )
 
-// ProviderAnnotationKey is the annotation on a DDA/DDAI that declares the
-// provider string. Reconcilers read this annotation to feed the provider
-// through to features and to the provider-aware framework.
-const ProviderAnnotationKey = "datadoghq.com/provider"
-
 // PodTemplateManager is the minimal interface ApplyNodeAgentProviderCapabilities
 // needs from a pod-template manager. feature.PodTemplateManagers satisfies it
 // structurally, so callers pass their existing manager unchanged.
@@ -42,9 +37,12 @@ type VolumeAndMount struct {
 
 // EnvVarSet groups an env var with its target containers.
 // Empty Containers means the env var is added to all agent containers.
+// InitContainers lists init containers that should also receive the env var
+// (init containers are not iterated by the all-containers AddEnvVar path).
 type EnvVarSet struct {
-	EnvVar     corev1.EnvVar
-	Containers []apicommon.AgentContainerName
+	EnvVar         corev1.EnvVar
+	Containers     []apicommon.AgentContainerName
+	InitContainers []apicommon.AgentContainerName
 }
 
 // ContainerMountRef identifies a volume mount by volume name and the containers
@@ -95,6 +93,9 @@ func ApplyNodeAgentProviderCapabilities(mgr PodTemplateManager, provider string,
 				mgr.EnvVar().AddEnvVar(&ev.EnvVar)
 			} else {
 				mgr.EnvVar().AddEnvVarToContainers(ev.Containers, &ev.EnvVar)
+			}
+			for _, ic := range ev.InitContainers {
+				mgr.EnvVar().AddEnvVarToInitContainer(ic, &ev.EnvVar)
 			}
 		}
 	}
