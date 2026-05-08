@@ -3652,7 +3652,7 @@
                       "type": "boolean"
                     },
                     "dnsSelectorEndpoints": {
-                      "description": "DNSSelectorEndpoints defines the cilium selector of the DNS server entity.",
+                      "description": "DNSSelectorEndpoints defines the cilium selector of the DNS server entity.",
                       "items": {
                         "additionalProperties": false,
                         "description": "A label selector is a label query over a set of resources. The result of matchLabels and\nmatchExpressions are ANDed. An empty label selector matches all objects. A null\nlabel selector matches no objects.",

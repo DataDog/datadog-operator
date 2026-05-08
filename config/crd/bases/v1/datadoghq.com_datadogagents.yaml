@@ -3503,7 +3503,7 @@ spec:
                           description: Create defines whether to create a NetworkPolicy for the current deployment.
                           type: boolean
                         dnsSelectorEndpoints:
-                          description: DNSSelectorEndpoints defines the cilium selector of the DNS server entity.
+                          description: DNSSelectorEndpoints defines the cilium selector of the DNS server entity.
                           items:
                             description: |-
                               A label selector is a label query over a set of resources. The result of matchLabels and

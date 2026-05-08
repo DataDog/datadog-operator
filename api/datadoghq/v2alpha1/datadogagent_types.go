@@ -2020,7 +2020,7 @@ type NetworkPolicyConfig struct {
 	// +optional
 	Flavor NetworkPolicyFlavor `json:"flavor,omitempty"`
 
-	// DNSSelectorEndpoints defines the cilium selector of the DNS server entity.
+	// DNSSelectorEndpoints defines the cilium selector of the DNS server entity.
 	// +optional
 	// +listType=atomic
 	DNSSelectorEndpoints []metav1.LabelSelector `json:"dnsSelectorEndpoints,omitempty"`

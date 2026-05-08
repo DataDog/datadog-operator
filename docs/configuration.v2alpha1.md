@@ -279,7 +279,7 @@ spec:
 | global.namespaceAnnotationsAsTags | Provide a mapping of Kubernetes Namespace Annotations to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY> |
 | global.namespaceLabelsAsTags | Provide a mapping of Kubernetes Namespace Labels to Datadog Tags. <KUBERNETES_NAMESPACE_LABEL>: <DATADOG_TAG_KEY> |
 | global.networkPolicy.create | Defines whether to create a NetworkPolicy for the current deployment. |
-| global.networkPolicy.dnsSelectorEndpoints | DNSSelectorEndpoints defines the cilium selector of the DNS server entity. |
+| global.networkPolicy.dnsSelectorEndpoints | DNSSelectorEndpoints defines the cilium selector of the DNS server entity. |
 | global.networkPolicy.flavor | Defines Which network policy to use. |
 | global.nodeLabelsAsTags | Provide a mapping of Kubernetes Node Labels to Datadog Tags. <KUBERNETES_NODE_LABEL>: <DATADOG_TAG_KEY> |
 | global.originDetectionUnified.enabled | Enables unified mechanism for origin detection. Default: false |

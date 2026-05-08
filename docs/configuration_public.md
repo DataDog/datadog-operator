@@ -526,7 +526,7 @@ spec:
 : Defines whether to create a NetworkPolicy for the current deployment.
 
 `global.networkPolicy.dnsSelectorEndpoints`
-: DNSSelectorEndpoints defines the cilium selector of the DNS server entity.
+: DNSSelectorEndpoints defines the cilium selector of the DNS server entity.
 
 `global.networkPolicy.flavor`
 : Defines Which network policy to use.
