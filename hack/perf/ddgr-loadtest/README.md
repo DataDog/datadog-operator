@@ -15,26 +15,25 @@ See spec: `docs/superpowers/specs/2026-05-05-ddgr-perf-test-design.md` (CONTP-15
        kind create cluster
        make install   # apply CRDs
 
-2. Ensure the operator namespace exists, then create the sandbox creds secret
-   (replace with real keys):
+2. Build operator image with the profiling/DD_ENV change, load into kind, deploy.
+   `make deploy` puts the operator in the `system` namespace.
 
-       kubectl create namespace datadog-operator || true
+       make IMG=controller:latest docker-build
+       kind load docker-image controller:latest --name <kind-cluster-name>
+       make IMG=controller:latest deploy
+
+3. Create the sandbox creds secret in the operator's namespace (`system`),
+   replacing with real keys:
+
        kubectl create secret generic sandbox-datadog-creds \
          --from-literal=api-key=$DD_API_KEY \
          --from-literal=app-key=$DD_APP_KEY \
-         -n datadog-operator
-
-3. Build operator image with the profiling/DD_ENV change, load into kind, deploy.
-   Example flow (adapt to your local setup):
-
-       make IMG=controller:latest docker-build
-       kind load docker-image controller:latest
-       make IMG=controller:latest deploy
+         -n system
 
    Then patch the operator Deployment to mount the secret as env vars
-   (DD_API_KEY/DD_APP_KEY from sandbox-datadog-creds).
+   (`DD_API_KEY`/`DD_APP_KEY` from `sandbox-datadog-creds`).
 
-4. Apply the test namespace and the DatadogAgent CR:
+4. Apply the test namespace (for the DDGRs) and the DatadogAgent CR (in `system`):
 
        kubectl apply -f hack/perf/ddgr-loadtest/manifests/namespace.yaml
        kubectl apply -f hack/perf/ddgr-loadtest/manifests/datadogagent.yaml

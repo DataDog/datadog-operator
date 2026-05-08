@@ -3,11 +3,11 @@ apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
   name: datadog
-  namespace: datadog-operator
+  namespace: system
 spec:
   global:
     clusterName: ddgr-perf-test
-    site: datadoghq.com  # adjust if sandbox is on a different site (e.g. datadoghq.eu)
+    site: datadoghq.com # adjust if sandbox is on a different site (e.g. datadoghq.eu)
     credentials:
       apiSecret:
         secretName: sandbox-datadog-creds
@@ -17,12 +17,7 @@ spec:
         keyName: app-key
     tags:
       - "env:ddgr-perf-test"
-      - "loadtest:ddgr-perf"
   features:
-    apm:
-      enabled: false
     logCollection:
       enabled: true
       containerCollectAll: true
-    liveProcessCollection:
-      enabled: false
