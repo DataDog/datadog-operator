@@ -26,6 +26,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -33,7 +34,7 @@ import (
 )
 
 func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents feature.RequiredComponents, features []feature.Feature,
-	ddai *datadoghqv1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus) (reconcile.Result, error) {
+	ddai *datadoghqv1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, provider string) (reconcile.Result, error) {
 	var result reconcile.Result
 	var eds *edsv1alpha1.ExtendedDaemonSet
 	var daemonset *appsv1.DaemonSet
@@ -63,10 +64,15 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 		// Set Global setting on the default extendeddaemonset
 		global.ApplyGlobalSettingsNodeAgent(objLogger, podManagers, ddai.GetObjectMeta(), &ddai.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
 
-		// Apply features changes on the Deployment.Spec.Template
+		// Apply features changes on the Deployment.Spec.Template.
+		// Provider capabilities are applied immediately after each feature's ManageNodeAgent
+		// so that each feature owns its provider correctness independently.
 		for _, feat := range features {
 			if errFeat := feat.ManageNodeAgent(podManagers); errFeat != nil {
 				return result, errFeat
+			}
+			if paf, ok := feat.(feature.ProviderAwareFeature); ok {
+				providercaps.ApplyNodeAgentProviderCapabilities(podManagers, provider, paf.NodeAgentProviderCapabilities())
 			}
 		}
 
@@ -115,7 +121,9 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	// Set Global setting on the default daemonset
 	global.ApplyGlobalSettingsNodeAgent(objLogger, podManagers, ddai.GetObjectMeta(), &ddai.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
 
-	// Apply features changes on the Deployment.Spec.Template
+	// Apply features changes on the Deployment.Spec.Template.
+	// Provider capabilities are applied immediately after each feature's ManageNodeAgent
+	// so that each feature owns its provider correctness independently.
 	for _, feat := range features {
 		if singleContainerStrategyEnabled {
 			if errFeat := feat.ManageSingleContainerNodeAgent(podManagers); errFeat != nil {
@@ -124,6 +132,9 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 		} else {
 			if errFeat := feat.ManageNodeAgent(podManagers); errFeat != nil {
 				return result, errFeat
+			}
+			if paf, ok := feat.(feature.ProviderAwareFeature); ok {
+				providercaps.ApplyNodeAgentProviderCapabilities(podManagers, provider, paf.NodeAgentProviderCapabilities())
 			}
 		}
 	}
