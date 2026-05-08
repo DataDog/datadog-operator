@@ -13,6 +13,7 @@ import (
 
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
+	"google.golang.org/protobuf/proto"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,14 +54,8 @@ type Daemon struct {
 	mu               sync.RWMutex
 	configs          map[string]installerConfig // keyed by config ID; replaced on each RC update
 	taskMu           sync.Mutex                 // serializes task dispatch and package task-state updates
-	// pendingOps feeds the live in-memory worker. This is intentionally not
-	// durable: daemon-owned DDA pending annotations are the crash-recovery
-	// source of truth, while this channel just carries newly accepted ops to the
-	// current process.
-	pendingOps chan pendingOperation
-	// statusUpdates carries DDA informer events into the live worker. The worker
-	// evaluates reconciler-owned status.experiment and may rebuild pending ops
-	// from daemon-owned DDA annotations after restart.
+	// statusUpdates carries DDA informer events to the worker. The worker reads
+	// status.experiment and pending annotations to update RC task state.
 	statusUpdates chan ddaStatusSnapshot
 }
 
@@ -71,10 +66,9 @@ func NewDaemon(rcClient remoteconfig.RCClient, mgr manager.Manager, revisionsEna
 	return &Daemon{
 		rcClient:         rcClient,
 		client:           mgr.GetClient(),
-		cache:            mgr.GetCache(),
+		cache:            mgr.GetCache(), // Informer cache
 		revisionsEnabled: revisionsEnabled,
 		configs:          make(map[string]installerConfig),
-		pendingOps:       make(chan pendingOperation, 32),
 		statusUpdates:    make(chan ddaStatusSnapshot, 128),
 	}
 }
@@ -86,20 +80,19 @@ func (d *Daemon) Start(ctx context.Context) error {
 	ctx = ctrl.LoggerInto(ctx, logger)
 	logger.Info("Starting Fleet daemon")
 
-	// Set up the DDA informer used by the background completion worker.
-	// When cache is nil (unit tests), informer-driven completion is skipped.
-	if d.cache != nil {
-		if err := d.installDDAStatusForwarder(ctx); err != nil {
-			return err
-		}
-		logger.Info("Pending operation worker initialized with DDA informer")
+	if d.cache == nil {
+		return fmt.Errorf("fleet daemon requires a controller cache")
 	}
+	if err := d.installDDAStatusForwarder(ctx); err != nil {
+		return err
+	}
+	logger.Info("DDA status worker initialized")
 
 	d.rcClient.Subscribe(state.ProductInstallerConfig, handleInstallerConfigUpdate(ctx, func(configs map[string]installerConfig) error {
 		return d.handleConfigs(ctx, configs)
 	}))
-	d.rcClient.Subscribe(state.ProductUpdaterTask, handleUpdaterTaskUpdate(ctx, func(req remoteAPIRequest, complete func(error)) error {
-		return d.handleTask(ctx, req, complete)
+	d.rcClient.Subscribe(state.ProductUpdaterTask, handleUpdaterTaskUpdate(ctx, func(req remoteAPIRequest) error {
+		return d.handleTask(ctx, req)
 	}))
 
 	<-ctx.Done()
@@ -114,10 +107,11 @@ func (d *Daemon) NeedLeaderElection() bool {
 }
 
 // handleTask serializes task dispatch bookkeeping and package task-state updates.
-func (d *Daemon) handleTask(ctx context.Context, req remoteAPIRequest, complete func(error)) error {
+func (d *Daemon) handleTask(ctx context.Context, req remoteAPIRequest) error {
 	d.taskMu.Lock()
-	op, err := d.handleRemoteAPIRequest(ctx, req)
+	pending, err := d.handleRemoteAPIRequest(ctx, req)
 	if err != nil {
+		// Expected and current stable/experiment configs don't match.
 		var stateErr *stateDoesntMatchError
 		if errors.As(err, &stateErr) {
 			d.setTaskState(req.Package, req.ID, pbgo.TaskState_INVALID_STATE, err)
@@ -127,24 +121,18 @@ func (d *Daemon) handleTask(ctx context.Context, req remoteAPIRequest, complete 
 		d.taskMu.Unlock()
 		return err
 	}
-	if op == nil {
-		// Synchronous no-op/idempotent path: nothing needs background tracking.
+	// The request is not relevant (stop a terminated experiment) or the desired
+	// state is already true.
+	if pending == nil {
+		// Nothing is left for the worker to wait on.
 		d.setTaskState(req.Package, req.ID, pbgo.TaskState_DONE, nil)
 		d.taskMu.Unlock()
-		if complete != nil {
-			complete(nil)
-		}
 		return nil
 	}
-	// Async path: mark the task RUNNING only after the DDA patch/no-op decision
-	// has succeeded, so a crash cannot leave RC in RUNNING before the durable
-	// DDA pending record exists.
-	d.setTaskState(req.Package, req.ID, pbgo.TaskState_RUNNING, nil)
+	// The DDA annotations are already written. From the task handler's point
+	// of view dispatch is done; the worker watches DDA status and updates
+	// Task.State.
 	d.taskMu.Unlock()
-	// Async path: the operation was durably recorded on the DDA, so the live
-	// worker only needs the transient callback before it starts tracking it.
-	op.complete = complete
-	d.pendingOps <- *op
 	return nil
 }
 
@@ -276,11 +264,7 @@ func (d *Daemon) getPackageConfigVersions(pkgName string) (stable, experiment st
 	return "", ""
 }
 
-// setPackageConfigVersions updates the config version fields of the
-// package entry in the RC installer state. Only the config variants
-// (StableConfigVersion/ExperimentConfigVersion) are set; the package variants
-// (StableVersion/ExperimentVersion) are preserved since this is a config
-// experiment, not a package upgrade.
+// setPackageConfigVersions updates only the config versions for one package.
 func (d *Daemon) setPackageConfigVersions(pkgName, stable, experiment string) {
 	if d.rcClient == nil {
 		return
@@ -290,18 +274,14 @@ func (d *Daemon) setPackageConfigVersions(pkgName, stable, experiment string) {
 	found := false
 	for _, pkg := range current {
 		if pkg.GetPackage() == pkgName {
-			updated = append(updated, &pbgo.PackageState{
-				Package:                 pkg.GetPackage(),
-				StableVersion:           pkg.GetStableVersion(),
-				ExperimentVersion:       pkg.GetExperimentVersion(),
-				Task:                    pkg.GetTask(),
-				StableConfigVersion:     stable,
-				ExperimentConfigVersion: experiment,
-			})
+			next := proto.Clone(pkg).(*pbgo.PackageState)
+			next.StableConfigVersion = stable
+			next.ExperimentConfigVersion = experiment
+			updated = append(updated, next)
 			found = true
-		} else {
-			updated = append(updated, pkg)
+			continue
 		}
+		updated = append(updated, pkg)
 	}
 	if !found {
 		updated = append(updated, &pbgo.PackageState{

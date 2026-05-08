@@ -107,40 +107,6 @@ func buildSignalPatch(signal, id string, config ...json.RawMessage) ([]byte, err
 	return json.Marshal(patch)
 }
 
-// phaseAcceptFunc determines whether an observed experiment status satisfies the
-// wait condition. It receives the full ExperimentStatus (which may be nil) so
-// that accept functions can key on the experiment ID, not just the phase.
-// It returns (done bool, err error):
-//   - (true, nil): expected phase observed — ack success.
-//   - (true, error): unexpected terminal phase — ack error.
-//   - (false, nil): keep waiting.
-type phaseAcceptFunc func(status *v2alpha1.ExperimentStatus) (bool, error)
-
-// acceptPhase returns a phaseAcceptFunc that accepts any of the given phases,
-// but only when the status belongs to the specified experiment ID.
-// If the status is nil or the ID doesn't match, it keeps waiting (the expected
-// experiment hasn't started yet). If the ID matches and the phase is terminal
-// but not in the accept set, it returns an error.
-func acceptPhase(experimentID string, phases ...v2alpha1.ExperimentPhase) phaseAcceptFunc {
-	accept := make(map[v2alpha1.ExperimentPhase]struct{}, len(phases))
-	for _, p := range phases {
-		accept[p] = struct{}{}
-	}
-	return func(status *v2alpha1.ExperimentStatus) (bool, error) {
-		if status == nil || status.ID != experimentID {
-			// Wrong experiment or no experiment — keep waiting.
-			return false, nil
-		}
-		if _, ok := accept[status.Phase]; ok {
-			return true, nil
-		}
-		if isTerminalPhase(status.Phase) {
-			return true, fmt.Errorf("expected phase %v, got terminal phase %q", phases, status.Phase)
-		}
-		return false, nil
-	}
-}
-
 // isTerminalPhase returns true for terminal experiment phases.
 func isTerminalPhase(phase v2alpha1.ExperimentPhase) bool {
 	switch phase {
