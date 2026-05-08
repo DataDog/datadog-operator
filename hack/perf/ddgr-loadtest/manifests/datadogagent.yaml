@@ -1,0 +1,28 @@
+# hack/perf/ddgr-loadtest/manifests/datadogagent.yaml
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+  namespace: datadog-operator
+spec:
+  global:
+    clusterName: ddgr-perf-test
+    site: datadoghq.com  # adjust if sandbox is on a different site (e.g. datadoghq.eu)
+    credentials:
+      apiSecret:
+        secretName: sandbox-datadog-creds
+        keyName: api-key
+      appSecret:
+        secretName: sandbox-datadog-creds
+        keyName: app-key
+    tags:
+      - "env:ddgr-perf-test"
+      - "loadtest:ddgr-perf"
+  features:
+    apm:
+      enabled: false
+    logCollection:
+      enabled: true
+      containerCollectAll: true
+    liveProcessCollection:
+      enabled: false

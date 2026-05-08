@@ -1,0 +1,7 @@
+# hack/perf/ddgr-loadtest/manifests/namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ddgr-loadtest
+  labels:
+    loadtest: ddgr-perf
