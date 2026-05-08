@@ -78,7 +78,6 @@ func validateFeatures(features *v2alpha1.DatadogFeatures) error {
 		{features.OOMKill, "oomKill"},
 		{features.TCPQueueLength, "tcpQueueLength"},
 		{features.EBPFCheck, "ebpfCheck"},
-		{features.APM, "apm"},
 		{features.ASM, "asm"},
 		{features.CSPM, "cspm"},
 		{features.CWS, "cws"},
@@ -99,6 +98,7 @@ func validateFeatures(features *v2alpha1.DatadogFeatures) error {
 		{features.PrometheusScrape, "prometheusScrape"},
 		{features.HelmCheck, "helmCheck"},
 		{features.ControlPlaneMonitoring, "controlPlaneMonitoring"},
+		{features.DataPlane, "dataPlane"},
 	}
 
 	for _, feature := range unsupportedFeatures {
@@ -109,7 +109,7 @@ func validateFeatures(features *v2alpha1.DatadogFeatures) error {
 		}
 	}
 
-	// GPU is allowed, no error returned
+	// GPU and APM are allowed, no error returned.
 	return nil
 }
 

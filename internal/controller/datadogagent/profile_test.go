@@ -3,6 +3,7 @@ package datadogagent
 import (
 	"context"
 	"fmt"
+	"maps"
 	"testing"
 	"time"
 
@@ -1024,13 +1025,104 @@ func Test_reconcileProfile(t *testing.T) {
 
 			profileCopy := tt.profile.DeepCopy()
 			csInfo := make(map[types.NamespacedName]*agentprofile.CreateStrategyInfo)
-			err := r.reconcileProfile(ctx, profileCopy, tt.nodes, tt.profilesByNode, csInfo, now)
+			defaultSpec := &v2alpha1.DatadogAgentSpec{}
+			baseDefaultSpec := defaultSpec.DeepCopy()
+			err := r.reconcileProfile(ctx, profileCopy, tt.nodes, tt.profilesByNode, csInfo, defaultSpec, baseDefaultSpec, now)
 
 			assert.Equal(t, tt.wantErr, err)
 			assert.Equal(t, tt.wantStatus, profileCopy.Status)
 			assert.Equal(t, tt.wantProfilesByNode, tt.profilesByNode)
 		})
 	}
+}
+
+func Test_reconcileProfile_SharedOverlayConflictDoesNotCommitNodeAssignment(t *testing.T) {
+	sch := agenttestutils.TestScheme()
+	ctx := context.Background()
+	now := metav1.Now()
+	fakeClient := fake.NewClientBuilder().WithScheme(sch).Build()
+	logger := logf.Log.WithName("Test_reconcileProfile_SharedOverlayConflictDoesNotCommitNodeAssignment")
+	eventBroadcaster := record.NewBroadcaster()
+	recorder := eventBroadcaster.NewRecorder(sch, corev1.EventSource{Component: "Test_reconcileProfile_SharedOverlayConflictDoesNotCommitNodeAssignment"})
+
+	r := &Reconciler{
+		client:   fakeClient,
+		log:      logger,
+		scheme:   sch,
+		recorder: recorder,
+		options:  ReconcilerOptions{},
+	}
+
+	profile := &v1alpha1.DatadogAgentProfile{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "gpu",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.DatadogAgentProfileSpec{
+			ProfileAffinity: &v1alpha1.ProfileAffinity{
+				ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
+					{
+						Key:      "profile",
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"gpu"},
+					},
+				},
+			},
+			Config: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					APM: &v2alpha1.APMFeatureConfig{
+						Enabled: ptr.To(true),
+						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
+							Enabled:     ptr.To(true),
+							LibVersions: map[string]string{"java": "1.44.0"},
+						},
+					},
+				},
+			},
+		},
+	}
+	nodes := []corev1.Node{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   "node1",
+				Labels: map[string]string{"profile": "gpu"},
+			},
+		},
+	}
+	profilesByNode := map[string]types.NamespacedName{
+		"node1": {Name: "default"},
+	}
+	csInfo := make(map[types.NamespacedName]*agentprofile.CreateStrategyInfo)
+	defaultSpec := &v2alpha1.DatadogAgentSpec{
+		Features: &v2alpha1.DatadogFeatures{
+			AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{Enabled: ptr.To(true)},
+			APM: &v2alpha1.APMFeatureConfig{
+				SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
+					Enabled:           ptr.To(true),
+					LibVersions:       map[string]string{"java": "1.43.0"},
+					LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(true)},
+				},
+			},
+		},
+	}
+	baseDefaultSpec := defaultSpec.DeepCopy()
+
+	nextProfilesByNode := maps.Clone(profilesByNode)
+	nextCSInfo := agentprofile.CloneCreateStrategyInfoMap(csInfo)
+	nextDefaultSpec := defaultSpec.DeepCopy()
+	err := r.reconcileProfile(ctx, profile, nodes, nextProfilesByNode, nextCSInfo, nextDefaultSpec, baseDefaultSpec, now)
+
+	assert.Error(t, err)
+	assert.Equal(t, map[string]types.NamespacedName{"node1": {Name: "default"}}, profilesByNode)
+	appliedCondition := metav1.Condition{}
+	for _, condition := range profile.Status.Conditions {
+		if condition.Type == agentprofile.AppliedConditionType {
+			appliedCondition = condition
+			break
+		}
+	}
+	assert.Equal(t, metav1.ConditionFalse, appliedCondition.Status)
+	assert.Equal(t, "1.43.0", defaultSpec.Features.APM.SingleStepInstrumentation.LibVersions["java"])
 }
 
 func Test_reconcileProfiles(t *testing.T) {
@@ -1216,7 +1308,8 @@ func Test_reconcileProfiles(t *testing.T) {
 				Name:      "datadog-agent",
 			}
 			maxUnavailable := intstr.FromInt(1)
-			appliedProfiles, err := r.reconcileProfiles(ctx, dsNSName, maxUnavailable)
+			defaultDDAI := &v1alpha1.DatadogAgentInternal{}
+			appliedProfiles, err := r.reconcileProfiles(ctx, dsNSName, maxUnavailable, defaultDDAI)
 
 			assert.Equal(t, tt.wantErr, err)
 			assert.Equal(t, tt.wantAppliedProfiles, len(appliedProfiles))

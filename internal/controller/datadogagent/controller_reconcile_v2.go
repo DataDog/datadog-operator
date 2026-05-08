@@ -103,11 +103,16 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 			Name:      dsName,
 		}
 		maxUnavailable := agentprofile.GetMaxUnavailableFromSpecAndEDS(&instance.Spec, &r.options.ExtendedDaemonsetOptions, nil)
-		appliedProfiles, e := r.reconcileProfiles(ctx, dsNSName, maxUnavailable)
+
+		// Profiles normally render their own DDAIs from the base DDAI. Shared
+		// component config contributed by profiles is accumulated on the default
+		// DDAI, because there is only one Cluster Agent/CCR for the cluster.
+		defaultDDAI := ddai.DeepCopy()
+		appliedProfiles, e := r.reconcileProfiles(ctx, dsNSName, maxUnavailable, defaultDDAI)
 		if e != nil {
 			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
 		}
-		profileDDAIs, e := r.applyProfilesToDDAISpec(ddai, appliedProfiles)
+		profileDDAIs, e := r.applyProfilesToDDAISpec(ddai, defaultDDAI, appliedProfiles)
 		if e != nil {
 			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
 		}
