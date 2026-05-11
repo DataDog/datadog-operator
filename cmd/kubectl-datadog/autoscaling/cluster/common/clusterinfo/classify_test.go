@@ -12,9 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 )
 
 // fakeASG implements AutoscalingDescriber, returning a static instance->ASG
@@ -167,6 +169,43 @@ func TestClassify_FargateMultipleProfiles(t *testing.T) {
 		info.NodeManagement[NodeManagerFargate]["fp-team-a"])
 	assert.Equal(t, []string{"fargate-b"},
 		info.NodeManagement[NodeManagerFargate]["fp-team-b"])
+}
+
+// TestClassify_FargatePendingPodSkipped guards the empty-NodeName branch of
+// fargateProfilesByNode: a Pod that carries the Fargate label but isn't yet
+// scheduled onto a Node must not populate the index (and must not panic).
+func TestClassify_FargatePendingPodSkipped(t *testing.T) {
+	clientset := fake.NewSimpleClientset(
+		node("fargate-a", "", map[string]string{"eks.amazonaws.com/compute-type": "fargate"}),
+		// Scheduled pod -> profile resolves normally.
+		pod("workload-a", "team-a", "fargate-a", map[string]string{
+			"eks.amazonaws.com/fargate-profile": "fp-team-a",
+		}),
+		// Pending pod (no NodeName yet) -> must be ignored.
+		pod("workload-pending", "team-a", "", map[string]string{
+			"eks.amazonaws.com/fargate-profile": "fp-team-a",
+		}),
+	)
+
+	info, err := Classify(t.Context(), clientset, &fakeASG{}, "c")
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"fargate-a"},
+		info.NodeManagement[NodeManagerFargate]["fp-team-a"])
+}
+
+// TestClassify_FargatePodListErrorPropagates guards the error path of
+// fargateProfilesByNode: a failing Pod listing must surface to the caller
+// of Classify wrapped with a recognisable message.
+func TestClassify_FargatePodListErrorPropagates(t *testing.T) {
+	clientset := fake.NewSimpleClientset()
+	clientset.PrependReactor("list", "pods", func(_ k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, apierrors.NewServiceUnavailable("test failure")
+	})
+
+	_, err := Classify(t.Context(), clientset, &fakeASG{}, "c")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to list Fargate pods")
 }
 
 func TestClassify_ASGAndStandalone(t *testing.T) {
