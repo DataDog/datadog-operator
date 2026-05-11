@@ -255,7 +255,6 @@ func DefaultSyscallsForSystemProbe() []string {
 		"setresuid",
 		"setrlimit",
 		"setsid",
-		"setsidaccept4",
 		"setsockopt",
 		"setuid",
 		"setuid32",
