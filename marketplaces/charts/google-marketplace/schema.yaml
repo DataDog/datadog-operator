@@ -177,7 +177,11 @@ properties:
             resources:
             - controllerrevisions
             verbs:
+            - create
+            - delete
+            - get
             - list
+            - patch
             - watch
           - apiGroups:
             - apps
@@ -197,10 +201,18 @@ properties:
             - apps
             resources:
             - replicasets
+            verbs:
+            - get
+            - list
+            - watch
+          - apiGroups:
+            - apps
+            resources:
             - statefulsets
             verbs:
             - get
             - list
+            - patch
             - watch
           - apiGroups:
             - argoproj.io
@@ -215,6 +227,7 @@ properties:
             resources:
             - rollouts
             verbs:
+            - get
             - list
             - patch
             - watch
@@ -307,6 +320,8 @@ properties:
             - datadogagentprofiles/finalizers
             - datadogagents
             - datadogagents/finalizers
+            - datadogcsidrivers
+            - datadogcsidrivers/finalizers
             - datadogdashboards
             - datadoggenericresources
             - datadoggenericresources/finalizers
@@ -329,6 +344,7 @@ properties:
             - datadogagentinternals/status
             - datadogagentprofiles/status
             - datadogagents/status
+            - datadogcsidrivers/status
             - datadogdashboards/status
             - datadoggenericresources/status
             - datadogmonitors/status
@@ -357,6 +373,8 @@ properties:
           - apiGroups:
             - datadoghq.com
             resources:
+            - datadogpodautoscalerclusterprofiles
+            - datadogpodautoscalerclusterprofiles/status
             - datadogpodautoscalers
             - datadogpodautoscalers/status
             verbs:
@@ -547,9 +565,38 @@ properties:
             - get
             - list
             - watch
-          - apiGroups: [""]
-            resources: ["pods/exec"]
-            verbs: ["create"]
+          - apiGroups:
+            - storage.k8s.io
+            resources:
+            - csidrivers
+            verbs:
+            - create
+            - list
+            - watch
+          - apiGroups:
+            - storage.k8s.io
+            resourceNames:
+            - k8s.csi.datadoghq.com
+            resources:
+            - csidrivers
+            verbs:
+            - delete
+            - get
+            - patch
+            - update
+          - apiGroups:
+            - ""
+            resources:
+            - pods/exec
+            - pods/eviction
+            verbs:
+            - create
+          - apiGroups:
+            - ""
+            resources:
+            - pods/resize
+            verbs:
+            - patch
 required:
 - name
 - namespace

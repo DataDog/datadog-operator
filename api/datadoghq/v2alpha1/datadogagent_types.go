@@ -686,7 +686,8 @@ type USMFeatureConfig struct {
 // ServiceDiscoveryFeatureConfig configures the service discovery check feature.
 type ServiceDiscoveryFeatureConfig struct {
 	// Enables the service discovery check.
-	// Default: false
+	// Default: true when omitted and the node Agent image is >= 7.78.0. Otherwise false.
+	// If the image version cannot be determined, it is treated as latest.
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
@@ -748,8 +749,8 @@ type DataPlaneFeatureConfig struct {
 // +k8s:openapi-gen=true
 type DataPlaneDogstatsdConfig struct {
 	// Enabled configures the Data Plane to handle DogStatsD traffic.
-	// When enabled, DogStatsD is disabled in the Core Agent.
-	// Default: false
+	// When set to false, DogStatsD is handled by the Core Agent instead.
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
@@ -1436,6 +1437,21 @@ type WorkloadAutoscalingFeatureConfig struct {
 type ClusterAutoscalingFeatureConfig struct {
 	// Enabled enables the cluster autoscaling product.
 	// (Requires Cluster Agent 7.74.0+)
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Spot contains the configuration for the spot instance scheduling sub-feature.
+	// Requires cluster autoscaling to be enabled.
+	// (Requires Cluster Agent 7.79.0+)
+	// +optional
+	Spot *SpotAutoscalingFeatureConfig `json:"spot,omitempty"`
+}
+
+// SpotAutoscalingFeatureConfig contains the configuration for the spot instance scheduling product.
+type SpotAutoscalingFeatureConfig struct {
+	// Enabled enables the cluster spot scheduling product.
+	// (Requires Cluster Agent 7.79.0+)
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`

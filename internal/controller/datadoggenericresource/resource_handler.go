@@ -1,6 +1,8 @@
 package datadoggenericresource
 
 import (
+	"context"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -15,11 +17,10 @@ type CreateResult struct {
 }
 
 // ResourceHandler defines the CRUD operations for a Datadog resource type.
-// Each implementation is stateful: it holds its own API client and auth context,
-// so the caller does not need to supply them.
+// Each implementation holds its own API client so the caller does not need to supply one.
 type ResourceHandler interface {
-	createResource(instance *v1alpha1.DatadogGenericResource) (CreateResult, error)
-	getResource(instance *v1alpha1.DatadogGenericResource) error
-	updateResource(instance *v1alpha1.DatadogGenericResource) error
-	deleteResource(instance *v1alpha1.DatadogGenericResource) error
+	createResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) (CreateResult, error)
+	getResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error
+	updateResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error
+	deleteResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error
 }

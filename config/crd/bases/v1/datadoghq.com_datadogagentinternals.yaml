@@ -1175,6 +1175,19 @@ spec:
                                 (Requires Cluster Agent 7.74.0+)
                                 Default: false
                               type: boolean
+                            spot:
+                              description: |-
+                                Spot contains the configuration for the spot instance scheduling sub-feature.
+                                Requires cluster autoscaling to be enabled.
+                                (Requires Cluster Agent 7.79.0+)
+                              properties:
+                                enabled:
+                                  description: |-
+                                    Enabled enables the cluster spot scheduling product.
+                                    (Requires Cluster Agent 7.79.0+)
+                                    Default: false
+                                  type: boolean
+                              type: object
                           type: object
                         workload:
                           description: Workload contains the configuration for the workload autoscaling product.
@@ -1399,8 +1412,8 @@ spec:
                             enabled:
                               description: |-
                                 Enabled configures the Data Plane to handle DogStatsD traffic.
-                                When enabled, DogStatsD is disabled in the Core Agent.
-                                Default: false
+                                When set to false, DogStatsD is handled by the Core Agent instead.
+                                Default: true
                               type: boolean
                           type: object
                         enabled:
@@ -2515,7 +2528,8 @@ spec:
                         enabled:
                           description: |-
                             Enables the service discovery check.
-                            Default: false
+                            Default: true when omitted and the node Agent image is >= 7.78.0. Otherwise false.
+                            If the image version cannot be determined, it is treated as latest.
                           type: boolean
                         networkStats:
                           description: 'DEPRECATED: NetworkStats is no longer configurable and will be ignored. Scheduled for removal in v1.28.'
@@ -9867,6 +9881,19 @@ spec:
                                     (Requires Cluster Agent 7.74.0+)
                                     Default: false
                                   type: boolean
+                                spot:
+                                  description: |-
+                                    Spot contains the configuration for the spot instance scheduling sub-feature.
+                                    Requires cluster autoscaling to be enabled.
+                                    (Requires Cluster Agent 7.79.0+)
+                                  properties:
+                                    enabled:
+                                      description: |-
+                                        Enabled enables the cluster spot scheduling product.
+                                        (Requires Cluster Agent 7.79.0+)
+                                        Default: false
+                                      type: boolean
+                                  type: object
                               type: object
                             workload:
                               description: Workload contains the configuration for the workload autoscaling product.
@@ -10091,8 +10118,8 @@ spec:
                                 enabled:
                                   description: |-
                                     Enabled configures the Data Plane to handle DogStatsD traffic.
-                                    When enabled, DogStatsD is disabled in the Core Agent.
-                                    Default: false
+                                    When set to false, DogStatsD is handled by the Core Agent instead.
+                                    Default: true
                                   type: boolean
                               type: object
                             enabled:
@@ -11207,7 +11234,8 @@ spec:
                             enabled:
                               description: |-
                                 Enables the service discovery check.
-                                Default: false
+                                Default: true when omitted and the node Agent image is >= 7.78.0. Otherwise false.
+                                If the image version cannot be determined, it is treated as latest.
                               type: boolean
                             networkStats:
                               description: 'DEPRECATED: NetworkStats is no longer configurable and will be ignored. Scheduled for removal in v1.28.'

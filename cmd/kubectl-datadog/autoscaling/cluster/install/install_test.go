@@ -4,366 +4,124 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/apply"
 )
-
-func TestInstallMode_String(t *testing.T) {
-	for _, tc := range []struct {
-		name     string
-		mode     InstallMode
-		expected string
-	}{
-		{
-			name:     "Fargate mode",
-			mode:     InstallModeFargate,
-			expected: "fargate",
-		},
-		{
-			name:     "Existing-nodes mode",
-			mode:     InstallModeExistingNodes,
-			expected: "existing-nodes",
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.expected, tc.mode.String())
-		})
-	}
-}
-
-func TestInstallMode_Set(t *testing.T) {
-	for _, tc := range []struct {
-		name        string
-		input       string
-		expected    InstallMode
-		expectError bool
-	}{
-		{
-			name:        "Set to fargate",
-			input:       "fargate",
-			expected:    InstallModeFargate,
-			expectError: false,
-		},
-		{
-			name:        "Set to existing-nodes",
-			input:       "existing-nodes",
-			expected:    InstallModeExistingNodes,
-			expectError: false,
-		},
-		{
-			name:        "Invalid value",
-			input:       "invalid",
-			expectError: true,
-		},
-		{
-			name:        "Empty value",
-			input:       "",
-			expectError: true,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			var mode InstallMode
-			err := mode.Set(tc.input)
-
-			if tc.expectError {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), "install-mode must be one of fargate or existing-nodes")
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tc.expected, mode)
-			}
-		})
-	}
-}
-
-func TestInstallMode_Type(t *testing.T) {
-	var mode InstallMode
-	assert.Equal(t, "InstallMode", mode.Type())
-}
-
-func TestCreateKarpenterResources_String(t *testing.T) {
-	for _, tc := range []struct {
-		name     string
-		resource CreateKarpenterResources
-		expected string
-	}{
-		{
-			name:     "None resources",
-			resource: CreateKarpenterResourcesNone,
-			expected: "none",
-		},
-		{
-			name:     "EC2NodeClass only",
-			resource: CreateKarpenterResourcesEC2NodeClass,
-			expected: "ec2nodeclass",
-		},
-		{
-			name:     "All resources",
-			resource: CreateKarpenterResourcesAll,
-			expected: "all",
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			result := tc.resource.String()
-			assert.Equal(t, tc.expected, result)
-		})
-	}
-}
-
-func TestCreateKarpenterResources_Set(t *testing.T) {
-	for _, tc := range []struct {
-		name        string
-		input       string
-		expected    CreateKarpenterResources
-		expectError bool
-	}{
-		{
-			name:        "Set to none",
-			input:       "none",
-			expected:    CreateKarpenterResourcesNone,
-			expectError: false,
-		},
-		{
-			name:        "Set to ec2nodeclass",
-			input:       "ec2nodeclass",
-			expected:    CreateKarpenterResourcesEC2NodeClass,
-			expectError: false,
-		},
-		{
-			name:        "Set to all",
-			input:       "all",
-			expected:    CreateKarpenterResourcesAll,
-			expectError: false,
-		},
-		{
-			name:        "Invalid value",
-			input:       "invalid",
-			expectError: true,
-		},
-		{
-			name:        "Empty value",
-			input:       "",
-			expectError: true,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			var resource CreateKarpenterResources
-			err := resource.Set(tc.input)
-
-			if tc.expectError {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), "create-karpenter-resources must be one of none, ec2nodeclass or all")
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tc.expected, resource)
-			}
-		})
-	}
-}
-
-func TestCreateKarpenterResources_Type(t *testing.T) {
-	var resource CreateKarpenterResources
-	assert.Equal(t, "CreateKarpenterResources", resource.Type())
-}
-
-func TestInferenceMethod_String(t *testing.T) {
-	for _, tc := range []struct {
-		name     string
-		method   InferenceMethod
-		expected string
-	}{
-		{
-			name:     "Nodes method",
-			method:   InferenceMethodNodes,
-			expected: "nodes",
-		},
-		{
-			name:     "NodeGroups method",
-			method:   InferenceMethodNodeGroups,
-			expected: "nodegroups",
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			result := tc.method.String()
-			assert.Equal(t, tc.expected, result)
-		})
-	}
-}
-
-func TestInferenceMethod_Set(t *testing.T) {
-	for _, tc := range []struct {
-		name        string
-		input       string
-		expected    InferenceMethod
-		expectError bool
-	}{
-		{
-			name:        "Set to nodes",
-			input:       "nodes",
-			expected:    InferenceMethodNodes,
-			expectError: false,
-		},
-		{
-			name:        "Set to nodegroups",
-			input:       "nodegroups",
-			expected:    InferenceMethodNodeGroups,
-			expectError: false,
-		},
-		{
-			name:        "Invalid value",
-			input:       "invalid",
-			expectError: true,
-		},
-		{
-			name:        "Empty value",
-			input:       "",
-			expectError: true,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			var method InferenceMethod
-			err := method.Set(tc.input)
-
-			if tc.expectError {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), "inference-method must be one of nodes or nodegroups")
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tc.expected, method)
-			}
-		})
-	}
-}
-
-func TestInferenceMethod_Type(t *testing.T) {
-	var method InferenceMethod
-	assert.Equal(t, "InferenceMethod", method.Type())
-}
 
 func TestValidate(t *testing.T) {
 	for _, tc := range []struct {
 		name                     string
 		args                     []string
-		installMode              InstallMode
+		installMode              apply.InstallMode
 		fargateSubnets           []string
-		createKarpenterResources CreateKarpenterResources
-		inferenceMethod          InferenceMethod
+		createKarpenterResources apply.CreateKarpenterResources
+		inferenceMethod          apply.InferenceMethod
 		expectError              bool
 		errorContains            string
 	}{
 		{
 			name:                     "Valid with nodes inference method",
 			args:                     []string{},
-			installMode:              InstallModeFargate,
-			createKarpenterResources: CreateKarpenterResourcesEC2NodeClass,
-			inferenceMethod:          InferenceMethodNodes,
+			installMode:              apply.InstallModeFargate,
+			createKarpenterResources: apply.CreateKarpenterResourcesEC2NodeClass,
+			inferenceMethod:          apply.InferenceMethodNodes,
 			expectError:              false,
 		},
 		{
 			name:                     "Valid with nodegroups inference method",
 			args:                     []string{},
-			installMode:              InstallModeFargate,
-			createKarpenterResources: CreateKarpenterResourcesEC2NodeClass,
-			inferenceMethod:          InferenceMethodNodeGroups,
+			installMode:              apply.InstallModeFargate,
+			createKarpenterResources: apply.CreateKarpenterResourcesEC2NodeClass,
+			inferenceMethod:          apply.InferenceMethodNodeGroups,
 			expectError:              false,
 		},
 		{
 			name:                     "Valid with create none",
 			args:                     []string{},
-			installMode:              InstallModeFargate,
-			createKarpenterResources: CreateKarpenterResourcesNone,
-			inferenceMethod:          InferenceMethodNodes,
+			installMode:              apply.InstallModeFargate,
+			createKarpenterResources: apply.CreateKarpenterResourcesNone,
+			inferenceMethod:          apply.InferenceMethodNodes,
 			expectError:              false,
 		},
 		{
 			name:                     "Valid with create all",
 			args:                     []string{},
-			installMode:              InstallModeFargate,
-			createKarpenterResources: CreateKarpenterResourcesAll,
-			inferenceMethod:          InferenceMethodNodes,
+			installMode:              apply.InstallModeFargate,
+			createKarpenterResources: apply.CreateKarpenterResourcesAll,
+			inferenceMethod:          apply.InferenceMethodNodes,
 			expectError:              false,
 		},
 		{
 			name:                     "Valid with existing-nodes mode",
 			args:                     []string{},
-			installMode:              InstallModeExistingNodes,
-			createKarpenterResources: CreateKarpenterResourcesAll,
-			inferenceMethod:          InferenceMethodNodes,
+			installMode:              apply.InstallModeExistingNodes,
+			createKarpenterResources: apply.CreateKarpenterResourcesAll,
+			inferenceMethod:          apply.InferenceMethodNodes,
 			expectError:              false,
 		},
 		{
 			name:                     "Valid with fargate-subnets in fargate mode",
 			args:                     []string{},
-			installMode:              InstallModeFargate,
+			installMode:              apply.InstallModeFargate,
 			fargateSubnets:           []string{"subnet-abc", "subnet-def"},
-			createKarpenterResources: CreateKarpenterResourcesAll,
-			inferenceMethod:          InferenceMethodNodes,
+			createKarpenterResources: apply.CreateKarpenterResourcesAll,
+			inferenceMethod:          apply.InferenceMethodNodes,
 			expectError:              false,
 		},
 		{
 			name:                     "Invalid with arguments",
 			args:                     []string{"arg1"},
-			installMode:              InstallModeFargate,
-			createKarpenterResources: CreateKarpenterResourcesEC2NodeClass,
-			inferenceMethod:          InferenceMethodNodes,
+			installMode:              apply.InstallModeFargate,
+			createKarpenterResources: apply.CreateKarpenterResourcesEC2NodeClass,
+			inferenceMethod:          apply.InferenceMethodNodes,
 			expectError:              true,
 			errorContains:            "no arguments are allowed",
 		},
 		{
 			name:                     "Invalid with invalid inference method",
 			args:                     []string{},
-			installMode:              InstallModeFargate,
-			createKarpenterResources: CreateKarpenterResourcesEC2NodeClass,
-			inferenceMethod:          InferenceMethod("invalid"),
+			installMode:              apply.InstallModeFargate,
+			createKarpenterResources: apply.CreateKarpenterResourcesEC2NodeClass,
+			inferenceMethod:          apply.InferenceMethod("invalid"),
 			expectError:              true,
 			errorContains:            "inference-method must be one of nodes or nodegroups",
 		},
 		{
 			name:                     "Invalid with invalid create resources",
 			args:                     []string{},
-			installMode:              InstallModeFargate,
-			createKarpenterResources: CreateKarpenterResources("invalid"),
-			inferenceMethod:          InferenceMethodNodes,
+			installMode:              apply.InstallModeFargate,
+			createKarpenterResources: apply.CreateKarpenterResources("invalid"),
+			inferenceMethod:          apply.InferenceMethodNodes,
 			expectError:              true,
 			errorContains:            "create-karpenter-resources must be one of none, ec2nodeclass or all",
 		},
 		{
 			name:                     "Invalid with invalid install mode",
 			args:                     []string{},
-			installMode:              InstallMode("invalid"),
-			createKarpenterResources: CreateKarpenterResourcesAll,
-			inferenceMethod:          InferenceMethodNodes,
+			installMode:              apply.InstallMode("invalid"),
+			createKarpenterResources: apply.CreateKarpenterResourcesAll,
+			inferenceMethod:          apply.InferenceMethodNodes,
 			expectError:              true,
 			errorContains:            "install-mode must be one of fargate or existing-nodes",
 		},
 		{
 			name:                     "Invalid fargate-subnets with existing-nodes mode",
 			args:                     []string{},
-			installMode:              InstallModeExistingNodes,
+			installMode:              apply.InstallModeExistingNodes,
 			fargateSubnets:           []string{"subnet-abc"},
-			createKarpenterResources: CreateKarpenterResourcesAll,
-			inferenceMethod:          InferenceMethodNodes,
+			createKarpenterResources: apply.CreateKarpenterResourcesAll,
+			inferenceMethod:          apply.InferenceMethodNodes,
 			expectError:              true,
 			errorContains:            "--fargate-subnets can only be used with --install-mode=fargate",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			// Save and restore the global variables
-			oldMode := installMode
-			oldSubnets := fargateSubnets
-			oldCreate := createKarpenterResources
-			oldMethod := inferenceMethod
-			installMode = tc.installMode
-			fargateSubnets = tc.fargateSubnets
-			createKarpenterResources = tc.createKarpenterResources
-			inferenceMethod = tc.inferenceMethod
-			defer func() {
-				installMode = oldMode
-				fargateSubnets = oldSubnets
-				createKarpenterResources = oldCreate
-				inferenceMethod = oldMethod
-			}()
-
 			o := &options{
-				args: tc.args,
+				args:                     tc.args,
+				installMode:              tc.installMode,
+				fargateSubnets:           tc.fargateSubnets,
+				createKarpenterResources: tc.createKarpenterResources,
+				inferenceMethod:          tc.inferenceMethod,
 			}
 
 			err := o.validate()

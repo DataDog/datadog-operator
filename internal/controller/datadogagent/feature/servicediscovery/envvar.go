@@ -6,5 +6,6 @@
 package servicediscovery
 
 const (
-	DDServiceDiscoveryEnabled = "DD_DISCOVERY_ENABLED"
+	DDServiceDiscoveryEnabled            = "DD_DISCOVERY_ENABLED"
+	DDServiceDiscoveryUseSystemProbeLite = "DD_DISCOVERY_USE_SYSTEM_PROBE_LITE"
 )

@@ -50,6 +50,7 @@ core,github.com/aws/aws-sdk-go-v2/internal/configsources,Apache-2.0
 core,github.com/aws/aws-sdk-go-v2/internal/endpoints/v2,Apache-2.0
 core,github.com/aws/aws-sdk-go-v2/internal/ini,Apache-2.0
 core,github.com/aws/aws-sdk-go-v2/internal/sync/singleflight,BSD-3-Clause
+core,github.com/aws/aws-sdk-go-v2/service/autoscaling,Apache-2.0
 core,github.com/aws/aws-sdk-go-v2/service/cloudformation,Apache-2.0
 core,github.com/aws/aws-sdk-go-v2/service/ec2,Apache-2.0
 core,github.com/aws/aws-sdk-go-v2/service/eks,Apache-2.0
@@ -76,7 +77,7 @@ core,github.com/containerd/containerd,Apache-2.0
 core,github.com/containerd/errdefs,Apache-2.0
 core,github.com/containerd/log,Apache-2.0
 core,github.com/containerd/platforms,Apache-2.0
-core,github.com/cyphar/filepath-securejoin,BSD-3-Clause
+core,github.com/cyphar/filepath-securejoin,MPL-2.0
 core,github.com/davecgh/go-spew/spew,ISC
 core,github.com/dsnet/compress,BSD-3-Clause
 core,github.com/dustin/go-humanize,MIT
@@ -114,6 +115,7 @@ core,github.com/golang/snappy,BSD-3-Clause
 core,github.com/google/btree,Apache-2.0
 core,github.com/google/cel-go,Apache-2.0
 core,github.com/google/gnostic-models,Apache-2.0
+core,github.com/google/go-containerregistry/pkg/name,Apache-2.0
 core,github.com/google/pprof/profile,Apache-2.0
 core,github.com/google/uuid,BSD-3-Clause
 core,github.com/gorilla/websocket,BSD-2-Clause

@@ -1145,6 +1145,17 @@
                     "enabled": {
                       "description": "Enabled enables the cluster autoscaling product.\n(Requires Cluster Agent 7.74.0+)\nDefault: false",
                       "type": "boolean"
+                    },
+                    "spot": {
+                      "additionalProperties": false,
+                      "description": "Spot contains the configuration for the spot instance scheduling sub-feature.\nRequires cluster autoscaling to be enabled.\n(Requires Cluster Agent 7.79.0+)",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables the cluster spot scheduling product.\n(Requires Cluster Agent 7.79.0+)\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
                     }
                   },
                   "type": "object"
@@ -1395,7 +1406,7 @@
                   "description": "Dogstatsd configures DogStatsD handling by the Data Plane.",
                   "properties": {
                     "enabled": {
-                      "description": "Enabled configures the Data Plane to handle DogStatsD traffic.\nWhen enabled, DogStatsD is disabled in the Core Agent.\nDefault: false",
+                      "description": "Enabled configures the Data Plane to handle DogStatsD traffic.\nWhen set to false, DogStatsD is handled by the Core Agent instead.\nDefault: true",
                       "type": "boolean"
                     }
                   },
@@ -2618,7 +2629,7 @@
               "description": "ServiceDiscovery",
               "properties": {
                 "enabled": {
-                  "description": "Enables the service discovery check.\nDefault: false",
+                  "description": "Enables the service discovery check.\nDefault: true when omitted and the node Agent image is \u003e= 7.78.0. Otherwise false.\nIf the image version cannot be determined, it is treated as latest.",
                   "type": "boolean"
                 },
                 "networkStats": {
@@ -9564,6 +9575,17 @@
                         "enabled": {
                           "description": "Enabled enables the cluster autoscaling product.\n(Requires Cluster Agent 7.74.0+)\nDefault: false",
                           "type": "boolean"
+                        },
+                        "spot": {
+                          "additionalProperties": false,
+                          "description": "Spot contains the configuration for the spot instance scheduling sub-feature.\nRequires cluster autoscaling to be enabled.\n(Requires Cluster Agent 7.79.0+)",
+                          "properties": {
+                            "enabled": {
+                              "description": "Enabled enables the cluster spot scheduling product.\n(Requires Cluster Agent 7.79.0+)\nDefault: false",
+                              "type": "boolean"
+                            }
+                          },
+                          "type": "object"
                         }
                       },
                       "type": "object"
@@ -9814,7 +9836,7 @@
                       "description": "Dogstatsd configures DogStatsD handling by the Data Plane.",
                       "properties": {
                         "enabled": {
-                          "description": "Enabled configures the Data Plane to handle DogStatsD traffic.\nWhen enabled, DogStatsD is disabled in the Core Agent.\nDefault: false",
+                          "description": "Enabled configures the Data Plane to handle DogStatsD traffic.\nWhen set to false, DogStatsD is handled by the Core Agent instead.\nDefault: true",
                           "type": "boolean"
                         }
                       },
@@ -11037,7 +11059,7 @@
                   "description": "ServiceDiscovery",
                   "properties": {
                     "enabled": {
-                      "description": "Enables the service discovery check.\nDefault: false",
+                      "description": "Enables the service discovery check.\nDefault: true when omitted and the node Agent image is \u003e= 7.78.0. Otherwise false.\nIf the image version cannot be determined, it is treated as latest.",
                       "type": "boolean"
                     },
                     "networkStats": {

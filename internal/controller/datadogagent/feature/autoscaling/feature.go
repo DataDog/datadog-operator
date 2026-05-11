@@ -39,8 +39,9 @@ func buildAutoscalingFeature(options *feature.Options) feature.Feature {
 }
 
 type autoscalingFeature struct {
-	workloadEnabled bool
-	clusterEnabled  bool
+	workloadEnabled    bool
+	clusterEnabled     bool
+	clusterSpotEnabled bool
 
 	serviceAccountName           string
 	owner                        metav1.Object
@@ -79,6 +80,10 @@ func (f *autoscalingFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Data
 	if autoscaling.Cluster != nil && apiutils.BoolValue(autoscaling.Cluster.Enabled) {
 		f.clusterEnabled = true
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
+
+		if autoscaling.Cluster.Spot != nil && apiutils.BoolValue(autoscaling.Cluster.Spot.Enabled) {
+			f.clusterSpotEnabled = true
+		}
 	}
 
 	return feature.RequiredComponents{
@@ -102,7 +107,7 @@ func (f *autoscalingFeature) ManageDependencies(managers feature.ResourceManager
 		f.owner.GetNamespace(),
 		componentdca.GetClusterAgentRbacResourcesName(f.owner)+"-autoscaling",
 		f.serviceAccountName,
-		getDCAClusterPolicyRules(f.workloadEnabled, f.clusterEnabled),
+		getDCAClusterPolicyRules(f),
 		string(v2alpha1.ClusterAgentComponentName),
 	)
 }
@@ -126,6 +131,13 @@ func (f *autoscalingFeature) ManageClusterAgent(managers feature.PodTemplateMana
 	if f.clusterEnabled {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  DDAutoscalingClusterEnabled,
+			Value: "true",
+		})
+	}
+
+	if f.clusterSpotEnabled {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDAutoscalingClusterSpotEnabled,
 			Value: "true",
 		})
 	}

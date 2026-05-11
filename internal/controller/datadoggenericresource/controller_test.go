@@ -3,8 +3,8 @@ package datadoggenericresource
 import (
 	"context"
 	"fmt"
-	"maps"
 	"net/url"
+	"os"
 	"testing"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
@@ -185,9 +185,15 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			resetMockHandlerState()
 
-			// Set up
+			os.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+			os.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+			defer os.Unsetenv("DD_API_KEY")
+			defer os.Unsetenv("DD_APP_KEY")
+
+			// Set up — use mock handler builder so tests don't hit real APIs
 			r := &Reconciler{
-				client: fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
+				client:       fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
+				credsManager: config.NewCredentialManager(fake.NewClientBuilder().Build()),
 				handlers: map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{
 					mockSubresource: &MockHandler{},
 				},
@@ -299,90 +305,4 @@ func setupTestAuth(apiURL string) context.Context {
 	})
 
 	return testAuth
-}
-
-// TestReconciler_UpdateDatadogClient tests the UpdateDatadogClient method of the Reconciler
-func TestReconciler_UpdateDatadogClient(t *testing.T) {
-	testLogger := zap.New(zap.UseDevMode(true))
-	recorder := record.NewFakeRecorder(10)
-	scheme := scheme.Scheme
-	client := fake.NewClientBuilder().Build()
-
-	initialCreds := config.Creds{
-		APIKey: "initial-api-key",
-		AppKey: "initial-app-key",
-	}
-
-	// captureHandlers snapshots the handlers map so we can detect replacement.
-	captureHandlers := func(r *Reconciler) map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler {
-		snapshot := make(map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler, len(r.handlers))
-		maps.Copy(snapshot, r.handlers)
-		return snapshot
-	}
-
-	tests := []struct {
-		name     string
-		newCreds config.Creds
-		wantErr  bool
-	}{
-		{
-			name: "valid credentials update",
-			newCreds: config.Creds{
-				APIKey: "test-api-key",
-				AppKey: "test-app-key",
-			},
-			wantErr: false,
-		},
-		{
-			name: "empty API key",
-			newCreds: config.Creds{
-				APIKey: "",
-				AppKey: "test-app-key",
-			},
-			wantErr: true,
-		},
-		{
-			name: "empty App key",
-			newCreds: config.Creds{
-				APIKey: "test-api-key",
-				AppKey: "",
-			},
-			wantErr: true,
-		},
-		{
-			name: "both keys empty",
-			newCreds: config.Creds{
-				APIKey: "",
-				AppKey: "",
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create reconciler with initial valid credentials
-			r, err := NewReconciler(client, initialCreds, scheme, testLogger, recorder)
-			assert.NoError(t, err)
-
-			// Capture original handlers
-			originalHandlers := captureHandlers(r)
-
-			// Call UpdateDatadogClient
-			err = r.UpdateDatadogClient(tt.newCreds)
-
-			// Capture new handlers
-			newHandlers := captureHandlers(r)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-				// On error, handlers should remain unchanged
-				assert.True(t, maps.Equal(originalHandlers, newHandlers), "Expected handlers to remain the same on error")
-			} else {
-				assert.NoError(t, err)
-				// On success, handlers should be recreated (different instances)
-				assert.False(t, maps.Equal(originalHandlers, newHandlers), "Expected handlers to be recreated on success")
-			}
-		})
-	}
 }

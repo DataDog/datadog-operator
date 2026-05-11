@@ -255,10 +255,10 @@ func DefaultSyscallsForSystemProbe() []string {
 		"setresuid",
 		"setrlimit",
 		"setsid",
-		"setsidaccept4",
 		"setsockopt",
 		"setuid",
 		"setuid32",
+		"shutdown",
 		"sigaltstack",
 		"socket",
 		"socketcall",
@@ -282,15 +282,22 @@ func DefaultSyscallsForSystemProbe() []string {
 		"waitid",
 		"waitpid",
 		"write",
+		"writev",
 	}
 }
 
 func syscallsForSystemProbe(ddaSpec *v2alpha1.DatadogAgentSpec) []string {
 	syscalls := DefaultSyscallsForSystemProbe()
 
-	if ddaSpec.Features.CWS != nil &&
-		ddaSpec.Features.CWS.Enabled != nil && *ddaSpec.Features.CWS.Enabled &&
-		ddaSpec.Features.CWS.Enforcement != nil && *ddaSpec.Features.CWS.Enforcement.Enabled {
+	if (ddaSpec.Features.CWS != nil &&
+		ptr.Deref(ddaSpec.Features.CWS.Enabled, false) &&
+		ddaSpec.Features.CWS.Enforcement != nil &&
+		ptr.Deref(ddaSpec.Features.CWS.Enforcement.Enabled, false)) ||
+		(ddaSpec.Features.CSPM != nil &&
+			ptr.Deref(ddaSpec.Features.CSPM.Enabled, false) &&
+			ddaSpec.Features.CSPM.HostBenchmarks != nil &&
+			ptr.Deref(ddaSpec.Features.CSPM.HostBenchmarks.Enabled, false) &&
+			ptr.Deref(ddaSpec.Features.CSPM.RunInSystemProbe, false)) {
 		syscalls = append(syscalls, "kill")
 	}
 	return syscalls
@@ -870,7 +877,6 @@ func volumeMountsForSystemProbe() []corev1.VolumeMount {
 		common.GetVolumeMountForLogs(),
 		common.GetVolumeMountForAuth(true),
 		common.GetVolumeMountForConfig(),
-		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForProc(),
 		common.GetVolumeMountForRunPath(),
 		common.GetVolumeMountForTmp(),

@@ -12,7 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	commonk8s "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/k8s"
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/guess"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/guess"
 	"github.com/DataDog/datadog-operator/pkg/version"
 )
 

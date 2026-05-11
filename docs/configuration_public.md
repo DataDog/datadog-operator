@@ -108,6 +108,9 @@ spec:
 `features.autoscaling.cluster.enabled`
 : Enables the cluster autoscaling product. (Requires Cluster Agent 7.74.0+) Default: false
 
+`features.autoscaling.cluster.spot.enabled`
+: Enables the cluster spot scheduling product. (Requires Cluster Agent 7.79.0+) Default: false
+
 `features.autoscaling.workload.enabled`
 : Enables the workload autoscaling product. Default: false
 
@@ -166,7 +169,7 @@ spec:
 : SyscallMonitorEnabled enables Syscall Monitoring (recommended for troubleshooting only). Default: false
 
 `features.dataPlane.dogstatsd.enabled`
-: Configures the Data Plane to handle DogStatsD traffic. When enabled, DogStatsD is disabled in the Core Agent. Default: false
+: Configures the Data Plane to handle DogStatsD traffic. When set to false, DogStatsD is handled by the Core Agent instead. Default: true
 
 `features.dataPlane.enabled`
 : Enables the Data Plane. Default: false
@@ -385,7 +388,7 @@ spec:
 : Enable this option to activate SBOM collection. Default: false
 
 `features.serviceDiscovery.enabled`
-: Enables the service discovery check. Default: false
+: Enables the service discovery check. Default: true when omitted and the node Agent image is >= 7.78.0. Otherwise false. If the image version cannot be determined, it is treated as latest.
 
 `features.serviceDiscovery.networkStats.enabled`
 : DEPRECATED: this field is ignored.
@@ -568,7 +571,7 @@ spec:
 : The built-in secret backend type to use (e.g., `k8s.secrets`, `docker.secrets`, `aws.secrets`). Alternative to Command; when Type is set, the Agent uses the built-in backend to resolve secrets. Requires Agent 7.70+.
 
 `global.site`
-: Is the Datadog intake site Agent data are sent to. Set to 'datadoghq.com' to send data to the US1 site (default). Set to 'datadoghq.eu' to send data to the EU site. Set to 'us3.datadoghq.com' to send data to the US3 site. Set to 'us5.datadoghq.com' to send data to the US5 site. Set to 'ddog-gov.com' to send data to the US1-FED site. Set to 'ap1.datadoghq.com' to send data to the AP1 site. Default: 'datadoghq.com'
+: Is the Datadog intake site Agent data is sent to. Set this to your Datadog site ({{< region-param key="dd_site" code="true" >}}). Default: 'datadoghq.com'
 
 `global.tags`
 : Contains a list of tags to attach to every metric, event and service check collected. Learn more about tagging: https://docs.datadoghq.com/tagging/

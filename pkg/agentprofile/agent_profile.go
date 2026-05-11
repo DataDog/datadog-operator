@@ -88,19 +88,19 @@ func ApplyProfileToNodes(profile metav1.ObjectMeta, profileRequirements []*label
 }
 
 // ValidateProfileAndReturnRequirements validates a profile's name and spec and affinity requirements
-func ValidateProfileAndReturnRequirements(profile *v1alpha1.DatadogAgentProfile, ddaiEnabled bool) ([]*labels.Requirement, error) {
-	if err := validateProfile(profile, ddaiEnabled); err != nil {
+func ValidateProfileAndReturnRequirements(profile *v1alpha1.DatadogAgentProfile) ([]*labels.Requirement, error) {
+	if err := validateProfile(profile); err != nil {
 		return nil, err
 	}
 	return parseProfileRequirements(profile)
 }
 
 // validateProfile validates a profile's name and spec
-func validateProfile(profile *v1alpha1.DatadogAgentProfile, ddaiEnabled bool) error {
+func validateProfile(profile *v1alpha1.DatadogAgentProfile) error {
 	if err := validateProfileName(profile.Name); err != nil {
 		return fmt.Errorf("profile name is invalid: %w", err)
 	}
-	if err := v1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec, ddaiEnabled); err != nil {
+	if err := v1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec); err != nil {
 		return fmt.Errorf("profile spec is invalid: %w", err)
 	}
 	return nil
@@ -112,7 +112,7 @@ func validateProfile(profile *v1alpha1.DatadogAgentProfile, ddaiEnabled bool) er
 // - existing nodes with the correct label
 // - nodes that need a new or corrected label up to maxUnavailable # of nodes
 func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nodes []v1.Node, profileAppliedByNode map[string]types.NamespacedName,
-	now metav1.Time, maxUnavailable int, datadogAgentInternalEnabled bool) (map[string]types.NamespacedName, error) {
+	now metav1.Time, maxUnavailable int) (map[string]types.NamespacedName, error) {
 	matchingNodes := map[string]bool{}
 	profileStatus := v1alpha1.DatadogAgentProfileStatus{}
 
@@ -130,7 +130,7 @@ func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nod
 		return profileAppliedByNode, err
 	}
 
-	if err := v1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec, datadogAgentInternalEnabled); err != nil {
+	if err := v1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec); err != nil {
 		logger.Error(err, "profile spec is invalid, skipping", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
 		metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.FalseValue)
 		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))

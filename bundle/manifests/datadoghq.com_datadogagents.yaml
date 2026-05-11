@@ -29,6 +29,10 @@ spec:
     - jsonPath: .metadata.creationTimestamp
       name: age
       type: date
+    - jsonPath: .status.experiment.phase
+      name: experiment-phase
+      priority: 1
+      type: string
     name: v2alpha1
     schema:
       openAPIV3Schema:
@@ -74,6 +78,22 @@ spec:
                               ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.
                               Default : true
                             type: boolean
+                          clusterAgentTlsVerification:
+                            description: ClusterAgentTLSVerification configures TLS
+                              verification for Agent sidecar to Cluster Agent communication.
+                            properties:
+                              copyCaConfigMap:
+                                description: |-
+                                  CopyCaConfigMap enables automatic creation of a ConfigMap containing the Cluster Agent's CA certificate
+                                  in namespaces where sidecar injection occurs.
+                                  Default: false
+                                type: boolean
+                              enabled:
+                                description: |-
+                                  Enabled enables TLS verification for agent sidecars communicating with the Cluster Agent.
+                                  Default: false
+                                type: boolean
+                            type: object
                           enabled:
                             description: |-
                               Enabled enables Sidecar injections.
@@ -727,6 +747,30 @@ spec:
                               Default: true
                             type: boolean
                         type: object
+                      probe:
+                        description: Probe holds the admission controller connectivity
+                          probe configuration.
+                        properties:
+                          enabled:
+                            description: |-
+                              Enabled enables the admission controller connectivity probe.
+                              The probe periodically sends dry-run ConfigMap creation requests to verify the
+                              webhook is reachable from the API server. Requires Cluster Agent 7.78.0+.
+                              Default: true
+                            type: boolean
+                          gracePeriod:
+                            description: |-
+                              GracePeriod is the number of seconds to wait at startup before the first probe.
+                              Default: 60
+                            format: int32
+                            type: integer
+                          interval:
+                            description: |-
+                              Interval is the number of seconds between probe executions.
+                              Default: 60
+                            format: int32
+                            type: integer
+                        type: object
                       registry:
                         description: Registry defines an image registry for the admission
                           controller.
@@ -1310,7 +1354,7 @@ spec:
                         type: object
                       enabled:
                         description: |-
-                          Enabled enables Cloud Security Posture Management.
+                          Enabled enables Cloud Security Posture Management, including Docker and Kubernetes benchmarks.
                           Default: false
                         type: boolean
                       hostBenchmarks:
@@ -1319,7 +1363,7 @@ spec:
                         properties:
                           enabled:
                             description: |-
-                              Enabled enables host benchmarks.
+                              Enabled enables Linux host benchmarks. Requires `features.cspm.enabled` to be set to `true`.
                               Default: true
                             type: boolean
                         type: object
@@ -2626,14 +2670,11 @@ spec:
                           Default: false
                         type: boolean
                       networkStats:
-                        description: |-
-                          Enables the service discovery network stats collection.
-                          Default: true
+                        description: 'DEPRECATED: NetworkStats is no longer configurable
+                          and will be ignored. Scheduled for removal in v1.28.'
                         properties:
                           enabled:
-                            description: |-
-                              Enables the Service Discovery Network Stats feature.
-                              Default: true
+                            description: 'DEPRECATED: this field is ignored.'
                             type: boolean
                         type: object
                     type: object
@@ -2743,12 +2784,272 @@ spec:
                   csi:
                     description: CSI contains configuration for Datadog CSI Driver
                     properties:
+                      autoManage:
+                        description: |-
+                          AutoManage controls whether the operator automatically manages the DatadogCSIDriver
+                          custom resource on behalf of this DatadogAgent. Set to false to hand ownership over to a
+                          DatadogCSIDriver CR that you maintain yourself (useful for migrations where you need
+                          customizations not exposed on the DatadogAgent spec). When toggled from true to false,
+                          the operator cleans up the DDA-owned DatadogCSIDriver CR; you are then responsible for
+                          providing a replacement so CSI continues to work.
+                          Default: true
+                        type: boolean
                       enabled:
                         description: |-
-                          Enables the usage of CSI driver in Datadog Agent.
-                          Requires installation of Datadog CSI Driver https://github.com/DataDog/helm-charts/tree/main/charts/datadog-csi-driver
+                          Enables the usage of CSI driver in Datadog Agent. When the operator is started with
+                          `--datadogCSIDriverEnabled=true`, it will also install the driver by creating a
+                          DatadogCSIDriver custom resource, unless a cluster-scoped `k8s.csi.datadoghq.com`
+                          CSIDriver is already present, in which case it defers to the existing installation
+                          (e.g. from the Datadog CSI driver Helm chart).
                           Default: false
                         type: boolean
+                      nodeAffinity:
+                        description: NodeAffinity specifies node affinity scheduling
+                          rules for CSI driver DaemonSet pods.
+                        properties:
+                          preferredDuringSchedulingIgnoredDuringExecution:
+                            description: |-
+                              The scheduler will prefer to schedule pods to nodes that satisfy
+                              the affinity expressions specified by this field, but it may choose
+                              a node that violates one or more of the expressions. The node that is
+                              most preferred is the one with the greatest sum of weights, i.e.
+                              for each node that meets all of the scheduling requirements (resource
+                              request, requiredDuringScheduling affinity expressions, etc.),
+                              compute a sum by iterating through the elements of this field and adding
+                              "weight" to the sum if the node matches the corresponding matchExpressions; the
+                              node(s) with the highest sum are the most preferred.
+                            items:
+                              description: |-
+                                An empty preferred scheduling term matches all objects with implicit weight 0
+                                (i.e. it's a no-op). A null preferred scheduling term matches no objects (i.e. is also a no-op).
+                              properties:
+                                preference:
+                                  description: A node selector term, associated with
+                                    the corresponding weight.
+                                  properties:
+                                    matchExpressions:
+                                      description: A list of node selector requirements
+                                        by node's labels.
+                                      items:
+                                        description: |-
+                                          A node selector requirement is a selector that contains values, a key, and an operator
+                                          that relates the key and values.
+                                        properties:
+                                          key:
+                                            description: The label key that the selector
+                                              applies to.
+                                            type: string
+                                          operator:
+                                            description: |-
+                                              Represents a key's relationship to a set of values.
+                                              Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+                                            type: string
+                                          values:
+                                            description: |-
+                                              An array of string values. If the operator is In or NotIn,
+                                              the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                              the values array must be empty. If the operator is Gt or Lt, the values
+                                              array must have a single element, which will be interpreted as an integer.
+                                              This array is replaced during a strategic merge patch.
+                                            items:
+                                              type: string
+                                            type: array
+                                            x-kubernetes-list-type: atomic
+                                        required:
+                                        - key
+                                        - operator
+                                        type: object
+                                      type: array
+                                      x-kubernetes-list-type: atomic
+                                    matchFields:
+                                      description: A list of node selector requirements
+                                        by node's fields.
+                                      items:
+                                        description: |-
+                                          A node selector requirement is a selector that contains values, a key, and an operator
+                                          that relates the key and values.
+                                        properties:
+                                          key:
+                                            description: The label key that the selector
+                                              applies to.
+                                            type: string
+                                          operator:
+                                            description: |-
+                                              Represents a key's relationship to a set of values.
+                                              Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+                                            type: string
+                                          values:
+                                            description: |-
+                                              An array of string values. If the operator is In or NotIn,
+                                              the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                              the values array must be empty. If the operator is Gt or Lt, the values
+                                              array must have a single element, which will be interpreted as an integer.
+                                              This array is replaced during a strategic merge patch.
+                                            items:
+                                              type: string
+                                            type: array
+                                            x-kubernetes-list-type: atomic
+                                        required:
+                                        - key
+                                        - operator
+                                        type: object
+                                      type: array
+                                      x-kubernetes-list-type: atomic
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                                weight:
+                                  description: Weight associated with matching the
+                                    corresponding nodeSelectorTerm, in the range 1-100.
+                                  format: int32
+                                  type: integer
+                              required:
+                              - preference
+                              - weight
+                              type: object
+                            type: array
+                            x-kubernetes-list-type: atomic
+                          requiredDuringSchedulingIgnoredDuringExecution:
+                            description: |-
+                              If the affinity requirements specified by this field are not met at
+                              scheduling time, the pod will not be scheduled onto the node.
+                              If the affinity requirements specified by this field cease to be met
+                              at some point during pod execution (e.g. due to an update), the system
+                              may or may not try to eventually evict the pod from its node.
+                            properties:
+                              nodeSelectorTerms:
+                                description: Required. A list of node selector terms.
+                                  The terms are ORed.
+                                items:
+                                  description: |-
+                                    A null or empty node selector term matches no objects. The requirements of
+                                    them are ANDed.
+                                    The TopologySelectorTerm type implements a subset of the NodeSelectorTerm.
+                                  properties:
+                                    matchExpressions:
+                                      description: A list of node selector requirements
+                                        by node's labels.
+                                      items:
+                                        description: |-
+                                          A node selector requirement is a selector that contains values, a key, and an operator
+                                          that relates the key and values.
+                                        properties:
+                                          key:
+                                            description: The label key that the selector
+                                              applies to.
+                                            type: string
+                                          operator:
+                                            description: |-
+                                              Represents a key's relationship to a set of values.
+                                              Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+                                            type: string
+                                          values:
+                                            description: |-
+                                              An array of string values. If the operator is In or NotIn,
+                                              the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                              the values array must be empty. If the operator is Gt or Lt, the values
+                                              array must have a single element, which will be interpreted as an integer.
+                                              This array is replaced during a strategic merge patch.
+                                            items:
+                                              type: string
+                                            type: array
+                                            x-kubernetes-list-type: atomic
+                                        required:
+                                        - key
+                                        - operator
+                                        type: object
+                                      type: array
+                                      x-kubernetes-list-type: atomic
+                                    matchFields:
+                                      description: A list of node selector requirements
+                                        by node's fields.
+                                      items:
+                                        description: |-
+                                          A node selector requirement is a selector that contains values, a key, and an operator
+                                          that relates the key and values.
+                                        properties:
+                                          key:
+                                            description: The label key that the selector
+                                              applies to.
+                                            type: string
+                                          operator:
+                                            description: |-
+                                              Represents a key's relationship to a set of values.
+                                              Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+                                            type: string
+                                          values:
+                                            description: |-
+                                              An array of string values. If the operator is In or NotIn,
+                                              the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                              the values array must be empty. If the operator is Gt or Lt, the values
+                                              array must have a single element, which will be interpreted as an integer.
+                                              This array is replaced during a strategic merge patch.
+                                            items:
+                                              type: string
+                                            type: array
+                                            x-kubernetes-list-type: atomic
+                                        required:
+                                        - key
+                                        - operator
+                                        type: object
+                                      type: array
+                                      x-kubernetes-list-type: atomic
+                                  type: object
+                                  x-kubernetes-map-type: atomic
+                                type: array
+                                x-kubernetes-list-type: atomic
+                            required:
+                            - nodeSelectorTerms
+                            type: object
+                            x-kubernetes-map-type: atomic
+                        type: object
+                      nodeSelector:
+                        additionalProperties:
+                          type: string
+                        description: NodeSelector is a map of key-value pairs for
+                          CSI driver DaemonSet pod node selection.
+                        type: object
+                      tolerations:
+                        description: Tolerations configure the CSI driver DaemonSet
+                          pod tolerations.
+                        items:
+                          description: |-
+                            The pod this Toleration is attached to tolerates any taint that matches
+                            the triple <key,value,effect> using the matching operator <operator>.
+                          properties:
+                            effect:
+                              description: |-
+                                Effect indicates the taint effect to match. Empty means match all taint effects.
+                                When specified, allowed values are NoSchedule, PreferNoSchedule and NoExecute.
+                              type: string
+                            key:
+                              description: |-
+                                Key is the taint key that the toleration applies to. Empty means match all taint keys.
+                                If the key is empty, operator must be Exists; this combination means to match all values and all keys.
+                              type: string
+                            operator:
+                              description: |-
+                                Operator represents a key's relationship to the value.
+                                Valid operators are Exists, Equal, Lt, and Gt. Defaults to Equal.
+                                Exists is equivalent to wildcard for value, so that a pod can
+                                tolerate all taints of a particular category.
+                                Lt and Gt perform numeric comparisons (requires feature gate TaintTolerationComparisonOperators).
+                              type: string
+                            tolerationSeconds:
+                              description: |-
+                                TolerationSeconds represents the period of time the toleration (which must be
+                                of effect NoExecute, otherwise this field is ignored) tolerates the taint. By default,
+                                it is not set, which means tolerate the taint forever (do not evict). Zero and
+                                negative values will be treated as 0 (evict immediately) by the system.
+                              format: int64
+                              type: integer
+                            value:
+                              description: |-
+                                Value is the taint value the toleration matches to.
+                                If the operator is Exists, the value should be empty, otherwise just a regular string.
+                              type: string
+                          type: object
+                        type: array
+                        x-kubernetes-list-type: atomic
                     type: object
                   disableNonResourceRules:
                     description: |-
@@ -3582,6 +3883,11 @@ spec:
                   useFIPSAgent:
                     description: |-
                       UseFIPSAgent enables the FIPS flavor of the Agent. If 'true', the FIPS proxy will always be disabled.
+                      Default: 'false'
+                    type: boolean
+                  useVSock:
+                    description: |-
+                      UseVSock allows the use of VSock communication between the Agent and containerized workloads.
                       Default: 'false'
                     type: boolean
                 type: object
@@ -8913,6 +9219,24 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              experiment:
+                description: Experiment tracks the state of an active or recent Fleet
+                  Automation experiment.
+                properties:
+                  id:
+                    description: ID is the unique experiment ID sent by Fleet Automation.
+                    type: string
+                  phase:
+                    description: Phase is the current state of the experiment.
+                    enum:
+                    - running
+                    - stopped
+                    - rollback
+                    - timeout
+                    - promoted
+                    - aborted
+                    type: string
+                type: object
               otelAgentGateway:
                 description: The actual state of the OTel Agent Gateway as a deployment.
                 properties:
@@ -8989,6 +9313,23 @@ spec:
                                   ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.
                                   Default : true
                                 type: boolean
+                              clusterAgentTlsVerification:
+                                description: ClusterAgentTLSVerification configures
+                                  TLS verification for Agent sidecar to Cluster Agent
+                                  communication.
+                                properties:
+                                  copyCaConfigMap:
+                                    description: |-
+                                      CopyCaConfigMap enables automatic creation of a ConfigMap containing the Cluster Agent's CA certificate
+                                      in namespaces where sidecar injection occurs.
+                                      Default: false
+                                    type: boolean
+                                  enabled:
+                                    description: |-
+                                      Enabled enables TLS verification for agent sidecars communicating with the Cluster Agent.
+                                      Default: false
+                                    type: boolean
+                                type: object
                               enabled:
                                 description: |-
                                   Enabled enables Sidecar injections.
@@ -9647,6 +9988,30 @@ spec:
                                   Default: true
                                 type: boolean
                             type: object
+                          probe:
+                            description: Probe holds the admission controller connectivity
+                              probe configuration.
+                            properties:
+                              enabled:
+                                description: |-
+                                  Enabled enables the admission controller connectivity probe.
+                                  The probe periodically sends dry-run ConfigMap creation requests to verify the
+                                  webhook is reachable from the API server. Requires Cluster Agent 7.78.0+.
+                                  Default: true
+                                type: boolean
+                              gracePeriod:
+                                description: |-
+                                  GracePeriod is the number of seconds to wait at startup before the first probe.
+                                  Default: 60
+                                format: int32
+                                type: integer
+                              interval:
+                                description: |-
+                                  Interval is the number of seconds between probe executions.
+                                  Default: 60
+                                format: int32
+                                type: integer
+                            type: object
                           registry:
                             description: Registry defines an image registry for the
                               admission controller.
@@ -10236,7 +10601,7 @@ spec:
                             type: object
                           enabled:
                             description: |-
-                              Enabled enables Cloud Security Posture Management.
+                              Enabled enables Cloud Security Posture Management, including Docker and Kubernetes benchmarks.
                               Default: false
                             type: boolean
                           hostBenchmarks:
@@ -10245,7 +10610,7 @@ spec:
                             properties:
                               enabled:
                                 description: |-
-                                  Enabled enables host benchmarks.
+                                  Enabled enables Linux host benchmarks. Requires `features.cspm.enabled` to be set to `true`.
                                   Default: true
                                 type: boolean
                             type: object
@@ -11566,14 +11931,11 @@ spec:
                               Default: false
                             type: boolean
                           networkStats:
-                            description: |-
-                              Enables the service discovery network stats collection.
-                              Default: true
+                            description: 'DEPRECATED: NetworkStats is no longer configurable
+                              and will be ignored. Scheduled for removal in v1.28.'
                             properties:
                               enabled:
-                                description: |-
-                                  Enables the Service Discovery Network Stats feature.
-                                  Default: true
+                                description: 'DEPRECATED: this field is ignored.'
                                 type: boolean
                             type: object
                         type: object

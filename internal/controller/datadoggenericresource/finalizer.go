@@ -21,7 +21,7 @@ const (
 	datadogGenericResourceFinalizer = "finalizer.datadoghq.com/genericresource"
 )
 
-func (r *Reconciler) deleteResource(logger logr.Logger) finalizer.ResourceDeleteFunc {
+func (r *Reconciler) deleteResource(logger logr.Logger, auth context.Context, handler ResourceHandler) finalizer.ResourceDeleteFunc {
 	return func(ctx context.Context, k8sObj client.Object, datadogID string) error {
 		instance, ok := k8sObj.(*datadoghqv1alpha1.DatadogGenericResource)
 		if !ok {
@@ -33,8 +33,7 @@ func (r *Reconciler) deleteResource(logger logr.Logger) finalizer.ResourceDelete
 			r.recordEvent(k8sObj, event)
 			return nil
 		}
-		handler := r.getHandler(instance.Spec.Type)
-		err := handler.deleteResource(instance)
+		err := handler.deleteResource(auth, instance)
 		if err != nil {
 			logger.Error(err, "failed to finalize", "custom resource Id", fmt.Sprint(datadogID))
 			return err

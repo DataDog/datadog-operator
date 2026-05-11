@@ -319,6 +319,66 @@ func (s *autoscalingSuite) TestAutoscalingInferenceMethodNodes() {
 	})
 }
 
+// TestAutoscalingUpdateRefusesWhenNoInstall asserts that `update` refuses to
+// run when no Karpenter installation is present on the cluster, surfacing a
+// clear error pointing the user at `install`.
+func (s *autoscalingSuite) TestAutoscalingUpdateRefusesWhenNoInstall() {
+	t := s.T()
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Minute)
+	defer cancel()
+
+	output, err := s.runKubectlDatadog(ctx, "autoscaling", "cluster", "update", "--cluster-name", s.clusterName)
+	require.Errorf(t, err, "Update should fail when no Karpenter is installed; got success.\nOutput:\n%s", output)
+	require.Containsf(t, output, "no Karpenter installation found",
+		"Expected explanatory error pointing at 'install'. Output:\n%s", output)
+}
+
+// TestAutoscalingUpdate exercises the install→update→uninstall happy path,
+// verifies idempotency, and confirms that `update` rejects flags that map to
+// immutable parameters (those flags are not exposed and pflag must reject
+// them as unknown).
+func (s *autoscalingSuite) TestAutoscalingUpdate() {
+	ctx := s.T().Context()
+
+	s.Run("Install fargate first", func() {
+		s.testInstall("--install-mode=fargate")
+		s.waitForAllPodsRunning(ctx)
+	})
+
+	s.Run("Update with no flags auto-detects parameters", func() {
+		s.testUpdate()
+		s.verifyKarpenterInstalled(ctx)
+		s.waitForAllPodsRunning(ctx)
+	})
+
+	s.Run("Update is idempotent", func() {
+		s.testUpdate()
+		s.verifyKarpenterInstalled(ctx)
+	})
+
+	s.Run("Update with --create-karpenter-resources=all does not error", func() {
+		s.testUpdate("--create-karpenter-resources=all")
+		s.verifyKarpenterInstalled(ctx)
+	})
+
+	s.Run("Update rejects immutable flags as unknown", func() {
+		t := s.T()
+		ctx2, cancel := context.WithTimeout(ctx, 5*time.Minute)
+		defer cancel()
+		output, err := s.runKubectlDatadog(ctx2, "autoscaling", "cluster", "update",
+			"--cluster-name", s.clusterName, "--install-mode=existing-nodes")
+		require.Errorf(t, err,
+			"Update should reject the unknown --install-mode flag.\nOutput:\n%s", output)
+		require.Containsf(t, output, "unknown flag",
+			"Expected pflag's 'unknown flag' error.\nOutput:\n%s", output)
+	})
+
+	s.Run("Uninstall cleans up resources", func() {
+		s.testUninstall()
+		s.waitForPendingPods(ctx, 1)
+	})
+}
+
 // testInstall tests the default install flow
 func (s *autoscalingSuite) testInstall(extraArgs ...string) {
 	t := s.T()
@@ -330,6 +390,25 @@ func (s *autoscalingSuite) testInstall(extraArgs ...string) {
 	output, err := s.runKubectlDatadog(ctx, args...)
 	require.NoErrorf(t, err, "Install command failed. Output:\n%s", output)
 	t.Logf("Install output:\n%s", output)
+
+	// Verify installation
+	s.verifyKarpenterInstalled(ctx)
+}
+
+// testUpdate runs the update subcommand against the current install. update
+// only accepts mutable flags (--karpenter-version, --create-karpenter-resources,
+// --inference-method, --debug) — immutable ones are auto-detected from the
+// dd-karpenter CFN stack.
+func (s *autoscalingSuite) testUpdate(extraArgs ...string) {
+	t := s.T()
+	ctx, cancel := context.WithTimeout(t.Context(), 25*time.Minute)
+	defer cancel()
+
+	// Run update
+	args := append([]string{"autoscaling", "cluster", "update", "--cluster-name", s.clusterName}, extraArgs...)
+	output, err := s.runKubectlDatadog(ctx, args...)
+	require.NoErrorf(t, err, "Update command failed. Output:\n%s", output)
+	t.Logf("Update output:\n%s", output)
 
 	// Verify installation
 	s.verifyKarpenterInstalled(ctx)

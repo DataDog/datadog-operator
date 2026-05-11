@@ -300,7 +300,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DataPlaneDogstatsdConfig(ref
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enabled configures the Data Plane to handle DogStatsD traffic. When enabled, DogStatsD is disabled in the Core Agent. Default: false",
+							Description: "Enabled configures the Data Plane to handle DogStatsD traffic. When set to false, DogStatsD is handled by the Core Agent instead. Default: true",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

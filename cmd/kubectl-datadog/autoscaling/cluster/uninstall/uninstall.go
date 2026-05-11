@@ -25,19 +25,22 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/tools/pager"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/apply"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clients"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/display"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/helm"
 	commonk8s "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/k8s"
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/guess"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/guess"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
 
@@ -119,15 +122,11 @@ func (o *options) run(cmd *cobra.Command) error {
 	log.SetOutput(cmd.OutOrStderr())
 	ctrl.SetLogger(zap.New(zap.UseDevMode(false), zap.WriteTo(cmd.ErrOrStderr())))
 
-	if clusterName == "" {
-		if name, err := clients.GetClusterNameFromKubeconfig(o.ConfigFlags); err != nil {
-			return err
-		} else if name != "" {
-			clusterName = name
-		} else {
-			return errors.New("cluster name must be specified either via --cluster-name or in the current kubeconfig context")
-		}
+	resolved, err := clients.ResolveClusterName(o.ConfigFlags, clusterName)
+	if err != nil {
+		return err
 	}
+	clusterName = resolved
 
 	display.PrintBox(cmd.OutOrStdout(), "Uninstalling Karpenter from cluster "+clusterName+".")
 
@@ -394,24 +393,24 @@ func listKarpenterNodes(ctx context.Context, cli *clients.Clients, ec2NodeClassN
 		return nil, nil // No EC2NodeClasses to match
 	}
 
-	// List all Karpenter-managed nodes
-	nodesList, err := cli.K8sClientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{
-		LabelSelector: "karpenter.k8s.aws/ec2nodeclass",
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// Filter nodes that belong to our EC2NodeClasses
 	nodeClassSet := lo.SliceToMap(ec2NodeClassNames, func(name string) (string, struct{}) {
 		return name, struct{}{}
 	})
 
-	return lo.FilterMap(nodesList.Items, func(node corev1.Node, _ int) (string, bool) {
-		nodeClass := node.Labels["karpenter.k8s.aws/ec2nodeclass"]
-		_, matches := nodeClassSet[nodeClass]
-		return node.Name, matches
-	}), nil
+	var names []string
+	p := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+		return cli.K8sClientset.CoreV1().Nodes().List(ctx, opts)
+	})
+	if err := p.EachListItem(ctx, metav1.ListOptions{LabelSelector: "karpenter.k8s.aws/ec2nodeclass"}, func(obj runtime.Object) error {
+		node := obj.(*corev1.Node)
+		if _, matches := nodeClassSet[node.Labels["karpenter.k8s.aws/ec2nodeclass"]]; matches {
+			names = append(names, node.Name)
+		}
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("failed to list Karpenter nodes: %w", err)
+	}
+	return names, nil
 }
 
 func waitForKarpenterNodesToTerminate(ctx context.Context, cli *clients.Clients, clusterName string, nodePoolNames []string) error {
@@ -561,8 +560,8 @@ func deleteKarpenterInstanceProfiles(ctx context.Context, cli *clients.Clients, 
 
 func listCloudFormationStacks(ctx context.Context, cli *clients.Clients, clusterName string) ([]string, error) {
 	stackNames := []string{
-		"dd-karpenter-" + clusterName + "-karpenter",
-		"dd-karpenter-" + clusterName + "-dd-karpenter",
+		apply.KarpenterStackName(clusterName),
+		apply.DDKarpenterStackName(clusterName),
 	}
 
 	var existing []string
@@ -579,11 +578,11 @@ func listCloudFormationStacks(ctx context.Context, cli *clients.Clients, cluster
 }
 
 func deleteCloudFormationStacks(ctx context.Context, cli *clients.Clients, clusterName string) error {
-	if err := aws.DeleteStack(ctx, cli.CloudFormation, "dd-karpenter-"+clusterName+"-dd-karpenter"); err != nil {
+	if err := aws.DeleteStack(ctx, cli.CloudFormation, apply.DDKarpenterStackName(clusterName)); err != nil {
 		return fmt.Errorf("failed to delete dd-karpenter CloudFormation stack: %w", err)
 	}
 
-	if err := aws.DeleteStack(ctx, cli.CloudFormation, "dd-karpenter-"+clusterName+"-karpenter"); err != nil {
+	if err := aws.DeleteStack(ctx, cli.CloudFormation, apply.KarpenterStackName(clusterName)); err != nil {
 		return fmt.Errorf("failed to delete karpenter CloudFormation stack: %w", err)
 	}
 
