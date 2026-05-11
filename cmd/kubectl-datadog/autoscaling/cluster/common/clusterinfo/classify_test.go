@@ -49,6 +49,13 @@ func node(name string, providerID string, labels map[string]string) *corev1.Node
 	}
 }
 
+func pod(name, namespace, nodeName string, labels map[string]string) *corev1.Pod {
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace, Labels: labels},
+		Spec:       corev1.PodSpec{NodeName: nodeName},
+	}
+}
+
 func deploymentWith(namespace, name string, labels map[string]string, image string) *appsv1.Deployment {
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Labels: labels},
@@ -83,12 +90,17 @@ func TestClassify_EmptyCluster(t *testing.T) {
 
 func TestClassify_AllBucketsByLabel(t *testing.T) {
 	objs := []runtime.Object{
-		// fargate via label
+		// fargate via label; profile name comes from the hosted Pod's label
+		// (EKS stamps `eks.amazonaws.com/fargate-profile` on the Pod, not the
+		// Node).
 		node("fargate-by-label", "aws:///us-east-1a/fargate-abc", map[string]string{
-			"eks.amazonaws.com/compute-type":    "fargate",
+			"eks.amazonaws.com/compute-type": "fargate",
+		}),
+		pod("workload", "default", "fargate-by-label", map[string]string{
 			"eks.amazonaws.com/fargate-profile": "fp-default",
 		}),
-		// fargate via name fallback (no compute-type label)
+		// fargate via name fallback (no compute-type label, no Pod yet
+		// scheduled) — exercises the empty-key fallback path.
 		node("fargate-ip-10-0-0-1.eu-west-3.compute.internal", "", nil),
 		// karpenter via primary label
 		node("kp-primary", "aws:///us-east-1a/i-0aaa", map[string]string{
@@ -134,6 +146,27 @@ func TestClassify_AllBucketsByLabel(t *testing.T) {
 	assert.Equal(t, []string{"orphan"},
 		info.NodeManagement[NodeManagerUnknown][""])
 	assert.Empty(t, asg.calls, "label-only nodes must not trigger AWS calls")
+}
+
+func TestClassify_FargateMultipleProfiles(t *testing.T) {
+	clientset := fake.NewSimpleClientset(
+		node("fargate-a", "", map[string]string{"eks.amazonaws.com/compute-type": "fargate"}),
+		node("fargate-b", "", map[string]string{"eks.amazonaws.com/compute-type": "fargate"}),
+		pod("workload-a", "team-a", "fargate-a", map[string]string{
+			"eks.amazonaws.com/fargate-profile": "fp-team-a",
+		}),
+		pod("workload-b", "team-b", "fargate-b", map[string]string{
+			"eks.amazonaws.com/fargate-profile": "fp-team-b",
+		}),
+	)
+
+	info, err := Classify(t.Context(), clientset, &fakeASG{}, "c")
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"fargate-a"},
+		info.NodeManagement[NodeManagerFargate]["fp-team-a"])
+	assert.Equal(t, []string{"fargate-b"},
+		info.NodeManagement[NodeManagerFargate]["fp-team-b"])
 }
 
 func TestClassify_ASGAndStandalone(t *testing.T) {
