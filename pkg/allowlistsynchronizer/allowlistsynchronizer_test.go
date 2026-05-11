@@ -45,9 +45,9 @@ func TestCreateAllowlistSynchronizerResource_AllowlistPath(t *testing.T) {
 	require.NoError(t, SchemeBuilder.AddToScheme(scheme))
 
 	tests := []struct {
-		name        string
-		version     string
-		expectPath  string
+		name       string
+		version    string
+		expectPath string
 	}{
 		{
 			name:       "default version",
