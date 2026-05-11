@@ -697,7 +697,8 @@ func hostProfilerContainer(dda metav1.Object) corev1.Container {
 		VolumeMounts: volumeMountsForOtelAgent(),
 		Ports:        []corev1.ContainerPort{},
 		SecurityContext: &corev1.SecurityContext{
-			ReadOnlyRootFilesystem: ptr.To(true),
+			ReadOnlyRootFilesystem:   ptr.To(true),
+			AllowPrivilegeEscalation: ptr.To(false),
 			SeccompProfile: &corev1.SeccompProfile{
 				Type:             corev1.SeccompProfileTypeLocalhost,
 				LocalhostProfile: ptr.To(common.HostProfilerSeccompProfileName),

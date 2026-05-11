@@ -230,6 +230,8 @@ func TestHostProfilerContainer(t *testing.T) {
 	assert.Equal(t, string(apicommon.HostProfiler), c.Name)
 	assert.NotNil(t, c.SecurityContext)
 	assert.Nil(t, c.SecurityContext.Privileged, "host-profiler should not run as privileged")
+	assert.NotNil(t, c.SecurityContext.AllowPrivilegeEscalation, "AllowPrivilegeEscalation must be set explicitly")
+	assert.False(t, *c.SecurityContext.AllowPrivilegeEscalation, "host-profiler must set AllowPrivilegeEscalation=false so runc applies seccomp after setupUser")
 	assert.NotNil(t, c.SecurityContext.SeccompProfile)
 	assert.Equal(t, corev1.SeccompProfileTypeLocalhost, c.SecurityContext.SeccompProfile.Type)
 	assert.Equal(t, common.HostProfilerSeccompProfileName, *c.SecurityContext.SeccompProfile.LocalhostProfile)
