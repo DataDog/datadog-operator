@@ -124,6 +124,12 @@ func mergeSlices(a, b []common.AgentContainerName) []common.AgentContainerName {
 }
 
 // Feature interface
+//
+// Provider awareness: features that need the cluster provider should read it
+// once in Configure (from the DDA/DDAI metadata annotation
+// providercaps.ProviderAnnotationKey) and stash it on a feature struct field.
+// Per-component declarative provider mutations should go through
+// NodeAgentProviderCapabilities, applied by the reconciler.
 type Feature interface {
 	// ID returns the ID of the Feature
 	ID() IDType
@@ -132,23 +138,23 @@ type Feature interface {
 	Configure(ddaMetaObj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) RequiredComponents
 	// ManageDependencies allows a feature to manage its dependencies.
 	// Feature's dependencies should be added in the store.
-	ManageDependencies(managers ResourceManagers, provider string) error
+	ManageDependencies(managers ResourceManagers) error
 	// ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
-	ManageClusterAgent(managers PodTemplateManagers, provider string) error
+	ManageClusterAgent(managers PodTemplateManagers) error
 	// ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
-	ManageNodeAgent(managers PodTemplateManagers, provider string) error
+	ManageNodeAgent(managers PodTemplateManagers) error
 	// ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 	// if SingleContainerStrategy is enabled and can be used with the configured feature set.
 	// It should do nothing if the feature doesn't need to configure it.
-	ManageSingleContainerNodeAgent(managers PodTemplateManagers, provider string) error
+	ManageSingleContainerNodeAgent(managers PodTemplateManagers) error
 	// ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
-	ManageClusterChecksRunner(managers PodTemplateManagers, provider string) error
+	ManageClusterChecksRunner(managers PodTemplateManagers) error
 	// ManageOtelAgentGateway allows a feature to configure the OtelAgentGateway's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
-	ManageOtelAgentGateway(managers PodTemplateManagers, provider string) error
+	ManageOtelAgentGateway(managers PodTemplateManagers) error
 }
 
 // Options option that can be pass to the Interface.Configure function

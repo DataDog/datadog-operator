@@ -484,7 +484,7 @@ func TestAppsecFeatureManageClusterAgentDisabled(t *testing.T) {
 	f.Configure(dda, &dda.Spec, nil)
 
 	mgr := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
-	err := f.ManageClusterAgent(mgr, "")
+	err := f.ManageClusterAgent(mgr)
 
 	assert.NoError(t, err)
 	envVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
@@ -506,7 +506,7 @@ func TestAppsecFeatureManageClusterAgentEnabled(t *testing.T) {
 	f.Configure(dda, &dda.Spec, nil)
 
 	mgr := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
-	err := f.ManageClusterAgent(mgr, "")
+	err := f.ManageClusterAgent(mgr)
 
 	assert.NoError(t, err)
 	envVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]

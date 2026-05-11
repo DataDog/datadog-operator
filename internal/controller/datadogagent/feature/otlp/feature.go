@@ -143,7 +143,7 @@ func (f *otlpFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgen
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	platformInfo := managers.Store().GetPlatformInfo()
 	versionInfo := platformInfo.GetVersionInfo()
 
@@ -310,7 +310,7 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, prov
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *otlpFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *otlpFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
@@ -348,7 +348,7 @@ func extractPortEndpoint(endpoint string) (int32, error) {
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *otlpFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *otlpFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	if f.grpcEnabled {
 		if err := validateOTLPGRPCEndpoint(f.grpcEndpoint); err != nil {
 			f.logger.Error(err, "invalid OTLP/gRPC endpoint")
@@ -408,7 +408,7 @@ func (f *otlpFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplat
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	if f.grpcEnabled {
 		if err := validateOTLPGRPCEndpoint(f.grpcEndpoint); err != nil {
 			f.logger.Error(err, "invalid OTLP/gRPC endpoint")
@@ -474,10 +474,10 @@ func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *otlpFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *otlpFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *otlpFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *otlpFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

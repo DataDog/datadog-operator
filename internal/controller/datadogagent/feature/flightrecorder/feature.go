@@ -64,23 +64,23 @@ func (f *flightRecorderFeature) Configure(dda metav1.Object, _ *v2alpha1.Datadog
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
-func (f *flightRecorderFeature) ManageDependencies(_ feature.ResourceManagers, _ string) error {
+func (f *flightRecorderFeature) ManageDependencies(_ feature.ResourceManagers) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec.
-func (f *flightRecorderFeature) ManageClusterAgent(_ feature.PodTemplateManagers, _ string) error {
+func (f *flightRecorderFeature) ManageClusterAgent(_ feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
-func (f *flightRecorderFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	return f.ManageNodeAgent(managers, provider)
+func (f *flightRecorderFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
+	return f.ManageNodeAgent(managers)
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec.
-func (f *flightRecorderFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ string) error {
+func (f *flightRecorderFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	if !f.enabled {
 		return nil
 	}
@@ -152,11 +152,11 @@ func (f *flightRecorderFeature) ManageNodeAgent(managers feature.PodTemplateMana
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec.
-func (f *flightRecorderFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers, _ string) error {
+func (f *flightRecorderFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageOtelAgentGateway allows a feature to configure the OTel Agent Gateway's corev1.PodTemplateSpec.
-func (f *flightRecorderFeature) ManageOtelAgentGateway(_ feature.PodTemplateManagers, _ string) error {
+func (f *flightRecorderFeature) ManageOtelAgentGateway(_ feature.PodTemplateManagers) error {
 	return nil
 }

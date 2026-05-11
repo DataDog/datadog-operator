@@ -139,7 +139,7 @@ func runTest(t *testing.T, tt FeatureTest) {
 	store, depsManager := initDependencies(tt, logger, dda)
 
 	for _, feat := range features {
-		if err := feat.ManageDependencies(depsManager, ""); (err != nil) != tt.WantManageDependenciesErr {
+		if err := feat.ManageDependencies(depsManager); (err != nil) != tt.WantManageDependenciesErr {
 			t.Errorf("feature.ManageDependencies() error = %v, wantErr %v", err, tt.WantManageDependenciesErr)
 			return
 		}
@@ -151,16 +151,16 @@ func runTest(t *testing.T, tt FeatureTest) {
 		// check Manage functions
 		if tt.ClusterAgent != nil {
 			tplManager, _ := tt.ClusterAgent.CreateFunc(t)
-			_ = feat.ManageClusterAgent(tplManager, "")
+			_ = feat.ManageClusterAgent(tplManager)
 			tt.ClusterAgent.WantFunc(t, tplManager)
 		}
 
 		if tt.Agent != nil {
-			tplManager, provider := tt.Agent.CreateFunc(t)
+			tplManager, _ := tt.Agent.CreateFunc(t)
 			if len(gotConfigure.Agent.Containers) > 0 && gotConfigure.Agent.Containers[0] == common.UnprivilegedSingleAgentContainerName {
-				_ = feat.ManageSingleContainerNodeAgent(tplManager, provider)
+				_ = feat.ManageSingleContainerNodeAgent(tplManager)
 			} else {
-				_ = feat.ManageNodeAgent(tplManager, provider)
+				_ = feat.ManageNodeAgent(tplManager)
 			}
 
 			tt.Agent.WantFunc(t, tplManager)
@@ -168,13 +168,13 @@ func runTest(t *testing.T, tt FeatureTest) {
 
 		if tt.ClusterChecksRunner != nil {
 			tplManager, _ := tt.ClusterChecksRunner.CreateFunc(t)
-			_ = feat.ManageClusterChecksRunner(tplManager, "")
+			_ = feat.ManageClusterChecksRunner(tplManager)
 			tt.ClusterChecksRunner.WantFunc(t, tplManager)
 		}
 
 		if tt.OtelAgentGateway != nil {
 			tplManager, _ := tt.OtelAgentGateway.CreateFunc(t)
-			_ = feat.ManageOtelAgentGateway(tplManager, "")
+			_ = feat.ManageOtelAgentGateway(tplManager)
 			tt.OtelAgentGateway.WantFunc(t, tplManager)
 		}
 	}

@@ -122,7 +122,7 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
-func (f *privateActionRunnerFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *privateActionRunnerFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	// Handle Node Agent dependencies (ConfigMap for annotation-based config)
 	if f.nodeEnabled {
 		checksumKey, checksumValue, err := checksumAnnotation(f.nodeConfigData)
@@ -219,7 +219,7 @@ func (f *privateActionRunnerFeature) getRbacResourcesName() string {
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
-func (f *privateActionRunnerFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *privateActionRunnerFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	if f.clusterConfig == nil || !f.clusterConfig.Enabled {
 		return nil
 	}
@@ -266,7 +266,7 @@ func (f *privateActionRunnerFeature) ManageClusterAgent(managers feature.PodTemp
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
-func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	if !f.nodeEnabled {
 		return nil
 	}
@@ -319,19 +319,19 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 }
 
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
-func (f *privateActionRunnerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *privateActionRunnerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	// Private Action Runner requires separate container, not compatible with single-container mode
 	return nil
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
-func (f *privateActionRunnerFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *privateActionRunnerFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	// Private Action Runner doesn't run in cluster checks runner
 	return nil
 }
 
 // ManageOtelAgentGateway allows a feature to configure the OtelAgentGateway's corev1.PodTemplateSpec
-func (f *privateActionRunnerFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *privateActionRunnerFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	// Private Action Runner doesn't run in OTel Agent Gateway
 	return nil
 }

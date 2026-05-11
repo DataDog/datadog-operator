@@ -84,7 +84,7 @@ type ComponentReconciler interface {
 	GetNewDeploymentFunc() func(ddai metav1.Object, spec *datadoghqv2alpha1.DatadogAgentSpec) *appsv1.Deployment
 
 	// GetManageFeatureFunc returns the function to manage features for the component
-	GetManageFeatureFunc() func(feat feature.Feature, managers feature.PodTemplateManagers, provider string) error
+	GetManageFeatureFunc() func(feat feature.Feature, managers feature.PodTemplateManagers) error
 
 	// UpdateStatus updates the status of the component
 	UpdateStatus(deployment *appsv1.Deployment, newStatus *v1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
@@ -197,7 +197,7 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 	// Apply features changes on the Deployment.Spec.Template
 	var featErrors []error
 	for _, feat := range params.Features {
-		if errFeat := component.GetManageFeatureFunc()(feat, podManagers, params.Provider); errFeat != nil {
+		if errFeat := component.GetManageFeatureFunc()(feat, podManagers); errFeat != nil {
 			featErrors = append(featErrors, errFeat)
 		}
 	}
