@@ -22,7 +22,7 @@ const (
 	// DdotCollectorLatestVersion corresponds to the latest stable ddot-collector release
 	DdotCollectorLatestVersion = "7.78.1"
 	// FIPSProxyLatestVersion corresponds to the latest stable fips-proxy release
-	FIPSProxyLatestVersion = "1.1.23"
+	FIPSProxyLatestVersion = "1.1.24"
 	// DDOTFIPSMinimumVersion is the minimum version at which ddot-collector publishes a -fips variant.
 	// Note: the regular agent -fips image predates this; this constant only applies to ddot-collector.
 	// Add "-0" so that pre-release versions are considered sufficient. https://github.com/Masterminds/semver#working-with-prerelease-versions
