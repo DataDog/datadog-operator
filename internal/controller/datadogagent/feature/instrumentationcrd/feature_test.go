@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -60,7 +61,7 @@ func Test_instrumentationCRDFeature_Configure(t *testing.T) {
 func instrumentationCRDWantDepsFunc() func(t testing.TB, store store.StoreClient) {
 	return func(t testing.TB, store store.StoreClient) {
 
-		rbacName := fmt.Sprintf("%s-%s", resourcesName, "cluster-agent-instrumentation-crd")
+		rbacName := fmt.Sprintf("%s-%s-%s-%s", resourcesNamespace, resourcesName, instrumentationCRDRBACPrefix, common.ClusterAgentSuffix)
 
 		// validate clusterRole policy rules
 		crObj, found := store.Get(kubernetes.ClusterRolesKind, "", rbacName)

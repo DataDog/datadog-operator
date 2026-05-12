@@ -17,7 +17,6 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 )
@@ -82,9 +81,11 @@ func (f *instrumentationCRDFeature) ManageDependencies(managers feature.Resource
 		return errors.New("admission controller feature must be enabled to use the instrumentation CRD feature")
 	}
 
+	rbacName := GetInstrumentationCRDRBACResourceName(f.owner, f.rbacSuffix)
+
 	return managers.RBACManager().AddClusterPolicyRulesByComponent(
 		f.owner.GetNamespace(),
-		componentdca.GetClusterAgentRbacResourcesName(f.owner)+"-instrumentation-crd",
+		rbacName,
 		f.serviceAccountName,
 		instrumentationCRDRBACPolicyRules,
 		string(v2alpha1.ClusterAgentComponentName),

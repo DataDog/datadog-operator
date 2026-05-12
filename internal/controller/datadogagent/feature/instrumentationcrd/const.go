@@ -6,12 +6,17 @@
 package instrumentationcrd
 
 import (
+	"fmt"
+
 	rbacv1 "k8s.io/api/rbac/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
 const (
+	instrumentationCRDRBACPrefix = "instrumentation-crd"
+
 	// DDInstrumentationCRDControllerEnabled is the env var that enables the instrumentation CRD controller
 	// in the Cluster Agent. Maps to instrumentation_crd_controller.enabled in datadog.yaml.
 	DDInstrumentationCRDControllerEnabled = "DD_INSTRUMENTATION_CRD_CONTROLLER_ENABLED"
@@ -39,4 +44,8 @@ var instrumentationCRDRBACPolicyRules = []rbacv1.PolicyRule{
 			rbac.PatchVerb,
 		},
 	},
+}
+
+func GetInstrumentationCRDRBACResourceName(owner metav1.Object, suffix string) string {
+	return fmt.Sprintf("%s-%s-%s-%s", owner.GetNamespace(), owner.GetName(), instrumentationCRDRBACPrefix, suffix)
 }
