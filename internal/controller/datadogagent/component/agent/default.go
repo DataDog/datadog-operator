@@ -881,6 +881,7 @@ func volumeMountsForSystemProbe() []corev1.VolumeMount {
 		common.GetVolumeMountForProc(),
 		common.GetVolumeMountForRunPath(),
 		common.GetVolumeMountForTmp(),
+		common.GetVolumeMountForDogstatsdSocket(false),
 	}
 }
 
