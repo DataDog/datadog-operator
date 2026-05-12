@@ -17,7 +17,6 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -52,7 +51,7 @@ func (f *controlPlaneMonitoringFeature) ID() feature.IDType {
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *controlPlaneMonitoringFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
-	f.provider = dda.GetAnnotations()[providercaps.ProviderAnnotationKey]
+	f.provider = dda.GetAnnotations()[kubernetes.ProviderAnnotationKey]
 	f.defaultConfigMapName = defaultConfigMapName
 	f.openshiftConfigMapName = openshiftConfigMapName
 	f.eksConfigMapName = eksConfigMapName
