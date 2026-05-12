@@ -92,7 +92,7 @@ func (f *instrumentationCRDFeature) ManageDependencies(managers feature.Resource
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
-func (f *instrumentationCRDFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *instrumentationCRDFeature) ManageClusterAgent(managers feature.PodTemplateManagers, _ string) error {
 	managers.EnvVar().AddEnvVarToContainer(
 		apicommon.ClusterAgentContainerName,
 		&corev1.EnvVar{
@@ -105,7 +105,14 @@ func (f *instrumentationCRDFeature) ManageClusterAgent(managers feature.PodTempl
 
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
-func (f *instrumentationCRDFeature) ManageSingleContainerNodeAgent(feature.PodTemplateManagers, string) error {
+func (f *instrumentationCRDFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, _ string) error {
+	managers.EnvVar().AddEnvVarToContainer(
+		apicommon.UnprivilegedSingleAgentContainerName,
+		&corev1.EnvVar{
+			Name:  DDInstrumentationCRDControllerEnabled,
+			Value: "true",
+		},
+	)
 	return nil
 }
 
