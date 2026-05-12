@@ -323,16 +323,27 @@ func (d *Daemon) planStop(ctx context.Context, req remoteAPIRequest, op resolved
 }
 
 func (d *Daemon) planPromote(ctx context.Context, req remoteAPIRequest, op resolvedOperation) (*pendingOperation, []byte, error) {
-	experimentID := req.Params.Version
 	_, experiment := d.getPackageConfigVersions(req.Package)
 	if experiment == "" {
 		return nil, nil, fmt.Errorf("promote DatadogAgent experiment: no experiment config version set")
 	}
-	expectedExperimentID := experimentID
 	dda := &v2alpha1.DatadogAgent{}
 	if err := d.client.Get(ctx, op.NamespacedName, dda); err != nil {
 		return nil, nil, fmt.Errorf("promote DatadogAgent experiment: failed to get DatadogAgent: %w", err)
 	}
+
+	// Promote requests intentionally do not use params.version as the experiment
+	// identity. RC does not include a version on promote; the signal applies to
+	// whichever experiment is currently recorded on the DDA: status first, then
+	// an in-flight start annotation, then RC state.
+	experimentID := dda.Annotations[v2alpha1.AnnotationExperimentID]
+	if dda.Status.Experiment != nil && dda.Status.Experiment.ID != "" {
+		experimentID = dda.Status.Experiment.ID
+	}
+	if experimentID == "" {
+		experimentID = experiment
+	}
+
 	if experimentHasPhase(dda, experimentID, v2alpha1.ExperimentPhasePromoted) {
 		// Promotion already happened. Update RC now and let handleTask mark the
 		// task done.
@@ -340,16 +351,13 @@ func (d *Daemon) planPromote(ctx context.Context, req remoteAPIRequest, op resol
 		return nil, nil, nil
 	}
 	if !experimentHasPhase(dda, experimentID, v2alpha1.ExperimentPhaseRunning) {
-		if runningID := runningExperimentID(dda); runningID != "" {
-			return nil, nil, fmt.Errorf("promote DatadogAgent experiment: running experiment %q does not match requested version %q", runningID, experimentID)
-		}
 		currentPhase := ""
 		if dda.Status.Experiment != nil {
 			currentPhase = string(dda.Status.Experiment.Phase)
 		}
 		return nil, nil, fmt.Errorf("promote DatadogAgent experiment: cannot promote, current phase is %q", currentPhase)
 	}
-	pending := d.newPendingOperation(pendingIntentPromote, req, op.NamespacedName, expectedExperimentID)
+	pending := d.newPendingOperation(pendingIntentPromote, req, op.NamespacedName, experimentID)
 	// Promote makes the current experiment config the stable config on success.
 	pending.resultVersion = experiment
 	if err := d.guardPendingOperationSlot(dda.Annotations, op.NamespacedName, *pending); err != nil {

@@ -388,7 +388,9 @@ func testStopRequest() remoteAPIRequest {
 		Package: "datadog-operator",
 		Method:  methodStopDatadogAgentExperiment,
 		Params: experimentParams{
-			Version:          "test-config",
+			// Stop requests intentionally do not use params.version as the experiment
+			// identity. It should be empty.
+			Version:          "",
 			GroupVersionKind: testDDAGVK,
 			NamespacedName:   testDDANSN,
 		},
@@ -572,7 +574,9 @@ func testPromoteRequest() remoteAPIRequest {
 		Package: "datadog-operator",
 		Method:  methodPromoteDatadogAgentExperiment,
 		Params: experimentParams{
-			Version:          "test-config",
+			// Promote requests intentionally do not use params.version as the experiment
+			// identity. It should be empty.
+			Version:          "",
 			GroupVersionKind: testDDAGVK,
 			NamespacedName:   testDDANSN,
 		},
@@ -651,20 +655,6 @@ func TestPromoteDatadogAgentExperiment_Success_Promoted(t *testing.T) {
 	requireSyncNoError(t, op, err)
 	assert.Equal(t, "exp-1", rc.state[0].StableConfigVersion, "stable should be promoted to experiment version")
 	assert.Empty(t, rc.state[0].ExperimentConfigVersion, "experiment config version should be cleared")
-}
-
-func TestPromoteDatadogAgentExperiment_PromotedDifferentID_Error(t *testing.T) {
-	dda := testDDAObject(v2alpha1.ExperimentPhasePromoted)
-	dda.Status.Experiment.ID = "old-exp"
-	d, _ := testDaemon(dda, testInstallerConfigWithDDA())
-	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
-		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
-	}}
-
-	err := syncTaskErr(d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest()))
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot promote")
 }
 
 // --- verifyExpectedState tests ---
