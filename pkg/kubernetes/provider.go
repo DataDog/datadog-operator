@@ -44,6 +44,11 @@ const (
 	// EKSCloudProvider is the Amazon EKS CloudProvider name
 	EKSCloudProvider = "eks"
 
+	// EKSEC2UseHostnameFromFileProvider is the EKS-EC2 provider variant where
+	// the agent reads its hostname from the cloud-init instance-id file mounted
+	// from the host (mirrors helm's providers.eks.ec2.useHostnameFromFile).
+	EKSEC2UseHostnameFromFileProvider = "eks-ec2-use-hostname-from-file"
+
 	// EKSProviderLabel is a common EKS node label containing the AMI ID
 	EKSProviderLabel = "eks.amazonaws.com/nodegroup-image"
 

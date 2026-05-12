@@ -22,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *v1alpha1.DatadogAgentInternal) (reconcile.Result, error) {
@@ -100,7 +101,8 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, instance *v1alpha1
 	}
 
 	// 2.b. Node Agent
-	result, err = r.reconcileV2Agent(ctx, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus)
+	provider := instance.GetAnnotations()[kubernetes.ProviderAnnotationKey]
+	result, err = r.reconcileV2Agent(ctx, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus, provider)
 	if utils.ShouldReturn(result, err) {
 		return r.updateStatusIfNeededV2(ctx, instance, newStatus, result, err, now)
 	}

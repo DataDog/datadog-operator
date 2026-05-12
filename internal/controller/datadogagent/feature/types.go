@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 )
 
@@ -155,6 +156,16 @@ type Feature interface {
 	// ManageOtelAgentGateway allows a feature to configure the OtelAgentGateway's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageOtelAgentGateway(managers PodTemplateManagers) error
+}
+
+// ProviderAwareFeature is an optional interface for features that vary behaviour
+// by provider. Features that have no provider-specific variation do not need
+// to implement it. The reconciler applies the returned capabilities by calling
+// providercaps.ApplyNodeAgentProviderCapabilities after the feature's
+// ManageNodeAgent runs.
+type ProviderAwareFeature interface {
+	Feature
+	NodeAgentProviderCapabilities() providercaps.NodeAgentProviderCapabilities
 }
 
 // Options option that can be pass to the Interface.Configure function
