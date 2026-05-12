@@ -27,6 +27,7 @@ type ddaStatusSnapshot struct {
 	nsn         types.NamespacedName
 	annotations map[string]string
 	experiment  *v2alpha1.ExperimentStatus
+	agent       *v2alpha1.DaemonSetStatus
 }
 
 type pendingOperation struct {
@@ -145,6 +146,9 @@ func newDDAStatusSnapshot(dda *v2alpha1.DatadogAgent) ddaStatusSnapshot {
 	if dda.Status.Experiment != nil {
 		snapshot.experiment = dda.Status.Experiment.DeepCopy()
 	}
+	if dda.Status.Agent != nil {
+		snapshot.agent = dda.Status.Agent.DeepCopy()
+	}
 	return snapshot
 }
 
@@ -160,7 +164,7 @@ func evaluatePendingTask(snapshot ddaStatusSnapshot, task pendingOperation) (boo
 	switch task.intent {
 	case pendingIntentStart:
 		if phase == v2alpha1.ExperimentPhaseRunning {
-			return true, nil
+			return isDaemonSetRolloutComplete(snapshot.agent), nil
 		}
 	case pendingIntentStop:
 		return isTerminalPhase(phase), nil
@@ -175,6 +179,19 @@ func evaluatePendingTask(snapshot ddaStatusSnapshot, task pendingOperation) (boo
 		return true, fmt.Errorf("expected %s to finish, got terminal phase %q", task.intent, phase)
 	}
 	return false, nil
+}
+
+// isDaemonSetRolloutComplete returns true when all desired pods have been
+// updated and at least one is ready. A nil agent or zero desired pods is
+// treated as complete (no rollout in progress).
+func isDaemonSetRolloutComplete(agent *v2alpha1.DaemonSetStatus) bool {
+	if agent == nil {
+		return false
+	}
+	if agent.Desired == 0 {
+		return true
+	}
+	return agent.UpToDate == agent.Desired && agent.Ready > 0
 }
 
 // finishPendingOperation writes the final RC state for a task.
