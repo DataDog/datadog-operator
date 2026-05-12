@@ -191,7 +191,7 @@ func isDaemonSetRolloutComplete(agent *v2alpha1.DaemonSetStatus) bool {
 	if agent.Desired == 0 {
 		return true
 	}
-	return agent.UpToDate == agent.Desired && agent.Ready > 0
+	return agent.UpToDate == agent.Desired && agent.Ready == agent.Desired
 }
 
 // finishPendingOperation writes the final RC state for a task.

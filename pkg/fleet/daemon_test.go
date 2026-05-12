@@ -1549,7 +1549,12 @@ func TestIsDaemonSetRolloutComplete(t *testing.T) {
 			want:  false,
 		},
 		{
-			name:  "all updated and ready",
+			name:  "updated but only partially ready",
+			agent: &v2alpha1.DaemonSetStatus{Desired: 3, UpToDate: 3, Ready: 2},
+			want:  false,
+		},
+		{
+			name:  "all updated and all ready",
 			agent: &v2alpha1.DaemonSetStatus{Desired: 3, UpToDate: 3, Ready: 3},
 			want:  true,
 		},
