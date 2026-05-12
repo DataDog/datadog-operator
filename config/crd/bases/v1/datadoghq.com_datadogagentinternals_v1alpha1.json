@@ -1712,6 +1712,17 @@
               },
               "type": "object"
             },
+            "instrumentationCRD": {
+              "additionalProperties": false,
+              "description": "InstrumentationCRD enables the DatadogInstrumentation CRD controller and\nvalidation webhook in the Cluster Agent.",
+              "properties": {
+                "enabled": {
+                  "description": "Enabled enables the DatadogInstrumentation CRD controller in the Cluster Agent.\nDefault: false",
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            },
             "kubeStateMetricsCore": {
               "additionalProperties": false,
               "description": "KubeStateMetricsCore check configuration.",
@@ -10138,6 +10149,17 @@
                       },
                       "description": "ValuesAsTags collects Helm values from a release and uses them as tags\n(Requires Agent and Cluster Agent 7.40.0+).\nDefault: {}",
                       "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "instrumentationCRD": {
+                  "additionalProperties": false,
+                  "description": "InstrumentationCRD enables the DatadogInstrumentation CRD controller and\nvalidation webhook in the Cluster Agent.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables the DatadogInstrumentation CRD controller in the Cluster Agent.\nDefault: false",
+                      "type": "boolean"
                     }
                   },
                   "type": "object"

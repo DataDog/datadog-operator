@@ -1271,6 +1271,20 @@ func (builder *DatadogAgentBuilder) WithDataPlaneDogstatsdEnabled(enabled bool) 
 	return builder
 }
 
+// InstrumentationCRD
+
+func (builder *DatadogAgentBuilder) initInstrumentationCRD() {
+	if builder.datadogAgent.Spec.Features.InstrumentationCRD == nil {
+		builder.datadogAgent.Spec.Features.InstrumentationCRD = &v2alpha1.InstrumentationCRDFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithInstrumentationCRDEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initInstrumentationCRD()
+	builder.datadogAgent.Spec.Features.InstrumentationCRD.Enabled = ptr.To(enabled)
+	return builder
+}
+
 func (builder *DatadogAgentBuilder) WithStatus(status v2alpha1.DatadogAgentStatus) *DatadogAgentBuilder {
 	builder.datadogAgent.Status = status
 	return builder

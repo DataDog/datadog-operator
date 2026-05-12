@@ -105,6 +105,9 @@ type DatadogFeatures struct {
 	KubeStateMetricsCore *KubeStateMetricsCoreFeatureConfig `json:"kubeStateMetricsCore,omitempty"`
 	// AdmissionController configuration.
 	AdmissionController *AdmissionControllerFeatureConfig `json:"admissionController,omitempty"`
+	// InstrumentationCRD enables the DatadogInstrumentation CRD controller and
+	// validation webhook in the Cluster Agent.
+	InstrumentationCRD *InstrumentationCRDFeatureConfig `json:"instrumentationCRD,omitempty"`
 	// ExternalMetricsServer configuration.
 	// +doc-gen:link=https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md
 	ExternalMetricsServer *ExternalMetricsServerFeatureConfig `json:"externalMetricsServer,omitempty"`
@@ -1378,6 +1381,17 @@ type CWSInstrumentationConfig struct {
 	// Default: "remote_copy"
 	// +optional
 	Mode *string `json:"mode,omitempty"`
+}
+
+// InstrumentationCRDFeatureConfig contains the configuration for the DatadogInstrumentation CRD controller.
+// When enabled, the Cluster Agent runs a controller for DatadogInstrumentation custom resources
+// and registers a validation webhook.
+// +k8s:openapi-gen=true
+type InstrumentationCRDFeatureConfig struct {
+	// Enabled enables the DatadogInstrumentation CRD controller in the Cluster Agent.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // ExternalMetricsServerFeatureConfig contains the External Metrics Server feature configuration.

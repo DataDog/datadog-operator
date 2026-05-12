@@ -1708,6 +1708,17 @@ spec:
                                 Default: {}
                               type: object
                           type: object
+                        instrumentationCRD:
+                          description: |-
+                            InstrumentationCRD enables the DatadogInstrumentation CRD controller and
+                            validation webhook in the Cluster Agent.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables the DatadogInstrumentation CRD controller in the Cluster Agent.
+                                Default: false
+                              type: boolean
+                          type: object
                         kubeStateMetricsCore:
                           description: KubeStateMetricsCore check configuration.
                           properties:
