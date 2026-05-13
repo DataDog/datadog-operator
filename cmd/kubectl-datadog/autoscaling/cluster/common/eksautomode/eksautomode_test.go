@@ -1,4 +1,4 @@
-package guess
+package eksautomode
 
 import (
 	"testing"
@@ -9,7 +9,7 @@ import (
 	k8stesting "k8s.io/client-go/testing"
 )
 
-func TestIsEKSAutoModeEnabled(t *testing.T) {
+func TestIsEnabled(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
 		resources []*metav1.APIResourceList
@@ -52,7 +52,7 @@ func TestIsEKSAutoModeEnabled(t *testing.T) {
 				},
 			}
 
-			result, err := IsEKSAutoModeEnabled(fakeDiscovery)
+			result, err := IsEnabled(fakeDiscovery)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expected, result)
 		})

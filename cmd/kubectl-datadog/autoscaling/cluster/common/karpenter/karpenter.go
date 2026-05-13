@@ -1,19 +1,16 @@
-package guess
+package karpenter
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"slices"
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/pager"
+
+	commonk8s "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/k8s"
 )
 
 // Datadog-namespaced labels written via the Karpenter chart's additionalLabels.
@@ -41,24 +38,27 @@ const karpenterServiceEnvName = "KARPENTER_SERVICE"
 // do not false-positive.
 const karpenterControllerImageRepoSuffix = "karpenter/controller"
 
-// KarpenterInstallation describes a Karpenter controller Deployment found on
-// the cluster. The label fields capture the kubectl-datadog sentinel labels
-// when present so callers can tell our installation apart from a third-party
-// one via IsOwn.
-type KarpenterInstallation struct {
+// Installation describes a Karpenter controller Deployment found on the
+// cluster. Version is the controller app version (extracted from the image
+// tag with a fallback to `app.kubernetes.io/version` labels). The
+// InstalledBy/InstallerVersion fields capture the kubectl-datadog sentinel
+// labels when present so callers can tell our installation apart from a
+// third-party one via IsOwn.
+type Installation struct {
 	Namespace        string
 	Name             string
+	Version          string
 	InstalledBy      string
 	InstallerVersion string
 }
 
 // IsOwn reports whether the installation was created by kubectl-datadog.
-func (k *KarpenterInstallation) IsOwn() bool {
+func (k *Installation) IsOwn() bool {
 	return k != nil && k.InstalledBy == InstalledByValue
 }
 
-// FindKarpenterInstallation returns the first Karpenter controller Deployment
-// running on the cluster, or nil. We assume at most one Karpenter installed
+// FindInstallation returns the first Karpenter controller Deployment running
+// on the cluster, or nil if none. We assume at most one Karpenter installed
 // per cluster — kubectl-datadog's install/update guards prevent multiple
 // controllers coexisting.
 //
@@ -66,41 +66,32 @@ func (k *KarpenterInstallation) IsOwn() bool {
 // `karpenter/controller` image suffix) rather than RBAC, since monitoring
 // agents legitimately hold permissions on the karpenter.sh API group without
 // running a controller.
-func FindKarpenterInstallation(ctx context.Context, clientset kubernetes.Interface) (*KarpenterInstallation, error) {
-	stop := errors.New("first match")
-
-	var found *KarpenterInstallation
-	p := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
-		return clientset.AppsV1().Deployments(metav1.NamespaceAll).List(ctx, opts)
-	})
-	err := p.EachListItem(ctx, metav1.ListOptions{}, func(obj runtime.Object) error {
-		dep := obj.(*appsv1.Deployment)
-		if !hasKarpenterControllerContainer(dep.Spec.Template.Spec.Containers) {
-			return nil
-		}
-		found = &KarpenterInstallation{
-			Namespace:        dep.Namespace,
-			Name:             dep.Name,
-			InstalledBy:      dep.Labels[InstalledByLabel],
-			InstallerVersion: dep.Labels[InstallerVersionLabel],
-		}
-		return stop
-	})
-	if err != nil && !errors.Is(err, stop) {
-		return nil, fmt.Errorf("failed to list Deployments: %w", err)
+func FindInstallation(ctx context.Context, clientset kubernetes.Interface) (*Installation, error) {
+	dep, err := commonk8s.FindFirstDeployment(ctx, clientset, matchesDeployment)
+	if err != nil || dep == nil {
+		return nil, err
 	}
-	return found, nil
+	return &Installation{
+		Namespace:        dep.Namespace,
+		Name:             dep.Name,
+		Version:          commonk8s.ExtractDeploymentVersion(dep, matchesContainer),
+		InstalledBy:      dep.Labels[InstalledByLabel],
+		InstallerVersion: dep.Labels[InstallerVersionLabel],
+	}, nil
 }
 
-// hasKarpenterControllerContainer reports whether any container in the pod
-// spec is the Karpenter controller — primary signal is the
-// chart-unconditional KARPENTER_SERVICE env var; secondary is the canonical
-// `karpenter/controller` image repository tail.
-func hasKarpenterControllerContainer(containers []corev1.Container) bool {
-	return slices.ContainsFunc(containers, func(c corev1.Container) bool {
-		return slices.ContainsFunc(c.Env, func(e corev1.EnvVar) bool { return e.Name == karpenterServiceEnvName }) ||
-			imageRepoPathHasSuffix(c.Image, karpenterControllerImageRepoSuffix)
-	})
+// matchesDeployment reports whether the Deployment runs the Karpenter
+// controller. The primary signal is the KARPENTER_SERVICE env var on a
+// container; the secondary is the canonical `karpenter/controller` image
+// repository tail. See karpenterServiceEnvName and
+// karpenterControllerImageRepoSuffix for the rationale.
+func matchesDeployment(d *appsv1.Deployment) bool {
+	return slices.ContainsFunc(d.Spec.Template.Spec.Containers, matchesContainer)
+}
+
+func matchesContainer(c corev1.Container) bool {
+	return slices.ContainsFunc(c.Env, func(e corev1.EnvVar) bool { return e.Name == karpenterServiceEnvName }) ||
+		imageRepoPathHasSuffix(c.Image, karpenterControllerImageRepoSuffix)
 }
 
 // imageRepoPathHasSuffix reports whether `image`'s repository path (registry

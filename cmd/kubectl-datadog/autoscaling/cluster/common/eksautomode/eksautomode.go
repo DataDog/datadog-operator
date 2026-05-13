@@ -1,4 +1,4 @@
-package guess
+package eksautomode
 
 import (
 	"fmt"
@@ -9,9 +9,9 @@ import (
 	"k8s.io/client-go/discovery"
 )
 
-// IsEKSAutoModeEnabled checks if EKS auto-mode is active on the cluster
-// by looking for the nodeclasses resource in the eks.amazonaws.com/v1 API group.
-func IsEKSAutoModeEnabled(discoveryClient discovery.DiscoveryInterface) (bool, error) {
+// IsEnabled checks if EKS auto-mode is active on the cluster by looking for
+// the nodeclasses resource in the eks.amazonaws.com/v1 API group.
+func IsEnabled(discoveryClient discovery.DiscoveryInterface) (bool, error) {
 	resources, err := discoveryClient.ServerResourcesForGroupVersion("eks.amazonaws.com/v1")
 	if err != nil {
 		if apierrors.IsNotFound(err) {
