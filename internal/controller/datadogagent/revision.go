@@ -233,7 +233,9 @@ func (r *Reconciler) recreateRevision(
 func datadogAnnotations(all map[string]string) map[string]string {
 	filtered := make(map[string]string)
 	for k, v := range all {
-		if strings.Contains(k, ".datadoghq.com/") && !strings.HasPrefix(k, "experiment.datadoghq.com/") {
+		if strings.Contains(k, ".datadoghq.com/") &&
+			!strings.HasPrefix(k, "experiment.datadoghq.com/") &&
+			!strings.HasPrefix(k, "fleet.datadoghq.com/") {
 			filtered[k] = v
 		}
 	}
